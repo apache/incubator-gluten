@@ -125,8 +125,6 @@ class VeloxTestSettings extends BackendTestSettings {
       "NaN is greater than all other non-NaN numeric values",
       // Rewrite this test because the describe functions creates unmatched plan.
       "describe",
-      // Not supported for approx_count_distinct
-      "SPARK-34165: Add count_distinct to summary",
       // Result depends on the implementation for nondeterministic expression rand.
       // Not really an issue.
       "SPARK-9083: sort with non-deterministic expressions"
@@ -1074,6 +1072,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[FallbackStrategiesSuite]
   enableSuite[GlutenHiveSQLQuerySuite]
   enableSuite[GlutenCollapseProjectExecTransformerSuite]
+  enableSuite[GlutenSparkSessionExtensionSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }

@@ -16,6 +16,8 @@
  */
 package io.glutenproject.vectorized;
 
+import io.glutenproject.backendsapi.clickhouse.CHBackendSettings;
+
 import org.apache.spark.storage.CHShuffleReadStreamFactory;
 
 import java.io.InputStream;
@@ -31,11 +33,19 @@ public class CHStreamReader implements AutoCloseable {
 
   public CHStreamReader(ShuffleInputStream shuffleInputStream) {
     inputStream = shuffleInputStream;
-    nativeShuffleReader = createNativeShuffleReader(this.inputStream, inputStream.isCompressed());
+    nativeShuffleReader =
+        createNativeShuffleReader(
+            this.inputStream,
+            inputStream.isCompressed(),
+            CHBackendSettings.maxShuffleReadRows(),
+            CHBackendSettings.maxShuffleReadBytes());
   }
 
   private static native long createNativeShuffleReader(
-      ShuffleInputStream inputStream, boolean compressed);
+      ShuffleInputStream inputStream,
+      boolean compressed,
+      long maxShuffleReadRows,
+      long maxShuffleReadBytes);
 
   private native long nativeNext(long nativeShuffleReader);
 

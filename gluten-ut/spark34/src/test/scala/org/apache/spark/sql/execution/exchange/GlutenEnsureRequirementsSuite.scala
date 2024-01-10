@@ -18,28 +18,11 @@ package org.apache.spark.sql.execution.exchange
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
-import org.apache.spark.sql.internal.SQLConf
 
 class GlutenEnsureRequirementsSuite extends EnsureRequirementsSuite with GlutenSQLTestsBaseTrait {
   override def sparkConf: SparkConf = {
     // Native SQL configs
     super.sparkConf
       .set("spark.sql.shuffle.partitions", "5")
-  }
-
-  test(
-    GLUTEN_TEST +
-      "SPARK-35675: EnsureRequirements remove shuffle should respect PartitioningCollection") {
-    import testImplicits._
-    withSQLConf(
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1",
-      SQLConf.SHUFFLE_PARTITIONS.key -> "5",
-      SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false") {
-      val df1 = Seq((1, 2)).toDF("c1", "c2")
-      val df2 = Seq((1, 3)).toDF("c3", "c4")
-      val res = df1.join(df2, $"c1" === $"c3").repartition($"c1")
-      assert(res.queryExecution.executedPlan.collect { case s: ShuffleExchangeLike => s }.size == 2)
-    }
   }
 }

@@ -17,6 +17,12 @@
 
 include(ExternalProject)
 
+if("${MAKE}" STREQUAL "")
+  if(NOT MSVC)
+    find_program(MAKE make)
+  endif()
+endif()
+
 macro(build_hwloc)
   message(STATUS "Building hwloc from source")
   set(HWLOC_BUILD_VERSION "2.8.0")
@@ -43,7 +49,7 @@ macro(build_hwloc)
           URL_HASH "SHA256=${HWLOC_BUILD_SHA256_CHECKSUM}"
           SOURCE_DIR ${HWLOC_SOURCE_DIR}
           CONFIGURE_COMMAND ./configure ${HWLOC_CONFIGURE_ARGS}
-          BUILD_COMMAND $(MAKE)
+          BUILD_COMMAND ${MAKE}
           BUILD_BYPRODUCTS ${HWLOC_STATIC_LIB_TARGETS}
           BUILD_IN_SOURCE 1)
 
@@ -90,7 +96,7 @@ macro(build_memkind)
           URL_HASH "SHA256=${MEMKIND_BUILD_SHA256_CHECKSUM}"
           SOURCE_DIR ${MEMKIND_SOURCE_DIR}
           CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env LDFLAGS=-L${HWLOC_LIB_DIR} env CFLAGS=-I${HWLOC_INCLUDE_DIR} env CXXFLAGS=-I${HWLOC_INCLUDE_DIR} ./configure ${MEMKIND_CONFIGURE_ARGS}
-          BUILD_COMMAND $(MAKE)
+          BUILD_COMMAND ${MAKE}
           BUILD_BYPRODUCTS ${MEMKIND_STATIC_LIB_TARGETS}
           BUILD_IN_SOURCE 1)
 

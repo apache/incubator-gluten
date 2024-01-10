@@ -25,6 +25,7 @@
 #include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 
+#include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
 #include "velox/common/compression/Compression.h"
 #include "velox/core/QueryConfig.h"
@@ -44,25 +45,32 @@ const int32_t kGzipWindowBits4k = 12;
 
 void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
-    auto path = filePath_.substr(5);
-    auto localWriteFile = std::make_unique<LocalWriteFile>(path, true, false);
-    sink_ = std::make_unique<WriteFileSink>(std::move(localWriteFile), path);
-  } else if (strncmp(filePath_.c_str(), "s3a:", 4) == 0) {
+    sink_ = dwio::common::FileSink::create(filePath_, {.pool = pool_.get()});
+  } else if (isSupportedS3SdkPath(filePath_)) {
 #ifdef ENABLE_S3
-    auto fileSystem = getFileSystem(filePath_, nullptr);
-    auto* s3FileSystem = dynamic_cast<filesystems::S3FileSystem*>(fileSystem.get());
-    sink_ = std::make_unique<dwio::common::WriteFileSink>(
-        s3FileSystem->openFileForWrite(filePath_, {{}, s3SinkPool_.get()}), filePath_);
+    auto confs = std::make_shared<facebook::velox::core::MemConfigMutable>(sparkConfs);
+    auto hiveConfs = getHiveConfig(confs);
+    sink_ = dwio::common::FileSink::create(
+        filePath_,
+        {.connectorProperties = std::make_shared<facebook::velox::core::MemConfig>(hiveConfs->valuesCopy()),
+         .pool = s3SinkPool_.get()});
 #else
     throw std::runtime_error(
         "The write path is S3 path but the S3 haven't been enabled when writing parquet data in velox runtime!");
 #endif
+  } else if (strncmp(filePath_.c_str(), "gs:", 3) == 0) {
+#ifdef ENABLE_GCS
+    auto fileSystem = getFileSystem(filePath_, nullptr);
+    auto* gcsFileSystem = dynamic_cast<filesystems::GCSFileSystem*>(fileSystem.get());
+    sink_ = std::make_unique<dwio::common::WriteFileSink>(
+        gcsFileSystem->openFileForWrite(filePath_, {{}, gcsSinkPool_.get()}), filePath_);
+#else
+    throw std::runtime_error(
+        "The write path is GCS path but the GCS haven't been enabled when writing parquet data in velox runtime!");
+#endif
   } else if (strncmp(filePath_.c_str(), "hdfs:", 5) == 0) {
 #ifdef ENABLE_HDFS
-    std::string pathSuffix = getHdfsPath(filePath_, HdfsFileSystem::kScheme);
-    auto fileSystem = getFileSystem(filePath_, nullptr);
-    auto* hdfsFileSystem = dynamic_cast<filesystems::HdfsFileSystem*>(fileSystem.get());
-    sink_ = std::make_unique<WriteFileSink>(hdfsFileSystem->openFileForWrite(pathSuffix), filePath_);
+    sink_ = dwio::common::FileSink::create(filePath_, {.pool = pool_.get()});
 #else
     throw std::runtime_error(
         "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox runtime!");
@@ -124,9 +132,9 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
     return std::make_unique<velox::parquet::LambdaFlushPolicy>(
         maxRowGroupRows_, maxRowGroupBytes_, [&]() { return false; });
   };
-  writeOption.schema = gluten::fromArrowSchema(schema_);
+  auto schema = gluten::fromArrowSchema(schema_);
 
-  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), writeOption, pool_);
+  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), writeOption, pool_, asRowType(schema));
 }
 
 void VeloxParquetDatasource::inspectSchema(struct ArrowSchema* out) {

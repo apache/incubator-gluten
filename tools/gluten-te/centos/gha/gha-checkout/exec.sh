@@ -25,4 +25,4 @@ then
   exit 1
 fi
 
-docker exec gha-checkout-$GITHUB_RUN_ID bash -c "cd /opt/gluten && $BASH_ARGS"
+docker exec gha-checkout-$GITHUB_JOB-$GITHUB_RUN_ID bash -c "cd /opt/gluten && $BASH_ARGS"

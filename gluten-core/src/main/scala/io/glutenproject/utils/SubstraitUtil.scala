@@ -16,13 +16,13 @@
  */
 package io.glutenproject.utils
 
-import org.apache.spark.sql.catalyst.plans.{FullOuter, Inner, JoinType, LeftAnti, LeftOuter, LeftSemi, RightOuter}
+import org.apache.spark.sql.catalyst.plans.{FullOuter, InnerLike, JoinType, LeftAnti, LeftOuter, LeftSemi, RightOuter}
 
 import io.substrait.proto.JoinRel
 
 object SubstraitUtil {
   def toSubstrait(sparkJoin: JoinType): JoinRel.JoinType = sparkJoin match {
-    case Inner =>
+    case _: InnerLike =>
       JoinRel.JoinType.JOIN_TYPE_INNER
     case FullOuter =>
       JoinRel.JoinType.JOIN_TYPE_OUTER
@@ -36,7 +36,6 @@ object SubstraitUtil {
     case LeftAnti =>
       JoinRel.JoinType.JOIN_TYPE_ANTI
     case _ =>
-      // TODO: Support cross join with Cross Rel
       // TODO: Support existence join
       JoinRel.JoinType.UNRECOGNIZED
   }

@@ -19,6 +19,11 @@ on:
   issue_comment:
     types: [created, edited, deleted]
 
+env:
+  JENKINS_HOST: 10.0.0.68
+  JENKINS_PORT: 8080
+  JENKINS_USER: jenkins:11fd1b5a82bfd638bd9b3749c96b324ff2
+
 jobs:
   velox-trigger-benchmark-on-comment:
     # check the comment if it contains the keywords
@@ -34,4 +39,4 @@ jobs:
       - name: trigger_tpch_bench
         run: |
           branchname=origin/pr/${{ github.event.issue.number }}/head
-          curl --noproxy 10.0.0.68 -L -X POST http://10.0.0.68:8080/job/Gluten_Perf_Github_Action_Check/build --user jenkins:11fd1b5a82bfd638bd9b3749c96b324ff2 --data-urlencode json='{"parameter": [{"name":"sha1", "value":"'$branchname'"}]}'
+          curl --noproxy $JENKINS_HOST -L -X POST http://$JENKINS_HOST:$JENKINS_PORT/job/Gluten_Perf_Github_Action_Check/build --user $JENKINS_USER --data-urlencode json='{"parameter": [{"name":"sha1", "value":"'$branchname'"}]}'

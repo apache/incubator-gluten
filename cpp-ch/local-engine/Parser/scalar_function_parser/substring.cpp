@@ -47,7 +47,7 @@ public:
             throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires two or three arguments", getName());
         DB::DataTypePtr start_index_data_type = removeNullable(parsed_args[1]->result_type);
         if (!isInteger(start_index_data_type))
-            throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Function {}'s second arguments must be int type");
+            throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Function {}'s second arguments must be int type", getName());
          /**
             parse substring(str, start_index, length) as
             if (start_index == 0)

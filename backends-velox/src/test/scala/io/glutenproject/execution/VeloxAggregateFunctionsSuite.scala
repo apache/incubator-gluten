@@ -16,9 +16,12 @@
  */
 package io.glutenproject.execution
 
-import org.apache.spark.SparkConf
+import io.glutenproject.GlutenConfig
 
-class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSuite {
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.internal.SQLConf
+
+abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSuite {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
@@ -696,4 +699,55 @@ class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSuite {
           getExecutedPlan(df).count(plan => plan.isInstanceOf[HashAggregateExecTransformer]) >= 2)
     }
   }
+}
+
+class VeloxAggregateFunctionsDefaultSuite extends VeloxAggregateFunctionsSuite {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      // Disable flush. This may cause spilling to happen on partial aggregations.
+      .set(GlutenConfig.VELOX_FLUSHABLE_PARTIAL_AGGREGATION_ENABLED.key, "false")
+  }
+
+  test("group sets with keys") {
+    withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false") {
+      runQueryAndCompare(VeloxAggregateFunctionsSuite.GROUP_SETS_TEST_SQL) {
+        df =>
+          val executedPlan = getExecutedPlan(df)
+          assert(
+            executedPlan.exists(plan => plan.isInstanceOf[RegularHashAggregateExecTransformer]))
+          assert(
+            !executedPlan.exists(plan => plan.isInstanceOf[FlushableHashAggregateExecTransformer]))
+      }
+    }
+  }
+}
+
+class VeloxAggregateFunctionsFlushSuite extends VeloxAggregateFunctionsSuite {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      // To test flush behaviors, set low flush threshold to ensure flush happens.
+      .set(GlutenConfig.VELOX_FLUSHABLE_PARTIAL_AGGREGATION_ENABLED.key, "true")
+      .set(GlutenConfig.ABANDON_PARTIAL_AGGREGATION_MIN_PCT.key, "1")
+      .set(GlutenConfig.ABANDON_PARTIAL_AGGREGATION_MIN_ROWS.key, "10")
+  }
+
+  test("group sets with keys") {
+    withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false") {
+      runQueryAndCompare(VeloxAggregateFunctionsSuite.GROUP_SETS_TEST_SQL) {
+        df =>
+          val executedPlan = getExecutedPlan(df)
+          assert(
+            executedPlan.exists(plan => plan.isInstanceOf[RegularHashAggregateExecTransformer]))
+          assert(
+            executedPlan.exists(plan => plan.isInstanceOf[FlushableHashAggregateExecTransformer]))
+      }
+    }
+  }
+}
+
+object VeloxAggregateFunctionsSuite {
+  val GROUP_SETS_TEST_SQL: String =
+    "select l_orderkey, l_partkey, sum(l_suppkey) from lineitem " +
+      "where l_orderkey < 3 group by ROLLUP(l_orderkey, l_partkey) " +
+      "order by l_orderkey, l_partkey "
 }

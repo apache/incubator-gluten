@@ -17,7 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.extension.InMemoryTableScanHelper
+import io.glutenproject.utils.PlanUtil
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
@@ -57,8 +57,8 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
   }
 
   test("input columnar batch") {
-    TPCHTables.foreach {
-      case (table, _) =>
+    TPCHTables.map(_.name).foreach {
+      table =>
         runQueryAndCompare(s"SELECT * FROM $table", cache = true) {
           df => checkColumnarTableCache(df.queryExecution.executedPlan)
         }
@@ -134,8 +134,7 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
         checkAnswer(df, Row(60175))
         assert(
           find(df.queryExecution.executedPlan) {
-            case VeloxColumnarToRowExec(child: SparkPlan)
-                if InMemoryTableScanHelper.isGlutenTableCache(child) =>
+            case VeloxColumnarToRowExec(child: SparkPlan) if PlanUtil.isGlutenTableCache(child) =>
               true
             case _ => false
           }.isEmpty
@@ -183,6 +182,25 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
         } finally {
           df.unpersist()
         }
+    }
+  }
+
+  test("Fix miss RowToColumnar with columnar table cache in AQE") {
+    withSQLConf(
+      "spark.sql.adaptive.forceApply" -> "true",
+      GlutenConfig.EXPRESSION_BLACK_LIST.key -> "add",
+      GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1") {
+      runQueryAndCompare("SELECT l_partkey + 1 FROM lineitem", cache = true) {
+        df =>
+          val plan = df.queryExecution.executedPlan
+          val tableCache = find(plan)(_.isInstanceOf[InMemoryTableScanExec])
+          assert(tableCache.isDefined)
+          val cachedPlan =
+            tableCache.get.asInstanceOf[InMemoryTableScanExec].relation.cachedPlan
+          assert(find(cachedPlan) {
+            _.isInstanceOf[ProjectExecTransformer]
+          }.isEmpty)
+      }
     }
   }
 }

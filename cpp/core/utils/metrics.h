@@ -71,6 +71,11 @@ struct Metrics {
     kProcessedStrides,
     kRemainingFilterTime,
     kIoWaitTime,
+    kPreloadSplits,
+
+    // Write metrics.
+    kPhysicalWrittenBytes,
+    kNumWrittenFiles,
 
     // The end of enum items.
     kEnd,

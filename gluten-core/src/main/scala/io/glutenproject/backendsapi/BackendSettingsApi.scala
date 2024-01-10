@@ -17,15 +17,17 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.NamedExpression
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
-import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
+import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
 import org.apache.spark.sql.types.StructField
 
 trait BackendSettingsApi {
@@ -33,7 +35,12 @@ trait BackendSettingsApi {
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
-      paths: Seq[String]): Boolean = false
+      paths: Seq[String]): ValidationResult = ValidationResult.ok
+  def supportWriteFilesExec(
+      format: FileFormat,
+      fields: Array[StructField],
+      bucketSpec: Option[BucketSpec],
+      options: Map[String, String]): Option[String]
   def supportExpandExec(): Boolean = false
   def supportSortExec(): Boolean = false
   def supportSortMergeJoinExec(): Boolean = true
@@ -109,6 +116,8 @@ trait BackendSettingsApi {
   def requiredChildOrderingForWindow(): Boolean = false
 
   def staticPartitionWriteOnly(): Boolean = false
+
+  def supportTransformWriteFiles: Boolean = false
 
   def requiredInputFilePaths(): Boolean = false
 

@@ -41,7 +41,7 @@ class VeloxTPCHDeltaSuite extends VeloxTPCHSuite {
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
-    TPCHTables = TPCHTable
+    TPCHTables
       .map(_.name)
       .map {
         table =>
@@ -51,5 +51,10 @@ class VeloxTPCHDeltaSuite extends VeloxTPCHSuite {
           (table, tableDF)
       }
       .toMap
+  }
+
+  override protected def afterAll(): Unit = {
+    TPCHTables.map(_.name).foreach(table => spark.sql(s"DROP TABLE IF EXISTS $table"))
+    super.afterAll()
   }
 }

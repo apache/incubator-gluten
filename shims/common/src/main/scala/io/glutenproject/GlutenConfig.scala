@@ -25,6 +25,7 @@ import org.apache.hadoop.security.UserGroupInformation
 
 import java.util
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
@@ -37,6 +38,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   import GlutenConfig._
 
   def enableAnsiMode: Boolean = conf.ansiEnabled
+
+  def enableGluten: Boolean = conf.getConf(GLUTEN_ENABLED)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   def enableNativeValidation: Boolean = conf.getConf(NATIVE_VALIDATION_ENABLED)
@@ -85,7 +88,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def columnarTableCacheEnabled: Boolean = conf.getConf(COLUMNAR_TABLE_CACHE_ENABLED)
 
-  def enableDateTimestampComparison: Boolean = conf.getConf(ENABLE_DATE_TIMESTAMP_COMPARISON)
+  def enableRewriteDateTimestampComparison: Boolean =
+    conf.getConf(ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON)
+
+  def enableCommonSubexpressionEliminate: Boolean =
+    conf.getConf(ENABLE_COMMON_SUBEXPRESSION_ELIMINATE)
 
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
@@ -173,6 +180,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def queryFallbackThreshold: Int = conf.getConf(COLUMNAR_QUERY_FALLBACK_THRESHOLD)
 
+  def fallbackIgnoreRowToColumnar: Boolean = conf.getConf(COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR)
+
+  def fallbackPreferColumnar: Boolean = conf.getConf(COLUMNAR_FALLBACK_PREFER_COLUMNAR)
+
   def numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean = conf.getConf(COLUMNAR_NUMA_BINDING_ENABLED)
     if (!enableNumaBinding) {
@@ -199,9 +210,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def memoryOverAcquiredRatio: Double = conf.getConf(COLUMNAR_MEMORY_OVER_ACQUIRED_RATIO)
 
   def memoryReservationBlockSize: Long = conf.getConf(COLUMNAR_MEMORY_RESERVATION_BLOCK_SIZE)
-
-  def conservativeOffHeapMemorySize: Long =
-    conf.getConf(COLUMNAR_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES)
 
   def conservativeTaskOffHeapMemorySize: Long =
     conf.getConf(COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES)
@@ -291,17 +299,36 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableParquetRowGroupMaxMinIndex: Boolean =
     conf.getConf(ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX)
 
-  def maxPartialAggregationMemoryRatio: Option[Double] =
+  def enableVeloxFlushablePartialAggregation: Boolean =
+    conf.getConf(VELOX_FLUSHABLE_PARTIAL_AGGREGATION_ENABLED)
+  def maxFlushableAggregationMemoryRatio: Option[Double] =
     conf.getConf(MAX_PARTIAL_AGGREGATION_MEMORY_RATIO)
-  def maxExtendedPartialAggregationMemoryRatio: Option[Double] =
-    conf.getConf(MAX_EXTENDED_PARTIAL_AGGREGATION_MEMORY_RATIO)
-  def abandonPartialAggregationMinPct: Option[Int] =
+  def maxExtendedFlushableAggregationMemoryRatio: Option[Double] =
+    conf.getConf(MAX_PARTIAL_AGGREGATION_MEMORY_RATIO)
+  def abandonFlushableAggregationMinPct: Option[Int] =
     conf.getConf(ABANDON_PARTIAL_AGGREGATION_MIN_PCT)
-  def abandonPartialAggregationMinRows: Option[Int] =
+  def abandonFlushableAggregationMinRows: Option[Int] =
     conf.getConf(ABANDON_PARTIAL_AGGREGATION_MIN_ROWS)
   def enableNativeWriter: Boolean = conf.getConf(NATIVE_WRITER_ENABLED)
 
+  def directorySizeGuess: Option[Int] =
+    conf.getConf(DIRECTORY_SIZE_GUESS)
+  def filePreloadThreshold: Option[Int] =
+    conf.getConf(FILE_PRELOAD_THRESHOLD)
+  def prefetchRowGroups: Option[Int] =
+    conf.getConf(PREFETCH_ROW_GROUPS)
+  def loadQuantum: Option[Int] =
+    conf.getConf(LOAD_QUANTUM)
+  def maxCoalescedDistanceBytes: Option[Int] =
+    conf.getConf(MAX_COALESCED_DISTANCE_BYTES)
+  def maxCoalescedBytes: Option[Int] =
+    conf.getConf(MAX_COALESCED_BYTES)
+  def cachePrefetchMinPct: Option[Int] =
+    conf.getConf(CACHE_PREFETCH_MINPCT)
+
   def enableColumnarProjectCollapse: Boolean = conf.getConf(ENABLE_COLUMNAR_PROJECT_COLLAPSE)
+
+  def awsSdkLogLevel: String = conf.getConf(AWS_SDK_LOG_LEVEL)
 }
 
 object GlutenConfig {
@@ -353,6 +380,16 @@ object GlutenConfig {
   val ABFS_ACCOUNT_KEY = "hadoop.fs.azure.account.key"
   val SPARK_ABFS_ACCOUNT_KEY: String = "spark." + ABFS_ACCOUNT_KEY
 
+  // GCS config
+  val GCS_PREFIX = "fs.gs."
+  val GCS_STORAGE_ROOT_URL = "fs.gs.storage.root.url"
+  val SPARK_GCS_STORAGE_ROOT_URL: String = HADOOP_PREFIX + GCS_STORAGE_ROOT_URL
+  val GCS_AUTH_TYPE = "fs.gs.auth.type"
+  val SPARK_GCS_AUTH_TYPE: String = HADOOP_PREFIX + GCS_AUTH_TYPE
+  val GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE = "fs.gs.auth.service.account.json.keyfile"
+  val SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE: String =
+    HADOOP_PREFIX + GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE
+
   // QAT config
   val GLUTEN_QAT_BACKEND_NAME = "qat"
   val GLUTEN_QAT_SUPPORTED_CODEC: Set[String] = Set("gzip", "zstd")
@@ -385,8 +422,6 @@ object GlutenConfig {
 
   // Added back to Spark Conf during executor initialization
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
-  val GLUTEN_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES_KEY =
-    "spark.gluten.memory.conservative.offHeap.size.in.bytes"
   val GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.task.offHeap.size.in.bytes"
   val GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY =
     "spark.gluten.memory.conservative.task.offHeap.size.in.bytes"
@@ -426,6 +461,8 @@ object GlutenConfig {
   // Tokens of current user, split by `\0`
   val GLUTEN_UGI_TOKENS = "spark.gluten.ugi.tokens"
 
+  val GLUTEN_UI_ENABLED = "spark.gluten.ui.enabled"
+
   var ins: GlutenConfig = _
 
   def getConf: GlutenConfig = {
@@ -458,7 +495,21 @@ object GlutenConfig {
       "spark.io.compression.codec",
       COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS.key,
-      COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key
+      COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key,
+      // s3 config
+      SPARK_S3_ACCESS_KEY,
+      SPARK_S3_SECRET_KEY,
+      SPARK_S3_ENDPOINT,
+      SPARK_S3_CONNECTION_SSL_ENABLED,
+      SPARK_S3_PATH_STYLE_ACCESS,
+      SPARK_S3_USE_INSTANCE_CREDENTIALS,
+      SPARK_S3_IAM,
+      SPARK_S3_IAM_SESSION_NAME,
+      AWS_SDK_LOG_LEVEL.key,
+      // gcs config
+      SPARK_GCS_STORAGE_ROOT_URL,
+      SPARK_GCS_AUTH_TYPE,
+      SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE
     )
     keys.forEach(
       k => {
@@ -512,9 +563,6 @@ object GlutenConfig {
       (
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.defaultValueString),
-      (
-        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.key,
-        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.defaultValueString),
       (COLUMNAR_SHUFFLE_CODEC.key, ""),
       (COLUMNAR_SHUFFLE_CODEC_BACKEND.key, ""),
       ("spark.hadoop.input.connect.timeout", "180000"),
@@ -524,7 +572,8 @@ object GlutenConfig {
       ("spark.sql.orc.compression.codec", "snappy"),
       (
         COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.key,
-        COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.defaultValueString)
+        COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.defaultValueString),
+      (AWS_SDK_LOG_LEVEL.key, AWS_SDK_LOG_LEVEL.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
@@ -828,7 +877,7 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.shuffle.writeEOS")
       .internal()
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val COLUMNAR_SHUFFLE_REALLOC_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.shuffle.realloc.threshold")
@@ -944,6 +993,24 @@ object GlutenConfig {
       .intConf
       .createWithDefault(-1)
 
+  val COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR =
+    buildConf("spark.gluten.sql.columnar.fallback.ignoreRowToColumnar")
+      .internal()
+      .doc(
+        "When true, the fallback policy ignores the RowToColumnar when counting fallback number.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_FALLBACK_PREFER_COLUMNAR =
+    buildConf("spark.gluten.sql.columnar.fallback.preferColumnar")
+      .internal()
+      .doc(
+        "When true, the fallback policy prefers to use Gluten plan rather than vanilla " +
+          "Spark plan if the both of them contains ColumnarToRow and the vanilla Spark plan " +
+          "ColumnarToRow number is not smaller than Gluten plan.")
+      .booleanConf
+      .createWithDefault(true)
+
   val COLUMNAR_NUMA_BINDING_ENABLED =
     buildConf("spark.gluten.sql.columnar.numaBinding")
       .internal()
@@ -958,16 +1025,6 @@ object GlutenConfig {
 
   val COLUMNAR_OFFHEAP_SIZE_IN_BYTES =
     buildConf(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY)
-      .internal()
-      .doc(
-        "Must provide default value since non-execution operations " +
-          "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
-          "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
-      .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("0")
-
-  val COLUMNAR_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES =
-    buildConf(GlutenConfig.GLUTEN_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES_KEY)
       .internal()
       .doc(
         "Must provide default value since non-execution operations " +
@@ -1080,8 +1137,18 @@ object GlutenConfig {
       .intConf
       .createWithDefault(0)
 
+  val COLUMNAR_VELOX_ASYNC_TIMEOUT =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.asyncTimeoutOnTaskStopping")
+      .internal()
+      .doc(
+        "Timeout for asynchronous execution when task is being stopped in Velox backend. " +
+          "It's recommended to set to a number larger than network connection timeout that the " +
+          "possible aysnc tasks are relying on.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefault(30000)
+
   val COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER =
-    buildStaticConf("spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver")
+    buildConf("spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver")
       .internal()
       .doc("The split preload per task")
       .intConf
@@ -1237,6 +1304,14 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
+  val REMOVE_NATIVE_WRITE_FILES_SORT_AND_PROJECT =
+    buildConf("spark.gluten.sql.removeNativeWriteFilesSortAndProject")
+      .internal()
+      .doc("When true, Gluten will remove the vanilla Spark V1Writes added sort and project " +
+        "for velox backend.")
+      .booleanConf
+      .createWithDefault(true)
+
   val UT_STATISTIC =
     buildConf("spark.gluten.sql.ut.statistic")
       .internal()
@@ -1315,12 +1390,25 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
+  val VELOX_FLUSHABLE_PARTIAL_AGGREGATION_ENABLED =
+    buildConf("spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation")
+      .internal()
+      .doc(
+        "Enable flushable aggregation. If true, Gluten will try converting regular aggregation " +
+          "into Velox's flushable aggregation when applicable. A flushable aggregation could " +
+          "emit intermediate result at anytime when memory is full / data reduction ratio is low."
+      )
+      .booleanConf
+      .createWithDefault(true)
+
   val MAX_PARTIAL_AGGREGATION_MEMORY_RATIO =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio")
       .internal()
       .doc(
         "Set the max memory of partial aggregation as "
-          + "maxPartialAggregationMemoryRatio of offheap size."
+          + "maxPartialAggregationMemoryRatio of offheap size. Note: this option only works when " +
+          "flushable partial aggregation is enabled. Ignored when " +
+          "spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false."
       )
       .doubleConf
       .createOptional
@@ -1330,7 +1418,9 @@ object GlutenConfig {
       .internal()
       .doc(
         "Set the max extended memory of partial aggregation as "
-          + "maxExtendedPartialAggregationMemoryRatio of offheap size."
+          + "maxExtendedPartialAggregationMemoryRatio of offheap size. Note: this option only " +
+          "works when flushable partial aggregation is enabled. Ignored when " +
+          "spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false."
       )
       .doubleConf
       .createOptional
@@ -1338,24 +1428,30 @@ object GlutenConfig {
   val ABANDON_PARTIAL_AGGREGATION_MIN_PCT =
     buildConf("spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct")
       .internal()
-      .doc("If partial aggregation input rows number greater than this value, "
-        + " partial aggregation may be early abandoned.")
+      .doc(
+        "If partial aggregation input rows number greater than this value, "
+          + " partial aggregation may be early abandoned. Note: this option only works when " +
+          "flushable partial aggregation is enabled. Ignored when " +
+          "spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false.")
       .intConf
       .createOptional
 
   val ABANDON_PARTIAL_AGGREGATION_MIN_ROWS =
     buildConf("spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows")
       .internal()
-      .doc("If partial aggregation aggregationPct greater than this value, "
-        + "partial aggregation may be early abandoned.")
+      .doc(
+        "If partial aggregation aggregationPct greater than this value, "
+          + "partial aggregation may be early abandoned. Note: this option only works when " +
+          "flushable partial aggregation is enabled. Ignored when " +
+          "spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false.")
       .intConf
       .createOptional
 
-  val ENABLE_DATE_TIMESTAMP_COMPARISON =
+  val ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON =
     buildConf("spark.gluten.sql.rewrite.dateTimestampComparison")
       .internal()
       .doc("Rewrite the comparision between date and timestamp to timestamp comparison."
-        + "For example `fron_unixtime(ts) > date` will be rewritten to `ts > to_unixtime(date)`")
+        + "For example `from_unixtime(ts) > date` will be rewritten to `ts > to_unixtime(date)`")
       .booleanConf
       .createWithDefault(true)
 
@@ -1363,6 +1459,15 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.project.collapse")
       .internal()
       .doc("Combines two columnar project operators into one and perform alias substitution")
+      .booleanConf
+      .createWithDefault(true)
+
+  val ENABLE_COMMON_SUBEXPRESSION_ELIMINATE =
+    buildConf("spark.gluten.sql.commonSubexpressionEliminate")
+      .internal()
+      .doc(
+        "Eliminate common subexpressions in logical plan to avoid multiple evaluation of the same"
+          + "expression, may improve performance")
       .booleanConf
       .createWithDefault(true)
 
@@ -1413,4 +1518,60 @@ object GlutenConfig {
         "`WholeStageTransformerContext`.")
       .booleanConf
       .createWithDefault(false)
+
+  val DIRECTORY_SIZE_GUESS =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.directorySizeGuess")
+      .internal()
+      .doc(" Set the directory size guess for velox file scan")
+      .intConf
+      .createOptional
+
+  val FILE_PRELOAD_THRESHOLD =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.filePreloadThreshold")
+      .internal()
+      .doc(" Set the file preload threshold for velox file scan")
+      .intConf
+      .createOptional
+
+  val PREFETCH_ROW_GROUPS =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.prefetchRowGroups")
+      .internal()
+      .doc(" Set the prefetch row groups for velox file scan")
+      .intConf
+      .createOptional
+
+  val LOAD_QUANTUM =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.loadQuantum")
+      .internal()
+      .doc(" Set the load quantum for velox file scan")
+      .intConf
+      .createOptional
+
+  val MAX_COALESCED_DISTANCE_BYTES =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.maxCoalescedDistanceBytes")
+      .internal()
+      .doc(" Set the max coalesced distance bytes for velox file scan")
+      .intConf
+      .createOptional
+
+  val MAX_COALESCED_BYTES =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.maxCoalescedBytes")
+      .internal()
+      .doc(" Set the max coalesced bytes for velox file scan")
+      .intConf
+      .createOptional
+
+  val CACHE_PREFETCH_MINPCT =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct")
+      .internal()
+      .doc(" Set prefetch cache min pct for velox file scan")
+      .intConf
+      .createOptional
+
+  val AWS_SDK_LOG_LEVEL =
+    buildConf("spark.gluten.velox.awsSdkLogLevel")
+      .internal()
+      .doc("Log granularity of AWS C++ SDK in velox.")
+      .stringConf
+      .createWithDefault("FATAL")
 }

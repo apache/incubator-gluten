@@ -329,6 +329,50 @@ bool SubstraitToVeloxPlanValidator::validateExpression(
   }
 }
 
+bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WriteRel& writeRel) {
+  if (writeRel.has_input() && !validate(writeRel.input())) {
+    logValidateMsg("Validation failed for input type validation in WriteRel.");
+    return false;
+  }
+
+  // Validate input data type.
+  std::vector<TypePtr> types;
+  if (writeRel.has_named_table()) {
+    const auto& extension = writeRel.named_table().advanced_extension();
+    if (!validateInputTypes(extension, types)) {
+      logValidateMsg("Validation failed for input type validation in WriteRel.");
+      return false;
+    }
+  }
+
+  // Validate partition key type.
+  if (writeRel.has_table_schema()) {
+    const auto& tableSchema = writeRel.table_schema();
+    auto isPartitionColumns = SubstraitParser::parsePartitionColumns(tableSchema);
+    for (auto i = 0; i < types.size(); i++) {
+      if (isPartitionColumns[i]) {
+        switch (types[i]->kind()) {
+          case TypeKind::BOOLEAN:
+          case TypeKind::TINYINT:
+          case TypeKind::SMALLINT:
+          case TypeKind::INTEGER:
+          case TypeKind::BIGINT:
+          case TypeKind::VARCHAR:
+          case TypeKind::VARBINARY:
+            break;
+          default:
+            logValidateMsg(
+                "Validation failed for input type validation in WriteRel, not support partition column type: " +
+                mapTypeKindToName(types[i]->kind()));
+            return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FetchRel& fetchRel) {
   RowTypePtr rowType = nullptr;
   // Get and validate the input types from extension.
@@ -659,13 +703,6 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::SortRel& sortRel
     return false;
   }
 
-  for (const auto& type : types) {
-    if (type->kind() == TypeKind::TIMESTAMP) {
-      logValidateMsg("native validation failed due to: Timestamp type is not supported in SortRel.");
-      return false;
-    }
-  }
-
   int32_t inputPlanNodeId = 0;
   std::vector<std::string> names;
   names.reserve(types.size());
@@ -892,6 +929,7 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
 
   for (const auto& smea : aggRel.measures()) {
     const auto& aggFunction = smea.measure();
+    const auto& funcStep = planConverter_.toAggregationFunctionStep(aggFunction);
     auto funcSpec = planConverter_.findFuncSpec(aggFunction.function_reference());
     std::vector<TypePtr> types;
     bool isDecimal = false;
@@ -908,7 +946,9 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
           err.message());
       return false;
     }
-    auto funcName = SubstraitParser::mapToVeloxFunction(SubstraitParser::getNameBeforeDelimiter(funcSpec), isDecimal);
+    auto baseFuncName =
+        SubstraitParser::mapToVeloxFunction(SubstraitParser::getNameBeforeDelimiter(funcSpec), isDecimal);
+    auto funcName = planConverter_.toAggregationFunctionName(baseFuncName, funcStep);
     auto signaturesOpt = exec::getAggregateFunctionSignatures(funcName);
     if (!signaturesOpt) {
       logValidateMsg(
@@ -921,8 +961,7 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
       exec::SignatureBinder binder(*signature, types);
       if (binder.tryBind()) {
         auto resolveType = binder.tryResolveType(
-            exec::isPartialOutput(planConverter_.toAggregationStep(aggRel)) ? signature->intermediateType()
-                                                                            : signature->returnType());
+            exec::isPartialOutput(funcStep) ? signature->intermediateType() : signature->returnType());
         if (resolveType == nullptr) {
           logValidateMsg(
               "native validation failed due to: Validation failed for function " + funcName +
@@ -1024,52 +1063,32 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
     }
   }
 
-  // The supported aggregation functions.
+  // The supported aggregation functions. TODO: Remove this set when Presto aggregate functions in Velox are not needed
+  // to be registered.
   static const std::unordered_set<std::string> supportedAggFuncs = {
       "sum",
-      "sum_merge",
       "collect_set",
       "count",
-      "count_merge",
       "avg",
-      "avg_merge",
       "min",
-      "min_merge",
       "max",
-      "max_merge",
       "min_by",
-      "min_by_merge",
       "max_by",
-      "max_by_merge",
       "stddev_samp",
-      "stddev_samp_merge",
       "stddev_pop",
-      "stddev_pop_merge",
       "bloom_filter_agg",
       "var_samp",
-      "var_samp_merge",
       "var_pop",
-      "var_pop_merge",
       "bit_and",
-      "bit_and_merge",
       "bit_or",
-      "bit_or_merge",
       "bit_xor",
-      "bit_xor_merge",
       "first",
-      "first_merge",
       "first_ignore_null",
-      "first_ignore_null_merge",
       "last",
-      "last_merge",
       "last_ignore_null",
-      "last_ignore_null_merge",
       "corr",
-      "corr_merge",
       "covar_pop",
-      "covar_pop_merge",
       "covar_samp",
-      "covar_samp_merge",
       "approx_distinct"};
 
   for (const auto& funcSpec : funcSpecs) {
@@ -1163,6 +1182,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Rel& rel) {
     return validate(rel.fetch());
   } else if (rel.has_window()) {
     return validate(rel.window());
+  } else if (rel.has_write()) {
+    return validate(rel.write());
   } else {
     return false;
   }

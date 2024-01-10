@@ -961,6 +961,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
           binaryBuf.valuePtr = valueBuffer->mutable_data();
           binaryBuf.valueCapacity = capacity;
           dstValuePtr = binaryBuf.valuePtr + valueOffset - stringLen;
+          // Need to update dstOffsetBase because lengthPtr can be updated if Reserve triggers spill.
+          dstOffsetBase = (BinaryArrayLengthBufferType*)(binaryBuf.lengthPtr) + partitionBufferIdxBase_[pid];
         }
 
         // 2. copy value

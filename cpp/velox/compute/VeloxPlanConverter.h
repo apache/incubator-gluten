@@ -33,6 +33,7 @@ class VeloxPlanConverter {
       const std::vector<std::shared_ptr<ResultIterator>>& inputIters,
       facebook::velox::memory::MemoryPool* veloxPool,
       const std::unordered_map<std::string, std::string>& confMap,
+      const std::optional<std::string> writeFilesTempPath = std::nullopt,
       bool validationMode = false);
 
   std::shared_ptr<const facebook::velox::core::PlanNode> toVeloxPlan(::substrait::Plan& substraitPlan);
@@ -42,6 +43,8 @@ class VeloxPlanConverter {
   }
 
  private:
+  void setInputPlanNode(const ::substrait::WriteRel& writeRel);
+
   void setInputPlanNode(const ::substrait::FetchRel& fetchRel);
 
   void setInputPlanNode(const ::substrait::ExpandRel& sExpand);

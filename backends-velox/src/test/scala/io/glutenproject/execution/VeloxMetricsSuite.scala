@@ -17,7 +17,9 @@
 package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.sql.shims.SparkShimLoader
 
+import org.apache.spark.sql.execution.CommandResultExec
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.internal.SQLConf
 
@@ -123,6 +125,28 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
           assert(metrics("numOutputVectors").value > 0)
           assert(metrics("streamPreProjectionCpuCount").value > 0)
           assert(metrics("buildPreProjectionCpuCount").value > 0)
+      }
+    }
+  }
+
+  test("Write metrics") {
+    if (SparkShimLoader.getSparkVersion.startsWith("3.4")) {
+      withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+        runQueryAndCompare(
+          "Insert into table metrics_t1 values(1 , 2)"
+        ) {
+          df =>
+            val plan =
+              df.queryExecution.executedPlan.asInstanceOf[CommandResultExec].commandPhysicalPlan
+            val write = find(plan) {
+              case _: WriteFilesExecTransformer => true
+              case _ => false
+            }
+            assert(write.isDefined)
+            val metrics = write.get.metrics
+            assert(metrics("physicalWrittenBytes").value > 0)
+            assert(metrics("numWrittenFiles").value == 1)
+        }
       }
     }
   }

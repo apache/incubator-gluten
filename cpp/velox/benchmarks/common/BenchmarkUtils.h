@@ -18,11 +18,13 @@
 #pragma once
 
 #include <arrow/c/abi.h>
+#include <glog/logging.h>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <thread>
 #include <utility>
+
 #include "benchmark/benchmark.h"
 #include "substrait/SubstraitToVeloxPlan.h"
 

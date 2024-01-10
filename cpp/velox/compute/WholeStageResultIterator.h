@@ -22,12 +22,9 @@
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "substrait/plan.pb.h"
 #include "utils/metrics.h"
+#include "velox/core/Config.h"
 #include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"
-
-#ifdef ENABLE_HDFS
-#include <mutex>
-#endif
 
 namespace gluten {
 
@@ -68,19 +65,13 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   std::shared_ptr<facebook::velox::core::QueryCtx> createNewVeloxQueryCtx();
 
   /// A map of custom configs.
-  std::unordered_map<std::string, std::string> confMap_;
+  const std::shared_ptr<const Config> veloxCfg_;
 
   const SparkTaskInfo taskInfo_;
 
  private:
   /// Get the Spark confs to Velox query context.
   std::unordered_map<std::string, std::string> getQueryContextConf();
-
-#ifdef ENABLE_HDFS
-  /// Set latest tokens to global HiveConnector
-  inline static std::mutex mutex;
-  void updateHdfsTokens();
-#endif
 
   /// Get all the children plan node ids with postorder traversal.
   void getOrderedNodeIds(

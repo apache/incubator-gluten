@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=update
+VELOX_BRANCH=2024_01_10
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
@@ -106,15 +106,15 @@ function process_setup_ubuntu {
     sed -i '/^function install_fmt.*/i function install_protobuf {\n  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz\n  tar -xzf protobuf-all-21.4.tar.gz\n  cd protobuf-21.4\n  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n  make "-j$(nproc)"\n  sudo make install\n  sudo ldconfig\n}\n' scripts/setup-ubuntu.sh
     sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_protobuf' scripts/setup-ubuntu.sh
   fi
+  sed -i "s/apt install -y/sudo apt install -y/" ${VELOX_HOME}/scripts/setup-adapters.sh
   if [ $ENABLE_S3 == "ON" ]; then
-    sed -i '/^function install_fmt.*/i function install_awssdk {\n  github_checkout aws/aws-sdk-cpp 1.9.379 --depth 1 --recurse-submodules\n  cmake_install -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS:BOOL=OFF -DMINIMIZE_SIZE:BOOL=ON -DENABLE_TESTING:BOOL=OFF -DBUILD_ONLY:STRING="s3;identity-management" \n} \n' scripts/setup-ubuntu.sh
-    sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_awssdk' scripts/setup-ubuntu.sh
+    sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh aws' scripts/setup-ubuntu.sh
   fi
   if [ $ENABLE_GCS == "ON" ]; then
     sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-ubuntu.sh
   fi
   if [ $ENABLE_ABFS == "ON" ]; then
-    sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-ubuntu.sh
+    sed -i '/^  run_and_time install_fmt/a \ \ export AZURE_SDK_DISABLE_AUTO_VCPKG=ON \n '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-ubuntu.sh
   fi
   sed -i 's/run_and_time install_conda/#run_and_time install_conda/' scripts/setup-ubuntu.sh
 
@@ -127,7 +127,7 @@ function process_setup_centos8 {
   fi
   # make this function Reentrant
   git checkout scripts/setup-centos8.sh
-
+  sed -i "s/boostorg.jfrog.io\/artifactory\/main\/release\/1.72.0\/source\/boost_1_72_0.tar.gz/src.fedoraproject.org\/repo\/pkgs\/boost\/boost_1_72_0-snapshot.tar.gz\/sha512\/b91d96e0fd76cdfb2accadedde85a7d005d7f8ccdfde50c7f195bd5ea1f0c203520d5dac1fca33f38f20ff484f8400303226d6febb31f644ebb4d9809f91088a\/boost_1_72_0-snapshot.tar.gz/" scripts/setup-centos8.sh
   # # No need to re-install git.
   sed -i 's/dnf_install ninja-build ccache gcc-toolset-9 git/dnf_install ninja-build ccache gcc-toolset-9/' scripts/setup-centos8.sh
   sed -i '/^function dnf_install/i\DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)}' scripts/setup-centos8.sh
@@ -146,15 +146,15 @@ function process_setup_centos8 {
     sed -i '/^function cmake_install_deps.*/i function install_protobuf {\n  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz\n  tar -xzf protobuf-all-21.4.tar.gz\n  cd protobuf-21.4\n  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n  make "-j$(nproc)"\n  sudo make install\n  sudo ldconfig\n}\n' scripts/setup-centos8.sh
     sed -i '/^cmake_install_deps fmt/a \\install_protobuf' scripts/setup-centos8.sh
   fi
+  sed -i "s/yum -y install/sudo yum -y install/" ${VELOX_HOME}/scripts/setup-adapters.sh
   if [ $ENABLE_S3 == "ON" ]; then
-    sed -i '/^function cmake_install_deps.*/i function install_awssdk {\n  github_checkout aws/aws-sdk-cpp 1.9.379 --depth 1 --recurse-submodules\n  cmake_install -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS:BOOL=OFF -DMINIMIZE_SIZE:BOOL=ON -DENABLE_TESTING:BOOL=OFF -DBUILD_ONLY:STRING="s3;identity-management" \n} \n' scripts/setup-centos8.sh
-    sed -i '/^cmake_install_deps fmt/a \ \ install_awssdk' scripts/setup-centos8.sh
+    sed -i '/^cmake_install_deps fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh aws' scripts/setup-centos8.sh
   fi
   if [ $ENABLE_GCS == "ON" ]; then
     sed -i '/^cmake_install_deps fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos8.sh
   fi
   if [ $ENABLE_ABFS == "ON" ]; then
-    sed -i '/^cmake_install_deps fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-centos8.sh
+    sed -i '/^cmake_install_deps fmt/a \ \ export AZURE_SDK_DISABLE_AUTO_VCPKG=ON \n '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-centos8.sh
   fi
 }
 
@@ -175,6 +175,7 @@ function process_setup_centos7 {
   # install gtest
   sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_gtest' scripts/setup-centos7.sh
 
+  sed -i "s/boostorg.jfrog.io\/artifactory\/main\/release\/1.72.0\/source\/boost_1_72_0.tar.gz/src.fedoraproject.org\/repo\/pkgs\/boost\/boost_1_72_0-snapshot.tar.gz\/sha512\/b91d96e0fd76cdfb2accadedde85a7d005d7f8ccdfde50c7f195bd5ea1f0c203520d5dac1fca33f38f20ff484f8400303226d6febb31f644ebb4d9809f91088a\/boost_1_72_0-snapshot.tar.gz/" scripts/setup-centos7.sh
   if [ $ENABLE_HDFS = "ON" ]; then
     sed -i '/^function install_protobuf.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-centos7.sh
     sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_libhdfs3' scripts/setup-centos7.sh
@@ -183,14 +184,17 @@ function process_setup_centos7 {
   if [[ $BUILD_PROTOBUF == "ON" ]] || [[ $ENABLE_HDFS == "ON" ]]; then
     sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_protobuf' scripts/setup-centos7.sh
   fi
+  sed -i "s/yum -y install/sudo yum -y install/" ${VELOX_HOME}/scripts/setup-adapters.sh
   if [ $ENABLE_S3 == "ON" ]; then
-    sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_awssdk' scripts/setup-centos7.sh
+    sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh aws' scripts/setup-centos7.sh
   fi
   if [ $ENABLE_GCS == "ON" ]; then
     sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos7.sh
   fi
   if [ $ENABLE_ABFS == "ON" ]; then
-    sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-centos7.sh
+    sed -i '/^function cmake_install_deps.*/i function install_curl {\n cd "${DEPENDENCY_DIR}" \n github_checkout curl/curl curl-7_68_0 \n cmake -DCMAKE_BUILD_TYPE=Release -DOPENSSL_USE_STATIC_LIBS=TRUE -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON && cmake --build . && sudo cmake --install . \n}\n'     scripts/setup-centos7.sh
+    sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_curl' scripts/setup-centos7.sh
+    sed -i '/^  run_and_time install_curl/a \ \ export AZURE_SDK_DISABLE_AUTO_VCPKG=ON \n '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-centos7.sh
   fi
 }
 

@@ -30,6 +30,10 @@ using namespace facebook::velox;
 namespace gluten {
 class VeloxColumnarToRowTest : public ::testing::Test, public test::VectorTestBase {
  protected:
+  static void SetUpTestCase() {
+    memory::MemoryManager::testingSetInstance({});
+  }
+
   void testRowBufferAddr(velox::RowVectorPtr vector, uint8_t* expectArr, int32_t expectArrSize) {
     auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(veloxPool_);
 

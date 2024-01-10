@@ -14,20 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.extension
+package io.glutenproject.metrics
 
-import io.glutenproject.execution.{DataSourceScanTransformerRegister, FileSourceScanExecTransformer}
+import org.apache.spark.sql.execution.metric.SQLMetric
 
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.execution.FileSourceScanExec
+class WriteFilesMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
 
-class DeltaScanTransformerProvider extends DataSourceScanTransformerRegister {
-
-  override val scanClassName: String = "org.apache.spark.sql.delta.files.TahoeLogFileIndex"
-
-  override def createDataSourceTransformer(
-      batchScan: FileSourceScanExec,
-      newPartitionFilters: Seq[Expression]): FileSourceScanExecTransformer = {
-    DeltaScanTransformer(batchScan, newPartitionFilters)
+  override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
+    if (opMetrics != null) {
+      val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
+      metrics("physicalWrittenBytes") += operatorMetrics.physicalWrittenBytes
+      metrics("numWrittenFiles") += operatorMetrics.numWrittenFiles
+    }
   }
 }

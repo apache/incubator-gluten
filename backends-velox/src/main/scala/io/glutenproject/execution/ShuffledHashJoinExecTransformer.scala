@@ -118,7 +118,7 @@ case class ShuffledHashJoinExecTransformer(
   }
 
   override protected lazy val substraitJoinType: JoinRel.JoinType = joinType match {
-    case Inner =>
+    case _: InnerLike =>
       JoinRel.JoinType.JOIN_TYPE_INNER
     case FullOuter =>
       JoinRel.JoinType.JOIN_TYPE_OUTER
@@ -143,7 +143,6 @@ case class ShuffledHashJoinExecTransformer(
     case LeftAnti =>
       JoinRel.JoinType.JOIN_TYPE_ANTI
     case _ =>
-      // TODO: Support cross join with Cross Rel
       JoinRel.JoinType.UNRECOGNIZED
   }
 
@@ -173,7 +172,7 @@ case class GlutenBroadcastHashJoinExecTransformer(
     isNullAwareAntiJoin) {
 
   override protected lazy val substraitJoinType: JoinRel.JoinType = joinType match {
-    case Inner =>
+    case _: InnerLike =>
       JoinRel.JoinType.JOIN_TYPE_INNER
     case FullOuter =>
       JoinRel.JoinType.JOIN_TYPE_OUTER

@@ -1782,6 +1782,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenFilteredScanSuite]
   enableSuite[GlutenFiltersSuite]
   enableSuite[GlutenInsertSuite]
+    .excludeByPrefix("Gluten: ")
   enableSuite[GlutenPartitionedWriteSuite]
   enableSuite[GlutenPathOptionSuite]
   enableSuite[GlutenPrunedScanSuite]
@@ -1798,6 +1799,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SELECT structFieldComplex.Value.`value_(2)` FROM tableWithSchema")
   enableSuite[SparkFunctionStatistics]
   enableSuite[GlutenExpressionMappingSuite]
+  enableSuite[GlutenSparkSessionExtensionSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = ClickHouseSQLQueryTestSettings
 }

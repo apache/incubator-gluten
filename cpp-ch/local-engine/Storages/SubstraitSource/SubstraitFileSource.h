@@ -83,7 +83,7 @@ class ConstColumnsFileReader : public FileReaderWrapper
 {
 public:
     ConstColumnsFileReader(
-        FormatFilePtr file_, DB::ContextPtr context_, const DB::Block & header_, size_t block_size_ = DEFAULT_BLOCK_SIZE);
+        FormatFilePtr file_, DB::ContextPtr context_, const DB::Block & header_, size_t block_size_ = DB::DEFAULT_BLOCK_SIZE);
     ~ConstColumnsFileReader() override = default;
     bool pull(DB::Chunk & chunk) override;
 

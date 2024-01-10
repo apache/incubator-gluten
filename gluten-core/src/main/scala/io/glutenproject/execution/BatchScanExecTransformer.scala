@@ -34,6 +34,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.Objects
 
+import scala.collection.mutable.ListBuffer
+
 /**
  * Columnar Based BatchScanExec. Although keyGroupedPartitioning is not used, it cannot be deleted,
  * it can make BatchScanExecTransformer contain a constructor with the same parameters as
@@ -57,9 +59,18 @@ class BatchScanExecTransformer(
   @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genBatchScanTransformerMetrics(sparkContext)
 
+  // Similar to the problem encountered in https://github.com/oap-project/gluten/pull/3184,
+  // we cannot add member variables to BatchScanExecTransformer, which inherits from case
+  // class. Otherwise, we will encounter an issue where makeCopy cannot find a constructor
+  // with the corresponding number of parameters.
+  // The workaround is to add a mutable list to pass in pushdownFilters.
+  val pushdownFilters: ListBuffer[Expression] = ListBuffer.empty
+
+  def addPushdownFilters(filters: Seq[Expression]): Unit = pushdownFilters ++= filters
+
   override def filterExprs(): Seq[Expression] = scan match {
     case fileScan: FileScan =>
-      fileScan.dataFilters
+      fileScan.dataFilters ++ pushdownFilters
     case _ =>
       throw new UnsupportedOperationException(s"${scan.getClass.toString} is not supported")
   }

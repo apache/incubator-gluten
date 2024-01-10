@@ -30,7 +30,7 @@ import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
-import org.apache.spark.softaffinity.SoftAffinityUtil
+import org.apache.spark.softaffinity.SoftAffinity
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
 import org.apache.spark.sql.connector.read.InputPartition
@@ -59,14 +59,14 @@ class IteratorApiImpl extends IteratorApi with Logging {
    */
   override def genSplitInfo(
       partition: InputPartition,
-      partitionSchemas: StructType,
+      partitionSchema: StructType,
       fileFormat: ReadFileFormat): SplitInfo = {
     partition match {
       case f: FilePartition =>
         val (paths, starts, lengths, partitionColumns) =
-          constructSplitInfo(partitionSchemas, f.files)
+          constructSplitInfo(partitionSchema, f.files)
         val preferredLocations =
-          SoftAffinityUtil.getFilePartitionLocations(paths.asScala.toArray, f.preferredLocations())
+          SoftAffinity.getFilePartitionLocations(paths.asScala.toArray, f.preferredLocations())
         LocalFilesBuilder.makeLocalFiles(
           f.index,
           paths,
@@ -114,6 +114,11 @@ class IteratorApiImpl extends IteratorApi with Logging {
         partitionColumns.add(partitionColumn)
     }
     (paths, starts, lengths, partitionColumns)
+  }
+
+  override def injectWriteFilesTempPath(path: String): Unit = {
+    val transKernel = NativePlanEvaluator.create()
+    transKernel.injectWriteFilesTempPath(path)
   }
 
   /**

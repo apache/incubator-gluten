@@ -27,7 +27,10 @@ namespace gluten {
 class SubstraitToVeloxPlanValidator {
  public:
   SubstraitToVeloxPlanValidator(memory::MemoryPool* pool, core::ExecCtx* execCtx)
-      : pool_(pool), execCtx_(execCtx), planConverter_(pool_, confMap_, true) {}
+      : pool_(pool), execCtx_(execCtx), planConverter_(pool_, confMap_, std::nullopt, true) {}
+
+  /// Used to validate whether the computing of this Write is supported.
+  bool validate(const ::substrait::WriteRel& writeRel);
 
   /// Used to validate whether the computing of this Limit is supported.
   bool validate(const ::substrait::FetchRel& fetchRel);

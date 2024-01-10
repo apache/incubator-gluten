@@ -94,8 +94,24 @@ object TaskResources extends TaskListener with Logging {
     })
   }
 
+  def addRecycler(id: String, name: String, prio: Int)(f: => Unit): Unit = {
+    addResource(
+      id,
+      new TaskResource {
+        override def release(): Unit = f
+
+        override def priority(): Int = prio
+
+        override def resourceName(): String = name
+      })
+  }
+
   def addResource[T <: TaskResource](id: String, resource: T): T = {
     getTaskResourceRegistry().addResource(id, resource)
+  }
+
+  def removeResource(id: String): Unit = {
+    getTaskResourceRegistry().removeResource(id)
   }
 
   def addResourceIfNotRegistered[T <: TaskResource](id: String, factory: () => T): T = {
@@ -177,8 +193,8 @@ object TaskResources extends TaskListener with Logging {
 // thread safe
 class TaskResourceRegistry extends Logging {
   private val sharedUsage = new SimpleMemoryUsageRecorder()
-  private val resources = new util.HashMap[String, TaskResource]()
   type TaskResourceWithOrdering = (TaskResource, Int)
+  private val resources = new util.HashMap[String, TaskResourceWithOrdering]()
   // A monotonically increasing accumulator to specify the task resource ordering
   // when inserting into queue
   private var resourceOrdering = 0
@@ -197,8 +213,9 @@ class TaskResourceRegistry extends Logging {
     })
 
   private def addResource0(id: String, resource: TaskResource): Unit = synchronized {
-    resources.put(id, resource)
-    resourcesPriorityQueue.add((resource, resourceOrdering))
+    val resourceWithOrdering = (resource, resourceOrdering)
+    resources.put(id, resourceWithOrdering)
+    resourcesPriorityQueue.add(resourceWithOrdering)
     resourceOrdering += 1
   }
 
@@ -220,7 +237,7 @@ class TaskResourceRegistry extends Logging {
   private[util] def addResourceIfNotRegistered[T <: TaskResource](id: String, factory: () => T): T =
     synchronized {
       if (resources.containsKey(id)) {
-        return resources.get(id).asInstanceOf[T]
+        return resources.get(id)._1.asInstanceOf[T]
       }
       val resource = factory.apply()
       addResource0(id, resource)
@@ -245,10 +262,19 @@ class TaskResourceRegistry extends Logging {
       throw new IllegalArgumentException(
         String.format("TaskResource with ID %s is not registered", id))
     }
-    resources.get(id).asInstanceOf[T]
+    resources.get(id)._1.asInstanceOf[T]
   }
 
   private[util] def getSharedUsage(): SimpleMemoryUsageRecorder = synchronized {
     sharedUsage
+  }
+
+  private[util] def removeResource(id: String): Unit = synchronized {
+    if (!resources.containsKey(id)) {
+      throw new IllegalArgumentException(
+        String.format("TaskResource with ID %s is not registered", id))
+    }
+    resourcesPriorityQueue.remove(resources.get(id))
+    resources.remove(id)
   }
 }

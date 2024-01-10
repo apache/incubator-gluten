@@ -14,34 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.execution
 
-#pragma once
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.execution.FileSourceScanExec
 
-#include <iostream>
+class DeltaScanTransformerProvider extends DataSourceScanTransformerRegister {
 
-#ifdef GLUTEN_PRINT_DEBUG
+  override val scanClassName: String = "org.apache.spark.sql.delta.DeltaParquetFileFormat"
 
-#define DEBUG_OUT std::cout
-
-#else
-
-namespace gluten {
-
-struct FakeOut {
-  template <typename T>
-  FakeOut& operator<<(T t) {
-    return *this;
+  override def createDataSourceTransformer(
+      batchScan: FileSourceScanExec,
+      newPartitionFilters: Seq[Expression]): FileSourceScanExecTransformer = {
+    DeltaScanTransformer(batchScan, newPartitionFilters)
   }
-
-  FakeOut& operator<<(std::ostream& (*endl)(std::ostream& os)) {
-    return *this;
-  }
-};
-
-extern FakeOut fakeOut;
-
-} // namespace gluten
-
-#define DEBUG_OUT gluten::fakeOut
-
-#endif
+}

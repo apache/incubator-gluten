@@ -28,16 +28,13 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 
 import scala.collection.mutable
 
-object SoftAffinityManager extends LogLevelUtil with Logging {
+abstract class AffinityManager extends LogLevelUtil with Logging {
 
-  val resourceRWLock = new ReentrantReadWriteLock(true)
+  private val resourceRWLock = new ReentrantReadWriteLock(true)
 
-  val softAffinityAllocation = new SoftAffinityStrategy
+  private val softAffinityAllocation = new SoftAffinityStrategy
 
-  lazy val minOnTargetHosts = SparkEnv.get.conf.getInt(
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS,
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE
-  )
+  lazy val minOnTargetHosts: Int = GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE
 
   // (execId, host) list
   val fixedIdForExecutors = new mutable.ListBuffer[Option[(String, String)]]()
@@ -46,12 +43,9 @@ object SoftAffinityManager extends LogLevelUtil with Logging {
 
   protected val totalRegisteredExecutors = new AtomicInteger(0)
 
-  lazy val usingSoftAffinity = SparkEnv.get.conf.getBoolean(
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED,
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED_DEFAULT_VALUE
-  )
+  lazy val usingSoftAffinity: Boolean = true
 
-  private val softAffinityLogLevel = GlutenConfig.getConf.softAffinityLogLevel
+  lazy val logLevel: String = GlutenConfig.getConf.softAffinityLogLevel
 
   def totalExecutors(): Int = totalRegisteredExecutors.intValue()
 
@@ -78,7 +72,7 @@ object SoftAffinityManager extends LogLevelUtil with Logging {
         totalRegisteredExecutors.addAndGet(1)
       }
       logOnLevel(
-        softAffinityLogLevel,
+        logLevel,
         s"After adding executor ${execHostId._1} on host ${execHostId._2}, " +
           s"fixedIdForExecutors is ${fixedIdForExecutors.mkString(",")}, " +
           s"nodesExecutorsMap is ${nodesExecutorsMap.keySet.mkString(",")}, " +
@@ -103,7 +97,7 @@ object SoftAffinityManager extends LogLevelUtil with Logging {
       if (execIdx != -1) {
         val findedExecId = fixedIdForExecutors(execIdx)
         fixedIdForExecutors(execIdx) = None
-        val nodeExecs = nodesExecutorsMap.get(findedExecId.get._2).get
+        val nodeExecs = nodesExecutorsMap(findedExecId.get._2)
         nodeExecs -= findedExecId.get._1
         if (nodeExecs.isEmpty) {
           // there is no executor on this host, remove
@@ -112,7 +106,7 @@ object SoftAffinityManager extends LogLevelUtil with Logging {
         totalRegisteredExecutors.addAndGet(-1)
       }
       logOnLevel(
-        softAffinityLogLevel,
+        logLevel,
         s"After removing executor $execId, " +
           s"fixedIdForExecutors is ${fixedIdForExecutors.mkString(",")}, " +
           s"nodesExecutorsMap is ${nodesExecutorsMap.keySet.mkString(",")}, " +
@@ -135,7 +129,7 @@ object SoftAffinityManager extends LogLevelUtil with Logging {
         // when the replication num of hdfs is less than 'minOnTargetHosts'
         val minHostsNum = Math.min(minOnTargetHosts, hosts.length)
         // there are how many the same hosts
-        nodesExecutorsMap.map(_._1).toArray.intersect(hosts).size >= minHostsNum
+        nodesExecutorsMap.keys.toArray.intersect(hosts).length >= minHostsNum
       }
     } finally {
       resourceRWLock.readLock().unlock()
@@ -154,4 +148,16 @@ object SoftAffinityManager extends LogLevelUtil with Logging {
       resourceRWLock.readLock().unlock()
     }
   }
+}
+
+object SoftAffinityManager extends AffinityManager {
+  override lazy val usingSoftAffinity: Boolean = SparkEnv.get.conf.getBoolean(
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED,
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED_DEFAULT_VALUE
+  )
+
+  override lazy val minOnTargetHosts: Int = SparkEnv.get.conf.getInt(
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS,
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE
+  )
 }

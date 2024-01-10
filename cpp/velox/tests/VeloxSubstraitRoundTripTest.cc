@@ -18,6 +18,8 @@
 #include <folly/Random.h>
 #include <folly/init/Init.h>
 
+#include "operators/functions/RegistrationAllFunctions.h"
+
 #include "velox/common/base/tests/GTestUtils.h"
 #include "velox/exec/tests/utils/OperatorTestBase.h"
 #include "velox/exec/tests/utils/PlanBuilder.h"
@@ -67,7 +69,7 @@ class VeloxSubstraitRoundTripTest : public OperatorTestBase {
     auto substraitPlan = veloxConvertor_->toSubstrait(arena, plan);
     std::unordered_map<std::string, std::string> sessionConf = {};
     std::shared_ptr<SubstraitToVeloxPlanConverter> substraitConverter_ =
-        std::make_shared<SubstraitToVeloxPlanConverter>(pool_.get(), sessionConf, true);
+        std::make_shared<SubstraitToVeloxPlanConverter>(pool_.get(), sessionConf, std::nullopt, true);
 
     // Convert Substrait Plan to the same Velox Plan.
     auto samePlan = substraitConverter_->toVeloxPlan(substraitPlan);
@@ -87,7 +89,7 @@ class VeloxSubstraitRoundTripTest : public OperatorTestBase {
       auto substraitPlan = veloxConvertor_->toSubstrait(arena, plan);
       std::unordered_map<std::string, std::string> sessionConf = {};
       std::shared_ptr<SubstraitToVeloxPlanConverter> substraitConverter_ =
-          std::make_shared<SubstraitToVeloxPlanConverter>(pool_.get(), sessionConf, true);
+          std::make_shared<SubstraitToVeloxPlanConverter>(pool_.get(), sessionConf, std::nullopt, true);
       // Convert Substrait Plan to the same Velox Plan.
       auto samePlan = substraitConverter_->toVeloxPlan(substraitPlan);
 
@@ -186,6 +188,7 @@ TEST_F(VeloxSubstraitRoundTripTest, countAll) {
 }
 
 TEST_F(VeloxSubstraitRoundTripTest, sum) {
+  GTEST_SKIP(); // Only partial step and single step of aggregation is currently supported.
   auto vectors = makeVectors(2, 7, 3);
   createDuckDbTable(vectors);
 
@@ -195,6 +198,7 @@ TEST_F(VeloxSubstraitRoundTripTest, sum) {
 }
 
 TEST_F(VeloxSubstraitRoundTripTest, sumAndCount) {
+  GTEST_SKIP(); // Only partial step and single step of aggregation is currently supported.
   auto vectors = makeVectors(2, 7, 3);
   createDuckDbTable(vectors);
 
@@ -205,6 +209,7 @@ TEST_F(VeloxSubstraitRoundTripTest, sumAndCount) {
 }
 
 TEST_F(VeloxSubstraitRoundTripTest, sumGlobal) {
+  GTEST_SKIP(); // Only partial step and single step of aggregation is currently supported.
   auto vectors = makeVectors(2, 7, 3);
   createDuckDbTable(vectors);
 
@@ -219,6 +224,7 @@ TEST_F(VeloxSubstraitRoundTripTest, sumGlobal) {
 }
 
 TEST_F(VeloxSubstraitRoundTripTest, sumMask) {
+  GTEST_SKIP(); // Only partial step and single step of aggregation is currently supported.
   auto vectors = makeVectors(2, 7, 3);
   createDuckDbTable(vectors);
 
@@ -248,6 +254,7 @@ TEST_F(VeloxSubstraitRoundTripTest, rowConstructor) {
 }
 
 TEST_F(VeloxSubstraitRoundTripTest, projectAs) {
+  GTEST_SKIP(); // Only partial step and single step of aggregation is currently supported.
   RowVectorPtr vectors = makeRowVector(
       {makeFlatVector<double_t>({0.905791934145, 0.968867771124}),
        makeFlatVector<int64_t>({2499109626526694126, 2342493223442167775}),
@@ -264,6 +271,7 @@ TEST_F(VeloxSubstraitRoundTripTest, projectAs) {
 }
 
 TEST_F(VeloxSubstraitRoundTripTest, avg) {
+  GTEST_SKIP(); // Only partial step and single step of aggregation is currently supported.
   auto vectors = makeVectors(2, 7, 3);
   createDuckDbTable(vectors);
 
@@ -447,10 +455,94 @@ TEST_F(VeloxSubstraitRoundTripTest, subField) {
       PlanBuilder().values({data}).project({"(cast(row_constructor(a, b) as row(a bigint, b bigint))).a"}).planNode();
   assertFailingPlanConversion(plan, "Non-field expression is not supported");
 }
+
+TEST_F(VeloxSubstraitRoundTripTest, sumCompanion) {
+  auto vectors = makeVectors(2, 7, 3);
+  createDuckDbTable(vectors);
+
+  auto plan = PlanBuilder().values(vectors).singleAggregation({}, {"sum_partial(1)", "count_partial(c4)"}).planNode();
+
+  assertPlanConversion(plan, "SELECT sum(1), count(c4) FROM tmp");
+}
+
+TEST_F(VeloxSubstraitRoundTripTest, sumAndCountCompanion) {
+  auto vectors = makeVectors(2, 7, 3);
+  createDuckDbTable(vectors);
+
+  auto plan = PlanBuilder()
+                  .values(vectors)
+                  .singleAggregation({}, {"sum_partial(c1)", "count_partial(c4)"})
+                  .singleAggregation({}, {"sum_merge_extract(a0)", "count_merge_extract(a1)"})
+                  .planNode();
+
+  assertPlanConversion(plan, "SELECT sum(c1), count(c4) FROM tmp");
+}
+
+TEST_F(VeloxSubstraitRoundTripTest, sumGlobalCompanion) {
+  auto vectors = makeVectors(2, 7, 3);
+  createDuckDbTable(vectors);
+
+  // Global final aggregation.
+  auto plan = PlanBuilder()
+                  .values(vectors)
+                  .singleAggregation({"c0"}, {"sum_partial(c0)", "sum_partial(c1)"})
+                  .singleAggregation({"c0"}, {"sum_merge(a0)", "sum_merge(a1)"})
+                  .singleAggregation({"c0"}, {"sum_merge_extract(a0)", "sum_merge_extract(a1)"})
+                  .planNode();
+  assertPlanConversion(plan, "SELECT c0, sum(c0), sum(c1) FROM tmp GROUP BY c0");
+}
+
+TEST_F(VeloxSubstraitRoundTripTest, sumMaskCompanion) {
+  auto vectors = makeVectors(2, 7, 3);
+  createDuckDbTable(vectors);
+
+  auto plan = PlanBuilder()
+                  .values(vectors)
+                  .project({"c0", "c1", "c2 % 2 < 10 AS m0", "c3 % 3 = 0 AS m1"})
+                  .singleAggregation({}, {"sum_partial(c0)", "sum_partial(c0)", "sum_partial(c1)"}, {"m0", "m1", "m1"})
+                  .singleAggregation({}, {"sum_merge_extract(a0)", "sum_merge_extract(a1)", "sum_merge_extract(a2)"})
+                  .planNode();
+
+  assertPlanConversion(
+      plan,
+      "SELECT sum(c0) FILTER (WHERE c2 % 2 < 10), "
+      "sum(c0) FILTER (WHERE c3 % 3 = 0), sum(c1) FILTER (WHERE c3 % 3 = 0) "
+      "FROM tmp");
+}
+
+TEST_F(VeloxSubstraitRoundTripTest, projectAsCompanion) {
+  RowVectorPtr vectors = makeRowVector(
+      {makeFlatVector<double_t>({0.905791934145, 0.968867771124}),
+       makeFlatVector<int64_t>({2499109626526694126, 2342493223442167775}),
+       makeFlatVector<int32_t>({581869302, -133711905})});
+  createDuckDbTable({vectors});
+
+  auto plan = PlanBuilder()
+                  .values({vectors})
+                  .filter("c0 < 0.5")
+                  .project({"c1 * c2 as revenue"})
+                  .singleAggregation({}, {"sum_partial(revenue)"})
+                  .planNode();
+  assertPlanConversion(plan, "SELECT sum(c1 * c2) as revenue FROM tmp WHERE c0 < 0.5");
+}
+
+TEST_F(VeloxSubstraitRoundTripTest, avgCompanion) {
+  auto vectors = makeVectors(2, 7, 3);
+  createDuckDbTable(vectors);
+
+  auto plan = PlanBuilder()
+                  .values(vectors)
+                  .singleAggregation({}, {"avg_partial(c4)"})
+                  .singleAggregation({}, {"avg_merge_extract(a0)"})
+                  .planNode();
+
+  assertPlanConversion(plan, "SELECT avg(c4) FROM tmp");
+}
+
 } // namespace gluten
 
 int main(int argc, char** argv) {
-  facebook::velox::functions::sparksql::registerFunctions("");
+  gluten::registerAllFunctions();
   testing::InitGoogleTest(&argc, argv);
   folly::init(&argc, &argv, false);
   return RUN_ALL_TESTS();

@@ -43,9 +43,9 @@ class SubstraitExtensionCollectorTest : public ::testing::Test {
       const std::string& functionName,
       std::vector<TypePtr>&& arguments,
       core::AggregationNode::Step step) {
-    int referenceNumber1 = extensionCollector_->getReferenceNumber(functionName, arguments, step);
+    int referenceNumber1 = extensionCollector_->getReferenceNumber(functionName, arguments);
     // Repeat the call to make sure properly de-duplicated.
-    int referenceNumber2 = extensionCollector_->getReferenceNumber(functionName, arguments, step);
+    int referenceNumber2 = extensionCollector_->getReferenceNumber(functionName, arguments);
     EXPECT_EQ(referenceNumber1, referenceNumber2);
     return referenceNumber2;
   }
@@ -116,7 +116,7 @@ TEST_F(SubstraitExtensionCollectorTest, addExtensionsToPlan) {
   ASSERT_EQ(getFunctionName(3), "array_sum:list");
   ASSERT_EQ(getFunctionName(4), "sum:i32");
   ASSERT_EQ(getFunctionName(5), "avg:i32");
-  ASSERT_EQ(getFunctionName(6), "avg:struct");
+  ASSERT_EQ(getFunctionName(6), "avg:struct<fp64,i64>");
   ASSERT_EQ(getFunctionName(7), "count:i32");
 }
 

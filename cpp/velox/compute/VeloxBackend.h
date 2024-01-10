@@ -57,11 +57,11 @@ class VeloxBackend {
   }
 
   void init(const std::unordered_map<std::string, std::string>& conf);
-  void initCache(const facebook::velox::Config* conf);
-  void initConnector(const facebook::velox::Config* conf);
-  void initUdf(const facebook::velox::Config* conf);
+  void initCache(const std::shared_ptr<const facebook::velox::Config>& conf);
+  void initConnector(const std::shared_ptr<const facebook::velox::Config>& conf);
+  void initUdf(const std::shared_ptr<const facebook::velox::Config>& conf);
 
-  void initJolFilesystem(const facebook::velox::Config* conf);
+  void initJolFilesystem(const std::shared_ptr<const facebook::velox::Config>& conf);
 
   std::string getCacheFilePrefix() {
     return "cache." + boost::lexical_cast<std::string>(boost::uuids::random_generator()()) + ".";

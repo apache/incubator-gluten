@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <glog/logging.h>
+
 #include "compute/ProtobufUtils.h"
 #include "compute/ResultIterator.h"
 #include "memory/ArrowMemoryPool.h"
@@ -29,7 +31,6 @@
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 #include "substrait/plan.pb.h"
-#include "utils/DebugOut.h"
 #include "utils/ObjectStore.h"
 
 namespace gluten {
@@ -68,6 +69,8 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   virtual void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) = 0;
 
   virtual std::string planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) = 0;
+
+  virtual void injectWriteFilesTempPath(const std::string& path) = 0;
 
   // Just for benchmark
   ::substrait::Plan& getPlan() {
@@ -136,6 +139,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
  protected:
   std::unique_ptr<ObjectStore> objStore_ = ObjectStore::create();
   ::substrait::Plan substraitPlan_;
+  std::optional<std::string> writeFilesTempPath_;
   SparkTaskInfo taskInfo_;
   // Session conf map
   const std::unordered_map<std::string, std::string> confMap_;
