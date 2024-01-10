@@ -203,7 +203,9 @@ class TaskResourceRegistry extends Logging {
           o1: util.Map.Entry[Int, util.LinkedHashSet[TaskResource]],
           o2: util.Map.Entry[Int, util.LinkedHashSet[TaskResource]]) => {
         val diff = o2.getKey - o1.getKey // descending by priority
-        if (diff > 0) 1 else if (diff < 0) -1 else 0
+        if (diff > 0) 1
+        else if (diff < 0) -1
+        else throw new IllegalStateException("Unreachable code")
       }
     )
     table.forEach {
