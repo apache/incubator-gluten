@@ -484,17 +484,6 @@
                                                             }
                                                         }
                                                     }
-                                                },
-                                                "local_files": {
-                                                    "items": [
-                                                        {
-                                                            "partition_index": "0",
-                                                            "start": "0",
-                                                            "length": "3719",
-                                                            "uri_file": "/mock_lineitem.dwrf",
-                                                            "dwrf": {}
-                                                        }
-                                                    ]
                                                 }
                                             }
                                         },

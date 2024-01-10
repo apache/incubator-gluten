@@ -95,7 +95,9 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
    *
    * @return
    */
-  override def genPartitions(wsCtx: WholeStageTransformContext, splitInfos: Seq[Seq[SplitInfo]]): Seq[BaseGlutenPartition] = {
+  override def genPartitions(
+      wsCtx: WholeStageTransformContext,
+      splitInfos: Seq[Seq[SplitInfo]]): Seq[BaseGlutenPartition] = {
     splitInfos.zipWithIndex.map {
       case (splitInfos, index) =>
         wsCtx.substraitContext.initSplitInfosIndex(0)
@@ -265,7 +267,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           GlutenPartition(
             index,
             substraitPlan.toByteArray,
-            splitInfo.preferredLocations().asScala.toArray)
+            locations = splitInfo.preferredLocations().asScala.toArray)
       }
     }(t => logInfo(s"Generating the Substrait plan took: $t ms."))
 

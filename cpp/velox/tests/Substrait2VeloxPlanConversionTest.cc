@@ -18,15 +18,14 @@
 #include "JsonToProtoConverter.h"
 
 #include <filesystem>
+#include "compute/VeloxPlanConverter.h"
 #include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlan.h"
-#include "substrait/SubstraitToVeloxPlanValidator.h"
 #include "velox/common/base/tests/GTestUtils.h"
 #include "velox/dwio/common/tests/utils/DataFiles.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/exec/tests/utils/AssertQueryBuilder.h"
 #include "velox/exec/tests/utils/HiveConnectorTestBase.h"
-#include "velox/exec/tests/utils/PlanBuilder.h"
 #include "velox/exec/tests/utils/TempDirectoryPath.h"
 #include "velox/type/Type.h"
 
@@ -41,9 +40,8 @@ namespace gluten {
 class Substrait2VeloxPlanConversionTest : public exec::test::HiveConnectorTestBase {
  protected:
   std::vector<std::shared_ptr<facebook::velox::connector::ConnectorSplit>> makeSplits(
-      const SubstraitToVeloxPlanConverter& converter,
       std::shared_ptr<const core::PlanNode> planNode) {
-    const auto& splitInfos = converter.splitInfos();
+    const auto& splitInfos = planConverter_->splitInfos();
     auto leafPlanNodeIds = planNode->leafPlanNodeIds();
     // Only one leaf node is expected here.
     EXPECT_EQ(1, leafPlanNodeIds.size());
@@ -72,8 +70,10 @@ class Substrait2VeloxPlanConversionTest : public exec::test::HiveConnectorTestBa
   }
 
   std::shared_ptr<exec::test::TempDirectoryPath> tmpDir_{exec::test::TempDirectoryPath::create()};
-  std::shared_ptr<SubstraitToVeloxPlanConverter> planConverter_ =
-      std::make_shared<SubstraitToVeloxPlanConverter>(gluten::defaultLeafVeloxMemoryPool().get());
+  std::shared_ptr<VeloxPlanConverter> planConverter_ = std::make_shared<VeloxPlanConverter>(
+      std::vector<std::shared_ptr<ResultIterator>>(),
+      gluten::defaultLeafVeloxMemoryPool().get(),
+      std::unordered_map<std::string, std::string>());
 };
 
 // This test will firstly generate mock TPC-H lineitem ORC file. Then, Velox's
@@ -229,29 +229,34 @@ TEST_F(Substrait2VeloxPlanConversionTest, q6) {
 
   // Find and deserialize Substrait plan json file.
   std::string subPlanPath = FilePathGenerator::getDataFilePath("q6_first_stage.json");
+  std::string splitPath = FilePathGenerator::getDataFilePath("q6_first_stage_split.json");
 
   // Read q6_first_stage.json and resume the Substrait plan.
   ::substrait::Plan substraitPlan;
   JsonToProtoConverter::readFromFile(subPlanPath, substraitPlan);
+  ::substrait::ReadRel_LocalFiles split;
+  JsonToProtoConverter::readFromFile(splitPath, split);
 
   // Convert to Velox PlanNode.
-  auto planNode = planConverter_->toVeloxPlan(substraitPlan);
-
+  auto planNode = planConverter_->toVeloxPlan(substraitPlan, std::vector<::substrait::ReadRel_LocalFiles>{split});
   auto expectedResult = makeRowVector({
       makeFlatVector<double>(1, [](auto /*row*/) { return 13613.1921; }),
   });
 
-  exec::test::AssertQueryBuilder(planNode).splits(makeSplits(*planConverter_, planNode)).assertResults(expectedResult);
+  exec::test::AssertQueryBuilder(planNode).splits(makeSplits(planNode)).assertResults(expectedResult);
 }
 
 TEST_F(Substrait2VeloxPlanConversionTest, ifthenTest) {
   std::string subPlanPath = FilePathGenerator::getDataFilePath("if_then.json");
+  std::string splitPath = FilePathGenerator::getDataFilePath("if_then_split.json");
 
   ::substrait::Plan substraitPlan;
   JsonToProtoConverter::readFromFile(subPlanPath, substraitPlan);
+  ::substrait::ReadRel_LocalFiles split;
+  JsonToProtoConverter::readFromFile(splitPath, split);
 
   // Convert to Velox PlanNode.
-  auto planNode = planConverter_->toVeloxPlan(substraitPlan);
+  auto planNode = planConverter_->toVeloxPlan(substraitPlan, std::vector<::substrait::ReadRel_LocalFiles>{split});
   ASSERT_EQ(
       "-- Project[expressions: ] -> \n  "
       "-- TableScan[table: hive_table, range filters: [(hd_demo_sk, Filter(IsNotNull, deterministic, null not allowed)),"
@@ -264,12 +269,15 @@ TEST_F(Substrait2VeloxPlanConversionTest, ifthenTest) {
 
 TEST_F(Substrait2VeloxPlanConversionTest, filterUpper) {
   std::string subPlanPath = FilePathGenerator::getDataFilePath("filter_upper.json");
+  std::string splitPath = FilePathGenerator::getDataFilePath("filter_upper_split.json");
 
   ::substrait::Plan substraitPlan;
   JsonToProtoConverter::readFromFile(subPlanPath, substraitPlan);
+  ::substrait::ReadRel_LocalFiles split;
+  JsonToProtoConverter::readFromFile(splitPath, split);
 
   // Convert to Velox PlanNode.
-  auto planNode = planConverter_->toVeloxPlan(substraitPlan);
+  auto planNode = planConverter_->toVeloxPlan(substraitPlan, std::vector<::substrait::ReadRel_LocalFiles>{split});
   ASSERT_EQ(
       "-- Project[expressions: ] -> \n  -- TableScan[table: hive_table, range filters: "
       "[(key, BigintRange: [-2147483648, 2] no nulls)]] -> n0_0:INTEGER\n",
