@@ -188,31 +188,41 @@ class TaskResourceRegistry extends Logging {
   private val priorityToResourcesMapping: util.HashMap[Int, util.LinkedHashSet[TaskResource]] =
     new util.HashMap[Int, util.LinkedHashSet[TaskResource]]()
 
-  private var isLocked = false
-  private def withLock[T](body: => T): T = {
+  private var version: Long = 0L
+  private def lock[T](body: => T): T = {
     synchronized {
       try {
-        if (isLocked) {
-          // We disallow re-entrant of the protected code.
-          throw new ConcurrentModificationException()
-        }
-        isLocked = true
         body
       } finally {
-        isLocked = false
+        version += 1
       }
     }
   }
+  private def exclusiveLock[T](body: => T): T = {
+    lock {
+      val prevVersion = version
+      val out = body
+      if (version != prevVersion) {
+        throw new ConcurrentModificationException
+      }
+      out
+    }
+  }
 
-  private def addResource0(id: String, resource: TaskResource): Unit = withLock {
+  private def addResource0(id: String, resource: TaskResource): Unit = lock {
     resources.put(id, resource)
     priorityToResourcesMapping
       .computeIfAbsent(resource.priority(), _ => new util.LinkedHashSet[TaskResource]())
       .add(resource)
   }
 
+  private def release(resource: TaskResource): Unit = exclusiveLock {
+    // We disallow modification on registry's members when calling the user-defined release code.
+    resource.release()
+  }
+
   /** Release all managed resources according to priority and reversed order */
-  private[util] def releaseAll(): Unit = withLock {
+  private[util] def releaseAll(): Unit = lock {
     val table = new util.ArrayList(priorityToResourcesMapping.entrySet())
     Collections.sort(
       table,
@@ -227,14 +237,14 @@ class TaskResourceRegistry extends Logging {
     )
     table.forEach {
       _.getValue.asScala.toSeq.reverse
-        .foreach(_.release()) // lifo for all resources within the same priority
+        .foreach(release(_)) // lifo for all resources within the same priority
     }
     priorityToResourcesMapping.clear()
     resources.clear()
   }
 
   /** Release single resource by ID */
-  private[util] def releaseResource(id: String): Unit = withLock {
+  private[util] def releaseResource(id: String): Unit = lock {
     if (!resources.containsKey(id)) {
       throw new IllegalArgumentException(
         String.format("TaskResource with ID %s is not registered", id))
@@ -247,13 +257,13 @@ class TaskResourceRegistry extends Logging {
     if (!samePrio.contains(resource)) {
       throw new IllegalStateException("TaskResource not found in priority mapping")
     }
-    resource.release()
+    release(resource)
     samePrio.remove(resource)
     resources.remove(id)
   }
 
   private[util] def addResourceIfNotRegistered[T <: TaskResource](id: String, factory: () => T): T =
-    withLock {
+    lock {
       if (resources.containsKey(id)) {
         return resources.get(id).asInstanceOf[T]
       }
@@ -262,7 +272,7 @@ class TaskResourceRegistry extends Logging {
       resource
     }
 
-  private[util] def addResource[T <: TaskResource](id: String, resource: T): T = withLock {
+  private[util] def addResource[T <: TaskResource](id: String, resource: T): T = lock {
     if (resources.containsKey(id)) {
       throw new IllegalArgumentException(
         String.format("TaskResource with ID %s is already registered", id))
@@ -271,11 +281,11 @@ class TaskResourceRegistry extends Logging {
     resource
   }
 
-  private[util] def isResourceRegistered(id: String): Boolean = withLock {
+  private[util] def isResourceRegistered(id: String): Boolean = lock {
     resources.containsKey(id)
   }
 
-  private[util] def getResource[T <: TaskResource](id: String): T = withLock {
+  private[util] def getResource[T <: TaskResource](id: String): T = lock {
     if (!resources.containsKey(id)) {
       throw new IllegalArgumentException(
         String.format("TaskResource with ID %s is not registered", id))
@@ -283,7 +293,7 @@ class TaskResourceRegistry extends Logging {
     resources.get(id).asInstanceOf[T]
   }
 
-  private[util] def getSharedUsage(): SimpleMemoryUsageRecorder = withLock {
+  private[util] def getSharedUsage(): SimpleMemoryUsageRecorder = lock {
     sharedUsage
   }
 }
