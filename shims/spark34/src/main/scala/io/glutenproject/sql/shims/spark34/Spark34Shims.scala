@@ -176,4 +176,6 @@ class Spark34Shims extends SparkShims {
       iterator
     )
   }
+
+  override def enableNativeWriteFilesByDefault(): Boolean = true
 }

@@ -663,8 +663,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetIOSuite]
     // Velox doesn't write file metadata into parquet file.
     .exclude("Write Spark version into Parquet metadata")
-    // Spark except exception but not occur in velox.
-    .exclude("SPARK-7837 Do not close output writer twice when commitTask() fails")
     // Disable Spark's vectorized reading tests.
     .exclude("Standard mode - fixed-length decimals")
     .exclude("Legacy mode - fixed-length decimals")
@@ -938,7 +936,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFilteredScanSuite]
   enableSuite[GlutenFiltersSuite]
   enableSuite[GlutenInsertSuite]
-    // Spark except exception but not occur in velox.
+    // the native write staing dir is differnt with vanilla Spark for coustom partition paths
     .exclude("SPARK-35106: Throw exception when rename custom partition paths returns false")
     .exclude("Stop task set if FileAlreadyExistsException was thrown")
     .exclude("INSERT rows, ALTER TABLE ADD COLUMNS with DEFAULTs, then SELECT them")

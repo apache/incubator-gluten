@@ -69,6 +69,9 @@ const std::string kBloomFilterNumBits = "spark.gluten.sql.columnar.backend.velox
 const std::string kBloomFilterMaxNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits";
 const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver";
 
+// write fies
+const std::string kMaxPartitions = "spark.gluten.sql.columnar.backend.velox.maxPartitionsPerWritersSession";
+
 // metrics
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
 const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
@@ -433,7 +436,9 @@ std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig()
   configs[velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCaseSession] =
       veloxCfg_->get<bool>(kCaseSensitive, false) == false ? "true" : "false";
   configs[velox::connector::hive::HiveConfig::kArrowBridgeTimestampUnit] = "6";
-  configs[velox::connector::hive::HiveConfig::kMaxPartitionsPerWritersSession] = "400";
+  configs[velox::connector::hive::HiveConfig::kMaxPartitionsPerWritersSession] =
+      std::to_string(veloxCfg_->get<int32_t>(kMaxPartitions, 10000));
+  configs[velox::connector::hive::HiveConfig::kPartitionPathAsLowerCaseSession] = "false";
 
   return std::make_shared<velox::core::MemConfig>(configs);
 }
