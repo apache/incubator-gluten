@@ -18,7 +18,7 @@ package io.substrait.spark
 
 import io.substrait.`type`.Type
 import io.substrait.expression._
-import io.substrait.function.SimpleExtension
+import io.substrait.extension.SimpleExtension
 
 class DefaultExpressionVisitor[T]
   extends AbstractExpressionVisitor[T, RuntimeException]

@@ -21,8 +21,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate._
 
 import io.substrait.`type`.Type
 import io.substrait.expression.{AggregateFunctionInvocation, Expression => SExpression, ExpressionCreator, FunctionArg}
-import io.substrait.function.SimpleExtension
-import io.substrait.proto.AggregateFunction
+import io.substrait.extension.SimpleExtension
 
 import java.util.Collections
 
@@ -81,14 +80,14 @@ object ToAggregateFunction {
     case SExpression.AggregationPhase.INTERMEDIATE_TO_RESULT => Final
     case SExpression.AggregationPhase.INITIAL_TO_RESULT => Complete
   }
-  def fromSpark(isDistinct: Boolean): AggregateFunction.AggregationInvocation = if (isDistinct) {
-    AggregateFunction.AggregationInvocation.AGGREGATION_INVOCATION_DISTINCT
+  def fromSpark(isDistinct: Boolean): SExpression.AggregationInvocation = if (isDistinct) {
+    SExpression.AggregationInvocation.DISTINCT
   } else {
-    AggregateFunction.AggregationInvocation.AGGREGATION_INVOCATION_ALL
+    SExpression.AggregationInvocation.ALL
   }
 
-  def toSpark(innovation: AggregateFunction.AggregationInvocation): Boolean = innovation match {
-    case AggregateFunction.AggregationInvocation.AGGREGATION_INVOCATION_DISTINCT => true
+  def toSpark(innovation: SExpression.AggregationInvocation): Boolean = innovation match {
+    case SExpression.AggregationInvocation.DISTINCT => true
     case _ => false
   }
 
