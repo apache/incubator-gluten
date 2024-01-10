@@ -300,7 +300,6 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"bit_and_merge", "bitwise_and_agg_merge"},
     {"murmur3hash", "hash_with_seed"},
     {"modulus", "mod"}, /*Presto functions.*/
-    {"isnan", "is_nan"}, /*Presto functions.*/
     {"date_format", "format_datetime"}};
 
 const std::unordered_map<std::string, std::string> SubstraitParser::typeMap_ = {
