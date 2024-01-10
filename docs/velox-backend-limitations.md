@@ -103,16 +103,6 @@ Parquet write only support three configs, other will not take effect.
 If the user enables Spark's columnar reading, error can occur due to Spark's columnar vector is not compatible with
 Gluten's.
 
-### Exception caused by File compression codec
-Some compression codecs are not supported in Velox on certain file format.
-Exception occurs when Velox TableScan is used to read files with unsupported compression codec.
-
-| File Format | none | zlib | zstd | snappy | lzo | lz4 | gzip |
-|-------------|------|------|------|--------|-----|-----|------|
-| Parquet     | Y    | N    | Y    | Y      | N   | N   | Y    |
-| DWRF        | Y    | Y    | Y    | Y      | Y   | Y   | N    |
-
-
 ### Spill
 
 `OutOfMemoryExcetpion` may still be triggered within current implementation of spill-to-disk feature, when shuffle partitions is set to a large number. When this case happens, please try to reduce the partition number to get rid of the OOM.
