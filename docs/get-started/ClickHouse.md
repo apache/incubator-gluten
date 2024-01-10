@@ -54,8 +54,10 @@ Otherwise, do:
 
 1. clone Kyligence/ClickHouse repo
     ```
+    export GLUTEN_SOURCE=/path/to/gluten
+    read -r CH_VERSION < <(grep -oP 'CH_BRANCH=\K[^=]+' $GLUTEN_SOURCE/cpp-ch/clickhouse.version )
     cd /to/some/place/
-    git clone --recursive --shallow-submodules -b clickhouse_backend https://github.com/Kyligence/ClickHouse.git
+    git clone --recursive --shallow-submodules -b $CH_VERSION https://github.com/Kyligence/ClickHouse.git
     ```
 
 2. Configure cpp-ch
@@ -173,6 +175,7 @@ cp gluten-XXXXX-spark-3.3-jar-with-dependencies.jar jars/
 
 ##### Start Spark Thriftserver on local
 ```
+export LD_PRELOAD=/path_to_clickhouse_library/libch.so
 cd spark-3.2.2-bin-hadoop2.7
 ./sbin/start-thriftserver.sh \
   --master local[3] \
