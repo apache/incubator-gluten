@@ -25,7 +25,6 @@ import _root_.io.glutenproject.utils.TaskListener
 
 import java.util
 import java.util.{Collections, UUID}
-import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicLong
 
 import scala.collection.JavaConverters._
