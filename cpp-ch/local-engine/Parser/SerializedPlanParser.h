@@ -39,7 +39,6 @@
 
 namespace local_engine
 {
-
 static const std::map<std::string, std::string> SCALAR_FUNCTIONS
     = {{"is_not_null", "isNotNull"},
        {"is_null", "isNull"},
@@ -291,13 +290,17 @@ public:
 
     void parseExtensions(const ::google::protobuf::RepeatedPtrField<substrait::extensions::SimpleExtensionDeclaration> & extensions);
     std::shared_ptr<DB::ActionsDAG> expressionsToActionsDAG(
-        const std::vector<substrait::Expression> & expressions, const DB::Block & header, const DB::Block & read_schema);
+        const std::vector<substrait::Expression> & expressions,
+        const DB::Block & header,
+        const DB::Block & read_schema);
     RelMetricPtr getMetric() { return metrics.empty() ? nullptr : metrics.at(0); }
 
     static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
 
     bool convertBinaryArithmeticFunDecimalArgs(
-        ActionsDAGPtr actions_dag, ActionsDAG::NodeRawConstPtrs & args, const substrait::Expression_ScalarFunction & arithmeticFun);
+        ActionsDAGPtr actions_dag,
+        ActionsDAG::NodeRawConstPtrs & args,
+        const substrait::Expression_ScalarFunction & arithmeticFun);
 
     IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
 
@@ -334,7 +337,10 @@ private:
         bool keep_result = false,
         bool position = false);
     const ActionsDAG::Node * parseFunctionWithDAG(
-        const substrait::Expression & rel, std::string & result_name, DB::ActionsDAGPtr actions_dag = nullptr, bool keep_result = false);
+        const substrait::Expression & rel,
+        std::string & result_name,
+        DB::ActionsDAGPtr actions_dag = nullptr,
+        bool keep_result = false);
     ActionsDAG::NodeRawConstPtrs parseArrayJoinWithDAG(
         const substrait::Expression & rel,
         std::vector<String> & result_name,
@@ -361,7 +367,9 @@ private:
     std::string getUniqueName(const std::string & name) { return name + "_" + std::to_string(name_no++); }
     static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
     void wrapNullable(
-        const std::vector<String> & columns, ActionsDAGPtr actions_dag, std::map<std::string, std::string> & nullable_measure_names);
+        const std::vector<String> & columns,
+        ActionsDAGPtr actions_dag,
+        std::map<std::string, std::string> & nullable_measure_names);
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
     const ActionsDAG::Node * addColumn(DB::ActionsDAGPtr actions_dag, const DataTypePtr & type, const Field & field);
 
@@ -400,6 +408,11 @@ public:
     void setExtraPlanHolder(std::vector<QueryPlanPtr> & extra_plan_holder_) { extra_plan_holder = std::move(extra_plan_holder_); }
 
 private:
+//    std::chrono::steady_clock::time_point start;
+  //  std::chrono::steady_clock::time_point mid;
+   // std::chrono::steady_clock::time_point mid0;
+    //std::vector<std::chrono::steady_clock::time_point> has_nexts;
+    //std::vector<std::chrono::steady_clock::time_point> nexts;
     QueryContext query_context;
     std::unique_ptr<SparkRowInfo> writeBlockToSparkRow(DB::Block & block);
     QueryPipeline query_pipeline;
@@ -418,9 +431,11 @@ class ASTParser
 {
 public:
     explicit ASTParser(const ContextPtr & _context, std::unordered_map<std::string, std::string> & _function_mapping)
-        : context(_context), function_mapping(_function_mapping)
+        : context(_context)
+        , function_mapping(_function_mapping)
     {
     }
+
     ~ASTParser() = default;
 
     ASTPtr parseToAST(const Names & names, const substrait::Expression & rel);

@@ -32,11 +32,11 @@
 namespace local_engine
 {
 using namespace DB;
-std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(DB::NamesAndTypesList columns, ContextPtr context);
+std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(const DB::NamesAndTypesList columns, ContextPtr context);
 
 std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings();
 
-std::unique_ptr<SelectQueryInfo> buildQueryInfo(NamesAndTypesList & names_and_types_list);
+std::unique_ptr<SelectQueryInfo> buildQueryInfo(const NamesAndTypesList & names_and_types_list);
 
 struct MergeTreeTable
 {

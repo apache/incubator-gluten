@@ -38,8 +38,14 @@ class MergeTreeRelParser : public RelParser
 {
 public:
     explicit MergeTreeRelParser(
-        SerializedPlanParser * plan_paser_, ContextPtr & context_, QueryContext & query_context_, ContextMutablePtr & global_context_)
-        : RelParser(plan_paser_), context(context_), query_context(query_context_), global_context(global_context_)
+        SerializedPlanParser * plan_paser_,
+        ContextPtr & context_,
+        QueryContext & query_context_,
+        ContextMutablePtr & global_context_)
+        : RelParser(plan_paser_)
+        , context(context_)
+        , query_context(query_context_)
+        , global_context(global_context_)
     {
     }
 
@@ -55,7 +61,10 @@ public:
 
     struct Condition
     {
-        explicit Condition(const substrait::Expression & node_) : node(node_) { }
+        explicit Condition(const substrait::Expression & node_)
+            : node(node_)
+        {
+        }
 
         const substrait::Expression node;
         size_t columns_size = 0;
@@ -66,6 +75,7 @@ public:
 
         bool operator<(const Condition & rhs) const { return tuple() < rhs.tuple(); }
     };
+
     using Conditions = std::list<Condition>;
 
     // visable for test
@@ -76,7 +86,7 @@ public:
 
 private:
     void parseToAction(ActionsDAGPtr & filter_action, const substrait::Expression & rel, std::string & filter_name);
-    PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input);
+    PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input, std::list<const substrait::Rel *> & rel_stack_);
     ActionsDAGPtr optimizePrewhereAction(const substrait::Expression & rel, std::string & filter_name, Block & block);
     String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func);
     void collectColumns(const substrait::Expression & rel, NameSet & columns, Block & block);
@@ -87,5 +97,4 @@ private:
     ContextMutablePtr & global_context;
     NameToIndexMap primary_key_names_positions;
 };
-
 }

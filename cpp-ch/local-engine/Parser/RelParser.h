@@ -29,24 +29,31 @@
 #include <google/protobuf/repeated_field.h>
 #include <substrait/extensions/extensions.pb.h>
 #include <substrait/plan.pb.h>
+
 namespace local_engine
 {
 /// parse a single substrait relation
 class RelParser
 {
 public:
-    explicit RelParser(SerializedPlanParser * plan_parser_) : plan_parser(plan_parser_) { }
+    explicit RelParser(SerializedPlanParser * plan_parser_)
+        : plan_parser(plan_parser_)
+    {
+    }
 
     virtual ~RelParser() = default;
     virtual DB::QueryPlanPtr
     parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_)
-        = 0;
+    = 0;
     virtual DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
     virtual const substrait::Rel & getSingleInput(const substrait::Rel & rel) = 0;
     const std::vector<IQueryPlanStep *> & getSteps() const { return steps; }
 
     static AggregateFunctionPtr getAggregateFunction(
-        const DB::String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters = {});
+        const DB::String & name,
+        DB::DataTypes arg_types,
+        DB::AggregateFunctionProperties & properties,
+        const DB::Array & parameters = {});
 
 protected:
     inline SerializedPlanParser * getPlanParser() { return plan_parser; }
@@ -69,10 +76,12 @@ protected:
     {
         return plan_parser->parseExpression(action_dag, rel);
     }
+
     DB::ActionsDAGPtr expressionsToActionsDAG(const std::vector<substrait::Expression> & expressions, const DB::Block & header)
     {
         return plan_parser->expressionsToActionsDAG(expressions, header, header);
     }
+
     std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal) { return plan_parser->parseLiteral(literal); }
     // collect all steps for metrics
     std::vector<IQueryPlanStep *> steps;
@@ -83,11 +92,24 @@ protected:
         return plan_parser->toFunctionNode(action_dag, function, args);
     }
 
-    static std::map<std::string, std::string> parseFormattedRelAdvancedOptimization(const substrait::extensions::AdvancedExtension &advanced_extension);
-    static std::string getStringConfig(const std::map<std::string, std::string> & configs, const std::string & key, const std::string & default_value = "");
+    static std::map<std::string, std::string> parseFormattedRelAdvancedOptimization(
+        const substrait::extensions::AdvancedExtension & advanced_extension);
+    static std::string getStringConfig(
+        const std::map<std::string, std::string> & configs,
+        const std::string & key,
+        const std::string & default_value = "");
+    static void getUsedColumnsInBaseSchema(std::set<int> & ret, const substrait::Rel & rel, int num_of_base_columns);
 
 private:
     SerializedPlanParser * plan_parser;
+    static void getUsedColumnsInBaseSchema(
+        std::set<int> & ret,
+        const substrait::Expression & rel,
+        int num_of_base_columns);
+    static void getUsedColumnsInBaseSchema(
+        std::set<int> & ret,
+        const substrait::Expression_ScalarFunction & scalar_function,
+        int num_of_base_columns);
 };
 
 class RelParserFactory

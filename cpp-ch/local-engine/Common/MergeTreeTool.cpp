@@ -29,7 +29,7 @@ using namespace DB;
 
 namespace local_engine
 {
-std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(DB::NamesAndTypesList columns, ContextPtr context)
+std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(const DB::NamesAndTypesList columns, ContextPtr context)
 {
     std::shared_ptr<DB::StorageInMemoryMetadata> metadata = std::make_shared<DB::StorageInMemoryMetadata>();
     ColumnsDescription columns_description;
@@ -53,7 +53,7 @@ std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings()
     return settings;
 }
 
-std::unique_ptr<SelectQueryInfo> buildQueryInfo(NamesAndTypesList & names_and_types_list)
+std::unique_ptr<SelectQueryInfo> buildQueryInfo(const NamesAndTypesList & names_and_types_list)
 {
     std::unique_ptr<SelectQueryInfo> query_info = std::make_unique<SelectQueryInfo>();
     query_info->query = std::make_shared<ASTSelectQuery>();
