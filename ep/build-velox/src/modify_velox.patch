@@ -139,6 +139,19 @@ index 2cabfc29a..54329ce23 100644
  
  add_library(
    velox_dwio_arrow_parquet_writer_test_lib
--- 
+
+diff --git a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
+index e2a638df6..e383cf205 100644
+--- a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
++++ b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
+@@ -38,7 +38,6 @@ std::shared_ptr<FileSystem> abfsFileSystemGenerator(
+
+ void registerAbfsFileSystem() {
+ #ifdef VELOX_ENABLE_ABFS
+-  LOG(INFO) << "Register ABFS";
+   registerFileSystem(isAbfsFile, std::function(abfsFileSystemGenerator));
+ #endif
+ }
+--
 2.25.1
 

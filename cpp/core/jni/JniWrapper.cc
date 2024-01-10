@@ -252,7 +252,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   metricsBuilderClass = createGlobalClassReferenceOrError(env, "Lio/glutenproject/metrics/Metrics;");
 
   metricsBuilderConstructor = getMethodIdOrError(
-      env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
+      env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
 
   serializedColumnarBatchIteratorClass =
       createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/ColumnarBatchInIterator;");
@@ -502,7 +502,9 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutItera
       longArray[Metrics::kProcessedStrides],
       longArray[Metrics::kRemainingFilterTime],
       longArray[Metrics::kIoWaitTime],
-      longArray[Metrics::kPreloadSplits]);
+      longArray[Metrics::kPreloadSplits],
+      longArray[Metrics::kPhysicalWrittenBytes],
+      longArray[Metrics::kNumWrittenFiles]);
 
   JNI_METHOD_END(nullptr)
 }

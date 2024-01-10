@@ -335,6 +335,15 @@ class MetricsApiImpl extends MetricsApi with Logging {
   override def genLimitTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
     new LimitMetricsUpdater(metrics)
 
+  def genWriteFilesTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
+    Map(
+      "physicalWrittenBytes" -> SQLMetrics.createMetric(sparkContext, "number of written bytes"),
+      "numWrittenFiles" -> SQLMetrics.createMetric(sparkContext, "number of written files")
+    )
+
+  def genWriteFilesTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
+    new WriteFilesMetricsUpdater(metrics)
+
   override def genSortTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
       "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
