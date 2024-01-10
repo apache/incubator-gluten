@@ -606,7 +606,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         df => checkOperatorCount[ProjectExecTransformer](1)(df)
       }
       runQueryAndCompare(
-        "select id % 10, sum(id +100) + max(id+100) from range(100) group by id % 10 ") {
+        "select id % 10, sum(id +100) + max(id+100) from range(100) group by id % 10") {
         df => checkOperatorCount[ProjectExecTransformer](1)(df)
       }
       // fix issue: GLUTEN-4333

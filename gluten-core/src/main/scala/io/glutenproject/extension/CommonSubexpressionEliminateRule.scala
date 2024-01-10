@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.extension
 
+import io.glutenproject.GlutenConfig
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions._
@@ -34,12 +36,16 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
   private var lastPlan: LogicalPlan = null
 
   override def apply(plan: LogicalPlan): LogicalPlan = {
-    val newPlan = if (plan.resolved && !plan.fastEquals(lastPlan)) {
-      lastPlan = plan
-      visitPlan(plan)
-    } else {
-      plan
-    }
+    val newPlan =
+      if (
+        plan.resolved && GlutenConfig.getConf.enableGluten
+        && GlutenConfig.getConf.enableCommonSubexpressionEliminate && !plan.fastEquals(lastPlan)
+      ) {
+        lastPlan = plan
+        visitPlan(plan)
+      } else {
+        plan
+      }
     newPlan
   }
 
