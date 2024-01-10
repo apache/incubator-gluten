@@ -256,6 +256,7 @@ void AggregateRelParser::addMergingAggregatedStep()
     bool enable_streaming_aggregating = getContext()->getConfigRef().getBool("enable_streaming_aggregating", true);
     if (enable_streaming_aggregating)
     {
+        params.group_by_two_level_threshold = settings.group_by_two_level_threshold;
         auto merging_step = std::make_unique<GraceMergingAggregatedStep>(getContext(), plan->getCurrentDataStream(), params);
         steps.emplace_back(merging_step.get());
         plan->addStep(std::move(merging_step));
@@ -289,6 +290,11 @@ void AggregateRelParser::addAggregatingStep()
     if (enable_streaming_aggregating)
     {
         // Disable spilling to disk.
+        // If group_by_two_level_threshold_bytes != 0, `Aggregator` will use memory usage as a condition to convert
+        // the hash table into a two level one. The method of determining the amount of memory used by the hash table is
+        // unreliable. It will appear that a small hash table is converted into a two level structure, resulting in a
+        // lot of small blocks. So we disable this condition, reamain `group_by_two_level_threshold` as the condition to
+        // convert a single level hash table into a two level one.
         Aggregator::Params params(
             grouping_keys,
             aggregate_descriptions,
@@ -296,7 +302,7 @@ void AggregateRelParser::addAggregatingStep()
             settings.max_rows_to_group_by,
             settings.group_by_overflow_mode,
             settings.group_by_two_level_threshold,
-            settings.group_by_two_level_threshold_bytes,
+            0, // group_by_two_level_threshold_bytes
             0,
             settings.empty_result_for_aggregation_by_empty_set,
             nullptr,
