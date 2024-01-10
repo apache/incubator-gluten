@@ -19,6 +19,7 @@ package org.apache.spark.sql.extension
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -166,20 +167,19 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
     logTrace(
       s"aggregate groupingExpressions: ${aggregate.groupingExpressions} " +
         s"aggregateExpressions: ${aggregate.aggregateExpressions}")
-    val groupingSize = aggregate.groupingExpressions.size
-    val aggregateSize = aggregate.aggregateExpressions.size
-
-    val inputCtx = RewriteContext(
-      aggregate.groupingExpressions ++ aggregate.aggregateExpressions,
-      aggregate.child)
+    val exprsWithIndex = aggregate.aggregateExpressions.zipWithIndex
+      .filter(_._1.exists(_.isInstanceOf[AggregateExpression]))
+    val inputCtx = RewriteContext(exprsWithIndex.map(_._1), aggregate.child)
     val outputCtx = rewrite(inputCtx)
+    val newExprs = outputCtx.exprs
+    val indexToNewExpr = exprsWithIndex.map(_._2).zip(newExprs).toMap
+    val updatedAggregateExpressions = aggregate.aggregateExpressions.indices.map {
+      index => indexToNewExpr.getOrElse(index, aggregate.aggregateExpressions(index))
+    }
     Aggregate(
-      outputCtx.exprs.slice(0, groupingSize),
-      outputCtx.exprs
-        .slice(groupingSize, groupingSize + aggregateSize)
-        .map(_.asInstanceOf[NamedExpression]),
-      outputCtx.child
-    )
+      aggregate.groupingExpressions,
+      updatedAggregateExpressions.toSeq.map(_.asInstanceOf[NamedExpression]),
+      outputCtx.child)
   }
 
   private def visitSort(sort: Sort): Sort = {
