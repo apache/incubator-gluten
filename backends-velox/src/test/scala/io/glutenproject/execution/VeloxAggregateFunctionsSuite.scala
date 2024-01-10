@@ -726,6 +726,7 @@ class VeloxAggregateFunctionsFlushSuite extends VeloxAggregateFunctionsSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       // To test flush behaviors, set low flush threshold to ensure flush happens.
+      .set(GlutenConfig.VELOX_FLUSHABLE_PARTIAL_AGGREGATION_ENABLED.key, "true")
       .set(GlutenConfig.ABANDON_PARTIAL_AGGREGATION_MIN_PCT.key, "1")
       .set(GlutenConfig.ABANDON_PARTIAL_AGGREGATION_MIN_ROWS.key, "10")
   }
