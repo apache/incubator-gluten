@@ -122,6 +122,7 @@ const std::string kPrefetchRowGroups = "spark.gluten.sql.columnar.backend.velox.
 const std::string kLoadQuantum = "spark.gluten.sql.columnar.backend.velox.loadQuantum";
 const std::string kMaxCoalescedDistanceBytes = "spark.gluten.sql.columnar.backend.velox.maxCoalescedDistanceBytes";
 const std::string kMaxCoalescedBytes = "spark.gluten.sql.columnar.backend.velox.maxCoalescedBytes";
+const std::string kCachePrefetchMinPct = "spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct";
 
 } // namespace
 
@@ -305,8 +306,8 @@ void VeloxBackend::initConnector(const std::shared_ptr<const facebook::velox::Co
       velox::connector::hive::HiveConfig::kFilePreloadThreshold,
       conf->get<std::string>(kFilePreloadThreshold, "1048576")); // 1M
 
-  // set cache_prefetch_min_pct = 0 to force all loads are prefetched in DirectBufferInput.
-  FLAGS_cache_prefetch_min_pct = 0;
+  // set cache_prefetch_min_pct default as 0 to force all loads are prefetched in DirectBufferInput.
+  FLAGS_cache_prefetch_min_pct = conf->get<int>(kCachePrefetchMinPct, 0);
 
   if (ioThreads > 0) {
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);

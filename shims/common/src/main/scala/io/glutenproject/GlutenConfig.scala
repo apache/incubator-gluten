@@ -319,6 +319,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConf(MAX_COALESCED_DISTANCE_BYTES)
   def maxCoalescedBytes: Option[Int] =
     conf.getConf(MAX_COALESCED_BYTES)
+  def cachePrefetchMinPct: Option[Int] =
+    conf.getConf(CACHE_PREFETCH_MINPCT)
 
   def enableColumnarProjectCollapse: Boolean = conf.getConf(ENABLE_COLUMNAR_PROJECT_COLLAPSE)
 
@@ -1525,6 +1527,14 @@ object GlutenConfig {
       .doc(" Set the max coalesced bytes for velox file scan")
       .intConf
       .createOptional
+
+  val CACHE_PREFETCH_MINPCT =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct")
+      .internal()
+      .doc(" Set prefetch cache min pct for velox file scan")
+      .intConf
+      .createOptional
+
   val AWS_SDK_LOG_LEVEL =
     buildConf("spark.gluten.velox.awsSdkLogLevel")
       .internal()
