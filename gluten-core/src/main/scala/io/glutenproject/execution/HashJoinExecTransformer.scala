@@ -242,7 +242,7 @@ trait HashJoinLikeExecTransformer
 
     PartitioningCollection(
       generateExprCombinations(partitioning.expressions, Nil)
-        .map(exprs => partitioning.withNewChildren(exprs).asInstanceOf[HashPartitioningLike]))
+        .map(exprs => partitioning.withNewChildren(exprs).asInstanceOf[HashPartitioning]))
   }
 
   // An one-to-many mapping from a streamed key to build keys.
