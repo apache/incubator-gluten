@@ -18,11 +18,13 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.{GlutenConfig, GlutenPlugin, VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME}
 import io.glutenproject.backendsapi._
+import io.glutenproject.execution.WriteFilesExecTransformer
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Literal, NamedExpression, NthValue, PercentRank, Rand, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Sum}
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -109,7 +111,7 @@ object BackendSettings extends BackendSettingsApi {
             "StructType as element in ArrayType"
           case StructField(_, arrayType: ArrayType, _, _)
               if arrayType.elementType.isInstanceOf[ArrayType] =>
-            "A rrayType as element in ArrayType"
+            "ArrayType as element in ArrayType"
           case StructField(_, mapType: MapType, _, _) if mapType.keyType.isInstanceOf[StructType] =>
             "StructType as Key in MapType"
           case StructField(_, mapType: MapType, _, _)
@@ -129,11 +131,15 @@ object BackendSettings extends BackendSettingsApi {
 
   override def supportWriteFilesExec(
       format: FileFormat,
-      fields: Array[StructField]): Option[String] = {
+      fields: Array[StructField],
+      bucketSpec: Option[BucketSpec],
+      options: Map[String, String]): Option[String] = {
+
     def validateCompressionCodec(): Option[String] = {
       // Velox doesn't support brotli and lzo.
       val unSupportedCompressions = Set("brotli, lzo")
-      if (unSupportedCompressions.contains(SQLConf.get.parquetCompressionCodec.toLowerCase())) {
+      val compressionCodec = WriteFilesExecTransformer.getCompressionCodec(options)
+      if (unSupportedCompressions.contains(compressionCodec)) {
         Some("brotli or lzo compression codec is not support in velox backend.")
       } else {
         None
@@ -141,40 +147,58 @@ object BackendSettings extends BackendSettingsApi {
     }
 
     // Validate if all types are supported.
-    def validateDateTypes(fields: Array[StructField]): Option[String] = {
+    def validateDateTypes(): Option[String] = {
       fields.flatMap {
         field =>
           field.dataType match {
             case _: TimestampType => Some("TimestampType")
-            case struct: StructType =>
-              Some("StructType")
-            case array: ArrayType =>
-              Some("ArrayType")
-            case map: MapType =>
-              Some("MapType")
+            case _: StructType => Some("StructType")
+            case _: ArrayType => Some("ArrayType")
+            case _: MapType => Some("MapType")
             case _ => None
           }
       }.headOption
     }
 
-    def validateFieldMetadata(fields: Array[StructField]): Option[String] = {
+    def validateFieldMetadata(): Option[String] = {
       if (fields.exists(!_.metadata.equals(Metadata.empty))) {
         Some("StructField contain the metadata information.")
       } else None
     }
 
-    def validateFileFormat(format: FileFormat): Option[String] = {
+    def validateFileFormat(): Option[String] = {
       format match {
         case _: ParquetFileFormat => None
         case _: FileFormat => Some("Only parquet fileformat is supported in native write.")
       }
     }
 
-    val fileFormat = validateFileFormat(format)
-    val metadata = validateFieldMetadata(fields)
-    val dataTypes = validateDateTypes(fields)
-    val compression = validateCompressionCodec()
-    compression.orElse(dataTypes).orElse(metadata).orElse(fileFormat)
+    def validateWriteFilesOptions(): Option[String] = {
+      val maxRecordsPerFile = options
+        .get("maxRecordsPerFile")
+        .map(_.toLong)
+        .getOrElse(SQLConf.get.maxRecordsPerFile)
+      if (maxRecordsPerFile > 0) {
+        Some("Unsupported native write: maxRecordsPerFile not supported.")
+      } else {
+        None
+      }
+    }
+
+    def validateBucketSpec(): Option[String] = {
+      if (bucketSpec.nonEmpty) {
+        Some("Unsupported native write: bucket write is not supported.")
+      } else {
+        None
+      }
+    }
+
+    validateCompressionCodec()
+      .orElse(validateFileFormat())
+      .orElse(validateFieldMetadata())
+      .orElse(validateDateTypes())
+      .orElse(validateWriteFilesOptions())
+      .orElse(validateBucketSpec())
   }
 
   override def supportExpandExec(): Boolean = true

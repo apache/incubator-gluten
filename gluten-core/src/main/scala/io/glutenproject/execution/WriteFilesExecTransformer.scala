@@ -28,11 +28,15 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.internal.SQLConf
 
 import com.google.protobuf.{Any, StringValue}
+import org.apache.parquet.hadoop.ParquetOutputFormat
+
+import java.util.Locale
 
 import scala.collection.JavaConverters._
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -58,11 +62,11 @@ case class WriteFilesExecTransformer(
 
   override def output: Seq[Attribute] = Seq.empty
 
-  def genWriteParameters(): Any = {
-    val compressionCodec = if (options.get("parquet.compression").nonEmpty) {
-      options.get("parquet.compression").get.toLowerCase().capitalize
-    } else SQLConf.get.parquetCompressionCodec.toLowerCase().capitalize
+  private val caseInsensitiveOptions = CaseInsensitiveMap(options)
 
+  def genWriteParameters(): Any = {
+    val compressionCodec =
+      WriteFilesExecTransformer.getCompressionCodec(caseInsensitiveOptions).capitalize
     val writeParametersStr = new StringBuffer("WriteParameters:")
     writeParametersStr.append("is").append(compressionCodec).append("=1").append("\n")
     val message = StringValue
@@ -131,13 +135,11 @@ case class WriteFilesExecTransformer(
     val supportedWrite =
       BackendsApiManager.getSettings.supportWriteFilesExec(
         fileFormat,
-        child.output.toStructType.fields)
+        child.output.toStructType.fields,
+        bucketSpec,
+        caseInsensitiveOptions)
     if (supportedWrite.nonEmpty) {
       return ValidationResult.notOk("Unsupported native write: " + supportedWrite.get)
-    }
-
-    if (bucketSpec.nonEmpty) {
-      return ValidationResult.notOk("Unsupported native write: bucket write is not supported.")
     }
 
     val substraitContext = new SubstraitContext
@@ -157,4 +159,16 @@ case class WriteFilesExecTransformer(
 
   override protected def withNewChildInternal(newChild: SparkPlan): WriteFilesExecTransformer =
     copy(child = newChild)
+}
+
+object WriteFilesExecTransformer {
+  def getCompressionCodec(options: Map[String, String]): String = {
+    // From `ParquetOptions`
+    val parquetCompressionConf = options.get(ParquetOutputFormat.COMPRESSION)
+    options
+      .get("compression")
+      .orElse(parquetCompressionConf)
+      .getOrElse(SQLConf.get.parquetCompressionCodec)
+      .toLowerCase(Locale.ROOT)
+  }
 }
