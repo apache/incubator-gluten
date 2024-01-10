@@ -340,6 +340,14 @@ jobs:
           docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
           mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -Piceberg -Pdelta -DskipTests'
+      - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.2
+        run: |
+          docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
+          mvn clean install -Pspark-3.2 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx20G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=40g -s=10.0 --threads=32 --iterations=1'
       - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.2 with Celeborn
         run: |
           docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c \
