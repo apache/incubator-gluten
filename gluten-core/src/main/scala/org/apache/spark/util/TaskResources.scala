@@ -198,7 +198,7 @@ class TaskResourceRegistry extends Logging {
     }
   }
   private def exclusiveLock[T](body: => T): T = {
-    lock {
+    synchronized {
       try {
         if (exclusiveLockAcquired) {
           throw new ConcurrentModificationException
