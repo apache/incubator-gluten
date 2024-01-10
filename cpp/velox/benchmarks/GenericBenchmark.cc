@@ -269,19 +269,20 @@ int main(int argc, char** argv) {
     std::exit(EXIT_FAILURE);
   }
 
-#define GENERIC_BENCHMARK(NAME, READER_TYPE)                                                                      \
-  do {                                                                                                            \
-    auto* bm = ::benchmark::RegisterBenchmark(NAME, BM_Generic, substraitJsonFile, inputFiles, conf, READER_TYPE) \
-                   ->MeasureProcessCPUTime()                                                                      \
-                   ->UseRealTime();                                                                               \
-    if (FLAGS_threads > 0) {                                                                                      \
-      bm->Threads(FLAGS_threads);                                                                                 \
-    } else {                                                                                                      \
-      bm->ThreadRange(1, std::thread::hardware_concurrency());                                                    \
-    }                                                                                                             \
-    if (FLAGS_iterations > 0) {                                                                                   \
-      bm->Iterations(FLAGS_iterations);                                                                           \
-    }                                                                                                             \
+#define GENERIC_BENCHMARK(NAME, READER_TYPE)                                                                          \
+  do {                                                                                                                \
+    auto* bm =                                                                                                        \
+        ::benchmark::RegisterBenchmark(NAME, BM_Generic, substraitJsonFile, splitFile, inputFiles, conf, READER_TYPE) \
+            ->MeasureProcessCPUTime()                                                                                 \
+            ->UseRealTime();                                                                                          \
+    if (FLAGS_threads > 0) {                                                                                          \
+      bm->Threads(FLAGS_threads);                                                                                     \
+    } else {                                                                                                          \
+      bm->ThreadRange(1, std::thread::hardware_concurrency());                                                        \
+    }                                                                                                                 \
+    if (FLAGS_iterations > 0) {                                                                                       \
+      bm->Iterations(FLAGS_iterations);                                                                               \
+    }                                                                                                                 \
   } while (0)
 
   DLOG(INFO) << "FLAGS_threads:" << FLAGS_threads;
