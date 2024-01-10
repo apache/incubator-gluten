@@ -615,7 +615,11 @@ case class RegularHashAggregateExecTransformer(
 
   override protected def allowFlush: Boolean = false
 
-  override def simpleString(maxFields: Int): String = s"${super.simpleString(maxFields)}"
+  override def simpleString(maxFields: Int): String =
+    s"${super.simpleString(maxFields)}"
+
+  override def verboseString(maxFields: Int): String =
+    s"${super.verboseString(maxFields)}"
 
   override protected def withNewChildInternal(newChild: SparkPlan): HashAggregateExecTransformer = {
     copy(child = newChild)
@@ -644,7 +648,10 @@ case class FlushableHashAggregateExecTransformer(
   override protected def allowFlush: Boolean = true
 
   override def simpleString(maxFields: Int): String =
-    s"Intermediate${super.simpleString(maxFields)}"
+    s"Flushable${super.simpleString(maxFields)}"
+
+  override def verboseString(maxFields: Int): String =
+    s"Flushable${super.verboseString(maxFields)}"
 
   override protected def withNewChildInternal(newChild: SparkPlan): HashAggregateExecTransformer = {
     copy(child = newChild)

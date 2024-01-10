@@ -299,13 +299,15 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableParquetRowGroupMaxMinIndex: Boolean =
     conf.getConf(ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX)
 
-  def maxPartialAggregationMemoryRatio: Option[Double] =
+  def enableVeloxFlushablePartialAggregation: Boolean =
+    conf.getConf(VELOX_FLUSHABLE_PARTIAL_AGGREGATION_ENABLED)
+  def maxFlushableAggregationMemoryRatio: Option[Double] =
     conf.getConf(MAX_PARTIAL_AGGREGATION_MEMORY_RATIO)
-  def maxExtendedPartialAggregationMemoryRatio: Option[Double] =
-    conf.getConf(MAX_EXTENDED_PARTIAL_AGGREGATION_MEMORY_RATIO)
-  def abandonPartialAggregationMinPct: Option[Int] =
+  def maxExtendedFlushableAggregationMemoryRatio: Option[Double] =
+    conf.getConf(MAX_PARTIAL_AGGREGATION_MEMORY_RATIO)
+  def abandonFlushableAggregationMinPct: Option[Int] =
     conf.getConf(ABANDON_PARTIAL_AGGREGATION_MIN_PCT)
-  def abandonPartialAggregationMinRows: Option[Int] =
+  def abandonFlushableAggregationMinRows: Option[Int] =
     conf.getConf(ABANDON_PARTIAL_AGGREGATION_MIN_ROWS)
   def enableNativeWriter: Boolean = conf.getConf(NATIVE_WRITER_ENABLED)
 
@@ -1373,12 +1375,25 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
+  val VELOX_FLUSHABLE_PARTIAL_AGGREGATION_ENABLED =
+    buildConf("spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation")
+      .internal()
+      .doc(
+        "Enable flushable aggregation. If true, Gluten will try converting regular aggregation " +
+          "into Velox's flushable aggregation when applicable. A flushable aggregation could " +
+          "emit intermediate result at anytime when memory is full / data reduction ratio is low."
+      )
+      .booleanConf
+      .createWithDefault(true)
+
   val MAX_PARTIAL_AGGREGATION_MEMORY_RATIO =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio")
       .internal()
       .doc(
         "Set the max memory of partial aggregation as "
-          + "maxPartialAggregationMemoryRatio of offheap size."
+          + "maxPartialAggregationMemoryRatio of offheap size. Note: this option only works when " +
+          "flushable partial aggregation is enabled. Ignored when " +
+          "spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false."
       )
       .doubleConf
       .createOptional
@@ -1388,7 +1403,9 @@ object GlutenConfig {
       .internal()
       .doc(
         "Set the max extended memory of partial aggregation as "
-          + "maxExtendedPartialAggregationMemoryRatio of offheap size."
+          + "maxExtendedPartialAggregationMemoryRatio of offheap size. Note: this option only " +
+          "works when flushable partial aggregation is enabled. Ignored when " +
+          "spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false."
       )
       .doubleConf
       .createOptional
@@ -1396,16 +1413,22 @@ object GlutenConfig {
   val ABANDON_PARTIAL_AGGREGATION_MIN_PCT =
     buildConf("spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct")
       .internal()
-      .doc("If partial aggregation input rows number greater than this value, "
-        + " partial aggregation may be early abandoned.")
+      .doc(
+        "If partial aggregation input rows number greater than this value, "
+          + " partial aggregation may be early abandoned. Note: this option only works when " +
+          "flushable partial aggregation is enabled. Ignored when " +
+          "spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false.")
       .intConf
       .createOptional
 
   val ABANDON_PARTIAL_AGGREGATION_MIN_ROWS =
     buildConf("spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows")
       .internal()
-      .doc("If partial aggregation aggregationPct greater than this value, "
-        + "partial aggregation may be early abandoned.")
+      .doc(
+        "If partial aggregation aggregationPct greater than this value, "
+          + "partial aggregation may be early abandoned. Note: this option only works when " +
+          "flushable partial aggregation is enabled. Ignored when " +
+          "spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false.")
       .intConf
       .createOptional
 
