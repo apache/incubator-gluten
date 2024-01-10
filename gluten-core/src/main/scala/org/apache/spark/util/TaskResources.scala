@@ -188,24 +188,26 @@ class TaskResourceRegistry extends Logging {
   private val priorityToResourcesMapping: util.HashMap[Int, util.LinkedHashSet[TaskResource]] =
     new util.HashMap[Int, util.LinkedHashSet[TaskResource]]()
 
-  private var version: Long = 0L
+  private var exclusiveLockAcquired: Boolean = false
   private def lock[T](body: => T): T = {
     synchronized {
-      try {
-        body
-      } finally {
-        version += 1
+      if (exclusiveLockAcquired) {
+        throw new ConcurrentModificationException
       }
+      body
     }
   }
   private def exclusiveLock[T](body: => T): T = {
     lock {
-      val prevVersion = version
-      val out = body
-      if (version != prevVersion) {
-        throw new ConcurrentModificationException
+      try {
+        if (exclusiveLockAcquired) {
+          throw new ConcurrentModificationException
+        }
+        exclusiveLockAcquired = true
+        body
+      } finally {
+        exclusiveLockAcquired = false
       }
-      out
     }
   }
 
