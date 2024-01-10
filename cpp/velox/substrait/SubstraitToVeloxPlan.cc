@@ -2054,7 +2054,9 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
       VELOX_CHECK(value == filterInfo.upperBounds_[0].value().value<bool>(), "invalid state of bool equal");
       filters[common::Subfield(inputName)] = std::move(std::make_unique<common::BoolValue>(value, nullAllowed));
     }
-  } else if constexpr (KIND == facebook::velox::TypeKind::ARRAY || KIND == facebook::velox::TypeKind::MAP) {
+  } else if constexpr (
+      KIND == facebook::velox::TypeKind::ARRAY || KIND == facebook::velox::TypeKind::ROW ||
+      KIND == facebook::velox::TypeKind::MAP) {
     // Only IsNotNull and IsNull are supported for array and map types.
     if (rangeSize == 0) {
       if (!nullAllowed) {
@@ -2245,6 +2247,10 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::mapToFilters(
           break;
         case TypeKind::MAP:
           constructSubfieldFilters<TypeKind::MAP, common::Filter>(
+              colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+          break;
+        case TypeKind::ROW:
+          constructSubfieldFilters<TypeKind::ROW, common::Filter>(
               colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
           break;
         default:

@@ -774,4 +774,20 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       }
     }
   }
+
+  test("Support scan when filter is ISNULL/ISNOTNULL for struct type") {
+    withTable("t") {
+      sql("create table t (id int, b struct<foo:STRING, bar:STRING, addr:STRING>) using parquet")
+      sql(
+        "insert into t values (1, " +
+          "named_struct('foo','test_1', 'bar', 'name_1', 'addr', 'addr_1'))," +
+          " (2, named_struct('foo','test_2', 'bar', 'name_2', 'addr', 'addr_2'))," +
+          " (3, named_struct('foo','test_3', 'bar', 'name_3', 'addr', 'addr_3'))")
+      sql("select * from t where b is not null").explain()
+      sql("select * from t where b is not null").show()
+      runQueryAndCompare("select * from t where b is not null") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+    }
+  }
 }
