@@ -147,17 +147,14 @@ object BackendSettings extends BackendSettingsApi {
     }
 
     // Validate if all types are supported.
-    def validateDateTypes(fields: Array[StructField]): Option[String] = {
+    def validateDateTypes(): Option[String] = {
       fields.flatMap {
         field =>
           field.dataType match {
             case _: TimestampType => Some("TimestampType")
-            case struct: StructType =>
-              Some("StructType")
-            case array: ArrayType =>
-              Some("ArrayType")
-            case map: MapType =>
-              Some("MapType")
+            case _: StructType => Some("StructType")
+            case _: ArrayType => Some("ArrayType")
+            case _: MapType => Some("MapType")
             case _ => None
           }
       }.headOption
@@ -199,7 +196,7 @@ object BackendSettings extends BackendSettingsApi {
     validateCompressionCodec()
       .orElse(validateFileFormat())
       .orElse(validateFieldMetadata())
-      .orElse(validateDateTypes(fields))
+      .orElse(validateDateTypes())
       .orElse(validateWriteFilesOptions())
       .orElse(validateBucketSpec())
   }
