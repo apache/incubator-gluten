@@ -43,7 +43,7 @@ env:
   PATH_TO_GLUTEN_TE: ./tools/gluten-te
   DOCKER_PUSH_REGISTRY:
   DOCKER_CACHE_REGISTRY: 10.1.0.25:5000
-  PREVIOUS_DOCKER_PUSH_REGISTRY: 10.0.2.4:5000
+  LEGACY_DOCKER_REGISTRY: 10.0.2.4:5000
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -438,12 +438,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
-          EXTRA_DOCKER_OPTIONS="--name gha-checkout-centos7-test-$GITHUB_RUN_ID -e NUM_THREADS=30 --detach" \
-          NON_INTERACTIVE=ON \
-          MOUNT_MAVEN_CACHE=OFF \
-          OS_IMAGE_NAME=centos \
-          OS_IMAGE_TAG=7 \
-          tools/gluten-te/centos/cbash-mount.sh sleep 14400
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
       - name: Build Gluten velox third party
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -522,7 +517,7 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/clean.sh
 
 
-  static-build-test:
+  static-build-centos7-test:
     runs-on: velox-self-hosted
     env:
       OS_IMAGE_NAME: centos
@@ -532,7 +527,7 @@ jobs:
       - name: Setup docker container
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach $PREVIOUS_DOCKER_PUSH_REGISTRY/gluten-dev/centos:7 \
+          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach $LEGACY_DOCKER_REGISTRY/gluten-dev/centos:7 \
           bash -c 'cd /opt/gluten && sleep 14400'
       - name: Build Gluten CPP library
         run: |
@@ -553,7 +548,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (centos 8)
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 $PREVIOUS_DOCKER_PUSH_REGISTRY/gluten-dev/centos:8 \
+          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 $LEGACY_DOCKER_REGISTRY/gluten-dev/centos:8 \
           bash -c 'cd /opt/gluten/tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
@@ -562,7 +557,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (ubuntu 20.04)
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 $PREVIOUS_DOCKER_PUSH_REGISTRY/gluten-dev/ubuntu:20.04 \
+          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 $LEGACY_DOCKER_REGISTRY/gluten-dev/ubuntu:20.04 \
           'cd /opt/gluten/tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
@@ -571,7 +566,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (ubuntu 22.04)
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 $PREVIOUS_DOCKER_PUSH_REGISTRY/gluten-dev/ubuntu:22.04 \
+          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 $LEGACY_DOCKER_REGISTRY/gluten-dev/ubuntu:22.04 \
           'cd /opt/gluten/tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
