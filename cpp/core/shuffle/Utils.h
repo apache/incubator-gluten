@@ -25,10 +25,16 @@
 #include <arrow/type.h>
 #include <arrow/util/io_util.h>
 #include <chrono>
+#include "utils/Compression.h"
 
 namespace gluten {
 
-const std::string kGlutenSparkLocalDirs = "GLUTEN_SPARK_LOCAL_DIRS";
+using BinaryArrayLengthBufferType = uint32_t;
+using IpcOffsetBufferType = arrow::LargeStringType::offset_type;
+
+static const size_t kSizeOfBinaryArrayLengthBuffer = sizeof(BinaryArrayLengthBufferType);
+static const size_t kSizeOfIpcOffsetBuffer = sizeof(IpcOffsetBufferType);
+static const std::string kGlutenSparkLocalDirs = "GLUTEN_SPARK_LOCAL_DIRS";
 
 std::string generateUuid();
 
@@ -36,13 +42,34 @@ std::string getSpilledShuffleFileDir(const std::string& configuredDir, int32_t s
 
 arrow::Result<std::string> createTempShuffleFile(const std::string& dir);
 
-arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> toShuffleWriterTypeId(
+arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> toShuffleTypeId(
     const std::vector<std::shared_ptr<arrow::Field>>& fields);
 
-int64_t getBufferSizes(const std::shared_ptr<arrow::Array>& array);
+int64_t getBufferSize(const std::shared_ptr<arrow::Array>& array);
 
-int64_t getBufferSizes(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers);
+int64_t getBufferSize(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers);
 
-arrow::Status writeEos(arrow::io::OutputStream* os, int64_t* bytes);
+int64_t getMaxCompressedBufferSize(
+    const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
+    arrow::util::Codec* codec);
+
+arrow::Result<std::shared_ptr<arrow::RecordBatch>> makeCompressedRecordBatch(
+    uint32_t numRows,
+    const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
+    const std::shared_ptr<arrow::Schema> compressWriteSchema,
+    arrow::MemoryPool* pool,
+    arrow::util::Codec* codec,
+    int32_t bufferCompressThreshold,
+    CompressionMode compressionMode,
+    int64_t& compressionTime);
+
+// generate the new big one row several columns binary recordbatch
+arrow::Result<std::shared_ptr<arrow::RecordBatch>> makeUncompressedRecordBatch(
+    uint32_t numRows,
+    const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
+    const std::shared_ptr<arrow::Schema> writeSchema,
+    arrow::MemoryPool* pool);
+
+std::shared_ptr<arrow::Buffer> zeroLengthNullBuffer();
 
 } // namespace gluten

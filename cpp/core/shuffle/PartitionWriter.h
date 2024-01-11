@@ -17,45 +17,55 @@
 
 #pragma once
 
+#include "ShuffleMemoryPool.h"
+#include "memory/Reclaimable.h"
 #include "shuffle/Options.h"
-#include "shuffle/ShuffleWriter.h"
+#include "shuffle/Payload.h"
+#include "shuffle/Spill.h"
 
 namespace gluten {
 
-class EvictHandle {
- public:
-  virtual ~EvictHandle() = default;
-
-  virtual arrow::Status evict(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) = 0;
-
-  virtual arrow::Status finish() = 0;
+struct Evict {
+  enum type { kCache, kSpill };
 };
 
-class ShuffleWriter::PartitionWriter {
+class PartitionWriter : public Reclaimable {
  public:
-  PartitionWriter(ShuffleWriter* shuffleWriter) : shuffleWriter_(shuffleWriter) {}
+  PartitionWriter(uint32_t numPartitions, PartitionWriterOptions options, arrow::MemoryPool* pool)
+      : numPartitions_(numPartitions), options_(std::move(options)), pool_(pool) {
+    payloadPool_ = std::make_unique<ShuffleMemoryPool>(pool);
+    codec_ = createArrowIpcCodec(options_.compressionType, options_.codecBackend);
+  }
+
   virtual ~PartitionWriter() = default;
 
-  virtual arrow::Status init() = 0;
+  virtual arrow::Status stop(ShuffleWriterMetrics* metrics) = 0;
 
-  virtual arrow::Status stop() = 0;
+  /// Evict buffers for `partitionId` partition.
+  virtual arrow::Status evict(
+      uint32_t partitionId,
+      std::unique_ptr<InMemoryPayload> inMemoryPayload,
+      Evict::type evictType,
+      bool reuseBuffers,
+      bool hasComplexType) = 0;
 
-  /// Request next evict. The caller can use `requestNextEvict` to start a evict, and choose to call
-  /// `getEvictHandle()->evict()` immediately, or to call it latter somewhere else.
-  /// The caller can start new evict multiple times. Once it's called, the last `EvictHandle`
-  /// will be finished automatically.
-  /// \param flush Whether to flush the evicted data immediately. If it's false,
-  /// the data can be cached first.
-  virtual arrow::Status requestNextEvict(bool flush) = 0;
+  uint64_t cachedPayloadSize() {
+    return payloadPool_->bytes_allocated();
+  }
 
-  /// Get the current managed EvictHandle. Returns nullptr if the current EvictHandle was finished,
-  /// or requestNextEvict has not been called.
-  /// \return
-  virtual EvictHandle* getEvictHandle() = 0;
+ protected:
+  uint32_t numPartitions_;
+  PartitionWriterOptions options_;
+  arrow::MemoryPool* pool_;
 
-  virtual arrow::Status finishEvict() = 0;
+  // Memory Pool used to track memory allocation of partition payloads.
+  // The actual allocation is delegated to options_.memoryPool.
+  std::unique_ptr<ShuffleMemoryPool> payloadPool_;
 
-  ShuffleWriter* shuffleWriter_;
+  std::unique_ptr<arrow::util::Codec> codec_;
+
+  int64_t compressTime_{0};
+  int64_t spillTime_{0};
+  int64_t writeTime_{0};
 };
-
 } // namespace gluten

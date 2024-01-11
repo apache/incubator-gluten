@@ -24,65 +24,12 @@
 
 #include "ShuffleSchema.h"
 
-namespace {
-using namespace gluten;
-
-class ShuffleReaderOutStream : public ColumnarBatchIterator {
- public:
-  ShuffleReaderOutStream(
-      const ShuffleReaderOptions& options,
-      const std::shared_ptr<arrow::Schema>& schema,
-      const std::shared_ptr<arrow::io::InputStream>& in,
-      const std::function<void(int64_t)> ipcTimeAccumulator)
-      : options_(options), in_(in), ipcTimeAccumulator_(ipcTimeAccumulator) {
-    if (options.compression_type != arrow::Compression::UNCOMPRESSED) {
-      writeSchema_ = toCompressWriteSchema(*schema);
-    } else {
-      writeSchema_ = toWriteSchema(*schema);
-    }
-  }
-
-  std::shared_ptr<ColumnarBatch> next() override {
-    std::shared_ptr<arrow::RecordBatch> arrowBatch;
-    std::unique_ptr<arrow::ipc::Message> messageToRead;
-
-    int64_t ipcTime = 0;
-    TIME_NANO_START(ipcTime);
-
-    GLUTEN_ASSIGN_OR_THROW(messageToRead, arrow::ipc::ReadMessage(in_.get()))
-    if (messageToRead == nullptr) {
-      return nullptr;
-    }
-
-    GLUTEN_ASSIGN_OR_THROW(
-        arrowBatch, arrow::ipc::ReadRecordBatch(*messageToRead, writeSchema_, nullptr, options_.ipc_read_options))
-
-    TIME_NANO_END(ipcTime);
-    ipcTimeAccumulator_(ipcTime);
-
-    std::shared_ptr<ColumnarBatch> glutenBatch = std::make_shared<ArrowColumnarBatch>(arrowBatch);
-    return glutenBatch;
-  }
-
- private:
-  ShuffleReaderOptions options_;
-  std::shared_ptr<arrow::io::InputStream> in_;
-  std::function<void(int64_t)> ipcTimeAccumulator_;
-  std::shared_ptr<arrow::Schema> writeSchema_;
-};
-} // namespace
-
 namespace gluten {
 
-ShuffleReader::ShuffleReader(
-    std::shared_ptr<arrow::Schema> schema,
-    ShuffleReaderOptions options,
-    arrow::MemoryPool* pool)
-    : pool_(pool), options_(std::move(options)), schema_(schema) {}
+ShuffleReader::ShuffleReader(std::unique_ptr<DeserializerFactory> factory) : factory_(std::move(factory)) {}
 
 std::shared_ptr<ResultIterator> ShuffleReader::readStream(std::shared_ptr<arrow::io::InputStream> in) {
-  return std::make_shared<ResultIterator>(std::make_unique<ShuffleReaderOutStream>(
-      options_, schema_, in, [this](int64_t ipcTime) { this->ipcTime_ += ipcTime; }));
+  return std::make_shared<ResultIterator>(factory_->createDeserializer(in));
 }
 
 arrow::Status ShuffleReader::close() {
@@ -90,7 +37,19 @@ arrow::Status ShuffleReader::close() {
 }
 
 arrow::MemoryPool* ShuffleReader::getPool() const {
-  return pool_;
+  return factory_->getPool();
+}
+
+int64_t ShuffleReader::getDecompressTime() const {
+  return factory_->getDecompressTime();
+}
+
+int64_t ShuffleReader::getIpcTime() const {
+  return ipcTime_;
+}
+
+int64_t ShuffleReader::getDeserializeTime() const {
+  return factory_->getDeserializeTime();
 }
 
 } // namespace gluten

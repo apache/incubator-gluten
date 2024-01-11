@@ -231,13 +231,6 @@ void StreamingAggregatingTransform::work()
         if (!data_variants)
         {
             data_variants = std::make_shared<DB::AggregatedDataVariants>();
-            // If it is a high cardinality aggregating, the first data variants may be a two level hash table.
-            // but later we will evict it before the hash table growing too large. In this case we should not
-            // initialize the data variants with a two level hash table.
-            if (last_data_variants_size  > params->params.group_by_two_level_threshold)
-            {
-                data_variants->init(last_data_variants_type, last_data_variants_size);
-            }
         }
 
         has_input = false;
@@ -253,8 +246,6 @@ void StreamingAggregatingTransform::work()
 
         if (needEvict())
         {
-            last_data_variants_size = data_variants->size();
-            last_data_variants_type = data_variants->type;
             block_converter = std::make_unique<AggregateDataBlockConverter>(params->aggregator, data_variants, false);
             data_variants = nullptr;
             total_clear_data_variants_num++;

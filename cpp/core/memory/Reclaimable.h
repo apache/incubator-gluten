@@ -15,6 +15,17 @@
  * limitations under the License.
  */
 
-#include "PartitionWriterCreator.h"
+#pragma once
 
-namespace gluten {} // namespace gluten
+#include <arrow/status.h>
+
+namespace gluten {
+
+class Reclaimable {
+ public:
+  virtual ~Reclaimable() = default;
+
+  virtual arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) = 0;
+};
+
+} // namespace gluten

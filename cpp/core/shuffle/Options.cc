@@ -16,11 +16,3 @@
  */
 
 #include "shuffle/Options.h"
-
-gluten::ShuffleReaderOptions gluten::ShuffleReaderOptions::defaults() {
-  return {};
-}
-
-gluten::ShuffleWriterOptions gluten::ShuffleWriterOptions::defaults() {
-  return {};
-}

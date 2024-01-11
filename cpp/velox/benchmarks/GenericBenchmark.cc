@@ -54,47 +54,44 @@ struct WriterMetrics {
   int64_t compressTime;
 };
 
-std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(VeloxMemoryManager* memoryManager) {
-  std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator =
-      std::make_shared<LocalPartitionWriterCreator>();
-
-  auto options = ShuffleWriterOptions::defaults();
-  options.memory_pool = memoryManager->getArrowMemoryPool();
-  options.partitioning = gluten::toPartitioning(FLAGS_partitioning);
+std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
+    VeloxMemoryManager* memoryManager,
+    const std::string& dataFile,
+    const std::vector<std::string>& localDirs) {
+  PartitionWriterOptions partitionWriterOptions{};
   if (FLAGS_zstd) {
-    options.codec_backend = CodecBackend::NONE;
-    options.compression_type = arrow::Compression::ZSTD;
+    partitionWriterOptions.codecBackend = CodecBackend::NONE;
+    partitionWriterOptions.compressionType = arrow::Compression::ZSTD;
   } else if (FLAGS_qat_gzip) {
-    options.codec_backend = CodecBackend::QAT;
-    options.compression_type = arrow::Compression::GZIP;
+    partitionWriterOptions.codecBackend = CodecBackend::QAT;
+    partitionWriterOptions.compressionType = arrow::Compression::GZIP;
   } else if (FLAGS_qat_zstd) {
-    options.codec_backend = CodecBackend::QAT;
-    options.compression_type = arrow::Compression::ZSTD;
+    partitionWriterOptions.codecBackend = CodecBackend::QAT;
+    partitionWriterOptions.compressionType = arrow::Compression::ZSTD;
   } else if (FLAGS_iaa_gzip) {
-    options.codec_backend = CodecBackend::IAA;
-    options.compression_type = arrow::Compression::GZIP;
+    partitionWriterOptions.codecBackend = CodecBackend::IAA;
+    partitionWriterOptions.compressionType = arrow::Compression::GZIP;
   }
 
-  GLUTEN_THROW_NOT_OK(setLocalDirsAndDataFileFromEnv(options));
+  std::unique_ptr<PartitionWriter> partitionWriter = std::make_unique<LocalPartitionWriter>(
+      FLAGS_shuffle_partitions,
+      std::move(partitionWriterOptions),
+      memoryManager->getArrowMemoryPool(),
+      dataFile,
+      localDirs);
 
+  auto options = ShuffleWriterOptions{};
+  options.partitioning = gluten::toPartitioning(FLAGS_partitioning);
   GLUTEN_ASSIGN_OR_THROW(
       auto shuffleWriter,
       VeloxShuffleWriter::create(
           FLAGS_shuffle_partitions,
-          std::move(partitionWriterCreator),
+          std::move(partitionWriter),
           std::move(options),
-          memoryManager->getLeafMemoryPool()));
+          memoryManager->getLeafMemoryPool(),
+          memoryManager->getArrowMemoryPool()));
 
   return shuffleWriter;
-}
-
-void cleanup(const std::shared_ptr<VeloxShuffleWriter>& shuffleWriter) {
-  auto dataFile = std::filesystem::path(shuffleWriter->dataFile());
-  const auto& parentDir = dataFile.parent_path();
-  std::filesystem::remove(dataFile);
-  if (std::filesystem::is_empty(parentDir)) {
-    std::filesystem::remove(parentDir);
-  }
 }
 
 void populateWriterMetrics(
@@ -154,7 +151,11 @@ auto BM_Generic = [](::benchmark::State& state,
     if (FLAGS_with_shuffle) {
       int64_t shuffleWriteTime;
       TIME_NANO_START(shuffleWriteTime);
-      const auto& shuffleWriter = createShuffleWriter(memoryManager.get());
+      std::string dataFile;
+      std::vector<std::string> localDirs;
+      bool isFromEnv;
+      GLUTEN_THROW_NOT_OK(setLocalDirsAndDataFileFromEnv(dataFile, localDirs, isFromEnv));
+      const auto& shuffleWriter = createShuffleWriter(memoryManager.get(), dataFile, localDirs);
       while (resultIter->hasNext()) {
         GLUTEN_THROW_NOT_OK(shuffleWriter->split(resultIter->next(), ShuffleWriter::kMinMemLimit));
       }
@@ -162,7 +163,7 @@ auto BM_Generic = [](::benchmark::State& state,
       TIME_NANO_END(shuffleWriteTime);
       populateWriterMetrics(shuffleWriter, shuffleWriteTime, writerMetrics);
       // Cleanup shuffle outputs
-      cleanup(shuffleWriter);
+      cleanupShuffleOutput(dataFile, localDirs, isFromEnv);
     } else {
       // May write the output into file.
       ArrowSchema cSchema;

@@ -103,4 +103,7 @@ bool endsWith(const std::string& data, const std::string& suffix);
 
 void setCpu(uint32_t cpuindex);
 
-arrow::Status setLocalDirsAndDataFileFromEnv(gluten::ShuffleWriterOptions& options);
+arrow::Status
+setLocalDirsAndDataFileFromEnv(std::string& dataFile, std::vector<std::string>& localDirs, bool& isFromEnv);
+
+void cleanupShuffleOutput(const std::string& dataFile, const std::vector<std::string>& localDirs, bool isFromEnv);

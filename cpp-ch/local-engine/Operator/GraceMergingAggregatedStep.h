@@ -122,9 +122,6 @@ private:
     bool no_more_keys = false;
 
     double per_key_memory_usage = 0;
-    // record the last data variants type and size, improve the performance of subsequent processing
-    DB::AggregatedDataVariants::Type last_data_variants_type = DB::AggregatedDataVariants::Type::EMPTY;
-    size_t last_data_variants_size = 0;
 
     // metrics
     size_t total_input_blocks = 0;
