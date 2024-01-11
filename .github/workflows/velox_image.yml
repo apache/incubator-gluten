@@ -24,6 +24,7 @@ on:
 env:
   HTTP_PROXY_HOST: proxy-shz.intel.com
   HTTP_PROXY_PORT: 911
+  DOCKER_CACHE_REGISTRY: 10.1.0.25:5000
   DOCKER_PUSH_REGISTRY: 10.1.0.25:5001
   PATH_TO_GLUTEN_TE: ./tools/gluten-te
 
