@@ -104,12 +104,12 @@ GraceMergingAggregatedTransform::GraceMergingAggregatedTransform(const DB::Block
     , context(context_)
     , tmp_data_disk(std::make_unique<DB::TemporaryDataOnDisk>(context_->getTempDataOnDisk()))
 {
-    max_buckets = context->getConfigRef().getUInt64("max_grace_merging_buckets", 32);
-    throw_on_overflow_buckets = context->getConfigRef().getBool("throw_on_overflow_grace_merging_buckets", false);
-    aggregated_keys_before_extend_buckets = context->getConfigRef().getUInt64("aggregated_keys_before_extend_grace_merging_buckets", 8196);
+    max_buckets = context->getConfigRef().getUInt64("max_grace_aggregate_merging_buckets", 32);
+    throw_on_overflow_buckets = context->getConfigRef().getBool("throw_on_overflow_grace_aggregate_merging_buckets", false);
+    aggregated_keys_before_extend_buckets = context->getConfigRef().getUInt64("aggregated_keys_before_extend_grace_aggregate_merging_buckets", 8196);
     aggregated_keys_before_extend_buckets = PODArrayUtil::adjustMemoryEfficientSize(aggregated_keys_before_extend_buckets);
-    max_pending_flush_blocks_per_bucket = context->getConfigRef().getUInt64("max_pending_flush_blocks_per_grace_merging_bucket", 1024 * 1024);
-    max_allowed_memory_usage_ratio = context->getConfigRef().getDouble("max_allowed_memory_usage_ratio", 0.9);
+    max_pending_flush_blocks_per_bucket = context->getConfigRef().getUInt64("max_pending_flush_blocks_per_grace_aggregate_merging_bucket", 1024 * 1024);
+    max_allowed_memory_usage_ratio = context->getConfigRef().getDouble("max_allowed_memory_usage_ratio_for_aggregate_merging", 0.9);
     // bucket 0 is for in-memory data, it's just a placeholder.
     buckets.emplace(0, BufferFileStream());
 
@@ -415,7 +415,7 @@ std::unique_ptr<AggregateDataBlockConverter> GraceMergingAggregatedTransform::pr
             block = {};
         }
     }
-
+    auto last_data_variants_size = current_data_variants->size();
     auto converter = currentDataVariantToBlockConverter(true);
     LOG_INFO(
         logger,
@@ -435,8 +435,6 @@ std::unique_ptr<AggregateDataBlockConverter> GraceMergingAggregatedTransform::cu
     {
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "current data variants is null");
     }
-    last_data_variants_type = current_data_variants->type;
-    last_data_variants_size = current_data_variants->size();
     auto converter = std::make_unique<AggregateDataBlockConverter>(params->aggregator, current_data_variants, final);
     current_data_variants = nullptr;
     return std::move(converter);
@@ -447,12 +445,6 @@ void GraceMergingAggregatedTransform::checkAndSetupCurrentDataVariants()
     if (!current_data_variants)
     {
         current_data_variants = std::make_shared<DB::AggregatedDataVariants>();
-        if (last_data_variants_size)
-        {
-            // it's helpful to cut the overhead of changing single level hash table into two level
-            // and rehashing the hash table.
-            current_data_variants->init(last_data_variants_type, last_data_variants_size);
-        }
         no_more_keys = false;
     }
 }
