@@ -23,8 +23,10 @@ import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioningLike, Parti
 import scala.collection.mutable
 
 // https://issues.apache.org/jira/browse/SPARK-31869
-class ExpandOutputPartitioningShim(streamedKeyExprs: Seq[Expression],
-    buildKeyExprs: Seq[Expression], expandLimit: Int) {
+class ExpandOutputPartitioningShim(
+    streamedKeyExprs: Seq[Expression],
+    buildKeyExprs: Seq[Expression],
+    expandLimit: Int) {
   // An one-to-many mapping from a streamed key to build keys.
   private lazy val streamedKeyToBuildKeyMapping = {
     val mapping = mutable.Map.empty[Expression, Seq[Expression]]

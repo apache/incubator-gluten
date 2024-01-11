@@ -31,8 +31,8 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
-import org.apache.spark.sql.execution.ExpandOutputPartitioningShim
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.ExpandOutputPartitioningShim
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, HashJoin}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
@@ -190,7 +190,9 @@ trait HashJoinLikeExecTransformer
 
   // https://issues.apache.org/jira/browse/SPARK-31869
   private def expandPartitioning(partitioning: Partitioning): Partitioning = {
-    new ExpandOutputPartitioningShim(streamedKeyExprs, buildKeyExprs,
+    new ExpandOutputPartitioningShim(
+      streamedKeyExprs,
+      buildKeyExprs,
       conf.broadcastHashJoinOutputPartitioningExpandLimit)
       .expandPartitioning(partitioning, joinType)
   }
