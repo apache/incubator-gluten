@@ -68,7 +68,7 @@
     <!-- Package name to use when relocating shaded classes -->
     <gluten.shade.packageName>io.glutenproject.shaded</gluten.shade.packageName>
 
-    <substrait.version>0.23.0</substrait.version>
+    <substrait.version>0.24.0</substrait.version>
     <!-- The original protobuf version -->
     <protobuf.version>3.23.4</protobuf.version>
     <!-- The custom protobuf version (based on 3.23.4) with recursion limit enlarged. -->
