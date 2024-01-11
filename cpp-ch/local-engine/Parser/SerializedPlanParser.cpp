@@ -1017,7 +1017,6 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
         result_name = ch_func_name + "(" + args_name + ")";
         const auto * function_node = &actions_dag->addFunction(function_builder, args, result_name);
         result_node = function_node;
-
         if (!TypeParser::isTypeMatched(rel.scalar_function().output_type(), function_node->result_type) && !converted_decimal_args)
         {
             auto result_type = TypeParser::parseType(rel.scalar_function().output_type());
@@ -1643,7 +1642,6 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             args.emplace_back(parseExpression(actions_dag, input));
 
             const auto & substrait_type = rel.cast().type();
-            auto to_ch_type = TypeParser::parseType(substrait_type);
             const ActionsDAG::Node * function_node = nullptr;
             if (DB::isString(DB::removeNullable(args.back()->result_type)) && substrait_type.has_date())
             {
@@ -1662,23 +1660,6 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
                 // Spark cast(x as BINARY) -> CH reinterpretAsStringSpark(x)
                 function_node = toFunctionNode(actions_dag, "reinterpretAsStringSpark", args);
             }
-            else if (DB::isFloat(DB::removeNullable(args[0]->result_type)) && DB::isNativeInteger(DB::removeNullable(to_ch_type)))
-            {
-                /// It looks like by design in CH that forbids cast NaN/Inf to integer.
-                auto zero_node = addColumn(actions_dag, args[0]->result_type, 0.0);
-                const auto * if_not_finite_node = toFunctionNode(actions_dag, "ifNotFinite", {args[0], zero_node});
-                const auto * final_arg_node = if_not_finite_node;
-                if (args[0]->result_type->isNullable())
-                {
-                    DB::Field null_field;
-                    const auto * null_value = addColumn(actions_dag, args[0]->result_type, null_field);
-                    const auto * is_null_node = toFunctionNode(actions_dag, "isNull", {args[0]});
-                    const auto * if_node = toFunctionNode(actions_dag, "if", {is_null_node, null_value, if_not_finite_node});
-                    final_arg_node = if_node;
-                }
-                function_node = toFunctionNode(
-                    actions_dag, "CAST", {final_arg_node, addColumn(actions_dag, std::make_shared<DataTypeString>(), to_ch_type->getName())});
-            }
             else
             {
                 DataTypePtr ch_type = TypeParser::parseType(substrait_type);
@@ -1690,8 +1671,16 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
                 }
                 else
                 {
-                    args.emplace_back(addColumn(actions_dag, std::make_shared<DataTypeString>(), ch_type->getName()));
-                    function_node = toFunctionNode(actions_dag, "CAST", args);
+                    if (isFloat(DB::removeNullable(args[0]->result_type)) && isInt(DB::removeNullable(ch_type)))
+                    {
+                        String function_name = "sparkCastFloatTo" + DB::removeNullable(ch_type)->getName();
+                        function_node = toFunctionNode(actions_dag, function_name, args);
+                    }
+                    else
+                    {
+                        args.emplace_back(addColumn(actions_dag, std::make_shared<DataTypeString>(), ch_type->getName()));
+                        function_node = toFunctionNode(actions_dag, "CAST", args);
+                    }
                 }
             }
 
