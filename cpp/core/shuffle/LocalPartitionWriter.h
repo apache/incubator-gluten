@@ -22,39 +22,25 @@
 
 #include "shuffle/PartitionWriter.h"
 #include "shuffle/ShuffleWriter.h"
-
-#include "PartitionWriterCreator.h"
 #include "utils/macros.h"
 
 namespace gluten {
 
-struct SpillInfo {
-  struct PartitionSpillInfo {
-    uint32_t partitionId{};
-    int64_t length{}; // in Bytes
-  };
-
-  bool empty{true};
-  std::string spilledFile{};
-  std::vector<PartitionSpillInfo> partitionSpillInfos{};
-  std::shared_ptr<arrow::io::MemoryMappedFile> inputStream{};
-
-  int32_t mergePos = 0;
-
-  SpillInfo(std::string spilledFile) : spilledFile(spilledFile) {}
-};
-
-class LocalPartitionWriter : public ShuffleWriter::PartitionWriter {
+class LocalPartitionWriter : public PartitionWriter {
  public:
-  explicit LocalPartitionWriter(ShuffleWriter* shuffleWriter) : PartitionWriter(shuffleWriter) {}
+  explicit LocalPartitionWriter(
+      uint32_t numPartitions,
+      PartitionWriterOptions options,
+      arrow::MemoryPool* pool,
+      const std::string& dataFile,
+      const std::vector<std::string>& localDirs);
 
-  arrow::Status init() override;
-
-  arrow::Status requestNextEvict(bool flush) override;
-
-  EvictHandle* getEvictHandle() override;
-
-  arrow::Status finishEvict() override;
+  arrow::Status evict(
+      uint32_t partitionId,
+      std::unique_ptr<InMemoryPayload> inMemoryPayload,
+      Evict::type evictType,
+      bool reuseBuffers,
+      bool hasComplexType) override;
 
   /// The stop function performs several tasks:
   /// 1. Opens the final data file.
@@ -75,35 +61,54 @@ class LocalPartitionWriter : public ShuffleWriter::PartitionWriter {
   /// If spill is triggered by 2.c, cached payloads of the remaining unmerged partitions will be spilled.
   /// In both cases, if the cached payload size doesn't free enough memory,
   /// it will shrink partition buffers to free more memory.
-  arrow::Status stop() override;
+  arrow::Status stop(ShuffleWriterMetrics* metrics) override;
 
-  class LocalEvictHandle;
+  // Spill source:
+  // 1. Other op.
+  // 2. PayloadMerger merging payloads or compressing merged payload.
+  // 3. After stop() called,
+  arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) override;
+
+  class LocalSpiller;
+
+  class PayloadMerger;
+
+  class PayloadCache;
 
  private:
-  arrow::Status setLocalDirs();
+  void init();
+
+  arrow::Status requestSpill();
+
+  arrow::Status finishSpill();
 
   std::string nextSpilledFileDir();
 
   arrow::Status openDataFile();
 
+  arrow::Status mergeSpills(uint32_t partitionId);
+
   arrow::Status clearResource();
 
-  std::shared_ptr<arrow::fs::LocalFileSystem> fs_{};
-  std::shared_ptr<LocalEvictHandle> evictHandle_;
-  std::vector<std::shared_ptr<SpillInfo>> spills_;
+  arrow::Status populateMetrics(ShuffleWriterMetrics* metrics);
+
+  std::string dataFile_;
+  std::vector<std::string> localDirs_;
+
+  bool stopped_{false};
+  std::shared_ptr<LocalSpiller> spiller_{nullptr};
+  std::shared_ptr<PayloadMerger> merger_{nullptr};
+  std::shared_ptr<PayloadCache> payloadCache_{nullptr};
+  std::list<std::shared_ptr<Spill>> spills_{};
 
   // configured local dirs for spilled file
-  int32_t dirSelection_ = 0;
+  int32_t dirSelection_{0};
   std::vector<int32_t> subDirSelection_;
-  std::vector<std::string> configuredDirs_;
-
   std::shared_ptr<arrow::io::OutputStream> dataFileOs_;
-};
 
-class LocalPartitionWriterCreator : public ShuffleWriter::PartitionWriterCreator {
- public:
-  LocalPartitionWriterCreator();
-
-  arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> make(ShuffleWriter* shuffleWriter) override;
+  int64_t totalBytesEvicted_{0};
+  int64_t totalBytesWritten_{0};
+  std::vector<int64_t> partitionLengths_;
+  std::vector<int64_t> rawPartitionLengths_;
 };
 } // namespace gluten

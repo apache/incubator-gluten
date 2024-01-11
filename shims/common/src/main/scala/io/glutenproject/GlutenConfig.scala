@@ -130,9 +130,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   @deprecated def broadcastCacheTimeout: Int = conf.getConf(COLUMNAR_BROADCAST_CACHE_TIMEOUT)
 
-  def columnarShuffleWriteEOS: Boolean = conf.getConf(COLUMNAR_SHUFFLE_WRITE_EOS_ENABLED)
-
   def columnarShuffleReallocThreshold: Double = conf.getConf(COLUMNAR_SHUFFLE_REALLOC_THRESHOLD)
+
+  def columnarShuffleMergeThreshold: Double = conf.getConf(SHUFFLE_WRITER_MERGE_THRESHOLD)
 
   def columnarShuffleCodec: Option[String] = conf.getConf(COLUMNAR_SHUFFLE_CODEC)
 
@@ -431,6 +431,8 @@ object GlutenConfig {
 
   // Shuffle Writer buffer size.
   val GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE = "spark.gluten.shuffleWriter.bufferSize"
+
+  val GLUTEN_SHUFFLE_WRITER_MERGE_THRESHOLD = "spark.gluten.sql.columnar.shuffle.merge.threshold"
 
   // Controls whether to load DLL from jars. User can get dependent native libs packed into a jar
   // by executing dev/package.sh. Then, with that jar configured, Gluten can load the native libs
@@ -873,16 +875,11 @@ object GlutenConfig {
       .intConf
       .createWithDefault(-1)
 
-  val COLUMNAR_SHUFFLE_WRITE_EOS_ENABLED =
-    buildConf("spark.gluten.sql.columnar.shuffle.writeEOS")
-      .internal()
-      .booleanConf
-      .createWithDefault(false)
-
   val COLUMNAR_SHUFFLE_REALLOC_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.shuffle.realloc.threshold")
       .internal()
       .doubleConf
+      .checkValue(v => v >= 0 && v <= 1, "Buffer reallocation threshold must between [0, 1]")
       .createWithDefault(0.25)
 
   val COLUMNAR_SHUFFLE_CODEC =
@@ -922,6 +919,13 @@ object GlutenConfig {
       .intConf
       .createWithDefault(100)
 
+  val SHUFFLE_WRITER_MERGE_THRESHOLD =
+    buildConf(GLUTEN_SHUFFLE_WRITER_MERGE_THRESHOLD)
+      .internal()
+      .doubleConf
+      .checkValue(v => v >= 0 && v <= 1, "Shuffle writer merge threshold must between [0, 1]")
+      .createWithDefault(0.25)
+
   val COLUMNAR_MAX_BATCH_SIZE =
     buildConf(GLUTEN_MAX_BATCH_SIZE_KEY)
       .internal()
@@ -933,6 +937,7 @@ object GlutenConfig {
     buildConf(GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE)
       .internal()
       .intConf
+      .checkValue(_ > 0, "Shuffle writer buffer size should be greater than 0.")
       .createOptional
 
   val COLUMNAR_LIMIT_ENABLED =

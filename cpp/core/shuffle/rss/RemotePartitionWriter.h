@@ -19,11 +19,14 @@
 
 #include "shuffle/PartitionWriter.h"
 
+#include <arrow/memory_pool.h>
+
 namespace gluten {
 
-class RemotePartitionWriter : public ShuffleWriter::PartitionWriter {
+class RemotePartitionWriter : public PartitionWriter {
  public:
-  explicit RemotePartitionWriter(ShuffleWriter* shuffleWriter) : PartitionWriter(shuffleWriter) {}
+  explicit RemotePartitionWriter(uint32_t numPartitions, PartitionWriterOptions options, arrow::MemoryPool* pool)
+      : PartitionWriter(numPartitions, std::move(options), pool) {}
 };
 
 } // namespace gluten

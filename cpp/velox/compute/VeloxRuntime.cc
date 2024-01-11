@@ -28,6 +28,7 @@
 #include "shuffle/VeloxShuffleReader.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "utils/ConfigExtractor.h"
+#include "utils/VeloxArrowUtils.h"
 
 using namespace facebook;
 
@@ -152,13 +153,14 @@ std::shared_ptr<RowToColumnarConverter> VeloxRuntime::createRow2ColumnarConverte
 
 std::shared_ptr<ShuffleWriter> VeloxRuntime::createShuffleWriter(
     int numPartitions,
-    std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
-    const ShuffleWriterOptions& options,
+    std::unique_ptr<PartitionWriter> partitionWriter,
+    ShuffleWriterOptions options,
     MemoryManager* memoryManager) {
   auto ctxPool = getLeafVeloxPool(memoryManager);
+  auto arrowPool = memoryManager->getArrowMemoryPool();
   GLUTEN_ASSIGN_OR_THROW(
       auto shuffle_writer,
-      VeloxShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options), ctxPool));
+      VeloxShuffleWriter::create(numPartitions, std::move(partitionWriter), std::move(options), ctxPool, arrowPool));
   return shuffle_writer;
 }
 
@@ -181,8 +183,12 @@ std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
     ShuffleReaderOptions options,
     arrow::MemoryPool* pool,
     MemoryManager* memoryManager) {
+  auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
+  auto codec = gluten::createArrowIpcCodec(options.compressionType, options.codecBackend);
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
-  return std::make_shared<VeloxShuffleReader>(schema, options, pool, ctxVeloxPool);
+  auto deserializerFactory = std::make_unique<gluten::VeloxColumnarBatchDeserializerFactory>(
+      schema, std::move(codec), rowType, options.batchSize, pool, ctxVeloxPool);
+  return std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
 }
 
 std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerializer(

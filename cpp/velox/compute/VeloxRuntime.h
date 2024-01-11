@@ -82,8 +82,8 @@ class VeloxRuntime final : public Runtime {
 
   std::shared_ptr<ShuffleWriter> createShuffleWriter(
       int numPartitions,
-      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
-      const ShuffleWriterOptions& options,
+      std::unique_ptr<PartitionWriter> partitionWriter,
+      ShuffleWriterOptions options,
       MemoryManager* memoryManager) override;
 
   Metrics* getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) override {

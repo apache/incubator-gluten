@@ -43,6 +43,8 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
    *
    * @param part contains the partitioning parameter needed by native splitter
    * @param bufferSize size of native buffers held by each partition writer
+   * @param mergeBufferSize maximum size of the merged buffer
+   * @param mergeThreshold threshold to control whether native partition buffer need to be merged
    * @param codec compression codec
    * @param codecBackend HW backend for offloading compression
    * @param dataFile acquired from spark IndexShuffleBlockResolver
@@ -53,6 +55,8 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
   public long make(
       NativePartitioning part,
       int bufferSize,
+      int mergeBufferSize,
+      double mergeThreshold,
       String codec,
       String codecBackend,
       int bufferCompressThreshold,
@@ -61,7 +65,6 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
       int subDirsPerLocalDir,
       String localDirs,
       long memoryManagerHandle,
-      boolean writeEOS,
       double reallocThreshold,
       long handle,
       long taskAttemptId,
@@ -70,6 +73,8 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
         part.getShortName(),
         part.getNumPartitions(),
         bufferSize,
+        mergeBufferSize,
+        mergeThreshold,
         codec,
         codecBackend,
         bufferCompressThreshold,
@@ -78,7 +83,6 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
         subDirsPerLocalDir,
         localDirs,
         memoryManagerHandle,
-        writeEOS,
         reallocThreshold,
         handle,
         taskAttemptId,
@@ -114,6 +118,8 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
         part.getShortName(),
         part.getNumPartitions(),
         bufferSize,
+        0,
+        0,
         codec,
         null,
         bufferCompressThreshold,
@@ -122,7 +128,6 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
         0,
         null,
         memoryManagerHandle,
-        true,
         reallocThreshold,
         handle,
         taskAttemptId,
@@ -136,6 +141,8 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
       String shortName,
       int numPartitions,
       int bufferSize,
+      int mergeBufferSize,
+      double mergeThreshold,
       String codec,
       String codecBackend,
       int bufferCompressThreshold,
@@ -144,7 +151,6 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
       int subDirsPerLocalDir,
       String localDirs,
       long memoryManagerHandle,
-      boolean writeEOS,
       double reallocThreshold,
       long handle,
       long taskAttemptId,

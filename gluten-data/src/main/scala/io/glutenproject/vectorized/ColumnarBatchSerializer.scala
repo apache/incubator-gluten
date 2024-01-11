@@ -52,9 +52,6 @@ class ColumnarBatchSerializer(
   extends Serializer
   with Serializable {
 
-  // if don't write EOS in shuffle writer, then the serializer supports relocation
-  private val supportsRelocation = !GlutenConfig.getConf.columnarShuffleWriteEOS
-
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {
     new ColumnarBatchSerializerInstance(
@@ -66,7 +63,7 @@ class ColumnarBatchSerializer(
       deserializeTime)
   }
 
-  override def supportsRelocationOfSerializedObjects: Boolean = supportsRelocation
+  override def supportsRelocationOfSerializedObjects: Boolean = true
 }
 
 private class ColumnarBatchSerializerInstance(
@@ -97,13 +94,14 @@ private class ColumnarBatchSerializerInstance(
       }
     val compressionCodecBackend =
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
+    val batchSize = GlutenConfig.getConf.maxBatchSize
     val jniWrapper = ShuffleReaderJniWrapper.create()
     val shuffleReaderHandle = jniWrapper.make(
       cSchema.memoryAddress(),
       nmm.getNativeInstanceHandle,
       compressionCodec,
-      compressionCodecBackend
-    )
+      compressionCodecBackend,
+      batchSize)
     // Close shuffle reader instance as lately as the end of task processing,
     // since the native reader could hold a reference to memory pool that
     // was used to create all buffers read from shuffle reader. The pool
