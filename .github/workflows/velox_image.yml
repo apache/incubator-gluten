@@ -1,0 +1,59 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Build docker images used by Velox backend CI
+on:
+  schedule:
+    # Every day at 12:00 AM
+    - cron:  '0 0 * * *'
+env:
+  HTTP_PROXY_HOST: proxy-shz.intel.com
+  HTTP_PROXY_PORT: 911
+  DOCKER_PUSH_REGISTRY: 10.1.0.25:5001
+  PATH_TO_GLUTEN_TE: ./tools/gluten-te
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  ubuntu2004:
+    env:
+      OS_IMAGE_NAME: ubuntu
+      OS_IMAGE_TAG: 20.04
+    steps:
+      - name: Build
+        run: $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/build.sh
+  ubuntu2204:
+    env:
+      OS_IMAGE_NAME: ubuntu
+      OS_IMAGE_TAG: 22.04
+    steps:
+      - name: Build
+        run: $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/build.sh
+  centos7:
+    env:
+      OS_IMAGE_NAME: centos
+      OS_IMAGE_TAG: 7
+    steps:
+      - name: Build
+        run: $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/build.sh
+  centos8:
+    env:
+      OS_IMAGE_NAME: centos
+      OS_IMAGE_TAG: 8
+    steps:
+      - name: Build
+        run: $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/build.sh
