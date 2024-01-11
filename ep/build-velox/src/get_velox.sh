@@ -16,8 +16,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_01_08
+VELOX_REPO=https://github.com/GlutenPerfBot/velox.git
+VELOX_BRANCH=rebase-2024-01-11
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
