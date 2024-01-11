@@ -1327,6 +1327,23 @@ ActionsDAGPtr SerializedPlanParser::parseFunction(
     return actions_dag;
 }
 
+ActionsDAGPtr SerializedPlanParser::parseFunctionOrExpression(
+    const Block & header, const substrait::Expression & rel, std::string & result_name, ActionsDAGPtr actions_dag, bool keep_result)
+{
+    if (!actions_dag)
+        actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(header));
+
+    if (rel.has_scalar_function())
+        parseFunctionWithDAG(rel, result_name, actions_dag, keep_result);
+    else
+    {
+        const auto * result_node = parseExpression(actions_dag, rel);
+        result_name = result_node->result_name;
+    }
+
+    return actions_dag;
+}
+
 ActionsDAGPtr SerializedPlanParser::parseArrayJoin(
     const Block & input,
     const substrait::Expression & rel,
