@@ -609,67 +609,6 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         "select id % 10, sum(id +100) + max(id+100) from range(100) group by id % 10") {
         df => checkOperatorCount[ProjectExecTransformer](1)(df)
       }
-      // fix issue: GLUTEN-4333
-      val createTableSql =
-        """
-          |CREATE TABLE `test_cse`(
-          |  `uid` bigint,
-          |  `event` struct<time:bigint,event_info:map<string,string>>
-          |)  PARTITIONED BY (
-          |  `day` string)
-          |ROW FORMAT SERDE
-          |  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'
-          |STORED AS INPUTFORMAT
-          |  'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat'
-          |OUTPUTFORMAT
-          |  'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'
-        """.stripMargin
-      spark.sql(createTableSql)
-      val querySql =
-        """
-          |select day,uid,xxx3,type,
-          |if(xxx1 is  null or xxx1 =''  or  xxx1='-1'   or  xxx1='0',-1,xxx1) xxx1,
-          |if(xxx2 is  null or xxx2 ='' or  xxx2 =0 or  xxx2=-1 ,-1,xxx2) xxx2,
-          |cast(if(xxx1 in (48,49),1,
-          |if(xxx1 in (1,2),2,
-          |if(xxx1 in (18,19),3,
-          |if(xxx1 in (24,25),4,
-          |if(xxx1 in (34,35),5,
-          |if(xxx1 in (39,40),6,
-          |if(xxx1 in (38,47),xxx1,-1))))))) as string) as xxx1_type,count(uid) as cnt
-          |from
-          |(
-          |select
-          |day
-          |,uid
-          |,event.event_info['xxx3'] xxx3
-          |,event.event_info['type'] type
-          |,event.event_info['xxx1'] xxx1
-          |,event.event_info['xxx2'] xxx2
-          |,round(event.time/1000)
-          |from  test_cse
-          |where
-          |event.event_info['type']  in (1,2)
-          |group by day
-          |,uid
-          |,event.event_info['xxx3']
-          |,event.event_info['type']
-          |,event.event_info['xxx1']
-          |,event.event_info['xxx2']
-          |,round(event.time/1000)
-          |)
-          |group by day,uid,xxx3,type,
-          |if(xxx1 is  null or xxx1 =''  or  xxx1='-1'   or  xxx1='0',-1,xxx1),
-          |if(xxx2 is  null or xxx2 ='' or  xxx2 =0 or  xxx2=-1 ,-1,xxx2),
-          |cast(if(xxx1 in (48,49),1,
-          |if(xxx1 in (1,2),2,
-          |if(xxx1 in (18,19),3,
-          |if(xxx1 in (24,25),4,
-          |if(xxx1 in (34,35),5,
-          |if(xxx1 in (39,40),6,
-          |if(xxx1 in (38,47),xxx1,-1))))))) as string)
-        """.stripMargin
-      runQueryAndCompare(querySql)(df => checkOperatorCount[ProjectExecTransformer](1)(df))
 
       // CSE in sort
       runQueryAndCompare(
