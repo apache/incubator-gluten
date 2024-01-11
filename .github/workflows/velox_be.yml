@@ -41,7 +41,7 @@ env:
   HTTP_PROXY_HOST: proxy-shz.intel.com
   HTTP_PROXY_PORT: 911
   PATH_TO_GLUTEN_TE: ./tools/gluten-te
-  DOCKER_PUSH_REGISTRY: 10.1.0.25:5000
+  DOCKER_PUSH_REGISTRY:
   DOCKER_CACHE_REGISTRY: 10.1.0.25:5000
   PREVIOUS_DOCKER_PUSH_REGISTRY: 10.0.2.4:5000
 
@@ -56,6 +56,7 @@ jobs:
       OS_IMAGE_NAME: ubuntu
       OS_IMAGE_TAG: 20.04
     steps:
+      - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -102,6 +103,7 @@ jobs:
       OS_IMAGE_NAME: ubuntu
       OS_IMAGE_TAG: 20.04
     steps:
+      - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -140,6 +142,7 @@ jobs:
       OS_IMAGE_NAME: ubuntu
       OS_IMAGE_TAG: 20.04
     steps:
+      - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -177,6 +180,7 @@ jobs:
       OS_IMAGE_NAME: ubuntu
       OS_IMAGE_TAG: 20.04
     steps:
+      - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -207,6 +211,7 @@ jobs:
       OS_IMAGE_NAME: ubuntu
       OS_IMAGE_TAG: 20.04
     steps:
+      - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -244,6 +249,7 @@ jobs:
       OS_IMAGE_NAME: ubuntu
       OS_IMAGE_TAG: 20.04
     steps:
+      - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -274,6 +280,7 @@ jobs:
       OS_IMAGE_NAME: ubuntu
       OS_IMAGE_TAG: 22.04
     steps:
+      - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -325,6 +332,7 @@ jobs:
       OS_IMAGE_NAME: ubuntu
       OS_IMAGE_TAG: 22.04
     steps:
+      - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -377,6 +385,7 @@ jobs:
       OS_IMAGE_NAME: centos
       OS_IMAGE_TAG: 8
     steps:
+      - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -515,6 +524,9 @@ jobs:
 
   static-build-test:
     runs-on: velox-self-hosted
+    env:
+      OS_IMAGE_NAME: centos
+      OS_IMAGE_TAG: 7
     steps:
       - uses: actions/checkout@v4
       - name: Setup docker container
@@ -576,6 +588,7 @@ jobs:
       OS_IMAGE_NAME: centos
       OS_IMAGE_TAG: 8
     steps:
+      - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
