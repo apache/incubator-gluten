@@ -774,4 +774,13 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       }
     }
   }
+
+  test("knownfloatingpointnormalized") {
+    runQueryAndCompare("""
+                         |select avg(l_quantity) from lineitem
+                         |group by cast(l_orderkey as double);
+                         |""".stripMargin) {
+      checkOperatorMatch[HashAggregateExecTransformer]
+    }
+  }
 }

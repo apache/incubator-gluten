@@ -19,7 +19,7 @@ package io.glutenproject.extension.columnar
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
-import io.glutenproject.extension.{GlutenPlan, ValidationResult}
+import io.glutenproject.extension.{GlutenPlan, RemoveKnownFloatingPointNormalized, ValidationResult}
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.PhysicalPlanSelector
 
@@ -452,15 +452,19 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAggregate is not enabled in HashAggregateExec")
           } else {
+            val transformedPlan =
+              RemoveKnownFloatingPointNormalized
+                .applyWithValidation(plan, validation = true)
+                .asInstanceOf[HashAggregateExec]
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genHashAggregateExecTransformer(
-                plan.requiredChildDistributionExpressions,
-                plan.groupingExpressions,
-                plan.aggregateExpressions,
-                plan.aggregateAttributes,
-                plan.initialInputBufferOffset,
-                plan.resultExpressions,
-                plan.child
+                transformedPlan.requiredChildDistributionExpressions,
+                transformedPlan.groupingExpressions,
+                transformedPlan.aggregateExpressions,
+                transformedPlan.aggregateAttributes,
+                transformedPlan.initialInputBufferOffset,
+                transformedPlan.resultExpressions,
+                transformedPlan.child
               )
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
@@ -473,15 +477,19 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAgg is not enabled in SortAggregateExec")
           }
+          val transformedPlan =
+            RemoveKnownFloatingPointNormalized
+              .applyWithValidation(plan, validation = true)
+              .asInstanceOf[SortAggregateExec]
           val transformer = BackendsApiManager.getSparkPlanExecApiInstance
             .genHashAggregateExecTransformer(
-              plan.requiredChildDistributionExpressions,
-              plan.groupingExpressions,
-              plan.aggregateExpressions,
-              plan.aggregateAttributes,
-              plan.initialInputBufferOffset,
-              plan.resultExpressions,
-              plan.child
+              transformedPlan.requiredChildDistributionExpressions,
+              transformedPlan.groupingExpressions,
+              transformedPlan.aggregateExpressions,
+              transformedPlan.aggregateAttributes,
+              transformedPlan.initialInputBufferOffset,
+              transformedPlan.resultExpressions,
+              transformedPlan.child
             )
           TransformHints.tag(plan, transformer.doValidate().toTransformHint)
         case plan: ObjectHashAggregateExec =>
@@ -490,15 +498,19 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAgg is not enabled in ObjectHashAggregateExec")
           } else {
+            val transformedPlan =
+              RemoveKnownFloatingPointNormalized
+                .applyWithValidation(plan, validation = true)
+                .asInstanceOf[ObjectHashAggregateExec]
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genHashAggregateExecTransformer(
-                plan.requiredChildDistributionExpressions,
-                plan.groupingExpressions,
-                plan.aggregateExpressions,
-                plan.aggregateAttributes,
-                plan.initialInputBufferOffset,
-                plan.resultExpressions,
-                plan.child
+                transformedPlan.requiredChildDistributionExpressions,
+                transformedPlan.groupingExpressions,
+                transformedPlan.aggregateExpressions,
+                transformedPlan.aggregateAttributes,
+                transformedPlan.initialInputBufferOffset,
+                transformedPlan.resultExpressions,
+                transformedPlan.child
               )
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
