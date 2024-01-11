@@ -76,8 +76,6 @@ private:
     Poco::Logger * logger = &Poco::Logger::get("StreamingAggregatingTransform");
 
     double per_key_memory_usage = 0;
-    DB::AggregatedDataVariants::Type last_data_variants_type = DB::AggregatedDataVariants::Type::EMPTY;
-    size_t last_data_variants_size = 0;
 
     // metrics
     size_t total_input_blocks = 0;
