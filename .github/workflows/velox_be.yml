@@ -519,9 +519,6 @@ jobs:
 
   static-build-centos7-test:
     runs-on: velox-self-hosted
-    env:
-      OS_IMAGE_NAME: centos
-      OS_IMAGE_TAG: 7
     steps:
       - uses: actions/checkout@v4
       - name: Setup docker container
