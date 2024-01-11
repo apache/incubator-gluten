@@ -14,11 +14,13 @@
 # limitations under the License.
 
 name: Build docker images used by Velox backend CI
+
 on:
   schedule:
     # Every day at 12:00 AM
     - cron: '0 0 * * *'
     - cron: '*/5 * * * *'
+
 env:
   HTTP_PROXY_HOST: proxy-shz.intel.com
   HTTP_PROXY_PORT: 911
