@@ -312,7 +312,7 @@ size_t PODArrayUtil::adjustMemoryEfficientSize(size_t n)
     }
     else
     {
-        padded_n = rounded_n - padding_n;    
+        padded_n = rounded_n - padding_n;
     }
     return padded_n;
 }
@@ -676,6 +676,8 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("function_json_value_return_type_allow_complex", true);
     settings.set("function_json_value_return_type_allow_nullable", true);
     settings.set("precise_float_parsing", true);
+    settings.set("local_filesystem_read_method", "mmap");
+
 }
 
 static void load_medadata_impl(std::vector<String> & metadata_lines, String & table_path, String & root_path)
