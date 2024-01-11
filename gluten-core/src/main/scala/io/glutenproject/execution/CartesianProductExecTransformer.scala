@@ -23,6 +23,7 @@ import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.RelBuilder
 
+import org.apache.spark.{Dependency, NarrowDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.{Inner, JoinType}
@@ -43,9 +44,6 @@ case class CartesianProductExecTransformer(
   override def leftKeys: Seq[Expression] = Nil
 
   override def rightKeys: Seq[Expression] = Nil
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] =
-    getColumnarInputRDDs(left) ++ getColumnarInputRDDs(right)
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] =
@@ -117,4 +115,83 @@ case class CartesianProductExecTransformer(
       newLeft: SparkPlan,
       newRight: SparkPlan): CartesianProductExecTransformer =
     copy(left = newLeft, right = newRight)
+
+  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
+    val rddLeft = getColumnarInputRDDs(left)
+    val rddRight = getColumnarInputRDDs(right)
+
+    if (rddLeft.size < 1 && rddRight.size < 1) {
+      return Seq()
+    }
+
+    assert(rddLeft.size == 1)
+    assert(rddRight.size == 1)
+
+    val cartesianRDD = new CartesianColumnarBatchRDD(sparkContext, rddLeft.head, rddRight.head)
+    val rdd1 = cartesianRDD.map(pair => pair._1)
+    val rdd2 = cartesianRDD.map(pair => pair._2)
+
+    Seq(rdd1, rdd2)
+  }
+}
+
+/** The [[Partition]] used by [[CartesianColumnarBatchRDD]]. */
+class CartesianColumnarBatchRDDPartition(
+    idx: Int,
+    @transient private val rdd1: RDD[_],
+    @transient private val rdd2: RDD[_],
+    s1Index: Int,
+    s2Index: Int
+) extends Partition {
+  var s1 = rdd1.partitions(s1Index)
+  var s2 = rdd2.partitions(s2Index)
+  override val index: Int = idx
+}
+
+/** [[CartesianColumnarBatchRDD]] is the columnar version of [[org.apache.spark.rdd.CartesianRDD]]. */
+class CartesianColumnarBatchRDD(sc: SparkContext, var rdd1: RDD[ColumnarBatch], var rdd2: RDD[ColumnarBatch])
+  extends RDD[(ColumnarBatch, ColumnarBatch)](sc, Nil)
+  with Serializable {
+
+  private val numPartitionsInRdd2 = rdd2.partitions.length
+
+  override def getPartitions: Array[Partition] = {
+    // create the cross product split
+    val array = new Array[Partition](rdd1.partitions.length * rdd2.partitions.length)
+    for (s1 <- rdd1.partitions; s2 <- rdd2.partitions) {
+      val idx = s1.index * numPartitionsInRdd2 + s2.index
+      array(idx) = new CartesianColumnarBatchRDDPartition(idx, rdd1, rdd2, s1.index, s2.index)
+    }
+    array
+  }
+
+  override def getPreferredLocations(split: Partition): Seq[String] = {
+    val currSplit = split.asInstanceOf[CartesianColumnarBatchRDDPartition]
+    (rdd1.preferredLocations(currSplit.s1) ++ rdd2.preferredLocations(currSplit.s2)).distinct
+  }
+
+  override def compute(
+      split: Partition,
+      context: TaskContext): Iterator[(ColumnarBatch, ColumnarBatch)] = {
+    val currSplit = split.asInstanceOf[CartesianColumnarBatchRDDPartition]
+    for (
+      x <- rdd1.iterator(currSplit.s1, context);
+      y <- rdd2.iterator(currSplit.s2, context)
+    ) yield (x, y)
+  }
+
+  override def getDependencies: Seq[Dependency[_]] = List(
+    new NarrowDependency(rdd1) {
+      def getParents(id: Int): Seq[Int] = List(id / numPartitionsInRdd2)
+    },
+    new NarrowDependency(rdd2) {
+      def getParents(id: Int): Seq[Int] = List(id % numPartitionsInRdd2)
+    }
+  )
+
+  override def clearDependencies(): Unit = {
+    super.clearDependencies()
+    rdd1 = null
+    rdd2 = null
+  }
 }
