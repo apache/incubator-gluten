@@ -622,7 +622,7 @@ class GlutenParquetV2FilterSuite extends GltuenParquetFilterSuite with GlutenSQL
                               "2018-03-20".date,
                               "2018-03-21".date,
                               "2018-03-22".date).map(Literal.apply)),
-                          if (threshold == 3) classOf[Operators.And] else classOf[Operators.Or],
+                          if (threshold == 3) classOf[Operators.In[_]] else classOf[Operators.Or],
                           Seq(
                             Row(resultFun("2018-03-19")),
                             Row(resultFun("2018-03-20")),
