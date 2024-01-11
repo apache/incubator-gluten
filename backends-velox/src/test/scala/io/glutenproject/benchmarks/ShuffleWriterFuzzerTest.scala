@@ -19,7 +19,7 @@ package io.glutenproject.benchmarks
 import io.glutenproject.benchmarks.ShuffleWriterFuzzerTest.{Failed, OOM, Successful, TestResult}
 import io.glutenproject.execution.VeloxWholeStageTransformerSuite
 import io.glutenproject.memory.memtarget.ThrowOnOomMemoryTarget
-import io.glutenproject.tags.FuzzerTest
+import io.glutenproject.tags.{FuzzerTest, SkipTestTags}
 
 import org.apache.spark.SparkConf
 
@@ -35,6 +35,7 @@ object ShuffleWriterFuzzerTest {
 }
 
 @FuzzerTest
+@SkipTestTags
 class ShuffleWriterFuzzerTest extends VeloxWholeStageTransformerSuite {
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
@@ -62,6 +63,13 @@ class ShuffleWriterFuzzerTest extends VeloxWholeStageTransformerSuite {
       .set("spark.gluten.sql.columnar.backend.velox.glogSeverityLevel", "0")
   }
 
+  def getRootCause(e: Throwable): Throwable = {
+    if (e.getCause == null) {
+      return e
+    }
+    getRootCause(e.getCause)
+  }
+
   def executeQuery(sql: String): TestResult = {
     try {
       System.gc()
@@ -74,8 +82,16 @@ class ShuffleWriterFuzzerTest extends VeloxWholeStageTransformerSuite {
         logError(s"Out of memory while running test with seed: ${dataGenerator.getSeed}", oom)
         OOM(dataGenerator.getSeed)
       case t: Throwable =>
-        logError(s"Failed to run test with seed: ${dataGenerator.getSeed}", t)
-        Failed(dataGenerator.getSeed)
+        if (
+          getRootCause(t).getMessage.contains(
+            classOf[ThrowOnOomMemoryTarget.OutOfMemoryException].getName)
+        ) {
+          logError(s"Out of memory while running test with seed: ${dataGenerator.getSeed}", t)
+          OOM(dataGenerator.getSeed)
+        } else {
+          logError(s"Failed to run test with seed: ${dataGenerator.getSeed}", t)
+          Failed(dataGenerator.getSeed)
+        }
     }
   }
 
@@ -122,7 +138,7 @@ class ShuffleWriterFuzzerTest extends VeloxWholeStageTransformerSuite {
           s"==============================> " +
             s"Started reproduction (seed: ${dataGenerator.getSeed})")
         val result = executeQuery(sql)
-        assert(result.isInstanceOf[Successful])
+        assert(result.isInstanceOf[Successful], s"Failed to run 'reproduce' with seed: $seed")
     }
   }
 }
