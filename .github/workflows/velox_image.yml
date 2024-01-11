@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   ubuntu2004:
-    runs-on: velox-self-hosted
+    runs-on: hongze-test
     env:
       OS_IMAGE_NAME: ubuntu
       OS_IMAGE_TAG: 20.04
@@ -41,7 +41,7 @@ jobs:
       - name: Build
         run: $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/build.sh
   ubuntu2204:
-    runs-on: velox-self-hosted
+    runs-on: hongze-test
     env:
       OS_IMAGE_NAME: ubuntu
       OS_IMAGE_TAG: 22.04
@@ -49,7 +49,7 @@ jobs:
       - name: Build
         run: $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/build.sh
   centos7:
-    runs-on: velox-self-hosted
+    runs-on: hongze-test
     env:
       OS_IMAGE_NAME: centos
       OS_IMAGE_TAG: 7
@@ -57,7 +57,7 @@ jobs:
       - name: Build
         run: $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/build.sh
   centos8:
-    runs-on: velox-self-hosted
+    runs-on: hongze-test
     env:
       OS_IMAGE_NAME: centos
       OS_IMAGE_TAG: 8
