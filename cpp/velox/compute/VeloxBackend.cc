@@ -178,9 +178,6 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   // Set backtrace_allocation
   gluten::backtrace_allocation = veloxcfg->get<bool>(kBacktraceAllocation, false);
 
-  // Set veloxShuffleReaderPrintFlag
-  gluten::veloxShuffleReaderPrintFlag = veloxcfg->get<bool>(kVeloxShuffleReaderPrintFlag, false);
-
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
   initJolFilesystem(veloxcfg);

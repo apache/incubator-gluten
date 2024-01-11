@@ -177,14 +177,14 @@ class GlutenCoalesceShufflePartitionsSuite
               case Some(numPartitions) =>
                 assert(shuffleReads.isEmpty)
               case None =>
-                assert(shuffleReads.length === 0)
+                assert(shuffleReads.length === 1)
                 shuffleReads.foreach(read => assert(read.outputPartitioning.numPartitions === 3))
             }
         }
-        // Change the original value 2000 to 6000 for gluten. The test depends on the calculation
+        // Change the original value 2000 to 2500 for gluten. The test depends on the calculation
         // for bytesByPartitionId in MapOutputStatistics. Gluten has a different statistic result.
         // See ShufflePartitionsUtil.coalescePartitions & ColumnarShuffleWriter's mapStatus.
-        withSparkSession(test, 6000, minNumPostShufflePartitions)
+        withSparkSession(test, 2500, minNumPostShufflePartitions)
       }
 
       test(GLUTEN_TEST + s"determining the number of reducers: join operator$testNameNote") {
@@ -225,10 +225,10 @@ class GlutenCoalesceShufflePartitionsSuite
                 shuffleReads.foreach(read => assert(read.outputPartitioning.numPartitions === 2))
             }
         }
-        // Change the original value 16384 to 40000 for gluten. The test depends on the calculation
+        // Change the original value 16384 to 20000 for gluten. The test depends on the calculation
         // for bytesByPartitionId in MapOutputStatistics. Gluten has a different statistic result.
         // See ShufflePartitionsUtil.coalescePartitions & ColumnarShuffleWriter's mapStatus.
-        withSparkSession(test, 40000, minNumPostShufflePartitions)
+        withSparkSession(test, 20000, minNumPostShufflePartitions)
       }
 
       test(GLUTEN_TEST + s"determining the number of reducers: complex query 1$testNameNote") {
@@ -275,10 +275,10 @@ class GlutenCoalesceShufflePartitionsSuite
             }
         }
 
-        // Change the original value 16384 to 40000 for gluten. The test depends on the calculation
+        // Change the original value 16384 to 20000 for gluten. The test depends on the calculation
         // for bytesByPartitionId in MapOutputStatistics. Gluten has a different statistic result.
         // See ShufflePartitionsUtil.coalescePartitions & ColumnarShuffleWriter's mapStatus.
-        withSparkSession(test, 40000, minNumPostShufflePartitions)
+        withSparkSession(test, 20000, minNumPostShufflePartitions)
       }
 
       test(GLUTEN_TEST + s"determining the number of reducers: complex query 2$testNameNote") {
@@ -325,10 +325,10 @@ class GlutenCoalesceShufflePartitionsSuite
             }
         }
 
-        // Change the original value 12000 to 30000 for gluten. The test depends on the calculation
+        // Change the original value 12000 to 16000 for gluten. The test depends on the calculation
         // for bytesByPartitionId in MapOutputStatistics. Gluten has a different statistic result.
         // See ShufflePartitionsUtil.coalescePartitions & ColumnarShuffleWriter's mapStatus.
-        withSparkSession(test, 30000, minNumPostShufflePartitions)
+        withSparkSession(test, 16000, minNumPostShufflePartitions)
       }
 
       test(

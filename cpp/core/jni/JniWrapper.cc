@@ -18,7 +18,6 @@
 #include <jni.h>
 #include <filesystem>
 
-#include "compute/ProtobufUtils.h"
 #include "compute/Runtime.h"
 #include "config/GlutenConfig.h"
 #include "jni/JniCommon.h"
@@ -30,13 +29,13 @@
 #include "memory/AllocationListener.h"
 #include "operators/serializer/ColumnarBatchSerializer.h"
 #include "shuffle/LocalPartitionWriter.h"
-#include "shuffle/PartitionWriterCreator.h"
 #include "shuffle/Partitioning.h"
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/Utils.h"
 #include "shuffle/rss/CelebornPartitionWriter.h"
 #include "utils/ArrowStatus.h"
+#include "utils/StringUtil.h"
 
 using namespace gluten;
 
@@ -790,15 +789,16 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jstring partitioningNameJstr,
     jint numPartitions,
     jint bufferSize,
+    jint mergeBufferSize,
+    jdouble mergeThreshold,
     jstring codecJstr,
     jstring codecBackendJstr,
-    jint bufferCompressThreshold,
+    jint compressionThreshold,
     jstring compressionModeJstr,
     jstring dataFileJstr,
     jint numSubDirs,
     jstring localDirsJstr,
     jlong memoryManagerHandle,
-    jboolean writeEOS,
     jdouble reallocThreshold,
     jlong firstBatchHandle,
     jlong taskAttemptId,
@@ -811,25 +811,15 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   auto memoryManager = jniCastOrThrow<MemoryManager>(memoryManagerHandle);
   if (partitioningNameJstr == nullptr) {
     throw gluten::GlutenException(std::string("Short partitioning name can't be null"));
-    return kInvalidResourceHandle;
   }
 
-  auto shuffleWriterOptions = ShuffleWriterOptions::defaults();
-
-  auto partitioningName = jStringToCString(env, partitioningNameJstr);
-  shuffleWriterOptions.partitioning = gluten::toPartitioning(partitioningName);
-
-  if (bufferSize > 0) {
-    shuffleWriterOptions.buffer_size = bufferSize;
-  }
-
-  shuffleWriterOptions.compression_type = getCompressionType(env, codecJstr);
-  if (codecJstr != NULL) {
-    shuffleWriterOptions.codec_backend = getCodecBackend(env, codecBackendJstr);
-    shuffleWriterOptions.compression_mode = getCompressionMode(env, compressionModeJstr);
-  }
-
-  shuffleWriterOptions.memory_pool = memoryManager->getArrowMemoryPool();
+  auto shuffleWriterOptions = ShuffleWriterOptions{
+      .bufferSize = bufferSize,
+      .bufferReallocThreshold = reallocThreshold,
+      .partitioning = gluten::toPartitioning(jStringToCString(env, partitioningNameJstr)),
+      .taskAttemptId = (int64_t)taskAttemptId,
+      .startPartitionId = startPartitionId,
+  };
 
   jclass cls = env->FindClass("java/lang/Thread");
   jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
@@ -841,66 +831,69 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jmethodID midGetid = getMethodIdOrError(env, cls, "getId", "()J");
     jlong sid = env->CallLongMethod(thread, midGetid);
     checkException(env);
-    shuffleWriterOptions.thread_id = (int64_t)sid;
+    shuffleWriterOptions.threadId = (int64_t)sid;
   }
 
-  shuffleWriterOptions.task_attempt_id = (int64_t)taskAttemptId;
-  shuffleWriterOptions.start_partition_id = startPartitionId;
-  shuffleWriterOptions.compression_threshold = bufferCompressThreshold;
+  auto partitionWriterOptions = PartitionWriterOptions{
+      .mergeBufferSize = mergeBufferSize,
+      .mergeThreshold = mergeThreshold,
+      .compressionThreshold = compressionThreshold,
+      .compressionType = getCompressionType(env, codecJstr),
+      .bufferedWrite = true,
+      .numSubDirs = numSubDirs,
+      .pushBufferMaxSize = pushBufferMaxSize > 0 ? pushBufferMaxSize : kDefaultShuffleWriterBufferSize};
+  if (codecJstr != NULL) {
+    partitionWriterOptions.codecBackend = getCodecBackend(env, codecBackendJstr);
+    partitionWriterOptions.compressionMode = getCompressionMode(env, compressionModeJstr);
+  }
+  std::unique_ptr<PartitionWriter> partitionWriter;
 
   auto partitionWriterTypeC = env->GetStringUTFChars(partitionWriterTypeJstr, JNI_FALSE);
   auto partitionWriterType = std::string(partitionWriterTypeC);
   env->ReleaseStringUTFChars(partitionWriterTypeJstr, partitionWriterTypeC);
-
-  std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator;
-
   if (partitionWriterType == "local") {
-    shuffleWriterOptions.partition_writer_type = kLocal;
     if (dataFileJstr == NULL) {
       throw gluten::GlutenException(std::string("Shuffle DataFile can't be null"));
     }
     if (localDirsJstr == NULL) {
       throw gluten::GlutenException(std::string("Shuffle DataFile can't be null"));
     }
-
-    shuffleWriterOptions.write_eos = writeEOS;
-    shuffleWriterOptions.buffer_realloc_threshold = reallocThreshold;
-
-    if (numSubDirs > 0) {
-      shuffleWriterOptions.num_sub_dirs = numSubDirs;
-    }
-
     auto dataFileC = env->GetStringUTFChars(dataFileJstr, JNI_FALSE);
-    shuffleWriterOptions.data_file = std::string(dataFileC);
+    auto dataFile = std::string(dataFileC);
     env->ReleaseStringUTFChars(dataFileJstr, dataFileC);
 
-    auto localDirs = env->GetStringUTFChars(localDirsJstr, JNI_FALSE);
-    shuffleWriterOptions.local_dirs = std::string(localDirs);
-    env->ReleaseStringUTFChars(localDirsJstr, localDirs);
+    auto localDirsC = env->GetStringUTFChars(localDirsJstr, JNI_FALSE);
+    auto configuredDirs = gluten::splitPaths(std::string(localDirsC));
+    env->ReleaseStringUTFChars(localDirsJstr, localDirsC);
 
-    partitionWriterCreator = std::make_shared<LocalPartitionWriterCreator>();
+    partitionWriter = std::make_unique<LocalPartitionWriter>(
+        numPartitions,
+        std::move(partitionWriterOptions),
+        memoryManager->getArrowMemoryPool(),
+        dataFile,
+        configuredDirs);
   } else if (partitionWriterType == "celeborn") {
-    shuffleWriterOptions.partition_writer_type = PartitionWriterType::kCeleborn;
     jclass celebornPartitionPusherClass =
         createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
     jmethodID celebornPushPartitionDataMethod =
         getMethodIdOrError(env, celebornPartitionPusherClass, "pushPartitionData", "(I[BI)I");
-    if (pushBufferMaxSize > 0) {
-      shuffleWriterOptions.push_buffer_max_size = pushBufferMaxSize;
-    }
     JavaVM* vm;
     if (env->GetJavaVM(&vm) != JNI_OK) {
       throw gluten::GlutenException("Unable to get JavaVM instance");
     }
     std::shared_ptr<CelebornClient> celebornClient =
         std::make_shared<CelebornClient>(vm, partitionPusher, celebornPushPartitionDataMethod);
-    partitionWriterCreator = std::make_shared<CelebornPartitionWriterCreator>(std::move(celebornClient));
+    partitionWriter = std::make_unique<CelebornPartitionWriter>(
+        numPartitions,
+        std::move(partitionWriterOptions),
+        memoryManager->getArrowMemoryPool(),
+        std::move(celebornClient));
   } else {
     throw gluten::GlutenException("Unrecognizable partition writer type: " + partitionWriterType);
   }
 
   return ctx->objectStore()->save(ctx->createShuffleWriter(
-      numPartitions, std::move(partitionWriterCreator), std::move(shuffleWriterOptions), memoryManager));
+      numPartitions, std::move(partitionWriter), std::move(shuffleWriterOptions), memoryManager));
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
@@ -920,7 +913,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   }
   int64_t evictedSize;
   gluten::arrowAssertOkOrThrow(
-      shuffleWriter->evictFixedSize(size, &evictedSize), "(shuffle) nativeEvict: evict failed");
+      shuffleWriter->reclaimFixedSize(size, &evictedSize), "(shuffle) nativeEvict: evict failed");
   return (jlong)evictedSize;
   JNI_METHOD_END(kInvalidResourceHandle)
 }
@@ -962,7 +955,7 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapp
     throw gluten::GlutenException(errorMessage);
   }
 
-  gluten::arrowAssertOkOrThrow(shuffleWriter->stop(), "Native split: shuffle writer stop failed");
+  gluten::arrowAssertOkOrThrow(shuffleWriter->stop(), "Native shuffle write: ShuffleWriter stop failed");
 
   const auto& partitionLengths = shuffleWriter->partitionLengths();
   auto partitionLengthArr = env->NewLongArray(partitionLengths.size());
@@ -983,7 +976,7 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapp
       shuffleWriter->totalCompressTime(),
       shuffleWriter->totalBytesWritten(),
       shuffleWriter->totalBytesEvicted(),
-      shuffleWriter->partitionBufferSize(),
+      shuffleWriter->maxPartitionBufferSize(),
       partitionLengthArr,
       rawPartitionLengthArr);
 
@@ -1021,19 +1014,20 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
     jlong cSchema,
     jlong memoryManagerHandle,
     jstring compressionType,
-    jstring compressionBackend) {
+    jstring compressionBackend,
+    jint batchSize) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
   auto memoryManager = jniCastOrThrow<MemoryManager>(memoryManagerHandle);
 
   auto pool = memoryManager->getArrowMemoryPool();
-  ShuffleReaderOptions options = ShuffleReaderOptions::defaults();
-  options.ipc_read_options.memory_pool = pool;
-  options.ipc_read_options.use_threads = false;
-  options.compression_type = getCompressionType(env, compressionType);
+  ShuffleReaderOptions options = ShuffleReaderOptions{};
+  options.compressionType = getCompressionType(env, compressionType);
   if (compressionType != nullptr) {
-    options.codec_backend = getCodecBackend(env, compressionBackend);
+    options.codecBackend = getCodecBackend(env, compressionBackend);
   }
+  options.batchSize = batchSize;
+  // TODO: Add coalesce option and maximum coalesced size.
   std::shared_ptr<arrow::Schema> schema =
       gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
 

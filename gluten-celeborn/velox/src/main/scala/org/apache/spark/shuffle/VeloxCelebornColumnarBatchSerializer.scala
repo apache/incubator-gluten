@@ -81,13 +81,15 @@ private class CelebornColumnarBatchSerializerInstance(
       }
     val compressionCodecBackend =
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
+    val batchSize = GlutenConfig.getConf.maxBatchSize
     val handle = ShuffleReaderJniWrapper
       .create()
       .make(
         cSchema.memoryAddress(),
         nmm.getNativeInstanceHandle,
         compressionCodec,
-        compressionCodecBackend
+        compressionCodecBackend,
+        batchSize
       )
     // Close shuffle reader instance as lately as the end of task processing,
     // since the native reader could hold a reference to memory pool that

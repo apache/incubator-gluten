@@ -54,7 +54,7 @@ static inline void arrowAssertOkOrThrow(arrow::Status status) {
 
 static inline void arrowAssertOkOrThrow(arrow::Status status, const std::string& message) {
   if (!status.ok()) {
-    throwArrowException(message + " - " + status.message());
+    throwArrowException(message + " - " + status.ToString());
   }
 }
 } // namespace gluten

@@ -28,45 +28,49 @@ static constexpr int32_t kDefaultNumSubDirs = 64;
 static constexpr int32_t kDefaultCompressionThreshold = 100;
 static constexpr int32_t kDefaultBufferAlignment = 64;
 static constexpr double kDefaultBufferReallocThreshold = 0.25;
+static constexpr double kDefaultMergeBufferThreshold = 0.25;
 static constexpr bool kEnableBufferedWrite = true;
-static constexpr bool kWriteEos = true;
 
 enum PartitionWriterType { kLocal, kCeleborn };
 
 struct ShuffleReaderOptions {
-  arrow::ipc::IpcReadOptions ipc_read_options = arrow::ipc::IpcReadOptions::Defaults();
-  arrow::Compression::type compression_type = arrow::Compression::type::LZ4_FRAME;
-  CodecBackend codec_backend = CodecBackend::NONE;
-
-  static ShuffleReaderOptions defaults();
+  arrow::Compression::type compressionType = arrow::Compression::type::LZ4_FRAME;
+  CodecBackend codecBackend = CodecBackend::NONE;
+  int32_t batchSize = kDefaultShuffleWriterBufferSize;
 };
 
 struct ShuffleWriterOptions {
-  int32_t buffer_size = kDefaultShuffleWriterBufferSize;
-  int32_t push_buffer_max_size = kDefaultShuffleWriterBufferSize;
-  int32_t num_sub_dirs = kDefaultNumSubDirs;
-  int32_t compression_threshold = kDefaultCompressionThreshold;
-  double buffer_realloc_threshold = kDefaultBufferReallocThreshold;
-  arrow::Compression::type compression_type = arrow::Compression::LZ4_FRAME;
-  CodecBackend codec_backend = CodecBackend::NONE;
-  CompressionMode compression_mode = CompressionMode::BUFFER;
-  bool buffered_write = kEnableBufferedWrite;
-  bool write_eos = kWriteEos;
-
-  PartitionWriterType partition_writer_type = PartitionWriterType::kLocal;
+  int32_t bufferSize = kDefaultShuffleWriterBufferSize;
+  double bufferReallocThreshold = kDefaultBufferReallocThreshold;
   Partitioning partitioning = Partitioning::kRoundRobin;
-
-  int64_t thread_id = -1;
-  int64_t task_attempt_id = -1;
-  int32_t start_partition_id = 0;
-
-  arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
-
-  std::string data_file{};
-  std::string local_dirs{};
-  arrow::MemoryPool* memory_pool{};
-
-  static ShuffleWriterOptions defaults();
+  int64_t taskAttemptId = -1;
+  int32_t startPartitionId = 0;
+  int64_t threadId = -1;
 };
 
+struct PartitionWriterOptions {
+  int32_t mergeBufferSize = kDefaultShuffleWriterBufferSize;
+  double mergeThreshold = kDefaultMergeBufferThreshold;
+
+  int32_t compressionThreshold = kDefaultCompressionThreshold;
+  arrow::Compression::type compressionType = arrow::Compression::LZ4_FRAME;
+  CodecBackend codecBackend = CodecBackend::NONE;
+  CompressionMode compressionMode = CompressionMode::BUFFER;
+
+  bool bufferedWrite = kEnableBufferedWrite;
+
+  int32_t numSubDirs = kDefaultNumSubDirs;
+
+  int32_t pushBufferMaxSize = kDefaultShuffleWriterBufferSize;
+};
+
+struct ShuffleWriterMetrics {
+  int64_t totalBytesWritten{0};
+  int64_t totalBytesEvicted{0};
+  int64_t totalWriteTime{0};
+  int64_t totalEvictTime{0};
+  int64_t totalCompressTime{0};
+  std::vector<int64_t> partitionLengths{};
+  std::vector<int64_t> rawPartitionLengths{}; // Uncompressed size.
+};
 } // namespace gluten

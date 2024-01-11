@@ -270,6 +270,7 @@ class MetricsApiImpl extends MetricsApi with Logging {
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
       "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
+      "numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions"),
       "bytesSpilled" -> SQLMetrics.createSizeMetric(sparkContext, "shuffle bytes spilled"),
       "splitBufferSize" -> SQLMetrics.createSizeMetric(sparkContext, "split buffer size total"),
       "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to split"),

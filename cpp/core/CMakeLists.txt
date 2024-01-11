@@ -194,19 +194,20 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         memory/ArrowMemoryPool.cc
         memory/ColumnarBatch.cc
         operators/writer/ArrowWriter.cc
-        shuffle/Options.cc
-        shuffle/ShuffleReader.cc
-        shuffle/ShuffleWriter.cc
-        shuffle/Partitioner.cc
         shuffle/FallbackRangePartitioner.cc
         shuffle/HashPartitioner.cc
-        shuffle/RoundRobinPartitioner.cc
-        shuffle/SinglePartitioner.cc
-        shuffle/Partitioning.cc
-        shuffle/PartitionWriterCreator.cc
         shuffle/LocalPartitionWriter.cc
+        shuffle/Options.cc
+        shuffle/Partitioner.cc
+        shuffle/Partitioning.cc
+        shuffle/Payload.cc
         shuffle/rss/RemotePartitionWriter.cc
         shuffle/rss/CelebornPartitionWriter.cc
+        shuffle/RoundRobinPartitioner.cc
+        shuffle/ShuffleMemoryPool.cc
+        shuffle/ShuffleReader.cc
+        shuffle/SinglePartitioner.cc
+        shuffle/Spill.cc
         shuffle/Utils.cc
         utils/Compression.cc
         utils/StringUtil.cc

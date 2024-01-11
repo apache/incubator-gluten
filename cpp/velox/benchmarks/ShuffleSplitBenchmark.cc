@@ -108,16 +108,13 @@ class BenchmarkShuffleSplit {
       setCpu(state.thread_index());
     }
 
-    std::shared_ptr<arrow::MemoryPool> pool = defaultArrowMemoryPool();
-
-    std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator =
-        std::make_shared<LocalPartitionWriterCreator>();
-
-    auto options = ShuffleWriterOptions::defaults();
-    options.buffer_size = kPartitionBufferSize;
-    options.memory_pool = pool.get();
+    auto options = ShuffleWriterOptions{};
+    options.bufferSize = kPartitionBufferSize;
     options.partitioning = Partitioning::kRoundRobin;
-    GLUTEN_THROW_NOT_OK(setLocalDirsAndDataFileFromEnv(options));
+    std::string dataFile;
+    std::vector<std::string> localDirs;
+    bool isFromEnv;
+    GLUTEN_THROW_NOT_OK(setLocalDirsAndDataFileFromEnv(dataFile, localDirs, isFromEnv));
 
     std::shared_ptr<VeloxShuffleWriter> shuffleWriter;
     int64_t elapseRead = 0;
@@ -133,14 +130,14 @@ class BenchmarkShuffleSplit {
         numRows,
         splitTime,
         FLAGS_partitions,
-        partitionWriterCreator,
-        options,
+        std::move(options),
+        dataFile,
+        localDirs,
         state);
     auto endTime = std::chrono::steady_clock::now();
     auto totalTime = (endTime - startTime).count();
 
-    auto fs = std::make_shared<arrow::fs::LocalFileSystem>();
-    GLUTEN_THROW_NOT_OK(fs->DeleteFile(shuffleWriter->dataFile()));
+    cleanupShuffleOutput(dataFile, localDirs, isFromEnv);
 
     state.SetBytesProcessed(int64_t(shuffleWriter->rawPartitionBytes()));
 
@@ -201,8 +198,9 @@ class BenchmarkShuffleSplit {
       int64_t& numRows,
       int64_t& splitTime,
       const int numPartitions,
-      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       ShuffleWriterOptions options,
+      const std::string& dataFile,
+      const std::vector<std::string>& localDirs,
       benchmark::State& state) {}
 
  protected:
@@ -225,8 +223,9 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
       int64_t& numRows,
       int64_t& splitTime,
       const int numPartitions,
-      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       ShuffleWriterOptions options,
+      const std::string& dataFile,
+      const std::vector<std::string>& localDirs,
       benchmark::State& state) {
     std::vector<int> localColumnIndices;
     // local_column_indices.push_back(0);
@@ -256,17 +255,23 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
     if (state.thread_index() == 0)
       LOG(INFO) << localSchema->ToString();
 
-    auto pool = options.memory_pool;
+    auto partitionWriter = std::make_unique<LocalPartitionWriter>(
+        numPartitions, PartitionWriterOptions{}, defaultArrowMemoryPool().get(), dataFile, localDirs);
     GLUTEN_ASSIGN_OR_THROW(
         shuffleWriter,
-        VeloxShuffleWriter::create(numPartitions, partitionWriterCreator, options, defaultLeafVeloxMemoryPool()));
+        VeloxShuffleWriter::create(
+            numPartitions,
+            std::move(partitionWriter),
+            std::move(options),
+            defaultLeafVeloxMemoryPool(),
+            defaultArrowMemoryPool().get()));
 
     std::shared_ptr<arrow::RecordBatch> recordBatch;
 
     std::unique_ptr<::parquet::arrow::FileReader> parquetReader;
     std::shared_ptr<RecordBatchReader> recordBatchReader;
     GLUTEN_THROW_NOT_OK(::parquet::arrow::FileReader::Make(
-        pool, ::parquet::ParquetFileReader::Open(file_), properties_, &parquetReader));
+        defaultArrowMemoryPool().get(), ::parquet::ParquetFileReader::Open(file_), properties_, &parquetReader));
 
     std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
     GLUTEN_THROW_NOT_OK(parquetReader->GetRecordBatchReader(rowGroupIndices_, localColumnIndices, &recordBatchReader));
@@ -292,7 +297,7 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
             TIME_NANO_OR_THROW(splitTime, shuffleWriter->split(cb, ShuffleWriter::kMinMemLimit));
           });
       // LOG(INFO) << " split done memory allocated = " <<
-      // options.memory_pool->bytes_allocated() ;
+      // options.memoryPool->bytes_allocated();
     }
 
     TIME_NANO_OR_THROW(splitTime, shuffleWriter->stop());
@@ -311,23 +316,30 @@ class BenchmarkShuffleSplitIterateScanBenchmark : public BenchmarkShuffleSplit {
       int64_t& numRows,
       int64_t& splitTime,
       const int numPartitions,
-      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       ShuffleWriterOptions options,
+      const std::string& dataFile,
+      const std::vector<std::string>& localDirs,
       benchmark::State& state) {
     if (state.thread_index() == 0)
       LOG(INFO) << schema_->ToString();
 
+    auto partitionWriter = std::make_unique<LocalPartitionWriter>(
+        numPartitions, PartitionWriterOptions{}, defaultArrowMemoryPool().get(), dataFile, localDirs);
     GLUTEN_ASSIGN_OR_THROW(
         shuffleWriter,
         VeloxShuffleWriter::create(
-            numPartitions, std::move(partitionWriterCreator), std::move(options), defaultLeafVeloxMemoryPool()));
+            numPartitions,
+            std::move(partitionWriter),
+            std::move(options),
+            defaultLeafVeloxMemoryPool(),
+            defaultArrowMemoryPool().get()));
 
     std::shared_ptr<arrow::RecordBatch> recordBatch;
 
     std::unique_ptr<::parquet::arrow::FileReader> parquetReader;
     std::shared_ptr<RecordBatchReader> recordBatchReader;
     GLUTEN_THROW_NOT_OK(::parquet::arrow::FileReader::Make(
-        options.memory_pool, ::parquet::ParquetFileReader::Open(file_), properties_, &parquetReader));
+        defaultArrowMemoryPool().get(), ::parquet::ParquetFileReader::Open(file_), properties_, &parquetReader));
 
     for (auto _ : state) {
       std::vector<std::shared_ptr<arrow::RecordBatch>> batches;

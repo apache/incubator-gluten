@@ -63,6 +63,10 @@ class ColumnarShuffleWriter[K, V](
 
   private val nativeBufferSize = GlutenConfig.getConf.shuffleWriterBufferSize
 
+  private val nativeMergeBufferSize = GlutenConfig.getConf.maxBatchSize
+
+  private val nativeMergeThreshold = GlutenConfig.getConf.columnarShuffleMergeThreshold
+
   private val compressionCodec =
     if (conf.getBoolean(SHUFFLE_COMPRESS.key, SHUFFLE_COMPRESS.defaultValue.get)) {
       GlutenShuffleUtils.getCompressionCodec(conf)
@@ -75,8 +79,6 @@ class ColumnarShuffleWriter[K, V](
 
   private val bufferCompressThreshold =
     GlutenConfig.getConf.columnarShuffleCompressionThreshold
-
-  private val writeEOS = GlutenConfig.getConf.columnarShuffleWriteEOS
 
   private val reallocThreshold = GlutenConfig.getConf.columnarShuffleReallocThreshold
 
@@ -125,6 +127,8 @@ class ColumnarShuffleWriter[K, V](
           nativeShuffleWriter = jniWrapper.make(
             dep.nativePartitioning,
             nativeBufferSize,
+            nativeMergeBufferSize,
+            nativeMergeThreshold,
             compressionCodec,
             compressionCodecBackend,
             bufferCompressThreshold,
@@ -156,7 +160,6 @@ class ColumnarShuffleWriter[K, V](
                 }
               )
               .getNativeInstanceHandle,
-            writeEOS,
             reallocThreshold,
             handle,
             taskContext.taskAttemptId(),

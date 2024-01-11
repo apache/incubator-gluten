@@ -40,6 +40,11 @@ class Timer {
         std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - startTime_).count();
   }
 
+  void reset() {
+    running_ = false;
+    realTimeUsed_ = 0;
+  }
+
   bool running() const {
     return running_;
   }
@@ -57,18 +62,34 @@ class Timer {
   int64_t realTimeUsed_ = 0;
 };
 
-class ScopedTimer : public Timer {
+class ScopedTimer {
  public:
-  explicit ScopedTimer(int64_t& toAdd) : Timer(), toAdd_(toAdd) {
-    Timer::start();
+  explicit ScopedTimer(int64_t* toAdd) : toAdd_(toAdd) {
+    startInternal();
   }
 
   ~ScopedTimer() {
-    Timer::stop();
-    toAdd_ += realTimeUsed();
+    stopInternal();
+  }
+
+  void switchTo(int64_t* toAdd) {
+    stopInternal();
+    toAdd_ = toAdd;
+    startInternal();
   }
 
  private:
-  int64_t& toAdd_;
+  Timer timer_{};
+  int64_t* toAdd_;
+
+  void stopInternal() {
+    timer_.stop();
+    *toAdd_ += timer_.realTimeUsed();
+  }
+
+  void startInternal() {
+    timer_.reset();
+    timer_.start();
+  }
 };
 } // namespace gluten
