@@ -57,20 +57,19 @@ object RemoveKnownFloatingPointNormalized extends Rule[SparkPlan] {
       // Only remove KnownFloatingPointNormalized when agg is transformable.
       case agg: BaseAggregateExec
           if normalizeExpressionExists(agg.groupingExpressions) &&
-            (validation || supportTransform(plan)) =>
+            (validation || supportTransform(agg)) =>
         val newGroupingExprs = agg.groupingExpressions.toIndexedSeq.map {
           expr =>
             val transformedExpr = expr.transform {
-              case _ @KnownFloatingPointNormalized(_ @NormalizeNaNAndZero(child)) => child
-              case _ @KnownFloatingPointNormalized(_ @If(_ @IsNull(expr), _, _)) => expr
-              case _ @KnownFloatingPointNormalized(_ @ArrayTransform(expr, _)) => expr
-              case other => other
+              case KnownFloatingPointNormalized(NormalizeNaNAndZero(child)) => child
+              case KnownFloatingPointNormalized(If(IsNull(expr), _, _)) => expr
+              case KnownFloatingPointNormalized(ArrayTransform(expr, _)) => expr
             }
-            removeRedundantAlias(transformedExpr)
+            removeRedundantAlias(transformedExpr).asInstanceOf[NamedExpression]
         }
         agg match {
           case hash: HashAggregateExec =>
-            hash.copy(groupingExpressions = newGroupingExprs.asInstanceOf[Seq[NamedExpression]])
+            hash.copy(groupingExpressions = newGroupingExprs)
           case objectHash: ObjectHashAggregateExec =>
             objectHash.copy(groupingExpressions =
               newGroupingExprs.asInstanceOf[Seq[NamedExpression]])
