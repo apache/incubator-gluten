@@ -148,8 +148,13 @@ class CartesianColumnarBatchRDDPartition(
   override val index: Int = idx
 }
 
-/** [[CartesianColumnarBatchRDD]] is the columnar version of [[org.apache.spark.rdd.CartesianRDD]]. */
-class CartesianColumnarBatchRDD(sc: SparkContext, var rdd1: RDD[ColumnarBatch], var rdd2: RDD[ColumnarBatch])
+/**
+ * [[CartesianColumnarBatchRDD]] is the columnar version of [[org.apache.spark.rdd.CartesianRDD]].
+ */
+class CartesianColumnarBatchRDD(
+    sc: SparkContext,
+    var rdd1: RDD[ColumnarBatch],
+    var rdd2: RDD[ColumnarBatch])
   extends RDD[(ColumnarBatch, ColumnarBatch)](sc, Nil)
   with Serializable {
 
