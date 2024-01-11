@@ -23,8 +23,10 @@ import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partition
 import scala.collection.mutable
 
 // https://issues.apache.org/jira/browse/SPARK-31869
-class ExpandOutputPartitioningShim(streamedKeyExprs: Seq[Expression],
-    buildKeyExprs: Seq[Expression], expandLimit: Int) {
+class ExpandOutputPartitioningShim(
+    streamedKeyExprs: Seq[Expression],
+    buildKeyExprs: Seq[Expression],
+    expandLimit: Int) {
   // An one-to-many mapping from a streamed key to build keys.
   private lazy val streamedKeyToBuildKeyMapping = {
     val mapping = mutable.Map.empty[Expression, Seq[Expression]]
@@ -39,14 +41,10 @@ class ExpandOutputPartitioningShim(streamedKeyExprs: Seq[Expression],
     mapping.toMap
   }
 
-  def expandPartitioning(partitioning: Partitioning, joinType: JoinType): Partitioning = {
-    joinType match {
-      case _: InnerLike if expandLimit > 0 =>
-        partitioning match {
-          case h: HashPartitioning => expandOutputPartitioning(h)
-          case c: PartitioningCollection => expandOutputPartitioning(c)
-          case other => other
-        }
+  def expandPartitioning(partitioning: Partitioning): Partitioning = {
+    partitioning match {
+      case h: HashPartitioning => expandOutputPartitioning(h)
+      case c: PartitioningCollection => expandOutputPartitioning(c)
       case _ => partitioning
     }
   }
@@ -67,8 +65,7 @@ class ExpandOutputPartitioningShim(streamedKeyExprs: Seq[Expression],
   // the expanded partitioning will have the following expressions:
   // Seq("a", "b", "c"), Seq("a", "b", "y"), Seq("a", "x", "c"), Seq("a", "x", "y").
   // The expanded expressions are returned as PartitioningCollection.
-  private def expandOutputPartitioning(
-      partitioning: HashPartitioning): PartitioningCollection = {
+  private def expandOutputPartitioning(partitioning: HashPartitioning): PartitioningCollection = {
     val maxNumCombinations = expandLimit
     var currentNumCombinations = 0
 

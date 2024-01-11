@@ -190,11 +190,13 @@ trait HashJoinLikeExecTransformer
 
   // https://issues.apache.org/jira/browse/SPARK-31869
   private def expandPartitioning(partitioning: Partitioning): Partitioning = {
-    new ExpandOutputPartitioningShim(
-      streamedKeyExprs,
-      buildKeyExprs,
-      conf.broadcastHashJoinOutputPartitioningExpandLimit)
-      .expandPartitioning(partitioning, joinType)
+    val expandLimit = conf.broadcastHashJoinOutputPartitioningExpandLimit
+    joinType match {
+      case _: InnerLike if expandLimit > 0 =>
+        new ExpandOutputPartitioningShim(streamedKeyExprs, buildKeyExprs, expandLimit)
+          .expandPartitioning(partitioning)
+      case _ => partitioning
+    }
   }
 
   override protected def doValidateInternal(): ValidationResult = {

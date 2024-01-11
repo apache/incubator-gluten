@@ -41,14 +41,10 @@ class ExpandOutputPartitioningShim(
     mapping.toMap
   }
 
-  def expandPartitioning(partitioning: Partitioning, joinType: JoinType): Partitioning = {
-    joinType match {
-      case _: InnerLike if expandLimit > 0 =>
-        partitioning match {
-          case h: HashPartitioningLike => expandOutputPartitioning(h)
-          case c: PartitioningCollection => expandOutputPartitioning(c)
-          case other => other
-        }
+  def expandPartitioning(partitioning: Partitioning): Partitioning = {
+    partitioning match {
+      case h: HashPartitioningLike => expandOutputPartitioning(h)
+      case c: PartitioningCollection => expandOutputPartitioning(c)
       case _ => partitioning
     }
   }
