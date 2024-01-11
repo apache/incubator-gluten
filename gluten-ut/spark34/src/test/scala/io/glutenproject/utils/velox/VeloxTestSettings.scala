@@ -783,6 +783,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataSourceSuite]
   enableSuite[GlutenFileFormatWriterSuite]
   enableSuite[GlutenFileIndexSuite]
+    .exclude("SPARK-20367 - properly unescape column names in inferPartitioning")
   enableSuite[GlutenFileMetadataStructSuite]
   enableSuite[GlutenParquetV1AggregatePushDownSuite]
   enableSuite[GlutenParquetV2AggregatePushDownSuite]
