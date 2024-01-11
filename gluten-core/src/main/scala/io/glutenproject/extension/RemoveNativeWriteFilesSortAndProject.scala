@@ -55,7 +55,7 @@ case class RemoveNativeWriteFilesSortAndProject() extends Rule[SparkPlan] {
 }
 
 object NativeWriteFilesWithSkippingSortAndProject extends Logging {
-  private def isV1WritesProject(plan: SparkPlan): Option[SparkPlan] = {
+  private def extractV1WritesProject(plan: SparkPlan): Option[SparkPlan] = {
     plan match {
       // Gluten will never transform ProjectExec if it contains `Empty2Null`.
       // Use `nodeName` to be compatible with older Spark version.
@@ -90,16 +90,17 @@ object NativeWriteFilesWithSkippingSortAndProject extends Logging {
     def allSortOrdersFromPartitionColumns(sortOrders: Seq[SortOrder]): Boolean = {
       val partitionColumnsSet = AttributeSet(partitionColumns)
       sortOrders.forall(_.direction == Ascending) &&
+      sortOrders.size == partitionColumnsSet.size &&
       sortOrders.map(_.references).forall(attrs => attrs.subsetOf(partitionColumnsSet))
     }
 
     plan match {
       case sort: SortExec if allSortOrdersFromPartitionColumns(sort.sortOrder) =>
-        isV1WritesProject(sort.child)
+        extractV1WritesProject(sort.child).orElse(Some(sort.child))
       case sort: SortExecTransformer if allSortOrdersFromPartitionColumns(sort.sortOrder) =>
-        isV1WritesProject(sort.child)
+        extractV1WritesProject(sort.child).orElse(Some(sort.child))
       case p: ProjectExec =>
-        isV1WritesProject(p)
+        extractV1WritesProject(p)
       case _ => None
     }
   }

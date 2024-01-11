@@ -24,7 +24,7 @@ import org.apache.spark.executor.OutputMetrics
 import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.execution.{CommandResultExec, QueryExecution, SortExec, VeloxColumnarWriteFilesExec}
+import org.apache.spark.sql.execution.{CommandResultExec, QueryExecution, VeloxColumnarWriteFilesExec}
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.util.QueryExecutionListener
@@ -126,29 +126,76 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
     }
   }
 
+  private def validateDynamicPartitionWrite(
+      df: DataFrame,
+      expectedPartitionNames: Set[String]): Unit = {
+    val writeFiles = getWriteFiles(df)
+    assert(
+      writeFiles
+        .find(_.isInstanceOf[SortExecTransformer])
+        .isEmpty)
+    // all operators should be transformed
+    assert(writeFiles.find(!_.isInstanceOf[GlutenPlan]).isEmpty)
+
+    val parts = spark.sessionState.catalog.listPartitionNames(TableIdentifier("pt")).toSet
+    assert(parts == expectedPartitionNames)
+  }
+
   test("Gluten: remove v1writes sort and project") {
+    // Only string type has empty2null expression
     withTable("pt") {
       spark.sql("CREATE TABLE pt (c1 int) USING PARQUET PARTITIONED BY(p string)")
 
-      val df = spark.sql("""
-                           |INSERT OVERWRITE TABLE pt PARTITION(p)
-                           |SELECT c1, c2 as p FROM source
-                           |""".stripMargin)
-      val writeFiles = getWriteFiles(df)
-      assert(
-        writeFiles
-          .find(x => x.isInstanceOf[SortExec] || x.isInstanceOf[SortExecTransformer])
-          .isEmpty)
-      // all operators should be transformed
-      assert(writeFiles.find(!_.isInstanceOf[GlutenPlan]).isEmpty)
+      val df = spark.sql(s"""
+                            |INSERT OVERWRITE TABLE pt PARTITION(p)
+                            |SELECT c1, c2 as p FROM source
+                            |""".stripMargin)
+      validateDynamicPartitionWrite(
+        df,
+        Set("p=0", "p=1", "p=2", "p=3", "p=4", "p=__HIVE_DEFAULT_PARTITION__"))
 
-      val parts = spark.sessionState.catalog.listPartitionNames(TableIdentifier("pt")).sorted
-      assert(parts == Seq("p=0", "p=1", "p=2", "p=3", "p=4", "p=__HIVE_DEFAULT_PARTITION__"))
-      // the partition columnar should never be empty
+      // The partition column should never be empty
       checkAnswer(
         spark.sql("SELECT * FROM pt"),
         spark.sql("SELECT c1, if(c2 = '', null, c2) FROM source"))
     }
+  }
+
+  test("Gluten: remove v1writes sort") {
+    // __HIVE_DEFAULT_PARTITION__ for other types are covered by other tests.
+    Seq(
+      ("p boolean", "coalesce(cast(c2 as boolean), false)", Set("p=false", "p=true")),
+      ("p short", "coalesce(cast(c2 as short), 0s)", Set("p=0", "p=1", "p=2", "p=3", "p=4")),
+      ("p int", "coalesce(cast(c2 as int), 0)", Set("p=0", "p=1", "p=2", "p=3", "p=4")),
+      ("p long", "coalesce(cast(c2 as long), 0l)", Set("p=0", "p=1", "p=2", "p=3", "p=4")),
+      (
+        "p date",
+        "if(c2 < 3, date '2023-01-01', date '2024-01-01')",
+        Set("p=2023-01-01", "p=2024-01-01")),
+      (
+        "p int, p2 string",
+        "if(cast(c2 as int) < 2, 0, 1), c2",
+        Set(
+          "p=0/p2=1",
+          "p=0/p2=0",
+          "p=1/p2=__HIVE_DEFAULT_PARTITION__",
+          "p=1/p2=2",
+          "p=1/p2=3",
+          "p=1/p2=4"
+        ))
+    )
+      .foreach {
+        case (partitionType, partitionExpr, expectedPartitionNames) =>
+          withTable("pt") {
+            spark.sql(s"CREATE TABLE pt (c1 int) USING PARQUET PARTITIONED BY($partitionType)")
+
+            val df = spark.sql(s"""
+                                  |INSERT OVERWRITE TABLE pt
+                                  |SELECT c1, $partitionExpr FROM source
+                                  |""".stripMargin)
+            validateDynamicPartitionWrite(df, expectedPartitionNames)
+          }
+      }
   }
 
   test("Gluten: do not remove non-v1writes sort and project") {
