@@ -1151,16 +1151,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-38173: Quoted column cannot be recognized correctly when quotedRegexColumnNames is true")
   enableSuite[GlutenSQLQueryTestSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
-    // The following five unit tests failed after enabling native table write, because the velox convert the null to Timestamp
-    // with minimum value of int, which will cause overflow when calling toMicro() method.
-    .exclude("column stats collection for null columns")
-    .exclude("store and retrieve column stats in different time zones")
-    .exclude(
-      "SPARK-38140: describe column stats (min, max) for timestamp column: desc results should be consistent with the written value if writing and desc happen in the same time zone")
-    .exclude(
-      "SPARK-38140: describe column stats (min, max) for timestamp column: desc should show different results if writing in UTC and desc in other time zones")
-    .exclude("Gluten - store and retrieve column stats in different time zones")
-    .exclude("SPARK-33687: analyze all tables in a specific database")
   enableSuite[GlutenSubquerySuite]
     .excludeByPrefix(
       "SPARK-26893" // Rewrite this test because it checks Spark's physical operators.
