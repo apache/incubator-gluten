@@ -29,7 +29,9 @@ import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.util.QueryExecutionListener
 
-import java.io.File
+import org.apache.hadoop.fs.{Path, RawLocalFileSystem}
+
+import java.io.{File, IOException}
 
 class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
 
@@ -207,5 +209,39 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
       assert(writeFiles.find(x => x.isInstanceOf[SortExecTransformer]).isDefined)
       checkAnswer(spark.sql("SELECT * FROM t"), spark.sql("SELECT * FROM source SORT BY c1"))
     }
+  }
+
+  test("Gluten: SPARK-35106: Throw exception when rename custom partition paths returns false") {
+    withSQLConf(
+      "fs.file.impl" -> classOf[
+        GlutenRenameFromSparkStagingToFinalDirAlwaysTurnsFalseFilesystem].getName,
+      "fs.file.impl.disable.cache" -> "true") {
+      withTempPath {
+        path =>
+          withTable("t") {
+            sql("""
+                  |create table t(i int, part1 int, part2 int) using parquet
+                  |partitioned by (part1, part2)
+        """.stripMargin)
+
+            sql(s"alter table t add partition(part1=1, part2=1) location '${path.getAbsolutePath}'")
+
+            val e = intercept[IOException] {
+              sql(s"insert into t partition(part1=1, part2=1) select 1")
+            }
+            assert(e.getMessage.contains("Failed to rename"))
+          }
+      }
+    }
+  }
+}
+
+class GlutenRenameFromSparkStagingToFinalDirAlwaysTurnsFalseFilesystem extends RawLocalFileSystem {
+  override def rename(src: Path, dst: Path): Boolean = {
+    (!isSparkStagingDir(src) || isSparkStagingDir(dst)) && super.rename(src, dst)
+  }
+
+  private def isSparkStagingDir(path: Path): Boolean = {
+    path.toString.contains("_temporary")
   }
 }

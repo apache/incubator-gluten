@@ -17,7 +17,6 @@
 package org.apache.spark.sql
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.SparkConf
@@ -58,14 +57,6 @@ trait GlutenSQLTestsBaseTrait extends SharedSparkSession with GlutenTestsBaseTra
     // exception is thrown.
     // .set("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
     //     NullPropagation.ruleName)
-
-    if (
-      BackendTestUtils.isVeloxBackendLoaded() &&
-      SparkShimLoader.getSparkVersion.startsWith("3.4")
-    ) {
-      // Enable velox native write in spark 3.4
-      conf.set("spark.gluten.sql.native.writer.enabled", "true")
-    }
 
     if (BackendTestUtils.isCHBackendLoaded()) {
       conf
