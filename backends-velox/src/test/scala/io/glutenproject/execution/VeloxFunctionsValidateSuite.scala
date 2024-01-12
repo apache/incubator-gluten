@@ -364,4 +364,12 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
         }
     }
   }
+
+  test("Test isnan function") {
+    runQueryAndCompare(
+      "SELECT isnan(l_orderkey), isnan(cast('NaN' as double)), isnan(0.0F/0.0F)" +
+        " from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
 }
