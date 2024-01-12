@@ -49,7 +49,7 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
     BackendsApiManager.getMetricsApiInstance.genInputIteratorTransformerMetrics(sparkContext)
 
   override def simpleString(maxFields: Int): String = {
-    s"$nodeName${truncatedString(child.output, "[", ", ", "]", maxFields)}"
+    s"$nodeName${truncatedString(output, "[", ", ", "]", maxFields)}"
   }
 
   override def metricsUpdater(): MetricsUpdater =
