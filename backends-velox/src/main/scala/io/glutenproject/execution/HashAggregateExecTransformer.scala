@@ -617,7 +617,7 @@ case class RegularHashAggregateExecTransformer(
       initialInputBufferOffset: Int,
       resultExpressions: Seq[NamedExpression],
       child: SparkPlan): HashAggregateExecTransformer = {
-    val res = copy(
+    copy(
       requiredChildDistributionExpressions,
       groupingExpressions,
       aggregateExpressions,
@@ -625,8 +625,6 @@ case class RegularHashAggregateExecTransformer(
       initialInputBufferOffset,
       resultExpressions,
       child)
-    res.copyTagsFrom(this)
-    res
   }
 }
 

@@ -76,7 +76,7 @@ case class JoinSelectionOverrides(session: SparkSession)
       val buildSide = getBroadcastBuildSide(left, right, joinType, hint, !isHintEmpty, conf)
       if (buildSide.isDefined) {
         return Seq(
-          joins.BroadcastHashJoinExec(
+          BroadcastHashJoinExec(
             leftKeys,
             rightKeys,
             joinType,

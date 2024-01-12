@@ -38,7 +38,8 @@ case class SortExecTransformer(
     global: Boolean,
     child: SparkPlan,
     testSpillFrequency: Int = 0)
-  extends UnaryTransformSupport {
+  extends UnaryTransformSupport
+  with AliasHelper {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -49,7 +50,19 @@ case class SortExecTransformer(
 
   override def output: Seq[Attribute] = child.output
 
-  override def outputOrdering: Seq[SortOrder] = sortOrder
+  override def outputOrdering: Seq[SortOrder] = child match {
+    case project: ProjectExecTransformer if project.isPreProject =>
+      // After adding a pre-project to the sort, the expressions in sortOrder are replaced
+      // with attributes. To ensure that the downstream post-project can obtain the correct
+      // outputOrdering, it is necessary to restore the current sortOrder based on the
+      // pre-project's alias. Otherwise, when verifying whether the output attributes of
+      // the downstream are a subset of the references of sortOrder.child, it will not pass.
+      // Please check AliasAwareQueryOutputOrdering.outputOrdering in Spark-3.4.
+      val aliasMap = getAliasMap(project.projectList)
+      sortOrder.map(_.mapChildren(replaceAlias(_, aliasMap)).asInstanceOf[SortOrder])
+    case _ =>
+      sortOrder
+  }
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 

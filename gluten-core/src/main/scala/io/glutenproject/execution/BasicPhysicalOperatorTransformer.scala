@@ -148,10 +148,18 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
   }
 }
 
+// This enum is used to identify the project type.
+object ProjectType extends Enumeration {
+  type Config = Value
+  val NORMAL: ProjectType.Value = Value("")
+  val PRE: ProjectType.Value = Value("Pre")
+  val POST: ProjectType.Value = Value("Post")
+}
+
 case class ProjectExecTransformer private (
     projectList: Seq[NamedExpression],
     child: SparkPlan,
-    isPostProject: Boolean = false)
+    projectType: ProjectType.Config = ProjectType.NORMAL)
   extends UnaryTransformSupport
   with OrderPreservingNodeShim
   with PartitioningPreservingNodeShim
@@ -162,11 +170,7 @@ case class ProjectExecTransformer private (
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetrics(sparkContext)
 
-  override def nodeName: String = if (isPostProject) {
-    "Post" + super.nodeName
-  } else {
-    super.nodeName
-  }
+  override def nodeName: String = projectType.toString + super.nodeName
 
   override protected def doValidateInternal(): ValidationResult = {
     val substraitContext = new SubstraitContext
@@ -262,6 +266,9 @@ case class ProjectExecTransformer private (
 
   override protected def withNewChildInternal(newChild: SparkPlan): ProjectExecTransformer =
     copy(child = newChild)
+
+  def isPostProject: Boolean = projectType == ProjectType.POST
+  def isPreProject: Boolean = projectType == ProjectType.PRE
 }
 object ProjectExecTransformer {
   private def processProjectExecTransformer(

@@ -775,15 +775,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenSupportsCatalogOptionsSuite]
   enableSuite[GlutenTableCapabilityCheckSuite]
   enableSuite[GlutenWriteDistributionAndOrderingSuite]
-    // disable as they check vanilla spark plan
-    .exclude("clustered distribution and local sort contains v2 function: append")
-    .exclude("clustered distribution and local sort contains v2 function: overwrite")
-    .exclude("clustered distribution and local sort contains v2 function: overwriteDynamic")
-    .exclude(
-      "clustered distribution and local sort contains v2 function with numPartitions: append")
-    .exclude(
-      "clustered distribution and local sort contains v2 function with numPartitions: overwrite")
-    .exclude("clustered distribution and local sort contains v2 function with numPartitions: overwriteDynamic")
   enableSuite[GlutenQueryCompilationErrorsSuite]
     .exclude("CANNOT_USE_MIXTURE: Using aggregate function with grouped aggregate pandas UDF")
     .exclude("UNSUPPORTED_FEATURE: Using pandas UDF aggregate expression with pivot")

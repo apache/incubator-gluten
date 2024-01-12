@@ -16,16 +16,45 @@
  */
 package io.glutenproject.extension
 
-import io.glutenproject.execution.{HashAggregateExecBaseTransformer, ProjectExecTransformer}
+import io.glutenproject.execution.{HashAggregateExecBaseTransformer, ProjectExecTransformer, ProjectType}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution.SparkPlan
 
-object InsertPostProject extends Rule[SparkPlan] with AliasHelper {
+trait ProjectProcessedHint
+case class POST_PROJECT_PROCESSED() extends ProjectProcessedHint
 
-  override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
-    case agg: HashAggregateExecBaseTransformer if agg.needsPostProjection =>
+object ProjectProcessedHint {
+  val TAG: TreeNodeTag[ProjectProcessedHint] =
+    TreeNodeTag[ProjectProcessedHint]("io.glutenproject.projectprocessedhint")
+
+  def isAlreadyTagged(plan: SparkPlan): Boolean = {
+    plan.getTagValue(TAG).isDefined
+  }
+
+  def isPostProjectProcessed(plan: SparkPlan): Boolean = {
+    plan
+      .getTagValue(TAG)
+      .isDefined && plan.getTagValue(TAG).get.isInstanceOf[POST_PROJECT_PROCESSED]
+  }
+
+  def postProjectProcessDone(plan: SparkPlan): Unit = {
+    tag(plan, POST_PROJECT_PROCESSED())
+  }
+
+  private def tag(plan: SparkPlan, hint: ProjectProcessedHint): Unit = {
+    plan.setTagValue(TAG, hint)
+  }
+}
+
+object ColumnarPullOutPostProject extends Rule[SparkPlan] {
+
+  override def apply(plan: SparkPlan): SparkPlan = plan.transform {
+    case agg: HashAggregateExecBaseTransformer
+        if !ProjectProcessedHint.isPostProjectProcessed(agg) &&
+          agg.needsPostProjection =>
       val aggResultAttributeSet = ExpressionSet(agg.allAggregateResultAttributes)
       // Need to remove columns that are not part of the aggregation result attributes.
       // Although this won't affect the result, it may cause some issues with subquery
@@ -38,10 +67,12 @@ object InsertPostProject extends Rule[SparkPlan] with AliasHelper {
         case ne: NamedExpression => ne
         case other => Alias(other, other.toString())()
       }
-      ProjectExecTransformer(
-        projectList,
-        agg.copySelf(resultExpressions = rewrittenResultExpressions),
-        isPostProject = true)
+
+      ProjectProcessedHint.postProjectProcessDone(agg)
+      val newAgg = agg.copySelf(resultExpressions = rewrittenResultExpressions)
+      newAgg.copyTagsFrom(agg)
+
+      ProjectExecTransformer(projectList, newAgg, projectType = ProjectType.POST)
   }
 
   /**

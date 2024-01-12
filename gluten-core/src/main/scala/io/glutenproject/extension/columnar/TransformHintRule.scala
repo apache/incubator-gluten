@@ -19,7 +19,7 @@ package io.glutenproject.extension.columnar
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
-import io.glutenproject.extension.{GlutenPlan, InsertPostProject, ValidationResult}
+import io.glutenproject.extension.{ColumnarPullOutPostProject, ColumnarPullOutPreProject, GlutenPlan, ValidationResult}
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.PhysicalPlanSelector
 
@@ -462,7 +462,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
                 plan.resultExpressions,
                 plan.child
               )
-            val allTransformable = InsertPostProject
+            val allTransformable = ColumnarPullOutPostProject
               .getTransformedPlan(transformer)
               .map(_.asInstanceOf[GlutenPlan].doValidate())
               .reduce(ValidationResult.merge)
@@ -487,7 +487,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.resultExpressions,
               plan.child
             )
-          val allTransformable = InsertPostProject
+          val allTransformable = ColumnarPullOutPostProject
             .getTransformedPlan(transformer)
             .map(_.asInstanceOf[GlutenPlan].doValidate())
             .reduce(ValidationResult.merge)
@@ -508,7 +508,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
                 plan.resultExpressions,
                 plan.child
               )
-            val allTransformable = InsertPostProject
+            val allTransformable = ColumnarPullOutPostProject
               .getTransformedPlan(transformer)
               .map(_.asInstanceOf[GlutenPlan].doValidate())
               .reduce(ValidationResult.merge)
@@ -550,7 +550,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           } else {
             val transformer =
               SortExecTransformer(plan.sortOrder, plan.global, plan.child, plan.testSpillFrequency)
-            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+            val allTransformable = ColumnarPullOutPreProject
+              .getTransformedPlan(transformer)
+              .map(_.asInstanceOf[GlutenPlan].doValidate())
+              .reduce(ValidationResult.merge)
+            TransformHints.tag(plan, allTransformable.toTransformHint)
           }
         case plan: ShuffleExchangeExec =>
           if (!enableColumnarShuffle) {
@@ -773,8 +777,13 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               val inputTransformer =
                 ColumnarCollapseTransformStages.wrapInputIteratorTransformer(plan.child)
               val sortPlan = SortExecTransformer(plan.sortOrder, false, inputTransformer)
-              val limitPlan = LimitTransformer(sortPlan, 0, plan.limit)
-              tagged = limitPlan.doValidate()
+              val transformedPlan = ColumnarPullOutPreProject.apply(sortPlan)
+              val allTransformable = ColumnarPullOutPreProject
+                .getTransformedPlan(sortPlan)
+                .map(_.asInstanceOf[GlutenPlan].doValidate())
+                .reduce(ValidationResult.merge)
+              val limitPlan = LimitTransformer(transformedPlan, 0, plan.limit)
+              tagged = ValidationResult.merge(limitPlan.doValidate(), allTransformable)
             }
 
             if (tagged.isValid) {

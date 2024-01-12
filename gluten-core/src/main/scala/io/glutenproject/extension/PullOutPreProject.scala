@@ -18,37 +18,32 @@ package io.glutenproject.extension
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.sql.shims.SparkShimLoader
-import io.glutenproject.utils.LogicalPlanSelector
+import io.glutenproject.utils.{LogicalPlanSelector, PullOutProjectHelper}
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.trees.TreePattern.{AGGREGATE, FILTER, SORT}
+import org.apache.spark.sql.catalyst.trees.TreePattern._
 import org.apache.spark.sql.execution.aggregate.TypedAggregateExpression
-
-import scala.collection.mutable
 
 /**
  * This rule will insert a pre-project in the child of operators such as Aggregate, Sort, Join,
  * etc., when they involve expressions that need to be evaluated in advance.
  */
-case class InsertPreProject(session: SparkSession) extends Rule[LogicalPlan] {
+case class PullOutPreProject(session: SparkSession)
+  extends Rule[LogicalPlan]
+  with PullOutProjectHelper {
 
-  /**
-   * Some Expressions support Attribute and Literal when converting them into native plans, such as
-   * the child of AggregateFunction.
-   */
-  private def isNotAttributeAndLiteral(expression: Expression): Boolean = expression match {
-    case _: Attribute | _: Literal => false
-    case _ => true
-  }
-
-  /** The majority of Expressions only support Attribute when converting them into native plans. */
-  private def isNotAttribute(expression: Expression): Boolean = expression match {
-    case _: Attribute => false
-    case _ => true
+  private def insertPreProjectIfNeeded(
+      child: LogicalPlan,
+      expressions: Seq[Expression]): LogicalPlan = {
+    if (expressions.exists(isNotAttribute)) {
+      val projectExprsMap = getProjectExpressionMap
+      expressions.toIndexedSeq.map(getAndReplaceProjectAttribute(_, projectExprsMap))
+      Project(child.output ++ projectExprsMap.values.toSeq, child)
+    } else child
   }
 
   /**
@@ -56,7 +51,7 @@ case class InsertPreProject(session: SparkSession) extends Rule[LogicalPlan] {
    * checking logic.
    */
   private def needsPreProject(plan: LogicalPlan): Boolean = plan match {
-    case _ @Aggregate(groupingExpressions, aggregateExpressions, _) =>
+    case Aggregate(groupingExpressions, aggregateExpressions, _) =>
       groupingExpressions.exists(isNotAttribute) ||
       aggregateExpressions.exists(_.find {
         case ae: AggregateExpression
@@ -70,27 +65,13 @@ case class InsertPreProject(session: SparkSession) extends Rule[LogicalPlan] {
           true
         case _ => false
       }.isDefined)
-    case _ @Sort(order, _, _) =>
+    case Sort(order, _, _) =>
       order.exists(o => isNotAttribute(o.child))
     case _ => false
   }
 
-  private def getAndReplaceProjectAttribute(
-      expr: Expression,
-      projectExprsMap: mutable.HashMap[ExpressionEquals, NamedExpression]): Expression =
-    expr match {
-      case alias: Alias =>
-        projectExprsMap.getOrElseUpdate(ExpressionEquals(alias.child), alias).toAttribute
-      case attr: Attribute =>
-        projectExprsMap.getOrElseUpdate(ExpressionEquals(attr), attr)
-      case other =>
-        projectExprsMap
-          .getOrElseUpdate(ExpressionEquals(other), Alias(other, other.toString())())
-          .toAttribute
-    }
-
   private def transformAgg(agg: Aggregate): LogicalPlan = {
-    val projectExprsMap = mutable.HashMap[ExpressionEquals, NamedExpression]()
+    val projectExprsMap = getProjectExpressionMap
 
     // Handle groupingExpressions.
     val newGroupingExpressions =
@@ -128,7 +109,7 @@ case class InsertPreProject(session: SparkSession) extends Rule[LogicalPlan] {
       // Gluten not support Ansi Mode, not pull out pre-project
       return plan
     }
-    plan.transformWithPruning(_.containsAnyPattern(AGGREGATE, SORT, FILTER)) {
+    plan.transformUpWithPruning(_.containsAnyPattern(AGGREGATE, FILTER)) {
       case filter: Filter
           if SparkShimLoader.getSparkShims.needsPreProjectForBloomFilterAgg(filter)(
             needsPreProject) =>
@@ -136,21 +117,6 @@ case class InsertPreProject(session: SparkSession) extends Rule[LogicalPlan] {
 
       case agg: Aggregate if needsPreProject(agg) =>
         transformAgg(agg)
-
-      case sort: Sort if needsPreProject(sort) =>
-        val projectExprsMap = mutable.HashMap[ExpressionEquals, NamedExpression]()
-        // The output of the sort operator is the same as the output of the child, therefore it
-        // is necessary to retain the output columns of the child in the pre-projection, and
-        // then add the expressions that need to be evaluated in the sortOrder. Finally, in the
-        // post-projection, the additional columns need to be removed, leaving only the original
-        // output of the child.
-        val newOrder =
-          sort.order.map(_.mapChildren(getAndReplaceProjectAttribute(_, projectExprsMap)))
-        val newSort = sort.copy(
-          order = newOrder.asInstanceOf[Seq[SortOrder]],
-          child = Project(sort.child.output ++ projectExprsMap.values.toSeq, sort.child))
-
-        Project(sort.child.output, newSort)
     }
   }
 }

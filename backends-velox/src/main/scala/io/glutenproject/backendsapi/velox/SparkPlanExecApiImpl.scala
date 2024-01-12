@@ -489,8 +489,8 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] = {
-    val buf: ListBuffer[SparkSession => Rule[SparkPlan]] =
-      ListBuffer(super.genExtendedColumnarPreRules())
+    val buf: ListBuffer[SparkSession => Rule[SparkPlan]] = ListBuffer() ++=
+      super.genExtendedColumnarPreRules()
     if (GlutenConfig.getConf.enableVeloxFlushablePartialAggregation) {
       buf += FlushableHashAggregateRule.apply
     }
