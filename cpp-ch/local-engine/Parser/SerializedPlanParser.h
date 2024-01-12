@@ -319,6 +319,12 @@ private:
         std::string & result_name,
         DB::ActionsDAGPtr actions_dag = nullptr,
         bool keep_result = false);
+    DB::ActionsDAGPtr parseFunctionOrExpression(
+        const Block & header,
+        const substrait::Expression & rel,
+        std::string & result_name,
+        DB::ActionsDAGPtr actions_dag = nullptr,
+        bool keep_result = false);
     DB::ActionsDAGPtr parseArrayJoin(
         const Block & input,
         const substrait::Expression & rel,

@@ -2218,6 +2218,64 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("GLUTEN-4376: Fix parse exception when parsing post_join_filter in JoinRelParser") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+      val sql =
+        """
+          |SELECT
+          |  n_nationkey,
+          |  u_type
+          |FROM
+          |  (
+          |    SELECT
+          |      t1.n_nationkey,
+          |      CASE
+          |        WHEN t3.n_regionkey = 0 AND t2.n_name IS NULL THEN '0'
+          |        WHEN t3.n_regionkey = 1 AND t2.n_name IS NULL THEN '1'
+          |        ELSE 'other'
+          |      END u_type
+          |    FROM
+          |      nation t1
+          |      LEFT JOIN (
+          |        SELECT
+          |          n_nationkey,
+          |          n_regionkey,
+          |          n_name
+          |        FROM
+          |          nation
+          |        WHERE
+          |          n_regionkey IS NOT NULL
+          |      ) t2 ON t1.n_nationkey = t2.n_nationkey
+          |      JOIN (
+          |        SELECT
+          |          n_nationkey,
+          |          MAX(IF(n_regionkey > 0, 1, 0)) AS n_regionkey
+          |        FROM
+          |          (
+          |            SELECT
+          |              n_nationkey,
+          |              n_name,
+          |              SUM(n_regionkey) AS n_regionkey
+          |            FROM
+          |              nation
+          |            GROUP BY
+          |              n_nationkey,
+          |              n_name
+          |          ) t
+          |        GROUP BY
+          |          n_nationkey
+          |      ) t3 ON t1.n_nationkey = t3.n_nationkey
+          |  )
+          |WHERE
+          |  u_type IN ('0', '1')
+          |ORDER BY
+          |  n_nationkey,
+          |  u_type
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
+  }
+
   test("GLUTEN-3467: Fix 'Names of tuple elements must be unique' error for ch backend") {
     val sql =
       """
