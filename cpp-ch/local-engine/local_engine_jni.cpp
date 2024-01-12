@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 #include <numeric>
-#include <regex>
 #include <string>
 #include <jni.h>
 

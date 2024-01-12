@@ -230,14 +230,15 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
     val timezoneId = SQLConf.get.sessionLocalTimeZone
     input.mapPartitions {
       it =>
+        val jniWrapper = ColumnarBatchSerializerJniWrapper
+          .create()
         val nmm = NativeMemoryManagers
           .contextInstance("ColumnarCachedBatchSerializer read")
         val schema = SparkArrowUtil.toArrowSchema(localSchema, timezoneId)
         val arrowAlloc = ArrowBufferAllocators.contextInstance()
         val cSchema = ArrowSchema.allocateNew(arrowAlloc)
         ArrowAbiUtil.exportSchema(arrowAlloc, schema, cSchema)
-        val deserializerHandle = ColumnarBatchSerializerJniWrapper
-          .create()
+        val deserializerHandle = jniWrapper
           .init(
             cSchema.memoryAddress(),
             nmm.getNativeInstanceHandle
@@ -251,8 +252,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
             override def next(): ColumnarBatch = {
               val cachedBatch = it.next().asInstanceOf[CachedColumnarBatch]
               val batchHandle =
-                ColumnarBatchSerializerJniWrapper
-                  .create()
+                jniWrapper
                   .deserialize(deserializerHandle, cachedBatch.bytes)
               val batch = ColumnarBatches.create(Runtimes.contextInstance(), batchHandle)
               if (shouldSelectAttributes) {
@@ -267,7 +267,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
             }
           })
           .recycleIterator {
-            ColumnarBatchSerializerJniWrapper.create().close(deserializerHandle)
+            jniWrapper.close(deserializerHandle)
           }
           .recyclePayload(_.close())
           .create()

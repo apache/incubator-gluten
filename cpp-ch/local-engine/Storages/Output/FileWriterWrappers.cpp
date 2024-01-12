@@ -16,7 +16,6 @@
  */
 #include "FileWriterWrappers.h"
 #include <algorithm>
-#include <regex>
 #include <Processors/Executors/PushingPipelineExecutor.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Processors/QueryPlan/ReadFromPreparedSource.h>
