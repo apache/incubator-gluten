@@ -314,7 +314,7 @@ void JoinRelParser::addPostFilter(DB::QueryPlan & query_plan, const substrait::J
 {
     std::string filter_name;
     auto actions_dag
-        = getPlanParser()->parseFunction(query_plan.getCurrentDataStream().header, join.post_join_filter(), filter_name, nullptr, true);
+        = getPlanParser()->parseFunctionOrExpression(query_plan.getCurrentDataStream().header, join.post_join_filter(), filter_name, nullptr, true);
     auto filter_step = std::make_unique<FilterStep>(query_plan.getCurrentDataStream(), actions_dag, filter_name, true);
     filter_step->setStepDescription("Post Join Filter");
     steps.emplace_back(filter_step.get());
