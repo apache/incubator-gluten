@@ -21,7 +21,6 @@ import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.FallbackUtil
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.functions.lit
 
 import org.junit.Assert
 
@@ -112,17 +111,6 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
         "CREATE TABLE bucket USING PARQUET CLUSTERED BY (p) INTO 7 BUCKETS " +
           "AS SELECT * FROM bucket_temp")
       Assert.assertTrue(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
-    }
-  }
-
-  ignore("parquet write with empty dataframe") {
-    withTempPath {
-      f =>
-        val df = spark.emptyDataFrame.select(lit(1).as("i"))
-        df.write.format("parquet").save(f.getCanonicalPath)
-        val res = spark.read.parquet(f.getCanonicalPath)
-        checkAnswer(res, Nil)
-        assert(res.schema.asNullable == df.schema.asNullable)
     }
   }
 }

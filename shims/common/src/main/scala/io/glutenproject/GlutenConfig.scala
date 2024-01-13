@@ -309,7 +309,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConf(ABANDON_PARTIAL_AGGREGATION_MIN_PCT)
   def abandonFlushableAggregationMinRows: Option[Int] =
     conf.getConf(ABANDON_PARTIAL_AGGREGATION_MIN_ROWS)
-  def enableNativeWriter: Boolean = conf.getConf(NATIVE_WRITER_ENABLED)
+
+  // Please use `BackendsApiManager.getSettings.enableNativeWriteFiles()` instead
+  def enableNativeWriter: Option[Boolean] = conf.getConf(NATIVE_WRITER_ENABLED)
 
   def directorySizeGuess: Option[Int] =
     conf.getConf(DIRECTORY_SIZE_GUESS)
@@ -1201,6 +1203,14 @@ object GlutenConfig {
       .checkValues(Set("local", "heap-over-local"))
       .createWithDefaultString("local")
 
+  val MAX_PARTITION_PER_WRITERS_SESSION =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxPartitionsPerWritersSession")
+      .internal()
+      .doc("Maximum number of partitions per a single table writer instance.")
+      .intConf
+      .checkValue(_ > 0, "must be a positive number")
+      .createWithDefault(10000)
+
   val COLUMNAR_CH_SHUFFLE_PREFER_SPILL_ENABLED =
     buildConf("spark.gluten.sql.columnar.backend.ch.shuffle.preferSpill")
       .internal()
@@ -1307,7 +1317,7 @@ object GlutenConfig {
       .internal()
       .doc("This is config to specify whether to enable the native columnar parquet/orc writer")
       .booleanConf
-      .createWithDefault(false)
+      .createOptional
 
   val REMOVE_NATIVE_WRITE_FILES_SORT_AND_PROJECT =
     buildConf("spark.gluten.sql.removeNativeWriteFilesSortAndProject")

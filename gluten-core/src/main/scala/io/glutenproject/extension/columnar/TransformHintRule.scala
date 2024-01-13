@@ -362,7 +362,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
   val enableTakeOrderedAndProject: Boolean =
     !scanOnly && columnarConf.enableTakeOrderedAndProject &&
       enableColumnarSort && enableColumnarLimit && enableColumnarShuffle && enableColumnarProject
-  val enableColumnarWrite: Boolean = columnarConf.enableNativeWriter
+  val enableColumnarWrite: Boolean = BackendsApiManager.getSettings.enableNativeWriteFiles()
 
   def apply(plan: SparkPlan): SparkPlan = {
     addTransformableTags(plan)
