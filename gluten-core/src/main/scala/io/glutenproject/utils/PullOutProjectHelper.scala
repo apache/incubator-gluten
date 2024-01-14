@@ -18,9 +18,13 @@ package io.glutenproject.utils
 
 import org.apache.spark.sql.catalyst.expressions._
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import scala.collection.mutable
 
 trait PullOutProjectHelper {
+
+  private val generatedNameIndex = new AtomicInteger(0)
 
   /**
    * Some Expressions support Attribute and Literal when converting them into native plans, such as
@@ -43,13 +47,13 @@ trait PullOutProjectHelper {
       expr: Expression,
       projectExprsMap: mutable.HashMap[ExpressionEquals, NamedExpression]): Expression =
     expr match {
-      case alias: Alias =>
-        projectExprsMap.getOrElseUpdate(ExpressionEquals(alias.child), alias).toAttribute
       case attr: Attribute =>
         projectExprsMap.getOrElseUpdate(ExpressionEquals(attr), attr)
       case other =>
         projectExprsMap
-          .getOrElseUpdate(ExpressionEquals(other), Alias(other, other.toString())())
+          .getOrElseUpdate(
+            ExpressionEquals(other),
+            Alias(other, s"_pre_${generatedNameIndex.getAndIncrement()}")())
           .toAttribute
     }
 }

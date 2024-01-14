@@ -19,13 +19,40 @@ package io.glutenproject.extension
 import io.glutenproject.execution._
 import io.glutenproject.utils.PullOutProjectHelper
 
-import org.apache.spark.sql.catalyst.expressions.SortOrder
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution.SparkPlan
 
 import scala.collection.mutable.ListBuffer
 
-object ColumnarPullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
+trait ProjectProcessedHint
+case class PROJECT_PROCESSED() extends ProjectProcessedHint
+
+object ProjectProcessedHint {
+  val TAG: TreeNodeTag[ProjectProcessedHint] =
+    TreeNodeTag[ProjectProcessedHint]("io.glutenproject.projectprocessedhint")
+
+  def isAlreadyTagged(plan: SparkPlan): Boolean = {
+    plan.getTagValue(TAG).isDefined
+  }
+
+  def isPostProjectProcessed(plan: SparkPlan): Boolean = {
+    plan
+      .getTagValue(TAG)
+      .isDefined && plan.getTagValue(TAG).get.isInstanceOf[PROJECT_PROCESSED]
+  }
+
+  def postProjectProcessDone(plan: SparkPlan): Unit = {
+    tag(plan, PROJECT_PROCESSED())
+  }
+
+  private def tag(plan: SparkPlan, hint: ProjectProcessedHint): Unit = {
+    plan.setTagValue(TAG, hint)
+  }
+}
+
+object ColumnarPullOutProject extends Rule[SparkPlan] with PullOutProjectHelper {
 
   protected def needsPreProject(plan: GlutenPlan): Boolean = plan match {
     case sort: SortExecTransformer =>
@@ -33,8 +60,31 @@ object ColumnarPullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelp
     case _ => false
   }
 
-  override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
-    case sort: SortExecTransformer if needsPreProject(sort) =>
+  override def apply(plan: SparkPlan): SparkPlan = plan.transform {
+    case agg: HashAggregateExecBaseTransformer
+        if !ProjectProcessedHint.isPostProjectProcessed(agg) &&
+          agg.needsPostProjection =>
+      val aggResultAttributeSet = ExpressionSet(agg.allAggregateResultAttributes)
+      // Need to remove columns that are not part of the aggregation result attributes.
+      // Although this won't affect the result, it may cause some issues with subquery
+      // reuse. For example, if a subquery is referenced by both resultExpressions and
+      // post-project, it may result in some unit tests failing that verify the number
+      // of GlutenPlan.
+      val rewrittenResultExpressions =
+        agg.resultExpressions.filter(_.find(aggResultAttributeSet.contains).isDefined)
+      val projectList = agg.resultExpressions.map {
+        case ne: NamedExpression => ne
+        case other => Alias(other, other.toString())()
+      }
+
+      ProjectProcessedHint.postProjectProcessDone(agg)
+      val newAgg = agg.copySelf(resultExpressions = rewrittenResultExpressions)
+      newAgg.copyTagsFrom(agg)
+
+      ProjectExecTransformer(projectList, newAgg, projectType = ProjectType.POST)
+
+    case sort: SortExecTransformer
+        if !ProjectProcessedHint.isPostProjectProcessed(sort) && needsPreProject(sort) =>
       val projectExprsMap = getProjectExpressionMap
       // The output of the sort operator is the same as the output of the child, therefore it
       // is necessary to retain the output columns of the child in the pre-projection, and
@@ -43,6 +93,7 @@ object ColumnarPullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelp
       // output of the child.
       val newSortOrder =
         sort.sortOrder.map(_.mapChildren(getAndReplaceProjectAttribute(_, projectExprsMap)))
+      ProjectProcessedHint.postProjectProcessDone(sort)
       val newSort = sort.copy(
         sortOrder = newSortOrder.asInstanceOf[Seq[SortOrder]],
         child = ProjectExecTransformer(
@@ -50,6 +101,7 @@ object ColumnarPullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelp
           sort.child,
           projectType = ProjectType.PRE)
       )
+      newSort.copyTagsFrom(sort)
       ProjectExecTransformer(sort.child.output, newSort, projectType = ProjectType.POST)
   }
 

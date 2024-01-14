@@ -32,19 +32,9 @@ import org.apache.spark.sql.execution.aggregate.TypedAggregateExpression
  * This rule will insert a pre-project in the child of operators such as Aggregate, Sort, Join,
  * etc., when they involve expressions that need to be evaluated in advance.
  */
-case class PullOutPreProject(session: SparkSession)
+case class PullOutProject(session: SparkSession)
   extends Rule[LogicalPlan]
   with PullOutProjectHelper {
-
-  private def insertPreProjectIfNeeded(
-      child: LogicalPlan,
-      expressions: Seq[Expression]): LogicalPlan = {
-    if (expressions.exists(isNotAttribute)) {
-      val projectExprsMap = getProjectExpressionMap
-      expressions.toIndexedSeq.map(getAndReplaceProjectAttribute(_, projectExprsMap))
-      Project(child.output ++ projectExprsMap.values.toSeq, child)
-    } else child
-  }
 
   /**
    * Check if the input logical plan needs to add a pre-project. Different operators have different
@@ -92,6 +82,7 @@ case class PullOutPreProject(session: SparkSession)
             val newFilter =
               ae.filter.map(getAndReplaceProjectAttribute(_, projectExprsMap))
             ae.copy(aggregateFunction = newAggFunc, filter = newFilter)
+
           case e if projectExprsMap.contains(ExpressionEquals(e)) =>
             projectExprsMap(ExpressionEquals(e)).toAttribute
         }
