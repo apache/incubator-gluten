@@ -192,7 +192,17 @@ TEST(ParquetWrite, ComplexTypes)
 
     /// Convert CH Block to Arrow Table
     std::shared_ptr<arrow::Table> arrow_table;
-    CHColumnToArrowColumn ch2arrow(header, "Parquet", false, true, true);
+
+    FormatSettings format_settings;
+    CHColumnToArrowColumn ch2arrow(
+        header,
+        "Parquet",
+        CHColumnToArrowColumn::Settings{
+            format_settings.arrow.output_string_as_string,
+            format_settings.arrow.output_fixed_string_as_fixed_byte_array,
+            format_settings.arrow.low_cardinality_as_dictionary,
+            format_settings.arrow.use_signed_indexes_for_dictionary,
+            format_settings.arrow.use_64_bit_indexes_for_dictionary});
     Chunk input_chunk{std::move(mutable_columns), rows};
     std::vector<Chunk> input_chunks;
     input_chunks.push_back(std::move(input_chunk));

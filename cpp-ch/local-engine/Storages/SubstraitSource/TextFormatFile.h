@@ -32,7 +32,7 @@ public:
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
 
     bool supportSplit() const override { return true; }
-    DB::String getFileFormat() const override { return "HiveText"; }
+    String getFileFormat() const override { return "HiveText"; }
 };
 
 }

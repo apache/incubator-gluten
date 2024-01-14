@@ -96,8 +96,8 @@ LagParser::parseFunctionArguments(const CommonFunctionInfo & func_info, const St
 
     // lag's offset is negative
     auto literal_result = parseLiteral(arg1.literal());
-    assert(literal_result.second.safeGet<DB::Int32>() < 0);
-    auto real_field = 0 - literal_result.second.safeGet<DB::Int32>();
+    assert(literal_result.second.safeGet<Int32>() < 0);
+    auto real_field = 0 - literal_result.second.safeGet<Int32>();
     node = &actions_dag->addColumn(ColumnWithTypeAndName(
         literal_result.first->createColumnConst(1, real_field), literal_result.first, getUniqueName(toString(real_field))));
     node = ActionsDAGUtil::convertNodeType(actions_dag, node, DB::DataTypeInt64().getName());

@@ -33,7 +33,7 @@ public:
     SparkFunctionNextDay() = default;
     ~SparkFunctionNextDay() override = default;
 
-    DB::String getName() const override { return name; }
+    String getName() const override { return name; }
 
     size_t getNumberOfArguments() const override { return 2; }
     bool isVariadic() const override { return true; }

@@ -33,7 +33,7 @@ public:
     SparkFunctionMonthsBetween() = default;
     ~SparkFunctionMonthsBetween() override = default;
 
-    DB::String getName() const override { return name; }
+    String getName() const override { return name; }
 
     size_t getNumberOfArguments() const override { return 0; }
     bool isVariadic() const override { return true; }

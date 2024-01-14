@@ -46,7 +46,7 @@ public:
     const std::vector<IQueryPlanStep *> & getSteps() const { return steps; }
 
     static AggregateFunctionPtr getAggregateFunction(
-        const DB::String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters = {});
+        const String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters = {});
 
 protected:
     inline SerializedPlanParser * getPlanParser() { return plan_parser; }
@@ -99,7 +99,7 @@ public:
     using RelParserBuilder = std::function<std::shared_ptr<RelParser>(SerializedPlanParser *)>;
     static RelParserFactory & instance();
     void registerBuilder(UInt32 k, RelParserBuilder builder);
-    RelParserBuilder getBuilder(DB::UInt32 k);
+    RelParserBuilder getBuilder(UInt32 k);
 
 private:
     std::map<UInt32, RelParserBuilder> builders;

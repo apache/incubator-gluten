@@ -181,7 +181,7 @@ void RangeSelectorBuilder::initSortInformation(Poco::JSON::Array::Ptr orderings)
     for (uint32_t i = 0; i < orderings->size(); ++i)
     {
         auto ordering = orderings->get(i).extract<Poco::JSON::Object::Ptr>();
-        auto col_pos = ordering->get("column_ref").convert<DB::Int32>();
+        auto col_pos = ordering->get("column_ref").convert<Int32>();
         auto col_name = ordering->get("column_name").convert<String>();
 
         auto sort_direction = ordering->get("direction").convert<int>();
@@ -252,31 +252,31 @@ void RangeSelectorBuilder::initRangeBlock(Poco::JSON::Array::Ptr range_bounds)
                 const auto & field_value = field_info->get("value");
                 if (type_name == "UInt8")
                 {
-                    col->insert(static_cast<DB::UInt8>(field_value.convert<DB::Int16>()));
+                    col->insert(static_cast<UInt8>(field_value.convert<Int16>()));
                 }
                 else if (type_name == "Int8")
                 {
-                    col->insert(field_value.convert<DB::Int8>());
+                    col->insert(field_value.convert<Int8>());
                 }
                 else if (type_name == "Int16")
                 {
-                    col->insert(field_value.convert<DB::Int16>());
+                    col->insert(field_value.convert<Int16>());
                 }
                 else if (type_name == "Int32")
                 {
-                    col->insert(field_value.convert<DB::Int32>());
+                    col->insert(field_value.convert<Int32>());
                 }
                 else if (type_name == "Int64")
                 {
-                    col->insert(field_value.convert<DB::Int64>());
+                    col->insert(field_value.convert<Int64>());
                 }
                 else if (type_name == "Float32")
                 {
-                    safeInsertFloatValue<DB::Float32>(field_value, col);
+                    safeInsertFloatValue<Float32>(field_value, col);
                 }
                 else if (type_name == "Float64")
                 {
-                    safeInsertFloatValue<DB::Float64>(field_value, col);
+                    safeInsertFloatValue<Float64>(field_value, col);
                 }
                 else if (type_name == "String")
                 {
@@ -284,7 +284,7 @@ void RangeSelectorBuilder::initRangeBlock(Poco::JSON::Array::Ptr range_bounds)
                 }
                 else if (type_name == "Date32")
                 {
-                    int val = field_value.convert<DB::Int32>();
+                    int val = field_value.convert<Int32>();
                     col->insert(val);
                 }
                 else if (const auto * decimal32 = dynamic_cast<const DB::DataTypeDecimal<DB::Decimal32> *>(type_info.inner_type.get()))

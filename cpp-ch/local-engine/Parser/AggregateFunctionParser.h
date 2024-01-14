@@ -39,7 +39,7 @@ public:
         /// basic common function informations
         using Arguments = google::protobuf::RepeatedPtrField<substrait::FunctionArgument>;
         using SortFields = google::protobuf::RepeatedPtrField<substrait::SortField>;
-        DB::Int32 function_ref;
+        Int32 function_ref;
         Arguments arguments;
         substrait::Type output_type;
 
