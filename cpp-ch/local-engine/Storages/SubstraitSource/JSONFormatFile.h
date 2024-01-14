@@ -30,6 +30,6 @@ public:
 
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
 
-    DB::String getFileFormat() const override { return "JSONEachRow"; }
+    String getFileFormat() const override { return "JSONEachRow"; }
 };
 }

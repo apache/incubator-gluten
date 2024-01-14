@@ -53,7 +53,7 @@ public:
 
     bool supportSplit() const override { return true; }
 
-    DB::String getFileFormat() const override { return "Parquet"; }
+    String getFileFormat() const override { return "Parquet"; }
 
 private:
     bool use_local_format;

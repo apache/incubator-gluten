@@ -35,7 +35,7 @@ public:
     SparkFunctionConv() = default;
     ~SparkFunctionConv() override = default;
 
-    DB::String getName() const override { return name; }
+    String getName() const override { return name; }
 
     size_t getNumberOfArguments() const override { return 3; }
     bool isVariadic() const override { return true; }

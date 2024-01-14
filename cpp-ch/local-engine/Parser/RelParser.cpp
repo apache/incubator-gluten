@@ -34,7 +34,7 @@ namespace ErrorCodes
 namespace local_engine
 {
 AggregateFunctionPtr RelParser::getAggregateFunction(
-    const DB::String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters)
+    const String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters)
 {
     auto & factory = AggregateFunctionFactory::instance();
     auto action = NullsAction::EMPTY;
@@ -122,7 +122,7 @@ void RelParserFactory::registerBuilder(UInt32 k, RelParserBuilder builder)
     builders[k] = builder;
 }
 
-RelParserFactory::RelParserBuilder RelParserFactory::getBuilder(DB::UInt32 k)
+RelParserFactory::RelParserBuilder RelParserFactory::getBuilder(UInt32 k)
 {
     auto it = builders.find(k);
     if (it == builders.end())

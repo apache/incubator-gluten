@@ -211,8 +211,8 @@ DB::Field FileReaderWrapper::buildFieldFromString(const String & str_value, DB::
            {"Int16", BUILD_INT_FIELD(Int16)},
            {"Int32", BUILD_INT_FIELD(Int32)},
            {"Int64", BUILD_INT_FIELD(Int64)},
-           {"Float32", BUILD_FP_FIELD(DB::Float32)},
-           {"Float64", BUILD_FP_FIELD(DB::Float64)},
+           {"Float32", BUILD_FP_FIELD(Float32)},
+           {"Float64", BUILD_FP_FIELD(Float64)},
            {"String", [](DB::ReadBuffer &, const String & val) { return DB::Field(val); }},
            {"Date",
             [](DB::ReadBuffer & in, const String &)

@@ -41,7 +41,7 @@ public:
     static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionConvertToDate>(); }
     SparkFunctionConvertToDate() = default;
     ~SparkFunctionConvertToDate() override = default;
-    DB::String getName() const override { return name; }
+    String getName() const override { return name; }
 
     bool checkDateFormat(DB::ReadBuffer & buf) const
     {
