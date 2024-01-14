@@ -26,7 +26,6 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreePattern._
-import org.apache.spark.sql.execution.aggregate.TypedAggregateExpression
 
 /**
  * This rule will insert a pre-project in the child of operators such as Aggregate, Sort, Join,
@@ -42,19 +41,7 @@ case class PullOutProject(session: SparkSession)
    */
   private def needsPreProject(plan: LogicalPlan): Boolean = plan match {
     case Aggregate(groupingExpressions, aggregateExpressions, _) =>
-      groupingExpressions.exists(isNotAttribute) ||
-      aggregateExpressions.exists(_.find {
-        case ae: AggregateExpression
-            if ae.aggregateFunction.isInstanceOf[TypedAggregateExpression] =>
-          // We cannot pull out the children of TypedAggregateExpression to pre-project,
-          // and Gluten cannot support TypedAggregateExpression.
-          false
-        case ae: AggregateExpression
-            if ae.filter.exists(isNotAttribute) || ae.aggregateFunction.children.exists(
-              isNotAttributeAndLiteral) =>
-          true
-        case _ => false
-      }.isDefined)
+      aggNeedPreProject(groupingExpressions, aggregateExpressions)
     case Sort(order, _, _) =>
       order.exists(o => isNotAttribute(o.child))
     case _ => false
@@ -82,6 +69,15 @@ case class PullOutProject(session: SparkSession)
             val newFilter =
               ae.filter.map(getAndReplaceProjectAttribute(_, projectExprsMap))
             ae.copy(aggregateFunction = newAggFunc, filter = newFilter)
+
+          case a: Alias if projectExprsMap.contains(ExpressionEquals(a.child)) =>
+            // Keep the name of the original Alias.
+            projectExprsMap(ExpressionEquals(a.child)) match {
+              case Alias(child, _) =>
+                a.withNewChildren(Seq(child))
+              case attr: Attribute =>
+                a.withNewChildren(Seq(attr))
+            }
 
           case e if projectExprsMap.contains(ExpressionEquals(e)) =>
             projectExprsMap(ExpressionEquals(e)).toAttribute

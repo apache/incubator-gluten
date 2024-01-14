@@ -19,7 +19,7 @@ package io.glutenproject.extension.columnar
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
-import io.glutenproject.extension.{ColumnarPullOutProject, GlutenPlan, ValidationResult}
+import io.glutenproject.extension.{ColumnarOverrides, ColumnarPullOutProject, GlutenPlan, ValidationResult}
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.PhysicalPlanSelector
 
@@ -777,7 +777,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               val inputTransformer =
                 ColumnarCollapseTransformStages.wrapInputIteratorTransformer(plan.child)
               val sortPlan = SortExecTransformer(plan.sortOrder, false, inputTransformer)
-              val transformedPlan = ColumnarPullOutProject.apply(sortPlan)
+              val transformedPlan = ColumnarOverrides.applyExtendedColumnarPreRules(sortPlan)
               val allTransformable = ColumnarPullOutProject
                 .getTransformedPlan(sortPlan)
                 .map(_.asInstanceOf[GlutenPlan].doValidate())
