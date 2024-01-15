@@ -51,7 +51,7 @@ ReadSchema: struct<s_suppkey:bigint,s_name:string,s_address:string,s_phone:strin
 Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 Arguments: isnotnull(s_suppkey#X)
 
-(3) WholeStageCodegenTransformer (89)
+(3) WholeStageCodegenTransformer (X)
 Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 Arguments: false
 
@@ -92,7 +92,7 @@ Results [3]: [l_suppkey#X, sum#X, isEmpty#X]
 Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
 Arguments: [hash(l_suppkey#X, 42) AS hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
 
-(12) WholeStageCodegenTransformer (90)
+(12) WholeStageCodegenTransformer (X)
 Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
 Arguments: false
 
@@ -131,7 +131,7 @@ Join condition: None
 Input [6]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, supplier_no#X, total_revenue#X]
 Arguments: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
 
-(21) WholeStageCodegenTransformer (91)
+(21) WholeStageCodegenTransformer (X)
 Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
 Arguments: false
 
@@ -282,7 +282,7 @@ Results [3]: [l_suppkey#X, sum#X, isEmpty#X]
 Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
 Arguments: [hash(l_suppkey#X, 42) AS hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
 
-(46) WholeStageCodegenTransformer (92)
+(46) WholeStageCodegenTransformer (X)
 Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
 Arguments: false
 
@@ -315,7 +315,7 @@ Functions [1]: [partial_max(total_revenue#X)]
 Aggregate Attributes [1]: [max#X]
 Results [1]: [max#X]
 
-(53) WholeStageCodegenTransformer (93)
+(53) WholeStageCodegenTransformer (X)
 Input [1]: [max#X]
 Arguments: false
 
@@ -337,7 +337,7 @@ Functions [1]: [max(total_revenue#X)]
 Aggregate Attributes [1]: [max(total_revenue#X)#X]
 Results [1]: [max(total_revenue#X)#X AS max(total_revenue)#X]
 
-(58) WholeStageCodegenTransformer (94)
+(58) WholeStageCodegenTransformer (X)
 Input [1]: [max(total_revenue)#X]
 Arguments: false
 

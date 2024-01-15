@@ -69,7 +69,7 @@ Arguments: ((isnotnull(o_comment#X) AND NOT o_comment#X LIKE %special%requests%)
 Input [3]: [o_orderkey#X, o_custkey#X, o_comment#X]
 Arguments: [o_orderkey#X, o_custkey#X]
 
-(5) WholeStageCodegenTransformer (81)
+(5) WholeStageCodegenTransformer (X)
 Input [2]: [o_orderkey#X, o_custkey#X]
 Arguments: false
 
@@ -104,7 +104,7 @@ Results [2]: [c_custkey#X, count#X]
 Input [2]: [c_custkey#X, count#X]
 Arguments: [hash(c_custkey#X, 42) AS hash_partition_key#X, c_custkey#X, count#X]
 
-(13) WholeStageCodegenTransformer (82)
+(13) WholeStageCodegenTransformer (X)
 Input [3]: [hash_partition_key#X, c_custkey#X, count#X]
 Arguments: false
 
@@ -141,7 +141,7 @@ Results [2]: [c_count#X, count#X]
 Input [2]: [c_count#X, count#X]
 Arguments: [hash(c_count#X, 42) AS hash_partition_key#X, c_count#X, count#X]
 
-(21) WholeStageCodegenTransformer (83)
+(21) WholeStageCodegenTransformer (X)
 Input [3]: [hash_partition_key#X, c_count#X, count#X]
 Arguments: false
 
@@ -167,7 +167,7 @@ Functions [1]: [count(1)]
 Aggregate Attributes [1]: [count(1)#X]
 Results [2]: [c_count#X, count(1)#X AS custdist#X]
 
-(27) WholeStageCodegenTransformer (84)
+(27) WholeStageCodegenTransformer (X)
 Input [2]: [c_count#X, custdist#X]
 Arguments: false
 
@@ -190,7 +190,7 @@ Input [2]: [c_count#X, custdist#X]
 Input [2]: [c_count#X, custdist#X]
 Arguments: [custdist#X DESC NULLS LAST, c_count#X DESC NULLS LAST], true, 0
 
-(33) WholeStageCodegenTransformer (85)
+(33) WholeStageCodegenTransformer (X)
 Input [2]: [c_count#X, custdist#X]
 Arguments: false
 

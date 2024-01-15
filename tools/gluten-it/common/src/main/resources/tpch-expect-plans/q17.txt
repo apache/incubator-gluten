@@ -81,7 +81,7 @@ Arguments: ((((isnotnull(p_brand#X) AND isnotnull(p_container#X)) AND (p_brand#X
 Input [3]: [p_partkey#X, p_container#X, p_brand#X]
 Arguments: [p_partkey#X]
 
-(6) WholeStageCodegenTransformer (101)
+(6) WholeStageCodegenTransformer (X)
 Input [1]: [p_partkey#X]
 Arguments: false
 
@@ -127,7 +127,7 @@ Results [3]: [l_partkey#X, sum#X, count#X]
 Input [3]: [l_partkey#X, sum#X, count#X]
 Arguments: [hash(l_partkey#X, 42) AS hash_partition_key#X, l_partkey#X, sum#X, count#X]
 
-(16) WholeStageCodegenTransformer (102)
+(16) WholeStageCodegenTransformer (X)
 Input [4]: [hash_partition_key#X, l_partkey#X, sum#X, count#X]
 Arguments: false
 
@@ -157,7 +157,7 @@ Results [2]: [CheckOverflow((0.200000 * promote_precision(avg(l_quantity#X)#X)),
 Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
 Arguments: isnotnull((0.2 * avg(l_quantity))#X)
 
-(23) WholeStageCodegenTransformer (103)
+(23) WholeStageCodegenTransformer (X)
 Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
 Arguments: false
 
@@ -188,7 +188,7 @@ Functions [1]: [partial_sum(l_extendedprice#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [2]: [sum#X, isEmpty#X]
 
-(30) WholeStageCodegenTransformer (104)
+(30) WholeStageCodegenTransformer (X)
 Input [2]: [sum#X, isEmpty#X]
 Arguments: false
 
@@ -210,7 +210,7 @@ Functions [1]: [sum(l_extendedprice#X)]
 Aggregate Attributes [1]: [sum(l_extendedprice#X)#X]
 Results [1]: [CheckOverflow((promote_precision(sum(l_extendedprice#X)#X) / 7.00), DecimalType(27,6)) AS avg_yearly#X]
 
-(35) WholeStageCodegenTransformer (105)
+(35) WholeStageCodegenTransformer (X)
 Input [1]: [avg_yearly#X]
 Arguments: false
 

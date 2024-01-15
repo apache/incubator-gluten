@@ -86,7 +86,7 @@ Arguments: (isnotnull(s_comment#X) AND s_comment#X LIKE %Customer%Complaints%)
 Input [2]: [s_suppkey#X, s_comment#X]
 Arguments: [s_suppkey#X]
 
-(6) WholeStageCodegenTransformer (95)
+(6) WholeStageCodegenTransformer (X)
 Input [1]: [s_suppkey#X]
 Arguments: false
 
@@ -117,7 +117,7 @@ ReadSchema: struct<p_partkey:bigint,p_type:string,p_size:int,p_brand:string>
 Input [4]: [p_partkey#X, p_type#X, p_size#X, p_brand#X]
 Arguments: (((((isnotnull(p_brand#X) AND isnotnull(p_type#X)) AND NOT (p_brand#X = Brand#X)) AND NOT StartsWith(p_type#X, MEDIUM POLISHED)) AND p_size#X IN (49,14,23,45,19,3,36,9)) AND isnotnull(p_partkey#X))
 
-(13) WholeStageCodegenTransformer (96)
+(13) WholeStageCodegenTransformer (X)
 Input [4]: [p_partkey#X, p_type#X, p_size#X, p_brand#X]
 Arguments: false
 
@@ -152,7 +152,7 @@ Results [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 Input [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 Arguments: [hash(p_brand#X, p_type#X, p_size#X, ps_suppkey#X, 42) AS hash_partition_key#X, p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 
-(21) WholeStageCodegenTransformer (97)
+(21) WholeStageCodegenTransformer (X)
 Input [5]: [hash_partition_key#X, p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 Arguments: false
 
@@ -189,7 +189,7 @@ Results [4]: [p_brand#X, p_type#X, p_size#X, count#X]
 Input [4]: [p_brand#X, p_type#X, p_size#X, count#X]
 Arguments: [hash(p_brand#X, p_type#X, p_size#X, 42) AS hash_partition_key#X, p_brand#X, p_type#X, p_size#X, count#X]
 
-(29) WholeStageCodegenTransformer (98)
+(29) WholeStageCodegenTransformer (X)
 Input [5]: [hash_partition_key#X, p_brand#X, p_type#X, p_size#X, count#X]
 Arguments: false
 
@@ -215,7 +215,7 @@ Functions [1]: [count(distinct ps_suppkey#X)]
 Aggregate Attributes [1]: [count(ps_suppkey#X)#X]
 Results [4]: [p_brand#X, p_type#X, p_size#X, count(ps_suppkey#X)#X AS supplier_cnt#X]
 
-(35) WholeStageCodegenTransformer (99)
+(35) WholeStageCodegenTransformer (X)
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 Arguments: false
 
@@ -238,7 +238,7 @@ Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 Arguments: [supplier_cnt#X DESC NULLS LAST, p_brand#X ASC NULLS FIRST, p_type#X ASC NULLS FIRST, p_size#X ASC NULLS FIRST], true, 0
 
-(41) WholeStageCodegenTransformer (100)
+(41) WholeStageCodegenTransformer (X)
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 Arguments: false
 

@@ -57,7 +57,7 @@ ReadSchema: struct<p_partkey:bigint,p_type:string>
 Input [2]: [p_partkey#X, p_type#X]
 Arguments: isnotnull(p_partkey#X)
 
-(6) WholeStageCodegenTransformer (86)
+(6) WholeStageCodegenTransformer (X)
 Input [2]: [p_partkey#X, p_type#X]
 Arguments: false
 
@@ -88,7 +88,7 @@ Functions [2]: [partial_sum(CASE WHEN StartsWith(p_type#X, PROMO) THEN CheckOver
 Aggregate Attributes [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]
 Results [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]
 
-(13) WholeStageCodegenTransformer (87)
+(13) WholeStageCodegenTransformer (X)
 Input [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]
 Arguments: false
 
@@ -110,7 +110,7 @@ Functions [2]: [sum(CASE WHEN StartsWith(p_type#X, PROMO) THEN CheckOverflow((pr
 Aggregate Attributes [2]: [sum(CASE WHEN StartsWith(p_type#X, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) ELSE 0.0000 END)#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
 Results [1]: [CheckOverflow((promote_precision(CheckOverflow((100.0000 * promote_precision(sum(CASE WHEN StartsWith(p_type#X, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) ELSE 0.0000 END)#X)), DecimalType(38,6))) / promote_precision(cast(sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X as decimal(38,6)))), DecimalType(38,6)) AS promo_revenue#X]
 
-(18) WholeStageCodegenTransformer (88)
+(18) WholeStageCodegenTransformer (X)
 Input [1]: [promo_revenue#X]
 Arguments: false
 
