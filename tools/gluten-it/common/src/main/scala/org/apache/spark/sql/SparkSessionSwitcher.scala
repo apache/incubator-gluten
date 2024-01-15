@@ -40,6 +40,9 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
     // this rule may potentially block testing of other optimization rules such as
     // ConstantPropagation etc.
     .setWarningOnOverriding(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
+    // Set spark.gluten.sql.injectNativePlanStringToExplain to true to
+    // inject native plan tree to explain string inside `WholeStageTransformerContext`
+    .setWarningOnOverriding("spark.gluten.sql.injectNativePlanStringToExplain", "true")
 
   testDefaults.setWarningOnOverriding(
     StaticSQLConf.WAREHOUSE_PATH.key,

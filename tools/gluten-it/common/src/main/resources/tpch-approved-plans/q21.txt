@@ -97,6 +97,8 @@ Arguments: (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
 (3) WholeStageCodegenTransformer (X)
 Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
 Arguments: false
+Native Plan:
+-- TableScan[table: hive_table, range filters: [(s_nationkey, Filter(IsNotNull, deterministic, null not allowed)), (s_suppkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:VARCHAR, n0_2:BIGINT
 
 (4) ColumnarBroadcastExchange
 Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
@@ -133,6 +135,8 @@ ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint>
 (11) WholeStageCodegenTransformer (X)
 Input [2]: [l_orderkey#X, l_suppkey#X]
 Arguments: false
+Native Plan:
+-- TableScan[table: hive_table] -> n0_0:BIGINT, n0_1:BIGINT
 
 (12) ColumnarBroadcastExchange
 Input [2]: [l_orderkey#X, l_suppkey#X]
@@ -168,6 +172,9 @@ Arguments: [l_orderkey#X, l_suppkey#X]
 (19) WholeStageCodegenTransformer (X)
 Input [2]: [l_orderkey#X, l_suppkey#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n1_4:BIGINT, "n0_0"), (n1_5:BIGINT, "n0_1")] -> n1_4:BIGINT, n1_5:BIGINT
+  -- TableScan[table: hive_table, range filters: [(l_commitdate, Filter(IsNotNull, deterministic, null not allowed)), (l_receiptdate, Filter(IsNotNull, deterministic, null not allowed))], remaining filter: (greaterthan("l_receiptdate","l_commitdate"))] -> n0_0:BIGINT, n0_1:BIGINT, n0_2:DATE, n0_3:DATE
 
 (20) ColumnarBroadcastExchange
 Input [2]: [l_orderkey#X, l_suppkey#X]
@@ -212,6 +219,9 @@ Arguments: [o_orderkey#X]
 (29) WholeStageCodegenTransformer (X)
 Input [1]: [o_orderkey#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n1_2:BIGINT, "n0_0")] -> n1_2:BIGINT
+  -- TableScan[table: hive_table, range filters: [(o_orderkey, Filter(IsNotNull, deterministic, null not allowed)), (o_orderstatus, BytesRange: [F, F] no nulls)]] -> n0_0:BIGINT, n0_1:VARCHAR
 
 (30) ColumnarBroadcastExchange
 Input [1]: [o_orderkey#X]
@@ -251,6 +261,9 @@ Arguments: [n_nationkey#X]
 (38) WholeStageCodegenTransformer (X)
 Input [1]: [n_nationkey#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n1_2:BIGINT, "n0_0")] -> n1_2:BIGINT
+  -- TableScan[table: hive_table, range filters: [(n_name, BytesRange: [SAUDI ARABIA, SAUDI ARABIA] no nulls), (n_nationkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:VARCHAR
 
 (39) ColumnarBroadcastExchange
 Input [1]: [n_nationkey#X]
@@ -286,6 +299,29 @@ Arguments: [hash(s_name#X, 42) AS hash_partition_key#X, s_name#X, count#X]
 (46) WholeStageCodegenTransformer (X)
 Input [3]: [hash_partition_key#X, s_name#X, count#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n21_2:INTEGER, hash_with_seed(42,"n19_3")), (n21_3:VARCHAR, "n19_3"), (n21_4:BIGINT, "n20_1")] -> n21_2:INTEGER, n21_3:VARCHAR, n21_4:BIGINT
+  -- Aggregation[PARTIAL [n19_3] n20_1 := count_partial(1)] -> n19_3:VARCHAR, n20_1:BIGINT
+    -- Project[expressions: (n19_3:VARCHAR, "n18_3")] -> n19_3:VARCHAR
+      -- Project[expressions: (n18_3:VARCHAR, "n16_4"), (n18_4:BIGINT, "n16_5"), (n18_5:BIGINT, "n4_0")] -> n18_3:VARCHAR, n18_4:BIGINT, n18_5:BIGINT
+        -- HashJoin[INNER n16_5=n4_0] -> n16_4:VARCHAR, n16_5:BIGINT, n4_0:BIGINT
+          -- Project[expressions: (n16_4:VARCHAR, "n15_4"), (n16_5:BIGINT, "n15_5")] -> n16_4:VARCHAR, n16_5:BIGINT
+            -- Project[expressions: (n15_4:VARCHAR, "n13_5"), (n15_5:BIGINT, "n13_6"), (n15_6:BIGINT, "n13_7"), (n15_7:BIGINT, "n3_0")] -> n15_4:VARCHAR, n15_5:BIGINT, n15_6:BIGINT, n15_7:BIGINT
+              -- HashJoin[INNER n13_7=n3_0] -> n13_5:VARCHAR, n13_6:BIGINT, n13_7:BIGINT, n3_0:BIGINT
+                -- Project[expressions: (n13_5:VARCHAR, "n12_6"), (n13_6:BIGINT, "n12_7"), (n13_7:BIGINT, "n12_8")] -> n13_5:VARCHAR, n13_6:BIGINT, n13_7:BIGINT
+                  -- Project[expressions: (n12_5:BIGINT, "n2_0"), (n12_6:VARCHAR, "n2_1"), (n12_7:BIGINT, "n2_2"), (n12_8:BIGINT, "n10_2"), (n12_9:BIGINT, "n10_3")] -> n12_5:BIGINT, n12_6:VARCHAR, n12_7:BIGINT, n12_8:BIGINT, n12_9:BIGINT
+                    -- HashJoin[INNER n10_3=n2_0] -> n10_2:BIGINT, n10_3:BIGINT, n2_0:BIGINT, n2_1:VARCHAR, n2_2:BIGINT
+                      -- Project[expressions: (n10_2:BIGINT, "n8_2"), (n10_3:BIGINT, "n8_3")] -> n10_2:BIGINT, n10_3:BIGINT
+                        -- HashJoin[ANTI n8_2=n1_0, filter: not(equalto("n1_1","n8_3"))] -> n8_2:BIGINT, n8_3:BIGINT
+                          -- Project[expressions: (n8_2:BIGINT, "n6_4"), (n8_3:BIGINT, "n6_5")] -> n8_2:BIGINT, n8_3:BIGINT
+                            -- HashJoin[LEFT SEMI (FILTER) n6_4=n0_0, filter: not(equalto("n0_1","n6_5"))] -> n6_4:BIGINT, n6_5:BIGINT
+                              -- Project[expressions: (n6_4:BIGINT, "n5_0"), (n6_5:BIGINT, "n5_1")] -> n6_4:BIGINT, n6_5:BIGINT
+                                -- TableScan[table: hive_table, range filters: [(l_commitdate, Filter(IsNotNull, deterministic, null not allowed)), (l_orderkey, Filter(IsNotNull, deterministic, null not allowed)), (l_receiptdate, Filter(IsNotNull, deterministic, null not allowed)), (l_suppkey, Filter(IsNotNull, deterministic, null not allowed))], remaining filter: (greaterthan("l_receiptdate","l_commitdate"))] -> n5_0:BIGINT, n5_1:BIGINT, n5_2:DATE, n5_3:DATE
+                              -- ValueStream[] -> n0_0:BIGINT, n0_1:BIGINT
+                          -- ValueStream[] -> n1_0:BIGINT, n1_1:BIGINT
+                      -- ValueStream[] -> n2_0:BIGINT, n2_1:VARCHAR, n2_2:BIGINT
+                -- ValueStream[] -> n3_0:BIGINT
+          -- ValueStream[] -> n4_0:BIGINT
 
 (47) ColumnarExchange
 Input [3]: [hash_partition_key#X, s_name#X, count#X]
@@ -312,6 +348,10 @@ Results [2]: [s_name#X, count(1)#X AS numwait#X]
 (52) WholeStageCodegenTransformer (X)
 Input [2]: [s_name#X, numwait#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n2_2:VARCHAR, "n0_0"), (n2_3:BIGINT, "n1_1")] -> n2_2:VARCHAR, n2_3:BIGINT
+  -- Aggregation[SINGLE [n0_0] n1_1 := count_merge_extract("n0_1")] -> n0_0:VARCHAR, n1_1:BIGINT
+    -- ValueStream[] -> n0_0:VARCHAR, n0_1:BIGINT
 
 (53) TakeOrderedAndProjectExecTransformer
 Input [2]: [s_name#X, numwait#X]
