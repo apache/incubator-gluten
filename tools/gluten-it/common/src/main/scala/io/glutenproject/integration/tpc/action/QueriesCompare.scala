@@ -265,7 +265,7 @@ object QueriesCompare {
             s"Returned row count: ${resultRows.length}, expected: ${expectedRows.length}")
         if (verifySparkPlan) {
           verifyExecutionPlan(
-            s"/spark${sessionSwitcher.sparkMainVersion()}${runner.expectResourceFolder}",
+            s"${runner.expectResourceFolder}/spark${sessionSwitcher.sparkMainVersion()}",
             id,
             result.executionPlan) match {
             case (false, reason) =>
