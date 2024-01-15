@@ -18,13 +18,9 @@ set -ex
 
 BASEDIR=$(dirname $0)
 
-source "$BASEDIR/defaults.conf"
+source "$BASEDIR/shared.sh"
 
-# Enable buildkit
-export DOCKER_BUILDKIT=1
-export BUILDKIT_PROGRESS=plain
-
-# Docker registry used to pull pre-built images to speed-up builds
+# Docker registry used to pull layer cache to speed-up builds
 DOCKER_CACHE_REGISTRY=${DOCKER_CACHE_REGISTRY:-$DEFAULT_DOCKER_CACHE_REGISTRY}
 
 # Docker registry to push pre-built images
@@ -39,15 +35,6 @@ USE_ALI_MAVEN_MIRROR=${USE_ALI_MAVEN_MIRROR:-$DEFAULT_USE_ALI_MAVEN_MIRROR}
 
 # Set timezone name
 TIMEZONE=${TIMEZONE:-$DEFAULT_TIMEZONE}
-
-# Set operating system
-OS_IMAGE_NAME=${OS_IMAGE_NAME:-$DEFAULT_OS_IMAGE_NAME}
-OS_IMAGE_TAG=${OS_IMAGE_TAG:-$DEFAULT_OS_IMAGE_TAG}
-
-# Build will result in this image
-DOCKER_TARGET_IMAGE_BUILDENV=${DOCKER_TARGET_IMAGE_BUILDENV:-$DEFAULT_DOCKER_TARGET_IMAGE_BUILDENV}
-
-DOCKER_TARGET_IMAGE_BUILDENV_WITH_OS_IMAGE="$DOCKER_TARGET_IMAGE_BUILDENV-$OS_IMAGE_NAME:$OS_IMAGE_TAG"
 
 if [ "$USE_ALI_MAVEN_MIRROR" == "ON" ]
 then
@@ -73,7 +60,6 @@ BUILDENV_DOCKER_BUILD_ARGS="$BUILDENV_DOCKER_BUILD_ARGS -t $DOCKER_TARGET_IMAGE_
 
 if [ -n "$DOCKER_CACHE_REGISTRY" ]
 then
-  docker pull $DOCKER_CACHE_REGISTRY/$DOCKER_TARGET_IMAGE_BUILDENV_WITH_OS_IMAGE || echo "Required image not found in cache registry."
   BUILDENV_DOCKER_BUILD_ARGS="$BUILDENV_DOCKER_BUILD_ARGS --cache-from $DOCKER_CACHE_REGISTRY/$DOCKER_TARGET_IMAGE_BUILDENV_WITH_OS_IMAGE"
 fi
 
