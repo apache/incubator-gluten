@@ -53,7 +53,7 @@ Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
 ReadSchema: struct<o_custkey:bigint>
 
-(4) WholeStageCodegenTransformer (137)
+(4) WholeStageCodegenTransformer (X)(138)
 Input [1]: [o_custkey#X]
 Arguments: false
 
@@ -88,7 +88,7 @@ Results [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 Arguments: [hash(cntrycode#X, 42) AS hash_partition_key#X, cntrycode#X, count#X, sum#X, isEmpty#X]
 
-(12) WholeStageCodegenTransformer (138)
+(12) WholeStageCodegenTransformer (X)(139)
 Input [5]: [hash_partition_key#X, cntrycode#X, count#X, sum#X, isEmpty#X]
 Arguments: false
 
@@ -114,7 +114,7 @@ Functions [2]: [count(1), sum(c_acctbal#X)]
 Aggregate Attributes [2]: [count(1)#X, sum(c_acctbal#X)#X]
 Results [3]: [cntrycode#X, count(1)#X AS numcust#X, sum(c_acctbal#X)#X AS totacctbal#X]
 
-(18) WholeStageCodegenTransformer (141)
+(18) WholeStageCodegenTransformer (X)(142)
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: false
 
@@ -137,7 +137,7 @@ Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: [cntrycode#X ASC NULLS FIRST], true, 0
 
-(24) WholeStageCodegenTransformer (142)
+(24) WholeStageCodegenTransformer (X)(143)
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: false
 
@@ -249,7 +249,7 @@ Functions [1]: [partial_avg(c_acctbal#X)]
 Aggregate Attributes [2]: [sum#X, count#X]
 Results [2]: [sum#X, count#X]
 
-(42) WholeStageCodegenTransformer (139)
+(42) WholeStageCodegenTransformer (X)(140)
 Input [2]: [sum#X, count#X]
 Arguments: false
 
@@ -271,7 +271,7 @@ Functions [1]: [avg(c_acctbal#X)]
 Aggregate Attributes [1]: [avg(c_acctbal#X)#X]
 Results [1]: [avg(c_acctbal#X)#X AS avg(c_acctbal)#X]
 
-(47) WholeStageCodegenTransformer (140)
+(47) WholeStageCodegenTransformer (X)(141)
 Input [1]: [avg(c_acctbal)#X]
 Arguments: false
 
