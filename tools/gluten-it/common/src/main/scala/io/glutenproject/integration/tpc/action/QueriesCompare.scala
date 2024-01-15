@@ -115,14 +115,15 @@ object QueriesCompare {
 
   private def printResults(results: List[TestResultLine]): Unit = {
     printf(
-      "|%15s|%15s|%30s|%30s|%30s|%30s|%30s|\n",
+      "|%15s|%15s|%30s|%30s|%30s|%30s|%30s|%s|\n",
       "Query ID",
       "Was Passed",
       "Expected Row Count",
       "Actual Row Count",
       "Baseline Query Time (Millis)",
       "Query Time (Millis)",
-      "Query Time Variation"
+      "Query Time Variation",
+      "Error Message"
     )
     results.foreach {
       line =>
@@ -135,14 +136,15 @@ object QueriesCompare {
                 / line.actualExecutionTimeMillis.get.toDouble) * 100)
           } else None
         printf(
-          "|%15s|%15s|%30s|%30s|%30s|%30s|%30s|\n",
+          "|%15s|%15s|%30s|%30s|%30s|%30s|%30s|%s|\n",
           line.queryId,
           line.testPassed,
           line.expectedRowCount.getOrElse("N/A"),
           line.actualRowCount.getOrElse("N/A"),
           line.expectedExecutionTimeMillis.getOrElse("N/A"),
           line.actualExecutionTimeMillis.getOrElse("N/A"),
-          timeVariation.map("%15.2f%%".format(_)).getOrElse("N/A")
+          timeVariation.map("%15.2f%%".format(_)).getOrElse("N/A"),
+          line.errorMessage.getOrElse("-")
         )
     }
   }
