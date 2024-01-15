@@ -1,194 +1,237 @@
 == Physical Plan ==
-AdaptiveSparkPlan (34)
+AdaptiveSparkPlan (43)
 +- == Final Plan ==
-   * Sort (21)
-   +- AQEShuffleRead (20)
-      +- ShuffleQueryStage (19), Statistics(***)
-         +- Exchange (18)
-            +- * HashAggregate (17)
-               +- AQEShuffleRead (16)
-                  +- ShuffleQueryStage (15), Statistics(***)
-                     +- Exchange (14)
-                        +- * HashAggregate (13)
-                           +- * Project (12)
-                              +- * BroadcastHashJoin LeftSemi BuildRight (11)
-                                 :- * Project (4)
-                                 :  +- * Filter (3)
-                                 :     +- * ColumnarToRow (2)
-                                 :        +- Scan parquet default.orders (1)
-                                 +- BroadcastQueryStage (10), Statistics(***)
-                                    +- BroadcastExchange (9)
-                                       +- * Project (8)
-                                          +- * Filter (7)
-                                             +- * ColumnarToRow (6)
-                                                +- Scan parquet default.lineitem (5)
+   VeloxColumnarToRowExec (28)
+   +- ^ SortExecTransformer (26)
+      +- ^ InputIteratorTransformer (25)
+         +- AQEShuffleRead (24)
+            +- ShuffleQueryStage (23), Statistics(X)
+               +- ColumnarExchange (22)
+                  +- ^ RegularHashAggregateExecTransformer (20)
+                     +- ^ InputIteratorTransformer (19)
+                        +- AQEShuffleRead (18)
+                           +- ShuffleQueryStage (17), Statistics(X)
+                              +- ColumnarExchange (16)
+                                 +- ^ ProjectExecTransformer (14)
+                                    +- ^ FlushableHashAggregateExecTransformer (13)
+                                       +- ^ ProjectExecTransformer (12)
+                                          +- ^ GlutenBroadcastHashJoinExecTransformer LeftSemi (11)
+                                             :- ^ ProjectExecTransformer (3)
+                                             :  +- ^ FilterExecTransformer (2)
+                                             :     +- ^ Scan parquet default.orders (1)
+                                             +- ^ InputIteratorTransformer (10)
+                                                +- BroadcastQueryStage (9), Statistics(X)
+                                                   +- ColumnarBroadcastExchange (8)
+                                                      +- ^ ProjectExecTransformer (6)
+                                                         +- ^ FilterExecTransformer (5)
+                                                            +- ^ Scan parquet default.lineitem (4)
 +- == Initial Plan ==
-   Sort (33)
-   +- Exchange (32)
-      +- HashAggregate (31)
-         +- Exchange (30)
-            +- HashAggregate (29)
-               +- Project (28)
-                  +- BroadcastHashJoin LeftSemi BuildRight (27)
-                     :- Project (23)
-                     :  +- Filter (22)
-                     :     +- Scan parquet default.orders (1)
-                     +- BroadcastExchange (26)
-                        +- Project (25)
-                           +- Filter (24)
-                              +- Scan parquet default.lineitem (5)
+   Sort (42)
+   +- Exchange (41)
+      +- HashAggregate (40)
+         +- Exchange (39)
+            +- HashAggregate (38)
+               +- Project (37)
+                  +- BroadcastHashJoin LeftSemi BuildRight (36)
+                     :- Project (31)
+                     :  +- Filter (30)
+                     :     +- Scan parquet default.orders (29)
+                     +- BroadcastExchange (35)
+                        +- Project (34)
+                           +- Filter (33)
+                              +- Scan parquet default.lineitem (32)
 
 
 (1) Scan parquet default.orders
-Output [3]: [o_orderkey#***, o_orderpriority#***, o_orderdate#***]
+Output [3]: [o_orderkey#X, o_orderpriority#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
 PushedFilters: [IsNotNull(o_orderdate), GreaterThanOrEqual(o_orderdate,1993-07-01), LessThan(o_orderdate,1993-10-01)]
 ReadSchema: struct<o_orderkey:bigint,o_orderpriority:string,o_orderdate:date>
 
-(2) ColumnarToRow [codegen id : 2]
-Input [3]: [o_orderkey#***, o_orderpriority#***, o_orderdate#***]
+(2) FilterExecTransformer
+Input [3]: [o_orderkey#X, o_orderpriority#X, o_orderdate#X]
+Arguments: ((isnotnull(o_orderdate#X) AND (o_orderdate#X >= 1993-07-01)) AND (o_orderdate#X < 1993-10-01))
 
-(3) Filter [codegen id : 2]
-Input [3]: [o_orderkey#***, o_orderpriority#***, o_orderdate#***]
-Condition : ((isnotnull(o_orderdate#***) AND (o_orderdate#*** >= 1993-07-01)) AND (o_orderdate#*** < 1993-10-01))
+(3) ProjectExecTransformer
+Input [3]: [o_orderkey#X, o_orderpriority#X, o_orderdate#X]
+Arguments: [o_orderkey#X, o_orderpriority#X]
 
-(4) Project [codegen id : 2]
-Output [2]: [o_orderkey#***, o_orderpriority#***]
-Input [3]: [o_orderkey#***, o_orderpriority#***, o_orderdate#***]
-
-(5) Scan parquet default.lineitem
-Output [3]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***]
+(4) Scan parquet default.lineitem
+Output [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
 PushedFilters: [IsNotNull(l_commitdate), IsNotNull(l_receiptdate)]
 ReadSchema: struct<l_orderkey:bigint,l_commitdate:date,l_receiptdate:date>
 
-(6) ColumnarToRow [codegen id : 1]
-Input [3]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***]
+(5) FilterExecTransformer
+Input [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
+Arguments: ((isnotnull(l_commitdate#X) AND isnotnull(l_receiptdate#X)) AND (l_commitdate#X < l_receiptdate#X))
 
-(7) Filter [codegen id : 1]
-Input [3]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***]
-Condition : ((isnotnull(l_commitdate#***) AND isnotnull(l_receiptdate#***)) AND (l_commitdate#*** < l_receiptdate#***))
+(6) ProjectExecTransformer
+Input [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
+Arguments: [l_orderkey#X]
 
-(8) Project [codegen id : 1]
-Output [1]: [l_orderkey#***]
-Input [3]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***]
+(7) WholeStageCodegenTransformer (X)
+Input [1]: [l_orderkey#X]
+Arguments: false
 
-(9) BroadcastExchange
-Input [1]: [l_orderkey#***]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+(8) ColumnarBroadcastExchange
+Input [1]: [l_orderkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(10) BroadcastQueryStage
-Output [1]: [l_orderkey#***]
+(9) BroadcastQueryStage
+Output [1]: [l_orderkey#X]
 Arguments: 0
 
-(11) BroadcastHashJoin [codegen id : 2]
-Left keys [1]: [o_orderkey#***]
-Right keys [1]: [l_orderkey#***]
+(10) InputIteratorTransformer
+Input [1]: [l_orderkey#X]
+
+(11) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [o_orderkey#X]
+Right keys [1]: [l_orderkey#X]
 Join condition: None
 
-(12) Project [codegen id : 2]
-Output [1]: [o_orderpriority#***]
-Input [2]: [o_orderkey#***, o_orderpriority#***]
+(12) ProjectExecTransformer
+Input [2]: [o_orderkey#X, o_orderpriority#X]
+Arguments: [o_orderpriority#X]
 
-(13) HashAggregate [codegen id : 2]
-Input [1]: [o_orderpriority#***]
-Keys [1]: [o_orderpriority#***]
+(13) FlushableHashAggregateExecTransformer
+Input [1]: [o_orderpriority#X]
+Keys [1]: [o_orderpriority#X]
 Functions [1]: [partial_count(1)]
-Aggregate Attributes [1]: [count#***]
-Results [2]: [o_orderpriority#***, count#***]
+Aggregate Attributes [1]: [count#X]
+Results [2]: [o_orderpriority#X, count#X]
 
-(14) Exchange
-Input [2]: [o_orderpriority#***, count#***]
-Arguments: hashpartitioning(o_orderpriority#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+(14) ProjectExecTransformer
+Input [2]: [o_orderpriority#X, count#X]
+Arguments: [hash(o_orderpriority#X, 42) AS hash_partition_key#X, o_orderpriority#X, count#X]
 
-(15) ShuffleQueryStage
-Output [2]: [o_orderpriority#***, count#***]
+(15) WholeStageCodegenTransformer (X)
+Input [3]: [hash_partition_key#X, o_orderpriority#X, count#X]
+Arguments: false
+
+(16) ColumnarExchange
+Input [3]: [hash_partition_key#X, o_orderpriority#X, count#X]
+Arguments: hashpartitioning(o_orderpriority#X, 100), ENSURE_REQUIREMENTS, [o_orderpriority#X, count#X], [plan_id=X], [id=#X]
+
+(17) ShuffleQueryStage
+Output [2]: [o_orderpriority#X, count#X]
 Arguments: 1
 
-(16) AQEShuffleRead
-Input [2]: [o_orderpriority#***, count#***]
+(18) AQEShuffleRead
+Input [2]: [o_orderpriority#X, count#X]
 Arguments: coalesced
 
-(17) HashAggregate [codegen id : 3]
-Input [2]: [o_orderpriority#***, count#***]
-Keys [1]: [o_orderpriority#***]
+(19) InputIteratorTransformer
+Input [2]: [o_orderpriority#X, count#X]
+
+(20) RegularHashAggregateExecTransformer
+Input [2]: [o_orderpriority#X, count#X]
+Keys [1]: [o_orderpriority#X]
 Functions [1]: [count(1)]
-Aggregate Attributes [1]: [count(1)#***]
-Results [2]: [o_orderpriority#***, count(1)#*** AS order_count#***]
+Aggregate Attributes [1]: [count(1)#X]
+Results [2]: [o_orderpriority#X, count(1)#X AS order_count#X]
 
-(18) Exchange
-Input [2]: [o_orderpriority#***, order_count#***]
-Arguments: rangepartitioning(o_orderpriority#*** ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+(21) WholeStageCodegenTransformer (X)
+Input [2]: [o_orderpriority#X, order_count#X]
+Arguments: false
 
-(19) ShuffleQueryStage
-Output [2]: [o_orderpriority#***, order_count#***]
+(22) ColumnarExchange
+Input [2]: [o_orderpriority#X, order_count#X]
+Arguments: rangepartitioning(o_orderpriority#X ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+
+(23) ShuffleQueryStage
+Output [2]: [o_orderpriority#X, order_count#X]
 Arguments: 2
 
-(20) AQEShuffleRead
-Input [2]: [o_orderpriority#***, order_count#***]
+(24) AQEShuffleRead
+Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: coalesced
 
-(21) Sort [codegen id : 4]
-Input [2]: [o_orderpriority#***, order_count#***]
-Arguments: [o_orderpriority#*** ASC NULLS FIRST], true, 0
+(25) InputIteratorTransformer
+Input [2]: [o_orderpriority#X, order_count#X]
 
-(22) Filter
-Input [3]: [o_orderkey#***, o_orderpriority#***, o_orderdate#***]
-Condition : ((isnotnull(o_orderdate#***) AND (o_orderdate#*** >= 1993-07-01)) AND (o_orderdate#*** < 1993-10-01))
+(26) SortExecTransformer
+Input [2]: [o_orderpriority#X, order_count#X]
+Arguments: [o_orderpriority#X ASC NULLS FIRST], true, 0
 
-(23) Project
-Output [2]: [o_orderkey#***, o_orderpriority#***]
-Input [3]: [o_orderkey#***, o_orderpriority#***, o_orderdate#***]
+(27) WholeStageCodegenTransformer (X)
+Input [2]: [o_orderpriority#X, order_count#X]
+Arguments: false
 
-(24) Filter
-Input [3]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***]
-Condition : ((isnotnull(l_commitdate#***) AND isnotnull(l_receiptdate#***)) AND (l_commitdate#*** < l_receiptdate#***))
+(28) VeloxColumnarToRowExec
+Input [2]: [o_orderpriority#X, order_count#X]
 
-(25) Project
-Output [1]: [l_orderkey#***]
-Input [3]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***]
+(29) Scan parquet default.orders
+Output [3]: [o_orderkey#X, o_orderpriority#X, o_orderdate#X]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
+PushedFilters: [IsNotNull(o_orderdate), GreaterThanOrEqual(o_orderdate,1993-07-01), LessThan(o_orderdate,1993-10-01)]
+ReadSchema: struct<o_orderkey:bigint,o_orderpriority:string,o_orderdate:date>
 
-(26) BroadcastExchange
-Input [1]: [l_orderkey#***]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+(30) Filter
+Input [3]: [o_orderkey#X, o_orderpriority#X, o_orderdate#X]
+Condition : ((isnotnull(o_orderdate#X) AND (o_orderdate#X >= 1993-07-01)) AND (o_orderdate#X < 1993-10-01))
 
-(27) BroadcastHashJoin
-Left keys [1]: [o_orderkey#***]
-Right keys [1]: [l_orderkey#***]
+(31) Project
+Output [2]: [o_orderkey#X, o_orderpriority#X]
+Input [3]: [o_orderkey#X, o_orderpriority#X, o_orderdate#X]
+
+(32) Scan parquet default.lineitem
+Output [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
+PushedFilters: [IsNotNull(l_commitdate), IsNotNull(l_receiptdate)]
+ReadSchema: struct<l_orderkey:bigint,l_commitdate:date,l_receiptdate:date>
+
+(33) Filter
+Input [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
+Condition : ((isnotnull(l_commitdate#X) AND isnotnull(l_receiptdate#X)) AND (l_commitdate#X < l_receiptdate#X))
+
+(34) Project
+Output [1]: [l_orderkey#X]
+Input [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
+
+(35) BroadcastExchange
+Input [1]: [l_orderkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
+
+(36) BroadcastHashJoin
+Left keys [1]: [o_orderkey#X]
+Right keys [1]: [l_orderkey#X]
 Join condition: None
 
-(28) Project
-Output [1]: [o_orderpriority#***]
-Input [2]: [o_orderkey#***, o_orderpriority#***]
+(37) Project
+Output [1]: [o_orderpriority#X]
+Input [2]: [o_orderkey#X, o_orderpriority#X]
 
-(29) HashAggregate
-Input [1]: [o_orderpriority#***]
-Keys [1]: [o_orderpriority#***]
+(38) HashAggregate
+Input [1]: [o_orderpriority#X]
+Keys [1]: [o_orderpriority#X]
 Functions [1]: [partial_count(1)]
-Aggregate Attributes [1]: [count#***]
-Results [2]: [o_orderpriority#***, count#***]
+Aggregate Attributes [1]: [count#X]
+Results [2]: [o_orderpriority#X, count#X]
 
-(30) Exchange
-Input [2]: [o_orderpriority#***, count#***]
-Arguments: hashpartitioning(o_orderpriority#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+(39) Exchange
+Input [2]: [o_orderpriority#X, count#X]
+Arguments: hashpartitioning(o_orderpriority#X, 100), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(31) HashAggregate
-Input [2]: [o_orderpriority#***, count#***]
-Keys [1]: [o_orderpriority#***]
+(40) HashAggregate
+Input [2]: [o_orderpriority#X, count#X]
+Keys [1]: [o_orderpriority#X]
 Functions [1]: [count(1)]
-Aggregate Attributes [1]: [count(1)#***]
-Results [2]: [o_orderpriority#***, count(1)#*** AS order_count#***]
+Aggregate Attributes [1]: [count(1)#X]
+Results [2]: [o_orderpriority#X, count(1)#X AS order_count#X]
 
-(32) Exchange
-Input [2]: [o_orderpriority#***, order_count#***]
-Arguments: rangepartitioning(o_orderpriority#*** ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+(41) Exchange
+Input [2]: [o_orderpriority#X, order_count#X]
+Arguments: rangepartitioning(o_orderpriority#X ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(33) Sort
-Input [2]: [o_orderpriority#***, order_count#***]
-Arguments: [o_orderpriority#*** ASC NULLS FIRST], true, 0
+(42) Sort
+Input [2]: [o_orderpriority#X, order_count#X]
+Arguments: [o_orderpriority#X ASC NULLS FIRST], true, 0
 
-(34) AdaptiveSparkPlan
-Output [2]: [o_orderpriority#***, order_count#***]
+(43) AdaptiveSparkPlan
+Output [2]: [o_orderpriority#X, order_count#X]
 Arguments: isFinalPlan=true
