@@ -89,7 +89,7 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
     _spark
   }
 
-  private[tpc] def sparkMainVersion(): String = {
+  def sparkMainVersion(): String = {
     val version = _spark.version
     val majorVersion = version.substring(0, version.lastIndexOf('.')).replace(".", "")
     majorVersion
