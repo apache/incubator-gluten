@@ -20,18 +20,18 @@ AdaptiveSparkPlan (56)
                                                 :- ^ ProjectExecTransformer (10)
                                                 :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (9)
                                                 :     :- ^ FilterExecTransformer (2)
-                                                :     :  +- ^ Scan parquet default.partsupp (1)
+                                                :     :  +- ^ Scan parquet spark_catalog.default.partsupp (1)
                                                 :     +- ^ InputIteratorTransformer (8)
                                                 :        +- BroadcastQueryStage (7), Statistics(X)
                                                 :           +- ColumnarBroadcastExchange (6)
                                                 :              +- ^ FilterExecTransformer (4)
-                                                :                 +- ^ Scan parquet default.supplier (3)
+                                                :                 +- ^ Scan parquet spark_catalog.default.supplier (3)
                                                 +- ^ InputIteratorTransformer (17)
                                                    +- BroadcastQueryStage (16), Statistics(X)
                                                       +- ColumnarBroadcastExchange (15)
                                                          +- ^ ProjectExecTransformer (13)
                                                             +- ^ FilterExecTransformer (12)
-                                                               +- ^ Scan parquet default.nation (11)
+                                                               +- ^ Scan parquet spark_catalog.default.nation (11)
 +- == Initial Plan ==
    Sort (55)
    +- Exchange (54)
@@ -44,17 +44,17 @@ AdaptiveSparkPlan (56)
                         :- Project (43)
                         :  +- BroadcastHashJoin Inner BuildRight (42)
                         :     :- Filter (38)
-                        :     :  +- Scan parquet default.partsupp (37)
+                        :     :  +- Scan parquet spark_catalog.default.partsupp (37)
                         :     +- BroadcastExchange (41)
                         :        +- Filter (40)
-                        :           +- Scan parquet default.supplier (39)
+                        :           +- Scan parquet spark_catalog.default.supplier (39)
                         +- BroadcastExchange (47)
                            +- Project (46)
                               +- Filter (45)
-                                 +- Scan parquet default.nation (44)
+                                 +- Scan parquet spark_catalog.default.nation (44)
 
 
-(1) Scan parquet default.partsupp
+(1) Scan parquet spark_catalog.default.partsupp
 Output [4]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/partsupp]
@@ -65,7 +65,7 @@ ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint,ps_availqty:int,ps_supply
 Input [4]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Arguments: isnotnull(ps_suppkey#X)
 
-(3) Scan parquet default.supplier
+(3) Scan parquet spark_catalog.default.supplier
 Output [2]: [s_suppkey#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
@@ -96,13 +96,14 @@ Input [2]: [s_suppkey#X, s_nationkey#X]
 (9) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [ps_suppkey#X]
 Right keys [1]: [s_suppkey#X]
+Join type: Inner
 Join condition: None
 
 (10) ProjectExecTransformer
 Input [6]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X, s_suppkey#X, s_nationkey#X]
 Arguments: [ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X]
 
-(11) Scan parquet default.nation
+(11) Scan parquet spark_catalog.default.nation
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
@@ -138,6 +139,7 @@ Input [1]: [n_nationkey#X]
 (18) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
+Join type: Inner
 Join condition: None
 
 (19) ProjectExecTransformer
@@ -147,7 +149,7 @@ Arguments: [ps_partkey#X, ps_availqty#X, ps_supplycost#X]
 (20) FlushableHashAggregateExecTransformer
 Input [3]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X]
 Keys [1]: [ps_partkey#X]
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))]
+Functions [1]: [partial_sum((ps_supplycost#X * cast(ps_availqty#X as decimal(10,0))))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [3]: [ps_partkey#X, sum#X, isEmpty#X]
 
@@ -162,7 +164,7 @@ Native Plan:
 -- Project[expressions: (n12_3:INTEGER, hash_with_seed(42,"n11_2")), (n12_4:BIGINT, "n11_2"), (n12_5:DECIMAL(33, 2), "n11_3"), (n12_6:BOOLEAN, "n11_4")] -> n12_3:INTEGER, n12_4:BIGINT, n12_5:DECIMAL(33, 2), n12_6:BOOLEAN
   -- Project[expressions: (n11_2:BIGINT, "n9_3"), (n11_3:DECIMAL(33, 2), "n10_1"["col_0"]), (n11_4:BOOLEAN, "n10_1"["col_1"])] -> n11_2:BIGINT, n11_3:DECIMAL(33, 2), n11_4:BOOLEAN
     -- Aggregation[PARTIAL [n9_3] n10_1 := sum_partial("n9_4")] -> n9_3:BIGINT, n10_1:ROW<col_0:DECIMAL(33, 2),col_1:BOOLEAN>
-      -- Project[expressions: (n9_3:BIGINT, "n8_5"), (n9_4:DECIMAL(23, 2), try_cast multiply("n8_7",try_cast "n8_6" as DECIMAL(10, 0)) as DECIMAL(23, 2))] -> n9_3:BIGINT, n9_4:DECIMAL(23, 2)
+      -- Project[expressions: (n9_3:BIGINT, "n8_5"), (n9_4:DECIMAL(23, 2), multiply("n8_7",try_cast "n8_6" as DECIMAL(10, 0)))] -> n9_3:BIGINT, n9_4:DECIMAL(23, 2)
         -- Project[expressions: (n8_5:BIGINT, "n7_5"), (n8_6:INTEGER, "n7_6"), (n8_7:DECIMAL(12, 2), "n7_7")] -> n8_5:BIGINT, n8_6:INTEGER, n8_7:DECIMAL(12, 2)
           -- Project[expressions: (n7_5:BIGINT, "n5_6"), (n7_6:INTEGER, "n5_7"), (n7_7:DECIMAL(12, 2), "n5_8"), (n7_8:BIGINT, "n5_9"), (n7_9:BIGINT, "n1_0")] -> n7_5:BIGINT, n7_6:INTEGER, n7_7:DECIMAL(12, 2), n7_8:BIGINT, n7_9:BIGINT
             -- HashJoin[INNER n5_9=n1_0] -> n5_6:BIGINT, n5_7:INTEGER, n5_8:DECIMAL(12, 2), n5_9:BIGINT, n1_0:BIGINT
@@ -191,9 +193,9 @@ Input [3]: [ps_partkey#X, sum#X, isEmpty#X]
 (27) RegularHashAggregateExecTransformer
 Input [3]: [ps_partkey#X, sum#X, isEmpty#X]
 Keys [1]: [ps_partkey#X]
-Functions [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X]
-Results [2]: [ps_partkey#X, sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X AS value#X]
+Functions [1]: [sum((ps_supplycost#X * cast(ps_availqty#X as decimal(10,0))))]
+Aggregate Attributes [1]: [sum((ps_supplycost#X * cast(ps_availqty#X as decimal(10,0))))#X]
+Results [2]: [ps_partkey#X, sum((ps_supplycost#X * cast(ps_availqty#X as decimal(10,0))))#X AS value#X]
 
 (28) FilterExecTransformer
 Input [2]: [ps_partkey#X, value#X]
@@ -238,7 +240,7 @@ Native Plan:
 (36) VeloxColumnarToRowExec
 Input [2]: [ps_partkey#X, value#X]
 
-(37) Scan parquet default.partsupp
+(37) Scan parquet spark_catalog.default.partsupp
 Output [4]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/partsupp]
@@ -249,7 +251,7 @@ ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint,ps_availqty:int,ps_supply
 Input [4]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Condition : isnotnull(ps_suppkey#X)
 
-(39) Scan parquet default.supplier
+(39) Scan parquet spark_catalog.default.supplier
 Output [2]: [s_suppkey#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
@@ -267,13 +269,14 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 (42) BroadcastHashJoin
 Left keys [1]: [ps_suppkey#X]
 Right keys [1]: [s_suppkey#X]
+Join type: Inner
 Join condition: None
 
 (43) Project
 Output [4]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X]
 Input [6]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X, s_suppkey#X, s_nationkey#X]
 
-(44) Scan parquet default.nation
+(44) Scan parquet spark_catalog.default.nation
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
@@ -295,6 +298,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 (48) BroadcastHashJoin
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
+Join type: Inner
 Join condition: None
 
 (49) Project
@@ -304,7 +308,7 @@ Input [5]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X, n_natio
 (50) HashAggregate
 Input [3]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X]
 Keys [1]: [ps_partkey#X]
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))]
+Functions [1]: [partial_sum((ps_supplycost#X * cast(ps_availqty#X as decimal(10,0))))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [3]: [ps_partkey#X, sum#X, isEmpty#X]
 
@@ -315,9 +319,9 @@ Arguments: hashpartitioning(ps_partkey#X, 100), ENSURE_REQUIREMENTS, [plan_id=X]
 (52) HashAggregate
 Input [3]: [ps_partkey#X, sum#X, isEmpty#X]
 Keys [1]: [ps_partkey#X]
-Functions [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X]
-Results [2]: [ps_partkey#X, sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X AS value#X]
+Functions [1]: [sum((ps_supplycost#X * cast(ps_availqty#X as decimal(10,0))))]
+Aggregate Attributes [1]: [sum((ps_supplycost#X * cast(ps_availqty#X as decimal(10,0))))#X]
+Results [2]: [ps_partkey#X, sum((ps_supplycost#X * cast(ps_availqty#X as decimal(10,0))))#X AS value#X]
 
 (53) Filter
 Input [2]: [ps_partkey#X, value#X]
@@ -351,7 +355,7 @@ AdaptiveSparkPlan (93)
                         :- ^ ProjectExecTransformer (63)
                         :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (62)
                         :     :- ^ FilterExecTransformer (58)
-                        :     :  +- ^ Scan parquet default.partsupp (57)
+                        :     :  +- ^ Scan parquet spark_catalog.default.partsupp (57)
                         :     +- ^ InputIteratorTransformer (61)
                         :        +- BroadcastQueryStage (60), Statistics(X)
                         :           +- ReusedExchange (59)
@@ -367,17 +371,17 @@ AdaptiveSparkPlan (93)
                :- Project (83)
                :  +- BroadcastHashJoin Inner BuildRight (82)
                :     :- Filter (78)
-               :     :  +- Scan parquet default.partsupp (77)
+               :     :  +- Scan parquet spark_catalog.default.partsupp (77)
                :     +- BroadcastExchange (81)
                :        +- Filter (80)
-               :           +- Scan parquet default.supplier (79)
+               :           +- Scan parquet spark_catalog.default.supplier (79)
                +- BroadcastExchange (87)
                   +- Project (86)
                      +- Filter (85)
-                        +- Scan parquet default.nation (84)
+                        +- Scan parquet spark_catalog.default.nation (84)
 
 
-(57) Scan parquet default.partsupp
+(57) Scan parquet spark_catalog.default.partsupp
 Output [3]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/partsupp]
@@ -401,6 +405,7 @@ Input [2]: [s_suppkey#X, s_nationkey#X]
 (62) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [ps_suppkey#X]
 Right keys [1]: [s_suppkey#X]
+Join type: Inner
 Join condition: None
 
 (63) ProjectExecTransformer
@@ -420,6 +425,7 @@ Input [1]: [n_nationkey#X]
 (67) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
+Join type: Inner
 Join condition: None
 
 (68) ProjectExecTransformer
@@ -429,7 +435,7 @@ Arguments: [ps_availqty#X, ps_supplycost#X]
 (69) FlushableHashAggregateExecTransformer
 Input [2]: [ps_availqty#X, ps_supplycost#X]
 Keys: []
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))]
+Functions [1]: [partial_sum((ps_supplycost#X * cast(ps_availqty#X as decimal(10,0))))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [2]: [sum#X, isEmpty#X]
 
@@ -439,7 +445,7 @@ Arguments: false
 Native Plan:
 -- Project[expressions: (n11_1:DECIMAL(33, 2), "n10_0"["col_0"]), (n11_2:BOOLEAN, "n10_0"["col_1"])] -> n11_1:DECIMAL(33, 2), n11_2:BOOLEAN
   -- Aggregation[PARTIAL n10_0 := sum_partial("n9_2")] -> n10_0:ROW<col_0:DECIMAL(33, 2),col_1:BOOLEAN>
-    -- Project[expressions: (n9_2:DECIMAL(23, 2), try_cast multiply("n8_5",try_cast "n8_4" as DECIMAL(10, 0)) as DECIMAL(23, 2))] -> n9_2:DECIMAL(23, 2)
+    -- Project[expressions: (n9_2:DECIMAL(23, 2), multiply("n8_5",try_cast "n8_4" as DECIMAL(10, 0)))] -> n9_2:DECIMAL(23, 2)
       -- Project[expressions: (n8_4:INTEGER, "n7_4"), (n8_5:DECIMAL(12, 2), "n7_5")] -> n8_4:INTEGER, n8_5:DECIMAL(12, 2)
         -- Project[expressions: (n7_4:INTEGER, "n5_5"), (n7_5:DECIMAL(12, 2), "n5_6"), (n7_6:BIGINT, "n5_7"), (n7_7:BIGINT, "n1_0")] -> n7_4:INTEGER, n7_5:DECIMAL(12, 2), n7_6:BIGINT, n7_7:BIGINT
           -- HashJoin[INNER n5_7=n1_0] -> n5_5:INTEGER, n5_6:DECIMAL(12, 2), n5_7:BIGINT, n1_0:BIGINT
@@ -464,15 +470,15 @@ Input [2]: [sum#X, isEmpty#X]
 (74) RegularHashAggregateExecTransformer
 Input [2]: [sum#X, isEmpty#X]
 Keys: []
-Functions [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X]
-Results [1]: [CheckOverflow((promote_precision(cast(sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X as decimal(38,10))) * 0.0001000000), DecimalType(38,6)) AS (sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]
+Functions [1]: [sum((ps_supplycost#X * cast(ps_availqty#X as decimal(10,0))))]
+Aggregate Attributes [1]: [sum((ps_supplycost#X * cast(ps_availqty#X as decimal(10,0))))#X]
+Results [1]: [(sum((ps_supplycost#X * cast(ps_availqty#X as decimal(10,0))))#X * 0.0001000000) AS (sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]
 
 (75) WholeStageCodegenTransformer (X)
 Input [1]: [(sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]
 Arguments: false
 Native Plan:
--- Project[expressions: (n3_1:DECIMAL(38, 6), try_cast multiply("n2_0",0.0001000000) as DECIMAL(38, 6))] -> n3_1:DECIMAL(38, 6)
+-- Project[expressions: (n3_1:DECIMAL(38, 6), multiply("n2_0",0.0001000000))] -> n3_1:DECIMAL(38, 6)
   -- Aggregation[SINGLE n2_0 := sum_merge_extract("n1_2")] -> n2_0:DECIMAL(33, 2)
     -- Project[expressions: (n1_2:ROW<col_0:DECIMAL(33, 2),col_1:BOOLEAN>, row_constructor("n0_0","n0_1"))] -> n1_2:ROW<col_0:DECIMAL(33, 2),col_1:BOOLEAN>
       -- ValueStream[] -> n0_0:DECIMAL(33, 2), n0_1:BOOLEAN
@@ -480,7 +486,7 @@ Native Plan:
 (76) VeloxColumnarToRowExec
 Input [1]: [(sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]
 
-(77) Scan parquet default.partsupp
+(77) Scan parquet spark_catalog.default.partsupp
 Output [3]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/partsupp]
@@ -491,7 +497,7 @@ ReadSchema: struct<ps_suppkey:bigint,ps_availqty:int,ps_supplycost:decimal(12,2)
 Input [3]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Condition : isnotnull(ps_suppkey#X)
 
-(79) Scan parquet default.supplier
+(79) Scan parquet spark_catalog.default.supplier
 Output [2]: [s_suppkey#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
@@ -509,13 +515,14 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 (82) BroadcastHashJoin
 Left keys [1]: [ps_suppkey#X]
 Right keys [1]: [s_suppkey#X]
+Join type: Inner
 Join condition: None
 
 (83) Project
 Output [3]: [ps_availqty#X, ps_supplycost#X, s_nationkey#X]
 Input [5]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X, s_suppkey#X, s_nationkey#X]
 
-(84) Scan parquet default.nation
+(84) Scan parquet spark_catalog.default.nation
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
@@ -537,6 +544,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 (88) BroadcastHashJoin
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
+Join type: Inner
 Join condition: None
 
 (89) Project
@@ -546,7 +554,7 @@ Input [4]: [ps_availqty#X, ps_supplycost#X, s_nationkey#X, n_nationkey#X]
 (90) HashAggregate
 Input [2]: [ps_availqty#X, ps_supplycost#X]
 Keys: []
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))]
+Functions [1]: [partial_sum((ps_supplycost#X * cast(ps_availqty#X as decimal(10,0))))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [2]: [sum#X, isEmpty#X]
 
@@ -557,9 +565,9 @@ Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X]
 (92) HashAggregate
 Input [2]: [sum#X, isEmpty#X]
 Keys: []
-Functions [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X]
-Results [1]: [CheckOverflow((promote_precision(cast(sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X as decimal(38,10))) * 0.0001000000), DecimalType(38,6)) AS (sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]
+Functions [1]: [sum((ps_supplycost#X * cast(ps_availqty#X as decimal(10,0))))]
+Aggregate Attributes [1]: [sum((ps_supplycost#X * cast(ps_availqty#X as decimal(10,0))))#X]
+Results [1]: [(sum((ps_supplycost#X * cast(ps_availqty#X as decimal(10,0))))#X * 0.0001000000) AS (sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]
 
 (93) AdaptiveSparkPlan
 Output [1]: [(sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]

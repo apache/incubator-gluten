@@ -17,24 +17,24 @@ AdaptiveSparkPlan (63)
                                  :     :- ^ ProjectExecTransformer (11)
                                  :     :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (10)
                                  :     :     :- ^ FilterExecTransformer (2)
-                                 :     :     :  +- ^ Scan parquet default.customer (1)
+                                 :     :     :  +- ^ Scan parquet spark_catalog.default.customer (1)
                                  :     :     +- ^ InputIteratorTransformer (9)
                                  :     :        +- BroadcastQueryStage (8), Statistics(X)
                                  :     :           +- ColumnarBroadcastExchange (7)
                                  :     :              +- ^ ProjectExecTransformer (5)
                                  :     :                 +- ^ FilterExecTransformer (4)
-                                 :     :                    +- ^ Scan parquet default.orders (3)
+                                 :     :                    +- ^ Scan parquet spark_catalog.default.orders (3)
                                  :     +- ^ InputIteratorTransformer (18)
                                  :        +- BroadcastQueryStage (17), Statistics(X)
                                  :           +- ColumnarBroadcastExchange (16)
                                  :              +- ^ ProjectExecTransformer (14)
                                  :                 +- ^ FilterExecTransformer (13)
-                                 :                    +- ^ Scan parquet default.lineitem (12)
+                                 :                    +- ^ Scan parquet spark_catalog.default.lineitem (12)
                                  +- ^ InputIteratorTransformer (26)
                                     +- BroadcastQueryStage (25), Statistics(X)
                                        +- ColumnarBroadcastExchange (24)
                                           +- ^ FilterExecTransformer (22)
-                                             +- ^ Scan parquet default.nation (21)
+                                             +- ^ Scan parquet spark_catalog.default.nation (21)
 +- == Initial Plan ==
    TakeOrderedAndProject (62)
    +- HashAggregate (61)
@@ -47,21 +47,21 @@ AdaptiveSparkPlan (63)
                   :     :- Project (47)
                   :     :  +- BroadcastHashJoin Inner BuildRight (46)
                   :     :     :- Filter (41)
-                  :     :     :  +- Scan parquet default.customer (40)
+                  :     :     :  +- Scan parquet spark_catalog.default.customer (40)
                   :     :     +- BroadcastExchange (45)
                   :     :        +- Project (44)
                   :     :           +- Filter (43)
-                  :     :              +- Scan parquet default.orders (42)
+                  :     :              +- Scan parquet spark_catalog.default.orders (42)
                   :     +- BroadcastExchange (51)
                   :        +- Project (50)
                   :           +- Filter (49)
-                  :              +- Scan parquet default.lineitem (48)
+                  :              +- Scan parquet spark_catalog.default.lineitem (48)
                   +- BroadcastExchange (56)
                      +- Filter (55)
-                        +- Scan parquet default.nation (54)
+                        +- Scan parquet spark_catalog.default.nation (54)
 
 
-(1) Scan parquet default.customer
+(1) Scan parquet spark_catalog.default.customer
 Output [7]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
@@ -72,7 +72,7 @@ ReadSchema: struct<c_custkey:bigint,c_name:string,c_address:string,c_nationkey:b
 Input [7]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X]
 Arguments: (isnotnull(c_custkey#X) AND isnotnull(c_nationkey#X))
 
-(3) Scan parquet default.orders
+(3) Scan parquet spark_catalog.default.orders
 Output [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
@@ -108,13 +108,14 @@ Input [2]: [o_orderkey#X, o_custkey#X]
 (10) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
+Join type: Inner
 Join condition: None
 
 (11) ProjectExecTransformer
 Input [9]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X, o_orderkey#X, o_custkey#X]
 Arguments: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X, o_orderkey#X]
 
-(12) Scan parquet default.lineitem
+(12) Scan parquet spark_catalog.default.lineitem
 Output [4]: [l_orderkey#X, l_extendedprice#X, l_discount#X, l_returnflag#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -150,13 +151,14 @@ Input [3]: [l_orderkey#X, l_extendedprice#X, l_discount#X]
 (19) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
+Join type: Inner
 Join condition: None
 
 (20) ProjectExecTransformer
 Input [11]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X, o_orderkey#X, l_orderkey#X, l_extendedprice#X, l_discount#X]
 Arguments: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X, l_extendedprice#X, l_discount#X]
 
-(21) Scan parquet default.nation
+(21) Scan parquet spark_catalog.default.nation
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
@@ -187,6 +189,7 @@ Input [2]: [n_nationkey#X, n_name#X]
 (27) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [c_nationkey#X]
 Right keys [1]: [n_nationkey#X]
+Join type: Inner
 Join condition: None
 
 (28) ProjectExecTransformer
@@ -196,7 +199,7 @@ Arguments: [c_custkey#X, c_name#X, c_address#X, c_phone#X, c_acctbal#X, c_commen
 (29) FlushableHashAggregateExecTransformer
 Input [9]: [c_custkey#X, c_name#X, c_address#X, c_phone#X, c_acctbal#X, c_comment#X, l_extendedprice#X, l_discount#X, n_name#X]
 Keys [7]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X]
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Functions [1]: [partial_sum((l_extendedprice#X * (1 - l_discount#X)))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [9]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X, sum#X, isEmpty#X]
 
@@ -211,7 +214,7 @@ Native Plan:
 -- Project[expressions: (n16_9:INTEGER, hash_with_seed(42,"n15_8","n15_9","n15_10","n15_11","n15_12","n15_13","n15_14")), (n16_10:BIGINT, "n15_8"), (n16_11:VARCHAR, "n15_9"), (n16_12:DECIMAL(12, 2), "n15_10"), (n16_13:VARCHAR, "n15_11"), (n16_14:VARCHAR, "n15_12"), (n16_15:VARCHAR, "n15_13"), (n16_16:VARCHAR, "n15_14"), (n16_17:DECIMAL(36, 4), "n15_15"), (n16_18:BOOLEAN, "n15_16")] -> n16_9:INTEGER, n16_10:BIGINT, n16_11:VARCHAR, n16_12:DECIMAL(12, 2), n16_13:VARCHAR, n16_14:VARCHAR, n16_15:VARCHAR, n16_16:VARCHAR, n16_17:DECIMAL(36, 4), n16_18:BOOLEAN
   -- Project[expressions: (n15_8:BIGINT, "n13_9"), (n15_9:VARCHAR, "n13_10"), (n15_10:DECIMAL(12, 2), "n13_11"), (n15_11:VARCHAR, "n13_12"), (n15_12:VARCHAR, "n13_13"), (n15_13:VARCHAR, "n13_14"), (n15_14:VARCHAR, "n13_15"), (n15_15:DECIMAL(36, 4), "n14_7"["col_0"]), (n15_16:BOOLEAN, "n14_7"["col_1"])] -> n15_8:BIGINT, n15_9:VARCHAR, n15_10:DECIMAL(12, 2), n15_11:VARCHAR, n15_12:VARCHAR, n15_13:VARCHAR, n15_14:VARCHAR, n15_15:DECIMAL(36, 4), n15_16:BOOLEAN
     -- Aggregation[PARTIAL [n13_9, n13_10, n13_11, n13_12, n13_13, n13_14, n13_15] n14_7 := sum_partial("n13_16")] -> n13_9:BIGINT, n13_10:VARCHAR, n13_11:DECIMAL(12, 2), n13_12:VARCHAR, n13_13:VARCHAR, n13_14:VARCHAR, n13_15:VARCHAR, n14_7:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>
-      -- Project[expressions: (n13_9:BIGINT, "n12_11"), (n13_10:VARCHAR, "n12_12"), (n13_11:DECIMAL(12, 2), "n12_15"), (n13_12:VARCHAR, "n12_14"), (n13_13:VARCHAR, "n12_19"), (n13_14:VARCHAR, "n12_13"), (n13_15:VARCHAR, "n12_16"), (n13_16:DECIMAL(26, 4), try_cast multiply("n12_17",try_cast subtract(try_cast 1.00 as DECIMAL(1, 0),"n12_18") as DECIMAL(13, 2)) as DECIMAL(26, 4))] -> n13_9:BIGINT, n13_10:VARCHAR, n13_11:DECIMAL(12, 2), n13_12:VARCHAR, n13_13:VARCHAR, n13_14:VARCHAR, n13_15:VARCHAR, n13_16:DECIMAL(26, 4)
+      -- Project[expressions: (n13_9:BIGINT, "n12_11"), (n13_10:VARCHAR, "n12_12"), (n13_11:DECIMAL(12, 2), "n12_15"), (n13_12:VARCHAR, "n12_14"), (n13_13:VARCHAR, "n12_19"), (n13_14:VARCHAR, "n12_13"), (n13_15:VARCHAR, "n12_16"), (n13_16:DECIMAL(26, 4), multiply("n12_17",subtract(1,"n12_18")))] -> n13_9:BIGINT, n13_10:VARCHAR, n13_11:DECIMAL(12, 2), n13_12:VARCHAR, n13_13:VARCHAR, n13_14:VARCHAR, n13_15:VARCHAR, n13_16:DECIMAL(26, 4)
         -- Project[expressions: (n12_11:BIGINT, "n11_11"), (n12_12:VARCHAR, "n11_12"), (n12_13:VARCHAR, "n11_13"), (n12_14:VARCHAR, "n11_15"), (n12_15:DECIMAL(12, 2), "n11_16"), (n12_16:VARCHAR, "n11_17"), (n12_17:DECIMAL(12, 2), "n11_18"), (n12_18:DECIMAL(12, 2), "n11_19"), (n12_19:VARCHAR, "n11_21")] -> n12_11:BIGINT, n12_12:VARCHAR, n12_13:VARCHAR, n12_14:VARCHAR, n12_15:DECIMAL(12, 2), n12_16:VARCHAR, n12_17:DECIMAL(12, 2), n12_18:DECIMAL(12, 2), n12_19:VARCHAR
           -- Project[expressions: (n11_11:BIGINT, "n9_11"), (n11_12:VARCHAR, "n9_12"), (n11_13:VARCHAR, "n9_13"), (n11_14:BIGINT, "n9_14"), (n11_15:VARCHAR, "n9_15"), (n11_16:DECIMAL(12, 2), "n9_16"), (n11_17:VARCHAR, "n9_17"), (n11_18:DECIMAL(12, 2), "n9_18"), (n11_19:DECIMAL(12, 2), "n9_19"), (n11_20:BIGINT, "n2_0"), (n11_21:VARCHAR, "n2_1")] -> n11_11:BIGINT, n11_12:VARCHAR, n11_13:VARCHAR, n11_14:BIGINT, n11_15:VARCHAR, n11_16:DECIMAL(12, 2), n11_17:VARCHAR, n11_18:DECIMAL(12, 2), n11_19:DECIMAL(12, 2), n11_20:BIGINT, n11_21:VARCHAR
             -- HashJoin[INNER n9_14=n2_0] -> n9_11:BIGINT, n9_12:VARCHAR, n9_13:VARCHAR, n9_14:BIGINT, n9_15:VARCHAR, n9_16:DECIMAL(12, 2), n9_17:VARCHAR, n9_18:DECIMAL(12, 2), n9_19:DECIMAL(12, 2), n2_0:BIGINT, n2_1:VARCHAR
@@ -244,9 +247,9 @@ Input [9]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X
 (36) RegularHashAggregateExecTransformer
 Input [9]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X, sum#X, isEmpty#X]
 Keys [7]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X]
-Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
-Results [8]: [c_custkey#X, c_name#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
+Functions [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))]
+Aggregate Attributes [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))#X]
+Results [8]: [c_custkey#X, c_name#X, sum((l_extendedprice#X * (1 - l_discount#X)))#X AS revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
 
 (37) WholeStageCodegenTransformer (X)
 Input [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
@@ -264,7 +267,7 @@ Arguments: 20, [revenue#X DESC NULLS LAST], [c_custkey#X, c_name#X, revenue#X, c
 (39) VeloxColumnarToRowExec
 Input [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
 
-(40) Scan parquet default.customer
+(40) Scan parquet spark_catalog.default.customer
 Output [7]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
@@ -275,7 +278,7 @@ ReadSchema: struct<c_custkey:bigint,c_name:string,c_address:string,c_nationkey:b
 Input [7]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X]
 Condition : (isnotnull(c_custkey#X) AND isnotnull(c_nationkey#X))
 
-(42) Scan parquet default.orders
+(42) Scan parquet spark_catalog.default.orders
 Output [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
@@ -297,13 +300,14 @@ Arguments: HashedRelationBroadcastMode(List(input[1, bigint, true]),false), [pla
 (46) BroadcastHashJoin
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
+Join type: Inner
 Join condition: None
 
 (47) Project
 Output [8]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X, o_orderkey#X]
 Input [9]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X, o_orderkey#X, o_custkey#X]
 
-(48) Scan parquet default.lineitem
+(48) Scan parquet spark_catalog.default.lineitem
 Output [4]: [l_orderkey#X, l_extendedprice#X, l_discount#X, l_returnflag#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -325,13 +329,14 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 (52) BroadcastHashJoin
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
+Join type: Inner
 Join condition: None
 
 (53) Project
 Output [9]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X, l_extendedprice#X, l_discount#X]
 Input [11]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X, o_orderkey#X, l_orderkey#X, l_extendedprice#X, l_discount#X]
 
-(54) Scan parquet default.nation
+(54) Scan parquet spark_catalog.default.nation
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
@@ -349,6 +354,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 (57) BroadcastHashJoin
 Left keys [1]: [c_nationkey#X]
 Right keys [1]: [n_nationkey#X]
+Join type: Inner
 Join condition: None
 
 (58) Project
@@ -358,7 +364,7 @@ Input [11]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acc
 (59) HashAggregate
 Input [9]: [c_custkey#X, c_name#X, c_address#X, c_phone#X, c_acctbal#X, c_comment#X, l_extendedprice#X, l_discount#X, n_name#X]
 Keys [7]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X]
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Functions [1]: [partial_sum((l_extendedprice#X * (1 - l_discount#X)))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [9]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X, sum#X, isEmpty#X]
 
@@ -369,9 +375,9 @@ Arguments: hashpartitioning(c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_nam
 (61) HashAggregate
 Input [9]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X, sum#X, isEmpty#X]
 Keys [7]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X]
-Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
-Results [8]: [c_custkey#X, c_name#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
+Functions [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))]
+Aggregate Attributes [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))#X]
+Results [8]: [c_custkey#X, c_name#X, sum((l_extendedprice#X * (1 - l_discount#X)))#X AS revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
 
 (62) TakeOrderedAndProject
 Input [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]

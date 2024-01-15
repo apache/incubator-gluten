@@ -33,40 +33,40 @@ AdaptiveSparkPlan (121)
                                              :     :     :     :     :     :     :     +- ColumnarBroadcastExchange (5)
                                              :     :     :     :     :     :     :        +- ^ ProjectExecTransformer (3)
                                              :     :     :     :     :     :     :           +- ^ FilterExecTransformer (2)
-                                             :     :     :     :     :     :     :              +- ^ Scan parquet default.part (1)
+                                             :     :     :     :     :     :     :              +- ^ Scan parquet spark_catalog.default.part (1)
                                              :     :     :     :     :     :     +- ^ FilterExecTransformer (9)
-                                             :     :     :     :     :     :        +- ^ Scan parquet default.lineitem (8)
+                                             :     :     :     :     :     :        +- ^ Scan parquet spark_catalog.default.lineitem (8)
                                              :     :     :     :     :     +- ^ InputIteratorTransformer (17)
                                              :     :     :     :     :        +- BroadcastQueryStage (16), Statistics(X)
                                              :     :     :     :     :           +- ColumnarBroadcastExchange (15)
                                              :     :     :     :     :              +- ^ FilterExecTransformer (13)
-                                             :     :     :     :     :                 +- ^ Scan parquet default.supplier (12)
+                                             :     :     :     :     :                 +- ^ Scan parquet spark_catalog.default.supplier (12)
                                              :     :     :     :     +- ^ InputIteratorTransformer (25)
                                              :     :     :     :        +- BroadcastQueryStage (24), Statistics(X)
                                              :     :     :     :           +- ColumnarBroadcastExchange (23)
                                              :     :     :     :              +- ^ FilterExecTransformer (21)
-                                             :     :     :     :                 +- ^ Scan parquet default.orders (20)
+                                             :     :     :     :                 +- ^ Scan parquet spark_catalog.default.orders (20)
                                              :     :     :     +- ^ InputIteratorTransformer (33)
                                              :     :     :        +- BroadcastQueryStage (32), Statistics(X)
                                              :     :     :           +- ColumnarBroadcastExchange (31)
                                              :     :     :              +- ^ FilterExecTransformer (29)
-                                             :     :     :                 +- ^ Scan parquet default.customer (28)
+                                             :     :     :                 +- ^ Scan parquet spark_catalog.default.customer (28)
                                              :     :     +- ^ InputIteratorTransformer (41)
                                              :     :        +- BroadcastQueryStage (40), Statistics(X)
                                              :     :           +- ColumnarBroadcastExchange (39)
                                              :     :              +- ^ FilterExecTransformer (37)
-                                             :     :                 +- ^ Scan parquet default.nation (36)
+                                             :     :                 +- ^ Scan parquet spark_catalog.default.nation (36)
                                              :     +- ^ InputIteratorTransformer (49)
                                              :        +- BroadcastQueryStage (48), Statistics(X)
                                              :           +- ColumnarBroadcastExchange (47)
                                              :              +- ^ FilterExecTransformer (45)
-                                             :                 +- ^ Scan parquet default.nation (44)
+                                             :                 +- ^ Scan parquet spark_catalog.default.nation (44)
                                              +- ^ InputIteratorTransformer (58)
                                                 +- BroadcastQueryStage (57), Statistics(X)
                                                    +- ColumnarBroadcastExchange (56)
                                                       +- ^ ProjectExecTransformer (54)
                                                          +- ^ FilterExecTransformer (53)
-                                                            +- ^ Scan parquet default.region (52)
+                                                            +- ^ Scan parquet spark_catalog.default.region (52)
 +- == Initial Plan ==
    Sort (120)
    +- Exchange (119)
@@ -90,31 +90,31 @@ AdaptiveSparkPlan (121)
                      :     :     :     :     :     :     :- BroadcastExchange (80)
                      :     :     :     :     :     :     :  +- Project (79)
                      :     :     :     :     :     :     :     +- Filter (78)
-                     :     :     :     :     :     :     :        +- Scan parquet default.part (77)
+                     :     :     :     :     :     :     :        +- Scan parquet spark_catalog.default.part (77)
                      :     :     :     :     :     :     +- Filter (82)
-                     :     :     :     :     :     :        +- Scan parquet default.lineitem (81)
+                     :     :     :     :     :     :        +- Scan parquet spark_catalog.default.lineitem (81)
                      :     :     :     :     :     +- BroadcastExchange (87)
                      :     :     :     :     :        +- Filter (86)
-                     :     :     :     :     :           +- Scan parquet default.supplier (85)
+                     :     :     :     :     :           +- Scan parquet spark_catalog.default.supplier (85)
                      :     :     :     :     +- BroadcastExchange (92)
                      :     :     :     :        +- Filter (91)
-                     :     :     :     :           +- Scan parquet default.orders (90)
+                     :     :     :     :           +- Scan parquet spark_catalog.default.orders (90)
                      :     :     :     +- BroadcastExchange (97)
                      :     :     :        +- Filter (96)
-                     :     :     :           +- Scan parquet default.customer (95)
+                     :     :     :           +- Scan parquet spark_catalog.default.customer (95)
                      :     :     +- BroadcastExchange (102)
                      :     :        +- Filter (101)
-                     :     :           +- Scan parquet default.nation (100)
+                     :     :           +- Scan parquet spark_catalog.default.nation (100)
                      :     +- BroadcastExchange (107)
                      :        +- Filter (106)
-                     :           +- Scan parquet default.nation (105)
+                     :           +- Scan parquet spark_catalog.default.nation (105)
                      +- BroadcastExchange (113)
                         +- Project (112)
                            +- Filter (111)
-                              +- Scan parquet default.region (110)
+                              +- Scan parquet spark_catalog.default.region (110)
 
 
-(1) Scan parquet default.part
+(1) Scan parquet spark_catalog.default.part
 Output [2]: [p_partkey#X, p_type#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/part]
@@ -147,7 +147,7 @@ Arguments: 0
 (7) InputIteratorTransformer
 Input [1]: [p_partkey#X]
 
-(8) Scan parquet default.lineitem
+(8) Scan parquet spark_catalog.default.lineitem
 Output [5]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -161,13 +161,14 @@ Arguments: ((isnotnull(l_partkey#X) AND isnotnull(l_suppkey#X)) AND isnotnull(l_
 (10) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [p_partkey#X]
 Right keys [1]: [l_partkey#X]
+Join type: Inner
 Join condition: None
 
 (11) ProjectExecTransformer
 Input [6]: [p_partkey#X, l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Arguments: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 
-(12) Scan parquet default.supplier
+(12) Scan parquet spark_catalog.default.supplier
 Output [2]: [s_suppkey#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
@@ -198,13 +199,14 @@ Input [2]: [s_suppkey#X, s_nationkey#X]
 (18) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [l_suppkey#X]
 Right keys [1]: [s_suppkey#X]
+Join type: Inner
 Join condition: None
 
 (19) ProjectExecTransformer
 Input [6]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X, s_suppkey#X, s_nationkey#X]
 Arguments: [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
 
-(20) Scan parquet default.orders
+(20) Scan parquet spark_catalog.default.orders
 Output [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
@@ -235,13 +237,14 @@ Input [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
 (26) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [o_orderkey#X]
+Join type: Inner
 Join condition: None
 
 (27) ProjectExecTransformer
 Input [7]: [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderkey#X, o_custkey#X, o_orderdate#X]
 Arguments: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X]
 
-(28) Scan parquet default.customer
+(28) Scan parquet spark_catalog.default.customer
 Output [2]: [c_custkey#X, c_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
@@ -272,13 +275,14 @@ Input [2]: [c_custkey#X, c_nationkey#X]
 (34) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [o_custkey#X]
 Right keys [1]: [c_custkey#X]
+Join type: Inner
 Join condition: None
 
 (35) ProjectExecTransformer
 Input [7]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X, c_custkey#X, c_nationkey#X]
 Arguments: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X]
 
-(36) Scan parquet default.nation
+(36) Scan parquet spark_catalog.default.nation
 Output [2]: [n_nationkey#X, n_regionkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
@@ -309,13 +313,14 @@ Input [2]: [n_nationkey#X, n_regionkey#X]
 (42) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [c_nationkey#X]
 Right keys [1]: [n_nationkey#X]
+Join type: Inner
 Join condition: None
 
 (43) ProjectExecTransformer
 Input [7]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X, n_nationkey#X, n_regionkey#X]
 Arguments: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X]
 
-(44) Scan parquet default.nation
+(44) Scan parquet spark_catalog.default.nation
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
@@ -346,13 +351,14 @@ Input [2]: [n_nationkey#X, n_name#X]
 (50) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
+Join type: Inner
 Join condition: None
 
 (51) ProjectExecTransformer
 Input [7]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X, n_nationkey#X, n_name#X]
 Arguments: [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X]
 
-(52) Scan parquet default.region
+(52) Scan parquet spark_catalog.default.region
 Output [2]: [r_regionkey#X, r_name#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/region]
@@ -388,11 +394,12 @@ Input [1]: [r_regionkey#X]
 (59) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [n_regionkey#X]
 Right keys [1]: [r_regionkey#X]
+Join type: Inner
 Join condition: None
 
 (60) ProjectExecTransformer
 Input [6]: [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X, r_regionkey#X]
-Arguments: [year(o_orderdate#X) AS o_year#X, CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) AS volume#X, n_name#X AS nation#X]
+Arguments: [year(o_orderdate#X) AS o_year#X, (l_extendedprice#X * (1 - l_discount#X)) AS volume#X, n_name#X AS nation#X]
 
 (61) FlushableHashAggregateExecTransformer
 Input [3]: [o_year#X, volume#X, nation#X]
@@ -413,7 +420,7 @@ Native Plan:
   -- Project[expressions: (n31_3:INTEGER, "n29_3"), (n31_4:DECIMAL(36, 4), "n30_1"["col_0"]), (n31_5:BOOLEAN, "n30_1"["col_1"]), (n31_6:DECIMAL(36, 4), "n30_2"["col_0"]), (n31_7:BOOLEAN, "n30_2"["col_1"])] -> n31_3:INTEGER, n31_4:DECIMAL(36, 4), n31_5:BOOLEAN, n31_6:DECIMAL(36, 4), n31_7:BOOLEAN
     -- Aggregation[PARTIAL [n29_3] n30_1 := sum_partial("n29_4"), n30_2 := sum_partial("n29_5")] -> n29_3:INTEGER, n30_1:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>, n30_2:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>
       -- Project[expressions: (n29_3:INTEGER, "n28_6"), (n29_4:DECIMAL(26, 4), if(equalto("n28_8","BRAZIL"),"n28_7",0.0000)), (n29_5:DECIMAL(26, 4), "n28_7")] -> n29_3:INTEGER, n29_4:DECIMAL(26, 4), n29_5:DECIMAL(26, 4)
-        -- Project[expressions: (n28_6:INTEGER, year("n27_8")), (n28_7:DECIMAL(26, 4), try_cast multiply("n27_6",try_cast subtract(try_cast 1.00 as DECIMAL(1, 0),"n27_7") as DECIMAL(13, 2)) as DECIMAL(26, 4)), (n28_8:VARCHAR, "n27_10")] -> n28_6:INTEGER, n28_7:DECIMAL(26, 4), n28_8:VARCHAR
+        -- Project[expressions: (n28_6:INTEGER, year("n27_8")), (n28_7:DECIMAL(26, 4), multiply("n27_6",subtract(1,"n27_7"))), (n28_8:VARCHAR, "n27_10")] -> n28_6:INTEGER, n28_7:DECIMAL(26, 4), n28_8:VARCHAR
           -- Project[expressions: (n27_6:DECIMAL(12, 2), "n25_7"), (n27_7:DECIMAL(12, 2), "n25_8"), (n27_8:DATE, "n25_9"), (n27_9:BIGINT, "n25_10"), (n27_10:VARCHAR, "n25_11"), (n27_11:BIGINT, "n6_0")] -> n27_6:DECIMAL(12, 2), n27_7:DECIMAL(12, 2), n27_8:DATE, n27_9:BIGINT, n27_10:VARCHAR, n27_11:BIGINT
             -- HashJoin[INNER n25_10=n6_0] -> n25_7:DECIMAL(12, 2), n25_8:DECIMAL(12, 2), n25_9:DATE, n25_10:BIGINT, n25_11:VARCHAR, n6_0:BIGINT
               -- Project[expressions: (n25_7:DECIMAL(12, 2), "n24_7"), (n25_8:DECIMAL(12, 2), "n24_8"), (n25_9:DATE, "n24_10"), (n25_10:BIGINT, "n24_11"), (n25_11:VARCHAR, "n24_13")] -> n25_7:DECIMAL(12, 2), n25_8:DECIMAL(12, 2), n25_9:DATE, n25_10:BIGINT, n25_11:VARCHAR
@@ -463,13 +470,13 @@ Input [5]: [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
 Keys [1]: [o_year#X]
 Functions [2]: [sum(CASE WHEN (nation#X = BRAZIL) THEN volume#X ELSE 0.0000 END), sum(volume#X)]
 Aggregate Attributes [2]: [sum(CASE WHEN (nation#X = BRAZIL) THEN volume#X ELSE 0.0000 END)#X, sum(volume#X)#X]
-Results [2]: [o_year#X, CheckOverflow((promote_precision(sum(CASE WHEN (nation#X = BRAZIL) THEN volume#X ELSE 0.0000 END)#X) / promote_precision(sum(volume#X)#X)), DecimalType(38,6)) AS mkt_share#X]
+Results [2]: [o_year#X, (sum(CASE WHEN (nation#X = BRAZIL) THEN volume#X ELSE 0.0000 END)#X / sum(volume#X)#X) AS mkt_share#X]
 
 (69) WholeStageCodegenTransformer (X)
 Input [2]: [o_year#X, mkt_share#X]
 Arguments: false
 Native Plan:
--- Project[expressions: (n3_3:INTEGER, "n1_5"), (n3_4:DECIMAL(38, 6), try_cast divide("n2_1","n2_2") as DECIMAL(38, 6))] -> n3_3:INTEGER, n3_4:DECIMAL(38, 6)
+-- Project[expressions: (n3_3:INTEGER, "n1_5"), (n3_4:DECIMAL(38, 6), divide("n2_1","n2_2"))] -> n3_3:INTEGER, n3_4:DECIMAL(38, 6)
   -- Aggregation[SINGLE [n1_5] n2_1 := sum_merge_extract("n1_6"), n2_2 := sum_merge_extract("n1_7")] -> n1_5:INTEGER, n2_1:DECIMAL(36, 4), n2_2:DECIMAL(36, 4)
     -- Project[expressions: (n1_5:INTEGER, "n0_0"), (n1_6:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>, row_constructor("n0_1","n0_2")), (n1_7:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>, row_constructor("n0_3","n0_4"))] -> n1_5:INTEGER, n1_6:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>, n1_7:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>
       -- ValueStream[] -> n0_0:INTEGER, n0_1:DECIMAL(36, 4), n0_2:BOOLEAN, n0_3:DECIMAL(36, 4), n0_4:BOOLEAN
@@ -503,7 +510,7 @@ Native Plan:
 (76) VeloxColumnarToRowExec
 Input [2]: [o_year#X, mkt_share#X]
 
-(77) Scan parquet default.part
+(77) Scan parquet spark_catalog.default.part
 Output [2]: [p_partkey#X, p_type#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/part]
@@ -522,7 +529,7 @@ Input [2]: [p_partkey#X, p_type#X]
 Input [1]: [p_partkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(81) Scan parquet default.lineitem
+(81) Scan parquet spark_catalog.default.lineitem
 Output [5]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -536,13 +543,14 @@ Condition : ((isnotnull(l_partkey#X) AND isnotnull(l_suppkey#X)) AND isnotnull(l
 (83) BroadcastHashJoin
 Left keys [1]: [p_partkey#X]
 Right keys [1]: [l_partkey#X]
+Join type: Inner
 Join condition: None
 
 (84) Project
 Output [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Input [6]: [p_partkey#X, l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 
-(85) Scan parquet default.supplier
+(85) Scan parquet spark_catalog.default.supplier
 Output [2]: [s_suppkey#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
@@ -560,13 +568,14 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 (88) BroadcastHashJoin
 Left keys [1]: [l_suppkey#X]
 Right keys [1]: [s_suppkey#X]
+Join type: Inner
 Join condition: None
 
 (89) Project
 Output [4]: [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
 Input [6]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X, s_suppkey#X, s_nationkey#X]
 
-(90) Scan parquet default.orders
+(90) Scan parquet spark_catalog.default.orders
 Output [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
@@ -584,13 +593,14 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 (93) BroadcastHashJoin
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [o_orderkey#X]
+Join type: Inner
 Join condition: None
 
 (94) Project
 Output [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X]
 Input [7]: [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderkey#X, o_custkey#X, o_orderdate#X]
 
-(95) Scan parquet default.customer
+(95) Scan parquet spark_catalog.default.customer
 Output [2]: [c_custkey#X, c_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
@@ -608,13 +618,14 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 (98) BroadcastHashJoin
 Left keys [1]: [o_custkey#X]
 Right keys [1]: [c_custkey#X]
+Join type: Inner
 Join condition: None
 
 (99) Project
 Output [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X]
 Input [7]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X, c_custkey#X, c_nationkey#X]
 
-(100) Scan parquet default.nation
+(100) Scan parquet spark_catalog.default.nation
 Output [2]: [n_nationkey#X, n_regionkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
@@ -632,13 +643,14 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 (103) BroadcastHashJoin
 Left keys [1]: [c_nationkey#X]
 Right keys [1]: [n_nationkey#X]
+Join type: Inner
 Join condition: None
 
 (104) Project
 Output [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X]
 Input [7]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X, n_nationkey#X, n_regionkey#X]
 
-(105) Scan parquet default.nation
+(105) Scan parquet spark_catalog.default.nation
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
@@ -656,13 +668,14 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 (108) BroadcastHashJoin
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
+Join type: Inner
 Join condition: None
 
 (109) Project
 Output [5]: [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X]
 Input [7]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X, n_nationkey#X, n_name#X]
 
-(110) Scan parquet default.region
+(110) Scan parquet spark_catalog.default.region
 Output [2]: [r_regionkey#X, r_name#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/region]
@@ -684,10 +697,11 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 (114) BroadcastHashJoin
 Left keys [1]: [n_regionkey#X]
 Right keys [1]: [r_regionkey#X]
+Join type: Inner
 Join condition: None
 
 (115) Project
-Output [3]: [year(o_orderdate#X) AS o_year#X, CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) AS volume#X, n_name#X AS nation#X]
+Output [3]: [year(o_orderdate#X) AS o_year#X, (l_extendedprice#X * (1 - l_discount#X)) AS volume#X, n_name#X AS nation#X]
 Input [6]: [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X, r_regionkey#X]
 
 (116) HashAggregate
@@ -706,7 +720,7 @@ Input [5]: [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
 Keys [1]: [o_year#X]
 Functions [2]: [sum(CASE WHEN (nation#X = BRAZIL) THEN volume#X ELSE 0.0000 END), sum(volume#X)]
 Aggregate Attributes [2]: [sum(CASE WHEN (nation#X = BRAZIL) THEN volume#X ELSE 0.0000 END)#X, sum(volume#X)#X]
-Results [2]: [o_year#X, CheckOverflow((promote_precision(sum(CASE WHEN (nation#X = BRAZIL) THEN volume#X ELSE 0.0000 END)#X) / promote_precision(sum(volume#X)#X)), DecimalType(38,6)) AS mkt_share#X]
+Results [2]: [o_year#X, (sum(CASE WHEN (nation#X = BRAZIL) THEN volume#X ELSE 0.0000 END)#X / sum(volume#X)#X) AS mkt_share#X]
 
 (119) Exchange
 Input [2]: [o_year#X, mkt_share#X]
