@@ -67,9 +67,9 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
   val querySoftAffinityDetectMissInfo = new ConcurrentHashMap[Long, Int]()
   val querySoftAffinityDetectResultInfo = new ConcurrentHashMap[Long, Int]()
 
-  // we need keep three map: rdd id -> patition id, file path, start, length
+  // rdd id -> patition id, file path, start, length
   val rddPartitionInfoMap = new ConcurrentHashMap[Int, Array[(Int, String, Long, Long)]]()
-  //  stage id -> execution id + rdd ids: job start / execution end
+  // stage id -> execution id + rdd ids: job start / execution end
   val stageInfoMap = new ConcurrentHashMap[Int, Array[Int]]()
   // final result: partition composed key("path1_start_length,path2_start_length") --> array_host
   val duplicateReadingInfos =

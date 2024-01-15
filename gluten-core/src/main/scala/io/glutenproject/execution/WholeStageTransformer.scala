@@ -329,6 +329,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
               currentPartitions(i) match {
                 case f: FilePartition =>
                   SoftAffinity.updateFilePartitionLocations(f, rdd.id)
+                case _ =>
               })
         })
       rdd

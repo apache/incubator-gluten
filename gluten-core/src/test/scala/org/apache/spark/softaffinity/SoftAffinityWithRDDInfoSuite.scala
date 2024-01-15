@@ -92,7 +92,7 @@ class SoftAffinityWithRDDInfoSuite extends QueryTest with SharedSparkSession wit
       softAffinityListener.onStageSubmitted(stage1SubmitEvent)
       softAffinityListener.onTaskEnd(taskEnd1)
       assert(SoftAffinityManager.duplicateReadingInfos.size == 1)
-      // check location (executor 0) od dulicate reading is retuened.
+      // check location (executor 0) of dulicate reading is returned.
       val locations = SoftAffinity.getFilePartitionLocations(filePartition)
 
       val nativePartition = new GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations)
@@ -101,7 +101,7 @@ class SoftAffinityWithRDDInfoSuite extends QueryTest with SharedSparkSession wit
         nativePartition.preferredLocations().toSet
       }
       softAffinityListener.onStageCompleted(stage1EndEvent)
-      // stage 1 complated, check all middle status is cleared.
+      // stage 1 completed, check all middle status is cleared.
       assert(SoftAffinityManager.rddPartitionInfoMap.size == 0)
       assert(SoftAffinityManager.stageInfoMap.size == 0)
       softAffinityListener.onExecutorRemoved(removedEvent0)

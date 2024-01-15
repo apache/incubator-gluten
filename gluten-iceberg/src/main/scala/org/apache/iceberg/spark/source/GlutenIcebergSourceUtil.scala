@@ -63,7 +63,9 @@ object GlutenIcebergSourceUtil {
                 s"find different file format $fileFormat and $currentFileFormat")
           }
       }
-      val preferredLoc = SoftAffinity.getFilePartitionLocations(inputPartition)
+      val preferredLoc = SoftAffinity.getFilePartitionLocations(
+        paths.asScala.toArray,
+        inputPartition.preferredLocations())
       IcebergLocalFilesBuilder.makeIcebergLocalFiles(
         index,
         paths,
