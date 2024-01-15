@@ -11,7 +11,7 @@ AdaptiveSparkPlan (40)
                   :  +- BroadcastQueryStage (5), Statistics(X)
                   :     +- ColumnarBroadcastExchange (4)
                   :        +- ^ FilterExecTransformer (2)
-                  :           +- ^ Scan parquet default.supplier (1)
+                  :           +- ^ Scan parquet spark_catalog.default.supplier (1)
                   +- ^ FilterExecTransformer (18)
                      +- ^ RegularHashAggregateExecTransformer (17)
                         +- ^ InputIteratorTransformer (16)
@@ -22,7 +22,7 @@ AdaptiveSparkPlan (40)
                                        +- ^ FlushableHashAggregateExecTransformer (10)
                                           +- ^ ProjectExecTransformer (9)
                                              +- ^ FilterExecTransformer (8)
-                                                +- ^ Scan parquet default.lineitem (7)
+                                                +- ^ Scan parquet spark_catalog.default.lineitem (7)
 +- == Initial Plan ==
    Sort (39)
    +- Exchange (38)
@@ -30,17 +30,17 @@ AdaptiveSparkPlan (40)
          +- BroadcastHashJoin Inner BuildLeft (36)
             :- BroadcastExchange (28)
             :  +- Filter (27)
-            :     +- Scan parquet default.supplier (26)
+            :     +- Scan parquet spark_catalog.default.supplier (26)
             +- Filter (35)
                +- HashAggregate (34)
                   +- Exchange (33)
                      +- HashAggregate (32)
                         +- Project (31)
                            +- Filter (30)
-                              +- Scan parquet default.lineitem (29)
+                              +- Scan parquet spark_catalog.default.lineitem (29)
 
 
-(1) Scan parquet default.supplier
+(1) Scan parquet spark_catalog.default.supplier
 Output [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
@@ -68,7 +68,7 @@ Arguments: 0
 (6) InputIteratorTransformer
 Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 
-(7) Scan parquet default.lineitem
+(7) Scan parquet spark_catalog.default.lineitem
 Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -86,7 +86,7 @@ Arguments: [l_suppkey#X, l_extendedprice#X, l_discount#X]
 (10) FlushableHashAggregateExecTransformer
 Input [3]: [l_suppkey#X, l_extendedprice#X, l_discount#X]
 Keys [1]: [l_suppkey#X]
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Functions [1]: [partial_sum((l_extendedprice#X * (1 - l_discount#X)))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [3]: [l_suppkey#X, sum#X, isEmpty#X]
 
@@ -101,7 +101,7 @@ Native Plan:
 -- Project[expressions: (n5_3:INTEGER, hash_with_seed(42,"n4_2")), (n5_4:BIGINT, "n4_2"), (n5_5:DECIMAL(36, 4), "n4_3"), (n5_6:BOOLEAN, "n4_4")] -> n5_3:INTEGER, n5_4:BIGINT, n5_5:DECIMAL(36, 4), n5_6:BOOLEAN
   -- Project[expressions: (n4_2:BIGINT, "n2_3"), (n4_3:DECIMAL(36, 4), "n3_1"["col_0"]), (n4_4:BOOLEAN, "n3_1"["col_1"])] -> n4_2:BIGINT, n4_3:DECIMAL(36, 4), n4_4:BOOLEAN
     -- Aggregation[PARTIAL [n2_3] n3_1 := sum_partial("n2_4")] -> n2_3:BIGINT, n3_1:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>
-      -- Project[expressions: (n2_3:BIGINT, "n1_4"), (n2_4:DECIMAL(26, 4), try_cast multiply("n1_5",try_cast subtract(try_cast 1.00 as DECIMAL(1, 0),"n1_6") as DECIMAL(13, 2)) as DECIMAL(26, 4))] -> n2_3:BIGINT, n2_4:DECIMAL(26, 4)
+      -- Project[expressions: (n2_3:BIGINT, "n1_4"), (n2_4:DECIMAL(26, 4), multiply("n1_5",subtract(1,"n1_6")))] -> n2_3:BIGINT, n2_4:DECIMAL(26, 4)
         -- Project[expressions: (n1_4:BIGINT, "n0_0"), (n1_5:DECIMAL(12, 2), "n0_1"), (n1_6:DECIMAL(12, 2), "n0_2")] -> n1_4:BIGINT, n1_5:DECIMAL(12, 2), n1_6:DECIMAL(12, 2)
           -- TableScan[table: hive_table, range filters: [(l_shipdate, BigintRange: [9496, 9586] no nulls), (l_suppkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:DECIMAL(12, 2), n0_2:DECIMAL(12, 2), n0_3:DATE
 
@@ -123,9 +123,9 @@ Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
 (17) RegularHashAggregateExecTransformer
 Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
 Keys [1]: [l_suppkey#X]
-Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
-Results [2]: [l_suppkey#X AS supplier_no#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS total_revenue#X]
+Functions [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))]
+Aggregate Attributes [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))#X]
+Results [2]: [l_suppkey#X AS supplier_no#X, sum((l_extendedprice#X * (1 - l_discount#X)))#X AS total_revenue#X]
 
 (18) FilterExecTransformer
 Input [2]: [supplier_no#X, total_revenue#X]
@@ -134,6 +134,7 @@ Arguments: (isnotnull(total_revenue#X) AND (total_revenue#X = Subquery subquery#
 (19) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [s_suppkey#X]
 Right keys [1]: [supplier_no#X]
+Join type: Inner
 Join condition: None
 
 (20) ProjectExecTransformer
@@ -169,7 +170,7 @@ Arguments: local
 (25) VeloxColumnarToRowExec
 Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
 
-(26) Scan parquet default.supplier
+(26) Scan parquet spark_catalog.default.supplier
 Output [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
@@ -184,7 +185,7 @@ Condition : isnotnull(s_suppkey#X)
 Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
 
-(29) Scan parquet default.lineitem
+(29) Scan parquet spark_catalog.default.lineitem
 Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -202,7 +203,7 @@ Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 (32) HashAggregate
 Input [3]: [l_suppkey#X, l_extendedprice#X, l_discount#X]
 Keys [1]: [l_suppkey#X]
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Functions [1]: [partial_sum((l_extendedprice#X * (1 - l_discount#X)))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [3]: [l_suppkey#X, sum#X, isEmpty#X]
 
@@ -213,9 +214,9 @@ Arguments: hashpartitioning(l_suppkey#X, 100), ENSURE_REQUIREMENTS, [plan_id=X]
 (34) HashAggregate
 Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
 Keys [1]: [l_suppkey#X]
-Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
-Results [2]: [l_suppkey#X AS supplier_no#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS total_revenue#X]
+Functions [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))]
+Aggregate Attributes [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))#X]
+Results [2]: [l_suppkey#X AS supplier_no#X, sum((l_extendedprice#X * (1 - l_discount#X)))#X AS total_revenue#X]
 
 (35) Filter
 Input [2]: [supplier_no#X, total_revenue#X]
@@ -224,6 +225,7 @@ Condition : (isnotnull(total_revenue#X) AND (total_revenue#X = Subquery subquery
 (36) BroadcastHashJoin
 Left keys [1]: [s_suppkey#X]
 Right keys [1]: [supplier_no#X]
+Join type: Inner
 Join condition: None
 
 (37) Project
@@ -262,7 +264,7 @@ AdaptiveSparkPlan (69)
                                     +- ^ FlushableHashAggregateExecTransformer (44)
                                        +- ^ ProjectExecTransformer (43)
                                           +- ^ FilterExecTransformer (42)
-                                             +- ^ Scan parquet default.lineitem (41)
+                                             +- ^ Scan parquet spark_catalog.default.lineitem (41)
 +- == Initial Plan ==
    HashAggregate (68)
    +- Exchange (67)
@@ -272,10 +274,10 @@ AdaptiveSparkPlan (69)
                +- HashAggregate (63)
                   +- Project (62)
                      +- Filter (61)
-                        +- Scan parquet default.lineitem (60)
+                        +- Scan parquet spark_catalog.default.lineitem (60)
 
 
-(41) Scan parquet default.lineitem
+(41) Scan parquet spark_catalog.default.lineitem
 Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -293,7 +295,7 @@ Arguments: [l_suppkey#X, l_extendedprice#X, l_discount#X]
 (44) FlushableHashAggregateExecTransformer
 Input [3]: [l_suppkey#X, l_extendedprice#X, l_discount#X]
 Keys [1]: [l_suppkey#X]
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Functions [1]: [partial_sum((l_extendedprice#X * (1 - l_discount#X)))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [3]: [l_suppkey#X, sum#X, isEmpty#X]
 
@@ -308,7 +310,7 @@ Native Plan:
 -- Project[expressions: (n5_3:INTEGER, hash_with_seed(42,"n4_2")), (n5_4:BIGINT, "n4_2"), (n5_5:DECIMAL(36, 4), "n4_3"), (n5_6:BOOLEAN, "n4_4")] -> n5_3:INTEGER, n5_4:BIGINT, n5_5:DECIMAL(36, 4), n5_6:BOOLEAN
   -- Project[expressions: (n4_2:BIGINT, "n2_3"), (n4_3:DECIMAL(36, 4), "n3_1"["col_0"]), (n4_4:BOOLEAN, "n3_1"["col_1"])] -> n4_2:BIGINT, n4_3:DECIMAL(36, 4), n4_4:BOOLEAN
     -- Aggregation[PARTIAL [n2_3] n3_1 := sum_partial("n2_4")] -> n2_3:BIGINT, n3_1:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>
-      -- Project[expressions: (n2_3:BIGINT, "n1_4"), (n2_4:DECIMAL(26, 4), try_cast multiply("n1_5",try_cast subtract(try_cast 1.00 as DECIMAL(1, 0),"n1_6") as DECIMAL(13, 2)) as DECIMAL(26, 4))] -> n2_3:BIGINT, n2_4:DECIMAL(26, 4)
+      -- Project[expressions: (n2_3:BIGINT, "n1_4"), (n2_4:DECIMAL(26, 4), multiply("n1_5",subtract(1,"n1_6")))] -> n2_3:BIGINT, n2_4:DECIMAL(26, 4)
         -- Project[expressions: (n1_4:BIGINT, "n0_0"), (n1_5:DECIMAL(12, 2), "n0_1"), (n1_6:DECIMAL(12, 2), "n0_2")] -> n1_4:BIGINT, n1_5:DECIMAL(12, 2), n1_6:DECIMAL(12, 2)
           -- TableScan[table: hive_table, range filters: [(l_shipdate, BigintRange: [9496, 9586] no nulls)]] -> n0_0:BIGINT, n0_1:DECIMAL(12, 2), n0_2:DECIMAL(12, 2), n0_3:DATE
 
@@ -330,9 +332,9 @@ Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
 (51) RegularHashAggregateExecTransformer
 Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
 Keys [1]: [l_suppkey#X]
-Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
-Results [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS total_revenue#X]
+Functions [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))]
+Aggregate Attributes [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))#X]
+Results [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))#X AS total_revenue#X]
 
 (52) FlushableHashAggregateExecTransformer
 Input [1]: [total_revenue#X]
@@ -380,7 +382,7 @@ Native Plan:
 (59) VeloxColumnarToRowExec
 Input [1]: [max(total_revenue)#X]
 
-(60) Scan parquet default.lineitem
+(60) Scan parquet spark_catalog.default.lineitem
 Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -398,7 +400,7 @@ Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 (63) HashAggregate
 Input [3]: [l_suppkey#X, l_extendedprice#X, l_discount#X]
 Keys [1]: [l_suppkey#X]
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Functions [1]: [partial_sum((l_extendedprice#X * (1 - l_discount#X)))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [3]: [l_suppkey#X, sum#X, isEmpty#X]
 
@@ -409,9 +411,9 @@ Arguments: hashpartitioning(l_suppkey#X, 100), ENSURE_REQUIREMENTS, [plan_id=X]
 (65) HashAggregate
 Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
 Keys [1]: [l_suppkey#X]
-Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
-Results [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS total_revenue#X]
+Functions [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))]
+Aggregate Attributes [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))#X]
+Results [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))#X AS total_revenue#X]
 
 (66) HashAggregate
 Input [1]: [total_revenue#X]

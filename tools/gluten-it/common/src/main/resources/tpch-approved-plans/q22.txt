@@ -17,11 +17,11 @@ AdaptiveSparkPlan (37)
                                        +- ^ ProjectExecTransformer (9)
                                           +- ^ GlutenBroadcastHashJoinExecTransformer LeftAnti (8)
                                              :- ^ FilterExecTransformer (2)
-                                             :  +- ^ Scan parquet default.customer (1)
+                                             :  +- ^ Scan parquet spark_catalog.default.customer (1)
                                              +- ^ InputIteratorTransformer (7)
                                                 +- BroadcastQueryStage (6), Statistics(X)
                                                    +- ColumnarBroadcastExchange (5)
-                                                      +- ^ Scan parquet default.orders (3)
+                                                      +- ^ Scan parquet spark_catalog.default.orders (3)
 +- == Initial Plan ==
    Sort (36)
    +- Exchange (35)
@@ -31,12 +31,12 @@ AdaptiveSparkPlan (37)
                +- Project (31)
                   +- BroadcastHashJoin LeftAnti BuildRight (30)
                      :- Filter (27)
-                     :  +- Scan parquet default.customer (26)
+                     :  +- Scan parquet spark_catalog.default.customer (26)
                      +- BroadcastExchange (29)
-                        +- Scan parquet default.orders (28)
+                        +- Scan parquet spark_catalog.default.orders (28)
 
 
-(1) Scan parquet default.customer
+(1) Scan parquet spark_catalog.default.customer
 Output [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
@@ -47,7 +47,7 @@ ReadSchema: struct<c_custkey:bigint,c_phone:string,c_acctbal:decimal(12,2)>
 Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 Arguments: ((isnotnull(c_acctbal#X) AND substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17)) AND (cast(c_acctbal#X as decimal(16,6)) > Subquery subquery#X, [id=#X]))
 
-(3) Scan parquet default.orders
+(3) Scan parquet spark_catalog.default.orders
 Output [1]: [o_custkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
@@ -73,6 +73,7 @@ Input [1]: [o_custkey#X]
 (8) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
+Join type: LeftAnti
 Join condition: None
 
 (9) ProjectExecTransformer
@@ -100,7 +101,7 @@ Native Plan:
       -- Project[expressions: (n4_3:VARCHAR, substring("n3_4",1,2)), (n4_4:DECIMAL(12, 2), "n3_5")] -> n4_3:VARCHAR, n4_4:DECIMAL(12, 2)
         -- Project[expressions: (n3_3:BIGINT, "n1_0"), (n3_4:VARCHAR, "n1_1"), (n3_5:DECIMAL(12, 2), "n1_2")] -> n3_3:BIGINT, n3_4:VARCHAR, n3_5:DECIMAL(12, 2)
           -- HashJoin[ANTI n1_0=n0_0] -> n1_0:BIGINT, n1_1:VARCHAR, n1_2:DECIMAL(12, 2)
-            -- TableScan[table: hive_table, range filters: [(c_acctbal, Filter(IsNotNull, deterministic, null not allowed))], remaining filter: (and(decimal_greaterthan(try_cast "c_acctbal" as DECIMAL(16, 6),4989.499971),in(substring("c_phone",1,2),7 elements starting at 0 {17, 29, 30, 18, 23, ...})))] -> n1_0:BIGINT, n1_1:VARCHAR, n1_2:DECIMAL(12, 2)
+            -- TableScan[table: hive_table, range filters: [(c_acctbal, Filter(IsNotNull, deterministic, null not allowed))], remaining filter: (and(decimal_greaterthan(try_cast "c_acctbal" as DECIMAL(16, 6),4989.499971),in(substring("c_phone",1,2),7 elements starting at 0 {31, 17, 30, 13, 29, ...})))] -> n1_0:BIGINT, n1_1:VARCHAR, n1_2:DECIMAL(12, 2)
             -- ValueStream[] -> n0_0:BIGINT
 
 (13) ColumnarExchange
@@ -163,7 +164,7 @@ Native Plan:
 (25) VeloxColumnarToRowExec
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 
-(26) Scan parquet default.customer
+(26) Scan parquet spark_catalog.default.customer
 Output [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
@@ -174,7 +175,7 @@ ReadSchema: struct<c_custkey:bigint,c_phone:string,c_acctbal:decimal(12,2)>
 Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 Condition : ((isnotnull(c_acctbal#X) AND substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17)) AND (cast(c_acctbal#X as decimal(16,6)) > Subquery subquery#X, [id=#X]))
 
-(28) Scan parquet default.orders
+(28) Scan parquet spark_catalog.default.orders
 Output [1]: [o_custkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
@@ -187,6 +188,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 (30) BroadcastHashJoin
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
+Join type: LeftAnti
 Join condition: None
 
 (31) Project
@@ -236,17 +238,17 @@ AdaptiveSparkPlan (55)
                +- ^ FlushableHashAggregateExecTransformer (41)
                   +- ^ ProjectExecTransformer (40)
                      +- ^ FilterExecTransformer (39)
-                        +- ^ Scan parquet default.customer (38)
+                        +- ^ Scan parquet spark_catalog.default.customer (38)
 +- == Initial Plan ==
    HashAggregate (54)
    +- Exchange (53)
       +- HashAggregate (52)
          +- Project (51)
             +- Filter (50)
-               +- Scan parquet default.customer (49)
+               +- Scan parquet spark_catalog.default.customer (49)
 
 
-(38) Scan parquet default.customer
+(38) Scan parquet spark_catalog.default.customer
 Output [2]: [c_phone#X, c_acctbal#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
@@ -275,7 +277,7 @@ Native Plan:
 -- Project[expressions: (n3_1:DECIMAL(22, 2), "n2_0"["col_0"]), (n3_2:BIGINT, "n2_0"["col_1"])] -> n3_1:DECIMAL(22, 2), n3_2:BIGINT
   -- Aggregation[PARTIAL n2_0 := avg_partial("n1_2")] -> n2_0:ROW<col_0:DECIMAL(22, 2),col_1:BIGINT>
     -- Project[expressions: (n1_2:DECIMAL(12, 2), "n0_1")] -> n1_2:DECIMAL(12, 2)
-      -- TableScan[table: hive_table, range filters: [(c_acctbal, BigintRange: [1, 999999999999999999] no nulls)], remaining filter: (in(substring("c_phone",1,2),7 elements starting at 0 {30, 23, 31, 13, 18, ...}))] -> n0_0:VARCHAR, n0_1:DECIMAL(12, 2)
+      -- TableScan[table: hive_table, range filters: [(c_acctbal, BigintRange: [1, 999999999999999999] no nulls)], remaining filter: (in(substring("c_phone",1,2),7 elements starting at 0 {31, 23, 17, 29, 18, ...}))] -> n0_0:VARCHAR, n0_1:DECIMAL(12, 2)
 
 (43) ColumnarExchange
 Input [2]: [sum#X, count#X]
@@ -307,7 +309,7 @@ Native Plan:
 (48) VeloxColumnarToRowExec
 Input [1]: [avg(c_acctbal)#X]
 
-(49) Scan parquet default.customer
+(49) Scan parquet spark_catalog.default.customer
 Output [2]: [c_phone#X, c_acctbal#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
@@ -355,11 +357,11 @@ AdaptiveSparkPlan (55)
                +- ^ FlushableHashAggregateExecTransformer (41)
                   +- ^ ProjectExecTransformer (40)
                      +- ^ FilterExecTransformer (39)
-                        +- ^ Scan parquet default.customer (38)
+                        +- ^ Scan parquet spark_catalog.default.customer (38)
 +- == Initial Plan ==
    HashAggregate (54)
    +- Exchange (53)
       +- HashAggregate (52)
          +- Project (51)
             +- Filter (50)
-               +- Scan parquet default.customer (49)
+               +- Scan parquet spark_catalog.default.customer (49)

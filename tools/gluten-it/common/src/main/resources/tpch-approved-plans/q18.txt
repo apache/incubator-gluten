@@ -18,10 +18,10 @@ AdaptiveSparkPlan (82)
                                  :     :  +- BroadcastQueryStage (5), Statistics(X)
                                  :     :     +- ColumnarBroadcastExchange (4)
                                  :     :        +- ^ FilterExecTransformer (2)
-                                 :     :           +- ^ Scan parquet default.customer (1)
+                                 :     :           +- ^ Scan parquet spark_catalog.default.customer (1)
                                  :     +- ^ GlutenBroadcastHashJoinExecTransformer LeftSemi (24)
                                  :        :- ^ FilterExecTransformer (8)
-                                 :        :  +- ^ Scan parquet default.orders (7)
+                                 :        :  +- ^ Scan parquet spark_catalog.default.orders (7)
                                  :        +- ^ InputIteratorTransformer (23)
                                  :           +- BroadcastQueryStage (22), Statistics(X)
                                  :              +- ColumnarBroadcastExchange (21)
@@ -34,13 +34,13 @@ AdaptiveSparkPlan (82)
                                  :                                   +- ColumnarExchange (13)
                                  :                                      +- ^ ProjectExecTransformer (11)
                                  :                                         +- ^ FlushableHashAggregateExecTransformer (10)
-                                 :                                            +- ^ Scan parquet default.lineitem (9)
+                                 :                                            +- ^ Scan parquet spark_catalog.default.lineitem (9)
                                  +- ^ InputIteratorTransformer (36)
                                     +- BroadcastQueryStage (35), Statistics(X)
                                        +- ColumnarBroadcastExchange (34)
                                           +- ^ GlutenBroadcastHashJoinExecTransformer LeftSemi (32)
                                              :- ^ FilterExecTransformer (28)
-                                             :  +- ^ Scan parquet default.lineitem (27)
+                                             :  +- ^ Scan parquet spark_catalog.default.lineitem (27)
                                              +- ^ InputIteratorTransformer (31)
                                                 +- BroadcastQueryStage (30), Statistics(X)
                                                    +- ReusedExchange (29)
@@ -55,31 +55,31 @@ AdaptiveSparkPlan (82)
                   :  +- BroadcastHashJoin Inner BuildLeft (63)
                   :     :- BroadcastExchange (52)
                   :     :  +- Filter (51)
-                  :     :     +- Scan parquet default.customer (50)
+                  :     :     +- Scan parquet spark_catalog.default.customer (50)
                   :     +- BroadcastHashJoin LeftSemi BuildRight (62)
                   :        :- Filter (54)
-                  :        :  +- Scan parquet default.orders (53)
+                  :        :  +- Scan parquet spark_catalog.default.orders (53)
                   :        +- BroadcastExchange (61)
                   :           +- Project (60)
                   :              +- Filter (59)
                   :                 +- HashAggregate (58)
                   :                    +- Exchange (57)
                   :                       +- HashAggregate (56)
-                  :                          +- Scan parquet default.lineitem (55)
+                  :                          +- Scan parquet spark_catalog.default.lineitem (55)
                   +- BroadcastExchange (75)
                      +- BroadcastHashJoin LeftSemi BuildRight (74)
                         :- Filter (66)
-                        :  +- Scan parquet default.lineitem (65)
+                        :  +- Scan parquet spark_catalog.default.lineitem (65)
                         +- BroadcastExchange (73)
                            +- Project (72)
                               +- Filter (71)
                                  +- HashAggregate (70)
                                     +- Exchange (69)
                                        +- HashAggregate (68)
-                                          +- Scan parquet default.lineitem (67)
+                                          +- Scan parquet spark_catalog.default.lineitem (67)
 
 
-(1) Scan parquet default.customer
+(1) Scan parquet spark_catalog.default.customer
 Output [2]: [c_custkey#X, c_name#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
@@ -107,7 +107,7 @@ Arguments: 0
 (6) InputIteratorTransformer
 Input [2]: [c_custkey#X, c_name#X]
 
-(7) Scan parquet default.orders
+(7) Scan parquet spark_catalog.default.orders
 Output [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
@@ -118,7 +118,7 @@ ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_totalprice:decimal(12,2)
 Input [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
 Arguments: (isnotnull(o_custkey#X) AND isnotnull(o_orderkey#X))
 
-(9) Scan parquet default.lineitem
+(9) Scan parquet spark_catalog.default.lineitem
 Output [2]: [l_orderkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -199,18 +199,20 @@ Input [1]: [l_orderkey#X]
 (24) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
+Join type: LeftSemi
 Join condition: None
 
 (25) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
+Join type: Inner
 Join condition: None
 
 (26) ProjectExecTransformer
 Input [6]: [c_custkey#X, c_name#X, o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
 Arguments: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X]
 
-(27) Scan parquet default.lineitem
+(27) Scan parquet spark_catalog.default.lineitem
 Output [2]: [l_orderkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -234,6 +236,7 @@ Input [1]: [l_orderkey#X]
 (32) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [l_orderkey#X]
+Join type: LeftSemi
 Join condition: None
 
 (33) WholeStageCodegenTransformer (X)
@@ -259,6 +262,7 @@ Input [2]: [l_orderkey#X, l_quantity#X]
 (37) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
+Join type: Inner
 Join condition: None
 
 (38) ProjectExecTransformer
@@ -334,7 +338,7 @@ Arguments: 100, [o_totalprice#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST],
 (49) VeloxColumnarToRowExec
 Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
 
-(50) Scan parquet default.customer
+(50) Scan parquet spark_catalog.default.customer
 Output [2]: [c_custkey#X, c_name#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
@@ -349,7 +353,7 @@ Condition : isnotnull(c_custkey#X)
 Input [2]: [c_custkey#X, c_name#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
 
-(53) Scan parquet default.orders
+(53) Scan parquet spark_catalog.default.orders
 Output [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
@@ -360,7 +364,7 @@ ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_totalprice:decimal(12,2)
 Input [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
 Condition : (isnotnull(o_custkey#X) AND isnotnull(o_orderkey#X))
 
-(55) Scan parquet default.lineitem
+(55) Scan parquet spark_catalog.default.lineitem
 Output [2]: [l_orderkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -399,18 +403,20 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 (62) BroadcastHashJoin
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
+Join type: LeftSemi
 Join condition: None
 
 (63) BroadcastHashJoin
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
+Join type: Inner
 Join condition: None
 
 (64) Project
 Output [5]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X]
 Input [6]: [c_custkey#X, c_name#X, o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
 
-(65) Scan parquet default.lineitem
+(65) Scan parquet spark_catalog.default.lineitem
 Output [2]: [l_orderkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -421,7 +427,7 @@ ReadSchema: struct<l_orderkey:bigint,l_quantity:decimal(12,2)>
 Input [2]: [l_orderkey#X, l_quantity#X]
 Condition : isnotnull(l_orderkey#X)
 
-(67) Scan parquet default.lineitem
+(67) Scan parquet spark_catalog.default.lineitem
 Output [2]: [l_orderkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -460,6 +466,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 (74) BroadcastHashJoin
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [l_orderkey#X]
+Join type: LeftSemi
 Join condition: None
 
 (75) BroadcastExchange
@@ -469,6 +476,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 (76) BroadcastHashJoin
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
+Join type: Inner
 Join condition: None
 
 (77) Project

@@ -25,18 +25,18 @@ AdaptiveSparkPlan (63)
                                                                +- ^ GlutenBroadcastHashJoinExecTransformer Inner (17)
                                                                   :- ^ GlutenBroadcastHashJoinExecTransformer LeftAnti (10)
                                                                   :  :- ^ FilterExecTransformer (2)
-                                                                  :  :  +- ^ Scan parquet default.partsupp (1)
+                                                                  :  :  +- ^ Scan parquet spark_catalog.default.partsupp (1)
                                                                   :  +- ^ InputIteratorTransformer (9)
                                                                   :     +- BroadcastQueryStage (8), Statistics(X)
                                                                   :        +- ColumnarBroadcastExchange (7)
                                                                   :           +- ^ ProjectExecTransformer (5)
                                                                   :              +- ^ FilterExecTransformer (4)
-                                                                  :                 +- ^ Scan parquet default.supplier (3)
+                                                                  :                 +- ^ Scan parquet spark_catalog.default.supplier (3)
                                                                   +- ^ InputIteratorTransformer (16)
                                                                      +- BroadcastQueryStage (15), Statistics(X)
                                                                         +- ColumnarBroadcastExchange (14)
                                                                            +- ^ FilterExecTransformer (12)
-                                                                              +- ^ Scan parquet default.part (11)
+                                                                              +- ^ Scan parquet spark_catalog.default.part (11)
 +- == Initial Plan ==
    Sort (62)
    +- Exchange (61)
@@ -50,17 +50,17 @@ AdaptiveSparkPlan (63)
                            +- BroadcastHashJoin Inner BuildRight (53)
                               :- BroadcastHashJoin LeftAnti BuildRight (49)
                               :  :- Filter (44)
-                              :  :  +- Scan parquet default.partsupp (43)
+                              :  :  +- Scan parquet spark_catalog.default.partsupp (43)
                               :  +- BroadcastExchange (48)
                               :     +- Project (47)
                               :        +- Filter (46)
-                              :           +- Scan parquet default.supplier (45)
+                              :           +- Scan parquet spark_catalog.default.supplier (45)
                               +- BroadcastExchange (52)
                                  +- Filter (51)
-                                    +- Scan parquet default.part (50)
+                                    +- Scan parquet spark_catalog.default.part (50)
 
 
-(1) Scan parquet default.partsupp
+(1) Scan parquet spark_catalog.default.partsupp
 Output [2]: [ps_partkey#X, ps_suppkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/partsupp]
@@ -71,7 +71,7 @@ ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint>
 Input [2]: [ps_partkey#X, ps_suppkey#X]
 Arguments: isnotnull(ps_partkey#X)
 
-(3) Scan parquet default.supplier
+(3) Scan parquet spark_catalog.default.supplier
 Output [2]: [s_suppkey#X, s_comment#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
@@ -107,9 +107,10 @@ Input [1]: [s_suppkey#X]
 (10) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [ps_suppkey#X]
 Right keys [1]: [s_suppkey#X]
+Join type: LeftAnti
 Join condition: None
 
-(11) Scan parquet default.part
+(11) Scan parquet spark_catalog.default.part
 Output [4]: [p_partkey#X, p_type#X, p_size#X, p_brand#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/part]
@@ -140,6 +141,7 @@ Input [4]: [p_partkey#X, p_type#X, p_size#X, p_brand#X]
 (17) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [ps_partkey#X]
 Right keys [1]: [p_partkey#X]
+Join type: Inner
 Join condition: None
 
 (18) ProjectExecTransformer
@@ -273,7 +275,7 @@ Native Plan:
 (42) VeloxColumnarToRowExec
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 
-(43) Scan parquet default.partsupp
+(43) Scan parquet spark_catalog.default.partsupp
 Output [2]: [ps_partkey#X, ps_suppkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/partsupp]
@@ -284,7 +286,7 @@ ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint>
 Input [2]: [ps_partkey#X, ps_suppkey#X]
 Condition : isnotnull(ps_partkey#X)
 
-(45) Scan parquet default.supplier
+(45) Scan parquet spark_catalog.default.supplier
 Output [2]: [s_suppkey#X, s_comment#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
@@ -306,9 +308,10 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),true), [plan
 (49) BroadcastHashJoin
 Left keys [1]: [ps_suppkey#X]
 Right keys [1]: [s_suppkey#X]
+Join type: LeftAnti
 Join condition: None
 
-(50) Scan parquet default.part
+(50) Scan parquet spark_catalog.default.part
 Output [4]: [p_partkey#X, p_type#X, p_size#X, p_brand#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/part]
@@ -326,6 +329,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 (53) BroadcastHashJoin
 Left keys [1]: [ps_partkey#X]
 Right keys [1]: [p_partkey#X]
+Join type: Inner
 Join condition: None
 
 (54) Project

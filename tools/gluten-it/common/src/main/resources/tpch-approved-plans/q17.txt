@@ -12,13 +12,13 @@ AdaptiveSparkPlan (57)
                         :- ^ ProjectExecTransformer (11)
                         :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (10)
                         :     :- ^ FilterExecTransformer (2)
-                        :     :  +- ^ Scan parquet default.lineitem (1)
+                        :     :  +- ^ Scan parquet spark_catalog.default.lineitem (1)
                         :     +- ^ InputIteratorTransformer (9)
                         :        +- BroadcastQueryStage (8), Statistics(X)
                         :           +- ColumnarBroadcastExchange (7)
                         :              +- ^ ProjectExecTransformer (5)
                         :                 +- ^ FilterExecTransformer (4)
-                        :                    +- ^ Scan parquet default.part (3)
+                        :                    +- ^ Scan parquet spark_catalog.default.part (3)
                         +- ^ InputIteratorTransformer (26)
                            +- BroadcastQueryStage (25), Statistics(X)
                               +- ColumnarBroadcastExchange (24)
@@ -31,7 +31,7 @@ AdaptiveSparkPlan (57)
                                                    +- ^ ProjectExecTransformer (15)
                                                       +- ^ FlushableHashAggregateExecTransformer (14)
                                                          +- ^ FilterExecTransformer (13)
-                                                            +- ^ Scan parquet default.lineitem (12)
+                                                            +- ^ Scan parquet spark_catalog.default.lineitem (12)
 +- == Initial Plan ==
    HashAggregate (56)
    +- Exchange (55)
@@ -41,21 +41,21 @@ AdaptiveSparkPlan (57)
                :- Project (44)
                :  +- BroadcastHashJoin Inner BuildRight (43)
                :     :- Filter (38)
-               :     :  +- Scan parquet default.lineitem (37)
+               :     :  +- Scan parquet spark_catalog.default.lineitem (37)
                :     +- BroadcastExchange (42)
                :        +- Project (41)
                :           +- Filter (40)
-               :              +- Scan parquet default.part (39)
+               :              +- Scan parquet spark_catalog.default.part (39)
                +- BroadcastExchange (51)
                   +- Filter (50)
                      +- HashAggregate (49)
                         +- Exchange (48)
                            +- HashAggregate (47)
                               +- Filter (46)
-                                 +- Scan parquet default.lineitem (45)
+                                 +- Scan parquet spark_catalog.default.lineitem (45)
 
 
-(1) Scan parquet default.lineitem
+(1) Scan parquet spark_catalog.default.lineitem
 Output [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -66,7 +66,7 @@ ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2),l_extendedprice:dec
 Input [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
 Arguments: (isnotnull(l_partkey#X) AND isnotnull(l_quantity#X))
 
-(3) Scan parquet default.part
+(3) Scan parquet spark_catalog.default.part
 Output [3]: [p_partkey#X, p_container#X, p_brand#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/part]
@@ -102,13 +102,14 @@ Input [1]: [p_partkey#X]
 (10) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [l_partkey#X]
 Right keys [1]: [p_partkey#X]
+Join type: Inner
 Join condition: None
 
 (11) ProjectExecTransformer
 Input [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, p_partkey#X]
 Arguments: [l_quantity#X, l_extendedprice#X, p_partkey#X]
 
-(12) Scan parquet default.lineitem
+(12) Scan parquet spark_catalog.default.lineitem
 Output [2]: [l_partkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -159,7 +160,7 @@ Input [3]: [l_partkey#X, sum#X, count#X]
 Keys [1]: [l_partkey#X]
 Functions [1]: [avg(l_quantity#X)]
 Aggregate Attributes [1]: [avg(l_quantity#X)#X]
-Results [2]: [CheckOverflow((0.200000 * promote_precision(avg(l_quantity#X)#X)), DecimalType(18,7)) AS (0.2 * avg(l_quantity))#X, l_partkey#X]
+Results [2]: [(0.2 * avg(l_quantity#X)#X) AS (0.2 * avg(l_quantity))#X, l_partkey#X]
 
 (22) FilterExecTransformer
 Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
@@ -170,7 +171,7 @@ Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
 Arguments: false
 Native Plan:
 -- Filter[expression: isnotnull("n3_2")] -> n3_2:DECIMAL(18, 7), n3_3:BIGINT
-  -- Project[expressions: (n3_2:DECIMAL(18, 7), try_cast multiply(0.200000,"n2_1") as DECIMAL(18, 7)), (n3_3:BIGINT, "n1_3")] -> n3_2:DECIMAL(18, 7), n3_3:BIGINT
+  -- Project[expressions: (n3_2:DECIMAL(18, 7), multiply(0.2,"n2_1")), (n3_3:BIGINT, "n1_3")] -> n3_2:DECIMAL(18, 7), n3_3:BIGINT
     -- Aggregation[SINGLE [n1_3] n2_1 := avg_merge_extract("n1_4")] -> n1_3:BIGINT, n2_1:DECIMAL(16, 6)
       -- Project[expressions: (n1_3:BIGINT, "n0_0"), (n1_4:ROW<col_0:DECIMAL(22, 2),col_1:BIGINT>, row_constructor("n0_1","n0_2"))] -> n1_3:BIGINT, n1_4:ROW<col_0:DECIMAL(22, 2),col_1:BIGINT>
         -- ValueStream[] -> n0_0:BIGINT, n0_1:DECIMAL(22, 2), n0_2:BIGINT
@@ -189,6 +190,7 @@ Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
 (27) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [p_partkey#X]
 Right keys [1]: [l_partkey#X]
+Join type: Inner
 Join condition: (cast(l_quantity#X as decimal(18,7)) < (0.2 * avg(l_quantity))#X)
 
 (28) ProjectExecTransformer
@@ -234,13 +236,13 @@ Input [2]: [sum#X, isEmpty#X]
 Keys: []
 Functions [1]: [sum(l_extendedprice#X)]
 Aggregate Attributes [1]: [sum(l_extendedprice#X)#X]
-Results [1]: [CheckOverflow((promote_precision(sum(l_extendedprice#X)#X) / 7.00), DecimalType(27,6)) AS avg_yearly#X]
+Results [1]: [(sum(l_extendedprice#X)#X / 7.0) AS avg_yearly#X]
 
 (35) WholeStageCodegenTransformer (X)
 Input [1]: [avg_yearly#X]
 Arguments: false
 Native Plan:
--- Project[expressions: (n3_1:DECIMAL(27, 6), try_cast divide("n2_0",try_cast 7.00 as DECIMAL(1, 0)) as DECIMAL(27, 6))] -> n3_1:DECIMAL(27, 6)
+-- Project[expressions: (n3_1:DECIMAL(27, 6), divide("n2_0",7.0))] -> n3_1:DECIMAL(27, 6)
   -- Aggregation[SINGLE n2_0 := sum_merge_extract("n1_2")] -> n2_0:DECIMAL(22, 2)
     -- Project[expressions: (n1_2:ROW<col_0:DECIMAL(22, 2),col_1:BOOLEAN>, row_constructor("n0_0","n0_1"))] -> n1_2:ROW<col_0:DECIMAL(22, 2),col_1:BOOLEAN>
       -- ValueStream[] -> n0_0:DECIMAL(22, 2), n0_1:BOOLEAN
@@ -248,7 +250,7 @@ Native Plan:
 (36) VeloxColumnarToRowExec
 Input [1]: [avg_yearly#X]
 
-(37) Scan parquet default.lineitem
+(37) Scan parquet spark_catalog.default.lineitem
 Output [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -259,7 +261,7 @@ ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2),l_extendedprice:dec
 Input [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
 Condition : (isnotnull(l_partkey#X) AND isnotnull(l_quantity#X))
 
-(39) Scan parquet default.part
+(39) Scan parquet spark_catalog.default.part
 Output [3]: [p_partkey#X, p_container#X, p_brand#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/part]
@@ -281,13 +283,14 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 (43) BroadcastHashJoin
 Left keys [1]: [l_partkey#X]
 Right keys [1]: [p_partkey#X]
+Join type: Inner
 Join condition: None
 
 (44) Project
 Output [3]: [l_quantity#X, l_extendedprice#X, p_partkey#X]
 Input [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, p_partkey#X]
 
-(45) Scan parquet default.lineitem
+(45) Scan parquet spark_catalog.default.lineitem
 Output [2]: [l_partkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -314,7 +317,7 @@ Input [3]: [l_partkey#X, sum#X, count#X]
 Keys [1]: [l_partkey#X]
 Functions [1]: [avg(l_quantity#X)]
 Aggregate Attributes [1]: [avg(l_quantity#X)#X]
-Results [2]: [CheckOverflow((0.200000 * promote_precision(avg(l_quantity#X)#X)), DecimalType(18,7)) AS (0.2 * avg(l_quantity))#X, l_partkey#X]
+Results [2]: [(0.2 * avg(l_quantity#X)#X) AS (0.2 * avg(l_quantity))#X, l_partkey#X]
 
 (50) Filter
 Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
@@ -327,6 +330,7 @@ Arguments: HashedRelationBroadcastMode(List(input[1, bigint, true]),false), [pla
 (52) BroadcastHashJoin
 Left keys [1]: [p_partkey#X]
 Right keys [1]: [l_partkey#X]
+Join type: Inner
 Join condition: (cast(l_quantity#X as decimal(18,7)) < (0.2 * avg(l_quantity))#X)
 
 (53) Project
@@ -349,7 +353,7 @@ Input [2]: [sum#X, isEmpty#X]
 Keys: []
 Functions [1]: [sum(l_extendedprice#X)]
 Aggregate Attributes [1]: [sum(l_extendedprice#X)#X]
-Results [1]: [CheckOverflow((promote_precision(sum(l_extendedprice#X)#X) / 7.00), DecimalType(27,6)) AS avg_yearly#X]
+Results [1]: [(sum(l_extendedprice#X)#X / 7.0) AS avg_yearly#X]
 
 (57) AdaptiveSparkPlan
 Output [1]: [avg_yearly#X]

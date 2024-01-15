@@ -20,34 +20,34 @@ AdaptiveSparkPlan (87)
                                  :     :     :  +- BroadcastQueryStage (5), Statistics(X)
                                  :     :     :     +- ColumnarBroadcastExchange (4)
                                  :     :     :        +- ^ FilterExecTransformer (2)
-                                 :     :     :           +- ^ Scan parquet default.supplier (1)
+                                 :     :     :           +- ^ Scan parquet spark_catalog.default.supplier (1)
                                  :     :     +- ^ GlutenBroadcastHashJoinExecTransformer LeftAnti (23)
                                  :     :        :- ^ GlutenBroadcastHashJoinExecTransformer LeftSemi (15)
                                  :     :        :  :- ^ ProjectExecTransformer (9)
                                  :     :        :  :  +- ^ FilterExecTransformer (8)
-                                 :     :        :  :     +- ^ Scan parquet default.lineitem (7)
+                                 :     :        :  :     +- ^ Scan parquet spark_catalog.default.lineitem (7)
                                  :     :        :  +- ^ InputIteratorTransformer (14)
                                  :     :        :     +- BroadcastQueryStage (13), Statistics(X)
                                  :     :        :        +- ColumnarBroadcastExchange (12)
-                                 :     :        :           +- ^ Scan parquet default.lineitem (10)
+                                 :     :        :           +- ^ Scan parquet spark_catalog.default.lineitem (10)
                                  :     :        +- ^ InputIteratorTransformer (22)
                                  :     :           +- BroadcastQueryStage (21), Statistics(X)
                                  :     :              +- ColumnarBroadcastExchange (20)
                                  :     :                 +- ^ ProjectExecTransformer (18)
                                  :     :                    +- ^ FilterExecTransformer (17)
-                                 :     :                       +- ^ Scan parquet default.lineitem (16)
+                                 :     :                       +- ^ Scan parquet spark_catalog.default.lineitem (16)
                                  :     +- ^ InputIteratorTransformer (32)
                                  :        +- BroadcastQueryStage (31), Statistics(X)
                                  :           +- ColumnarBroadcastExchange (30)
                                  :              +- ^ ProjectExecTransformer (28)
                                  :                 +- ^ FilterExecTransformer (27)
-                                 :                    +- ^ Scan parquet default.orders (26)
+                                 :                    +- ^ Scan parquet spark_catalog.default.orders (26)
                                  +- ^ InputIteratorTransformer (41)
                                     +- BroadcastQueryStage (40), Statistics(X)
                                        +- ColumnarBroadcastExchange (39)
                                           +- ^ ProjectExecTransformer (37)
                                              +- ^ FilterExecTransformer (36)
-                                                +- ^ Scan parquet default.nation (35)
+                                                +- ^ Scan parquet spark_catalog.default.nation (35)
 +- == Initial Plan ==
    TakeOrderedAndProject (86)
    +- HashAggregate (85)
@@ -61,29 +61,29 @@ AdaptiveSparkPlan (87)
                   :     :  +- BroadcastHashJoin Inner BuildLeft (69)
                   :     :     :- BroadcastExchange (57)
                   :     :     :  +- Filter (56)
-                  :     :     :     +- Scan parquet default.supplier (55)
+                  :     :     :     +- Scan parquet spark_catalog.default.supplier (55)
                   :     :     +- BroadcastHashJoin LeftAnti BuildRight (68)
                   :     :        :- BroadcastHashJoin LeftSemi BuildRight (63)
                   :     :        :  :- Project (60)
                   :     :        :  :  +- Filter (59)
-                  :     :        :  :     +- Scan parquet default.lineitem (58)
+                  :     :        :  :     +- Scan parquet spark_catalog.default.lineitem (58)
                   :     :        :  +- BroadcastExchange (62)
-                  :     :        :     +- Scan parquet default.lineitem (61)
+                  :     :        :     +- Scan parquet spark_catalog.default.lineitem (61)
                   :     :        +- BroadcastExchange (67)
                   :     :           +- Project (66)
                   :     :              +- Filter (65)
-                  :     :                 +- Scan parquet default.lineitem (64)
+                  :     :                 +- Scan parquet spark_catalog.default.lineitem (64)
                   :     +- BroadcastExchange (74)
                   :        +- Project (73)
                   :           +- Filter (72)
-                  :              +- Scan parquet default.orders (71)
+                  :              +- Scan parquet spark_catalog.default.orders (71)
                   +- BroadcastExchange (80)
                      +- Project (79)
                         +- Filter (78)
-                           +- Scan parquet default.nation (77)
+                           +- Scan parquet spark_catalog.default.nation (77)
 
 
-(1) Scan parquet default.supplier
+(1) Scan parquet spark_catalog.default.supplier
 Output [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
@@ -111,7 +111,7 @@ Arguments: 0
 (6) InputIteratorTransformer
 Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
 
-(7) Scan parquet default.lineitem
+(7) Scan parquet spark_catalog.default.lineitem
 Output [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -126,7 +126,7 @@ Arguments: ((((isnotnull(l_receiptdate#X) AND isnotnull(l_commitdate#X)) AND (l_
 Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 Arguments: [l_orderkey#X, l_suppkey#X]
 
-(10) Scan parquet default.lineitem
+(10) Scan parquet spark_catalog.default.lineitem
 Output [2]: [l_orderkey#X, l_suppkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -152,9 +152,10 @@ Input [2]: [l_orderkey#X, l_suppkey#X]
 (15) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [l_orderkey#X]
+Join type: LeftSemi
 Join condition: NOT (l_suppkey#X = l_suppkey#X)
 
-(16) Scan parquet default.lineitem
+(16) Scan parquet spark_catalog.default.lineitem
 Output [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -190,18 +191,20 @@ Input [2]: [l_orderkey#X, l_suppkey#X]
 (23) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [l_orderkey#X]
+Join type: LeftAnti
 Join condition: NOT (l_suppkey#X = l_suppkey#X)
 
 (24) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [s_suppkey#X]
 Right keys [1]: [l_suppkey#X]
+Join type: Inner
 Join condition: None
 
 (25) ProjectExecTransformer
 Input [5]: [s_suppkey#X, s_name#X, s_nationkey#X, l_orderkey#X, l_suppkey#X]
 Arguments: [s_name#X, s_nationkey#X, l_orderkey#X]
 
-(26) Scan parquet default.orders
+(26) Scan parquet spark_catalog.default.orders
 Output [2]: [o_orderkey#X, o_orderstatus#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
@@ -237,13 +240,14 @@ Input [1]: [o_orderkey#X]
 (33) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [o_orderkey#X]
+Join type: Inner
 Join condition: None
 
 (34) ProjectExecTransformer
 Input [4]: [s_name#X, s_nationkey#X, l_orderkey#X, o_orderkey#X]
 Arguments: [s_name#X, s_nationkey#X]
 
-(35) Scan parquet default.nation
+(35) Scan parquet spark_catalog.default.nation
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
@@ -279,6 +283,7 @@ Input [1]: [n_nationkey#X]
 (42) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
+Join type: Inner
 Join condition: None
 
 (43) ProjectExecTransformer
@@ -360,7 +365,7 @@ Arguments: 100, [numwait#X DESC NULLS LAST, s_name#X ASC NULLS FIRST], [s_name#X
 (54) VeloxColumnarToRowExec
 Input [2]: [s_name#X, numwait#X]
 
-(55) Scan parquet default.supplier
+(55) Scan parquet spark_catalog.default.supplier
 Output [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
@@ -375,7 +380,7 @@ Condition : (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
 Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
 
-(58) Scan parquet default.lineitem
+(58) Scan parquet spark_catalog.default.lineitem
 Output [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -390,7 +395,7 @@ Condition : ((((isnotnull(l_receiptdate#X) AND isnotnull(l_commitdate#X)) AND (l
 Output [2]: [l_orderkey#X, l_suppkey#X]
 Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 
-(61) Scan parquet default.lineitem
+(61) Scan parquet spark_catalog.default.lineitem
 Output [2]: [l_orderkey#X, l_suppkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -403,9 +408,10 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 (63) BroadcastHashJoin
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [l_orderkey#X]
+Join type: LeftSemi
 Join condition: NOT (l_suppkey#X = l_suppkey#X)
 
-(64) Scan parquet default.lineitem
+(64) Scan parquet spark_catalog.default.lineitem
 Output [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -427,18 +433,20 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 (68) BroadcastHashJoin
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [l_orderkey#X]
+Join type: LeftAnti
 Join condition: NOT (l_suppkey#X = l_suppkey#X)
 
 (69) BroadcastHashJoin
 Left keys [1]: [s_suppkey#X]
 Right keys [1]: [l_suppkey#X]
+Join type: Inner
 Join condition: None
 
 (70) Project
 Output [3]: [s_name#X, s_nationkey#X, l_orderkey#X]
 Input [5]: [s_suppkey#X, s_name#X, s_nationkey#X, l_orderkey#X, l_suppkey#X]
 
-(71) Scan parquet default.orders
+(71) Scan parquet spark_catalog.default.orders
 Output [2]: [o_orderkey#X, o_orderstatus#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
@@ -460,13 +468,14 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 (75) BroadcastHashJoin
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [o_orderkey#X]
+Join type: Inner
 Join condition: None
 
 (76) Project
 Output [2]: [s_name#X, s_nationkey#X]
 Input [4]: [s_name#X, s_nationkey#X, l_orderkey#X, o_orderkey#X]
 
-(77) Scan parquet default.nation
+(77) Scan parquet spark_catalog.default.nation
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
@@ -488,6 +497,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 (81) BroadcastHashJoin
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
+Join type: Inner
 Join condition: None
 
 (82) Project
