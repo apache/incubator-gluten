@@ -1,33 +1,34 @@
 == Physical Plan ==
-AdaptiveSparkPlan (25)
+AdaptiveSparkPlan (31)
 +- == Final Plan ==
-   * HashAggregate (15)
-   +- ShuffleQueryStage (14), Statistics(***)
-      +- Exchange (13)
-         +- * HashAggregate (12)
-            +- * Project (11)
-               +- * BroadcastHashJoin Inner BuildRight (10)
-                  :- * Project (4)
-                  :  +- * Filter (3)
-                  :     +- * ColumnarToRow (2)
-                  :        +- Scan parquet default.lineitem (1)
-                  +- BroadcastQueryStage (9), Statistics(***)
-                     +- BroadcastExchange (8)
-                        +- * Filter (7)
-                           +- * ColumnarToRow (6)
-                              +- Scan parquet default.part (5)
+   VeloxColumnarToRowExec (19)
+   +- ^ RegularHashAggregateExecTransformer (17)
+      +- ^ InputIteratorTransformer (16)
+         +- ShuffleQueryStage (15), Statistics(***)
+            +- ColumnarExchange (14)
+               +- ^ FlushableHashAggregateExecTransformer (12)
+                  +- ^ ProjectExecTransformer (11)
+                     +- ^ GlutenBroadcastHashJoinExecTransformer Inner (10)
+                        :- ^ ProjectExecTransformer (3)
+                        :  +- ^ FilterExecTransformer (2)
+                        :     +- ^ Scan parquet default.lineitem (1)
+                        +- ^ InputIteratorTransformer (9)
+                           +- BroadcastQueryStage (8), Statistics(***)
+                              +- ColumnarBroadcastExchange (7)
+                                 +- ^ FilterExecTransformer (5)
+                                    +- ^ Scan parquet default.part (4)
 +- == Initial Plan ==
-   HashAggregate (24)
-   +- Exchange (23)
-      +- HashAggregate (22)
-         +- Project (21)
-            +- BroadcastHashJoin Inner BuildRight (20)
-               :- Project (17)
-               :  +- Filter (16)
-               :     +- Scan parquet default.lineitem (1)
-               +- BroadcastExchange (19)
-                  +- Filter (18)
-                     +- Scan parquet default.part (5)
+   HashAggregate (30)
+   +- Exchange (29)
+      +- HashAggregate (28)
+         +- Project (27)
+            +- BroadcastHashJoin Inner BuildRight (26)
+               :- Project (22)
+               :  +- Filter (21)
+               :     +- Scan parquet default.lineitem (20)
+               +- BroadcastExchange (25)
+                  +- Filter (24)
+                     +- Scan parquet default.part (23)
 
 
 (1) Scan parquet default.lineitem
@@ -37,113 +38,142 @@ Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
 PushedFilters: [IsNotNull(l_shipdate), GreaterThanOrEqual(l_shipdate,1995-09-01), LessThan(l_shipdate,1995-10-01), IsNotNull(l_partkey)]
 ReadSchema: struct<l_partkey:bigint,l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_shipdate:date>
 
-(2) ColumnarToRow [codegen id : 2]
+(2) FilterExecTransformer
 Input [4]: [l_partkey#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
+Arguments: (((isnotnull(l_shipdate#***) AND (l_shipdate#*** >= 1995-09-01)) AND (l_shipdate#*** < 1995-10-01)) AND isnotnull(l_partkey#***))
 
-(3) Filter [codegen id : 2]
+(3) ProjectExecTransformer
 Input [4]: [l_partkey#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
-Condition : (((isnotnull(l_shipdate#***) AND (l_shipdate#*** >= 1995-09-01)) AND (l_shipdate#*** < 1995-10-01)) AND isnotnull(l_partkey#***))
+Arguments: [l_partkey#***, l_extendedprice#***, l_discount#***]
 
-(4) Project [codegen id : 2]
-Output [3]: [l_partkey#***, l_extendedprice#***, l_discount#***]
-Input [4]: [l_partkey#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
-
-(5) Scan parquet default.part
+(4) Scan parquet default.part
 Output [2]: [p_partkey#***, p_type#***]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/part]
 PushedFilters: [IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_type:string>
 
-(6) ColumnarToRow [codegen id : 1]
+(5) FilterExecTransformer
 Input [2]: [p_partkey#***, p_type#***]
+Arguments: isnotnull(p_partkey#***)
 
-(7) Filter [codegen id : 1]
+(6) WholeStageCodegenTransformer (87)
 Input [2]: [p_partkey#***, p_type#***]
-Condition : isnotnull(p_partkey#***)
+Arguments: false
 
-(8) BroadcastExchange
+(7) ColumnarBroadcastExchange
 Input [2]: [p_partkey#***, p_type#***]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
 
-(9) BroadcastQueryStage
+(8) BroadcastQueryStage
 Output [2]: [p_partkey#***, p_type#***]
 Arguments: 0
 
-(10) BroadcastHashJoin [codegen id : 2]
+(9) InputIteratorTransformer
+Input [2]: [p_partkey#***, p_type#***]
+
+(10) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [l_partkey#***]
 Right keys [1]: [p_partkey#***]
 Join condition: None
 
-(11) Project [codegen id : 2]
-Output [3]: [l_extendedprice#***, l_discount#***, p_type#***]
+(11) ProjectExecTransformer
 Input [5]: [l_partkey#***, l_extendedprice#***, l_discount#***, p_partkey#***, p_type#***]
+Arguments: [l_extendedprice#***, l_discount#***, p_type#***]
 
-(12) HashAggregate [codegen id : 2]
+(12) FlushableHashAggregateExecTransformer
 Input [3]: [l_extendedprice#***, l_discount#***, p_type#***]
 Keys: []
 Functions [2]: [partial_sum(CASE WHEN StartsWith(p_type#***, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) ELSE 0.0000 END), partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
 Aggregate Attributes [4]: [sum#***, isEmpty#***, sum#***, isEmpty#***]
 Results [4]: [sum#***, isEmpty#***, sum#***, isEmpty#***]
 
-(13) Exchange
+(13) WholeStageCodegenTransformer (88)
 Input [4]: [sum#***, isEmpty#***, sum#***, isEmpty#***]
-Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=***]
+Arguments: false
 
-(14) ShuffleQueryStage
+(14) ColumnarExchange
+Input [4]: [sum#***, isEmpty#***, sum#***, isEmpty#***]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=***], [id=#***]
+
+(15) ShuffleQueryStage
 Output [4]: [sum#***, isEmpty#***, sum#***, isEmpty#***]
 Arguments: 1
 
-(15) HashAggregate [codegen id : 3]
+(16) InputIteratorTransformer
+Input [4]: [sum#***, isEmpty#***, sum#***, isEmpty#***]
+
+(17) RegularHashAggregateExecTransformer
 Input [4]: [sum#***, isEmpty#***, sum#***, isEmpty#***]
 Keys: []
 Functions [2]: [sum(CASE WHEN StartsWith(p_type#***, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) ELSE 0.0000 END), sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
 Aggregate Attributes [2]: [sum(CASE WHEN StartsWith(p_type#***, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) ELSE 0.0000 END)#***, sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#***]
 Results [1]: [CheckOverflow((promote_precision(CheckOverflow((100.0000 * promote_precision(sum(CASE WHEN StartsWith(p_type#***, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) ELSE 0.0000 END)#***)), DecimalType(38,6))) / promote_precision(cast(sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#*** as decimal(38,6)))), DecimalType(38,6)) AS promo_revenue#***]
 
-(16) Filter
+(18) WholeStageCodegenTransformer (89)
+Input [1]: [promo_revenue#***]
+Arguments: false
+
+(19) VeloxColumnarToRowExec
+Input [1]: [promo_revenue#***]
+
+(20) Scan parquet default.lineitem
+Output [4]: [l_partkey#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
+PushedFilters: [IsNotNull(l_shipdate), GreaterThanOrEqual(l_shipdate,1995-09-01), LessThan(l_shipdate,1995-10-01), IsNotNull(l_partkey)]
+ReadSchema: struct<l_partkey:bigint,l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_shipdate:date>
+
+(21) Filter
 Input [4]: [l_partkey#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
 Condition : (((isnotnull(l_shipdate#***) AND (l_shipdate#*** >= 1995-09-01)) AND (l_shipdate#*** < 1995-10-01)) AND isnotnull(l_partkey#***))
 
-(17) Project
+(22) Project
 Output [3]: [l_partkey#***, l_extendedprice#***, l_discount#***]
 Input [4]: [l_partkey#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
 
-(18) Filter
+(23) Scan parquet default.part
+Output [2]: [p_partkey#***, p_type#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/part]
+PushedFilters: [IsNotNull(p_partkey)]
+ReadSchema: struct<p_partkey:bigint,p_type:string>
+
+(24) Filter
 Input [2]: [p_partkey#***, p_type#***]
 Condition : isnotnull(p_partkey#***)
 
-(19) BroadcastExchange
+(25) BroadcastExchange
 Input [2]: [p_partkey#***, p_type#***]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
 
-(20) BroadcastHashJoin
+(26) BroadcastHashJoin
 Left keys [1]: [l_partkey#***]
 Right keys [1]: [p_partkey#***]
 Join condition: None
 
-(21) Project
+(27) Project
 Output [3]: [l_extendedprice#***, l_discount#***, p_type#***]
 Input [5]: [l_partkey#***, l_extendedprice#***, l_discount#***, p_partkey#***, p_type#***]
 
-(22) HashAggregate
+(28) HashAggregate
 Input [3]: [l_extendedprice#***, l_discount#***, p_type#***]
 Keys: []
 Functions [2]: [partial_sum(CASE WHEN StartsWith(p_type#***, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) ELSE 0.0000 END), partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
 Aggregate Attributes [4]: [sum#***, isEmpty#***, sum#***, isEmpty#***]
 Results [4]: [sum#***, isEmpty#***, sum#***, isEmpty#***]
 
-(23) Exchange
+(29) Exchange
 Input [4]: [sum#***, isEmpty#***, sum#***, isEmpty#***]
 Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=***]
 
-(24) HashAggregate
+(30) HashAggregate
 Input [4]: [sum#***, isEmpty#***, sum#***, isEmpty#***]
 Keys: []
 Functions [2]: [sum(CASE WHEN StartsWith(p_type#***, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) ELSE 0.0000 END), sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
 Aggregate Attributes [2]: [sum(CASE WHEN StartsWith(p_type#***, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) ELSE 0.0000 END)#***, sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#***]
 Results [1]: [CheckOverflow((promote_precision(CheckOverflow((100.0000 * promote_precision(sum(CASE WHEN StartsWith(p_type#***, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) ELSE 0.0000 END)#***)), DecimalType(38,6))) / promote_precision(cast(sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#*** as decimal(38,6)))), DecimalType(38,6)) AS promo_revenue#***]
 
-(25) AdaptiveSparkPlan
+(31) AdaptiveSparkPlan
 Output [1]: [promo_revenue#***]
 Arguments: isFinalPlan=true

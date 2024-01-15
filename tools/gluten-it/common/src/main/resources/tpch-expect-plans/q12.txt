@@ -1,40 +1,43 @@
 == Physical Plan ==
-AdaptiveSparkPlan (32)
+AdaptiveSparkPlan (41)
 +- == Final Plan ==
-   * Sort (20)
-   +- AQEShuffleRead (19)
-      +- ShuffleQueryStage (18), Statistics(***)
-         +- Exchange (17)
-            +- * HashAggregate (16)
-               +- AQEShuffleRead (15)
-                  +- ShuffleQueryStage (14), Statistics(***)
-                     +- Exchange (13)
-                        +- * HashAggregate (12)
-                           +- * Project (11)
-                              +- * BroadcastHashJoin Inner BuildLeft (10)
-                                 :- BroadcastQueryStage (5), Statistics(***)
-                                 :  +- BroadcastExchange (4)
-                                 :     +- * Filter (3)
-                                 :        +- * ColumnarToRow (2)
-                                 :           +- Scan parquet default.orders (1)
-                                 +- * Project (9)
-                                    +- * Filter (8)
-                                       +- * ColumnarToRow (7)
-                                          +- Scan parquet default.lineitem (6)
+   VeloxColumnarToRowExec (27)
+   +- ^ SortExecTransformer (25)
+      +- ^ InputIteratorTransformer (24)
+         +- AQEShuffleRead (23)
+            +- ShuffleQueryStage (22), Statistics(***)
+               +- ColumnarExchange (21)
+                  +- ^ RegularHashAggregateExecTransformer (19)
+                     +- ^ InputIteratorTransformer (18)
+                        +- AQEShuffleRead (17)
+                           +- ShuffleQueryStage (16), Statistics(***)
+                              +- ColumnarExchange (15)
+                                 +- ^ ProjectExecTransformer (13)
+                                    +- ^ FlushableHashAggregateExecTransformer (12)
+                                       +- ^ ProjectExecTransformer (11)
+                                          +- ^ GlutenBroadcastHashJoinExecTransformer Inner (10)
+                                             :- ^ InputIteratorTransformer (6)
+                                             :  +- BroadcastQueryStage (5), Statistics(***)
+                                             :     +- ColumnarBroadcastExchange (4)
+                                             :        +- ^ FilterExecTransformer (2)
+                                             :           +- ^ Scan parquet default.orders (1)
+                                             +- ^ ProjectExecTransformer (9)
+                                                +- ^ FilterExecTransformer (8)
+                                                   +- ^ Scan parquet default.lineitem (7)
 +- == Initial Plan ==
-   Sort (31)
-   +- Exchange (30)
-      +- HashAggregate (29)
-         +- Exchange (28)
-            +- HashAggregate (27)
-               +- Project (26)
-                  +- BroadcastHashJoin Inner BuildLeft (25)
-                     :- BroadcastExchange (22)
-                     :  +- Filter (21)
-                     :     +- Scan parquet default.orders (1)
-                     +- Project (24)
-                        +- Filter (23)
-                           +- Scan parquet default.lineitem (6)
+   Sort (40)
+   +- Exchange (39)
+      +- HashAggregate (38)
+         +- Exchange (37)
+            +- HashAggregate (36)
+               +- Project (35)
+                  +- BroadcastHashJoin Inner BuildLeft (34)
+                     :- BroadcastExchange (30)
+                     :  +- Filter (29)
+                     :     +- Scan parquet default.orders (28)
+                     +- Project (33)
+                        +- Filter (32)
+                           +- Scan parquet default.lineitem (31)
 
 
 (1) Scan parquet default.orders
@@ -44,14 +47,15 @@ Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
 PushedFilters: [IsNotNull(o_orderkey)]
 ReadSchema: struct<o_orderkey:bigint,o_orderpriority:string>
 
-(2) ColumnarToRow [codegen id : 1]
+(2) FilterExecTransformer
 Input [2]: [o_orderkey#***, o_orderpriority#***]
+Arguments: isnotnull(o_orderkey#***)
 
-(3) Filter [codegen id : 1]
+(3) WholeStageCodegenTransformer (78)
 Input [2]: [o_orderkey#***, o_orderpriority#***]
-Condition : isnotnull(o_orderkey#***)
+Arguments: false
 
-(4) BroadcastExchange
+(4) ColumnarBroadcastExchange
 Input [2]: [o_orderkey#***, o_orderpriority#***]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
 
@@ -59,126 +63,165 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 Output [2]: [o_orderkey#***, o_orderpriority#***]
 Arguments: 0
 
-(6) Scan parquet default.lineitem
+(6) InputIteratorTransformer
+Input [2]: [o_orderkey#***, o_orderpriority#***]
+
+(7) Scan parquet default.lineitem
 Output [5]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***, l_shipmode#***, l_shipdate#***]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
 PushedFilters: [IsNotNull(l_commitdate), IsNotNull(l_receiptdate), IsNotNull(l_shipdate), In(l_shipmode, [MAIL,SHIP]), GreaterThanOrEqual(l_receiptdate,1994-01-01), LessThan(l_receiptdate,1995-01-01), IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_commitdate:date,l_receiptdate:date,l_shipmode:string,l_shipdate:date>
 
-(7) ColumnarToRow
+(8) FilterExecTransformer
 Input [5]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***, l_shipmode#***, l_shipdate#***]
+Arguments: ((((((((isnotnull(l_commitdate#***) AND isnotnull(l_receiptdate#***)) AND isnotnull(l_shipdate#***)) AND l_shipmode#*** IN (MAIL,SHIP)) AND (l_commitdate#*** < l_receiptdate#***)) AND (l_shipdate#*** < l_commitdate#***)) AND (l_receiptdate#*** >= 1994-01-01)) AND (l_receiptdate#*** < 1995-01-01)) AND isnotnull(l_orderkey#***))
 
-(8) Filter
+(9) ProjectExecTransformer
 Input [5]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***, l_shipmode#***, l_shipdate#***]
-Condition : ((((((((isnotnull(l_commitdate#***) AND isnotnull(l_receiptdate#***)) AND isnotnull(l_shipdate#***)) AND l_shipmode#*** IN (MAIL,SHIP)) AND (l_commitdate#*** < l_receiptdate#***)) AND (l_shipdate#*** < l_commitdate#***)) AND (l_receiptdate#*** >= 1994-01-01)) AND (l_receiptdate#*** < 1995-01-01)) AND isnotnull(l_orderkey#***))
+Arguments: [l_orderkey#***, l_shipmode#***]
 
-(9) Project
-Output [2]: [l_orderkey#***, l_shipmode#***]
-Input [5]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***, l_shipmode#***, l_shipdate#***]
-
-(10) BroadcastHashJoin [codegen id : 2]
+(10) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [o_orderkey#***]
 Right keys [1]: [l_orderkey#***]
 Join condition: None
 
-(11) Project [codegen id : 2]
-Output [2]: [o_orderpriority#***, l_shipmode#***]
+(11) ProjectExecTransformer
 Input [4]: [o_orderkey#***, o_orderpriority#***, l_orderkey#***, l_shipmode#***]
+Arguments: [o_orderpriority#***, l_shipmode#***]
 
-(12) HashAggregate [codegen id : 2]
+(12) FlushableHashAggregateExecTransformer
 Input [2]: [o_orderpriority#***, l_shipmode#***]
 Keys [1]: [l_shipmode#***]
 Functions [2]: [partial_sum(CASE WHEN ((o_orderpriority#*** = 1-URGENT) OR (o_orderpriority#*** = 2-HIGH)) THEN 1 ELSE 0 END), partial_sum(CASE WHEN (NOT (o_orderpriority#*** = 1-URGENT) AND NOT (o_orderpriority#*** = 2-HIGH)) THEN 1 ELSE 0 END)]
 Aggregate Attributes [2]: [sum#***, sum#***]
 Results [3]: [l_shipmode#***, sum#***, sum#***]
 
-(13) Exchange
+(13) ProjectExecTransformer
 Input [3]: [l_shipmode#***, sum#***, sum#***]
-Arguments: hashpartitioning(l_shipmode#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+Arguments: [hash(l_shipmode#***, 42) AS hash_partition_key#***, l_shipmode#***, sum#***, sum#***]
 
-(14) ShuffleQueryStage
+(14) WholeStageCodegenTransformer (79)
+Input [4]: [hash_partition_key#***, l_shipmode#***, sum#***, sum#***]
+Arguments: false
+
+(15) ColumnarExchange
+Input [4]: [hash_partition_key#***, l_shipmode#***, sum#***, sum#***]
+Arguments: hashpartitioning(l_shipmode#***, 100), ENSURE_REQUIREMENTS, [l_shipmode#***, sum#***, sum#***], [plan_id=***], [id=#***]
+
+(16) ShuffleQueryStage
 Output [3]: [l_shipmode#***, sum#***, sum#***]
 Arguments: 1
 
-(15) AQEShuffleRead
+(17) AQEShuffleRead
 Input [3]: [l_shipmode#***, sum#***, sum#***]
 Arguments: coalesced
 
-(16) HashAggregate [codegen id : 3]
+(18) InputIteratorTransformer
+Input [3]: [l_shipmode#***, sum#***, sum#***]
+
+(19) RegularHashAggregateExecTransformer
 Input [3]: [l_shipmode#***, sum#***, sum#***]
 Keys [1]: [l_shipmode#***]
 Functions [2]: [sum(CASE WHEN ((o_orderpriority#*** = 1-URGENT) OR (o_orderpriority#*** = 2-HIGH)) THEN 1 ELSE 0 END), sum(CASE WHEN (NOT (o_orderpriority#*** = 1-URGENT) AND NOT (o_orderpriority#*** = 2-HIGH)) THEN 1 ELSE 0 END)]
 Aggregate Attributes [2]: [sum(CASE WHEN ((o_orderpriority#*** = 1-URGENT) OR (o_orderpriority#*** = 2-HIGH)) THEN 1 ELSE 0 END)#***, sum(CASE WHEN (NOT (o_orderpriority#*** = 1-URGENT) AND NOT (o_orderpriority#*** = 2-HIGH)) THEN 1 ELSE 0 END)#***]
 Results [3]: [l_shipmode#***, sum(CASE WHEN ((o_orderpriority#*** = 1-URGENT) OR (o_orderpriority#*** = 2-HIGH)) THEN 1 ELSE 0 END)#*** AS high_line_count#***, sum(CASE WHEN (NOT (o_orderpriority#*** = 1-URGENT) AND NOT (o_orderpriority#*** = 2-HIGH)) THEN 1 ELSE 0 END)#*** AS low_line_count#***]
 
-(17) Exchange
+(20) WholeStageCodegenTransformer (80)
 Input [3]: [l_shipmode#***, high_line_count#***, low_line_count#***]
-Arguments: rangepartitioning(l_shipmode#*** ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+Arguments: false
 
-(18) ShuffleQueryStage
+(21) ColumnarExchange
+Input [3]: [l_shipmode#***, high_line_count#***, low_line_count#***]
+Arguments: rangepartitioning(l_shipmode#*** ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=***], [id=#***]
+
+(22) ShuffleQueryStage
 Output [3]: [l_shipmode#***, high_line_count#***, low_line_count#***]
 Arguments: 2
 
-(19) AQEShuffleRead
+(23) AQEShuffleRead
 Input [3]: [l_shipmode#***, high_line_count#***, low_line_count#***]
 Arguments: coalesced
 
-(20) Sort [codegen id : 4]
+(24) InputIteratorTransformer
+Input [3]: [l_shipmode#***, high_line_count#***, low_line_count#***]
+
+(25) SortExecTransformer
 Input [3]: [l_shipmode#***, high_line_count#***, low_line_count#***]
 Arguments: [l_shipmode#*** ASC NULLS FIRST], true, 0
 
-(21) Filter
+(26) WholeStageCodegenTransformer (81)
+Input [3]: [l_shipmode#***, high_line_count#***, low_line_count#***]
+Arguments: false
+
+(27) VeloxColumnarToRowExec
+Input [3]: [l_shipmode#***, high_line_count#***, low_line_count#***]
+
+(28) Scan parquet default.orders
+Output [2]: [o_orderkey#***, o_orderpriority#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
+PushedFilters: [IsNotNull(o_orderkey)]
+ReadSchema: struct<o_orderkey:bigint,o_orderpriority:string>
+
+(29) Filter
 Input [2]: [o_orderkey#***, o_orderpriority#***]
 Condition : isnotnull(o_orderkey#***)
 
-(22) BroadcastExchange
+(30) BroadcastExchange
 Input [2]: [o_orderkey#***, o_orderpriority#***]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
 
-(23) Filter
+(31) Scan parquet default.lineitem
+Output [5]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***, l_shipmode#***, l_shipdate#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
+PushedFilters: [IsNotNull(l_commitdate), IsNotNull(l_receiptdate), IsNotNull(l_shipdate), In(l_shipmode, [MAIL,SHIP]), GreaterThanOrEqual(l_receiptdate,1994-01-01), LessThan(l_receiptdate,1995-01-01), IsNotNull(l_orderkey)]
+ReadSchema: struct<l_orderkey:bigint,l_commitdate:date,l_receiptdate:date,l_shipmode:string,l_shipdate:date>
+
+(32) Filter
 Input [5]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***, l_shipmode#***, l_shipdate#***]
 Condition : ((((((((isnotnull(l_commitdate#***) AND isnotnull(l_receiptdate#***)) AND isnotnull(l_shipdate#***)) AND l_shipmode#*** IN (MAIL,SHIP)) AND (l_commitdate#*** < l_receiptdate#***)) AND (l_shipdate#*** < l_commitdate#***)) AND (l_receiptdate#*** >= 1994-01-01)) AND (l_receiptdate#*** < 1995-01-01)) AND isnotnull(l_orderkey#***))
 
-(24) Project
+(33) Project
 Output [2]: [l_orderkey#***, l_shipmode#***]
 Input [5]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***, l_shipmode#***, l_shipdate#***]
 
-(25) BroadcastHashJoin
+(34) BroadcastHashJoin
 Left keys [1]: [o_orderkey#***]
 Right keys [1]: [l_orderkey#***]
 Join condition: None
 
-(26) Project
+(35) Project
 Output [2]: [o_orderpriority#***, l_shipmode#***]
 Input [4]: [o_orderkey#***, o_orderpriority#***, l_orderkey#***, l_shipmode#***]
 
-(27) HashAggregate
+(36) HashAggregate
 Input [2]: [o_orderpriority#***, l_shipmode#***]
 Keys [1]: [l_shipmode#***]
 Functions [2]: [partial_sum(CASE WHEN ((o_orderpriority#*** = 1-URGENT) OR (o_orderpriority#*** = 2-HIGH)) THEN 1 ELSE 0 END), partial_sum(CASE WHEN (NOT (o_orderpriority#*** = 1-URGENT) AND NOT (o_orderpriority#*** = 2-HIGH)) THEN 1 ELSE 0 END)]
 Aggregate Attributes [2]: [sum#***, sum#***]
 Results [3]: [l_shipmode#***, sum#***, sum#***]
 
-(28) Exchange
+(37) Exchange
 Input [3]: [l_shipmode#***, sum#***, sum#***]
 Arguments: hashpartitioning(l_shipmode#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
 
-(29) HashAggregate
+(38) HashAggregate
 Input [3]: [l_shipmode#***, sum#***, sum#***]
 Keys [1]: [l_shipmode#***]
 Functions [2]: [sum(CASE WHEN ((o_orderpriority#*** = 1-URGENT) OR (o_orderpriority#*** = 2-HIGH)) THEN 1 ELSE 0 END), sum(CASE WHEN (NOT (o_orderpriority#*** = 1-URGENT) AND NOT (o_orderpriority#*** = 2-HIGH)) THEN 1 ELSE 0 END)]
 Aggregate Attributes [2]: [sum(CASE WHEN ((o_orderpriority#*** = 1-URGENT) OR (o_orderpriority#*** = 2-HIGH)) THEN 1 ELSE 0 END)#***, sum(CASE WHEN (NOT (o_orderpriority#*** = 1-URGENT) AND NOT (o_orderpriority#*** = 2-HIGH)) THEN 1 ELSE 0 END)#***]
 Results [3]: [l_shipmode#***, sum(CASE WHEN ((o_orderpriority#*** = 1-URGENT) OR (o_orderpriority#*** = 2-HIGH)) THEN 1 ELSE 0 END)#*** AS high_line_count#***, sum(CASE WHEN (NOT (o_orderpriority#*** = 1-URGENT) AND NOT (o_orderpriority#*** = 2-HIGH)) THEN 1 ELSE 0 END)#*** AS low_line_count#***]
 
-(30) Exchange
+(39) Exchange
 Input [3]: [l_shipmode#***, high_line_count#***, low_line_count#***]
 Arguments: rangepartitioning(l_shipmode#*** ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=***]
 
-(31) Sort
+(40) Sort
 Input [3]: [l_shipmode#***, high_line_count#***, low_line_count#***]
 Arguments: [l_shipmode#*** ASC NULLS FIRST], true, 0
 
-(32) AdaptiveSparkPlan
+(41) AdaptiveSparkPlan
 Output [3]: [l_shipmode#***, high_line_count#***, low_line_count#***]
 Arguments: isFinalPlan=true

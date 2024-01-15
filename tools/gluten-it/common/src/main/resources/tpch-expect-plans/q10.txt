@@ -1,62 +1,64 @@
 == Physical Plan ==
-AdaptiveSparkPlan (52)
+AdaptiveSparkPlan (63)
 +- == Final Plan ==
-   TakeOrderedAndProject (32)
-   +- * HashAggregate (31)
-      +- AQEShuffleRead (30)
-         +- ShuffleQueryStage (29), Statistics(***)
-            +- Exchange (28)
-               +- * HashAggregate (27)
-                  +- * Project (26)
-                     +- * BroadcastHashJoin Inner BuildRight (25)
-                        :- * Project (19)
-                        :  +- * BroadcastHashJoin Inner BuildRight (18)
-                        :     :- * Project (11)
-                        :     :  +- * BroadcastHashJoin Inner BuildRight (10)
-                        :     :     :- * Filter (3)
-                        :     :     :  +- * ColumnarToRow (2)
-                        :     :     :     +- Scan parquet default.customer (1)
-                        :     :     +- BroadcastQueryStage (9), Statistics(***)
-                        :     :        +- BroadcastExchange (8)
-                        :     :           +- * Project (7)
-                        :     :              +- * Filter (6)
-                        :     :                 +- * ColumnarToRow (5)
-                        :     :                    +- Scan parquet default.orders (4)
-                        :     +- BroadcastQueryStage (17), Statistics(***)
-                        :        +- BroadcastExchange (16)
-                        :           +- * Project (15)
-                        :              +- * Filter (14)
-                        :                 +- * ColumnarToRow (13)
-                        :                    +- Scan parquet default.lineitem (12)
-                        +- BroadcastQueryStage (24), Statistics(***)
-                           +- BroadcastExchange (23)
-                              +- * Filter (22)
-                                 +- * ColumnarToRow (21)
-                                    +- Scan parquet default.nation (20)
+   VeloxColumnarToRowExec (39)
+   +- TakeOrderedAndProjectExecTransformer (38)
+      +- ^ RegularHashAggregateExecTransformer (36)
+         +- ^ InputIteratorTransformer (35)
+            +- AQEShuffleRead (34)
+               +- ShuffleQueryStage (33), Statistics(***)
+                  +- ColumnarExchange (32)
+                     +- ^ ProjectExecTransformer (30)
+                        +- ^ FlushableHashAggregateExecTransformer (29)
+                           +- ^ ProjectExecTransformer (28)
+                              +- ^ GlutenBroadcastHashJoinExecTransformer Inner (27)
+                                 :- ^ ProjectExecTransformer (20)
+                                 :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (19)
+                                 :     :- ^ ProjectExecTransformer (11)
+                                 :     :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (10)
+                                 :     :     :- ^ FilterExecTransformer (2)
+                                 :     :     :  +- ^ Scan parquet default.customer (1)
+                                 :     :     +- ^ InputIteratorTransformer (9)
+                                 :     :        +- BroadcastQueryStage (8), Statistics(***)
+                                 :     :           +- ColumnarBroadcastExchange (7)
+                                 :     :              +- ^ ProjectExecTransformer (5)
+                                 :     :                 +- ^ FilterExecTransformer (4)
+                                 :     :                    +- ^ Scan parquet default.orders (3)
+                                 :     +- ^ InputIteratorTransformer (18)
+                                 :        +- BroadcastQueryStage (17), Statistics(***)
+                                 :           +- ColumnarBroadcastExchange (16)
+                                 :              +- ^ ProjectExecTransformer (14)
+                                 :                 +- ^ FilterExecTransformer (13)
+                                 :                    +- ^ Scan parquet default.lineitem (12)
+                                 +- ^ InputIteratorTransformer (26)
+                                    +- BroadcastQueryStage (25), Statistics(***)
+                                       +- ColumnarBroadcastExchange (24)
+                                          +- ^ FilterExecTransformer (22)
+                                             +- ^ Scan parquet default.nation (21)
 +- == Initial Plan ==
-   TakeOrderedAndProject (51)
-   +- HashAggregate (50)
-      +- Exchange (49)
-         +- HashAggregate (48)
-            +- Project (47)
-               +- BroadcastHashJoin Inner BuildRight (46)
-                  :- Project (43)
-                  :  +- BroadcastHashJoin Inner BuildRight (42)
-                  :     :- Project (38)
-                  :     :  +- BroadcastHashJoin Inner BuildRight (37)
-                  :     :     :- Filter (33)
-                  :     :     :  +- Scan parquet default.customer (1)
-                  :     :     +- BroadcastExchange (36)
-                  :     :        +- Project (35)
-                  :     :           +- Filter (34)
-                  :     :              +- Scan parquet default.orders (4)
-                  :     +- BroadcastExchange (41)
-                  :        +- Project (40)
-                  :           +- Filter (39)
-                  :              +- Scan parquet default.lineitem (12)
-                  +- BroadcastExchange (45)
-                     +- Filter (44)
-                        +- Scan parquet default.nation (20)
+   TakeOrderedAndProject (62)
+   +- HashAggregate (61)
+      +- Exchange (60)
+         +- HashAggregate (59)
+            +- Project (58)
+               +- BroadcastHashJoin Inner BuildRight (57)
+                  :- Project (53)
+                  :  +- BroadcastHashJoin Inner BuildRight (52)
+                  :     :- Project (47)
+                  :     :  +- BroadcastHashJoin Inner BuildRight (46)
+                  :     :     :- Filter (41)
+                  :     :     :  +- Scan parquet default.customer (40)
+                  :     :     +- BroadcastExchange (45)
+                  :     :        +- Project (44)
+                  :     :           +- Filter (43)
+                  :     :              +- Scan parquet default.orders (42)
+                  :     +- BroadcastExchange (51)
+                  :        +- Project (50)
+                  :           +- Filter (49)
+                  :              +- Scan parquet default.lineitem (48)
+                  +- BroadcastExchange (56)
+                     +- Filter (55)
+                        +- Scan parquet default.nation (54)
 
 
 (1) Scan parquet default.customer
@@ -66,47 +68,48 @@ Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
 PushedFilters: [IsNotNull(c_custkey), IsNotNull(c_nationkey)]
 ReadSchema: struct<c_custkey:bigint,c_name:string,c_address:string,c_nationkey:bigint,c_phone:string,c_acctbal:decimal(12,2),c_comment:string>
 
-(2) ColumnarToRow [codegen id : 4]
+(2) FilterExecTransformer
 Input [7]: [c_custkey#***, c_name#***, c_address#***, c_nationkey#***, c_phone#***, c_acctbal#***, c_comment#***]
+Arguments: (isnotnull(c_custkey#***) AND isnotnull(c_nationkey#***))
 
-(3) Filter [codegen id : 4]
-Input [7]: [c_custkey#***, c_name#***, c_address#***, c_nationkey#***, c_phone#***, c_acctbal#***, c_comment#***]
-Condition : (isnotnull(c_custkey#***) AND isnotnull(c_nationkey#***))
-
-(4) Scan parquet default.orders
+(3) Scan parquet default.orders
 Output [3]: [o_orderkey#***, o_custkey#***, o_orderdate#***]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
 PushedFilters: [IsNotNull(o_orderdate), GreaterThanOrEqual(o_orderdate,1993-10-01), LessThan(o_orderdate,1994-01-01), IsNotNull(o_custkey), IsNotNull(o_orderkey)]
 ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_orderdate:date>
 
-(5) ColumnarToRow [codegen id : 1]
+(4) FilterExecTransformer
 Input [3]: [o_orderkey#***, o_custkey#***, o_orderdate#***]
+Arguments: ((((isnotnull(o_orderdate#***) AND (o_orderdate#*** >= 1993-10-01)) AND (o_orderdate#*** < 1994-01-01)) AND isnotnull(o_custkey#***)) AND isnotnull(o_orderkey#***))
 
-(6) Filter [codegen id : 1]
+(5) ProjectExecTransformer
 Input [3]: [o_orderkey#***, o_custkey#***, o_orderdate#***]
-Condition : ((((isnotnull(o_orderdate#***) AND (o_orderdate#*** >= 1993-10-01)) AND (o_orderdate#*** < 1994-01-01)) AND isnotnull(o_custkey#***)) AND isnotnull(o_orderkey#***))
+Arguments: [o_orderkey#***, o_custkey#***]
 
-(7) Project [codegen id : 1]
-Output [2]: [o_orderkey#***, o_custkey#***]
-Input [3]: [o_orderkey#***, o_custkey#***, o_orderdate#***]
+(6) WholeStageCodegenTransformer (63)
+Input [2]: [o_orderkey#***, o_custkey#***]
+Arguments: false
 
-(8) BroadcastExchange
+(7) ColumnarBroadcastExchange
 Input [2]: [o_orderkey#***, o_custkey#***]
 Arguments: HashedRelationBroadcastMode(List(input[1, bigint, true]),false), [plan_id=***]
 
-(9) BroadcastQueryStage
+(8) BroadcastQueryStage
 Output [2]: [o_orderkey#***, o_custkey#***]
 Arguments: 0
 
-(10) BroadcastHashJoin [codegen id : 4]
+(9) InputIteratorTransformer
+Input [2]: [o_orderkey#***, o_custkey#***]
+
+(10) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [c_custkey#***]
 Right keys [1]: [o_custkey#***]
 Join condition: None
 
-(11) Project [codegen id : 4]
-Output [8]: [c_custkey#***, c_name#***, c_address#***, c_nationkey#***, c_phone#***, c_acctbal#***, c_comment#***, o_orderkey#***]
+(11) ProjectExecTransformer
 Input [9]: [c_custkey#***, c_name#***, c_address#***, c_nationkey#***, c_phone#***, c_acctbal#***, c_comment#***, o_orderkey#***, o_custkey#***]
+Arguments: [c_custkey#***, c_name#***, c_address#***, c_nationkey#***, c_phone#***, c_acctbal#***, c_comment#***, o_orderkey#***]
 
 (12) Scan parquet default.lineitem
 Output [4]: [l_orderkey#***, l_extendedprice#***, l_discount#***, l_returnflag#***]
@@ -115,18 +118,19 @@ Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
 PushedFilters: [IsNotNull(l_returnflag), EqualTo(l_returnflag,R), IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_returnflag:string>
 
-(13) ColumnarToRow [codegen id : 2]
+(13) FilterExecTransformer
 Input [4]: [l_orderkey#***, l_extendedprice#***, l_discount#***, l_returnflag#***]
+Arguments: ((isnotnull(l_returnflag#***) AND (l_returnflag#*** = R)) AND isnotnull(l_orderkey#***))
 
-(14) Filter [codegen id : 2]
+(14) ProjectExecTransformer
 Input [4]: [l_orderkey#***, l_extendedprice#***, l_discount#***, l_returnflag#***]
-Condition : ((isnotnull(l_returnflag#***) AND (l_returnflag#*** = R)) AND isnotnull(l_orderkey#***))
+Arguments: [l_orderkey#***, l_extendedprice#***, l_discount#***]
 
-(15) Project [codegen id : 2]
-Output [3]: [l_orderkey#***, l_extendedprice#***, l_discount#***]
-Input [4]: [l_orderkey#***, l_extendedprice#***, l_discount#***, l_returnflag#***]
+(15) WholeStageCodegenTransformer (64)
+Input [3]: [l_orderkey#***, l_extendedprice#***, l_discount#***]
+Arguments: false
 
-(16) BroadcastExchange
+(16) ColumnarBroadcastExchange
 Input [3]: [l_orderkey#***, l_extendedprice#***, l_discount#***]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
 
@@ -134,161 +138,214 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 Output [3]: [l_orderkey#***, l_extendedprice#***, l_discount#***]
 Arguments: 1
 
-(18) BroadcastHashJoin [codegen id : 4]
+(18) InputIteratorTransformer
+Input [3]: [l_orderkey#***, l_extendedprice#***, l_discount#***]
+
+(19) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [o_orderkey#***]
 Right keys [1]: [l_orderkey#***]
 Join condition: None
 
-(19) Project [codegen id : 4]
-Output [9]: [c_custkey#***, c_name#***, c_address#***, c_nationkey#***, c_phone#***, c_acctbal#***, c_comment#***, l_extendedprice#***, l_discount#***]
+(20) ProjectExecTransformer
 Input [11]: [c_custkey#***, c_name#***, c_address#***, c_nationkey#***, c_phone#***, c_acctbal#***, c_comment#***, o_orderkey#***, l_orderkey#***, l_extendedprice#***, l_discount#***]
+Arguments: [c_custkey#***, c_name#***, c_address#***, c_nationkey#***, c_phone#***, c_acctbal#***, c_comment#***, l_extendedprice#***, l_discount#***]
 
-(20) Scan parquet default.nation
+(21) Scan parquet default.nation
 Output [2]: [n_nationkey#***, n_name#***]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
 PushedFilters: [IsNotNull(n_nationkey)]
 ReadSchema: struct<n_nationkey:bigint,n_name:string>
 
-(21) ColumnarToRow [codegen id : 3]
+(22) FilterExecTransformer
 Input [2]: [n_nationkey#***, n_name#***]
+Arguments: isnotnull(n_nationkey#***)
 
-(22) Filter [codegen id : 3]
+(23) WholeStageCodegenTransformer (65)
 Input [2]: [n_nationkey#***, n_name#***]
-Condition : isnotnull(n_nationkey#***)
+Arguments: false
 
-(23) BroadcastExchange
+(24) ColumnarBroadcastExchange
 Input [2]: [n_nationkey#***, n_name#***]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
 
-(24) BroadcastQueryStage
+(25) BroadcastQueryStage
 Output [2]: [n_nationkey#***, n_name#***]
 Arguments: 2
 
-(25) BroadcastHashJoin [codegen id : 4]
+(26) InputIteratorTransformer
+Input [2]: [n_nationkey#***, n_name#***]
+
+(27) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [c_nationkey#***]
 Right keys [1]: [n_nationkey#***]
 Join condition: None
 
-(26) Project [codegen id : 4]
-Output [9]: [c_custkey#***, c_name#***, c_address#***, c_phone#***, c_acctbal#***, c_comment#***, l_extendedprice#***, l_discount#***, n_name#***]
+(28) ProjectExecTransformer
 Input [11]: [c_custkey#***, c_name#***, c_address#***, c_nationkey#***, c_phone#***, c_acctbal#***, c_comment#***, l_extendedprice#***, l_discount#***, n_nationkey#***, n_name#***]
+Arguments: [c_custkey#***, c_name#***, c_address#***, c_phone#***, c_acctbal#***, c_comment#***, l_extendedprice#***, l_discount#***, n_name#***]
 
-(27) HashAggregate [codegen id : 4]
+(29) FlushableHashAggregateExecTransformer
 Input [9]: [c_custkey#***, c_name#***, c_address#***, c_phone#***, c_acctbal#***, c_comment#***, l_extendedprice#***, l_discount#***, n_name#***]
 Keys [7]: [c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***]
 Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
 Aggregate Attributes [2]: [sum#***, isEmpty#***]
 Results [9]: [c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***, sum#***, isEmpty#***]
 
-(28) Exchange
+(30) ProjectExecTransformer
 Input [9]: [c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***, sum#***, isEmpty#***]
-Arguments: hashpartitioning(c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+Arguments: [hash(c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***, 42) AS hash_partition_key#***, c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***, sum#***, isEmpty#***]
 
-(29) ShuffleQueryStage
+(31) WholeStageCodegenTransformer (66)
+Input [10]: [hash_partition_key#***, c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***, sum#***, isEmpty#***]
+Arguments: false
+
+(32) ColumnarExchange
+Input [10]: [hash_partition_key#***, c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***, sum#***, isEmpty#***]
+Arguments: hashpartitioning(c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***, 100), ENSURE_REQUIREMENTS, [c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***, sum#***, isEmpty#***], [plan_id=***], [id=#***]
+
+(33) ShuffleQueryStage
 Output [9]: [c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***, sum#***, isEmpty#***]
 Arguments: 3
 
-(30) AQEShuffleRead
+(34) AQEShuffleRead
 Input [9]: [c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***, sum#***, isEmpty#***]
 Arguments: coalesced
 
-(31) HashAggregate [codegen id : 5]
+(35) InputIteratorTransformer
+Input [9]: [c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***, sum#***, isEmpty#***]
+
+(36) RegularHashAggregateExecTransformer
 Input [9]: [c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***, sum#***, isEmpty#***]
 Keys [7]: [c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***]
 Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
 Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#***]
 Results [8]: [c_custkey#***, c_name#***, sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#*** AS revenue#***, c_acctbal#***, n_name#***, c_address#***, c_phone#***, c_comment#***]
 
-(32) TakeOrderedAndProject
+(37) WholeStageCodegenTransformer (67)
+Input [8]: [c_custkey#***, c_name#***, revenue#***, c_acctbal#***, n_name#***, c_address#***, c_phone#***, c_comment#***]
+Arguments: false
+
+(38) TakeOrderedAndProjectExecTransformer
 Input [8]: [c_custkey#***, c_name#***, revenue#***, c_acctbal#***, n_name#***, c_address#***, c_phone#***, c_comment#***]
 Arguments: 20, [revenue#*** DESC NULLS LAST], [c_custkey#***, c_name#***, revenue#***, c_acctbal#***, n_name#***, c_address#***, c_phone#***, c_comment#***]
 
-(33) Filter
+(39) VeloxColumnarToRowExec
+Input [8]: [c_custkey#***, c_name#***, revenue#***, c_acctbal#***, n_name#***, c_address#***, c_phone#***, c_comment#***]
+
+(40) Scan parquet default.customer
+Output [7]: [c_custkey#***, c_name#***, c_address#***, c_nationkey#***, c_phone#***, c_acctbal#***, c_comment#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
+PushedFilters: [IsNotNull(c_custkey), IsNotNull(c_nationkey)]
+ReadSchema: struct<c_custkey:bigint,c_name:string,c_address:string,c_nationkey:bigint,c_phone:string,c_acctbal:decimal(12,2),c_comment:string>
+
+(41) Filter
 Input [7]: [c_custkey#***, c_name#***, c_address#***, c_nationkey#***, c_phone#***, c_acctbal#***, c_comment#***]
 Condition : (isnotnull(c_custkey#***) AND isnotnull(c_nationkey#***))
 
-(34) Filter
+(42) Scan parquet default.orders
+Output [3]: [o_orderkey#***, o_custkey#***, o_orderdate#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
+PushedFilters: [IsNotNull(o_orderdate), GreaterThanOrEqual(o_orderdate,1993-10-01), LessThan(o_orderdate,1994-01-01), IsNotNull(o_custkey), IsNotNull(o_orderkey)]
+ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_orderdate:date>
+
+(43) Filter
 Input [3]: [o_orderkey#***, o_custkey#***, o_orderdate#***]
 Condition : ((((isnotnull(o_orderdate#***) AND (o_orderdate#*** >= 1993-10-01)) AND (o_orderdate#*** < 1994-01-01)) AND isnotnull(o_custkey#***)) AND isnotnull(o_orderkey#***))
 
-(35) Project
+(44) Project
 Output [2]: [o_orderkey#***, o_custkey#***]
 Input [3]: [o_orderkey#***, o_custkey#***, o_orderdate#***]
 
-(36) BroadcastExchange
+(45) BroadcastExchange
 Input [2]: [o_orderkey#***, o_custkey#***]
 Arguments: HashedRelationBroadcastMode(List(input[1, bigint, true]),false), [plan_id=***]
 
-(37) BroadcastHashJoin
+(46) BroadcastHashJoin
 Left keys [1]: [c_custkey#***]
 Right keys [1]: [o_custkey#***]
 Join condition: None
 
-(38) Project
+(47) Project
 Output [8]: [c_custkey#***, c_name#***, c_address#***, c_nationkey#***, c_phone#***, c_acctbal#***, c_comment#***, o_orderkey#***]
 Input [9]: [c_custkey#***, c_name#***, c_address#***, c_nationkey#***, c_phone#***, c_acctbal#***, c_comment#***, o_orderkey#***, o_custkey#***]
 
-(39) Filter
+(48) Scan parquet default.lineitem
+Output [4]: [l_orderkey#***, l_extendedprice#***, l_discount#***, l_returnflag#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
+PushedFilters: [IsNotNull(l_returnflag), EqualTo(l_returnflag,R), IsNotNull(l_orderkey)]
+ReadSchema: struct<l_orderkey:bigint,l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_returnflag:string>
+
+(49) Filter
 Input [4]: [l_orderkey#***, l_extendedprice#***, l_discount#***, l_returnflag#***]
 Condition : ((isnotnull(l_returnflag#***) AND (l_returnflag#*** = R)) AND isnotnull(l_orderkey#***))
 
-(40) Project
+(50) Project
 Output [3]: [l_orderkey#***, l_extendedprice#***, l_discount#***]
 Input [4]: [l_orderkey#***, l_extendedprice#***, l_discount#***, l_returnflag#***]
 
-(41) BroadcastExchange
+(51) BroadcastExchange
 Input [3]: [l_orderkey#***, l_extendedprice#***, l_discount#***]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
 
-(42) BroadcastHashJoin
+(52) BroadcastHashJoin
 Left keys [1]: [o_orderkey#***]
 Right keys [1]: [l_orderkey#***]
 Join condition: None
 
-(43) Project
+(53) Project
 Output [9]: [c_custkey#***, c_name#***, c_address#***, c_nationkey#***, c_phone#***, c_acctbal#***, c_comment#***, l_extendedprice#***, l_discount#***]
 Input [11]: [c_custkey#***, c_name#***, c_address#***, c_nationkey#***, c_phone#***, c_acctbal#***, c_comment#***, o_orderkey#***, l_orderkey#***, l_extendedprice#***, l_discount#***]
 
-(44) Filter
+(54) Scan parquet default.nation
+Output [2]: [n_nationkey#***, n_name#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
+PushedFilters: [IsNotNull(n_nationkey)]
+ReadSchema: struct<n_nationkey:bigint,n_name:string>
+
+(55) Filter
 Input [2]: [n_nationkey#***, n_name#***]
 Condition : isnotnull(n_nationkey#***)
 
-(45) BroadcastExchange
+(56) BroadcastExchange
 Input [2]: [n_nationkey#***, n_name#***]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
 
-(46) BroadcastHashJoin
+(57) BroadcastHashJoin
 Left keys [1]: [c_nationkey#***]
 Right keys [1]: [n_nationkey#***]
 Join condition: None
 
-(47) Project
+(58) Project
 Output [9]: [c_custkey#***, c_name#***, c_address#***, c_phone#***, c_acctbal#***, c_comment#***, l_extendedprice#***, l_discount#***, n_name#***]
 Input [11]: [c_custkey#***, c_name#***, c_address#***, c_nationkey#***, c_phone#***, c_acctbal#***, c_comment#***, l_extendedprice#***, l_discount#***, n_nationkey#***, n_name#***]
 
-(48) HashAggregate
+(59) HashAggregate
 Input [9]: [c_custkey#***, c_name#***, c_address#***, c_phone#***, c_acctbal#***, c_comment#***, l_extendedprice#***, l_discount#***, n_name#***]
 Keys [7]: [c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***]
 Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
 Aggregate Attributes [2]: [sum#***, isEmpty#***]
 Results [9]: [c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***, sum#***, isEmpty#***]
 
-(49) Exchange
+(60) Exchange
 Input [9]: [c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***, sum#***, isEmpty#***]
 Arguments: hashpartitioning(c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
 
-(50) HashAggregate
+(61) HashAggregate
 Input [9]: [c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***, sum#***, isEmpty#***]
 Keys [7]: [c_custkey#***, c_name#***, c_acctbal#***, c_phone#***, n_name#***, c_address#***, c_comment#***]
 Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
 Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#***]
 Results [8]: [c_custkey#***, c_name#***, sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#*** AS revenue#***, c_acctbal#***, n_name#***, c_address#***, c_phone#***, c_comment#***]
 
-(51) TakeOrderedAndProject
+(62) TakeOrderedAndProject
 Input [8]: [c_custkey#***, c_name#***, revenue#***, c_acctbal#***, n_name#***, c_address#***, c_phone#***, c_comment#***]
 Arguments: 20, [revenue#*** DESC NULLS LAST], [c_custkey#***, c_name#***, revenue#***, c_acctbal#***, n_name#***, c_address#***, c_phone#***, c_comment#***]
 
-(52) AdaptiveSparkPlan
+(63) AdaptiveSparkPlan
 Output [8]: [c_custkey#***, c_name#***, revenue#***, c_acctbal#***, n_name#***, c_address#***, c_phone#***, c_comment#***]
 Arguments: isFinalPlan=true
