@@ -21,11 +21,22 @@ import io.glutenproject.integration.tpc.{TpcRunner, TpcSuite}
 import org.apache.spark.sql.{QueryRunner, SparkSessionSwitcher, TestUtils}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-case class QueriesCompare(scale: Double, queryIds: Array[String], explain: Boolean, iterations: Int, verifySparkPlan: Boolean)
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
+
+case class QueriesCompare(
+    scale: Double,
+    queryIds: Array[String],
+    explain: Boolean,
+    iterations: Int,
+    verifySparkPlan: Boolean)
   extends Action {
 
   override def execute(tpcSuite: TpcSuite): Boolean = {
-    val runner: TpcRunner = new TpcRunner(tpcSuite.queryResource(), tpcSuite.dataWritePath(scale), tpcSuite.expectPlanResource())
+    val runner: TpcRunner = new TpcRunner(
+      tpcSuite.queryResource(),
+      tpcSuite.dataWritePath(scale),
+      tpcSuite.expectPlanResource())
     val allQueries = tpcSuite.allQueryIds()
     val results = (0 until iterations).flatMap {
       iteration =>
@@ -175,21 +186,50 @@ object QueriesCompare {
           )))
   }
 
-  private[tpc] def verifyExecutionPlan(expectPath: String, actualPlan: String): (Boolean, Option[String]) = {
+  private[tpc] def verifyExecutionPlan(
+      expectFolder: String,
+      id: String,
+      actualPlan: String,
+      multiResult: Boolean = false): (Boolean, Option[String]) = {
     try {
-      val expect = QueryRunner.resourceToString(expectPath)
-      val afterFormatPlan = actualPlan.replaceAll("#[0-9]*L*", "#X")
+      val expectPathQueue = if (multiResult) {
+        mutable.Queue.apply(s"$expectFolder/$id-1.txt", s"$expectFolder/$id-2.txt")
+      } else {
+        mutable.Queue.apply(s"$expectFolder/$id.txt")
+      }
+      val afterFormatPlan = actualPlan
+        .replaceAll("#[0-9]*L*", "#X")
         .replaceAll("plan_id=[0-9]*", "plan_id=X")
         .replaceAll("Statistics[(A-Za-z0-9=. ,+)]*", "Statistics(X)")
         .replaceAll("WholeStageCodegenTransformer[0-9 ()]*", "WholeStageCodegenTransformer (X)")
-      if (expect.trim == afterFormatPlan.trim) {
-        (true, None)
-      } else {
-        (false, Some(s"Expect: \n$expect\n\nActual: \n$afterFormatPlan"))
+
+      val expectStr = ListBuffer.empty[String]
+      while (expectPathQueue.nonEmpty) {
+        val expectPath = expectPathQueue.dequeue()
+        val expect = QueryRunner.resourceToString(expectPath)
+        expectStr += expect
+        // If the actual plan is the same as any of the expect plans, we consider it as passed
+        if (expect.trim == afterFormatPlan.trim) {
+          return (true, None)
+        }
       }
+      // In case this query has multiple plans, we need to check all of them
+      // so, when reach here, means the actual plan is different from all the expect plans
+      (false, Some(s"Expects: \n${expectStr.toString()}\n\nActual: \n$afterFormatPlan"))
     } catch {
+      // In case the query has multiple plans, so we need to check all of the plans,
+      // which are with suffix
+      case npe: NullPointerException =>
+        // if we already set multiResult to true, means we have already checked all the plans
+        // so here we just return false and can't find the expect plan file
+        if (multiResult) {
+          return (false, Some(s"Can't find expect plan file, ${ExceptionUtils.getStackTrace(npe)}"))
+        }
+        verifyExecutionPlan(expectFolder, id, actualPlan, multiResult = true)
       case e: Exception =>
-        (false, Some(s"Exception when verify spark execution plan: ${ExceptionUtils.getStackTrace(e)}"))
+        (
+          false,
+          Some(s"Exception when verify spark execution plan: ${ExceptionUtils.getStackTrace(e)}"))
     }
   }
 
@@ -221,7 +261,7 @@ object QueriesCompare {
           s"Successfully ran query $id, result check was passed. " +
             s"Returned row count: ${resultRows.length}, expected: ${expectedRows.length}")
         if (verifySparkPlan) {
-          verifyExecutionPlan(s"${runner.expectResourceFolder}/$id.txt", result.executionPlan) match {
+          verifyExecutionPlan(runner.expectResourceFolder, id, result.executionPlan) match {
             case (false, reason) =>
               return TestResultLine(
                 id,
