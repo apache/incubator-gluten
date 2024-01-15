@@ -44,6 +44,12 @@ Results [2]: [sum#X, isEmpty#X]
 (5) WholeStageCodegenTransformer (X)
 Input [2]: [sum#X, isEmpty#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n4_1:DECIMAL(35, 4), "n3_0"["col_0"]), (n4_2:BOOLEAN, "n3_0"["col_1"])] -> n4_1:DECIMAL(35, 4), n4_2:BOOLEAN
+  -- Aggregation[PARTIAL n3_0 := sum_partial("n2_2")] -> n3_0:ROW<col_0:DECIMAL(35, 4),col_1:BOOLEAN>
+    -- Project[expressions: (n2_2:DECIMAL(25, 4), try_cast multiply("n1_4","n1_5") as DECIMAL(25, 4))] -> n2_2:DECIMAL(25, 4)
+      -- Project[expressions: (n1_4:DECIMAL(12, 2), "n0_1"), (n1_5:DECIMAL(12, 2), "n0_2")] -> n1_4:DECIMAL(12, 2), n1_5:DECIMAL(12, 2)
+        -- TableScan[table: hive_table, range filters: [(l_discount, BigintRange: [5, 7] no nulls), (l_quantity, BigintRange: [-999999999999999999, 2399] no nulls), (l_shipdate, BigintRange: [8766, 9130] no nulls)]] -> n0_0:DECIMAL(12, 2), n0_1:DECIMAL(12, 2), n0_2:DECIMAL(12, 2), n0_3:DATE
 
 (6) ColumnarExchange
 Input [2]: [sum#X, isEmpty#X]
@@ -66,6 +72,11 @@ Results [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_
 (10) WholeStageCodegenTransformer (X)
 Input [1]: [revenue#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n3_1:DECIMAL(35, 4), "n2_0")] -> n3_1:DECIMAL(35, 4)
+  -- Aggregation[SINGLE n2_0 := sum_merge_extract("n1_2")] -> n2_0:DECIMAL(35, 4)
+    -- Project[expressions: (n1_2:ROW<col_0:DECIMAL(35, 4),col_1:BOOLEAN>, row_constructor("n0_0","n0_1"))] -> n1_2:ROW<col_0:DECIMAL(35, 4),col_1:BOOLEAN>
+      -- ValueStream[] -> n0_0:DECIMAL(35, 4), n0_1:BOOLEAN
 
 (11) VeloxColumnarToRowExec
 Input [1]: [revenue#X]

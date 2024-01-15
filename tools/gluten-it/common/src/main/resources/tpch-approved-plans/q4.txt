@@ -75,6 +75,9 @@ Arguments: [l_orderkey#X]
 (7) WholeStageCodegenTransformer (X)
 Input [1]: [l_orderkey#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n1_3:BIGINT, "n0_0")] -> n1_3:BIGINT
+  -- TableScan[table: hive_table, range filters: [(l_commitdate, Filter(IsNotNull, deterministic, null not allowed)), (l_receiptdate, Filter(IsNotNull, deterministic, null not allowed))], remaining filter: (lessthan("l_commitdate","l_receiptdate"))] -> n0_0:BIGINT, n0_1:DATE, n0_2:DATE
 
 (8) ColumnarBroadcastExchange
 Input [1]: [l_orderkey#X]
@@ -110,6 +113,15 @@ Arguments: [hash(o_orderpriority#X, 42) AS hash_partition_key#X, o_orderpriority
 (15) WholeStageCodegenTransformer (X)
 Input [3]: [hash_partition_key#X, o_orderpriority#X, count#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n7_2:INTEGER, hash_with_seed(42,"n5_2")), (n7_3:VARCHAR, "n5_2"), (n7_4:BIGINT, "n6_1")] -> n7_2:INTEGER, n7_3:VARCHAR, n7_4:BIGINT
+  -- Aggregation[PARTIAL [n5_2] n6_1 := count_partial(1)] -> n5_2:VARCHAR, n6_1:BIGINT
+    -- Project[expressions: (n5_2:VARCHAR, "n4_3")] -> n5_2:VARCHAR
+      -- Project[expressions: (n4_2:BIGINT, "n2_3"), (n4_3:VARCHAR, "n2_4")] -> n4_2:BIGINT, n4_3:VARCHAR
+        -- HashJoin[LEFT SEMI (FILTER) n2_3=n0_0] -> n2_3:BIGINT, n2_4:VARCHAR
+          -- Project[expressions: (n2_3:BIGINT, "n1_0"), (n2_4:VARCHAR, "n1_1")] -> n2_3:BIGINT, n2_4:VARCHAR
+            -- TableScan[table: hive_table, range filters: [(o_orderdate, BigintRange: [8582, 8673] no nulls)]] -> n1_0:BIGINT, n1_1:VARCHAR, n1_2:DATE
+          -- ValueStream[] -> n0_0:BIGINT
 
 (16) ColumnarExchange
 Input [3]: [hash_partition_key#X, o_orderpriority#X, count#X]
@@ -136,6 +148,10 @@ Results [2]: [o_orderpriority#X, count(1)#X AS order_count#X]
 (21) WholeStageCodegenTransformer (X)
 Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n2_2:VARCHAR, "n0_0"), (n2_3:BIGINT, "n1_1")] -> n2_2:VARCHAR, n2_3:BIGINT
+  -- Aggregation[SINGLE [n0_0] n1_1 := count_merge_extract("n0_1")] -> n0_0:VARCHAR, n1_1:BIGINT
+    -- ValueStream[] -> n0_0:VARCHAR, n0_1:BIGINT
 
 (22) ColumnarExchange
 Input [2]: [o_orderpriority#X, order_count#X]
@@ -159,6 +175,9 @@ Arguments: [o_orderpriority#X ASC NULLS FIRST], true, 0
 (27) WholeStageCodegenTransformer (X)
 Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: false
+Native Plan:
+-- OrderBy[n0_0 ASC NULLS FIRST] -> n0_0:VARCHAR, n0_1:BIGINT
+  -- ValueStream[] -> n0_0:VARCHAR, n0_1:BIGINT
 
 (28) VeloxColumnarToRowExec
 Input [2]: [o_orderpriority#X, order_count#X]

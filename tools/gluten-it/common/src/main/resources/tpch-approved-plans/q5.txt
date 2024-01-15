@@ -104,6 +104,8 @@ Arguments: (isnotnull(c_custkey#X) AND isnotnull(c_nationkey#X))
 (3) WholeStageCodegenTransformer (X)
 Input [2]: [c_custkey#X, c_nationkey#X]
 Arguments: false
+Native Plan:
+-- TableScan[table: hive_table, range filters: [(c_custkey, Filter(IsNotNull, deterministic, null not allowed)), (c_nationkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:BIGINT
 
 (4) ColumnarBroadcastExchange
 Input [2]: [c_custkey#X, c_nationkey#X]
@@ -154,6 +156,8 @@ Arguments: (isnotnull(l_orderkey#X) AND isnotnull(l_suppkey#X))
 (14) WholeStageCodegenTransformer (X)
 Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Arguments: false
+Native Plan:
+-- TableScan[table: hive_table, range filters: [(l_orderkey, Filter(IsNotNull, deterministic, null not allowed)), (l_suppkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:BIGINT, n0_2:DECIMAL(12, 2), n0_3:DECIMAL(12, 2)
 
 (15) ColumnarBroadcastExchange
 Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
@@ -189,6 +193,8 @@ Arguments: (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
 (22) WholeStageCodegenTransformer (X)
 Input [2]: [s_suppkey#X, s_nationkey#X]
 Arguments: false
+Native Plan:
+-- TableScan[table: hive_table, range filters: [(s_nationkey, Filter(IsNotNull, deterministic, null not allowed)), (s_suppkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:BIGINT
 
 (23) ColumnarBroadcastExchange
 Input [2]: [s_suppkey#X, s_nationkey#X]
@@ -224,6 +230,8 @@ Arguments: (isnotnull(n_nationkey#X) AND isnotnull(n_regionkey#X))
 (30) WholeStageCodegenTransformer (X)
 Input [3]: [n_nationkey#X, n_name#X, n_regionkey#X]
 Arguments: false
+Native Plan:
+-- TableScan[table: hive_table, range filters: [(n_nationkey, Filter(IsNotNull, deterministic, null not allowed)), (n_regionkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:VARCHAR, n0_2:BIGINT
 
 (31) ColumnarBroadcastExchange
 Input [3]: [n_nationkey#X, n_name#X, n_regionkey#X]
@@ -263,6 +271,9 @@ Arguments: [r_regionkey#X]
 (39) WholeStageCodegenTransformer (X)
 Input [1]: [r_regionkey#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n1_2:BIGINT, "n0_0")] -> n1_2:BIGINT
+  -- TableScan[table: hive_table, range filters: [(r_name, BytesRange: [ASIA, ASIA] no nulls), (r_regionkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:VARCHAR
 
 (40) ColumnarBroadcastExchange
 Input [1]: [r_regionkey#X]
@@ -298,6 +309,33 @@ Arguments: [hash(n_name#X, 42) AS hash_partition_key#X, n_name#X, sum#X, isEmpty
 (47) WholeStageCodegenTransformer (X)
 Input [4]: [hash_partition_key#X, n_name#X, sum#X, isEmpty#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n25_3:INTEGER, hash_with_seed(42,"n24_2")), (n25_4:VARCHAR, "n24_2"), (n25_5:DECIMAL(36, 4), "n24_3"), (n25_6:BOOLEAN, "n24_4")] -> n25_3:INTEGER, n25_4:VARCHAR, n25_5:DECIMAL(36, 4), n25_6:BOOLEAN
+  -- Project[expressions: (n24_2:VARCHAR, "n22_3"), (n24_3:DECIMAL(36, 4), "n23_1"["col_0"]), (n24_4:BOOLEAN, "n23_1"["col_1"])] -> n24_2:VARCHAR, n24_3:DECIMAL(36, 4), n24_4:BOOLEAN
+    -- Aggregation[PARTIAL [n22_3] n23_1 := sum_partial("n22_4")] -> n22_3:VARCHAR, n23_1:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>
+      -- Project[expressions: (n22_3:VARCHAR, "n21_7"), (n22_4:DECIMAL(26, 4), try_cast multiply("n21_5",try_cast subtract(try_cast 1.00 as DECIMAL(1, 0),"n21_6") as DECIMAL(13, 2)) as DECIMAL(26, 4))] -> n22_3:VARCHAR, n22_4:DECIMAL(26, 4)
+        -- Project[expressions: (n21_5:DECIMAL(12, 2), "n20_5"), (n21_6:DECIMAL(12, 2), "n20_6"), (n21_7:VARCHAR, "n20_7")] -> n21_5:DECIMAL(12, 2), n21_6:DECIMAL(12, 2), n21_7:VARCHAR
+          -- Project[expressions: (n20_5:DECIMAL(12, 2), "n18_6"), (n20_6:DECIMAL(12, 2), "n18_7"), (n20_7:VARCHAR, "n18_8"), (n20_8:BIGINT, "n18_9"), (n20_9:BIGINT, "n4_0")] -> n20_5:DECIMAL(12, 2), n20_6:DECIMAL(12, 2), n20_7:VARCHAR, n20_8:BIGINT, n20_9:BIGINT
+            -- HashJoin[INNER n18_9=n4_0] -> n18_6:DECIMAL(12, 2), n18_7:DECIMAL(12, 2), n18_8:VARCHAR, n18_9:BIGINT, n4_0:BIGINT
+              -- Project[expressions: (n18_6:DECIMAL(12, 2), "n17_6"), (n18_7:DECIMAL(12, 2), "n17_7"), (n18_8:VARCHAR, "n17_10"), (n18_9:BIGINT, "n17_11")] -> n18_6:DECIMAL(12, 2), n18_7:DECIMAL(12, 2), n18_8:VARCHAR, n18_9:BIGINT
+                -- Project[expressions: (n17_6:DECIMAL(12, 2), "n15_6"), (n17_7:DECIMAL(12, 2), "n15_7"), (n17_8:BIGINT, "n15_8"), (n17_9:BIGINT, "n3_0"), (n17_10:VARCHAR, "n3_1"), (n17_11:BIGINT, "n3_2")] -> n17_6:DECIMAL(12, 2), n17_7:DECIMAL(12, 2), n17_8:BIGINT, n17_9:BIGINT, n17_10:VARCHAR, n17_11:BIGINT
+                  -- HashJoin[INNER n15_8=n3_0] -> n15_6:DECIMAL(12, 2), n15_7:DECIMAL(12, 2), n15_8:BIGINT, n3_0:BIGINT, n3_1:VARCHAR, n3_2:BIGINT
+                    -- Project[expressions: (n15_6:DECIMAL(12, 2), "n14_8"), (n15_7:DECIMAL(12, 2), "n14_9"), (n15_8:BIGINT, "n14_11")] -> n15_6:DECIMAL(12, 2), n15_7:DECIMAL(12, 2), n15_8:BIGINT
+                      -- Project[expressions: (n14_6:BIGINT, "n12_6"), (n14_7:BIGINT, "n12_7"), (n14_8:DECIMAL(12, 2), "n12_8"), (n14_9:DECIMAL(12, 2), "n12_9"), (n14_10:BIGINT, "n2_0"), (n14_11:BIGINT, "n2_1")] -> n14_6:BIGINT, n14_7:BIGINT, n14_8:DECIMAL(12, 2), n14_9:DECIMAL(12, 2), n14_10:BIGINT, n14_11:BIGINT
+                        -- HashJoin[INNER n12_6=n2_1 AND n12_7=n2_0] -> n12_6:BIGINT, n12_7:BIGINT, n12_8:DECIMAL(12, 2), n12_9:DECIMAL(12, 2), n2_0:BIGINT, n2_1:BIGINT
+                          -- Project[expressions: (n12_6:BIGINT, "n11_6"), (n12_7:BIGINT, "n11_9"), (n12_8:DECIMAL(12, 2), "n11_10"), (n12_9:DECIMAL(12, 2), "n11_11")] -> n12_6:BIGINT, n12_7:BIGINT, n12_8:DECIMAL(12, 2), n12_9:DECIMAL(12, 2)
+                            -- Project[expressions: (n11_6:BIGINT, "n9_4"), (n11_7:BIGINT, "n9_5"), (n11_8:BIGINT, "n1_0"), (n11_9:BIGINT, "n1_1"), (n11_10:DECIMAL(12, 2), "n1_2"), (n11_11:DECIMAL(12, 2), "n1_3")] -> n11_6:BIGINT, n11_7:BIGINT, n11_8:BIGINT, n11_9:BIGINT, n11_10:DECIMAL(12, 2), n11_11:DECIMAL(12, 2)
+                              -- HashJoin[INNER n9_5=n1_0] -> n9_4:BIGINT, n9_5:BIGINT, n1_0:BIGINT, n1_1:BIGINT, n1_2:DECIMAL(12, 2), n1_3:DECIMAL(12, 2)
+                                -- Project[expressions: (n9_4:BIGINT, "n8_5"), (n9_5:BIGINT, "n8_6")] -> n9_4:BIGINT, n9_5:BIGINT
+                                  -- Project[expressions: (n8_4:BIGINT, "n0_0"), (n8_5:BIGINT, "n0_1"), (n8_6:BIGINT, "n6_3"), (n8_7:BIGINT, "n6_4")] -> n8_4:BIGINT, n8_5:BIGINT, n8_6:BIGINT, n8_7:BIGINT
+                                    -- HashJoin[INNER n6_4=n0_0] -> n6_3:BIGINT, n6_4:BIGINT, n0_0:BIGINT, n0_1:BIGINT
+                                      -- Project[expressions: (n6_3:BIGINT, "n5_0"), (n6_4:BIGINT, "n5_1")] -> n6_3:BIGINT, n6_4:BIGINT
+                                        -- TableScan[table: hive_table, range filters: [(o_custkey, Filter(IsNotNull, deterministic, null not allowed)), (o_orderdate, BigintRange: [8766, 9130] no nulls), (o_orderkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n5_0:BIGINT, n5_1:BIGINT, n5_2:DATE
+                                      -- ValueStream[] -> n0_0:BIGINT, n0_1:BIGINT
+                                -- ValueStream[] -> n1_0:BIGINT, n1_1:BIGINT, n1_2:DECIMAL(12, 2), n1_3:DECIMAL(12, 2)
+                          -- ValueStream[] -> n2_0:BIGINT, n2_1:BIGINT
+                    -- ValueStream[] -> n3_0:BIGINT, n3_1:VARCHAR, n3_2:BIGINT
+              -- ValueStream[] -> n4_0:BIGINT
 
 (48) ColumnarExchange
 Input [4]: [hash_partition_key#X, n_name#X, sum#X, isEmpty#X]
@@ -324,6 +362,11 @@ Results [2]: [n_name#X, sum(CheckOverflow((promote_precision(cast(l_extendedpric
 (53) WholeStageCodegenTransformer (X)
 Input [2]: [n_name#X, revenue#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n3_2:VARCHAR, "n1_3"), (n3_3:DECIMAL(36, 4), "n2_1")] -> n3_2:VARCHAR, n3_3:DECIMAL(36, 4)
+  -- Aggregation[SINGLE [n1_3] n2_1 := sum_merge_extract("n1_4")] -> n1_3:VARCHAR, n2_1:DECIMAL(36, 4)
+    -- Project[expressions: (n1_3:VARCHAR, "n0_0"), (n1_4:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>, row_constructor("n0_1","n0_2"))] -> n1_3:VARCHAR, n1_4:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>
+      -- ValueStream[] -> n0_0:VARCHAR, n0_1:DECIMAL(36, 4), n0_2:BOOLEAN
 
 (54) ColumnarExchange
 Input [2]: [n_name#X, revenue#X]
@@ -347,6 +390,9 @@ Arguments: [revenue#X DESC NULLS LAST], true, 0
 (59) WholeStageCodegenTransformer (X)
 Input [2]: [n_name#X, revenue#X]
 Arguments: false
+Native Plan:
+-- OrderBy[n0_1 DESC NULLS LAST] -> n0_0:VARCHAR, n0_1:DECIMAL(36, 4)
+  -- ValueStream[] -> n0_0:VARCHAR, n0_1:DECIMAL(36, 4)
 
 (60) VeloxColumnarToRowExec
 Input [2]: [n_name#X, revenue#X]

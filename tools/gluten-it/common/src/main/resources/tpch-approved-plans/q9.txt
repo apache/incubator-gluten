@@ -106,6 +106,9 @@ Arguments: [p_partkey#X]
 (4) WholeStageCodegenTransformer (X)
 Input [1]: [p_partkey#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n1_2:BIGINT, "n0_0")] -> n1_2:BIGINT
+  -- TableScan[table: hive_table, range filters: [(p_name, Filter(IsNotNull, deterministic, null not allowed)), (p_partkey, Filter(IsNotNull, deterministic, null not allowed))], remaining filter: (contains("p_name","green"))] -> n0_0:BIGINT, n0_1:VARCHAR
 
 (5) ColumnarBroadcastExchange
 Input [1]: [p_partkey#X]
@@ -152,6 +155,8 @@ Arguments: (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
 (14) WholeStageCodegenTransformer (X)
 Input [2]: [s_suppkey#X, s_nationkey#X]
 Arguments: false
+Native Plan:
+-- TableScan[table: hive_table, range filters: [(s_nationkey, Filter(IsNotNull, deterministic, null not allowed)), (s_suppkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:BIGINT
 
 (15) ColumnarBroadcastExchange
 Input [2]: [s_suppkey#X, s_nationkey#X]
@@ -187,6 +192,8 @@ Arguments: (isnotnull(ps_suppkey#X) AND isnotnull(ps_partkey#X))
 (22) WholeStageCodegenTransformer (X)
 Input [3]: [ps_partkey#X, ps_suppkey#X, ps_supplycost#X]
 Arguments: false
+Native Plan:
+-- TableScan[table: hive_table, range filters: [(ps_partkey, Filter(IsNotNull, deterministic, null not allowed)), (ps_suppkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:BIGINT, n0_2:DECIMAL(12, 2)
 
 (23) ColumnarBroadcastExchange
 Input [3]: [ps_partkey#X, ps_suppkey#X, ps_supplycost#X]
@@ -222,6 +229,8 @@ Arguments: isnotnull(o_orderkey#X)
 (30) WholeStageCodegenTransformer (X)
 Input [2]: [o_orderkey#X, o_orderdate#X]
 Arguments: false
+Native Plan:
+-- TableScan[table: hive_table, range filters: [(o_orderkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:DATE
 
 (31) ColumnarBroadcastExchange
 Input [2]: [o_orderkey#X, o_orderdate#X]
@@ -257,6 +266,8 @@ Arguments: isnotnull(n_nationkey#X)
 (38) WholeStageCodegenTransformer (X)
 Input [2]: [n_nationkey#X, n_name#X]
 Arguments: false
+Native Plan:
+-- TableScan[table: hive_table, range filters: [(n_nationkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:VARCHAR
 
 (39) ColumnarBroadcastExchange
 Input [2]: [n_nationkey#X, n_name#X]
@@ -292,6 +303,31 @@ Arguments: [hash(nation#X, o_year#X, 42) AS hash_partition_key#X, nation#X, o_ye
 (46) WholeStageCodegenTransformer (X)
 Input [5]: [hash_partition_key#X, nation#X, o_year#X, sum#X, isEmpty#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n23_4:INTEGER, hash_with_seed(42,"n22_3","n22_4")), (n23_5:VARCHAR, "n22_3"), (n23_6:INTEGER, "n22_4"), (n23_7:DECIMAL(37, 4), "n22_5"), (n23_8:BOOLEAN, "n22_6")] -> n23_4:INTEGER, n23_5:VARCHAR, n23_6:INTEGER, n23_7:DECIMAL(37, 4), n23_8:BOOLEAN
+  -- Project[expressions: (n22_3:VARCHAR, "n20_8"), (n22_4:INTEGER, "n20_9"), (n22_5:DECIMAL(37, 4), "n21_2"["col_0"]), (n22_6:BOOLEAN, "n21_2"["col_1"])] -> n22_3:VARCHAR, n22_4:INTEGER, n22_5:DECIMAL(37, 4), n22_6:BOOLEAN
+    -- Aggregation[PARTIAL [n20_8, n20_9] n21_2 := sum_partial("n20_10")] -> n20_8:VARCHAR, n20_9:INTEGER, n21_2:ROW<col_0:DECIMAL(37, 4),col_1:BOOLEAN>
+      -- Project[expressions: (n20_8:VARCHAR, "n19_15"), (n20_9:INTEGER, year("n19_13")), (n20_10:DECIMAL(27, 4), try_cast subtract(try_cast multiply("n19_9",try_cast subtract(try_cast 1.00 as DECIMAL(1, 0),"n19_10") as DECIMAL(13, 2)) as DECIMAL(26, 4),try_cast multiply("n19_12","n19_8") as DECIMAL(25, 4)) as DECIMAL(27, 4))] -> n20_8:VARCHAR, n20_9:INTEGER, n20_10:DECIMAL(27, 4)
+        -- Project[expressions: (n19_8:DECIMAL(12, 2), "n17_8"), (n19_9:DECIMAL(12, 2), "n17_9"), (n19_10:DECIMAL(12, 2), "n17_10"), (n19_11:BIGINT, "n17_11"), (n19_12:DECIMAL(12, 2), "n17_12"), (n19_13:DATE, "n17_13"), (n19_14:BIGINT, "n4_0"), (n19_15:VARCHAR, "n4_1")] -> n19_8:DECIMAL(12, 2), n19_9:DECIMAL(12, 2), n19_10:DECIMAL(12, 2), n19_11:BIGINT, n19_12:DECIMAL(12, 2), n19_13:DATE, n19_14:BIGINT, n19_15:VARCHAR
+          -- HashJoin[INNER n17_11=n4_0] -> n17_8:DECIMAL(12, 2), n17_9:DECIMAL(12, 2), n17_10:DECIMAL(12, 2), n17_11:BIGINT, n17_12:DECIMAL(12, 2), n17_13:DATE, n4_0:BIGINT, n4_1:VARCHAR
+            -- Project[expressions: (n17_8:DECIMAL(12, 2), "n16_9"), (n17_9:DECIMAL(12, 2), "n16_10"), (n17_10:DECIMAL(12, 2), "n16_11"), (n17_11:BIGINT, "n16_12"), (n17_12:DECIMAL(12, 2), "n16_13"), (n17_13:DATE, "n16_15")] -> n17_8:DECIMAL(12, 2), n17_9:DECIMAL(12, 2), n17_10:DECIMAL(12, 2), n17_11:BIGINT, n17_12:DECIMAL(12, 2), n17_13:DATE
+              -- Project[expressions: (n16_8:BIGINT, "n14_10"), (n16_9:DECIMAL(12, 2), "n14_11"), (n16_10:DECIMAL(12, 2), "n14_12"), (n16_11:DECIMAL(12, 2), "n14_13"), (n16_12:BIGINT, "n14_14"), (n16_13:DECIMAL(12, 2), "n14_15"), (n16_14:BIGINT, "n3_0"), (n16_15:DATE, "n3_1")] -> n16_8:BIGINT, n16_9:DECIMAL(12, 2), n16_10:DECIMAL(12, 2), n16_11:DECIMAL(12, 2), n16_12:BIGINT, n16_13:DECIMAL(12, 2), n16_14:BIGINT, n16_15:DATE
+                -- HashJoin[INNER n14_10=n3_0] -> n14_10:BIGINT, n14_11:DECIMAL(12, 2), n14_12:DECIMAL(12, 2), n14_13:DECIMAL(12, 2), n14_14:BIGINT, n14_15:DECIMAL(12, 2), n3_0:BIGINT, n3_1:DATE
+                  -- Project[expressions: (n14_10:BIGINT, "n13_10"), (n14_11:DECIMAL(12, 2), "n13_13"), (n14_12:DECIMAL(12, 2), "n13_14"), (n14_13:DECIMAL(12, 2), "n13_15"), (n14_14:BIGINT, "n13_16"), (n14_15:DECIMAL(12, 2), "n13_19")] -> n14_10:BIGINT, n14_11:DECIMAL(12, 2), n14_12:DECIMAL(12, 2), n14_13:DECIMAL(12, 2), n14_14:BIGINT, n14_15:DECIMAL(12, 2)
+                    -- Project[expressions: (n13_10:BIGINT, "n11_8"), (n13_11:BIGINT, "n11_9"), (n13_12:BIGINT, "n11_10"), (n13_13:DECIMAL(12, 2), "n11_11"), (n13_14:DECIMAL(12, 2), "n11_12"), (n13_15:DECIMAL(12, 2), "n11_13"), (n13_16:BIGINT, "n11_14"), (n13_17:BIGINT, "n2_0"), (n13_18:BIGINT, "n2_1"), (n13_19:DECIMAL(12, 2), "n2_2")] -> n13_10:BIGINT, n13_11:BIGINT, n13_12:BIGINT, n13_13:DECIMAL(12, 2), n13_14:DECIMAL(12, 2), n13_15:DECIMAL(12, 2), n13_16:BIGINT, n13_17:BIGINT, n13_18:BIGINT, n13_19:DECIMAL(12, 2)
+                      -- HashJoin[INNER n11_9=n2_0 AND n11_10=n2_1] -> n11_8:BIGINT, n11_9:BIGINT, n11_10:BIGINT, n11_11:DECIMAL(12, 2), n11_12:DECIMAL(12, 2), n11_13:DECIMAL(12, 2), n11_14:BIGINT, n2_0:BIGINT, n2_1:BIGINT, n2_2:DECIMAL(12, 2)
+                        -- Project[expressions: (n11_8:BIGINT, "n10_8"), (n11_9:BIGINT, "n10_9"), (n11_10:BIGINT, "n10_10"), (n11_11:DECIMAL(12, 2), "n10_11"), (n11_12:DECIMAL(12, 2), "n10_12"), (n11_13:DECIMAL(12, 2), "n10_13"), (n11_14:BIGINT, "n10_15")] -> n11_8:BIGINT, n11_9:BIGINT, n11_10:BIGINT, n11_11:DECIMAL(12, 2), n11_12:DECIMAL(12, 2), n11_13:DECIMAL(12, 2), n11_14:BIGINT
+                          -- Project[expressions: (n10_8:BIGINT, "n8_7"), (n10_9:BIGINT, "n8_8"), (n10_10:BIGINT, "n8_9"), (n10_11:DECIMAL(12, 2), "n8_10"), (n10_12:DECIMAL(12, 2), "n8_11"), (n10_13:DECIMAL(12, 2), "n8_12"), (n10_14:BIGINT, "n1_0"), (n10_15:BIGINT, "n1_1")] -> n10_8:BIGINT, n10_9:BIGINT, n10_10:BIGINT, n10_11:DECIMAL(12, 2), n10_12:DECIMAL(12, 2), n10_13:DECIMAL(12, 2), n10_14:BIGINT, n10_15:BIGINT
+                            -- HashJoin[INNER n8_9=n1_0] -> n8_7:BIGINT, n8_8:BIGINT, n8_9:BIGINT, n8_10:DECIMAL(12, 2), n8_11:DECIMAL(12, 2), n8_12:DECIMAL(12, 2), n1_0:BIGINT, n1_1:BIGINT
+                              -- Project[expressions: (n8_7:BIGINT, "n7_8"), (n8_8:BIGINT, "n7_9"), (n8_9:BIGINT, "n7_10"), (n8_10:DECIMAL(12, 2), "n7_11"), (n8_11:DECIMAL(12, 2), "n7_12"), (n8_12:DECIMAL(12, 2), "n7_13")] -> n8_7:BIGINT, n8_8:BIGINT, n8_9:BIGINT, n8_10:DECIMAL(12, 2), n8_11:DECIMAL(12, 2), n8_12:DECIMAL(12, 2)
+                                -- Project[expressions: (n7_7:BIGINT, "n0_0"), (n7_8:BIGINT, "n5_0"), (n7_9:BIGINT, "n5_1"), (n7_10:BIGINT, "n5_2"), (n7_11:DECIMAL(12, 2), "n5_3"), (n7_12:DECIMAL(12, 2), "n5_4"), (n7_13:DECIMAL(12, 2), "n5_5")] -> n7_7:BIGINT, n7_8:BIGINT, n7_9:BIGINT, n7_10:BIGINT, n7_11:DECIMAL(12, 2), n7_12:DECIMAL(12, 2), n7_13:DECIMAL(12, 2)
+                                  -- HashJoin[INNER n5_1=n0_0] -> n5_0:BIGINT, n5_1:BIGINT, n5_2:BIGINT, n5_3:DECIMAL(12, 2), n5_4:DECIMAL(12, 2), n5_5:DECIMAL(12, 2), n0_0:BIGINT
+                                    -- TableScan[table: hive_table, range filters: [(l_orderkey, Filter(IsNotNull, deterministic, null not allowed)), (l_partkey, Filter(IsNotNull, deterministic, null not allowed)), (l_suppkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n5_0:BIGINT, n5_1:BIGINT, n5_2:BIGINT, n5_3:DECIMAL(12, 2), n5_4:DECIMAL(12, 2), n5_5:DECIMAL(12, 2)
+                                    -- ValueStream[] -> n0_0:BIGINT
+                              -- ValueStream[] -> n1_0:BIGINT, n1_1:BIGINT
+                        -- ValueStream[] -> n2_0:BIGINT, n2_1:BIGINT, n2_2:DECIMAL(12, 2)
+                  -- ValueStream[] -> n3_0:BIGINT, n3_1:DATE
+            -- ValueStream[] -> n4_0:BIGINT, n4_1:VARCHAR
 
 (47) ColumnarExchange
 Input [5]: [hash_partition_key#X, nation#X, o_year#X, sum#X, isEmpty#X]
@@ -318,6 +354,11 @@ Results [3]: [nation#X, o_year#X, sum(amount#X)#X AS sum_profit#X]
 (52) WholeStageCodegenTransformer (X)
 Input [3]: [nation#X, o_year#X, sum_profit#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n3_3:VARCHAR, "n1_4"), (n3_4:INTEGER, "n1_5"), (n3_5:DECIMAL(37, 4), "n2_2")] -> n3_3:VARCHAR, n3_4:INTEGER, n3_5:DECIMAL(37, 4)
+  -- Aggregation[SINGLE [n1_4, n1_5] n2_2 := sum_merge_extract("n1_6")] -> n1_4:VARCHAR, n1_5:INTEGER, n2_2:DECIMAL(37, 4)
+    -- Project[expressions: (n1_4:VARCHAR, "n0_0"), (n1_5:INTEGER, "n0_1"), (n1_6:ROW<col_0:DECIMAL(37, 4),col_1:BOOLEAN>, row_constructor("n0_2","n0_3"))] -> n1_4:VARCHAR, n1_5:INTEGER, n1_6:ROW<col_0:DECIMAL(37, 4),col_1:BOOLEAN>
+      -- ValueStream[] -> n0_0:VARCHAR, n0_1:INTEGER, n0_2:DECIMAL(37, 4), n0_3:BOOLEAN
 
 (53) ColumnarExchange
 Input [3]: [nation#X, o_year#X, sum_profit#X]
@@ -341,6 +382,9 @@ Arguments: [nation#X ASC NULLS FIRST, o_year#X DESC NULLS LAST], true, 0
 (58) WholeStageCodegenTransformer (X)
 Input [3]: [nation#X, o_year#X, sum_profit#X]
 Arguments: false
+Native Plan:
+-- OrderBy[n0_0 ASC NULLS FIRST, n0_1 DESC NULLS LAST] -> n0_0:VARCHAR, n0_1:INTEGER, n0_2:DECIMAL(37, 4)
+  -- ValueStream[] -> n0_0:VARCHAR, n0_1:INTEGER, n0_2:DECIMAL(37, 4)
 
 (59) VeloxColumnarToRowExec
 Input [3]: [nation#X, o_year#X, sum_profit#X]
