@@ -1,0 +1,554 @@
+== Physical Plan ==
+AdaptiveSparkPlan (100)
++- == Final Plan ==
+   * Sort (63)
+   +- AQEShuffleRead (62)
+      +- ShuffleQueryStage (61), Statistics(***)
+         +- Exchange (60)
+            +- * HashAggregate (59)
+               +- AQEShuffleRead (58)
+                  +- ShuffleQueryStage (57), Statistics(***)
+                     +- Exchange (56)
+                        +- * HashAggregate (55)
+                           +- * Project (54)
+                              +- * BroadcastHashJoin Inner BuildRight (53)
+                                 :- * Project (46)
+                                 :  +- * BroadcastHashJoin Inner BuildRight (45)
+                                 :     :- * Project (39)
+                                 :     :  +- * BroadcastHashJoin Inner BuildRight (38)
+                                 :     :     :- * Project (32)
+                                 :     :     :  +- * BroadcastHashJoin Inner BuildRight (31)
+                                 :     :     :     :- * Project (25)
+                                 :     :     :     :  +- * BroadcastHashJoin Inner BuildRight (24)
+                                 :     :     :     :     :- * Project (18)
+                                 :     :     :     :     :  +- * BroadcastHashJoin Inner BuildRight (17)
+                                 :     :     :     :     :     :- * Project (11)
+                                 :     :     :     :     :     :  +- * BroadcastHashJoin Inner BuildLeft (10)
+                                 :     :     :     :     :     :     :- BroadcastQueryStage (6), Statistics(***)
+                                 :     :     :     :     :     :     :  +- BroadcastExchange (5)
+                                 :     :     :     :     :     :     :     +- * Project (4)
+                                 :     :     :     :     :     :     :        +- * Filter (3)
+                                 :     :     :     :     :     :     :           +- * ColumnarToRow (2)
+                                 :     :     :     :     :     :     :              +- Scan parquet default.part (1)
+                                 :     :     :     :     :     :     +- * Filter (9)
+                                 :     :     :     :     :     :        +- * ColumnarToRow (8)
+                                 :     :     :     :     :     :           +- Scan parquet default.lineitem (7)
+                                 :     :     :     :     :     +- BroadcastQueryStage (16), Statistics(***)
+                                 :     :     :     :     :        +- BroadcastExchange (15)
+                                 :     :     :     :     :           +- * Filter (14)
+                                 :     :     :     :     :              +- * ColumnarToRow (13)
+                                 :     :     :     :     :                 +- Scan parquet default.supplier (12)
+                                 :     :     :     :     +- BroadcastQueryStage (23), Statistics(***)
+                                 :     :     :     :        +- BroadcastExchange (22)
+                                 :     :     :     :           +- * Filter (21)
+                                 :     :     :     :              +- * ColumnarToRow (20)
+                                 :     :     :     :                 +- Scan parquet default.orders (19)
+                                 :     :     :     +- BroadcastQueryStage (30), Statistics(***)
+                                 :     :     :        +- BroadcastExchange (29)
+                                 :     :     :           +- * Filter (28)
+                                 :     :     :              +- * ColumnarToRow (27)
+                                 :     :     :                 +- Scan parquet default.customer (26)
+                                 :     :     +- BroadcastQueryStage (37), Statistics(***)
+                                 :     :        +- BroadcastExchange (36)
+                                 :     :           +- * Filter (35)
+                                 :     :              +- * ColumnarToRow (34)
+                                 :     :                 +- Scan parquet default.nation (33)
+                                 :     +- BroadcastQueryStage (44), Statistics(***)
+                                 :        +- BroadcastExchange (43)
+                                 :           +- * Filter (42)
+                                 :              +- * ColumnarToRow (41)
+                                 :                 +- Scan parquet default.nation (40)
+                                 +- BroadcastQueryStage (52), Statistics(***)
+                                    +- BroadcastExchange (51)
+                                       +- * Project (50)
+                                          +- * Filter (49)
+                                             +- * ColumnarToRow (48)
+                                                +- Scan parquet default.region (47)
++- == Initial Plan ==
+   Sort (99)
+   +- Exchange (98)
+      +- HashAggregate (97)
+         +- Exchange (96)
+            +- HashAggregate (95)
+               +- Project (94)
+                  +- BroadcastHashJoin Inner BuildRight (93)
+                     :- Project (89)
+                     :  +- BroadcastHashJoin Inner BuildRight (88)
+                     :     :- Project (85)
+                     :     :  +- BroadcastHashJoin Inner BuildRight (84)
+                     :     :     :- Project (81)
+                     :     :     :  +- BroadcastHashJoin Inner BuildRight (80)
+                     :     :     :     :- Project (77)
+                     :     :     :     :  +- BroadcastHashJoin Inner BuildRight (76)
+                     :     :     :     :     :- Project (73)
+                     :     :     :     :     :  +- BroadcastHashJoin Inner BuildRight (72)
+                     :     :     :     :     :     :- Project (69)
+                     :     :     :     :     :     :  +- BroadcastHashJoin Inner BuildLeft (68)
+                     :     :     :     :     :     :     :- BroadcastExchange (66)
+                     :     :     :     :     :     :     :  +- Project (65)
+                     :     :     :     :     :     :     :     +- Filter (64)
+                     :     :     :     :     :     :     :        +- Scan parquet default.part (1)
+                     :     :     :     :     :     :     +- Filter (67)
+                     :     :     :     :     :     :        +- Scan parquet default.lineitem (7)
+                     :     :     :     :     :     +- BroadcastExchange (71)
+                     :     :     :     :     :        +- Filter (70)
+                     :     :     :     :     :           +- Scan parquet default.supplier (12)
+                     :     :     :     :     +- BroadcastExchange (75)
+                     :     :     :     :        +- Filter (74)
+                     :     :     :     :           +- Scan parquet default.orders (19)
+                     :     :     :     +- BroadcastExchange (79)
+                     :     :     :        +- Filter (78)
+                     :     :     :           +- Scan parquet default.customer (26)
+                     :     :     +- BroadcastExchange (83)
+                     :     :        +- Filter (82)
+                     :     :           +- Scan parquet default.nation (33)
+                     :     +- BroadcastExchange (87)
+                     :        +- Filter (86)
+                     :           +- Scan parquet default.nation (40)
+                     +- BroadcastExchange (92)
+                        +- Project (91)
+                           +- Filter (90)
+                              +- Scan parquet default.region (47)
+
+
+(1) Scan parquet default.part
+Output [2]: [p_partkey#***, p_type#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/part]
+PushedFilters: [IsNotNull(p_type), EqualTo(p_type,ECONOMY ANODIZED STEEL), IsNotNull(p_partkey)]
+ReadSchema: struct<p_partkey:bigint,p_type:string>
+
+(2) ColumnarToRow [codegen id : 1]
+Input [2]: [p_partkey#***, p_type#***]
+
+(3) Filter [codegen id : 1]
+Input [2]: [p_partkey#***, p_type#***]
+Condition : ((isnotnull(p_type#***) AND (p_type#*** = ECONOMY ANODIZED STEEL)) AND isnotnull(p_partkey#***))
+
+(4) Project [codegen id : 1]
+Output [1]: [p_partkey#***]
+Input [2]: [p_partkey#***, p_type#***]
+
+(5) BroadcastExchange
+Input [1]: [p_partkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+
+(6) BroadcastQueryStage
+Output [1]: [p_partkey#***]
+Arguments: 0
+
+(7) Scan parquet default.lineitem
+Output [5]: [l_orderkey#***, l_partkey#***, l_suppkey#***, l_extendedprice#***, l_discount#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
+PushedFilters: [IsNotNull(l_partkey), IsNotNull(l_suppkey), IsNotNull(l_orderkey)]
+ReadSchema: struct<l_orderkey:bigint,l_partkey:bigint,l_suppkey:bigint,l_extendedprice:decimal(12,2),l_discount:decimal(12,2)>
+
+(8) ColumnarToRow
+Input [5]: [l_orderkey#***, l_partkey#***, l_suppkey#***, l_extendedprice#***, l_discount#***]
+
+(9) Filter
+Input [5]: [l_orderkey#***, l_partkey#***, l_suppkey#***, l_extendedprice#***, l_discount#***]
+Condition : ((isnotnull(l_partkey#***) AND isnotnull(l_suppkey#***)) AND isnotnull(l_orderkey#***))
+
+(10) BroadcastHashJoin [codegen id : 8]
+Left keys [1]: [p_partkey#***]
+Right keys [1]: [l_partkey#***]
+Join condition: None
+
+(11) Project [codegen id : 8]
+Output [4]: [l_orderkey#***, l_suppkey#***, l_extendedprice#***, l_discount#***]
+Input [6]: [p_partkey#***, l_orderkey#***, l_partkey#***, l_suppkey#***, l_extendedprice#***, l_discount#***]
+
+(12) Scan parquet default.supplier
+Output [2]: [s_suppkey#***, s_nationkey#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
+PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
+ReadSchema: struct<s_suppkey:bigint,s_nationkey:bigint>
+
+(13) ColumnarToRow [codegen id : 2]
+Input [2]: [s_suppkey#***, s_nationkey#***]
+
+(14) Filter [codegen id : 2]
+Input [2]: [s_suppkey#***, s_nationkey#***]
+Condition : (isnotnull(s_suppkey#***) AND isnotnull(s_nationkey#***))
+
+(15) BroadcastExchange
+Input [2]: [s_suppkey#***, s_nationkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+
+(16) BroadcastQueryStage
+Output [2]: [s_suppkey#***, s_nationkey#***]
+Arguments: 1
+
+(17) BroadcastHashJoin [codegen id : 8]
+Left keys [1]: [l_suppkey#***]
+Right keys [1]: [s_suppkey#***]
+Join condition: None
+
+(18) Project [codegen id : 8]
+Output [4]: [l_orderkey#***, l_extendedprice#***, l_discount#***, s_nationkey#***]
+Input [6]: [l_orderkey#***, l_suppkey#***, l_extendedprice#***, l_discount#***, s_suppkey#***, s_nationkey#***]
+
+(19) Scan parquet default.orders
+Output [3]: [o_orderkey#***, o_custkey#***, o_orderdate#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
+PushedFilters: [IsNotNull(o_orderdate), GreaterThanOrEqual(o_orderdate,1995-01-01), LessThanOrEqual(o_orderdate,1996-12-31), IsNotNull(o_orderkey), IsNotNull(o_custkey)]
+ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_orderdate:date>
+
+(20) ColumnarToRow [codegen id : 3]
+Input [3]: [o_orderkey#***, o_custkey#***, o_orderdate#***]
+
+(21) Filter [codegen id : 3]
+Input [3]: [o_orderkey#***, o_custkey#***, o_orderdate#***]
+Condition : ((((isnotnull(o_orderdate#***) AND (o_orderdate#*** >= 1995-01-01)) AND (o_orderdate#*** <= 1996-12-31)) AND isnotnull(o_orderkey#***)) AND isnotnull(o_custkey#***))
+
+(22) BroadcastExchange
+Input [3]: [o_orderkey#***, o_custkey#***, o_orderdate#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+
+(23) BroadcastQueryStage
+Output [3]: [o_orderkey#***, o_custkey#***, o_orderdate#***]
+Arguments: 2
+
+(24) BroadcastHashJoin [codegen id : 8]
+Left keys [1]: [l_orderkey#***]
+Right keys [1]: [o_orderkey#***]
+Join condition: None
+
+(25) Project [codegen id : 8]
+Output [5]: [l_extendedprice#***, l_discount#***, s_nationkey#***, o_custkey#***, o_orderdate#***]
+Input [7]: [l_orderkey#***, l_extendedprice#***, l_discount#***, s_nationkey#***, o_orderkey#***, o_custkey#***, o_orderdate#***]
+
+(26) Scan parquet default.customer
+Output [2]: [c_custkey#***, c_nationkey#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
+PushedFilters: [IsNotNull(c_custkey), IsNotNull(c_nationkey)]
+ReadSchema: struct<c_custkey:bigint,c_nationkey:bigint>
+
+(27) ColumnarToRow [codegen id : 4]
+Input [2]: [c_custkey#***, c_nationkey#***]
+
+(28) Filter [codegen id : 4]
+Input [2]: [c_custkey#***, c_nationkey#***]
+Condition : (isnotnull(c_custkey#***) AND isnotnull(c_nationkey#***))
+
+(29) BroadcastExchange
+Input [2]: [c_custkey#***, c_nationkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+
+(30) BroadcastQueryStage
+Output [2]: [c_custkey#***, c_nationkey#***]
+Arguments: 3
+
+(31) BroadcastHashJoin [codegen id : 8]
+Left keys [1]: [o_custkey#***]
+Right keys [1]: [c_custkey#***]
+Join condition: None
+
+(32) Project [codegen id : 8]
+Output [5]: [l_extendedprice#***, l_discount#***, s_nationkey#***, o_orderdate#***, c_nationkey#***]
+Input [7]: [l_extendedprice#***, l_discount#***, s_nationkey#***, o_custkey#***, o_orderdate#***, c_custkey#***, c_nationkey#***]
+
+(33) Scan parquet default.nation
+Output [2]: [n_nationkey#***, n_regionkey#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
+PushedFilters: [IsNotNull(n_nationkey), IsNotNull(n_regionkey)]
+ReadSchema: struct<n_nationkey:bigint,n_regionkey:bigint>
+
+(34) ColumnarToRow [codegen id : 5]
+Input [2]: [n_nationkey#***, n_regionkey#***]
+
+(35) Filter [codegen id : 5]
+Input [2]: [n_nationkey#***, n_regionkey#***]
+Condition : (isnotnull(n_nationkey#***) AND isnotnull(n_regionkey#***))
+
+(36) BroadcastExchange
+Input [2]: [n_nationkey#***, n_regionkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+
+(37) BroadcastQueryStage
+Output [2]: [n_nationkey#***, n_regionkey#***]
+Arguments: 4
+
+(38) BroadcastHashJoin [codegen id : 8]
+Left keys [1]: [c_nationkey#***]
+Right keys [1]: [n_nationkey#***]
+Join condition: None
+
+(39) Project [codegen id : 8]
+Output [5]: [l_extendedprice#***, l_discount#***, s_nationkey#***, o_orderdate#***, n_regionkey#***]
+Input [7]: [l_extendedprice#***, l_discount#***, s_nationkey#***, o_orderdate#***, c_nationkey#***, n_nationkey#***, n_regionkey#***]
+
+(40) Scan parquet default.nation
+Output [2]: [n_nationkey#***, n_name#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
+PushedFilters: [IsNotNull(n_nationkey)]
+ReadSchema: struct<n_nationkey:bigint,n_name:string>
+
+(41) ColumnarToRow [codegen id : 6]
+Input [2]: [n_nationkey#***, n_name#***]
+
+(42) Filter [codegen id : 6]
+Input [2]: [n_nationkey#***, n_name#***]
+Condition : isnotnull(n_nationkey#***)
+
+(43) BroadcastExchange
+Input [2]: [n_nationkey#***, n_name#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+
+(44) BroadcastQueryStage
+Output [2]: [n_nationkey#***, n_name#***]
+Arguments: 5
+
+(45) BroadcastHashJoin [codegen id : 8]
+Left keys [1]: [s_nationkey#***]
+Right keys [1]: [n_nationkey#***]
+Join condition: None
+
+(46) Project [codegen id : 8]
+Output [5]: [l_extendedprice#***, l_discount#***, o_orderdate#***, n_regionkey#***, n_name#***]
+Input [7]: [l_extendedprice#***, l_discount#***, s_nationkey#***, o_orderdate#***, n_regionkey#***, n_nationkey#***, n_name#***]
+
+(47) Scan parquet default.region
+Output [2]: [r_regionkey#***, r_name#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/region]
+PushedFilters: [IsNotNull(r_name), EqualTo(r_name,AMERICA), IsNotNull(r_regionkey)]
+ReadSchema: struct<r_regionkey:bigint,r_name:string>
+
+(48) ColumnarToRow [codegen id : 7]
+Input [2]: [r_regionkey#***, r_name#***]
+
+(49) Filter [codegen id : 7]
+Input [2]: [r_regionkey#***, r_name#***]
+Condition : ((isnotnull(r_name#***) AND (r_name#*** = AMERICA)) AND isnotnull(r_regionkey#***))
+
+(50) Project [codegen id : 7]
+Output [1]: [r_regionkey#***]
+Input [2]: [r_regionkey#***, r_name#***]
+
+(51) BroadcastExchange
+Input [1]: [r_regionkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+
+(52) BroadcastQueryStage
+Output [1]: [r_regionkey#***]
+Arguments: 6
+
+(53) BroadcastHashJoin [codegen id : 8]
+Left keys [1]: [n_regionkey#***]
+Right keys [1]: [r_regionkey#***]
+Join condition: None
+
+(54) Project [codegen id : 8]
+Output [3]: [year(o_orderdate#***) AS o_year#***, CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) AS volume#***, n_name#*** AS nation#***]
+Input [6]: [l_extendedprice#***, l_discount#***, o_orderdate#***, n_regionkey#***, n_name#***, r_regionkey#***]
+
+(55) HashAggregate [codegen id : 8]
+Input [3]: [o_year#***, volume#***, nation#***]
+Keys [1]: [o_year#***]
+Functions [2]: [partial_sum(CASE WHEN (nation#*** = BRAZIL) THEN volume#*** ELSE 0.0000 END), partial_sum(volume#***)]
+Aggregate Attributes [4]: [sum#***, isEmpty#***, sum#***, isEmpty#***]
+Results [5]: [o_year#***, sum#***, isEmpty#***, sum#***, isEmpty#***]
+
+(56) Exchange
+Input [5]: [o_year#***, sum#***, isEmpty#***, sum#***, isEmpty#***]
+Arguments: hashpartitioning(o_year#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(57) ShuffleQueryStage
+Output [5]: [o_year#***, sum#***, isEmpty#***, sum#***, isEmpty#***]
+Arguments: 7
+
+(58) AQEShuffleRead
+Input [5]: [o_year#***, sum#***, isEmpty#***, sum#***, isEmpty#***]
+Arguments: coalesced
+
+(59) HashAggregate [codegen id : 9]
+Input [5]: [o_year#***, sum#***, isEmpty#***, sum#***, isEmpty#***]
+Keys [1]: [o_year#***]
+Functions [2]: [sum(CASE WHEN (nation#*** = BRAZIL) THEN volume#*** ELSE 0.0000 END), sum(volume#***)]
+Aggregate Attributes [2]: [sum(CASE WHEN (nation#*** = BRAZIL) THEN volume#*** ELSE 0.0000 END)#***, sum(volume#***)#***]
+Results [2]: [o_year#***, CheckOverflow((promote_precision(sum(CASE WHEN (nation#*** = BRAZIL) THEN volume#*** ELSE 0.0000 END)#***) / promote_precision(sum(volume#***)#***)), DecimalType(38,6)) AS mkt_share#***]
+
+(60) Exchange
+Input [2]: [o_year#***, mkt_share#***]
+Arguments: rangepartitioning(o_year#*** ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(61) ShuffleQueryStage
+Output [2]: [o_year#***, mkt_share#***]
+Arguments: 8
+
+(62) AQEShuffleRead
+Input [2]: [o_year#***, mkt_share#***]
+Arguments: coalesced
+
+(63) Sort [codegen id : 10]
+Input [2]: [o_year#***, mkt_share#***]
+Arguments: [o_year#*** ASC NULLS FIRST], true, 0
+
+(64) Filter
+Input [2]: [p_partkey#***, p_type#***]
+Condition : ((isnotnull(p_type#***) AND (p_type#*** = ECONOMY ANODIZED STEEL)) AND isnotnull(p_partkey#***))
+
+(65) Project
+Output [1]: [p_partkey#***]
+Input [2]: [p_partkey#***, p_type#***]
+
+(66) BroadcastExchange
+Input [1]: [p_partkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+
+(67) Filter
+Input [5]: [l_orderkey#***, l_partkey#***, l_suppkey#***, l_extendedprice#***, l_discount#***]
+Condition : ((isnotnull(l_partkey#***) AND isnotnull(l_suppkey#***)) AND isnotnull(l_orderkey#***))
+
+(68) BroadcastHashJoin
+Left keys [1]: [p_partkey#***]
+Right keys [1]: [l_partkey#***]
+Join condition: None
+
+(69) Project
+Output [4]: [l_orderkey#***, l_suppkey#***, l_extendedprice#***, l_discount#***]
+Input [6]: [p_partkey#***, l_orderkey#***, l_partkey#***, l_suppkey#***, l_extendedprice#***, l_discount#***]
+
+(70) Filter
+Input [2]: [s_suppkey#***, s_nationkey#***]
+Condition : (isnotnull(s_suppkey#***) AND isnotnull(s_nationkey#***))
+
+(71) BroadcastExchange
+Input [2]: [s_suppkey#***, s_nationkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+
+(72) BroadcastHashJoin
+Left keys [1]: [l_suppkey#***]
+Right keys [1]: [s_suppkey#***]
+Join condition: None
+
+(73) Project
+Output [4]: [l_orderkey#***, l_extendedprice#***, l_discount#***, s_nationkey#***]
+Input [6]: [l_orderkey#***, l_suppkey#***, l_extendedprice#***, l_discount#***, s_suppkey#***, s_nationkey#***]
+
+(74) Filter
+Input [3]: [o_orderkey#***, o_custkey#***, o_orderdate#***]
+Condition : ((((isnotnull(o_orderdate#***) AND (o_orderdate#*** >= 1995-01-01)) AND (o_orderdate#*** <= 1996-12-31)) AND isnotnull(o_orderkey#***)) AND isnotnull(o_custkey#***))
+
+(75) BroadcastExchange
+Input [3]: [o_orderkey#***, o_custkey#***, o_orderdate#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+
+(76) BroadcastHashJoin
+Left keys [1]: [l_orderkey#***]
+Right keys [1]: [o_orderkey#***]
+Join condition: None
+
+(77) Project
+Output [5]: [l_extendedprice#***, l_discount#***, s_nationkey#***, o_custkey#***, o_orderdate#***]
+Input [7]: [l_orderkey#***, l_extendedprice#***, l_discount#***, s_nationkey#***, o_orderkey#***, o_custkey#***, o_orderdate#***]
+
+(78) Filter
+Input [2]: [c_custkey#***, c_nationkey#***]
+Condition : (isnotnull(c_custkey#***) AND isnotnull(c_nationkey#***))
+
+(79) BroadcastExchange
+Input [2]: [c_custkey#***, c_nationkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+
+(80) BroadcastHashJoin
+Left keys [1]: [o_custkey#***]
+Right keys [1]: [c_custkey#***]
+Join condition: None
+
+(81) Project
+Output [5]: [l_extendedprice#***, l_discount#***, s_nationkey#***, o_orderdate#***, c_nationkey#***]
+Input [7]: [l_extendedprice#***, l_discount#***, s_nationkey#***, o_custkey#***, o_orderdate#***, c_custkey#***, c_nationkey#***]
+
+(82) Filter
+Input [2]: [n_nationkey#***, n_regionkey#***]
+Condition : (isnotnull(n_nationkey#***) AND isnotnull(n_regionkey#***))
+
+(83) BroadcastExchange
+Input [2]: [n_nationkey#***, n_regionkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+
+(84) BroadcastHashJoin
+Left keys [1]: [c_nationkey#***]
+Right keys [1]: [n_nationkey#***]
+Join condition: None
+
+(85) Project
+Output [5]: [l_extendedprice#***, l_discount#***, s_nationkey#***, o_orderdate#***, n_regionkey#***]
+Input [7]: [l_extendedprice#***, l_discount#***, s_nationkey#***, o_orderdate#***, c_nationkey#***, n_nationkey#***, n_regionkey#***]
+
+(86) Filter
+Input [2]: [n_nationkey#***, n_name#***]
+Condition : isnotnull(n_nationkey#***)
+
+(87) BroadcastExchange
+Input [2]: [n_nationkey#***, n_name#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+
+(88) BroadcastHashJoin
+Left keys [1]: [s_nationkey#***]
+Right keys [1]: [n_nationkey#***]
+Join condition: None
+
+(89) Project
+Output [5]: [l_extendedprice#***, l_discount#***, o_orderdate#***, n_regionkey#***, n_name#***]
+Input [7]: [l_extendedprice#***, l_discount#***, s_nationkey#***, o_orderdate#***, n_regionkey#***, n_nationkey#***, n_name#***]
+
+(90) Filter
+Input [2]: [r_regionkey#***, r_name#***]
+Condition : ((isnotnull(r_name#***) AND (r_name#*** = AMERICA)) AND isnotnull(r_regionkey#***))
+
+(91) Project
+Output [1]: [r_regionkey#***]
+Input [2]: [r_regionkey#***, r_name#***]
+
+(92) BroadcastExchange
+Input [1]: [r_regionkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+
+(93) BroadcastHashJoin
+Left keys [1]: [n_regionkey#***]
+Right keys [1]: [r_regionkey#***]
+Join condition: None
+
+(94) Project
+Output [3]: [year(o_orderdate#***) AS o_year#***, CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) AS volume#***, n_name#*** AS nation#***]
+Input [6]: [l_extendedprice#***, l_discount#***, o_orderdate#***, n_regionkey#***, n_name#***, r_regionkey#***]
+
+(95) HashAggregate
+Input [3]: [o_year#***, volume#***, nation#***]
+Keys [1]: [o_year#***]
+Functions [2]: [partial_sum(CASE WHEN (nation#*** = BRAZIL) THEN volume#*** ELSE 0.0000 END), partial_sum(volume#***)]
+Aggregate Attributes [4]: [sum#***, isEmpty#***, sum#***, isEmpty#***]
+Results [5]: [o_year#***, sum#***, isEmpty#***, sum#***, isEmpty#***]
+
+(96) Exchange
+Input [5]: [o_year#***, sum#***, isEmpty#***, sum#***, isEmpty#***]
+Arguments: hashpartitioning(o_year#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(97) HashAggregate
+Input [5]: [o_year#***, sum#***, isEmpty#***, sum#***, isEmpty#***]
+Keys [1]: [o_year#***]
+Functions [2]: [sum(CASE WHEN (nation#*** = BRAZIL) THEN volume#*** ELSE 0.0000 END), sum(volume#***)]
+Aggregate Attributes [2]: [sum(CASE WHEN (nation#*** = BRAZIL) THEN volume#*** ELSE 0.0000 END)#***, sum(volume#***)#***]
+Results [2]: [o_year#***, CheckOverflow((promote_precision(sum(CASE WHEN (nation#*** = BRAZIL) THEN volume#*** ELSE 0.0000 END)#***) / promote_precision(sum(volume#***)#***)), DecimalType(38,6)) AS mkt_share#***]
+
+(98) Exchange
+Input [2]: [o_year#***, mkt_share#***]
+Arguments: rangepartitioning(o_year#*** ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(99) Sort
+Input [2]: [o_year#***, mkt_share#***]
+Arguments: [o_year#*** ASC NULLS FIRST], true, 0
+
+(100) AdaptiveSparkPlan
+Output [2]: [o_year#***, mkt_share#***]
+Arguments: isFinalPlan=true

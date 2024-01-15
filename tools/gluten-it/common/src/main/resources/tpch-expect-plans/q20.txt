@@ -1,0 +1,473 @@
+== Physical Plan ==
+AdaptiveSparkPlan (86)
++- == Final Plan ==
+   * Sort (52)
+   +- AQEShuffleRead (51)
+      +- ShuffleQueryStage (50), Statistics(***)
+         +- Exchange (49)
+            +- * Project (48)
+               +- * BroadcastHashJoin Inner BuildRight (47)
+                  :- * Project (40)
+                  :  +- * BroadcastHashJoin LeftSemi BuildRight (39)
+                  :     :- AQEShuffleRead (6)
+                  :     :  +- ShuffleQueryStage (5), Statistics(***)
+                  :     :     +- Exchange (4)
+                  :     :        +- * Filter (3)
+                  :     :           +- * ColumnarToRow (2)
+                  :     :              +- Scan parquet default.supplier (1)
+                  :     +- BroadcastQueryStage (38), Statistics(***)
+                  :        +- BroadcastExchange (37)
+                  :           +- AQEShuffleRead (36)
+                  :              +- ShuffleQueryStage (35), Statistics(***)
+                  :                 +- Exchange (34)
+                  :                    +- * Project (33)
+                  :                       +- * BroadcastHashJoin Inner BuildLeft (32)
+                  :                          :- BroadcastQueryStage (18), Statistics(***)
+                  :                          :  +- BroadcastExchange (17)
+                  :                          :     +- * BroadcastHashJoin LeftSemi BuildRight (16)
+                  :                          :        :- * Filter (9)
+                  :                          :        :  +- * ColumnarToRow (8)
+                  :                          :        :     +- Scan parquet default.partsupp (7)
+                  :                          :        +- BroadcastQueryStage (15), Statistics(***)
+                  :                          :           +- BroadcastExchange (14)
+                  :                          :              +- * Project (13)
+                  :                          :                 +- * Filter (12)
+                  :                          :                    +- * ColumnarToRow (11)
+                  :                          :                       +- Scan parquet default.part (10)
+                  :                          +- * Filter (31)
+                  :                             +- * HashAggregate (30)
+                  :                                +- AQEShuffleRead (29)
+                  :                                   +- ShuffleQueryStage (28), Statistics(***)
+                  :                                      +- Exchange (27)
+                  :                                         +- * HashAggregate (26)
+                  :                                            +- * BroadcastHashJoin LeftSemi BuildRight (25)
+                  :                                               :- * Project (22)
+                  :                                               :  +- * Filter (21)
+                  :                                               :     +- * ColumnarToRow (20)
+                  :                                               :        +- Scan parquet default.lineitem (19)
+                  :                                               +- BroadcastQueryStage (24), Statistics(***)
+                  :                                                  +- ReusedExchange (23)
+                  +- BroadcastQueryStage (46), Statistics(***)
+                     +- BroadcastExchange (45)
+                        +- * Project (44)
+                           +- * Filter (43)
+                              +- * ColumnarToRow (42)
+                                 +- Scan parquet default.nation (41)
++- == Initial Plan ==
+   Sort (85)
+   +- Exchange (84)
+      +- Project (83)
+         +- BroadcastHashJoin Inner BuildRight (82)
+            :- Project (78)
+            :  +- SortMergeJoin LeftSemi (77)
+            :     :- Sort (55)
+            :     :  +- Exchange (54)
+            :     :     +- Filter (53)
+            :     :        +- Scan parquet default.supplier (1)
+            :     +- Sort (76)
+            :        +- Exchange (75)
+            :           +- Project (74)
+            :              +- BroadcastHashJoin Inner BuildLeft (73)
+            :                 :- BroadcastExchange (61)
+            :                 :  +- BroadcastHashJoin LeftSemi BuildRight (60)
+            :                 :     :- Filter (56)
+            :                 :     :  +- Scan parquet default.partsupp (7)
+            :                 :     +- BroadcastExchange (59)
+            :                 :        +- Project (58)
+            :                 :           +- Filter (57)
+            :                 :              +- Scan parquet default.part (10)
+            :                 +- Filter (72)
+            :                    +- HashAggregate (71)
+            :                       +- Exchange (70)
+            :                          +- HashAggregate (69)
+            :                             +- BroadcastHashJoin LeftSemi BuildRight (68)
+            :                                :- Project (63)
+            :                                :  +- Filter (62)
+            :                                :     +- Scan parquet default.lineitem (19)
+            :                                +- BroadcastExchange (67)
+            :                                   +- Project (66)
+            :                                      +- Filter (65)
+            :                                         +- Scan parquet default.part (64)
+            +- BroadcastExchange (81)
+               +- Project (80)
+                  +- Filter (79)
+                     +- Scan parquet default.nation (41)
+
+
+(1) Scan parquet default.supplier
+Output [4]: [s_suppkey#***, s_name#***, s_address#***, s_nationkey#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
+PushedFilters: [IsNotNull(s_nationkey)]
+ReadSchema: struct<s_suppkey:bigint,s_name:string,s_address:string,s_nationkey:bigint>
+
+(2) ColumnarToRow [codegen id : 1]
+Input [4]: [s_suppkey#***, s_name#***, s_address#***, s_nationkey#***]
+
+(3) Filter [codegen id : 1]
+Input [4]: [s_suppkey#***, s_name#***, s_address#***, s_nationkey#***]
+Condition : isnotnull(s_nationkey#***)
+
+(4) Exchange
+Input [4]: [s_suppkey#***, s_name#***, s_address#***, s_nationkey#***]
+Arguments: hashpartitioning(s_suppkey#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(5) ShuffleQueryStage
+Output [4]: [s_suppkey#***, s_name#***, s_address#***, s_nationkey#***]
+Arguments: 0
+
+(6) AQEShuffleRead
+Input [4]: [s_suppkey#***, s_name#***, s_address#***, s_nationkey#***]
+Arguments: local
+
+(7) Scan parquet default.partsupp
+Output [3]: [ps_partkey#***, ps_suppkey#***, ps_availqty#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/partsupp]
+PushedFilters: [IsNotNull(ps_availqty), IsNotNull(ps_partkey), IsNotNull(ps_suppkey)]
+ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint,ps_availqty:int>
+
+(8) ColumnarToRow [codegen id : 5]
+Input [3]: [ps_partkey#***, ps_suppkey#***, ps_availqty#***]
+
+(9) Filter [codegen id : 5]
+Input [3]: [ps_partkey#***, ps_suppkey#***, ps_availqty#***]
+Condition : ((isnotnull(ps_availqty#***) AND isnotnull(ps_partkey#***)) AND isnotnull(ps_suppkey#***))
+
+(10) Scan parquet default.part
+Output [2]: [p_partkey#***, p_name#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/part]
+PushedFilters: [IsNotNull(p_name), StringStartsWith(p_name,forest)]
+ReadSchema: struct<p_partkey:bigint,p_name:string>
+
+(11) ColumnarToRow [codegen id : 2]
+Input [2]: [p_partkey#***, p_name#***]
+
+(12) Filter [codegen id : 2]
+Input [2]: [p_partkey#***, p_name#***]
+Condition : (isnotnull(p_name#***) AND StartsWith(p_name#***, forest))
+
+(13) Project [codegen id : 2]
+Output [1]: [p_partkey#***]
+Input [2]: [p_partkey#***, p_name#***]
+
+(14) BroadcastExchange
+Input [1]: [p_partkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+
+(15) BroadcastQueryStage
+Output [1]: [p_partkey#***]
+Arguments: 1
+
+(16) BroadcastHashJoin [codegen id : 5]
+Left keys [1]: [ps_partkey#***]
+Right keys [1]: [p_partkey#***]
+Join condition: None
+
+(17) BroadcastExchange
+Input [3]: [ps_partkey#***, ps_suppkey#***, ps_availqty#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false], input[1, bigint, false]),false), [plan_id=***]
+
+(18) BroadcastQueryStage
+Output [3]: [ps_partkey#***, ps_suppkey#***, ps_availqty#***]
+Arguments: 5
+
+(19) Scan parquet default.lineitem
+Output [4]: [l_partkey#***, l_suppkey#***, l_quantity#***, l_shipdate#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
+PushedFilters: [IsNotNull(l_shipdate), GreaterThanOrEqual(l_shipdate,1994-01-01), LessThan(l_shipdate,1995-01-01), IsNotNull(l_partkey), IsNotNull(l_suppkey)]
+ReadSchema: struct<l_partkey:bigint,l_suppkey:bigint,l_quantity:decimal(12,2),l_shipdate:date>
+
+(20) ColumnarToRow [codegen id : 6]
+Input [4]: [l_partkey#***, l_suppkey#***, l_quantity#***, l_shipdate#***]
+
+(21) Filter [codegen id : 6]
+Input [4]: [l_partkey#***, l_suppkey#***, l_quantity#***, l_shipdate#***]
+Condition : ((((isnotnull(l_shipdate#***) AND (l_shipdate#*** >= 1994-01-01)) AND (l_shipdate#*** < 1995-01-01)) AND isnotnull(l_partkey#***)) AND isnotnull(l_suppkey#***))
+
+(22) Project [codegen id : 6]
+Output [3]: [l_partkey#***, l_suppkey#***, l_quantity#***]
+Input [4]: [l_partkey#***, l_suppkey#***, l_quantity#***, l_shipdate#***]
+
+(23) ReusedExchange [Reuses operator id: 14]
+Output [1]: [p_partkey#***]
+
+(24) BroadcastQueryStage
+Output [1]: [p_partkey#***]
+Arguments: 3
+
+(25) BroadcastHashJoin [codegen id : 6]
+Left keys [1]: [l_partkey#***]
+Right keys [1]: [p_partkey#***]
+Join condition: None
+
+(26) HashAggregate [codegen id : 6]
+Input [3]: [l_partkey#***, l_suppkey#***, l_quantity#***]
+Keys [2]: [l_partkey#***, l_suppkey#***]
+Functions [1]: [partial_sum(l_quantity#***)]
+Aggregate Attributes [2]: [sum#***, isEmpty#***]
+Results [4]: [l_partkey#***, l_suppkey#***, sum#***, isEmpty#***]
+
+(27) Exchange
+Input [4]: [l_partkey#***, l_suppkey#***, sum#***, isEmpty#***]
+Arguments: hashpartitioning(l_partkey#***, l_suppkey#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(28) ShuffleQueryStage
+Output [4]: [l_partkey#***, l_suppkey#***, sum#***, isEmpty#***]
+Arguments: 6
+
+(29) AQEShuffleRead
+Input [4]: [l_partkey#***, l_suppkey#***, sum#***, isEmpty#***]
+Arguments: coalesced
+
+(30) HashAggregate
+Input [4]: [l_partkey#***, l_suppkey#***, sum#***, isEmpty#***]
+Keys [2]: [l_partkey#***, l_suppkey#***]
+Functions [1]: [sum(l_quantity#***)]
+Aggregate Attributes [1]: [sum(l_quantity#***)#***]
+Results [3]: [CheckOverflow((0.50 * promote_precision(sum(l_quantity#***)#***)), DecimalType(24,3)) AS (0.5 * sum(l_quantity))#***, l_partkey#***, l_suppkey#***]
+
+(31) Filter
+Input [3]: [(0.5 * sum(l_quantity))#***, l_partkey#***, l_suppkey#***]
+Condition : isnotnull((0.5 * sum(l_quantity))#***)
+
+(32) BroadcastHashJoin [codegen id : 7]
+Left keys [2]: [ps_partkey#***, ps_suppkey#***]
+Right keys [2]: [l_partkey#***, l_suppkey#***]
+Join condition: (cast(ps_availqty#*** as decimal(24,3)) > (0.5 * sum(l_quantity))#***)
+
+(33) Project [codegen id : 7]
+Output [1]: [ps_suppkey#***]
+Input [6]: [ps_partkey#***, ps_suppkey#***, ps_availqty#***, (0.5 * sum(l_quantity))#***, l_partkey#***, l_suppkey#***]
+
+(34) Exchange
+Input [1]: [ps_suppkey#***]
+Arguments: hashpartitioning(ps_suppkey#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(35) ShuffleQueryStage
+Output [1]: [ps_suppkey#***]
+Arguments: 7
+
+(36) AQEShuffleRead
+Input [1]: [ps_suppkey#***]
+Arguments: local
+
+(37) BroadcastExchange
+Input [1]: [ps_suppkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+
+(38) BroadcastQueryStage
+Output [1]: [ps_suppkey#***]
+Arguments: 8
+
+(39) BroadcastHashJoin [codegen id : 8]
+Left keys [1]: [s_suppkey#***]
+Right keys [1]: [ps_suppkey#***]
+Join condition: None
+
+(40) Project [codegen id : 8]
+Output [3]: [s_name#***, s_address#***, s_nationkey#***]
+Input [4]: [s_suppkey#***, s_name#***, s_address#***, s_nationkey#***]
+
+(41) Scan parquet default.nation
+Output [2]: [n_nationkey#***, n_name#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
+PushedFilters: [IsNotNull(n_name), EqualTo(n_name,CANADA), IsNotNull(n_nationkey)]
+ReadSchema: struct<n_nationkey:bigint,n_name:string>
+
+(42) ColumnarToRow [codegen id : 4]
+Input [2]: [n_nationkey#***, n_name#***]
+
+(43) Filter [codegen id : 4]
+Input [2]: [n_nationkey#***, n_name#***]
+Condition : ((isnotnull(n_name#***) AND (n_name#*** = CANADA)) AND isnotnull(n_nationkey#***))
+
+(44) Project [codegen id : 4]
+Output [1]: [n_nationkey#***]
+Input [2]: [n_nationkey#***, n_name#***]
+
+(45) BroadcastExchange
+Input [1]: [n_nationkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+
+(46) BroadcastQueryStage
+Output [1]: [n_nationkey#***]
+Arguments: 4
+
+(47) BroadcastHashJoin [codegen id : 8]
+Left keys [1]: [s_nationkey#***]
+Right keys [1]: [n_nationkey#***]
+Join condition: None
+
+(48) Project [codegen id : 8]
+Output [2]: [s_name#***, s_address#***]
+Input [4]: [s_name#***, s_address#***, s_nationkey#***, n_nationkey#***]
+
+(49) Exchange
+Input [2]: [s_name#***, s_address#***]
+Arguments: rangepartitioning(s_name#*** ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(50) ShuffleQueryStage
+Output [2]: [s_name#***, s_address#***]
+Arguments: 9
+
+(51) AQEShuffleRead
+Input [2]: [s_name#***, s_address#***]
+Arguments: coalesced
+
+(52) Sort [codegen id : 9]
+Input [2]: [s_name#***, s_address#***]
+Arguments: [s_name#*** ASC NULLS FIRST], true, 0
+
+(53) Filter
+Input [4]: [s_suppkey#***, s_name#***, s_address#***, s_nationkey#***]
+Condition : isnotnull(s_nationkey#***)
+
+(54) Exchange
+Input [4]: [s_suppkey#***, s_name#***, s_address#***, s_nationkey#***]
+Arguments: hashpartitioning(s_suppkey#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(55) Sort
+Input [4]: [s_suppkey#***, s_name#***, s_address#***, s_nationkey#***]
+Arguments: [s_suppkey#*** ASC NULLS FIRST], false, 0
+
+(56) Filter
+Input [3]: [ps_partkey#***, ps_suppkey#***, ps_availqty#***]
+Condition : ((isnotnull(ps_availqty#***) AND isnotnull(ps_partkey#***)) AND isnotnull(ps_suppkey#***))
+
+(57) Filter
+Input [2]: [p_partkey#***, p_name#***]
+Condition : (isnotnull(p_name#***) AND StartsWith(p_name#***, forest))
+
+(58) Project
+Output [1]: [p_partkey#***]
+Input [2]: [p_partkey#***, p_name#***]
+
+(59) BroadcastExchange
+Input [1]: [p_partkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+
+(60) BroadcastHashJoin
+Left keys [1]: [ps_partkey#***]
+Right keys [1]: [p_partkey#***]
+Join condition: None
+
+(61) BroadcastExchange
+Input [3]: [ps_partkey#***, ps_suppkey#***, ps_availqty#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false], input[1, bigint, false]),false), [plan_id=***]
+
+(62) Filter
+Input [4]: [l_partkey#***, l_suppkey#***, l_quantity#***, l_shipdate#***]
+Condition : ((((isnotnull(l_shipdate#***) AND (l_shipdate#*** >= 1994-01-01)) AND (l_shipdate#*** < 1995-01-01)) AND isnotnull(l_partkey#***)) AND isnotnull(l_suppkey#***))
+
+(63) Project
+Output [3]: [l_partkey#***, l_suppkey#***, l_quantity#***]
+Input [4]: [l_partkey#***, l_suppkey#***, l_quantity#***, l_shipdate#***]
+
+(64) Scan parquet default.part
+Output [2]: [p_partkey#***, p_name#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/part]
+PushedFilters: [IsNotNull(p_name), StringStartsWith(p_name,forest)]
+ReadSchema: struct<p_partkey:bigint,p_name:string>
+
+(65) Filter
+Input [2]: [p_partkey#***, p_name#***]
+Condition : (isnotnull(p_name#***) AND StartsWith(p_name#***, forest))
+
+(66) Project
+Output [1]: [p_partkey#***]
+Input [2]: [p_partkey#***, p_name#***]
+
+(67) BroadcastExchange
+Input [1]: [p_partkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+
+(68) BroadcastHashJoin
+Left keys [1]: [l_partkey#***]
+Right keys [1]: [p_partkey#***]
+Join condition: None
+
+(69) HashAggregate
+Input [3]: [l_partkey#***, l_suppkey#***, l_quantity#***]
+Keys [2]: [l_partkey#***, l_suppkey#***]
+Functions [1]: [partial_sum(l_quantity#***)]
+Aggregate Attributes [2]: [sum#***, isEmpty#***]
+Results [4]: [l_partkey#***, l_suppkey#***, sum#***, isEmpty#***]
+
+(70) Exchange
+Input [4]: [l_partkey#***, l_suppkey#***, sum#***, isEmpty#***]
+Arguments: hashpartitioning(l_partkey#***, l_suppkey#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(71) HashAggregate
+Input [4]: [l_partkey#***, l_suppkey#***, sum#***, isEmpty#***]
+Keys [2]: [l_partkey#***, l_suppkey#***]
+Functions [1]: [sum(l_quantity#***)]
+Aggregate Attributes [1]: [sum(l_quantity#***)#***]
+Results [3]: [CheckOverflow((0.50 * promote_precision(sum(l_quantity#***)#***)), DecimalType(24,3)) AS (0.5 * sum(l_quantity))#***, l_partkey#***, l_suppkey#***]
+
+(72) Filter
+Input [3]: [(0.5 * sum(l_quantity))#***, l_partkey#***, l_suppkey#***]
+Condition : isnotnull((0.5 * sum(l_quantity))#***)
+
+(73) BroadcastHashJoin
+Left keys [2]: [ps_partkey#***, ps_suppkey#***]
+Right keys [2]: [l_partkey#***, l_suppkey#***]
+Join condition: (cast(ps_availqty#*** as decimal(24,3)) > (0.5 * sum(l_quantity))#***)
+
+(74) Project
+Output [1]: [ps_suppkey#***]
+Input [6]: [ps_partkey#***, ps_suppkey#***, ps_availqty#***, (0.5 * sum(l_quantity))#***, l_partkey#***, l_suppkey#***]
+
+(75) Exchange
+Input [1]: [ps_suppkey#***]
+Arguments: hashpartitioning(ps_suppkey#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(76) Sort
+Input [1]: [ps_suppkey#***]
+Arguments: [ps_suppkey#*** ASC NULLS FIRST], false, 0
+
+(77) SortMergeJoin
+Left keys [1]: [s_suppkey#***]
+Right keys [1]: [ps_suppkey#***]
+Join condition: None
+
+(78) Project
+Output [3]: [s_name#***, s_address#***, s_nationkey#***]
+Input [4]: [s_suppkey#***, s_name#***, s_address#***, s_nationkey#***]
+
+(79) Filter
+Input [2]: [n_nationkey#***, n_name#***]
+Condition : ((isnotnull(n_name#***) AND (n_name#*** = CANADA)) AND isnotnull(n_nationkey#***))
+
+(80) Project
+Output [1]: [n_nationkey#***]
+Input [2]: [n_nationkey#***, n_name#***]
+
+(81) BroadcastExchange
+Input [1]: [n_nationkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+
+(82) BroadcastHashJoin
+Left keys [1]: [s_nationkey#***]
+Right keys [1]: [n_nationkey#***]
+Join condition: None
+
+(83) Project
+Output [2]: [s_name#***, s_address#***]
+Input [4]: [s_name#***, s_address#***, s_nationkey#***, n_nationkey#***]
+
+(84) Exchange
+Input [2]: [s_name#***, s_address#***]
+Arguments: rangepartitioning(s_name#*** ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(85) Sort
+Input [2]: [s_name#***, s_address#***]
+Arguments: [s_name#*** ASC NULLS FIRST], true, 0
+
+(86) AdaptiveSparkPlan
+Output [2]: [s_name#***, s_address#***]
+Arguments: isFinalPlan=true

@@ -76,6 +76,10 @@ class TpchSuite(
     "/tpch-queries"
   }
 
+  override private[tpc] def expectPlanResource(): String = {
+    "/tpch-expect-plans"
+  }
+
   override protected def typeModifiers(): List[TypeModifier] = {
     List()
   }

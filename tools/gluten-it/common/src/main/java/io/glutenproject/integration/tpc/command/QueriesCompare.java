@@ -41,10 +41,13 @@ public class QueriesCompare implements Callable<Integer> {
   @CommandLine.Option(names = {"--iterations"}, description = "How many iterations to run", defaultValue = "1")
   private int iterations;
 
+  @CommandLine.Option(names = {"--verify-spark-plan"}, description = "Verify whether spark plan changes", defaultValue = "true")
+  private boolean verifySparkPlan;
+
   @Override
   public Integer call() throws Exception {
     io.glutenproject.integration.tpc.action.QueriesCompare queriesCompare =
-        new io.glutenproject.integration.tpc.action.QueriesCompare(dataGenMixin.getScale(), this.queries, explain, iterations);
+        new io.glutenproject.integration.tpc.action.QueriesCompare(dataGenMixin.getScale(), this.queries, explain, iterations, verifySparkPlan);
     return mixin.runActions(ArrayUtils.addAll(dataGenMixin.makeActions(), queriesCompare));
   }
 }

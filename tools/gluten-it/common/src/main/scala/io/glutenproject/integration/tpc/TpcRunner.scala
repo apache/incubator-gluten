@@ -23,7 +23,7 @@ import org.apache.commons.io.FileUtils
 
 import java.io.File
 
-class TpcRunner(val queryResourceFolder: String, val dataPath: String) {
+class TpcRunner(val queryResourceFolder: String, val dataPath: String, val expectResourceFolder: String = "") {
   Preconditions.checkState(
     new File(dataPath).exists(),
     s"Data not found at $dataPath, try using command `<gluten-it> data-gen-only <options>` to generate it first.",

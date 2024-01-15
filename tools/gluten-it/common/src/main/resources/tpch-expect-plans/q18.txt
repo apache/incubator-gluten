@@ -1,0 +1,389 @@
+== Physical Plan ==
+AdaptiveSparkPlan (67)
++- == Final Plan ==
+   TakeOrderedAndProject (38)
+   +- * HashAggregate (37)
+      +- AQEShuffleRead (36)
+         +- ShuffleQueryStage (35), Statistics(***)
+            +- Exchange (34)
+               +- * HashAggregate (33)
+                  +- * Project (32)
+                     +- * BroadcastHashJoin Inner BuildRight (31)
+                        :- * Project (22)
+                        :  +- * BroadcastHashJoin Inner BuildLeft (21)
+                        :     :- BroadcastQueryStage (5), Statistics(***)
+                        :     :  +- BroadcastExchange (4)
+                        :     :     +- * Filter (3)
+                        :     :        +- * ColumnarToRow (2)
+                        :     :           +- Scan parquet default.customer (1)
+                        :     +- * BroadcastHashJoin LeftSemi BuildRight (20)
+                        :        :- * Filter (8)
+                        :        :  +- * ColumnarToRow (7)
+                        :        :     +- Scan parquet default.orders (6)
+                        :        +- BroadcastQueryStage (19), Statistics(***)
+                        :           +- BroadcastExchange (18)
+                        :              +- * Project (17)
+                        :                 +- * Filter (16)
+                        :                    +- * HashAggregate (15)
+                        :                       +- AQEShuffleRead (14)
+                        :                          +- ShuffleQueryStage (13), Statistics(***)
+                        :                             +- Exchange (12)
+                        :                                +- * HashAggregate (11)
+                        :                                   +- * ColumnarToRow (10)
+                        :                                      +- Scan parquet default.lineitem (9)
+                        +- BroadcastQueryStage (30), Statistics(***)
+                           +- BroadcastExchange (29)
+                              +- * BroadcastHashJoin LeftSemi BuildRight (28)
+                                 :- * Filter (25)
+                                 :  +- * ColumnarToRow (24)
+                                 :     +- Scan parquet default.lineitem (23)
+                                 +- BroadcastQueryStage (27), Statistics(***)
+                                    +- ReusedExchange (26)
++- == Initial Plan ==
+   TakeOrderedAndProject (66)
+   +- HashAggregate (65)
+      +- Exchange (64)
+         +- HashAggregate (63)
+            +- Project (62)
+               +- BroadcastHashJoin Inner BuildRight (61)
+                  :- Project (50)
+                  :  +- BroadcastHashJoin Inner BuildLeft (49)
+                  :     :- BroadcastExchange (40)
+                  :     :  +- Filter (39)
+                  :     :     +- Scan parquet default.customer (1)
+                  :     +- BroadcastHashJoin LeftSemi BuildRight (48)
+                  :        :- Filter (41)
+                  :        :  +- Scan parquet default.orders (6)
+                  :        +- BroadcastExchange (47)
+                  :           +- Project (46)
+                  :              +- Filter (45)
+                  :                 +- HashAggregate (44)
+                  :                    +- Exchange (43)
+                  :                       +- HashAggregate (42)
+                  :                          +- Scan parquet default.lineitem (9)
+                  +- BroadcastExchange (60)
+                     +- BroadcastHashJoin LeftSemi BuildRight (59)
+                        :- Filter (51)
+                        :  +- Scan parquet default.lineitem (23)
+                        +- BroadcastExchange (58)
+                           +- Project (57)
+                              +- Filter (56)
+                                 +- HashAggregate (55)
+                                    +- Exchange (54)
+                                       +- HashAggregate (53)
+                                          +- Scan parquet default.lineitem (52)
+
+
+(1) Scan parquet default.customer
+Output [2]: [c_custkey#***, c_name#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
+PushedFilters: [IsNotNull(c_custkey)]
+ReadSchema: struct<c_custkey:bigint,c_name:string>
+
+(2) ColumnarToRow [codegen id : 1]
+Input [2]: [c_custkey#***, c_name#***]
+
+(3) Filter [codegen id : 1]
+Input [2]: [c_custkey#***, c_name#***]
+Condition : isnotnull(c_custkey#***)
+
+(4) BroadcastExchange
+Input [2]: [c_custkey#***, c_name#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+
+(5) BroadcastQueryStage
+Output [2]: [c_custkey#***, c_name#***]
+Arguments: 0
+
+(6) Scan parquet default.orders
+Output [4]: [o_orderkey#***, o_custkey#***, o_totalprice#***, o_orderdate#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
+PushedFilters: [IsNotNull(o_custkey), IsNotNull(o_orderkey)]
+ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_totalprice:decimal(12,2),o_orderdate:date>
+
+(7) ColumnarToRow
+Input [4]: [o_orderkey#***, o_custkey#***, o_totalprice#***, o_orderdate#***]
+
+(8) Filter
+Input [4]: [o_orderkey#***, o_custkey#***, o_totalprice#***, o_orderdate#***]
+Condition : (isnotnull(o_custkey#***) AND isnotnull(o_orderkey#***))
+
+(9) Scan parquet default.lineitem
+Output [2]: [l_orderkey#***, l_quantity#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
+ReadSchema: struct<l_orderkey:bigint,l_quantity:decimal(12,2)>
+
+(10) ColumnarToRow [codegen id : 2]
+Input [2]: [l_orderkey#***, l_quantity#***]
+
+(11) HashAggregate [codegen id : 2]
+Input [2]: [l_orderkey#***, l_quantity#***]
+Keys [1]: [l_orderkey#***]
+Functions [1]: [partial_sum(l_quantity#***)]
+Aggregate Attributes [2]: [sum#***, isEmpty#***]
+Results [3]: [l_orderkey#***, sum#***, isEmpty#***]
+
+(12) Exchange
+Input [3]: [l_orderkey#***, sum#***, isEmpty#***]
+Arguments: hashpartitioning(l_orderkey#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(13) ShuffleQueryStage
+Output [3]: [l_orderkey#***, sum#***, isEmpty#***]
+Arguments: 1
+
+(14) AQEShuffleRead
+Input [3]: [l_orderkey#***, sum#***, isEmpty#***]
+Arguments: coalesced
+
+(15) HashAggregate [codegen id : 4]
+Input [3]: [l_orderkey#***, sum#***, isEmpty#***]
+Keys [1]: [l_orderkey#***]
+Functions [1]: [sum(l_quantity#***)]
+Aggregate Attributes [1]: [sum(l_quantity#***)#***]
+Results [2]: [l_orderkey#***, sum(l_quantity#***)#*** AS sum(l_quantity#***)#***]
+
+(16) Filter [codegen id : 4]
+Input [2]: [l_orderkey#***, sum(l_quantity#***)#***]
+Condition : (isnotnull(sum(l_quantity#***)#***) AND (sum(l_quantity#***)#*** > 300.00))
+
+(17) Project [codegen id : 4]
+Output [1]: [l_orderkey#***]
+Input [2]: [l_orderkey#***, sum(l_quantity#***)#***]
+
+(18) BroadcastExchange
+Input [1]: [l_orderkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+
+(19) BroadcastQueryStage
+Output [1]: [l_orderkey#***]
+Arguments: 4
+
+(20) BroadcastHashJoin
+Left keys [1]: [o_orderkey#***]
+Right keys [1]: [l_orderkey#***]
+Join condition: None
+
+(21) BroadcastHashJoin [codegen id : 7]
+Left keys [1]: [c_custkey#***]
+Right keys [1]: [o_custkey#***]
+Join condition: None
+
+(22) Project [codegen id : 7]
+Output [5]: [c_custkey#***, c_name#***, o_orderkey#***, o_totalprice#***, o_orderdate#***]
+Input [6]: [c_custkey#***, c_name#***, o_orderkey#***, o_custkey#***, o_totalprice#***, o_orderdate#***]
+
+(23) Scan parquet default.lineitem
+Output [2]: [l_orderkey#***, l_quantity#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
+PushedFilters: [IsNotNull(l_orderkey)]
+ReadSchema: struct<l_orderkey:bigint,l_quantity:decimal(12,2)>
+
+(24) ColumnarToRow [codegen id : 6]
+Input [2]: [l_orderkey#***, l_quantity#***]
+
+(25) Filter [codegen id : 6]
+Input [2]: [l_orderkey#***, l_quantity#***]
+Condition : isnotnull(l_orderkey#***)
+
+(26) ReusedExchange [Reuses operator id: 18]
+Output [1]: [l_orderkey#***]
+
+(27) BroadcastQueryStage
+Output [1]: [l_orderkey#***]
+Arguments: 6
+
+(28) BroadcastHashJoin [codegen id : 6]
+Left keys [1]: [l_orderkey#***]
+Right keys [1]: [l_orderkey#***]
+Join condition: None
+
+(29) BroadcastExchange
+Input [2]: [l_orderkey#***, l_quantity#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+
+(30) BroadcastQueryStage
+Output [2]: [l_orderkey#***, l_quantity#***]
+Arguments: 7
+
+(31) BroadcastHashJoin [codegen id : 7]
+Left keys [1]: [o_orderkey#***]
+Right keys [1]: [l_orderkey#***]
+Join condition: None
+
+(32) Project [codegen id : 7]
+Output [6]: [c_custkey#***, c_name#***, o_orderkey#***, o_totalprice#***, o_orderdate#***, l_quantity#***]
+Input [7]: [c_custkey#***, c_name#***, o_orderkey#***, o_totalprice#***, o_orderdate#***, l_orderkey#***, l_quantity#***]
+
+(33) HashAggregate [codegen id : 7]
+Input [6]: [c_custkey#***, c_name#***, o_orderkey#***, o_totalprice#***, o_orderdate#***, l_quantity#***]
+Keys [5]: [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***]
+Functions [1]: [partial_sum(l_quantity#***)]
+Aggregate Attributes [2]: [sum#***, isEmpty#***]
+Results [7]: [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***, sum#***, isEmpty#***]
+
+(34) Exchange
+Input [7]: [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***, sum#***, isEmpty#***]
+Arguments: hashpartitioning(c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(35) ShuffleQueryStage
+Output [7]: [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***, sum#***, isEmpty#***]
+Arguments: 8
+
+(36) AQEShuffleRead
+Input [7]: [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***, sum#***, isEmpty#***]
+Arguments: coalesced
+
+(37) HashAggregate [codegen id : 8]
+Input [7]: [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***, sum#***, isEmpty#***]
+Keys [5]: [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***]
+Functions [1]: [sum(l_quantity#***)]
+Aggregate Attributes [1]: [sum(l_quantity#***)#***]
+Results [6]: [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***, sum(l_quantity#***)#*** AS sum(l_quantity)#***]
+
+(38) TakeOrderedAndProject
+Input [6]: [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***, sum(l_quantity)#***]
+Arguments: 100, [o_totalprice#*** DESC NULLS LAST, o_orderdate#*** ASC NULLS FIRST], [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***, sum(l_quantity)#***]
+
+(39) Filter
+Input [2]: [c_custkey#***, c_name#***]
+Condition : isnotnull(c_custkey#***)
+
+(40) BroadcastExchange
+Input [2]: [c_custkey#***, c_name#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+
+(41) Filter
+Input [4]: [o_orderkey#***, o_custkey#***, o_totalprice#***, o_orderdate#***]
+Condition : (isnotnull(o_custkey#***) AND isnotnull(o_orderkey#***))
+
+(42) HashAggregate
+Input [2]: [l_orderkey#***, l_quantity#***]
+Keys [1]: [l_orderkey#***]
+Functions [1]: [partial_sum(l_quantity#***)]
+Aggregate Attributes [2]: [sum#***, isEmpty#***]
+Results [3]: [l_orderkey#***, sum#***, isEmpty#***]
+
+(43) Exchange
+Input [3]: [l_orderkey#***, sum#***, isEmpty#***]
+Arguments: hashpartitioning(l_orderkey#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(44) HashAggregate
+Input [3]: [l_orderkey#***, sum#***, isEmpty#***]
+Keys [1]: [l_orderkey#***]
+Functions [1]: [sum(l_quantity#***)]
+Aggregate Attributes [1]: [sum(l_quantity#***)#***]
+Results [2]: [l_orderkey#***, sum(l_quantity#***)#*** AS sum(l_quantity#***)#***]
+
+(45) Filter
+Input [2]: [l_orderkey#***, sum(l_quantity#***)#***]
+Condition : (isnotnull(sum(l_quantity#***)#***) AND (sum(l_quantity#***)#*** > 300.00))
+
+(46) Project
+Output [1]: [l_orderkey#***]
+Input [2]: [l_orderkey#***, sum(l_quantity#***)#***]
+
+(47) BroadcastExchange
+Input [1]: [l_orderkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+
+(48) BroadcastHashJoin
+Left keys [1]: [o_orderkey#***]
+Right keys [1]: [l_orderkey#***]
+Join condition: None
+
+(49) BroadcastHashJoin
+Left keys [1]: [c_custkey#***]
+Right keys [1]: [o_custkey#***]
+Join condition: None
+
+(50) Project
+Output [5]: [c_custkey#***, c_name#***, o_orderkey#***, o_totalprice#***, o_orderdate#***]
+Input [6]: [c_custkey#***, c_name#***, o_orderkey#***, o_custkey#***, o_totalprice#***, o_orderdate#***]
+
+(51) Filter
+Input [2]: [l_orderkey#***, l_quantity#***]
+Condition : isnotnull(l_orderkey#***)
+
+(52) Scan parquet default.lineitem
+Output [2]: [l_orderkey#***, l_quantity#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
+ReadSchema: struct<l_orderkey:bigint,l_quantity:decimal(12,2)>
+
+(53) HashAggregate
+Input [2]: [l_orderkey#***, l_quantity#***]
+Keys [1]: [l_orderkey#***]
+Functions [1]: [partial_sum(l_quantity#***)]
+Aggregate Attributes [2]: [sum#***, isEmpty#***]
+Results [3]: [l_orderkey#***, sum#***, isEmpty#***]
+
+(54) Exchange
+Input [3]: [l_orderkey#***, sum#***, isEmpty#***]
+Arguments: hashpartitioning(l_orderkey#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(55) HashAggregate
+Input [3]: [l_orderkey#***, sum#***, isEmpty#***]
+Keys [1]: [l_orderkey#***]
+Functions [1]: [sum(l_quantity#***)]
+Aggregate Attributes [1]: [sum(l_quantity#***)#***]
+Results [2]: [l_orderkey#***, sum(l_quantity#***)#*** AS sum(l_quantity#***)#***]
+
+(56) Filter
+Input [2]: [l_orderkey#***, sum(l_quantity#***)#***]
+Condition : (isnotnull(sum(l_quantity#***)#***) AND (sum(l_quantity#***)#*** > 300.00))
+
+(57) Project
+Output [1]: [l_orderkey#***]
+Input [2]: [l_orderkey#***, sum(l_quantity#***)#***]
+
+(58) BroadcastExchange
+Input [1]: [l_orderkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+
+(59) BroadcastHashJoin
+Left keys [1]: [l_orderkey#***]
+Right keys [1]: [l_orderkey#***]
+Join condition: None
+
+(60) BroadcastExchange
+Input [2]: [l_orderkey#***, l_quantity#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+
+(61) BroadcastHashJoin
+Left keys [1]: [o_orderkey#***]
+Right keys [1]: [l_orderkey#***]
+Join condition: None
+
+(62) Project
+Output [6]: [c_custkey#***, c_name#***, o_orderkey#***, o_totalprice#***, o_orderdate#***, l_quantity#***]
+Input [7]: [c_custkey#***, c_name#***, o_orderkey#***, o_totalprice#***, o_orderdate#***, l_orderkey#***, l_quantity#***]
+
+(63) HashAggregate
+Input [6]: [c_custkey#***, c_name#***, o_orderkey#***, o_totalprice#***, o_orderdate#***, l_quantity#***]
+Keys [5]: [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***]
+Functions [1]: [partial_sum(l_quantity#***)]
+Aggregate Attributes [2]: [sum#***, isEmpty#***]
+Results [7]: [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***, sum#***, isEmpty#***]
+
+(64) Exchange
+Input [7]: [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***, sum#***, isEmpty#***]
+Arguments: hashpartitioning(c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(65) HashAggregate
+Input [7]: [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***, sum#***, isEmpty#***]
+Keys [5]: [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***]
+Functions [1]: [sum(l_quantity#***)]
+Aggregate Attributes [1]: [sum(l_quantity#***)#***]
+Results [6]: [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***, sum(l_quantity#***)#*** AS sum(l_quantity)#***]
+
+(66) TakeOrderedAndProject
+Input [6]: [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***, sum(l_quantity)#***]
+Arguments: 100, [o_totalprice#*** DESC NULLS LAST, o_orderdate#*** ASC NULLS FIRST], [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***, sum(l_quantity)#***]
+
+(67) AdaptiveSparkPlan
+Output [6]: [c_name#***, c_custkey#***, o_orderkey#***, o_orderdate#***, o_totalprice#***, sum(l_quantity)#***]
+Arguments: isFinalPlan=true

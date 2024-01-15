@@ -18,16 +18,14 @@ package io.glutenproject.integration.tpc.action
 
 import io.glutenproject.integration.stat.RamStat
 import io.glutenproject.integration.tpc.{TpcRunner, TpcSuite}
-
-import org.apache.spark.sql.{SparkSessionSwitcher, TestUtils}
-
+import org.apache.spark.sql.{QueryRunner, SparkSessionSwitcher, TestUtils}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-case class QueriesCompare(scale: Double, queryIds: Array[String], explain: Boolean, iterations: Int)
+case class QueriesCompare(scale: Double, queryIds: Array[String], explain: Boolean, iterations: Int, verifySparkPlan: Boolean)
   extends Action {
 
   override def execute(tpcSuite: TpcSuite): Boolean = {
-    val runner: TpcRunner = new TpcRunner(tpcSuite.queryResource(), tpcSuite.dataWritePath(scale))
+    val runner: TpcRunner = new TpcRunner(tpcSuite.queryResource(), tpcSuite.dataWritePath(scale), tpcSuite.expectPlanResource())
     val allQueries = tpcSuite.allQueryIds()
     val results = (0 until iterations).flatMap {
       iteration =>
@@ -48,6 +46,7 @@ case class QueriesCompare(scale: Double, queryIds: Array[String], explain: Boole
               queryId,
               explain,
               tpcSuite.desc(),
+              verifySparkPlan,
               tpcSuite.sessionSwitcher,
               runner)
         }
@@ -174,10 +173,28 @@ object QueriesCompare {
           )))
   }
 
+  private[tpc] def verifyExecutionPlan(expectPath: String, actualPlan: String): (Boolean, Option[String]) = {
+    try {
+      val expect = QueryRunner.resourceToString(expectPath)
+      val afterFormatPlan = actualPlan.replaceAll("#[0-9]*L*", "#***")
+        .replaceAll("plan_id=[0-9]*", "plan_id=***")
+        .replaceAll("Statistics[(A-Za-z0-9=. ,+)]*", "Statistics(***)")
+      if (expect.trim == afterFormatPlan.trim) {
+        (true, None)
+      } else {
+        (false, Some(s"Expect: \n$expect\n\nActual: \n$afterFormatPlan"))
+      }
+    } catch {
+      case e: Exception =>
+        (false, Some(s"Exception when verify spark execution plan: ${ExceptionUtils.getStackTrace(e)}"))
+    }
+  }
+
   private[tpc] def runTpcQuery(
       id: String,
       explain: Boolean,
       desc: String,
+      verifySparkPlan: Boolean,
       sessionSwitcher: SparkSessionSwitcher,
       runner: TpcRunner): TestResultLine = {
     println(s"Running query: $id...")
@@ -200,6 +217,20 @@ object QueriesCompare {
         println(
           s"Successfully ran query $id, result check was passed. " +
             s"Returned row count: ${resultRows.length}, expected: ${expectedRows.length}")
+        if (verifySparkPlan) {
+          verifyExecutionPlan(s"${runner.expectResourceFolder}/$id.txt", result.executionPlan) match {
+            case (false, reason) =>
+              return TestResultLine(
+                id,
+                testPassed = false,
+                Some(expectedRows.length),
+                Some(resultRows.length),
+                Some(expected.executionTimeMillis),
+                Some(result.executionTimeMillis),
+                reason)
+            case _ =>
+          }
+        }
         return TestResultLine(
           id,
           testPassed = true,

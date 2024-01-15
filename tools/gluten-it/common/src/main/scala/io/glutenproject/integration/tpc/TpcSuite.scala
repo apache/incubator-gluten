@@ -172,6 +172,8 @@ abstract class TpcSuite(
 
   private[tpc] def queryResource(): String
 
+  private[tpc] def expectPlanResource(): String
+
   protected def typeModifiers(): List[TypeModifier]
 
   private[tpc] def allQueryIds(): Array[String]

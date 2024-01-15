@@ -20,9 +20,9 @@ import org.apache.spark.{SparkContext, Success, TaskKilled}
 import org.apache.spark.executor.ExecutorMetrics
 import org.apache.spark.scheduler.{SparkListener, SparkListenerExecutorMetricsUpdate, SparkListenerTaskEnd, SparkListenerTaskStart}
 import org.apache.spark.sql.KillTaskListener.INIT_WAIT_TIME_MS
-
 import com.google.common.base.Preconditions
 import org.apache.commons.lang3.RandomUtils
+import org.apache.spark.sql.execution.FormattedMode
 
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
@@ -87,7 +87,7 @@ object QueryRunner {
       val rows = df.collect()
       val millis = (System.nanoTime() - prev) / 1000000L
       val collectedMetrics = metrics.map(name => (name, em.getMetricValue(name))).toMap
-      RunResult(rows, millis, collectedMetrics)
+      RunResult(rows, millis, collectedMetrics, df.queryExecution.explainString(FormattedMode))
     } finally {
       sc.removeSparkListener(metricsListener)
       killTaskListener.foreach(
@@ -100,7 +100,7 @@ object QueryRunner {
     }
   }
 
-  private def resourceToString(resource: String): String = {
+  def resourceToString(resource: String): String = {
     val inStream = QueryRunner.getClass.getResourceAsStream(resource)
     Preconditions.checkNotNull(inStream)
     val outStream = new ByteArrayOutputStream
@@ -121,7 +121,7 @@ object QueryRunner {
 
 }
 
-case class RunResult(rows: Seq[Row], executionTimeMillis: Long, metrics: Map[String, Long])
+case class RunResult(rows: Seq[Row], executionTimeMillis: Long, metrics: Map[String, Long], executionPlan: String)
 
 class MetricsListener(em: ExecutorMetrics) extends SparkListener {
   override def onExecutorMetricsUpdate(

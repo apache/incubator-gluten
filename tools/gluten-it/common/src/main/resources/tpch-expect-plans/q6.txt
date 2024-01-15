@@ -1,0 +1,89 @@
+== Physical Plan ==
+AdaptiveSparkPlan (14)
++- == Final Plan ==
+   * HashAggregate (8)
+   +- ShuffleQueryStage (7), Statistics(***)
+      +- Exchange (6)
+         +- * HashAggregate (5)
+            +- * Project (4)
+               +- * Filter (3)
+                  +- * ColumnarToRow (2)
+                     +- Scan parquet default.lineitem (1)
++- == Initial Plan ==
+   HashAggregate (13)
+   +- Exchange (12)
+      +- HashAggregate (11)
+         +- Project (10)
+            +- Filter (9)
+               +- Scan parquet default.lineitem (1)
+
+
+(1) Scan parquet default.lineitem
+Output [4]: [l_quantity#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
+PushedFilters: [IsNotNull(l_shipdate), IsNotNull(l_discount), IsNotNull(l_quantity), GreaterThanOrEqual(l_shipdate,1994-01-01), LessThan(l_shipdate,1995-01-01), GreaterThanOrEqual(l_discount,0.05), LessThanOrEqual(l_discount,0.07), LessThan(l_quantity,24.00)]
+ReadSchema: struct<l_quantity:decimal(12,2),l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_shipdate:date>
+
+(2) ColumnarToRow [codegen id : 1]
+Input [4]: [l_quantity#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
+
+(3) Filter [codegen id : 1]
+Input [4]: [l_quantity#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
+Condition : (((((((isnotnull(l_shipdate#***) AND isnotnull(l_discount#***)) AND isnotnull(l_quantity#***)) AND (l_shipdate#*** >= 1994-01-01)) AND (l_shipdate#*** < 1995-01-01)) AND (l_discount#*** >= 0.05)) AND (l_discount#*** <= 0.07)) AND (l_quantity#*** < 24.00))
+
+(4) Project [codegen id : 1]
+Output [2]: [l_extendedprice#***, l_discount#***]
+Input [4]: [l_quantity#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
+
+(5) HashAggregate [codegen id : 1]
+Input [2]: [l_extendedprice#***, l_discount#***]
+Keys: []
+Functions [1]: [partial_sum(CheckOverflow((promote_precision(l_extendedprice#***) * promote_precision(l_discount#***)), DecimalType(25,4)))]
+Aggregate Attributes [2]: [sum#***, isEmpty#***]
+Results [2]: [sum#***, isEmpty#***]
+
+(6) Exchange
+Input [2]: [sum#***, isEmpty#***]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=***]
+
+(7) ShuffleQueryStage
+Output [2]: [sum#***, isEmpty#***]
+Arguments: 0
+
+(8) HashAggregate [codegen id : 2]
+Input [2]: [sum#***, isEmpty#***]
+Keys: []
+Functions [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#***) * promote_precision(l_discount#***)), DecimalType(25,4)))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#***) * promote_precision(l_discount#***)), DecimalType(25,4)))#***]
+Results [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#***) * promote_precision(l_discount#***)), DecimalType(25,4)))#*** AS revenue#***]
+
+(9) Filter
+Input [4]: [l_quantity#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
+Condition : (((((((isnotnull(l_shipdate#***) AND isnotnull(l_discount#***)) AND isnotnull(l_quantity#***)) AND (l_shipdate#*** >= 1994-01-01)) AND (l_shipdate#*** < 1995-01-01)) AND (l_discount#*** >= 0.05)) AND (l_discount#*** <= 0.07)) AND (l_quantity#*** < 24.00))
+
+(10) Project
+Output [2]: [l_extendedprice#***, l_discount#***]
+Input [4]: [l_quantity#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
+
+(11) HashAggregate
+Input [2]: [l_extendedprice#***, l_discount#***]
+Keys: []
+Functions [1]: [partial_sum(CheckOverflow((promote_precision(l_extendedprice#***) * promote_precision(l_discount#***)), DecimalType(25,4)))]
+Aggregate Attributes [2]: [sum#***, isEmpty#***]
+Results [2]: [sum#***, isEmpty#***]
+
+(12) Exchange
+Input [2]: [sum#***, isEmpty#***]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=***]
+
+(13) HashAggregate
+Input [2]: [sum#***, isEmpty#***]
+Keys: []
+Functions [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#***) * promote_precision(l_discount#***)), DecimalType(25,4)))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#***) * promote_precision(l_discount#***)), DecimalType(25,4)))#***]
+Results [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#***) * promote_precision(l_discount#***)), DecimalType(25,4)))#*** AS revenue#***]
+
+(14) AdaptiveSparkPlan
+Output [1]: [revenue#***]
+Arguments: isFinalPlan=true

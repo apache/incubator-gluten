@@ -1,0 +1,439 @@
+== Physical Plan ==
+AdaptiveSparkPlan (45)
++- == Final Plan ==
+   * Sort (28)
+   +- AQEShuffleRead (27)
+      +- ShuffleQueryStage (26), Statistics(***)
+         +- Exchange (25)
+            +- * Filter (24)
+               +- * HashAggregate (23)
+                  +- AQEShuffleRead (22)
+                     +- ShuffleQueryStage (21), Statistics(***)
+                        +- Exchange (20)
+                           +- * HashAggregate (19)
+                              +- * Project (18)
+                                 +- * BroadcastHashJoin Inner BuildRight (17)
+                                    :- * Project (10)
+                                    :  +- * BroadcastHashJoin Inner BuildRight (9)
+                                    :     :- * Filter (3)
+                                    :     :  +- * ColumnarToRow (2)
+                                    :     :     +- Scan parquet default.partsupp (1)
+                                    :     +- BroadcastQueryStage (8), Statistics(***)
+                                    :        +- BroadcastExchange (7)
+                                    :           +- * Filter (6)
+                                    :              +- * ColumnarToRow (5)
+                                    :                 +- Scan parquet default.supplier (4)
+                                    +- BroadcastQueryStage (16), Statistics(***)
+                                       +- BroadcastExchange (15)
+                                          +- * Project (14)
+                                             +- * Filter (13)
+                                                +- * ColumnarToRow (12)
+                                                   +- Scan parquet default.nation (11)
++- == Initial Plan ==
+   Sort (44)
+   +- Exchange (43)
+      +- Filter (42)
+         +- HashAggregate (41)
+            +- Exchange (40)
+               +- HashAggregate (39)
+                  +- Project (38)
+                     +- BroadcastHashJoin Inner BuildRight (37)
+                        :- Project (33)
+                        :  +- BroadcastHashJoin Inner BuildRight (32)
+                        :     :- Filter (29)
+                        :     :  +- Scan parquet default.partsupp (1)
+                        :     +- BroadcastExchange (31)
+                        :        +- Filter (30)
+                        :           +- Scan parquet default.supplier (4)
+                        +- BroadcastExchange (36)
+                           +- Project (35)
+                              +- Filter (34)
+                                 +- Scan parquet default.nation (11)
+
+
+(1) Scan parquet default.partsupp
+Output [4]: [ps_partkey#***, ps_suppkey#***, ps_availqty#***, ps_supplycost#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/partsupp]
+PushedFilters: [IsNotNull(ps_suppkey)]
+ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint,ps_availqty:int,ps_supplycost:decimal(12,2)>
+
+(2) ColumnarToRow [codegen id : 3]
+Input [4]: [ps_partkey#***, ps_suppkey#***, ps_availqty#***, ps_supplycost#***]
+
+(3) Filter [codegen id : 3]
+Input [4]: [ps_partkey#***, ps_suppkey#***, ps_availqty#***, ps_supplycost#***]
+Condition : isnotnull(ps_suppkey#***)
+
+(4) Scan parquet default.supplier
+Output [2]: [s_suppkey#***, s_nationkey#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
+PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
+ReadSchema: struct<s_suppkey:bigint,s_nationkey:bigint>
+
+(5) ColumnarToRow [codegen id : 1]
+Input [2]: [s_suppkey#***, s_nationkey#***]
+
+(6) Filter [codegen id : 1]
+Input [2]: [s_suppkey#***, s_nationkey#***]
+Condition : (isnotnull(s_suppkey#***) AND isnotnull(s_nationkey#***))
+
+(7) BroadcastExchange
+Input [2]: [s_suppkey#***, s_nationkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+
+(8) BroadcastQueryStage
+Output [2]: [s_suppkey#***, s_nationkey#***]
+Arguments: 0
+
+(9) BroadcastHashJoin [codegen id : 3]
+Left keys [1]: [ps_suppkey#***]
+Right keys [1]: [s_suppkey#***]
+Join condition: None
+
+(10) Project [codegen id : 3]
+Output [4]: [ps_partkey#***, ps_availqty#***, ps_supplycost#***, s_nationkey#***]
+Input [6]: [ps_partkey#***, ps_suppkey#***, ps_availqty#***, ps_supplycost#***, s_suppkey#***, s_nationkey#***]
+
+(11) Scan parquet default.nation
+Output [2]: [n_nationkey#***, n_name#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
+PushedFilters: [IsNotNull(n_name), EqualTo(n_name,GERMANY), IsNotNull(n_nationkey)]
+ReadSchema: struct<n_nationkey:bigint,n_name:string>
+
+(12) ColumnarToRow [codegen id : 2]
+Input [2]: [n_nationkey#***, n_name#***]
+
+(13) Filter [codegen id : 2]
+Input [2]: [n_nationkey#***, n_name#***]
+Condition : ((isnotnull(n_name#***) AND (n_name#*** = GERMANY)) AND isnotnull(n_nationkey#***))
+
+(14) Project [codegen id : 2]
+Output [1]: [n_nationkey#***]
+Input [2]: [n_nationkey#***, n_name#***]
+
+(15) BroadcastExchange
+Input [1]: [n_nationkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+
+(16) BroadcastQueryStage
+Output [1]: [n_nationkey#***]
+Arguments: 1
+
+(17) BroadcastHashJoin [codegen id : 3]
+Left keys [1]: [s_nationkey#***]
+Right keys [1]: [n_nationkey#***]
+Join condition: None
+
+(18) Project [codegen id : 3]
+Output [3]: [ps_partkey#***, ps_availqty#***, ps_supplycost#***]
+Input [5]: [ps_partkey#***, ps_availqty#***, ps_supplycost#***, s_nationkey#***, n_nationkey#***]
+
+(19) HashAggregate [codegen id : 3]
+Input [3]: [ps_partkey#***, ps_availqty#***, ps_supplycost#***]
+Keys [1]: [ps_partkey#***]
+Functions [1]: [partial_sum(CheckOverflow((promote_precision(ps_supplycost#***) * promote_precision(cast(ps_availqty#*** as decimal(12,2)))), DecimalType(23,2)))]
+Aggregate Attributes [2]: [sum#***, isEmpty#***]
+Results [3]: [ps_partkey#***, sum#***, isEmpty#***]
+
+(20) Exchange
+Input [3]: [ps_partkey#***, sum#***, isEmpty#***]
+Arguments: hashpartitioning(ps_partkey#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(21) ShuffleQueryStage
+Output [3]: [ps_partkey#***, sum#***, isEmpty#***]
+Arguments: 2
+
+(22) AQEShuffleRead
+Input [3]: [ps_partkey#***, sum#***, isEmpty#***]
+Arguments: coalesced
+
+(23) HashAggregate [codegen id : 4]
+Input [3]: [ps_partkey#***, sum#***, isEmpty#***]
+Keys [1]: [ps_partkey#***]
+Functions [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#***) * promote_precision(cast(ps_availqty#*** as decimal(12,2)))), DecimalType(23,2)))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#***) * promote_precision(cast(ps_availqty#*** as decimal(12,2)))), DecimalType(23,2)))#***]
+Results [2]: [ps_partkey#***, sum(CheckOverflow((promote_precision(ps_supplycost#***) * promote_precision(cast(ps_availqty#*** as decimal(12,2)))), DecimalType(23,2)))#*** AS value#***]
+
+(24) Filter [codegen id : 4]
+Input [2]: [ps_partkey#***, value#***]
+Condition : (isnotnull(value#***) AND (cast(value#*** as decimal(38,6)) > Subquery subquery#***, [id=#***]))
+
+(25) Exchange
+Input [2]: [ps_partkey#***, value#***]
+Arguments: rangepartitioning(value#*** DESC NULLS LAST, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(26) ShuffleQueryStage
+Output [2]: [ps_partkey#***, value#***]
+Arguments: 3
+
+(27) AQEShuffleRead
+Input [2]: [ps_partkey#***, value#***]
+Arguments: coalesced
+
+(28) Sort [codegen id : 5]
+Input [2]: [ps_partkey#***, value#***]
+Arguments: [value#*** DESC NULLS LAST], true, 0
+
+(29) Filter
+Input [4]: [ps_partkey#***, ps_suppkey#***, ps_availqty#***, ps_supplycost#***]
+Condition : isnotnull(ps_suppkey#***)
+
+(30) Filter
+Input [2]: [s_suppkey#***, s_nationkey#***]
+Condition : (isnotnull(s_suppkey#***) AND isnotnull(s_nationkey#***))
+
+(31) BroadcastExchange
+Input [2]: [s_suppkey#***, s_nationkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+
+(32) BroadcastHashJoin
+Left keys [1]: [ps_suppkey#***]
+Right keys [1]: [s_suppkey#***]
+Join condition: None
+
+(33) Project
+Output [4]: [ps_partkey#***, ps_availqty#***, ps_supplycost#***, s_nationkey#***]
+Input [6]: [ps_partkey#***, ps_suppkey#***, ps_availqty#***, ps_supplycost#***, s_suppkey#***, s_nationkey#***]
+
+(34) Filter
+Input [2]: [n_nationkey#***, n_name#***]
+Condition : ((isnotnull(n_name#***) AND (n_name#*** = GERMANY)) AND isnotnull(n_nationkey#***))
+
+(35) Project
+Output [1]: [n_nationkey#***]
+Input [2]: [n_nationkey#***, n_name#***]
+
+(36) BroadcastExchange
+Input [1]: [n_nationkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+
+(37) BroadcastHashJoin
+Left keys [1]: [s_nationkey#***]
+Right keys [1]: [n_nationkey#***]
+Join condition: None
+
+(38) Project
+Output [3]: [ps_partkey#***, ps_availqty#***, ps_supplycost#***]
+Input [5]: [ps_partkey#***, ps_availqty#***, ps_supplycost#***, s_nationkey#***, n_nationkey#***]
+
+(39) HashAggregate
+Input [3]: [ps_partkey#***, ps_availqty#***, ps_supplycost#***]
+Keys [1]: [ps_partkey#***]
+Functions [1]: [partial_sum(CheckOverflow((promote_precision(ps_supplycost#***) * promote_precision(cast(ps_availqty#*** as decimal(12,2)))), DecimalType(23,2)))]
+Aggregate Attributes [2]: [sum#***, isEmpty#***]
+Results [3]: [ps_partkey#***, sum#***, isEmpty#***]
+
+(40) Exchange
+Input [3]: [ps_partkey#***, sum#***, isEmpty#***]
+Arguments: hashpartitioning(ps_partkey#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(41) HashAggregate
+Input [3]: [ps_partkey#***, sum#***, isEmpty#***]
+Keys [1]: [ps_partkey#***]
+Functions [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#***) * promote_precision(cast(ps_availqty#*** as decimal(12,2)))), DecimalType(23,2)))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#***) * promote_precision(cast(ps_availqty#*** as decimal(12,2)))), DecimalType(23,2)))#***]
+Results [2]: [ps_partkey#***, sum(CheckOverflow((promote_precision(ps_supplycost#***) * promote_precision(cast(ps_availqty#*** as decimal(12,2)))), DecimalType(23,2)))#*** AS value#***]
+
+(42) Filter
+Input [2]: [ps_partkey#***, value#***]
+Condition : (isnotnull(value#***) AND (cast(value#*** as decimal(38,6)) > Subquery subquery#***, [id=#***]))
+
+(43) Exchange
+Input [2]: [ps_partkey#***, value#***]
+Arguments: rangepartitioning(value#*** DESC NULLS LAST, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(44) Sort
+Input [2]: [ps_partkey#***, value#***]
+Arguments: [value#*** DESC NULLS LAST], true, 0
+
+(45) AdaptiveSparkPlan
+Output [2]: [ps_partkey#***, value#***]
+Arguments: isFinalPlan=true
+
+===== Subqueries =====
+
+Subquery:1 Hosting operator id = 24 Hosting Expression = Subquery subquery#***, [id=#***]
+AdaptiveSparkPlan (76)
++- == Final Plan ==
+   * HashAggregate (60)
+   +- ShuffleQueryStage (59), Statistics(***)
+      +- Exchange (58)
+         +- * HashAggregate (57)
+            +- * Project (56)
+               +- * BroadcastHashJoin Inner BuildRight (55)
+                  :- * Project (52)
+                  :  +- * BroadcastHashJoin Inner BuildRight (51)
+                  :     :- * Filter (48)
+                  :     :  +- * ColumnarToRow (47)
+                  :     :     +- Scan parquet default.partsupp (46)
+                  :     +- BroadcastQueryStage (50), Statistics(***)
+                  :        +- ReusedExchange (49)
+                  +- BroadcastQueryStage (54), Statistics(***)
+                     +- ReusedExchange (53)
++- == Initial Plan ==
+   HashAggregate (75)
+   +- Exchange (74)
+      +- HashAggregate (73)
+         +- Project (72)
+            +- BroadcastHashJoin Inner BuildRight (71)
+               :- Project (66)
+               :  +- BroadcastHashJoin Inner BuildRight (65)
+               :     :- Filter (61)
+               :     :  +- Scan parquet default.partsupp (46)
+               :     +- BroadcastExchange (64)
+               :        +- Filter (63)
+               :           +- Scan parquet default.supplier (62)
+               +- BroadcastExchange (70)
+                  +- Project (69)
+                     +- Filter (68)
+                        +- Scan parquet default.nation (67)
+
+
+(46) Scan parquet default.partsupp
+Output [3]: [ps_suppkey#***, ps_availqty#***, ps_supplycost#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/partsupp]
+PushedFilters: [IsNotNull(ps_suppkey)]
+ReadSchema: struct<ps_suppkey:bigint,ps_availqty:int,ps_supplycost:decimal(12,2)>
+
+(47) ColumnarToRow [codegen id : 3]
+Input [3]: [ps_suppkey#***, ps_availqty#***, ps_supplycost#***]
+
+(48) Filter [codegen id : 3]
+Input [3]: [ps_suppkey#***, ps_availqty#***, ps_supplycost#***]
+Condition : isnotnull(ps_suppkey#***)
+
+(49) ReusedExchange [Reuses operator id: 7]
+Output [2]: [s_suppkey#***, s_nationkey#***]
+
+(50) BroadcastQueryStage
+Output [2]: [s_suppkey#***, s_nationkey#***]
+Arguments: 1
+
+(51) BroadcastHashJoin [codegen id : 3]
+Left keys [1]: [ps_suppkey#***]
+Right keys [1]: [s_suppkey#***]
+Join condition: None
+
+(52) Project [codegen id : 3]
+Output [3]: [ps_availqty#***, ps_supplycost#***, s_nationkey#***]
+Input [5]: [ps_suppkey#***, ps_availqty#***, ps_supplycost#***, s_suppkey#***, s_nationkey#***]
+
+(53) ReusedExchange [Reuses operator id: 15]
+Output [1]: [n_nationkey#***]
+
+(54) BroadcastQueryStage
+Output [1]: [n_nationkey#***]
+Arguments: 3
+
+(55) BroadcastHashJoin [codegen id : 3]
+Left keys [1]: [s_nationkey#***]
+Right keys [1]: [n_nationkey#***]
+Join condition: None
+
+(56) Project [codegen id : 3]
+Output [2]: [ps_availqty#***, ps_supplycost#***]
+Input [4]: [ps_availqty#***, ps_supplycost#***, s_nationkey#***, n_nationkey#***]
+
+(57) HashAggregate [codegen id : 3]
+Input [2]: [ps_availqty#***, ps_supplycost#***]
+Keys: []
+Functions [1]: [partial_sum(CheckOverflow((promote_precision(ps_supplycost#***) * promote_precision(cast(ps_availqty#*** as decimal(12,2)))), DecimalType(23,2)))]
+Aggregate Attributes [2]: [sum#***, isEmpty#***]
+Results [2]: [sum#***, isEmpty#***]
+
+(58) Exchange
+Input [2]: [sum#***, isEmpty#***]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=***]
+
+(59) ShuffleQueryStage
+Output [2]: [sum#***, isEmpty#***]
+Arguments: 4
+
+(60) HashAggregate [codegen id : 4]
+Input [2]: [sum#***, isEmpty#***]
+Keys: []
+Functions [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#***) * promote_precision(cast(ps_availqty#*** as decimal(12,2)))), DecimalType(23,2)))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#***) * promote_precision(cast(ps_availqty#*** as decimal(12,2)))), DecimalType(23,2)))#***]
+Results [1]: [CheckOverflow((promote_precision(cast(sum(CheckOverflow((promote_precision(ps_supplycost#***) * promote_precision(cast(ps_availqty#*** as decimal(12,2)))), DecimalType(23,2)))#*** as decimal(38,10))) * 0.0001000000), DecimalType(38,6)) AS (sum((ps_supplycost * ps_availqty)) * 0.0001000000)#***]
+
+(61) Filter
+Input [3]: [ps_suppkey#***, ps_availqty#***, ps_supplycost#***]
+Condition : isnotnull(ps_suppkey#***)
+
+(62) Scan parquet default.supplier
+Output [2]: [s_suppkey#***, s_nationkey#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
+PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
+ReadSchema: struct<s_suppkey:bigint,s_nationkey:bigint>
+
+(63) Filter
+Input [2]: [s_suppkey#***, s_nationkey#***]
+Condition : (isnotnull(s_suppkey#***) AND isnotnull(s_nationkey#***))
+
+(64) BroadcastExchange
+Input [2]: [s_suppkey#***, s_nationkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+
+(65) BroadcastHashJoin
+Left keys [1]: [ps_suppkey#***]
+Right keys [1]: [s_suppkey#***]
+Join condition: None
+
+(66) Project
+Output [3]: [ps_availqty#***, ps_supplycost#***, s_nationkey#***]
+Input [5]: [ps_suppkey#***, ps_availqty#***, ps_supplycost#***, s_suppkey#***, s_nationkey#***]
+
+(67) Scan parquet default.nation
+Output [2]: [n_nationkey#***, n_name#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
+PushedFilters: [IsNotNull(n_name), EqualTo(n_name,GERMANY), IsNotNull(n_nationkey)]
+ReadSchema: struct<n_nationkey:bigint,n_name:string>
+
+(68) Filter
+Input [2]: [n_nationkey#***, n_name#***]
+Condition : ((isnotnull(n_name#***) AND (n_name#*** = GERMANY)) AND isnotnull(n_nationkey#***))
+
+(69) Project
+Output [1]: [n_nationkey#***]
+Input [2]: [n_nationkey#***, n_name#***]
+
+(70) BroadcastExchange
+Input [1]: [n_nationkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+
+(71) BroadcastHashJoin
+Left keys [1]: [s_nationkey#***]
+Right keys [1]: [n_nationkey#***]
+Join condition: None
+
+(72) Project
+Output [2]: [ps_availqty#***, ps_supplycost#***]
+Input [4]: [ps_availqty#***, ps_supplycost#***, s_nationkey#***, n_nationkey#***]
+
+(73) HashAggregate
+Input [2]: [ps_availqty#***, ps_supplycost#***]
+Keys: []
+Functions [1]: [partial_sum(CheckOverflow((promote_precision(ps_supplycost#***) * promote_precision(cast(ps_availqty#*** as decimal(12,2)))), DecimalType(23,2)))]
+Aggregate Attributes [2]: [sum#***, isEmpty#***]
+Results [2]: [sum#***, isEmpty#***]
+
+(74) Exchange
+Input [2]: [sum#***, isEmpty#***]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=***]
+
+(75) HashAggregate
+Input [2]: [sum#***, isEmpty#***]
+Keys: []
+Functions [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#***) * promote_precision(cast(ps_availqty#*** as decimal(12,2)))), DecimalType(23,2)))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#***) * promote_precision(cast(ps_availqty#*** as decimal(12,2)))), DecimalType(23,2)))#***]
+Results [1]: [CheckOverflow((promote_precision(cast(sum(CheckOverflow((promote_precision(ps_supplycost#***) * promote_precision(cast(ps_availqty#*** as decimal(12,2)))), DecimalType(23,2)))#*** as decimal(38,10))) * 0.0001000000), DecimalType(38,6)) AS (sum((ps_supplycost * ps_availqty)) * 0.0001000000)#***]
+
+(76) AdaptiveSparkPlan
+Output [1]: [(sum((ps_supplycost * ps_availqty)) * 0.0001000000)#***]
+Arguments: isFinalPlan=true

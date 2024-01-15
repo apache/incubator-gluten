@@ -1,0 +1,194 @@
+== Physical Plan ==
+AdaptiveSparkPlan (34)
++- == Final Plan ==
+   * Sort (21)
+   +- AQEShuffleRead (20)
+      +- ShuffleQueryStage (19), Statistics(***)
+         +- Exchange (18)
+            +- * HashAggregate (17)
+               +- AQEShuffleRead (16)
+                  +- ShuffleQueryStage (15), Statistics(***)
+                     +- Exchange (14)
+                        +- * HashAggregate (13)
+                           +- * Project (12)
+                              +- * BroadcastHashJoin LeftSemi BuildRight (11)
+                                 :- * Project (4)
+                                 :  +- * Filter (3)
+                                 :     +- * ColumnarToRow (2)
+                                 :        +- Scan parquet default.orders (1)
+                                 +- BroadcastQueryStage (10), Statistics(***)
+                                    +- BroadcastExchange (9)
+                                       +- * Project (8)
+                                          +- * Filter (7)
+                                             +- * ColumnarToRow (6)
+                                                +- Scan parquet default.lineitem (5)
++- == Initial Plan ==
+   Sort (33)
+   +- Exchange (32)
+      +- HashAggregate (31)
+         +- Exchange (30)
+            +- HashAggregate (29)
+               +- Project (28)
+                  +- BroadcastHashJoin LeftSemi BuildRight (27)
+                     :- Project (23)
+                     :  +- Filter (22)
+                     :     +- Scan parquet default.orders (1)
+                     +- BroadcastExchange (26)
+                        +- Project (25)
+                           +- Filter (24)
+                              +- Scan parquet default.lineitem (5)
+
+
+(1) Scan parquet default.orders
+Output [3]: [o_orderkey#***, o_orderpriority#***, o_orderdate#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
+PushedFilters: [IsNotNull(o_orderdate), GreaterThanOrEqual(o_orderdate,1993-07-01), LessThan(o_orderdate,1993-10-01)]
+ReadSchema: struct<o_orderkey:bigint,o_orderpriority:string,o_orderdate:date>
+
+(2) ColumnarToRow [codegen id : 2]
+Input [3]: [o_orderkey#***, o_orderpriority#***, o_orderdate#***]
+
+(3) Filter [codegen id : 2]
+Input [3]: [o_orderkey#***, o_orderpriority#***, o_orderdate#***]
+Condition : ((isnotnull(o_orderdate#***) AND (o_orderdate#*** >= 1993-07-01)) AND (o_orderdate#*** < 1993-10-01))
+
+(4) Project [codegen id : 2]
+Output [2]: [o_orderkey#***, o_orderpriority#***]
+Input [3]: [o_orderkey#***, o_orderpriority#***, o_orderdate#***]
+
+(5) Scan parquet default.lineitem
+Output [3]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
+PushedFilters: [IsNotNull(l_commitdate), IsNotNull(l_receiptdate)]
+ReadSchema: struct<l_orderkey:bigint,l_commitdate:date,l_receiptdate:date>
+
+(6) ColumnarToRow [codegen id : 1]
+Input [3]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***]
+
+(7) Filter [codegen id : 1]
+Input [3]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***]
+Condition : ((isnotnull(l_commitdate#***) AND isnotnull(l_receiptdate#***)) AND (l_commitdate#*** < l_receiptdate#***))
+
+(8) Project [codegen id : 1]
+Output [1]: [l_orderkey#***]
+Input [3]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***]
+
+(9) BroadcastExchange
+Input [1]: [l_orderkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+
+(10) BroadcastQueryStage
+Output [1]: [l_orderkey#***]
+Arguments: 0
+
+(11) BroadcastHashJoin [codegen id : 2]
+Left keys [1]: [o_orderkey#***]
+Right keys [1]: [l_orderkey#***]
+Join condition: None
+
+(12) Project [codegen id : 2]
+Output [1]: [o_orderpriority#***]
+Input [2]: [o_orderkey#***, o_orderpriority#***]
+
+(13) HashAggregate [codegen id : 2]
+Input [1]: [o_orderpriority#***]
+Keys [1]: [o_orderpriority#***]
+Functions [1]: [partial_count(1)]
+Aggregate Attributes [1]: [count#***]
+Results [2]: [o_orderpriority#***, count#***]
+
+(14) Exchange
+Input [2]: [o_orderpriority#***, count#***]
+Arguments: hashpartitioning(o_orderpriority#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(15) ShuffleQueryStage
+Output [2]: [o_orderpriority#***, count#***]
+Arguments: 1
+
+(16) AQEShuffleRead
+Input [2]: [o_orderpriority#***, count#***]
+Arguments: coalesced
+
+(17) HashAggregate [codegen id : 3]
+Input [2]: [o_orderpriority#***, count#***]
+Keys [1]: [o_orderpriority#***]
+Functions [1]: [count(1)]
+Aggregate Attributes [1]: [count(1)#***]
+Results [2]: [o_orderpriority#***, count(1)#*** AS order_count#***]
+
+(18) Exchange
+Input [2]: [o_orderpriority#***, order_count#***]
+Arguments: rangepartitioning(o_orderpriority#*** ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(19) ShuffleQueryStage
+Output [2]: [o_orderpriority#***, order_count#***]
+Arguments: 2
+
+(20) AQEShuffleRead
+Input [2]: [o_orderpriority#***, order_count#***]
+Arguments: coalesced
+
+(21) Sort [codegen id : 4]
+Input [2]: [o_orderpriority#***, order_count#***]
+Arguments: [o_orderpriority#*** ASC NULLS FIRST], true, 0
+
+(22) Filter
+Input [3]: [o_orderkey#***, o_orderpriority#***, o_orderdate#***]
+Condition : ((isnotnull(o_orderdate#***) AND (o_orderdate#*** >= 1993-07-01)) AND (o_orderdate#*** < 1993-10-01))
+
+(23) Project
+Output [2]: [o_orderkey#***, o_orderpriority#***]
+Input [3]: [o_orderkey#***, o_orderpriority#***, o_orderdate#***]
+
+(24) Filter
+Input [3]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***]
+Condition : ((isnotnull(l_commitdate#***) AND isnotnull(l_receiptdate#***)) AND (l_commitdate#*** < l_receiptdate#***))
+
+(25) Project
+Output [1]: [l_orderkey#***]
+Input [3]: [l_orderkey#***, l_commitdate#***, l_receiptdate#***]
+
+(26) BroadcastExchange
+Input [1]: [l_orderkey#***]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+
+(27) BroadcastHashJoin
+Left keys [1]: [o_orderkey#***]
+Right keys [1]: [l_orderkey#***]
+Join condition: None
+
+(28) Project
+Output [1]: [o_orderpriority#***]
+Input [2]: [o_orderkey#***, o_orderpriority#***]
+
+(29) HashAggregate
+Input [1]: [o_orderpriority#***]
+Keys [1]: [o_orderpriority#***]
+Functions [1]: [partial_count(1)]
+Aggregate Attributes [1]: [count#***]
+Results [2]: [o_orderpriority#***, count#***]
+
+(30) Exchange
+Input [2]: [o_orderpriority#***, count#***]
+Arguments: hashpartitioning(o_orderpriority#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(31) HashAggregate
+Input [2]: [o_orderpriority#***, count#***]
+Keys [1]: [o_orderpriority#***]
+Functions [1]: [count(1)]
+Aggregate Attributes [1]: [count(1)#***]
+Results [2]: [o_orderpriority#***, count(1)#*** AS order_count#***]
+
+(32) Exchange
+Input [2]: [o_orderpriority#***, order_count#***]
+Arguments: rangepartitioning(o_orderpriority#*** ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+
+(33) Sort
+Input [2]: [o_orderpriority#***, order_count#***]
+Arguments: [o_orderpriority#*** ASC NULLS FIRST], true, 0
+
+(34) AdaptiveSparkPlan
+Output [2]: [o_orderpriority#***, order_count#***]
+Arguments: isFinalPlan=true
