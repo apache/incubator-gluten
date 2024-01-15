@@ -26,6 +26,7 @@
 
 #include "velox/common/caching/AsyncDataCache.h"
 #include "velox/common/memory/MemoryPool.h"
+#include "velox/common/memory/MmapAllocator.h"
 #include "velox/core/Config.h"
 
 namespace gluten {
@@ -74,6 +75,7 @@ class VeloxBackend {
 
   std::unique_ptr<folly::IOThreadPoolExecutor> ssdCacheExecutor_;
   std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
+  std::shared_ptr<facebook::velox::memory::MmapAllocator> cacheAllocator_;
 
   std::string cachePathPrefix_;
   std::string cacheFilePrefix_;
