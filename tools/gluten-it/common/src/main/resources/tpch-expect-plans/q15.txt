@@ -3,12 +3,12 @@ AdaptiveSparkPlan (40)
 +- == Final Plan ==
    VeloxColumnarToRowExec (25)
    +- AQEShuffleRead (24)
-      +- ShuffleQueryStage (23), Statistics(***)
+      +- ShuffleQueryStage (23), Statistics(X)
          +- ColumnarExchange (22)
             +- ^ ProjectExecTransformer (20)
                +- ^ GlutenBroadcastHashJoinExecTransformer Inner (19)
                   :- ^ InputIteratorTransformer (6)
-                  :  +- BroadcastQueryStage (5), Statistics(***)
+                  :  +- BroadcastQueryStage (5), Statistics(X)
                   :     +- ColumnarBroadcastExchange (4)
                   :        +- ^ FilterExecTransformer (2)
                   :           +- ^ Scan parquet default.supplier (1)
@@ -16,7 +16,7 @@ AdaptiveSparkPlan (40)
                      +- ^ RegularHashAggregateExecTransformer (17)
                         +- ^ InputIteratorTransformer (16)
                            +- AQEShuffleRead (15)
-                              +- ShuffleQueryStage (14), Statistics(***)
+                              +- ShuffleQueryStage (14), Statistics(X)
                                  +- ColumnarExchange (13)
                                     +- ^ ProjectExecTransformer (11)
                                        +- ^ FlushableHashAggregateExecTransformer (10)
@@ -41,203 +41,203 @@ AdaptiveSparkPlan (40)
 
 
 (1) Scan parquet default.supplier
-Output [4]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***]
+Output [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
 PushedFilters: [IsNotNull(s_suppkey)]
 ReadSchema: struct<s_suppkey:bigint,s_name:string,s_address:string,s_phone:string>
 
 (2) FilterExecTransformer
-Input [4]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***]
-Arguments: isnotnull(s_suppkey#***)
+Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
+Arguments: isnotnull(s_suppkey#X)
 
-(3) WholeStageCodegenTransformer (90)
-Input [4]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***]
+(3) WholeStageCodegenTransformer (89)
+Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 Arguments: false
 
 (4) ColumnarBroadcastExchange
-Input [4]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
 
 (5) BroadcastQueryStage
-Output [4]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***]
+Output [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 Arguments: 0
 
 (6) InputIteratorTransformer
-Input [4]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***]
+Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 
 (7) Scan parquet default.lineitem
-Output [4]: [l_suppkey#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
+Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
 PushedFilters: [IsNotNull(l_shipdate), GreaterThanOrEqual(l_shipdate,1996-01-01), LessThan(l_shipdate,1996-04-01), IsNotNull(l_suppkey)]
 ReadSchema: struct<l_suppkey:bigint,l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_shipdate:date>
 
 (8) FilterExecTransformer
-Input [4]: [l_suppkey#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
-Arguments: (((isnotnull(l_shipdate#***) AND (l_shipdate#*** >= 1996-01-01)) AND (l_shipdate#*** < 1996-04-01)) AND isnotnull(l_suppkey#***))
+Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
+Arguments: (((isnotnull(l_shipdate#X) AND (l_shipdate#X >= 1996-01-01)) AND (l_shipdate#X < 1996-04-01)) AND isnotnull(l_suppkey#X))
 
 (9) ProjectExecTransformer
-Input [4]: [l_suppkey#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
-Arguments: [l_suppkey#***, l_extendedprice#***, l_discount#***]
+Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
+Arguments: [l_suppkey#X, l_extendedprice#X, l_discount#X]
 
 (10) FlushableHashAggregateExecTransformer
-Input [3]: [l_suppkey#***, l_extendedprice#***, l_discount#***]
-Keys [1]: [l_suppkey#***]
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [2]: [sum#***, isEmpty#***]
-Results [3]: [l_suppkey#***, sum#***, isEmpty#***]
+Input [3]: [l_suppkey#X, l_extendedprice#X, l_discount#X]
+Keys [1]: [l_suppkey#X]
+Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Aggregate Attributes [2]: [sum#X, isEmpty#X]
+Results [3]: [l_suppkey#X, sum#X, isEmpty#X]
 
 (11) ProjectExecTransformer
-Input [3]: [l_suppkey#***, sum#***, isEmpty#***]
-Arguments: [hash(l_suppkey#***, 42) AS hash_partition_key#***, l_suppkey#***, sum#***, isEmpty#***]
+Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
+Arguments: [hash(l_suppkey#X, 42) AS hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
 
-(12) WholeStageCodegenTransformer (91)
-Input [4]: [hash_partition_key#***, l_suppkey#***, sum#***, isEmpty#***]
+(12) WholeStageCodegenTransformer (90)
+Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
 Arguments: false
 
 (13) ColumnarExchange
-Input [4]: [hash_partition_key#***, l_suppkey#***, sum#***, isEmpty#***]
-Arguments: hashpartitioning(l_suppkey#***, 100), ENSURE_REQUIREMENTS, [l_suppkey#***, sum#***, isEmpty#***], [plan_id=***], [id=#***]
+Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
+Arguments: hashpartitioning(l_suppkey#X, 100), ENSURE_REQUIREMENTS, [l_suppkey#X, sum#X, isEmpty#X], [plan_id=X], [id=#X]
 
 (14) ShuffleQueryStage
-Output [3]: [l_suppkey#***, sum#***, isEmpty#***]
+Output [3]: [l_suppkey#X, sum#X, isEmpty#X]
 Arguments: 1
 
 (15) AQEShuffleRead
-Input [3]: [l_suppkey#***, sum#***, isEmpty#***]
+Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
 Arguments: coalesced
 
 (16) InputIteratorTransformer
-Input [3]: [l_suppkey#***, sum#***, isEmpty#***]
+Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
 
 (17) RegularHashAggregateExecTransformer
-Input [3]: [l_suppkey#***, sum#***, isEmpty#***]
-Keys [1]: [l_suppkey#***]
-Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#***]
-Results [2]: [l_suppkey#*** AS supplier_no#***, sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#*** AS total_revenue#***]
+Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
+Keys [1]: [l_suppkey#X]
+Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
+Results [2]: [l_suppkey#X AS supplier_no#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS total_revenue#X]
 
 (18) FilterExecTransformer
-Input [2]: [supplier_no#***, total_revenue#***]
-Arguments: (isnotnull(total_revenue#***) AND (total_revenue#*** = Subquery subquery#***, [id=#***]))
+Input [2]: [supplier_no#X, total_revenue#X]
+Arguments: (isnotnull(total_revenue#X) AND (total_revenue#X = Subquery subquery#X, [id=#X]))
 
 (19) GlutenBroadcastHashJoinExecTransformer
-Left keys [1]: [s_suppkey#***]
-Right keys [1]: [supplier_no#***]
+Left keys [1]: [s_suppkey#X]
+Right keys [1]: [supplier_no#X]
 Join condition: None
 
 (20) ProjectExecTransformer
-Input [6]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***, supplier_no#***, total_revenue#***]
-Arguments: [s_suppkey#***, s_name#***, s_address#***, s_phone#***, total_revenue#***]
+Input [6]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, supplier_no#X, total_revenue#X]
+Arguments: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
 
-(21) WholeStageCodegenTransformer (92)
-Input [5]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***, total_revenue#***]
+(21) WholeStageCodegenTransformer (91)
+Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
 Arguments: false
 
 (22) ColumnarExchange
-Input [5]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***, total_revenue#***]
-Arguments: rangepartitioning(s_suppkey#*** ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=***], [id=#***]
+Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
+Arguments: rangepartitioning(s_suppkey#X ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
 (23) ShuffleQueryStage
-Output [5]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***, total_revenue#***]
+Output [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
 Arguments: 2
 
 (24) AQEShuffleRead
-Input [5]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***, total_revenue#***]
+Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
 Arguments: local
 
 (25) VeloxColumnarToRowExec
-Input [5]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***, total_revenue#***]
+Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
 
 (26) Scan parquet default.supplier
-Output [4]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***]
+Output [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
 PushedFilters: [IsNotNull(s_suppkey)]
 ReadSchema: struct<s_suppkey:bigint,s_name:string,s_address:string,s_phone:string>
 
 (27) Filter
-Input [4]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***]
-Condition : isnotnull(s_suppkey#***)
+Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
+Condition : isnotnull(s_suppkey#X)
 
 (28) BroadcastExchange
-Input [4]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
 
 (29) Scan parquet default.lineitem
-Output [4]: [l_suppkey#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
+Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
 PushedFilters: [IsNotNull(l_shipdate), GreaterThanOrEqual(l_shipdate,1996-01-01), LessThan(l_shipdate,1996-04-01), IsNotNull(l_suppkey)]
 ReadSchema: struct<l_suppkey:bigint,l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_shipdate:date>
 
 (30) Filter
-Input [4]: [l_suppkey#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
-Condition : (((isnotnull(l_shipdate#***) AND (l_shipdate#*** >= 1996-01-01)) AND (l_shipdate#*** < 1996-04-01)) AND isnotnull(l_suppkey#***))
+Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
+Condition : (((isnotnull(l_shipdate#X) AND (l_shipdate#X >= 1996-01-01)) AND (l_shipdate#X < 1996-04-01)) AND isnotnull(l_suppkey#X))
 
 (31) Project
-Output [3]: [l_suppkey#***, l_extendedprice#***, l_discount#***]
-Input [4]: [l_suppkey#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
+Output [3]: [l_suppkey#X, l_extendedprice#X, l_discount#X]
+Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 
 (32) HashAggregate
-Input [3]: [l_suppkey#***, l_extendedprice#***, l_discount#***]
-Keys [1]: [l_suppkey#***]
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [2]: [sum#***, isEmpty#***]
-Results [3]: [l_suppkey#***, sum#***, isEmpty#***]
+Input [3]: [l_suppkey#X, l_extendedprice#X, l_discount#X]
+Keys [1]: [l_suppkey#X]
+Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Aggregate Attributes [2]: [sum#X, isEmpty#X]
+Results [3]: [l_suppkey#X, sum#X, isEmpty#X]
 
 (33) Exchange
-Input [3]: [l_suppkey#***, sum#***, isEmpty#***]
-Arguments: hashpartitioning(l_suppkey#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
+Arguments: hashpartitioning(l_suppkey#X, 100), ENSURE_REQUIREMENTS, [plan_id=X]
 
 (34) HashAggregate
-Input [3]: [l_suppkey#***, sum#***, isEmpty#***]
-Keys [1]: [l_suppkey#***]
-Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#***]
-Results [2]: [l_suppkey#*** AS supplier_no#***, sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#*** AS total_revenue#***]
+Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
+Keys [1]: [l_suppkey#X]
+Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
+Results [2]: [l_suppkey#X AS supplier_no#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS total_revenue#X]
 
 (35) Filter
-Input [2]: [supplier_no#***, total_revenue#***]
-Condition : (isnotnull(total_revenue#***) AND (total_revenue#*** = Subquery subquery#***, [id=#***]))
+Input [2]: [supplier_no#X, total_revenue#X]
+Condition : (isnotnull(total_revenue#X) AND (total_revenue#X = Subquery subquery#X, [id=#X]))
 
 (36) BroadcastHashJoin
-Left keys [1]: [s_suppkey#***]
-Right keys [1]: [supplier_no#***]
+Left keys [1]: [s_suppkey#X]
+Right keys [1]: [supplier_no#X]
 Join condition: None
 
 (37) Project
-Output [5]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***, total_revenue#***]
-Input [6]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***, supplier_no#***, total_revenue#***]
+Output [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
+Input [6]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, supplier_no#X, total_revenue#X]
 
 (38) Exchange
-Input [5]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***, total_revenue#***]
-Arguments: rangepartitioning(s_suppkey#*** ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
+Arguments: rangepartitioning(s_suppkey#X ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=X]
 
 (39) Sort
-Input [5]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***, total_revenue#***]
-Arguments: [s_suppkey#*** ASC NULLS FIRST], true, 0
+Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
+Arguments: [s_suppkey#X ASC NULLS FIRST], true, 0
 
 (40) AdaptiveSparkPlan
-Output [5]: [s_suppkey#***, s_name#***, s_address#***, s_phone#***, total_revenue#***]
+Output [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
 Arguments: isFinalPlan=true
 
 ===== Subqueries =====
 
-Subquery:1 Hosting operator id = 18 Hosting Expression = Subquery subquery#***, [id=#***]
+Subquery:1 Hosting operator id = 18 Hosting Expression = Subquery subquery#X, [id=#X]
 AdaptiveSparkPlan (69)
 +- == Final Plan ==
    VeloxColumnarToRowExec (59)
    +- ^ RegularHashAggregateExecTransformer (57)
       +- ^ InputIteratorTransformer (56)
-         +- ShuffleQueryStage (55), Statistics(***)
+         +- ShuffleQueryStage (55), Statistics(X)
             +- ColumnarExchange (54)
                +- ^ FlushableHashAggregateExecTransformer (52)
                   +- ^ RegularHashAggregateExecTransformer (51)
                      +- ^ InputIteratorTransformer (50)
                         +- AQEShuffleRead (49)
-                           +- ShuffleQueryStage (48), Statistics(***)
+                           +- ShuffleQueryStage (48), Statistics(X)
                               +- ColumnarExchange (47)
                                  +- ^ ProjectExecTransformer (45)
                                     +- ^ FlushableHashAggregateExecTransformer (44)
@@ -257,144 +257,144 @@ AdaptiveSparkPlan (69)
 
 
 (41) Scan parquet default.lineitem
-Output [4]: [l_suppkey#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
+Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
 PushedFilters: [IsNotNull(l_shipdate), GreaterThanOrEqual(l_shipdate,1996-01-01), LessThan(l_shipdate,1996-04-01)]
 ReadSchema: struct<l_suppkey:bigint,l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_shipdate:date>
 
 (42) FilterExecTransformer
-Input [4]: [l_suppkey#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
-Arguments: ((isnotnull(l_shipdate#***) AND (l_shipdate#*** >= 1996-01-01)) AND (l_shipdate#*** < 1996-04-01))
+Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
+Arguments: ((isnotnull(l_shipdate#X) AND (l_shipdate#X >= 1996-01-01)) AND (l_shipdate#X < 1996-04-01))
 
 (43) ProjectExecTransformer
-Input [4]: [l_suppkey#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
-Arguments: [l_suppkey#***, l_extendedprice#***, l_discount#***]
+Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
+Arguments: [l_suppkey#X, l_extendedprice#X, l_discount#X]
 
 (44) FlushableHashAggregateExecTransformer
-Input [3]: [l_suppkey#***, l_extendedprice#***, l_discount#***]
-Keys [1]: [l_suppkey#***]
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [2]: [sum#***, isEmpty#***]
-Results [3]: [l_suppkey#***, sum#***, isEmpty#***]
+Input [3]: [l_suppkey#X, l_extendedprice#X, l_discount#X]
+Keys [1]: [l_suppkey#X]
+Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Aggregate Attributes [2]: [sum#X, isEmpty#X]
+Results [3]: [l_suppkey#X, sum#X, isEmpty#X]
 
 (45) ProjectExecTransformer
-Input [3]: [l_suppkey#***, sum#***, isEmpty#***]
-Arguments: [hash(l_suppkey#***, 42) AS hash_partition_key#***, l_suppkey#***, sum#***, isEmpty#***]
+Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
+Arguments: [hash(l_suppkey#X, 42) AS hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
 
-(46) WholeStageCodegenTransformer (93)
-Input [4]: [hash_partition_key#***, l_suppkey#***, sum#***, isEmpty#***]
+(46) WholeStageCodegenTransformer (92)
+Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
 Arguments: false
 
 (47) ColumnarExchange
-Input [4]: [hash_partition_key#***, l_suppkey#***, sum#***, isEmpty#***]
-Arguments: hashpartitioning(l_suppkey#***, 100), ENSURE_REQUIREMENTS, [l_suppkey#***, sum#***, isEmpty#***], [plan_id=***], [id=#***]
+Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
+Arguments: hashpartitioning(l_suppkey#X, 100), ENSURE_REQUIREMENTS, [l_suppkey#X, sum#X, isEmpty#X], [plan_id=X], [id=#X]
 
 (48) ShuffleQueryStage
-Output [3]: [l_suppkey#***, sum#***, isEmpty#***]
+Output [3]: [l_suppkey#X, sum#X, isEmpty#X]
 Arguments: 0
 
 (49) AQEShuffleRead
-Input [3]: [l_suppkey#***, sum#***, isEmpty#***]
+Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
 Arguments: coalesced
 
 (50) InputIteratorTransformer
-Input [3]: [l_suppkey#***, sum#***, isEmpty#***]
+Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
 
 (51) RegularHashAggregateExecTransformer
-Input [3]: [l_suppkey#***, sum#***, isEmpty#***]
-Keys [1]: [l_suppkey#***]
-Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#***]
-Results [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#*** AS total_revenue#***]
+Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
+Keys [1]: [l_suppkey#X]
+Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
+Results [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS total_revenue#X]
 
 (52) FlushableHashAggregateExecTransformer
-Input [1]: [total_revenue#***]
+Input [1]: [total_revenue#X]
 Keys: []
-Functions [1]: [partial_max(total_revenue#***)]
-Aggregate Attributes [1]: [max#***]
-Results [1]: [max#***]
+Functions [1]: [partial_max(total_revenue#X)]
+Aggregate Attributes [1]: [max#X]
+Results [1]: [max#X]
 
-(53) WholeStageCodegenTransformer (94)
-Input [1]: [max#***]
+(53) WholeStageCodegenTransformer (93)
+Input [1]: [max#X]
 Arguments: false
 
 (54) ColumnarExchange
-Input [1]: [max#***]
-Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=***], [id=#***]
+Input [1]: [max#X]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
 (55) ShuffleQueryStage
-Output [1]: [max#***]
+Output [1]: [max#X]
 Arguments: 1
 
 (56) InputIteratorTransformer
-Input [1]: [max#***]
+Input [1]: [max#X]
 
 (57) RegularHashAggregateExecTransformer
-Input [1]: [max#***]
+Input [1]: [max#X]
 Keys: []
-Functions [1]: [max(total_revenue#***)]
-Aggregate Attributes [1]: [max(total_revenue#***)#***]
-Results [1]: [max(total_revenue#***)#*** AS max(total_revenue)#***]
+Functions [1]: [max(total_revenue#X)]
+Aggregate Attributes [1]: [max(total_revenue#X)#X]
+Results [1]: [max(total_revenue#X)#X AS max(total_revenue)#X]
 
-(58) WholeStageCodegenTransformer (95)
-Input [1]: [max(total_revenue)#***]
+(58) WholeStageCodegenTransformer (94)
+Input [1]: [max(total_revenue)#X]
 Arguments: false
 
 (59) VeloxColumnarToRowExec
-Input [1]: [max(total_revenue)#***]
+Input [1]: [max(total_revenue)#X]
 
 (60) Scan parquet default.lineitem
-Output [4]: [l_suppkey#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
+Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
 PushedFilters: [IsNotNull(l_shipdate), GreaterThanOrEqual(l_shipdate,1996-01-01), LessThan(l_shipdate,1996-04-01)]
 ReadSchema: struct<l_suppkey:bigint,l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_shipdate:date>
 
 (61) Filter
-Input [4]: [l_suppkey#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
-Condition : ((isnotnull(l_shipdate#***) AND (l_shipdate#*** >= 1996-01-01)) AND (l_shipdate#*** < 1996-04-01))
+Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
+Condition : ((isnotnull(l_shipdate#X) AND (l_shipdate#X >= 1996-01-01)) AND (l_shipdate#X < 1996-04-01))
 
 (62) Project
-Output [3]: [l_suppkey#***, l_extendedprice#***, l_discount#***]
-Input [4]: [l_suppkey#***, l_extendedprice#***, l_discount#***, l_shipdate#***]
+Output [3]: [l_suppkey#X, l_extendedprice#X, l_discount#X]
+Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 
 (63) HashAggregate
-Input [3]: [l_suppkey#***, l_extendedprice#***, l_discount#***]
-Keys [1]: [l_suppkey#***]
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [2]: [sum#***, isEmpty#***]
-Results [3]: [l_suppkey#***, sum#***, isEmpty#***]
+Input [3]: [l_suppkey#X, l_extendedprice#X, l_discount#X]
+Keys [1]: [l_suppkey#X]
+Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Aggregate Attributes [2]: [sum#X, isEmpty#X]
+Results [3]: [l_suppkey#X, sum#X, isEmpty#X]
 
 (64) Exchange
-Input [3]: [l_suppkey#***, sum#***, isEmpty#***]
-Arguments: hashpartitioning(l_suppkey#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
+Arguments: hashpartitioning(l_suppkey#X, 100), ENSURE_REQUIREMENTS, [plan_id=X]
 
 (65) HashAggregate
-Input [3]: [l_suppkey#***, sum#***, isEmpty#***]
-Keys [1]: [l_suppkey#***]
-Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#***]
-Results [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#*** AS total_revenue#***]
+Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
+Keys [1]: [l_suppkey#X]
+Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
+Results [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS total_revenue#X]
 
 (66) HashAggregate
-Input [1]: [total_revenue#***]
+Input [1]: [total_revenue#X]
 Keys: []
-Functions [1]: [partial_max(total_revenue#***)]
-Aggregate Attributes [1]: [max#***]
-Results [1]: [max#***]
+Functions [1]: [partial_max(total_revenue#X)]
+Aggregate Attributes [1]: [max#X]
+Results [1]: [max#X]
 
 (67) Exchange
-Input [1]: [max#***]
-Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=***]
+Input [1]: [max#X]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X]
 
 (68) HashAggregate
-Input [1]: [max#***]
+Input [1]: [max#X]
 Keys: []
-Functions [1]: [max(total_revenue#***)]
-Aggregate Attributes [1]: [max(total_revenue#***)#***]
-Results [1]: [max(total_revenue#***)#*** AS max(total_revenue)#***]
+Functions [1]: [max(total_revenue#X)]
+Aggregate Attributes [1]: [max(total_revenue#X)#X]
+Results [1]: [max(total_revenue#X)#X AS max(total_revenue)#X]
 
 (69) AdaptiveSparkPlan
-Output [1]: [max(total_revenue)#***]
+Output [1]: [max(total_revenue)#X]
 Arguments: isFinalPlan=true

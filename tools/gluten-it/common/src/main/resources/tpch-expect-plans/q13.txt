@@ -5,19 +5,19 @@ AdaptiveSparkPlan (50)
    +- ^ SortExecTransformer (32)
       +- ^ InputIteratorTransformer (31)
          +- AQEShuffleRead (30)
-            +- ShuffleQueryStage (29), Statistics(***)
+            +- ShuffleQueryStage (29), Statistics(X)
                +- ColumnarExchange (28)
                   +- ^ RegularHashAggregateExecTransformer (26)
                      +- ^ InputIteratorTransformer (25)
                         +- AQEShuffleRead (24)
-                           +- ShuffleQueryStage (23), Statistics(***)
+                           +- ShuffleQueryStage (23), Statistics(X)
                               +- ColumnarExchange (22)
                                  +- ^ ProjectExecTransformer (20)
                                     +- ^ FlushableHashAggregateExecTransformer (19)
                                        +- ^ RegularHashAggregateExecTransformer (18)
                                           +- ^ InputIteratorTransformer (17)
                                              +- AQEShuffleRead (16)
-                                                +- ShuffleQueryStage (15), Statistics(***)
+                                                +- ShuffleQueryStage (15), Statistics(X)
                                                    +- ColumnarExchange (14)
                                                       +- ^ ProjectExecTransformer (12)
                                                          +- ^ FlushableHashAggregateExecTransformer (11)
@@ -25,7 +25,7 @@ AdaptiveSparkPlan (50)
                                                                +- ^ GlutenBroadcastHashJoinExecTransformer LeftOuter (9)
                                                                   :- ^ Scan parquet default.customer (1)
                                                                   +- ^ InputIteratorTransformer (8)
-                                                                     +- BroadcastQueryStage (7), Statistics(***)
+                                                                     +- BroadcastQueryStage (7), Statistics(X)
                                                                         +- ColumnarBroadcastExchange (6)
                                                                            +- ^ ProjectExecTransformer (4)
                                                                               +- ^ FilterExecTransformer (3)
@@ -49,232 +49,232 @@ AdaptiveSparkPlan (50)
 
 
 (1) Scan parquet default.customer
-Output [1]: [c_custkey#***]
+Output [1]: [c_custkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
 ReadSchema: struct<c_custkey:bigint>
 
 (2) Scan parquet default.orders
-Output [3]: [o_orderkey#***, o_custkey#***, o_comment#***]
+Output [3]: [o_orderkey#X, o_custkey#X, o_comment#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
 PushedFilters: [IsNotNull(o_comment), IsNotNull(o_custkey)]
 ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_comment:string>
 
 (3) FilterExecTransformer
-Input [3]: [o_orderkey#***, o_custkey#***, o_comment#***]
-Arguments: ((isnotnull(o_comment#***) AND NOT o_comment#*** LIKE %special%requests%) AND isnotnull(o_custkey#***))
+Input [3]: [o_orderkey#X, o_custkey#X, o_comment#X]
+Arguments: ((isnotnull(o_comment#X) AND NOT o_comment#X LIKE %special%requests%) AND isnotnull(o_custkey#X))
 
 (4) ProjectExecTransformer
-Input [3]: [o_orderkey#***, o_custkey#***, o_comment#***]
-Arguments: [o_orderkey#***, o_custkey#***]
+Input [3]: [o_orderkey#X, o_custkey#X, o_comment#X]
+Arguments: [o_orderkey#X, o_custkey#X]
 
-(5) WholeStageCodegenTransformer (82)
-Input [2]: [o_orderkey#***, o_custkey#***]
+(5) WholeStageCodegenTransformer (81)
+Input [2]: [o_orderkey#X, o_custkey#X]
 Arguments: false
 
 (6) ColumnarBroadcastExchange
-Input [2]: [o_orderkey#***, o_custkey#***]
-Arguments: HashedRelationBroadcastMode(List(input[1, bigint, true]),false), [plan_id=***]
+Input [2]: [o_orderkey#X, o_custkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[1, bigint, true]),false), [plan_id=X]
 
 (7) BroadcastQueryStage
-Output [2]: [o_orderkey#***, o_custkey#***]
+Output [2]: [o_orderkey#X, o_custkey#X]
 Arguments: 0
 
 (8) InputIteratorTransformer
-Input [2]: [o_orderkey#***, o_custkey#***]
+Input [2]: [o_orderkey#X, o_custkey#X]
 
 (9) GlutenBroadcastHashJoinExecTransformer
-Left keys [1]: [c_custkey#***]
-Right keys [1]: [o_custkey#***]
+Left keys [1]: [c_custkey#X]
+Right keys [1]: [o_custkey#X]
 Join condition: None
 
 (10) ProjectExecTransformer
-Input [3]: [c_custkey#***, o_orderkey#***, o_custkey#***]
-Arguments: [c_custkey#***, o_orderkey#***]
+Input [3]: [c_custkey#X, o_orderkey#X, o_custkey#X]
+Arguments: [c_custkey#X, o_orderkey#X]
 
 (11) FlushableHashAggregateExecTransformer
-Input [2]: [c_custkey#***, o_orderkey#***]
-Keys [1]: [c_custkey#***]
-Functions [1]: [partial_count(o_orderkey#***)]
-Aggregate Attributes [1]: [count#***]
-Results [2]: [c_custkey#***, count#***]
+Input [2]: [c_custkey#X, o_orderkey#X]
+Keys [1]: [c_custkey#X]
+Functions [1]: [partial_count(o_orderkey#X)]
+Aggregate Attributes [1]: [count#X]
+Results [2]: [c_custkey#X, count#X]
 
 (12) ProjectExecTransformer
-Input [2]: [c_custkey#***, count#***]
-Arguments: [hash(c_custkey#***, 42) AS hash_partition_key#***, c_custkey#***, count#***]
+Input [2]: [c_custkey#X, count#X]
+Arguments: [hash(c_custkey#X, 42) AS hash_partition_key#X, c_custkey#X, count#X]
 
-(13) WholeStageCodegenTransformer (83)
-Input [3]: [hash_partition_key#***, c_custkey#***, count#***]
+(13) WholeStageCodegenTransformer (82)
+Input [3]: [hash_partition_key#X, c_custkey#X, count#X]
 Arguments: false
 
 (14) ColumnarExchange
-Input [3]: [hash_partition_key#***, c_custkey#***, count#***]
-Arguments: hashpartitioning(c_custkey#***, 100), ENSURE_REQUIREMENTS, [c_custkey#***, count#***], [plan_id=***], [id=#***]
+Input [3]: [hash_partition_key#X, c_custkey#X, count#X]
+Arguments: hashpartitioning(c_custkey#X, 100), ENSURE_REQUIREMENTS, [c_custkey#X, count#X], [plan_id=X], [id=#X]
 
 (15) ShuffleQueryStage
-Output [2]: [c_custkey#***, count#***]
+Output [2]: [c_custkey#X, count#X]
 Arguments: 1
 
 (16) AQEShuffleRead
-Input [2]: [c_custkey#***, count#***]
+Input [2]: [c_custkey#X, count#X]
 Arguments: coalesced
 
 (17) InputIteratorTransformer
-Input [2]: [c_custkey#***, count#***]
+Input [2]: [c_custkey#X, count#X]
 
 (18) RegularHashAggregateExecTransformer
-Input [2]: [c_custkey#***, count#***]
-Keys [1]: [c_custkey#***]
-Functions [1]: [count(o_orderkey#***)]
-Aggregate Attributes [1]: [count(o_orderkey#***)#***]
-Results [1]: [count(o_orderkey#***)#*** AS c_count#***]
+Input [2]: [c_custkey#X, count#X]
+Keys [1]: [c_custkey#X]
+Functions [1]: [count(o_orderkey#X)]
+Aggregate Attributes [1]: [count(o_orderkey#X)#X]
+Results [1]: [count(o_orderkey#X)#X AS c_count#X]
 
 (19) FlushableHashAggregateExecTransformer
-Input [1]: [c_count#***]
-Keys [1]: [c_count#***]
+Input [1]: [c_count#X]
+Keys [1]: [c_count#X]
 Functions [1]: [partial_count(1)]
-Aggregate Attributes [1]: [count#***]
-Results [2]: [c_count#***, count#***]
+Aggregate Attributes [1]: [count#X]
+Results [2]: [c_count#X, count#X]
 
 (20) ProjectExecTransformer
-Input [2]: [c_count#***, count#***]
-Arguments: [hash(c_count#***, 42) AS hash_partition_key#***, c_count#***, count#***]
+Input [2]: [c_count#X, count#X]
+Arguments: [hash(c_count#X, 42) AS hash_partition_key#X, c_count#X, count#X]
 
-(21) WholeStageCodegenTransformer (84)
-Input [3]: [hash_partition_key#***, c_count#***, count#***]
+(21) WholeStageCodegenTransformer (83)
+Input [3]: [hash_partition_key#X, c_count#X, count#X]
 Arguments: false
 
 (22) ColumnarExchange
-Input [3]: [hash_partition_key#***, c_count#***, count#***]
-Arguments: hashpartitioning(c_count#***, 100), ENSURE_REQUIREMENTS, [c_count#***, count#***], [plan_id=***], [id=#***]
+Input [3]: [hash_partition_key#X, c_count#X, count#X]
+Arguments: hashpartitioning(c_count#X, 100), ENSURE_REQUIREMENTS, [c_count#X, count#X], [plan_id=X], [id=#X]
 
 (23) ShuffleQueryStage
-Output [2]: [c_count#***, count#***]
+Output [2]: [c_count#X, count#X]
 Arguments: 2
 
 (24) AQEShuffleRead
-Input [2]: [c_count#***, count#***]
+Input [2]: [c_count#X, count#X]
 Arguments: coalesced
 
 (25) InputIteratorTransformer
-Input [2]: [c_count#***, count#***]
+Input [2]: [c_count#X, count#X]
 
 (26) RegularHashAggregateExecTransformer
-Input [2]: [c_count#***, count#***]
-Keys [1]: [c_count#***]
+Input [2]: [c_count#X, count#X]
+Keys [1]: [c_count#X]
 Functions [1]: [count(1)]
-Aggregate Attributes [1]: [count(1)#***]
-Results [2]: [c_count#***, count(1)#*** AS custdist#***]
+Aggregate Attributes [1]: [count(1)#X]
+Results [2]: [c_count#X, count(1)#X AS custdist#X]
 
-(27) WholeStageCodegenTransformer (85)
-Input [2]: [c_count#***, custdist#***]
+(27) WholeStageCodegenTransformer (84)
+Input [2]: [c_count#X, custdist#X]
 Arguments: false
 
 (28) ColumnarExchange
-Input [2]: [c_count#***, custdist#***]
-Arguments: rangepartitioning(custdist#*** DESC NULLS LAST, c_count#*** DESC NULLS LAST, 100), ENSURE_REQUIREMENTS, [plan_id=***], [id=#***]
+Input [2]: [c_count#X, custdist#X]
+Arguments: rangepartitioning(custdist#X DESC NULLS LAST, c_count#X DESC NULLS LAST, 100), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
 (29) ShuffleQueryStage
-Output [2]: [c_count#***, custdist#***]
+Output [2]: [c_count#X, custdist#X]
 Arguments: 3
 
 (30) AQEShuffleRead
-Input [2]: [c_count#***, custdist#***]
+Input [2]: [c_count#X, custdist#X]
 Arguments: coalesced
 
 (31) InputIteratorTransformer
-Input [2]: [c_count#***, custdist#***]
+Input [2]: [c_count#X, custdist#X]
 
 (32) SortExecTransformer
-Input [2]: [c_count#***, custdist#***]
-Arguments: [custdist#*** DESC NULLS LAST, c_count#*** DESC NULLS LAST], true, 0
+Input [2]: [c_count#X, custdist#X]
+Arguments: [custdist#X DESC NULLS LAST, c_count#X DESC NULLS LAST], true, 0
 
-(33) WholeStageCodegenTransformer (86)
-Input [2]: [c_count#***, custdist#***]
+(33) WholeStageCodegenTransformer (85)
+Input [2]: [c_count#X, custdist#X]
 Arguments: false
 
 (34) VeloxColumnarToRowExec
-Input [2]: [c_count#***, custdist#***]
+Input [2]: [c_count#X, custdist#X]
 
 (35) Scan parquet default.customer
-Output [1]: [c_custkey#***]
+Output [1]: [c_custkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
 ReadSchema: struct<c_custkey:bigint>
 
 (36) Scan parquet default.orders
-Output [3]: [o_orderkey#***, o_custkey#***, o_comment#***]
+Output [3]: [o_orderkey#X, o_custkey#X, o_comment#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
 PushedFilters: [IsNotNull(o_comment), IsNotNull(o_custkey)]
 ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_comment:string>
 
 (37) Filter
-Input [3]: [o_orderkey#***, o_custkey#***, o_comment#***]
-Condition : ((isnotnull(o_comment#***) AND NOT o_comment#*** LIKE %special%requests%) AND isnotnull(o_custkey#***))
+Input [3]: [o_orderkey#X, o_custkey#X, o_comment#X]
+Condition : ((isnotnull(o_comment#X) AND NOT o_comment#X LIKE %special%requests%) AND isnotnull(o_custkey#X))
 
 (38) Project
-Output [2]: [o_orderkey#***, o_custkey#***]
-Input [3]: [o_orderkey#***, o_custkey#***, o_comment#***]
+Output [2]: [o_orderkey#X, o_custkey#X]
+Input [3]: [o_orderkey#X, o_custkey#X, o_comment#X]
 
 (39) BroadcastExchange
-Input [2]: [o_orderkey#***, o_custkey#***]
-Arguments: HashedRelationBroadcastMode(List(input[1, bigint, true]),false), [plan_id=***]
+Input [2]: [o_orderkey#X, o_custkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[1, bigint, true]),false), [plan_id=X]
 
 (40) BroadcastHashJoin
-Left keys [1]: [c_custkey#***]
-Right keys [1]: [o_custkey#***]
+Left keys [1]: [c_custkey#X]
+Right keys [1]: [o_custkey#X]
 Join condition: None
 
 (41) Project
-Output [2]: [c_custkey#***, o_orderkey#***]
-Input [3]: [c_custkey#***, o_orderkey#***, o_custkey#***]
+Output [2]: [c_custkey#X, o_orderkey#X]
+Input [3]: [c_custkey#X, o_orderkey#X, o_custkey#X]
 
 (42) HashAggregate
-Input [2]: [c_custkey#***, o_orderkey#***]
-Keys [1]: [c_custkey#***]
-Functions [1]: [partial_count(o_orderkey#***)]
-Aggregate Attributes [1]: [count#***]
-Results [2]: [c_custkey#***, count#***]
+Input [2]: [c_custkey#X, o_orderkey#X]
+Keys [1]: [c_custkey#X]
+Functions [1]: [partial_count(o_orderkey#X)]
+Aggregate Attributes [1]: [count#X]
+Results [2]: [c_custkey#X, count#X]
 
 (43) Exchange
-Input [2]: [c_custkey#***, count#***]
-Arguments: hashpartitioning(c_custkey#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+Input [2]: [c_custkey#X, count#X]
+Arguments: hashpartitioning(c_custkey#X, 100), ENSURE_REQUIREMENTS, [plan_id=X]
 
 (44) HashAggregate
-Input [2]: [c_custkey#***, count#***]
-Keys [1]: [c_custkey#***]
-Functions [1]: [count(o_orderkey#***)]
-Aggregate Attributes [1]: [count(o_orderkey#***)#***]
-Results [1]: [count(o_orderkey#***)#*** AS c_count#***]
+Input [2]: [c_custkey#X, count#X]
+Keys [1]: [c_custkey#X]
+Functions [1]: [count(o_orderkey#X)]
+Aggregate Attributes [1]: [count(o_orderkey#X)#X]
+Results [1]: [count(o_orderkey#X)#X AS c_count#X]
 
 (45) HashAggregate
-Input [1]: [c_count#***]
-Keys [1]: [c_count#***]
+Input [1]: [c_count#X]
+Keys [1]: [c_count#X]
 Functions [1]: [partial_count(1)]
-Aggregate Attributes [1]: [count#***]
-Results [2]: [c_count#***, count#***]
+Aggregate Attributes [1]: [count#X]
+Results [2]: [c_count#X, count#X]
 
 (46) Exchange
-Input [2]: [c_count#***, count#***]
-Arguments: hashpartitioning(c_count#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+Input [2]: [c_count#X, count#X]
+Arguments: hashpartitioning(c_count#X, 100), ENSURE_REQUIREMENTS, [plan_id=X]
 
 (47) HashAggregate
-Input [2]: [c_count#***, count#***]
-Keys [1]: [c_count#***]
+Input [2]: [c_count#X, count#X]
+Keys [1]: [c_count#X]
 Functions [1]: [count(1)]
-Aggregate Attributes [1]: [count(1)#***]
-Results [2]: [c_count#***, count(1)#*** AS custdist#***]
+Aggregate Attributes [1]: [count(1)#X]
+Results [2]: [c_count#X, count(1)#X AS custdist#X]
 
 (48) Exchange
-Input [2]: [c_count#***, custdist#***]
-Arguments: rangepartitioning(custdist#*** DESC NULLS LAST, c_count#*** DESC NULLS LAST, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+Input [2]: [c_count#X, custdist#X]
+Arguments: rangepartitioning(custdist#X DESC NULLS LAST, c_count#X DESC NULLS LAST, 100), ENSURE_REQUIREMENTS, [plan_id=X]
 
 (49) Sort
-Input [2]: [c_count#***, custdist#***]
-Arguments: [custdist#*** DESC NULLS LAST, c_count#*** DESC NULLS LAST], true, 0
+Input [2]: [c_count#X, custdist#X]
+Arguments: [custdist#X DESC NULLS LAST, c_count#X DESC NULLS LAST], true, 0
 
 (50) AdaptiveSparkPlan
-Output [2]: [c_count#***, custdist#***]
+Output [2]: [c_count#X, custdist#X]
 Arguments: isFinalPlan=true
