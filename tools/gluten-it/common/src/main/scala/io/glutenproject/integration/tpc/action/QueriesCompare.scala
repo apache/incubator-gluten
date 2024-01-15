@@ -18,7 +18,9 @@ package io.glutenproject.integration.tpc.action
 
 import io.glutenproject.integration.stat.RamStat
 import io.glutenproject.integration.tpc.{TpcRunner, TpcSuite}
+
 import org.apache.spark.sql.{QueryRunner, SparkSessionSwitcher, TestUtils}
+
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.collection.mutable
@@ -245,6 +247,7 @@ object QueriesCompare {
       val baseLineDesc = "Vanilla Spark %s %s".format(desc, id)
       sessionSwitcher.useSession("baseline", baseLineDesc)
       runner.createTables(sessionSwitcher.spark())
+      println(sessionSwitcher.spark().version)
       val expected =
         runner.runTpcQuery(sessionSwitcher.spark(), baseLineDesc, id, explain = explain)
       val expectedRows = expected.rows
