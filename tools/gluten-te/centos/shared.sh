@@ -16,34 +16,26 @@
 
 set -ex
 
-BASEDIR=$(readlink -f $(dirname $0))
+SHARED_BASEDIR=$(dirname $0)
 
-source "$BASEDIR/../../defaults.conf"
+source "$SHARED_BASEDIR/defaults.conf"
 
-if [ -z "$GITHUB_RUN_ID" ]
-then
-  echo "Unable to parse GITHUB_RUN_ID."
-  exit 1
-fi
+# Enable buildkit
+export DOCKER_BUILDKIT=1
+export BUILDKIT_PROGRESS=plain
 
-if [ -z "$GITHUB_JOB" ]
-then
-  echo "Unable to parse GITHUB_JOB."
-  exit 1
-fi
+# Set operating system
+OS_IMAGE_NAME=${OS_IMAGE_NAME:-$DEFAULT_OS_IMAGE_NAME}
 
-if [ -z "$GITHUB_SHA" ]
-then
-  echo "Unable to parse GITHUB_SHA."
-  exit 1
-fi
+# Set os version
+OS_IMAGE_TAG=${OS_IMAGE_TAG:-$DEFAULT_OS_IMAGE_TAG}
 
-export EXTRA_DOCKER_OPTIONS="$EXTRA_DOCKER_OPTIONS --name gha-checkout-$GITHUB_JOB-$GITHUB_RUN_ID --detach -v $BASEDIR/scripts:/opt/scripts"
-export NON_INTERACTIVE=ON
+# Buildenv will result in this image
+DOCKER_TARGET_IMAGE_BUILDENV=${DOCKER_TARGET_IMAGE_BUILDENV:-$DEFAULT_DOCKER_TARGET_IMAGE_BUILDENV}
 
-$BASEDIR/../../cbash-build.sh 'sleep 14400'
+# Build will result in this image
+DOCKER_TARGET_IMAGE_BUILD=${DOCKER_TARGET_IMAGE_BUILD:-$DEFAULT_DOCKER_TARGET_IMAGE_BUILD}
 
-# The target branches
-TARGET_GLUTEN_REPO=${TARGET_GLUTEN_REPO:-$DEFAULT_GLUTEN_REPO}
+DOCKER_TARGET_IMAGE_BUILDENV_WITH_OS_IMAGE="$DOCKER_TARGET_IMAGE_BUILDENV-$OS_IMAGE_NAME:$OS_IMAGE_TAG"
 
-$BASEDIR/exec.sh "/opt/scripts/init.sh $TARGET_GLUTEN_REPO $GITHUB_SHA"
+DOCKER_TARGET_IMAGE_BUILD_WITH_OS_IMAGE="$DOCKER_TARGET_IMAGE_BUILD-$OS_IMAGE_NAME:$OS_IMAGE_TAG"
