@@ -89,6 +89,12 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
     _spark
   }
 
+  private[tpc] def sparkMainVersion(): String = {
+    val version = _spark.version
+    val majorVersion = version.substring(0, version.lastIndexOf('.')).replace(".", "")
+    majorVersion
+  }
+
   private def activateSession(conf: SparkConf, appName: String): Unit = {
     SparkSession.cleanupAnyExistingSession()
     if (hasActiveSession()) {

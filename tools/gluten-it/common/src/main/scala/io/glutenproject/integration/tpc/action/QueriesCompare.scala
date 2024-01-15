@@ -247,7 +247,6 @@ object QueriesCompare {
       val baseLineDesc = "Vanilla Spark %s %s".format(desc, id)
       sessionSwitcher.useSession("baseline", baseLineDesc)
       runner.createTables(sessionSwitcher.spark())
-      println(sessionSwitcher.spark().version)
       val expected =
         runner.runTpcQuery(sessionSwitcher.spark(), baseLineDesc, id, explain = explain)
       val expectedRows = expected.rows
@@ -264,7 +263,10 @@ object QueriesCompare {
           s"Successfully ran query $id, result check was passed. " +
             s"Returned row count: ${resultRows.length}, expected: ${expectedRows.length}")
         if (verifySparkPlan) {
-          verifyExecutionPlan(runner.expectResourceFolder, id, result.executionPlan) match {
+          verifyExecutionPlan(
+            s"/${sessionSwitcher.sparkMainVersion()}${runner.expectResourceFolder}",
+            id,
+            result.executionPlan) match {
             case (false, reason) =>
               return TestResultLine(
                 id,
