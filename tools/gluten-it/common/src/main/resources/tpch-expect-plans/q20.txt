@@ -113,7 +113,7 @@ Arguments: (isnotnull(s_nationkey#X) AND might_contain(Subquery subquery#X, [id=
 Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
 Arguments: [hash(s_suppkey#X, 42) AS hash_partition_key#X, s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
 
-(4) WholeStageCodegenTransformer (118)
+(4) WholeStageCodegenTransformer (X)
 Input [5]: [hash_partition_key#X, s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
 Arguments: false
 
@@ -158,7 +158,7 @@ Arguments: (isnotnull(p_name#X) AND StartsWith(p_name#X, forest))
 Input [2]: [p_partkey#X, p_name#X]
 Arguments: [p_partkey#X]
 
-(14) WholeStageCodegenTransformer (119)
+(14) WholeStageCodegenTransformer (X)
 Input [1]: [p_partkey#X]
 Arguments: false
 
@@ -178,7 +178,7 @@ Left keys [1]: [ps_partkey#X]
 Right keys [1]: [p_partkey#X]
 Join condition: None
 
-(19) WholeStageCodegenTransformer (124)
+(19) WholeStageCodegenTransformer (X)
 Input [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
 Arguments: false
 
@@ -234,7 +234,7 @@ Results [4]: [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
 Input [4]: [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
 Arguments: [hash(l_partkey#X, l_suppkey#X, 42) AS hash_partition_key#X, l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
 
-(32) WholeStageCodegenTransformer (125)
+(32) WholeStageCodegenTransformer (X)
 Input [5]: [hash_partition_key#X, l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
 Arguments: false
 
@@ -273,7 +273,7 @@ Join condition: (cast(ps_availqty#X as decimal(24,3)) > (0.5 * sum(l_quantity))#
 Input [6]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, (0.5 * sum(l_quantity))#X, l_partkey#X, l_suppkey#X]
 Arguments: [hash(ps_suppkey#X, 42) AS hash_partition_key#X, ps_suppkey#X]
 
-(41) WholeStageCodegenTransformer (126)
+(41) WholeStageCodegenTransformer (X)
 Input [2]: [hash_partition_key#X, ps_suppkey#X]
 Arguments: false
 
@@ -324,7 +324,7 @@ Arguments: ((isnotnull(n_name#X) AND (n_name#X = CANADA)) AND isnotnull(n_nation
 Input [2]: [n_nationkey#X, n_name#X]
 Arguments: [n_nationkey#X]
 
-(53) WholeStageCodegenTransformer (121)
+(53) WholeStageCodegenTransformer (X)
 Input [1]: [n_nationkey#X]
 Arguments: false
 
@@ -348,7 +348,7 @@ Join condition: None
 Input [4]: [s_name#X, s_address#X, s_nationkey#X, n_nationkey#X]
 Arguments: [s_name#X, s_address#X]
 
-(59) WholeStageCodegenTransformer (127)
+(59) WholeStageCodegenTransformer (X)
 Input [2]: [s_name#X, s_address#X]
 Arguments: false
 
@@ -371,7 +371,7 @@ Input [2]: [s_name#X, s_address#X]
 Input [2]: [s_name#X, s_address#X]
 Arguments: [s_name#X ASC NULLS FIRST], true, 0
 
-(65) WholeStageCodegenTransformer (128)
+(65) WholeStageCodegenTransformer (X)
 Input [2]: [s_name#X, s_address#X]
 Arguments: false
 
@@ -600,7 +600,7 @@ Functions [1]: [partial_bloom_filter_agg(xxhash64(n_nationkey#X, 42), 1000000, 8
 Aggregate Attributes [1]: [buf#X]
 Results [1]: [buf#X]
 
-(108) WholeStageCodegenTransformer (122)
+(108) WholeStageCodegenTransformer (X)
 Input [1]: [buf#X]
 Arguments: false
 
@@ -622,7 +622,7 @@ Functions [1]: [bloom_filter_agg(xxhash64(n_nationkey#X, 42), 1000000, 8388608, 
 Aggregate Attributes [1]: [bloom_filter_agg(xxhash64(n_nationkey#X, 42), 1000000, 8388608, 0, 0)#X]
 Results [1]: [bloom_filter_agg(xxhash64(n_nationkey#X, 42), 1000000, 8388608, 0, 0)#X AS bloomFilter#X]
 
-(113) WholeStageCodegenTransformer (123)
+(113) WholeStageCodegenTransformer (X)
 Input [1]: [bloomFilter#X]
 Arguments: false
 

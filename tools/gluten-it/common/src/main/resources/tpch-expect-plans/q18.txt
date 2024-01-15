@@ -90,7 +90,7 @@ ReadSchema: struct<c_custkey:bigint,c_name:string>
 Input [2]: [c_custkey#X, c_name#X]
 Arguments: isnotnull(c_custkey#X)
 
-(3) WholeStageCodegenTransformer (106)
+(3) WholeStageCodegenTransformer (X)
 Input [2]: [c_custkey#X, c_name#X]
 Arguments: false
 
@@ -133,7 +133,7 @@ Results [3]: [l_orderkey#X, sum#X, isEmpty#X]
 Input [3]: [l_orderkey#X, sum#X, isEmpty#X]
 Arguments: [hash(l_orderkey#X, 42) AS hash_partition_key#X, l_orderkey#X, sum#X, isEmpty#X]
 
-(12) WholeStageCodegenTransformer (107)
+(12) WholeStageCodegenTransformer (X)
 Input [4]: [hash_partition_key#X, l_orderkey#X, sum#X, isEmpty#X]
 Arguments: false
 
@@ -167,7 +167,7 @@ Arguments: (isnotnull(sum(l_quantity#X)#X) AND (sum(l_quantity#X)#X > 300.00))
 Input [2]: [l_orderkey#X, sum(l_quantity#X)#X]
 Arguments: [l_orderkey#X]
 
-(20) WholeStageCodegenTransformer (109)
+(20) WholeStageCodegenTransformer (X)
 Input [1]: [l_orderkey#X]
 Arguments: false
 
@@ -222,7 +222,7 @@ Left keys [1]: [l_orderkey#X]
 Right keys [1]: [l_orderkey#X]
 Join condition: None
 
-(33) WholeStageCodegenTransformer (111)
+(33) WholeStageCodegenTransformer (X)
 Input [2]: [l_orderkey#X, l_quantity#X]
 Arguments: false
 
@@ -257,7 +257,7 @@ Results [7]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X
 Input [7]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum#X, isEmpty#X]
 Arguments: [hash(c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, 42) AS hash_partition_key#X, c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum#X, isEmpty#X]
 
-(41) WholeStageCodegenTransformer (112)
+(41) WholeStageCodegenTransformer (X)
 Input [8]: [hash_partition_key#X, c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum#X, isEmpty#X]
 Arguments: false
 
@@ -283,7 +283,7 @@ Functions [1]: [sum(l_quantity#X)]
 Aggregate Attributes [1]: [sum(l_quantity#X)#X]
 Results [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity#X)#X AS sum(l_quantity)#X]
 
-(47) WholeStageCodegenTransformer (113)
+(47) WholeStageCodegenTransformer (X)
 Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
 Arguments: false
 

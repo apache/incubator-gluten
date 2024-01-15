@@ -94,7 +94,7 @@ ReadSchema: struct<s_suppkey:bigint,s_name:string,s_nationkey:bigint>
 Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
 Arguments: (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
 
-(3) WholeStageCodegenTransformer (129)
+(3) WholeStageCodegenTransformer (X)
 Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
 Arguments: false
 
@@ -130,7 +130,7 @@ Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
 ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint>
 
-(11) WholeStageCodegenTransformer (130)
+(11) WholeStageCodegenTransformer (X)
 Input [2]: [l_orderkey#X, l_suppkey#X]
 Arguments: false
 
@@ -165,7 +165,7 @@ Arguments: ((isnotnull(l_receiptdate#X) AND isnotnull(l_commitdate#X)) AND (l_re
 Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 Arguments: [l_orderkey#X, l_suppkey#X]
 
-(19) WholeStageCodegenTransformer (131)
+(19) WholeStageCodegenTransformer (X)
 Input [2]: [l_orderkey#X, l_suppkey#X]
 Arguments: false
 
@@ -209,7 +209,7 @@ Arguments: ((isnotnull(o_orderstatus#X) AND (o_orderstatus#X = F)) AND isnotnull
 Input [2]: [o_orderkey#X, o_orderstatus#X]
 Arguments: [o_orderkey#X]
 
-(29) WholeStageCodegenTransformer (132)
+(29) WholeStageCodegenTransformer (X)
 Input [1]: [o_orderkey#X]
 Arguments: false
 
@@ -248,7 +248,7 @@ Arguments: ((isnotnull(n_name#X) AND (n_name#X = SAUDI ARABIA)) AND isnotnull(n_
 Input [2]: [n_nationkey#X, n_name#X]
 Arguments: [n_nationkey#X]
 
-(38) WholeStageCodegenTransformer (133)
+(38) WholeStageCodegenTransformer (X)
 Input [1]: [n_nationkey#X]
 Arguments: false
 
@@ -283,7 +283,7 @@ Results [2]: [s_name#X, count#X]
 Input [2]: [s_name#X, count#X]
 Arguments: [hash(s_name#X, 42) AS hash_partition_key#X, s_name#X, count#X]
 
-(46) WholeStageCodegenTransformer (134)
+(46) WholeStageCodegenTransformer (X)
 Input [3]: [hash_partition_key#X, s_name#X, count#X]
 Arguments: false
 
@@ -309,7 +309,7 @@ Functions [1]: [count(1)]
 Aggregate Attributes [1]: [count(1)#X]
 Results [2]: [s_name#X, count(1)#X AS numwait#X]
 
-(52) WholeStageCodegenTransformer (135)
+(52) WholeStageCodegenTransformer (X)
 Input [2]: [s_name#X, numwait#X]
 Arguments: false
 

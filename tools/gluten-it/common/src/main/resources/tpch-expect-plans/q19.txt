@@ -57,7 +57,7 @@ ReadSchema: struct<p_partkey:bigint,p_size:int,p_container:string,p_brand:string
 Input [4]: [p_partkey#X, p_size#X, p_container#X, p_brand#X]
 Arguments: (((isnotnull(p_size#X) AND (p_size#X >= 1)) AND isnotnull(p_partkey#X)) AND (((((p_brand#X = Brand#X) AND p_container#X IN (SM CASE,SM BOX,SM PACK,SM PKG)) AND (p_size#X <= 5)) OR (((p_brand#X = Brand#X) AND p_container#X IN (MED BAG,MED BOX,MED PKG,MED PACK)) AND (p_size#X <= 10))) OR (((p_brand#X = Brand#X) AND p_container#X IN (LG CASE,LG BOX,LG PACK,LG PKG)) AND (p_size#X <= 15))))
 
-(6) WholeStageCodegenTransformer (115)
+(6) WholeStageCodegenTransformer (X)
 Input [4]: [p_partkey#X, p_size#X, p_container#X, p_brand#X]
 Arguments: false
 
@@ -88,7 +88,7 @@ Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedpric
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [2]: [sum#X, isEmpty#X]
 
-(13) WholeStageCodegenTransformer (116)
+(13) WholeStageCodegenTransformer (X)
 Input [2]: [sum#X, isEmpty#X]
 Arguments: false
 
@@ -110,7 +110,7 @@ Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as d
 Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
 Results [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS revenue#X]
 
-(18) WholeStageCodegenTransformer (117)
+(18) WholeStageCodegenTransformer (X)
 Input [1]: [revenue#X]
 Arguments: false
 
