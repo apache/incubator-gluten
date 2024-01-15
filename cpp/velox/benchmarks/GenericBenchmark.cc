@@ -120,11 +120,15 @@ auto BM_Generic = [](::benchmark::State& state,
   } else {
     setCpu(state.thread_index());
   }
+  bool emptySplit = splitFile.empty();
   memory::MemoryManager::testingSetInstance({});
   auto memoryManager = getDefaultMemoryManager();
   auto runtime = Runtime::create(kVeloxRuntimeKind, conf);
   auto plan = getPlanFromFile("Plan", planFile);
-  auto split = getPlanFromFile("ReadRel.LocalFiles", splitFile);
+  std::string split;
+  if (!emptySplit) {
+    split = getPlanFromFile("ReadRel.LocalFiles", splitFile);
+  }
   auto startTime = std::chrono::steady_clock::now();
   int64_t collectBatchTime = 0;
   WriterMetrics writerMetrics{};
@@ -146,7 +150,9 @@ auto BM_Generic = [](::benchmark::State& state,
     }
 
     runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size(), {});
-    runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size());
+    if (!emptySplit) {
+      runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size());
+    }
     auto resultIter =
         runtime->createResultIterator(memoryManager.get(), "/tmp/test-spill", std::move(inputIters), conf);
     auto veloxPlan = dynamic_cast<gluten::VeloxRuntime*>(runtime)->getVeloxPlan();
