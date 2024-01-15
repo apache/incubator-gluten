@@ -19,15 +19,15 @@ AdaptiveSparkPlan (50)
                                  :     :     +- ColumnarBroadcastExchange (5)
                                  :     :        +- ^ ProjectExecTransformer (3)
                                  :     :           +- ^ FilterExecTransformer (2)
-                                 :     :              +- ^ Scan parquet default.customer (1)
+                                 :     :              +- ^ Scan parquet spark_catalog.default.customer (1)
                                  :     +- ^ FilterExecTransformer (9)
-                                 :        +- ^ Scan parquet default.orders (8)
+                                 :        +- ^ Scan parquet spark_catalog.default.orders (8)
                                  +- ^ InputIteratorTransformer (18)
                                     +- BroadcastQueryStage (17), Statistics(X)
                                        +- ColumnarBroadcastExchange (16)
                                           +- ^ ProjectExecTransformer (14)
                                              +- ^ FilterExecTransformer (13)
-                                                +- ^ Scan parquet default.lineitem (12)
+                                                +- ^ Scan parquet spark_catalog.default.lineitem (12)
 +- == Initial Plan ==
    TakeOrderedAndProject (49)
    +- HashAggregate (48)
@@ -40,16 +40,16 @@ AdaptiveSparkPlan (50)
                   :     :- BroadcastExchange (35)
                   :     :  +- Project (34)
                   :     :     +- Filter (33)
-                  :     :        +- Scan parquet default.customer (32)
+                  :     :        +- Scan parquet spark_catalog.default.customer (32)
                   :     +- Filter (37)
-                  :        +- Scan parquet default.orders (36)
+                  :        +- Scan parquet spark_catalog.default.orders (36)
                   +- BroadcastExchange (43)
                      +- Project (42)
                         +- Filter (41)
-                           +- Scan parquet default.lineitem (40)
+                           +- Scan parquet spark_catalog.default.lineitem (40)
 
 
-(1) Scan parquet default.customer
+(1) Scan parquet spark_catalog.default.customer
 Output [2]: [c_custkey#X, c_mktsegment#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
@@ -82,7 +82,7 @@ Arguments: 0
 (7) InputIteratorTransformer
 Input [1]: [c_custkey#X]
 
-(8) Scan parquet default.orders
+(8) Scan parquet spark_catalog.default.orders
 Output [4]: [o_orderkey#X, o_custkey#X, o_shippriority#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
@@ -96,13 +96,14 @@ Arguments: (((isnotnull(o_orderdate#X) AND (o_orderdate#X < 1995-03-15)) AND isn
 (10) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
+Join type: Inner
 Join condition: None
 
 (11) ProjectExecTransformer
 Input [5]: [c_custkey#X, o_orderkey#X, o_custkey#X, o_shippriority#X, o_orderdate#X]
 Arguments: [o_orderkey#X, o_shippriority#X, o_orderdate#X]
 
-(12) Scan parquet default.lineitem
+(12) Scan parquet spark_catalog.default.lineitem
 Output [4]: [l_orderkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -138,6 +139,7 @@ Input [3]: [l_orderkey#X, l_extendedprice#X, l_discount#X]
 (19) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
+Join type: Inner
 Join condition: None
 
 (20) ProjectExecTransformer
@@ -147,7 +149,7 @@ Arguments: [o_shippriority#X, o_orderdate#X, l_orderkey#X, l_extendedprice#X, l_
 (21) FlushableHashAggregateExecTransformer
 Input [5]: [o_shippriority#X, o_orderdate#X, l_orderkey#X, l_extendedprice#X, l_discount#X]
 Keys [3]: [l_orderkey#X, o_orderdate#X, o_shippriority#X]
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Functions [1]: [partial_sum((l_extendedprice#X * (1 - l_discount#X)))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [5]: [l_orderkey#X, o_orderdate#X, o_shippriority#X, sum#X, isEmpty#X]
 
@@ -162,7 +164,7 @@ Native Plan:
 -- Project[expressions: (n12_5:INTEGER, hash_with_seed(42,"n11_4","n11_5","n11_6")), (n12_6:BIGINT, "n11_4"), (n12_7:DATE, "n11_5"), (n12_8:INTEGER, "n11_6"), (n12_9:DECIMAL(36, 4), "n11_7"), (n12_10:BOOLEAN, "n11_8")] -> n12_5:INTEGER, n12_6:BIGINT, n12_7:DATE, n12_8:INTEGER, n12_9:DECIMAL(36, 4), n12_10:BOOLEAN
   -- Project[expressions: (n11_4:BIGINT, "n9_5"), (n11_5:DATE, "n9_6"), (n11_6:INTEGER, "n9_7"), (n11_7:DECIMAL(36, 4), "n10_3"["col_0"]), (n11_8:BOOLEAN, "n10_3"["col_1"])] -> n11_4:BIGINT, n11_5:DATE, n11_6:INTEGER, n11_7:DECIMAL(36, 4), n11_8:BOOLEAN
     -- Aggregation[PARTIAL [n9_5, n9_6, n9_7] n10_3 := sum_partial("n9_8")] -> n9_5:BIGINT, n9_6:DATE, n9_7:INTEGER, n10_3:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>
-      -- Project[expressions: (n9_5:BIGINT, "n8_8"), (n9_6:DATE, "n8_7"), (n9_7:INTEGER, "n8_6"), (n9_8:DECIMAL(26, 4), try_cast multiply("n8_9",try_cast subtract(try_cast 1.00 as DECIMAL(1, 0),"n8_10") as DECIMAL(13, 2)) as DECIMAL(26, 4))] -> n9_5:BIGINT, n9_6:DATE, n9_7:INTEGER, n9_8:DECIMAL(26, 4)
+      -- Project[expressions: (n9_5:BIGINT, "n8_8"), (n9_6:DATE, "n8_7"), (n9_7:INTEGER, "n8_6"), (n9_8:DECIMAL(26, 4), multiply("n8_9",subtract(1,"n8_10")))] -> n9_5:BIGINT, n9_6:DATE, n9_7:INTEGER, n9_8:DECIMAL(26, 4)
         -- Project[expressions: (n8_6:INTEGER, "n7_7"), (n8_7:DATE, "n7_8"), (n8_8:BIGINT, "n7_9"), (n8_9:DECIMAL(12, 2), "n7_10"), (n8_10:DECIMAL(12, 2), "n7_11")] -> n8_6:INTEGER, n8_7:DATE, n8_8:BIGINT, n8_9:DECIMAL(12, 2), n8_10:DECIMAL(12, 2)
           -- Project[expressions: (n7_6:BIGINT, "n5_5"), (n7_7:INTEGER, "n5_6"), (n7_8:DATE, "n5_7"), (n7_9:BIGINT, "n1_0"), (n7_10:DECIMAL(12, 2), "n1_1"), (n7_11:DECIMAL(12, 2), "n1_2")] -> n7_6:BIGINT, n7_7:INTEGER, n7_8:DATE, n7_9:BIGINT, n7_10:DECIMAL(12, 2), n7_11:DECIMAL(12, 2)
             -- HashJoin[INNER n5_5=n1_0] -> n5_5:BIGINT, n5_6:INTEGER, n5_7:DATE, n1_0:BIGINT, n1_1:DECIMAL(12, 2), n1_2:DECIMAL(12, 2)
@@ -191,9 +193,9 @@ Input [5]: [l_orderkey#X, o_orderdate#X, o_shippriority#X, sum#X, isEmpty#X]
 (28) RegularHashAggregateExecTransformer
 Input [5]: [l_orderkey#X, o_orderdate#X, o_shippriority#X, sum#X, isEmpty#X]
 Keys [3]: [l_orderkey#X, o_orderdate#X, o_shippriority#X]
-Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
-Results [4]: [l_orderkey#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS revenue#X, o_orderdate#X, o_shippriority#X]
+Functions [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))]
+Aggregate Attributes [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))#X]
+Results [4]: [l_orderkey#X, sum((l_extendedprice#X * (1 - l_discount#X)))#X AS revenue#X, o_orderdate#X, o_shippriority#X]
 
 (29) WholeStageCodegenTransformer (X)
 Input [4]: [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]
@@ -211,7 +213,7 @@ Arguments: 10, [revenue#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [l_or
 (31) VeloxColumnarToRowExec
 Input [4]: [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]
 
-(32) Scan parquet default.customer
+(32) Scan parquet spark_catalog.default.customer
 Output [2]: [c_custkey#X, c_mktsegment#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
@@ -230,7 +232,7 @@ Input [2]: [c_custkey#X, c_mktsegment#X]
 Input [1]: [c_custkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(36) Scan parquet default.orders
+(36) Scan parquet spark_catalog.default.orders
 Output [4]: [o_orderkey#X, o_custkey#X, o_shippriority#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
@@ -244,13 +246,14 @@ Condition : (((isnotnull(o_orderdate#X) AND (o_orderdate#X < 1995-03-15)) AND is
 (38) BroadcastHashJoin
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
+Join type: Inner
 Join condition: None
 
 (39) Project
 Output [3]: [o_orderkey#X, o_shippriority#X, o_orderdate#X]
 Input [5]: [c_custkey#X, o_orderkey#X, o_custkey#X, o_shippriority#X, o_orderdate#X]
 
-(40) Scan parquet default.lineitem
+(40) Scan parquet spark_catalog.default.lineitem
 Output [4]: [l_orderkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -272,6 +275,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 (44) BroadcastHashJoin
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
+Join type: Inner
 Join condition: None
 
 (45) Project
@@ -281,7 +285,7 @@ Input [6]: [o_orderkey#X, o_shippriority#X, o_orderdate#X, l_orderkey#X, l_exten
 (46) HashAggregate
 Input [5]: [o_shippriority#X, o_orderdate#X, l_orderkey#X, l_extendedprice#X, l_discount#X]
 Keys [3]: [l_orderkey#X, o_orderdate#X, o_shippriority#X]
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Functions [1]: [partial_sum((l_extendedprice#X * (1 - l_discount#X)))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [5]: [l_orderkey#X, o_orderdate#X, o_shippriority#X, sum#X, isEmpty#X]
 
@@ -292,9 +296,9 @@ Arguments: hashpartitioning(l_orderkey#X, o_orderdate#X, o_shippriority#X, 100),
 (48) HashAggregate
 Input [5]: [l_orderkey#X, o_orderdate#X, o_shippriority#X, sum#X, isEmpty#X]
 Keys [3]: [l_orderkey#X, o_orderdate#X, o_shippriority#X]
-Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
-Results [4]: [l_orderkey#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS revenue#X, o_orderdate#X, o_shippriority#X]
+Functions [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))]
+Aggregate Attributes [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))#X]
+Results [4]: [l_orderkey#X, sum((l_extendedprice#X * (1 - l_discount#X)))#X AS revenue#X, o_orderdate#X, o_shippriority#X]
 
 (49) TakeOrderedAndProject
 Input [4]: [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]

@@ -18,13 +18,13 @@ AdaptiveSparkPlan (43)
                                           +- ^ GlutenBroadcastHashJoinExecTransformer LeftSemi (11)
                                              :- ^ ProjectExecTransformer (3)
                                              :  +- ^ FilterExecTransformer (2)
-                                             :     +- ^ Scan parquet default.orders (1)
+                                             :     +- ^ Scan parquet spark_catalog.default.orders (1)
                                              +- ^ InputIteratorTransformer (10)
                                                 +- BroadcastQueryStage (9), Statistics(X)
                                                    +- ColumnarBroadcastExchange (8)
                                                       +- ^ ProjectExecTransformer (6)
                                                          +- ^ FilterExecTransformer (5)
-                                                            +- ^ Scan parquet default.lineitem (4)
+                                                            +- ^ Scan parquet spark_catalog.default.lineitem (4)
 +- == Initial Plan ==
    Sort (42)
    +- Exchange (41)
@@ -35,14 +35,14 @@ AdaptiveSparkPlan (43)
                   +- BroadcastHashJoin LeftSemi BuildRight (36)
                      :- Project (31)
                      :  +- Filter (30)
-                     :     +- Scan parquet default.orders (29)
+                     :     +- Scan parquet spark_catalog.default.orders (29)
                      +- BroadcastExchange (35)
                         +- Project (34)
                            +- Filter (33)
-                              +- Scan parquet default.lineitem (32)
+                              +- Scan parquet spark_catalog.default.lineitem (32)
 
 
-(1) Scan parquet default.orders
+(1) Scan parquet spark_catalog.default.orders
 Output [3]: [o_orderkey#X, o_orderpriority#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
@@ -57,7 +57,7 @@ Arguments: ((isnotnull(o_orderdate#X) AND (o_orderdate#X >= 1993-07-01)) AND (o_
 Input [3]: [o_orderkey#X, o_orderpriority#X, o_orderdate#X]
 Arguments: [o_orderkey#X, o_orderpriority#X]
 
-(4) Scan parquet default.lineitem
+(4) Scan parquet spark_catalog.default.lineitem
 Output [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -93,6 +93,7 @@ Input [1]: [l_orderkey#X]
 (11) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
+Join type: LeftSemi
 Join condition: None
 
 (12) ProjectExecTransformer
@@ -182,7 +183,7 @@ Native Plan:
 (28) VeloxColumnarToRowExec
 Input [2]: [o_orderpriority#X, order_count#X]
 
-(29) Scan parquet default.orders
+(29) Scan parquet spark_catalog.default.orders
 Output [3]: [o_orderkey#X, o_orderpriority#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
@@ -197,7 +198,7 @@ Condition : ((isnotnull(o_orderdate#X) AND (o_orderdate#X >= 1993-07-01)) AND (o
 Output [2]: [o_orderkey#X, o_orderpriority#X]
 Input [3]: [o_orderkey#X, o_orderpriority#X, o_orderdate#X]
 
-(32) Scan parquet default.lineitem
+(32) Scan parquet spark_catalog.default.lineitem
 Output [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
@@ -219,6 +220,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 (36) BroadcastHashJoin
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
+Join type: LeftSemi
 Join condition: None
 
 (37) Project
