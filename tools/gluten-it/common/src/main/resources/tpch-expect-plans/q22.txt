@@ -1,36 +1,39 @@
 == Physical Plan ==
-AdaptiveSparkPlan (28)
+AdaptiveSparkPlan (37)
 +- == Final Plan ==
-   * Sort (18)
-   +- AQEShuffleRead (17)
-      +- ShuffleQueryStage (16), Statistics(***)
-         +- Exchange (15)
-            +- * HashAggregate (14)
-               +- AQEShuffleRead (13)
-                  +- ShuffleQueryStage (12), Statistics(***)
-                     +- Exchange (11)
-                        +- * HashAggregate (10)
-                           +- * Project (9)
-                              +- * BroadcastHashJoin LeftAnti BuildRight (8)
-                                 :- * Filter (3)
-                                 :  +- * ColumnarToRow (2)
-                                 :     +- Scan parquet default.customer (1)
-                                 +- BroadcastQueryStage (7), Statistics(***)
-                                    +- BroadcastExchange (6)
-                                       +- * ColumnarToRow (5)
-                                          +- Scan parquet default.orders (4)
+   VeloxColumnarToRowExec (25)
+   +- ^ SortExecTransformer (23)
+      +- ^ InputIteratorTransformer (22)
+         +- AQEShuffleRead (21)
+            +- ShuffleQueryStage (20), Statistics(***)
+               +- ColumnarExchange (19)
+                  +- ^ RegularHashAggregateExecTransformer (17)
+                     +- ^ InputIteratorTransformer (16)
+                        +- AQEShuffleRead (15)
+                           +- ShuffleQueryStage (14), Statistics(***)
+                              +- ColumnarExchange (13)
+                                 +- ^ ProjectExecTransformer (11)
+                                    +- ^ FlushableHashAggregateExecTransformer (10)
+                                       +- ^ ProjectExecTransformer (9)
+                                          +- ^ GlutenBroadcastHashJoinExecTransformer LeftAnti (8)
+                                             :- ^ FilterExecTransformer (2)
+                                             :  +- ^ Scan parquet default.customer (1)
+                                             +- ^ InputIteratorTransformer (7)
+                                                +- BroadcastQueryStage (6), Statistics(***)
+                                                   +- ColumnarBroadcastExchange (5)
+                                                      +- ^ Scan parquet default.orders (3)
 +- == Initial Plan ==
-   Sort (27)
-   +- Exchange (26)
-      +- HashAggregate (25)
-         +- Exchange (24)
-            +- HashAggregate (23)
-               +- Project (22)
-                  +- BroadcastHashJoin LeftAnti BuildRight (21)
-                     :- Filter (19)
-                     :  +- Scan parquet default.customer (1)
-                     +- BroadcastExchange (20)
-                        +- Scan parquet default.orders (4)
+   Sort (36)
+   +- Exchange (35)
+      +- HashAggregate (34)
+         +- Exchange (33)
+            +- HashAggregate (32)
+               +- Project (31)
+                  +- BroadcastHashJoin LeftAnti BuildRight (30)
+                     :- Filter (27)
+                     :  +- Scan parquet default.customer (26)
+                     +- BroadcastExchange (29)
+                        +- Scan parquet default.orders (28)
 
 
 (1) Scan parquet default.customer
@@ -40,216 +43,294 @@ Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
 PushedFilters: [IsNotNull(c_acctbal)]
 ReadSchema: struct<c_custkey:bigint,c_phone:string,c_acctbal:decimal(12,2)>
 
-(2) ColumnarToRow [codegen id : 2]
+(2) FilterExecTransformer
 Input [3]: [c_custkey#***, c_phone#***, c_acctbal#***]
+Arguments: ((isnotnull(c_acctbal#***) AND substring(c_phone#***, 1, 2) IN (13,31,23,29,30,18,17)) AND (cast(c_acctbal#*** as decimal(16,6)) > Subquery subquery#***, [id=#***]))
 
-(3) Filter [codegen id : 2]
-Input [3]: [c_custkey#***, c_phone#***, c_acctbal#***]
-Condition : ((isnotnull(c_acctbal#***) AND substring(c_phone#***, 1, 2) IN (13,31,23,29,30,18,17)) AND (cast(c_acctbal#*** as decimal(16,6)) > Subquery subquery#***, [id=#***]))
-
-(4) Scan parquet default.orders
+(3) Scan parquet default.orders
 Output [1]: [o_custkey#***]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
 ReadSchema: struct<o_custkey:bigint>
 
-(5) ColumnarToRow [codegen id : 1]
+(4) WholeStageCodegenTransformer (138)
 Input [1]: [o_custkey#***]
+Arguments: false
 
-(6) BroadcastExchange
+(5) ColumnarBroadcastExchange
 Input [1]: [o_custkey#***]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
 
-(7) BroadcastQueryStage
+(6) BroadcastQueryStage
 Output [1]: [o_custkey#***]
 Arguments: 0
 
-(8) BroadcastHashJoin [codegen id : 2]
+(7) InputIteratorTransformer
+Input [1]: [o_custkey#***]
+
+(8) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [c_custkey#***]
 Right keys [1]: [o_custkey#***]
 Join condition: None
 
-(9) Project [codegen id : 2]
-Output [2]: [substring(c_phone#***, 1, 2) AS cntrycode#***, c_acctbal#***]
+(9) ProjectExecTransformer
 Input [3]: [c_custkey#***, c_phone#***, c_acctbal#***]
+Arguments: [substring(c_phone#***, 1, 2) AS cntrycode#***, c_acctbal#***]
 
-(10) HashAggregate [codegen id : 2]
+(10) FlushableHashAggregateExecTransformer
 Input [2]: [cntrycode#***, c_acctbal#***]
 Keys [1]: [cntrycode#***]
 Functions [2]: [partial_count(1), partial_sum(c_acctbal#***)]
 Aggregate Attributes [3]: [count#***, sum#***, isEmpty#***]
 Results [4]: [cntrycode#***, count#***, sum#***, isEmpty#***]
 
-(11) Exchange
+(11) ProjectExecTransformer
 Input [4]: [cntrycode#***, count#***, sum#***, isEmpty#***]
-Arguments: hashpartitioning(cntrycode#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+Arguments: [hash(cntrycode#***, 42) AS hash_partition_key#***, cntrycode#***, count#***, sum#***, isEmpty#***]
 
-(12) ShuffleQueryStage
+(12) WholeStageCodegenTransformer (139)
+Input [5]: [hash_partition_key#***, cntrycode#***, count#***, sum#***, isEmpty#***]
+Arguments: false
+
+(13) ColumnarExchange
+Input [5]: [hash_partition_key#***, cntrycode#***, count#***, sum#***, isEmpty#***]
+Arguments: hashpartitioning(cntrycode#***, 100), ENSURE_REQUIREMENTS, [cntrycode#***, count#***, sum#***, isEmpty#***], [plan_id=***], [id=#***]
+
+(14) ShuffleQueryStage
 Output [4]: [cntrycode#***, count#***, sum#***, isEmpty#***]
 Arguments: 1
 
-(13) AQEShuffleRead
+(15) AQEShuffleRead
 Input [4]: [cntrycode#***, count#***, sum#***, isEmpty#***]
 Arguments: coalesced
 
-(14) HashAggregate [codegen id : 3]
+(16) InputIteratorTransformer
+Input [4]: [cntrycode#***, count#***, sum#***, isEmpty#***]
+
+(17) RegularHashAggregateExecTransformer
 Input [4]: [cntrycode#***, count#***, sum#***, isEmpty#***]
 Keys [1]: [cntrycode#***]
 Functions [2]: [count(1), sum(c_acctbal#***)]
 Aggregate Attributes [2]: [count(1)#***, sum(c_acctbal#***)#***]
 Results [3]: [cntrycode#***, count(1)#*** AS numcust#***, sum(c_acctbal#***)#*** AS totacctbal#***]
 
-(15) Exchange
+(18) WholeStageCodegenTransformer (142)
 Input [3]: [cntrycode#***, numcust#***, totacctbal#***]
-Arguments: rangepartitioning(cntrycode#*** ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+Arguments: false
 
-(16) ShuffleQueryStage
+(19) ColumnarExchange
+Input [3]: [cntrycode#***, numcust#***, totacctbal#***]
+Arguments: rangepartitioning(cntrycode#*** ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=***], [id=#***]
+
+(20) ShuffleQueryStage
 Output [3]: [cntrycode#***, numcust#***, totacctbal#***]
 Arguments: 2
 
-(17) AQEShuffleRead
+(21) AQEShuffleRead
 Input [3]: [cntrycode#***, numcust#***, totacctbal#***]
 Arguments: coalesced
 
-(18) Sort [codegen id : 4]
+(22) InputIteratorTransformer
+Input [3]: [cntrycode#***, numcust#***, totacctbal#***]
+
+(23) SortExecTransformer
 Input [3]: [cntrycode#***, numcust#***, totacctbal#***]
 Arguments: [cntrycode#*** ASC NULLS FIRST], true, 0
 
-(19) Filter
+(24) WholeStageCodegenTransformer (143)
+Input [3]: [cntrycode#***, numcust#***, totacctbal#***]
+Arguments: false
+
+(25) VeloxColumnarToRowExec
+Input [3]: [cntrycode#***, numcust#***, totacctbal#***]
+
+(26) Scan parquet default.customer
+Output [3]: [c_custkey#***, c_phone#***, c_acctbal#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
+PushedFilters: [IsNotNull(c_acctbal)]
+ReadSchema: struct<c_custkey:bigint,c_phone:string,c_acctbal:decimal(12,2)>
+
+(27) Filter
 Input [3]: [c_custkey#***, c_phone#***, c_acctbal#***]
 Condition : ((isnotnull(c_acctbal#***) AND substring(c_phone#***, 1, 2) IN (13,31,23,29,30,18,17)) AND (cast(c_acctbal#*** as decimal(16,6)) > Subquery subquery#***, [id=#***]))
 
-(20) BroadcastExchange
+(28) Scan parquet default.orders
+Output [1]: [o_custkey#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
+ReadSchema: struct<o_custkey:bigint>
+
+(29) BroadcastExchange
 Input [1]: [o_custkey#***]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
 
-(21) BroadcastHashJoin
+(30) BroadcastHashJoin
 Left keys [1]: [c_custkey#***]
 Right keys [1]: [o_custkey#***]
 Join condition: None
 
-(22) Project
+(31) Project
 Output [2]: [substring(c_phone#***, 1, 2) AS cntrycode#***, c_acctbal#***]
 Input [3]: [c_custkey#***, c_phone#***, c_acctbal#***]
 
-(23) HashAggregate
+(32) HashAggregate
 Input [2]: [cntrycode#***, c_acctbal#***]
 Keys [1]: [cntrycode#***]
 Functions [2]: [partial_count(1), partial_sum(c_acctbal#***)]
 Aggregate Attributes [3]: [count#***, sum#***, isEmpty#***]
 Results [4]: [cntrycode#***, count#***, sum#***, isEmpty#***]
 
-(24) Exchange
+(33) Exchange
 Input [4]: [cntrycode#***, count#***, sum#***, isEmpty#***]
 Arguments: hashpartitioning(cntrycode#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
 
-(25) HashAggregate
+(34) HashAggregate
 Input [4]: [cntrycode#***, count#***, sum#***, isEmpty#***]
 Keys [1]: [cntrycode#***]
 Functions [2]: [count(1), sum(c_acctbal#***)]
 Aggregate Attributes [2]: [count(1)#***, sum(c_acctbal#***)#***]
 Results [3]: [cntrycode#***, count(1)#*** AS numcust#***, sum(c_acctbal#***)#*** AS totacctbal#***]
 
-(26) Exchange
+(35) Exchange
 Input [3]: [cntrycode#***, numcust#***, totacctbal#***]
 Arguments: rangepartitioning(cntrycode#*** ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=***]
 
-(27) Sort
+(36) Sort
 Input [3]: [cntrycode#***, numcust#***, totacctbal#***]
 Arguments: [cntrycode#*** ASC NULLS FIRST], true, 0
 
-(28) AdaptiveSparkPlan
+(37) AdaptiveSparkPlan
 Output [3]: [cntrycode#***, numcust#***, totacctbal#***]
 Arguments: isFinalPlan=true
 
 ===== Subqueries =====
 
-Subquery:1 Hosting operator id = 3 Hosting Expression = Subquery subquery#***, [id=#***]
-AdaptiveSparkPlan (42)
+Subquery:1 Hosting operator id = 2 Hosting Expression = Subquery subquery#***, [id=#***]
+AdaptiveSparkPlan (55)
 +- == Final Plan ==
-   * HashAggregate (36)
-   +- ShuffleQueryStage (35), Statistics(***)
-      +- Exchange (34)
-         +- * HashAggregate (33)
-            +- * Project (32)
-               +- * Filter (31)
-                  +- * ColumnarToRow (30)
-                     +- Scan parquet default.customer (29)
+   VeloxColumnarToRowExec (48)
+   +- ^ RegularHashAggregateExecTransformer (46)
+      +- ^ InputIteratorTransformer (45)
+         +- ShuffleQueryStage (44), Statistics(***)
+            +- ColumnarExchange (43)
+               +- ^ FlushableHashAggregateExecTransformer (41)
+                  +- ^ ProjectExecTransformer (40)
+                     +- ^ FilterExecTransformer (39)
+                        +- ^ Scan parquet default.customer (38)
 +- == Initial Plan ==
-   HashAggregate (41)
-   +- Exchange (40)
-      +- HashAggregate (39)
-         +- Project (38)
-            +- Filter (37)
-               +- Scan parquet default.customer (29)
+   HashAggregate (54)
+   +- Exchange (53)
+      +- HashAggregate (52)
+         +- Project (51)
+            +- Filter (50)
+               +- Scan parquet default.customer (49)
 
 
-(29) Scan parquet default.customer
+(38) Scan parquet default.customer
 Output [2]: [c_phone#***, c_acctbal#***]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
 PushedFilters: [IsNotNull(c_acctbal), GreaterThan(c_acctbal,0.00)]
 ReadSchema: struct<c_phone:string,c_acctbal:decimal(12,2)>
 
-(30) ColumnarToRow [codegen id : 1]
+(39) FilterExecTransformer
 Input [2]: [c_phone#***, c_acctbal#***]
+Arguments: ((isnotnull(c_acctbal#***) AND (c_acctbal#*** > 0.00)) AND substring(c_phone#***, 1, 2) IN (13,31,23,29,30,18,17))
 
-(31) Filter [codegen id : 1]
+(40) ProjectExecTransformer
 Input [2]: [c_phone#***, c_acctbal#***]
-Condition : ((isnotnull(c_acctbal#***) AND (c_acctbal#*** > 0.00)) AND substring(c_phone#***, 1, 2) IN (13,31,23,29,30,18,17))
+Arguments: [c_acctbal#***]
 
-(32) Project [codegen id : 1]
-Output [1]: [c_acctbal#***]
-Input [2]: [c_phone#***, c_acctbal#***]
-
-(33) HashAggregate [codegen id : 1]
+(41) FlushableHashAggregateExecTransformer
 Input [1]: [c_acctbal#***]
 Keys: []
 Functions [1]: [partial_avg(c_acctbal#***)]
 Aggregate Attributes [2]: [sum#***, count#***]
 Results [2]: [sum#***, count#***]
 
-(34) Exchange
+(42) WholeStageCodegenTransformer (140)
 Input [2]: [sum#***, count#***]
-Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=***]
+Arguments: false
 
-(35) ShuffleQueryStage
+(43) ColumnarExchange
+Input [2]: [sum#***, count#***]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=***], [id=#***]
+
+(44) ShuffleQueryStage
 Output [2]: [sum#***, count#***]
 Arguments: 0
 
-(36) HashAggregate [codegen id : 2]
+(45) InputIteratorTransformer
+Input [2]: [sum#***, count#***]
+
+(46) RegularHashAggregateExecTransformer
 Input [2]: [sum#***, count#***]
 Keys: []
 Functions [1]: [avg(c_acctbal#***)]
 Aggregate Attributes [1]: [avg(c_acctbal#***)#***]
 Results [1]: [avg(c_acctbal#***)#*** AS avg(c_acctbal)#***]
 
-(37) Filter
+(47) WholeStageCodegenTransformer (141)
+Input [1]: [avg(c_acctbal)#***]
+Arguments: false
+
+(48) VeloxColumnarToRowExec
+Input [1]: [avg(c_acctbal)#***]
+
+(49) Scan parquet default.customer
+Output [2]: [c_phone#***, c_acctbal#***]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/customer]
+PushedFilters: [IsNotNull(c_acctbal), GreaterThan(c_acctbal,0.00)]
+ReadSchema: struct<c_phone:string,c_acctbal:decimal(12,2)>
+
+(50) Filter
 Input [2]: [c_phone#***, c_acctbal#***]
 Condition : ((isnotnull(c_acctbal#***) AND (c_acctbal#*** > 0.00)) AND substring(c_phone#***, 1, 2) IN (13,31,23,29,30,18,17))
 
-(38) Project
+(51) Project
 Output [1]: [c_acctbal#***]
 Input [2]: [c_phone#***, c_acctbal#***]
 
-(39) HashAggregate
+(52) HashAggregate
 Input [1]: [c_acctbal#***]
 Keys: []
 Functions [1]: [partial_avg(c_acctbal#***)]
 Aggregate Attributes [2]: [sum#***, count#***]
 Results [2]: [sum#***, count#***]
 
-(40) Exchange
+(53) Exchange
 Input [2]: [sum#***, count#***]
 Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=***]
 
-(41) HashAggregate
+(54) HashAggregate
 Input [2]: [sum#***, count#***]
 Keys: []
 Functions [1]: [avg(c_acctbal#***)]
 Aggregate Attributes [1]: [avg(c_acctbal#***)#***]
 Results [1]: [avg(c_acctbal#***)#*** AS avg(c_acctbal)#***]
 
-(42) AdaptiveSparkPlan
+(55) AdaptiveSparkPlan
 Output [1]: [avg(c_acctbal)#***]
 Arguments: isFinalPlan=true
+
+Subquery:2 Hosting operator id = 1 Hosting Expression = Subquery subquery#***, [id=#***]
+AdaptiveSparkPlan (55)
++- == Final Plan ==
+   VeloxColumnarToRowExec (48)
+   +- ^ RegularHashAggregateExecTransformer (46)
+      +- ^ InputIteratorTransformer (45)
+         +- ShuffleQueryStage (44), Statistics(***)
+            +- ColumnarExchange (43)
+               +- ^ FlushableHashAggregateExecTransformer (41)
+                  +- ^ ProjectExecTransformer (40)
+                     +- ^ FilterExecTransformer (39)
+                        +- ^ Scan parquet default.customer (38)
++- == Initial Plan ==
+   HashAggregate (54)
+   +- Exchange (53)
+      +- HashAggregate (52)
+         +- Project (51)
+            +- Filter (50)
+               +- Scan parquet default.customer (49)
