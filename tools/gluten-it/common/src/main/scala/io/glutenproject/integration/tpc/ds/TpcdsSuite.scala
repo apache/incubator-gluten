@@ -79,7 +79,7 @@ class TpcdsSuite(
 
   // TODO need add tpcds golden files to resources
   override private[tpc] def expectPlanResource(): String = {
-    "/tpcds-expect-plans"
+    "/tpcds-approved-plans"
   }
 
   override protected def typeModifiers(): List[TypeModifier] = {

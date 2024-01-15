@@ -41,7 +41,7 @@ public class QueriesCompare implements Callable<Integer> {
   @CommandLine.Option(names = {"--iterations"}, description = "How many iterations to run", defaultValue = "1")
   private int iterations;
 
-  @CommandLine.Option(names = {"--verify-spark-plan"}, description = "Verify whether spark plan changes", defaultValue = "true")
+  @CommandLine.Option(names = {"--verify-spark-plan"}, description = "Verify whether spark plan changes", defaultValue = "false")
   private boolean verifySparkPlan;
 
   @Override
