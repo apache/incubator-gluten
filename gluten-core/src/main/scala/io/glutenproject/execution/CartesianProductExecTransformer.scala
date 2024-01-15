@@ -117,17 +117,31 @@ case class CartesianProductExecTransformer(
     copy(left = newLeft, right = newRight)
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    val rddLeft = getColumnarInputRDDs(left)
-    val rddRight = getColumnarInputRDDs(right)
+    val rddsLeft = getColumnarInputRDDs(left)
+    val rddsRight = getColumnarInputRDDs(right)
 
-    if (rddLeft.size < 1 && rddRight.size < 1) {
-      return Seq()
+    if (rddsLeft.size < 1 && rddsRight.size < 1) {
+      // If any of the child RDD is empty then result will also be empty
+      return Seq.empty
     }
 
-    assert(rddLeft.size == 1)
-    assert(rddRight.size == 1)
+    // To calculate the cartesian product, left and right results should be available.
+    // left/right.executeColumnar cannot be called always for cases like InputIteratorTransformer
+    // Which does not support 'executeColumnar()' method.
+    // Anyway, there will be no need to call this method beforehand when the child has single RDD.
+    val rddLeft = if (rddsLeft.size == 1) {
+      rddsLeft.head
+    } else {
+      left.executeColumnar()
+    }
 
-    val cartesianRDD = new CartesianColumnarBatchRDD(sparkContext, rddLeft.head, rddRight.head)
+    val rddRight = if (rddsRight.size == 1) {
+      rddsRight.head
+    } else {
+      right.executeColumnar()
+    }
+
+    val cartesianRDD = new CartesianColumnarBatchRDD(sparkContext, rddLeft, rddRight)
     val rdd1 = cartesianRDD.map(pair => pair._1)
     val rdd2 = cartesianRDD.map(pair => pair._2)
 
@@ -143,8 +157,8 @@ class CartesianColumnarBatchRDDPartition(
     s1Index: Int,
     s2Index: Int
 ) extends Partition {
-  var s1 = rdd1.partitions(s1Index)
-  var s2 = rdd2.partitions(s2Index)
+  var s1: Partition = rdd1.partitions(s1Index)
+  var s2: Partition = rdd2.partitions(s2Index)
   override val index: Int = idx
 }
 
