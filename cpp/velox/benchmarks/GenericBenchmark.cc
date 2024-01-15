@@ -234,7 +234,7 @@ int main(int argc, char** argv) {
   std::vector<std::string> inputFiles;
   std::unordered_map<std::string, std::string> conf;
 
-  conf.insert({gluten::kSparkBatchSize, FLAGS_batch_size});
+  conf.insert({gluten::kSparkBatchSize, std::to_string(FLAGS_batch_size)});
   conf.insert({kDebugModeEnabled, "true"});
   initVeloxBackend(conf);
 
@@ -280,14 +280,12 @@ int main(int argc, char** argv) {
     }                                                                                                             \
   } while (0)
 
-#if 0
-  LOG(INFO) << "FLAGS_threads:" << FLAGS_threads ;
-  LOG(INFO) << "FLAGS_iterations:" << FLAGS_iterations ;
-  LOG(INFO) << "FLAGS_cpu:" << FLAGS_cpu ;
-  LOG(INFO) << "FLAGS_print_result:" << FLAGS_print_result ;
-  LOG(INFO) << "FLAGS_write_file:" << FLAGS_write_file ;
-  LOG(INFO) << "FLAGS_batch_size:" << FLAGS_batch_size ;
-#endif
+  DLOG(INFO) << "FLAGS_threads:" << FLAGS_threads;
+  DLOG(INFO) << "FLAGS_iterations:" << FLAGS_iterations;
+  DLOG(INFO) << "FLAGS_cpu:" << FLAGS_cpu;
+  DLOG(INFO) << "FLAGS_print_result:" << FLAGS_print_result;
+  DLOG(INFO) << "FLAGS_write_file:" << FLAGS_write_file;
+  DLOG(INFO) << "FLAGS_batch_size:" << FLAGS_batch_size;
 
   if (FLAGS_skip_input) {
     GENERIC_BENCHMARK("SkipInput", FileReaderType::kNone);

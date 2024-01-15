@@ -38,7 +38,7 @@
 
 DECLARE_bool(print_result);
 DECLARE_string(write_file);
-DECLARE_string(batch_size);
+DECLARE_int64(batch_size);
 DECLARE_int32(cpu);
 DECLARE_int32(threads);
 DECLARE_int32(iterations);
