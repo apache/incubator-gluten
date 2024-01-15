@@ -69,7 +69,7 @@ trait PullOutProjectHelper {
       case alias: Alias =>
         projectExprsMap.getOrElseUpdate(ExpressionEquals(alias.child), alias).toAttribute
       case attr: Attribute =>
-        projectExprsMap.getOrElseUpdate(ExpressionEquals(attr), attr)
+        attr
       case other =>
         projectExprsMap
           .getOrElseUpdate(

@@ -71,12 +71,14 @@ case class PullOutProject(session: SparkSession)
             ae.copy(aggregateFunction = newAggFunc, filter = newFilter)
 
           case a: Alias if projectExprsMap.contains(ExpressionEquals(a.child)) =>
-            // Keep the name of the original Alias.
-            projectExprsMap(ExpressionEquals(a.child)) match {
-              case Alias(child, _) =>
-                a.withNewChildren(Seq(child))
-              case attr: Attribute =>
-                a.withNewChildren(Seq(attr))
+            val findAlias = projectExprsMap(ExpressionEquals(a.child))
+            if (a.semanticEquals(findAlias)) {
+              // We need to preserve the Alias in AggregateExpressions, but when the Alias
+              // in groupingExpressions and aggExpressions are consistent, we can replace
+              // them with the corresponding Attribute, because the name hasn't changed.
+              findAlias.toAttribute
+            } else {
+              a.withNewChildren(Seq(findAlias.toAttribute))
             }
 
           case e if projectExprsMap.contains(ExpressionEquals(e)) =>

@@ -170,21 +170,13 @@ case class ProjectExecTransformer private (
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetrics(sparkContext)
 
-  override def nodeName: String = projectType.toString + super.nodeName
-
   override protected def doValidateInternal(): ValidationResult = {
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
 
     val relNode =
-      getRelNode(
-        substraitContext,
-        projectList,
-        getInputAttributes(child),
-        operatorId,
-        null,
-        validation = true)
+      getRelNode(substraitContext, projectList, child.output, operatorId, null, validation = true)
     // Then, validate the generated plan in native engine.
     doNativeValidation(substraitContext, relNode)
   }
@@ -209,21 +201,9 @@ case class ProjectExecTransformer private (
     }
 
     val currRel =
-      getRelNode(
-        context,
-        projectList,
-        getInputAttributes(child),
-        operatorId,
-        childCtx.root,
-        validation = false)
+      getRelNode(context, projectList, child.output, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Project Rel should be valid")
     TransformContext(childCtx.outputAttributes, output, currRel)
-  }
-
-  private def getInputAttributes(child: SparkPlan) = child match {
-    case agg: HashAggregateExecBaseTransformer if isPostProject =>
-      agg.allAggregateResultAttributes
-    case _ => child.output
   }
 
   override def output: Seq[Attribute] = projectList.map(_.toAttribute)

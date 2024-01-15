@@ -59,21 +59,13 @@ object ColumnarPullOutPostProject extends Rule[SparkPlan] with PullOutProjectHel
     case agg: HashAggregateExecBaseTransformer
         if !ProjectProcessedHint.isPostProjectProcessed(agg) &&
           agg.needsPostProjection =>
-      val aggResultAttributeSet = ExpressionSet(agg.allAggregateResultAttributes)
-      // Need to remove columns that are not part of the aggregation result attributes.
-      // Although this won't affect the result, it may cause some issues with subquery
-      // reuse. For example, if a subquery is referenced by both resultExpressions and
-      // post-project, it may result in some unit tests failing that verify the number
-      // of GlutenPlan.
-      val rewrittenResultExpressions =
-        agg.resultExpressions.filter(_.find(aggResultAttributeSet.contains).isDefined)
       val projectList = agg.resultExpressions.map {
         case ne: NamedExpression => ne
         case other => Alias(other, other.toString())()
       }
 
       ProjectProcessedHint.postProjectProcessDone(agg)
-      val newAgg = agg.copySelf(resultExpressions = rewrittenResultExpressions)
+      val newAgg = agg.copySelf(resultExpressions = agg.allAggregateResultAttributes)
       newAgg.copyTagsFrom(agg)
 
       ProjectExecTransformer(projectList, newAgg, projectType = ProjectType.POST)
