@@ -43,6 +43,7 @@ class VeloxBackend {
           std::filesystem::remove(cachePathPrefix_ + "/" + entry.path().filename().string());
         }
       }
+      asyncDataCache_->shutdown();
     }
   }
 
