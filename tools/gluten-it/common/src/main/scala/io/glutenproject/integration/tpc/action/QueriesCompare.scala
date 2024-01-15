@@ -178,9 +178,9 @@ object QueriesCompare {
   private[tpc] def verifyExecutionPlan(expectPath: String, actualPlan: String): (Boolean, Option[String]) = {
     try {
       val expect = QueryRunner.resourceToString(expectPath)
-      val afterFormatPlan = actualPlan.replaceAll("#[0-9]*L*", "#***")
-        .replaceAll("plan_id=[0-9]*", "plan_id=***")
-        .replaceAll("Statistics[(A-Za-z0-9=. ,+)]*", "Statistics(***)")
+      val afterFormatPlan = actualPlan.replaceAll("#[0-9]*L*", "#X")
+        .replaceAll("plan_id=[0-9]*", "plan_id=X")
+        .replaceAll("Statistics[(A-Za-z0-9=. ,+)]*", "Statistics(X)")
       if (expect.trim == afterFormatPlan.trim) {
         (true, None)
       } else {
