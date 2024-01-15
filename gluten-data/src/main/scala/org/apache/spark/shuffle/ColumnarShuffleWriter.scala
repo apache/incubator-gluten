@@ -61,7 +61,8 @@ class ColumnarShuffleWriter[K, V](
     .map(_.getAbsolutePath)
     .mkString(",")
 
-  private val nativeBufferSize = GlutenConfig.getConf.shuffleWriterBufferSize
+  private val nativeBufferSize =
+    math.min(GlutenConfig.getConf.shuffleWriterBufferSize, GlutenConfig.getConf.maxBatchSize)
 
   private val nativeMergeBufferSize = GlutenConfig.getConf.maxBatchSize
 

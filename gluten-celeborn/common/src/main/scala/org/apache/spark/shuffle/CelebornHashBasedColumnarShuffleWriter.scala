@@ -64,7 +64,8 @@ abstract class CelebornHashBasedColumnarShuffleWriter[K, V](
 
   protected val blockManager: BlockManager = SparkEnv.get.blockManager
 
-  protected val nativeBufferSize: Int = GlutenConfig.getConf.shuffleWriterBufferSize
+  protected val nativeBufferSize: Int =
+    math.min(GlutenConfig.getConf.shuffleWriterBufferSize, GlutenConfig.getConf.maxBatchSize)
   protected val customizedCompressionCodec: String = GlutenShuffleUtils.getCompressionCodec(conf)
 
   protected val bufferCompressThreshold: Int =
