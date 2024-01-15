@@ -193,7 +193,6 @@ object QueriesCompare {
       id: String,
       actualPlan: String,
       multiResult: Boolean = false): (Boolean, Option[String]) = {
-    println(expectFolder)
     try {
       val expectPathQueue = if (multiResult) {
         mutable.Queue.apply(s"$expectFolder/$id-1.txt", s"$expectFolder/$id-2.txt")
