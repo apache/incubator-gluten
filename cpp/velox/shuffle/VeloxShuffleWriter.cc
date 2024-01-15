@@ -213,8 +213,6 @@ arrow::Status VeloxShuffleWriter::init() {
   supportAvx512_ = false;
 #endif
 
-  // Partition number should be less than 64k.
-  VELOX_CHECK_LE(numPartitions_, 64 * 1024);
   // Split record batch size should be less than 32k.
   VELOX_CHECK_LE(options_.bufferSize, 32 * 1024);
 

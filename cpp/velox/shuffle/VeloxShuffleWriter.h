@@ -329,7 +329,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   // Row ID -> Partition ID
   // subscript: Row ID
   // value: Partition ID
-  std::vector<uint16_t> row2Partition_;
+  std::vector<uint32_t> row2Partition_;
 
   // Partition ID -> Row Count
   // subscript: Partition ID
