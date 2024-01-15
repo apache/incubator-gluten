@@ -60,6 +60,9 @@ object InExpressionTransformer {
     val expressionNodes = new java.util.ArrayList[ExpressionNode](
       values
         .map(value => ExpressionBuilder.makeLiteral(value, valueType, value == null))
+        .toSeq
+        // Sort elements for deterministic behaviours
+        .sortBy(_.toString)
         .asJava)
 
     ExpressionBuilder.makeSingularOrListNode(leftNode, expressionNodes)
