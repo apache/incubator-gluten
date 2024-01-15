@@ -18,7 +18,7 @@ set -ex
 
 BASEDIR=$(dirname $0)
 
-source "$BASEDIR/../../shared.sh"
+source "$BASEDIR/shared.sh"
 
 # Docker registry used to pull layer cache to speed-up builds
 DOCKER_PULL_REGISTRY=${DOCKER_PULL_REGISTRY:-$DEFAULT_DOCKER_PULL_REGISTRY}
