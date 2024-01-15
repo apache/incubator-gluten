@@ -54,6 +54,8 @@ Arguments: isnotnull(s_suppkey#X)
 (3) WholeStageCodegenTransformer (X)
 Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 Arguments: false
+Native Plan:
+-- TableScan[table: hive_table, range filters: [(s_suppkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:VARCHAR, n0_2:VARCHAR, n0_3:VARCHAR
 
 (4) ColumnarBroadcastExchange
 Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
@@ -95,6 +97,13 @@ Arguments: [hash(l_suppkey#X, 42) AS hash_partition_key#X, l_suppkey#X, sum#X, i
 (12) WholeStageCodegenTransformer (X)
 Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n5_3:INTEGER, hash_with_seed(42,"n4_2")), (n5_4:BIGINT, "n4_2"), (n5_5:DECIMAL(36, 4), "n4_3"), (n5_6:BOOLEAN, "n4_4")] -> n5_3:INTEGER, n5_4:BIGINT, n5_5:DECIMAL(36, 4), n5_6:BOOLEAN
+  -- Project[expressions: (n4_2:BIGINT, "n2_3"), (n4_3:DECIMAL(36, 4), "n3_1"["col_0"]), (n4_4:BOOLEAN, "n3_1"["col_1"])] -> n4_2:BIGINT, n4_3:DECIMAL(36, 4), n4_4:BOOLEAN
+    -- Aggregation[PARTIAL [n2_3] n3_1 := sum_partial("n2_4")] -> n2_3:BIGINT, n3_1:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>
+      -- Project[expressions: (n2_3:BIGINT, "n1_4"), (n2_4:DECIMAL(26, 4), try_cast multiply("n1_5",try_cast subtract(try_cast 1.00 as DECIMAL(1, 0),"n1_6") as DECIMAL(13, 2)) as DECIMAL(26, 4))] -> n2_3:BIGINT, n2_4:DECIMAL(26, 4)
+        -- Project[expressions: (n1_4:BIGINT, "n0_0"), (n1_5:DECIMAL(12, 2), "n0_1"), (n1_6:DECIMAL(12, 2), "n0_2")] -> n1_4:BIGINT, n1_5:DECIMAL(12, 2), n1_6:DECIMAL(12, 2)
+          -- TableScan[table: hive_table, range filters: [(l_shipdate, BigintRange: [9496, 9586] no nulls), (l_suppkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:DECIMAL(12, 2), n0_2:DECIMAL(12, 2), n0_3:DATE
 
 (13) ColumnarExchange
 Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
@@ -134,6 +143,16 @@ Arguments: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
 (21) WholeStageCodegenTransformer (X)
 Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n8_6:BIGINT, "n7_6"), (n8_7:VARCHAR, "n7_7"), (n8_8:VARCHAR, "n7_8"), (n8_9:VARCHAR, "n7_9"), (n8_10:DECIMAL(36, 4), "n7_11")] -> n8_6:BIGINT, n8_7:VARCHAR, n8_8:VARCHAR, n8_9:VARCHAR, n8_10:DECIMAL(36, 4)
+  -- Project[expressions: (n7_6:BIGINT, "n1_0"), (n7_7:VARCHAR, "n1_1"), (n7_8:VARCHAR, "n1_2"), (n7_9:VARCHAR, "n1_3"), (n7_10:BIGINT, "n4_2"), (n7_11:DECIMAL(36, 4), "n4_3")] -> n7_6:BIGINT, n7_7:VARCHAR, n7_8:VARCHAR, n7_9:VARCHAR, n7_10:BIGINT, n7_11:DECIMAL(36, 4)
+    -- HashJoin[INNER n4_2=n1_0] -> n4_2:BIGINT, n4_3:DECIMAL(36, 4), n1_0:BIGINT, n1_1:VARCHAR, n1_2:VARCHAR, n1_3:VARCHAR
+      -- Filter[expression: and(isnotnull("n4_3"),decimal_equalto("n4_3",1614410.2928))] -> n4_2:BIGINT, n4_3:DECIMAL(36, 4)
+        -- Project[expressions: (n4_2:BIGINT, "n2_3"), (n4_3:DECIMAL(36, 4), "n3_1")] -> n4_2:BIGINT, n4_3:DECIMAL(36, 4)
+          -- Aggregation[SINGLE [n2_3] n3_1 := sum_merge_extract("n2_4")] -> n2_3:BIGINT, n3_1:DECIMAL(36, 4)
+            -- Project[expressions: (n2_3:BIGINT, "n0_0"), (n2_4:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>, row_constructor("n0_1","n0_2"))] -> n2_3:BIGINT, n2_4:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>
+              -- ValueStream[] -> n0_0:BIGINT, n0_1:DECIMAL(36, 4), n0_2:BOOLEAN
+      -- ValueStream[] -> n1_0:BIGINT, n1_1:VARCHAR, n1_2:VARCHAR, n1_3:VARCHAR
 
 (22) ColumnarExchange
 Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
@@ -285,6 +304,13 @@ Arguments: [hash(l_suppkey#X, 42) AS hash_partition_key#X, l_suppkey#X, sum#X, i
 (46) WholeStageCodegenTransformer (X)
 Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n5_3:INTEGER, hash_with_seed(42,"n4_2")), (n5_4:BIGINT, "n4_2"), (n5_5:DECIMAL(36, 4), "n4_3"), (n5_6:BOOLEAN, "n4_4")] -> n5_3:INTEGER, n5_4:BIGINT, n5_5:DECIMAL(36, 4), n5_6:BOOLEAN
+  -- Project[expressions: (n4_2:BIGINT, "n2_3"), (n4_3:DECIMAL(36, 4), "n3_1"["col_0"]), (n4_4:BOOLEAN, "n3_1"["col_1"])] -> n4_2:BIGINT, n4_3:DECIMAL(36, 4), n4_4:BOOLEAN
+    -- Aggregation[PARTIAL [n2_3] n3_1 := sum_partial("n2_4")] -> n2_3:BIGINT, n3_1:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>
+      -- Project[expressions: (n2_3:BIGINT, "n1_4"), (n2_4:DECIMAL(26, 4), try_cast multiply("n1_5",try_cast subtract(try_cast 1.00 as DECIMAL(1, 0),"n1_6") as DECIMAL(13, 2)) as DECIMAL(26, 4))] -> n2_3:BIGINT, n2_4:DECIMAL(26, 4)
+        -- Project[expressions: (n1_4:BIGINT, "n0_0"), (n1_5:DECIMAL(12, 2), "n0_1"), (n1_6:DECIMAL(12, 2), "n0_2")] -> n1_4:BIGINT, n1_5:DECIMAL(12, 2), n1_6:DECIMAL(12, 2)
+          -- TableScan[table: hive_table, range filters: [(l_shipdate, BigintRange: [9496, 9586] no nulls)]] -> n0_0:BIGINT, n0_1:DECIMAL(12, 2), n0_2:DECIMAL(12, 2), n0_3:DATE
 
 (47) ColumnarExchange
 Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
@@ -318,6 +344,12 @@ Results [1]: [max#X]
 (53) WholeStageCodegenTransformer (X)
 Input [1]: [max#X]
 Arguments: false
+Native Plan:
+-- Aggregation[PARTIAL n4_0 := max_partial("n3_2")] -> n4_0:DECIMAL(36, 4)
+  -- Project[expressions: (n3_2:DECIMAL(36, 4), "n2_1")] -> n3_2:DECIMAL(36, 4)
+    -- Aggregation[SINGLE [n1_3] n2_1 := sum_merge_extract("n1_4")] -> n1_3:BIGINT, n2_1:DECIMAL(36, 4)
+      -- Project[expressions: (n1_3:BIGINT, "n0_0"), (n1_4:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>, row_constructor("n0_1","n0_2"))] -> n1_3:BIGINT, n1_4:ROW<col_0:DECIMAL(36, 4),col_1:BOOLEAN>
+        -- ValueStream[] -> n0_0:BIGINT, n0_1:DECIMAL(36, 4), n0_2:BOOLEAN
 
 (54) ColumnarExchange
 Input [1]: [max#X]
@@ -340,6 +372,10 @@ Results [1]: [max(total_revenue#X)#X AS max(total_revenue)#X]
 (58) WholeStageCodegenTransformer (X)
 Input [1]: [max(total_revenue)#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n2_1:DECIMAL(36, 4), "n1_0")] -> n2_1:DECIMAL(36, 4)
+  -- Aggregation[SINGLE n1_0 := max_merge_extract("n0_0")] -> n1_0:DECIMAL(36, 4)
+    -- ValueStream[] -> n0_0:DECIMAL(36, 4)
 
 (59) VeloxColumnarToRowExec
 Input [1]: [max(total_revenue)#X]

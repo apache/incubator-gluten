@@ -72,6 +72,9 @@ Arguments: [o_orderkey#X, o_custkey#X]
 (5) WholeStageCodegenTransformer (X)
 Input [2]: [o_orderkey#X, o_custkey#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n1_3:BIGINT, "n0_0"), (n1_4:BIGINT, "n0_1")] -> n1_3:BIGINT, n1_4:BIGINT
+  -- TableScan[table: hive_table, range filters: [(o_comment, Filter(IsNotNull, deterministic, null not allowed)), (o_custkey, Filter(IsNotNull, deterministic, null not allowed))], remaining filter: (not(like("o_comment","%special%requests%","\\")))] -> n0_0:BIGINT, n0_1:BIGINT, n0_2:VARCHAR
 
 (6) ColumnarBroadcastExchange
 Input [2]: [o_orderkey#X, o_custkey#X]
@@ -107,6 +110,14 @@ Arguments: [hash(c_custkey#X, 42) AS hash_partition_key#X, c_custkey#X, count#X]
 (13) WholeStageCodegenTransformer (X)
 Input [3]: [hash_partition_key#X, c_custkey#X, count#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n6_2:INTEGER, hash_with_seed(42,"n4_3")), (n6_3:BIGINT, "n4_3"), (n6_4:BIGINT, "n5_1")] -> n6_2:INTEGER, n6_3:BIGINT, n6_4:BIGINT
+  -- Aggregation[PARTIAL [n4_3] n5_1 := count_partial("n4_4")] -> n4_3:BIGINT, n5_1:BIGINT
+    -- Project[expressions: (n4_3:BIGINT, "n3_3"), (n4_4:BIGINT, "n3_4")] -> n4_3:BIGINT, n4_4:BIGINT
+      -- Project[expressions: (n3_3:BIGINT, "n1_0"), (n3_4:BIGINT, "n0_0"), (n3_5:BIGINT, "n0_1")] -> n3_3:BIGINT, n3_4:BIGINT, n3_5:BIGINT
+        -- HashJoin[LEFT n1_0=n0_1] -> n1_0:BIGINT, n0_0:BIGINT, n0_1:BIGINT
+          -- TableScan[table: hive_table] -> n1_0:BIGINT
+          -- ValueStream[] -> n0_0:BIGINT, n0_1:BIGINT
 
 (14) ColumnarExchange
 Input [3]: [hash_partition_key#X, c_custkey#X, count#X]
@@ -144,6 +155,12 @@ Arguments: [hash(c_count#X, 42) AS hash_partition_key#X, c_count#X, count#X]
 (21) WholeStageCodegenTransformer (X)
 Input [3]: [hash_partition_key#X, c_count#X, count#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n4_2:INTEGER, hash_with_seed(42,"n2_2")), (n4_3:BIGINT, "n2_2"), (n4_4:BIGINT, "n3_1")] -> n4_2:INTEGER, n4_3:BIGINT, n4_4:BIGINT
+  -- Aggregation[PARTIAL [n2_2] n3_1 := count_partial(1)] -> n2_2:BIGINT, n3_1:BIGINT
+    -- Project[expressions: (n2_2:BIGINT, "n1_1")] -> n2_2:BIGINT
+      -- Aggregation[SINGLE [n0_0] n1_1 := count_merge_extract("n0_1")] -> n0_0:BIGINT, n1_1:BIGINT
+        -- ValueStream[] -> n0_0:BIGINT, n0_1:BIGINT
 
 (22) ColumnarExchange
 Input [3]: [hash_partition_key#X, c_count#X, count#X]
@@ -170,6 +187,10 @@ Results [2]: [c_count#X, count(1)#X AS custdist#X]
 (27) WholeStageCodegenTransformer (X)
 Input [2]: [c_count#X, custdist#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n2_2:BIGINT, "n0_0"), (n2_3:BIGINT, "n1_1")] -> n2_2:BIGINT, n2_3:BIGINT
+  -- Aggregation[SINGLE [n0_0] n1_1 := count_merge_extract("n0_1")] -> n0_0:BIGINT, n1_1:BIGINT
+    -- ValueStream[] -> n0_0:BIGINT, n0_1:BIGINT
 
 (28) ColumnarExchange
 Input [2]: [c_count#X, custdist#X]
@@ -193,6 +214,9 @@ Arguments: [custdist#X DESC NULLS LAST, c_count#X DESC NULLS LAST], true, 0
 (33) WholeStageCodegenTransformer (X)
 Input [2]: [c_count#X, custdist#X]
 Arguments: false
+Native Plan:
+-- OrderBy[n0_1 DESC NULLS LAST, n0_0 DESC NULLS LAST] -> n0_0:BIGINT, n0_1:BIGINT
+  -- ValueStream[] -> n0_0:BIGINT, n0_1:BIGINT
 
 (34) VeloxColumnarToRowExec
 Input [2]: [c_count#X, custdist#X]

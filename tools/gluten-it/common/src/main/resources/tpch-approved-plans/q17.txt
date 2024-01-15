@@ -84,6 +84,9 @@ Arguments: [p_partkey#X]
 (6) WholeStageCodegenTransformer (X)
 Input [1]: [p_partkey#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n1_3:BIGINT, "n0_0")] -> n1_3:BIGINT
+  -- TableScan[table: hive_table, range filters: [(p_brand, BytesRange: [Brand#X, Brand#X] no nulls), (p_container, BytesRange: [MED BOX, MED BOX] no nulls), (p_partkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:VARCHAR, n0_2:VARCHAR
 
 (7) ColumnarBroadcastExchange
 Input [1]: [p_partkey#X]
@@ -130,6 +133,11 @@ Arguments: [hash(l_partkey#X, 42) AS hash_partition_key#X, l_partkey#X, sum#X, c
 (16) WholeStageCodegenTransformer (X)
 Input [4]: [hash_partition_key#X, l_partkey#X, sum#X, count#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n3_3:INTEGER, hash_with_seed(42,"n2_2")), (n3_4:BIGINT, "n2_2"), (n3_5:DECIMAL(22, 2), "n2_3"), (n3_6:BIGINT, "n2_4")] -> n3_3:INTEGER, n3_4:BIGINT, n3_5:DECIMAL(22, 2), n3_6:BIGINT
+  -- Project[expressions: (n2_2:BIGINT, "n0_0"), (n2_3:DECIMAL(22, 2), "n1_1"["col_0"]), (n2_4:BIGINT, "n1_1"["col_1"])] -> n2_2:BIGINT, n2_3:DECIMAL(22, 2), n2_4:BIGINT
+    -- Aggregation[PARTIAL [n0_0] n1_1 := avg_partial("n0_1")] -> n0_0:BIGINT, n1_1:ROW<col_0:DECIMAL(22, 2),col_1:BIGINT>
+      -- TableScan[table: hive_table, range filters: [(l_partkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:DECIMAL(12, 2)
 
 (17) ColumnarExchange
 Input [4]: [hash_partition_key#X, l_partkey#X, sum#X, count#X]
@@ -160,6 +168,12 @@ Arguments: isnotnull((0.2 * avg(l_quantity))#X)
 (23) WholeStageCodegenTransformer (X)
 Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
 Arguments: false
+Native Plan:
+-- Filter[expression: isnotnull("n3_2")] -> n3_2:DECIMAL(18, 7), n3_3:BIGINT
+  -- Project[expressions: (n3_2:DECIMAL(18, 7), try_cast multiply(0.200000,"n2_1") as DECIMAL(18, 7)), (n3_3:BIGINT, "n1_3")] -> n3_2:DECIMAL(18, 7), n3_3:BIGINT
+    -- Aggregation[SINGLE [n1_3] n2_1 := avg_merge_extract("n1_4")] -> n1_3:BIGINT, n2_1:DECIMAL(16, 6)
+      -- Project[expressions: (n1_3:BIGINT, "n0_0"), (n1_4:ROW<col_0:DECIMAL(22, 2),col_1:BIGINT>, row_constructor("n0_1","n0_2"))] -> n1_3:BIGINT, n1_4:ROW<col_0:DECIMAL(22, 2),col_1:BIGINT>
+        -- ValueStream[] -> n0_0:BIGINT, n0_1:DECIMAL(22, 2), n0_2:BIGINT
 
 (24) ColumnarBroadcastExchange
 Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
@@ -191,6 +205,18 @@ Results [2]: [sum#X, isEmpty#X]
 (30) WholeStageCodegenTransformer (X)
 Input [2]: [sum#X, isEmpty#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n10_1:DECIMAL(22, 2), "n9_0"["col_0"]), (n10_2:BOOLEAN, "n9_0"["col_1"])] -> n10_1:DECIMAL(22, 2), n10_2:BOOLEAN
+  -- Aggregation[PARTIAL n9_0 := sum_partial("n8_5")] -> n9_0:ROW<col_0:DECIMAL(22, 2),col_1:BOOLEAN>
+    -- Project[expressions: (n8_5:DECIMAL(12, 2), "n7_6")] -> n8_5:DECIMAL(12, 2)
+      -- Project[expressions: (n7_5:DECIMAL(12, 2), "n5_4"), (n7_6:DECIMAL(12, 2), "n5_5"), (n7_7:BIGINT, "n5_6"), (n7_8:DECIMAL(18, 7), "n1_0"), (n7_9:BIGINT, "n1_1")] -> n7_5:DECIMAL(12, 2), n7_6:DECIMAL(12, 2), n7_7:BIGINT, n7_8:DECIMAL(18, 7), n7_9:BIGINT
+        -- HashJoin[INNER n5_6=n1_1, filter: decimal_lessthan(try_cast "n5_4" as DECIMAL(18, 7),"n1_0")] -> n5_4:DECIMAL(12, 2), n5_5:DECIMAL(12, 2), n5_6:BIGINT, n1_0:DECIMAL(18, 7), n1_1:BIGINT
+          -- Project[expressions: (n5_4:DECIMAL(12, 2), "n4_5"), (n5_5:DECIMAL(12, 2), "n4_6"), (n5_6:BIGINT, "n4_7")] -> n5_4:DECIMAL(12, 2), n5_5:DECIMAL(12, 2), n5_6:BIGINT
+            -- Project[expressions: (n4_4:BIGINT, "n2_0"), (n4_5:DECIMAL(12, 2), "n2_1"), (n4_6:DECIMAL(12, 2), "n2_2"), (n4_7:BIGINT, "n0_0")] -> n4_4:BIGINT, n4_5:DECIMAL(12, 2), n4_6:DECIMAL(12, 2), n4_7:BIGINT
+              -- HashJoin[INNER n2_0=n0_0] -> n2_0:BIGINT, n2_1:DECIMAL(12, 2), n2_2:DECIMAL(12, 2), n0_0:BIGINT
+                -- TableScan[table: hive_table, range filters: [(l_partkey, Filter(IsNotNull, deterministic, null not allowed)), (l_quantity, Filter(IsNotNull, deterministic, null not allowed))]] -> n2_0:BIGINT, n2_1:DECIMAL(12, 2), n2_2:DECIMAL(12, 2)
+                -- ValueStream[] -> n0_0:BIGINT
+          -- ValueStream[] -> n1_0:DECIMAL(18, 7), n1_1:BIGINT
 
 (31) ColumnarExchange
 Input [2]: [sum#X, isEmpty#X]
@@ -213,6 +239,11 @@ Results [1]: [CheckOverflow((promote_precision(sum(l_extendedprice#X)#X) / 7.00)
 (35) WholeStageCodegenTransformer (X)
 Input [1]: [avg_yearly#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n3_1:DECIMAL(27, 6), try_cast divide("n2_0",try_cast 7.00 as DECIMAL(1, 0)) as DECIMAL(27, 6))] -> n3_1:DECIMAL(27, 6)
+  -- Aggregation[SINGLE n2_0 := sum_merge_extract("n1_2")] -> n2_0:DECIMAL(22, 2)
+    -- Project[expressions: (n1_2:ROW<col_0:DECIMAL(22, 2),col_1:BOOLEAN>, row_constructor("n0_0","n0_1"))] -> n1_2:ROW<col_0:DECIMAL(22, 2),col_1:BOOLEAN>
+      -- ValueStream[] -> n0_0:DECIMAL(22, 2), n0_1:BOOLEAN
 
 (36) VeloxColumnarToRowExec
 Input [1]: [avg_yearly#X]

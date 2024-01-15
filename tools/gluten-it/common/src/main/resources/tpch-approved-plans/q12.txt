@@ -54,6 +54,8 @@ Arguments: isnotnull(o_orderkey#X)
 (3) WholeStageCodegenTransformer (X)
 Input [2]: [o_orderkey#X, o_orderpriority#X]
 Arguments: false
+Native Plan:
+-- TableScan[table: hive_table, range filters: [(o_orderkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:VARCHAR
 
 (4) ColumnarBroadcastExchange
 Input [2]: [o_orderkey#X, o_orderpriority#X]
@@ -104,6 +106,16 @@ Arguments: [hash(l_shipmode#X, 42) AS hash_partition_key#X, l_shipmode#X, sum#X,
 (14) WholeStageCodegenTransformer (X)
 Input [4]: [hash_partition_key#X, l_shipmode#X, sum#X, sum#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n8_3:INTEGER, hash_with_seed(42,"n6_2")), (n8_4:VARCHAR, "n6_2"), (n8_5:BIGINT, "n7_1"), (n8_6:BIGINT, "n7_2")] -> n8_3:INTEGER, n8_4:VARCHAR, n8_5:BIGINT, n8_6:BIGINT
+  -- Aggregation[PARTIAL [n6_2] n7_1 := sum_partial("n6_3"), n7_2 := sum_partial("n6_4")] -> n6_2:VARCHAR, n7_1:BIGINT, n7_2:BIGINT
+    -- Project[expressions: (n6_2:VARCHAR, "n5_5"), (n6_3:INTEGER, if(or(equalto("n5_4","1-URGENT"),equalto("n5_4","2-HIGH")),1,0)), (n6_4:INTEGER, if(and(not(equalto("n5_4","1-URGENT")),not(equalto("n5_4","2-HIGH"))),1,0))] -> n6_2:VARCHAR, n6_3:INTEGER, n6_4:INTEGER
+      -- Project[expressions: (n5_4:VARCHAR, "n4_5"), (n5_5:VARCHAR, "n4_7")] -> n5_4:VARCHAR, n5_5:VARCHAR
+        -- Project[expressions: (n4_4:BIGINT, "n0_0"), (n4_5:VARCHAR, "n0_1"), (n4_6:BIGINT, "n2_5"), (n4_7:VARCHAR, "n2_6")] -> n4_4:BIGINT, n4_5:VARCHAR, n4_6:BIGINT, n4_7:VARCHAR
+          -- HashJoin[INNER n2_5=n0_0] -> n2_5:BIGINT, n2_6:VARCHAR, n0_0:BIGINT, n0_1:VARCHAR
+            -- Project[expressions: (n2_5:BIGINT, "n1_0"), (n2_6:VARCHAR, "n1_3")] -> n2_5:BIGINT, n2_6:VARCHAR
+              -- TableScan[table: hive_table, range filters: [(l_commitdate, Filter(IsNotNull, deterministic, null not allowed)), (l_orderkey, Filter(IsNotNull, deterministic, null not allowed)), (l_receiptdate, BigintRange: [8766, 9130] no nulls), (l_shipdate, Filter(IsNotNull, deterministic, null not allowed)), (l_shipmode, Filter(BytesValues, deterministic, null not allowed))], remaining filter: (and(lessthan("l_commitdate","l_receiptdate"),lessthan("l_shipdate","l_commitdate")))] -> n1_0:BIGINT, n1_1:DATE, n1_2:DATE, n1_3:VARCHAR, n1_4:DATE
+            -- ValueStream[] -> n0_0:BIGINT, n0_1:VARCHAR
 
 (15) ColumnarExchange
 Input [4]: [hash_partition_key#X, l_shipmode#X, sum#X, sum#X]
@@ -130,6 +142,10 @@ Results [3]: [l_shipmode#X, sum(CASE WHEN ((o_orderpriority#X = 1-URGENT) OR (o_
 (20) WholeStageCodegenTransformer (X)
 Input [3]: [l_shipmode#X, high_line_count#X, low_line_count#X]
 Arguments: false
+Native Plan:
+-- Project[expressions: (n2_3:VARCHAR, "n0_0"), (n2_4:BIGINT, "n1_1"), (n2_5:BIGINT, "n1_2")] -> n2_3:VARCHAR, n2_4:BIGINT, n2_5:BIGINT
+  -- Aggregation[SINGLE [n0_0] n1_1 := sum_merge_extract("n0_1"), n1_2 := sum_merge_extract("n0_2")] -> n0_0:VARCHAR, n1_1:BIGINT, n1_2:BIGINT
+    -- ValueStream[] -> n0_0:VARCHAR, n0_1:BIGINT, n0_2:BIGINT
 
 (21) ColumnarExchange
 Input [3]: [l_shipmode#X, high_line_count#X, low_line_count#X]
@@ -153,6 +169,9 @@ Arguments: [l_shipmode#X ASC NULLS FIRST], true, 0
 (26) WholeStageCodegenTransformer (X)
 Input [3]: [l_shipmode#X, high_line_count#X, low_line_count#X]
 Arguments: false
+Native Plan:
+-- OrderBy[n0_0 ASC NULLS FIRST] -> n0_0:VARCHAR, n0_1:BIGINT, n0_2:BIGINT
+  -- ValueStream[] -> n0_0:VARCHAR, n0_1:BIGINT, n0_2:BIGINT
 
 (27) VeloxColumnarToRowExec
 Input [3]: [l_shipmode#X, high_line_count#X, low_line_count#X]

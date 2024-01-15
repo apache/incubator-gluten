@@ -100,7 +100,7 @@ Native Plan:
       -- Project[expressions: (n4_3:VARCHAR, substring("n3_4",1,2)), (n4_4:DECIMAL(12, 2), "n3_5")] -> n4_3:VARCHAR, n4_4:DECIMAL(12, 2)
         -- Project[expressions: (n3_3:BIGINT, "n1_0"), (n3_4:VARCHAR, "n1_1"), (n3_5:DECIMAL(12, 2), "n1_2")] -> n3_3:BIGINT, n3_4:VARCHAR, n3_5:DECIMAL(12, 2)
           -- HashJoin[ANTI n1_0=n0_0] -> n1_0:BIGINT, n1_1:VARCHAR, n1_2:DECIMAL(12, 2)
-            -- TableScan[table: hive_table, range filters: [(c_acctbal, Filter(IsNotNull, deterministic, null not allowed))], remaining filter: (and(decimal_greaterthan(try_cast "c_acctbal" as DECIMAL(16, 6),4989.499971),in(substring("c_phone",1,2),7 elements starting at 0 {13, 30, 31, 29, 18, ...})))] -> n1_0:BIGINT, n1_1:VARCHAR, n1_2:DECIMAL(12, 2)
+            -- TableScan[table: hive_table, range filters: [(c_acctbal, Filter(IsNotNull, deterministic, null not allowed))], remaining filter: (and(decimal_greaterthan(try_cast "c_acctbal" as DECIMAL(16, 6),4989.499971),in(substring("c_phone",1,2),7 elements starting at 0 {17, 29, 30, 18, 23, ...})))] -> n1_0:BIGINT, n1_1:VARCHAR, n1_2:DECIMAL(12, 2)
             -- ValueStream[] -> n0_0:BIGINT
 
 (13) ColumnarExchange
@@ -275,7 +275,7 @@ Native Plan:
 -- Project[expressions: (n3_1:DECIMAL(22, 2), "n2_0"["col_0"]), (n3_2:BIGINT, "n2_0"["col_1"])] -> n3_1:DECIMAL(22, 2), n3_2:BIGINT
   -- Aggregation[PARTIAL n2_0 := avg_partial("n1_2")] -> n2_0:ROW<col_0:DECIMAL(22, 2),col_1:BIGINT>
     -- Project[expressions: (n1_2:DECIMAL(12, 2), "n0_1")] -> n1_2:DECIMAL(12, 2)
-      -- TableScan[table: hive_table, range filters: [(c_acctbal, BigintRange: [1, 999999999999999999] no nulls)], remaining filter: (in(substring("c_phone",1,2),7 elements starting at 0 {30, 13, 18, 23, 31, ...}))] -> n0_0:VARCHAR, n0_1:DECIMAL(12, 2)
+      -- TableScan[table: hive_table, range filters: [(c_acctbal, BigintRange: [1, 999999999999999999] no nulls)], remaining filter: (in(substring("c_phone",1,2),7 elements starting at 0 {30, 23, 31, 13, 18, ...}))] -> n0_0:VARCHAR, n0_1:DECIMAL(12, 2)
 
 (43) ColumnarExchange
 Input [2]: [sum#X, count#X]
