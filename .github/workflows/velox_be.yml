@@ -64,7 +64,7 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --run_setup_scipts=OFF --velox_home=/opt/velox --enable_ep_cache=ON --build_test_utils=ON'
+          ./build_velox.sh --run_setup_scipt=OFF --velox_home=/opt/velox --enable_ep_cache=ON --build_test_utils=ON'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -111,7 +111,7 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --run_setup_scipts=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
+          ./build_velox.sh --run_setup_scipt=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -150,7 +150,7 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --run_setup_scipts=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
+          ./build_velox.sh --run_setup_scipt=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -198,7 +198,7 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --run_setup_scipts=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
+          ./build_velox.sh --run_setup_scipt=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -229,7 +229,7 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --run_setup_scipts=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
+          ./build_velox.sh --run_setup_scipt=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -267,7 +267,7 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --run_setup_scipts=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
+          ./build_velox.sh --run_setup_scipt=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -298,7 +298,7 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON && \
-          ./build_velox.sh --run_setup_scipts=OFF --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
+          ./build_velox.sh --run_setup_scipt=OFF --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -350,7 +350,7 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON && \
-          ./build_velox.sh --run_setup_scipts=OFF --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
+          ./build_velox.sh --run_setup_scipt=OFF --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -405,7 +405,7 @@ jobs:
           sudo yum -y install patch && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON && \
-          ./build_velox.sh --run_setup_scipts=OFF --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
+          ./build_velox.sh --run_setup_scipt=OFF --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -454,7 +454,7 @@ jobs:
           yum -y install epel-release centos-release-scl patch sudo && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON && \
-          ./build_velox.sh --run_setup_scipts=OFF --velox_home=/opt/velox --enable_ep_cache=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON --enable_hdfs=ON'
+          ./build_velox.sh --run_setup_scipt=OFF --velox_home=/opt/velox --enable_ep_cache=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON --enable_hdfs=ON'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
