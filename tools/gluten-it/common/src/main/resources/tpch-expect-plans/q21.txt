@@ -6,7 +6,7 @@ AdaptiveSparkPlan (87)
       +- ^ RegularHashAggregateExecTransformer (51)
          +- ^ InputIteratorTransformer (50)
             +- AQEShuffleRead (49)
-               +- ShuffleQueryStage (48), Statistics(***)
+               +- ShuffleQueryStage (48), Statistics(X)
                   +- ColumnarExchange (47)
                      +- ^ ProjectExecTransformer (45)
                         +- ^ FlushableHashAggregateExecTransformer (44)
@@ -17,7 +17,7 @@ AdaptiveSparkPlan (87)
                                  :     :- ^ ProjectExecTransformer (25)
                                  :     :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (24)
                                  :     :     :- ^ InputIteratorTransformer (6)
-                                 :     :     :  +- BroadcastQueryStage (5), Statistics(***)
+                                 :     :     :  +- BroadcastQueryStage (5), Statistics(X)
                                  :     :     :     +- ColumnarBroadcastExchange (4)
                                  :     :     :        +- ^ FilterExecTransformer (2)
                                  :     :     :           +- ^ Scan parquet default.supplier (1)
@@ -27,23 +27,23 @@ AdaptiveSparkPlan (87)
                                  :     :        :  :  +- ^ FilterExecTransformer (8)
                                  :     :        :  :     +- ^ Scan parquet default.lineitem (7)
                                  :     :        :  +- ^ InputIteratorTransformer (14)
-                                 :     :        :     +- BroadcastQueryStage (13), Statistics(***)
+                                 :     :        :     +- BroadcastQueryStage (13), Statistics(X)
                                  :     :        :        +- ColumnarBroadcastExchange (12)
                                  :     :        :           +- ^ Scan parquet default.lineitem (10)
                                  :     :        +- ^ InputIteratorTransformer (22)
-                                 :     :           +- BroadcastQueryStage (21), Statistics(***)
+                                 :     :           +- BroadcastQueryStage (21), Statistics(X)
                                  :     :              +- ColumnarBroadcastExchange (20)
                                  :     :                 +- ^ ProjectExecTransformer (18)
                                  :     :                    +- ^ FilterExecTransformer (17)
                                  :     :                       +- ^ Scan parquet default.lineitem (16)
                                  :     +- ^ InputIteratorTransformer (32)
-                                 :        +- BroadcastQueryStage (31), Statistics(***)
+                                 :        +- BroadcastQueryStage (31), Statistics(X)
                                  :           +- ColumnarBroadcastExchange (30)
                                  :              +- ^ ProjectExecTransformer (28)
                                  :                 +- ^ FilterExecTransformer (27)
                                  :                    +- ^ Scan parquet default.orders (26)
                                  +- ^ InputIteratorTransformer (41)
-                                    +- BroadcastQueryStage (40), Statistics(***)
+                                    +- BroadcastQueryStage (40), Statistics(X)
                                        +- ColumnarBroadcastExchange (39)
                                           +- ^ ProjectExecTransformer (37)
                                              +- ^ FilterExecTransformer (36)
@@ -84,398 +84,398 @@ AdaptiveSparkPlan (87)
 
 
 (1) Scan parquet default.supplier
-Output [3]: [s_suppkey#***, s_name#***, s_nationkey#***]
+Output [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
 PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
 ReadSchema: struct<s_suppkey:bigint,s_name:string,s_nationkey:bigint>
 
 (2) FilterExecTransformer
-Input [3]: [s_suppkey#***, s_name#***, s_nationkey#***]
-Arguments: (isnotnull(s_suppkey#***) AND isnotnull(s_nationkey#***))
+Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
+Arguments: (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
 
-(3) WholeStageCodegenTransformer (130)
-Input [3]: [s_suppkey#***, s_name#***, s_nationkey#***]
+(3) WholeStageCodegenTransformer (129)
+Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
 Arguments: false
 
 (4) ColumnarBroadcastExchange
-Input [3]: [s_suppkey#***, s_name#***, s_nationkey#***]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
 
 (5) BroadcastQueryStage
-Output [3]: [s_suppkey#***, s_name#***, s_nationkey#***]
+Output [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
 Arguments: 0
 
 (6) InputIteratorTransformer
-Input [3]: [s_suppkey#***, s_name#***, s_nationkey#***]
+Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
 
 (7) Scan parquet default.lineitem
-Output [4]: [l_orderkey#***, l_suppkey#***, l_commitdate#***, l_receiptdate#***]
+Output [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
 PushedFilters: [IsNotNull(l_receiptdate), IsNotNull(l_commitdate), IsNotNull(l_suppkey), IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint,l_commitdate:date,l_receiptdate:date>
 
 (8) FilterExecTransformer
-Input [4]: [l_orderkey#***, l_suppkey#***, l_commitdate#***, l_receiptdate#***]
-Arguments: ((((isnotnull(l_receiptdate#***) AND isnotnull(l_commitdate#***)) AND (l_receiptdate#*** > l_commitdate#***)) AND isnotnull(l_suppkey#***)) AND isnotnull(l_orderkey#***))
+Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
+Arguments: ((((isnotnull(l_receiptdate#X) AND isnotnull(l_commitdate#X)) AND (l_receiptdate#X > l_commitdate#X)) AND isnotnull(l_suppkey#X)) AND isnotnull(l_orderkey#X))
 
 (9) ProjectExecTransformer
-Input [4]: [l_orderkey#***, l_suppkey#***, l_commitdate#***, l_receiptdate#***]
-Arguments: [l_orderkey#***, l_suppkey#***]
+Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
+Arguments: [l_orderkey#X, l_suppkey#X]
 
 (10) Scan parquet default.lineitem
-Output [2]: [l_orderkey#***, l_suppkey#***]
+Output [2]: [l_orderkey#X, l_suppkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
 ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint>
 
-(11) WholeStageCodegenTransformer (131)
-Input [2]: [l_orderkey#***, l_suppkey#***]
+(11) WholeStageCodegenTransformer (130)
+Input [2]: [l_orderkey#X, l_suppkey#X]
 Arguments: false
 
 (12) ColumnarBroadcastExchange
-Input [2]: [l_orderkey#***, l_suppkey#***]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+Input [2]: [l_orderkey#X, l_suppkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
 (13) BroadcastQueryStage
-Output [2]: [l_orderkey#***, l_suppkey#***]
+Output [2]: [l_orderkey#X, l_suppkey#X]
 Arguments: 1
 
 (14) InputIteratorTransformer
-Input [2]: [l_orderkey#***, l_suppkey#***]
+Input [2]: [l_orderkey#X, l_suppkey#X]
 
 (15) GlutenBroadcastHashJoinExecTransformer
-Left keys [1]: [l_orderkey#***]
-Right keys [1]: [l_orderkey#***]
-Join condition: NOT (l_suppkey#*** = l_suppkey#***)
+Left keys [1]: [l_orderkey#X]
+Right keys [1]: [l_orderkey#X]
+Join condition: NOT (l_suppkey#X = l_suppkey#X)
 
 (16) Scan parquet default.lineitem
-Output [4]: [l_orderkey#***, l_suppkey#***, l_commitdate#***, l_receiptdate#***]
+Output [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
 PushedFilters: [IsNotNull(l_receiptdate), IsNotNull(l_commitdate)]
 ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint,l_commitdate:date,l_receiptdate:date>
 
 (17) FilterExecTransformer
-Input [4]: [l_orderkey#***, l_suppkey#***, l_commitdate#***, l_receiptdate#***]
-Arguments: ((isnotnull(l_receiptdate#***) AND isnotnull(l_commitdate#***)) AND (l_receiptdate#*** > l_commitdate#***))
+Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
+Arguments: ((isnotnull(l_receiptdate#X) AND isnotnull(l_commitdate#X)) AND (l_receiptdate#X > l_commitdate#X))
 
 (18) ProjectExecTransformer
-Input [4]: [l_orderkey#***, l_suppkey#***, l_commitdate#***, l_receiptdate#***]
-Arguments: [l_orderkey#***, l_suppkey#***]
+Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
+Arguments: [l_orderkey#X, l_suppkey#X]
 
-(19) WholeStageCodegenTransformer (132)
-Input [2]: [l_orderkey#***, l_suppkey#***]
+(19) WholeStageCodegenTransformer (131)
+Input [2]: [l_orderkey#X, l_suppkey#X]
 Arguments: false
 
 (20) ColumnarBroadcastExchange
-Input [2]: [l_orderkey#***, l_suppkey#***]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+Input [2]: [l_orderkey#X, l_suppkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
 (21) BroadcastQueryStage
-Output [2]: [l_orderkey#***, l_suppkey#***]
+Output [2]: [l_orderkey#X, l_suppkey#X]
 Arguments: 2
 
 (22) InputIteratorTransformer
-Input [2]: [l_orderkey#***, l_suppkey#***]
+Input [2]: [l_orderkey#X, l_suppkey#X]
 
 (23) GlutenBroadcastHashJoinExecTransformer
-Left keys [1]: [l_orderkey#***]
-Right keys [1]: [l_orderkey#***]
-Join condition: NOT (l_suppkey#*** = l_suppkey#***)
+Left keys [1]: [l_orderkey#X]
+Right keys [1]: [l_orderkey#X]
+Join condition: NOT (l_suppkey#X = l_suppkey#X)
 
 (24) GlutenBroadcastHashJoinExecTransformer
-Left keys [1]: [s_suppkey#***]
-Right keys [1]: [l_suppkey#***]
+Left keys [1]: [s_suppkey#X]
+Right keys [1]: [l_suppkey#X]
 Join condition: None
 
 (25) ProjectExecTransformer
-Input [5]: [s_suppkey#***, s_name#***, s_nationkey#***, l_orderkey#***, l_suppkey#***]
-Arguments: [s_name#***, s_nationkey#***, l_orderkey#***]
+Input [5]: [s_suppkey#X, s_name#X, s_nationkey#X, l_orderkey#X, l_suppkey#X]
+Arguments: [s_name#X, s_nationkey#X, l_orderkey#X]
 
 (26) Scan parquet default.orders
-Output [2]: [o_orderkey#***, o_orderstatus#***]
+Output [2]: [o_orderkey#X, o_orderstatus#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
 PushedFilters: [IsNotNull(o_orderstatus), EqualTo(o_orderstatus,F), IsNotNull(o_orderkey)]
 ReadSchema: struct<o_orderkey:bigint,o_orderstatus:string>
 
 (27) FilterExecTransformer
-Input [2]: [o_orderkey#***, o_orderstatus#***]
-Arguments: ((isnotnull(o_orderstatus#***) AND (o_orderstatus#*** = F)) AND isnotnull(o_orderkey#***))
+Input [2]: [o_orderkey#X, o_orderstatus#X]
+Arguments: ((isnotnull(o_orderstatus#X) AND (o_orderstatus#X = F)) AND isnotnull(o_orderkey#X))
 
 (28) ProjectExecTransformer
-Input [2]: [o_orderkey#***, o_orderstatus#***]
-Arguments: [o_orderkey#***]
+Input [2]: [o_orderkey#X, o_orderstatus#X]
+Arguments: [o_orderkey#X]
 
-(29) WholeStageCodegenTransformer (133)
-Input [1]: [o_orderkey#***]
+(29) WholeStageCodegenTransformer (132)
+Input [1]: [o_orderkey#X]
 Arguments: false
 
 (30) ColumnarBroadcastExchange
-Input [1]: [o_orderkey#***]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+Input [1]: [o_orderkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
 (31) BroadcastQueryStage
-Output [1]: [o_orderkey#***]
+Output [1]: [o_orderkey#X]
 Arguments: 3
 
 (32) InputIteratorTransformer
-Input [1]: [o_orderkey#***]
+Input [1]: [o_orderkey#X]
 
 (33) GlutenBroadcastHashJoinExecTransformer
-Left keys [1]: [l_orderkey#***]
-Right keys [1]: [o_orderkey#***]
+Left keys [1]: [l_orderkey#X]
+Right keys [1]: [o_orderkey#X]
 Join condition: None
 
 (34) ProjectExecTransformer
-Input [4]: [s_name#***, s_nationkey#***, l_orderkey#***, o_orderkey#***]
-Arguments: [s_name#***, s_nationkey#***]
+Input [4]: [s_name#X, s_nationkey#X, l_orderkey#X, o_orderkey#X]
+Arguments: [s_name#X, s_nationkey#X]
 
 (35) Scan parquet default.nation
-Output [2]: [n_nationkey#***, n_name#***]
+Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
 PushedFilters: [IsNotNull(n_name), EqualTo(n_name,SAUDI ARABIA), IsNotNull(n_nationkey)]
 ReadSchema: struct<n_nationkey:bigint,n_name:string>
 
 (36) FilterExecTransformer
-Input [2]: [n_nationkey#***, n_name#***]
-Arguments: ((isnotnull(n_name#***) AND (n_name#*** = SAUDI ARABIA)) AND isnotnull(n_nationkey#***))
+Input [2]: [n_nationkey#X, n_name#X]
+Arguments: ((isnotnull(n_name#X) AND (n_name#X = SAUDI ARABIA)) AND isnotnull(n_nationkey#X))
 
 (37) ProjectExecTransformer
-Input [2]: [n_nationkey#***, n_name#***]
-Arguments: [n_nationkey#***]
+Input [2]: [n_nationkey#X, n_name#X]
+Arguments: [n_nationkey#X]
 
-(38) WholeStageCodegenTransformer (134)
-Input [1]: [n_nationkey#***]
+(38) WholeStageCodegenTransformer (133)
+Input [1]: [n_nationkey#X]
 Arguments: false
 
 (39) ColumnarBroadcastExchange
-Input [1]: [n_nationkey#***]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+Input [1]: [n_nationkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
 (40) BroadcastQueryStage
-Output [1]: [n_nationkey#***]
+Output [1]: [n_nationkey#X]
 Arguments: 4
 
 (41) InputIteratorTransformer
-Input [1]: [n_nationkey#***]
+Input [1]: [n_nationkey#X]
 
 (42) GlutenBroadcastHashJoinExecTransformer
-Left keys [1]: [s_nationkey#***]
-Right keys [1]: [n_nationkey#***]
+Left keys [1]: [s_nationkey#X]
+Right keys [1]: [n_nationkey#X]
 Join condition: None
 
 (43) ProjectExecTransformer
-Input [3]: [s_name#***, s_nationkey#***, n_nationkey#***]
-Arguments: [s_name#***]
+Input [3]: [s_name#X, s_nationkey#X, n_nationkey#X]
+Arguments: [s_name#X]
 
 (44) FlushableHashAggregateExecTransformer
-Input [1]: [s_name#***]
-Keys [1]: [s_name#***]
+Input [1]: [s_name#X]
+Keys [1]: [s_name#X]
 Functions [1]: [partial_count(1)]
-Aggregate Attributes [1]: [count#***]
-Results [2]: [s_name#***, count#***]
+Aggregate Attributes [1]: [count#X]
+Results [2]: [s_name#X, count#X]
 
 (45) ProjectExecTransformer
-Input [2]: [s_name#***, count#***]
-Arguments: [hash(s_name#***, 42) AS hash_partition_key#***, s_name#***, count#***]
+Input [2]: [s_name#X, count#X]
+Arguments: [hash(s_name#X, 42) AS hash_partition_key#X, s_name#X, count#X]
 
-(46) WholeStageCodegenTransformer (135)
-Input [3]: [hash_partition_key#***, s_name#***, count#***]
+(46) WholeStageCodegenTransformer (134)
+Input [3]: [hash_partition_key#X, s_name#X, count#X]
 Arguments: false
 
 (47) ColumnarExchange
-Input [3]: [hash_partition_key#***, s_name#***, count#***]
-Arguments: hashpartitioning(s_name#***, 100), ENSURE_REQUIREMENTS, [s_name#***, count#***], [plan_id=***], [id=#***]
+Input [3]: [hash_partition_key#X, s_name#X, count#X]
+Arguments: hashpartitioning(s_name#X, 100), ENSURE_REQUIREMENTS, [s_name#X, count#X], [plan_id=X], [id=#X]
 
 (48) ShuffleQueryStage
-Output [2]: [s_name#***, count#***]
+Output [2]: [s_name#X, count#X]
 Arguments: 5
 
 (49) AQEShuffleRead
-Input [2]: [s_name#***, count#***]
+Input [2]: [s_name#X, count#X]
 Arguments: coalesced
 
 (50) InputIteratorTransformer
-Input [2]: [s_name#***, count#***]
+Input [2]: [s_name#X, count#X]
 
 (51) RegularHashAggregateExecTransformer
-Input [2]: [s_name#***, count#***]
-Keys [1]: [s_name#***]
+Input [2]: [s_name#X, count#X]
+Keys [1]: [s_name#X]
 Functions [1]: [count(1)]
-Aggregate Attributes [1]: [count(1)#***]
-Results [2]: [s_name#***, count(1)#*** AS numwait#***]
+Aggregate Attributes [1]: [count(1)#X]
+Results [2]: [s_name#X, count(1)#X AS numwait#X]
 
-(52) WholeStageCodegenTransformer (136)
-Input [2]: [s_name#***, numwait#***]
+(52) WholeStageCodegenTransformer (135)
+Input [2]: [s_name#X, numwait#X]
 Arguments: false
 
 (53) TakeOrderedAndProjectExecTransformer
-Input [2]: [s_name#***, numwait#***]
-Arguments: 100, [numwait#*** DESC NULLS LAST, s_name#*** ASC NULLS FIRST], [s_name#***, numwait#***]
+Input [2]: [s_name#X, numwait#X]
+Arguments: 100, [numwait#X DESC NULLS LAST, s_name#X ASC NULLS FIRST], [s_name#X, numwait#X]
 
 (54) VeloxColumnarToRowExec
-Input [2]: [s_name#***, numwait#***]
+Input [2]: [s_name#X, numwait#X]
 
 (55) Scan parquet default.supplier
-Output [3]: [s_suppkey#***, s_name#***, s_nationkey#***]
+Output [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/supplier]
 PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
 ReadSchema: struct<s_suppkey:bigint,s_name:string,s_nationkey:bigint>
 
 (56) Filter
-Input [3]: [s_suppkey#***, s_name#***, s_nationkey#***]
-Condition : (isnotnull(s_suppkey#***) AND isnotnull(s_nationkey#***))
+Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
+Condition : (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
 
 (57) BroadcastExchange
-Input [3]: [s_suppkey#***, s_name#***, s_nationkey#***]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
 
 (58) Scan parquet default.lineitem
-Output [4]: [l_orderkey#***, l_suppkey#***, l_commitdate#***, l_receiptdate#***]
+Output [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
 PushedFilters: [IsNotNull(l_receiptdate), IsNotNull(l_commitdate), IsNotNull(l_suppkey), IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint,l_commitdate:date,l_receiptdate:date>
 
 (59) Filter
-Input [4]: [l_orderkey#***, l_suppkey#***, l_commitdate#***, l_receiptdate#***]
-Condition : ((((isnotnull(l_receiptdate#***) AND isnotnull(l_commitdate#***)) AND (l_receiptdate#*** > l_commitdate#***)) AND isnotnull(l_suppkey#***)) AND isnotnull(l_orderkey#***))
+Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
+Condition : ((((isnotnull(l_receiptdate#X) AND isnotnull(l_commitdate#X)) AND (l_receiptdate#X > l_commitdate#X)) AND isnotnull(l_suppkey#X)) AND isnotnull(l_orderkey#X))
 
 (60) Project
-Output [2]: [l_orderkey#***, l_suppkey#***]
-Input [4]: [l_orderkey#***, l_suppkey#***, l_commitdate#***, l_receiptdate#***]
+Output [2]: [l_orderkey#X, l_suppkey#X]
+Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 
 (61) Scan parquet default.lineitem
-Output [2]: [l_orderkey#***, l_suppkey#***]
+Output [2]: [l_orderkey#X, l_suppkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
 ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint>
 
 (62) BroadcastExchange
-Input [2]: [l_orderkey#***, l_suppkey#***]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+Input [2]: [l_orderkey#X, l_suppkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
 (63) BroadcastHashJoin
-Left keys [1]: [l_orderkey#***]
-Right keys [1]: [l_orderkey#***]
-Join condition: NOT (l_suppkey#*** = l_suppkey#***)
+Left keys [1]: [l_orderkey#X]
+Right keys [1]: [l_orderkey#X]
+Join condition: NOT (l_suppkey#X = l_suppkey#X)
 
 (64) Scan parquet default.lineitem
-Output [4]: [l_orderkey#***, l_suppkey#***, l_commitdate#***, l_receiptdate#***]
+Output [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
 PushedFilters: [IsNotNull(l_receiptdate), IsNotNull(l_commitdate)]
 ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint,l_commitdate:date,l_receiptdate:date>
 
 (65) Filter
-Input [4]: [l_orderkey#***, l_suppkey#***, l_commitdate#***, l_receiptdate#***]
-Condition : ((isnotnull(l_receiptdate#***) AND isnotnull(l_commitdate#***)) AND (l_receiptdate#*** > l_commitdate#***))
+Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
+Condition : ((isnotnull(l_receiptdate#X) AND isnotnull(l_commitdate#X)) AND (l_receiptdate#X > l_commitdate#X))
 
 (66) Project
-Output [2]: [l_orderkey#***, l_suppkey#***]
-Input [4]: [l_orderkey#***, l_suppkey#***, l_commitdate#***, l_receiptdate#***]
+Output [2]: [l_orderkey#X, l_suppkey#X]
+Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 
 (67) BroadcastExchange
-Input [2]: [l_orderkey#***, l_suppkey#***]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+Input [2]: [l_orderkey#X, l_suppkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
 (68) BroadcastHashJoin
-Left keys [1]: [l_orderkey#***]
-Right keys [1]: [l_orderkey#***]
-Join condition: NOT (l_suppkey#*** = l_suppkey#***)
+Left keys [1]: [l_orderkey#X]
+Right keys [1]: [l_orderkey#X]
+Join condition: NOT (l_suppkey#X = l_suppkey#X)
 
 (69) BroadcastHashJoin
-Left keys [1]: [s_suppkey#***]
-Right keys [1]: [l_suppkey#***]
+Left keys [1]: [s_suppkey#X]
+Right keys [1]: [l_suppkey#X]
 Join condition: None
 
 (70) Project
-Output [3]: [s_name#***, s_nationkey#***, l_orderkey#***]
-Input [5]: [s_suppkey#***, s_name#***, s_nationkey#***, l_orderkey#***, l_suppkey#***]
+Output [3]: [s_name#X, s_nationkey#X, l_orderkey#X]
+Input [5]: [s_suppkey#X, s_name#X, s_nationkey#X, l_orderkey#X, l_suppkey#X]
 
 (71) Scan parquet default.orders
-Output [2]: [o_orderkey#***, o_orderstatus#***]
+Output [2]: [o_orderkey#X, o_orderstatus#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/orders]
 PushedFilters: [IsNotNull(o_orderstatus), EqualTo(o_orderstatus,F), IsNotNull(o_orderkey)]
 ReadSchema: struct<o_orderkey:bigint,o_orderstatus:string>
 
 (72) Filter
-Input [2]: [o_orderkey#***, o_orderstatus#***]
-Condition : ((isnotnull(o_orderstatus#***) AND (o_orderstatus#*** = F)) AND isnotnull(o_orderkey#***))
+Input [2]: [o_orderkey#X, o_orderstatus#X]
+Condition : ((isnotnull(o_orderstatus#X) AND (o_orderstatus#X = F)) AND isnotnull(o_orderkey#X))
 
 (73) Project
-Output [1]: [o_orderkey#***]
-Input [2]: [o_orderkey#***, o_orderstatus#***]
+Output [1]: [o_orderkey#X]
+Input [2]: [o_orderkey#X, o_orderstatus#X]
 
 (74) BroadcastExchange
-Input [1]: [o_orderkey#***]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+Input [1]: [o_orderkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
 (75) BroadcastHashJoin
-Left keys [1]: [l_orderkey#***]
-Right keys [1]: [o_orderkey#***]
+Left keys [1]: [l_orderkey#X]
+Right keys [1]: [o_orderkey#X]
 Join condition: None
 
 (76) Project
-Output [2]: [s_name#***, s_nationkey#***]
-Input [4]: [s_name#***, s_nationkey#***, l_orderkey#***, o_orderkey#***]
+Output [2]: [s_name#X, s_nationkey#X]
+Input [4]: [s_name#X, s_nationkey#X, l_orderkey#X, o_orderkey#X]
 
 (77) Scan parquet default.nation
-Output [2]: [n_nationkey#***, n_name#***]
+Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/nation]
 PushedFilters: [IsNotNull(n_name), EqualTo(n_name,SAUDI ARABIA), IsNotNull(n_nationkey)]
 ReadSchema: struct<n_nationkey:bigint,n_name:string>
 
 (78) Filter
-Input [2]: [n_nationkey#***, n_name#***]
-Condition : ((isnotnull(n_name#***) AND (n_name#*** = SAUDI ARABIA)) AND isnotnull(n_nationkey#***))
+Input [2]: [n_nationkey#X, n_name#X]
+Condition : ((isnotnull(n_name#X) AND (n_name#X = SAUDI ARABIA)) AND isnotnull(n_nationkey#X))
 
 (79) Project
-Output [1]: [n_nationkey#***]
-Input [2]: [n_nationkey#***, n_name#***]
+Output [1]: [n_nationkey#X]
+Input [2]: [n_nationkey#X, n_name#X]
 
 (80) BroadcastExchange
-Input [1]: [n_nationkey#***]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=***]
+Input [1]: [n_nationkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
 (81) BroadcastHashJoin
-Left keys [1]: [s_nationkey#***]
-Right keys [1]: [n_nationkey#***]
+Left keys [1]: [s_nationkey#X]
+Right keys [1]: [n_nationkey#X]
 Join condition: None
 
 (82) Project
-Output [1]: [s_name#***]
-Input [3]: [s_name#***, s_nationkey#***, n_nationkey#***]
+Output [1]: [s_name#X]
+Input [3]: [s_name#X, s_nationkey#X, n_nationkey#X]
 
 (83) HashAggregate
-Input [1]: [s_name#***]
-Keys [1]: [s_name#***]
+Input [1]: [s_name#X]
+Keys [1]: [s_name#X]
 Functions [1]: [partial_count(1)]
-Aggregate Attributes [1]: [count#***]
-Results [2]: [s_name#***, count#***]
+Aggregate Attributes [1]: [count#X]
+Results [2]: [s_name#X, count#X]
 
 (84) Exchange
-Input [2]: [s_name#***, count#***]
-Arguments: hashpartitioning(s_name#***, 100), ENSURE_REQUIREMENTS, [plan_id=***]
+Input [2]: [s_name#X, count#X]
+Arguments: hashpartitioning(s_name#X, 100), ENSURE_REQUIREMENTS, [plan_id=X]
 
 (85) HashAggregate
-Input [2]: [s_name#***, count#***]
-Keys [1]: [s_name#***]
+Input [2]: [s_name#X, count#X]
+Keys [1]: [s_name#X]
 Functions [1]: [count(1)]
-Aggregate Attributes [1]: [count(1)#***]
-Results [2]: [s_name#***, count(1)#*** AS numwait#***]
+Aggregate Attributes [1]: [count(1)#X]
+Results [2]: [s_name#X, count(1)#X AS numwait#X]
 
 (86) TakeOrderedAndProject
-Input [2]: [s_name#***, numwait#***]
-Arguments: 100, [numwait#*** DESC NULLS LAST, s_name#*** ASC NULLS FIRST], [s_name#***, numwait#***]
+Input [2]: [s_name#X, numwait#X]
+Arguments: 100, [numwait#X DESC NULLS LAST, s_name#X ASC NULLS FIRST], [s_name#X, numwait#X]
 
 (87) AdaptiveSparkPlan
-Output [2]: [s_name#***, numwait#***]
+Output [2]: [s_name#X, numwait#X]
 Arguments: isFinalPlan=true

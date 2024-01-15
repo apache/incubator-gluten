@@ -4,7 +4,7 @@ AdaptiveSparkPlan (31)
    VeloxColumnarToRowExec (19)
    +- ^ RegularHashAggregateExecTransformer (17)
       +- ^ InputIteratorTransformer (16)
-         +- ShuffleQueryStage (15), Statistics(***)
+         +- ShuffleQueryStage (15), Statistics(X)
             +- ColumnarExchange (14)
                +- ^ FlushableHashAggregateExecTransformer (12)
                   +- ^ ProjectExecTransformer (11)
@@ -13,7 +13,7 @@ AdaptiveSparkPlan (31)
                         :  +- ^ FilterExecTransformer (2)
                         :     +- ^ Scan parquet default.lineitem (1)
                         +- ^ InputIteratorTransformer (9)
-                           +- BroadcastQueryStage (8), Statistics(***)
+                           +- BroadcastQueryStage (8), Statistics(X)
                               +- ColumnarBroadcastExchange (7)
                                  +- ^ FilterExecTransformer (5)
                                     +- ^ Scan parquet default.part (4)
@@ -32,148 +32,148 @@ AdaptiveSparkPlan (31)
 
 
 (1) Scan parquet default.lineitem
-Output [6]: [l_partkey#***, l_quantity#***, l_extendedprice#***, l_discount#***, l_shipinstruct#***, l_shipmode#***]
+Output [6]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_shipinstruct#X, l_shipmode#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
 PushedFilters: [IsNotNull(l_shipinstruct), In(l_shipmode, [AIR,AIR REG]), EqualTo(l_shipinstruct,DELIVER IN PERSON), IsNotNull(l_partkey), Or(Or(And(GreaterThanOrEqual(l_quantity,1.00),LessThanOrEqual(l_quantity,11.00)),And(GreaterThanOrEqual(l_quantity,10.00),LessThanOrEqual(l_quantity,20.00))),And(GreaterThanOrEqual(l_quantity,20.00),LessThanOrEqual(l_quantity,30.00)))]
 ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2),l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_shipinstruct:string,l_shipmode:string>
 
 (2) FilterExecTransformer
-Input [6]: [l_partkey#***, l_quantity#***, l_extendedprice#***, l_discount#***, l_shipinstruct#***, l_shipmode#***]
-Arguments: ((((isnotnull(l_shipinstruct#***) AND l_shipmode#*** IN (AIR,AIR REG)) AND (l_shipinstruct#*** = DELIVER IN PERSON)) AND isnotnull(l_partkey#***)) AND ((((l_quantity#*** >= 1.00) AND (l_quantity#*** <= 11.00)) OR ((l_quantity#*** >= 10.00) AND (l_quantity#*** <= 20.00))) OR ((l_quantity#*** >= 20.00) AND (l_quantity#*** <= 30.00))))
+Input [6]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_shipinstruct#X, l_shipmode#X]
+Arguments: ((((isnotnull(l_shipinstruct#X) AND l_shipmode#X IN (AIR,AIR REG)) AND (l_shipinstruct#X = DELIVER IN PERSON)) AND isnotnull(l_partkey#X)) AND ((((l_quantity#X >= 1.00) AND (l_quantity#X <= 11.00)) OR ((l_quantity#X >= 10.00) AND (l_quantity#X <= 20.00))) OR ((l_quantity#X >= 20.00) AND (l_quantity#X <= 30.00))))
 
 (3) ProjectExecTransformer
-Input [6]: [l_partkey#***, l_quantity#***, l_extendedprice#***, l_discount#***, l_shipinstruct#***, l_shipmode#***]
-Arguments: [l_partkey#***, l_quantity#***, l_extendedprice#***, l_discount#***]
+Input [6]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_shipinstruct#X, l_shipmode#X]
+Arguments: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
 
 (4) Scan parquet default.part
-Output [4]: [p_partkey#***, p_size#***, p_container#***, p_brand#***]
+Output [4]: [p_partkey#X, p_size#X, p_container#X, p_brand#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/part]
-PushedFilters: [IsNotNull(p_size), GreaterThanOrEqual(p_size,1), IsNotNull(p_partkey), Or(Or(And(And(EqualTo(p_brand,Brand#***),In(p_container, [SM BOX,SM CASE,SM PACK,SM PKG])),LessThanOrEqual(p_size,5)),And(And(EqualTo(p_brand,Brand#***),In(p_container, [MED BAG,MED BOX,MED PACK,MED PKG])),LessThanOrEqual(p_size,10))),And(And(EqualTo(p_brand,Brand#***),In(p_container, [LG BOX,LG CASE,LG PACK,LG PKG])),LessThanOrEqual(p_size,15)))]
+PushedFilters: [IsNotNull(p_size), GreaterThanOrEqual(p_size,1), IsNotNull(p_partkey), Or(Or(And(And(EqualTo(p_brand,Brand#X),In(p_container, [SM BOX,SM CASE,SM PACK,SM PKG])),LessThanOrEqual(p_size,5)),And(And(EqualTo(p_brand,Brand#X),In(p_container, [MED BAG,MED BOX,MED PACK,MED PKG])),LessThanOrEqual(p_size,10))),And(And(EqualTo(p_brand,Brand#X),In(p_container, [LG BOX,LG CASE,LG PACK,LG PKG])),LessThanOrEqual(p_size,15)))]
 ReadSchema: struct<p_partkey:bigint,p_size:int,p_container:string,p_brand:string>
 
 (5) FilterExecTransformer
-Input [4]: [p_partkey#***, p_size#***, p_container#***, p_brand#***]
-Arguments: (((isnotnull(p_size#***) AND (p_size#*** >= 1)) AND isnotnull(p_partkey#***)) AND (((((p_brand#*** = Brand#***) AND p_container#*** IN (SM CASE,SM BOX,SM PACK,SM PKG)) AND (p_size#*** <= 5)) OR (((p_brand#*** = Brand#***) AND p_container#*** IN (MED BAG,MED BOX,MED PKG,MED PACK)) AND (p_size#*** <= 10))) OR (((p_brand#*** = Brand#***) AND p_container#*** IN (LG CASE,LG BOX,LG PACK,LG PKG)) AND (p_size#*** <= 15))))
+Input [4]: [p_partkey#X, p_size#X, p_container#X, p_brand#X]
+Arguments: (((isnotnull(p_size#X) AND (p_size#X >= 1)) AND isnotnull(p_partkey#X)) AND (((((p_brand#X = Brand#X) AND p_container#X IN (SM CASE,SM BOX,SM PACK,SM PKG)) AND (p_size#X <= 5)) OR (((p_brand#X = Brand#X) AND p_container#X IN (MED BAG,MED BOX,MED PKG,MED PACK)) AND (p_size#X <= 10))) OR (((p_brand#X = Brand#X) AND p_container#X IN (LG CASE,LG BOX,LG PACK,LG PKG)) AND (p_size#X <= 15))))
 
-(6) WholeStageCodegenTransformer (116)
-Input [4]: [p_partkey#***, p_size#***, p_container#***, p_brand#***]
+(6) WholeStageCodegenTransformer (115)
+Input [4]: [p_partkey#X, p_size#X, p_container#X, p_brand#X]
 Arguments: false
 
 (7) ColumnarBroadcastExchange
-Input [4]: [p_partkey#***, p_size#***, p_container#***, p_brand#***]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+Input [4]: [p_partkey#X, p_size#X, p_container#X, p_brand#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
 
 (8) BroadcastQueryStage
-Output [4]: [p_partkey#***, p_size#***, p_container#***, p_brand#***]
+Output [4]: [p_partkey#X, p_size#X, p_container#X, p_brand#X]
 Arguments: 0
 
 (9) InputIteratorTransformer
-Input [4]: [p_partkey#***, p_size#***, p_container#***, p_brand#***]
+Input [4]: [p_partkey#X, p_size#X, p_container#X, p_brand#X]
 
 (10) GlutenBroadcastHashJoinExecTransformer
-Left keys [1]: [l_partkey#***]
-Right keys [1]: [p_partkey#***]
-Join condition: (((((((p_brand#*** = Brand#***) AND p_container#*** IN (SM CASE,SM BOX,SM PACK,SM PKG)) AND (l_quantity#*** >= 1.00)) AND (l_quantity#*** <= 11.00)) AND (p_size#*** <= 5)) OR (((((p_brand#*** = Brand#***) AND p_container#*** IN (MED BAG,MED BOX,MED PKG,MED PACK)) AND (l_quantity#*** >= 10.00)) AND (l_quantity#*** <= 20.00)) AND (p_size#*** <= 10))) OR (((((p_brand#*** = Brand#***) AND p_container#*** IN (LG CASE,LG BOX,LG PACK,LG PKG)) AND (l_quantity#*** >= 20.00)) AND (l_quantity#*** <= 30.00)) AND (p_size#*** <= 15)))
+Left keys [1]: [l_partkey#X]
+Right keys [1]: [p_partkey#X]
+Join condition: (((((((p_brand#X = Brand#X) AND p_container#X IN (SM CASE,SM BOX,SM PACK,SM PKG)) AND (l_quantity#X >= 1.00)) AND (l_quantity#X <= 11.00)) AND (p_size#X <= 5)) OR (((((p_brand#X = Brand#X) AND p_container#X IN (MED BAG,MED BOX,MED PKG,MED PACK)) AND (l_quantity#X >= 10.00)) AND (l_quantity#X <= 20.00)) AND (p_size#X <= 10))) OR (((((p_brand#X = Brand#X) AND p_container#X IN (LG CASE,LG BOX,LG PACK,LG PKG)) AND (l_quantity#X >= 20.00)) AND (l_quantity#X <= 30.00)) AND (p_size#X <= 15)))
 
 (11) ProjectExecTransformer
-Input [8]: [l_partkey#***, l_quantity#***, l_extendedprice#***, l_discount#***, p_partkey#***, p_size#***, p_container#***, p_brand#***]
-Arguments: [l_extendedprice#***, l_discount#***]
+Input [8]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, p_partkey#X, p_size#X, p_container#X, p_brand#X]
+Arguments: [l_extendedprice#X, l_discount#X]
 
 (12) FlushableHashAggregateExecTransformer
-Input [2]: [l_extendedprice#***, l_discount#***]
+Input [2]: [l_extendedprice#X, l_discount#X]
 Keys: []
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [2]: [sum#***, isEmpty#***]
-Results [2]: [sum#***, isEmpty#***]
+Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Aggregate Attributes [2]: [sum#X, isEmpty#X]
+Results [2]: [sum#X, isEmpty#X]
 
-(13) WholeStageCodegenTransformer (117)
-Input [2]: [sum#***, isEmpty#***]
+(13) WholeStageCodegenTransformer (116)
+Input [2]: [sum#X, isEmpty#X]
 Arguments: false
 
 (14) ColumnarExchange
-Input [2]: [sum#***, isEmpty#***]
-Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=***], [id=#***]
+Input [2]: [sum#X, isEmpty#X]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
 (15) ShuffleQueryStage
-Output [2]: [sum#***, isEmpty#***]
+Output [2]: [sum#X, isEmpty#X]
 Arguments: 1
 
 (16) InputIteratorTransformer
-Input [2]: [sum#***, isEmpty#***]
+Input [2]: [sum#X, isEmpty#X]
 
 (17) RegularHashAggregateExecTransformer
-Input [2]: [sum#***, isEmpty#***]
+Input [2]: [sum#X, isEmpty#X]
 Keys: []
-Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#***]
-Results [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#*** AS revenue#***]
+Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
+Results [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS revenue#X]
 
-(18) WholeStageCodegenTransformer (118)
-Input [1]: [revenue#***]
+(18) WholeStageCodegenTransformer (117)
+Input [1]: [revenue#X]
 Arguments: false
 
 (19) VeloxColumnarToRowExec
-Input [1]: [revenue#***]
+Input [1]: [revenue#X]
 
 (20) Scan parquet default.lineitem
-Output [6]: [l_partkey#***, l_quantity#***, l_extendedprice#***, l_discount#***, l_shipinstruct#***, l_shipmode#***]
+Output [6]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_shipinstruct#X, l_shipmode#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
 PushedFilters: [IsNotNull(l_shipinstruct), In(l_shipmode, [AIR,AIR REG]), EqualTo(l_shipinstruct,DELIVER IN PERSON), IsNotNull(l_partkey), Or(Or(And(GreaterThanOrEqual(l_quantity,1.00),LessThanOrEqual(l_quantity,11.00)),And(GreaterThanOrEqual(l_quantity,10.00),LessThanOrEqual(l_quantity,20.00))),And(GreaterThanOrEqual(l_quantity,20.00),LessThanOrEqual(l_quantity,30.00)))]
 ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2),l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_shipinstruct:string,l_shipmode:string>
 
 (21) Filter
-Input [6]: [l_partkey#***, l_quantity#***, l_extendedprice#***, l_discount#***, l_shipinstruct#***, l_shipmode#***]
-Condition : ((((isnotnull(l_shipinstruct#***) AND l_shipmode#*** IN (AIR,AIR REG)) AND (l_shipinstruct#*** = DELIVER IN PERSON)) AND isnotnull(l_partkey#***)) AND ((((l_quantity#*** >= 1.00) AND (l_quantity#*** <= 11.00)) OR ((l_quantity#*** >= 10.00) AND (l_quantity#*** <= 20.00))) OR ((l_quantity#*** >= 20.00) AND (l_quantity#*** <= 30.00))))
+Input [6]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_shipinstruct#X, l_shipmode#X]
+Condition : ((((isnotnull(l_shipinstruct#X) AND l_shipmode#X IN (AIR,AIR REG)) AND (l_shipinstruct#X = DELIVER IN PERSON)) AND isnotnull(l_partkey#X)) AND ((((l_quantity#X >= 1.00) AND (l_quantity#X <= 11.00)) OR ((l_quantity#X >= 10.00) AND (l_quantity#X <= 20.00))) OR ((l_quantity#X >= 20.00) AND (l_quantity#X <= 30.00))))
 
 (22) Project
-Output [4]: [l_partkey#***, l_quantity#***, l_extendedprice#***, l_discount#***]
-Input [6]: [l_partkey#***, l_quantity#***, l_extendedprice#***, l_discount#***, l_shipinstruct#***, l_shipmode#***]
+Output [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
+Input [6]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_shipinstruct#X, l_shipmode#X]
 
 (23) Scan parquet default.part
-Output [4]: [p_partkey#***, p_size#***, p_container#***, p_brand#***]
+Output [4]: [p_partkey#X, p_size#X, p_container#X, p_brand#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/part]
-PushedFilters: [IsNotNull(p_size), GreaterThanOrEqual(p_size,1), IsNotNull(p_partkey), Or(Or(And(And(EqualTo(p_brand,Brand#***),In(p_container, [SM BOX,SM CASE,SM PACK,SM PKG])),LessThanOrEqual(p_size,5)),And(And(EqualTo(p_brand,Brand#***),In(p_container, [MED BAG,MED BOX,MED PACK,MED PKG])),LessThanOrEqual(p_size,10))),And(And(EqualTo(p_brand,Brand#***),In(p_container, [LG BOX,LG CASE,LG PACK,LG PKG])),LessThanOrEqual(p_size,15)))]
+PushedFilters: [IsNotNull(p_size), GreaterThanOrEqual(p_size,1), IsNotNull(p_partkey), Or(Or(And(And(EqualTo(p_brand,Brand#X),In(p_container, [SM BOX,SM CASE,SM PACK,SM PKG])),LessThanOrEqual(p_size,5)),And(And(EqualTo(p_brand,Brand#X),In(p_container, [MED BAG,MED BOX,MED PACK,MED PKG])),LessThanOrEqual(p_size,10))),And(And(EqualTo(p_brand,Brand#X),In(p_container, [LG BOX,LG CASE,LG PACK,LG PKG])),LessThanOrEqual(p_size,15)))]
 ReadSchema: struct<p_partkey:bigint,p_size:int,p_container:string,p_brand:string>
 
 (24) Filter
-Input [4]: [p_partkey#***, p_size#***, p_container#***, p_brand#***]
-Condition : (((isnotnull(p_size#***) AND (p_size#*** >= 1)) AND isnotnull(p_partkey#***)) AND (((((p_brand#*** = Brand#***) AND p_container#*** IN (SM CASE,SM BOX,SM PACK,SM PKG)) AND (p_size#*** <= 5)) OR (((p_brand#*** = Brand#***) AND p_container#*** IN (MED BAG,MED BOX,MED PKG,MED PACK)) AND (p_size#*** <= 10))) OR (((p_brand#*** = Brand#***) AND p_container#*** IN (LG CASE,LG BOX,LG PACK,LG PKG)) AND (p_size#*** <= 15))))
+Input [4]: [p_partkey#X, p_size#X, p_container#X, p_brand#X]
+Condition : (((isnotnull(p_size#X) AND (p_size#X >= 1)) AND isnotnull(p_partkey#X)) AND (((((p_brand#X = Brand#X) AND p_container#X IN (SM CASE,SM BOX,SM PACK,SM PKG)) AND (p_size#X <= 5)) OR (((p_brand#X = Brand#X) AND p_container#X IN (MED BAG,MED BOX,MED PKG,MED PACK)) AND (p_size#X <= 10))) OR (((p_brand#X = Brand#X) AND p_container#X IN (LG CASE,LG BOX,LG PACK,LG PKG)) AND (p_size#X <= 15))))
 
 (25) BroadcastExchange
-Input [4]: [p_partkey#***, p_size#***, p_container#***, p_brand#***]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=***]
+Input [4]: [p_partkey#X, p_size#X, p_container#X, p_brand#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
 
 (26) BroadcastHashJoin
-Left keys [1]: [l_partkey#***]
-Right keys [1]: [p_partkey#***]
-Join condition: (((((((p_brand#*** = Brand#***) AND p_container#*** IN (SM CASE,SM BOX,SM PACK,SM PKG)) AND (l_quantity#*** >= 1.00)) AND (l_quantity#*** <= 11.00)) AND (p_size#*** <= 5)) OR (((((p_brand#*** = Brand#***) AND p_container#*** IN (MED BAG,MED BOX,MED PKG,MED PACK)) AND (l_quantity#*** >= 10.00)) AND (l_quantity#*** <= 20.00)) AND (p_size#*** <= 10))) OR (((((p_brand#*** = Brand#***) AND p_container#*** IN (LG CASE,LG BOX,LG PACK,LG PKG)) AND (l_quantity#*** >= 20.00)) AND (l_quantity#*** <= 30.00)) AND (p_size#*** <= 15)))
+Left keys [1]: [l_partkey#X]
+Right keys [1]: [p_partkey#X]
+Join condition: (((((((p_brand#X = Brand#X) AND p_container#X IN (SM CASE,SM BOX,SM PACK,SM PKG)) AND (l_quantity#X >= 1.00)) AND (l_quantity#X <= 11.00)) AND (p_size#X <= 5)) OR (((((p_brand#X = Brand#X) AND p_container#X IN (MED BAG,MED BOX,MED PKG,MED PACK)) AND (l_quantity#X >= 10.00)) AND (l_quantity#X <= 20.00)) AND (p_size#X <= 10))) OR (((((p_brand#X = Brand#X) AND p_container#X IN (LG CASE,LG BOX,LG PACK,LG PKG)) AND (l_quantity#X >= 20.00)) AND (l_quantity#X <= 30.00)) AND (p_size#X <= 15)))
 
 (27) Project
-Output [2]: [l_extendedprice#***, l_discount#***]
-Input [8]: [l_partkey#***, l_quantity#***, l_extendedprice#***, l_discount#***, p_partkey#***, p_size#***, p_container#***, p_brand#***]
+Output [2]: [l_extendedprice#X, l_discount#X]
+Input [8]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, p_partkey#X, p_size#X, p_container#X, p_brand#X]
 
 (28) HashAggregate
-Input [2]: [l_extendedprice#***, l_discount#***]
+Input [2]: [l_extendedprice#X, l_discount#X]
 Keys: []
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [2]: [sum#***, isEmpty#***]
-Results [2]: [sum#***, isEmpty#***]
+Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Aggregate Attributes [2]: [sum#X, isEmpty#X]
+Results [2]: [sum#X, isEmpty#X]
 
 (29) Exchange
-Input [2]: [sum#***, isEmpty#***]
-Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=***]
+Input [2]: [sum#X, isEmpty#X]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X]
 
 (30) HashAggregate
-Input [2]: [sum#***, isEmpty#***]
+Input [2]: [sum#X, isEmpty#X]
 Keys: []
-Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#***]
-Results [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#*** as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#*** as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#*** AS revenue#***]
+Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
+Results [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS revenue#X]
 
 (31) AdaptiveSparkPlan
-Output [1]: [revenue#***]
+Output [1]: [revenue#X]
 Arguments: isFinalPlan=true
