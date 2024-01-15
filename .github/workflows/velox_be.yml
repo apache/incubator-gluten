@@ -57,9 +57,6 @@ jobs:
       OS_IMAGE_TAG: 20.04
     steps:
       - uses: actions/checkout@v4
-      - name: Clean docker builder cache
-        run: |
-          docker builder prune -a -f
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -107,9 +104,6 @@ jobs:
       OS_IMAGE_TAG: 20.04
     steps:
       - uses: actions/checkout@v4
-      - name: Clean docker builder cache
-        run: |
-          docker builder prune -a -f
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -149,9 +143,6 @@ jobs:
       OS_IMAGE_TAG: 20.04
     steps:
       - uses: actions/checkout@v4
-      - name: Clean docker builder cache
-        run: |
-          docker builder prune -a -f
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -190,9 +181,6 @@ jobs:
       OS_IMAGE_TAG: 20.04
     steps:
       - uses: actions/checkout@v4
-      - name: Clean docker builder cache
-        run: |
-          docker builder prune -a -f
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -224,9 +212,6 @@ jobs:
       OS_IMAGE_TAG: 20.04
     steps:
       - uses: actions/checkout@v4
-      - name: Clean docker builder cache
-        run: |
-          docker builder prune -a -f
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -265,9 +250,6 @@ jobs:
       OS_IMAGE_TAG: 20.04
     steps:
       - uses: actions/checkout@v4
-      - name: Clean docker builder cache
-        run: |
-          docker builder prune -a -f
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -299,9 +281,6 @@ jobs:
       OS_IMAGE_TAG: 22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Clean docker builder cache
-        run: |
-          docker builder prune -a -f
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -354,9 +333,6 @@ jobs:
       OS_IMAGE_TAG: 22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Clean docker builder cache
-        run: |
-          docker builder prune -a -f
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -410,9 +386,6 @@ jobs:
       OS_IMAGE_TAG: 8
     steps:
       - uses: actions/checkout@v4
-      - name: Clean docker builder cache
-        run: |
-          docker builder prune -a -f
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -463,9 +436,6 @@ jobs:
       OS_IMAGE_TAG: 7
     steps:
       - uses: actions/checkout@v4
-      - name: Clean docker builder cache
-        run: |
-          docker builder prune -a -f
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
@@ -551,9 +521,6 @@ jobs:
     runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v4
-      - name: Clean docker builder cache
-        run: |
-          docker builder prune -a -f
       - name: Setup docker container
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
@@ -614,9 +581,6 @@ jobs:
       OS_IMAGE_TAG: 8
     steps:
       - uses: actions/checkout@v4
-      - name: Clean docker builder cache
-        run: |
-          docker builder prune -a -f
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
