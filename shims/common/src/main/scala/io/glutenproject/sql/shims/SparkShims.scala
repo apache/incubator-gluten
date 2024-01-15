@@ -20,6 +20,7 @@ import io.glutenproject.expression.Sig
 
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.io.FileCommitProtocol
+import org.apache.spark.scheduler.TaskInfo
 import org.apache.spark.shuffle.{ShuffleHandle, ShuffleReader, ShuffleReadMetricsReporter}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
@@ -119,4 +120,10 @@ trait SparkShims {
       startPartition: Int,
       endPartition: Int)
       : Tuple2[Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])], Boolean]
+
+  // Partition id in TaskInfo is only available after spark 3.3.
+  def getPratitionId(taskInfo: TaskInfo): Int
+
+  // Because above, this feature is only supported after spark 3.3
+  def supportDuplicateReadingTracking: Boolean
 }

@@ -22,6 +22,7 @@ import io.glutenproject.expression.{ExpressionNames, Sig}
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
 import org.apache.spark.{ShuffleDependency, ShuffleUtils, SparkEnv, SparkException, TaskContext, TaskContextUtils}
+import org.apache.spark.scheduler.TaskInfo
 import org.apache.spark.serializer.SerializerManager
 import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.sql.SparkSession
@@ -174,4 +175,10 @@ class Spark33Shims extends SparkShims {
       : Tuple2[Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])], Boolean] = {
     ShuffleUtils.getReaderParam(handle, startMapIndex, endMapIndex, startPartition, endPartition)
   }
+
+  override def getPratitionId(taskInfo: TaskInfo): Int = {
+    taskInfo.partitionId
+  }
+
+  override def supportDuplicateReadingTracking: Boolean = true
 }

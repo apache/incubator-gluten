@@ -19,9 +19,22 @@ package io.glutenproject.softaffinity.scheduler
 import io.glutenproject.softaffinity.SoftAffinityManager
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.scheduler.{SparkListener, SparkListenerExecutorAdded, SparkListenerExecutorRemoved}
+import org.apache.spark.scheduler._
+import org.apache.spark.sql.execution.ui._
 
 class SoftAffinityListener extends SparkListener with Logging {
+
+  override def onStageSubmitted(event: SparkListenerStageSubmitted): Unit = {
+    SoftAffinityManager.updateStageMap(event)
+  }
+
+  override def onStageCompleted(event: SparkListenerStageCompleted): Unit = {
+    SoftAffinityManager.cleanMiddleStatusMap(event)
+  }
+
+  override def onTaskEnd(taskEnd: SparkListenerTaskEnd): Unit = {
+    SoftAffinityManager.updateHostMap(taskEnd)
+  }
 
   override def onExecutorAdded(executorAdded: SparkListenerExecutorAdded): Unit = {
     val execId = executorAdded.executorId
@@ -32,5 +45,11 @@ class SoftAffinityListener extends SparkListener with Logging {
   override def onExecutorRemoved(executorRemoved: SparkListenerExecutorRemoved): Unit = {
     val execId = executorRemoved.executorId
     SoftAffinityManager.handleExecutorRemoved(execId)
+  }
+
+  override def onOtherEvent(event: SparkListenerEvent): Unit = event match {
+    case e: SparkListenerSQLExecutionStart => SoftAffinityManager.onExecutionStart(e)
+    case e: SparkListenerSQLExecutionEnd => SoftAffinityManager.onExecutionEnd(e)
+    case _ => // Ignore
   }
 }
