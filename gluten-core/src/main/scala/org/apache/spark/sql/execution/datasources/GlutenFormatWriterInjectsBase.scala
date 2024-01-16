@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution.datasources
 
 import io.glutenproject.execution.{ProjectExecTransformer, SortExecTransformer, TransformSupport, WholeStageTransformer}
 import io.glutenproject.execution.datasource.GlutenFormatWriterInjects
-import io.glutenproject.extension.TransformPreOverrides
+import io.glutenproject.extension.{ColumnarOverrides, TransformPreOverrides}
 import io.glutenproject.extension.columnar.AddTransformHintRule
 
 import org.apache.spark.rdd.RDD
@@ -44,8 +44,10 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
       return plan.execute()
     }
 
-    val transformed = TransformPreOverrides(false).apply(AddTransformHintRule().apply(plan))
-    if (!transformed.isInstanceOf[TransformSupport]) {
+    val preTransformed = TransformPreOverrides(false).apply(AddTransformHintRule().apply(plan))
+    // We need to apply extended columnar pre rules to pull out pre/post-project.
+    val finalTransformed = ColumnarOverrides.applyExtendedColumnarPreRules(preTransformed)
+    if (!finalTransformed.isInstanceOf[TransformSupport]) {
       throw new IllegalStateException(
         "Cannot transform the SparkPlans wrapped by FileFormatWriter, " +
           "consider disabling native writer to workaround this issue.")
@@ -64,7 +66,7 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
     // and use const_columns_to_remove to skip const columns.
     // Unfortunately, in our case this wst's input is SourceFromJavaIter
     // and cannot provide const-ness.
-    val transformedWithAdapter = injectAdapter(transformed)
+    val transformedWithAdapter = injectAdapter(finalTransformed)
     val wst = WholeStageTransformer(transformedWithAdapter, materializeInput = true)(
       transformStageCounter.incrementAndGet())
     FakeRowAdaptor(wst).execute()
