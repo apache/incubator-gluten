@@ -17,7 +17,6 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.DataFrame
 
 import java.io.File
 
@@ -197,9 +196,9 @@ class VeloxOrcDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
     // Validation: BatchScan with Filter
     runQueryAndCompare(
       "select type1.short, int from type1" +
-        " where type1.short = 1", false) { df: DataFrame =>
-      val plan = df.queryExecution.executedPlan
-      assert(plan.find(_.isInstanceOf[BatchScanExecTransformer]).isDefined)
+        " where type1.short = 1",
+      false) {
+      checkOperatorMatch[BatchScanExecTransformer]
     }
 
     // Validation: BatchScan Project Aggregate Expand Sort Limit

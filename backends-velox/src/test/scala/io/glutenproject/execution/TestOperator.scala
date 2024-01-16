@@ -734,6 +734,19 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
+  test("Support short int type filter in scan") {
+    withTable("short_table") {
+      sql("create table short_table (a short, b int) using parquet")
+      sql("insert into short_table values (1, 4), (2, 5), (null, 6)")
+      runQueryAndCompare("select * from short_table where a = 1") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+      runQueryAndCompare("select * from short_table where a is NULL") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+    }
+  }
+
   test("test cross join with equi join conditions") {
     withTable("t1", "t2") {
       sql("""
