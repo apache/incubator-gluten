@@ -268,7 +268,7 @@ object QueriesCompare {
           s"Successfully ran query $id, result check was passed. " +
             s"Returned row count: ${resultRows.length}, expected: ${expectedRows.length}")
         if (genGoldenFile) {
-          val file = new File(s"goldenFile/tpc/$id.txt")
+          val file = new File(s"$id.txt")
           println(file.getAbsolutePath)
           file.createNewFile()
           val writer = new PrintWriter(file)
