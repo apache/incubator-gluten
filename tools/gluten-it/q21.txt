@@ -1,0 +1,477 @@
+== Physical Plan ==
+VeloxColumnarToRowExec (51)
++- TakeOrderedAndProjectExecTransformer (50)
+   +- ^ RegularHashAggregateExecTransformer (48)
+      +- ^ InputIteratorTransformer (47)
+         +- ColumnarExchange (46)
+            +- ^ ProjectExecTransformer (44)
+               +- ^ FlushableHashAggregateExecTransformer (43)
+                  +- ^ ProjectExecTransformer (42)
+                     +- ^ GlutenBroadcastHashJoinExecTransformer Inner (41)
+                        :- ^ ProjectExecTransformer (34)
+                        :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (33)
+                        :     :- ^ ProjectExecTransformer (26)
+                        :     :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (25)
+                        :     :     :- ^ InputIteratorTransformer (5)
+                        :     :     :  +- ColumnarBroadcastExchange (4)
+                        :     :     :     +- ^ FilterExecTransformer (2)
+                        :     :     :        +- ^ Scan parquet spark_catalog.default.supplier (1)
+                        :     :     +- ^ ShuffledHashJoinExecTransformer LeftAnti (24)
+                        :     :        :- ^ ShuffledHashJoinExecTransformer LeftSemi (17)
+                        :     :        :  :- ^ InputIteratorTransformer (11)
+                        :     :        :  :  +- ColumnarExchange (10)
+                        :     :        :  :     +- ^ ProjectExecTransformer (8)
+                        :     :        :  :        +- ^ FilterExecTransformer (7)
+                        :     :        :  :           +- ^ Scan parquet spark_catalog.default.lineitem (6)
+                        :     :        :  +- ^ InputIteratorTransformer (16)
+                        :     :        :     +- ColumnarExchange (15)
+                        :     :        :        +- ^ ProjectExecTransformer (13)
+                        :     :        :           +- ^ Scan parquet spark_catalog.default.lineitem (12)
+                        :     :        +- ^ InputIteratorTransformer (23)
+                        :     :           +- ColumnarExchange (22)
+                        :     :              +- ^ ProjectExecTransformer (20)
+                        :     :                 +- ^ FilterExecTransformer (19)
+                        :     :                    +- ^ Scan parquet spark_catalog.default.lineitem (18)
+                        :     +- ^ InputIteratorTransformer (32)
+                        :        +- ColumnarBroadcastExchange (31)
+                        :           +- ^ ProjectExecTransformer (29)
+                        :              +- ^ FilterExecTransformer (28)
+                        :                 +- ^ Scan parquet spark_catalog.default.orders (27)
+                        +- ^ InputIteratorTransformer (40)
+                           +- ColumnarBroadcastExchange (39)
+                              +- ^ ProjectExecTransformer (37)
+                                 +- ^ FilterExecTransformer (36)
+                                    +- ^ Scan parquet spark_catalog.default.nation (35)
+
+
+(1) Scan parquet spark_catalog.default.supplier
+Output [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/supplier]
+PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
+ReadSchema: struct<s_suppkey:bigint,s_name:string,s_nationkey:bigint>
+
+(2) FilterExecTransformer
+Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
+Arguments: ((isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X)) AND might_contain(Subquery scalar-subquery#X, [id=#X], xxhash64(s_nationkey#X, 42)))
+
+(3) WholeStageCodegenTransformer (X)
+Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
+Arguments: false
+Native Plan:
+-- TableScan
+
+(4) ColumnarBroadcastExchange
+Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
+
+(5) InputIteratorTransformer
+Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
+
+(6) Scan parquet spark_catalog.default.lineitem
+Output [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/lineitem]
+PushedFilters: [IsNotNull(l_receiptdate), IsNotNull(l_commitdate), IsNotNull(l_suppkey), IsNotNull(l_orderkey)]
+ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint,l_commitdate:date,l_receiptdate:date>
+
+(7) FilterExecTransformer
+Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
+Arguments: (((((isnotnull(l_receiptdate#X) AND isnotnull(l_commitdate#X)) AND (l_receiptdate#X > l_commitdate#X)) AND isnotnull(l_suppkey#X)) AND isnotnull(l_orderkey#X)) AND might_contain(Subquery scalar-subquery#X, [id=#X], xxhash64(l_orderkey#X, 42)))
+
+(8) ProjectExecTransformer
+Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
+Arguments: [hash(l_orderkey#X, 42) AS hash_partition_key#X, hash(l_orderkey#X, 42) AS hash_partition_key#X, l_orderkey#X, l_suppkey#X]
+
+(9) WholeStageCodegenTransformer (X)
+Input [4]: [hash_partition_key#X, hash_partition_key#X, l_orderkey#X, l_suppkey#X]
+Arguments: false
+Native Plan:
+-- Project
+  -- TableScan
+
+(10) ColumnarExchange
+Input [4]: [hash_partition_key#X, hash_partition_key#X, l_orderkey#X, l_suppkey#X]
+Arguments: hashpartitioning(l_orderkey#X, 100), ENSURE_REQUIREMENTS, [hash_partition_key#X, l_orderkey#X, l_suppkey#X], [plan_id=X], [id=#X]
+
+(11) InputIteratorTransformer
+Input [3]: [hash_partition_key#X, l_orderkey#X, l_suppkey#X]
+
+(12) Scan parquet spark_catalog.default.lineitem
+Output [2]: [l_orderkey#X, l_suppkey#X]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/lineitem]
+ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint>
+
+(13) ProjectExecTransformer
+Input [2]: [l_orderkey#X, l_suppkey#X]
+Arguments: [hash(l_orderkey#X, 42) AS hash_partition_key#X, hash(l_orderkey#X, 42) AS hash_partition_key#X, l_orderkey#X, l_suppkey#X]
+
+(14) WholeStageCodegenTransformer (X)
+Input [4]: [hash_partition_key#X, hash_partition_key#X, l_orderkey#X, l_suppkey#X]
+Arguments: false
+Native Plan:
+-- Project
+  -- TableScan
+
+(15) ColumnarExchange
+Input [4]: [hash_partition_key#X, hash_partition_key#X, l_orderkey#X, l_suppkey#X]
+Arguments: hashpartitioning(l_orderkey#X, 100), ENSURE_REQUIREMENTS, [hash_partition_key#X, l_orderkey#X, l_suppkey#X], [plan_id=X], [id=#X]
+
+(16) InputIteratorTransformer
+Input [3]: [hash_partition_key#X, l_orderkey#X, l_suppkey#X]
+
+(17) ShuffledHashJoinExecTransformer
+Left keys [1]: [l_orderkey#X]
+Right keys [1]: [l_orderkey#X]
+Join type: LeftSemi
+Join condition: NOT (l_suppkey#X = l_suppkey#X)
+
+(18) Scan parquet spark_catalog.default.lineitem
+Output [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/lineitem]
+PushedFilters: [IsNotNull(l_receiptdate), IsNotNull(l_commitdate)]
+ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint,l_commitdate:date,l_receiptdate:date>
+
+(19) FilterExecTransformer
+Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
+Arguments: ((isnotnull(l_receiptdate#X) AND isnotnull(l_commitdate#X)) AND (l_receiptdate#X > l_commitdate#X))
+
+(20) ProjectExecTransformer
+Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
+Arguments: [hash(l_orderkey#X, 42) AS hash_partition_key#X, hash(l_orderkey#X, 42) AS hash_partition_key#X, l_orderkey#X, l_suppkey#X]
+
+(21) WholeStageCodegenTransformer (X)
+Input [4]: [hash_partition_key#X, hash_partition_key#X, l_orderkey#X, l_suppkey#X]
+Arguments: false
+Native Plan:
+-- Project
+  -- TableScan
+
+(22) ColumnarExchange
+Input [4]: [hash_partition_key#X, hash_partition_key#X, l_orderkey#X, l_suppkey#X]
+Arguments: hashpartitioning(l_orderkey#X, 100), ENSURE_REQUIREMENTS, [hash_partition_key#X, l_orderkey#X, l_suppkey#X], [plan_id=X], [id=#X]
+
+(23) InputIteratorTransformer
+Input [3]: [hash_partition_key#X, l_orderkey#X, l_suppkey#X]
+
+(24) ShuffledHashJoinExecTransformer
+Left keys [1]: [l_orderkey#X]
+Right keys [1]: [l_orderkey#X]
+Join type: LeftAnti
+Join condition: NOT (l_suppkey#X = l_suppkey#X)
+
+(25) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [s_suppkey#X]
+Right keys [1]: [l_suppkey#X]
+Join type: Inner
+Join condition: None
+
+(26) ProjectExecTransformer
+Input [6]: [s_suppkey#X, s_name#X, s_nationkey#X, hash_partition_key#X, l_orderkey#X, l_suppkey#X]
+Arguments: [s_name#X, s_nationkey#X, l_orderkey#X]
+
+(27) Scan parquet spark_catalog.default.orders
+Output [2]: [o_orderkey#X, o_orderstatus#X]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/orders]
+PushedFilters: [IsNotNull(o_orderstatus), EqualTo(o_orderstatus,F), IsNotNull(o_orderkey)]
+ReadSchema: struct<o_orderkey:bigint,o_orderstatus:string>
+
+(28) FilterExecTransformer
+Input [2]: [o_orderkey#X, o_orderstatus#X]
+Arguments: ((isnotnull(o_orderstatus#X) AND (o_orderstatus#X = F)) AND isnotnull(o_orderkey#X))
+
+(29) ProjectExecTransformer
+Input [2]: [o_orderkey#X, o_orderstatus#X]
+Arguments: [o_orderkey#X]
+
+(30) WholeStageCodegenTransformer (X)
+Input [1]: [o_orderkey#X]
+Arguments: false
+Native Plan:
+-- Project
+  -- TableScan
+
+(31) ColumnarBroadcastExchange
+Input [1]: [o_orderkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
+
+(32) InputIteratorTransformer
+Input [1]: [o_orderkey#X]
+
+(33) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [l_orderkey#X]
+Right keys [1]: [o_orderkey#X]
+Join type: Inner
+Join condition: None
+
+(34) ProjectExecTransformer
+Input [4]: [s_name#X, s_nationkey#X, l_orderkey#X, o_orderkey#X]
+Arguments: [s_name#X, s_nationkey#X]
+
+(35) Scan parquet spark_catalog.default.nation
+Output [2]: [n_nationkey#X, n_name#X]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/nation]
+PushedFilters: [IsNotNull(n_name), EqualTo(n_name,SAUDI ARABIA), IsNotNull(n_nationkey)]
+ReadSchema: struct<n_nationkey:bigint,n_name:string>
+
+(36) FilterExecTransformer
+Input [2]: [n_nationkey#X, n_name#X]
+Arguments: ((isnotnull(n_name#X) AND (n_name#X = SAUDI ARABIA)) AND isnotnull(n_nationkey#X))
+
+(37) ProjectExecTransformer
+Input [2]: [n_nationkey#X, n_name#X]
+Arguments: [n_nationkey#X]
+
+(38) WholeStageCodegenTransformer (X)
+Input [1]: [n_nationkey#X]
+Arguments: false
+Native Plan:
+-- Project
+  -- TableScan
+
+(39) ColumnarBroadcastExchange
+Input [1]: [n_nationkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
+
+(40) InputIteratorTransformer
+Input [1]: [n_nationkey#X]
+
+(41) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [s_nationkey#X]
+Right keys [1]: [n_nationkey#X]
+Join type: Inner
+Join condition: None
+
+(42) ProjectExecTransformer
+Input [3]: [s_name#X, s_nationkey#X, n_nationkey#X]
+Arguments: [s_name#X]
+
+(43) FlushableHashAggregateExecTransformer
+Input [1]: [s_name#X]
+Keys [1]: [s_name#X]
+Functions [1]: [partial_count(1)]
+Aggregate Attributes [1]: [count#X]
+Results [2]: [s_name#X, count#X]
+
+(44) ProjectExecTransformer
+Input [2]: [s_name#X, count#X]
+Arguments: [hash(s_name#X, 42) AS hash_partition_key#X, s_name#X, count#X]
+
+(45) WholeStageCodegenTransformer (X)
+Input [3]: [hash_partition_key#X, s_name#X, count#X]
+Arguments: false
+Native Plan:
+-- Project
+  -- Aggregation
+    -- Project
+      -- Project
+        -- HashJoin
+          -- Project
+            -- Project
+              -- HashJoin
+                -- Project
+                  -- Project
+                    -- HashJoin
+                      -- Project
+                        -- HashJoin
+                          -- Project
+                            -- HashJoin
+                              -- ValueStream
+                              -- ValueStream
+                          -- ValueStream
+                      -- ValueStream
+                -- ValueStream
+          -- ValueStream
+
+(46) ColumnarExchange
+Input [3]: [hash_partition_key#X, s_name#X, count#X]
+Arguments: hashpartitioning(s_name#X, 100), ENSURE_REQUIREMENTS, [s_name#X, count#X], [plan_id=X], [id=#X]
+
+(47) InputIteratorTransformer
+Input [2]: [s_name#X, count#X]
+
+(48) RegularHashAggregateExecTransformer
+Input [2]: [s_name#X, count#X]
+Keys [1]: [s_name#X]
+Functions [1]: [count(1)]
+Aggregate Attributes [1]: [count(1)#X]
+Results [2]: [s_name#X, count(1)#X AS numwait#X]
+
+(49) WholeStageCodegenTransformer (X)
+Input [2]: [s_name#X, numwait#X]
+Arguments: false
+Native Plan:
+-- Project
+  -- Aggregation
+    -- ValueStream
+
+(50) TakeOrderedAndProjectExecTransformer
+Input [2]: [s_name#X, numwait#X]
+Arguments: 100, [numwait#X DESC NULLS LAST, s_name#X ASC NULLS FIRST], [s_name#X, numwait#X]
+
+(51) VeloxColumnarToRowExec
+Input [2]: [s_name#X, numwait#X]
+
+===== Subqueries =====
+
+Subquery:1 Hosting operator id = 2 Hosting Expression = Subquery scalar-subquery#X, [id=#X]
+VeloxColumnarToRowExec (61)
++- ^ RegularHashAggregateExecTransformer (59)
+   +- ^ InputIteratorTransformer (58)
+      +- ColumnarExchange (57)
+         +- ^ FlushableHashAggregateExecTransformer (55)
+            +- ^ ProjectExecTransformer (54)
+               +- ^ FilterExecTransformer (53)
+                  +- ^ Scan parquet spark_catalog.default.nation (52)
+
+
+(52) Scan parquet spark_catalog.default.nation
+Output [2]: [n_nationkey#X, n_name#X]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/nation]
+PushedFilters: [IsNotNull(n_name), EqualTo(n_name,SAUDI ARABIA), IsNotNull(n_nationkey)]
+ReadSchema: struct<n_nationkey:bigint,n_name:string>
+
+(53) FilterExecTransformer
+Input [2]: [n_nationkey#X, n_name#X]
+Arguments: ((isnotnull(n_name#X) AND (n_name#X = SAUDI ARABIA)) AND isnotnull(n_nationkey#X))
+
+(54) ProjectExecTransformer
+Input [2]: [n_nationkey#X, n_name#X]
+Arguments: [n_nationkey#X]
+
+(55) FlushableHashAggregateExecTransformer
+Input [1]: [n_nationkey#X]
+Keys: []
+Functions [1]: [partial_bloom_filter_agg(xxhash64(n_nationkey#X, 42), 1000000, 8388608, 0, 0)]
+Aggregate Attributes [1]: [buf#X]
+Results [1]: [buf#X]
+
+(56) WholeStageCodegenTransformer (X)
+Input [1]: [buf#X]
+Arguments: false
+Native Plan:
+-- Aggregation[PARTIAL n3_0 := bloom_filter_agg_partial("n2_1","n2_2","n2_3")] -> n3_0:VARBINARY
+  -- Project[expressions: (n2_1:BIGINT, xxhash64(42,"n1_2")), (n2_2:BIGINT, 1000000), (n2_3:BIGINT, 8388608)] -> n2_1:BIGINT, n2_2:BIGINT, n2_3:BIGINT
+    -- Project[expressions: (n1_2:BIGINT, "n0_0")] -> n1_2:BIGINT
+      -- TableScan[table: hive_table, range filters: [(n_name, BytesRange: [SAUDI ARABIA, SAUDI ARABIA] no nulls), (n_nationkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:VARCHAR
+
+(57) ColumnarExchange
+Input [1]: [buf#X]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+
+(58) InputIteratorTransformer
+Input [1]: [buf#X]
+
+(59) RegularHashAggregateExecTransformer
+Input [1]: [buf#X]
+Keys: []
+Functions [1]: [bloom_filter_agg(xxhash64(n_nationkey#X, 42), 1000000, 8388608, 0, 0)]
+Aggregate Attributes [1]: [bloom_filter_agg(xxhash64(n_nationkey#X, 42), 1000000, 8388608, 0, 0)#X]
+Results [1]: [bloom_filter_agg(xxhash64(n_nationkey#X, 42), 1000000, 8388608, 0, 0)#X AS bloomFilter#X]
+
+(60) WholeStageCodegenTransformer (X)
+Input [1]: [bloomFilter#X]
+Arguments: false
+Native Plan:
+-- Project[expressions: (n2_1:VARBINARY, "n1_0")] -> n2_1:VARBINARY
+  -- Aggregation[SINGLE n1_0 := bloom_filter_agg_merge_extract("n0_0")] -> n1_0:VARBINARY
+    -- ValueStream[] -> n0_0:VARBINARY
+
+(61) VeloxColumnarToRowExec
+Input [1]: [bloomFilter#X]
+
+Subquery:2 Hosting operator id = 1 Hosting Expression = Subquery scalar-subquery#X, [id=#X]
+VeloxColumnarToRowExec (61)
++- ^ RegularHashAggregateExecTransformer (59)
+   +- ^ InputIteratorTransformer (58)
+      +- ColumnarExchange (57)
+         +- ^ FlushableHashAggregateExecTransformer (55)
+            +- ^ ProjectExecTransformer (54)
+               +- ^ FilterExecTransformer (53)
+                  +- ^ Scan parquet spark_catalog.default.nation (52)
+
+
+Subquery:3 Hosting operator id = 7 Hosting Expression = Subquery scalar-subquery#X, [id=#X]
+VeloxColumnarToRowExec (71)
++- ^ RegularHashAggregateExecTransformer (69)
+   +- ^ InputIteratorTransformer (68)
+      +- ColumnarExchange (67)
+         +- ^ FlushableHashAggregateExecTransformer (65)
+            +- ^ ProjectExecTransformer (64)
+               +- ^ FilterExecTransformer (63)
+                  +- ^ Scan parquet spark_catalog.default.orders (62)
+
+
+(62) Scan parquet spark_catalog.default.orders
+Output [2]: [o_orderkey#X, o_orderstatus#X]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/orders]
+PushedFilters: [IsNotNull(o_orderstatus), EqualTo(o_orderstatus,F), IsNotNull(o_orderkey)]
+ReadSchema: struct<o_orderkey:bigint,o_orderstatus:string>
+
+(63) FilterExecTransformer
+Input [2]: [o_orderkey#X, o_orderstatus#X]
+Arguments: ((isnotnull(o_orderstatus#X) AND (o_orderstatus#X = F)) AND isnotnull(o_orderkey#X))
+
+(64) ProjectExecTransformer
+Input [2]: [o_orderkey#X, o_orderstatus#X]
+Arguments: [o_orderkey#X]
+
+(65) FlushableHashAggregateExecTransformer
+Input [1]: [o_orderkey#X]
+Keys: []
+Functions [1]: [partial_bloom_filter_agg(xxhash64(o_orderkey#X, 42), 1000000, 8388608, 0, 0)]
+Aggregate Attributes [1]: [buf#X]
+Results [1]: [buf#X]
+
+(66) WholeStageCodegenTransformer (X)
+Input [1]: [buf#X]
+Arguments: false
+Native Plan:
+-- Aggregation[PARTIAL n3_0 := bloom_filter_agg_partial("n2_1","n2_2","n2_3")] -> n3_0:VARBINARY
+  -- Project[expressions: (n2_1:BIGINT, xxhash64(42,"n1_2")), (n2_2:BIGINT, 1000000), (n2_3:BIGINT, 8388608)] -> n2_1:BIGINT, n2_2:BIGINT, n2_3:BIGINT
+    -- Project[expressions: (n1_2:BIGINT, "n0_0")] -> n1_2:BIGINT
+      -- TableScan[table: hive_table, range filters: [(o_orderkey, Filter(IsNotNull, deterministic, null not allowed)), (o_orderstatus, BytesRange: [F, F] no nulls)]] -> n0_0:BIGINT, n0_1:VARCHAR
+
+(67) ColumnarExchange
+Input [1]: [buf#X]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+
+(68) InputIteratorTransformer
+Input [1]: [buf#X]
+
+(69) RegularHashAggregateExecTransformer
+Input [1]: [buf#X]
+Keys: []
+Functions [1]: [bloom_filter_agg(xxhash64(o_orderkey#X, 42), 1000000, 8388608, 0, 0)]
+Aggregate Attributes [1]: [bloom_filter_agg(xxhash64(o_orderkey#X, 42), 1000000, 8388608, 0, 0)#X]
+Results [1]: [bloom_filter_agg(xxhash64(o_orderkey#X, 42), 1000000, 8388608, 0, 0)#X AS bloomFilter#X]
+
+(70) WholeStageCodegenTransformer (X)
+Input [1]: [bloomFilter#X]
+Arguments: false
+Native Plan:
+-- Project[expressions: (n2_1:VARBINARY, "n1_0")] -> n2_1:VARBINARY
+  -- Aggregation[SINGLE n1_0 := bloom_filter_agg_merge_extract("n0_0")] -> n1_0:VARBINARY
+    -- ValueStream[] -> n0_0:VARBINARY
+
+(71) VeloxColumnarToRowExec
+Input [1]: [bloomFilter#X]
+
+Subquery:4 Hosting operator id = 6 Hosting Expression = Subquery scalar-subquery#X, [id=#X]
+VeloxColumnarToRowExec (71)
++- ^ RegularHashAggregateExecTransformer (69)
+   +- ^ InputIteratorTransformer (68)
+      +- ColumnarExchange (67)
+         +- ^ FlushableHashAggregateExecTransformer (65)
+            +- ^ ProjectExecTransformer (64)
+               +- ^ FilterExecTransformer (63)
+                  +- ^ Scan parquet spark_catalog.default.orders (62)
+
+
+

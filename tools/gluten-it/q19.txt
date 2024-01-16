@@ -1,0 +1,113 @@
+== Physical Plan ==
+VeloxColumnarToRowExec (17)
++- ^ RegularHashAggregateExecTransformer (15)
+   +- ^ InputIteratorTransformer (14)
+      +- ColumnarExchange (13)
+         +- ^ FlushableHashAggregateExecTransformer (11)
+            +- ^ ProjectExecTransformer (10)
+               +- ^ GlutenBroadcastHashJoinExecTransformer Inner (9)
+                  :- ^ ProjectExecTransformer (3)
+                  :  +- ^ FilterExecTransformer (2)
+                  :     +- ^ Scan parquet spark_catalog.default.lineitem (1)
+                  +- ^ InputIteratorTransformer (8)
+                     +- ColumnarBroadcastExchange (7)
+                        +- ^ FilterExecTransformer (5)
+                           +- ^ Scan parquet spark_catalog.default.part (4)
+
+
+(1) Scan parquet spark_catalog.default.lineitem
+Output [6]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_shipinstruct#X, l_shipmode#X]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/lineitem]
+PushedFilters: [IsNotNull(l_shipinstruct), In(l_shipmode, [AIR,AIR REG]), EqualTo(l_shipinstruct,DELIVER IN PERSON), IsNotNull(l_partkey), Or(Or(And(GreaterThanOrEqual(l_quantity,1.00),LessThanOrEqual(l_quantity,11.00)),And(GreaterThanOrEqual(l_quantity,10.00),LessThanOrEqual(l_quantity,20.00))),And(GreaterThanOrEqual(l_quantity,20.00),LessThanOrEqual(l_quantity,30.00)))]
+ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2),l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_shipinstruct:string,l_shipmode:string>
+
+(2) FilterExecTransformer
+Input [6]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_shipinstruct#X, l_shipmode#X]
+Arguments: ((((isnotnull(l_shipinstruct#X) AND l_shipmode#X IN (AIR,AIR REG)) AND (l_shipinstruct#X = DELIVER IN PERSON)) AND isnotnull(l_partkey#X)) AND ((((l_quantity#X >= 1.00) AND (l_quantity#X <= 11.00)) OR ((l_quantity#X >= 10.00) AND (l_quantity#X <= 20.00))) OR ((l_quantity#X >= 20.00) AND (l_quantity#X <= 30.00))))
+
+(3) ProjectExecTransformer
+Input [6]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_shipinstruct#X, l_shipmode#X]
+Arguments: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
+
+(4) Scan parquet spark_catalog.default.part
+Output [4]: [p_partkey#X, p_size#X, p_container#X, p_brand#X]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/part]
+PushedFilters: [IsNotNull(p_size), GreaterThanOrEqual(p_size,1), IsNotNull(p_partkey), Or(Or(And(And(EqualTo(p_brand,Brand#X),In(p_container, [SM BOX,SM CASE,SM PACK,SM PKG])),LessThanOrEqual(p_size,5)),And(And(EqualTo(p_brand,Brand#X),In(p_container, [MED BAG,MED BOX,MED PACK,MED PKG])),LessThanOrEqual(p_size,10))),And(And(EqualTo(p_brand,Brand#X),In(p_container, [LG BOX,LG CASE,LG PACK,LG PKG])),LessThanOrEqual(p_size,15)))]
+ReadSchema: struct<p_partkey:bigint,p_size:int,p_container:string,p_brand:string>
+
+(5) FilterExecTransformer
+Input [4]: [p_partkey#X, p_size#X, p_container#X, p_brand#X]
+Arguments: (((isnotnull(p_size#X) AND (p_size#X >= 1)) AND isnotnull(p_partkey#X)) AND (((((p_brand#X = Brand#X) AND p_container#X IN (SM CASE,SM BOX,SM PACK,SM PKG)) AND (p_size#X <= 5)) OR (((p_brand#X = Brand#X) AND p_container#X IN (MED BAG,MED BOX,MED PKG,MED PACK)) AND (p_size#X <= 10))) OR (((p_brand#X = Brand#X) AND p_container#X IN (LG CASE,LG BOX,LG PACK,LG PKG)) AND (p_size#X <= 15))))
+
+(6) WholeStageCodegenTransformer (X)
+Input [4]: [p_partkey#X, p_size#X, p_container#X, p_brand#X]
+Arguments: false
+Native Plan:
+-- TableScan
+
+(7) ColumnarBroadcastExchange
+Input [4]: [p_partkey#X, p_size#X, p_container#X, p_brand#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
+
+(8) InputIteratorTransformer
+Input [4]: [p_partkey#X, p_size#X, p_container#X, p_brand#X]
+
+(9) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [l_partkey#X]
+Right keys [1]: [p_partkey#X]
+Join type: Inner
+Join condition: (((((((p_brand#X = Brand#X) AND p_container#X IN (SM CASE,SM BOX,SM PACK,SM PKG)) AND (l_quantity#X >= 1.00)) AND (l_quantity#X <= 11.00)) AND (p_size#X <= 5)) OR (((((p_brand#X = Brand#X) AND p_container#X IN (MED BAG,MED BOX,MED PKG,MED PACK)) AND (l_quantity#X >= 10.00)) AND (l_quantity#X <= 20.00)) AND (p_size#X <= 10))) OR (((((p_brand#X = Brand#X) AND p_container#X IN (LG CASE,LG BOX,LG PACK,LG PKG)) AND (l_quantity#X >= 20.00)) AND (l_quantity#X <= 30.00)) AND (p_size#X <= 15)))
+
+(10) ProjectExecTransformer
+Input [8]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, p_partkey#X, p_size#X, p_container#X, p_brand#X]
+Arguments: [l_extendedprice#X, l_discount#X]
+
+(11) FlushableHashAggregateExecTransformer
+Input [2]: [l_extendedprice#X, l_discount#X]
+Keys: []
+Functions [1]: [partial_sum((l_extendedprice#X * (1 - l_discount#X)))]
+Aggregate Attributes [2]: [sum#X, isEmpty#X]
+Results [2]: [sum#X, isEmpty#X]
+
+(12) WholeStageCodegenTransformer (X)
+Input [2]: [sum#X, isEmpty#X]
+Arguments: false
+Native Plan:
+-- Project
+  -- Aggregation
+    -- Project
+      -- Project
+        -- Project
+          -- HashJoin
+            -- Project
+              -- TableScan
+            -- ValueStream
+
+(13) ColumnarExchange
+Input [2]: [sum#X, isEmpty#X]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+
+(14) InputIteratorTransformer
+Input [2]: [sum#X, isEmpty#X]
+
+(15) RegularHashAggregateExecTransformer
+Input [2]: [sum#X, isEmpty#X]
+Keys: []
+Functions [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))]
+Aggregate Attributes [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))#X]
+Results [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))#X AS revenue#X]
+
+(16) WholeStageCodegenTransformer (X)
+Input [1]: [revenue#X]
+Arguments: false
+Native Plan:
+-- Project
+  -- Aggregation
+    -- Project
+      -- ValueStream
+
+(17) VeloxColumnarToRowExec
+Input [1]: [revenue#X]
+

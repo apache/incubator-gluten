@@ -1,0 +1,214 @@
+== Physical Plan ==
+VeloxColumnarToRowExec (34)
++- ^ SortExecTransformer (32)
+   +- ^ InputIteratorTransformer (31)
+      +- ColumnarExchange (30)
+         +- ^ RegularHashAggregateExecTransformer (28)
+            +- ^ InputIteratorTransformer (27)
+               +- ColumnarExchange (26)
+                  +- ^ ProjectExecTransformer (24)
+                     +- ^ FlushableHashAggregateExecTransformer (23)
+                        +- ^ RegularHashAggregateExecTransformer (22)
+                           +- ^ InputIteratorTransformer (21)
+                              +- ColumnarExchange (20)
+                                 +- ^ ProjectExecTransformer (18)
+                                    +- ^ FlushableHashAggregateExecTransformer (17)
+                                       +- ^ ProjectExecTransformer (16)
+                                          +- ^ GlutenBroadcastHashJoinExecTransformer Inner (15)
+                                             :- ^ GlutenBroadcastHashJoinExecTransformer LeftAnti (9)
+                                             :  :- ^ FilterExecTransformer (2)
+                                             :  :  +- ^ Scan parquet spark_catalog.default.partsupp (1)
+                                             :  +- ^ InputIteratorTransformer (8)
+                                             :     +- ColumnarBroadcastExchange (7)
+                                             :        +- ^ ProjectExecTransformer (5)
+                                             :           +- ^ FilterExecTransformer (4)
+                                             :              +- ^ Scan parquet spark_catalog.default.supplier (3)
+                                             +- ^ InputIteratorTransformer (14)
+                                                +- ColumnarBroadcastExchange (13)
+                                                   +- ^ FilterExecTransformer (11)
+                                                      +- ^ Scan parquet spark_catalog.default.part (10)
+
+
+(1) Scan parquet spark_catalog.default.partsupp
+Output [2]: [ps_partkey#X, ps_suppkey#X]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/partsupp]
+PushedFilters: [IsNotNull(ps_partkey)]
+ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint>
+
+(2) FilterExecTransformer
+Input [2]: [ps_partkey#X, ps_suppkey#X]
+Arguments: isnotnull(ps_partkey#X)
+
+(3) Scan parquet spark_catalog.default.supplier
+Output [2]: [s_suppkey#X, s_comment#X]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/supplier]
+PushedFilters: [IsNotNull(s_comment)]
+ReadSchema: struct<s_suppkey:bigint,s_comment:string>
+
+(4) FilterExecTransformer
+Input [2]: [s_suppkey#X, s_comment#X]
+Arguments: (isnotnull(s_comment#X) AND s_comment#X LIKE %Customer%Complaints%)
+
+(5) ProjectExecTransformer
+Input [2]: [s_suppkey#X, s_comment#X]
+Arguments: [s_suppkey#X]
+
+(6) WholeStageCodegenTransformer (X)
+Input [1]: [s_suppkey#X]
+Arguments: false
+Native Plan:
+-- Project
+  -- TableScan
+
+(7) ColumnarBroadcastExchange
+Input [1]: [s_suppkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),true), [plan_id=X]
+
+(8) InputIteratorTransformer
+Input [1]: [s_suppkey#X]
+
+(9) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [ps_suppkey#X]
+Right keys [1]: [s_suppkey#X]
+Join type: LeftAnti
+Join condition: None
+
+(10) Scan parquet spark_catalog.default.part
+Output [4]: [p_partkey#X, p_type#X, p_size#X, p_brand#X]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/part]
+PushedFilters: [IsNotNull(p_brand), IsNotNull(p_type), Not(EqualTo(p_brand,Brand#X)), Not(StringStartsWith(p_type,MEDIUM POLISHED)), In(p_size, [14,19,23,3,36,45,49,9]), IsNotNull(p_partkey)]
+ReadSchema: struct<p_partkey:bigint,p_type:string,p_size:int,p_brand:string>
+
+(11) FilterExecTransformer
+Input [4]: [p_partkey#X, p_type#X, p_size#X, p_brand#X]
+Arguments: (((((isnotnull(p_brand#X) AND isnotnull(p_type#X)) AND NOT (p_brand#X = Brand#X)) AND NOT StartsWith(p_type#X, MEDIUM POLISHED)) AND p_size#X IN (49,14,23,45,19,3,36,9)) AND isnotnull(p_partkey#X))
+
+(12) WholeStageCodegenTransformer (X)
+Input [4]: [p_partkey#X, p_type#X, p_size#X, p_brand#X]
+Arguments: false
+Native Plan:
+-- TableScan
+
+(13) ColumnarBroadcastExchange
+Input [4]: [p_partkey#X, p_type#X, p_size#X, p_brand#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
+
+(14) InputIteratorTransformer
+Input [4]: [p_partkey#X, p_type#X, p_size#X, p_brand#X]
+
+(15) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [ps_partkey#X]
+Right keys [1]: [p_partkey#X]
+Join type: Inner
+Join condition: None
+
+(16) ProjectExecTransformer
+Input [6]: [ps_partkey#X, ps_suppkey#X, p_partkey#X, p_type#X, p_size#X, p_brand#X]
+Arguments: [ps_suppkey#X, p_type#X, p_size#X, p_brand#X]
+
+(17) FlushableHashAggregateExecTransformer
+Input [4]: [ps_suppkey#X, p_type#X, p_size#X, p_brand#X]
+Keys [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
+Functions: []
+Aggregate Attributes: []
+Results [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
+
+(18) ProjectExecTransformer
+Input [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
+Arguments: [hash(p_brand#X, p_type#X, p_size#X, ps_suppkey#X, 42) AS hash_partition_key#X, hash(p_brand#X, p_type#X, p_size#X, ps_suppkey#X, 42) AS hash_partition_key#X, p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
+
+(19) WholeStageCodegenTransformer (X)
+Input [6]: [hash_partition_key#X, hash_partition_key#X, p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
+Arguments: false
+Native Plan:
+-- Project
+  -- Aggregation
+    -- Project
+      -- Project
+        -- HashJoin
+          -- Project
+            -- HashJoin
+              -- TableScan
+              -- ValueStream
+          -- ValueStream
+
+(20) ColumnarExchange
+Input [6]: [hash_partition_key#X, hash_partition_key#X, p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
+Arguments: hashpartitioning(p_brand#X, p_type#X, p_size#X, ps_suppkey#X, 100), ENSURE_REQUIREMENTS, [hash_partition_key#X, p_brand#X, p_type#X, p_size#X, ps_suppkey#X], [plan_id=X], [id=#X]
+
+(21) InputIteratorTransformer
+Input [5]: [hash_partition_key#X, p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
+
+(22) RegularHashAggregateExecTransformer
+Input [5]: [hash_partition_key#X, p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
+Keys [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
+Functions: []
+Aggregate Attributes: []
+Results [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
+
+(23) FlushableHashAggregateExecTransformer
+Input [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
+Keys [3]: [p_brand#X, p_type#X, p_size#X]
+Functions [1]: [partial_count(distinct ps_suppkey#X)]
+Aggregate Attributes [1]: [count(ps_suppkey#X)#X]
+Results [4]: [p_brand#X, p_type#X, p_size#X, count#X]
+
+(24) ProjectExecTransformer
+Input [4]: [p_brand#X, p_type#X, p_size#X, count#X]
+Arguments: [hash(p_brand#X, p_type#X, p_size#X, 42) AS hash_partition_key#X, p_brand#X, p_type#X, p_size#X, count#X]
+
+(25) WholeStageCodegenTransformer (X)
+Input [5]: [hash_partition_key#X, p_brand#X, p_type#X, p_size#X, count#X]
+Arguments: false
+Native Plan:
+-- Project
+  -- Aggregation
+    -- Aggregation
+      -- ValueStream
+
+(26) ColumnarExchange
+Input [5]: [hash_partition_key#X, p_brand#X, p_type#X, p_size#X, count#X]
+Arguments: hashpartitioning(p_brand#X, p_type#X, p_size#X, 100), ENSURE_REQUIREMENTS, [p_brand#X, p_type#X, p_size#X, count#X], [plan_id=X], [id=#X]
+
+(27) InputIteratorTransformer
+Input [4]: [p_brand#X, p_type#X, p_size#X, count#X]
+
+(28) RegularHashAggregateExecTransformer
+Input [4]: [p_brand#X, p_type#X, p_size#X, count#X]
+Keys [3]: [p_brand#X, p_type#X, p_size#X]
+Functions [1]: [count(distinct ps_suppkey#X)]
+Aggregate Attributes [1]: [count(ps_suppkey#X)#X]
+Results [4]: [p_brand#X, p_type#X, p_size#X, count(ps_suppkey#X)#X AS supplier_cnt#X]
+
+(29) WholeStageCodegenTransformer (X)
+Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
+Arguments: false
+Native Plan:
+-- Project
+  -- Aggregation
+    -- ValueStream
+
+(30) ColumnarExchange
+Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
+Arguments: rangepartitioning(supplier_cnt#X DESC NULLS LAST, p_brand#X ASC NULLS FIRST, p_type#X ASC NULLS FIRST, p_size#X ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+
+(31) InputIteratorTransformer
+Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
+
+(32) SortExecTransformer
+Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
+Arguments: [supplier_cnt#X DESC NULLS LAST, p_brand#X ASC NULLS FIRST, p_type#X ASC NULLS FIRST, p_size#X ASC NULLS FIRST], true, 0
+
+(33) WholeStageCodegenTransformer (X)
+Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
+Arguments: false
+Native Plan:
+-- OrderBy
+  -- ValueStream
+
+(34) VeloxColumnarToRowExec
+Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
+
