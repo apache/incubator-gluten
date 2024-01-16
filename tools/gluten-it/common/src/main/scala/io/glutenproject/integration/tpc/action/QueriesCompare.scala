@@ -23,6 +23,8 @@ import org.apache.spark.sql.{QueryRunner, SparkSessionSwitcher, TestUtils}
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 
+import java.io.{File, PrintWriter}
+
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
@@ -31,7 +33,8 @@ case class QueriesCompare(
     queryIds: Array[String],
     explain: Boolean,
     iterations: Int,
-    verifySparkPlan: Boolean)
+    verifySparkPlan: Boolean,
+    genGoldenFile: Boolean)
   extends Action {
 
   override def execute(tpcSuite: TpcSuite): Boolean = {
@@ -60,6 +63,7 @@ case class QueriesCompare(
               explain,
               tpcSuite.desc(),
               verifySparkPlan,
+              genGoldenFile,
               tpcSuite.sessionSwitcher,
               runner)
         }
@@ -240,6 +244,7 @@ object QueriesCompare {
       explain: Boolean,
       desc: String,
       verifySparkPlan: Boolean,
+      genGoldenFile: Boolean,
       sessionSwitcher: SparkSessionSwitcher,
       runner: TpcRunner): TestResultLine = {
     println(s"Running query: $id...")
@@ -262,6 +267,14 @@ object QueriesCompare {
         println(
           s"Successfully ran query $id, result check was passed. " +
             s"Returned row count: ${resultRows.length}, expected: ${expectedRows.length}")
+        if (genGoldenFile) {
+          val writer = new PrintWriter(new File(s"goldenFile/tpc/$id.txt"))
+          try {
+            writer.write(result.materializedPlan)
+          } finally {
+            writer.close()
+          }
+        }
         if (verifySparkPlan) {
           verifyMaterializedPlan(
             s"${runner.expectResourceFolder}/spark${sessionSwitcher.sparkMainVersion()}",
