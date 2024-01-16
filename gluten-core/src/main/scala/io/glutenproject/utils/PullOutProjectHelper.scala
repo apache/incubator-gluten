@@ -26,7 +26,7 @@ import scala.collection.mutable
 
 trait PullOutProjectHelper {
 
-  private val generatedNameIndex = new AtomicInteger(0)
+  val generatedNameIndex = new AtomicInteger(0)
 
   /**
    * Some Expressions support Attribute and Literal when converting them into native plans, such as

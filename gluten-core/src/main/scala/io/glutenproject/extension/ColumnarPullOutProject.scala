@@ -61,7 +61,7 @@ object ColumnarPullOutPostProject extends Rule[SparkPlan] with PullOutProjectHel
           agg.needsPostProjection =>
       val projectList = agg.resultExpressions.map {
         case ne: NamedExpression => ne
-        case other => Alias(other, other.toString())()
+        case other => Alias(other, s"_post_${generatedNameIndex.getAndIncrement()}")()
       }
 
       ProjectProcessedHint.postProjectProcessDone(agg)
