@@ -37,8 +37,8 @@ Arguments: [hash(c_custkey#X, 42) AS hash_partition_key#X, hash(c_custkey#X, 42)
 Input [3]: [hash_partition_key#X, hash_partition_key#X, c_custkey#X]
 Arguments: false
 Native Plan:
--- Project
-  -- TableScan
+-- Project[expressions: (n1_1:INTEGER, hash_with_seed(42,"n0_0")), (n1_2:INTEGER, hash_with_seed(42,"n0_0")), (n1_3:BIGINT, "n0_0")] -> n1_1:INTEGER, n1_2:INTEGER, n1_3:BIGINT
+  -- TableScan[table: hive_table] -> n0_0:BIGINT
 
 (4) ColumnarExchange
 Input [3]: [hash_partition_key#X, hash_partition_key#X, c_custkey#X]
@@ -66,8 +66,8 @@ Arguments: [hash(o_custkey#X, 42) AS hash_partition_key#X, hash(o_custkey#X, 42)
 Input [4]: [hash_partition_key#X, hash_partition_key#X, o_orderkey#X, o_custkey#X]
 Arguments: false
 Native Plan:
--- Project
-  -- TableScan
+-- Project[expressions: (n1_3:INTEGER, hash_with_seed(42,"n0_1")), (n1_4:INTEGER, hash_with_seed(42,"n0_1")), (n1_5:BIGINT, "n0_0"), (n1_6:BIGINT, "n0_1")] -> n1_3:INTEGER, n1_4:INTEGER, n1_5:BIGINT, n1_6:BIGINT
+  -- TableScan[table: hive_table, range filters: [(o_comment, Filter(IsNotNull, deterministic, null not allowed)), (o_custkey, Filter(IsNotNull, deterministic, null not allowed))], remaining filter: (not(like("o_comment","%special%requests%","\\")))] -> n0_0:BIGINT, n0_1:BIGINT, n0_2:VARCHAR
 
 (10) ColumnarExchange
 Input [4]: [hash_partition_key#X, hash_partition_key#X, o_orderkey#X, o_custkey#X]
@@ -115,16 +115,16 @@ Arguments: [hash(c_count#X, 42) AS hash_partition_key#X, c_count#X, count#X]
 Input [3]: [hash_partition_key#X, c_count#X, count#X]
 Arguments: false
 Native Plan:
--- Project
-  -- Aggregation
-    -- Project
-      -- Aggregation
-        -- Aggregation
-          -- Project
-            -- Project
-              -- HashJoin
-                -- ValueStream
-                -- ValueStream
+-- Project[expressions: (n9_2:INTEGER, hash_with_seed(42,"n7_2")), (n9_3:BIGINT, "n7_2"), (n9_4:BIGINT, "n8_1")] -> n9_2:INTEGER, n9_3:BIGINT, n9_4:BIGINT
+  -- Aggregation[PARTIAL [n7_2] n8_1 := count_partial(1)] -> n7_2:BIGINT, n8_1:BIGINT
+    -- Project[expressions: (n7_2:BIGINT, "n6_1")] -> n7_2:BIGINT
+      -- Aggregation[SINGLE [n4_5] n6_1 := count_merge_extract("n5_1")] -> n4_5:BIGINT, n6_1:BIGINT
+        -- Aggregation[SINGLE [n4_5] n5_1 := count_partial("n4_6")] -> n4_5:BIGINT, n5_1:BIGINT
+          -- Project[expressions: (n4_5:BIGINT, "n3_6"), (n4_6:BIGINT, "n3_8")] -> n4_5:BIGINT, n4_6:BIGINT
+            -- Project[expressions: (n3_5:INTEGER, "n0_0"), (n3_6:BIGINT, "n0_1"), (n3_7:INTEGER, "n1_0"), (n3_8:BIGINT, "n1_1"), (n3_9:BIGINT, "n1_2")] -> n3_5:INTEGER, n3_6:BIGINT, n3_7:INTEGER, n3_8:BIGINT, n3_9:BIGINT
+              -- HashJoin[LEFT n0_1=n1_2] -> n0_0:INTEGER, n0_1:BIGINT, n1_0:INTEGER, n1_1:BIGINT, n1_2:BIGINT
+                -- ValueStream[] -> n0_0:INTEGER, n0_1:BIGINT
+                -- ValueStream[] -> n1_0:INTEGER, n1_1:BIGINT, n1_2:BIGINT
 
 (19) ColumnarExchange
 Input [3]: [hash_partition_key#X, c_count#X, count#X]
@@ -144,9 +144,9 @@ Results [2]: [c_count#X, count(1)#X AS custdist#X]
 Input [2]: [c_count#X, custdist#X]
 Arguments: false
 Native Plan:
--- Project
-  -- Aggregation
-    -- ValueStream
+-- Project[expressions: (n2_2:BIGINT, "n0_0"), (n2_3:BIGINT, "n1_1")] -> n2_2:BIGINT, n2_3:BIGINT
+  -- Aggregation[SINGLE [n0_0] n1_1 := count_merge_extract("n0_1")] -> n0_0:BIGINT, n1_1:BIGINT
+    -- ValueStream[] -> n0_0:BIGINT, n0_1:BIGINT
 
 (23) ColumnarExchange
 Input [2]: [c_count#X, custdist#X]
@@ -163,9 +163,8 @@ Arguments: [custdist#X DESC NULLS LAST, c_count#X DESC NULLS LAST], true, 0
 Input [2]: [c_count#X, custdist#X]
 Arguments: false
 Native Plan:
--- OrderBy
-  -- ValueStream
+-- OrderBy[n0_1 DESC NULLS LAST, n0_0 DESC NULLS LAST] -> n0_0:BIGINT, n0_1:BIGINT
+  -- ValueStream[] -> n0_0:BIGINT, n0_1:BIGINT
 
 (27) VeloxColumnarToRowExec
 Input [2]: [c_count#X, custdist#X]
-
