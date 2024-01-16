@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include "benchmarks/common/BenchmarkUtils.h"
 #include "benchmarks/common/FileReaderIterator.h"
 #include "utils/macros.h"
 
@@ -28,6 +29,7 @@ class ParquetReaderIterator : public FileReaderIterator {
 
   void createReader() override {
     parquet::ArrowReaderProperties properties = parquet::default_arrow_reader_properties();
+    properties.set_batch_size(FLAGS_batch_size);
     GLUTEN_THROW_NOT_OK(parquet::arrow::FileReader::Make(
         arrow::default_memory_pool(), parquet::ParquetFileReader::OpenFile(path_), properties, &fileReader_));
     GLUTEN_THROW_NOT_OK(
