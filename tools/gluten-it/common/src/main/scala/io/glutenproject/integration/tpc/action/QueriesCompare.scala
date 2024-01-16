@@ -191,6 +191,16 @@ object QueriesCompare {
             None
           )))
   }
+  private def outputFormattedMaterializedPlan(id: String, plan: String): Unit = {
+    val file = new File(s"$id.txt")
+    file.createNewFile()
+    val writer = new PrintWriter(file)
+    try {
+      writer.write(plan)
+    } finally {
+      writer.close()
+    }
+  }
 
   private def formatMaterializedPlan(plan: String): String = {
     plan
@@ -203,6 +213,7 @@ object QueriesCompare {
       expectFolder: String,
       id: String,
       actualPlan: String,
+      outputDifferentPlan: Boolean,
       multiResult: Boolean = false): (Boolean, Option[String]) = {
     try {
       val expectPathQueue = if (multiResult) {
@@ -222,6 +233,9 @@ object QueriesCompare {
           return (true, None)
         }
       }
+      if (outputDifferentPlan) {
+        outputFormattedMaterializedPlan(id, afterFormatPlan)
+      }
       // In case this query has multiple plans, we need to check all of them
       // so, when reach here, means the actual plan is different from all the expect plans
       (false, Some(s"Expects: \n${expectStr.toString()}\n\nActual: \n$afterFormatPlan"))
@@ -234,7 +248,7 @@ object QueriesCompare {
         if (multiResult) {
           return (false, Some(s"Can't find expect plan file, ${ExceptionUtils.getStackTrace(npe)}"))
         }
-        verifyMaterializedPlan(expectFolder, id, actualPlan, multiResult = true)
+        verifyMaterializedPlan(expectFolder, id, actualPlan, outputDifferentPlan, multiResult = true)
       case e: Exception =>
         (
           false,
@@ -271,21 +285,14 @@ object QueriesCompare {
           s"Successfully ran query $id, result check was passed. " +
             s"Returned row count: ${resultRows.length}, expected: ${expectedRows.length}")
         if (genGoldenFile) {
-          val file = new File(s"$id.txt")
-          println(file.getAbsolutePath)
-          file.createNewFile()
-          val writer = new PrintWriter(file)
-          try {
-            writer.write(formatMaterializedPlan(result.materializedPlan))
-          } finally {
-            writer.close()
-          }
+          outputFormattedMaterializedPlan(id, formatMaterializedPlan(result.materializedPlan))
         }
         if (verifySparkPlan) {
           verifyMaterializedPlan(
             s"${runner.expectResourceFolder}/spark${sessionSwitcher.sparkMainVersion()}",
             id,
-            result.materializedPlan) match {
+            result.materializedPlan,
+            !genGoldenFile) match {
             case (false, reason) =>
               return TestResultLine(
                 id,

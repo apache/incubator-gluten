@@ -38,7 +38,7 @@ ReadSchema: struct<o_custkey:bigint>
 Input [1]: [o_custkey#X]
 Arguments: false
 Native Plan:
--- TableScan
+-- TableScan[table: hive_table] -> n0_0:BIGINT
 
 (5) ColumnarBroadcastExchange
 Input [1]: [o_custkey#X]
@@ -72,14 +72,14 @@ Arguments: [hash(cntrycode#X, 42) AS hash_partition_key#X, cntrycode#X, count#X,
 Input [5]: [hash_partition_key#X, cntrycode#X, count#X, sum#X, isEmpty#X]
 Arguments: false
 Native Plan:
--- Project
-  -- Project
-    -- Aggregation
-      -- Project
-        -- Project
-          -- HashJoin
-            -- TableScan
-            -- ValueStream
+-- Project[expressions: (n7_4:INTEGER, hash_with_seed(42,"n6_3")), (n7_5:VARCHAR, "n6_3"), (n7_6:BIGINT, "n6_4"), (n7_7:DECIMAL(22, 2), "n6_5"), (n7_8:BOOLEAN, "n6_6")] -> n7_4:INTEGER, n7_5:VARCHAR, n7_6:BIGINT, n7_7:DECIMAL(22, 2), n7_8:BOOLEAN
+  -- Project[expressions: (n6_3:VARCHAR, "n4_3"), (n6_4:BIGINT, "n5_1"), (n6_5:DECIMAL(22, 2), "n5_2"["col_0"]), (n6_6:BOOLEAN, "n5_2"["col_1"])] -> n6_3:VARCHAR, n6_4:BIGINT, n6_5:DECIMAL(22, 2), n6_6:BOOLEAN
+    -- Aggregation[PARTIAL [n4_3] n5_1 := count_partial(1), n5_2 := sum_partial("n4_4")] -> n4_3:VARCHAR, n5_1:BIGINT, n5_2:ROW<col_0:DECIMAL(22, 2),col_1:BOOLEAN>
+      -- Project[expressions: (n4_3:VARCHAR, substring("n3_4",1,2)), (n4_4:DECIMAL(12, 2), "n3_5")] -> n4_3:VARCHAR, n4_4:DECIMAL(12, 2)
+        -- Project[expressions: (n3_3:BIGINT, "n1_0"), (n3_4:VARCHAR, "n1_1"), (n3_5:DECIMAL(12, 2), "n1_2")] -> n3_3:BIGINT, n3_4:VARCHAR, n3_5:DECIMAL(12, 2)
+          -- HashJoin[ANTI n1_0=n0_0] -> n1_0:BIGINT, n1_1:VARCHAR, n1_2:DECIMAL(12, 2)
+            -- TableScan[table: hive_table, range filters: [(c_acctbal, Filter(IsNotNull, deterministic, null not allowed))], remaining filter: (and(decimal_greaterthan(try_cast "c_acctbal" as DECIMAL(16, 6),5003.685765),in(substring("c_phone",1,2),7 elements starting at 0 {13, 17, 18, 23, 29, ...})))] -> n1_0:BIGINT, n1_1:VARCHAR, n1_2:DECIMAL(12, 2)
+            -- ValueStream[] -> n0_0:BIGINT
 
 (12) ColumnarExchange
 Input [5]: [hash_partition_key#X, cntrycode#X, count#X, sum#X, isEmpty#X]
@@ -99,10 +99,10 @@ Results [3]: [cntrycode#X, count(1)#X AS numcust#X, sum(c_acctbal#X)#X AS totacc
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: false
 Native Plan:
--- Project
-  -- Aggregation
-    -- Project
-      -- ValueStream
+-- Project[expressions: (n3_3:VARCHAR, "n1_4"), (n3_4:BIGINT, "n2_1"), (n3_5:DECIMAL(22, 2), "n2_2")] -> n3_3:VARCHAR, n3_4:BIGINT, n3_5:DECIMAL(22, 2)
+  -- Aggregation[SINGLE [n1_4] n2_1 := count_merge_extract("n1_5"), n2_2 := sum_merge_extract("n1_6")] -> n1_4:VARCHAR, n2_1:BIGINT, n2_2:DECIMAL(22, 2)
+    -- Project[expressions: (n1_4:VARCHAR, "n0_0"), (n1_5:BIGINT, "n0_1"), (n1_6:ROW<col_0:DECIMAL(22, 2),col_1:BOOLEAN>, row_constructor("n0_2","n0_3"))] -> n1_4:VARCHAR, n1_5:BIGINT, n1_6:ROW<col_0:DECIMAL(22, 2),col_1:BOOLEAN>
+      -- ValueStream[] -> n0_0:VARCHAR, n0_1:BIGINT, n0_2:DECIMAL(22, 2), n0_3:BOOLEAN
 
 (16) ColumnarExchange
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
@@ -119,8 +119,8 @@ Arguments: [cntrycode#X ASC NULLS FIRST], true, 0
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: false
 Native Plan:
--- OrderBy
-  -- ValueStream
+-- OrderBy[n0_0 ASC NULLS FIRST] -> n0_0:VARCHAR, n0_1:BIGINT, n0_2:DECIMAL(22, 2)
+  -- ValueStream[] -> n0_0:VARCHAR, n0_1:BIGINT, n0_2:DECIMAL(22, 2)
 
 (20) VeloxColumnarToRowExec
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
@@ -204,6 +204,3 @@ VeloxColumnarToRowExec (30)
             +- ^ ProjectExecTransformer (23)
                +- ^ FilterExecTransformer (22)
                   +- ^ Scan parquet spark_catalog.default.customer (21)
-
-
-
