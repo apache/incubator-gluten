@@ -192,6 +192,13 @@ object QueriesCompare {
           )))
   }
 
+  private def formatMaterializedPlan(plan: String): String = {
+    plan
+      .replaceAll("#[0-9]*L*", "#X")
+      .replaceAll("plan_id=[0-9]*", "plan_id=X")
+      .replaceAll("Statistics[(A-Za-z0-9=. ,+)]*", "Statistics(X)")
+      .replaceAll("WholeStageCodegenTransformer[0-9 ()]*", "WholeStageCodegenTransformer (X)")
+  }
   private[tpc] def verifyMaterializedPlan(
       expectFolder: String,
       id: String,
@@ -203,11 +210,7 @@ object QueriesCompare {
       } else {
         mutable.Queue.apply(s"$expectFolder/$id.txt")
       }
-      val afterFormatPlan = actualPlan
-        .replaceAll("#[0-9]*L*", "#X")
-        .replaceAll("plan_id=[0-9]*", "plan_id=X")
-        .replaceAll("Statistics[(A-Za-z0-9=. ,+)]*", "Statistics(X)")
-        .replaceAll("WholeStageCodegenTransformer[0-9 ()]*", "WholeStageCodegenTransformer (X)")
+      val afterFormatPlan = formatMaterializedPlan(actualPlan)
 
       val expectStr = ListBuffer.empty[String]
       while (expectPathQueue.nonEmpty) {
@@ -273,7 +276,7 @@ object QueriesCompare {
           file.createNewFile()
           val writer = new PrintWriter(file)
           try {
-            writer.write(result.materializedPlan)
+            writer.write(formatMaterializedPlan(result.materializedPlan))
           } finally {
             writer.close()
           }
