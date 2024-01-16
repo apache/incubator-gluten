@@ -1864,7 +1864,7 @@ void SubstraitToVeloxPlanConverter::createNotEqualFilter(
   // Value > lower
   std::unique_ptr<FilterType> lowerFilter;
   if constexpr (std::is_same_v<RangeType, common::BigintRange>) {
-    if (notVariant.value<NativeType>() + 1 <= getMax<NativeType>()) {
+    if (notVariant.value<NativeType>() < getMax<NativeType>()) {
       lowerFilter = std::make_unique<common::BigintRange>(
           notVariant.value<NativeType>() + 1 /*lower*/, getMax<NativeType>() /*upper*/, nullAllowed);
     }
@@ -1882,7 +1882,7 @@ void SubstraitToVeloxPlanConverter::createNotEqualFilter(
   // Value < upper
   std::unique_ptr<FilterType> upperFilter;
   if constexpr (std::is_same_v<RangeType, common::BigintRange>) {
-    if (getLowest<NativeType>() <= notVariant.value<NativeType>() - 1) {
+    if (getLowest<NativeType>() < notVariant.value<NativeType>()) {
       upperFilter = std::make_unique<common::BigintRange>(
           getLowest<NativeType>() /*lower*/, notVariant.value<NativeType>() - 1 /*upper*/, nullAllowed);
     }
