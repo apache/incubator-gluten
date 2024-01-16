@@ -14,22 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
+package io.glutenproject.tags;
 
-#include <Storages/SubstraitSource/FormatFile.h>
+import org.scalatest.TagAnnotation;
 
-namespace local_engine
-{
-class JSONFormatFile : public FormatFile
-{
-public:
-    explicit JSONFormatFile(DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_);
-    ~JSONFormatFile() override = default;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-    bool supportSplit() const override { return true; }
-
-    FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
-
-    String getFileFormat() const override { return "JSONEachRow"; }
-};
-}
+@TagAnnotation
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.METHOD, ElementType.TYPE})
+public @interface FuzzerTest {}

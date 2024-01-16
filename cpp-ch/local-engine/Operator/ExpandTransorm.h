@@ -40,7 +40,7 @@ public:
     Status prepare() override;
     void work() override;
 
-    DB::String getName() const override { return "ExpandTransform"; }
+    String getName() const override { return "ExpandTransform"; }
 
 private:
     ExpandField project_set_exprs;

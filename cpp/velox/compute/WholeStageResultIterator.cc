@@ -349,10 +349,6 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
   // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
   // FIXME this uses process-wise off-heap memory which is not for task
   try {
-    // To align with Spark's behavior, set casting to int to be truncating.
-    configs[velox::core::QueryConfig::kCastToIntByTruncate] = std::to_string(true);
-    // To align with Spark's behavior, unset to support non-ISO8601 standard strings.
-    configs[velox::core::QueryConfig::kCastStringToDateIsIso8601] = std::to_string(false);
     auto defaultTimezone = veloxCfg_->get<std::string>(kDefaultSessionTimezone, "");
     configs[velox::core::QueryConfig::kSessionTimezone] =
         veloxCfg_->get<std::string>(kSessionTimezone, defaultTimezone);

@@ -972,4 +972,24 @@ class GlutenClickHouseNativeWriteTableSuite
     }
   }
 
+  test("GLUTEN-4316: fix crash on dynamic partition inserting") {
+    withSQLConf(
+      ("spark.gluten.sql.native.writer.enabled", "true"),
+      ("spark.gluten.enabled", "true")) {
+      formats.foreach(
+        format => {
+          val tbl = "t_" + format
+          spark.sql(s"drop table IF EXISTS $tbl")
+          val sql1 =
+            s"create table $tbl(a int, b map<string, string>, c struct<d:string, e:string>) " +
+              s"partitioned by (day string) stored as $format"
+          val sql2 = s"insert overwrite $tbl partition (day) " +
+            s"select id as a, str_to_map(concat('t1:','a','&t2:','b'),'&',':'), " +
+            s"struct('1', null) as c, '2024-01-08' as day from range(10)"
+          spark.sql(sql1)
+          spark.sql(sql2)
+        })
+    }
+  }
+
 }

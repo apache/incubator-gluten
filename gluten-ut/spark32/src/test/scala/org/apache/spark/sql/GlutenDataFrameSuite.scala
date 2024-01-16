@@ -29,6 +29,8 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SQLTestData.TestData2
 import org.apache.spark.sql.types.StringType
 
+import java.nio.charset.StandardCharsets
+
 import scala.util.Random
 
 class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
@@ -355,7 +357,7 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
       Seq(" abc", "abc ", " abc ", "\u2000abc\n\n\n", "abc\r\r\r", "abc\f\f\f", "abc\u000C")
     // scalastyle:on nonascii
     rawData.toDF("col1").createOrReplaceTempView("t1")
-    val expectedBinaryResult = rawData.map(d => Row(d.getBytes())).seq
+    val expectedBinaryResult = rawData.map(d => Row(d.getBytes(StandardCharsets.UTF_8))).seq
     df = spark.sql("select cast(col1 as binary) from t1")
     checkResult(df, expectedBinaryResult)
   }

@@ -215,8 +215,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("DateFormat")
     // Legacy mode is not supported, assuming this mode is not commonly used.
     .exclude("to_timestamp exception mode")
-    // A velox bug, will be fixed in velox.
-    .exclude("SPARK-31896: Handle am-pm timestamp parsing when hour is missing")
   enableSuite[GlutenDecimalExpressionSuite]
   enableSuite[GlutenStringFunctionsSuite]
   enableSuite[GlutenRegexpExpressionsSuite]

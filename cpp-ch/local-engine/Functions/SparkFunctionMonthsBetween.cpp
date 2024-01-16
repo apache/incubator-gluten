@@ -136,7 +136,7 @@ DB::ColumnPtr SparkFunctionMonthsBetween::executeImpl(
                 static_cast<DateTime64>(x_value.safeGet<DateTime64>()),
                 static_cast<DateTime64>(y_value.safeGet<DateTime64>()),
                 timezone,
-                static_cast<bool>(round_value.safeGet<DB::UInt8>())));
+                static_cast<bool>(round_value.safeGet<UInt8>())));
         }
     }
     return res;

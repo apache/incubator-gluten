@@ -20,7 +20,7 @@ import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types.{IntegerType, LongType}
 
-import io.substrait.`type`.Type
+import io.substrait.`type`.TypeCreator
 import io.substrait.expression.{Expression => SExpression, ExpressionCreator}
 
 class ArithmeticExpressionSuite extends SparkFunSuite with SubstraitExpressionTestBase {
@@ -31,8 +31,11 @@ class ArithmeticExpressionSuite extends SparkFunSuite with SubstraitExpressionTe
       Add(Literal(1), Literal(2L)),
       func => {
         assertResult(true)(func.arguments().get(1).isInstanceOf[SExpression.I64Literal])
-        assertResult(ExpressionCreator.cast(Type.REQUIRED.I64, ExpressionCreator.i32(false, 1)))(
-          func.arguments().get(0))
+        assertResult(
+          ExpressionCreator.cast(
+            TypeCreator.REQUIRED.I64,
+            ExpressionCreator.i32(false, 1)
+          ))(func.arguments().get(0))
       },
       bidirectional = false
     ) // TODO: implicit calcite cast

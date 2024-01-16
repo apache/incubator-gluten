@@ -49,45 +49,45 @@ void ExcelSerialization::deserializeTextCSV(IColumn & column, ReadBuffer & istr,
         deserializeDatetimeTextCSV<DB::SerializationDateTime64::ColumnType>(
             column, istr, settings, datetime64->getTimeZone(), DateLUT::instance("UTC"));
     }
-    else if (typeid_cast<const SerializationNumber<DB::UInt8> *>(nested_ptr.get()))
+    else if (typeid_cast<const SerializationNumber<UInt8> *>(nested_ptr.get()))
     {
-        deserializeNumberTextCSV<DB::UInt8>(column, istr, settings);
+        deserializeNumberTextCSV<UInt8>(column, istr, settings);
     }
-    else if (typeid_cast<const SerializationNumber<DB::UInt16> *>(nested_ptr.get()))
+    else if (typeid_cast<const SerializationNumber<UInt16> *>(nested_ptr.get()))
     {
-        deserializeNumberTextCSV<DB::UInt16>(column, istr, settings);
+        deserializeNumberTextCSV<UInt16>(column, istr, settings);
     }
-    else if (typeid_cast<const SerializationNumber<DB::UInt32> *>(nested_ptr.get()))
+    else if (typeid_cast<const SerializationNumber<UInt32> *>(nested_ptr.get()))
     {
-        deserializeNumberTextCSV<DB::UInt32>(column, istr, settings);
+        deserializeNumberTextCSV<UInt32>(column, istr, settings);
     }
-    else if (typeid_cast<const SerializationNumber<DB::UInt64> *>(nested_ptr.get()))
+    else if (typeid_cast<const SerializationNumber<UInt64> *>(nested_ptr.get()))
     {
-        deserializeNumberTextCSV<DB::UInt64>(column, istr, settings);
+        deserializeNumberTextCSV<UInt64>(column, istr, settings);
     }
-    else if (typeid_cast<const SerializationNumber<DB::Int8> *>(nested_ptr.get()))
+    else if (typeid_cast<const SerializationNumber<Int8> *>(nested_ptr.get()))
     {
-        deserializeNumberTextCSV<DB::Int8>(column, istr, settings);
+        deserializeNumberTextCSV<Int8>(column, istr, settings);
     }
-    else if (typeid_cast<const SerializationNumber<DB::Int16> *>(nested_ptr.get()))
+    else if (typeid_cast<const SerializationNumber<Int16> *>(nested_ptr.get()))
     {
-        deserializeNumberTextCSV<DB::Int16>(column, istr, settings);
+        deserializeNumberTextCSV<Int16>(column, istr, settings);
     }
-    else if (typeid_cast<const SerializationNumber<DB::Int32> *>(nested_ptr.get()))
+    else if (typeid_cast<const SerializationNumber<Int32> *>(nested_ptr.get()))
     {
-        deserializeNumberTextCSV<DB::Int32>(column, istr, settings);
+        deserializeNumberTextCSV<Int32>(column, istr, settings);
     }
-    else if (typeid_cast<const SerializationNumber<DB::Int64> *>(nested_ptr.get()))
+    else if (typeid_cast<const SerializationNumber<Int64> *>(nested_ptr.get()))
     {
-        deserializeNumberTextCSV<DB::Int64>(column, istr, settings);
+        deserializeNumberTextCSV<Int64>(column, istr, settings);
     }
-    else if (typeid_cast<const SerializationNumber<DB::Float32> *>(nested_ptr.get()))
+    else if (typeid_cast<const SerializationNumber<Float32> *>(nested_ptr.get()))
     {
-        deserializeNumberTextCSV<DB::Float32>(column, istr, settings);
+        deserializeNumberTextCSV<Float32>(column, istr, settings);
     }
-    else if (typeid_cast<const SerializationNumber<DB::Float64> *>(nested_ptr.get()))
+    else if (typeid_cast<const SerializationNumber<Float64> *>(nested_ptr.get()))
     {
-        deserializeNumberTextCSV<DB::Float64>(column, istr, settings);
+        deserializeNumberTextCSV<Float64>(column, istr, settings);
     }
     else if (typeid_cast<const SerializationString *>(nested_ptr.get()))
     {

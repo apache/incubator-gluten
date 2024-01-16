@@ -51,7 +51,7 @@ public:
     Status prepare() override;
     void work() override;
 
-    DB::String getName() const override { return "BlocksBufferPoolTransform"; }
+    String getName() const override { return "BlocksBufferPoolTransform"; }
 private:
     std::list<DB::Chunk> pending_chunks;
     size_t buffer_size;

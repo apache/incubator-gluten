@@ -49,7 +49,7 @@ public:
     static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionCastFloatToInt>(); }
     SparkFunctionCastFloatToInt() = default;
     ~SparkFunctionCastFloatToInt() override = default;
-    DB::String getName() const override { return name; }
+    String getName() const override { return name; }
     bool useDefaultImplementationForConstants() const override { return true; }
     bool isSuitableForShortCircuitArgumentsExecution(const DataTypesWithConstInfo & /*arguments*/) const override { return true; }
 
@@ -81,12 +81,12 @@ public:
         {
             case DB::TypeIndex::Float32:
             {
-                executeInternal<DB::Float32>(src_col, res_col->getData(), null_map_col->getData());
+                executeInternal<Float32>(src_col, res_col->getData(), null_map_col->getData());
                 break;
             }
             case DB::TypeIndex::Float64:
             {
-                executeInternal<DB::Float64>(src_col, res_col->getData(), null_map_col->getData());
+                executeInternal<Float64>(src_col, res_col->getData(), null_map_col->getData());
                 break;
             }
         }

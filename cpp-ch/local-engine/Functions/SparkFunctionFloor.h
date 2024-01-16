@@ -181,7 +181,7 @@ public:
     static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionFloor>(); }
     SparkFunctionFloor() = default;
     ~SparkFunctionFloor() override = default;
-    DB::String getName() const override { return name; }
+    String getName() const override { return name; }
 
     DB::DataTypePtr getReturnTypeImpl(const DB::DataTypes & arguments) const override
     {

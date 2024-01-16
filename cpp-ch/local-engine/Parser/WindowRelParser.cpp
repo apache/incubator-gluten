@@ -115,9 +115,9 @@ WindowRelParser::parseWindowDescription(const WindowInfo & win_info)
 }
 
 /// In CH, it put all functions into one window description if they have the same partition expressions and sort fields.
-std::unordered_map<DB::String, WindowDescription> WindowRelParser::parseWindowDescriptions()
+std::unordered_map<String, WindowDescription> WindowRelParser::parseWindowDescriptions()
 {
-    std::unordered_map<DB::String, WindowDescription> window_descriptions;
+    std::unordered_map<String, WindowDescription> window_descriptions;
     for (size_t i = 0; i < win_infos.size(); ++i)
     {
         auto & win_info = win_infos[i];
