@@ -129,7 +129,8 @@ class SubstraitToVeloxPlanValidator {
 
   /// Validate Substrait IN expression.
   bool validateSingularOrList(
-      const ::substrait::Expression::SingularOrList& singularOrList, const RowTypePtr& inputType);
+      const ::substrait::Expression::SingularOrList& singularOrList,
+      const RowTypePtr& inputType);
 
   /// Add necessary log for fallback
   void logValidateMsg(const std::string& log) {
