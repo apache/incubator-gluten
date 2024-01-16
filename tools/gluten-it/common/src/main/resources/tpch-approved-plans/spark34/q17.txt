@@ -1,360 +1,204 @@
 == Physical Plan ==
-AdaptiveSparkPlan (57)
-+- == Final Plan ==
-   VeloxColumnarToRowExec (36)
-   +- ^ RegularHashAggregateExecTransformer (34)
-      +- ^ InputIteratorTransformer (33)
-         +- ShuffleQueryStage (32), Statistics(X)
-            +- ColumnarExchange (31)
-               +- ^ FlushableHashAggregateExecTransformer (29)
-                  +- ^ ProjectExecTransformer (28)
-                     +- ^ GlutenBroadcastHashJoinExecTransformer Inner (27)
-                        :- ^ ProjectExecTransformer (11)
-                        :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (10)
-                        :     :- ^ FilterExecTransformer (2)
-                        :     :  +- ^ Scan parquet spark_catalog.default.lineitem (1)
-                        :     +- ^ InputIteratorTransformer (9)
-                        :        +- BroadcastQueryStage (8), Statistics(X)
-                        :           +- ColumnarBroadcastExchange (7)
-                        :              +- ^ ProjectExecTransformer (5)
-                        :                 +- ^ FilterExecTransformer (4)
-                        :                    +- ^ Scan parquet spark_catalog.default.part (3)
-                        +- ^ InputIteratorTransformer (26)
-                           +- BroadcastQueryStage (25), Statistics(X)
-                              +- ColumnarBroadcastExchange (24)
-                                 +- ^ FilterExecTransformer (22)
-                                    +- ^ RegularHashAggregateExecTransformer (21)
-                                       +- ^ InputIteratorTransformer (20)
-                                          +- AQEShuffleRead (19)
-                                             +- ShuffleQueryStage (18), Statistics(X)
-                                                +- ColumnarExchange (17)
-                                                   +- ^ ProjectExecTransformer (15)
-                                                      +- ^ FlushableHashAggregateExecTransformer (14)
-                                                         +- ^ FilterExecTransformer (13)
-                                                            +- ^ Scan parquet spark_catalog.default.lineitem (12)
-+- == Initial Plan ==
-   HashAggregate (56)
-   +- Exchange (55)
-      +- HashAggregate (54)
-         +- Project (53)
-            +- BroadcastHashJoin Inner BuildRight (52)
-               :- Project (44)
-               :  +- BroadcastHashJoin Inner BuildRight (43)
-               :     :- Filter (38)
-               :     :  +- Scan parquet spark_catalog.default.lineitem (37)
-               :     +- BroadcastExchange (42)
-               :        +- Project (41)
-               :           +- Filter (40)
-               :              +- Scan parquet spark_catalog.default.part (39)
-               +- BroadcastExchange (51)
-                  +- Filter (50)
-                     +- HashAggregate (49)
-                        +- Exchange (48)
-                           +- HashAggregate (47)
-                              +- Filter (46)
-                                 +- Scan parquet spark_catalog.default.lineitem (45)
+VeloxColumnarToRowExec (31)
++- ^ RegularHashAggregateExecTransformer (29)
+   +- ^ InputIteratorTransformer (28)
+      +- ColumnarExchange (27)
+         +- ^ FlushableHashAggregateExecTransformer (25)
+            +- ^ ProjectExecTransformer (24)
+               +- ^ ShuffledHashJoinExecTransformer Inner (23)
+                  :- ^ InputIteratorTransformer (13)
+                  :  +- ColumnarExchange (12)
+                  :     +- ^ ProjectExecTransformer (10)
+                  :        +- ^ GlutenBroadcastHashJoinExecTransformer Inner (9)
+                  :           :- ^ FilterExecTransformer (2)
+                  :           :  +- ^ Scan parquet spark_catalog.default.lineitem (1)
+                  :           +- ^ InputIteratorTransformer (8)
+                  :              +- ColumnarBroadcastExchange (7)
+                  :                 +- ^ ProjectExecTransformer (5)
+                  :                    +- ^ FilterExecTransformer (4)
+                  :                       +- ^ Scan parquet spark_catalog.default.part (3)
+                  +- ^ FilterExecTransformer (22)
+                     +- ^ RegularHashAggregateExecTransformer (21)
+                        +- ^ InputIteratorTransformer (20)
+                           +- ColumnarExchange (19)
+                              +- ^ ProjectExecTransformer (17)
+                                 +- ^ FlushableHashAggregateExecTransformer (16)
+                                    +- ^ FilterExecTransformer (15)
+                                       +- ^ Scan parquet spark_catalog.default.lineitem (14)
 
 
 (1) Scan parquet spark_catalog.default.lineitem
-Output [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
+Output [3]: [l_partkey#7603L, l_quantity#7606, l_extendedprice#7607]
 Batched: true
-Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/lineitem]
 PushedFilters: [IsNotNull(l_partkey), IsNotNull(l_quantity)]
 ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2),l_extendedprice:decimal(12,2)>
 
 (2) FilterExecTransformer
-Input [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
-Arguments: (isnotnull(l_partkey#X) AND isnotnull(l_quantity#X))
+Input [3]: [l_partkey#7603L, l_quantity#7606, l_extendedprice#7607]
+Arguments: (isnotnull(l_partkey#7603L) AND isnotnull(l_quantity#7606))
 
 (3) Scan parquet spark_catalog.default.part
-Output [3]: [p_partkey#X, p_container#X, p_brand#X]
+Output [3]: [p_partkey#7575L, p_container#7580, p_brand#7583]
 Batched: true
-Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/part]
-PushedFilters: [IsNotNull(p_brand), IsNotNull(p_container), EqualTo(p_brand,Brand#X), EqualTo(p_container,MED BOX), IsNotNull(p_partkey)]
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/part]
+PushedFilters: [IsNotNull(p_brand), IsNotNull(p_container), EqualTo(p_brand,Brand#23), EqualTo(p_container,MED BOX), IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_container:string,p_brand:string>
 
 (4) FilterExecTransformer
-Input [3]: [p_partkey#X, p_container#X, p_brand#X]
-Arguments: ((((isnotnull(p_brand#X) AND isnotnull(p_container#X)) AND (p_brand#X = Brand#X)) AND (p_container#X = MED BOX)) AND isnotnull(p_partkey#X))
+Input [3]: [p_partkey#7575L, p_container#7580, p_brand#7583]
+Arguments: ((((isnotnull(p_brand#7583) AND isnotnull(p_container#7580)) AND (p_brand#7583 = Brand#23)) AND (p_container#7580 = MED BOX)) AND isnotnull(p_partkey#7575L))
 
 (5) ProjectExecTransformer
-Input [3]: [p_partkey#X, p_container#X, p_brand#X]
-Arguments: [p_partkey#X]
+Input [3]: [p_partkey#7575L, p_container#7580, p_brand#7583]
+Arguments: [p_partkey#7575L]
 
-(6) WholeStageCodegenTransformer (X)
-Input [1]: [p_partkey#X]
+(6) WholeStageCodegenTransformer (122)
+Input [1]: [p_partkey#7575L]
 Arguments: false
 Native Plan:
--- Project[expressions: (n1_3:BIGINT, "n0_0")] -> n1_3:BIGINT
-  -- TableScan[table: hive_table, range filters: [(p_brand, BytesRange: [Brand#X, Brand#X] no nulls), (p_container, BytesRange: [MED BOX, MED BOX] no nulls), (p_partkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:VARCHAR, n0_2:VARCHAR
+-- Project
+  -- TableScan
 
 (7) ColumnarBroadcastExchange
-Input [1]: [p_partkey#X]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
+Input [1]: [p_partkey#7575L]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=11677]
 
-(8) BroadcastQueryStage
-Output [1]: [p_partkey#X]
-Arguments: 0
+(8) InputIteratorTransformer
+Input [1]: [p_partkey#7575L]
 
-(9) InputIteratorTransformer
-Input [1]: [p_partkey#X]
-
-(10) GlutenBroadcastHashJoinExecTransformer
-Left keys [1]: [l_partkey#X]
-Right keys [1]: [p_partkey#X]
+(9) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [l_partkey#7603L]
+Right keys [1]: [p_partkey#7575L]
 Join type: Inner
 Join condition: None
 
-(11) ProjectExecTransformer
-Input [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, p_partkey#X]
-Arguments: [l_quantity#X, l_extendedprice#X, p_partkey#X]
+(10) ProjectExecTransformer
+Input [4]: [l_partkey#7603L, l_quantity#7606, l_extendedprice#7607, p_partkey#7575L]
+Arguments: [hash(p_partkey#7575L, 42) AS hash_partition_key#7682, l_quantity#7606, l_extendedprice#7607, p_partkey#7575L]
 
-(12) Scan parquet spark_catalog.default.lineitem
-Output [2]: [l_partkey#X, l_quantity#X]
+(11) WholeStageCodegenTransformer (123)
+Input [4]: [hash_partition_key#7682, l_quantity#7606, l_extendedprice#7607, p_partkey#7575L]
+Arguments: false
+Native Plan:
+-- Project
+  -- Project
+    -- HashJoin
+      -- TableScan
+      -- ValueStream
+
+(12) ColumnarExchange
+Input [4]: [hash_partition_key#7682, l_quantity#7606, l_extendedprice#7607, p_partkey#7575L]
+Arguments: hashpartitioning(p_partkey#7575L, 100), ENSURE_REQUIREMENTS, [l_quantity#7606, l_extendedprice#7607, p_partkey#7575L], [plan_id=11683], [id=#11683]
+
+(13) InputIteratorTransformer
+Input [3]: [l_quantity#7606, l_extendedprice#7607, p_partkey#7575L]
+
+(14) Scan parquet spark_catalog.default.lineitem
+Output [2]: [l_partkey#7657L, l_quantity#7660]
 Batched: true
-Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/lineitem]
 PushedFilters: [IsNotNull(l_partkey)]
 ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2)>
 
-(13) FilterExecTransformer
-Input [2]: [l_partkey#X, l_quantity#X]
-Arguments: isnotnull(l_partkey#X)
+(15) FilterExecTransformer
+Input [2]: [l_partkey#7657L, l_quantity#7660]
+Arguments: isnotnull(l_partkey#7657L)
 
-(14) FlushableHashAggregateExecTransformer
-Input [2]: [l_partkey#X, l_quantity#X]
-Keys [1]: [l_partkey#X]
-Functions [1]: [partial_avg(l_quantity#X)]
-Aggregate Attributes [2]: [sum#X, count#X]
-Results [3]: [l_partkey#X, sum#X, count#X]
+(16) FlushableHashAggregateExecTransformer
+Input [2]: [l_partkey#7657L, l_quantity#7660]
+Keys [1]: [l_partkey#7657L]
+Functions [1]: [partial_avg(l_quantity#7660)]
+Aggregate Attributes [2]: [sum#7678, count#7679L]
+Results [3]: [l_partkey#7657L, sum#7680, count#7681L]
 
-(15) ProjectExecTransformer
-Input [3]: [l_partkey#X, sum#X, count#X]
-Arguments: [hash(l_partkey#X, 42) AS hash_partition_key#X, l_partkey#X, sum#X, count#X]
+(17) ProjectExecTransformer
+Input [3]: [l_partkey#7657L, sum#7680, count#7681L]
+Arguments: [hash(l_partkey#7657L, 42) AS hash_partition_key#7683, l_partkey#7657L, sum#7680, count#7681L]
 
-(16) WholeStageCodegenTransformer (X)
-Input [4]: [hash_partition_key#X, l_partkey#X, sum#X, count#X]
+(18) WholeStageCodegenTransformer (124)
+Input [4]: [hash_partition_key#7683, l_partkey#7657L, sum#7680, count#7681L]
 Arguments: false
 Native Plan:
--- Project[expressions: (n3_3:INTEGER, hash_with_seed(42,"n2_2")), (n3_4:BIGINT, "n2_2"), (n3_5:DECIMAL(22, 2), "n2_3"), (n3_6:BIGINT, "n2_4")] -> n3_3:INTEGER, n3_4:BIGINT, n3_5:DECIMAL(22, 2), n3_6:BIGINT
-  -- Project[expressions: (n2_2:BIGINT, "n0_0"), (n2_3:DECIMAL(22, 2), "n1_1"["col_0"]), (n2_4:BIGINT, "n1_1"["col_1"])] -> n2_2:BIGINT, n2_3:DECIMAL(22, 2), n2_4:BIGINT
-    -- Aggregation[PARTIAL [n0_0] n1_1 := avg_partial("n0_1")] -> n0_0:BIGINT, n1_1:ROW<col_0:DECIMAL(22, 2),col_1:BIGINT>
-      -- TableScan[table: hive_table, range filters: [(l_partkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:DECIMAL(12, 2)
+-- Project
+  -- Project
+    -- Aggregation
+      -- TableScan
 
-(17) ColumnarExchange
-Input [4]: [hash_partition_key#X, l_partkey#X, sum#X, count#X]
-Arguments: hashpartitioning(l_partkey#X, 100), ENSURE_REQUIREMENTS, [l_partkey#X, sum#X, count#X], [plan_id=X], [id=#X]
-
-(18) ShuffleQueryStage
-Output [3]: [l_partkey#X, sum#X, count#X]
-Arguments: 1
-
-(19) AQEShuffleRead
-Input [3]: [l_partkey#X, sum#X, count#X]
-Arguments: coalesced
+(19) ColumnarExchange
+Input [4]: [hash_partition_key#7683, l_partkey#7657L, sum#7680, count#7681L]
+Arguments: hashpartitioning(l_partkey#7657L, 100), ENSURE_REQUIREMENTS, [l_partkey#7657L, sum#7680, count#7681L], [plan_id=11687], [id=#11687]
 
 (20) InputIteratorTransformer
-Input [3]: [l_partkey#X, sum#X, count#X]
+Input [3]: [l_partkey#7657L, sum#7680, count#7681L]
 
 (21) RegularHashAggregateExecTransformer
-Input [3]: [l_partkey#X, sum#X, count#X]
-Keys [1]: [l_partkey#X]
-Functions [1]: [avg(l_quantity#X)]
-Aggregate Attributes [1]: [avg(l_quantity#X)#X]
-Results [2]: [(0.2 * avg(l_quantity#X)#X) AS (0.2 * avg(l_quantity))#X, l_partkey#X]
+Input [3]: [l_partkey#7657L, sum#7680, count#7681L]
+Keys [1]: [l_partkey#7657L]
+Functions [1]: [avg(l_quantity#7660)]
+Aggregate Attributes [1]: [avg(l_quantity#7660)#7653]
+Results [2]: [(0.2 * avg(l_quantity#7660)#7653) AS (0.2 * avg(l_quantity))#7654, l_partkey#7657L]
 
 (22) FilterExecTransformer
-Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
-Arguments: isnotnull((0.2 * avg(l_quantity))#X)
+Input [2]: [(0.2 * avg(l_quantity))#7654, l_partkey#7657L]
+Arguments: isnotnull((0.2 * avg(l_quantity))#7654)
 
-(23) WholeStageCodegenTransformer (X)
-Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
+(23) ShuffledHashJoinExecTransformer
+Left keys [1]: [p_partkey#7575L]
+Right keys [1]: [l_partkey#7657L]
+Join type: Inner
+Join condition: (cast(l_quantity#7606 as decimal(18,7)) < (0.2 * avg(l_quantity))#7654)
+
+(24) ProjectExecTransformer
+Input [5]: [l_quantity#7606, l_extendedprice#7607, p_partkey#7575L, (0.2 * avg(l_quantity))#7654, l_partkey#7657L]
+Arguments: [l_extendedprice#7607]
+
+(25) FlushableHashAggregateExecTransformer
+Input [1]: [l_extendedprice#7607]
+Keys: []
+Functions [1]: [partial_sum(l_extendedprice#7607)]
+Aggregate Attributes [2]: [sum#7674, isEmpty#7675]
+Results [2]: [sum#7676, isEmpty#7677]
+
+(26) WholeStageCodegenTransformer (125)
+Input [2]: [sum#7676, isEmpty#7677]
 Arguments: false
 Native Plan:
--- Filter[expression: isnotnull("n3_2")] -> n3_2:DECIMAL(18, 7), n3_3:BIGINT
-  -- Project[expressions: (n3_2:DECIMAL(18, 7), multiply(0.2,"n2_1")), (n3_3:BIGINT, "n1_3")] -> n3_2:DECIMAL(18, 7), n3_3:BIGINT
-    -- Aggregation[SINGLE [n1_3] n2_1 := avg_merge_extract("n1_4")] -> n1_3:BIGINT, n2_1:DECIMAL(16, 6)
-      -- Project[expressions: (n1_3:BIGINT, "n0_0"), (n1_4:ROW<col_0:DECIMAL(22, 2),col_1:BIGINT>, row_constructor("n0_1","n0_2"))] -> n1_3:BIGINT, n1_4:ROW<col_0:DECIMAL(22, 2),col_1:BIGINT>
-        -- ValueStream[] -> n0_0:BIGINT, n0_1:DECIMAL(22, 2), n0_2:BIGINT
+-- Project
+  -- Aggregation
+    -- Project
+      -- Project
+        -- HashJoin
+          -- ValueStream
+          -- Filter
+            -- Project
+              -- Aggregation
+                -- Project
+                  -- ValueStream
 
-(24) ColumnarBroadcastExchange
-Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
-Arguments: HashedRelationBroadcastMode(List(input[1, bigint, true]),false), [plan_id=X]
+(27) ColumnarExchange
+Input [2]: [sum#7676, isEmpty#7677]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=11696], [id=#11696]
 
-(25) BroadcastQueryStage
-Output [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
-Arguments: 2
+(28) InputIteratorTransformer
+Input [2]: [sum#7676, isEmpty#7677]
 
-(26) InputIteratorTransformer
-Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
-
-(27) GlutenBroadcastHashJoinExecTransformer
-Left keys [1]: [p_partkey#X]
-Right keys [1]: [l_partkey#X]
-Join type: Inner
-Join condition: (cast(l_quantity#X as decimal(18,7)) < (0.2 * avg(l_quantity))#X)
-
-(28) ProjectExecTransformer
-Input [5]: [l_quantity#X, l_extendedprice#X, p_partkey#X, (0.2 * avg(l_quantity))#X, l_partkey#X]
-Arguments: [l_extendedprice#X]
-
-(29) FlushableHashAggregateExecTransformer
-Input [1]: [l_extendedprice#X]
+(29) RegularHashAggregateExecTransformer
+Input [2]: [sum#7676, isEmpty#7677]
 Keys: []
-Functions [1]: [partial_sum(l_extendedprice#X)]
-Aggregate Attributes [2]: [sum#X, isEmpty#X]
-Results [2]: [sum#X, isEmpty#X]
+Functions [1]: [sum(l_extendedprice#7607)]
+Aggregate Attributes [1]: [sum(l_extendedprice#7607)#7672]
+Results [1]: [(sum(l_extendedprice#7607)#7672 / 7.0) AS avg_yearly#7650]
 
-(30) WholeStageCodegenTransformer (X)
-Input [2]: [sum#X, isEmpty#X]
+(30) WholeStageCodegenTransformer (126)
+Input [1]: [avg_yearly#7650]
 Arguments: false
 Native Plan:
--- Project[expressions: (n10_1:DECIMAL(22, 2), "n9_0"["col_0"]), (n10_2:BOOLEAN, "n9_0"["col_1"])] -> n10_1:DECIMAL(22, 2), n10_2:BOOLEAN
-  -- Aggregation[PARTIAL n9_0 := sum_partial("n8_5")] -> n9_0:ROW<col_0:DECIMAL(22, 2),col_1:BOOLEAN>
-    -- Project[expressions: (n8_5:DECIMAL(12, 2), "n7_6")] -> n8_5:DECIMAL(12, 2)
-      -- Project[expressions: (n7_5:DECIMAL(12, 2), "n5_4"), (n7_6:DECIMAL(12, 2), "n5_5"), (n7_7:BIGINT, "n5_6"), (n7_8:DECIMAL(18, 7), "n1_0"), (n7_9:BIGINT, "n1_1")] -> n7_5:DECIMAL(12, 2), n7_6:DECIMAL(12, 2), n7_7:BIGINT, n7_8:DECIMAL(18, 7), n7_9:BIGINT
-        -- HashJoin[INNER n5_6=n1_1, filter: decimal_lessthan(try_cast "n5_4" as DECIMAL(18, 7),"n1_0")] -> n5_4:DECIMAL(12, 2), n5_5:DECIMAL(12, 2), n5_6:BIGINT, n1_0:DECIMAL(18, 7), n1_1:BIGINT
-          -- Project[expressions: (n5_4:DECIMAL(12, 2), "n4_5"), (n5_5:DECIMAL(12, 2), "n4_6"), (n5_6:BIGINT, "n4_7")] -> n5_4:DECIMAL(12, 2), n5_5:DECIMAL(12, 2), n5_6:BIGINT
-            -- Project[expressions: (n4_4:BIGINT, "n2_0"), (n4_5:DECIMAL(12, 2), "n2_1"), (n4_6:DECIMAL(12, 2), "n2_2"), (n4_7:BIGINT, "n0_0")] -> n4_4:BIGINT, n4_5:DECIMAL(12, 2), n4_6:DECIMAL(12, 2), n4_7:BIGINT
-              -- HashJoin[INNER n2_0=n0_0] -> n2_0:BIGINT, n2_1:DECIMAL(12, 2), n2_2:DECIMAL(12, 2), n0_0:BIGINT
-                -- TableScan[table: hive_table, range filters: [(l_partkey, Filter(IsNotNull, deterministic, null not allowed)), (l_quantity, Filter(IsNotNull, deterministic, null not allowed))]] -> n2_0:BIGINT, n2_1:DECIMAL(12, 2), n2_2:DECIMAL(12, 2)
-                -- ValueStream[] -> n0_0:BIGINT
-          -- ValueStream[] -> n1_0:DECIMAL(18, 7), n1_1:BIGINT
+-- Project
+  -- Aggregation
+    -- Project
+      -- ValueStream
 
-(31) ColumnarExchange
-Input [2]: [sum#X, isEmpty#X]
-Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+(31) VeloxColumnarToRowExec
+Input [1]: [avg_yearly#7650]
 
-(32) ShuffleQueryStage
-Output [2]: [sum#X, isEmpty#X]
-Arguments: 3
-
-(33) InputIteratorTransformer
-Input [2]: [sum#X, isEmpty#X]
-
-(34) RegularHashAggregateExecTransformer
-Input [2]: [sum#X, isEmpty#X]
-Keys: []
-Functions [1]: [sum(l_extendedprice#X)]
-Aggregate Attributes [1]: [sum(l_extendedprice#X)#X]
-Results [1]: [(sum(l_extendedprice#X)#X / 7.0) AS avg_yearly#X]
-
-(35) WholeStageCodegenTransformer (X)
-Input [1]: [avg_yearly#X]
-Arguments: false
-Native Plan:
--- Project[expressions: (n3_1:DECIMAL(27, 6), divide("n2_0",7.0))] -> n3_1:DECIMAL(27, 6)
-  -- Aggregation[SINGLE n2_0 := sum_merge_extract("n1_2")] -> n2_0:DECIMAL(22, 2)
-    -- Project[expressions: (n1_2:ROW<col_0:DECIMAL(22, 2),col_1:BOOLEAN>, row_constructor("n0_0","n0_1"))] -> n1_2:ROW<col_0:DECIMAL(22, 2),col_1:BOOLEAN>
-      -- ValueStream[] -> n0_0:DECIMAL(22, 2), n0_1:BOOLEAN
-
-(36) VeloxColumnarToRowExec
-Input [1]: [avg_yearly#X]
-
-(37) Scan parquet spark_catalog.default.lineitem
-Output [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
-Batched: true
-Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
-PushedFilters: [IsNotNull(l_partkey), IsNotNull(l_quantity)]
-ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2),l_extendedprice:decimal(12,2)>
-
-(38) Filter
-Input [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
-Condition : (isnotnull(l_partkey#X) AND isnotnull(l_quantity#X))
-
-(39) Scan parquet spark_catalog.default.part
-Output [3]: [p_partkey#X, p_container#X, p_brand#X]
-Batched: true
-Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/part]
-PushedFilters: [IsNotNull(p_brand), IsNotNull(p_container), EqualTo(p_brand,Brand#X), EqualTo(p_container,MED BOX), IsNotNull(p_partkey)]
-ReadSchema: struct<p_partkey:bigint,p_container:string,p_brand:string>
-
-(40) Filter
-Input [3]: [p_partkey#X, p_container#X, p_brand#X]
-Condition : ((((isnotnull(p_brand#X) AND isnotnull(p_container#X)) AND (p_brand#X = Brand#X)) AND (p_container#X = MED BOX)) AND isnotnull(p_partkey#X))
-
-(41) Project
-Output [1]: [p_partkey#X]
-Input [3]: [p_partkey#X, p_container#X, p_brand#X]
-
-(42) BroadcastExchange
-Input [1]: [p_partkey#X]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
-
-(43) BroadcastHashJoin
-Left keys [1]: [l_partkey#X]
-Right keys [1]: [p_partkey#X]
-Join type: Inner
-Join condition: None
-
-(44) Project
-Output [3]: [l_quantity#X, l_extendedprice#X, p_partkey#X]
-Input [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, p_partkey#X]
-
-(45) Scan parquet spark_catalog.default.lineitem
-Output [2]: [l_partkey#X, l_quantity#X]
-Batched: true
-Location: InMemoryFileIndex [file:/tmp/tpch-generated-0.1/lineitem]
-PushedFilters: [IsNotNull(l_partkey)]
-ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2)>
-
-(46) Filter
-Input [2]: [l_partkey#X, l_quantity#X]
-Condition : isnotnull(l_partkey#X)
-
-(47) HashAggregate
-Input [2]: [l_partkey#X, l_quantity#X]
-Keys [1]: [l_partkey#X]
-Functions [1]: [partial_avg(l_quantity#X)]
-Aggregate Attributes [2]: [sum#X, count#X]
-Results [3]: [l_partkey#X, sum#X, count#X]
-
-(48) Exchange
-Input [3]: [l_partkey#X, sum#X, count#X]
-Arguments: hashpartitioning(l_partkey#X, 100), ENSURE_REQUIREMENTS, [plan_id=X]
-
-(49) HashAggregate
-Input [3]: [l_partkey#X, sum#X, count#X]
-Keys [1]: [l_partkey#X]
-Functions [1]: [avg(l_quantity#X)]
-Aggregate Attributes [1]: [avg(l_quantity#X)#X]
-Results [2]: [(0.2 * avg(l_quantity#X)#X) AS (0.2 * avg(l_quantity))#X, l_partkey#X]
-
-(50) Filter
-Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
-Condition : isnotnull((0.2 * avg(l_quantity))#X)
-
-(51) BroadcastExchange
-Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
-Arguments: HashedRelationBroadcastMode(List(input[1, bigint, true]),false), [plan_id=X]
-
-(52) BroadcastHashJoin
-Left keys [1]: [p_partkey#X]
-Right keys [1]: [l_partkey#X]
-Join type: Inner
-Join condition: (cast(l_quantity#X as decimal(18,7)) < (0.2 * avg(l_quantity))#X)
-
-(53) Project
-Output [1]: [l_extendedprice#X]
-Input [5]: [l_quantity#X, l_extendedprice#X, p_partkey#X, (0.2 * avg(l_quantity))#X, l_partkey#X]
-
-(54) HashAggregate
-Input [1]: [l_extendedprice#X]
-Keys: []
-Functions [1]: [partial_sum(l_extendedprice#X)]
-Aggregate Attributes [2]: [sum#X, isEmpty#X]
-Results [2]: [sum#X, isEmpty#X]
-
-(55) Exchange
-Input [2]: [sum#X, isEmpty#X]
-Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X]
-
-(56) HashAggregate
-Input [2]: [sum#X, isEmpty#X]
-Keys: []
-Functions [1]: [sum(l_extendedprice#X)]
-Aggregate Attributes [1]: [sum(l_extendedprice#X)#X]
-Results [1]: [(sum(l_extendedprice#X)#X / 7.0) AS avg_yearly#X]
-
-(57) AdaptiveSparkPlan
-Output [1]: [avg_yearly#X]
-Arguments: isFinalPlan=true
