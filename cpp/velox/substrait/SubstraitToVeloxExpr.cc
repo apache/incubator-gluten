@@ -406,7 +406,7 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
   std::vector<::substrait::Expression::Literal> literals;
   literals.reserve(options.size());
   for (const auto& option : options) {
-    VELOX_CHECK(option.has_literal(), "Literal is expected as option.");
+    VELOX_CHECK(option.has_literal(), "Option is expected as Literal.");
     literals.emplace_back(option.literal());
   }
 
