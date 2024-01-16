@@ -63,6 +63,8 @@ RUN if [ "$BUILD_BACKEND_TYPE" == "velox" ]; \
       EXTRA_MAVEN_OPTIONS="-Pspark-3.2 \
                            -Pbackends-velox \
                            -Prss \
+                           -Piceberg \
+                           -Pdelta \
                            -DskipTests \
                            -Dscalastyle.skip=true \
                            -Dcheckstyle.skip=true"; \
