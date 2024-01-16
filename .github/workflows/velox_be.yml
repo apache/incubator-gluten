@@ -43,6 +43,7 @@ env:
   PATH_TO_GLUTEN_TE: ./tools/gluten-te
   DOCKER_PULL_REGISTRY: 10.1.0.25:5000
   LEGACY_DOCKER_REGISTRY: 10.0.2.4:5000
+  MAVEN_OPTS: -Dmaven.wagon.http.retryHandler.count=3
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
