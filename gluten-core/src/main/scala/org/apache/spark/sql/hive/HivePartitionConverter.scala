@@ -23,7 +23,6 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.{InternalRow, SQLConfHelper}
 import org.apache.spark.sql.catalyst.analysis.CastSupport
 import org.apache.spark.sql.catalyst.expressions.Literal
-import org.apache.spark.sql.execution.PartitionedFileUtil
 import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionDirectory}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.DataType
