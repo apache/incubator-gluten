@@ -18,116 +18,116 @@ VeloxColumnarToRowExec (20)
 
 
 (1) Scan parquet spark_catalog.default.customer
-Output [3]: [c_custkey#9698L, c_phone#9702, c_acctbal#9703]
+Output [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/customer]
 PushedFilters: [IsNotNull(c_acctbal)]
 ReadSchema: struct<c_custkey:bigint,c_phone:string,c_acctbal:decimal(12,2)>
 
 (2) FilterExecTransformer
-Input [3]: [c_custkey#9698L, c_phone#9702, c_acctbal#9703]
-Arguments: ((isnotnull(c_acctbal#9703) AND substring(c_phone#9702, 1, 2) IN (13,31,23,29,30,18,17)) AND (cast(c_acctbal#9703 as decimal(16,6)) > Subquery scalar-subquery#9882, [id=#15237]))
+Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
+Arguments: ((isnotnull(c_acctbal#X) AND substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17)) AND (cast(c_acctbal#X as decimal(16,6)) > Subquery scalar-subquery#X, [id=#X]))
 
 (3) Scan parquet spark_catalog.default.orders
-Output [1]: [o_custkey#9780L]
+Output [1]: [o_custkey#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/orders]
 ReadSchema: struct<o_custkey:bigint>
 
-(4) WholeStageCodegenTransformer (165)
-Input [1]: [o_custkey#9780L]
+(4) WholeStageCodegenTransformer (X)
+Input [1]: [o_custkey#X]
 Arguments: false
 Native Plan:
--- TableScan[table: hive_table] -> n0_0:BIGINT
+-- TableScan
 
 (5) ColumnarBroadcastExchange
-Input [1]: [o_custkey#9780L]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=15315]
+Input [1]: [o_custkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
 (6) InputIteratorTransformer
-Input [1]: [o_custkey#9780L]
+Input [1]: [o_custkey#X]
 
 (7) GlutenBroadcastHashJoinExecTransformer
-Left keys [1]: [c_custkey#9698L]
-Right keys [1]: [o_custkey#9780L]
+Left keys [1]: [c_custkey#X]
+Right keys [1]: [o_custkey#X]
 Join type: LeftAnti
 Join condition: None
 
 (8) ProjectExecTransformer
-Input [3]: [c_custkey#9698L, c_phone#9702, c_acctbal#9703]
-Arguments: [substring(c_phone#9702, 1, 2) AS cntrycode#9881, c_acctbal#9703]
+Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
+Arguments: [substring(c_phone#X, 1, 2) AS cntrycode#X, c_acctbal#X]
 
 (9) FlushableHashAggregateExecTransformer
-Input [2]: [cntrycode#9881, c_acctbal#9703]
-Keys [1]: [cntrycode#9881]
-Functions [2]: [partial_count(1), partial_sum(c_acctbal#9703)]
-Aggregate Attributes [3]: [count#9903L, sum#9904, isEmpty#9905]
-Results [4]: [cntrycode#9881, count#9906L, sum#9907, isEmpty#9908]
+Input [2]: [cntrycode#X, c_acctbal#X]
+Keys [1]: [cntrycode#X]
+Functions [2]: [partial_count(1), partial_sum(c_acctbal#X)]
+Aggregate Attributes [3]: [count#X, sum#X, isEmpty#X]
+Results [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 
 (10) ProjectExecTransformer
-Input [4]: [cntrycode#9881, count#9906L, sum#9907, isEmpty#9908]
-Arguments: [hash(cntrycode#9881, 42) AS hash_partition_key#9919, cntrycode#9881, count#9906L, sum#9907, isEmpty#9908]
+Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
+Arguments: [hash(cntrycode#X, 42) AS hash_partition_key#X, cntrycode#X, count#X, sum#X, isEmpty#X]
 
-(11) WholeStageCodegenTransformer (166)
-Input [5]: [hash_partition_key#9919, cntrycode#9881, count#9906L, sum#9907, isEmpty#9908]
+(11) WholeStageCodegenTransformer (X)
+Input [5]: [hash_partition_key#X, cntrycode#X, count#X, sum#X, isEmpty#X]
 Arguments: false
 Native Plan:
--- Project[expressions: (n7_4:INTEGER, hash_with_seed(42,"n6_3")), (n7_5:VARCHAR, "n6_3"), (n7_6:BIGINT, "n6_4"), (n7_7:DECIMAL(22, 2), "n6_5"), (n7_8:BOOLEAN, "n6_6")] -> n7_4:INTEGER, n7_5:VARCHAR, n7_6:BIGINT, n7_7:DECIMAL(22, 2), n7_8:BOOLEAN
-  -- Project[expressions: (n6_3:VARCHAR, "n4_3"), (n6_4:BIGINT, "n5_1"), (n6_5:DECIMAL(22, 2), "n5_2"["col_0"]), (n6_6:BOOLEAN, "n5_2"["col_1"])] -> n6_3:VARCHAR, n6_4:BIGINT, n6_5:DECIMAL(22, 2), n6_6:BOOLEAN
-    -- Aggregation[PARTIAL [n4_3] n5_1 := count_partial(1), n5_2 := sum_partial("n4_4")] -> n4_3:VARCHAR, n5_1:BIGINT, n5_2:ROW<col_0:DECIMAL(22, 2),col_1:BOOLEAN>
-      -- Project[expressions: (n4_3:VARCHAR, substring("n3_4",1,2)), (n4_4:DECIMAL(12, 2), "n3_5")] -> n4_3:VARCHAR, n4_4:DECIMAL(12, 2)
-        -- Project[expressions: (n3_3:BIGINT, "n1_0"), (n3_4:VARCHAR, "n1_1"), (n3_5:DECIMAL(12, 2), "n1_2")] -> n3_3:BIGINT, n3_4:VARCHAR, n3_5:DECIMAL(12, 2)
-          -- HashJoin[ANTI n1_0=n0_0] -> n1_0:BIGINT, n1_1:VARCHAR, n1_2:DECIMAL(12, 2)
-            -- TableScan[table: hive_table, range filters: [(c_acctbal, Filter(IsNotNull, deterministic, null not allowed))], remaining filter: (and(decimal_greaterthan(try_cast "c_acctbal" as DECIMAL(16, 6),5003.685765),in(substring("c_phone",1,2),7 elements starting at 0 {13, 17, 18, 23, 29, ...})))] -> n1_0:BIGINT, n1_1:VARCHAR, n1_2:DECIMAL(12, 2)
-            -- ValueStream[] -> n0_0:BIGINT
+-- Project
+  -- Project
+    -- Aggregation
+      -- Project
+        -- Project
+          -- HashJoin
+            -- TableScan
+            -- ValueStream
 
 (12) ColumnarExchange
-Input [5]: [hash_partition_key#9919, cntrycode#9881, count#9906L, sum#9907, isEmpty#9908]
-Arguments: hashpartitioning(cntrycode#9881, 100), ENSURE_REQUIREMENTS, [cntrycode#9881, count#9906L, sum#9907, isEmpty#9908], [plan_id=15323], [id=#15323]
+Input [5]: [hash_partition_key#X, cntrycode#X, count#X, sum#X, isEmpty#X]
+Arguments: hashpartitioning(cntrycode#X, 100), ENSURE_REQUIREMENTS, [cntrycode#X, count#X, sum#X, isEmpty#X], [plan_id=X], [id=#X]
 
 (13) InputIteratorTransformer
-Input [4]: [cntrycode#9881, count#9906L, sum#9907, isEmpty#9908]
+Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 
 (14) RegularHashAggregateExecTransformer
-Input [4]: [cntrycode#9881, count#9906L, sum#9907, isEmpty#9908]
-Keys [1]: [cntrycode#9881]
-Functions [2]: [count(1), sum(c_acctbal#9703)]
-Aggregate Attributes [2]: [count(1)#9886L, sum(c_acctbal#9703)#9899]
-Results [3]: [cntrycode#9881, count(1)#9886L AS numcust#9884L, sum(c_acctbal#9703)#9899 AS totacctbal#9885]
+Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
+Keys [1]: [cntrycode#X]
+Functions [2]: [count(1), sum(c_acctbal#X)]
+Aggregate Attributes [2]: [count(1)#X, sum(c_acctbal#X)#X]
+Results [3]: [cntrycode#X, count(1)#X AS numcust#X, sum(c_acctbal#X)#X AS totacctbal#X]
 
-(15) WholeStageCodegenTransformer (167)
-Input [3]: [cntrycode#9881, numcust#9884L, totacctbal#9885]
+(15) WholeStageCodegenTransformer (X)
+Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: false
 Native Plan:
--- Project[expressions: (n3_3:VARCHAR, "n1_4"), (n3_4:BIGINT, "n2_1"), (n3_5:DECIMAL(22, 2), "n2_2")] -> n3_3:VARCHAR, n3_4:BIGINT, n3_5:DECIMAL(22, 2)
-  -- Aggregation[SINGLE [n1_4] n2_1 := count_merge_extract("n1_5"), n2_2 := sum_merge_extract("n1_6")] -> n1_4:VARCHAR, n2_1:BIGINT, n2_2:DECIMAL(22, 2)
-    -- Project[expressions: (n1_4:VARCHAR, "n0_0"), (n1_5:BIGINT, "n0_1"), (n1_6:ROW<col_0:DECIMAL(22, 2),col_1:BOOLEAN>, row_constructor("n0_2","n0_3"))] -> n1_4:VARCHAR, n1_5:BIGINT, n1_6:ROW<col_0:DECIMAL(22, 2),col_1:BOOLEAN>
-      -- ValueStream[] -> n0_0:VARCHAR, n0_1:BIGINT, n0_2:DECIMAL(22, 2), n0_3:BOOLEAN
+-- Project
+  -- Aggregation
+    -- Project
+      -- ValueStream
 
 (16) ColumnarExchange
-Input [3]: [cntrycode#9881, numcust#9884L, totacctbal#9885]
-Arguments: rangepartitioning(cntrycode#9881 ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=15328], [id=#15328]
+Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
+Arguments: rangepartitioning(cntrycode#X ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
 (17) InputIteratorTransformer
-Input [3]: [cntrycode#9881, numcust#9884L, totacctbal#9885]
+Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 
 (18) SortExecTransformer
-Input [3]: [cntrycode#9881, numcust#9884L, totacctbal#9885]
-Arguments: [cntrycode#9881 ASC NULLS FIRST], true, 0
+Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
+Arguments: [cntrycode#X ASC NULLS FIRST], true, 0
 
-(19) WholeStageCodegenTransformer (168)
-Input [3]: [cntrycode#9881, numcust#9884L, totacctbal#9885]
+(19) WholeStageCodegenTransformer (X)
+Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: false
 Native Plan:
--- OrderBy[n0_0 ASC NULLS FIRST] -> n0_0:VARCHAR, n0_1:BIGINT, n0_2:DECIMAL(22, 2)
-  -- ValueStream[] -> n0_0:VARCHAR, n0_1:BIGINT, n0_2:DECIMAL(22, 2)
+-- OrderBy
+  -- ValueStream
 
 (20) VeloxColumnarToRowExec
-Input [3]: [cntrycode#9881, numcust#9884L, totacctbal#9885]
+Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 
 ===== Subqueries =====
 
-Subquery:1 Hosting operator id = 2 Hosting Expression = Subquery scalar-subquery#9882, [id=#15237]
+Subquery:1 Hosting operator id = 2 Hosting Expression = Subquery scalar-subquery#X, [id=#X]
 VeloxColumnarToRowExec (30)
 +- ^ RegularHashAggregateExecTransformer (28)
    +- ^ InputIteratorTransformer (27)
@@ -139,29 +139,29 @@ VeloxColumnarToRowExec (30)
 
 
 (21) Scan parquet spark_catalog.default.customer
-Output [2]: [c_phone#9895, c_acctbal#9896]
+Output [2]: [c_phone#X, c_acctbal#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/customer]
 PushedFilters: [IsNotNull(c_acctbal), GreaterThan(c_acctbal,0.00)]
 ReadSchema: struct<c_phone:string,c_acctbal:decimal(12,2)>
 
 (22) FilterExecTransformer
-Input [2]: [c_phone#9895, c_acctbal#9896]
-Arguments: ((isnotnull(c_acctbal#9896) AND (c_acctbal#9896 > 0.00)) AND substring(c_phone#9895, 1, 2) IN (13,31,23,29,30,18,17))
+Input [2]: [c_phone#X, c_acctbal#X]
+Arguments: ((isnotnull(c_acctbal#X) AND (c_acctbal#X > 0.00)) AND substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17))
 
 (23) ProjectExecTransformer
-Input [2]: [c_phone#9895, c_acctbal#9896]
-Arguments: [c_acctbal#9896]
+Input [2]: [c_phone#X, c_acctbal#X]
+Arguments: [c_acctbal#X]
 
 (24) FlushableHashAggregateExecTransformer
-Input [1]: [c_acctbal#9896]
+Input [1]: [c_acctbal#X]
 Keys: []
-Functions [1]: [partial_avg(c_acctbal#9896)]
-Aggregate Attributes [2]: [sum#9909, count#9910L]
-Results [2]: [sum#9911, count#9912L]
+Functions [1]: [partial_avg(c_acctbal#X)]
+Aggregate Attributes [2]: [sum#X, count#X]
+Results [2]: [sum#X, count#X]
 
-(25) WholeStageCodegenTransformer (163)
-Input [2]: [sum#9911, count#9912L]
+(25) WholeStageCodegenTransformer (X)
+Input [2]: [sum#X, count#X]
 Arguments: false
 Native Plan:
 -- Project[expressions: (n3_1:DECIMAL(22, 2), "n2_0"["col_0"]), (n3_2:BIGINT, "n2_0"["col_1"])] -> n3_1:DECIMAL(22, 2), n3_2:BIGINT
@@ -170,21 +170,21 @@ Native Plan:
       -- TableScan[table: hive_table, range filters: [(c_acctbal, BigintRange: [1, 999999999999999999] no nulls)], remaining filter: (in(substring("c_phone",1,2),7 elements starting at 0 {13, 17, 18, 23, 29, ...}))] -> n0_0:VARCHAR, n0_1:DECIMAL(12, 2)
 
 (26) ColumnarExchange
-Input [2]: [sum#9911, count#9912L]
-Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=15231], [id=#15231]
+Input [2]: [sum#X, count#X]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
 (27) InputIteratorTransformer
-Input [2]: [sum#9911, count#9912L]
+Input [2]: [sum#X, count#X]
 
 (28) RegularHashAggregateExecTransformer
-Input [2]: [sum#9911, count#9912L]
+Input [2]: [sum#X, count#X]
 Keys: []
-Functions [1]: [avg(c_acctbal#9896)]
-Aggregate Attributes [1]: [avg(c_acctbal#9896)#9888]
-Results [1]: [avg(c_acctbal#9896)#9888 AS avg(c_acctbal)#9889]
+Functions [1]: [avg(c_acctbal#X)]
+Aggregate Attributes [1]: [avg(c_acctbal#X)#X]
+Results [1]: [avg(c_acctbal#X)#X AS avg(c_acctbal)#X]
 
-(29) WholeStageCodegenTransformer (164)
-Input [1]: [avg(c_acctbal)#9889]
+(29) WholeStageCodegenTransformer (X)
+Input [1]: [avg(c_acctbal)#X]
 Arguments: false
 Native Plan:
 -- Project[expressions: (n3_1:DECIMAL(16, 6), "n2_0")] -> n3_1:DECIMAL(16, 6)
@@ -193,9 +193,9 @@ Native Plan:
       -- ValueStream[] -> n0_0:DECIMAL(22, 2), n0_1:BIGINT
 
 (30) VeloxColumnarToRowExec
-Input [1]: [avg(c_acctbal)#9889]
+Input [1]: [avg(c_acctbal)#X]
 
-Subquery:2 Hosting operator id = 1 Hosting Expression = Subquery scalar-subquery#9882, [id=#15237]
+Subquery:2 Hosting operator id = 1 Hosting Expression = Subquery scalar-subquery#X, [id=#X]
 VeloxColumnarToRowExec (30)
 +- ^ RegularHashAggregateExecTransformer (28)
    +- ^ InputIteratorTransformer (27)

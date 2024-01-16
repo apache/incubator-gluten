@@ -23,86 +23,86 @@ VeloxColumnarToRowExec (26)
 
 
 (1) Scan parquet spark_catalog.default.orders
-Output [3]: [o_orderkey#1958L, o_orderpriority#1962, o_orderdate#1966]
+Output [3]: [o_orderkey#X, o_orderpriority#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/orders]
 PushedFilters: [IsNotNull(o_orderdate), GreaterThanOrEqual(o_orderdate,1993-07-01), LessThan(o_orderdate,1993-10-01)]
 ReadSchema: struct<o_orderkey:bigint,o_orderpriority:string,o_orderdate:date>
 
 (2) FilterExecTransformer
-Input [3]: [o_orderkey#1958L, o_orderpriority#1962, o_orderdate#1966]
-Arguments: ((isnotnull(o_orderdate#1966) AND (o_orderdate#1966 >= 1993-07-01)) AND (o_orderdate#1966 < 1993-10-01))
+Input [3]: [o_orderkey#X, o_orderpriority#X, o_orderdate#X]
+Arguments: ((isnotnull(o_orderdate#X) AND (o_orderdate#X >= 1993-07-01)) AND (o_orderdate#X < 1993-10-01))
 
 (3) ProjectExecTransformer
-Input [3]: [o_orderkey#1958L, o_orderpriority#1962, o_orderdate#1966]
-Arguments: [hash(o_orderkey#1958L, 42) AS hash_partition_key#2072, hash(o_orderkey#1958L, 42) AS hash_partition_key#2069, o_orderkey#1958L, o_orderpriority#1962]
+Input [3]: [o_orderkey#X, o_orderpriority#X, o_orderdate#X]
+Arguments: [hash(o_orderkey#X, 42) AS hash_partition_key#X, hash(o_orderkey#X, 42) AS hash_partition_key#X, o_orderkey#X, o_orderpriority#X]
 
-(4) WholeStageCodegenTransformer (25)
-Input [4]: [hash_partition_key#2072, hash_partition_key#2069, o_orderkey#1958L, o_orderpriority#1962]
+(4) WholeStageCodegenTransformer (X)
+Input [4]: [hash_partition_key#X, hash_partition_key#X, o_orderkey#X, o_orderpriority#X]
 Arguments: false
 Native Plan:
 -- Project[expressions: (n1_3:INTEGER, hash_with_seed(42,"n0_0")), (n1_4:INTEGER, hash_with_seed(42,"n0_0")), (n1_5:BIGINT, "n0_0"), (n1_6:VARCHAR, "n0_1")] -> n1_3:INTEGER, n1_4:INTEGER, n1_5:BIGINT, n1_6:VARCHAR
   -- TableScan[table: hive_table, range filters: [(o_orderdate, BigintRange: [8582, 8673] no nulls)]] -> n0_0:BIGINT, n0_1:VARCHAR, n0_2:DATE
 
 (5) ColumnarExchange
-Input [4]: [hash_partition_key#2072, hash_partition_key#2069, o_orderkey#1958L, o_orderpriority#1962]
-Arguments: hashpartitioning(o_orderkey#1958L, 100), ENSURE_REQUIREMENTS, [hash_partition_key#2069, o_orderkey#1958L, o_orderpriority#1962], [plan_id=2680], [id=#2680]
+Input [4]: [hash_partition_key#X, hash_partition_key#X, o_orderkey#X, o_orderpriority#X]
+Arguments: hashpartitioning(o_orderkey#X, 100), ENSURE_REQUIREMENTS, [hash_partition_key#X, o_orderkey#X, o_orderpriority#X], [plan_id=X], [id=#X]
 
 (6) InputIteratorTransformer
-Input [3]: [hash_partition_key#2069, o_orderkey#1958L, o_orderpriority#1962]
+Input [3]: [hash_partition_key#X, o_orderkey#X, o_orderpriority#X]
 
 (7) Scan parquet spark_catalog.default.lineitem
-Output [3]: [l_orderkey#2012L, l_commitdate#2022, l_receiptdate#2023]
+Output [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/lineitem]
 PushedFilters: [IsNotNull(l_commitdate), IsNotNull(l_receiptdate)]
 ReadSchema: struct<l_orderkey:bigint,l_commitdate:date,l_receiptdate:date>
 
 (8) FilterExecTransformer
-Input [3]: [l_orderkey#2012L, l_commitdate#2022, l_receiptdate#2023]
-Arguments: ((isnotnull(l_commitdate#2022) AND isnotnull(l_receiptdate#2023)) AND (l_commitdate#2022 < l_receiptdate#2023))
+Input [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
+Arguments: ((isnotnull(l_commitdate#X) AND isnotnull(l_receiptdate#X)) AND (l_commitdate#X < l_receiptdate#X))
 
 (9) ProjectExecTransformer
-Input [3]: [l_orderkey#2012L, l_commitdate#2022, l_receiptdate#2023]
-Arguments: [hash(l_orderkey#2012L, 42) AS hash_partition_key#2073, hash(l_orderkey#2012L, 42) AS hash_partition_key#2070, l_orderkey#2012L]
+Input [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
+Arguments: [hash(l_orderkey#X, 42) AS hash_partition_key#X, hash(l_orderkey#X, 42) AS hash_partition_key#X, l_orderkey#X]
 
-(10) WholeStageCodegenTransformer (26)
-Input [3]: [hash_partition_key#2073, hash_partition_key#2070, l_orderkey#2012L]
+(10) WholeStageCodegenTransformer (X)
+Input [3]: [hash_partition_key#X, hash_partition_key#X, l_orderkey#X]
 Arguments: false
 Native Plan:
 -- Project[expressions: (n1_3:INTEGER, hash_with_seed(42,"n0_0")), (n1_4:INTEGER, hash_with_seed(42,"n0_0")), (n1_5:BIGINT, "n0_0")] -> n1_3:INTEGER, n1_4:INTEGER, n1_5:BIGINT
   -- TableScan[table: hive_table, range filters: [(l_commitdate, Filter(IsNotNull, deterministic, null not allowed)), (l_receiptdate, Filter(IsNotNull, deterministic, null not allowed))], remaining filter: (lessthan("l_commitdate","l_receiptdate"))] -> n0_0:BIGINT, n0_1:DATE, n0_2:DATE
 
 (11) ColumnarExchange
-Input [3]: [hash_partition_key#2073, hash_partition_key#2070, l_orderkey#2012L]
-Arguments: hashpartitioning(l_orderkey#2012L, 100), ENSURE_REQUIREMENTS, [hash_partition_key#2070, l_orderkey#2012L], [plan_id=2684], [id=#2684]
+Input [3]: [hash_partition_key#X, hash_partition_key#X, l_orderkey#X]
+Arguments: hashpartitioning(l_orderkey#X, 100), ENSURE_REQUIREMENTS, [hash_partition_key#X, l_orderkey#X], [plan_id=X], [id=#X]
 
 (12) InputIteratorTransformer
-Input [2]: [hash_partition_key#2070, l_orderkey#2012L]
+Input [2]: [hash_partition_key#X, l_orderkey#X]
 
 (13) ShuffledHashJoinExecTransformer
-Left keys [1]: [o_orderkey#1958L]
-Right keys [1]: [l_orderkey#2012L]
+Left keys [1]: [o_orderkey#X]
+Right keys [1]: [l_orderkey#X]
 Join type: LeftSemi
 Join condition: None
 
 (14) ProjectExecTransformer
-Input [3]: [hash_partition_key#2069, o_orderkey#1958L, o_orderpriority#1962]
-Arguments: [o_orderpriority#1962]
+Input [3]: [hash_partition_key#X, o_orderkey#X, o_orderpriority#X]
+Arguments: [o_orderpriority#X]
 
 (15) FlushableHashAggregateExecTransformer
-Input [1]: [o_orderpriority#1962]
-Keys [1]: [o_orderpriority#1962]
+Input [1]: [o_orderpriority#X]
+Keys [1]: [o_orderpriority#X]
 Functions [1]: [partial_count(1)]
-Aggregate Attributes [1]: [count#2067L]
-Results [2]: [o_orderpriority#1962, count#2068L]
+Aggregate Attributes [1]: [count#X]
+Results [2]: [o_orderpriority#X, count#X]
 
 (16) ProjectExecTransformer
-Input [2]: [o_orderpriority#1962, count#2068L]
-Arguments: [hash(o_orderpriority#1962, 42) AS hash_partition_key#2071, o_orderpriority#1962, count#2068L]
+Input [2]: [o_orderpriority#X, count#X]
+Arguments: [hash(o_orderpriority#X, 42) AS hash_partition_key#X, o_orderpriority#X, count#X]
 
-(17) WholeStageCodegenTransformer (27)
-Input [3]: [hash_partition_key#2071, o_orderpriority#1962, count#2068L]
+(17) WholeStageCodegenTransformer (X)
+Input [3]: [hash_partition_key#X, o_orderpriority#X, count#X]
 Arguments: false
 Native Plan:
 -- Project[expressions: (n6_2:INTEGER, hash_with_seed(42,"n4_3")), (n6_3:VARCHAR, "n4_3"), (n6_4:BIGINT, "n5_1")] -> n6_2:INTEGER, n6_3:VARCHAR, n6_4:BIGINT
@@ -114,21 +114,21 @@ Native Plan:
           -- ValueStream[] -> n1_0:INTEGER, n1_1:BIGINT
 
 (18) ColumnarExchange
-Input [3]: [hash_partition_key#2071, o_orderpriority#1962, count#2068L]
-Arguments: hashpartitioning(o_orderpriority#1962, 100), ENSURE_REQUIREMENTS, [o_orderpriority#1962, count#2068L], [plan_id=2692], [id=#2692]
+Input [3]: [hash_partition_key#X, o_orderpriority#X, count#X]
+Arguments: hashpartitioning(o_orderpriority#X, 100), ENSURE_REQUIREMENTS, [o_orderpriority#X, count#X], [plan_id=X], [id=#X]
 
 (19) InputIteratorTransformer
-Input [2]: [o_orderpriority#1962, count#2068L]
+Input [2]: [o_orderpriority#X, count#X]
 
 (20) RegularHashAggregateExecTransformer
-Input [2]: [o_orderpriority#1962, count#2068L]
-Keys [1]: [o_orderpriority#1962]
+Input [2]: [o_orderpriority#X, count#X]
+Keys [1]: [o_orderpriority#X]
 Functions [1]: [count(1)]
-Aggregate Attributes [1]: [count(1)#2062L]
-Results [2]: [o_orderpriority#1962, count(1)#2062L AS order_count#2060L]
+Aggregate Attributes [1]: [count(1)#X]
+Results [2]: [o_orderpriority#X, count(1)#X AS order_count#X]
 
-(21) WholeStageCodegenTransformer (28)
-Input [2]: [o_orderpriority#1962, order_count#2060L]
+(21) WholeStageCodegenTransformer (X)
+Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: false
 Native Plan:
 -- Project[expressions: (n2_2:VARCHAR, "n0_0"), (n2_3:BIGINT, "n1_1")] -> n2_2:VARCHAR, n2_3:BIGINT
@@ -136,23 +136,23 @@ Native Plan:
     -- ValueStream[] -> n0_0:VARCHAR, n0_1:BIGINT
 
 (22) ColumnarExchange
-Input [2]: [o_orderpriority#1962, order_count#2060L]
-Arguments: rangepartitioning(o_orderpriority#1962 ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=2697], [id=#2697]
+Input [2]: [o_orderpriority#X, order_count#X]
+Arguments: rangepartitioning(o_orderpriority#X ASC NULLS FIRST, 100), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
 (23) InputIteratorTransformer
-Input [2]: [o_orderpriority#1962, order_count#2060L]
+Input [2]: [o_orderpriority#X, order_count#X]
 
 (24) SortExecTransformer
-Input [2]: [o_orderpriority#1962, order_count#2060L]
-Arguments: [o_orderpriority#1962 ASC NULLS FIRST], true, 0
+Input [2]: [o_orderpriority#X, order_count#X]
+Arguments: [o_orderpriority#X ASC NULLS FIRST], true, 0
 
-(25) WholeStageCodegenTransformer (29)
-Input [2]: [o_orderpriority#1962, order_count#2060L]
+(25) WholeStageCodegenTransformer (X)
+Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: false
 Native Plan:
 -- OrderBy[n0_0 ASC NULLS FIRST] -> n0_0:VARCHAR, n0_1:BIGINT
   -- ValueStream[] -> n0_0:VARCHAR, n0_1:BIGINT
 
 (26) VeloxColumnarToRowExec
-Input [2]: [o_orderpriority#1962, order_count#2060L]
+Input [2]: [o_orderpriority#X, order_count#X]
 

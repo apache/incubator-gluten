@@ -28,57 +28,57 @@ VeloxColumnarToRowExec (31)
 
 
 (1) Scan parquet spark_catalog.default.lineitem
-Output [3]: [l_partkey#7603L, l_quantity#7606, l_extendedprice#7607]
+Output [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/lineitem]
 PushedFilters: [IsNotNull(l_partkey), IsNotNull(l_quantity)]
 ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2),l_extendedprice:decimal(12,2)>
 
 (2) FilterExecTransformer
-Input [3]: [l_partkey#7603L, l_quantity#7606, l_extendedprice#7607]
-Arguments: (isnotnull(l_partkey#7603L) AND isnotnull(l_quantity#7606))
+Input [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
+Arguments: (isnotnull(l_partkey#X) AND isnotnull(l_quantity#X))
 
 (3) Scan parquet spark_catalog.default.part
-Output [3]: [p_partkey#7575L, p_container#7580, p_brand#7583]
+Output [3]: [p_partkey#X, p_container#X, p_brand#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/part]
-PushedFilters: [IsNotNull(p_brand), IsNotNull(p_container), EqualTo(p_brand,Brand#23), EqualTo(p_container,MED BOX), IsNotNull(p_partkey)]
+PushedFilters: [IsNotNull(p_brand), IsNotNull(p_container), EqualTo(p_brand,Brand#X), EqualTo(p_container,MED BOX), IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_container:string,p_brand:string>
 
 (4) FilterExecTransformer
-Input [3]: [p_partkey#7575L, p_container#7580, p_brand#7583]
-Arguments: ((((isnotnull(p_brand#7583) AND isnotnull(p_container#7580)) AND (p_brand#7583 = Brand#23)) AND (p_container#7580 = MED BOX)) AND isnotnull(p_partkey#7575L))
+Input [3]: [p_partkey#X, p_container#X, p_brand#X]
+Arguments: ((((isnotnull(p_brand#X) AND isnotnull(p_container#X)) AND (p_brand#X = Brand#X)) AND (p_container#X = MED BOX)) AND isnotnull(p_partkey#X))
 
 (5) ProjectExecTransformer
-Input [3]: [p_partkey#7575L, p_container#7580, p_brand#7583]
-Arguments: [p_partkey#7575L]
+Input [3]: [p_partkey#X, p_container#X, p_brand#X]
+Arguments: [p_partkey#X]
 
-(6) WholeStageCodegenTransformer (122)
-Input [1]: [p_partkey#7575L]
+(6) WholeStageCodegenTransformer (X)
+Input [1]: [p_partkey#X]
 Arguments: false
 Native Plan:
 -- Project
   -- TableScan
 
 (7) ColumnarBroadcastExchange
-Input [1]: [p_partkey#7575L]
-Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=11677]
+Input [1]: [p_partkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
 (8) InputIteratorTransformer
-Input [1]: [p_partkey#7575L]
+Input [1]: [p_partkey#X]
 
 (9) GlutenBroadcastHashJoinExecTransformer
-Left keys [1]: [l_partkey#7603L]
-Right keys [1]: [p_partkey#7575L]
+Left keys [1]: [l_partkey#X]
+Right keys [1]: [p_partkey#X]
 Join type: Inner
 Join condition: None
 
 (10) ProjectExecTransformer
-Input [4]: [l_partkey#7603L, l_quantity#7606, l_extendedprice#7607, p_partkey#7575L]
-Arguments: [hash(p_partkey#7575L, 42) AS hash_partition_key#7682, l_quantity#7606, l_extendedprice#7607, p_partkey#7575L]
+Input [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, p_partkey#X]
+Arguments: [hash(p_partkey#X, 42) AS hash_partition_key#X, l_quantity#X, l_extendedprice#X, p_partkey#X]
 
-(11) WholeStageCodegenTransformer (123)
-Input [4]: [hash_partition_key#7682, l_quantity#7606, l_extendedprice#7607, p_partkey#7575L]
+(11) WholeStageCodegenTransformer (X)
+Input [4]: [hash_partition_key#X, l_quantity#X, l_extendedprice#X, p_partkey#X]
 Arguments: false
 Native Plan:
 -- Project
@@ -88,36 +88,36 @@ Native Plan:
       -- ValueStream
 
 (12) ColumnarExchange
-Input [4]: [hash_partition_key#7682, l_quantity#7606, l_extendedprice#7607, p_partkey#7575L]
-Arguments: hashpartitioning(p_partkey#7575L, 100), ENSURE_REQUIREMENTS, [l_quantity#7606, l_extendedprice#7607, p_partkey#7575L], [plan_id=11683], [id=#11683]
+Input [4]: [hash_partition_key#X, l_quantity#X, l_extendedprice#X, p_partkey#X]
+Arguments: hashpartitioning(p_partkey#X, 100), ENSURE_REQUIREMENTS, [l_quantity#X, l_extendedprice#X, p_partkey#X], [plan_id=X], [id=#X]
 
 (13) InputIteratorTransformer
-Input [3]: [l_quantity#7606, l_extendedprice#7607, p_partkey#7575L]
+Input [3]: [l_quantity#X, l_extendedprice#X, p_partkey#X]
 
 (14) Scan parquet spark_catalog.default.lineitem
-Output [2]: [l_partkey#7657L, l_quantity#7660]
+Output [2]: [l_partkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/lineitem]
 PushedFilters: [IsNotNull(l_partkey)]
 ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2)>
 
 (15) FilterExecTransformer
-Input [2]: [l_partkey#7657L, l_quantity#7660]
-Arguments: isnotnull(l_partkey#7657L)
+Input [2]: [l_partkey#X, l_quantity#X]
+Arguments: isnotnull(l_partkey#X)
 
 (16) FlushableHashAggregateExecTransformer
-Input [2]: [l_partkey#7657L, l_quantity#7660]
-Keys [1]: [l_partkey#7657L]
-Functions [1]: [partial_avg(l_quantity#7660)]
-Aggregate Attributes [2]: [sum#7678, count#7679L]
-Results [3]: [l_partkey#7657L, sum#7680, count#7681L]
+Input [2]: [l_partkey#X, l_quantity#X]
+Keys [1]: [l_partkey#X]
+Functions [1]: [partial_avg(l_quantity#X)]
+Aggregate Attributes [2]: [sum#X, count#X]
+Results [3]: [l_partkey#X, sum#X, count#X]
 
 (17) ProjectExecTransformer
-Input [3]: [l_partkey#7657L, sum#7680, count#7681L]
-Arguments: [hash(l_partkey#7657L, 42) AS hash_partition_key#7683, l_partkey#7657L, sum#7680, count#7681L]
+Input [3]: [l_partkey#X, sum#X, count#X]
+Arguments: [hash(l_partkey#X, 42) AS hash_partition_key#X, l_partkey#X, sum#X, count#X]
 
-(18) WholeStageCodegenTransformer (124)
-Input [4]: [hash_partition_key#7683, l_partkey#7657L, sum#7680, count#7681L]
+(18) WholeStageCodegenTransformer (X)
+Input [4]: [hash_partition_key#X, l_partkey#X, sum#X, count#X]
 Arguments: false
 Native Plan:
 -- Project
@@ -126,42 +126,42 @@ Native Plan:
       -- TableScan
 
 (19) ColumnarExchange
-Input [4]: [hash_partition_key#7683, l_partkey#7657L, sum#7680, count#7681L]
-Arguments: hashpartitioning(l_partkey#7657L, 100), ENSURE_REQUIREMENTS, [l_partkey#7657L, sum#7680, count#7681L], [plan_id=11687], [id=#11687]
+Input [4]: [hash_partition_key#X, l_partkey#X, sum#X, count#X]
+Arguments: hashpartitioning(l_partkey#X, 100), ENSURE_REQUIREMENTS, [l_partkey#X, sum#X, count#X], [plan_id=X], [id=#X]
 
 (20) InputIteratorTransformer
-Input [3]: [l_partkey#7657L, sum#7680, count#7681L]
+Input [3]: [l_partkey#X, sum#X, count#X]
 
 (21) RegularHashAggregateExecTransformer
-Input [3]: [l_partkey#7657L, sum#7680, count#7681L]
-Keys [1]: [l_partkey#7657L]
-Functions [1]: [avg(l_quantity#7660)]
-Aggregate Attributes [1]: [avg(l_quantity#7660)#7653]
-Results [2]: [(0.2 * avg(l_quantity#7660)#7653) AS (0.2 * avg(l_quantity))#7654, l_partkey#7657L]
+Input [3]: [l_partkey#X, sum#X, count#X]
+Keys [1]: [l_partkey#X]
+Functions [1]: [avg(l_quantity#X)]
+Aggregate Attributes [1]: [avg(l_quantity#X)#X]
+Results [2]: [(0.2 * avg(l_quantity#X)#X) AS (0.2 * avg(l_quantity))#X, l_partkey#X]
 
 (22) FilterExecTransformer
-Input [2]: [(0.2 * avg(l_quantity))#7654, l_partkey#7657L]
-Arguments: isnotnull((0.2 * avg(l_quantity))#7654)
+Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
+Arguments: isnotnull((0.2 * avg(l_quantity))#X)
 
 (23) ShuffledHashJoinExecTransformer
-Left keys [1]: [p_partkey#7575L]
-Right keys [1]: [l_partkey#7657L]
+Left keys [1]: [p_partkey#X]
+Right keys [1]: [l_partkey#X]
 Join type: Inner
-Join condition: (cast(l_quantity#7606 as decimal(18,7)) < (0.2 * avg(l_quantity))#7654)
+Join condition: (cast(l_quantity#X as decimal(18,7)) < (0.2 * avg(l_quantity))#X)
 
 (24) ProjectExecTransformer
-Input [5]: [l_quantity#7606, l_extendedprice#7607, p_partkey#7575L, (0.2 * avg(l_quantity))#7654, l_partkey#7657L]
-Arguments: [l_extendedprice#7607]
+Input [5]: [l_quantity#X, l_extendedprice#X, p_partkey#X, (0.2 * avg(l_quantity))#X, l_partkey#X]
+Arguments: [l_extendedprice#X]
 
 (25) FlushableHashAggregateExecTransformer
-Input [1]: [l_extendedprice#7607]
+Input [1]: [l_extendedprice#X]
 Keys: []
-Functions [1]: [partial_sum(l_extendedprice#7607)]
-Aggregate Attributes [2]: [sum#7674, isEmpty#7675]
-Results [2]: [sum#7676, isEmpty#7677]
+Functions [1]: [partial_sum(l_extendedprice#X)]
+Aggregate Attributes [2]: [sum#X, isEmpty#X]
+Results [2]: [sum#X, isEmpty#X]
 
-(26) WholeStageCodegenTransformer (125)
-Input [2]: [sum#7676, isEmpty#7677]
+(26) WholeStageCodegenTransformer (X)
+Input [2]: [sum#X, isEmpty#X]
 Arguments: false
 Native Plan:
 -- Project
@@ -177,21 +177,21 @@ Native Plan:
                   -- ValueStream
 
 (27) ColumnarExchange
-Input [2]: [sum#7676, isEmpty#7677]
-Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=11696], [id=#11696]
+Input [2]: [sum#X, isEmpty#X]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
 (28) InputIteratorTransformer
-Input [2]: [sum#7676, isEmpty#7677]
+Input [2]: [sum#X, isEmpty#X]
 
 (29) RegularHashAggregateExecTransformer
-Input [2]: [sum#7676, isEmpty#7677]
+Input [2]: [sum#X, isEmpty#X]
 Keys: []
-Functions [1]: [sum(l_extendedprice#7607)]
-Aggregate Attributes [1]: [sum(l_extendedprice#7607)#7672]
-Results [1]: [(sum(l_extendedprice#7607)#7672 / 7.0) AS avg_yearly#7650]
+Functions [1]: [sum(l_extendedprice#X)]
+Aggregate Attributes [1]: [sum(l_extendedprice#X)#X]
+Results [1]: [(sum(l_extendedprice#X)#X / 7.0) AS avg_yearly#X]
 
-(30) WholeStageCodegenTransformer (126)
-Input [1]: [avg_yearly#7650]
+(30) WholeStageCodegenTransformer (X)
+Input [1]: [avg_yearly#X]
 Arguments: false
 Native Plan:
 -- Project
@@ -200,5 +200,5 @@ Native Plan:
       -- ValueStream
 
 (31) VeloxColumnarToRowExec
-Input [1]: [avg_yearly#7650]
+Input [1]: [avg_yearly#X]
 
