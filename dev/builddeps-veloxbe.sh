@@ -32,6 +32,7 @@ VELOX_BRANCH=""
 VELOX_HOME=""
 VELOX_PARAMETER=""
 COMPILE_ARROW_JAVA=OFF
+NUM_THREADS=${NUM_THREADS:-$(nproc --ignore=2)}
 
 for arg in "$@"
 do
@@ -126,6 +127,10 @@ do
         COMPILE_ARROW_JAVA=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
+        --num_threads=*)
+        NUM_THREADS=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
 	      *)
         OTHER_ARGUMENTS+=("$1")
         shift # Remove generic argument from processing
@@ -163,7 +168,7 @@ cd $GLUTEN_DIR/ep/build-velox/src
 # When BUILD_TESTS is on for gluten cpp, we need turn on VELOX_BUILD_TEST_UTILS via build_test_utils.
 ./build_velox.sh --run_setup_script=$RUN_SETUP_SCRIPT --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
                  --enable_abfs=$ENABLE_ABFS --enable_ep_cache=$ENABLE_EP_CACHE --build_test_utils=$BUILD_TESTS --build_tests=$BUILD_VELOX_TESTS --build_benchmarks=$BUILD_VELOX_BENCHMARKS \
-                 --compile_arrow_java=$COMPILE_ARROW_JAVA
+                 --compile_arrow_java=$COMPILE_ARROW_JAVA  --num_threads=$NUM_THREADS
 
 ## compile gluten cpp
 cd $GLUTEN_DIR/cpp
@@ -173,4 +178,4 @@ cd build
 cmake -DBUILD_VELOX_BACKEND=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
       -DBUILD_TESTS=$BUILD_TESTS -DBUILD_EXAMPLES=$BUILD_EXAMPLES -DBUILD_BENCHMARKS=$BUILD_BENCHMARKS -DBUILD_JEMALLOC=$BUILD_JEMALLOC \
       -DENABLE_HBM=$ENABLE_HBM -DENABLE_QAT=$ENABLE_QAT -DENABLE_IAA=$ENABLE_IAA -DENABLE_GCS=$ENABLE_GCS -DENABLE_S3=$ENABLE_S3 -DENABLE_HDFS=$ENABLE_HDFS -DENABLE_ABFS=$ENABLE_ABFS ..
-make -j
+make -j $NUM_THREADS
