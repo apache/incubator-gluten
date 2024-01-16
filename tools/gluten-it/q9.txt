@@ -1,0 +1,336 @@
+== Physical Plan ==
+VeloxColumnarToRowExec (54)
++- ^ SortExecTransformer (52)
+   +- ^ InputIteratorTransformer (51)
+      +- ColumnarExchange (50)
+         +- ^ RegularHashAggregateExecTransformer (48)
+            +- ^ InputIteratorTransformer (47)
+               +- ColumnarExchange (46)
+                  +- ^ ProjectExecTransformer (44)
+                     +- ^ FlushableHashAggregateExecTransformer (43)
+                        +- ^ ProjectExecTransformer (42)
+                           +- ^ GlutenBroadcastHashJoinExecTransformer Inner (41)
+                              :- ^ ProjectExecTransformer (35)
+                              :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (34)
+                              :     :- ^ ProjectExecTransformer (28)
+                              :     :  +- ^ ShuffledHashJoinExecTransformer Inner (27)
+                              :     :     :- ^ InputIteratorTransformer (20)
+                              :     :     :  +- ColumnarExchange (19)
+                              :     :     :     +- ^ ProjectExecTransformer (17)
+                              :     :     :        +- ^ GlutenBroadcastHashJoinExecTransformer Inner (16)
+                              :     :     :           :- ^ ProjectExecTransformer (10)
+                              :     :     :           :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (9)
+                              :     :     :           :     :- ^ InputIteratorTransformer (6)
+                              :     :     :           :     :  +- ColumnarBroadcastExchange (5)
+                              :     :     :           :     :     +- ^ ProjectExecTransformer (3)
+                              :     :     :           :     :        +- ^ FilterExecTransformer (2)
+                              :     :     :           :     :           +- ^ Scan parquet spark_catalog.default.part (1)
+                              :     :     :           :     +- ^ FilterExecTransformer (8)
+                              :     :     :           :        +- ^ Scan parquet spark_catalog.default.lineitem (7)
+                              :     :     :           +- ^ InputIteratorTransformer (15)
+                              :     :     :              +- ColumnarBroadcastExchange (14)
+                              :     :     :                 +- ^ FilterExecTransformer (12)
+                              :     :     :                    +- ^ Scan parquet spark_catalog.default.supplier (11)
+                              :     :     +- ^ InputIteratorTransformer (26)
+                              :     :        +- ColumnarExchange (25)
+                              :     :           +- ^ ProjectExecTransformer (23)
+                              :     :              +- ^ FilterExecTransformer (22)
+                              :     :                 +- ^ Scan parquet spark_catalog.default.partsupp (21)
+                              :     +- ^ InputIteratorTransformer (33)
+                              :        +- ColumnarBroadcastExchange (32)
+                              :           +- ^ FilterExecTransformer (30)
+                              :              +- ^ Scan parquet spark_catalog.default.orders (29)
+                              +- ^ InputIteratorTransformer (40)
+                                 +- ColumnarBroadcastExchange (39)
+                                    +- ^ FilterExecTransformer (37)
+                                       +- ^ Scan parquet spark_catalog.default.nation (36)
+
+
+(1) Scan parquet spark_catalog.default.part
+Output [2]: [p_partkey#4131L, p_name#4132]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/part]
+PushedFilters: [IsNotNull(p_name), StringContains(p_name,green), IsNotNull(p_partkey)]
+ReadSchema: struct<p_partkey:bigint,p_name:string>
+
+(2) FilterExecTransformer
+Input [2]: [p_partkey#4131L, p_name#4132]
+Arguments: ((isnotnull(p_name#4132) AND Contains(p_name#4132, green)) AND isnotnull(p_partkey#4131L))
+
+(3) ProjectExecTransformer
+Input [2]: [p_partkey#4131L, p_name#4132]
+Arguments: [p_partkey#4131L]
+
+(4) WholeStageCodegenTransformer (69)
+Input [1]: [p_partkey#4131L]
+Arguments: false
+Native Plan:
+-- Project[expressions: (n1_2:BIGINT, "n0_0")] -> n1_2:BIGINT
+  -- TableScan[table: hive_table, range filters: [(p_name, Filter(IsNotNull, deterministic, null not allowed)), (p_partkey, Filter(IsNotNull, deterministic, null not allowed))], remaining filter: (contains("p_name","green"))] -> n0_0:BIGINT, n0_1:VARCHAR
+
+(5) ColumnarBroadcastExchange
+Input [1]: [p_partkey#4131L]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=6938]
+
+(6) InputIteratorTransformer
+Input [1]: [p_partkey#4131L]
+
+(7) Scan parquet spark_catalog.default.lineitem
+Output [6]: [l_orderkey#4158L, l_partkey#4159L, l_suppkey#4160L, l_quantity#4162, l_extendedprice#4163, l_discount#4164]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/lineitem]
+PushedFilters: [IsNotNull(l_partkey), IsNotNull(l_suppkey), IsNotNull(l_orderkey)]
+ReadSchema: struct<l_orderkey:bigint,l_partkey:bigint,l_suppkey:bigint,l_quantity:decimal(12,2),l_extendedprice:decimal(12,2),l_discount:decimal(12,2)>
+
+(8) FilterExecTransformer
+Input [6]: [l_orderkey#4158L, l_partkey#4159L, l_suppkey#4160L, l_quantity#4162, l_extendedprice#4163, l_discount#4164]
+Arguments: ((isnotnull(l_partkey#4159L) AND isnotnull(l_suppkey#4160L)) AND isnotnull(l_orderkey#4158L))
+
+(9) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [p_partkey#4131L]
+Right keys [1]: [l_partkey#4159L]
+Join type: Inner
+Join condition: None
+
+(10) ProjectExecTransformer
+Input [7]: [p_partkey#4131L, l_orderkey#4158L, l_partkey#4159L, l_suppkey#4160L, l_quantity#4162, l_extendedprice#4163, l_discount#4164]
+Arguments: [l_orderkey#4158L, l_partkey#4159L, l_suppkey#4160L, l_quantity#4162, l_extendedprice#4163, l_discount#4164]
+
+(11) Scan parquet spark_catalog.default.supplier
+Output [2]: [s_suppkey#4056L, s_nationkey#4059L]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/supplier]
+PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
+ReadSchema: struct<s_suppkey:bigint,s_nationkey:bigint>
+
+(12) FilterExecTransformer
+Input [2]: [s_suppkey#4056L, s_nationkey#4059L]
+Arguments: (isnotnull(s_suppkey#4056L) AND isnotnull(s_nationkey#4059L))
+
+(13) WholeStageCodegenTransformer (70)
+Input [2]: [s_suppkey#4056L, s_nationkey#4059L]
+Arguments: false
+Native Plan:
+-- TableScan[table: hive_table, range filters: [(s_nationkey, Filter(IsNotNull, deterministic, null not allowed)), (s_suppkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:BIGINT
+
+(14) ColumnarBroadcastExchange
+Input [2]: [s_suppkey#4056L, s_nationkey#4059L]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=6944]
+
+(15) InputIteratorTransformer
+Input [2]: [s_suppkey#4056L, s_nationkey#4059L]
+
+(16) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [l_suppkey#4160L]
+Right keys [1]: [s_suppkey#4056L]
+Join type: Inner
+Join condition: None
+
+(17) ProjectExecTransformer
+Input [8]: [l_orderkey#4158L, l_partkey#4159L, l_suppkey#4160L, l_quantity#4162, l_extendedprice#4163, l_discount#4164, s_suppkey#4056L, s_nationkey#4059L]
+Arguments: [hash(l_suppkey#4160L, l_partkey#4159L, 42) AS hash_partition_key#4227, hash(l_suppkey#4160L, l_partkey#4159L, 42) AS hash_partition_key#4224, l_orderkey#4158L, l_partkey#4159L, l_suppkey#4160L, l_quantity#4162, l_extendedprice#4163, l_discount#4164, s_nationkey#4059L]
+
+(18) WholeStageCodegenTransformer (71)
+Input [9]: [hash_partition_key#4227, hash_partition_key#4224, l_orderkey#4158L, l_partkey#4159L, l_suppkey#4160L, l_quantity#4162, l_extendedprice#4163, l_discount#4164, s_nationkey#4059L]
+Arguments: false
+Native Plan:
+-- Project[expressions: (n8_8:INTEGER, hash_with_seed(42,"n7_10","n7_9")), (n8_9:INTEGER, hash_with_seed(42,"n7_10","n7_9")), (n8_10:BIGINT, "n7_8"), (n8_11:BIGINT, "n7_9"), (n8_12:BIGINT, "n7_10"), (n8_13:DECIMAL(12, 2), "n7_11"), (n8_14:DECIMAL(12, 2), "n7_12"), (n8_15:DECIMAL(12, 2), "n7_13"), (n8_16:BIGINT, "n7_15")] -> n8_8:INTEGER, n8_9:INTEGER, n8_10:BIGINT, n8_11:BIGINT, n8_12:BIGINT, n8_13:DECIMAL(12, 2), n8_14:DECIMAL(12, 2), n8_15:DECIMAL(12, 2), n8_16:BIGINT
+  -- Project[expressions: (n7_8:BIGINT, "n5_7"), (n7_9:BIGINT, "n5_8"), (n7_10:BIGINT, "n5_9"), (n7_11:DECIMAL(12, 2), "n5_10"), (n7_12:DECIMAL(12, 2), "n5_11"), (n7_13:DECIMAL(12, 2), "n5_12"), (n7_14:BIGINT, "n1_0"), (n7_15:BIGINT, "n1_1")] -> n7_8:BIGINT, n7_9:BIGINT, n7_10:BIGINT, n7_11:DECIMAL(12, 2), n7_12:DECIMAL(12, 2), n7_13:DECIMAL(12, 2), n7_14:BIGINT, n7_15:BIGINT
+    -- HashJoin[INNER n5_9=n1_0] -> n5_7:BIGINT, n5_8:BIGINT, n5_9:BIGINT, n5_10:DECIMAL(12, 2), n5_11:DECIMAL(12, 2), n5_12:DECIMAL(12, 2), n1_0:BIGINT, n1_1:BIGINT
+      -- Project[expressions: (n5_7:BIGINT, "n4_8"), (n5_8:BIGINT, "n4_9"), (n5_9:BIGINT, "n4_10"), (n5_10:DECIMAL(12, 2), "n4_11"), (n5_11:DECIMAL(12, 2), "n4_12"), (n5_12:DECIMAL(12, 2), "n4_13")] -> n5_7:BIGINT, n5_8:BIGINT, n5_9:BIGINT, n5_10:DECIMAL(12, 2), n5_11:DECIMAL(12, 2), n5_12:DECIMAL(12, 2)
+        -- Project[expressions: (n4_7:BIGINT, "n0_0"), (n4_8:BIGINT, "n2_0"), (n4_9:BIGINT, "n2_1"), (n4_10:BIGINT, "n2_2"), (n4_11:DECIMAL(12, 2), "n2_3"), (n4_12:DECIMAL(12, 2), "n2_4"), (n4_13:DECIMAL(12, 2), "n2_5")] -> n4_7:BIGINT, n4_8:BIGINT, n4_9:BIGINT, n4_10:BIGINT, n4_11:DECIMAL(12, 2), n4_12:DECIMAL(12, 2), n4_13:DECIMAL(12, 2)
+          -- HashJoin[INNER n2_1=n0_0] -> n2_0:BIGINT, n2_1:BIGINT, n2_2:BIGINT, n2_3:DECIMAL(12, 2), n2_4:DECIMAL(12, 2), n2_5:DECIMAL(12, 2), n0_0:BIGINT
+            -- TableScan[table: hive_table, range filters: [(l_orderkey, Filter(IsNotNull, deterministic, null not allowed)), (l_partkey, Filter(IsNotNull, deterministic, null not allowed)), (l_suppkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n2_0:BIGINT, n2_1:BIGINT, n2_2:BIGINT, n2_3:DECIMAL(12, 2), n2_4:DECIMAL(12, 2), n2_5:DECIMAL(12, 2)
+            -- ValueStream[] -> n0_0:BIGINT
+      -- ValueStream[] -> n1_0:BIGINT, n1_1:BIGINT
+
+(19) ColumnarExchange
+Input [9]: [hash_partition_key#4227, hash_partition_key#4224, l_orderkey#4158L, l_partkey#4159L, l_suppkey#4160L, l_quantity#4162, l_extendedprice#4163, l_discount#4164, s_nationkey#4059L]
+Arguments: hashpartitioning(l_suppkey#4160L, l_partkey#4159L, 100), ENSURE_REQUIREMENTS, [hash_partition_key#4224, l_orderkey#4158L, l_partkey#4159L, l_suppkey#4160L, l_quantity#4162, l_extendedprice#4163, l_discount#4164, s_nationkey#4059L], [plan_id=6950], [id=#6950]
+
+(20) InputIteratorTransformer
+Input [8]: [hash_partition_key#4224, l_orderkey#4158L, l_partkey#4159L, l_suppkey#4160L, l_quantity#4162, l_extendedprice#4163, l_discount#4164, s_nationkey#4059L]
+
+(21) Scan parquet spark_catalog.default.partsupp
+Output [3]: [ps_partkey#4089L, ps_suppkey#4090L, ps_supplycost#4092]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/partsupp]
+PushedFilters: [IsNotNull(ps_suppkey), IsNotNull(ps_partkey)]
+ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint,ps_supplycost:decimal(12,2)>
+
+(22) FilterExecTransformer
+Input [3]: [ps_partkey#4089L, ps_suppkey#4090L, ps_supplycost#4092]
+Arguments: (isnotnull(ps_suppkey#4090L) AND isnotnull(ps_partkey#4089L))
+
+(23) ProjectExecTransformer
+Input [3]: [ps_partkey#4089L, ps_suppkey#4090L, ps_supplycost#4092]
+Arguments: [hash(ps_suppkey#4090L, ps_partkey#4089L, 42) AS hash_partition_key#4228, hash(ps_suppkey#4090L, ps_partkey#4089L, 42) AS hash_partition_key#4225, ps_partkey#4089L, ps_suppkey#4090L, ps_supplycost#4092]
+
+(24) WholeStageCodegenTransformer (72)
+Input [5]: [hash_partition_key#4228, hash_partition_key#4225, ps_partkey#4089L, ps_suppkey#4090L, ps_supplycost#4092]
+Arguments: false
+Native Plan:
+-- Project[expressions: (n1_3:INTEGER, hash_with_seed(42,"n0_1","n0_0")), (n1_4:INTEGER, hash_with_seed(42,"n0_1","n0_0")), (n1_5:BIGINT, "n0_0"), (n1_6:BIGINT, "n0_1"), (n1_7:DECIMAL(12, 2), "n0_2")] -> n1_3:INTEGER, n1_4:INTEGER, n1_5:BIGINT, n1_6:BIGINT, n1_7:DECIMAL(12, 2)
+  -- TableScan[table: hive_table, range filters: [(ps_partkey, Filter(IsNotNull, deterministic, null not allowed)), (ps_suppkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:BIGINT, n0_2:DECIMAL(12, 2)
+
+(25) ColumnarExchange
+Input [5]: [hash_partition_key#4228, hash_partition_key#4225, ps_partkey#4089L, ps_suppkey#4090L, ps_supplycost#4092]
+Arguments: hashpartitioning(ps_suppkey#4090L, ps_partkey#4089L, 100), ENSURE_REQUIREMENTS, [hash_partition_key#4225, ps_partkey#4089L, ps_suppkey#4090L, ps_supplycost#4092], [plan_id=6954], [id=#6954]
+
+(26) InputIteratorTransformer
+Input [4]: [hash_partition_key#4225, ps_partkey#4089L, ps_suppkey#4090L, ps_supplycost#4092]
+
+(27) ShuffledHashJoinExecTransformer
+Left keys [2]: [l_suppkey#4160L, l_partkey#4159L]
+Right keys [2]: [ps_suppkey#4090L, ps_partkey#4089L]
+Join type: Inner
+Join condition: None
+
+(28) ProjectExecTransformer
+Input [12]: [hash_partition_key#4224, l_orderkey#4158L, l_partkey#4159L, l_suppkey#4160L, l_quantity#4162, l_extendedprice#4163, l_discount#4164, s_nationkey#4059L, hash_partition_key#4225, ps_partkey#4089L, ps_suppkey#4090L, ps_supplycost#4092]
+Arguments: [l_orderkey#4158L, l_quantity#4162, l_extendedprice#4163, l_discount#4164, s_nationkey#4059L, ps_supplycost#4092]
+
+(29) Scan parquet spark_catalog.default.orders
+Output [2]: [o_orderkey#4104L, o_orderdate#4112]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/orders]
+PushedFilters: [IsNotNull(o_orderkey)]
+ReadSchema: struct<o_orderkey:bigint,o_orderdate:date>
+
+(30) FilterExecTransformer
+Input [2]: [o_orderkey#4104L, o_orderdate#4112]
+Arguments: isnotnull(o_orderkey#4104L)
+
+(31) WholeStageCodegenTransformer (73)
+Input [2]: [o_orderkey#4104L, o_orderdate#4112]
+Arguments: false
+Native Plan:
+-- TableScan[table: hive_table, range filters: [(o_orderkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:DATE
+
+(32) ColumnarBroadcastExchange
+Input [2]: [o_orderkey#4104L, o_orderdate#4112]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=6960]
+
+(33) InputIteratorTransformer
+Input [2]: [o_orderkey#4104L, o_orderdate#4112]
+
+(34) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [l_orderkey#4158L]
+Right keys [1]: [o_orderkey#4104L]
+Join type: Inner
+Join condition: None
+
+(35) ProjectExecTransformer
+Input [8]: [l_orderkey#4158L, l_quantity#4162, l_extendedprice#4163, l_discount#4164, s_nationkey#4059L, ps_supplycost#4092, o_orderkey#4104L, o_orderdate#4112]
+Arguments: [l_quantity#4162, l_extendedprice#4163, l_discount#4164, s_nationkey#4059L, ps_supplycost#4092, o_orderdate#4112]
+
+(36) Scan parquet spark_catalog.default.nation
+Output [2]: [n_nationkey#4077L, n_name#4078]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/nation]
+PushedFilters: [IsNotNull(n_nationkey)]
+ReadSchema: struct<n_nationkey:bigint,n_name:string>
+
+(37) FilterExecTransformer
+Input [2]: [n_nationkey#4077L, n_name#4078]
+Arguments: isnotnull(n_nationkey#4077L)
+
+(38) WholeStageCodegenTransformer (74)
+Input [2]: [n_nationkey#4077L, n_name#4078]
+Arguments: false
+Native Plan:
+-- TableScan[table: hive_table, range filters: [(n_nationkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n0_0:BIGINT, n0_1:VARCHAR
+
+(39) ColumnarBroadcastExchange
+Input [2]: [n_nationkey#4077L, n_name#4078]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=6966]
+
+(40) InputIteratorTransformer
+Input [2]: [n_nationkey#4077L, n_name#4078]
+
+(41) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [s_nationkey#4059L]
+Right keys [1]: [n_nationkey#4077L]
+Join type: Inner
+Join condition: None
+
+(42) ProjectExecTransformer
+Input [8]: [l_quantity#4162, l_extendedprice#4163, l_discount#4164, s_nationkey#4059L, ps_supplycost#4092, o_orderdate#4112, n_nationkey#4077L, n_name#4078]
+Arguments: [n_name#4078 AS nation#4206, year(o_orderdate#4112) AS o_year#4207, ((l_extendedprice#4163 * (1 - l_discount#4164)) - (ps_supplycost#4092 * l_quantity#4162)) AS amount#4208]
+
+(43) FlushableHashAggregateExecTransformer
+Input [3]: [nation#4206, o_year#4207, amount#4208]
+Keys [2]: [nation#4206, o_year#4207]
+Functions [1]: [partial_sum(amount#4208)]
+Aggregate Attributes [2]: [sum#4220, isEmpty#4221]
+Results [4]: [nation#4206, o_year#4207, sum#4222, isEmpty#4223]
+
+(44) ProjectExecTransformer
+Input [4]: [nation#4206, o_year#4207, sum#4222, isEmpty#4223]
+Arguments: [hash(nation#4206, o_year#4207, 42) AS hash_partition_key#4226, nation#4206, o_year#4207, sum#4222, isEmpty#4223]
+
+(45) WholeStageCodegenTransformer (75)
+Input [5]: [hash_partition_key#4226, nation#4206, o_year#4207, sum#4222, isEmpty#4223]
+Arguments: false
+Native Plan:
+-- Project[expressions: (n15_4:INTEGER, hash_with_seed(42,"n14_3","n14_4")), (n15_5:VARCHAR, "n14_3"), (n15_6:INTEGER, "n14_4"), (n15_7:DECIMAL(37, 4), "n14_5"), (n15_8:BOOLEAN, "n14_6")] -> n15_4:INTEGER, n15_5:VARCHAR, n15_6:INTEGER, n15_7:DECIMAL(37, 4), n15_8:BOOLEAN
+  -- Project[expressions: (n14_3:VARCHAR, "n12_8"), (n14_4:INTEGER, "n12_9"), (n14_5:DECIMAL(37, 4), "n13_2"["col_0"]), (n14_6:BOOLEAN, "n13_2"["col_1"])] -> n14_3:VARCHAR, n14_4:INTEGER, n14_5:DECIMAL(37, 4), n14_6:BOOLEAN
+    -- Aggregation[PARTIAL [n12_8, n12_9] n13_2 := sum_partial("n12_10")] -> n12_8:VARCHAR, n12_9:INTEGER, n13_2:ROW<col_0:DECIMAL(37, 4),col_1:BOOLEAN>
+      -- Project[expressions: (n12_8:VARCHAR, "n11_15"), (n12_9:INTEGER, year("n11_13")), (n12_10:DECIMAL(27, 4), subtract(multiply("n11_9",subtract(1,"n11_10")),multiply("n11_12","n11_8")))] -> n12_8:VARCHAR, n12_9:INTEGER, n12_10:DECIMAL(27, 4)
+        -- Project[expressions: (n11_8:DECIMAL(12, 2), "n9_8"), (n11_9:DECIMAL(12, 2), "n9_9"), (n11_10:DECIMAL(12, 2), "n9_10"), (n11_11:BIGINT, "n9_11"), (n11_12:DECIMAL(12, 2), "n9_12"), (n11_13:DATE, "n9_13"), (n11_14:BIGINT, "n3_0"), (n11_15:VARCHAR, "n3_1")] -> n11_8:DECIMAL(12, 2), n11_9:DECIMAL(12, 2), n11_10:DECIMAL(12, 2), n11_11:BIGINT, n11_12:DECIMAL(12, 2), n11_13:DATE, n11_14:BIGINT, n11_15:VARCHAR
+          -- HashJoin[INNER n9_11=n3_0] -> n9_8:DECIMAL(12, 2), n9_9:DECIMAL(12, 2), n9_10:DECIMAL(12, 2), n9_11:BIGINT, n9_12:DECIMAL(12, 2), n9_13:DATE, n3_0:BIGINT, n3_1:VARCHAR
+            -- Project[expressions: (n9_8:DECIMAL(12, 2), "n8_9"), (n9_9:DECIMAL(12, 2), "n8_10"), (n9_10:DECIMAL(12, 2), "n8_11"), (n9_11:BIGINT, "n8_12"), (n9_12:DECIMAL(12, 2), "n8_13"), (n9_13:DATE, "n8_15")] -> n9_8:DECIMAL(12, 2), n9_9:DECIMAL(12, 2), n9_10:DECIMAL(12, 2), n9_11:BIGINT, n9_12:DECIMAL(12, 2), n9_13:DATE
+              -- Project[expressions: (n8_8:BIGINT, "n6_12"), (n8_9:DECIMAL(12, 2), "n6_13"), (n8_10:DECIMAL(12, 2), "n6_14"), (n8_11:DECIMAL(12, 2), "n6_15"), (n8_12:BIGINT, "n6_16"), (n8_13:DECIMAL(12, 2), "n6_17"), (n8_14:BIGINT, "n2_0"), (n8_15:DATE, "n2_1")] -> n8_8:BIGINT, n8_9:DECIMAL(12, 2), n8_10:DECIMAL(12, 2), n8_11:DECIMAL(12, 2), n8_12:BIGINT, n8_13:DECIMAL(12, 2), n8_14:BIGINT, n8_15:DATE
+                -- HashJoin[INNER n6_12=n2_0] -> n6_12:BIGINT, n6_13:DECIMAL(12, 2), n6_14:DECIMAL(12, 2), n6_15:DECIMAL(12, 2), n6_16:BIGINT, n6_17:DECIMAL(12, 2), n2_0:BIGINT, n2_1:DATE
+                  -- Project[expressions: (n6_12:BIGINT, "n5_13"), (n6_13:DECIMAL(12, 2), "n5_16"), (n6_14:DECIMAL(12, 2), "n5_17"), (n6_15:DECIMAL(12, 2), "n5_18"), (n6_16:BIGINT, "n5_19"), (n6_17:DECIMAL(12, 2), "n5_23")] -> n6_12:BIGINT, n6_13:DECIMAL(12, 2), n6_14:DECIMAL(12, 2), n6_15:DECIMAL(12, 2), n6_16:BIGINT, n6_17:DECIMAL(12, 2)
+                    -- Project[expressions: (n5_12:INTEGER, "n0_0"), (n5_13:BIGINT, "n0_1"), (n5_14:BIGINT, "n0_2"), (n5_15:BIGINT, "n0_3"), (n5_16:DECIMAL(12, 2), "n0_4"), (n5_17:DECIMAL(12, 2), "n0_5"), (n5_18:DECIMAL(12, 2), "n0_6"), (n5_19:BIGINT, "n0_7"), (n5_20:INTEGER, "n1_0"), (n5_21:BIGINT, "n1_1"), (n5_22:BIGINT, "n1_2"), (n5_23:DECIMAL(12, 2), "n1_3")] -> n5_12:INTEGER, n5_13:BIGINT, n5_14:BIGINT, n5_15:BIGINT, n5_16:DECIMAL(12, 2), n5_17:DECIMAL(12, 2), n5_18:DECIMAL(12, 2), n5_19:BIGINT, n5_20:INTEGER, n5_21:BIGINT, n5_22:BIGINT, n5_23:DECIMAL(12, 2)
+                      -- HashJoin[INNER n0_2=n1_1 AND n0_3=n1_2] -> n0_0:INTEGER, n0_1:BIGINT, n0_2:BIGINT, n0_3:BIGINT, n0_4:DECIMAL(12, 2), n0_5:DECIMAL(12, 2), n0_6:DECIMAL(12, 2), n0_7:BIGINT, n1_0:INTEGER, n1_1:BIGINT, n1_2:BIGINT, n1_3:DECIMAL(12, 2)
+                        -- ValueStream[] -> n0_0:INTEGER, n0_1:BIGINT, n0_2:BIGINT, n0_3:BIGINT, n0_4:DECIMAL(12, 2), n0_5:DECIMAL(12, 2), n0_6:DECIMAL(12, 2), n0_7:BIGINT
+                        -- ValueStream[] -> n1_0:INTEGER, n1_1:BIGINT, n1_2:BIGINT, n1_3:DECIMAL(12, 2)
+                  -- ValueStream[] -> n2_0:BIGINT, n2_1:DATE
+            -- ValueStream[] -> n3_0:BIGINT, n3_1:VARCHAR
+
+(46) ColumnarExchange
+Input [5]: [hash_partition_key#4226, nation#4206, o_year#4207, sum#4222, isEmpty#4223]
+Arguments: hashpartitioning(nation#4206, o_year#4207, 100), ENSURE_REQUIREMENTS, [nation#4206, o_year#4207, sum#4222, isEmpty#4223], [plan_id=6974], [id=#6974]
+
+(47) InputIteratorTransformer
+Input [4]: [nation#4206, o_year#4207, sum#4222, isEmpty#4223]
+
+(48) RegularHashAggregateExecTransformer
+Input [4]: [nation#4206, o_year#4207, sum#4222, isEmpty#4223]
+Keys [2]: [nation#4206, o_year#4207]
+Functions [1]: [sum(amount#4208)]
+Aggregate Attributes [1]: [sum(amount#4208)#4216]
+Results [3]: [nation#4206, o_year#4207, sum(amount#4208)#4216 AS sum_profit#4209]
+
+(49) WholeStageCodegenTransformer (76)
+Input [3]: [nation#4206, o_year#4207, sum_profit#4209]
+Arguments: false
+Native Plan:
+-- Project[expressions: (n3_3:VARCHAR, "n1_4"), (n3_4:INTEGER, "n1_5"), (n3_5:DECIMAL(37, 4), "n2_2")] -> n3_3:VARCHAR, n3_4:INTEGER, n3_5:DECIMAL(37, 4)
+  -- Aggregation[SINGLE [n1_4, n1_5] n2_2 := sum_merge_extract("n1_6")] -> n1_4:VARCHAR, n1_5:INTEGER, n2_2:DECIMAL(37, 4)
+    -- Project[expressions: (n1_4:VARCHAR, "n0_0"), (n1_5:INTEGER, "n0_1"), (n1_6:ROW<col_0:DECIMAL(37, 4),col_1:BOOLEAN>, row_constructor("n0_2","n0_3"))] -> n1_4:VARCHAR, n1_5:INTEGER, n1_6:ROW<col_0:DECIMAL(37, 4),col_1:BOOLEAN>
+      -- ValueStream[] -> n0_0:VARCHAR, n0_1:INTEGER, n0_2:DECIMAL(37, 4), n0_3:BOOLEAN
+
+(50) ColumnarExchange
+Input [3]: [nation#4206, o_year#4207, sum_profit#4209]
+Arguments: rangepartitioning(nation#4206 ASC NULLS FIRST, o_year#4207 DESC NULLS LAST, 100), ENSURE_REQUIREMENTS, [plan_id=6979], [id=#6979]
+
+(51) InputIteratorTransformer
+Input [3]: [nation#4206, o_year#4207, sum_profit#4209]
+
+(52) SortExecTransformer
+Input [3]: [nation#4206, o_year#4207, sum_profit#4209]
+Arguments: [nation#4206 ASC NULLS FIRST, o_year#4207 DESC NULLS LAST], true, 0
+
+(53) WholeStageCodegenTransformer (77)
+Input [3]: [nation#4206, o_year#4207, sum_profit#4209]
+Arguments: false
+Native Plan:
+-- OrderBy[n0_0 ASC NULLS FIRST, n0_1 DESC NULLS LAST] -> n0_0:VARCHAR, n0_1:INTEGER, n0_2:DECIMAL(37, 4)
+  -- ValueStream[] -> n0_0:VARCHAR, n0_1:INTEGER, n0_2:DECIMAL(37, 4)
+
+(54) VeloxColumnarToRowExec
+Input [3]: [nation#4206, o_year#4207, sum_profit#4209]
+

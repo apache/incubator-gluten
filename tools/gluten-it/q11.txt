@@ -1,0 +1,304 @@
+== Physical Plan ==
+VeloxColumnarToRowExec (30)
++- ^ SortExecTransformer (28)
+   +- ^ InputIteratorTransformer (27)
+      +- ColumnarExchange (26)
+         +- ^ FilterExecTransformer (24)
+            +- ^ RegularHashAggregateExecTransformer (23)
+               +- ^ InputIteratorTransformer (22)
+                  +- ColumnarExchange (21)
+                     +- ^ ProjectExecTransformer (19)
+                        +- ^ FlushableHashAggregateExecTransformer (18)
+                           +- ^ ProjectExecTransformer (17)
+                              +- ^ GlutenBroadcastHashJoinExecTransformer Inner (16)
+                                 :- ^ ProjectExecTransformer (9)
+                                 :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (8)
+                                 :     :- ^ FilterExecTransformer (2)
+                                 :     :  +- ^ Scan parquet spark_catalog.default.partsupp (1)
+                                 :     +- ^ InputIteratorTransformer (7)
+                                 :        +- ColumnarBroadcastExchange (6)
+                                 :           +- ^ FilterExecTransformer (4)
+                                 :              +- ^ Scan parquet spark_catalog.default.supplier (3)
+                                 +- ^ InputIteratorTransformer (15)
+                                    +- ColumnarBroadcastExchange (14)
+                                       +- ^ ProjectExecTransformer (12)
+                                          +- ^ FilterExecTransformer (11)
+                                             +- ^ Scan parquet spark_catalog.default.nation (10)
+
+
+(1) Scan parquet spark_catalog.default.partsupp
+Output [4]: [ps_partkey#4975L, ps_suppkey#4976L, ps_availqty#4977, ps_supplycost#4978]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/partsupp]
+PushedFilters: [IsNotNull(ps_suppkey)]
+ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint,ps_availqty:int,ps_supplycost:decimal(12,2)>
+
+(2) FilterExecTransformer
+Input [4]: [ps_partkey#4975L, ps_suppkey#4976L, ps_availqty#4977, ps_supplycost#4978]
+Arguments: isnotnull(ps_suppkey#4976L)
+
+(3) Scan parquet spark_catalog.default.supplier
+Output [2]: [s_suppkey#4942L, s_nationkey#4945L]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/supplier]
+PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
+ReadSchema: struct<s_suppkey:bigint,s_nationkey:bigint>
+
+(4) FilterExecTransformer
+Input [2]: [s_suppkey#4942L, s_nationkey#4945L]
+Arguments: (isnotnull(s_suppkey#4942L) AND isnotnull(s_nationkey#4945L))
+
+(5) WholeStageCodegenTransformer (91)
+Input [2]: [s_suppkey#4942L, s_nationkey#4945L]
+Arguments: false
+Native Plan:
+-- TableScan
+
+(6) ColumnarBroadcastExchange
+Input [2]: [s_suppkey#4942L, s_nationkey#4945L]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=8567]
+
+(7) InputIteratorTransformer
+Input [2]: [s_suppkey#4942L, s_nationkey#4945L]
+
+(8) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [ps_suppkey#4976L]
+Right keys [1]: [s_suppkey#4942L]
+Join type: Inner
+Join condition: None
+
+(9) ProjectExecTransformer
+Input [6]: [ps_partkey#4975L, ps_suppkey#4976L, ps_availqty#4977, ps_supplycost#4978, s_suppkey#4942L, s_nationkey#4945L]
+Arguments: [ps_partkey#4975L, ps_availqty#4977, ps_supplycost#4978, s_nationkey#4945L]
+
+(10) Scan parquet spark_catalog.default.nation
+Output [2]: [n_nationkey#4963L, n_name#4964]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/nation]
+PushedFilters: [IsNotNull(n_name), EqualTo(n_name,GERMANY), IsNotNull(n_nationkey)]
+ReadSchema: struct<n_nationkey:bigint,n_name:string>
+
+(11) FilterExecTransformer
+Input [2]: [n_nationkey#4963L, n_name#4964]
+Arguments: ((isnotnull(n_name#4964) AND (n_name#4964 = GERMANY)) AND isnotnull(n_nationkey#4963L))
+
+(12) ProjectExecTransformer
+Input [2]: [n_nationkey#4963L, n_name#4964]
+Arguments: [n_nationkey#4963L]
+
+(13) WholeStageCodegenTransformer (92)
+Input [1]: [n_nationkey#4963L]
+Arguments: false
+Native Plan:
+-- Project
+  -- TableScan
+
+(14) ColumnarBroadcastExchange
+Input [1]: [n_nationkey#4963L]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=8573]
+
+(15) InputIteratorTransformer
+Input [1]: [n_nationkey#4963L]
+
+(16) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [s_nationkey#4945L]
+Right keys [1]: [n_nationkey#4963L]
+Join type: Inner
+Join condition: None
+
+(17) ProjectExecTransformer
+Input [5]: [ps_partkey#4975L, ps_availqty#4977, ps_supplycost#4978, s_nationkey#4945L, n_nationkey#4963L]
+Arguments: [ps_partkey#4975L, ps_availqty#4977, ps_supplycost#4978]
+
+(18) FlushableHashAggregateExecTransformer
+Input [3]: [ps_partkey#4975L, ps_availqty#4977, ps_supplycost#4978]
+Keys [1]: [ps_partkey#4975L]
+Functions [1]: [partial_sum((ps_supplycost#4978 * cast(ps_availqty#4977 as decimal(10,0))))]
+Aggregate Attributes [2]: [sum#5119, isEmpty#5120]
+Results [3]: [ps_partkey#4975L, sum#5121, isEmpty#5122]
+
+(19) ProjectExecTransformer
+Input [3]: [ps_partkey#4975L, sum#5121, isEmpty#5122]
+Arguments: [hash(ps_partkey#4975L, 42) AS hash_partition_key#5127, ps_partkey#4975L, sum#5121, isEmpty#5122]
+
+(20) WholeStageCodegenTransformer (93)
+Input [4]: [hash_partition_key#5127, ps_partkey#4975L, sum#5121, isEmpty#5122]
+Arguments: false
+Native Plan:
+-- Project
+  -- Project
+    -- Aggregation
+      -- Project
+        -- Project
+          -- Project
+            -- HashJoin
+              -- Project
+                -- Project
+                  -- HashJoin
+                    -- TableScan
+                    -- ValueStream
+              -- ValueStream
+
+(21) ColumnarExchange
+Input [4]: [hash_partition_key#5127, ps_partkey#4975L, sum#5121, isEmpty#5122]
+Arguments: hashpartitioning(ps_partkey#4975L, 100), ENSURE_REQUIREMENTS, [ps_partkey#4975L, sum#5121, isEmpty#5122], [plan_id=8581], [id=#8581]
+
+(22) InputIteratorTransformer
+Input [3]: [ps_partkey#4975L, sum#5121, isEmpty#5122]
+
+(23) RegularHashAggregateExecTransformer
+Input [3]: [ps_partkey#4975L, sum#5121, isEmpty#5122]
+Keys [1]: [ps_partkey#4975L]
+Functions [1]: [sum((ps_supplycost#4978 * cast(ps_availqty#4977 as decimal(10,0))))]
+Aggregate Attributes [1]: [sum((ps_supplycost#4978 * cast(ps_availqty#4977 as decimal(10,0))))#5097]
+Results [2]: [ps_partkey#4975L, sum((ps_supplycost#4978 * cast(ps_availqty#4977 as decimal(10,0))))#5097 AS value#5092]
+
+(24) FilterExecTransformer
+Input [2]: [ps_partkey#4975L, value#5092]
+Arguments: (isnotnull(value#5092) AND (cast(value#5092 as decimal(38,6)) > Subquery scalar-subquery#5093, [id=#8682]))
+
+(25) WholeStageCodegenTransformer (94)
+Input [2]: [ps_partkey#4975L, value#5092]
+Arguments: false
+Native Plan:
+-- Filter
+  -- Project
+    -- Aggregation
+      -- Project
+        -- ValueStream
+
+(26) ColumnarExchange
+Input [2]: [ps_partkey#4975L, value#5092]
+Arguments: rangepartitioning(value#5092 DESC NULLS LAST, 100), ENSURE_REQUIREMENTS, [plan_id=8692], [id=#8692]
+
+(27) InputIteratorTransformer
+Input [2]: [ps_partkey#4975L, value#5092]
+
+(28) SortExecTransformer
+Input [2]: [ps_partkey#4975L, value#5092]
+Arguments: [value#5092 DESC NULLS LAST], true, 0
+
+(29) WholeStageCodegenTransformer (95)
+Input [2]: [ps_partkey#4975L, value#5092]
+Arguments: false
+Native Plan:
+-- OrderBy
+  -- ValueStream
+
+(30) VeloxColumnarToRowExec
+Input [2]: [ps_partkey#4975L, value#5092]
+
+===== Subqueries =====
+
+Subquery:1 Hosting operator id = 24 Hosting Expression = Subquery scalar-subquery#5093, [id=#8682]
+VeloxColumnarToRowExec (47)
++- ^ RegularHashAggregateExecTransformer (45)
+   +- ^ InputIteratorTransformer (44)
+      +- ColumnarExchange (43)
+         +- ^ FlushableHashAggregateExecTransformer (41)
+            +- ^ ProjectExecTransformer (40)
+               +- ^ GlutenBroadcastHashJoinExecTransformer Inner (39)
+                  :- ^ ProjectExecTransformer (36)
+                  :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (35)
+                  :     :- ^ FilterExecTransformer (32)
+                  :     :  +- ^ Scan parquet spark_catalog.default.partsupp (31)
+                  :     +- ^ InputIteratorTransformer (34)
+                  :        +- ReusedExchange (33)
+                  +- ^ InputIteratorTransformer (38)
+                     +- ReusedExchange (37)
+
+
+(31) Scan parquet spark_catalog.default.partsupp
+Output [3]: [ps_suppkey#5101L, ps_availqty#5102, ps_supplycost#5103]
+Batched: true
+Location: InMemoryFileIndex [file:/tmp/tpch-generated-1.0/partsupp]
+PushedFilters: [IsNotNull(ps_suppkey)]
+ReadSchema: struct<ps_suppkey:bigint,ps_availqty:int,ps_supplycost:decimal(12,2)>
+
+(32) FilterExecTransformer
+Input [3]: [ps_suppkey#5101L, ps_availqty#5102, ps_supplycost#5103]
+Arguments: isnotnull(ps_suppkey#5101L)
+
+(33) ReusedExchange [Reuses operator id: 6]
+Output [2]: [s_suppkey#5105L, s_nationkey#5108L]
+
+(34) InputIteratorTransformer
+Input [2]: [s_suppkey#5105L, s_nationkey#5108L]
+
+(35) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [ps_suppkey#5101L]
+Right keys [1]: [s_suppkey#5105L]
+Join type: Inner
+Join condition: None
+
+(36) ProjectExecTransformer
+Input [5]: [ps_suppkey#5101L, ps_availqty#5102, ps_supplycost#5103, s_suppkey#5105L, s_nationkey#5108L]
+Arguments: [ps_availqty#5102, ps_supplycost#5103, s_nationkey#5108L]
+
+(37) ReusedExchange [Reuses operator id: 14]
+Output [1]: [n_nationkey#5112L]
+
+(38) InputIteratorTransformer
+Input [1]: [n_nationkey#5112L]
+
+(39) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [s_nationkey#5108L]
+Right keys [1]: [n_nationkey#5112L]
+Join type: Inner
+Join condition: None
+
+(40) ProjectExecTransformer
+Input [4]: [ps_availqty#5102, ps_supplycost#5103, s_nationkey#5108L, n_nationkey#5112L]
+Arguments: [ps_availqty#5102, ps_supplycost#5103]
+
+(41) FlushableHashAggregateExecTransformer
+Input [2]: [ps_availqty#5102, ps_supplycost#5103]
+Keys: []
+Functions [1]: [partial_sum((ps_supplycost#5103 * cast(ps_availqty#5102 as decimal(10,0))))]
+Aggregate Attributes [2]: [sum#5123, isEmpty#5124]
+Results [2]: [sum#5125, isEmpty#5126]
+
+(42) WholeStageCodegenTransformer (89)
+Input [2]: [sum#5125, isEmpty#5126]
+Arguments: false
+Native Plan:
+-- Project[expressions: (n11_1:DECIMAL(33, 2), "n10_0"["col_0"]), (n11_2:BOOLEAN, "n10_0"["col_1"])] -> n11_1:DECIMAL(33, 2), n11_2:BOOLEAN
+  -- Aggregation[PARTIAL n10_0 := sum_partial("n9_2")] -> n10_0:ROW<col_0:DECIMAL(33, 2),col_1:BOOLEAN>
+    -- Project[expressions: (n9_2:DECIMAL(23, 2), multiply("n8_5",try_cast "n8_4" as DECIMAL(10, 0)))] -> n9_2:DECIMAL(23, 2)
+      -- Project[expressions: (n8_4:INTEGER, "n7_4"), (n8_5:DECIMAL(12, 2), "n7_5")] -> n8_4:INTEGER, n8_5:DECIMAL(12, 2)
+        -- Project[expressions: (n7_4:INTEGER, "n5_5"), (n7_5:DECIMAL(12, 2), "n5_6"), (n7_6:BIGINT, "n5_7"), (n7_7:BIGINT, "n1_0")] -> n7_4:INTEGER, n7_5:DECIMAL(12, 2), n7_6:BIGINT, n7_7:BIGINT
+          -- HashJoin[INNER n5_7=n1_0] -> n5_5:INTEGER, n5_6:DECIMAL(12, 2), n5_7:BIGINT, n1_0:BIGINT
+            -- Project[expressions: (n5_5:INTEGER, "n4_6"), (n5_6:DECIMAL(12, 2), "n4_7"), (n5_7:BIGINT, "n4_9")] -> n5_5:INTEGER, n5_6:DECIMAL(12, 2), n5_7:BIGINT
+              -- Project[expressions: (n4_5:BIGINT, "n2_0"), (n4_6:INTEGER, "n2_1"), (n4_7:DECIMAL(12, 2), "n2_2"), (n4_8:BIGINT, "n0_0"), (n4_9:BIGINT, "n0_1")] -> n4_5:BIGINT, n4_6:INTEGER, n4_7:DECIMAL(12, 2), n4_8:BIGINT, n4_9:BIGINT
+                -- HashJoin[INNER n2_0=n0_0] -> n2_0:BIGINT, n2_1:INTEGER, n2_2:DECIMAL(12, 2), n0_0:BIGINT, n0_1:BIGINT
+                  -- TableScan[table: hive_table, range filters: [(ps_suppkey, Filter(IsNotNull, deterministic, null not allowed))]] -> n2_0:BIGINT, n2_1:INTEGER, n2_2:DECIMAL(12, 2)
+                  -- ValueStream[] -> n0_0:BIGINT, n0_1:BIGINT
+            -- ValueStream[] -> n1_0:BIGINT
+
+(43) ColumnarExchange
+Input [2]: [sum#5125, isEmpty#5126]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=8656], [id=#8656]
+
+(44) InputIteratorTransformer
+Input [2]: [sum#5125, isEmpty#5126]
+
+(45) RegularHashAggregateExecTransformer
+Input [2]: [sum#5125, isEmpty#5126]
+Keys: []
+Functions [1]: [sum((ps_supplycost#5103 * cast(ps_availqty#5102 as decimal(10,0))))]
+Aggregate Attributes [1]: [sum((ps_supplycost#5103 * cast(ps_availqty#5102 as decimal(10,0))))#5098]
+Results [1]: [(sum((ps_supplycost#5103 * cast(ps_availqty#5102 as decimal(10,0))))#5098 * 0.0001000000) AS (sum((ps_supplycost * ps_availqty)) * 0.0001000000)#5099]
+
+(46) WholeStageCodegenTransformer (90)
+Input [1]: [(sum((ps_supplycost * ps_availqty)) * 0.0001000000)#5099]
+Arguments: false
+Native Plan:
+-- Project[expressions: (n3_1:DECIMAL(38, 6), multiply("n2_0",0.0001000000))] -> n3_1:DECIMAL(38, 6)
+  -- Aggregation[SINGLE n2_0 := sum_merge_extract("n1_2")] -> n2_0:DECIMAL(33, 2)
+    -- Project[expressions: (n1_2:ROW<col_0:DECIMAL(33, 2),col_1:BOOLEAN>, row_constructor("n0_0","n0_1"))] -> n1_2:ROW<col_0:DECIMAL(33, 2),col_1:BOOLEAN>
+      -- ValueStream[] -> n0_0:DECIMAL(33, 2), n0_1:BOOLEAN
+
+(47) VeloxColumnarToRowExec
+Input [1]: [(sum((ps_supplycost * ps_availqty)) * 0.0001000000)#5099]
+
+
