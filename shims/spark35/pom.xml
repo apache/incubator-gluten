@@ -24,8 +24,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>spark-sql-columnar-shims-spark34</artifactId>
-    <name>Gluten Shims for Spark 3.4</name>
+    <artifactId>spark-sql-columnar-shims-spark35</artifactId>
+    <name>Gluten Shims for Spark 3.5</name>
     <packaging>jar</packaging>
 
     <dependencies>
