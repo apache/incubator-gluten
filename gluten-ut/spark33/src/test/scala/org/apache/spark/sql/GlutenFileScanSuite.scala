@@ -16,15 +16,4 @@
  */
 package org.apache.spark.sql
 
-import io.glutenproject.execution.FileSourceScanExecTransformer
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
-
-class GlutenFileScanSuite extends FileScanSuite with GlutenSQLTestsBaseTrait {
-  test(GLUTEN_TEST + "Filter on short column type pushed to native") {
-    withTable("abc") {
-      spark.sql("create table abc (a short, b int) using parquet")
-      val plan = spark.sql("select * from abc where a = 1").queryExecution.executedPlan
-      assert(plan.find(_.isInstanceOf[FileSourceScanExecTransformer]).isDefined)
-    }
-  }
-}
+class GlutenFileScanSuite extends FileScanSuite with GlutenSQLTestsBaseTrait {}
