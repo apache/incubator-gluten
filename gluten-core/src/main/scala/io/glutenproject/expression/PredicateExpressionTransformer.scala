@@ -58,7 +58,9 @@ object InExpressionTransformer {
       values: Set[Any],
       valueType: DataType): ExpressionNode = {
     val expressionNodes = new java.util.ArrayList[ExpressionNode](
-      values
+      values.toSeq
+        // Sort elements for deterministic behaviours
+        .sortBy(Literal(_, valueType).toString())
         .map(value => ExpressionBuilder.makeLiteral(value, valueType, value == null))
         .asJava)
 
