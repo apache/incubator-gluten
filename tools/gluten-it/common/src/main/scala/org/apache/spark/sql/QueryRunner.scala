@@ -121,7 +121,7 @@ object QueryRunner {
 
 }
 
-case class RunResult(rows: Seq[Row], executionTimeMillis: Long, metrics: Map[String, Long], executionPlan: String)
+case class RunResult(rows: Seq[Row], executionTimeMillis: Long, metrics: Map[String, Long], materializedPlan: String)
 
 class MetricsListener(em: ExecutorMetrics) extends SparkListener {
   override def onExecutorMetricsUpdate(

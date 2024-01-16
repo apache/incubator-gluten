@@ -188,7 +188,7 @@ object QueriesCompare {
           )))
   }
 
-  private[tpc] def verifyExecutionPlan(
+  private[tpc] def verifyMaterializedPlan(
       expectFolder: String,
       id: String,
       actualPlan: String,
@@ -227,7 +227,7 @@ object QueriesCompare {
         if (multiResult) {
           return (false, Some(s"Can't find expect plan file, ${ExceptionUtils.getStackTrace(npe)}"))
         }
-        verifyExecutionPlan(expectFolder, id, actualPlan, multiResult = true)
+        verifyMaterializedPlan(expectFolder, id, actualPlan, multiResult = true)
       case e: Exception =>
         (
           false,
@@ -263,10 +263,10 @@ object QueriesCompare {
           s"Successfully ran query $id, result check was passed. " +
             s"Returned row count: ${resultRows.length}, expected: ${expectedRows.length}")
         if (verifySparkPlan) {
-          verifyExecutionPlan(
+          verifyMaterializedPlan(
             s"${runner.expectResourceFolder}/spark${sessionSwitcher.sparkMainVersion()}",
             id,
-            result.executionPlan) match {
+            result.materializedPlan) match {
             case (false, reason) =>
               return TestResultLine(
                 id,
