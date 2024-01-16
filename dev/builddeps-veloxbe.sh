@@ -32,7 +32,7 @@ VELOX_BRANCH=""
 VELOX_HOME=""
 VELOX_PARAMETER=""
 COMPILE_ARROW_JAVA=OFF
-NUM_THREADS=$(nproc --ignore=2)
+NUM_THREADS=${NUM_THREADS:-$(nproc --ignore=2)}
 
 for arg in "$@"
 do
