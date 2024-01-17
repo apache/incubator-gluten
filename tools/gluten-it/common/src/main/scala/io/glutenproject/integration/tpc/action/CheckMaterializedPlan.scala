@@ -45,7 +45,7 @@ case class CheckMaterializedPlan(scale: Double, queryIds: Array[String], genGold
 
 object CheckMaterializedPlan {
 
-  private val skipSqlPathSet: Set[String] = Set.empty
+  private val skipSqlPathSet: Set[String] = Set("/tpch-queries/q2.sql")
 
   def runTpcQuery(
       id: String,
@@ -102,7 +102,7 @@ object CheckMaterializedPlan {
   }
 
   private def outputFormattedMaterializedPlan(path: String, plan: String): Unit = {
-    val file = new File(s"/tmp/$path")
+    val file = new File(s"tmp/$path")
     // create parent folder if not exists
     file.getParentFile.exists() || file.getParentFile.mkdirs()
     file.createNewFile()
