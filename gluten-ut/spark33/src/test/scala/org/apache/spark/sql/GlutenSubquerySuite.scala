@@ -61,7 +61,8 @@ class GlutenSubquerySuite extends SubquerySuite with GlutenSQLTestsTrait {
 
   // InsertPreProject rule will move subquery from aggregate to pre-project. The
   // reused subquery appeared double times in partial and final aggregation in the past.
-  // But now it appears only in pre-project.
+  // But now it appears only in pre-project. ClickHouse pull out pre-project in
+  // columnar, its subqueryIds.size is same as vanilla Spark.
 
   test(GLUTEN_TEST + "Merge non-correlated scalar subqueries in a subquery") {
     Seq(false, true).foreach {
