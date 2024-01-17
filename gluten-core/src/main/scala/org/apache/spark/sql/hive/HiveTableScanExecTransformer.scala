@@ -172,7 +172,6 @@ class HiveTableScanExecTransformer(
         case (_, _) =>
       }
       val readRelNode = transformCtx.root.asInstanceOf[ReadRelNode]
-      readRelNode.setDataSchema(getDataSchema)
       readRelNode.setProperties(JavaConverters.mapAsJavaMap(options))
     }
     transformCtx

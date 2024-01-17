@@ -445,8 +445,6 @@ object ConverterUtils extends Logging {
     }
   }
 
-  def getFileFormat(scan: BasicScanExecTransformer): ReadFileFormat = scan.fileFormat
-
   // A prefix used in the iterator path.
   final val ITERATOR_PREFIX = "iterator:"
 }

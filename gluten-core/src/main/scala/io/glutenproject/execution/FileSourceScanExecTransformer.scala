@@ -136,7 +136,7 @@ class FileSourceScanExecTransformer(
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     val transformCtx = super.doTransform(context)
-    if (ConverterUtils.getFileFormat(this) == ReadFileFormat.TextReadFormat) {
+    if (this.fileFormat == ReadFileFormat.TextReadFormat) {
       var options: Map[String, String] = Map()
       relation.options.foreach {
         case ("delimiter", v) => options += ("field_delimiter" -> v)
@@ -150,7 +150,6 @@ class FileSourceScanExecTransformer(
       }
 
       val readRelNode = transformCtx.root.asInstanceOf[ReadRelNode]
-      readRelNode.setDataSchema(getDataSchema)
       readRelNode.setProperties(JavaConverters.mapAsJavaMap(options))
     }
     transformCtx

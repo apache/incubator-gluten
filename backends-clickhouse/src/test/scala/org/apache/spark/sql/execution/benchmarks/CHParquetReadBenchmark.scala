@@ -110,7 +110,6 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
     }
     val planNode =
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(transformContext.root), outNames)
-    val fileFormat = ConverterUtils.getFileFormat(chFileScan)
 
     val nativeFileScanRDD = BackendsApiManager.getIteratorApiInstance.genNativeFileScanRDD(
       spark.sparkContext,
