@@ -382,13 +382,11 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
 
   auto spillDirStr = jStringToCString(env, spillDir);
 
-  if (jsize splitInfoArraySize = env->GetArrayLength(splitInfosArr); splitInfoArraySize != 0) {
-    for (auto i = 0; i < splitInfoArraySize; i++) {
-      jbyteArray splitInfoArray = reinterpret_cast<jbyteArray>(env->GetObjectArrayElement(splitInfosArr, i));
-      jsize splitInfoSize = env->GetArrayLength(splitInfoArray);
-      auto splitInfoData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(splitInfoArray, nullptr));
-      ctx->parseSplitInfo(splitInfoData, splitInfoSize);
-    }
+  for (jsize i = 0, splitInfoArraySize = env->GetArrayLength(splitInfosArr); i < splitInfoArraySize; i++) {
+    jbyteArray splitInfoArray = static_cast<jbyteArray>(env->GetObjectArrayElement(splitInfosArr, i));
+    jsize splitInfoSize = env->GetArrayLength(splitInfoArray);
+    auto splitInfoData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(splitInfoArray, nullptr));
+    ctx->parseSplitInfo(splitInfoData, splitInfoSize);
   }
 
   auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArr, nullptr));
