@@ -28,7 +28,7 @@ enum SelfDefinedFunctionReference
 };
 
 /// Collect all get_json_object functions and group by json strings.
-/// Rewrite the get_json_object functions into flattenJSONStringOnRequired + tupleElement. This
+/// Rewrite the get_json_object functions into flattenJSONStringOnRequired + sparktupleElement. This
 /// could avoid repeated parsing the same json string and save a lot of time.
 class GetJsonObjectFunctionWriter : public RelRewriter
 {

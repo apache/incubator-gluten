@@ -239,7 +239,7 @@ private:
 };
 }
 
-REGISTER_FUNCTION(TupleElement)
+REGISTER_FUNCTION(SparkTupleElement)
 {
     factory.registerFunction<SparkFunctionTupleElement>();
 }

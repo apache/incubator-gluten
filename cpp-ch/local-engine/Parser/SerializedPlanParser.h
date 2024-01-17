@@ -195,7 +195,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"map_from_arrays", "mapFromArrays"},
 
        // tuple functions
-       {"get_struct_field", "tupleElement"},
+       {"get_struct_field", "sparkTupleElement"},
        {"get_array_struct_fields", "sparkTupleElement"},
        {"named_struct", "tuple"},
 
