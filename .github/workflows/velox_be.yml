@@ -42,7 +42,6 @@ env:
   HTTP_PROXY_PORT: 911
   PATH_TO_GLUTEN_TE: ./tools/gluten-te
   DOCKER_PULL_REGISTRY: 10.1.0.25:5000
-  LEGACY_DOCKER_REGISTRY: 10.0.2.4:5000
   MAVEN_OPTS: -Dmaven.wagon.http.retryHandler.count=3
 
 concurrency:
@@ -524,7 +523,7 @@ jobs:
       - name: Setup docker container
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach $LEGACY_DOCKER_REGISTRY/gluten-dev/centos:7 \
+          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach $DOCKER_PULL_REGISTRY/gluten-te/gluten-buildenv-centos:7 \
           bash -c 'cd /opt/gluten && sleep 14400'
       - name: Build Gluten CPP library
         run: |
@@ -545,7 +544,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (centos 8)
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 $LEGACY_DOCKER_REGISTRY/gluten-dev/centos:8 \
+          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 $DOCKER_PULL_REGISTRY/gluten-te/gluten-build-centos:8 \
           bash -c 'cd /opt/gluten/tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
@@ -554,7 +553,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (ubuntu 20.04)
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 $LEGACY_DOCKER_REGISTRY/gluten-dev/ubuntu:20.04 \
+          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 $DOCKER_PULL_REGISTRY/gluten-te/gluten-build-ubuntu:20.04 \
           'cd /opt/gluten/tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
@@ -563,7 +562,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (ubuntu 22.04)
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 $LEGACY_DOCKER_REGISTRY/gluten-dev/ubuntu:22.04 \
+          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 $DOCKER_PULL_REGISTRY/gluten-te/gluten-build-ubuntu:22.04 \
           'cd /opt/gluten/tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
