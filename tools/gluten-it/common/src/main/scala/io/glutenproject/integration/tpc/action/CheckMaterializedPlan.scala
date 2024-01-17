@@ -58,7 +58,7 @@ object CheckMaterializedPlan {
       switcher.useSession(token = "test")
       runner.createTables(switcher.spark())
       if (skipSqlPathSet.contains(path)) {
-        (id, CheckResult(success = true, Some("Skipped.")))
+        return (id, CheckResult(success = true, Some("Skipped.")))
       }
 
       val result = QueryRunner.runTpcQuery(
