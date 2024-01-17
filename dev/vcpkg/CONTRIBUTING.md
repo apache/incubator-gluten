@@ -1,6 +1,6 @@
-# A Quick Gudie for Maintenancing Vcpkg Depends 
+# A Quick Guide for Maintaining Dependencies with Vcpkg
 
-It is recommanded to read [vcpkg documents](https://learn.microsoft.com/en-us/vcpkg/).
+It is recommended to read [vcpkg documents](https://learn.microsoft.com/en-us/vcpkg/).
 It is quite easy to understand if you have experience in packaging on linux or mac homebrew.
 
 ## How to add a new depends?
@@ -230,7 +230,7 @@ and [function](https://learn.microsoft.com/en-us/vcpkg/maintainers/functions/vcp
   If exists, `find_package()` will exec it instead of `Find*.cmake`.
   See [example: gflags](./ports/gflags)
 
-### Pacakge Layout
+### Package Layout
 
 Build intermediate files can be found in `.vcpkg/buildtrees/$package`.
 Built packages can be found in `.vcpkg/$package`:
@@ -276,6 +276,8 @@ Most of them are same as the common linux packages layout, except:
 
 ## About Binary Cache
 
-> Binary caching saves copies of library binaries in a shared location that can be accessed by vcpkg for future installs. This means that, as a user, you should only need to build dependencies from source once. If vcpkg is asked to install the same library with the same build configuration in the future, it will copy the built binaries from the cache and finish the operation in seconds.
+> Binary caching saves copies of library binaries in a shared location that can be accessed by vcpkg for future installation.
+> This means that, as a user, you should only need to build dependencies from source once. If vcpkg is asked to install the
+> same library with the same build configuration in the future, it will copy the built binaries from the cache and finish the operation in seconds.
 
 Binary cache is enabled by default. Cache files is located in `~/.cache/vcpkg/archives`. See [binary cache](https://learn.microsoft.com/en-us/vcpkg/users/binarycaching).
