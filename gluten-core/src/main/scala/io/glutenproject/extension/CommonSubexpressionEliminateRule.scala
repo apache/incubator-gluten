@@ -174,7 +174,7 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
       s"aggregate groupingExpressions: ${aggregate.groupingExpressions} " +
         s"aggregateExpressions: ${aggregate.aggregateExpressions}")
     val exprsWithIndex = aggregate.aggregateExpressions.zipWithIndex
-      .filter(_._1.exists(_.isInstanceOf[AggregateExpression]))
+      .filter(_._1.find(_.isInstanceOf[AggregateExpression]).isDefined)
     val inputCtx = RewriteContext(exprsWithIndex.map(_._1), aggregate.child)
     val outputCtx = rewrite(inputCtx)
     val newExprs = outputCtx.exprs
