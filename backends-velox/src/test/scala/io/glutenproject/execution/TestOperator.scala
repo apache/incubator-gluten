@@ -21,7 +21,7 @@ import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
-import org.apache.spark.sql.execution.{GenerateExec, RDDScanExec}
+import org.apache.spark.sql.execution.{FileSourceScanExec, GenerateExec, RDDScanExec}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.functions.{avg, col, lit, udf}
 import org.apache.spark.sql.internal.SQLConf
@@ -775,6 +775,34 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
 
       runQueryAndCompare(s"select * from int_table where a != ${Int.MaxValue}") {
         checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+    }
+  }
+
+  test("Fallback on timestamp column filter") {
+    withTable("ts") {
+      sql("create table ts (c1 int, c2 timestamp) using parquet")
+      sql("insert into ts values (1, timestamp'2016-01-01 10:11:12.123456')")
+      sql("insert into ts values (2, null)")
+      sql("insert into ts values (3, timestamp'1965-01-01 10:11:12.123456')")
+
+      runQueryAndCompare("select c1, c2 from ts where c1 = 1") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+
+      // Fallback should only happen when there is a filter on timestamp column
+      runQueryAndCompare(
+        "select c1, c2 from ts where" +
+          " c2 = timestamp'1965-01-01 10:11:12.123456'") {
+        df: DataFrame =>
+          assert(df.queryExecution.executedPlan.find(_.isInstanceOf[FileSourceScanExec]).isDefined)
+      }
+
+      runQueryAndCompare(
+        "select c1, c2 from ts where" +
+          " c1 = 1 and c2 = timestamp'1965-01-01 10:11:12.123456'") {
+        df: DataFrame =>
+          assert(df.queryExecution.executedPlan.find(_.isInstanceOf[FileSourceScanExec]).isDefined)
       }
     }
   }
