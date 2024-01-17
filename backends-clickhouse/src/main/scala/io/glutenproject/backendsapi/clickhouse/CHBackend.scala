@@ -277,4 +277,8 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       fields: Array[StructField],
       bucketSpec: Option[BucketSpec],
       options: Map[String, String]): Option[String] = Some("Unsupported")
+
+  override def enableNativeWriteFiles(): Boolean = {
+    GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
+  }
 }

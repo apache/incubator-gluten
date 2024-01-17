@@ -122,4 +122,6 @@ trait BackendSettingsApi {
   def requiredInputFilePaths(): Boolean = false
 
   def enableBloomFilterAggFallbackRule(): Boolean = true
+
+  def enableNativeWriteFiles(): Boolean
 }

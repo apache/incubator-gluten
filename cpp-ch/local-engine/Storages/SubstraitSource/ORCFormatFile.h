@@ -50,7 +50,7 @@ public:
 
     bool supportSplit() const override { return true; }
 
-    DB::String getFileFormat() const override { return "ORC"; }
+    String getFileFormat() const override { return "ORC"; }
 
 private:
     mutable std::mutex mutex;

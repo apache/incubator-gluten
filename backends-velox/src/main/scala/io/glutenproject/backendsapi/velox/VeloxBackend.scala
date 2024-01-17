@@ -21,6 +21,7 @@ import io.glutenproject.backendsapi._
 import io.glutenproject.execution.WriteFilesExecTransformer
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.extension.ValidationResult
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 
@@ -400,4 +401,10 @@ object BackendSettings extends BackendSettingsApi {
   override def supportTransformWriteFiles: Boolean = true
 
   override def allowDecimalArithmetic: Boolean = SQLConf.get.decimalOperationsAllowPrecisionLoss
+
+  override def enableNativeWriteFiles(): Boolean = {
+    GlutenConfig.getConf.enableNativeWriter.getOrElse(
+      SparkShimLoader.getSparkShims.enableNativeWriteFilesByDefault()
+    )
+  }
 }

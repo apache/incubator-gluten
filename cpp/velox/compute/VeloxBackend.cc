@@ -40,7 +40,6 @@
 #include "utils/exception.h"
 #include "velox/common/caching/SsdCache.h"
 #include "velox/common/file/FileSystems.h"
-#include "velox/common/memory/MmapAllocator.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveDataSource.h"
 #include "velox/serializers/PrestoSerializer.h"
@@ -243,14 +242,14 @@ void VeloxBackend::initCache(const std::shared_ptr<const facebook::velox::Config
 
     velox::memory::MmapAllocator::Options options;
     options.capacity = memCacheSize;
-    auto allocator = std::make_shared<velox::memory::MmapAllocator>(options);
+    cacheAllocator_ = std::make_shared<velox::memory::MmapAllocator>(options);
     if (ssdCacheSize == 0) {
       LOG(INFO) << "AsyncDataCache will do memory caching only as ssd cache size is 0";
       // TODO: this is not tracked by Spark.
-      asyncDataCache_ = velox::cache::AsyncDataCache::create(allocator.get());
+      asyncDataCache_ = velox::cache::AsyncDataCache::create(cacheAllocator_.get());
     } else {
       // TODO: this is not tracked by Spark.
-      asyncDataCache_ = velox::cache::AsyncDataCache::create(allocator.get(), std::move(ssd));
+      asyncDataCache_ = velox::cache::AsyncDataCache::create(cacheAllocator_.get(), std::move(ssd));
     }
 
     VELOX_CHECK_NOT_NULL(dynamic_cast<velox::cache::AsyncDataCache*>(asyncDataCache_.get()))

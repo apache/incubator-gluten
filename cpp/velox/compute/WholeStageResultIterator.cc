@@ -69,6 +69,9 @@ const std::string kBloomFilterNumBits = "spark.gluten.sql.columnar.backend.velox
 const std::string kBloomFilterMaxNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits";
 const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver";
 
+// write fies
+const std::string kMaxPartitions = "spark.gluten.sql.columnar.backend.velox.maxPartitionsPerWritersSession";
+
 // metrics
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
 const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
@@ -346,10 +349,6 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
   // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
   // FIXME this uses process-wise off-heap memory which is not for task
   try {
-    // To align with Spark's behavior, set casting to int to be truncating.
-    configs[velox::core::QueryConfig::kCastToIntByTruncate] = std::to_string(true);
-    // To align with Spark's behavior, unset to support non-ISO8601 standard strings.
-    configs[velox::core::QueryConfig::kCastStringToDateIsIso8601] = std::to_string(false);
     auto defaultTimezone = veloxCfg_->get<std::string>(kDefaultSessionTimezone, "");
     configs[velox::core::QueryConfig::kSessionTimezone] =
         veloxCfg_->get<std::string>(kSessionTimezone, defaultTimezone);
@@ -433,8 +432,8 @@ std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig()
   configs[velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCaseSession] =
       veloxCfg_->get<bool>(kCaseSensitive, false) == false ? "true" : "false";
   configs[velox::connector::hive::HiveConfig::kArrowBridgeTimestampUnit] = "6";
-  configs[velox::connector::hive::HiveConfig::kMaxPartitionsPerWritersSession] = "400";
-  configs[velox::connector::hive::HiveConfig::kPartitionPathAsLowerCaseSession] = "false";
+  configs[velox::connector::hive::HiveConfig::kMaxPartitionsPerWritersSession] =
+      std::to_string(veloxCfg_->get<int32_t>(kMaxPartitions, 10000));
 
   return std::make_shared<velox::core::MemConfig>(configs);
 }

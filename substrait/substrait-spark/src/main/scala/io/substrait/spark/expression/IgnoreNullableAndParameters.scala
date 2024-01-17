@@ -78,6 +78,9 @@ class IgnoreNullableAndParameters(val typeToMatch: ParameterizedType)
   override def visit(`type`: Type.Map): Boolean =
     typeToMatch.isInstanceOf[Type.Map] || typeToMatch.isInstanceOf[ParameterizedType.Map]
 
+  override def visit(`type`: Type.UserDefined): Boolean =
+    typeToMatch.isInstanceOf[Type.UserDefined]
+
   @throws[RuntimeException]
   override def visit(expr: ParameterizedType.FixedChar): Boolean =
     typeToMatch.isInstanceOf[Type.FixedChar] || typeToMatch

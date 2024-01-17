@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.execution.datasources
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.ColumnarToRowExecBase
 import io.glutenproject.extension.GlutenPlan
@@ -91,7 +90,7 @@ object GlutenWriterColumnarRules {
     val parquetHiveFormat = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
     val orcHiveFormat = "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat"
 
-    if (!GlutenConfig.getConf.enableNativeWriter) {
+    if (!BackendsApiManager.getSettings.enableNativeWriteFiles()) {
       return None
     }
 

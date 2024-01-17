@@ -41,18 +41,25 @@ public class ArrowBufferAllocators {
     return GLOBAL;
   }
 
+  // FIXME: Remove this then use contextInstance(name) instead
   public static BufferAllocator contextInstance() {
+    return contextInstance("Default");
+  }
+
+  public static BufferAllocator contextInstance(String name) {
     if (!TaskResources.inSparkTask()) {
       throw new IllegalStateException("This method must be called in a Spark task.");
     }
-    String id = ArrowBufferAllocatorManager.class.toString();
-    return TaskResources.addResourceIfNotRegistered(id, ArrowBufferAllocatorManager::new).managed;
+    String id = "ArrowBufferAllocatorManager:" + name;
+    return TaskResources.addResourceIfNotRegistered(id, () -> new ArrowBufferAllocatorManager(name))
+        .managed;
   }
 
   public static class ArrowBufferAllocatorManager implements TaskResource {
     private static Logger LOGGER = LoggerFactory.getLogger(ArrowBufferAllocatorManager.class);
     private static final List<BufferAllocator> LEAKED = new Vector<>();
     private final AllocationListener listener;
+    private final String name;
 
     {
       final TaskMemoryManager tmm = TaskResources.getLocalTaskContext().taskMemoryManager();
@@ -69,7 +76,9 @@ public class ArrowBufferAllocators {
 
     private final BufferAllocator managed = new RootAllocator(listener, Long.MAX_VALUE);
 
-    public ArrowBufferAllocatorManager() {}
+    public ArrowBufferAllocatorManager(String name) {
+      this.name = name;
+    }
 
     private void close() {
       managed.close();
@@ -81,9 +90,9 @@ public class ArrowBufferAllocators {
       long accumulated = TaskResources.ACCUMULATED_LEAK_BYTES().addAndGet(leakBytes);
       LOGGER.warn(
           String.format(
-              "Detected leaked Arrow allocator, size: %d, "
+              "Detected leaked Arrow allocator [%s], size: %d, "
                   + "process accumulated leaked size: %d...",
-              leakBytes, accumulated));
+              resourceName(), leakBytes, accumulated));
       if (TaskResources.DEBUG()) {
         LOGGER.warn(String.format("Leaked allocator stack %s", managed.toVerboseString()));
         LEAKED.add(managed);
@@ -106,7 +115,7 @@ public class ArrowBufferAllocators {
 
     @Override
     public String resourceName() {
-      return "ArrowBufferAllocatorManager";
+      return name;
     }
   }
 }

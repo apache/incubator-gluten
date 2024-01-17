@@ -27,6 +27,7 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution.metric.SQLMetric
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -46,6 +47,10 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
   @transient
   override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genInputIteratorTransformerMetrics(sparkContext)
+
+  override def simpleString(maxFields: Int): String = {
+    s"$nodeName${truncatedString(output, "[", ", ", "]", maxFields)}"
+  }
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genInputIteratorTransformerMetricsUpdater(metrics)

@@ -44,6 +44,7 @@ case class ColumnarBuildSideRelation(
   extends BuildSideRelation {
 
   override def deserialized: Iterator[ColumnarBatch] = {
+    val jniWrapper = ColumnarBatchSerializerJniWrapper.create()
     val serializeHandle: Long = {
       val allocator = ArrowBufferAllocators.contextInstance()
       val cSchema = ArrowSchema.allocateNew(allocator)
@@ -51,8 +52,7 @@ case class ColumnarBuildSideRelation(
         StructType.fromAttributes(output),
         SQLConf.get.sessionLocalTimeZone)
       ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-      val handle = ColumnarBatchSerializerJniWrapper
-        .create()
+      val handle = jniWrapper
         .init(
           cSchema.memoryAddress(),
           NativeMemoryManagers
@@ -72,15 +72,14 @@ case class ColumnarBuildSideRelation(
 
         override def next: ColumnarBatch = {
           val handle =
-            ColumnarBatchSerializerJniWrapper
-              .create()
+            jniWrapper
               .deserialize(serializeHandle, batches(batchId))
           batchId += 1
           ColumnarBatches.create(Runtimes.contextInstance(), handle)
         }
       })
       .recycleIterator {
-        ColumnarBatchSerializerJniWrapper.create().close(serializeHandle)
+        jniWrapper.close(serializeHandle)
       }
       .recyclePayload(ColumnarBatches.forceClose) // FIXME why force close?
       .create()
