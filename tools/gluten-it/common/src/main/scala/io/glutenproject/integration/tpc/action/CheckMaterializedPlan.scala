@@ -53,15 +53,21 @@ object CheckMaterializedPlan {
       runner: TpcRunner,
       genGoldenFile: Boolean): (String, CheckResult) = {
     try {
-      println(s"Running query: $id ---")
+      val path = "%s/%s.sql".format(runner.queryResourceFolder, id)
+      println(s"Running query: $path ---")
       switcher.useSession(token = "test")
       runner.createTables(switcher.spark())
-      val path = "%s/%s.sql".format(runner.queryResourceFolder, id)
       if (skipSqlPathSet.contains(path)) {
         (id, CheckResult(success = true, Some("Skipped.")))
       }
 
-      val result = runner.runTpcQuery(switcher.spark(), "", id)
+      val result = QueryRunner.runTpcQuery(
+        switcher.spark(),
+        "",
+        path,
+        explain = false,
+        Array(),
+        randomKillTasks = false)
 
       val goldenFilePath =
         s"${runner.expectResourceFolder}/spark${switcher.sparkMainVersion()}/$id.txt"
