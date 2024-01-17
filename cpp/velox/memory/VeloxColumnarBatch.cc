@@ -16,6 +16,7 @@
  */
 #include "VeloxColumnarBatch.h"
 #include "compute/VeloxRuntime.h"
+#include "utils/Timer.h"
 #include "utils/VeloxArrowUtils.h"
 #include "velox/row/UnsafeRowFast.h"
 #include "velox/type/Type.h"
@@ -47,20 +48,17 @@ void VeloxColumnarBatch::ensureFlattened() {
   if (flattened_ != nullptr) {
     return;
   }
-  auto startTime = std::chrono::steady_clock::now();
-  // Make sure to load lazy vector if not loaded already.
-  for (auto& child : rowVector_->children()) {
-    child->loadedVector();
-  }
 
-  // Perform copy to flatten dictionary vectors.
-  velox::RowVectorPtr copy = std::dynamic_pointer_cast<velox::RowVector>(
-      velox::BaseVector::create(rowVector_->type(), rowVector_->size(), rowVector_->pool()));
-  copy->copy(rowVector_.get(), 0, 0, rowVector_->size());
-  flattened_ = copy;
-  auto endTime = std::chrono::steady_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();
-  exportNanos_ += duration;
+  ScopedTimer timer(&exportNanos_);
+  for (auto& child : rowVector_->children()) {
+    facebook::velox::BaseVector::flattenVector(child);
+    if (child->isLazy()) {
+      child = child->as<facebook::velox::LazyVector>()->loadedVectorShared();
+      VELOX_DCHECK_NOT_NULL(child);
+    }
+  }
+  // Invalid the original rowVector_ after being flattened.
+  flattened_ = std::move(rowVector_);
 }
 
 std::shared_ptr<ArrowSchema> VeloxColumnarBatch::exportArrowSchema() {
@@ -83,6 +81,7 @@ int64_t VeloxColumnarBatch::numBytes() {
 }
 
 velox::RowVectorPtr VeloxColumnarBatch::getRowVector() const {
+  VELOX_CHECK_NOT_NULL(rowVector_);
   return rowVector_;
 }
 
