@@ -45,6 +45,7 @@ case class CheckMaterializedPlan(scale: Double, queryIds: Array[String], genGold
 
 object CheckMaterializedPlan {
 
+  // tpc-h q2 may have multiple plans, skip it for now
   private val skipSqlPathSet: Set[String] = Set("/tpch-queries/q2.sql")
 
   def runTpcQuery(
@@ -63,7 +64,7 @@ object CheckMaterializedPlan {
 
       val result = QueryRunner.runTpcQuery(
         switcher.spark(),
-        "",
+        "CheckMaterializedPlan",
         path,
         explain = false,
         Array(),

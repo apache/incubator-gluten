@@ -28,20 +28,11 @@ import java.io.{File, PrintWriter}
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-case class QueriesCompare(
-    scale: Double,
-    queryIds: Array[String],
-    explain: Boolean,
-    iterations: Int,
-    verifySparkPlan: Boolean,
-    genGoldenFile: Boolean)
+case class QueriesCompare(scale: Double, queryIds: Array[String], explain: Boolean, iterations: Int)
   extends Action {
 
   override def execute(tpcSuite: TpcSuite): Boolean = {
-    val runner: TpcRunner = new TpcRunner(
-      tpcSuite.queryResource(),
-      tpcSuite.dataWritePath(scale),
-      tpcSuite.expectPlanResource())
+    val runner: TpcRunner = new TpcRunner(tpcSuite.queryResource(), tpcSuite.dataWritePath(scale))
     val allQueries = tpcSuite.allQueryIds()
     val results = (0 until iterations).flatMap {
       iteration =>
@@ -62,8 +53,6 @@ case class QueriesCompare(
               queryId,
               explain,
               tpcSuite.desc(),
-              verifySparkPlan,
-              genGoldenFile,
               tpcSuite.sessionSwitcher,
               runner)
         }
@@ -132,15 +121,14 @@ object QueriesCompare {
 
   private def printResults(results: List[TestResultLine]): Unit = {
     printf(
-      "|%15s|%15s|%30s|%30s|%30s|%30s|%30s|%s|\n",
+      "|%15s|%15s|%30s|%30s|%30s|%30s|%30s|\n",
       "Query ID",
       "Was Passed",
       "Expected Row Count",
       "Actual Row Count",
       "Baseline Query Time (Millis)",
       "Query Time (Millis)",
-      "Query Time Variation",
-      "Error Message"
+      "Query Time Variation"
     )
     results.foreach {
       line =>
@@ -153,15 +141,14 @@ object QueriesCompare {
                 / line.actualExecutionTimeMillis.get.toDouble) * 100)
           } else None
         printf(
-          "|%15s|%15s|%30s|%30s|%30s|%30s|%30s|%s|\n",
+          "|%15s|%15s|%30s|%30s|%30s|%30s|%30s|\n",
           line.queryId,
           line.testPassed,
           line.expectedRowCount.getOrElse("N/A"),
           line.actualRowCount.getOrElse("N/A"),
           line.expectedExecutionTimeMillis.getOrElse("N/A"),
           line.actualExecutionTimeMillis.getOrElse("N/A"),
-          timeVariation.map("%15.2f%%".format(_)).getOrElse("N/A"),
-          line.errorMessage.getOrElse("-")
+          timeVariation.map("%15.2f%%".format(_)).getOrElse("N/A")
         )
     }
   }
@@ -191,77 +178,11 @@ object QueriesCompare {
             None
           )))
   }
-  private def outputFormattedMaterializedPlan(id: String, plan: String): Unit = {
-    val file = new File(s"$id.txt")
-    file.createNewFile()
-    val writer = new PrintWriter(file)
-    try {
-      writer.write(plan)
-    } finally {
-      writer.close()
-    }
-  }
-
-  private def formatMaterializedPlan(plan: String): String = {
-    plan
-      .replaceAll("#[0-9]*L*", "#X")
-      .replaceAll("plan_id=[0-9]*", "plan_id=X")
-      .replaceAll("Statistics[(A-Za-z0-9=. ,+)]*", "Statistics(X)")
-      .replaceAll("WholeStageCodegenTransformer[0-9 ()]*", "WholeStageCodegenTransformer (X)")
-  }
-  private[tpc] def verifyMaterializedPlan(
-      expectFolder: String,
-      id: String,
-      actualPlan: String,
-      outputDifferentPlan: Boolean,
-      multiResult: Boolean = false): (Boolean, Option[String]) = {
-    try {
-      val expectPathQueue = if (multiResult) {
-        mutable.Queue.apply(s"$expectFolder/$id-1.txt", s"$expectFolder/$id-2.txt")
-      } else {
-        mutable.Queue.apply(s"$expectFolder/$id.txt")
-      }
-      val afterFormatPlan = formatMaterializedPlan(actualPlan)
-
-      val expectStr = ListBuffer.empty[String]
-      while (expectPathQueue.nonEmpty) {
-        val expectPath = expectPathQueue.dequeue()
-        val expect = QueryRunner.resourceToString(expectPath)
-        expectStr += expect
-        // If the actual plan is the same as any of the expect plans, we consider it as passed
-        if (expect.trim == afterFormatPlan.trim) {
-          return (true, None)
-        }
-      }
-      if (outputDifferentPlan) {
-        outputFormattedMaterializedPlan(id, afterFormatPlan)
-      }
-      // In case this query has multiple plans, we need to check all of them
-      // so, when reach here, means the actual plan is different from all the expect plans
-      (false, Some(s"Expects: \n${expectStr.toString()}\n\nActual: \n$afterFormatPlan"))
-    } catch {
-      // In case the query has multiple plans, so we need to check all of the plans,
-      // which are with suffix
-      case npe: NullPointerException =>
-        // if we already set multiResult to true, means we have already checked all the plans
-        // so here we just return false and can't find the expect plan file
-        if (multiResult) {
-          return (false, Some(s"Can't find expect plan file, ${ExceptionUtils.getStackTrace(npe)}"))
-        }
-        verifyMaterializedPlan(expectFolder, id, actualPlan, outputDifferentPlan, multiResult = true)
-      case e: Exception =>
-        (
-          false,
-          Some(s"Exception when verify spark execution plan: ${ExceptionUtils.getStackTrace(e)}"))
-    }
-  }
 
   private[tpc] def runTpcQuery(
       id: String,
       explain: Boolean,
       desc: String,
-      verifySparkPlan: Boolean,
-      genGoldenFile: Boolean,
       sessionSwitcher: SparkSessionSwitcher,
       runner: TpcRunner): TestResultLine = {
     println(s"Running query: $id...")
@@ -284,27 +205,6 @@ object QueriesCompare {
         println(
           s"Successfully ran query $id, result check was passed. " +
             s"Returned row count: ${resultRows.length}, expected: ${expectedRows.length}")
-        if (genGoldenFile) {
-          outputFormattedMaterializedPlan(id, formatMaterializedPlan(result.materializedPlan))
-        }
-        if (verifySparkPlan) {
-          verifyMaterializedPlan(
-            s"${runner.expectResourceFolder}/spark${sessionSwitcher.sparkMainVersion()}",
-            id,
-            result.materializedPlan,
-            !genGoldenFile) match {
-            case (false, reason) =>
-              return TestResultLine(
-                id,
-                testPassed = false,
-                Some(expectedRows.length),
-                Some(resultRows.length),
-                Some(expected.executionTimeMillis),
-                Some(result.executionTimeMillis),
-                reason)
-            case _ =>
-          }
-        }
         return TestResultLine(
           id,
           testPassed = true,
