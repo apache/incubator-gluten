@@ -109,7 +109,7 @@ class HivePartitionConverter(hadoopConf: Configuration, session: SparkSession)
               }
             })
           .filter(isNonEmptyDataFile)
-        PartitionDirectory(partValues, dirContents.toArray)
+        PartitionDirectory(partValues, dirContents)
     }
   }
 
