@@ -315,7 +315,7 @@ bool SubstraitToVeloxPlanValidator::validateSingularOrList(
     const ::substrait::Expression::SingularOrList& singularOrList,
     const RowTypePtr& inputType) {
   for (const auto& option : singularOrList.options()) {
-    if(!option.has_literal()) {
+    if (!option.has_literal()) {
       logValidateMsg("native validation failed due to: Option is expected as Literal.");
       return false;
     }
