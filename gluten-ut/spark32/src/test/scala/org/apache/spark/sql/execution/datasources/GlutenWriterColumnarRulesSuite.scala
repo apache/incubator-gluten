@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution.datasources
 
 import io.glutenproject.GlutenConfig
+
 import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, SaveMode}
 import org.apache.spark.sql.execution.QueryExecution
 import org.apache.spark.sql.util.QueryExecutionListener
@@ -27,28 +28,27 @@ class GlutenWriterColumnarRulesSuite extends GlutenSQLTestsBaseTrait {
     var fakeRowAdaptor: Option[FakeRowAdaptor] = None
 
     override def onSuccess(funcName: String, qe: QueryExecution, durationNs: Long): Unit = {
-      fakeRowAdaptor = qe.executedPlan.collectFirst {
-        case f: FakeRowAdaptor => f
-      }
+      fakeRowAdaptor = qe.executedPlan.collectFirst { case f: FakeRowAdaptor => f }
     }
 
     override def onFailure(funcName: String, qe: QueryExecution, exception: Exception): Unit = {}
   }
 
   test("Gluten - writing to noop") {
-    withTempDir { dir =>
-      withSQLConf(GlutenConfig.NATIVE_WRITER_ENABLED.key -> "true") {
-        spark.range(0, 100).write.mode(SaveMode.Overwrite).parquet(dir.getPath)
-        val listener = new WriterColumnarListener
-        spark.listenerManager.register(listener)
-        try {
-          spark.read.parquet(dir.getPath).write.format("noop").mode(SaveMode.Overwrite).save()
-          spark.sparkContext.listenerBus.waitUntilEmpty()
-          assert(listener.fakeRowAdaptor.isDefined, "FakeRowAdaptor is not found.")
-        } finally {
-          spark.listenerManager.unregister(listener)
+    withTempDir {
+      dir =>
+        withSQLConf(GlutenConfig.NATIVE_WRITER_ENABLED.key -> "true") {
+          spark.range(0, 100).write.mode(SaveMode.Overwrite).parquet(dir.getPath)
+          val listener = new WriterColumnarListener
+          spark.listenerManager.register(listener)
+          try {
+            spark.read.parquet(dir.getPath).write.format("noop").mode(SaveMode.Overwrite).save()
+            spark.sparkContext.listenerBus.waitUntilEmpty()
+            assert(listener.fakeRowAdaptor.isDefined, "FakeRowAdaptor is not found.")
+          } finally {
+            spark.listenerManager.unregister(listener)
+          }
         }
-      }
     }
   }
 }
