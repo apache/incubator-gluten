@@ -350,6 +350,13 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   }
 
   /**
+   * Generate extended CheckRules. Currently only for Velox backend.
+   *
+   * @return
+   */
+  override def genExtendedCheckRules(): List[SparkSession => LogicalPlan => Unit] = List.empty
+
+  /**
    * Generate extended Optimizers.
    *
    * @return

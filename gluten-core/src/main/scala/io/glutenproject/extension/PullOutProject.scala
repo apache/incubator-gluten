@@ -26,6 +26,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreePattern._
+import org.apache.spark.sql.execution.aggregate.TypedAggregateExpression
 
 /**
  * This rule will insert a pre-project in the child of operators such as Aggregate, Sort, Join,
@@ -41,7 +42,19 @@ case class PullOutProject(session: SparkSession)
    */
   private def needsPreProject(plan: LogicalPlan): Boolean = plan match {
     case Aggregate(groupingExpressions, aggregateExpressions, _) =>
-      aggNeedPreProject(groupingExpressions, aggregateExpressions)
+      groupingExpressions.exists(isNotAttribute) ||
+      aggregateExpressions.exists(_.find {
+        case ae: AggregateExpression
+            if ae.aggregateFunction.isInstanceOf[TypedAggregateExpression] =>
+          // We cannot pull out the children of TypedAggregateExpression to pre-project,
+          // and Gluten cannot support TypedAggregateExpression.
+          false
+        case ae: AggregateExpression
+            if ae.filter.exists(isNotAttribute) || ae.aggregateFunction.children.exists(
+              isNotAttributeAndLiteral) =>
+          true
+        case _ => false
+      }.isDefined)
     case Sort(order, _, _) =>
       order.exists(o => isNotAttribute(o.child))
     case _ => false

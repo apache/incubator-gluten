@@ -21,6 +21,7 @@ import io.glutenproject.utils.PullOutProjectHelper
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
+import org.apache.spark.sql.catalyst.expressions.aggregate.Partial
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution.SparkPlan
@@ -76,7 +77,16 @@ object ColumnarPullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelp
 
   private def needsPreProject(plan: GlutenPlan): Boolean = plan match {
     case agg: HashAggregateExecBaseTransformer =>
-      aggNeedPreProject(agg.groupingExpressions, agg.aggregateExpressions)
+      agg.groupingExpressions.exists(isNotAttribute) ||
+      agg.aggregateExpressions.exists {
+        expr =>
+          expr.filter.exists(isNotAttribute) ||
+          (expr.mode match {
+            case Partial =>
+              expr.aggregateFunction.children.exists(isNotAttributeAndLiteral)
+            case _ => false
+          })
+      }
 
     case sort: SortExecTransformer =>
       sort.sortOrder.exists(o => isNotAttribute(o.child))
@@ -111,7 +121,10 @@ object ColumnarPullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelp
       agg.copySelf(
         groupingExpressions = newGroupingExpressions,
         aggregateExpressions = newAggregateExpressions,
-        child = ProjectExecTransformer(agg.child.output ++ projectExprsMap.values.toSeq, agg.child)
+        child = ProjectExecTransformer(
+          agg.child.output ++ projectExprsMap.values.toSeq,
+          agg.child,
+          ProjectType.PRE)
       )
 
     case sort: SortExecTransformer if needsPreProject(sort) =>

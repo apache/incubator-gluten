@@ -17,8 +17,6 @@
 package io.glutenproject.utils
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
-import org.apache.spark.sql.execution.aggregate.TypedAggregateExpression
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -41,23 +39,6 @@ trait PullOutProjectHelper {
   protected def isNotAttribute(expression: Expression): Boolean = expression match {
     case _: Attribute => false
     case _ => true
-  }
-
-  protected def aggNeedPreProject(
-      groupingExpressions: Seq[Expression],
-      aggregateExpressions: Seq[Expression]): Boolean = {
-    groupingExpressions.exists(isNotAttribute) ||
-    aggregateExpressions.exists(_.find {
-      case ae: AggregateExpression if ae.aggregateFunction.isInstanceOf[TypedAggregateExpression] =>
-        // We cannot pull out the children of TypedAggregateExpression to pre-project,
-        // and Gluten cannot support TypedAggregateExpression.
-        false
-      case ae: AggregateExpression
-          if ae.filter.exists(isNotAttribute) || ae.aggregateFunction.children.exists(
-            isNotAttributeAndLiteral) =>
-        true
-      case _ => false
-    }.isDefined)
   }
 
   protected def getProjectExpressionMap = new mutable.HashMap[ExpressionEquals, NamedExpression]()
