@@ -145,8 +145,7 @@ class SubstraitToVeloxPlanConverter {
   }
 
   void setValueStreamNodeFactory(
-      std::function<core::PlanNodePtr(std::string, memory::MemoryPool*, int32_t, RowTypePtr)>
-          factory) {
+      std::function<core::PlanNodePtr(std::string, memory::MemoryPool*, int32_t, RowTypePtr)> factory) {
     valueStreamNodeFactory_ = std::move(factory);
   }
 
@@ -546,8 +545,7 @@ class SubstraitToVeloxPlanConverter {
   /// The map storing the split stats for each PlanNode.
   std::unordered_map<core::PlanNodeId, std::shared_ptr<SplitInfo>> splitInfoMap_;
 
-  std::function<core::PlanNodePtr(std::string, memory::MemoryPool*, int32_t, RowTypePtr)>
-      valueStreamNodeFactory_;
+  std::function<core::PlanNodePtr(std::string, memory::MemoryPool*, int32_t, RowTypePtr)> valueStreamNodeFactory_;
 
   /// The map storing the pre-built plan nodes which can be accessed through
   /// index. This map is only used when the computation of a Substrait plan
