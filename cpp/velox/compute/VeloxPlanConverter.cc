@@ -96,6 +96,7 @@ void parseLocalFileNodes(
     SubstraitToVeloxPlanConverter* planConverter,
     std::vector<::substrait::ReadRel_LocalFiles>& localFiles) {
   std::vector<std::shared_ptr<SplitInfo>> splitInfos;
+  splitInfos.reserve(localFiles.size());
   for (int32_t i = 0; i < localFiles.size(); i++) {
     const auto& localFile = localFiles[i];
     const auto& fileList = localFile.items();

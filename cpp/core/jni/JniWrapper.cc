@@ -382,9 +382,6 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
 
   auto spillDirStr = jStringToCString(env, spillDir);
 
-  auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArr, nullptr));
-  auto planSize = env->GetArrayLength(planArr);
-
   if (jsize splitInfoArraySize = env->GetArrayLength(splitInfosArr); splitInfoArraySize != 0) {
     for (auto i = 0; i < splitInfoArraySize; i++) {
       jbyteArray splitInfoArray = reinterpret_cast<jbyteArray>(env->GetObjectArrayElement(splitInfosArr, i));
@@ -393,6 +390,9 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
       ctx->parseSplitInfo(splitInfoData, splitInfoSize);
     }
   }
+
+  auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArr, nullptr));
+  auto planSize = env->GetArrayLength(planArr);
   ctx->parsePlan(planData, planSize, {stageId, partitionId, taskId});
 
   auto& conf = ctx->getConfMap();

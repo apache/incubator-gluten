@@ -419,9 +419,6 @@ class ColumnarInputRDDsWrapper(columnarInputRDDs: Seq[RDD[ColumnarBatch]]) exten
   }
 
   def getPartitions(index: Int): Seq[Partition] = {
-    if (columnarInputRDDs.isEmpty) {
-      return Seq.empty
-    }
     columnarInputRDDs.filterNot(_.isInstanceOf[BroadcastBuildSideRDD]).map(_.partitions(index))
   }
 
