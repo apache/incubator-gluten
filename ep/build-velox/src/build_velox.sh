@@ -35,6 +35,7 @@ ENABLE_TESTS=OFF
 BUILD_TEST_UTILS=OFF
 RUN_SETUP_SCRIPT=ON
 COMPILE_ARROW_JAVA=OFF
+NUM_THREADS=""
 OTHER_ARGUMENTS=""
 
 OS=`uname -s`
@@ -90,6 +91,10 @@ for arg in "$@"; do
     COMPILE_ARROW_JAVA=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
+  --num_threads=*)
+    NUM_THREADS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
   *)
     OTHER_ARGUMENTS+=("$1")
     shift # Remove generic argument from processing
@@ -139,11 +144,17 @@ function compile {
   COMPILE_TYPE=$(if [[ "$BUILD_TYPE" == "debug" ]] || [[ "$BUILD_TYPE" == "Debug" ]]; then echo 'debug'; else echo 'release'; fi)
   echo "COMPILE_OPTION: "$COMPILE_OPTION
 
+  NUM_THREADS_OPTS=""
+  if [ -n "${NUM_THREADS:-}" ]; then
+    NUM_THREADS_OPTS="NUM_THREADS=$NUM_THREADS MAX_HIGH_MEM_JOBS=$NUM_THREADS MAX_LINK_JOBS=$NUM_THREADS"
+  fi
+  echo "NUM_THREADS_OPTS: $NUM_THREADS_OPTS"
+
   export simdjson_SOURCE=BUNDLED
   if [ $ARCH == 'x86_64' ]; then
-    make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
+    make $COMPILE_TYPE $NUM_THREADS_OPTS EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   elif [[ "$ARCH" == 'arm64' || "$ARCH" == 'aarch64' ]]; then
-    CPU_TARGET=$ARCH make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
+    CPU_TARGET=$ARCH make $COMPILE_TYPE $NUM_THREADS_OPTS EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   else
     echo "Unsupported arch: $ARCH"
     exit 1

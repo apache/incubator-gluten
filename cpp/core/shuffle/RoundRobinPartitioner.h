@@ -29,8 +29,8 @@ class RoundRobinPartitioner final : public Partitioner {
   arrow::Status compute(
       const int32_t* pidArr,
       const int64_t numRows,
-      std::vector<uint16_t>& row2Partition,
-      std::vector<uint32_t>& partition2RowCount) override;
+      std::vector<uint32_t>& row2Partition,
+      std::vector<uint16_t>& partition2RowCount) override;
 
  private:
   friend class RoundRobinPartitionerTest;
