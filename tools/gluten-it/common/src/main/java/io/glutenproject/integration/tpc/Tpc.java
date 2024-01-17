@@ -16,6 +16,7 @@
  */
 package io.glutenproject.integration.tpc;
 
+import io.glutenproject.integration.tpc.command.CheckMaterializedPlan;
 import io.glutenproject.integration.tpc.command.DataGenOnly;
 import io.glutenproject.integration.tpc.command.Parameterized;
 import io.glutenproject.integration.tpc.command.Queries;
@@ -25,7 +26,7 @@ import picocli.CommandLine;
 
 @CommandLine.Command(name = "gluten-it", mixinStandardHelpOptions = true,
     showDefaultValues = true,
-    subcommands = {DataGenOnly.class, Queries.class, QueriesCompare.class, SparkShell.class, Parameterized.class},
+    subcommands = {DataGenOnly.class, Queries.class, QueriesCompare.class, SparkShell.class, Parameterized.class, CheckMaterializedPlan.class},
     description = "Gluten integration test using TPC benchmark's data and queries.")
 public class Tpc {
 
