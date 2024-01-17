@@ -32,7 +32,7 @@ case class CheckMaterializedPlan(scale: Double, queryIds: Array[String], genGold
     val runner: TpcRunner = new TpcRunner(
       tpcSuite.queryResource(),
       tpcSuite.dataWritePath(scale),
-      tpcSuite.expectPlanResource())
+      tpcSuite.goldenFileFolder())
 
     val allQueries = tpcSuite.allQueryIds()
     val runQueryIds = queryIds match {
