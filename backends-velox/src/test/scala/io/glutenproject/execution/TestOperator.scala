@@ -738,7 +738,8 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     withTable("short_table") {
       sql("create table short_table (a short, b int) using parquet")
       sql(
-        s"insert into short_table values (1, 1), (null, 2), (${Short.MinValue}, 3), (${Short.MaxValue}, 4)")
+        s"insert into short_table values " +
+          s"(1, 1), (null, 2), (${Short.MinValue}, 3), (${Short.MaxValue}, 4)")
       runQueryAndCompare("select * from short_table where a = 1") {
         checkOperatorMatch[FileSourceScanExecTransformer]
       }
@@ -761,7 +762,8 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     withTable("int_table") {
       sql("create table int_table (a int, b int) using parquet")
       sql(
-        s"insert into int_table values (1, 1), (null, 2), (${Int.MinValue}, 3), (${Int.MaxValue}, 4)")
+        s"insert into int_table values " +
+          s"(1, 1), (null, 2), (${Int.MinValue}, 3), (${Int.MaxValue}, 4)")
       runQueryAndCompare("select * from int_table where a = 1") {
         checkOperatorMatch[FileSourceScanExecTransformer]
       }
