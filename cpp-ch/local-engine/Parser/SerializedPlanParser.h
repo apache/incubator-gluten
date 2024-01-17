@@ -196,7 +196,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
 
        // tuple functions
        {"get_struct_field", "tupleElement"},
-       {"get_array_struct_fields", "tupleElement"},
+       {"get_array_struct_fields", "sparkTupleElement"},
        {"named_struct", "tuple"},
 
        // table-valued generator function
