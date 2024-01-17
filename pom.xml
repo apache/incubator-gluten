@@ -116,6 +116,7 @@
         <spark.version>3.2.2</spark.version>
         <delta.version>2.0.1</delta.version>
         <delta.binary.version>20</delta.binary.version>
+        <glutten.package.jar>./package/target/gluten-package-${version}-${sparkbundle.version}.jar</glutten.package.jar>
       </properties>
     </profile>
     <profile>
@@ -126,6 +127,7 @@
         <spark.version>3.3.1</spark.version>
         <delta.version>2.2.0</delta.version>
         <delta.binary.version>22</delta.binary.version>
+        <glutten.package.jar>./package/target/gluten-package-${version}-${sparkbundle.version}.jar</glutten.package.jar>
       </properties>
     </profile>
     <profile>
@@ -136,6 +138,7 @@
         <spark.version>3.4.2</spark.version>
         <delta.version>2.4.0</delta.version>
         <delta.binary.version>24</delta.binary.version>
+        <glutten.package.jar>./package/target/gluten-package-${version}-${sparkbundle.version}.jar</glutten.package.jar>
       </properties>
     </profile>
     <profile>
@@ -146,6 +149,7 @@
         <spark.version>3.5.0</spark.version>
         <delta.version>2.4.0</delta.version>
         <delta.binary.version>24</delta.binary.version>
+        <glutten.package.jar>./package/target/gluten-package-${version}-${sparkbundle.version}.jar</glutten.package.jar>
       </properties>
     </profile>
     <profile>
@@ -558,6 +562,13 @@
           <configuration>
             <testFailureIgnore>false</testFailureIgnore>
             <junitxml>.</junitxml>
+            <argLine>-ea --add-opens java.base/jdk.internal.misc=ALL-UNNAMED --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED -Djdk.reflect.useDirectMethodHandle=false --add-opens=java.base/java.lang.reflect=ALL-UNNAMED -Dio.netty.tryReflectionSetAccessible=true -Dglutten.package.jar=${glutten.package.jar}</argLine>
+             <environmentVariables>
+               <GLUTTEN_PACKAGE_JAR>${glutten.package.jar}</GLUTTEN_PACKAGE_JAR>
+             </environmentVariables>
+             <systemPropertyVariables>
+               <glutten.package.jar>${glutten.package.jar}</glutten.package.jar>
+             </systemPropertyVariables>
           </configuration>
           <executions>
             <execution>
