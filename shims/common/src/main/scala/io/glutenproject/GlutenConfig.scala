@@ -932,7 +932,7 @@ object GlutenConfig {
       .intConf
       .checkValue(
         v => v > 0 && v <= 32768,
-        s"$GLUTEN_MAX_BATCH_SIZE_KEY must in the range of [0, 32768).")
+        s"$GLUTEN_MAX_BATCH_SIZE_KEY must in the range of [0, 32768].")
       .createWithDefault(4096)
 
   // if not set, use COLUMNAR_MAX_BATCH_SIZE instead
@@ -942,7 +942,7 @@ object GlutenConfig {
       .intConf
       .checkValue(
         v => v > 0 && v <= 32768,
-        s"$GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE must in the range of [0, 32768).")
+        s"$GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE must in the range of [0, 32768].")
       .createOptional
 
   val COLUMNAR_LIMIT_ENABLED =
