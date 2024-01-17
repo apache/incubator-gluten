@@ -20,9 +20,10 @@ import org.apache.spark.{SparkContext, Success, TaskKilled}
 import org.apache.spark.executor.ExecutorMetrics
 import org.apache.spark.scheduler.{SparkListener, SparkListenerExecutorMetricsUpdate, SparkListenerTaskEnd, SparkListenerTaskStart}
 import org.apache.spark.sql.KillTaskListener.INIT_WAIT_TIME_MS
+import org.apache.spark.sql.execution.FormattedMode
+
 import com.google.common.base.Preconditions
 import org.apache.commons.lang3.RandomUtils
-import org.apache.spark.sql.execution.FormattedMode
 
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
@@ -121,7 +122,11 @@ object QueryRunner {
 
 }
 
-case class RunResult(rows: Seq[Row], executionTimeMillis: Long, metrics: Map[String, Long], materializedPlan: String)
+case class RunResult(
+    rows: Seq[Row],
+    executionTimeMillis: Long,
+    metrics: Map[String, Long],
+    materializedPlan: String)
 
 class MetricsListener(em: ExecutorMetrics) extends SparkListener {
   override def onExecutorMetricsUpdate(
