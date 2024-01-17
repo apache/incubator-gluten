@@ -144,12 +144,8 @@ class SubstraitToVeloxPlanConverter {
     splitInfos_ = splitInfos;
   }
 
-  void setInputIterators(const std::vector<std::shared_ptr<ResultIterator>>& inputIters) {
-    inputIters_ = inputIters;
-  }
-
   void setValueStreamNodeFactory(
-      std::function<core::PlanNodePtr(std::string, memory::MemoryPool*, std::shared_ptr<ResultIterator>, RowTypePtr)>
+      std::function<core::PlanNodePtr(std::string, memory::MemoryPool*, int32_t, RowTypePtr)>
           factory) {
     valueStreamNodeFactory_ = std::move(factory);
   }
@@ -550,7 +546,7 @@ class SubstraitToVeloxPlanConverter {
   /// The map storing the split stats for each PlanNode.
   std::unordered_map<core::PlanNodeId, std::shared_ptr<SplitInfo>> splitInfoMap_;
 
-  std::function<core::PlanNodePtr(std::string, memory::MemoryPool*, std::shared_ptr<ResultIterator>, RowTypePtr)>
+  std::function<core::PlanNodePtr(std::string, memory::MemoryPool*, int32_t, RowTypePtr)>
       valueStreamNodeFactory_;
 
   /// The map storing the pre-built plan nodes which can be accessed through
@@ -560,8 +556,6 @@ class SubstraitToVeloxPlanConverter {
 
   int32_t splitInfoIdx_{0};
   std::vector<std::shared_ptr<SplitInfo>> splitInfos_;
-
-  std::vector<std::shared_ptr<ResultIterator>> inputIters_;
 
   /// The Expression converter used to convert Substrait representations into
   /// Velox expressions.

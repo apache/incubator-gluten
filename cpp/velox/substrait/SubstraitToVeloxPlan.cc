@@ -963,9 +963,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
     const ::substrait::ReadRel& readRel,
     int32_t streamIdx) {
-  VELOX_CHECK_NE(inputIters_.size(), 0, "Invalid input iterator list.");
-  VELOX_CHECK_LT(streamIdx, inputIters_.size(), "Could not find stream index {} in input iterator list.", streamIdx);
-
   // Get the input schema of this iterator.
   uint64_t colNum = 0;
   std::vector<TypePtr> veloxTypeList;
@@ -985,7 +982,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
   }
 
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
-  auto node = valueStreamNodeFactory_(nextPlanNodeId(), pool_, std::move(inputIters_[streamIdx]), outputType);
+  auto node = valueStreamNodeFactory_(nextPlanNodeId(), pool_, streamIdx, outputType);
 
   auto splitInfo = std::make_shared<SplitInfo>();
   splitInfo->isStream = true;
@@ -1275,6 +1272,9 @@ std::string SubstraitToVeloxPlanConverter::findFuncSpec(uint64_t id) {
 }
 
 int32_t SubstraitToVeloxPlanConverter::getStreamIndex(const ::substrait::ReadRel& sRead) {
+  if (validationMode_) {
+    return -1;
+  }
   if (sRead.has_local_files()) {
     const auto& fileList = sRead.local_files().items();
     if (fileList.size() == 0) {
@@ -1286,7 +1286,7 @@ int32_t SubstraitToVeloxPlanConverter::getStreamIndex(const ::substrait::ReadRel
     std::string filePath = fileList[0].uri_file();
     std::string prefix = "iterator:";
     std::size_t pos = filePath.find(prefix);
-    if (pos == std::string::npos || validationMode_) {
+    if (pos == std::string::npos) {
       return -1;
     }
 

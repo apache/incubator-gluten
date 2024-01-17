@@ -36,16 +36,14 @@ VeloxPlanConverter::VeloxPlanConverter(
     : validationMode_(validationMode),
       substraitVeloxPlanConverter_(veloxPool, confMap, writeFilesTempPath, validationMode),
       pool_(veloxPool) {
-  // avoid include RowVectorStream.h in SubstraitToVeloxPlan.cpp, it may cause redefintion of array abi.h.
-  auto factory = [](std::string nodeId,
-                    memory::MemoryPool* pool,
-                    std::shared_ptr<ResultIterator> inputIter,
-                    RowTypePtr outputType) {
-    auto vectorStream = std::make_shared<RowVectorStream>(pool, std::move(inputIter), outputType);
+  // avoid include RowVectorStream.h in SubstraitToVeloxPlan.cpp, it may cause redefinition of array abi.h.
+  auto factory = [inputIters = std::move(inputIters)](
+                     std::string nodeId, memory::MemoryPool* pool, int32_t streamIdx, RowTypePtr outputType) {
+    VELOX_CHECK_LT(streamIdx, inputIters.size(), "Could not find stream index {} in input iterator list.", streamIdx);
+    auto vectorStream = std::make_shared<RowVectorStream>(pool, inputIters[streamIdx], outputType);
     return std::make_shared<ValueStreamNode>(nodeId, outputType, std::move(vectorStream));
   };
   substraitVeloxPlanConverter_.setValueStreamNodeFactory(std::move(factory));
-  substraitVeloxPlanConverter_.setInputIterators(inputIters);
 }
 
 namespace {
