@@ -545,7 +545,8 @@ jobs:
           cd /opt/gluten && \
           sudo -E ./dev/vcpkg/setup-build-depends.sh && \
           source ./dev/vcpkg/env.sh && \
-          ./dev/builddeps-veloxbe.sh --enable_vcpkg=ON --build_tests=OFF  --build_benchmarks=OFF --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON --enable_abfs=ON'
+          ./dev/builddeps-veloxbe.sh --enable_vcpkg=ON --build_tests=OFF  --build_benchmarks=OFF --enable_s3=ON \
+          --enable_gcs=ON --enable_hdfs=ON --enable_abfs=ON --build_type=debug'
       - name: Build for Spark 3.2.2
         run: |
           docker exec static-build-test-$GITHUB_RUN_ID bash -c '
