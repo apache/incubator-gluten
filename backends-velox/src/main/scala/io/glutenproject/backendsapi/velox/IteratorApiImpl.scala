@@ -23,7 +23,7 @@ import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, SplitInfo}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.utils.Iterators
+import io.glutenproject.utils._
 import io.glutenproject.vectorized._
 
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
@@ -43,7 +43,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.ExecutorManager
 
 import java.lang.{Long => JLong}
-import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.time.ZoneOffset
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap}
@@ -87,7 +86,11 @@ class IteratorApiImpl extends IteratorApi with Logging {
     val partitionColumns = new JArrayList[JMap[String, String]]
     files.foreach {
       file =>
-        paths.add(URLDecoder.decode(file.filePath.toString, StandardCharsets.UTF_8.name()))
+        // The "file.filePath" in PartitionedFile is not the original encoded path, so the decoded
+        // path is incorrect in some cases and here fix the case of ' ' by using GlutenURLDecoder
+        paths.add(
+          GlutenURLDecoder
+            .decode(file.filePath.toString, StandardCharsets.UTF_8.name()))
         starts.add(JLong.valueOf(file.start))
         lengths.add(JLong.valueOf(file.length))
 
