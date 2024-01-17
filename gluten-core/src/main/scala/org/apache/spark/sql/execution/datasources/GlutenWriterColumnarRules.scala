@@ -149,10 +149,12 @@ object GlutenWriterColumnarRules {
 
     override def apply(p: SparkPlan): SparkPlan = p match {
       case rc @ AppendDataExec(_, _, write)
-          if write.getClass.getName == NOOP_WRITE && GlutenConfig.getConf.enableNativeWriter =>
+          if write.getClass.getName == NOOP_WRITE &&
+            BackendsApiManager.getSettings.enableNativeWriteFiles() =>
         injectFakeRowAdaptor(rc, rc.child)
       case rc @ OverwriteByExpressionExec(_, _, write)
-          if write.getClass.getName == NOOP_WRITE && GlutenConfig.getConf.enableNativeWriter =>
+          if write.getClass.getName == NOOP_WRITE &&
+            BackendsApiManager.getSettings.enableNativeWriteFiles() =>
         injectFakeRowAdaptor(rc, rc.child)
       case rc @ DataWritingCommandExec(cmd, child) =>
         val format = getNativeFormat(cmd)
