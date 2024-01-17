@@ -35,6 +35,7 @@ RUN if [ "$JDK_DEBUG_BUILD" == "ON" ]; \
 # is changed.
 ARG CACHE_GLUTEN_REPO
 ARG CACHE_GLUTEN_BRANCH
+ARG CACHEBUST=1
 
 RUN test -n "$CACHE_GLUTEN_REPO" || (echo "CACHE_GLUTEN_REPO not set" && false)
 RUN test -n "$CACHE_GLUTEN_BRANCH" || (echo "CACHE_GLUTEN_BRANCH not set" && false)
