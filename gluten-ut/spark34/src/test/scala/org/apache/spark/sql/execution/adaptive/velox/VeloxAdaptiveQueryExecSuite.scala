@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.adaptive
+package org.apache.spark.sql.execution.adaptive.velox
 
 import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ShuffledHashJoinExecTransformerBase, SortExecTransformer, SortMergeJoinExecTransformer}
 
@@ -23,7 +23,8 @@ import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.{Dataset, GlutenSQLTestsTrait, Row}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.exchange.{ENSURE_REQUIREMENTS, Exchange, REPARTITION_BY_COL, REPARTITION_BY_NUM, ReusedExchangeExec, ShuffleExchangeExec, ShuffleExchangeLike, ShuffleOrigin}
+import org.apache.spark.sql.execution.adaptive._
+import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, BroadcastHashJoinExec, ShuffledHashJoinExec, SortMergeJoinExec}
 import org.apache.spark.sql.execution.metric.SQLShuffleReadMetricsReporter
 import org.apache.spark.sql.execution.ui.SparkListenerSQLAdaptiveExecutionUpdate
@@ -34,7 +35,7 @@ import org.apache.spark.sql.types.{IntegerType, StructType}
 
 import org.apache.logging.log4j.Level
 
-class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLTestsTrait {
+class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLTestsTrait {
   import testImplicits._
 
   override def sparkConf: SparkConf = {
@@ -437,17 +438,15 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten Exchange reuse") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "100",
-      SQLConf.SHUFFLE_PARTITIONS.key -> "5") {
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "20"
+    ) {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT value FROM testData join testData2 ON key = a " +
           "join (SELECT value v from testData join testData3 ON key = a) on value = v")
       assert(sortMergeJoinSize(plan) == 3)
-      // TODO: vanilla spark has 2 bhj, and 1 smj, but gluten has 3 bhj,
-      //  make sure this will not cause performance regression and why it is bhj
-      assert(broadcastHashJoinSize(adaptivePlan) == 1)
-      // Vanilla spark still a SMJ, and its two shuffles can't apply local read.
-      checkNumLocalShuffleReads(adaptivePlan, 4)
+      assert(broadcastHashJoinSize(adaptivePlan) == 2)
+      // There is still a SMJ, and its two shuffles can't apply local read.
+      checkNumLocalShuffleReads(adaptivePlan, 2)
       // Even with local shuffle read, the query stage reuse can also work.
       val ex = findReusedExchange(adaptivePlan)
       assert(ex.size == 1)
@@ -572,8 +571,8 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
     ) {
       // `testData` is small enough to be broadcast but has empty partition ratio over the config.
       // because testData2 in gluten sizeInBytes(from ColumnarShuffleExchangeExec plan stats)
-      // is 78B sometimes, so change the threshold from 80 to 60
-      withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "60") {
+      // is 24B sometimes, so change the threshold from 80 to 20
+      withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "20") {
         val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
           "SELECT * FROM testData join testData2 ON key = a where value = '1'")
         assert(sortMergeJoinSize(plan) == 1)
