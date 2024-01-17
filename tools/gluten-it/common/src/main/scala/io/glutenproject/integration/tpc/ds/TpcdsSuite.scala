@@ -78,7 +78,7 @@ class TpcdsSuite(
   }
 
   // TODO need add tpcds golden files to resources
-  override private[tpc] def expectPlanResource(): String = {
+  override private[tpc] def goldenFileFolder(): String = {
     "/tpcds-approved-plans"
   }
 

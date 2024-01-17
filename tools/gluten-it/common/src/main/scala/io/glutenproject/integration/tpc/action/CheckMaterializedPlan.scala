@@ -71,7 +71,7 @@ object CheckMaterializedPlan {
         randomKillTasks = false)
 
       val goldenFilePath =
-        s"${runner.expectResourceFolder}/spark${switcher.sparkMainVersion()}/$id.txt"
+        s"${runner.goldenFileFolder}/spark${switcher.sparkMainVersion()}/$id.txt"
       val except = QueryRunner.resourceToString(goldenFilePath)
       val actual = formatMaterializedPlan(result.materializedPlan)
 

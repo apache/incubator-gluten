@@ -76,7 +76,7 @@ class TpchSuite(
     "/tpch-queries"
   }
 
-  override private[tpc] def expectPlanResource(): String = {
+  override private[tpc] def goldenFileFolder(): String = {
     "/tpch-approved-plans"
   }
 

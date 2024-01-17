@@ -19,14 +19,9 @@ package io.glutenproject.integration.tpc.action
 import io.glutenproject.integration.stat.RamStat
 import io.glutenproject.integration.tpc.{TpcRunner, TpcSuite}
 
-import org.apache.spark.sql.{QueryRunner, SparkSessionSwitcher, TestUtils}
+import org.apache.spark.sql.{SparkSessionSwitcher, TestUtils}
 
 import org.apache.commons.lang3.exception.ExceptionUtils
-
-import java.io.{File, PrintWriter}
-
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 case class QueriesCompare(scale: Double, queryIds: Array[String], explain: Boolean, iterations: Int)
   extends Action {

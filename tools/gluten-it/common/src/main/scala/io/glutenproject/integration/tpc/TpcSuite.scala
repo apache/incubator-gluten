@@ -172,7 +172,7 @@ abstract class TpcSuite(
 
   private[tpc] def queryResource(): String
 
-  private[tpc] def expectPlanResource(): String
+  private[tpc] def goldenFileFolder(): String
 
   protected def typeModifiers(): List[TypeModifier]
 
