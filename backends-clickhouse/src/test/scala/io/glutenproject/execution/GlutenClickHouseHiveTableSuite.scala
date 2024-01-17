@@ -19,7 +19,9 @@ package io.glutenproject.execution
 import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
 
+import org.apache.spark.SPARK_VERSION_SHORT
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
@@ -31,6 +33,8 @@ import org.apache.hadoop.fs.Path
 
 import java.io.{File, PrintWriter}
 import java.sql.Timestamp
+
+import scala.reflect.ClassTag
 
 case class AllDataTypesWithComplextType(
     string_field: String = null,
@@ -55,6 +59,11 @@ class GlutenClickHouseHiveTableSuite()
   with AdaptiveSparkPlanHelper {
 
   private var _hiveSpark: SparkSession = _
+
+  protected lazy val sparkVersion: String = {
+    val version = SPARK_VERSION_SHORT.split("\\.")
+    version(0) + "." + version(1)
+  }
 
   override protected val resourcePath: String =
     "../../../../gluten-core/src/test/resources/tpch-data"
@@ -1070,5 +1079,80 @@ class GlutenClickHouseHiveTableSuite()
         s"'org.apache.hadoop.hive.contrib.udf.example.UDFExampleAdd2' USING JAR '$jarUrl'")
     runQueryAndCompare("select MY_ADD(id, id+1) from range(10)")(
       checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("GLUTEN-4333: fix CSE in aggregate operator") {
+    def checkOperatorCount[T <: TransformSupport](count: Int)(df: DataFrame)(implicit
+        tag: ClassTag[T]): Unit = {
+      if (sparkVersion.equals("3.3")) {
+        assert(
+          getExecutedPlan(df).count(
+            plan => {
+              plan.getClass == tag.runtimeClass
+            }) == count,
+          s"executed plan: ${getExecutedPlan(df)}")
+      }
+    }
+
+    val createTableSql =
+      """
+        |CREATE TABLE `test_cse`(
+        |  `uid` bigint,
+        |  `event` struct<time:bigint,event_info:map<string,string>>
+        |)  PARTITIONED BY (
+        |  `day` string)
+        |ROW FORMAT SERDE
+        |  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'
+        |STORED AS INPUTFORMAT
+        |  'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat'
+        |OUTPUTFORMAT
+        |  'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'
+        """.stripMargin
+    spark.sql(createTableSql)
+    val querySql =
+      """
+        |select day,uid,xxx3,type,
+        |if(xxx1 is  null or xxx1 =''  or  xxx1='-1'   or  xxx1='0',-1,xxx1) xxx1,
+        |if(xxx2 is  null or xxx2 ='' or  xxx2 =0 or  xxx2=-1 ,-1,xxx2) xxx2,
+        |cast(if(xxx1 in (48,49),1,
+        |if(xxx1 in (1,2),2,
+        |if(xxx1 in (18,19),3,
+        |if(xxx1 in (24,25),4,
+        |if(xxx1 in (34,35),5,
+        |if(xxx1 in (39,40),6,
+        |if(xxx1 in (38,47),xxx1,-1))))))) as string) as xxx1_type,count(uid) as cnt
+        |from
+        |(
+        |select
+        |day
+        |,uid
+        |,event.event_info['xxx3'] xxx3
+        |,event.event_info['type'] type
+        |,event.event_info['xxx1'] xxx1
+        |,event.event_info['xxx2'] xxx2
+        |,round(event.time/1000)
+        |from  test_cse
+        |where
+        |event.event_info['type']  in (1,2)
+        |group by day
+        |,uid
+        |,event.event_info['xxx3']
+        |,event.event_info['type']
+        |,event.event_info['xxx1']
+        |,event.event_info['xxx2']
+        |,round(event.time/1000)
+        |)
+        |group by day,uid,xxx3,type,
+        |if(xxx1 is  null or xxx1 =''  or  xxx1='-1'   or  xxx1='0',-1,xxx1),
+        |if(xxx2 is  null or xxx2 ='' or  xxx2 =0 or  xxx2=-1 ,-1,xxx2),
+        |cast(if(xxx1 in (48,49),1,
+        |if(xxx1 in (1,2),2,
+        |if(xxx1 in (18,19),3,
+        |if(xxx1 in (24,25),4,
+        |if(xxx1 in (34,35),5,
+        |if(xxx1 in (39,40),6,
+        |if(xxx1 in (38,47),xxx1,-1))))))) as string)
+        """.stripMargin
+    runQueryAndCompare(querySql)(df => checkOperatorCount[ProjectExecTransformer](1)(df))
   }
 }
