@@ -195,6 +195,7 @@ class ColumnarShuffleWriter[K, V](
     dep.metrics("splitBufferSize").add(splitResult.getSplitBufferSize)
     dep.metrics("uncompressedDataSize").add(splitResult.getRawPartitionLengths.sum)
     dep.metrics("dataSize").add(splitResult.getRawPartitionLengths.sum)
+    logWarning(s"Shuffle ${dep.shuffleId} dataSize: ${splitResult.getRawPartitionLengths.sum}")
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
 
