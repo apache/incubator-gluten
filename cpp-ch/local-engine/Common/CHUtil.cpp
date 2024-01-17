@@ -665,7 +665,7 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("output_format_json_skip_null_value_in_named_tuples", true);
     settings.set("function_json_value_return_type_allow_complex", true);
     settings.set("function_json_value_return_type_allow_nullable", true);
-    settings.set("input_format_csv_empty_not_as_null_for_nullable_string_field", true);
+    settings.set("input_format_csv_default_empty_for_nullable_string", true);
     settings.set("precise_float_parsing", true);
 }
 

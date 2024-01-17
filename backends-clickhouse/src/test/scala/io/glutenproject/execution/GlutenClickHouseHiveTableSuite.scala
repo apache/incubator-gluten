@@ -1174,7 +1174,7 @@ class GlutenClickHouseHiveTableSuite()
                  |  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
                  |LOCATION '$data_path'
                  |""".stripMargin)
-    withSQLConf("spark.gluten.sql.text.input.empty.as.default", "true") {
+    withSQLConf(("spark.gluten.sql.text.input.empty.as.default", "true")) {
       val select_sql = "select * from test_tbl_4521"
       compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
     }
