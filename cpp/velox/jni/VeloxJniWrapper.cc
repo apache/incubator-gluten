@@ -135,25 +135,6 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFailu
   JNI_METHOD_END(nullptr)
 }
 
-JNIEXPORT bool JNICALL Java_io_glutenproject_utils_VeloxFileSystemUtils_supportedPaths( // NOLINT
-    JNIEnv* env,
-    jclass,
-    jobjectArray stringArray) {
-  bool validate = true;
-  int size = env->GetArrayLength(stringArray);
-  try {
-    for (int i = 0; i < size && validate; i++) {
-      jstring string = (jstring)(env->GetObjectArrayElement(stringArray, i));
-      std::string path = jStringToCString(env, string);
-      velox::filesystems::getFileSystem(path, nullptr);
-    }
-  } catch (velox::VeloxRuntimeError& e) {
-    LOG(INFO) << "Failed to validate file paths " << e.what();
-    validate = false;
-  }
-  return validate;
-}
-
 #ifdef __cplusplus
 }
 #endif

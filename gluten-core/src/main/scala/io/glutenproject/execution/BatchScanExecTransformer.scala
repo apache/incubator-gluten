@@ -32,8 +32,6 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import org.apache.hadoop.fs.Path
-
 import java.util.Objects
 
 import scala.collection.mutable.ListBuffer
@@ -94,13 +92,6 @@ class BatchScanExecTransformer(
   override def getInputFilePathsInternal: Seq[String] = {
     scan match {
       case fileScan: FileScan => fileScan.fileIndex.inputFiles.toSeq
-      case _ => Seq.empty
-    }
-  }
-
-  override def getRootPathsInternal: Seq[Path] = {
-    scan match {
-      case fileScan: FileScan => fileScan.fileIndex.rootPaths
       case _ => Seq.empty
     }
   }

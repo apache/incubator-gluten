@@ -35,8 +35,6 @@ import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
 
-import org.apache.hadoop.fs.Path
-
 import java.util.Locale
 
 import scala.util.control.Breaks.{break, breakable}
@@ -144,8 +142,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
-      paths: Seq[String],
-      rootPaths: Seq[Path]): ValidationResult = {
+      paths: Seq[String]): ValidationResult = {
 
     def validateFilePath: Boolean = {
       // Fallback to vanilla spark when the input path

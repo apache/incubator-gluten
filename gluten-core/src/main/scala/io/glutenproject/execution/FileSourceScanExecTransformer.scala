@@ -35,8 +35,6 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.collection.BitSet
 
-import org.apache.hadoop.fs.Path
-
 import scala.collection.JavaConverters
 
 class FileSourceScanExecTransformer(
@@ -97,10 +95,6 @@ class FileSourceScanExecTransformer(
 
   override def getInputFilePathsInternal: Seq[String] = {
     relation.location.inputFiles.toSeq
-  }
-
-  override def getRootPathsInternal: Seq[Path] = {
-    relation.location.rootPaths
   }
 
   override def equals(other: Any): Boolean = other match {

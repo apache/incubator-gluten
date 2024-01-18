@@ -39,8 +39,6 @@ import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
-import org.apache.hadoop.fs.Path
-
 import scala.util.control.Breaks.breakable
 
 class VeloxBackend extends Backend {
@@ -72,8 +70,7 @@ object BackendSettings extends BackendSettingsApi {
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
-      paths: Seq[String],
-      rootPaths: Seq[Path]): ValidationResult = {
+      paths: Seq[String]): ValidationResult = {
     // Validate if all types are supported.
     def validateTypes(validatorFunc: PartialFunction[StructField, String]): ValidationResult = {
       // Collect unsupported types.
@@ -85,13 +82,6 @@ object BackendSettings extends BackendSettingsApi {
           s"Found unsupported data type in $format: ${unsupportedDataTypeReason.mkString(", ")}.")
       }
     }
-
-    // Check if supported file system. Since the same DataSource is mostly the same filesystem,
-    // so we only check head path.
-//    val checkPaths = rootPaths.map(_.toString).headOption
-//    if (checkPaths.isDefined && !VeloxFileSystemUtils.supportedPaths(checkPaths.toArray)) {
-//      return ValidationResult.notOk(s"Path[${checkPaths.get}] is unsupported file system.")
-//    }
 
     format match {
       case ParquetReadFormat =>
@@ -417,6 +407,4 @@ object BackendSettings extends BackendSettingsApi {
       SparkShimLoader.getSparkShims.enableNativeWriteFilesByDefault()
     )
   }
-
-  override def requiredRootPaths(): Boolean = true
 }

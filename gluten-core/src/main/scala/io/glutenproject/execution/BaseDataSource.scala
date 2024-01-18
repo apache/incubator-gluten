@@ -19,8 +19,6 @@ package io.glutenproject.execution
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.types.StructType
 
-import org.apache.hadoop.fs.Path
-
 trait BaseDataSource {
 
   /** Returns the actual schema of this data source scan. */
@@ -34,6 +32,4 @@ trait BaseDataSource {
 
   /** Returns the input file paths, used to validate the partition column path */
   def getInputFilePathsInternal: Seq[String]
-
-  def getRootPathsInternal: Seq[Path]
 }
