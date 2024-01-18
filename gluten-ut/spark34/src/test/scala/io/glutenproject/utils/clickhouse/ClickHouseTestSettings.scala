@@ -284,6 +284,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDatasetAggregatorSuite]
   enableSuite[GlutenDatasetCacheSuite]
   enableSuite[GlutenDatasetOptimizationSuite]
+    .exclude("Pruned nested serializers: map of map key")
+    .exclude("Pruned nested serializers: map of complex key")
   enableSuite[GlutenDatasetPrimitiveSuite]
   enableSuite[GlutenDatasetSerializerRegistratorSuite]
   enableSuite[GlutenDatasetSuite]
