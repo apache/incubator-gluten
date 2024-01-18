@@ -105,7 +105,7 @@ object FlushableHashAggregateRule {
 
   /**
    * If child output already partitioned by aggregation keys (this function returns true), we
-   * usually avoid the optimization to convert to flushable aggregation.
+   * usually avoid the optimization converting to flushable aggregation.
    *
    * For example, if input is hash-partitioned by keys (a, b) and aggregate node requests "group by
    * a, b, c", then the aggregate should NOT flush as the grouping set (a, b, c) will be created
