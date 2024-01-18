@@ -33,7 +33,7 @@ fi
 
 EXPORT_TOOLS_PATH=${EXPORT_TOOLS_PATH/%:/}
 
-# For fixing a build error like below when gluten's build type is debug:
+# For fixing a build error like below when gluten's build type is Debug:
 # No rule to make target '/root/gluten/dev/vcpkg/vcpkg_installed/x64-linux-avx/debug/lib/libz.a',
 # needed by 'releases/libvelox.so'
 mkdir -p $VCPKG_TRIPLET_INSTALL_DIR/debug/lib/
