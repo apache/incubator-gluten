@@ -81,7 +81,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
     }
   }
 
-  test("fallback with unsupported filesystem") {
+  test("fallback reader with unsupported filesystem") {
     val hadoopConf = new Configuration()
     hadoopConf.set("fs.mockFs.impl", classOf[FakeParentPathFileSystem].getName)
     def withTempData(path: Path)(f: => Unit): Unit = {
@@ -99,7 +99,9 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
       }
     }
 
-    withSQLConf("fs.mockFs.impl" -> classOf[FakeParentPathFileSystem].getName) {
+    withSQLConf(
+      "fs.mockFs.impl" -> classOf[FakeParentPathFileSystem].getName,
+      GlutenConfig.NATIVE_WRITER_ENABLED.key -> "false") {
       val supportedPath = new Path(conf.getConf(StaticSQLConf.WAREHOUSE_PATH) + "/supported_path")
       withTempData(supportedPath) {
         runQueryAndCompare(s"SELECT count(*) FROM `parquet`.`$supportedPath`") {
