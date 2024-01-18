@@ -96,14 +96,6 @@
                                           }
                                       ]
                                   }
-                              },
-                              "localFiles": {
-                                  "items": [{
-                                          "uriFile": "file:///tmp/file.parquet",
-                                          "length": "1486",
-                                          "parquet": {}
-                                      }
-                                  ]
                               }
                           }
                       },

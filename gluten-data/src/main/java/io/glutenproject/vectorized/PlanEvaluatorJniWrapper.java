@@ -67,6 +67,7 @@ public class PlanEvaluatorJniWrapper implements RuntimeAware {
   public native long nativeCreateKernelWithIterator(
       long memoryManagerHandle,
       byte[] wsPlan,
+      byte[][] splitInfo,
       GeneralInIterator[] batchItr,
       int stageId,
       int partitionId,

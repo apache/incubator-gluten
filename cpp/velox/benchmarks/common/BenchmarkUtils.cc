@@ -47,14 +47,14 @@ void initVeloxBackend() {
   initVeloxBackend(bmConfMap);
 }
 
-std::string getPlanFromFile(const std::string& filePath) {
+std::string getPlanFromFile(const std::string& type, const std::string& filePath) {
   // Read json file and resume the binary data.
   std::ifstream msgJson(filePath);
   std::stringstream buffer;
   buffer << msgJson.rdbuf();
   std::string msgData = buffer.str();
 
-  return gluten::substraitFromJsonToPb("Plan", msgData);
+  return gluten::substraitFromJsonToPb(type, msgData);
 }
 
 velox::dwio::common::FileFormat getFileFormat(const std::string& fileFormat) {

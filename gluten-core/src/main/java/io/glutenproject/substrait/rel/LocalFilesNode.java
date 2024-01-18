@@ -108,7 +108,7 @@ public class LocalFilesNode implements SplitInfo {
   public ReadRel.LocalFiles toProtobuf() {
     ReadRel.LocalFiles.Builder localFilesBuilder = ReadRel.LocalFiles.newBuilder();
     // The input is iterator, and the path is in the format of: Iterator:index.
-    if (iterAsInput && paths.size() > 0) {
+    if (iterAsInput && !paths.isEmpty()) {
       ReadRel.LocalFiles.FileOrFiles.Builder fileBuilder =
           ReadRel.LocalFiles.FileOrFiles.newBuilder();
       fileBuilder.setUriFile(paths.get(0));
