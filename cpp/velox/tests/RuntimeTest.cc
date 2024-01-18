@@ -104,10 +104,7 @@ class DummyRuntime final : public Runtime {
       }
       hasNext_ = false;
 
-      auto fArrInt32 = arrow::field("f_int32", arrow::int32());
-      auto rbSchema = arrow::schema({fArrInt32});
-      auto rb = arrow::RecordBatch::Make(rbSchema, 1, std::vector<std::shared_ptr<arrow::Array>>{});
-      return std::make_shared<ArrowColumnarBatch>(rb);
+      return gluten::createZeroColumnBatch(1);
     }
 
    private:
