@@ -169,7 +169,6 @@ class ColumnarShuffleWriter[K, V](
         }
         val startTime = System.nanoTime()
         val bytes = jniWrapper.split(nativeShuffleWriter, rows, handle, availableOffHeapPerTask())
-        dep.metrics("dataSize").add(bytes)
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(rows)
         dep.metrics("inputBatches").add(1)
@@ -196,6 +195,8 @@ class ColumnarShuffleWriter[K, V](
     dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
     dep.metrics("splitBufferSize").add(splitResult.getSplitBufferSize)
     dep.metrics("uncompressedDataSize").add(splitResult.getRawPartitionLengths.sum)
+    dep.metrics("dataSize").add(splitResult.getRawPartitionLengths.sum)
+    logWarning(s"Shuffle ${dep.shuffleId} dataSize: ${splitResult.getRawPartitionLengths.sum}")
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
 
