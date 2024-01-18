@@ -858,15 +858,6 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FilterRel& filte
     // Try to compile the expressions. If there is any unregistered function
     // or mismatched type, exception will be thrown.
     exec::ExprSet exprSet(std::move(expressions), execCtx_);
-
-    // Check for timestamp column filter
-    for (const auto& fieldRef : exprSet.distinctFields()) {
-      auto idx = rowType->getChildIdx(fieldRef->field());
-      if (rowType->childAt(idx)->isTimestamp()) {
-        LOG_VALIDATION_MSG("Timestamp is not fully supported in Filter");
-        return false;
-      }
-    }
   } catch (const VeloxException& err) {
     LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
     return false;
