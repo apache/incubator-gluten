@@ -61,8 +61,8 @@ DEFINE_string(file, "", "Input file to split");
 
 namespace gluten {
 
-const uint16_t kBatchBufferSize = 4096;
-const uint16_t kPartitionBufferSize = 4096;
+const int kBatchBufferSize = 4096;
+const int kPartitionBufferSize = 4096;
 
 class BenchmarkShuffleSplit {
  public:

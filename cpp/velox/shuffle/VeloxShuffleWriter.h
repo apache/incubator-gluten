@@ -140,10 +140,14 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status evictPartitionBuffers(uint32_t partitionId, bool reuseBuffers);
 
-  int64_t rawPartitionBytes() const;
+  int64_t rawPartitionBytes() const {
+    return std::accumulate(metrics_.rawPartitionLengths.begin(), metrics_.rawPartitionLengths.end(), 0LL);
+  }
 
   // For test only.
-  void setPartitionBufferSize(uint16_t newSize);
+  void setPartitionBufferSize(int32_t newSize) {
+    options_.bufferSize = newSize;
+  }
 
   // for debugging
   void printColumnsInfo() const {
@@ -170,17 +174,17 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   void printPartitionBuffer() const {
     VS_PRINT_FUNCTION_SPLIT_LINE();
     VS_PRINT_VECTOR_MAPPING(partition_2_buffer_size_);
-    VS_PRINT_VECTOR_MAPPING(partitionBufferBase_);
+    VS_PRINT_VECTOR_MAPPING(partitionBufferIdxBase_);
   }
 
   void printPartition2Row() const {
     VS_PRINT_FUNCTION_SPLIT_LINE();
-    VS_PRINT_VECTOR_MAPPING(partition2RowOffsetBase_);
+    VS_PRINT_VECTOR_MAPPING(partition2RowOffset_);
 
 #if VELOX_SHUFFLE_WRITER_PRINT
     for (auto pid = 0; pid < numPartitions_; ++pid) {
-      auto begin = partition2RowOffsetBase_[pid];
-      auto end = partition2RowOffsetBase_[pid + 1];
+      auto begin = partition2RowOffset_[pid];
+      auto end = partition2RowOffset_[pid + 1];
       VsPrint("partition", pid);
       VsPrintVectorRange(rowOffset2RowId_, begin, end);
     }
@@ -222,18 +226,18 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status doSplit(const facebook::velox::RowVector& rv, int64_t memLimit);
 
-  bool beyondThreshold(uint32_t partitionId, uint16_t newSize);
+  bool beyondThreshold(uint32_t partitionId, uint64_t newSize);
 
-  uint16_t calculatePartitionBufferSize(const facebook::velox::RowVector& rv, int64_t memLimit);
+  uint32_t calculatePartitionBufferSize(const facebook::velox::RowVector& rv, int64_t memLimit);
 
-  arrow::Status preAllocPartitionBuffers(uint16_t preAllocBufferSize);
+  arrow::Status preAllocPartitionBuffers(uint32_t preAllocBufferSize);
 
-  arrow::Status updateValidityBuffers(uint32_t partitionId, uint16_t newSize);
+  arrow::Status updateValidityBuffers(uint32_t partitionId, uint32_t newSize);
 
   arrow::Result<std::shared_ptr<arrow::ResizableBuffer>>
-  allocateValidityBuffer(uint32_t col, uint32_t partitionId, uint16_t newSize);
+  allocateValidityBuffer(uint32_t col, uint32_t partitionId, uint32_t newSize);
 
-  arrow::Status allocatePartitionBuffer(uint32_t partitionId, uint16_t newSize);
+  arrow::Status allocatePartitionBuffer(uint32_t partitionId, uint32_t newSize);
 
   arrow::Status splitFixedWidthValueBuffer(const facebook::velox::RowVector& rv);
 
@@ -256,9 +260,9 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   template <typename T>
   arrow::Status splitFixedType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
     for (auto& pid : partitionUsed_) {
-      auto dstPidBase = (T*)(dstAddrs[pid] + partitionBufferBase_[pid] * sizeof(T));
-      auto pos = partition2RowOffsetBase_[pid];
-      auto end = partition2RowOffsetBase_[pid + 1];
+      auto dstPidBase = (T*)(dstAddrs[pid] + partitionBufferIdxBase_[pid] * sizeof(T));
+      auto pos = partition2RowOffset_[pid];
+      auto end = partition2RowOffset_[pid + 1];
       for (; pos < end; ++pos) {
         auto rowId = rowOffset2RowId_[pos];
         *dstPidBase++ = reinterpret_cast<const T*>(srcAddr)[rowId]; // copy
@@ -289,11 +293,11 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   // Resize the partition buffer to newSize. If preserveData is true, it will keep the data in buffer.
   // Note when preserveData is false, and newSize is larger, this function can introduce unnecessary memory copy.
   // In this case, use allocatePartitionBuffer to free current buffers and allocate new buffers instead.
-  arrow::Status resizePartitionBuffer(uint32_t partitionId, uint16_t newSize, bool preserveData);
+  arrow::Status resizePartitionBuffer(uint32_t partitionId, int64_t newSize, bool preserveData);
 
-  uint64_t valueBufferSizeForBinaryArray(uint32_t binaryIdx, uint16_t newSize);
+  uint64_t valueBufferSizeForBinaryArray(uint32_t binaryIdx, int64_t newSize);
 
-  uint64_t valueBufferSizeForFixedWidthArray(uint32_t fixedWidthIndex, uint16_t newSize);
+  uint64_t valueBufferSizeForFixedWidthArray(uint32_t fixedWidthIndex, int64_t newSize);
 
   void calculateSimpleColumnBytes();
 
@@ -316,98 +320,73 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   bool hasComplexType_ = false;
   std::vector<bool> isValidityBuffer_;
 
-  // Store arrow column types. Calculated once.
+  // store arrow column types
   std::vector<std::shared_ptr<arrow::DataType>> arrowColumnTypes_;
 
-  // Store velox column types. Calculated once.
+  // store velox column types
   std::vector<std::shared_ptr<const facebook::velox::Type>> veloxColumnTypes_;
 
-  // How many fixed-width columns in the schema. Calculated once.
-  uint32_t fixedWidthColumnCount_ = 0;
-
-  // The column indices of all binary types in the schema.
-  std::vector<uint32_t> binaryColumnIndices_;
-
-  // The column indices of all fixed-width and binary columns in the schema.
-  std::vector<uint32_t> simpleColumnIndices_;
-
-  // The column indices of all complex types in the schema, including Struct, Map, List columns.
-  std::vector<uint32_t> complexColumnIndices_;
-
-  // Total bytes of fixed-width buffers of all simple columns. Including validity buffers, value buffers of
-  // fixed-width types and length buffers of binary types.
-  // Used for estimating pre-allocated partition buffer size. Calculated once.
-  uint32_t fixedWidthBufferBytes_ = 0;
-
-  // Used for calculating the average binary length.
-  // Updated for each input RowVector.
-  uint64_t totalInputNumRows_ = 0;
-  std::vector<uint64_t> binaryArrayTotalSizeBytes_;
-
-  // True if input column has null in any processed input RowVector.
-  // In the order of fixed-width columns + binary columns.
-  std::vector<bool> inputHasNull_;
-
-  // Records which partitions are actually occurred in the current input RowVector.
-  // Most of the loops can loop on this array to avoid visiting unused partition id.
-  std::vector<uint32_t> partitionUsed_;
-
   // Row ID -> Partition ID
-  // subscript: The index of row in the current input RowVector
+  // subscript: Row ID
   // value: Partition ID
-  // Updated for each input RowVector.
-  std::vector<uint32_t> row2Partition_;
+  std::vector<uint16_t> row2Partition_;
 
   // Partition ID -> Row Count
   // subscript: Partition ID
-  // value: How many rows does this partition have in the current input RowVector
-  // Updated for each input RowVector.
-  std::vector<uint16_t> partition2RowCount_;
+  // value: how many rows does this partition have
+  std::vector<uint32_t> partition2RowCount_;
 
-  // Note: partition2RowOffsetBase_ and rowOffset2RowId_ are the optimization of flattening the 2-dimensional vector
-  // into single dimension.
-  // The first dimension is the partition id. The second dimension is the ith occurrence of this partition in the
-  // input RowVector. The value is the index of the row in the input RowVector.
-  // partition2RowOffsetBase_ records the offset of the first dimension.
-  //
-  // The index of the ith occurrence of a give partition `pid` in the input RowVector can be calculated via
-  // rowOffset2RowId_[partition2RowOffsetBase_[pid] + i]
-  // i is in the range of [0, partition2RowCount_[pid])
+  std::vector<uint32_t> partitionUsed_;
+
+  // Partition ID -> Buffer Size(unit is row)
+  std::vector<uint32_t> partition2BufferSize_;
 
   // Partition ID -> Row offset, elements num: Partition num + 1
   // subscript: Partition ID
-  // value: The base row offset of this Partition
-  // Updated for each input RowVector.
-  std::vector<uint16_t> partition2RowOffsetBase_;
+  // value: the row offset of this Partition
+  std::vector<uint32_t> partition2RowOffset_;
 
-  // Row offset -> Source row ID, elements num: input RowVector row num
+  // Row offset -> Row ID, elements num: Row Num
   // subscript: Row offset
-  // value: The index of row in the current input RowVector
-  // Updated for each input RowVector.
-  std::vector<uint16_t> rowOffset2RowId_;
+  // value: Row ID
+  std::vector<uint32_t> rowOffset2RowId_;
 
-  // Partition buffers are used for holding the intermediate data during split.
-  // Partition ID -> Partition buffer size(unit is row)
-  std::vector<uint16_t> partitionBufferSize_;
+  uint32_t fixedWidthColumnCount_ = 0;
 
-  // The write position of partition buffer. Updated after split. Reset when partition buffers are reallocated.
-  std::vector<uint16_t> partitionBufferBase_;
+  //  binary columns
+  std::vector<uint32_t> binaryColumnIndices_;
 
-  // Used by all simple types. Stores raw pointers of partition buffers.
+  // fixed-width and binary columns
+  std::vector<uint32_t> simpleColumnIndices_;
+
+  // struct、map、list columns
+  std::vector<uint32_t> complexColumnIndices_;
+
+  // partid, value is reducer batch's offset, output rb rownum < 64k
+  std::vector<uint32_t> partitionBufferIdxBase_;
+
   std::vector<std::vector<uint8_t*>> partitionValidityAddrs_;
-  // Used by fixed-width types. Stores raw pointers of partition buffers.
   std::vector<std::vector<uint8_t*>> partitionFixedWidthValueAddrs_;
-  // Used by binary types. Stores raw pointers and metadata of partition buffers.
+
+  uint64_t totalInputNumRows_ = 0;
+  std::vector<uint64_t> binaryArrayTotalSizeBytes_;
+
+  // used for calculating bufferSize, calculate once.
+  uint32_t simpleColumnBytes_ = 0;
+
   std::vector<std::vector<BinaryBuf>> partitionBinaryAddrs_;
 
-  // Used by complex types.
-  // Partition id -> Serialized complex data.
+  // Input column has null, in the order of fixed-width columns + binary columns.
+  std::vector<bool> inputHasNull_;
+
+  // pid
   std::vector<std::unique_ptr<facebook::velox::VectorSerializer>> complexTypeData_;
   std::vector<std::shared_ptr<arrow::ResizableBuffer>> complexTypeFlushBuffer_;
   std::shared_ptr<const facebook::velox::RowType> complexWriteType_;
 
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
   std::vector<std::unique_ptr<facebook::velox::StreamArena>> arenas_;
+
   facebook::velox::serializer::presto::PrestoVectorSerde serde_;
 
   // stat

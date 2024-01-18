@@ -23,8 +23,7 @@
 
 namespace gluten {
 
-static constexpr int16_t kDefaultBatchSize = 4096;
-static constexpr int16_t kDefaultShuffleWriterBufferSize = 4096;
+static constexpr int32_t kDefaultShuffleWriterBufferSize = 4096;
 static constexpr int32_t kDefaultNumSubDirs = 64;
 static constexpr int32_t kDefaultCompressionThreshold = 100;
 static constexpr int32_t kDefaultBufferAlignment = 64;
@@ -37,7 +36,7 @@ enum PartitionWriterType { kLocal, kCeleborn };
 struct ShuffleReaderOptions {
   arrow::Compression::type compressionType = arrow::Compression::type::LZ4_FRAME;
   CodecBackend codecBackend = CodecBackend::NONE;
-  int32_t batchSize = kDefaultBatchSize;
+  int32_t batchSize = kDefaultShuffleWriterBufferSize;
 };
 
 struct ShuffleWriterOptions {
