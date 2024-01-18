@@ -251,7 +251,8 @@ int main(int argc, char** argv) {
     if (argc < 2) {
       LOG(INFO)
           << "No input args. Usage: " << std::endl
-          << "./generic_benchmark /absolute-path/to/substrait_json_file /absolute-path/to/data_file_1 /absolute-path/to/data_file_2 ...";
+          << "./generic_benchmark /absolute-path/to/substrait_json_file /absolute-path/to/split_json_file(optional)"
+          << " /absolute-path/to/data_file_1 /absolute-path/to/data_file_2 ...";
       LOG(INFO) << "Running example...";
       inputFiles.resize(2);
       substraitJsonFile = getGeneratedFilePath("example.json");
