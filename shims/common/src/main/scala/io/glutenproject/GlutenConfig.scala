@@ -1603,5 +1603,5 @@ object GlutenConfig {
       .internal()
       .doc(" Enable velox orc scan. If disabled, vanilla spark orc scan will be used.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 }
