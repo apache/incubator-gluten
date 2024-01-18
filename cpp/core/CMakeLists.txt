@@ -316,6 +316,8 @@ endif()
 target_link_libraries(gluten
     PUBLIC Arrow::arrow Arrow::parquet)
 
+target_link_libraries(gluten PUBLIC google::glog)
+
 install(TARGETS gluten
         DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/resources/libhdfs.so
