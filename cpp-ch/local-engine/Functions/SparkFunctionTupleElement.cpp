@@ -215,7 +215,7 @@ private:
             else
             {
                 if (argument_size == 2)
-                    throw Exception(ErrorCodes::NOT_FOUND_COLUMN_IN_BLOCK, "Tuple doesn't have element with index '{}'", index);
+                    throw Exception(ErrorCodes::NOT_FOUND_COLUMN_IN_BLOCK, "Tuple {} doesn't have element with index '{}'", tuple.getName(), index);
                 return std::nullopt;
             }
         }
