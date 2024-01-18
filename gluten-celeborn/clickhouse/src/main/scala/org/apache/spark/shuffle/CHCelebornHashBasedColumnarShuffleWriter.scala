@@ -56,6 +56,8 @@ class CHCelebornHashBasedColumnarShuffleWriter[K, V](
 
   private var splitResult: CHSplitResult = _
 
+  private val nativeBufferSize: Int = GlutenConfig.getConf.shuffleWriterBufferSize
+
   @throws[IOException]
   override def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
     if (!records.hasNext) {

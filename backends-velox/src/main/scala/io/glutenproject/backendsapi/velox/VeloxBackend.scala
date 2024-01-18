@@ -66,6 +66,8 @@ object BackendSettings extends BackendSettingsApi {
   val GLUTEN_VELOX_UDF_LIB_PATHS = getBackendConfigPrefix() + ".udfLibraryPaths"
   val GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS = getBackendConfigPrefix() + ".driver.udfLibraryPaths"
 
+  val MAXIMUM_BATCH_SIZE: Int = 32768
+
   override def supportFileFormatRead(
       format: ReadFileFormat,
       fields: Array[StructField],
@@ -379,6 +381,7 @@ object BackendSettings extends BackendSettingsApi {
   override def shuffleSupportedCodec(): Set[String] = SHUFFLE_SUPPORTED_CODEC
 
   override def resolveNativeConf(nativeConf: java.util.Map[String, String]): Unit = {
+    checkMaxBatchSize(nativeConf)
     UDFResolver.resolveUdfConf(nativeConf)
   }
 
@@ -406,5 +409,14 @@ object BackendSettings extends BackendSettingsApi {
     GlutenConfig.getConf.enableNativeWriter.getOrElse(
       SparkShimLoader.getSparkShims.enableNativeWriteFilesByDefault()
     )
+  }
+
+  private def checkMaxBatchSize(nativeConf: java.util.Map[String, String]): Unit = {
+    val maxBatchSize = nativeConf.get(GlutenConfig.GLUTEN_MAX_BATCH_SIZE_KEY).toInt
+    if (maxBatchSize > MAXIMUM_BATCH_SIZE) {
+      throw new IllegalArgumentException(
+        s"The maximum value of ${GlutenConfig.GLUTEN_MAX_BATCH_SIZE_KEY}" +
+          s" is $MAXIMUM_BATCH_SIZE for Velox backend.")
+    }
   }
 }
