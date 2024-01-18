@@ -438,7 +438,7 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
   test("gluten Exchange reuse") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "20",
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "20"
     ) {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT value FROM testData join testData2 ON key = a " +
