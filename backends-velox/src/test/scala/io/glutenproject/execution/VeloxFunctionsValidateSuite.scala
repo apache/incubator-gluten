@@ -372,4 +372,14 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
       checkOperatorMatch[ProjectExecTransformer]
     }
   }
+
+  test("Test nanvl function") {
+    runQueryAndCompare("""SELECT nanvl(cast('nan' as float), 0.0f),
+                         | nanvl(l_orderkey, cast('null' as double)),
+                         | nanvl(cast('null' as double), l_orderkey),
+                         | nanvl(l_orderkey, l_orderkey / 0.0d)
+                         | from lineitem limit 1""".stripMargin) {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
 }
