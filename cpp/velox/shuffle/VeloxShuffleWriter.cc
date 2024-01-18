@@ -91,7 +91,11 @@ const int32_t* getFirstColumn(const facebook::velox::RowVector& rv) {
   VELOX_CHECK(rv.childrenSize() > 0, "RowVector missing partition id column.");
 
   auto& firstChild = rv.childAt(0);
-  VELOX_CHECK(firstChild->type()->isInteger(), "RecordBatch field 0 should be integer");
+  VELOX_CHECK(firstChild->isFlatEncoding(), "Partition id (field 0) is not flat encoding.");
+  VELOX_CHECK(
+      firstChild->type()->isInteger(),
+      "Partition id (field 0) should be integer, but got {}",
+      firstChild->type()->toString());
 
   // first column is partition key hash value or pid
   return firstChild->asFlatVector<int32_t>()->rawValues();
@@ -472,9 +476,7 @@ arrow::Status VeloxShuffleWriter::splitRowVector(const facebook::velox::RowVecto
 arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::velox::RowVector& rv) {
   for (auto col = 0; col < fixedWidthColumnCount_; ++col) {
     auto colIdx = simpleColumnIndices_[col];
-    auto column = rv.childAt(colIdx);
-    assert(column->isFlatEncoding());
-
+    auto& column = rv.childAt(colIdx);
     const uint8_t* srcAddr = (const uint8_t*)column->valuesAsVoid();
     const auto& dstAddrs = partitionFixedWidthValueAddrs_[col];
 
@@ -679,7 +681,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
   arrow::Status VeloxShuffleWriter::splitValidityBuffer(const facebook::velox::RowVector& rv) {
     for (size_t col = 0; col < simpleColumnIndices_.size(); ++col) {
       auto colIdx = simpleColumnIndices_[col];
-      auto column = rv.childAt(colIdx);
+      auto& column = rv.childAt(colIdx);
       if (vectorHasNull(column)) {
         auto& dstAddrs = partitionValidityAddrs_[col];
         for (auto& pid : partitionUsed_) {
@@ -770,10 +772,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
       auto binaryIdx = col - fixedWidthColumnCount_;
       auto& dstAddrs = partitionBinaryAddrs_[binaryIdx];
       auto colIdx = simpleColumnIndices_[col];
-      auto column = rv.childAt(colIdx);
-      auto stringColumn = column->asFlatVector<facebook::velox::StringView>();
-      assert(stringColumn);
-      RETURN_NOT_OK(splitBinaryType(binaryIdx, *stringColumn, dstAddrs));
+      auto column = rv.childAt(colIdx)->asFlatVector<facebook::velox::StringView>();
+      RETURN_NOT_OK(splitBinaryType(binaryIdx, *column, dstAddrs));
     }
     return arrow::Status::OK();
   }
@@ -799,14 +799,14 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
       rowIndexs[partition].emplace_back(facebook::velox::IndexRange{row, 1});
     }
 
-    std::vector<facebook::velox::VectorPtr> childrens;
+    std::vector<facebook::velox::VectorPtr> children;
+    children.reserve(complexColumnIndices_.size());
     for (size_t i = 0; i < complexColumnIndices_.size(); ++i) {
       auto colIdx = complexColumnIndices_[i];
-      auto column = rv.childAt(colIdx);
-      childrens.emplace_back(column);
+      children.emplace_back(rv.childAt(colIdx));
     }
     auto rowVector = std::make_shared<facebook::velox::RowVector>(
-        veloxPool_.get(), complexWriteType_, facebook::velox::BufferPtr(nullptr), rv.size(), std::move(childrens));
+        veloxPool_.get(), complexWriteType_, facebook::velox::BufferPtr(nullptr), rv.size(), std::move(children));
 
     for (auto& pid : partitionUsed_) {
       if (rowIndexs[pid].size() != 0) {
@@ -913,13 +913,9 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
     // Calculate average size bytes (bytes per row) for each binary array.
     std::vector<uint64_t> binaryArrayAvgBytesPerRow(binaryColumnIndices_.size());
     for (size_t i = 0; i < binaryColumnIndices_.size(); ++i) {
-      auto column = rv.childAt(binaryColumnIndices_[i]);
-      auto stringViewColumn = column->asFlatVector<facebook::velox::StringView>();
-      assert(stringViewColumn);
-
-      //      uint64_t binarySizeBytes = stringViewColumn->values()->size();
       uint64_t binarySizeBytes = 0;
-      for (auto& buffer : stringViewColumn->stringBuffers()) {
+      auto column = rv.childAt(binaryColumnIndices_[i])->asFlatVector<facebook::velox::StringView>();
+      for (auto& buffer : column->stringBuffers()) {
         binarySizeBytes += buffer->size();
       }
 
