@@ -166,9 +166,7 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
         node.put("column_ref", index)
         node.put("data_type", ordering.dataType.toString)
         node.put("is_nullable", ordering.nullable)
-        node.put(
-          "direction",
-          SortExecTransformer.transformSortDirection(ordering))
+        node.put("direction", SortExecTransformer.transformSortDirection(ordering))
         arrayNode.add(node)
     }
   }
