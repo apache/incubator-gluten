@@ -546,8 +546,8 @@ jobs:
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
           -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 centos:8 \
           bash -c 'cd /etc/yum.repos.d/ \
-          && sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-* \
-          && sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* \
+          && sed -i "s/mirrorlist/#mirrorlist/g" /etc/yum.repos.d/CentOS-* \
+          && sed -i "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* \
           && yum update -y && yum install wget -y \
           && mkdir /usr/java \
           && cd /usr/java/ \
