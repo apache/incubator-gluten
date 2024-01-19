@@ -17,10 +17,9 @@
 package org.apache.spark.sql.catalyst
 
 import io.glutenproject.execution.{FlushableHashAggregateExecTransformer, HashAggregateExecTransformer, ProjectExecTransformer, RegularHashAggregateExecTransformer}
-
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Partial, PartialMerge}
-import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, UnspecifiedDistribution}
+import org.apache.spark.sql.catalyst.plans.physical.ClusteredDistribution
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeLike
