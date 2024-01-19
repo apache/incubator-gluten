@@ -72,6 +72,7 @@ object ExpressionNames {
   final val IS_NULL = "is_null"
   final val NOT = "not"
   final val IS_NAN = "isnan"
+  final val NANVL = "nanvl"
 
   // SparkSQL String functions
   final val ASCII = "ascii"
@@ -253,7 +254,6 @@ object ExpressionNames {
   final val CHECK_OVERFLOW = "check_overflow"
   final val MAKE_DECIMAL = "make_decimal"
   final val PROMOTE_PRECISION = "promote_precision"
-  final val NANVL = "nanvl"
 
   // Directly use child expression transformer
   final val KNOWN_FLOATING_POINT_NORMALIZED = "known_floating_point_normalized"

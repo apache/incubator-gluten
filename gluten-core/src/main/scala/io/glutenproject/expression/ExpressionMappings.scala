@@ -236,7 +236,6 @@ object ExpressionMappings {
     Sig[CheckOverflow](CHECK_OVERFLOW),
     Sig[MakeDecimal](MAKE_DECIMAL),
     Sig[PromotePrecision](PROMOTE_PRECISION),
-    Sig[NaNvl](NANVL),
     // Decimal
     Sig[UnscaledValue](UNSCALED_VALUE)
   ) ++ SparkShimLoader.getSparkShims.expressionMappings

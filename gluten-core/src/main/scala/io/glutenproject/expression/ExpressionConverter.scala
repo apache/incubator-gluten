@@ -490,10 +490,10 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           resultType,
           b)
       case n: NaNvl =>
-        IfTransformer(
-          replaceWithExpressionTransformerInternal(IsNaN(n.left), attributeSeq, expressionsMap),
-          replaceWithExpressionTransformerInternal(n.right, attributeSeq, expressionsMap),
+        BackendsApiManager.getSparkPlanExecApiInstance.genNaNvlTransformer(
+          substraitExprName,
           replaceWithExpressionTransformerInternal(n.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(n.right, attributeSeq, expressionsMap),
           n
         )
       case e: Transformable =>

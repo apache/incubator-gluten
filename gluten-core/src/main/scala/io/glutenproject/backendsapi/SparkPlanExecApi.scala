@@ -167,6 +167,15 @@ trait SparkPlanExecApi {
     PosExplodeTransformer(substraitExprName, child, original, attributeSeq)
   }
 
+  /** Transform NaNvl to Substrait. */
+  def genNaNvlTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: NaNvl): ExpressionTransformer = {
+    throw new UnsupportedOperationException("NaNvl is not supported")
+  }
+
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
    *
