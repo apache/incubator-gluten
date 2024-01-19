@@ -433,6 +433,8 @@ void VeloxShuffleWriter::setSplitState(SplitState state) {
 }
 
 arrow::Status VeloxShuffleWriter::doSplit(const facebook::velox::RowVector& rv, int64_t memLimit) {
+  RETURN_NOT_OK(spillIfNeeded());
+
   auto rowNum = rv.size();
   RETURN_NOT_OK(buildPartition2Row(rowNum));
   RETURN_NOT_OK(updateInputHasNull(rv));
@@ -1450,6 +1452,15 @@ arrow::Status VeloxShuffleWriter::preAllocPartitionBuffers(uint16_t preAllocBuff
         RETURN_NOT_OK(resetValidityBuffer(pid));
       }
     }
+  }
+  return arrow::Status::OK();
+}
+
+arrow::Status VeloxShuffleWriter::spillIfNeeded() {
+  if (partitionWriter_->cachedRows() > options_.forceSpillThreshold) {
+    EvictGuard evictGuard{evictState_};
+    ARROW_ASSIGN_OR_RAISE(auto cached, evictCachedPayload(std::numeric_limits<int64_t>::max()));
+    (void)cached;
   }
   return arrow::Status::OK();
 }

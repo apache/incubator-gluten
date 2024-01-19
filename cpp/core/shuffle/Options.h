@@ -44,9 +44,9 @@ struct ShuffleWriterOptions {
   int32_t bufferSize = kDefaultShuffleWriterBufferSize;
   double bufferReallocThreshold = kDefaultBufferReallocThreshold;
   Partitioning partitioning = Partitioning::kRoundRobin;
-  int64_t taskAttemptId = -1;
   int32_t startPartitionId = 0;
-  int64_t threadId = -1;
+
+  int32_t forceSpillThreshold = std::numeric_limits<int32_t>::max();
 };
 
 struct PartitionWriterOptions {

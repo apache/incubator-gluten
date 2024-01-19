@@ -69,6 +69,8 @@ class LocalPartitionWriter : public PartitionWriter {
   // 3. After stop() called,
   arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) override;
 
+  uint32_t cachedRows() override;
+
   class LocalSpiller;
 
   class PayloadMerger;

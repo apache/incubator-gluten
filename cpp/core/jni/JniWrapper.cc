@@ -825,37 +825,21 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
       .bufferSize = bufferSize,
       .bufferReallocThreshold = reallocThreshold,
       .partitioning = gluten::toPartitioning(jStringToCString(env, partitioningNameJstr)),
-      .taskAttemptId = (int64_t)taskAttemptId,
       .startPartitionId = startPartitionId,
   };
-
-  jclass cls = env->FindClass("java/lang/Thread");
-  jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
-  jobject thread = env->CallStaticObjectMethod(cls, mid);
-  checkException(env);
-  if (thread == NULL) {
-    LOG(WARNING) << "Thread.currentThread() return NULL";
-  } else {
-    jmethodID midGetid = getMethodIdOrError(env, cls, "getId", "()J");
-    jlong sid = env->CallLongMethod(thread, midGetid);
-    checkException(env);
-    shuffleWriterOptions.threadId = (int64_t)sid;
-  }
 
   auto partitionWriterOptions = PartitionWriterOptions{
       .mergeBufferSize = mergeBufferSize,
       .mergeThreshold = mergeThreshold,
       .compressionThreshold = compressionThreshold,
       .compressionType = getCompressionType(env, codecJstr),
+      .codecBackend = getCodecBackend(env, codecBackendJstr),
+      .compressionMode = getCompressionMode(env, compressionModeJstr),
       .bufferedWrite = true,
       .numSubDirs = numSubDirs,
       .pushBufferMaxSize = pushBufferMaxSize > 0 ? pushBufferMaxSize : kDefaultShuffleWriterBufferSize};
-  if (codecJstr != NULL) {
-    partitionWriterOptions.codecBackend = getCodecBackend(env, codecBackendJstr);
-    partitionWriterOptions.compressionMode = getCompressionMode(env, compressionModeJstr);
-  }
-  std::unique_ptr<PartitionWriter> partitionWriter;
 
+  std::unique_ptr<PartitionWriter> partitionWriter;
   auto partitionWriterTypeC = env->GetStringUTFChars(partitionWriterTypeJstr, JNI_FALSE);
   auto partitionWriterType = std::string(partitionWriterTypeC);
   env->ReleaseStringUTFChars(partitionWriterTypeJstr, partitionWriterTypeC);

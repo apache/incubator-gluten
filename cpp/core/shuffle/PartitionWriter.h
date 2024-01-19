@@ -49,6 +49,8 @@ class PartitionWriter : public Reclaimable {
       bool reuseBuffers,
       bool hasComplexType) = 0;
 
+  virtual uint32_t cachedRows() = 0;
+
   uint64_t cachedPayloadSize() {
     return payloadPool_->bytes_allocated();
   }

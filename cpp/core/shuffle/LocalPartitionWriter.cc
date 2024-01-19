@@ -216,6 +216,13 @@ class LocalPartitionWriter::PayloadMerger {
         partitionMergePayload_[partitionId] != nullptr;
   }
 
+  uint32_t totalCachedRows() {
+    return std::accumulate(
+        partitionMergePayload_.begin(), partitionMergePayload_.end(), 0u, [](uint32_t sum, const auto& elem) {
+          return sum + elem.second->numRows();
+        });
+  }
+
  private:
   arrow::MemoryPool* pool_;
   arrow::util::Codec* codec_;
@@ -307,12 +314,19 @@ class LocalPartitionWriter::PayloadCache {
   }
 
   bool canSpill() {
-    for (auto pid = 0; pid < numPartitions_; ++pid) {
-      if (hasCachedPayloads(pid)) {
-        return true;
-      }
-    }
-    return false;
+    return std::find_if(partitionCachedPayload_.begin(), partitionCachedPayload_.end(), [](const auto& elem) {
+             return !elem.second.empty();
+           }) != partitionCachedPayload_.end();
+  }
+
+  uint32_t totalCachedRows() {
+    return std::accumulate(
+        partitionCachedPayload_.begin(), partitionCachedPayload_.end(), 0u, [](uint32_t totalRows, const auto& elem) {
+          return totalRows +
+              std::accumulate(elem.second.begin(), elem.second.end(), 0u, [](auto sum, const auto& payload) {
+                   return sum + payload->numRows();
+                 });
+        });
   }
 
   arrow::Result<std::shared_ptr<Spill>>
@@ -595,6 +609,17 @@ arrow::Status LocalPartitionWriter::populateMetrics(ShuffleWriterMetrics* metric
   metrics->partitionLengths = std::move(partitionLengths_);
   metrics->rawPartitionLengths = std::move(rawPartitionLengths_);
   return arrow::Status::OK();
+}
+
+uint32_t LocalPartitionWriter::cachedRows() {
+  uint32_t totalCachedRows = 0;
+  if (payloadCache_) {
+    totalCachedRows += payloadCache_->totalCachedRows();
+  }
+  if (merger_) {
+    totalCachedRows += merger_->totalCachedRows();
+  }
+  return totalCachedRows;
 }
 
 } // namespace gluten

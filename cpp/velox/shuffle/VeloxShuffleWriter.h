@@ -305,6 +305,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Result<uint32_t> partitionBufferSizeAfterShrink(uint32_t partitionId) const;
 
+  arrow::Status spillIfNeeded();
+
   SplitState splitState_{kInit};
 
   EvictState evictState_{kEvictable};

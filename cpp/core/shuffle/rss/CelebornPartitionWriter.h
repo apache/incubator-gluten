@@ -48,6 +48,8 @@ class CelebornPartitionWriter final : public RemotePartitionWriter {
 
   arrow::Status stop(ShuffleWriterMetrics* metrics) override;
 
+  uint32_t cachedRows() override;
+
  private:
   void init();
 
