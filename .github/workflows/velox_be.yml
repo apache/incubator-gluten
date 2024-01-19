@@ -541,24 +541,6 @@ jobs:
           mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -Piceberg -Pdelta -DskipTests && \
           cd /opt/gluten/tools/gluten-it && \
           mvn clean install -Pspark-3.2'
-      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (centos 8)
-        run: |
-          docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 centos:8 \
-          bash -c 'cd /etc/yum.repos.d/ \
-          && sed -i "s/mirrorlist/#mirrorlist/g" /etc/yum.repos.d/CentOS-* \
-          && sed -i "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* \
-          && yum update -y && yum install wget -y \
-          && mkdir /usr/java \
-          && cd /usr/java/ \
-          && wget https://javadl.oracle.com/webapps/download/AutoDL?BundleId=249542_4d245f941845490c91360409ecffb3b4 \
-          && tar zxvf AutoDL\?BundleId\=249542_4d245f941845490c91360409ecffb3b4 \
-          && export PATH=$PATH:/usr/java/jre1.8.0_401/bin \
-          && cd /opt/gluten/tools/gluten-it \
-          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-          && GLUTEN_IT_JVM_ARGS=-Xmx10G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=20g -s=1.0 --threads=32 --iterations=1'
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (ubuntu 20.04)
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
@@ -581,6 +563,24 @@ jobs:
           'mkdir /usr/java \
           && cd /usr/java/ \
           && apt-get update && apt-get install wget \
+          && wget https://javadl.oracle.com/webapps/download/AutoDL?BundleId=249542_4d245f941845490c91360409ecffb3b4 \
+          && tar zxvf AutoDL\?BundleId\=249542_4d245f941845490c91360409ecffb3b4 \
+          && export PATH=$PATH:/usr/java/jre1.8.0_401/bin \
+          && cd /opt/gluten/tools/gluten-it \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx10G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=20g -s=1.0 --threads=32 --iterations=1'
+      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (centos 8)
+        run: |
+          docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
+          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 centos:8 \
+          bash -c 'cd /etc/yum.repos.d/ \
+          && sed -i "s/mirrorlist/#mirrorlist/g" /etc/yum.repos.d/CentOS-* \
+          && sed -i "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* \
+          && yum update -y && yum install wget -y \
+          && mkdir /usr/java \
+          && cd /usr/java/ \
           && wget https://javadl.oracle.com/webapps/download/AutoDL?BundleId=249542_4d245f941845490c91360409ecffb3b4 \
           && tar zxvf AutoDL\?BundleId\=249542_4d245f941845490c91360409ecffb3b4 \
           && export PATH=$PATH:/usr/java/jre1.8.0_401/bin \
