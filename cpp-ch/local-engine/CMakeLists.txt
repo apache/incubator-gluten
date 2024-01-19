@@ -20,6 +20,8 @@ else()
     add_definitions(-DENABLE_MULTITARGET_CODE=0)
 endif()
 
+add_definitions(-DLLVM_DISABLE_ABI_BREAKING_CHECKS_ENFORCING=1)
+
 set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -w -ffunction-sections -fdata-sections")
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -ffunction-sections -fdata-sections")
 set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--no-export-dynamic -Wl,--gc-sections")
@@ -72,6 +74,8 @@ include_directories(
         ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/storage/azure-storage-blobs/inc
         ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/core/azure-core/inc
         ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/storage/azure-storage-common/inc
+        ${ClickHouse_SOURCE_DIR}/contrib/llvm-project/llvm/include
+        ${ClickHouse_SOURCE_DIR}/contrib/llvm-project/utils/bazel/llvm-project-overlay/llvm/include
 )
 
 add_subdirectory(Storages/ch_parquet)
