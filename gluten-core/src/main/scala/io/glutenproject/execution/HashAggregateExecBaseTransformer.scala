@@ -39,7 +39,6 @@ import com.google.protobuf.StringValue
 import java.util.{ArrayList => JArrayList, List => JList}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
 
 /** Columnar Based HashAggregateExec. */
 abstract class HashAggregateExecBaseTransformer(
@@ -63,13 +62,8 @@ abstract class HashAggregateExecBaseTransformer(
 
   // The direct outputs of Aggregation.
   protected lazy val allAggregateResultAttributes: List[Attribute] = {
-    val groupingAttributes = groupingExpressions.map(
-      expr => {
-        ConverterUtils.getAttrFromExpr(expr).toAttribute
-      })
-    groupingAttributes.toList ::: getAttrForAggregateExprs(
-      aggregateExpressions,
-      aggregateAttributes)
+    groupingExpressions.map(ConverterUtils.getAttrFromExpr(_)).toList :::
+      getAttrForAggregateExprs(aggregateExpressions, aggregateAttributes).toList
   }
 
   protected def isCapableForStreamingAggregation: Boolean = {
@@ -140,6 +134,13 @@ abstract class HashAggregateExecBaseTransformer(
       return ValidationResult.notOk(
         "Found not supported data type in group expression," +
           s"${groupingExpressions.map(_.dataType)}")
+    }
+    aggregateExpressions.foreach {
+      expr =>
+        if (!checkAggFuncModeSupport(expr.aggregateFunction, expr.mode)) {
+          throw new UnsupportedOperationException(
+            s"Unsupported aggregate mode: ${expr.mode} for ${expr.aggregateFunction.prettyName}")
+        }
     }
     doNativeValidation(substraitContext, relNode)
   }
@@ -395,61 +396,7 @@ abstract class HashAggregateExecBaseTransformer(
   /** This method calculates the output attributes of Aggregation. */
   protected def getAttrForAggregateExprs(
       aggregateExpressions: Seq[AggregateExpression],
-      aggregateAttributeList: Seq[Attribute]): List[Attribute] = {
-    val aggregateAttr = new ListBuffer[Attribute]()
-    val size = aggregateExpressions.size
-    var resIndex = 0
-    for (expIdx <- 0 until size) {
-      val exp: AggregateExpression = aggregateExpressions(expIdx)
-      resIndex = getAttrForAggregateExpr(exp, aggregateAttributeList, aggregateAttr, resIndex)
-    }
-    aggregateAttr.toList
-  }
-
-  protected def getAttrForAggregateExpr(
-      exp: AggregateExpression,
-      aggregateAttributeList: Seq[Attribute],
-      aggregateAttr: ListBuffer[Attribute],
-      index: Int): Int = {
-    var resIndex = index
-    val mode = exp.mode
-    val aggregateFunc = exp.aggregateFunction
-    // First handle the custom aggregate functions
-    if (
-      ExpressionMappings.expressionExtensionTransformer.extensionExpressionsMapping.contains(
-        aggregateFunc.getClass)
-    ) {
-      ExpressionMappings.expressionExtensionTransformer
-        .getAttrsIndexForExtensionAggregateExpr(
-          aggregateFunc,
-          mode,
-          exp,
-          aggregateAttributeList,
-          aggregateAttr,
-          index)
-    } else {
-      if (!checkAggFuncModeSupport(aggregateFunc, mode)) {
-        throw new UnsupportedOperationException(
-          s"Unsupported aggregate mode: $mode for ${aggregateFunc.prettyName}")
-      }
-      mode match {
-        case Partial | PartialMerge =>
-          val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
-          for (index <- aggBufferAttr.indices) {
-            val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-            aggregateAttr += attr
-          }
-          resIndex += aggBufferAttr.size
-          resIndex
-        case Final =>
-          aggregateAttr += aggregateAttributeList(resIndex)
-          resIndex += 1
-          resIndex
-        case other =>
-          throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-      }
-    }
-  }
+      aggregateAttributeList: Seq[Attribute]): Seq[Attribute]
 
   protected def checkAggFuncModeSupport(
       aggFunc: AggregateFunction,

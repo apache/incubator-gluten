@@ -55,6 +55,22 @@ abstract class HashAggregateExecTransformer(
     resultExpressions,
     child) {
 
+  override protected def getAttrForAggregateExprs(
+      aggregateExpressions: Seq[AggregateExpression],
+      aggregateAttributeList: Seq[Attribute]): Seq[Attribute] = {
+    aggregateExpressions.zipWithIndex.flatMap {
+      case (expr, index) =>
+        expr.mode match {
+          case Partial | PartialMerge =>
+            expr.aggregateFunction.aggBufferAttributes
+          case Final =>
+            Seq(aggregateAttributeList(index))
+          case other =>
+            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
+        }
+    }
+  }
+
   override protected def checkAggFuncModeSupport(
       aggFunc: AggregateFunction,
       mode: AggregateMode): Boolean = {
