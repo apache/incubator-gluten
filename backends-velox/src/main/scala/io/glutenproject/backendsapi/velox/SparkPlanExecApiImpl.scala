@@ -37,7 +37,7 @@ import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FlushableHas
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, GetArrayItem, GetMapValue, GetStructField, Literal, NamedExpression, StringSplit, StringTrim}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, Literal, NamedExpression, NaNvl, StringSplit, StringTrim}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -110,6 +110,23 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       Lists.newArrayList(rightNode, literalNode),
       ConverterUtils.getTypeNode(BooleanType, true))
     new IfThenNode(Lists.newArrayList(lessThanFuncNode), Lists.newArrayList(nullNode), resultNode)
+  }
+
+  /** Transform NaNvl to Substrait. */
+  override def genNaNvlTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: NaNvl): ExpressionTransformer = {
+    val condExpr = IsNaN(original.left)
+    val condFuncName = ExpressionMappings.expressionsMap(classOf[IsNaN])
+    val newExpr = If(condExpr, original.right, original.left)
+    IfTransformer(
+      GenericExpressionTransformer(condFuncName, Seq(left), condExpr),
+      right,
+      left,
+      newExpr
+    )
   }
 
   /**
@@ -518,7 +535,8 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
   override def extraExpressionMappings: Seq[Sig] = {
     Seq(
       Sig[HLLAdapter](ExpressionNames.APPROX_DISTINCT),
-      Sig[UDFExpression](ExpressionNames.UDF_PLACEHOLDER))
+      Sig[UDFExpression](ExpressionNames.UDF_PLACEHOLDER),
+      Sig[NaNvl](ExpressionNames.NANVL))
   }
 
   override def genInjectedFunctions()

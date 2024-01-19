@@ -72,6 +72,7 @@ object ExpressionNames {
   final val IS_NULL = "is_null"
   final val NOT = "not"
   final val IS_NAN = "isnan"
+  final val NANVL = "nanvl"
 
   // SparkSQL String functions
   final val ASCII = "ascii"
