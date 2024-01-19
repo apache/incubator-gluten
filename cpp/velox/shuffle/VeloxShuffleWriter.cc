@@ -496,75 +496,10 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
       case 64: {
         if (column->type()->kind() == facebook::velox::TypeKind::TIMESTAMP) {
           RETURN_NOT_OK(splitFixedType<facebook::velox::int128_t>(srcAddr, dstAddrs));
-          break;
         } else {
-#ifdef PROCESSAVX
-          std::vector<uint8_t*> partitionBufferIdxOffset;
-          partitionBufferIdxOffset.resize(numPartitions_);
-
-          std::transform(
-              dstAddrs.begin(),
-              dstAddrs.end(),
-              partitionBufferBase_.begin(),
-              partitionBufferIdxOffset.begin(),
-              [](uint8_t* x, uint32_t y) { return x + y * sizeof(uint64_t); });
-
-          for (auto pid = 0; pid < numPartitions_; pid++) {
-            auto dstPidBase = reinterpret_cast<uint64_t*>(partitionBufferIdxOffset[pid]); /*32k*/
-            auto r = partition2RowOffsetBase_[pid]; /*8k*/
-            auto size = partition2RowOffsetBase_[pid + 1];
-#if 1
-            for (r; r < size && (((uint64_t)dstPidBase & 0x1f) > 0); r++) {
-              auto srcOffset = rowOffset2RowId_[r]; /*16k*/
-              *dstPidBase = reinterpret_cast<uint64_t*>(srcAddr)[srcOffset]; /*64k*/
-              _mm_prefetch(&(srcAddr)[srcOffset * sizeof(uint64_t) + 64], _MM_HINT_T2);
-              dstPidBase += 1;
-            }
-#if 0
-          for (r; r+4<size; r+=4)
-          {
-            auto srcOffset = rowOffset2RowId_[r];                                 /*16k*/
-            __m128i srcLd = _mm_loadl_epi64((__m128i*)(&rowOffset2RowId_[r]));
-            __m128i srcOffset4x = _mm_cvtepu16_epi32(srcLd);
-            
-            __m256i src4x = _mm256_i32gather_epi64((const long long int*)srcAddr,srcOffset4x,8);
-            //_mm256_store_si256((__m256i*)dstPidBase,src4x);
-            _mm_stream_si128((__m128i*)dstPidBase,src2x);
-                                                         
-            _mm_prefetch(&(srcAddr)[(uint32_t)rowOffset2RowId_[r]*sizeof(uint64_t)+64], _MM_HINT_T2);
-            _mm_prefetch(&(srcAddr)[(uint32_t)rowOffset2RowId_[r+1]*sizeof(uint64_t)+64], _MM_HINT_T2);
-            _mm_prefetch(&(srcAddr)[(uint32_t)rowOffset2RowId_[r+2]*sizeof(uint64_t)+64], _MM_HINT_T2);
-            _mm_prefetch(&(srcAddr)[(uint32_t)rowOffset2RowId_[r+3]*sizeof(uint64_t)+64], _MM_HINT_T2);
-            dstPidBase+=4;
-          }
-#endif
-            for (r; r + 2 < size; r += 2) {
-              __m128i srcOffset2x = _mm_cvtsi32_si128(*((int32_t*)(rowOffset2RowId_.data() + r)));
-              srcOffset2x = _mm_shufflelo_epi16(srcOffset2x, 0x98);
-
-              __m128i src2x = _mm_i32gather_epi64((const long long int*)srcAddr, srcOffset2x, 8);
-              _mm_store_si128((__m128i*)dstPidBase, src2x);
-              //_mm_stream_si128((__m128i*)dstPidBase,src2x);
-
-              _mm_prefetch(&(srcAddr)[(uint32_t)rowOffset2RowId_[r] * sizeof(uint64_t) + 64], _MM_HINT_T2);
-              _mm_prefetch(&(srcAddr)[(uint32_t)rowOffset2RowId_[r + 1] * sizeof(uint64_t) + 64], _MM_HINT_T2);
-              dstPidBase += 2;
-            }
-#endif
-            for (r; r < size; r++) {
-              auto srcOffset = rowOffset2RowId_[r]; /*16k*/
-              *dstPidBase = reinterpret_cast<const uint64_t*>(srcAddr)[srcOffset]; /*64k*/
-              _mm_prefetch(&(srcAddr)[srcOffset * sizeof(uint64_t) + 64], _MM_HINT_T2);
-              dstPidBase += 1;
-            }
-          }
-#else
           RETURN_NOT_OK(splitFixedType<uint64_t>(srcAddr, dstAddrs));
-#endif
-          break;
         }
-      }
-
+      } break;
       case 128: // arrow::Decimal128Type::type_id
         // too bad gcc generates movdqa even we use __m128i_u data type.
         // splitFixedType<__m128i_u>(srcAddr, dstAddrs);
