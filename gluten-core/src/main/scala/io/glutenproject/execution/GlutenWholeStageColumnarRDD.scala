@@ -38,6 +38,7 @@ trait BaseGlutenPartition extends Partition with InputPartition {
 case class GlutenPartition(
     index: Int,
     plan: Array[Byte],
+    splitInfosByteArray: Array[Array[Byte]] = Array.empty[Array[Byte]],
     locations: Array[String] = Array.empty[String])
   extends BaseGlutenPartition {
 
@@ -111,9 +112,11 @@ class GlutenWholeStageColumnarRDD(
   }
 
   override protected def getPartitions: Array[Partition] = {
-    Array.tabulate[Partition](inputPartitions.size) {
-      i => FirstZippedPartitionsPartition(i, inputPartitions(i), rdds.getPartitions(i))
-    }
+    inputPartitions.zipWithIndex
+      .map {
+        case (partition, i) => FirstZippedPartitionsPartition(i, partition, rdds.getPartitions(i))
+      }
+      .toArray[Partition]
   }
 
   override protected def clearDependencies(): Unit = {

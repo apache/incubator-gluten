@@ -47,6 +47,11 @@ public class Metrics implements IMetrics {
   public long[] remainingFilterTime;
   public long[] ioWaitTime;
   public long[] preloadSplits;
+
+  public long[] physicalWrittenBytes;
+
+  public long[] numWrittenFiles;
+
   public SingleMetric singleMetric = new SingleMetric();
 
   /** Create an instance for native metrics. */
@@ -79,7 +84,9 @@ public class Metrics implements IMetrics {
       long[] processedStrides,
       long[] remainingFilterTime,
       long[] ioWaitTime,
-      long[] preloadSplits) {
+      long[] preloadSplits,
+      long[] physicalWrittenBytes,
+      long[] numWrittenFiles) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
     this.inputBytes = inputBytes;
@@ -109,6 +116,8 @@ public class Metrics implements IMetrics {
     this.remainingFilterTime = remainingFilterTime;
     this.ioWaitTime = ioWaitTime;
     this.preloadSplits = preloadSplits;
+    this.physicalWrittenBytes = physicalWrittenBytes;
+    this.numWrittenFiles = numWrittenFiles;
   }
 
   public OperatorMetrics getOperatorMetrics(int index) {
@@ -144,7 +153,9 @@ public class Metrics implements IMetrics {
         processedStrides[index],
         remainingFilterTime[index],
         ioWaitTime[index],
-        preloadSplits[index]);
+        preloadSplits[index],
+        physicalWrittenBytes[index],
+        numWrittenFiles[index]);
   }
 
   public SingleMetric getSingleMetrics() {

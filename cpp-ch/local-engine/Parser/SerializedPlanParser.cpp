@@ -75,6 +75,7 @@
 #include <Processors/Transforms/MaterializingTransform.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <QueryPipeline/printPipeline.h>
 #include <Storages/CustomStorageMergeTree.h>
 #include <Storages/IStorage.h>
 #include <Storages/MergeTree/MergeTreeData.h>
@@ -1016,7 +1017,6 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
         result_name = ch_func_name + "(" + args_name + ")";
         const auto * function_node = &actions_dag->addFunction(function_builder, args, result_name);
         result_node = function_node;
-
         if (!TypeParser::isTypeMatched(rel.scalar_function().output_type(), function_node->result_type) && !converted_decimal_args)
         {
             auto result_type = TypeParser::parseType(rel.scalar_function().output_type());
@@ -1323,6 +1323,23 @@ ActionsDAGPtr SerializedPlanParser::parseFunction(
         actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(header));
 
     parseFunctionWithDAG(rel, result_name, actions_dag, keep_result);
+    return actions_dag;
+}
+
+ActionsDAGPtr SerializedPlanParser::parseFunctionOrExpression(
+    const Block & header, const substrait::Expression & rel, std::string & result_name, ActionsDAGPtr actions_dag, bool keep_result)
+{
+    if (!actions_dag)
+        actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(header));
+
+    if (rel.has_scalar_function())
+        parseFunctionWithDAG(rel, result_name, actions_dag, keep_result);
+    else
+    {
+        const auto * result_node = parseExpression(actions_dag, rel);
+        result_name = result_node->result_name;
+    }
+
     return actions_dag;
 }
 
@@ -1642,41 +1659,15 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             args.emplace_back(parseExpression(actions_dag, input));
 
             const auto & substrait_type = rel.cast().type();
-            auto to_ch_type = TypeParser::parseType(substrait_type);
             const ActionsDAG::Node * function_node = nullptr;
             if (DB::isString(DB::removeNullable(args.back()->result_type)) && substrait_type.has_date())
             {
-                /// FIXME. Now we treet '1900-01-01' as null value. Not realy good.
-                /// Updating `toDate32OrNull` to return null if the string is invalid is not acceptable by
-                /// ClickHouse (https://github.com/ClickHouse/ClickHouse/issues/47120).
-                String function_name = "spark_to_date";
-                const auto * date_node = toFunctionNode(actions_dag, function_name, args);
-                const auto * zero_date_col_node = addColumn(actions_dag, std::make_shared<DataTypeString>(), "1900-01-01");
-                const auto * zero_date_node = toFunctionNode(actions_dag, function_name, {zero_date_col_node});
-                DB::ActionsDAG::NodeRawConstPtrs nullif_args = {date_node, zero_date_node};
-                function_node = toFunctionNode(actions_dag, "nullIf", nullif_args);
+                function_node = toFunctionNode(actions_dag, "spark_to_date", args);
             }
             else if (substrait_type.has_binary())
             {
                 // Spark cast(x as BINARY) -> CH reinterpretAsStringSpark(x)
                 function_node = toFunctionNode(actions_dag, "reinterpretAsStringSpark", args);
-            }
-            else if (DB::isFloat(DB::removeNullable(args[0]->result_type)) && DB::isNativeInteger(DB::removeNullable(to_ch_type)))
-            {
-                /// It looks like by design in CH that forbids cast NaN/Inf to integer.
-                auto zero_node = addColumn(actions_dag, args[0]->result_type, 0.0);
-                const auto * if_not_finite_node = toFunctionNode(actions_dag, "ifNotFinite", {args[0], zero_node});
-                const auto * final_arg_node = if_not_finite_node;
-                if (args[0]->result_type->isNullable())
-                {
-                    DB::Field null_field;
-                    const auto * null_value = addColumn(actions_dag, args[0]->result_type, null_field);
-                    const auto * is_null_node = toFunctionNode(actions_dag, "isNull", {args[0]});
-                    const auto * if_node = toFunctionNode(actions_dag, "if", {is_null_node, null_value, if_not_finite_node});
-                    final_arg_node = if_node;
-                }
-                function_node = toFunctionNode(
-                    actions_dag, "CAST", {final_arg_node, addColumn(actions_dag, std::make_shared<DataTypeString>(), to_ch_type->getName())});
             }
             else
             {
@@ -1689,8 +1680,16 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
                 }
                 else
                 {
-                    args.emplace_back(addColumn(actions_dag, std::make_shared<DataTypeString>(), ch_type->getName()));
-                    function_node = toFunctionNode(actions_dag, "CAST", args);
+                    if (isFloat(DB::removeNullable(args[0]->result_type)) && isInt(DB::removeNullable(ch_type)))
+                    {
+                        String function_name = "sparkCastFloatTo" + DB::removeNullable(ch_type)->getName();
+                        function_node = toFunctionNode(actions_dag, function_name, args);
+                    }
+                    else
+                    {
+                        args.emplace_back(addColumn(actions_dag, std::make_shared<DataTypeString>(), ch_type->getName()));
+                        function_node = toFunctionNode(actions_dag, "CAST", args);
+                    }
                 }
             }
 
@@ -2102,6 +2101,8 @@ SharedContextHolder SerializedPlanParser::shared_context;
 
 LocalExecutor::~LocalExecutor()
 {
+    if (context->getConfigRef().getBool("dump_pipeline", false))
+        LOG_INFO(&Poco::Logger::get("LocalExecutor"), "Dump pipeline:\n{}", dumpPipeline());
     if (spark_buffer)
     {
         ch_column_to_spark_row->freeMem(spark_buffer->address, spark_buffer->size);
@@ -2232,6 +2233,29 @@ Block & LocalExecutor::getHeader()
 LocalExecutor::LocalExecutor(QueryContext & _query_context, ContextPtr context_)
     : query_context(_query_context), context(context_)
 {
+}
+
+std::string LocalExecutor::dumpPipeline()
+{
+    const auto & processors = query_pipeline.getProcessors();
+    for (auto & processor : processors)
+    {
+        DB::WriteBufferFromOwnString buffer;
+        auto data_stats = processor->getProcessorDataStats();
+        buffer << "(";
+        buffer << "\nexcution time: " << processor->getElapsedUs() << " us.";
+        buffer << "\ninput wait time: " << processor->getInputWaitElapsedUs() << " us.";
+        buffer << "\noutput wait time: " << processor->getOutputWaitElapsedUs() << " us.";
+        buffer << "\ninput rows: " << data_stats.input_rows;
+        buffer << "\ninput bytes: " << data_stats.input_bytes;
+        buffer << "\noutput rows: " << data_stats.output_rows;
+        buffer << "\noutput bytes: " << data_stats.output_bytes;
+        buffer << ")";
+        processor->setDescription(buffer.str());
+    }
+    DB::WriteBufferFromOwnString out;
+    DB::printPipeline(processors, out);
+    return out.str();
 }
 
 NonNullableColumnsResolver::NonNullableColumnsResolver(

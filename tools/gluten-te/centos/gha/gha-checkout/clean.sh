@@ -22,4 +22,4 @@ then
   exit 1
 fi
 
-docker stop gha-checkout-$GITHUB_RUN_ID || true
+docker stop gha-checkout-$GITHUB_JOB-$GITHUB_RUN_ID || true

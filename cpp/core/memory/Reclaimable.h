@@ -15,28 +15,17 @@
  * limitations under the License.
  */
 
-#include "shuffle/VeloxShuffleUtils.h"
-#include <arrow/buffer.h>
-#include <arrow/util/compression.h>
+#pragma once
 
-int64_t gluten::getMaxCompressedBufferSize(
-    const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    arrow::util::Codec* codec) {
-  int64_t totalSize = 0;
-  for (auto& buffer : buffers) {
-    if (buffer != nullptr && buffer->size() != 0) {
-      totalSize += codec->MaxCompressedLen(buffer->size(), nullptr);
-    }
-  }
-  return totalSize;
-}
+#include <arrow/status.h>
 
-int64_t gluten::getBuffersSize(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
-  int64_t totalSize = 0;
-  for (auto& buffer : buffers) {
-    if (buffer != nullptr) {
-      totalSize += buffer->size();
-    }
-  }
-  return totalSize;
-}
+namespace gluten {
+
+class Reclaimable {
+ public:
+  virtual ~Reclaimable() = default;
+
+  virtual arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) = 0;
+};
+
+} // namespace gluten

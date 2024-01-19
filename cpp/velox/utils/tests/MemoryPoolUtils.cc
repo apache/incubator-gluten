@@ -86,18 +86,18 @@ int64_t SelfEvictedMemoryPool::capacity() const {
   return capacity_;
 }
 
-void SelfEvictedMemoryPool::setEvictable(Evictable* evictable) {
+void SelfEvictedMemoryPool::setEvictable(Reclaimable* evictable) {
   evictable_ = evictable;
 }
 
 arrow::Status SelfEvictedMemoryPool::Allocate(int64_t size, int64_t alignment, uint8_t** out) {
-  RETURN_NOT_OK(evict(size));
+  RETURN_NOT_OK(ensureCapacity(size));
   return pool_->Allocate(size, alignment, out);
 }
 
 arrow::Status SelfEvictedMemoryPool::Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) {
   if (newSize > oldSize) {
-    RETURN_NOT_OK(evict(newSize - oldSize));
+    RETURN_NOT_OK(ensureCapacity(newSize - oldSize));
   }
   return pool_->Reallocate(oldSize, newSize, alignment, ptr);
 }
@@ -126,12 +126,12 @@ int64_t SelfEvictedMemoryPool::num_allocations() const {
   throw pool_->num_allocations();
 }
 
-arrow::Status SelfEvictedMemoryPool::evict(int64_t size) {
+arrow::Status SelfEvictedMemoryPool::ensureCapacity(int64_t size) {
   VELOX_CHECK_NOT_NULL(evictable_);
   if (size > capacity_ - pool_->bytes_allocated()) {
     // Self evict.
     int64_t actual;
-    RETURN_NOT_OK(evictable_->evictFixedSize(size, &actual));
+    RETURN_NOT_OK(evictable_->reclaimFixedSize(size, &actual));
     if (size > capacity_ - pool_->bytes_allocated()) {
       if (failIfOOM_) {
         return arrow::Status::OutOfMemory(

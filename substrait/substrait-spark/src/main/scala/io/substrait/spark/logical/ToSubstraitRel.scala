@@ -31,10 +31,12 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.substrait.ToSubstraitType
 import org.apache.spark.substrait.ToSubstraitType.toNamedStruct
 
-import io.substrait.`type`.Type
+import io.substrait.{proto, relation}
+import io.substrait.debug.TreePrinter
 import io.substrait.expression.{Expression => SExpression, ExpressionCreator}
+import io.substrait.extension.ExtensionCollector
 import io.substrait.plan.{ImmutablePlan, ImmutableRoot, Plan}
-import io.substrait.relation
+import io.substrait.relation.RelProtoConverter
 
 import java.util.Collections
 
@@ -210,11 +212,6 @@ class ToSubstraitRel extends AbstractLogicalPlanVisitor with Logging {
       relation.Cross.builder
         .left(left)
         .right(right)
-        .deriveRecordType(
-          Type.Struct.builder
-            .from(left.getRecordType)
-            .from(right.getRecordType)
-            .build)
         .build
     } else {
       relation.Join.builder
@@ -249,11 +246,6 @@ class ToSubstraitRel extends AbstractLogicalPlanVisitor with Logging {
     val input = visit(sort.child)
     val fields = sort.order.map(toSortField(sort.child.output)).asJava
     relation.Sort.builder.addAllSortFields(fields).input(input).build
-  }
-
-  override def visitOffset(plan: Offset): relation.Rel = {
-    throw new UnsupportedOperationException(
-      s"Unable to convert the plan to a substrait plan: $plan")
   }
 
   private def toExpression(output: Seq[Attribute])(e: Expression): SExpression = {
@@ -326,6 +318,27 @@ class ToSubstraitRel extends AbstractLogicalPlanVisitor with Logging {
           ImmutableRoot.builder().input(rel).addAllNames(p.output.map(_.name).asJava).build()
         ))
       .build()
+  }
+
+  def tree(p: LogicalPlan): String = {
+    TreePrinter.tree(visit(p))
+  }
+
+  def toProtoSubstrait(p: LogicalPlan): Array[Byte] = {
+    val substraitRel = visit(p)
+
+    val extensionCollector = new ExtensionCollector
+    val relProtoConverter = new RelProtoConverter(extensionCollector)
+    val builder = proto.Plan
+      .newBuilder()
+      .addRelations(
+        proto.PlanRel
+          .newBuilder()
+          .setRel(substraitRel
+            .accept(relProtoConverter))
+      )
+    extensionCollector.addExtensionsToPlan(builder)
+    builder.build().toByteArray
   }
 }
 

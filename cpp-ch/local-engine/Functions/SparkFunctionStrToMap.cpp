@@ -50,7 +50,7 @@ public:
     static constexpr auto name = "spark_str_to_map";
     static DB::FunctionPtr create(const DB::ContextPtr) { return std::make_shared<SparkFunctionStrToMap>(); }
 
-    DB::String getName() const override { return name; }
+    String getName() const override { return name; }
 
     bool isVariadic() const override { return true; }
     size_t getNumberOfArguments() const override { return 3; }

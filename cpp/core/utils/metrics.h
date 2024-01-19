@@ -73,6 +73,10 @@ struct Metrics {
     kIoWaitTime,
     kPreloadSplits,
 
+    // Write metrics.
+    kPhysicalWrittenBytes,
+    kNumWrittenFiles,
+
     // The end of enum items.
     kEnd,
     kNum = kEnd - kBegin

@@ -270,6 +270,7 @@ class MetricsApiImpl extends MetricsApi with Logging {
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
       "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
+      "numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions"),
       "bytesSpilled" -> SQLMetrics.createSizeMetric(sparkContext, "shuffle bytes spilled"),
       "splitBufferSize" -> SQLMetrics.createSizeMetric(sparkContext, "split buffer size total"),
       "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to split"),
@@ -334,6 +335,15 @@ class MetricsApiImpl extends MetricsApi with Logging {
 
   override def genLimitTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
     new LimitMetricsUpdater(metrics)
+
+  def genWriteFilesTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
+    Map(
+      "physicalWrittenBytes" -> SQLMetrics.createMetric(sparkContext, "number of written bytes"),
+      "numWrittenFiles" -> SQLMetrics.createMetric(sparkContext, "number of written files")
+    )
+
+  def genWriteFilesTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
+    new WriteFilesMetricsUpdater(metrics)
 
   override def genSortTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(

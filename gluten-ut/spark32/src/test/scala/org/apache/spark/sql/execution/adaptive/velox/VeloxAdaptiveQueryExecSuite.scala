@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.adaptive
+package org.apache.spark.sql.execution.adaptive.velox
 
 import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ShuffledHashJoinExecTransformerBase, SortExecTransformer, SortMergeJoinExecTransformer}
 
@@ -23,7 +23,8 @@ import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.{Dataset, GlutenSQLTestsTrait, Row}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.exchange.{ENSURE_REQUIREMENTS, Exchange, REPARTITION_BY_COL, REPARTITION_BY_NUM, ReusedExchangeExec, ShuffleExchangeExec, ShuffleExchangeLike, ShuffleOrigin}
+import org.apache.spark.sql.execution.adaptive._
+import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, BroadcastHashJoinExec, ShuffledHashJoinExec, SortMergeJoinExec}
 import org.apache.spark.sql.execution.metric.SQLShuffleReadMetricsReporter
 import org.apache.spark.sql.execution.ui.SparkListenerSQLAdaptiveExecutionUpdate
@@ -34,7 +35,7 @@ import org.apache.spark.sql.types.{IntegerType, StructType}
 
 import org.apache.log4j.Level
 
-class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLTestsTrait {
+class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLTestsTrait {
   import testImplicits._
 
   override def sparkConf: SparkConf = {
@@ -437,19 +438,15 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten Exchange reuse") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      // magic threshold, ch backend has two bhj when threshold is 100
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "70",
-      SQLConf.SHUFFLE_PARTITIONS.key -> "5"
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "20"
     ) {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT value FROM testData join testData2 ON key = a " +
           "join (SELECT value v from testData join testData3 ON key = a) on value = v")
       assert(sortMergeJoinSize(plan) == 3)
-      // TODO: vanilla spark has 2 bhj, and 1 smj, but gluten has 3 bhj,
-      //  make sure this will not cause performance regression and why it is bhj
-      assert(broadcastHashJoinSize(adaptivePlan) == 1)
-      // Vanilla spark still a SMJ, and its two shuffles can't apply local read.
-      checkNumLocalShuffleReads(adaptivePlan, 4)
+      assert(broadcastHashJoinSize(adaptivePlan) == 2)
+      // There is still a SMJ, and its two shuffles can't apply local read.
+      checkNumLocalShuffleReads(adaptivePlan, 2)
       // Even with local shuffle read, the query stage reuse can also work.
       val ex = findReusedExchange(adaptivePlan)
       assert(ex.size == 1)
@@ -574,8 +571,8 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
     ) {
       // `testData` is small enough to be broadcast but has empty partition ratio over the config.
       // because testData2 in gluten sizeInBytes(from ColumnarShuffleExchangeExec plan stats)
-      // is 78B sometimes, so change the threshold from 80 to 60
-      withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "60") {
+      // is 24B sometimes, so change the threshold from 80 to 20
+      withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "20") {
         val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
           "SELECT * FROM testData join testData2 ON key = a where value = '1'")
         assert(sortMergeJoinSize(plan) == 1)
@@ -1149,22 +1146,28 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
         .toDF("c1", "c2")
         .createOrReplaceTempView("t2")
 
-      // t1 partition size: [926, 729, 731]
-      // t2 partition size: [318, 120, 0]
+      // t1 partition size: [395, 316, 313]
+      // t2 partition size: [140, 50, 0]
       withSQLConf(
         SQLConf.SHUFFLE_PARTITIONS.key -> "3",
         SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1",
         SQLConf.PREFER_SORTMERGEJOIN.key -> "true") {
         // check default value
         checkJoinStrategy(false)
-        withSQLConf(SQLConf.ADAPTIVE_MAX_SHUFFLE_HASH_JOIN_LOCAL_MAP_THRESHOLD.key -> "400") {
+        // t1 no hint.
+        // t2 partition size are all smaller than 200, t2 has SHJ hint. The result is true.
+        withSQLConf(SQLConf.ADAPTIVE_MAX_SHUFFLE_HASH_JOIN_LOCAL_MAP_THRESHOLD.key -> "200") {
+          checkJoinStrategy(true)
+        }
+        // t1 no hint.
+        // Not all partition size of t2 are smaller than 100, t2 no hint. The result is false.
+        withSQLConf(SQLConf.ADAPTIVE_MAX_SHUFFLE_HASH_JOIN_LOCAL_MAP_THRESHOLD.key -> "100") {
           checkJoinStrategy(false)
         }
-        withSQLConf(SQLConf.ADAPTIVE_MAX_SHUFFLE_HASH_JOIN_LOCAL_MAP_THRESHOLD.key -> "300") {
-          checkJoinStrategy(false)
-        }
+        // t1, t2 partition size are all smaller than 1000, t1 and t2 can use SHJ.
+        // The result is true.
         withSQLConf(SQLConf.ADAPTIVE_MAX_SHUFFLE_HASH_JOIN_LOCAL_MAP_THRESHOLD.key -> "1000") {
-          checkJoinStrategy(false)
+          checkJoinStrategy(true)
         }
       }
     }
@@ -1231,11 +1234,13 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
           assert(read.head.partitionSpecs.size == totalNumber)
         }
 
-        withSQLConf(SQLConf.ADVISORY_PARTITION_SIZE_IN_BYTES.key -> "150") {
-          // partition size [0,258,72,72,72]
-          checkPartitionNumber("SELECT /*+ REBALANCE(c1) */ * FROM v", 3, 6)
-          // partition size [72,216,216,144,72]
-          checkPartitionNumber("SELECT /*+ REBALANCE */ * FROM v", 9, 10)
+        // Changed ADVISORY_PARTITION_SIZE_IN_BYTES from 150 to 120 because Gluten has smaller
+        // partition size.
+        withSQLConf(SQLConf.ADVISORY_PARTITION_SIZE_IN_BYTES.key -> "120") {
+          // partition size [0,208,54,54,54]
+          checkPartitionNumber("SELECT /*+ REBALANCE(c1) */ * FROM v", 2, 4)
+          // partition size [108, 54, 60, 108, 54, 108, 54]
+          checkPartitionNumber("SELECT /*+ REBALANCE */ * FROM v", 6, 7)
         }
 
         // no skewed partition should be optimized

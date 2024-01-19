@@ -319,6 +319,12 @@ private:
         std::string & result_name,
         DB::ActionsDAGPtr actions_dag = nullptr,
         bool keep_result = false);
+    DB::ActionsDAGPtr parseFunctionOrExpression(
+        const Block & header,
+        const substrait::Expression & rel,
+        std::string & result_name,
+        DB::ActionsDAGPtr actions_dag = nullptr,
+        bool keep_result = false);
     DB::ActionsDAGPtr parseArrayJoin(
         const Block & input,
         const substrait::Expression & rel,
@@ -411,6 +417,9 @@ private:
     DB::QueryPlanPtr current_query_plan;
     RelMetricPtr metric;
     std::vector<QueryPlanPtr> extra_plan_holder;
+
+    /// Dump processor runtime information to log
+    std::string dumpPipeline();
 };
 
 

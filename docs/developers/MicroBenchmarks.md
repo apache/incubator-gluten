@@ -12,7 +12,7 @@ A micro benchmark for Velox backend is provided in Gluten Cpp to simulate the ex
 It serves as a more convenient alternative to debug in Gluten Cpp comparing with directly debugging in a Spark job.
 Developers can use it to create their own workloads, debug in native process, profile the hotspot and do optimizations.
 
-To simulate a first stage, you need to dump the Substrait plan into a JSON file. The input URIs should be exising file locations, which can be either local or HDFS paths.
+To simulate a first stage, you need to dump the Substrait plan and split info into two JSON file. The input URIs should be exising file locations, which can be either local or HDFS paths.
 
 To simulate a middle stage, in addition to the JSON file, you also need to save the input data of this stage into Parquet files.
 The benchmark will load the data into Arrow format, then add Arrow2Velox to feed 
@@ -116,19 +116,14 @@ Task stageId: 2, partitionId: 855, taskId: 857; {"extensions":[{"extensionFuncti
 
 Save the Substrait plan to a JSON file, suppose the name is "plan.json".
 
-If you are simulating a first stage, the inputs should be exising file locations, which can be either local or HDFS paths.
+If you are simulating a first stage, executor's stdout should contains split info, which include input file locations, which can be either local or HDFS paths.
 
-```json
-"localFiles": {
-    "items": [
-        {
-            "uriFile": "file:///path_to_gluten/cpp/velox/benchmarks/data/tpch_sf10m/lineitem/part-00000-6c374e0a-7d76-401b-8458-a8e31f8ab704-c000.snappy.parquet",
-            "length": "1863237",
-            "parquet": {}
-        }
-    ]
-}
+```shell
+################################################## received substrait::ReadRel.LocalFiles:
+{"items":[{"uriFile":"hdfs://host:9000/user/hadoop/tpch_sf10/lineitem/part-00000-34fbf25c-7909-476d-a63a-b2b56f281c07-c000.snappy.parquet","partitionIndex":"2","start":"302582158","length":"151291079","parquet":{},"schema":{}}]}
 ```
+
+Dump it to a JSON file, suppose the name is "split.json".
 
 Run benchmark. The first arg is the absolute path to JSON file.
 You should use `--skip-input` to skip specifying input data files used for first stages.
@@ -138,6 +133,7 @@ By default, the result will be printed to stdout. You can use `--noprint-result`
 cd /path_to_gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
 /plan/to/plan.json \
+/plan/to/split.json \
 --threads 1 --skip-input --noprint-result
 ```
 
@@ -154,7 +150,7 @@ You need to re-run the query with below configuraions to dump the input data fil
 
 Suppose the dumped input files are /tmp/save/input_34_0_1.parquet and /tmp/save/input_34_0_2.parquet. Please use spark to combine the 2 files to 1 file.
 
-```java
+```scala
 val df = spark.read.format("parquet").load("/tmp/save")
 df.repartition(1).write.format("parquet").save("/tmp/new_save")
 ```

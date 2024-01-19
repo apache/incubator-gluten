@@ -86,22 +86,31 @@ macro(ADD_VELOX_OBJECTS)
           "${VELOX_COMPONENTS_PATH}/connectors/hive/CMakeFiles/velox_hive_connector.dir/PartitionIdGenerator.cpp.o"
           "${VELOX_COMPONENTS_PATH}/connectors/hive/CMakeFiles/velox_hive_connector.dir/SplitReader.cpp.o"
           "${VELOX_COMPONENTS_PATH}/connectors/hive/CMakeFiles/velox_hive_connector.dir/TableHandle.cpp.o"
+          "${VELOX_COMPONENTS_PATH}/connectors/hive/CMakeFiles/velox_hive_connector.dir/HiveConnectorUtil.cpp.o"
           )
   target_link_libraries(velox PUBLIC velox_objects)
 endmacro()
 
 macro(add_duckdb)
-  add_velox_dependency(duckdb::static "${VELOX_BUILD_PATH}/_deps/duckdb-build/src/libduckdb_static.a")
-  add_velox_dependency(duckdb::jemalloc "${VELOX_BUILD_PATH}/_deps/duckdb-build/extension/jemalloc/libjemalloc_extension.a")
-  add_velox_dependency(duckdb::fmt "${VELOX_BUILD_PATH}/_deps/duckdb-build/third_party/fmt/libduckdb_fmt.a")
-  add_velox_dependency(duckdb::query "${VELOX_BUILD_PATH}/_deps/duckdb-build/third_party/libpg_query/libduckdb_pg_query.a")
-  add_velox_dependency(duckdb::re2 "${VELOX_BUILD_PATH}/_deps/duckdb-build/third_party/re2/libduckdb_re2.a")
-  add_velox_dependency(duckdb::miniz "${VELOX_BUILD_PATH}/_deps/duckdb-build/third_party/miniz/libduckdb_miniz.a")
-  add_velox_dependency(duckdb::utf8 "${VELOX_BUILD_PATH}/_deps/duckdb-build/third_party/utf8proc/libduckdb_utf8proc.a")
-  add_velox_dependency(duckdb::hyperloglog "${VELOX_BUILD_PATH}/_deps/duckdb-build/third_party/hyperloglog/libduckdb_hyperloglog.a")
-  add_velox_dependency(duckdb::fastpforlib "${VELOX_BUILD_PATH}/_deps/duckdb-build/third_party/fastpforlib/libduckdb_fastpforlib.a")
-  add_velox_dependency(duckdb::mbedtls "${VELOX_BUILD_PATH}/_deps/duckdb-build/third_party/mbedtls/libduckdb_mbedtls.a")
-  add_velox_dependency(duckdb::fsst "${VELOX_BUILD_PATH}/_deps/duckdb-build/third_party/fsst/libduckdb_fsst.a")
+  find_package(DuckDB)
+  if(NOT DuckDB_FOUND)
+    message(STATUS "Use duckdb provided by Velox.")
+    set(VELOX_BUILD_DUCKDB_PATH "${VELOX_BUILD_PATH}/_deps/duckdb-build")
+    add_velox_dependency(duckdb::static "${VELOX_BUILD_DUCKDB_PATH}/src/libduckdb_static.a")
+    add_velox_dependency(duckdb::jemalloc "${VELOX_BUILD_DUCKDB_PATH}/extension/jemalloc/libjemalloc_extension.a")
+    add_velox_dependency(duckdb::fmt "${VELOX_BUILD_DUCKDB_PATH}/third_party/fmt/libduckdb_fmt.a")
+    add_velox_dependency(duckdb::query "${VELOX_BUILD_DUCKDB_PATH}/third_party/libpg_query/libduckdb_pg_query.a")
+    add_velox_dependency(duckdb::re2 "${VELOX_BUILD_DUCKDB_PATH}/third_party/re2/libduckdb_re2.a")
+    add_velox_dependency(duckdb::miniz "${VELOX_BUILD_DUCKDB_PATH}/third_party/miniz/libduckdb_miniz.a")
+    add_velox_dependency(duckdb::utf8 "${VELOX_BUILD_DUCKDB_PATH}/third_party/utf8proc/libduckdb_utf8proc.a")
+    add_velox_dependency(duckdb::hyperloglog "${VELOX_BUILD_DUCKDB_PATH}/third_party/hyperloglog/libduckdb_hyperloglog.a")
+    add_velox_dependency(duckdb::fastpforlib "${VELOX_BUILD_DUCKDB_PATH}/third_party/fastpforlib/libduckdb_fastpforlib.a")
+    add_velox_dependency(duckdb::mbedtls "${VELOX_BUILD_DUCKDB_PATH}/third_party/mbedtls/libduckdb_mbedtls.a")
+    add_velox_dependency(duckdb::fsst "${VELOX_BUILD_DUCKDB_PATH}/third_party/fsst/libduckdb_fsst.a")
+  else()
+    message(STATUS "Found DuckDB library from ${DuckDB_DIR}")
+    target_link_libraries(velox PUBLIC duckdb_static)
+  endif()
 endmacro()
 
 macro(ADD_VELOX_DEPENDENCIES)
@@ -128,7 +137,6 @@ macro(ADD_VELOX_DEPENDENCIES)
     add_velox_dependency(dwio::common::test::utils "${VELOX_COMPONENTS_PATH}/dwio/common/tests/utils/libvelox_dwio_common_test_utils.a")
   endif()
   add_velox_dependency(exec "${VELOX_COMPONENTS_PATH}/exec/libvelox_exec.a")
-  add_velox_dependency(common::test_util "${VELOX_COMPONENTS_PATH}/common/testutil/libvelox_test_util.a")
   
   if(BUILD_TESTS)
     add_velox_dependency(parse::parser "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_parser.a")
@@ -163,7 +171,7 @@ macro(ADD_VELOX_DEPENDENCIES)
     add_velox_dependency(dwio::common::utils "${VELOX_COMPONENTS_PATH}/dwio/common/tests/utils/libvelox_dwio_common_test_utils.a")
     add_velox_dependency(dwio::dwrf::test_utils "${VELOX_COMPONENTS_PATH}/dwio/dwrf/test/utils/libvelox_dwrf_test_utils.a")
     add_velox_dependency(parquet::reader::duckdb_conversion "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_conversion.a")
-    
+
     add_duckdb()
     
     add_velox_dependency(tpch::gen "${VELOX_COMPONENTS_PATH}/tpch/gen/libvelox_tpch_gen.a")
@@ -208,6 +216,8 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(common::time "${VELOX_COMPONENTS_PATH}/common/time/libvelox_time.a")
   add_velox_dependency(common::file "${VELOX_COMPONENTS_PATH}/common/file/libvelox_file.a")
   add_velox_dependency(common::process "${VELOX_COMPONENTS_PATH}/common/process/libvelox_process.a")
+
+  add_velox_dependency(common::test_util "${VELOX_COMPONENTS_PATH}/common/testutil/libvelox_test_util.a")
 
   add_velox_dependency(external::md5 "${VELOX_COMPONENTS_PATH}/external/md5/libmd5.a")
   add_velox_dependency(external::date "${VELOX_COMPONENTS_PATH}/external/date/libvelox_external_date.a")
@@ -271,6 +281,8 @@ macro(find_gcssdk)
 endmacro()
 
 macro(find_azure)
+  find_package(CURL REQUIRED)
+  find_package(LibXml2 REQUIRED)
   set (CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(azure-storage-blobs-cpp CONFIG REQUIRED)
 endmacro()
@@ -294,7 +306,6 @@ set(VELOX_SRCS
     operators/serializer/VeloxRowToColumnarConverter.cc
     operators/writer/VeloxParquetDatasource.cc
     shuffle/VeloxShuffleReader.cc
-    shuffle/VeloxShuffleUtils.cc
     shuffle/VeloxShuffleWriter.cc
     substrait/SubstraitParser.cc
     substrait/SubstraitToVeloxExpr.cc
@@ -412,5 +423,5 @@ endif()
 if(ENABLE_ABFS)
   add_definitions(-DENABLE_ABFS)
   find_azure()
-  target_link_libraries(velox PRIVATE Azure::azure-storage-blobs)
+  target_link_libraries(velox PUBLIC Azure::azure-storage-blobs)
 endif()

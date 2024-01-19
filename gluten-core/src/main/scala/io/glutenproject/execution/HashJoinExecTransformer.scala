@@ -32,6 +32,7 @@ import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.ExpandOutputPartitioningShim
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, HashJoin}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
@@ -170,8 +171,9 @@ trait HashJoinLikeExecTransformer
   override def outputPartitioning: Partitioning = joinBuildSide match {
     case BuildLeft =>
       joinType match {
-        case _: InnerLike | RightOuter => right.outputPartitioning
+        case _: InnerLike | RightOuter => expandPartitioning(right.outputPartitioning)
         case LeftOuter => left.outputPartitioning
+        case FullOuter => UnknownPartitioning(left.outputPartitioning.numPartitions)
         case x =>
           throw new IllegalArgumentException(
             s"HashJoin should not take $x as the JoinType with building left side")
@@ -179,12 +181,24 @@ trait HashJoinLikeExecTransformer
     case BuildRight =>
       joinType match {
         case _: InnerLike | LeftOuter | LeftSemi | LeftAnti | _: ExistenceJoin =>
-          left.outputPartitioning
+          expandPartitioning(left.outputPartitioning)
         case RightOuter => right.outputPartitioning
+        case FullOuter => UnknownPartitioning(right.outputPartitioning.numPartitions)
         case x =>
           throw new IllegalArgumentException(
             s"HashJoin should not take $x as the JoinType with building right side")
       }
+  }
+
+  // https://issues.apache.org/jira/browse/SPARK-31869
+  private def expandPartitioning(partitioning: Partitioning): Partitioning = {
+    val expandLimit = conf.broadcastHashJoinOutputPartitioningExpandLimit
+    joinType match {
+      case _: InnerLike if expandLimit > 0 =>
+        new ExpandOutputPartitioningShim(streamedKeyExprs, buildKeyExprs, expandLimit)
+          .expandPartitioning(partitioning)
+      case _ => partitioning
+    }
   }
 
   override protected def doValidateInternal(): ValidationResult = {

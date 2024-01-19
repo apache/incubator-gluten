@@ -21,6 +21,7 @@ import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.NamedExpression
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
@@ -35,7 +36,11 @@ trait BackendSettingsApi {
       fields: Array[StructField],
       partTable: Boolean,
       paths: Seq[String]): ValidationResult = ValidationResult.ok
-  def supportWriteFilesExec(format: FileFormat, fields: Array[StructField]): Option[String]
+  def supportWriteFilesExec(
+      format: FileFormat,
+      fields: Array[StructField],
+      bucketSpec: Option[BucketSpec],
+      options: Map[String, String]): Option[String]
   def supportExpandExec(): Boolean = false
   def supportSortExec(): Boolean = false
   def supportSortMergeJoinExec(): Boolean = true
@@ -117,4 +122,6 @@ trait BackendSettingsApi {
   def requiredInputFilePaths(): Boolean = false
 
   def enableBloomFilterAggFallbackRule(): Boolean = true
+
+  def enableNativeWriteFiles(): Boolean
 }

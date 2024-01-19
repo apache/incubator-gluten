@@ -37,6 +37,8 @@ class VeloxRuntime final : public Runtime {
 
   void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) override;
 
+  void parseSplitInfo(const uint8_t* data, int32_t size) override;
+
   static std::shared_ptr<facebook::velox::memory::MemoryPool> getAggregateVeloxPool(MemoryManager* memoryManager) {
     return toVeloxMemoryManager(memoryManager)->getAggregateMemoryPool();
   }
@@ -82,8 +84,8 @@ class VeloxRuntime final : public Runtime {
 
   std::shared_ptr<ShuffleWriter> createShuffleWriter(
       int numPartitions,
-      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
-      const ShuffleWriterOptions& options,
+      std::unique_ptr<PartitionWriter> partitionWriter,
+      ShuffleWriterOptions options,
       MemoryManager* memoryManager) override;
 
   Metrics* getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) override {

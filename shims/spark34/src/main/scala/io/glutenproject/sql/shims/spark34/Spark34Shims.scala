@@ -18,10 +18,10 @@ package io.glutenproject.sql.shims.spark34
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ExpressionNames, Sig}
-import io.glutenproject.expression.ExpressionNames.EMPTY2NULL
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
 import org.apache.spark.SparkException
+import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.paths.SparkPath
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
@@ -32,16 +32,15 @@ import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Dist
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.execution.{FileSourceScanLike, PartitionedFileUtil, SparkPlan}
+import org.apache.spark.sql.execution.{PartitionedFileUtil, SparkPlan}
 import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.GlutenFileFormatWriter
+import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex, WriteJobDescription, WriteTaskResult}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
-
-import org.apache.hadoop.fs.Path
 
 class Spark34Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
@@ -158,4 +157,25 @@ class Spark34Shims extends SparkShims {
   }
 
   override def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = List()
+
+  override def writeFilesExecuteTask(
+      description: WriteJobDescription,
+      jobTrackerID: String,
+      sparkStageId: Int,
+      sparkPartitionId: Int,
+      sparkAttemptNumber: Int,
+      committer: FileCommitProtocol,
+      iterator: Iterator[InternalRow]): WriteTaskResult = {
+    GlutenFileFormatWriter.writeFilesExecuteTask(
+      description,
+      jobTrackerID,
+      sparkStageId,
+      sparkPartitionId,
+      sparkAttemptNumber,
+      committer,
+      iterator
+    )
+  }
+
+  override def enableNativeWriteFilesByDefault(): Boolean = true
 }

@@ -28,18 +28,14 @@ namespace fs = std::filesystem;
 
 DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_string(write_file, "", "Write the output to parquet file, file absolute path");
-DEFINE_string(batch_size, "4096", "To set velox::core::QueryConfig::kPreferredOutputBatchSize.");
+DEFINE_int64(batch_size, 4096, "To set velox::core::QueryConfig::kPreferredOutputBatchSize.");
 DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
 DEFINE_int32(threads, 1, "The number of threads to run this benchmark");
 DEFINE_int32(iterations, 1, "The number of iterations to run this benchmark");
 
 namespace {
 
-std::unordered_map<std::string, std::string> bmConfMap = {{gluten::kSparkBatchSize, FLAGS_batch_size}};
-
-gluten::Runtime* veloxRuntimeFactory(const std::unordered_map<std::string, std::string>& sparkConf) {
-  return new gluten::VeloxRuntime(sparkConf);
-}
+std::unordered_map<std::string, std::string> bmConfMap = {{gluten::kSparkBatchSize, std::to_string(FLAGS_batch_size)}};
 
 } // namespace
 
@@ -51,14 +47,14 @@ void initVeloxBackend() {
   initVeloxBackend(bmConfMap);
 }
 
-std::string getPlanFromFile(const std::string& filePath) {
+std::string getPlanFromFile(const std::string& type, const std::string& filePath) {
   // Read json file and resume the binary data.
   std::ifstream msgJson(filePath);
   std::stringstream buffer;
   buffer << msgJson.rdbuf();
   std::string msgData = buffer.str();
 
-  return gluten::substraitFromJsonToPb("Plan", msgData);
+  return gluten::substraitFromJsonToPb(type, msgData);
 }
 
 velox::dwio::common::FileFormat getFileFormat(const std::string& fileFormat) {
@@ -152,26 +148,37 @@ void setCpu(uint32_t cpuindex) {
   }
 }
 
-arrow::Status setLocalDirsAndDataFileFromEnv(gluten::ShuffleWriterOptions& options) {
+arrow::Status
+setLocalDirsAndDataFileFromEnv(std::string& dataFile, std::vector<std::string>& localDirs, bool& isFromEnv) {
   auto joinedDirsC = std::getenv(gluten::kGlutenSparkLocalDirs.c_str());
   if (joinedDirsC != nullptr && strcmp(joinedDirsC, "") > 0) {
+    isFromEnv = true;
     // Set local dirs.
     auto joinedDirs = std::string(joinedDirsC);
-    options.local_dirs = joinedDirs;
     // Split local dirs and use thread id to choose one directory for data file.
-    auto localDirs = gluten::splitPaths(joinedDirs);
+    localDirs = gluten::splitPaths(joinedDirs);
     size_t id = std::hash<std::thread::id>{}(std::this_thread::get_id()) % localDirs.size();
-    ARROW_ASSIGN_OR_RAISE(options.data_file, gluten::createTempShuffleFile(localDirs[id]));
+    ARROW_ASSIGN_OR_RAISE(dataFile, gluten::createTempShuffleFile(localDirs[id]));
   } else {
+    isFromEnv = false;
     // Otherwise create 1 temp dir and data file.
     static const std::string kBenchmarkDirsPrefix = "columnar-shuffle-benchmark-";
     {
       // Because tmpDir will be deleted in the dtor, allow it to be deleted upon exiting the block and then recreate it
       // in createTempShuffleFile.
       ARROW_ASSIGN_OR_RAISE(auto tmpDir, arrow::internal::TemporaryDir::Make(kBenchmarkDirsPrefix))
-      options.local_dirs = tmpDir->path().ToString();
+      localDirs.push_back(tmpDir->path().ToString());
     }
-    ARROW_ASSIGN_OR_RAISE(options.data_file, gluten::createTempShuffleFile(options.local_dirs));
+    ARROW_ASSIGN_OR_RAISE(dataFile, gluten::createTempShuffleFile(localDirs.back()));
   }
   return arrow::Status::OK();
+}
+
+void cleanupShuffleOutput(const std::string& dataFile, const std::vector<std::string>& localDirs, bool isFromEnv) {
+  std::filesystem::remove(dataFile);
+  for (auto& localDir : localDirs) {
+    if (std::filesystem::is_empty(localDir)) {
+      std::filesystem::remove(localDir);
+    }
+  }
 }

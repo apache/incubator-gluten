@@ -25,6 +25,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat._
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, DenseRank, Lag, Lead, NamedExpression, Rank, RowNumber}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
@@ -273,5 +274,11 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
 
   override def supportWriteFilesExec(
       format: FileFormat,
-      fields: Array[StructField]): Option[String] = None
+      fields: Array[StructField],
+      bucketSpec: Option[BucketSpec],
+      options: Map[String, String]): Option[String] = Some("Unsupported")
+
+  override def enableNativeWriteFiles(): Boolean = {
+    GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
+  }
 }

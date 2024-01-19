@@ -180,6 +180,16 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
       conf.set("spark.sql.orc.enableVectorizedReader", "false")
       conf.set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
     }
+    // When the Velox cache is enabled, the Velox file handle cache should also be enabled.
+    // Otherwise, a 'reference id not found' error may occur.
+    if (
+      conf.getBoolean(GlutenConfig.COLUMNAR_VELOX_CACHE_ENABLED.key, false) && !conf.getBoolean(
+        GlutenConfig.COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.key,
+        false)
+    ) {
+      throw new IllegalArgumentException(s"${GlutenConfig.COLUMNAR_VELOX_CACHE_ENABLED.key} and " +
+        s"${GlutenConfig.COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.key} should be enabled together.")
+    }
   }
 }
 

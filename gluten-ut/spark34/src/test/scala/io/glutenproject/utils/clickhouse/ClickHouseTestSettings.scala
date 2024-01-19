@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector._
 import org.apache.spark.sql.errors._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.GlutenAdaptiveQueryExecSuite
+import org.apache.spark.sql.execution.adaptive.clickhouse.ClickHouseAdaptiveQueryExecSuite
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.binaryfile.GlutenBinaryFileFormatSuite
 import org.apache.spark.sql.execution.datasources.exchange._
@@ -304,6 +304,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("unix_timestamp")
     .exclude("to_unix_timestamp")
     .exclude("to_timestamp")
+    .exclude(GLUTEN_TEST + "to_timestamp")
     .exclude("to_timestamp with microseconds precision")
     .exclude("SPARK-30668: use legacy timestamp parser in to_timestamp")
     .exclude("SPARK-30766: date_trunc of old timestamps to hours and days")
@@ -939,7 +940,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenTakeOrderedAndProjectSuite]
     .exclude("TakeOrderedAndProject.doExecute without project")
     .exclude("TakeOrderedAndProject.doExecute with project")
-  enableSuite[GlutenAdaptiveQueryExecSuite]
+  enableSuite[ClickHouseAdaptiveQueryExecSuite]
     .exclude("Change merge join to broadcast join")
     .exclude("Reuse the parallelism of coalesced shuffle in local shuffle read")
     .exclude("Reuse the default parallelism in local shuffle read")

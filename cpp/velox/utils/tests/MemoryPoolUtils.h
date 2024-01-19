@@ -18,7 +18,7 @@
 #pragma once
 
 #include <arrow/memory_pool.h>
-#include "memory/Evictable.h"
+#include "memory/Reclaimable.h"
 #include "utils/exception.h"
 #include "velox/common/base/Exceptions.h"
 
@@ -67,7 +67,7 @@ class SelfEvictedMemoryPool : public arrow::MemoryPool {
 
   int64_t capacity() const;
 
-  void setEvictable(Evictable* evictable);
+  void setEvictable(Reclaimable* evictable);
 
   arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override;
 
@@ -86,12 +86,12 @@ class SelfEvictedMemoryPool : public arrow::MemoryPool {
   int64_t num_allocations() const override;
 
  private:
-  arrow::Status evict(int64_t size);
+  arrow::Status ensureCapacity(int64_t size);
 
   arrow::MemoryPool* pool_;
   bool failIfOOM_;
 
-  Evictable* evictable_;
+  Reclaimable* evictable_;
   int64_t capacity_{std::numeric_limits<int64_t>::max()};
 
   int64_t bytesEvicted_{0};

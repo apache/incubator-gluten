@@ -14,23 +14,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.sql.execution
 
-#pragma once
+import org.apache.spark.internal.io.FileCommitProtocol
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.execution.datasources.{FileFormatWriter, WriteJobDescription, WriteTaskResult}
 
-#include <arrow/type.h>
-
-namespace gluten {
-
-using BinaryArrayLengthBufferType = uint32_t;
-using IpcOffsetBufferType = arrow::LargeStringType::offset_type;
-
-static const size_t kSizeOfBinaryArrayLengthBuffer = sizeof(BinaryArrayLengthBufferType);
-static const size_t kSizeOfIpcOffsetBuffer = sizeof(IpcOffsetBufferType);
-
-int64_t getBuffersSize(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers);
-
-int64_t getMaxCompressedBufferSize(
-    const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    arrow::util::Codec* codec);
-
-} // namespace gluten
+object GlutenFileFormatWriter {
+  def writeFilesExecuteTask(
+      description: WriteJobDescription,
+      jobTrackerID: String,
+      sparkStageId: Int,
+      sparkPartitionId: Int,
+      sparkAttemptNumber: Int,
+      committer: FileCommitProtocol,
+      iterator: Iterator[InternalRow]): WriteTaskResult = {
+    FileFormatWriter.executeTask(
+      description,
+      jobTrackerID,
+      sparkStageId,
+      sparkPartitionId,
+      sparkAttemptNumber,
+      committer,
+      iterator,
+      None
+    )
+  }
+}

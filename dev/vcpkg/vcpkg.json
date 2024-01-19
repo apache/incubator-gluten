@@ -88,7 +88,8 @@
     "velox-abfs": {
       "description": "Velox ABFS Support",
       "dependencies": [
-        "azure-storage-blobs-cpp"
+        "azure-storage-blobs-cpp",
+        "azure-storage-files-datalake-cpp"
       ]
     },
     "hbm": {

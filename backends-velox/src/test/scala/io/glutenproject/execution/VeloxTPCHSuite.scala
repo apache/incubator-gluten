@@ -243,6 +243,11 @@ class VeloxTPCHV2BhjSuite extends VeloxTPCHSuite {
 }
 
 class VeloxPartitionedTableTPCHSuite extends VeloxTPCHSuite {
+
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf.set("spark.memory.offHeap.size", "4g")
+  }
+
   override protected def createTPCHNotNullTables(): Unit = {
     TPCHTableDataFrames = TPCHTables.map {
       table =>

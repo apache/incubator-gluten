@@ -33,14 +33,11 @@ class LocalRssClient : public RssClient {
   int32_t pushPartitionData(int32_t partitionId, char* bytes, int64_t size) {
     auto idx = -1;
     auto maybeIdx = partitionIdx_.find(partitionId);
-    auto returnSize = size;
     if (maybeIdx == partitionIdx_.end()) {
       idx = partitionIdx_.size();
       partitionIdx_[partitionId] = idx;
       auto buffer = arrow::AllocateResizableBuffer(0).ValueOrDie();
       partitionBuffers_.push_back(std::move(buffer));
-      // Add EOS length.
-      returnSize += sizeof(int32_t) * 2;
     } else {
       idx = maybeIdx->second;
     }
@@ -52,18 +49,16 @@ class LocalRssClient : public RssClient {
     }
     memcpy(buffer->mutable_data() + buffer->size(), bytes, size);
     GLUTEN_THROW_NOT_OK(buffer->Resize(newSize));
-    return returnSize;
+    return size;
   }
 
   void stop() {
     std::shared_ptr<arrow::io::FileOutputStream> fout;
     GLUTEN_ASSIGN_OR_THROW(fout, arrow::io::FileOutputStream::Open(dataFile_));
 
-    int64_t bytes; // unused
     for (auto item : partitionIdx_) {
       auto idx = item.second;
       GLUTEN_THROW_NOT_OK(fout->Write(partitionBuffers_[idx]->data(), partitionBuffers_[idx]->size()));
-      GLUTEN_THROW_NOT_OK(writeEos(fout.get(), &bytes));
       GLUTEN_THROW_NOT_OK(fout->Flush());
     }
     GLUTEN_THROW_NOT_OK(fout->Close());

@@ -15,38 +15,34 @@
  * limitations under the License.
  */
 
-#include "ShuffleWriter.h"
+#include <arrow/memory_pool.h>
 
-#include <arrow/result.h>
-
-#include "ShuffleSchema.h"
-#include "utils/macros.h"
-
-#include "PartitionWriterCreator.h"
+#pragma once
 
 namespace gluten {
+class ShuffleMemoryPool : public arrow::MemoryPool {
+ public:
+  ShuffleMemoryPool(arrow::MemoryPool* pool);
 
-#ifndef SPLIT_BUFFER_SIZE
-// by default, allocate 8M block, 2M page size
-#define SPLIT_BUFFER_SIZE 16 * 1024 * 1024
-#endif
+  arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override;
 
-std::shared_ptr<arrow::Schema> ShuffleWriter::writeSchema() {
-  if (writeSchema_ != nullptr) {
-    return writeSchema_;
-  }
+  arrow::Status Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) override;
 
-  writeSchema_ = toWriteSchema(*schema_);
-  return writeSchema_;
-}
+  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override;
 
-std::shared_ptr<arrow::Schema> ShuffleWriter::compressWriteSchema() {
-  if (compressWriteSchema_ != nullptr) {
-    return compressWriteSchema_;
-  }
+  int64_t bytes_allocated() const override;
 
-  compressWriteSchema_ = toCompressWriteSchema(*schema_);
-  return compressWriteSchema_;
-}
+  int64_t max_memory() const override;
 
+  std::string backend_name() const override;
+
+  int64_t total_bytes_allocated() const override;
+
+  int64_t num_allocations() const override;
+
+ private:
+  arrow::MemoryPool* pool_;
+  uint64_t bytesAllocated_ = 0;
+  uint64_t peakBytesAllocated_ = 0;
+};
 } // namespace gluten

@@ -23,8 +23,8 @@ namespace gluten {
 arrow::Status gluten::FallbackRangePartitioner::compute(
     const int32_t* pidArr,
     const int64_t numRows,
-    std::vector<uint16_t>& row2Partition,
-    std::vector<uint32_t>& partition2RowCount) {
+    std::vector<uint32_t>& row2Partition,
+    std::vector<uint16_t>& partition2RowCount) {
   row2Partition.resize(numRows);
   std::fill(std::begin(partition2RowCount), std::end(partition2RowCount), 0);
   for (auto i = 0; i < numRows; ++i) {

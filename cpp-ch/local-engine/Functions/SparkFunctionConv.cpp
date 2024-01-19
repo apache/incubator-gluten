@@ -176,7 +176,7 @@ static char * ll2str(int64_t val, char * dst, int radix, bool upcase)
 DB::ColumnPtr SparkFunctionConv::executeImpl(
     const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr & result_type, size_t input_rows_count) const
 {
-    using longlong = DB::Int64;
+    using longlong = Int64;
     auto from_base = static_cast<int>(arguments[1].column->getInt(0));
     auto to_base = static_cast<int>(arguments[2].column->getInt(0));
 

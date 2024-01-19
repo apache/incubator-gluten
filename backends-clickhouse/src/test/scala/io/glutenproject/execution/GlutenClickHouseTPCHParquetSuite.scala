@@ -2056,6 +2056,16 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("GLUTEN-3149: Fix convert exception of Inf to int") {
+    val tbl_create_sql = "create table test_tbl_3149(a int, b int) using parquet";
+    val tbl_insert_sql = "insert into test_tbl_3149 values(1, 0)"
+    val select_sql = "select cast(a * 1.0f/b as int) as x from test_tbl_3149 where a = 1"
+    spark.sql(tbl_create_sql)
+    spark.sql(tbl_insert_sql);
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    spark.sql("drop table test_tbl_3149")
+  }
+
   test("test in-filter contains null value (bigint)") {
     val sql = "select s_nationkey from supplier where s_nationkey in (null, 1, 2)"
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
@@ -2203,6 +2213,64 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
           |on t1.l_orderkey = t2.o_orderkey
           | and l_year in (1997, 1995, 1993)
           |order by t1.l_orderkey, t1.l_year, t2.o_orderkey, t2.o_year
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
+  }
+
+  test("GLUTEN-4376: Fix parse exception when parsing post_join_filter in JoinRelParser") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+      val sql =
+        """
+          |SELECT
+          |  n_nationkey,
+          |  u_type
+          |FROM
+          |  (
+          |    SELECT
+          |      t1.n_nationkey,
+          |      CASE
+          |        WHEN t3.n_regionkey = 0 AND t2.n_name IS NULL THEN '0'
+          |        WHEN t3.n_regionkey = 1 AND t2.n_name IS NULL THEN '1'
+          |        ELSE 'other'
+          |      END u_type
+          |    FROM
+          |      nation t1
+          |      LEFT JOIN (
+          |        SELECT
+          |          n_nationkey,
+          |          n_regionkey,
+          |          n_name
+          |        FROM
+          |          nation
+          |        WHERE
+          |          n_regionkey IS NOT NULL
+          |      ) t2 ON t1.n_nationkey = t2.n_nationkey
+          |      JOIN (
+          |        SELECT
+          |          n_nationkey,
+          |          MAX(IF(n_regionkey > 0, 1, 0)) AS n_regionkey
+          |        FROM
+          |          (
+          |            SELECT
+          |              n_nationkey,
+          |              n_name,
+          |              SUM(n_regionkey) AS n_regionkey
+          |            FROM
+          |              nation
+          |            GROUP BY
+          |              n_nationkey,
+          |              n_name
+          |          ) t
+          |        GROUP BY
+          |          n_nationkey
+          |      ) t3 ON t1.n_nationkey = t3.n_nationkey
+          |  )
+          |WHERE
+          |  u_type IN ('0', '1')
+          |ORDER BY
+          |  n_nationkey,
+          |  u_type
           |""".stripMargin
       compareResultsAgainstVanillaSpark(sql, true, { _ => })
     }

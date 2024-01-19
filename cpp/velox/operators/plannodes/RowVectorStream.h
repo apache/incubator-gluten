@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include <velox/common/memory/MemoryPool.h>
 #include "compute/ResultIterator.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "velox/exec/Driver.h"
@@ -30,7 +29,7 @@ class RowVectorStream {
       facebook::velox::memory::MemoryPool* pool,
       std::shared_ptr<ResultIterator> iterator,
       const facebook::velox::RowTypePtr& outputType)
-      : iterator_(iterator), outputType_(outputType), pool_(pool) {}
+      : iterator_(std::move(iterator)), outputType_(outputType), pool_(pool) {}
 
   bool hasNext() {
     return iterator_->hasNext();

@@ -168,7 +168,7 @@ case class ColumnarShuffleExchangeExec(
 object ColumnarShuffleExchangeExec extends Logging {
 
   def apply(
-      plan: ShuffleExchangeLike,
+      plan: ShuffleExchangeExec,
       child: SparkPlan,
       shuffleOutputAttributes: Seq[Attribute]): ColumnarShuffleExchangeExec = {
     ColumnarShuffleExchangeExec(

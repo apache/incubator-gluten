@@ -26,16 +26,24 @@ then
   exit 1
 fi
 
-export EXTRA_DOCKER_OPTIONS="$EXTRA_DOCKER_OPTIONS --name gha-checkout-$GITHUB_RUN_ID --detach -v $BASEDIR/scripts:/opt/scripts"
+if [ -z "$GITHUB_JOB" ]
+then
+  echo "Unable to parse GITHUB_JOB."
+  exit 1
+fi
+
+if [ -z "$GITHUB_SHA" ]
+then
+  echo "Unable to parse GITHUB_SHA."
+  exit 1
+fi
+
+export EXTRA_DOCKER_OPTIONS="$EXTRA_DOCKER_OPTIONS --name gha-checkout-$GITHUB_JOB-$GITHUB_RUN_ID --detach -v $BASEDIR/scripts:/opt/scripts"
 export NON_INTERACTIVE=ON
 
 $BASEDIR/../../cbash-build.sh 'sleep 14400'
 
 # The target branches
 TARGET_GLUTEN_REPO=${TARGET_GLUTEN_REPO:-$DEFAULT_GLUTEN_REPO}
-FALLBACK_GLUTEN_BRANCH=${FALLBACK_GLUTEN_BRANCH:-$DEFAULT_GLUTEN_BRANCH}
-FALLBACK_GLUTEN_COMMIT="$(git ls-remote $TARGET_GLUTEN_REPO $FALLBACK_GLUTEN_BRANCH | awk '{print $1;}')"
 
-TARGET_GLUTEN_COMMIT="${GITHUB_SHA:-$FALLBACK_GLUTEN_COMMIT}"
-
-$BASEDIR/exec.sh "/opt/scripts/init.sh $TARGET_GLUTEN_REPO $TARGET_GLUTEN_COMMIT"
+$BASEDIR/exec.sh "/opt/scripts/init.sh $TARGET_GLUTEN_REPO $GITHUB_SHA"

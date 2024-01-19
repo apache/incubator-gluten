@@ -14,7 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.metrics
 
-#include "PartitionWriterCreator.h"
+import org.apache.spark.sql.execution.metric.SQLMetric
 
-namespace gluten {} // namespace gluten
+class WriteFilesMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
+
+  override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
+    if (opMetrics != null) {
+      val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
+      metrics("physicalWrittenBytes") += operatorMetrics.physicalWrittenBytes
+      metrics("numWrittenFiles") += operatorMetrics.numWrittenFiles
+    }
+  }
+}

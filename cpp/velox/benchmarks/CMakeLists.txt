@@ -25,9 +25,6 @@ function(add_velox_benchmark BM_EXEC BM_FILE)
   target_link_libraries(${BM_EXEC} PRIVATE velox_benchmark_common)
 endfunction()
 
-# Query benchmark
-add_velox_benchmark(query_benchmark QueryBenchmark.cc)
-
 # Generic benchmark
 add_velox_benchmark(generic_benchmark GenericBenchmark.cc)
 

@@ -28,9 +28,22 @@
 
 namespace gluten {
 
+class DeserializerFactory {
+ public:
+  virtual ~DeserializerFactory() = default;
+
+  virtual std::unique_ptr<ColumnarBatchIterator> createDeserializer(std::shared_ptr<arrow::io::InputStream> in) = 0;
+
+  virtual arrow::MemoryPool* getPool() = 0;
+
+  virtual int64_t getDecompressTime() = 0;
+
+  virtual int64_t getDeserializeTime() = 0;
+};
+
 class ShuffleReader {
  public:
-  explicit ShuffleReader(std::shared_ptr<arrow::Schema> schema, ShuffleReaderOptions options, arrow::MemoryPool* pool);
+  explicit ShuffleReader(std::unique_ptr<DeserializerFactory> factory);
 
   virtual ~ShuffleReader() = default;
 
@@ -39,17 +52,11 @@ class ShuffleReader {
 
   arrow::Status close();
 
-  int64_t getDecompressTime() const {
-    return decompressTime_;
-  }
+  int64_t getDecompressTime() const;
 
-  int64_t getIpcTime() const {
-    return ipcTime_;
-  }
+  int64_t getIpcTime() const;
 
-  int64_t getDeserializeTime() const {
-    return deserializeTime_;
-  }
+  int64_t getDeserializeTime() const;
 
   arrow::MemoryPool* getPool() const;
 
@@ -63,6 +70,7 @@ class ShuffleReader {
 
  private:
   std::shared_ptr<arrow::Schema> schema_;
+  std::unique_ptr<DeserializerFactory> factory_;
 };
 
 } // namespace gluten

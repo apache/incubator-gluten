@@ -28,6 +28,7 @@
 #include "shuffle/VeloxShuffleReader.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "utils/ConfigExtractor.h"
+#include "utils/VeloxArrowUtils.h"
 
 using namespace facebook;
 
@@ -48,6 +49,21 @@ void VeloxRuntime::parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo ta
   }
 
   GLUTEN_CHECK(parseProtobuf(data, size, &substraitPlan_) == true, "Parse substrait plan failed");
+}
+
+void VeloxRuntime::parseSplitInfo(const uint8_t* data, int32_t size) {
+  if (debugModeEnabled(confMap_)) {
+    try {
+      auto jsonPlan = substraitFromPbToJson("ReadRel.LocalFiles", data, size);
+      LOG(INFO) << std::string(50, '#') << " received substrait::ReadRel.LocalFiles:";
+      LOG(INFO) << std::endl << jsonPlan;
+    } catch (const std::exception& e) {
+      LOG(WARNING) << "Error converting Substrait plan to JSON: " << e.what();
+    }
+  }
+  ::substrait::ReadRel_LocalFiles localFile;
+  GLUTEN_CHECK(parseProtobuf(data, size, &localFile) == true, "Parse substrait plan failed");
+  localFiles_.push_back(localFile);
 }
 
 void VeloxRuntime::getInfoAndIds(
@@ -75,7 +91,7 @@ std::string VeloxRuntime::planString(bool details, const std::unordered_map<std:
   std::vector<std::shared_ptr<ResultIterator>> inputs;
   auto veloxMemoryPool = gluten::defaultLeafVeloxMemoryPool();
   VeloxPlanConverter veloxPlanConverter(inputs, veloxMemoryPool.get(), sessionConf, std::nullopt, true);
-  auto veloxPlan = veloxPlanConverter.toVeloxPlan(substraitPlan_);
+  auto veloxPlan = veloxPlanConverter.toVeloxPlan(substraitPlan_, localFiles_);
   return veloxPlan->toString(details, true);
 }
 
@@ -94,7 +110,7 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
 
   VeloxPlanConverter veloxPlanConverter(
       inputs, getLeafVeloxPool(memoryManager).get(), sessionConf, writeFilesTempPath_);
-  veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_);
+  veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_, std::move(localFiles_));
 
   // Scan node can be required.
   std::vector<std::shared_ptr<SplitInfo>> scanInfos;
@@ -152,13 +168,14 @@ std::shared_ptr<RowToColumnarConverter> VeloxRuntime::createRow2ColumnarConverte
 
 std::shared_ptr<ShuffleWriter> VeloxRuntime::createShuffleWriter(
     int numPartitions,
-    std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
-    const ShuffleWriterOptions& options,
+    std::unique_ptr<PartitionWriter> partitionWriter,
+    ShuffleWriterOptions options,
     MemoryManager* memoryManager) {
   auto ctxPool = getLeafVeloxPool(memoryManager);
+  auto arrowPool = memoryManager->getArrowMemoryPool();
   GLUTEN_ASSIGN_OR_THROW(
       auto shuffle_writer,
-      VeloxShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options), ctxPool));
+      VeloxShuffleWriter::create(numPartitions, std::move(partitionWriter), std::move(options), ctxPool, arrowPool));
   return shuffle_writer;
 }
 
@@ -181,8 +198,12 @@ std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
     ShuffleReaderOptions options,
     arrow::MemoryPool* pool,
     MemoryManager* memoryManager) {
+  auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
+  auto codec = gluten::createArrowIpcCodec(options.compressionType, options.codecBackend);
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
-  return std::make_shared<VeloxShuffleReader>(schema, options, pool, ctxVeloxPool);
+  auto deserializerFactory = std::make_unique<gluten::VeloxColumnarBatchDeserializerFactory>(
+      schema, std::move(codec), rowType, options.batchSize, pool, ctxVeloxPool);
+  return std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
 }
 
 std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerializer(

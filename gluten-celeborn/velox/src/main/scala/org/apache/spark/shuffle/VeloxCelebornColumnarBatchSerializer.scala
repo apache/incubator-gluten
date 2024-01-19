@@ -21,7 +21,7 @@ import io.glutenproject.exec.Runtimes
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.ArrowAbiUtil
-import io.glutenproject.vectorized.{ColumnarBatchOutIterator, GeneralOutIterator, JniByteInputStream, JniByteInputStreams, ShuffleReaderJniWrapper}
+import io.glutenproject.vectorized._
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
@@ -31,7 +31,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkSchemaUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.TaskResources
+import org.apache.spark.util.{TaskResource, TaskResources}
 
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.BufferAllocator
@@ -39,6 +39,8 @@ import org.apache.celeborn.client.read.CelebornInputStream
 
 import java.io._
 import java.nio.ByteBuffer
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.reflect.ClassTag
 
@@ -62,15 +64,15 @@ private class CelebornColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
-  private lazy val nmm = NativeMemoryManagers.contextInstance("ShuffleReader")
+  private val nmm = NativeMemoryManagers.contextInstance("ShuffleReader")
 
-  private lazy val shuffleReaderHandle = {
+  private val shuffleReaderHandle = {
     val allocator: BufferAllocator = ArrowBufferAllocators
-      .contextInstance()
+      .contextInstance(classOf[CelebornColumnarBatchSerializerInstance].getSimpleName)
       .newChildAllocator("GlutenColumnarBatch deserialize", 0, Long.MaxValue)
     val arrowSchema =
       SparkSchemaUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
-    val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
+    val cSchema = ArrowSchema.allocateNew(allocator)
     ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
     val conf = SparkEnv.get.conf
     val compressionCodec =
@@ -81,141 +83,170 @@ private class CelebornColumnarBatchSerializerInstance(
       }
     val compressionCodecBackend =
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
-    val handle = ShuffleReaderJniWrapper
-      .create()
+    val jniWrapper = ShuffleReaderJniWrapper.create()
+    val batchSize = GlutenConfig.getConf.maxBatchSize
+    val handle = jniWrapper
       .make(
         cSchema.memoryAddress(),
         nmm.getNativeInstanceHandle,
         compressionCodec,
-        compressionCodecBackend
+        compressionCodecBackend,
+        batchSize
       )
     // Close shuffle reader instance as lately as the end of task processing,
     // since the native reader could hold a reference to memory pool that
     // was used to create all buffers read from shuffle reader. The pool
     // should keep alive before all buffers to finish consuming.
     TaskResources.addRecycler(s"CelebornShuffleReaderHandle_$handle", 50) {
+      jniWrapper.close(handle)
+      cSchema.release()
       cSchema.close()
-      ShuffleReaderJniWrapper.create().close(handle)
       allocator.close()
     }
     handle
   }
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
-    new DeserializationStream {
-      private lazy val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
-      private lazy val wrappedOut: GeneralOutIterator = new ColumnarBatchOutIterator(
-        Runtimes.contextInstance(),
-        ShuffleReaderJniWrapper
-          .create()
-          .readStream(shuffleReaderHandle, byteIn),
-        nmm)
+    new TaskDeserializationStream(in)
+  }
 
-      private var cb: ColumnarBatch = _
+  private class TaskDeserializationStream(in: InputStream)
+    extends DeserializationStream
+    with TaskResource {
+    private val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
+    private val wrappedOut: GeneralOutIterator = new ColumnarBatchOutIterator(
+      Runtimes.contextInstance(),
+      ShuffleReaderJniWrapper
+        .create()
+        .readStream(shuffleReaderHandle, byteIn),
+      nmm)
 
-      private var numBatchesTotal: Long = _
-      private var numRowsTotal: Long = _
+    private var cb: ColumnarBatch = _
 
-      private var isClosed: Boolean = false
+    private var numBatchesTotal: Long = _
+    private var numRowsTotal: Long = _
 
-      private val isEmptyStream: Boolean = in.equals(CelebornInputStream.empty())
+    private val isEmptyStream: Boolean = in.equals(CelebornInputStream.empty())
 
-      override def asKeyValueIterator: Iterator[(Any, Any)] = new Iterator[(Any, Any)] {
-        private var gotNext = false
-        private var nextValue: (Any, Any) = _
-        private var finished = false
+    // Otherwise calling close() twice would cause resource ID not found error.
+    private val closeCalled: AtomicBoolean = new AtomicBoolean(false)
 
-        def getNext: (Any, Any) = {
-          try {
-            (readKey[Any](), readValue[Any]())
-          } catch {
-            case eof: EOFException =>
-              finished = true
-              null
-          }
-        }
+    // Otherwise calling release() twice would cause #close0() to be called twice.
+    private val releaseCalled: AtomicBoolean = new AtomicBoolean(false)
 
-        override def hasNext: Boolean = {
-          if (!isEmptyStream && !finished) {
-            if (!gotNext) {
-              nextValue = getNext
-              gotNext = true
-            }
-          }
-          !isEmptyStream && !finished
-        }
+    private val resourceId = UUID.randomUUID().toString
 
-        override def next(): (Any, Any) = {
-          if (!hasNext) {
-            throw new NoSuchElementException("End of stream")
-          }
-          gotNext = false
-          nextValue
+    TaskResources.addResource(resourceId, this)
+
+    override def asKeyValueIterator: Iterator[(Any, Any)] = new Iterator[(Any, Any)] {
+      private var gotNext = false
+      private var nextValue: (Any, Any) = _
+      private var finished = false
+
+      def getNext: (Any, Any) = {
+        try {
+          (readKey[Any](), readValue[Any]())
+        } catch {
+          case eof: EOFException =>
+            finished = true
+            null
         }
       }
 
-      override def asIterator: Iterator[Any] = {
-        // This method is never called by shuffle code.
-        throw new UnsupportedOperationException
-      }
-
-      override def readKey[T: ClassTag](): T = {
-        // We skipped serialization of the key in writeKey(), so just return a dummy value since
-        // this is going to be discarded anyways.
-        null.asInstanceOf[T]
-      }
-
-      @throws(classOf[EOFException])
-      override def readValue[T: ClassTag](): T = {
-        if (cb != null) {
-          cb.close()
-          cb = null
-        }
-        val batch = {
-          val maybeBatch =
-            try {
-              wrappedOut.next()
-            } catch {
-              case ioe: IOException =>
-                this.close()
-                logError("Failed to load next RecordBatch", ioe)
-                throw ioe
-            }
-          if (maybeBatch == null) {
-            // EOF reached
-            this.close()
-            throw new EOFException
+      override def hasNext: Boolean = {
+        if (!isEmptyStream && !finished) {
+          if (!gotNext) {
+            nextValue = getNext
+            gotNext = true
           }
-          maybeBatch
         }
-        val numRows = batch.numRows()
-        logDebug(s"Read ColumnarBatch of $numRows rows")
-        numBatchesTotal += 1
-        numRowsTotal += numRows
-        cb = batch
-        cb.asInstanceOf[T]
+        !isEmptyStream && !finished
       }
 
-      override def readObject[T: ClassTag](): T = {
-        // This method is never called by shuffle code.
-        throw new UnsupportedOperationException
-      }
-
-      override def close(): Unit = {
-        if (!isClosed) {
-          if (numBatchesTotal > 0) {
-            readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
-          }
-          numOutputRows += numRowsTotal
-          wrappedOut.close()
-          byteIn.close()
-          if (cb != null) {
-            cb.close()
-          }
-          isClosed = true
+      override def next(): (Any, Any) = {
+        if (!hasNext) {
+          throw new NoSuchElementException("End of stream")
         }
+        gotNext = false
+        nextValue
       }
     }
+
+    override def asIterator: Iterator[Any] = {
+      // This method is never called by shuffle code.
+      throw new UnsupportedOperationException
+    }
+
+    override def readKey[T: ClassTag](): T = {
+      // We skipped serialization of the key in writeKey(), so just return a dummy value since
+      // this is going to be discarded anyways.
+      null.asInstanceOf[T]
+    }
+
+    @throws(classOf[EOFException])
+    override def readValue[T: ClassTag](): T = {
+      if (cb != null) {
+        cb.close()
+        cb = null
+      }
+      val batch = {
+        val maybeBatch =
+          try {
+            wrappedOut.next()
+          } catch {
+            case ioe: IOException =>
+              this.close()
+              logError("Failed to load next RecordBatch", ioe)
+              throw ioe
+          }
+        if (maybeBatch == null) {
+          // EOF reached
+          this.close()
+          throw new EOFException
+        }
+        maybeBatch
+      }
+      val numRows = batch.numRows()
+      logDebug(s"Read ColumnarBatch of $numRows rows")
+      numBatchesTotal += 1
+      numRowsTotal += numRows
+      cb = batch
+      cb.asInstanceOf[T]
+    }
+
+    override def readObject[T: ClassTag](): T = {
+      // This method is never called by shuffle code.
+      throw new UnsupportedOperationException
+    }
+
+    override def close(): Unit = {
+      if (!closeCalled.compareAndSet(false, true)) {
+        return
+      }
+      // Would remove the resource object from registry to lower GC pressure.
+      TaskResources.releaseResource(resourceId)
+    }
+
+    override def release(): Unit = {
+      if (!releaseCalled.compareAndSet(false, true)) {
+        return
+      }
+      close0()
+    }
+
+    private def close0(): Unit = {
+      if (numBatchesTotal > 0) {
+        readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
+      }
+      numOutputRows += numRowsTotal
+      wrappedOut.close()
+      byteIn.close()
+      if (cb != null) {
+        cb.close()
+      }
+    }
+
+    override def resourceName(): String = getClass.getName
   }
 
   // Columnar shuffle write process don't need this.

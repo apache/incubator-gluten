@@ -38,7 +38,7 @@
 
 DECLARE_bool(print_result);
 DECLARE_string(write_file);
-DECLARE_string(batch_size);
+DECLARE_int64(batch_size);
 DECLARE_int32(cpu);
 DECLARE_int32(threads);
 DECLARE_int32(iterations);
@@ -72,7 +72,7 @@ inline std::string getGeneratedFilePath(const std::string& fileName) {
 }
 
 /// Read binary data from a json file.
-std::string getPlanFromFile(const std::string& filePath);
+std::string getPlanFromFile(const std::string& type, const std::string& filePath);
 
 /// Get the file paths, starts, lengths from a directory.
 /// Use fileFormat to specify the format to read, eg., orc, parquet.
@@ -103,4 +103,7 @@ bool endsWith(const std::string& data, const std::string& suffix);
 
 void setCpu(uint32_t cpuindex);
 
-arrow::Status setLocalDirsAndDataFileFromEnv(gluten::ShuffleWriterOptions& options);
+arrow::Status
+setLocalDirsAndDataFileFromEnv(std::string& dataFile, std::vector<std::string>& localDirs, bool& isFromEnv);
+
+void cleanupShuffleOutput(const std::string& dataFile, const std::vector<std::string>& localDirs, bool isFromEnv);

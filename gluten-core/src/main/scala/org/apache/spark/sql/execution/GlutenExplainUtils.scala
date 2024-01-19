@@ -89,6 +89,7 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
         case _: ColumnarToRowTransition =>
         case _: RowToColumnarTransition =>
         case _: ReusedExchangeExec =>
+        case sub: AdaptiveSparkPlanExec if sub.isSubquery => collect(sub.executedPlan)
         case _: AdaptiveSparkPlanExec =>
         case p: QueryStageExec => collect(p.plan)
         case p: GlutenPlan =>
@@ -214,11 +215,16 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
           append("\n")
       }
 
-      if (collectFallbackFunc.isEmpty) {
-        collectFallbackNodes(plan)
-      } else {
-        collectFallbackFunc.get.apply(plan)
-      }
+      (subqueries.filter(!_._3.isInstanceOf[ReusedSubqueryExec]).map(_._3.child) :+ plan)
+        .map {
+          plan =>
+            if (collectFallbackFunc.isEmpty) {
+              collectFallbackNodes(plan)
+            } else {
+              collectFallbackFunc.get.apply(plan)
+            }
+        }
+        .reduce((a, b) => (a._1 + b._1, a._2 ++ b._2))
     } finally {
       removeTags(plan)
     }

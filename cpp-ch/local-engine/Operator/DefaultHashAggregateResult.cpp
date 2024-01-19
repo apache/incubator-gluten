@@ -135,7 +135,7 @@ public:
         return Status::NeedData;
     }    
 
-    DB::String getName() const override { return "DefaultHashAggrgateResultTransform"; }
+    String getName() const override { return "DefaultHashAggrgateResultTransform"; }
 private:
     DB::Block header;
     bool has_input = false;

@@ -14,18 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.tags;
 
-#pragma once
+import org.scalatest.TagAnnotation;
 
-#include <arrow/status.h>
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-namespace gluten {
-
-class Evictable {
- public:
-  virtual ~Evictable() = default;
-
-  virtual arrow::Status evictFixedSize(int64_t size, int64_t* actual) = 0;
-};
-
-} // namespace gluten
+@TagAnnotation
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.METHOD, ElementType.TYPE})
+public @interface FuzzerTest {}

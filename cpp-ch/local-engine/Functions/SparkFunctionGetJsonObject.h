@@ -160,7 +160,7 @@ public:
     static DB::FunctionPtr create(const DB::ContextPtr & context) { return std::make_shared<FlattenJSONStringOnRequiredFunction>(context); }
     explicit FlattenJSONStringOnRequiredFunction(DB::ContextPtr context_) : context(context_) { }
     ~FlattenJSONStringOnRequiredFunction() override = default;
-    DB::String getName() const override { return name; }
+    String getName() const override { return name; }
     size_t getNumberOfArguments() const override { return 2; }
     bool isVariadic() const override { return false; }
     bool isSuitableForShortCircuitArgumentsExecution(const DB::DataTypesWithConstInfo & /*arguments*/) const override { return false; }

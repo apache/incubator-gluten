@@ -65,12 +65,9 @@
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 
-#include <regex>
 #include "CHUtil.h"
 
 #include <sys/resource.h>
-
-#include <stdio.h>
 #include <unistd.h>
 
 namespace DB
