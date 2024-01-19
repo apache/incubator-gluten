@@ -80,8 +80,12 @@ object GlutenIcebergSourceUtil {
   }
 
   def getFileFormat(sparkScan: Scan): ReadFileFormat = sparkScan match {
-    case scan: SparkBatchQueryScan =>
-      val tasks = scan.tasks().asScala
+    case scan if scan.getClass.getSimpleName == "SparkBatchQueryScan" =>
+      val tasks = scan.getClass
+        .getMethod("tasks")
+        .invoke(scan)
+        .asInstanceOf[JArrayList[ScanTask]]
+        .asScala
       asFileScanTask(tasks.toList).foreach {
         task =>
           task.file().format() match {
@@ -96,8 +100,12 @@ object GlutenIcebergSourceUtil {
   }
 
   def getPartitionSchema(sparkScan: Scan): StructType = sparkScan match {
-    case scan: SparkBatchQueryScan =>
-      val tasks = scan.tasks().asScala
+    case scan if scan.getClass.getSimpleName == "SparkBatchQueryScan" =>
+      val tasks = scan.getClass
+        .getMethod("tasks")
+        .invoke(scan)
+        .asInstanceOf[JArrayList[ScanTask]]
+        .asScala
       asFileScanTask(tasks.toList).foreach {
         task =>
           val spec = task.spec()
