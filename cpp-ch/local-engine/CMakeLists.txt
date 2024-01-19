@@ -20,8 +20,6 @@ else()
     add_definitions(-DENABLE_MULTITARGET_CODE=0)
 endif()
 
-add_definitions(-DLLVM_DISABLE_ABI_BREAKING_CHECKS_ENFORCING=1)
-
 set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -w -ffunction-sections -fdata-sections")
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -ffunction-sections -fdata-sections")
 set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--no-export-dynamic -Wl,--gc-sections")
@@ -65,6 +63,7 @@ include_directories(
         ${CMAKE_CURRENT_BINARY_DIR}/proto
         ${THRIFT_INCLUDE_DIR}
         ${CMAKE_BINARY_DIR}/contrib/thrift-cmake
+        ${CMAKE_BINARY_DIR}/contrib/llvm-project/llvm/include
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${ClickHouse_SOURCE_DIR}/src
         ${ClickHouse_SOURCE_DIR}/base

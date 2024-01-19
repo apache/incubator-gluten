@@ -16,12 +16,49 @@
  */
 #include <Functions/SparkFunctionDivide.h>
 
+using namespace DB;
+
+namespace DB
+{
+namespace ErrorCodes
+{
+    extern const int LOGICAL_ERROR;
+}
+}
+
 namespace local_engine
 {
-
-REGISTER_FUNCTION(SparkFunctionDivide)
+template <typename A, typename B>
+struct SparkDivideFloatingImpl
 {
-    factory.registerFunction<SparkFunctionDivide>();
+    using ResultType = typename NumberTraits::ResultOfFloatingPointDivision<A, B>::Type;
+    static const constexpr bool allow_fixed_string = false;
+    static const constexpr bool allow_string_integer = false;
+
+    template <typename Result = ResultType>
+    static inline NO_SANITIZE_UNDEFINED Result apply(A a [[maybe_unused]], B b [[maybe_unused]])
+    {
+        return static_cast<Result>(a) / b;
+    }
+
+#if USE_EMBEDDED_COMPILER
+    static constexpr bool compilable = true;
+
+    static inline llvm::Value * compile(llvm::IRBuilder<> & b, llvm::Value * left, llvm::Value * right, bool)
+    {
+        if (left->getType()->isIntegerTy())
+            throw Exception(DB::ErrorCodes::LOGICAL_ERROR, "SparkDivideFloatingImpl expected a floating-point type");
+        return b.CreateFDiv(left, right);
+    }
+#endif
+};
+
+struct SparkNameDivide { static constexpr auto name = "sparkDivide"; };
+using SparkDivide = SparkBinaryArithmeticOverloadResolver<SparkDivideFloatingImpl, SparkNameDivide>;
+
+REGISTER_FUNCTION(SparkDivide)
+{
+    factory.registerFunction<SparkDivide>();
 }
 
 }
