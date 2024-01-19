@@ -113,11 +113,16 @@ object FlushableHashAggregateRule {
    * perform optimizations like doing "partial_count(a, b, c)" directly on the output data.
    */
   def isAggInputAlreadyDistributedWithAggKeys(agg: HashAggregateExecTransformer): Boolean = {
-    val distribution = if (agg.groupingExpressions.isEmpty) {
-      UnspecifiedDistribution
-    } else {
-      ClusteredDistribution(agg.groupingExpressions)
+    if (agg.groupingExpressions.isEmpty) {
+      // Empty grouping set () should not be satisfied by any partitioning patterns.
+      //   E.g.,
+      //   (a, b) satisfies (a, b, c)
+      //   (a, b) satisfies (a, b)
+      //   (a, b) doesn't satisfy (a)
+      //   (a, b) doesn't satisfy ()
+      return false
     }
+    val distribution = ClusteredDistribution(agg.groupingExpressions)
     agg.child.outputPartitioning.satisfies(distribution)
   }
 }
