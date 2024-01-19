@@ -45,14 +45,17 @@ case class ClickHouseBuildSideRelation(
       broadCastContext: BroadCastHashJoinContext): ClickHouseBuildSideRelation = this
 
   private var hashTableData: Long = 0L
+  private var hashTableName: String = ""
+
   def buildHashTable(
       broadCastContext: BroadCastHashJoinContext): (Long, ClickHouseBuildSideRelation) =
     synchronized {
-      if (hashTableData == 0) {
+      if (hashTableData == 0 || hashTableName != broadCastContext.buildHashTableId) {
         logDebug(
           s"BHJ value size: " +
             s"${broadCastContext.buildHashTableId} = ${batches.length}")
         // Build the hash table
+        hashTableName = broadCastContext.buildHashTableId
         hashTableData = StorageJoinBuilder.build(
           batches,
           numOfRows,
@@ -67,6 +70,7 @@ case class ClickHouseBuildSideRelation(
 
   def reset(): Unit = synchronized {
     hashTableData = 0
+    hashTableName = ""
   }
 
   /**
