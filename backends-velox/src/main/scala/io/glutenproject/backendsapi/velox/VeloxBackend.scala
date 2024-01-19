@@ -111,20 +111,21 @@ object BackendSettings extends BackendSettingsApi {
           val typeValidator: PartialFunction[StructField, String] = {
             case StructField(_, ByteType, _, _) => "ByteType not support"
             case StructField(_, arrayType: ArrayType, _, _)
-              if arrayType.elementType.isInstanceOf[StructType] =>
+                if arrayType.elementType.isInstanceOf[StructType] =>
               "StructType as element in ArrayType"
             case StructField(_, arrayType: ArrayType, _, _)
-              if arrayType.elementType.isInstanceOf[ArrayType] =>
+                if arrayType.elementType.isInstanceOf[ArrayType] =>
               "ArrayType as element in ArrayType"
-            case StructField(_, mapType: MapType, _, _) if mapType.keyType.isInstanceOf[StructType] =>
+            case StructField(_, mapType: MapType, _, _)
+                if mapType.keyType.isInstanceOf[StructType] =>
               "StructType as Key in MapType"
             case StructField(_, mapType: MapType, _, _)
-              if mapType.valueType.isInstanceOf[ArrayType] =>
+                if mapType.valueType.isInstanceOf[ArrayType] =>
               "ArrayType as Value in MapType"
             case StructField(_, stringType: StringType, _, metadata)
-              if CharVarcharUtils
-                .getRawTypeString(metadata)
-                .getOrElse(stringType.catalogString) != stringType.catalogString =>
+                if CharVarcharUtils
+                  .getRawTypeString(metadata)
+                  .getOrElse(stringType.catalogString) != stringType.catalogString =>
               CharVarcharUtils.getRawTypeString(metadata) + " not support"
             case StructField(_, TimestampType, _, _) => "TimestampType not support"
           }
