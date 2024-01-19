@@ -19,6 +19,7 @@ package io.glutenproject.execution
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
+import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.SubstraitContext
@@ -246,6 +247,17 @@ case class ProjectExecTransformer private (
 
   override protected def withNewChildInternal(newChild: SparkPlan): ProjectExecTransformer =
     copy(child = newChild)
+
+  def fallbackIfInvalid: SparkPlan = {
+    val validateResult = doValidate()
+    if (validateResult.isValid) {
+      this
+    } else {
+      val project = ProjectExec(projectList, child)
+      TransformHints.tagNotTransformable(project, validateResult)
+      project
+    }
+  }
 
   def isPostProject: Boolean = projectType == ProjectType.POST
   def isPreProject: Boolean = projectType == ProjectType.PRE

@@ -1153,6 +1153,6 @@ class GlutenClickHouseHiveTableSuite()
         |if(xxx1 in (39,40),6,
         |if(xxx1 in (38,47),xxx1,-1))))))) as string)
         """.stripMargin
-    runQueryAndCompare(querySql)(df => checkOperatorCount[ProjectExecTransformer](1)(df))
+    runQueryAndCompare(querySql)(df => checkOperatorCount[ProjectExecTransformer](3)(df))
   }
 }

@@ -607,7 +607,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       }
       runQueryAndCompare(
         "select id % 10, sum(id +100) + max(id+100) from range(100) group by id % 10") {
-        df => checkOperatorCount[ProjectExecTransformer](1)(df)
+        df => checkOperatorCount[ProjectExecTransformer](2)(df)
       }
 
       // CSE in sort

@@ -362,8 +362,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = {
-    super.genExtendedOptimizers() ::
-      List(spark => new CommonSubexpressionEliminateRule(spark, spark.sessionState.conf))
+    List(spark => new CommonSubexpressionEliminateRule(spark, spark.sessionState.conf))
   }
 
   /**

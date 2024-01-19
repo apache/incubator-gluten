@@ -244,7 +244,7 @@ trait SparkPlanExecApi {
    *
    * @return
    */
-  def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = Nil
+  def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]]
 
   /**
    * Generate extended Strategies

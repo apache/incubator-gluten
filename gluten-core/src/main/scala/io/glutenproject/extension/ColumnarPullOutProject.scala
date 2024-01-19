@@ -20,56 +20,22 @@ import io.glutenproject.execution._
 import io.glutenproject.utils.PullOutProjectHelper
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
-import org.apache.spark.sql.catalyst.expressions.aggregate.Partial
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateFunction, Partial}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.trees.TreeNodeTag
-import org.apache.spark.sql.execution.SparkPlan
-
-import scala.collection.mutable.ListBuffer
-
-trait ProjectProcessedHint
-case class PROJECT_PROCESSED() extends ProjectProcessedHint
-
-object ProjectProcessedHint {
-  val TAG: TreeNodeTag[ProjectProcessedHint] =
-    TreeNodeTag[ProjectProcessedHint]("io.glutenproject.projectprocessedhint")
-
-  def isAlreadyTagged(plan: SparkPlan): Boolean = {
-    plan.getTagValue(TAG).isDefined
-  }
-
-  def isPostProjectProcessed(plan: SparkPlan): Boolean = {
-    plan
-      .getTagValue(TAG)
-      .isDefined && plan.getTagValue(TAG).get.isInstanceOf[PROJECT_PROCESSED]
-  }
-
-  def postProjectProcessDone(plan: SparkPlan): Unit = {
-    tag(plan, PROJECT_PROCESSED())
-  }
-
-  private def tag(plan: SparkPlan, hint: ProjectProcessedHint): Unit = {
-    plan.setTagValue(TAG, hint)
-  }
-}
+import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 
 object ColumnarPullOutPostProject extends Rule[SparkPlan] with PullOutProjectHelper {
 
   override def apply(plan: SparkPlan): SparkPlan = plan.transform {
-    case agg: HashAggregateExecBaseTransformer
-        if !ProjectProcessedHint.isPostProjectProcessed(agg) &&
-          agg.needsPostProjection =>
+    case agg: HashAggregateExecBaseTransformer if agg.needsPostProjection =>
       val projectList = agg.resultExpressions.map {
         case ne: NamedExpression => ne
         case other => Alias(other, s"_post_${generatedNameIndex.getAndIncrement()}")()
       }
 
-      ProjectProcessedHint.postProjectProcessDone(agg)
       val newAgg = agg.copySelf(resultExpressions = agg.allAggregateResultAttributes)
-      newAgg.copyTagsFrom(agg)
 
-      ProjectExecTransformer(projectList, newAgg, projectType = ProjectType.POST)
+      ProjectExecTransformer(projectList, newAgg, projectType = ProjectType.POST).fallbackIfInvalid
   }
 }
 
@@ -124,7 +90,7 @@ object ColumnarPullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelp
         child = ProjectExecTransformer(
           agg.child.output ++ projectExprsMap.values.toSeq,
           agg.child,
-          ProjectType.PRE)
+          ProjectType.PRE).fallbackIfInvalid
       )
 
     case sort: SortExecTransformer if needsPreProject(sort) =>
@@ -142,42 +108,29 @@ object ColumnarPullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelp
         child = ProjectExecTransformer(
           sort.child.output ++ projectExprsMap.values.toSeq,
           sort.child,
-          projectType = ProjectType.PRE)
+          projectType = ProjectType.PRE).fallbackIfInvalid
       )
-      ProjectExecTransformer(sort.child.output, newSort, projectType = ProjectType.POST)
+
+      ProjectExecTransformer(
+        sort.child.output,
+        newSort,
+        projectType = ProjectType.POST).fallbackIfInvalid
   }
 }
 
 object ColumnarPullOutProject {
 
-  /**
-   * This function is used to generate the transformed plan during validation, and it can return the
-   * inserted pre-projection, post-projection, as well as the operator transformer. There are four
-   * different scenarios in total.
-   *   - post-projection -> transformer -> pre-projection
-   *   - post-projection -> transformer
-   *   - transformer -> pre-projection
-   *   - transformer
-   */
-  def getTransformedPlan(transformer: SparkPlan): Seq[SparkPlan] = {
+  /** This function is used to generate the transformed plan during validation. */
+  def getTransformedPlan(transformer: SparkPlan): SparkPlan = {
     val transformedPlan = ColumnarOverrides.applyExtendedColumnarPreRules(transformer)
-    val allPlan = ListBuffer[SparkPlan](transformedPlan)
-
-    def addPlanIfPreProject(plan: SparkPlan): Unit = plan match {
-      case pre: ProjectExecTransformer if pre.isPreProject =>
-        allPlan += pre
-      case _ =>
-    }
-
     transformedPlan match {
       case p: ProjectExecTransformer if p.isPostProject =>
-        val originPlan = p.child
-        allPlan += originPlan
-        originPlan.children.foreach(addPlanIfPreProject)
-      case p: SparkPlan =>
-        p.children.foreach(addPlanIfPreProject)
-      case _ =>
+        p.child
+      case p: ProjectExec =>
+        // Post-project fallback.
+        p.child
+      case other =>
+        other
     }
-    allPlan
   }
 }

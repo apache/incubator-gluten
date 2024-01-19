@@ -23,6 +23,7 @@ import io.glutenproject.utils.{LogicalPlanSelector, PullOutProjectHelper}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
+import org.apache.spark.sql.catalyst.optimizer.DecimalAggregates
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreePattern._
@@ -35,6 +36,10 @@ import org.apache.spark.sql.execution.aggregate.TypedAggregateExpression
 case class PullOutProject(session: SparkSession)
   extends Rule[LogicalPlan]
   with PullOutProjectHelper {
+
+  // Optimizers that need to be apply before PullOutProject, these optimizers may add expressions
+  // to logical plan.
+  private val extraOptimizers = Seq(DecimalAggregates)
 
   /**
    * Check if the input logical plan needs to add a pre-project. Different operators have different
@@ -111,7 +116,14 @@ case class PullOutProject(session: SparkSession)
       // Gluten not support Ansi Mode, not pull out pre-project
       return plan
     }
-    plan.transformUpWithPruning(_.containsAnyPattern(AGGREGATE, FILTER)) {
+    // Some Spark optimizers may add expressions that need to be pulled out in the logical plan.
+    // In such cases, it is necessary to first apply these optimizers before performing the
+    // pull-out.
+    val optimizedPlan = extraOptimizers.foldLeft(plan) {
+      case (latestPlan, rule) =>
+        rule.apply(latestPlan)
+    }
+    optimizedPlan.transformUpWithPruning(_.containsAnyPattern(AGGREGATE, FILTER)) {
       case filter: Filter
           if SparkShimLoader.getSparkShims.needsPreProjectForBloomFilterAgg(filter)(
             needsPreProject) =>
