@@ -21,7 +21,7 @@ import io.glutenproject.backendsapi.IteratorApi
 import io.glutenproject.execution._
 import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
-import io.glutenproject.substrait.rel.{LocalFilesBuilder, SplitInfo}
+import io.glutenproject.substrait.rel.{LocalFilesBuilder, LocalFilesNode, SplitInfo}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils._
 import io.glutenproject.vectorized._
@@ -46,16 +46,12 @@ import java.lang.{Long => JLong}
 import java.nio.charset.StandardCharsets
 import java.time.ZoneOffset
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap}
+import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
 
 class IteratorApiImpl extends IteratorApi with Logging {
 
-  /**
-   * Generate native row partition.
-   *
-   * @return
-   */
   override def genSplitInfo(
       partition: InputPartition,
       partitionSchema: StructType,
@@ -76,6 +72,24 @@ class IteratorApiImpl extends IteratorApi with Logging {
           preferredLocations.toList.asJava)
       case _ =>
         throw new UnsupportedOperationException(s"Unsupported input partition.")
+    }
+  }
+
+  /** Generate native row partition. */
+  override def genPartitions(
+      wsCtx: WholeStageTransformContext,
+      splitInfos: Seq[Seq[SplitInfo]]): Seq[BaseGlutenPartition] = {
+    // Only serialize plan once, save lots time when plan is complex.
+    val planByteArray = wsCtx.root.toProtobuf.toByteArray
+
+    splitInfos.zipWithIndex.map {
+      case (splitInfos, index) =>
+        GlutenPartition(
+          index,
+          planByteArray,
+          splitInfos.map(_.asInstanceOf[LocalFilesNode].toProtobuf.toByteArray).toArray,
+          splitInfos.flatMap(_.preferredLocations().asScala).toArray
+        )
     }
   }
 
@@ -124,11 +138,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
     transKernel.injectWriteFilesTempPath(path)
   }
 
-  /**
-   * Generate Iterator[ColumnarBatch] for first stage.
-   *
-   * @return
-   */
+  /** Generate Iterator[ColumnarBatch] for first stage. */
   override def genFirstStageIterator(
       inputPartition: BaseGlutenPartition,
       context: TaskContext,
@@ -136,13 +146,26 @@ class IteratorApiImpl extends IteratorApi with Logging {
       updateInputMetrics: (InputMetricsWrapper) => Unit,
       updateNativeMetrics: IMetrics => Unit,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
+    assert(
+      inputPartition.isInstanceOf[GlutenPartition],
+      "Velox backend only accept GlutenPartition.")
+
+    val beforeBuild = System.nanoTime()
     val columnarNativeIterators =
       new JArrayList[GeneralInIterator](inputIterators.map {
         iter => new ColumnarBatchInIterator(iter.asJava)
       }.asJava)
     val transKernel = NativePlanEvaluator.create()
+
+    val splitInfoByteArray = inputPartition
+      .asInstanceOf[GlutenPartition]
+      .splitInfosByteArray
     val resIter: GeneralOutIterator =
-      transKernel.createKernelWithBatchIterator(inputPartition.plan, columnarNativeIterators)
+      transKernel.createKernelWithBatchIterator(
+        inputPartition.plan,
+        splitInfoByteArray,
+        columnarNativeIterators)
+    pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
 
     Iterators
       .wrap(resIter.asScala)
@@ -160,11 +183,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
 
   // scalastyle:off argcount
 
-  /**
-   * Generate Iterator[ColumnarBatch] for final stage.
-   *
-   * @return
-   */
+  /** Generate Iterator[ColumnarBatch] for final stage. */
   override def genFinalStageIterator(
       context: TaskContext,
       inputIterators: Seq[Iterator[ColumnarBatch]],
@@ -186,7 +205,10 @@ class IteratorApiImpl extends IteratorApi with Logging {
     val nativeResultIterator =
       transKernel.createKernelWithBatchIterator(
         rootNode.toProtobuf.toByteArray,
-        columnarNativeIterator)
+        // Final iterator does not contain scan split, so pass empty split info to native here.
+        new Array[Array[Byte]](0),
+        columnarNativeIterator
+      )
 
     Iterators
       .wrap(nativeResultIterator.asScala)

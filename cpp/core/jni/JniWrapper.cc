@@ -368,6 +368,7 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
     jobject wrapper,
     jlong memoryManagerHandle,
     jbyteArray planArr,
+    jobjectArray splitInfosArr,
     jobjectArray iterArr,
     jint stageId,
     jint partitionId,
@@ -381,10 +382,17 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
 
   auto spillDirStr = jStringToCString(env, spillDir);
 
+  for (jsize i = 0, splitInfoArraySize = env->GetArrayLength(splitInfosArr); i < splitInfoArraySize; i++) {
+    jbyteArray splitInfoArray = static_cast<jbyteArray>(env->GetObjectArrayElement(splitInfosArr, i));
+    jsize splitInfoSize = env->GetArrayLength(splitInfoArray);
+    auto splitInfoData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(splitInfoArray, nullptr));
+    ctx->parseSplitInfo(splitInfoData, splitInfoSize);
+  }
+
   auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArr, nullptr));
   auto planSize = env->GetArrayLength(planArr);
-
   ctx->parsePlan(planData, planSize, {stageId, partitionId, taskId});
+
   auto& conf = ctx->getConfMap();
 
   // Handle the Java iters

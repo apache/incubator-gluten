@@ -127,6 +127,11 @@ class SubstraitToVeloxPlanValidator {
   /// Validate Substrait if-then expression.
   bool validateIfThen(const ::substrait::Expression_IfThen& ifThen, const RowTypePtr& inputType);
 
+  /// Validate Substrait IN expression.
+  bool validateSingularOrList(
+      const ::substrait::Expression::SingularOrList& singularOrList,
+      const RowTypePtr& inputType);
+
   /// Add necessary log for fallback
   void logValidateMsg(const std::string& log) {
     validateLog_.emplace_back(log);

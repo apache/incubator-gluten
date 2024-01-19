@@ -23,7 +23,7 @@ import org.apache.spark.sql.catalyst.expressions.{GlutenArithmeticExpressionSuit
 import org.apache.spark.sql.connector.{GlutenDataSourceV2DataFrameSessionCatalogSuite, GlutenDataSourceV2DataFrameSuite, GlutenDataSourceV2FunctionSuite, GlutenDataSourceV2SQLSessionCatalogSuite, GlutenDataSourceV2SQLSuiteV1Filter, GlutenDataSourceV2SQLSuiteV2Filter, GlutenDataSourceV2Suite, GlutenDeleteFromTableSuite, GlutenFileDataSourceV2FallBackSuite, GlutenKeyGroupedPartitioningSuite, GlutenLocalScanSuite, GlutenMetadataColumnSuite, GlutenSupportsCatalogOptionsSuite, GlutenTableCapabilityCheckSuite, GlutenWriteDistributionAndOrderingSuite}
 import org.apache.spark.sql.errors.{GlutenQueryCompilationErrorsDSv2Suite, GlutenQueryCompilationErrorsSuite, GlutenQueryExecutionErrorsSuite, GlutenQueryParsingErrorsSuite}
 import org.apache.spark.sql.execution.{FallbackStrategiesSuite, GlutenBroadcastExchangeSuite, GlutenCoalesceShufflePartitionsSuite, GlutenExchangeSuite, GlutenReplaceHashWithSortAggSuite, GlutenReuseExchangeAndSubquerySuite, GlutenSameResultSuite, GlutenSortSuite, GlutenSQLWindowFunctionSuite, GlutenTakeOrderedAndProjectSuite}
-import org.apache.spark.sql.execution.adaptive.GlutenAdaptiveQueryExecSuite
+import org.apache.spark.sql.execution.adaptive.velox.VeloxAdaptiveQueryExecSuite
 import org.apache.spark.sql.execution.datasources.{GlutenBucketingUtilsSuite, GlutenCSVReadSchemaSuite, GlutenDataSourceStrategySuite, GlutenDataSourceSuite, GlutenFileFormatWriterSuite, GlutenFileIndexSuite, GlutenFileMetadataStructSuite, GlutenFileSourceStrategySuite, GlutenHadoopFileLinesReaderSuite, GlutenHeaderCSVReadSchemaSuite, GlutenJsonReadSchemaSuite, GlutenMergedOrcReadSchemaSuite, GlutenMergedParquetReadSchemaSuite, GlutenOrcCodecSuite, GlutenOrcReadSchemaSuite, GlutenOrcV1AggregatePushDownSuite, GlutenOrcV2AggregatePushDownSuite, GlutenParquetCodecSuite, GlutenParquetReadSchemaSuite, GlutenParquetV1AggregatePushDownSuite, GlutenParquetV2AggregatePushDownSuite, GlutenPathFilterStrategySuite, GlutenPathFilterSuite, GlutenPruneFileSourcePartitionsSuite, GlutenVectorizedOrcReadSchemaSuite, GlutenVectorizedParquetReadSchemaSuite}
 import org.apache.spark.sql.execution.datasources.binaryfile.GlutenBinaryFileFormatSuite
 import org.apache.spark.sql.execution.datasources.csv.{GlutenCSVLegacyTimeParserSuite, GlutenCSVv1Suite, GlutenCSVv2Suite}
@@ -154,7 +154,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSortOrderExpressionsSuite]
   enableSuite[GlutenStringExpressionsSuite]
     .exclude("concat")
-  enableSuite[GlutenAdaptiveQueryExecSuite]
+  enableSuite[VeloxAdaptiveQueryExecSuite]
     .includeByPrefix(
       "gluten",
       "SPARK-29906",
@@ -631,7 +631,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Filters should be pushed down for vectorized Parquet reader at row group level")
     .exclude("SPARK-31026: Parquet predicate pushdown for fields having dots in the names")
     .exclude("Filters should be pushed down for Parquet readers at row group level")
-    .exclude("filter pushdown - StringStartsWith")
     .exclude("SPARK-17091: Convert IN predicate to Parquet filter push-down")
     .exclude("Support Parquet column index")
     .exclude("SPARK-34562: Bloom filter push down")
@@ -650,7 +649,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Filters should be pushed down for vectorized Parquet reader at row group level")
     .exclude("SPARK-31026: Parquet predicate pushdown for fields having dots in the names")
     .exclude("Filters should be pushed down for Parquet readers at row group level")
-    .exclude("filter pushdown - StringStartsWith")
     .exclude("SPARK-17091: Convert IN predicate to Parquet filter push-down")
     .exclude("Support Parquet column index")
     .exclude("SPARK-34562: Bloom filter push down")

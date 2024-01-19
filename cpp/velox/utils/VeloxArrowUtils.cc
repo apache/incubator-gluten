@@ -62,7 +62,7 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> toArrowBuffer(
     return nullptr;
   }
   ARROW_ASSIGN_OR_RAISE(auto arrowBuffer, arrow::AllocateResizableBuffer(buffer->size(), pool));
-  gluten::fastCopy(arrowBuffer->mutable_data(), buffer->asMutable<void>(), buffer->size());
+  gluten::fastCopy(arrowBuffer->mutable_data(), buffer->as<void>(), buffer->size());
   return arrowBuffer;
 }
 

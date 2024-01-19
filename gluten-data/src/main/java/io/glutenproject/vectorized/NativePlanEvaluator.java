@@ -66,7 +66,8 @@ public class NativePlanEvaluator {
   // Used by WholeStageTransform to create the native computing pipeline and
   // return a columnar result iterator.
   public GeneralOutIterator createKernelWithBatchIterator(
-      byte[] wsPlan, List<GeneralInIterator> iterList) throws RuntimeException, IOException {
+      byte[] wsPlan, byte[][] splitInfo, List<GeneralInIterator> iterList)
+      throws RuntimeException, IOException {
     final AtomicReference<ColumnarBatchOutIterator> outIterator = new AtomicReference<>();
     final NativeMemoryManager nmm =
         NativeMemoryManagers.create(
@@ -102,6 +103,7 @@ public class NativePlanEvaluator {
         jniWrapper.nativeCreateKernelWithIterator(
             memoryManagerHandle,
             wsPlan,
+            splitInfo,
             iterList.toArray(new GeneralInIterator[0]),
             TaskContext.get().stageId(),
             TaskContext.getPartitionId(),

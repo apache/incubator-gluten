@@ -51,6 +51,21 @@ void VeloxRuntime::parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo ta
   GLUTEN_CHECK(parseProtobuf(data, size, &substraitPlan_) == true, "Parse substrait plan failed");
 }
 
+void VeloxRuntime::parseSplitInfo(const uint8_t* data, int32_t size) {
+  if (debugModeEnabled(confMap_)) {
+    try {
+      auto jsonPlan = substraitFromPbToJson("ReadRel.LocalFiles", data, size);
+      LOG(INFO) << std::string(50, '#') << " received substrait::ReadRel.LocalFiles:";
+      LOG(INFO) << std::endl << jsonPlan;
+    } catch (const std::exception& e) {
+      LOG(WARNING) << "Error converting Substrait plan to JSON: " << e.what();
+    }
+  }
+  ::substrait::ReadRel_LocalFiles localFile;
+  GLUTEN_CHECK(parseProtobuf(data, size, &localFile) == true, "Parse substrait plan failed");
+  localFiles_.push_back(localFile);
+}
+
 void VeloxRuntime::getInfoAndIds(
     const std::unordered_map<velox::core::PlanNodeId, std::shared_ptr<SplitInfo>>& splitInfoMap,
     const std::unordered_set<velox::core::PlanNodeId>& leafPlanNodeIds,
@@ -76,7 +91,7 @@ std::string VeloxRuntime::planString(bool details, const std::unordered_map<std:
   std::vector<std::shared_ptr<ResultIterator>> inputs;
   auto veloxMemoryPool = gluten::defaultLeafVeloxMemoryPool();
   VeloxPlanConverter veloxPlanConverter(inputs, veloxMemoryPool.get(), sessionConf, std::nullopt, true);
-  auto veloxPlan = veloxPlanConverter.toVeloxPlan(substraitPlan_);
+  auto veloxPlan = veloxPlanConverter.toVeloxPlan(substraitPlan_, localFiles_);
   return veloxPlan->toString(details, true);
 }
 
@@ -95,7 +110,7 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
 
   VeloxPlanConverter veloxPlanConverter(
       inputs, getLeafVeloxPool(memoryManager).get(), sessionConf, writeFilesTempPath_);
-  veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_);
+  veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_, std::move(localFiles_));
 
   // Scan node can be required.
   std::vector<std::shared_ptr<SplitInfo>> scanInfos;
