@@ -16,10 +16,11 @@
  */
 package org.apache.spark.sql.catalyst
 
-import io.glutenproject.execution.{FlushableHashAggregateExecTransformer, ProjectExecTransformer, RegularHashAggregateExecTransformer}
+import io.glutenproject.execution.{FlushableHashAggregateExecTransformer, HashAggregateExecTransformer, ProjectExecTransformer, RegularHashAggregateExecTransformer}
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Partial, PartialMerge}
+import org.apache.spark.sql.catalyst.plans.physical.ClusteredDistribution
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeLike
@@ -77,6 +78,9 @@ object HashAggPropagatedToShuffle {
     if (!agg.aggregateExpressions.forall(p => p.mode == Partial || p.mode == PartialMerge)) {
       return None
     }
+    if (FlushableHashAggregateRule.isAggInputAlreadyDistributedWithAggKeys(agg)) {
+      return None
+    }
     Some((proj, agg))
   }
 }
@@ -90,6 +94,35 @@ object HashAggWithShuffle {
     if (!agg.aggregateExpressions.forall(p => p.mode == Partial || p.mode == PartialMerge)) {
       return None
     }
+    if (FlushableHashAggregateRule.isAggInputAlreadyDistributedWithAggKeys(agg)) {
+      return None
+    }
     Some(agg)
+  }
+}
+
+object FlushableHashAggregateRule {
+
+  /**
+   * If child output already partitioned by aggregation keys (this function returns true), we
+   * usually avoid the optimization converting to flushable aggregation.
+   *
+   * For example, if input is hash-partitioned by keys (a, b) and aggregate node requests "group by
+   * a, b, c", then the aggregate should NOT flush as the grouping set (a, b, c) will be created
+   * only on a single partition among the whole cluster. Spark's planner may use this information to
+   * perform optimizations like doing "partial_count(a, b, c)" directly on the output data.
+   */
+  def isAggInputAlreadyDistributedWithAggKeys(agg: HashAggregateExecTransformer): Boolean = {
+    if (agg.groupingExpressions.isEmpty) {
+      // Empty grouping set () should not be satisfied by any partitioning patterns.
+      //   E.g.,
+      //   (a, b) satisfies (a, b, c)
+      //   (a, b) satisfies (a, b)
+      //   (a, b) doesn't satisfy (a)
+      //   (a, b) doesn't satisfy ()
+      return false
+    }
+    val distribution = ClusteredDistribution(agg.groupingExpressions)
+    agg.child.outputPartitioning.satisfies(distribution)
   }
 }
