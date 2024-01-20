@@ -34,15 +34,15 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 trait IteratorApi {
 
-  /**
-   * Generate native row partition.
-   *
-   * @return
-   */
   def genSplitInfo(
       partition: InputPartition,
       partitionSchema: StructType,
       fileFormat: ReadFileFormat): SplitInfo
+
+  /** Generate native row partition. */
+  def genPartitions(
+      wsCtx: WholeStageTransformContext,
+      splitInfos: Seq[Seq[SplitInfo]]): Seq[BaseGlutenPartition]
 
   /**
    * Inject the task attempt temporary path for native write files, this method should be called
@@ -53,8 +53,6 @@ trait IteratorApi {
   /**
    * Generate Iterator[ColumnarBatch] for first stage. ("first" means it does not depend on other
    * SCAN inputs)
-   *
-   * @return
    */
   def genFirstStageIterator(
       inputPartition: BaseGlutenPartition,
@@ -68,8 +66,6 @@ trait IteratorApi {
   /**
    * Generate Iterator[ColumnarBatch] for final stage. ("Final" means it depends on other SCAN
    * inputs, maybe it was a mistake to use the word "final")
-   *
-   * @return
    */
   // scalastyle:off argcount
   def genFinalStageIterator(

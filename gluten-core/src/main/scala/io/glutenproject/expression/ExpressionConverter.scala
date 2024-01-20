@@ -489,6 +489,13 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           rightChild,
           resultType,
           b)
+      case n: NaNvl =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genNaNvlTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(n.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(n.right, attributeSeq, expressionsMap),
+          n
+        )
       case e: Transformable =>
         val childrenTransformers =
           e.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap))

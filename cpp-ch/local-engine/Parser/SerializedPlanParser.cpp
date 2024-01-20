@@ -1662,15 +1662,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             const ActionsDAG::Node * function_node = nullptr;
             if (DB::isString(DB::removeNullable(args.back()->result_type)) && substrait_type.has_date())
             {
-                /// FIXME. Now we treet '1900-01-01' as null value. Not realy good.
-                /// Updating `toDate32OrNull` to return null if the string is invalid is not acceptable by
-                /// ClickHouse (https://github.com/ClickHouse/ClickHouse/issues/47120).
-                String function_name = "spark_to_date";
-                const auto * date_node = toFunctionNode(actions_dag, function_name, args);
-                const auto * zero_date_col_node = addColumn(actions_dag, std::make_shared<DataTypeString>(), "1900-01-01");
-                const auto * zero_date_node = toFunctionNode(actions_dag, function_name, {zero_date_col_node});
-                DB::ActionsDAG::NodeRawConstPtrs nullif_args = {date_node, zero_date_node};
-                function_node = toFunctionNode(actions_dag, "nullIf", nullif_args);
+                function_node = toFunctionNode(actions_dag, "spark_to_date", args);
             }
             else if (substrait_type.has_binary())
             {

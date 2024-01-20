@@ -27,6 +27,8 @@ class DummyRuntime final : public Runtime {
 
   void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) override {}
 
+  void parseSplitInfo(const uint8_t* data, int32_t size) override {}
+
   std::shared_ptr<ResultIterator> createResultIterator(
       MemoryManager* memoryManager,
       const std::string& spillDir,
@@ -104,10 +106,7 @@ class DummyRuntime final : public Runtime {
       }
       hasNext_ = false;
 
-      auto fArrInt32 = arrow::field("f_int32", arrow::int32());
-      auto rbSchema = arrow::schema({fArrInt32});
-      auto rb = arrow::RecordBatch::Make(rbSchema, 1, std::vector<std::shared_ptr<arrow::Array>>{});
-      return std::make_shared<ArrowColumnarBatch>(rb);
+      return gluten::createZeroColumnBatch(1);
     }
 
    private:

@@ -173,6 +173,7 @@ trait HashJoinLikeExecTransformer
       joinType match {
         case _: InnerLike | RightOuter => expandPartitioning(right.outputPartitioning)
         case LeftOuter => left.outputPartitioning
+        case FullOuter => UnknownPartitioning(left.outputPartitioning.numPartitions)
         case x =>
           throw new IllegalArgumentException(
             s"HashJoin should not take $x as the JoinType with building left side")
@@ -182,6 +183,7 @@ trait HashJoinLikeExecTransformer
         case _: InnerLike | LeftOuter | LeftSemi | LeftAnti | _: ExistenceJoin =>
           expandPartitioning(left.outputPartitioning)
         case RightOuter => right.outputPartitioning
+        case FullOuter => UnknownPartitioning(right.outputPartitioning.numPartitions)
         case x =>
           throw new IllegalArgumentException(
             s"HashJoin should not take $x as the JoinType with building right side")

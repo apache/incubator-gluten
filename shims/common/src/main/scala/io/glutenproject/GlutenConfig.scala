@@ -94,6 +94,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableCommonSubexpressionEliminate: Boolean =
     conf.getConf(ENABLE_COMMON_SUBEXPRESSION_ELIMINATE)
 
+  def veloxOrcScanEnabled: Boolean =
+    conf.getConf(VELOX_ORC_SCAN_ENABLED)
+
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
     conf
@@ -932,6 +935,7 @@ object GlutenConfig {
     buildConf(GLUTEN_MAX_BATCH_SIZE_KEY)
       .internal()
       .intConf
+      .checkValue(_ > 0, s"$GLUTEN_MAX_BATCH_SIZE_KEY must be positive.")
       .createWithDefault(4096)
 
   // if not set, use COLUMNAR_MAX_BATCH_SIZE instead
@@ -939,7 +943,7 @@ object GlutenConfig {
     buildConf(GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE)
       .internal()
       .intConf
-      .checkValue(_ > 0, "Shuffle writer buffer size should be greater than 0.")
+      .checkValue(_ > 0, s"$GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE must be positive.")
       .createOptional
 
   val COLUMNAR_LIMIT_ENABLED =
@@ -1589,4 +1593,11 @@ object GlutenConfig {
       .doc("Log granularity of AWS C++ SDK in velox.")
       .stringConf
       .createWithDefault("FATAL")
+
+  val VELOX_ORC_SCAN_ENABLED =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.orc.scan.enabled")
+      .internal()
+      .doc(" Enable velox orc scan. If disabled, vanilla spark orc scan will be used.")
+      .booleanConf
+      .createWithDefault(true)
 }

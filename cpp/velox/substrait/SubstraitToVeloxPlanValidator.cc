@@ -311,6 +311,22 @@ bool SubstraitToVeloxPlanValidator::validateIfThen(
   return true;
 }
 
+bool SubstraitToVeloxPlanValidator::validateSingularOrList(
+    const ::substrait::Expression::SingularOrList& singularOrList,
+    const RowTypePtr& inputType) {
+  for (const auto& option : singularOrList.options()) {
+    if (!option.has_literal()) {
+      logValidateMsg("native validation failed due to: Option is expected as Literal.");
+      return false;
+    }
+    if (!validateLiteral(option.literal(), inputType)) {
+      return false;
+    }
+  }
+
+  return validateExpression(singularOrList.value(), inputType);
+}
+
 bool SubstraitToVeloxPlanValidator::validateExpression(
     const ::substrait::Expression& expression,
     const RowTypePtr& inputType) {
@@ -324,6 +340,8 @@ bool SubstraitToVeloxPlanValidator::validateExpression(
       return validateCast(expression.cast(), inputType);
     case ::substrait::Expression::RexTypeCase::kIfThen:
       return validateIfThen(expression.if_then(), inputType);
+    case ::substrait::Expression::RexTypeCase::kSingularOrList:
+      return validateSingularOrList(expression.singular_or_list(), inputType);
     default:
       return true;
   }
@@ -1147,6 +1165,9 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ReadRel& readRel
     auto rowType = std::make_shared<RowType>(std::move(names), std::move(veloxTypeList));
     std::vector<core::TypedExprPtr> expressions;
     try {
+      if (!validateExpression(readRel.filter(), rowType)) {
+        return false;
+      }
       expressions.emplace_back(exprConverter_->toVeloxExpr(readRel.filter(), rowType));
       // Try to compile the expressions. If there is any unregistered function
       // or mismatched type, exception will be thrown.

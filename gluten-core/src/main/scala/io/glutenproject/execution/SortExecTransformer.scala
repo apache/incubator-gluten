@@ -90,8 +90,7 @@ case class SortExecTransformer(
         colIdx += 1
         builder.setExpr(exprNode.toProtobuf)
 
-        builder.setDirectionValue(
-          SortExecTransformer.transformSortDirection(order.direction.sql, order.nullOrdering.sql))
+        builder.setDirectionValue(SortExecTransformer.transformSortDirection(order))
         sortFieldList.add(builder.build())
       })
 
@@ -185,8 +184,7 @@ case class SortExecTransformer(
           .doTransform(args)
         builder.setExpr(exprNode.toProtobuf)
 
-        builder.setDirectionValue(
-          SortExecTransformer.transformSortDirection(order.direction.sql, order.nullOrdering.sql))
+        builder.setDirectionValue(SortExecTransformer.transformSortDirection(order))
         builder.build()
     }
     if (!validation) {
@@ -258,6 +256,10 @@ case class SortExecTransformer(
 }
 
 object SortExecTransformer {
+  def transformSortDirection(order: SortOrder): Int = {
+    transformSortDirection(order.direction.sql, order.nullOrdering.sql)
+  }
+
   def transformSortDirection(direction: String, nullOrdering: String): Int = {
     (direction, nullOrdering) match {
       case ("ASC", "NULLS FIRST") => 1

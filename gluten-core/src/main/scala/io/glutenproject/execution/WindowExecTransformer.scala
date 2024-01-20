@@ -139,7 +139,7 @@ case class WindowExecTransformer(
             .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
             .doTransform(args)
           builder.setExpr(exprNode.toProtobuf)
-          builder.setDirectionValue(getSortDirectionValue(order))
+          builder.setDirectionValue(SortExecTransformer.transformSortDirection(order))
           builder.build()
       }.asJava
     if (!validation) {
@@ -278,7 +278,7 @@ case class WindowExecTransformer(
         val exprNode = ExpressionBuilder.makeSelection(selections(colIdx))
         colIdx += 1
         builder.setExpr(exprNode.toProtobuf)
-        builder.setDirectionValue(getSortDirectionValue(order))
+        builder.setDirectionValue(SortExecTransformer.transformSortDirection(order))
         builder.build()
     }.asJava
 
@@ -362,15 +362,6 @@ case class WindowExecTransformer(
         preExprNodes.size() + windowExpression.size)
     }
   }
-
-  private def getSortDirectionValue(order: SortOrder): Int =
-    (order.direction.sql, order.nullOrdering.sql) match {
-      case ("ASC", "NULLS FIRST") => 1
-      case ("ASC", "NULLS LAST") => 2
-      case ("DESC", "NULLS FIRST") => 3
-      case ("DESC", "NULLS LAST") => 4
-      case _ => 0
-    }
 
   override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getSettings.supportWindowExec(windowExpression)) {

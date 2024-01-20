@@ -72,7 +72,7 @@ inline std::string getGeneratedFilePath(const std::string& fileName) {
 }
 
 /// Read binary data from a json file.
-std::string getPlanFromFile(const std::string& filePath);
+std::string getPlanFromFile(const std::string& type, const std::string& filePath);
 
 /// Get the file paths, starts, lengths from a directory.
 /// Use fileFormat to specify the format to read, eg., orc, parquet.

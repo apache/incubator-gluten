@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.adaptive
+package org.apache.spark.sql.execution.adaptive.velox
 
 import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ShuffledHashJoinExecTransformerBase, SortExecTransformer, SortMergeJoinExecTransformer}
 
@@ -23,7 +23,8 @@ import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.{Dataset, GlutenSQLTestsTrait, Row}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.exchange.{ENSURE_REQUIREMENTS, Exchange, REPARTITION_BY_COL, REPARTITION_BY_NUM, ReusedExchangeExec, ShuffleExchangeExec, ShuffleExchangeLike, ShuffleOrigin}
+import org.apache.spark.sql.execution.adaptive._
+import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, BroadcastHashJoinExec, ShuffledHashJoinExec, SortMergeJoinExec}
 import org.apache.spark.sql.execution.metric.SQLShuffleReadMetricsReporter
 import org.apache.spark.sql.execution.ui.SparkListenerSQLAdaptiveExecutionUpdate
@@ -32,9 +33,9 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SQLTestData.TestData
 import org.apache.spark.sql.types.{IntegerType, StructType}
 
-import org.apache.logging.log4j.Level
+import org.apache.log4j.Level
 
-class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLTestsTrait {
+class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLTestsTrait {
   import testImplicits._
 
   override def sparkConf: SparkConf = {
@@ -437,17 +438,15 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten Exchange reuse") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "100",
-      SQLConf.SHUFFLE_PARTITIONS.key -> "5") {
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "20"
+    ) {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT value FROM testData join testData2 ON key = a " +
           "join (SELECT value v from testData join testData3 ON key = a) on value = v")
       assert(sortMergeJoinSize(plan) == 3)
-      // TODO: vanilla spark has 2 bhj, and 1 smj, but gluten has 3 bhj,
-      //  make sure this will not cause performance regression and why it is bhj
-      assert(broadcastHashJoinSize(adaptivePlan) == 1)
-      // Vanilla spark still a SMJ, and its two shuffles can't apply local read.
-      checkNumLocalShuffleReads(adaptivePlan, 4)
+      assert(broadcastHashJoinSize(adaptivePlan) == 2)
+      // There is still a SMJ, and its two shuffles can't apply local read.
+      checkNumLocalShuffleReads(adaptivePlan, 2)
       // Even with local shuffle read, the query stage reuse can also work.
       val ex = findReusedExchange(adaptivePlan)
       assert(ex.size == 1)
@@ -464,14 +463,14 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       assert(sortMergeJoinSize(plan) == 1)
       assert(broadcastHashJoinSize(adaptivePlan) == 1)
       checkNumLocalShuffleReads(adaptivePlan)
-      //      // Even with local shuffle read, the query stage reuse can also work.
+//      // Even with local shuffle read, the query stage reuse can also work.
       // gluten change the smj to bhj, stage is changed, so we cannot find the stage with old
       // ReuseExchange from stageCache, then the reuse is removed
       // https://github.com/apache/spark/pull/24706/
       // files#diff-ec42cd27662f3f528832c298a60fffa1d341feb04aa1d8c80044b70cbe0ebbfcR224
       // maybe vanilla spark should checkReuse rile again
-      //      val ex = findReusedExchange(adaptivePlan)
-      //      assert(ex.size == 1)
+//      val ex = findReusedExchange(adaptivePlan)
+//      assert(ex.size == 1)
     }
   }
 
@@ -572,8 +571,8 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
     ) {
       // `testData` is small enough to be broadcast but has empty partition ratio over the config.
       // because testData2 in gluten sizeInBytes(from ColumnarShuffleExchangeExec plan stats)
-      // is 78B sometimes, so change the threshold from 80 to 60
-      withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "60") {
+      // is 24B sometimes, so change the threshold from 80 to 20
+      withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "20") {
         val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
           "SELECT * FROM testData join testData2 ON key = a where value = '1'")
         assert(sortMergeJoinSize(plan) == 1)
@@ -693,21 +692,21 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
               s"SELECT /*+ $joinHint(skewData1) */ * FROM skewData1 " +
                 "JOIN skewData2 ON key1 = key2")
             val inner = getJoinNode(innerAdaptivePlan)
-            //          checkSkewJoin(inner, 2, 1)
+//          checkSkewJoin(inner, 2, 1)
 
             // skewed left outer join optimization
             val (_, leftAdaptivePlan) = runAdaptiveAndVerifyResult(
               s"SELECT /*+ $joinHint(skewData2) */ * FROM skewData1 " +
                 "LEFT OUTER JOIN skewData2 ON key1 = key2")
             val leftJoin = getJoinNode(leftAdaptivePlan)
-            //          checkSkewJoin(leftJoin, 2, 0)
+//          checkSkewJoin(leftJoin, 2, 0)
 
             // skewed right outer join optimization
             val (_, rightAdaptivePlan) = runAdaptiveAndVerifyResult(
               s"SELECT /*+ $joinHint(skewData1) */ * FROM skewData1 " +
                 "RIGHT OUTER JOIN skewData2 ON key1 = key2")
             val rightJoin = getJoinNode(rightAdaptivePlan)
-            //          checkSkewJoin(rightJoin, 0, 1)
+//          checkSkewJoin(rightJoin, 0, 1)
           }
         }
     }
@@ -835,9 +834,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
         "=== Result of Batch AQE Query Stage Optimization ==="
       ).foreach {
         expectedMsg =>
-          assert(
-            testAppender.loggingEvents.exists(
-              _.getMessage.getFormattedMessage.contains(expectedMsg)))
+          assert(testAppender.loggingEvents.exists(_.getRenderedMessage.contains(expectedMsg)))
       }
     }
   }
@@ -1063,9 +1060,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
     withTable("t") {
       withSQLConf(
         SQLConf.COALESCE_PARTITIONS_MIN_PARTITION_NUM.key -> "1",
-        SQLConf.SHUFFLE_PARTITIONS.key -> "2",
-        SQLConf.ADAPTIVE_OPTIMIZER_EXCLUDED_RULES.key -> AQEPropagateEmptyRelation.ruleName
-      ) {
+        SQLConf.SHUFFLE_PARTITIONS.key -> "2") {
         spark.sql("CREATE TABLE t (c1 int) USING PARQUET")
         val (_, adaptive) = runAdaptiveAndVerifyResult("SELECT c1, count(*) FROM t GROUP BY c1")
         assert(
@@ -1402,9 +1397,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten SPARK-37742: AQE reads invalid InMemoryRelation stats and mistakenly plans BHJ") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "1048584",
-      SQLConf.ADAPTIVE_OPTIMIZER_EXCLUDED_RULES.key -> AQEPropagateEmptyRelation.ruleName
-    ) {
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "1048584") {
       // Spark estimates a string column as 20 bytes so with 60k rows, these relations should be
       // estimated at ~120m bytes which is greater than the broadcast join threshold.
       val joinKeyOne = "00112233445566778899"
@@ -1475,8 +1468,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       Seq("Plan changed", "Final plan").foreach {
         msg =>
           assert(logAppender.loggingEvents.exists {
-            event =>
-              event.getMessage.getFormattedMessage.contains(msg) && event.getLevel == expectedLevel
+            event => event.getRenderedMessage.contains(msg) && event.getLevel == expectedLevel
           })
       }
     }

@@ -93,6 +93,7 @@ public class RelBuilder {
     return new AggregateRelNode(input, groupings, aggregateFunctionNodes, filters, extensionNode);
   }
 
+  // CH
   public static RelNode makeReadRel(
       List<TypeNode> types,
       List<String> names,
@@ -102,6 +103,7 @@ public class RelBuilder {
     return makeReadRel(types, names, null, filter, context, operatorId);
   }
 
+  // VL
   public static RelNode makeReadRel(
       List<TypeNode> types,
       List<String> names,

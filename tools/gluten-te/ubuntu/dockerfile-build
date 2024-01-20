@@ -34,13 +34,16 @@ RUN if [ "$JDK_DEBUG_BUILD" == "ON" ]; \
 # Thus it should not be required to change these values every time when the build branch
 # is changed.
 ARG CACHE_GLUTEN_REPO
-ARG CACHE_GLUTEN_BRANCH
+ARG CACHE_GLUTEN_COMMIT
 
 RUN test -n "$CACHE_GLUTEN_REPO" || (echo "CACHE_GLUTEN_REPO not set" && false)
-RUN test -n "$CACHE_GLUTEN_BRANCH" || (echo "CACHE_GLUTEN_BRANCH not set" && false)
+RUN test -n "$CACHE_GLUTEN_COMMIT" || (echo "CACHE_GLUTEN_COMMIT not set" && false)
 
-RUN cd /opt/ \
-    && git clone $CACHE_GLUTEN_REPO -b $CACHE_GLUTEN_BRANCH gluten
+RUN cd /opt \
+    && git clone $CACHE_GLUTEN_REPO gluten \
+    && cd gluten \
+    && git fetch $CACHE_GLUTEN_REPO $CACHE_GLUTEN_COMMIT:build_$CACHE_GLUTEN_COMMIT \
+    && git checkout build_$CACHE_GLUTEN_COMMIT
 
 # Set ccache size
 RUN ccache -M 128G
@@ -58,11 +61,13 @@ RUN if [ "$BUILD_BACKEND_TYPE" == "velox" ]; \
     then \
       if [ "$GLUTEN_DEBUG_BUILD" == "ON" ]; then GLUTEN_BUILD_TYPE="Debug"; else GLUTEN_BUILD_TYPE="Release"; fi; \
       DEPS_INSTALL_SCRIPT="bash /opt/gluten/dev/builddeps-veloxbe.sh \
-                           --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON \
+                           --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON \
                            --build_type=$GLUTEN_BUILD_TYPE --enable_ep_cache=ON"; \
       EXTRA_MAVEN_OPTIONS="-Pspark-3.2 \
                            -Pbackends-velox \
                            -Prss \
+                           -Piceberg \
+                           -Pdelta \
                            -DskipTests \
                            -Dscalastyle.skip=true \
                            -Dcheckstyle.skip=true"; \
