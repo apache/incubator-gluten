@@ -49,7 +49,7 @@ public:
             if (it->second < accept_cache_time)
             {
                 // will delete cache file immediately
-                file_cache->removePathIfExists(path);
+                file_cache->removePathIfExists(path, DB::FileCache::getCommonUser().user_id);
                 // update cache time
                 map[key] = accept_cache_time;
             }
@@ -57,7 +57,7 @@ public:
         else
         {
             // will delete cache file immediately
-            file_cache->removePathIfExists(path);
+            file_cache->removePathIfExists(path, DB::FileCache::getCommonUser().user_id);
             // set cache time
             map.emplace(key, accept_cache_time);
         }
