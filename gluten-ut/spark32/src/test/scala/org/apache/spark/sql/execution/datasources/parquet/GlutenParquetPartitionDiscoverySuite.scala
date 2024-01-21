@@ -16,23 +16,12 @@
  */
 package org.apache.spark.sql.execution.datasources.parquet
 
-import org.apache.spark.SparkConf
 import org.apache.spark.sql._
 
 class GlutenParquetV1PartitionDiscoverySuite
   extends ParquetV1PartitionDiscoverySuite
-  with GlutenSQLTestsBaseTrait {
-  override def sparkConf: SparkConf = {
-    // Timezone is not supported yet.
-    super.sparkConf.set("spark.sql.session.timeZone", "UTC")
-  }
-}
+  with GlutenSQLTestsBaseTrait {}
 
 class GlutenParquetV2PartitionDiscoverySuite
   extends ParquetV2PartitionDiscoverySuite
-  with GlutenSQLTestsBaseTrait {
-  override def sparkConf: SparkConf = {
-    // Timezone is not supported yet.
-    super.sparkConf.set("spark.sql.session.timeZone", "UTC")
-  }
-}
+  with GlutenSQLTestsBaseTrait {}

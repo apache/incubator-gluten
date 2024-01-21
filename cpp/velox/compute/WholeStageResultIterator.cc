@@ -431,6 +431,8 @@ std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig()
   // The semantics of reading as lower case is opposite with case-sensitive.
   configs[velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCaseSession] =
       veloxCfg_->get<bool>(kCaseSensitive, false) == false ? "true" : "false";
+  configs[velox::connector::hive::HiveConfig::kPartitionPathAsLowerCaseSession] =
+      veloxCfg_->get<bool>(kCaseSensitive, false) == false ? "true" : "false";
   configs[velox::connector::hive::HiveConfig::kArrowBridgeTimestampUnit] = "6";
   configs[velox::connector::hive::HiveConfig::kMaxPartitionsPerWritersSession] =
       std::to_string(veloxCfg_->get<int32_t>(kMaxPartitions, 10000));
