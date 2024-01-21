@@ -558,8 +558,8 @@ jobs:
           'mkdir /usr/java \
           && cd /usr/java/ \
           && apt-get update && apt-get install wget \
-          && wget https://javadl.oracle.com/webapps/download/AutoDL?BundleId=249542_4d245f941845490c91360409ecffb3b4 \
-          && tar zxvf AutoDL\?BundleId\=249542_4d245f941845490c91360409ecffb3b4 \
+          && wget -O jre.tar.gz https://javadl.oracle.com/webapps/download/AutoDL?BundleId=249542_4d245f941845490c91360409ecffb3b4 \
+          && tar zxf jre.tar.gz \
           && export PATH=$PATH:/usr/java/jre1.8.0_401/bin \
           && cd /opt/gluten/tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
@@ -573,8 +573,8 @@ jobs:
           'mkdir /usr/java \
           && cd /usr/java/ \
           && apt-get update && apt-get install wget \
-          && wget https://javadl.oracle.com/webapps/download/AutoDL?BundleId=249542_4d245f941845490c91360409ecffb3b4 \
-          && tar zxvf AutoDL\?BundleId\=249542_4d245f941845490c91360409ecffb3b4 \
+          && wget -O jre.tar.gz https://javadl.oracle.com/webapps/download/AutoDL?BundleId=249542_4d245f941845490c91360409ecffb3b4 \
+          && tar zxf jre.tar.gz \
           && export PATH=$PATH:/usr/java/jre1.8.0_401/bin \
           && cd /opt/gluten/tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
@@ -591,8 +591,8 @@ jobs:
           && yum update -y && yum install wget -y \
           && mkdir /usr/java \
           && cd /usr/java/ \
-          && wget https://javadl.oracle.com/webapps/download/AutoDL?BundleId=249542_4d245f941845490c91360409ecffb3b4 \
-          && tar zxvf AutoDL\?BundleId\=249542_4d245f941845490c91360409ecffb3b4 \
+          && wget -O jre.tar.gz https://javadl.oracle.com/webapps/download/AutoDL?BundleId=249542_4d245f941845490c91360409ecffb3b4 \
+          && tar zxf jre.tar.gz \
           && export PATH=$PATH:/usr/java/jre1.8.0_401/bin \
           && cd /opt/gluten/tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
