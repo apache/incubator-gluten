@@ -149,18 +149,7 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
   }
 }
 
-// This enum is used to identify the project type.
-object ProjectType extends Enumeration {
-  type Config = Value
-  val NORMAL: ProjectType.Value = Value("")
-  val PRE: ProjectType.Value = Value("Pre")
-  val POST: ProjectType.Value = Value("Post")
-}
-
-case class ProjectExecTransformer private (
-    projectList: Seq[NamedExpression],
-    child: SparkPlan,
-    projectType: ProjectType.Config = ProjectType.NORMAL)
+case class ProjectExecTransformer private (projectList: Seq[NamedExpression], child: SparkPlan)
   extends UnaryTransformSupport
   with OrderPreservingNodeShim
   with PartitioningPreservingNodeShim
@@ -258,10 +247,8 @@ case class ProjectExecTransformer private (
       project
     }
   }
-
-  def isPostProject: Boolean = projectType == ProjectType.POST
-  def isPreProject: Boolean = projectType == ProjectType.PRE
 }
+
 object ProjectExecTransformer {
   private def processProjectExecTransformer(
       projectList: Seq[NamedExpression]): Seq[NamedExpression] = {

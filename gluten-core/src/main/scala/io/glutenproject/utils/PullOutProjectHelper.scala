@@ -16,7 +16,14 @@
  */
 package io.glutenproject.utils
 
+import io.glutenproject.execution.ProjectExecTransformer
+import io.glutenproject.extension.columnar.{AddTransformHintRule, TransformHints}
+import io.glutenproject.extension.columnar.AddTransformHintRule.EncodeTransformableTagImplicits
+
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
+import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -58,4 +65,59 @@ trait PullOutProjectHelper {
             Alias(other, s"_pre_${generatedNameIndex.getAndIncrement()}")())
           .toAttribute
     }
+
+  protected def supportTransform(plan: SparkPlan): Boolean =
+    TransformHints.isAlreadyTagged(plan) && TransformHints.isTransformable(plan)
+
+  protected def validatePullOutProject(project: ProjectExec): Unit = {
+    if (!AddTransformHintRule().enableColumnarProject) {
+      TransformHints.tagNotTransformable(project, "columnar project is disabled")
+    } else {
+      val transformer = ProjectExecTransformer(project.projectList, project.child)
+      TransformHints.tag(project, transformer.doValidate().toTransformHint)
+    }
+  }
+
+  protected def copyBaseAggregateExec(
+      agg: BaseAggregateExec,
+      newGroupingExpressions: Seq[NamedExpression],
+      newAggregateExpressions: Seq[AggregateExpression]): BaseAggregateExec = {
+    copyBaseAggregateExec(
+      agg,
+      newGroupingExpressions,
+      newAggregateExpressions,
+      agg.resultExpressions)
+  }
+
+  protected def copyBaseAggregateExec(
+      agg: BaseAggregateExec,
+      newResultExpressions: Seq[NamedExpression]): BaseAggregateExec = {
+    copyBaseAggregateExec(
+      agg,
+      agg.groupingExpressions,
+      agg.aggregateExpressions,
+      newResultExpressions)
+  }
+
+  protected def copyBaseAggregateExec(
+      agg: BaseAggregateExec,
+      newGroupingExpressions: Seq[NamedExpression],
+      newAggregateExpressions: Seq[AggregateExpression],
+      newResultExpressions: Seq[NamedExpression]): BaseAggregateExec = agg match {
+    case hash: HashAggregateExec =>
+      hash.copy(
+        groupingExpressions = newGroupingExpressions,
+        aggregateExpressions = newAggregateExpressions,
+        resultExpressions = newResultExpressions)
+    case sort: SortAggregateExec =>
+      sort.copy(
+        groupingExpressions = newGroupingExpressions,
+        aggregateExpressions = newAggregateExpressions,
+        resultExpressions = newResultExpressions)
+    case objectHash: ObjectHashAggregateExec =>
+      objectHash.copy(
+        groupingExpressions = newGroupingExpressions,
+        aggregateExpressions = newAggregateExpressions,
+        resultExpressions = newResultExpressions)
+  }
 }

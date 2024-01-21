@@ -16,7 +16,8 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.extension.{ColumnarOverrides, GlutenPlan}
+import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.extension.columnar.ColumnarPullOutProject
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -115,7 +116,7 @@ case class TakeOrderedAndProjectExecTransformer(
         finalLimitPlan
       }
 
-      val finalPlan = ColumnarOverrides.applyExtendedColumnarPreRules(
+      val finalPlan = ColumnarPullOutProject.applyPullOutGlutenPlanRules(
         WholeStageTransformer(projectPlan)(transformStageCounter.incrementAndGet()))
 
       finalPlan.executeColumnar()

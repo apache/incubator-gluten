@@ -23,8 +23,6 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate._
-import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
@@ -32,52 +30,17 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import io.substrait.proto.Type
 
-import java.util.{ArrayList => JArrayList, List => JList}
-import java.util.Locale
+import java.util.{ArrayList => JArrayList, List => JList, Locale}
 
-import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
 object ConverterUtils extends Logging {
 
-  @tailrec
-  def getAttrFromExpr(fieldExpr: Expression, skipAlias: Boolean = false): AttributeReference = {
-    fieldExpr match {
-      case a: Cast =>
-        getAttrFromExpr(a.child)
-      case a: AggregateExpression =>
-        getAttrFromExpr(a.aggregateFunction.children.head)
-      case a: AttributeReference =>
-        a
-      case a: Alias =>
-        if (skipAlias && a.child.isInstanceOf[AttributeReference]) {
-          getAttrFromExpr(a.child)
-        } else {
-          a.toAttribute.asInstanceOf[AttributeReference]
-        }
-      case a: KnownFloatingPointNormalized =>
-        getAttrFromExpr(a.child)
-      case a: NormalizeNaNAndZero =>
-        getAttrFromExpr(a.child)
-      case c: Coalesce =>
-        getAttrFromExpr(c.children.head)
-      case i: IsNull =>
-        getAttrFromExpr(i.child)
-      case a: Add =>
-        getAttrFromExpr(a.left)
-      case s: Subtract =>
-        getAttrFromExpr(s.left)
-      case m: Multiply =>
-        getAttrFromExpr(m.left)
-      case d: Divide =>
-        getAttrFromExpr(d.left)
-      case u: Upper =>
-        getAttrFromExpr(u.child)
-      case ss: Substring =>
-        getAttrFromExpr(ss.children.head)
-      case other =>
-        throw new UnsupportedOperationException(
-          s"makeStructField is unable to parse from $other (${other.getClass}).")
+  def getAttrFromExpr(expr: Expression, skipAlias: Boolean = false): Attribute = {
+    if (skipAlias) {
+      expr.references.head
+    } else {
+      expr.transformDown { case alias: Alias => alias.toAttribute }.references.head
     }
   }
 

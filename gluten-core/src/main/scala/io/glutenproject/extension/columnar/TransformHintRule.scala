@@ -19,7 +19,7 @@ package io.glutenproject.extension.columnar
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
-import io.glutenproject.extension.{ColumnarPullOutProject, GlutenPlan, ValidationResult}
+import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.PhysicalPlanSelector
 
@@ -331,6 +331,8 @@ case class FallbackBloomFilterAggIfNeeded() extends Rule[SparkPlan] {
 // If false is returned or any unsupported exception is thrown, a row guard will
 // be added on the top of that plan to prevent actual conversion.
 case class AddTransformHintRule() extends Rule[SparkPlan] {
+  import AddTransformHintRule.EncodeTransformableTagImplicits
+
   val columnarConf: GlutenConfig = GlutenConfig.getConf
   val preferColumnar: Boolean = columnarConf.enablePreferColumnar
   val optimizeLevel: Integer = columnarConf.physicalJoinOptimizationThrottle
@@ -452,20 +454,19 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAggregate is not enabled in HashAggregateExec")
           } else {
+            val pulledOutPlan =
+              ColumnarPullOutProject.getPulledOutPlanLocally[HashAggregateExec](plan)
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genHashAggregateExecTransformer(
-                plan.requiredChildDistributionExpressions,
-                plan.groupingExpressions,
-                plan.aggregateExpressions,
-                plan.aggregateAttributes,
-                plan.initialInputBufferOffset,
-                plan.resultExpressions,
-                plan.child
+                pulledOutPlan.requiredChildDistributionExpressions,
+                pulledOutPlan.groupingExpressions,
+                pulledOutPlan.aggregateExpressions,
+                pulledOutPlan.aggregateAttributes,
+                pulledOutPlan.initialInputBufferOffset,
+                pulledOutPlan.resultExpressions,
+                pulledOutPlan.child
               )
-            val transformedPlan = ColumnarPullOutProject
-              .getTransformedPlan(transformer)
-              .asInstanceOf[GlutenPlan]
-            TransformHints.tag(plan, transformedPlan.doValidate().toTransformHint)
+            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: SortAggregateExec =>
           if (!BackendsApiManager.getSettings.replaceSortAggWithHashAgg) {
@@ -476,40 +477,38 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAgg is not enabled in SortAggregateExec")
           }
+          val pulledOutPlan =
+            ColumnarPullOutProject.getPulledOutPlanLocally[SortAggregateExec](plan)
           val transformer = BackendsApiManager.getSparkPlanExecApiInstance
             .genHashAggregateExecTransformer(
-              plan.requiredChildDistributionExpressions,
-              plan.groupingExpressions,
-              plan.aggregateExpressions,
-              plan.aggregateAttributes,
-              plan.initialInputBufferOffset,
-              plan.resultExpressions,
-              plan.child
+              pulledOutPlan.requiredChildDistributionExpressions,
+              pulledOutPlan.groupingExpressions,
+              pulledOutPlan.aggregateExpressions,
+              pulledOutPlan.aggregateAttributes,
+              pulledOutPlan.initialInputBufferOffset,
+              pulledOutPlan.resultExpressions,
+              pulledOutPlan.child
             )
-          val transformedPlan = ColumnarPullOutProject
-            .getTransformedPlan(transformer)
-            .asInstanceOf[GlutenPlan]
-          TransformHints.tag(plan, transformedPlan.doValidate().toTransformHint)
+          TransformHints.tag(plan, transformer.doValidate().toTransformHint)
         case plan: ObjectHashAggregateExec =>
           if (!enableColumnarHashAgg) {
             TransformHints.tagNotTransformable(
               plan,
               "columnar HashAgg is not enabled in ObjectHashAggregateExec")
           } else {
+            val pulledOutPlan =
+              ColumnarPullOutProject.getPulledOutPlanLocally[ObjectHashAggregateExec](plan)
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genHashAggregateExecTransformer(
-                plan.requiredChildDistributionExpressions,
-                plan.groupingExpressions,
-                plan.aggregateExpressions,
-                plan.aggregateAttributes,
-                plan.initialInputBufferOffset,
-                plan.resultExpressions,
-                plan.child
+                pulledOutPlan.requiredChildDistributionExpressions,
+                pulledOutPlan.groupingExpressions,
+                pulledOutPlan.aggregateExpressions,
+                pulledOutPlan.aggregateAttributes,
+                pulledOutPlan.initialInputBufferOffset,
+                pulledOutPlan.resultExpressions,
+                pulledOutPlan.child
               )
-            val transformedPlan = ColumnarPullOutProject
-              .getTransformedPlan(transformer)
-              .asInstanceOf[GlutenPlan]
-            TransformHints.tag(plan, transformedPlan.doValidate().toTransformHint)
+            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: UnionExec =>
           if (!enableColumnarUnion) {
@@ -545,12 +544,14 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           if (!enableColumnarSort) {
             TransformHints.tagNotTransformable(plan, "columnar Sort is not enabled in SortExec")
           } else {
+            val pulledOutPlan = ColumnarPullOutProject.getPulledOutPlanLocally[SortExec](plan)
             val transformer =
-              SortExecTransformer(plan.sortOrder, plan.global, plan.child, plan.testSpillFrequency)
-            val transformedPlan = ColumnarPullOutProject
-              .getTransformedPlan(transformer)
-              .asInstanceOf[GlutenPlan]
-            TransformHints.tag(plan, transformedPlan.doValidate().toTransformHint)
+              SortExecTransformer(
+                pulledOutPlan.sortOrder,
+                pulledOutPlan.global,
+                pulledOutPlan.child,
+                pulledOutPlan.testSpillFrequency)
+            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: ShuffleExchangeExec =>
           if (!enableColumnarShuffle) {
@@ -767,18 +768,19 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               val limitPlan = LimitTransformer(plan.child, 0, plan.limit)
               tagged = limitPlan.doValidate()
             } else {
+              val sortExec = SortExec(plan.sortOrder, false, plan.child)
+              val pulledOutSortExec =
+                ColumnarPullOutProject.getPulledOutPlanLocally[SortExec](sortExec)
               // Here we are validating sort + limit which is a kind of whole stage transformer,
               // because we would call sort.doTransform in limit.
               // So, we should add adapter to make it work.
               val inputTransformer =
-                ColumnarCollapseTransformStages.wrapInputIteratorTransformer(plan.child)
-              val sortPlan = SortExecTransformer(plan.sortOrder, false, inputTransformer)
-              val sortValidation = ColumnarPullOutProject
-                .getTransformedPlan(sortPlan)
-                .asInstanceOf[GlutenPlan]
-                .doValidate()
+                ColumnarCollapseTransformStages.wrapInputIteratorTransformer(
+                  pulledOutSortExec.child)
+              val sortPlan =
+                SortExecTransformer(pulledOutSortExec.sortOrder, false, inputTransformer)
               val limitPlan = LimitTransformer(sortPlan, 0, plan.limit)
-              tagged = ValidationResult.merge(limitPlan.doValidate(), sortValidation)
+              tagged = limitPlan.doValidate()
             }
 
             if (tagged.isValid) {
@@ -799,7 +801,9 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             s"${plan.getClass}(${plan.children.toList.map(_.getClass)})")
     }
   }
+}
 
+object AddTransformHintRule {
   implicit class EncodeTransformableTagImplicits(validationResult: ValidationResult) {
     def toTransformHint: TransformHint = {
       if (validationResult.isValid) {

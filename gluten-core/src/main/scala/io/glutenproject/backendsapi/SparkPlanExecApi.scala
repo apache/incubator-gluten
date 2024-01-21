@@ -18,8 +18,7 @@ package io.glutenproject.backendsapi
 
 import io.glutenproject.execution._
 import io.glutenproject.expression._
-import io.glutenproject.extension.{CollapseProjectExecTransformer, ColumnarPullOutPostProject, ColumnarPullOutPreProject}
-import io.glutenproject.extension.AddExtraOptimizations
+import io.glutenproject.extension.{AddExtraOptimizations, CollapseProjectExecTransformer}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 
 import org.apache.spark.ShuffleDependency
@@ -259,10 +258,7 @@ trait SparkPlanExecApi {
    * @return
    */
   def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] = {
-    List(
-      (_: SparkSession) => ColumnarPullOutPreProject,
-      (_: SparkSession) => ColumnarPullOutPostProject,
-      (_: SparkSession) => CollapseProjectExecTransformer)
+    List((_: SparkSession) => CollapseProjectExecTransformer)
   }
 
   /**

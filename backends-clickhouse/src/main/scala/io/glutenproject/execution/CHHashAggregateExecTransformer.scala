@@ -398,22 +398,4 @@ case class CHHashAggregateExecTransformer(
     ExtensionBuilder.makeAdvancedExtension(optimization, enhancement)
 
   }
-
-  override def copySelf(
-      requiredChildDistributionExpressions: Option[Seq[Expression]],
-      groupingExpressions: Seq[NamedExpression],
-      aggregateExpressions: Seq[AggregateExpression],
-      aggregateAttributes: Seq[Attribute],
-      initialInputBufferOffset: Int,
-      resultExpressions: Seq[NamedExpression],
-      child: SparkPlan): CHHashAggregateExecTransformer = {
-    copy(
-      requiredChildDistributionExpressions,
-      groupingExpressions,
-      aggregateExpressions,
-      aggregateAttributes,
-      initialInputBufferOffset,
-      resultExpressions,
-      child)
-  }
 }
