@@ -383,4 +383,10 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
       checkOperatorMatch[ProjectExecTransformer]
     }
   }
+
+  test("Test bin function") {
+    runQueryAndCompare("SELECT hex(l_partkey), hex(l_shipmode) FROM lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
 }
