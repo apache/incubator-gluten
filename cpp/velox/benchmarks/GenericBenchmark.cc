@@ -38,7 +38,6 @@
 using namespace gluten;
 
 namespace {
-DEFINE_bool(skip_input, false, "Skip specifying input files.");
 DEFINE_bool(with_shuffle, false, "Add shuffle split at end.");
 DEFINE_string(partitioning, "rr", "Short partitioning name. Valid options are rr, hash, range, single");
 DEFINE_bool(zstd, false, "Use ZSTD as shuffle compression codec");
@@ -46,6 +45,11 @@ DEFINE_bool(qat_gzip, false, "Use QAT GZIP as shuffle compression codec");
 DEFINE_bool(qat_zstd, false, "Use QAT ZSTD as shuffle compression codec");
 DEFINE_bool(iaa_gzip, false, "Use IAA GZIP as shuffle compression codec");
 DEFINE_int32(shuffle_partitions, 200, "Number of shuffle split (reducer) partitions");
+DEFINE_bool(run_example, false, "Run the example and exit.");
+
+DEFINE_string(json, "", "Path to input json file of the substrait plan.");
+DEFINE_string(split, "", "Path to input json file of the splits. Only valid for simulating the first stage.");
+DEFINE_string(data, "", "Path to input data files in parquet format. Only valid for simulating the middle stage.");
 
 struct WriterMetrics {
   int64_t splitTime;
@@ -238,42 +242,70 @@ int main(int argc, char** argv) {
   ::benchmark::Initialize(&argc, argv);
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  std::string substraitJsonFile;
-  std::string splitFile;
-  std::vector<std::string> inputFiles;
+  // Init Velox backend.
   std::unordered_map<std::string, std::string> conf;
-
   conf.insert({gluten::kSparkBatchSize, std::to_string(FLAGS_batch_size)});
   conf.insert({kDebugModeEnabled, "true"});
   initVeloxBackend(conf);
 
-  try {
-    if (argc < 2) {
-      LOG(INFO)
-          << "No input args. Usage: " << std::endl
-          << "./generic_benchmark /absolute-path/to/substrait_json_file /absolute-path/to/split_json_file(optional)"
-          << " /absolute-path/to/data_file_1 /absolute-path/to/data_file_2 ...";
-      LOG(INFO) << "Running example...";
-      inputFiles.resize(2);
+  // Parse substrait plan, split file and data files.
+  std::string substraitJsonFile = FLAGS_json;
+  std::string splitFile = FLAGS_split;
+  std::vector<std::string> inputFiles{};
+  if (!FLAGS_data.empty()) {
+    inputFiles.emplace_back(FLAGS_data);
+  }
+  // Parse the remaining data files.
+  for (auto i = 1; i < argc; ++i) {
+    inputFiles.emplace_back(std::string(argv[i]));
+  }
+
+  if (FLAGS_run_example) {
+    LOG(INFO) << "Running example...";
+    inputFiles.resize(2);
+    try {
       substraitJsonFile = getGeneratedFilePath("example.json");
       inputFiles[0] = getGeneratedFilePath("example_orders");
       inputFiles[1] = getGeneratedFilePath("example_lineitem");
-    } else {
-      substraitJsonFile = argv[1];
-      splitFile = argv[2];
-      abortIfFileNotExists(substraitJsonFile);
-      LOG(INFO) << "Using substrait json file: " << std::endl << substraitJsonFile;
-      LOG(INFO) << "Using " << argc - 2 << " input data file(s): ";
-      for (auto i = 3; i < argc; ++i) {
-        inputFiles.emplace_back(argv[i]);
-        abortIfFileNotExists(inputFiles.back());
-        LOG(INFO) << inputFiles.back();
-      }
+    } catch (const std::exception& e) {
+      LOG(ERROR) << "Failed to run example. " << e.what();
     }
-  } catch (const std::exception& e) {
-    LOG(INFO) << "Failed to run benchmark: " << e.what();
-    ::benchmark::Shutdown();
+  }
+
+  // Validate input args.
+  std::string errorMsg{};
+  if (substraitJsonFile.empty()) {
+    errorMsg = "Missing '--plan' option.";
+  } else if (splitFile.empty() && inputFiles.empty()) {
+    errorMsg = "Missing '--split' or '--data' option.";
+  } else if (!splitFile.empty() && !inputFiles.empty()) {
+    errorMsg = "Duplicated option '--split' and '--data'.";
+  }
+  if (!errorMsg.empty()) {
+    LOG(ERROR) << "Incorrect usage: " << errorMsg << std::endl
+               << "If simulating a first stage, the usage is:" << std::endl
+               << "./generic_benchmark "
+               << "--plan /absolute-path/to/substrait_json_file "
+               << "--split /absolute-path/to/split_json_file" << std::endl
+               << "If simulating a middle stage, the usage is:" << std::endl
+               << "./generic_benchmark "
+               << "--plan /absolute-path/to/substrait_json_file "
+               << "--data-file /absolute-path/to/data_file_1 /absolute-path/to/data_file_2 ...";
+    LOG(ERROR) << "*** Please check docs/developers/MicroBenchmarks.md for the full usage. ***";
     std::exit(EXIT_FAILURE);
+  }
+
+  // Check whether input files exist.
+  LOG(INFO) << "Using substrait json file: " << std::endl << substraitJsonFile;
+  abortIfFileNotExists(substraitJsonFile);
+  if (!splitFile.empty()) {
+    LOG(INFO) << "Using split json file: " << std::endl << splitFile;
+    abortIfFileNotExists(splitFile);
+  }
+  LOG(INFO) << "Using " << inputFiles.size() << " input data file(s): ";
+  for (const auto& dataFile : inputFiles) {
+    LOG(INFO) << dataFile;
+    abortIfFileNotExists(dataFile);
   }
 
 #define GENERIC_BENCHMARK(NAME, READER_TYPE)                                                                          \
@@ -292,14 +324,15 @@ int main(int argc, char** argv) {
     }                                                                                                                 \
   } while (0)
 
-  DLOG(INFO) << "FLAGS_threads:" << FLAGS_threads;
-  DLOG(INFO) << "FLAGS_iterations:" << FLAGS_iterations;
-  DLOG(INFO) << "FLAGS_cpu:" << FLAGS_cpu;
-  DLOG(INFO) << "FLAGS_print_result:" << FLAGS_print_result;
-  DLOG(INFO) << "FLAGS_write_file:" << FLAGS_write_file;
-  DLOG(INFO) << "FLAGS_batch_size:" << FLAGS_batch_size;
+  LOG(INFO) << "Using options: ";
+  LOG(INFO) << "threads: " << FLAGS_threads;
+  LOG(INFO) << "iterations: " << FLAGS_iterations;
+  LOG(INFO) << "cpu: " << FLAGS_cpu;
+  LOG(INFO) << "print_result: " << FLAGS_print_result;
+  LOG(INFO) << "write_file: " << FLAGS_write_file;
+  LOG(INFO) << "batch_size: " << FLAGS_batch_size;
 
-  if (FLAGS_skip_input) {
+  if (splitFile.empty()) {
     GENERIC_BENCHMARK("SkipInput", FileReaderType::kNone);
   } else {
     GENERIC_BENCHMARK("InputFromBatchVector", FileReaderType::kBuffered);

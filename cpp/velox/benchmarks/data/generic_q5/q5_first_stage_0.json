@@ -138,15 +138,6 @@
                                             }
                                         ]
                                     }
-                                },
-                                "localFiles": {
-                                    "items": [
-                                        {
-                                            "uriFile": "LINEITEM",
-                                            "length": "1863237",
-                                            "parquet": {}
-                                        }
-                                    ]
                                 }
                             }
                         },

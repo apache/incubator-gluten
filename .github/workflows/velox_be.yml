@@ -91,7 +91,7 @@ jobs:
       - name: Run micro benchmarks
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten/cpp/build/velox/benchmarks && \
-          ./generic_benchmark --with-shuffle --threads 1 --iterations 1'
+          ./generic_benchmark --run-example --with-shuffle --threads 1 --iterations 1'
       - name: Exit docker container
         if: ${{ always() }}
         run: |
