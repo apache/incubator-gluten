@@ -69,6 +69,11 @@ trait PullOutProjectHelper {
   protected def supportTransform(plan: SparkPlan): Boolean =
     TransformHints.isAlreadyTagged(plan) && TransformHints.isTransformable(plan)
 
+  protected def supportedAggregate(agg: BaseAggregateExec): Boolean = agg match {
+    case _: HashAggregateExec | _: SortAggregateExec | _: ObjectHashAggregateExec => true
+    case _ => false
+  }
+
   protected def validatePullOutProject(project: ProjectExec): Unit = {
     if (!AddTransformHintRule().enableColumnarProject) {
       TransformHints.tagNotTransformable(project, "columnar project is disabled")
@@ -108,16 +113,21 @@ trait PullOutProjectHelper {
       hash.copy(
         groupingExpressions = newGroupingExpressions,
         aggregateExpressions = newAggregateExpressions,
-        resultExpressions = newResultExpressions)
+        resultExpressions = newResultExpressions
+      )
     case sort: SortAggregateExec =>
       sort.copy(
         groupingExpressions = newGroupingExpressions,
         aggregateExpressions = newAggregateExpressions,
-        resultExpressions = newResultExpressions)
+        resultExpressions = newResultExpressions
+      )
     case objectHash: ObjectHashAggregateExec =>
       objectHash.copy(
         groupingExpressions = newGroupingExpressions,
         aggregateExpressions = newAggregateExpressions,
-        resultExpressions = newResultExpressions)
+        resultExpressions = newResultExpressions
+      )
+    case _ =>
+      throw new UnsupportedOperationException(s"Unsupported agg $agg")
   }
 }

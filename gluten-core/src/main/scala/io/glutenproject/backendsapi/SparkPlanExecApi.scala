@@ -18,7 +18,7 @@ package io.glutenproject.backendsapi
 
 import io.glutenproject.execution._
 import io.glutenproject.expression._
-import io.glutenproject.extension.{AddExtraOptimizations, CollapseProjectExecTransformer}
+import io.glutenproject.extension.CollapseProjectExecTransformer
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 
 import org.apache.spark.ShuffleDependency
@@ -235,8 +235,7 @@ trait SparkPlanExecApi {
    *
    * @return
    */
-  def genExtendedCheckRules(): List[SparkSession => LogicalPlan => Unit] =
-    List(AddExtraOptimizations)
+  def genExtendedCheckRules(): List[SparkSession => LogicalPlan => Unit] = List.empty
 
   /**
    * Generate extended Optimizers. Currently only for Velox backend.

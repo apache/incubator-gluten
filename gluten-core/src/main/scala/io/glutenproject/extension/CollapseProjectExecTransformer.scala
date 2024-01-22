@@ -42,6 +42,8 @@ object CollapseProjectExecTransformer extends Rule[SparkPlan] {
         val validationResult = collapsedProject.doValidate()
         if (validationResult.isValid) {
           logDebug(s"Collapse project $p1 and $p2.")
+          collapsedProject.copyTagsFrom(p1)
+          collapsedProject.copyTagsFrom(p2)
           collapsedProject
         } else {
           logDebug(s"Failed to collapse project, due to ${validationResult.reason.getOrElse("")}")

@@ -83,7 +83,7 @@ trait GlutenSQLTestsBaseTrait extends SharedSparkSession with GlutenTestsBaseTra
    *   : the input plans.
    * @return
    */
-  def getChildrenPlan(plans: Seq[SparkPlan]): Seq[SparkPlan] = {
+  private def getChildrenPlan(plans: Seq[SparkPlan]): Seq[SparkPlan] = {
     if (plans.isEmpty) {
       return Seq()
     }

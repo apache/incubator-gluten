@@ -23,8 +23,46 @@ import io.glutenproject.utils.PullOutProjectHelper
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateFunction, Partial}
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan}
-import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
+import org.apache.spark.sql.execution.aggregate._
+
+trait ProjectTypeHint
+case class POST_PROJECT() extends ProjectTypeHint
+case class PRE_PROJECT() extends ProjectTypeHint
+
+object ProjectTypeHint {
+  val TAG: TreeNodeTag[ProjectTypeHint] =
+    TreeNodeTag[ProjectTypeHint]("io.glutenproject.projecttypehint")
+
+  def isAlreadyTagged(plan: SparkPlan): Boolean = {
+    plan.getTagValue(TAG).isDefined
+  }
+
+  def isPostProject(plan: SparkPlan): Boolean = {
+    plan
+      .getTagValue(TAG)
+      .isDefined && plan.getTagValue(TAG).get.isInstanceOf[POST_PROJECT]
+  }
+
+  def isPreProject(plan: SparkPlan): Boolean = {
+    plan
+      .getTagValue(TAG)
+      .isDefined && plan.getTagValue(TAG).get.isInstanceOf[PRE_PROJECT]
+  }
+
+  def tagPostProject(plan: SparkPlan): Unit = {
+    tag(plan, POST_PROJECT())
+  }
+
+  def tagPreProject(plan: SparkPlan): Unit = {
+    tag(plan, PRE_PROJECT())
+  }
+
+  private def tag(plan: SparkPlan, hint: ProjectTypeHint): Unit = {
+    plan.setTagValue(TAG, hint)
+  }
+}
 
 trait ColumnarPullOutProject {
   val applyLocally: PartialFunction[SparkPlan, SparkPlan]
@@ -109,7 +147,7 @@ case class ColumnarPullOutPostProject(validation: Boolean = false)
   override def apply(plan: SparkPlan): SparkPlan = plan.transform(applyLocally)
 
   override val applyLocally: PartialFunction[SparkPlan, SparkPlan] = {
-    case agg: BaseAggregateExec if needsPostProjection(agg) =>
+    case agg: BaseAggregateExec if supportedAggregate(agg) && needsPostProjection(agg) =>
       val projectList = agg.resultExpressions.map {
         case ne: NamedExpression => ne
         case other => Alias(other, s"_post_${generatedNameIndex.getAndIncrement()}")()
@@ -160,7 +198,7 @@ case class ColumnarPullOutPreProject(validation: Boolean = false)
   override def apply(plan: SparkPlan): SparkPlan = plan.transform(applyLocally)
 
   override val applyLocally: PartialFunction[SparkPlan, SparkPlan] = {
-    case agg: BaseAggregateExec if needsPreProject(agg) =>
+    case agg: BaseAggregateExec if supportedAggregate(agg) && needsPreProject(agg) =>
       val projectExprsMap = getProjectExpressionMap
 
       // Handle groupingExpressions.
@@ -202,6 +240,7 @@ case class ColumnarPullOutPreProject(validation: Boolean = false)
 
       val preProject = ProjectExec(sort.child.output ++ projectExprsMap.values.toSeq, sort.child)
       validatePullOutProject(preProject)
+      ProjectTypeHint.tagPreProject(preProject)
 
       val newSort =
         sort.copy(sortOrder = newSortOrder.asInstanceOf[Seq[SortOrder]], child = preProject)
@@ -226,11 +265,13 @@ object GlutenPlanPullOutProject extends Rule[SparkPlan] with PullOutProjectHelpe
       val projectExprsMap = getProjectExpressionMap
       val newSortOrder =
         sort.sortOrder.map(_.mapChildren(getAndReplaceProjectAttribute(_, projectExprsMap)))
+      val preProject = ProjectExecTransformer(
+        sort.child.output ++ projectExprsMap.values.toSeq,
+        sort.child).fallbackIfInvalid
+      ProjectTypeHint.tagPreProject(preProject)
       val newSort = sort.copy(
         sortOrder = newSortOrder.asInstanceOf[Seq[SortOrder]],
-        child = ProjectExecTransformer(
-          sort.child.output ++ projectExprsMap.values.toSeq,
-          sort.child).fallbackIfInvalid
+        child = preProject
       )
       newSort.copyTagsFrom(sort)
       ProjectExecTransformer(sort.child.output, newSort).fallbackIfInvalid

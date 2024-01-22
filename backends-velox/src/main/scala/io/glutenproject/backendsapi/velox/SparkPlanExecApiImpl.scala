@@ -22,6 +22,7 @@ import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
+import io.glutenproject.extension.AddExtraOptimizations
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode}
@@ -474,6 +475,14 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]] = List()
+
+  /**
+   * Generate extended CheckRules. Currently only for Velox backend.
+   *
+   * @return
+   */
+  override def genExtendedCheckRules(): List[SparkSession => LogicalPlan => Unit] =
+    List(AddExtraOptimizations)
 
   /**
    * Generate extended Optimizer. Currently only for Velox backend.

@@ -327,7 +327,10 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
       case plan: ProjectExec =>
         val columnarChild = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        ProjectExecTransformer(plan.projectList, columnarChild)
+        val transformer = ProjectExecTransformer(plan.projectList, columnarChild)
+        // We need to copy tags for pre/post-project
+        transformer.copyTagsFrom(plan)
+        transformer
       case plan: FilterExec =>
         genFilterExec(plan)
       case plan: HashAggregateExec =>

@@ -19,6 +19,7 @@ package io.glutenproject.execution
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.extension.ValidationResult
+import io.glutenproject.extension.columnar.ProjectTypeHint
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.SubstraitContext
@@ -51,11 +52,11 @@ case class SortExecTransformer(
   override def output: Seq[Attribute] = child.output
 
   override def outputOrdering: Seq[SortOrder] = child match {
-    case project: ProjectExecTransformer =>
+    case project: ProjectExecTransformer if ProjectTypeHint.isPreProject(project) =>
       getSortOrderFromPreProject(project.projectList)
     case InputIteratorTransformer(InputAdapter(r2c: RowToColumnarExecBase)) =>
       r2c.child match {
-        case project: ProjectExec =>
+        case project: ProjectExec if ProjectTypeHint.isPreProject(project) =>
           // This case means pre-project is fallback.
           getSortOrderFromPreProject(project.projectList)
         case _ => sortOrder
