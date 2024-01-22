@@ -36,12 +36,14 @@ import scala.collection.JavaConverters._
 
 object ConverterUtils extends Logging {
 
-  def getAttrFromExpr(expr: Expression, skipAlias: Boolean = false): Attribute = {
-    if (skipAlias) {
-      expr.references.head
-    } else {
-      expr.transformDown { case alias: Alias => alias.toAttribute }.references.head
-    }
+  /**
+   * Get the source Attribute for the input Expression. It will traverse the Expression tree in a
+   * pre-order manner and find the first encountered Attribute. When encountering an Alias, it will
+   * not continue to traverse its child but instead directly return the Attribute output by the
+   * Alias.
+   */
+  def getAttrFromExpr(expr: Expression): Attribute = {
+    expr.transformDown { case alias: Alias => alias.toAttribute }.references.head
   }
 
   def normalizeColName(name: String): String = {
