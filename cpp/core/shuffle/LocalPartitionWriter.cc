@@ -219,7 +219,10 @@ class LocalPartitionWriter::PayloadMerger {
   uint32_t totalCachedRows() {
     return std::accumulate(
         partitionMergePayload_.begin(), partitionMergePayload_.end(), 0u, [](uint32_t sum, const auto& elem) {
-          return sum + elem.second->numRows();
+          if (elem.second) {
+            return sum + elem.second->numRows();
+          }
+          return sum;
         });
   }
 
