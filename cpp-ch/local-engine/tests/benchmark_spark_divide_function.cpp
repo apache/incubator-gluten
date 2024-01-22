@@ -74,15 +74,6 @@ static const ActionsDAG::Node * addFunction(ActionsDAGPtr & actions_dag, const S
     return &actions_dag->addFunction(function_builder, args, result_name);
 }
 
-static Pipe getSourcePipe(const Block & block)
-{
-    BlocksPtr blocks = std::make_shared<std::vector<Block>>();
-    blocks->emplace_back(block);
-    auto source = std::make_shared<BlocksSource>(blocks, block.cloneEmpty());
-    Pipe pipe = Pipe(source);
-    return std::move(pipe);
-}
-
 static void BM_CHDivideFunction(benchmark::State & state)
 {
     ActionsDAGPtr dag = std::make_shared<ActionsDAG>();
