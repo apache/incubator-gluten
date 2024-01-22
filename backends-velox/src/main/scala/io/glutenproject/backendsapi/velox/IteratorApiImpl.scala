@@ -78,7 +78,8 @@ class IteratorApiImpl extends IteratorApi with Logging {
   /** Generate native row partition. */
   override def genPartitions(
       wsCtx: WholeStageTransformContext,
-      splitInfos: Seq[Seq[SplitInfo]]): Seq[BaseGlutenPartition] = {
+      splitInfos: Seq[Seq[SplitInfo]],
+      scans: Seq[BasicScanExecTransformer]): Seq[BaseGlutenPartition] = {
     // Only serialize plan once, save lots time when plan is complex.
     val planByteArray = wsCtx.root.toProtobuf.toByteArray
 
@@ -226,6 +227,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
       sparkContext: SparkContext,
       wsCxt: WholeStageTransformContext,
       splitInfos: Seq[SplitInfo],
+      scan: BasicScanExecTransformer,
       numOutputRows: SQLMetric,
       numOutputBatches: SQLMetric,
       scanTime: SQLMetric): RDD[ColumnarBatch] = {

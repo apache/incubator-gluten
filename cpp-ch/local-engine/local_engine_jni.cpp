@@ -237,6 +237,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_n
     jobject /*obj*/,
     jlong allocator_id,
     jbyteArray plan,
+    jobjectArray split_infos,
     jobjectArray iter_arr,
     jbyteArray conf_plan,
     jboolean materialize_input)
@@ -259,6 +260,16 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_n
         iter = env->NewGlobalRef(iter);
         parser.addInputIter(iter, materialize_input);
     }
+
+    for (jsize i = 0, split_info_arr_size = env->GetArrayLength(split_infos); i < split_info_arr_size; i++) {
+        jbyteArray split_info = static_cast<jbyteArray>(env->GetObjectArrayElement(split_infos, i));
+        jsize split_info_size = env->GetArrayLength(split_info);
+        jbyte * split_info_addr = env->GetByteArrayElements(split_info, nullptr);
+        std::string split_info_str;
+        split_info_str.assign(reinterpret_cast<const char *>(split_info_addr), split_info_size);
+        parser.addSplitInfo(split_info_str);
+    }
+
     jsize plan_size = env->GetArrayLength(plan);
     jbyte * plan_address = env->GetByteArrayElements(plan, nullptr);
     std::string plan_string;
@@ -974,17 +985,23 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
 }
 
 JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_nativeInitMergeTreeWriterWrapper(
-    JNIEnv * env, jobject, jbyteArray schema_, jstring uuid_, jstring task_id_, jstring partition_dir_, jstring bucket_dir_)
+    JNIEnv * env, jobject, jbyteArray plan_, jbyteArray split_info_, jstring uuid_, jstring task_id_, jstring partition_dir_, jstring bucket_dir_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     const auto uuid_str = jstring2string(env, uuid_);
     const auto task_id = jstring2string(env, task_id_);
     const auto partition_dir = jstring2string(env, partition_dir_);
     const auto bucket_dir = jstring2string(env, bucket_dir_);
-    jsize plan_buf_size = env->GetArrayLength(schema_);
-    jbyte * plan_buf_addr = env->GetByteArrayElements(schema_, nullptr);
-    std::string schema_str;
-    schema_str.assign(reinterpret_cast<const char *>(plan_buf_addr), plan_buf_size);
+
+    jsize plan_buf_size = env->GetArrayLength(plan_);
+    jbyte * plan_buf_addr = env->GetByteArrayElements(plan_, nullptr);
+    std::string plan_str;
+    plan_str.assign(reinterpret_cast<const char *>(plan_buf_addr), plan_buf_size);
+
+    jsize split_info_size = env->GetArrayLength(split_info_);
+    jbyte * split_info_addr = env->GetByteArrayElements(split_info_, nullptr);
+    std::string split_info_str;
+    split_info_str.assign(reinterpret_cast<const char *>(split_info_addr), split_info_size);
 
     auto plan_ptr = std::make_unique<substrait::Plan>();
     /// https://stackoverflow.com/questions/52028583/getting-error-parsing-protobuf-data
@@ -992,21 +1009,24 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     /// Here, set a limit large enough to avoid this problem.
     /// Once this problem occurs, it is difficult to troubleshoot, because the pb of c++ will not provide any valid information
     google::protobuf::io::CodedInputStream coded_in(
-        reinterpret_cast<const uint8_t *>(schema_str.data()), static_cast<int>(schema_str.size()));
+        reinterpret_cast<const uint8_t *>(plan_str.data()), static_cast<int>(plan_str.size()));
     coded_in.SetRecursionLimit(100000);
 
     auto ok = plan_ptr->ParseFromCodedStream(&coded_in);
     if (!ok)
         throw DB::Exception(DB::ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from string failed");
 
+    substrait::ReadRel::ExtensionTable extension_table =
+        local_engine::SerializedPlanParser::parseExtensionTable(split_info_str);
 
     auto storage = local_engine::MergeTreeRelParser::parseStorage(
-        plan_ptr->relations()[0].root().input(), local_engine::SerializedPlanParser::global_context);
+        plan_ptr->relations()[0].root().input(), extension_table, local_engine::SerializedPlanParser::global_context);
     auto uuid = uuid_str + "_" + task_id;
     auto * writer = new local_engine::SparkMergeTreeWriter(
         *storage, storage->getInMemoryMetadataPtr(), local_engine::SerializedPlanParser::global_context, uuid, partition_dir, bucket_dir);
 
-    env->ReleaseByteArrayElements(schema_, plan_buf_addr, JNI_ABORT);
+    env->ReleaseByteArrayElements(plan_, plan_buf_addr, JNI_ABORT);
+    env->ReleaseByteArrayElements(split_info_, split_info_addr, JNI_ABORT);
     return reinterpret_cast<jlong>(writer);
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }

@@ -115,6 +115,7 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
       spark.sparkContext,
       WholeStageTransformContext(planNode, substraitContext),
       chFileScan.getSplitInfos,
+      chFileScan,
       numOutputRows,
       numOutputVectors,
       scanTime

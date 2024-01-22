@@ -39,11 +39,24 @@ class NativeFileScanColumnarRDD(
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
     val inputPartition = castNativePartition(split)
 
+    assert(
+      inputPartition.isInstanceOf[GlutenPartition],
+      "NativeFileScanColumnarRDD only accepts GlutenPartition.")
+
+    val splitInfoByteArray = inputPartition
+      .asInstanceOf[GlutenPartition]
+      .splitInfosByteArray
+
     val resIter: GeneralOutIterator = GlutenTimeMetric.millis(scanTime) {
       _ =>
         val transKernel = new CHNativeExpressionEvaluator()
         val inBatchIters = new util.ArrayList[GeneralInIterator]()
-        transKernel.createKernelWithBatchIterator(inputPartition.plan, inBatchIters, false)
+        transKernel.createKernelWithBatchIterator(
+          inputPartition.plan,
+          splitInfoByteArray,
+          inBatchIters,
+          false
+        )
     }
     TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
     val iter: Iterator[ColumnarBatch] = new Iterator[ColumnarBatch] {

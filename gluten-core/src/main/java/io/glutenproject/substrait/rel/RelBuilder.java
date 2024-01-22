@@ -100,7 +100,7 @@ public class RelBuilder {
       ExpressionNode filter,
       SubstraitContext context,
       Long operatorId) {
-    return makeReadRel(types, names, null, filter, context, operatorId);
+    return makeReadRel(types, names, null, filter, null, context, operatorId);
   }
 
   // VL
@@ -109,10 +109,11 @@ public class RelBuilder {
       List<String> names,
       List<ColumnTypeNode> columnTypeNodes,
       ExpressionNode filter,
+      AdvancedExtensionNode extensionNode,
       SubstraitContext context,
       Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return new ReadRelNode(types, names, context, filter, columnTypeNodes);
+    return new ReadRelNode(types, names, context, filter, columnTypeNodes, extensionNode);
   }
 
   public static RelNode makeReadRelForInputIterator(

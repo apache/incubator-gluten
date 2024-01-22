@@ -57,13 +57,6 @@ public:
     /// Create a new input format for reading this file
     virtual InputFormatPtr createInputFormat(const DB::Block & header) = 0;
 
-    virtual DB::NamesAndTypesList getSchema() const
-    {
-        const auto & schema = file_info.schema();
-        auto header = TypeParser::buildBlockFromNamedStructWithoutDFS(schema);
-        return header.getNamesAndTypesList();
-    }
-
     /// Spark would split a large file into small segements and read in different tasks
     /// If this file doesn't support the split feacture, only the task with offset 0 will generate data.
     virtual bool supportSplit() const { return false; }

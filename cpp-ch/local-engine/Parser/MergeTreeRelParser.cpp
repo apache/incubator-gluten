@@ -58,11 +58,14 @@ static Int64 findMinPosition(const NameSet & condition_table_columns, const Name
     return min_position;
 }
 
-CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(const substrait::Rel & rel_, ContextMutablePtr context)
+CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(
+    const substrait::Rel & rel_,
+    const substrait::ReadRel::ExtensionTable & extension_table,
+    ContextMutablePtr context)
 {
     const auto & rel = rel_.read();
     google::protobuf::StringValue table;
-    table.ParseFromString(rel.extension_table().detail().value());
+    table.ParseFromString(extension_table.detail().value());
     auto merge_tree_table = local_engine::parseMergeTreeTableString(table.value());
     DB::Block header;
     chassert(rel.has_base_schema());
@@ -92,12 +95,14 @@ CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(const substrait::Rel 
 }
 
 DB::QueryPlanPtr
-MergeTreeRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel_, std::list<const substrait::Rel *> & /*rel_stack_*/)
+MergeTreeRelParser::parseReadRel(
+    DB::QueryPlanPtr query_plan,
+    const substrait::ReadRel & rel,
+    const substrait::ReadRel::ExtensionTable & extension_table,
+    std::list<const substrait::Rel *> & /*rel_stack_*/)
 {
-    const auto & rel = rel_.read();
-    assert(rel.has_extension_table());
     google::protobuf::StringValue table;
-    table.ParseFromString(rel.extension_table().detail().value());
+    table.ParseFromString(extension_table.detail().value());
     auto merge_tree_table = local_engine::parseMergeTreeTableString(table.value());
     DB::Block header;
     header = TypeParser::buildBlockFromNamedStruct(merge_tree_table.schema);

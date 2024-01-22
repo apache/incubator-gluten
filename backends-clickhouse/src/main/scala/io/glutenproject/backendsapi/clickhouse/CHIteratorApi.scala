@@ -19,11 +19,12 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.{GlutenConfig, GlutenNumaBindingInfo}
 import io.glutenproject.backendsapi.IteratorApi
 import io.glutenproject.execution._
+import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.metrics.{GlutenTimeMetric, IMetrics, NativeMetrics}
 import io.glutenproject.substrait.plan.PlanNode
-import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder, SplitInfo}
+import io.glutenproject.substrait.rel.{ExtensionTableBuilder, ExtensionTableNode, LocalFilesBuilder, LocalFilesNode, SplitInfo}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
+import io.glutenproject.utils.LogLevelUtil
 import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator, GeneralOutIterator}
 
 import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
@@ -35,7 +36,7 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -44,8 +45,42 @@ import java.net.URI
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
+
+  private def getFileSchema(schema: StructType, names: Seq[String]): StructType = {
+    val dataSchema = ArrayBuffer[StructField]()
+    schema.foreach {
+      field =>
+        // case-insensitive schema matching
+        val newField = names.find(_.equalsIgnoreCase(field.name)) match {
+          case Some(name) => StructField(name, field.dataType, field.nullable, field.metadata)
+          case _ => field
+        }
+        dataSchema += newField
+    }
+    StructType(dataSchema)
+  }
+
+  // only set file schema for text format table
+  private def setFileSchemaForLocalFiles(
+      localFilesNode: LocalFilesNode,
+      scan: BasicScanExecTransformer): Unit = {
+    if (scan.fileFormat == ReadFileFormat.TextReadFormat) {
+      val names =
+        ConverterUtils.collectAttributeNamesWithoutExprId(scan.outputAttributes())
+      localFilesNode.setFileSchema(getFileSchema(scan.getDataSchema, names.asScala))
+    }
+  }
+
+  private def genCloseableColumnBatchIterator(
+      iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
+    iter match {
+      case _: CloseableCHColumnBatchIterator => iter
+      case _ => new CloseableCHColumnBatchIterator(iter)
+    }
+  }
 
   override def genSplitInfo(
       partition: InputPartition,
@@ -104,7 +139,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           fileFormat,
           preferredLocations.toList.asJava)
       case _ =>
-        throw new UnsupportedOperationException(s"Unsupported input partition.")
+        throw new UnsupportedOperationException(s"Unsupported input partition: $partition.")
     }
   }
 
@@ -115,16 +150,30 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
    */
   override def genPartitions(
       wsCtx: WholeStageTransformContext,
-      splitInfos: Seq[Seq[SplitInfo]]): Seq[BaseGlutenPartition] = {
+      splitInfos: Seq[Seq[SplitInfo]],
+      scans: Seq[BasicScanExecTransformer]): Seq[BaseGlutenPartition] = {
+    // Only serialize plan once, save lots time when plan is complex.
+    val planByteArray = wsCtx.root.toProtobuf.toByteArray
     splitInfos.zipWithIndex.map {
-      case (splitInfos, index) =>
-        wsCtx.substraitContext.initSplitInfosIndex(0)
-        wsCtx.substraitContext.setSplitInfos(splitInfos)
-        val substraitPlan = wsCtx.root.toProtobuf
+      case (splits, index) =>
+        val splitInfosByteArray = splits.zipWithIndex.map {
+          case (split, i) =>
+            split match {
+              case filesNode: LocalFilesNode =>
+                setFileSchemaForLocalFiles(filesNode, scans(i))
+                filesNode.setFileReadProperties(mapAsJavaMap(scans(i).getProperties))
+                filesNode.toProtobuf.toByteArray
+              case extensionTableNode: ExtensionTableNode =>
+                extensionTableNode.toProtobuf.toByteArray
+            }
+        }
+
         GlutenPartition(
           index,
-          substraitPlan.toByteArray,
-          locations = splitInfos.flatMap(_.preferredLocations().asScala).toArray)
+          planByteArray,
+          splitInfosByteArray.toArray,
+          locations = splits.flatMap(_.preferredLocations().asScala).toArray
+        )
     }
   }
 
@@ -142,12 +191,24 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()
   ): Iterator[ColumnarBatch] = {
 
+    assert(
+      inputPartition.isInstanceOf[GlutenPartition],
+      "CH backend only accepts GlutenPartition in GlutenWholeStageColumnarRDD.")
+
     val transKernel = new CHNativeExpressionEvaluator()
     val inBatchIters = new JArrayList[GeneralInIterator](inputIterators.map {
       iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
     }.asJava)
+
+    val splitInfoByteArray = inputPartition
+      .asInstanceOf[GlutenPartition]
+      .splitInfosByteArray
     val resIter: GeneralOutIterator =
-      transKernel.createKernelWithBatchIterator(inputPartition.plan, inBatchIters, false)
+      transKernel.createKernelWithBatchIterator(
+        inputPartition.plan,
+        splitInfoByteArray,
+        inBatchIters,
+        false)
 
     context.addTaskCompletionListener[Unit](_ => resIter.close())
     val iter = new Iterator[Any] {
@@ -207,8 +268,11 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     // we need to complete dependency RDD's firstly
     val nativeIterator = transKernel.createKernelWithBatchIterator(
       rootNode.toProtobuf.toByteArray,
+      // Final iterator does not contain scan split, so pass empty split info to native here.
+      new Array[Array[Byte]](0),
       columnarNativeIterator,
-      materializeInput)
+      materializeInput
+    )
 
     val resIter = new Iterator[ColumnarBatch] {
       private var outputRowCount = 0L
@@ -246,43 +310,32 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     new CloseableCHColumnBatchIterator(resIter, Some(pipelineTime))
   }
 
-  /**
-   * Generate closeable ColumnBatch iterator.
-   *
-   * FIXME: This no longer overrides parent's method
-   *
-   * @param iter
-   * @return
-   */
-  def genCloseableColumnBatchIterator(iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
-    if (iter.isInstanceOf[CloseableCHColumnBatchIterator]) iter
-    else new CloseableCHColumnBatchIterator(iter)
-  }
-
   /** Generate Native FileScanRDD, currently only for ClickHouse Backend. */
   override def genNativeFileScanRDD(
       sparkContext: SparkContext,
-      wsCxt: WholeStageTransformContext,
+      wsCtx: WholeStageTransformContext,
       splitInfos: Seq[SplitInfo],
+      scan: BasicScanExecTransformer,
       numOutputRows: SQLMetric,
       numOutputBatches: SQLMetric,
       scanTime: SQLMetric): RDD[ColumnarBatch] = {
     val substraitPlanPartition = GlutenTimeMetric.withMillisTime {
+      val planByteArray = wsCtx.root.toProtobuf.toByteArray
       splitInfos.zipWithIndex.map {
         case (splitInfo, index) =>
-          wsCxt.substraitContext.initSplitInfosIndex(0)
-          wsCxt.substraitContext.setSplitInfos(Seq(splitInfo))
-          val substraitPlan = wsCxt.root.toProtobuf
-          if (index == 0) {
-            logOnLevel(
-              GlutenConfig.getConf.substraitPlanLogLevel,
-              s"The substrait plan for partition $index:\n${SubstraitPlanPrinterUtil
-                  .substraitPlanToJson(substraitPlan)}"
-            )
+          val splitInfoByteArray = splitInfo match {
+            case filesNode: LocalFilesNode =>
+              setFileSchemaForLocalFiles(filesNode, scan)
+              filesNode.setFileReadProperties(mapAsJavaMap(scan.getProperties))
+              filesNode.toProtobuf.toByteArray
+            case extensionTableNode: ExtensionTableNode =>
+              extensionTableNode.toProtobuf.toByteArray
           }
+
           GlutenPartition(
             index,
-            substraitPlan.toByteArray,
+            planByteArray,
+            Array(splitInfoByteArray),
             locations = splitInfo.preferredLocations().asScala.toArray)
       }
     }(t => logInfo(s"Generating the Substrait plan took: $t ms."))

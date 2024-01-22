@@ -21,8 +21,9 @@ import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.`type`.ColumnTypeNode
 import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
-import io.glutenproject.substrait.rel.{ReadRelNode, RelBuilder, SplitInfo}
+import io.glutenproject.substrait.rel.{RelBuilder, SplitInfo}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.rdd.RDD
@@ -31,6 +32,7 @@ import org.apache.spark.sql.types.BooleanType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
+import com.google.protobuf.StringValue
 
 import scala.collection.JavaConverters._
 
@@ -54,6 +56,9 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }
   }
 
+  /** Returns the file format properties. */
+  def getProperties: Map[String, String] = Map.empty
+
   /** Returns the split infos that will be processed by the underlying native engine. */
   def getSplitInfos: Seq[SplitInfo] = {
     getPartitions.map(
@@ -75,6 +80,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       sparkContext,
       WholeStageTransformContext(planNode, substraitContext),
       getSplitInfos,
+      this,
       numOutputRows,
       numOutputVectors,
       scanTime
@@ -122,14 +128,23 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     val filterNodes = transformer.map(_.doTransform(context.registeredFunction))
     val exprNode = filterNodes.orNull
 
+    // used by CH backend
+    val optimizationContent =
+      s"isMergeTree=${if (this.fileFormat == ReadFileFormat.MergeTreeReadFormat) "1" else "0"}\n"
+
+    val optimization =
+      BackendsApiManager.getTransformerApiInstance.packPBMessage(
+        StringValue.newBuilder.setValue(optimizationContent).build)
+    val extensionNode = ExtensionBuilder.makeAdvancedExtension(optimization, null)
+
     val readNode = RelBuilder.makeReadRel(
       typeNodes,
       nameList,
       columnTypeNodes,
       exprNode,
+      extensionNode,
       context,
       context.nextOperatorId(this.nodeName))
-    readNode.asInstanceOf[ReadRelNode].setDataSchema(getDataSchema)
     TransformContext(output, output, readNode)
   }
 }
