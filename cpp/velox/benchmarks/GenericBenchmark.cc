@@ -332,7 +332,7 @@ int main(int argc, char** argv) {
   LOG(INFO) << "write_file: " << FLAGS_write_file;
   LOG(INFO) << "batch_size: " << FLAGS_batch_size;
 
-  if (splitFile.empty()) {
+  if (!splitFile.empty()) {
     GENERIC_BENCHMARK("SkipInput", FileReaderType::kNone);
   } else {
     GENERIC_BENCHMARK("InputFromBatchVector", FileReaderType::kBuffered);
