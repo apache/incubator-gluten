@@ -67,6 +67,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 
 #include "CHUtil.h"
+#include "Disks/registerGlutenDisks.h"
 
 #include <unistd.h>
 #include <sys/resource.h>
@@ -709,11 +710,22 @@ void registerAllFunctions()
         auto & factory = AggregateFunctionCombinatorFactory::instance();
         registerAggregateFunctionCombinatorPartialMerge(factory);
     }
+
+}
+
+void registerGlutenDisks()
+{
     registerDisks(true);
+
+#if USE_AWS_S3
+    registerGlutenDisks(true);
+#endif
 }
 
 void BackendInitializerUtil::registerAllFactories()
 {
+    registerGlutenDisks();
+
     registerReadBufferBuilders();
     registerWriteBufferBuilders();
 
