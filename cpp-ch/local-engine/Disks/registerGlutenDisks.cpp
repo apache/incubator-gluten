@@ -11,7 +11,7 @@ namespace local_engine
 {
 using namespace DB;
 #if USE_AWS_S3
-void registerS3ObjectStorage(ObjectStorageFactory & factory);
+void registerGlutenS3ObjectStorage(ObjectStorageFactory & factory);
 #endif
 
 
@@ -29,7 +29,7 @@ void registerGlutenDisks(bool global_skip_access_check)
         bool skip_access_check = global_skip_access_check || config.getBool(config_prefix + ".skip_access_check", false);
         auto object_storage = ObjectStorageFactory::instance().create(name, config, config_prefix, context, skip_access_check);
         auto metadata_storage = MetadataStorageFactory::instance().create(
-            name, config, config_prefix, object_storage, "s3");
+            name, config, config_prefix, object_storage, "local");
 
         DiskObjectStoragePtr disk = std::make_shared<DiskObjectStorage>(
             name,
@@ -46,7 +46,7 @@ void registerGlutenDisks(bool global_skip_access_check)
 
 #if USE_AWS_S3
     auto & object_factory = ObjectStorageFactory::instance();
-    registerS3ObjectStorage(object_factory);
+    registerGlutenS3ObjectStorage(object_factory);
     factory.registerDiskType("s3_gluten", creator); /// For compatibility
 #endif
 }
