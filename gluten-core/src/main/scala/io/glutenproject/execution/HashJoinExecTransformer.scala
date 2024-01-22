@@ -171,7 +171,8 @@ trait HashJoinLikeExecTransformer
   override def outputPartitioning: Partitioning = joinBuildSide match {
     case BuildLeft =>
       joinType match {
-        case _: InnerLike | RightOuter => expandPartitioning(right.outputPartitioning)
+        case _: InnerLike => expandPartitioning(right.outputPartitioning)
+        case RightOuter => right.outputPartitioning
         case LeftOuter => left.outputPartitioning
         case FullOuter => UnknownPartitioning(left.outputPartitioning.numPartitions)
         case x =>
@@ -180,8 +181,8 @@ trait HashJoinLikeExecTransformer
       }
     case BuildRight =>
       joinType match {
-        case _: InnerLike | LeftOuter | LeftSemi | LeftAnti | _: ExistenceJoin =>
-          expandPartitioning(left.outputPartitioning)
+        case _: InnerLike => expandPartitioning(left.outputPartitioning)
+        case LeftOuter | LeftSemi | LeftAnti | _: ExistenceJoin => left.outputPartitioning
         case RightOuter => right.outputPartitioning
         case FullOuter => UnknownPartitioning(right.outputPartitioning.numPartitions)
         case x =>
