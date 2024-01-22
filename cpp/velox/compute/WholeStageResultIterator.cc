@@ -114,7 +114,7 @@ WholeStageResultIterator::WholeStageResultIterator(
   spillStrategy_ = veloxCfg_->get<std::string>(kSpillStrategy, kSpillStrategyDefaultValue);
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
 
-  // Set task parameters, then create task instance.
+  // Create task instance.
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
