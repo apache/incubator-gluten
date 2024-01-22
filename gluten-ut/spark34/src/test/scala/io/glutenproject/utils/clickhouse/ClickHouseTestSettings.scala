@@ -1075,7 +1075,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-18352: Handle multi-line corrupt documents (PERMISSIVE)")
     .exclude("SPARK-37360: Write and infer TIMESTAMP_NTZ values with a non-default pattern")
     .exclude("SPARK-37360: Timestamp type inference for a column with TIMESTAMP_NTZ values")
-    .exclude("SPARK-37450: Prunes unnecessary fields from Explode for count aggregation")
   enableSuite[GlutenJsonV2Suite]
     .exclude("Complex field and type inferring")
     .exclude("Loading a JSON dataset primitivesAsString returns complex fields as strings")
