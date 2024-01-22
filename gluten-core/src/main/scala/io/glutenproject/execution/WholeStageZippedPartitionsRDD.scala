@@ -39,7 +39,6 @@ class WholeStageZippedPartitionsRDD(
     sparkConf: SparkConf,
     resCtx: WholeStageTransformContext,
     pipelineTime: SQLMetric,
-    buildRelationBatchHolder: mutable.ListBuffer[ColumnarBatch],
     updateNativeMetrics: IMetrics => Unit,
     materializeInput: Boolean)
   extends RDD[ColumnarBatch](sc, rdds.getDependencies) {
@@ -58,7 +57,6 @@ class WholeStageZippedPartitionsRDD(
             resCtx.root,
             pipelineTime,
             updateNativeMetrics,
-            buildRelationBatchHolder,
             materializeInput
           )
     }

@@ -177,7 +177,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
-      buildRelationBatchHolder: Seq[ColumnarBatch],
       materializeInput: Boolean): Iterator[ColumnarBatch] = {
     // scalastyle:on argcount
     GlutenConfig.getConf
@@ -221,7 +220,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
 
     def close(): Unit = {
       closed = true
-      buildRelationBatchHolder.foreach(_.close) // fixing: ref cnt goes nagative
       nativeIterator.close()
       // relationHolder.clear()
     }
