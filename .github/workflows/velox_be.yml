@@ -372,10 +372,12 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.2 with Celeborn
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh \
-          'mv /opt/apache-celeborn-0.3.0-incubating-bin/conf/celeborn-env.sh.template /opt/apache-celeborn-0.3.0-incubating-bin/conf/celeborn-env.sh && \
-          echo -e "CELEBORN_MASTER_MEMORY=4g\nCELEBORN_WORKER_MEMORY=4g\nCELEBORN_WORKER_OFFHEAP_MEMORY=8g" > /opt/apache-celeborn-0.3.0-incubating-bin/conf/celeborn-env.sh && \
-          echo -e "celeborn.worker.commitFiles.threads 128\nceleborn.worker.sortPartition.threads 64" > /opt/apache-celeborn-0.3.0-incubating-bin/conf/celeborn-defaults.conf \
-          && bash /opt/apache-celeborn-0.3.0-incubating-bin/sbin/start-master.sh && bash /opt/apache-celeborn-0.3.0-incubating-bin/sbin/start-worker.sh && \
+          'wget https://dlcdn.apache.org/incubator/celeborn/celeborn-0.3.0-incubating/apache-celeborn-0.3.0-incubating-bin.tgz && \
+          tar xzf apache-celeborn-0.3.0-incubating-bin.tgz && cd apache-celeborn-0.3.0-incubating-bin && \
+          mv ./conf/celeborn-env.sh.template ./conf/celeborn-env.sh && \
+          echo -e "CELEBORN_MASTER_MEMORY=4g\nCELEBORN_WORKER_MEMORY=4g\nCELEBORN_WORKER_OFFHEAP_MEMORY=8g" > ./conf/celeborn-env.sh && \
+          echo -e "celeborn.worker.commitFiles.threads 128\nceleborn.worker.sortPartition.threads 64" > ./conf/celeborn-defaults.conf \
+          && bash ./sbin/start-master.sh && bash ./sbin/start-worker.sh && \
           cd /opt/gluten/tools/gluten-it && mvn clean install -Pspark-3.2,rss \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-celeborn --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
