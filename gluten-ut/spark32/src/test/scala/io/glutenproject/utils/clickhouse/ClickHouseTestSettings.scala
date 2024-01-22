@@ -1440,10 +1440,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Loading a JSON dataset primitivesAsString returns complex fields as strings")
     .exclude("SPARK-4228 DataFrame to JSON")
     .exclude("SPARK-18352: Handle multi-line corrupt documents (PERMISSIVE)")
-    .exclude("Spark vectorized reader - without partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
-    .exclude("Spark vectorized reader - with partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
-    .exclude("Non-vectorized reader - without partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
-    .exclude("Non-vectorized reader - with partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
   enableSuite[GlutenJsonV1Suite]
     .exclude("Complex field and type inferring")
     .exclude("Loading a JSON dataset primitivesAsString returns complex fields as strings")
@@ -1454,7 +1450,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Loading a JSON dataset primitivesAsString returns complex fields as strings")
     .exclude("SPARK-4228 DataFrame to JSON")
     .exclude("SPARK-18352: Handle multi-line corrupt documents (PERMISSIVE)")
-    .exclude("SPARK-37450: Prunes unnecessary fields from Explode for count aggregation")
   enableSuite[GlutenOrcColumnarBatchReaderSuite]
   enableSuite[GlutenOrcFilterSuite].exclude("SPARK-32622: case sensitivity in predicate pushdown")
   enableSuite[GlutenOrcPartitionDiscoverySuite]
@@ -1686,6 +1681,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "Case-insensitive parser - mixed-case schema - filter with different-case column names")
     .exclude("Case-insensitive parser - mixed-case schema - subquery filter with different-case column names")
     .exclude("SPARK-36352: Spark should check result plan's output schema name")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("SPARK-37450: Prunes unnecessary fields from Explode for count aggregation")
   enableSuite[GlutenParquetColumnIndexSuite]
     .exclude("test reading unaligned pages - test all types")
     .exclude("test reading unaligned pages - test all types (dict encode)")
@@ -1920,6 +1920,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Spark vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
     .exclude("Non-vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
     .exclude("Non-vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("SPARK-37450: Prunes unnecessary fields from Explode for count aggregation")
   enableSuite[GlutenParquetV2FilterSuite]
     .exclude("filter pushdown - date")
     .exclude("filter pushdown - timestamp")
