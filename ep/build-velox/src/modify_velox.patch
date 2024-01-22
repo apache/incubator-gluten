@@ -72,16 +72,6 @@ diff --git a/third_party/CMakeLists.txt b/third_party/CMakeLists.txt
 index c7c4d8557..2715e625c 100644
 --- a/third_party/CMakeLists.txt
 +++ b/third_party/CMakeLists.txt
-@@ -26,7 +26,8 @@ if(VELOX_ENABLE_ARROW)
-   endif()
-   set(ARROW_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep")
-   set(ARROW_CMAKE_ARGS
--      -DARROW_PARQUET=OFF
-+      -DARROW_PARQUET=ON
-+      -DARROW_FILESYSTEM=ON
-       -DARROW_WITH_THRIFT=ON
-       -DARROW_WITH_LZ4=ON
-       -DARROW_WITH_SNAPPY=ON
 @@ -69,6 +70,7 @@ if(VELOX_ENABLE_ARROW)
      arrow_ep
      PREFIX ${ARROW_PREFIX}
