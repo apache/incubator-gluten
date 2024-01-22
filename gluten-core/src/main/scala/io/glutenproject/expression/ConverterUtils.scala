@@ -17,9 +17,7 @@
 package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.BasicScanExecTransformer
 import io.glutenproject.substrait.`type`._
-import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
@@ -444,8 +442,6 @@ object ConverterUtils extends Logging {
         throw new UnsupportedOperationException(s"Unsupported join type: $other")
     }
   }
-
-  def getFileFormat(scan: BasicScanExecTransformer): ReadFileFormat = scan.fileFormat
 
   // A prefix used in the iterator path.
   final val ITERATOR_PREFIX = "iterator:"
