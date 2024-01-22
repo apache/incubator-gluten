@@ -19,7 +19,7 @@ package io.glutenproject.extension.columnar
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
-import io.glutenproject.extension.{GlutenPlan, ValidationResult}
+import io.glutenproject.extension.{GlutenPlan, RewriteCount, ValidationResult}
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.PhysicalPlanSelector
 
@@ -452,15 +452,16 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAggregate is not enabled in HashAggregateExec")
           } else {
+            val rewrittenAgg = RewriteCount.applyForValidation(plan)
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genHashAggregateExecTransformer(
-                plan.requiredChildDistributionExpressions,
-                plan.groupingExpressions,
-                plan.aggregateExpressions,
-                plan.aggregateAttributes,
-                plan.initialInputBufferOffset,
-                plan.resultExpressions,
-                plan.child
+                rewrittenAgg.requiredChildDistributionExpressions,
+                rewrittenAgg.groupingExpressions,
+                rewrittenAgg.aggregateExpressions,
+                rewrittenAgg.aggregateAttributes,
+                rewrittenAgg.initialInputBufferOffset,
+                rewrittenAgg.resultExpressions,
+                rewrittenAgg.child
               )
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
@@ -473,15 +474,16 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAgg is not enabled in SortAggregateExec")
           }
+          val rewrittenAgg = RewriteCount.applyForValidation(plan)
           val transformer = BackendsApiManager.getSparkPlanExecApiInstance
             .genHashAggregateExecTransformer(
-              plan.requiredChildDistributionExpressions,
-              plan.groupingExpressions,
-              plan.aggregateExpressions,
-              plan.aggregateAttributes,
-              plan.initialInputBufferOffset,
-              plan.resultExpressions,
-              plan.child
+              rewrittenAgg.requiredChildDistributionExpressions,
+              rewrittenAgg.groupingExpressions,
+              rewrittenAgg.aggregateExpressions,
+              rewrittenAgg.aggregateAttributes,
+              rewrittenAgg.initialInputBufferOffset,
+              rewrittenAgg.resultExpressions,
+              rewrittenAgg.child
             )
           TransformHints.tag(plan, transformer.doValidate().toTransformHint)
         case plan: ObjectHashAggregateExec =>
@@ -490,15 +492,16 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAgg is not enabled in ObjectHashAggregateExec")
           } else {
+            val rewrittenAgg = RewriteCount.applyForValidation(plan)
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genHashAggregateExecTransformer(
-                plan.requiredChildDistributionExpressions,
-                plan.groupingExpressions,
-                plan.aggregateExpressions,
-                plan.aggregateAttributes,
-                plan.initialInputBufferOffset,
-                plan.resultExpressions,
-                plan.child
+                rewrittenAgg.requiredChildDistributionExpressions,
+                rewrittenAgg.groupingExpressions,
+                rewrittenAgg.aggregateExpressions,
+                rewrittenAgg.aggregateAttributes,
+                rewrittenAgg.initialInputBufferOffset,
+                rewrittenAgg.resultExpressions,
+                rewrittenAgg.child
               )
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }

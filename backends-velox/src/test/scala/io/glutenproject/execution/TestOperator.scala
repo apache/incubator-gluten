@@ -806,4 +806,60 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
             "IN ('1970-01-01 08:00:00.001','1970-01-01 08:00:00.2')")(_)
     }
   }
+
+  private def checkFallbackOperators(df: DataFrame, num: Int): Unit = {
+    // Decrease one VeloxColumnarToRowExec for the top level node
+    assert(
+      collect(df.queryExecution.executedPlan) {
+        case p if p.isInstanceOf[VeloxColumnarToRowExec] => p
+      }.size - 1 == num,
+      df.queryExecution)
+  }
+
+  test("Support multi-children count") {
+    runQueryAndCompare(
+      """
+        |select l_orderkey, count(distinct l_partkey, l_comment)
+        |from lineitem group by l_orderkey
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+
+    runQueryAndCompare(
+      """
+        |select l_orderkey, count(l_shipdate, l_comment)
+        |from lineitem group by l_orderkey
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+
+    runQueryAndCompare(
+      """
+        |select l_orderkey, count(distinct l_partkey, l_comment), count(l_shipdate, l_comment)
+        |from lineitem group by l_orderkey
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+
+    runQueryAndCompare(
+      """
+        |select l_orderkey, count(distinct l_partkey), count(l_shipdate, l_comment)
+        |from lineitem group by l_orderkey
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+
+    runQueryAndCompare(
+      """
+        |select l_orderkey, count(distinct l_partkey, l_comment), count(l_shipdate)
+        |from lineitem group by l_orderkey
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+  }
+
+  test("Do not support multi-children count with row construct") {
+    // TODO: Remove this test when Velox support multi-children Count
+    runQueryAndCompare(
+      """
+        |select l_orderkey, count(distinct l_partkey, l_comment), corr(l_partkey, l_partkey+1)
+        |from lineitem group by l_orderkey
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 1))
+  }
 }
