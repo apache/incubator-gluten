@@ -14,55 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Common/NaNUtils.h>
+#include <Functions/castTypeToEither.h>
+#include <Functions/FunctionHelpers.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionBinaryArithmetic.h>
 #include <Columns/IColumn.h>
+#include <DataTypes/DataTypeNumberBase.h>
 #include <DataTypes/DataTypeNullable.h>
 
 using namespace DB;
 
+namespace DB
+{
+namespace ErrorCodes
+{
+    extern const int ILLEGAL_TYPE_OF_ARGUMENT;
+    extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
+}
+}
+
 namespace local_engine
 {
-
-template<typename T>
-static void checkAndSetNullable(const DB::ColumnPtr & src, DB::PaddedPODArray<T> & data, DB::PaddedPODArray<UInt8> & null_map_data)
-{
-    const DB::ColumnVector<T> * src_vec = assert_cast<const DB::ColumnVector<T> *>(src.get());
-    for (size_t i = 0; i < src_vec->size(); ++i)
-    {
-        T element = src_vec->getElement(i);
-        if (isNaN(element) || !isFinite(element))
-        {
-            data[i] = 0;
-            null_map_data[i] = 1;
-        }
-        else
-            data[i] = element;
-    }
-}
-
-static ColumnPtr checkAndSetNullable(const DB::ColumnPtr & src, const DataTypePtr & result_type)
-{
-    auto null_map_col = ColumnVector<UInt8>::create(src->size(), 0);
-    switch(removeNullable(result_type)->getTypeId())
-    {
-        case TypeIndex::Float32:
-        {
-            auto data_col_float32 = ColumnVector<Float32>::create(src->size());
-            checkAndSetNullable(src, data_col_float32->getData(), null_map_col->getData());
-            return ColumnNullable::create(std::move(data_col_float32), std::move(null_map_col));
-        }
-        case TypeIndex::Float64:
-        {
-            auto data_col_float64 = ColumnVector<Float64>::create(src->size());
-            checkAndSetNullable(src, data_col_float64->getData(), null_map_col->getData());
-            return ColumnNullable::create(std::move(data_col_float64), std::move(null_map_col));
-        }
-        default:
-            return src;
-    }
-}
 
 template <template <typename, typename> class Op, typename Name>
 class SparkFunctionDivide : public DB::FunctionBinaryArithmetic<Op, Name>
@@ -76,8 +48,50 @@ public:
 
     ColumnPtr executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr & result_type, size_t input_rows_count) const override
     {
-        ColumnPtr src = FunctionBinaryArithmetic<Op, Name>::executeImpl(arguments, result_type, input_rows_count);
-        return checkAndSetNullable(src, result_type);
+        if (arguments.size() != 2)
+            throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s arguments number must be 2", Name::name);
+        if (!isNativeNumber(arguments[0].type) || !isNativeNumber(arguments[1].type))
+        {
+            return FunctionBinaryArithmetic<Op, Name>::executeImpl(arguments, result_type, input_rows_count);
+        }
+        
+        ColumnPtr result = nullptr;
+
+        using Types = TypeList<DataTypeFloat32, DataTypeFloat64,DataTypeUInt8, DataTypeUInt16, DataTypeUInt32,
+            DataTypeUInt64, DataTypeInt8, DataTypeInt16, DataTypeInt32, DataTypeInt64>;
+        bool valid = castTypeToEither(Types{}, arguments[0].type.get(), [&](const auto & left_)
+        {
+            return castTypeToEither(Types{}, arguments[1].type.get(), [&](const auto & right_)
+            {
+                using L = typename std::decay_t<decltype(left_)>::FieldType;
+                using R = typename std::decay_t<decltype(right_)>::FieldType;
+                using T = typename NumberTraits::ResultOfFloatingPointDivision<L, R>::Type;
+                const ColumnVector<L> * vec1 = assert_cast<const ColumnVector<L> *>(arguments[0].column.get());
+                const ColumnVector<R> * vec2 = assert_cast<const ColumnVector<R> *>(arguments[1].column.get());
+                auto vec3 = ColumnVector<T>::create(vec1->size());
+                auto null_map_col = ColumnVector<UInt8>::create(vec1->size(), 0);
+                PaddedPODArray<T> & data = vec3->getData();
+                PaddedPODArray<UInt8> & null_map = null_map_col->getData();
+                for (size_t i = 0; i < vec1->size(); ++i)
+                {
+                    L l = vec1->getElement(i);
+                    R r = vec2->getElement(i);
+                    if (r == 0)
+                    {
+                        data[i] = 0;
+                        null_map[i] = 1;
+                    }
+                    else
+                        data[i] = Op<L,R>::apply(l, r);
+                }
+                result = ColumnNullable::create(std::move(vec3), std::move(null_map_col));
+                return true;
+            });
+        });
+        if (!valid)
+            throw Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s arguments type is not valid", Name::name);
+        
+        return result;
     }
 };
 
@@ -97,8 +111,37 @@ public:
     }
     ColumnPtr executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr & result_type, size_t input_rows_count) const override
     {
-        ColumnPtr src = FunctionBinaryArithmeticWithConstants<Op, Name>::executeImpl(arguments, result_type, input_rows_count);
-        return checkAndSetNullable(src, result_type);
+        if (arguments.size() != 2)
+            throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s arguments number must be 2", Name::name);
+        if (!isNativeNumber(arguments[0].type) || !isNativeNumber(arguments[1].type))
+        {
+            return FunctionBinaryArithmetic<Op, Name>::executeImpl(arguments, result_type, input_rows_count);
+        }
+        using Types = TypeList<DataTypeFloat32, DataTypeFloat64, DataTypeUInt8, DataTypeUInt16, DataTypeUInt32, DataTypeUInt64,
+                               DataTypeInt8, DataTypeInt16, DataTypeInt32, DataTypeInt64>;
+        ColumnPtr result = nullptr;
+        bool valid = castTypeToEither(Types{}, arguments[0].type.get(), [&](const auto & left_)
+        {
+            return castTypeToEither(Types{}, arguments[1].type.get(), [&](const auto & right_)
+            {
+                using R = typename std::decay_t<decltype(right_)>::FieldType;
+                const ColumnVector<R> * const_col = checkAndGetColumnConstData<ColumnVector<R>>(arguments[1].column.get());
+                if (const_col && const_col->getElement(0) == 0)
+                {
+                    using L = typename std::decay_t<decltype(left_)>::FieldType;
+                    using T = typename NumberTraits::ResultOfFloatingPointDivision<L, R>::Type;
+                    auto data_col = ColumnVector<T>::create(arguments[0].column->size(), 0);
+                    auto null_map_col = ColumnVector<UInt8>::create(arguments[0].column->size(), 1);
+                    result = ColumnNullable::create(std::move(data_col), std::move(null_map_col));
+                }
+                else
+                    result = FunctionBinaryArithmeticWithConstants<Op, Name>::executeImpl(arguments, result_type, input_rows_count);
+                return true;
+            });
+        });
+        if (!valid)
+            throw Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s arguments type is not valid", Name::name);
+        return result;
     }
 };
 
