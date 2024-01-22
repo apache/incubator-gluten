@@ -58,6 +58,7 @@ const std::string kShuffleCompressionCodec = "spark.gluten.sql.columnar.shuffle.
 const std::string kShuffleCompressionCodecBackend = "spark.gluten.sql.columnar.shuffle.codecBackend";
 const std::string kQatBackendName = "qat";
 const std::string kIaaBackendName = "iaa";
+const std::string kForceSpillThreshold = "spark.shuffle.spill.numElementsForceSpillThreshold";
 
 std::unordered_map<std::string, std::string> parseConfMap(JNIEnv* env, jbyteArray configArray);
 

@@ -31,6 +31,7 @@ static constexpr int32_t kDefaultBufferAlignment = 64;
 static constexpr double kDefaultBufferReallocThreshold = 0.25;
 static constexpr double kDefaultMergeBufferThreshold = 0.25;
 static constexpr bool kEnableBufferedWrite = true;
+static constexpr int32_t kDefaultForceSpillThreshold = std::numeric_limits<int32_t>::max();
 
 enum PartitionWriterType { kLocal, kCeleborn };
 
@@ -45,8 +46,7 @@ struct ShuffleWriterOptions {
   double bufferReallocThreshold = kDefaultBufferReallocThreshold;
   Partitioning partitioning = Partitioning::kRoundRobin;
   int32_t startPartitionId = 0;
-
-  int32_t forceSpillThreshold = std::numeric_limits<int32_t>::max();
+  int32_t forceSpillThreshold = kDefaultForceSpillThreshold;
 };
 
 struct PartitionWriterOptions {

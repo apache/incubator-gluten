@@ -503,6 +503,8 @@ object GlutenConfig {
       COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key,
+      // shuffle config
+      "spark.shuffle.spill.numElementsForceSpillThreshold",
       // s3 config
       SPARK_S3_ACCESS_KEY,
       SPARK_S3_SECRET_KEY,

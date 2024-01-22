@@ -821,12 +821,17 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     throw gluten::GlutenException(std::string("Short partitioning name can't be null"));
   }
 
+  int32_t forceSpillThreshold = kDefaultForceSpillThreshold;
+  if (auto iter = ctx->getConfMap().find(kForceSpillThreshold); iter != ctx->getConfMap().end()) {
+    forceSpillThreshold = std::stoi(iter->second);
+  }
+
   auto shuffleWriterOptions = ShuffleWriterOptions{
       .bufferSize = bufferSize,
       .bufferReallocThreshold = reallocThreshold,
       .partitioning = gluten::toPartitioning(jStringToCString(env, partitioningNameJstr)),
       .startPartitionId = startPartitionId,
-  };
+      .forceSpillThreshold = forceSpillThreshold};
 
   auto partitionWriterOptions = PartitionWriterOptions{
       .mergeBufferSize = mergeBufferSize,
