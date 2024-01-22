@@ -389,4 +389,14 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
       checkOperatorMatch[ProjectExecTransformer]
     }
   }
+
+  test("Test unbase64 function") {
+    withTable("t") {
+      sql("create table t(e string) using parquet")
+      sql("insert into table t(e) select base64('Gluten')")
+      runQueryAndCompare("select unbase64(e) from t") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+    }
+  }
 }
