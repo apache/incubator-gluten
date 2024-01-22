@@ -39,7 +39,7 @@ static S3::URI getS3URI(
     return uri;
 }
 
-void registerS3ObjectStorage(ObjectStorageFactory & factory)
+void registerGlutenS3ObjectStorage(ObjectStorageFactory & factory)
 {
     static constexpr auto disk_type = "s3_gluten";
 
