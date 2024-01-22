@@ -17,7 +17,6 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext

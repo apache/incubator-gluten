@@ -17,9 +17,7 @@
 package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.BasicScanExecTransformer
 import io.glutenproject.substrait.`type`._
-import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
