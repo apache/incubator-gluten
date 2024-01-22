@@ -12,7 +12,7 @@ A micro benchmark for Velox backend is provided in Gluten Cpp to simulate the ex
 It serves as a more convenient alternative to debug in Gluten Cpp comparing with directly debugging in a Spark job.
 Developers can use it to create their own workloads, debug in native process, profile the hotspot and do optimizations.
 
-To simulate a first stage, you need to dump the Substrait plan and split info into two JSON file. The input URIs should be exising file locations, which can be either local or HDFS paths.
+To simulate a first stage, you need to dump the Substrait plan and input split info into two JSON files. The input URIs of the splits should be exising file locations, which can be either local or HDFS paths.
 
 To simulate a middle stage, in addition to the JSON file, you also need to save the input data of this stage into Parquet files.
 The benchmark will load the data into Arrow format, then add Arrow2Velox to feed 
@@ -27,7 +27,7 @@ one or more input data files in parquet format.
 The commands below help to generate example input files:
 
 ```shell
-cd /path_to_gluten/
+cd /path/to/gluten/
 ./dev/buildbundle-veloxbe.sh --build_tests=ON --build_benchmarks=ON
 
 # Run test to generate input data files. If you are using spark 3.3, replace -Pspark-3.2 with -Pspark-3.3
@@ -50,10 +50,10 @@ gluten/backends-velox/generated-native-benchmark/
 
 Run micro benchmark with the generated files as input. You need to specify the **absolute** path to the input files:
 ```shell
-cd /path_to_gluten/cpp/build/velox/benchmarks
+cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
-/home/sparkuser/github/oap-project/gluten/backends-velox/generated-native-benchmark/example.json \
-/home/sparkuser/github/oap-project/gluten/backends-velox/generated-native-benchmark/example_orders/part-00000-1e66fb98-4dd6-47a6-8679-8625dbc437ee-c000.snappy.parquet \
+--plan /home/sparkuser/github/oap-project/gluten/backends-velox/generated-native-benchmark/example.json \
+--data /home/sparkuser/github/oap-project/gluten/backends-velox/generated-native-benchmark/example_orders/part-00000-1e66fb98-4dd6-47a6-8679-8625dbc437ee-c000.snappy.parquet \
 /home/sparkuser/github/oap-project/gluten/backends-velox/generated-native-benchmark/example_lineitem/part-00000-3ec19189-d20e-4240-85ae-88631d46b612-c000.snappy.parquet \
 --threads 1 --iterations 1 --noprint-result --benchmark_filter=InputFromBatchStream
 ```
@@ -97,7 +97,7 @@ InputFromBatchVector/iterations:1/process_time/real_time/threads:1   41304520 ns
 First, rebuild Gluten with build type `RelWithDebInfo`.
 
 ```shell
-cd /path_to_gluten/
+cd /path/to/gluten/
 ./dev/buildbundle-veloxbe.sh --build_tests=ON --build_benchmarks=ON --build_type=RelWithDebInfo
 
 ```
@@ -116,25 +116,24 @@ Task stageId: 2, partitionId: 855, taskId: 857; {"extensions":[{"extensionFuncti
 
 Save the Substrait plan to a JSON file, suppose the name is "plan.json".
 
-If you are simulating a first stage, executor's stdout should contains split info, which include input file locations, which can be either local or HDFS paths.
+If you are simulating a first stage, you can find the JSON string of the input splits from exexutor's log. The file location of the split can be either local or HDFS paths.
 
 ```shell
 ################################################## received substrait::ReadRel.LocalFiles:
 {"items":[{"uriFile":"hdfs://host:9000/user/hadoop/tpch_sf10/lineitem/part-00000-34fbf25c-7909-476d-a63a-b2b56f281c07-c000.snappy.parquet","partitionIndex":"2","start":"302582158","length":"151291079","parquet":{},"schema":{}}]}
 ```
 
-Dump it to a JSON file, suppose the name is "split.json".
+Save it to another JSON file. Suppose the name is "split.json".
 
-Run benchmark. The first arg is the absolute path to JSON file.
-You should use `--skip-input` to skip specifying input data files used for first stages.
+Run benchmark.
 By default, the result will be printed to stdout. You can use `--noprint-result` to suppress this output.
 
 ```shell
-cd /path_to_gluten/cpp/build/velox/benchmarks
+cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
-/plan/to/plan.json \
-/plan/to/split.json \
---threads 1 --skip-input --noprint-result
+--plan /path/to/plan.json \
+--split /path/to/split.json \
+--threads 1 --noprint-result
 ```
 
 If you are simulating a middle stage, get the Stage Id from spark UI.
@@ -146,7 +145,7 @@ You need to re-run the query with below configuraions to dump the input data fil
 | spark.gluten.sql.benchmark_task.stageId | Spark task stage id | 2 |
 | spark.gluten.sql.benchmark_task.partitionId | Spark task partition id, default value -1 means all the partition of this stage | -1 |
 | spark.gluten.sql.benchmark_task.taskId | If not specify partition id, use spark task attempt id, default value -1 means all the partition of this stage | -1 |
-| spark.gluten.saveDir | Directory should exist and be empty, save the stage input to this directory, parquet name format is input_${taskId}_${iteratorIndex}_${partitionId}.parquet | /path_to_saveDir |
+| spark.gluten.saveDir | Directory should exist and be empty, save the stage input to this directory, parquet name format is input_${taskId}_${iteratorIndex}_${partitionId}.parquet | /path/to/saveDir |
 
 Suppose the dumped input files are /tmp/save/input_34_0_1.parquet and /tmp/save/input_34_0_2.parquet. Please use spark to combine the 2 files to 1 file.
 
@@ -169,10 +168,10 @@ The input data files of a middle stage will be loaded as iterators to serve as t
 Run benchmark. The first arg is the absolute path to JSON file, the following args are absolute paths to input data files.
 
 ```shell
-cd /path_to_gluten/cpp/build/velox/benchmarks
+cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
-/path_to_plan.json \
-/tmp/new_save/generate.parquet \
+--plan /path/to/plan.json \
+--data /tmp/new_save/generate.parquet \
 --threads 1 --noprint-result
 ```
 
@@ -181,10 +180,10 @@ For some complex queries, stageId may cannot represent the Substrait plan input,
 In this example, only one partition input with partition id 2, taskId is 36, iterator length is 2.
 
 ```shell
-cd /path_to_gluten/cpp/build/velox/benchmarks
+cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
-/plan/to/complex_plan.json \
-/tmp/save/input_36_0_2.parquet /tmp/save/input_36_1_2.parquet \
+--plan /plan/to/complex_plan.json \
+--data /tmp/save/input_36_0_2.parquet /tmp/save/input_36_1_2.parquet \
 --threads 1 --noprint-result
 ```
 
@@ -193,11 +192,11 @@ cd /path_to_gluten/cpp/build/velox/benchmarks
 You can save the output to a parquet file to analyze.
 
 ```shell
-cd /path_to_gluten/cpp/build/velox/benchmarks
+cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
-/plan/to/plan.json \
-/tmp/save/input_1.parquet /tmp/save/input_2.parquet \
---threads 1 --noprint-result --write-file=/path_to_result.parquet
+--plan /plan/to/plan.json \
+--data /tmp/save/input_1.parquet /tmp/save/input_2.parquet \
+--threads 1 --noprint-result --write-file=/path/to/result.parquet
 ```
 
 ## Add shuffle write process
@@ -205,11 +204,13 @@ cd /path_to_gluten/cpp/build/velox/benchmarks
 You can add the shuffle write process at the end of this stage. Note that this will ignore the `--write-file` option.
 
 ```shell
-cd /path_to_gluten/cpp/build/velox/benchmarks
+cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
-/plan/to/plan.json \
+--plan /plan/to/plan.json \
+--split /plan/to/split.json \
 --threads 1 --noprint-result --with-shuffle
 ```
+
 By default, the compression codec for shuffle outputs is LZ4. You can switch to other codecs by adding one of the following argument flags to the command:
 - --zstd: ZSTD codec, compression level 1
 - --qat-gzip: QAT GZIP codec, compression level 1
@@ -232,7 +233,7 @@ processes=24 # Same value of spark.executor.instances
 threads=8 # Same value of spark.executor.cores
 
 for ((i=0; i<${processes}; i++)); do
-    ./generic_benchmark /path_to_plan.json --skip-input --noprint-result --threads $threads --cpu $((i*threads)) &
+    ./generic_benchmark --plan /path/to/plan.json --split /path/to/split.json --noprint-result --threads $threads --cpu $((i*threads)) &
 done
 ```
 If you want to add the shuffle write process, you can specify multiple direcotries by setting environment variable `GLUTEN_SPARK_LOCAL_DIRS` to a comma-separated string for shuffle write to spread the I/O pressure to multiple disks.
@@ -245,7 +246,7 @@ processes=24 # Same value of spark.executor.instances
 threads=8 # Same value of spark.executor.cores
 
 for ((i=0; i<${processes}; i++)); do
-    ./generic_benchmark /path_to_plan.json --skip-input --noprint-result --with-shuffle --threads $threads --cpu $((i*threads)) &
+    ./generic_benchmark --plan /path/to/plan.json --split /path/to/split.json --noprint-result --with-shuffle --threads $threads --cpu $((i*threads)) &
 done
 ```
 
@@ -253,18 +254,19 @@ done
 
 We also provide some example inputs in [cpp/velox/benchmarks/data](../../cpp/velox/benchmarks/data). E.g. [generic_q5/q5_first_stage_0.json](../../cpp/velox/benchmarks/data/generic_q5/q5_first_stage_0.json) simulates a first-stage in TPCH Q5, which has the the most heaviest table scan. You can follow below steps to run this example.
 
-1. Open [generic_q5/q5_first_stage_0.json](../../cpp/velox/benchmarks/data/generic_q5/q5_first_stage_0.json) with file editor. Search for `"uriFile": "LINEITEM"` and replace `LINEITEM` with the URI to one partition file in lineitem. In the next line, replace the number in `"length": "..."` with the actual file length. Suppose you are using the provided small TPCH table in [cpp/velox/benchmarks/data/tpch_sf10m](../../cpp/velox/benchmarks/data/tpch_sf10m), the replaced JSON should be like:
+1. Open [generic_q5/q5_first_stage_0.json](../../cpp/velox/benchmarks/data/generic_q5/q5_first_stage_0_split.json) with file editor. Search for `"uriFile": "LINEITEM"` and replace `LINEITEM` with the URI to one partition file in lineitem. In the next line, replace the number in `"length": "..."` with the actual file length. Suppose you are using the provided small TPCH table in [cpp/velox/benchmarks/data/tpch_sf10m](../../cpp/velox/benchmarks/data/tpch_sf10m), the replaced JSON should be like:
 ```
-"localFiles": {
+{
     "items": [
         {
-            "uriFile": "file:///path_to_gluten/cpp/velox/benchmarks/data/tpch_sf10m/lineitem/part-00000-6c374e0a-7d76-401b-8458-a8e31f8ab704-c000.snappy.parquet",
+            "uriFile": "file:///path/to/gluten/cpp/velox/benchmarks/data/tpch_sf10m/lineitem/part-00000-6c374e0a-7d76-401b-8458-a8e31f8ab704-c000.snappy.parquet",
             "length": "1863237",
             "parquet": {}
         }
     ]
 }
 ```
+
 2. Launch multiple processes and multiple threads. Set `GLUTEN_SPARK_LOCAL_DIRS` and add --with-shuffle to the command.
 ```
 mkdir -p {/data1,/data2,/data3}/tmp # Make sure each directory has been already created.
@@ -274,10 +276,12 @@ processes=24 # Same value of spark.executor.instances
 threads=8 # Same value of spark.executor.cores
 
 for ((i=0; i<${processes}; i++)); do
-    ./generic_benchmark /path_to_gluten/cpp/velox/benchmarks/data/generic_q5/q5_first_stage_0.json --skip-input --noprint-result --with-shuffle --threads $threads --cpu $((i*threads)) &
+    ./generic_benchmark --plan /path/to/gluten/cpp/velox/benchmarks/data/generic_q5/q5_first_stage_0.json --split /path/to/gluten/cpp/velox/benchmarks/data/generic_q5/q5_first_stage_0_split.json --noprint-result --with-shuffle --threads $threads --cpu $((i*threads)) &
 done >stdout.log 2>stderr.log
 ```
+
 You can find the "elapsed_time" and other metrics in stdout.log. In below output, the "elapsed_time" is ~10.75s. If you run TPCH Q5 with Gluten on Spark, a single task in the same Spark stage should take about the same time.
+
 ```
 ------------------------------------------------------------------------------------------------------------------
 Benchmark                                                        Time             CPU   Iterations UserCounters...
