@@ -76,7 +76,6 @@ trait IteratorApi {
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
-      buildRelationBatchHolder: Seq[ColumnarBatch],
       materializeInput: Boolean = false): Iterator[ColumnarBatch]
   // scalastyle:on argcount
 

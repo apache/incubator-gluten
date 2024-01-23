@@ -192,7 +192,6 @@ class IteratorApiImpl extends IteratorApi with Logging {
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
-      buildRelationBatchHolder: Seq[ColumnarBatch],
       materializeInput: Boolean): Iterator[ColumnarBatch] = {
 
     ExecutorManager.tryTaskSet(numaBindingInfo)
