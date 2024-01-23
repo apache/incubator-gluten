@@ -229,13 +229,20 @@ abstract class HashAggregateExecBaseTransformer(
     // Get the needed expressions from grouping expressions.
     groupingExpressions.foreach(expression => appendIfNotFound(expression))
 
+    val hasDistinct = aggregateExpressions.exists(_.isDistinct)
     // Get the needed expressions from aggregation expressions.
     aggregateExpressions.foreach(
       aggExpr => {
         val aggregateFunc = aggExpr.aggregateFunction
         aggExpr.mode match {
           case Partial =>
-            aggregateFunc.children.foreach(expression => appendIfNotFound(expression))
+            aggregateFunc.children.foreach(appendIfNotFound)
+          case PartialMerge =>
+            // For aggregate with distinct
+            assert(
+              hasDistinct,
+              s"Not support PartialMerge for non-distinct aggregate: $aggregateFunc")
+            aggregateFunc.inputAggBufferAttributes.foreach(appendIfNotFound)
           case other =>
             throw new UnsupportedOperationException(s"$other not supported.")
         }
@@ -302,14 +309,24 @@ abstract class HashAggregateExecBaseTransformer(
       aggExpr => {
         val aggregateFunc = aggExpr.aggregateFunction
         val childrenNodeList = new JArrayList[ExpressionNode]()
-        val childrenNodes = aggregateFunc.children.toList.map(
-          _ => {
-            val aggExpr = ExpressionBuilder.makeSelection(selections(colIdx))
-            colIdx += 1
-            aggExpr
-          })
-        for (node <- childrenNodes) {
-          childrenNodeList.add(node)
+        aggExpr.mode match {
+          case Partial =>
+            aggregateFunc.children.foreach {
+              _ =>
+                val aggExpr = ExpressionBuilder.makeSelection(selections(colIdx))
+                colIdx += 1
+                childrenNodeList.add(aggExpr)
+            }
+          case PartialMerge =>
+            // For aggregate with distinct
+            aggregateFunc.inputAggBufferAttributes.foreach {
+              _ =>
+                val aggExpr = ExpressionBuilder.makeSelection(selections(colIdx))
+                colIdx += 1
+                childrenNodeList.add(aggExpr)
+            }
+          case other =>
+            throw new UnsupportedOperationException(s"$other not supported.")
         }
         addFunctionNode(
           context.registeredFunction,
@@ -583,4 +600,19 @@ abstract class HashAggregateExecBaseTransformer(
       aggParams: AggregationParams,
       input: RelNode = null,
       validation: Boolean = false): RelNode
+}
+
+object HashAggregateExecTransformerUtil {
+  // Return whether the outputs partial aggregation should be combined for Velox computing.
+  // When the partial outputs are multiple-column, row construct is needed.
+  def rowConstructNeeded(aggregateExpressions: Seq[AggregateExpression]): Boolean = {
+    aggregateExpressions.exists {
+      aggExpr =>
+        aggExpr.mode match {
+          case PartialMerge | Final =>
+            aggExpr.aggregateFunction.inputAggBufferAttributes.size > 1
+          case _ => false
+        }
+    }
+  }
 }

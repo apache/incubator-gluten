@@ -426,4 +426,10 @@ object BackendSettings extends BackendSettingsApi {
       }
     }
   }
+
+  override def shouldRewriteCount(): Boolean = {
+    // Velox backend does not support count if it has more that one child,
+    // so we should rewrite it.
+    true
+  }
 }
