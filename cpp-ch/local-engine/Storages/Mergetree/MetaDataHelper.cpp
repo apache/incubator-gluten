@@ -15,7 +15,59 @@
  * limitations under the License.
  */
 #include "MetaDataHelper.h"
+#include <filesystem>
 
-namespace local_engne
+using namespace DB;
+
+namespace local_engine
 {
-} // local_engne
+
+std::unordered_map<String, String> extractPartMetaData(ReadBuffer & in)
+{
+    std::unordered_map<String, String> result;
+    while(!in.eof())
+    {
+        String name;
+        readString(name, in);
+        assertChar('\t', in);
+        UInt64 size;
+        readVarUInt(size, in);
+        assertChar('\n', in);
+        String data;
+        data.reserve(size);
+        in.read(data.data(), size);
+        result.emplace(name, data);
+    }
+    return result;
+}
+
+void restoreMetaData(DiskPtr data_disk, const MergeTreeTable & mergeTreeTable)
+{
+    static std::mutex metadata_mutex;
+    if (!data_disk->isRemote())
+        return;
+    MetadataStorageFromDisk* metadata_storage = static_cast<MetadataStorageFromDisk *>(data_disk->getMetadataStorage().get());
+    auto metadata_disk = metadata_storage->getDisk();
+    auto table_path = std::filesystem::path(mergeTreeTable.relative_path);
+    std::lock_guard lock(metadata_mutex);
+    if (!metadata_disk->exists(table_path))
+    {
+        metadata_disk->createDirectories(table_path.generic_string());
+    }
+    for (const auto & part : mergeTreeTable.getPartNames())
+    {
+        auto part_path = table_path / part;
+        auto metadata_file_path = part_path / "metadata.txt";
+        if (metadata_disk->exists(part_path))
+            continue;
+        auto part_metadata = extractPartMetaData(*data_disk->readFile(metadata_file_path));
+        for (const auto & item : part_metadata)
+        {
+            auto item_path = part_path / item.first;
+            auto out = metadata_disk->writeFile(item_path);
+            out->write(item.second.data(), item.second.size());
+        }
+    }
+}
+
+}
