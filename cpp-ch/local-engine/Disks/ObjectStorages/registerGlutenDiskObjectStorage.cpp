@@ -73,7 +73,7 @@ void registerGlutenS3ObjectStorage(ObjectStorageFactory & factory)
                 if (s3_capabilities.support_batch_delete && !checkBatchRemove(*object_storage, uri.key))
                 {
                     LOG_WARNING(
-                        &Poco::Logger::get("S3ObjectStorage"),
+                        &Poco::Logger::get("GlutenS3ObjectStorage"),
                         "Storage for disk {} does not support batch delete operations, "
                         "so `s3_capabilities.support_batch_delete` was automatically turned off during the access check. "
                         "To remove this message set `s3_capabilities.support_batch_delete` for the disk to `false`.",
