@@ -228,6 +228,7 @@ macro(ADD_VELOX_DEPENDENCIES)
   endif()
   add_velox_dependency(common::compression "${VELOX_COMPONENTS_PATH}/common/compression/libvelox_common_compression.a")
   add_velox_dependency(common::io "${VELOX_COMPONENTS_PATH}/common/io/libvelox_common_io.a")
+  add_velox_dependency(velox::status "${VELOX_COMPONENTS_PATH}/common/base/libvelox_status.a")
   add_velox_dependency(external::simdjson "${VELOX_BUILD_PATH}/_deps/simdjson-build/libsimdjson.a")
 endmacro()
 
