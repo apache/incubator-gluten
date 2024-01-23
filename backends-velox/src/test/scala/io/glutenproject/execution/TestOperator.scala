@@ -734,6 +734,54 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
+  test("Support short int type filter in scan") {
+    withTable("short_table") {
+      sql("create table short_table (a short, b int) using parquet")
+      sql(
+        s"insert into short_table values " +
+          s"(1, 1), (null, 2), (${Short.MinValue}, 3), (${Short.MaxValue}, 4)")
+      runQueryAndCompare("select * from short_table where a = 1") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+
+      runQueryAndCompare("select * from short_table where a is NULL") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+
+      runQueryAndCompare(s"select * from short_table where a != ${Short.MinValue}") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+
+      runQueryAndCompare(s"select * from short_table where a != ${Short.MaxValue}") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+    }
+  }
+
+  test("Support int type filter in scan") {
+    withTable("int_table") {
+      sql("create table int_table (a int, b int) using parquet")
+      sql(
+        s"insert into int_table values " +
+          s"(1, 1), (null, 2), (${Int.MinValue}, 3), (${Int.MaxValue}, 4)")
+      runQueryAndCompare("select * from int_table where a = 1") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+
+      runQueryAndCompare("select * from int_table where a is NULL") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+
+      runQueryAndCompare(s"select * from int_table where a != ${Int.MinValue}") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+
+      runQueryAndCompare(s"select * from int_table where a != ${Int.MaxValue}") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+    }
+  }
+
   test("test cross join with equi join conditions") {
     withTable("t1", "t2") {
       sql("""
