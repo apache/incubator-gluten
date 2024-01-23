@@ -25,8 +25,6 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import scala.collection.mutable
-
 private[glutenproject] class ZippedPartitionsPartition(
     override val index: Int,
     val inputColumnarRDDPartitions: Seq[Partition])
