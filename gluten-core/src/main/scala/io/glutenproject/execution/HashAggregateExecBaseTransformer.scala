@@ -108,32 +108,37 @@ abstract class HashAggregateExecBaseTransformer(
 
   override def simpleString(maxFields: Int): String = toString(verbose = false, maxFields)
 
-  protected def checkType(dataType: DataType): Boolean = {
-    dataType match {
-      case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
-          StringType | TimestampType | DateType | BinaryType =>
-        true
-      case _: DecimalType => true
-      case _: ArrayType => true
-      case _: NullType => true
-      case _ => false
-    }
-  }
-
   override protected def doValidateInternal(): ValidationResult = {
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
     val aggParams = new AggregationParams
     val relNode = getAggRel(substraitContext, operatorId, aggParams, null, validation = true)
-    if (aggregateAttributes.exists(attr => !checkType(attr.dataType))) {
-      return ValidationResult.notOk(
-        "Found not supported data type in aggregation expression," +
-          s"${aggregateAttributes.map(_.dataType)}")
+
+    val typeValidator = (attr: NamedExpression) => {
+      attr.dataType match {
+        case BooleanType | StringType | TimestampType | DateType | BinaryType =>
+          true
+        case _: NumericType => true
+        case _: ArrayType => true
+        case _: NullType => true
+        case _ => false
+      }
     }
-    if (groupingExpressions.exists(attr => !checkType(attr.dataType))) {
+    val unsupportedAggExprs = aggregateAttributes.filterNot(typeValidator)
+    if (unsupportedAggExprs.nonEmpty) {
       return ValidationResult.notOk(
-        "Found not supported data type in group expression," +
-          s"${groupingExpressions.map(_.dataType)}")
+        "Found unsupported data type in aggregation expression: " +
+          unsupportedAggExprs
+            .map(attr => s"${attr.name}#${attr.exprId.id}:${attr.dataType}")
+            .mkString(", "))
+    }
+    val unsupportedGroupExprs = groupingExpressions.filterNot(typeValidator)
+    if (unsupportedGroupExprs.nonEmpty) {
+      return ValidationResult.notOk(
+        "Found unsupported data type in grouping expression: " +
+          unsupportedGroupExprs
+            .map(attr => s"${attr.name}#${attr.exprId.id}:${attr.dataType}")
+            .mkString(", "))
     }
     aggregateExpressions.foreach {
       expr =>
