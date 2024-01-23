@@ -19,7 +19,7 @@ package io.glutenproject.extension.columnar
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
-import io.glutenproject.extension.{GlutenPlan, RewriteCount, ValidationResult}
+import io.glutenproject.extension.{GlutenPlan, RewriteMultiChildrenCount, ValidationResult}
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.PhysicalPlanSelector
 
@@ -452,7 +452,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAggregate is not enabled in HashAggregateExec")
           } else {
-            val rewrittenAgg = RewriteCount.applyForValidation(plan)
+            val rewrittenAgg = RewriteMultiChildrenCount.applyForValidation(plan)
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genHashAggregateExecTransformer(
                 rewrittenAgg.requiredChildDistributionExpressions,
@@ -474,7 +474,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAgg is not enabled in SortAggregateExec")
           }
-          val rewrittenAgg = RewriteCount.applyForValidation(plan)
+          val rewrittenAgg = RewriteMultiChildrenCount.applyForValidation(plan)
           val transformer = BackendsApiManager.getSparkPlanExecApiInstance
             .genHashAggregateExecTransformer(
               rewrittenAgg.requiredChildDistributionExpressions,
@@ -492,7 +492,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAgg is not enabled in ObjectHashAggregateExec")
           } else {
-            val rewrittenAgg = RewriteCount.applyForValidation(plan)
+            val rewrittenAgg = RewriteMultiChildrenCount.applyForValidation(plan)
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genHashAggregateExecTransformer(
                 rewrittenAgg.requiredChildDistributionExpressions,

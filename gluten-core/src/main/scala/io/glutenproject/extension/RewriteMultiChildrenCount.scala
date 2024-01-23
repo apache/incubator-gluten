@@ -48,7 +48,7 @@ import org.apache.spark.sql.types.IntegerType
  *
  * TODO: Remove this rule when Velox support multi-children Count
  */
-object RewriteCount extends Rule[SparkPlan] {
+object RewriteMultiChildrenCount extends Rule[SparkPlan] {
   private def extractCountForRewrite(aggExpr: AggregateExpression): Option[Count] = {
     val isPartialCountWithMoreThanOneChild = aggExpr.mode == Partial && {
       aggExpr.aggregateFunction match {
