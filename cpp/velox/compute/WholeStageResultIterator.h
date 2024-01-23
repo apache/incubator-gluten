@@ -57,6 +57,14 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
     return metrics_.get();
   }
 
+  const facebook::velox::exec::Task* task() const {
+    return task_.get();
+  }
+
+  const facebook::velox::core::PlanNode* veloxPlan() const {
+    return veloxPlan_.get();
+  }
+
  private:
   /// Get the Spark confs to Velox query context.
   std::unordered_map<std::string, std::string> getQueryContextConf();

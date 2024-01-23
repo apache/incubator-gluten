@@ -210,8 +210,8 @@ auto BM_Generic = [](::benchmark::State& state,
         });
 
     auto* rawIter = static_cast<gluten::WholeStageResultIterator*>(resultIter->getInputIter());
-    const auto& task = rawIter->task_;
-    const auto& planNode = rawIter->veloxPlan_;
+    const auto* task = rawIter->task();
+    const auto* planNode = rawIter->veloxPlan();
     auto statsStr = facebook::velox::exec::printPlanWithStats(*planNode, task->taskStats(), true);
     LOG(INFO) << statsStr;
   }
@@ -280,8 +280,7 @@ int main(int argc, char** argv) {
   do {                                                                                                                \
     auto* bm =                                                                                                        \
         ::benchmark::RegisterBenchmark(NAME, BM_Generic, substraitJsonFile, splitFile, inputFiles, conf, READER_TYPE) \
-            ->MeasureProcessCPUTime()                                                                                 \
-            ->UseRealTime();                                                                                          \
+            -> MeasureProcessCPUTime() -> UseRealTime();                                                              \
     if (FLAGS_threads > 0) {                                                                                          \
       bm->Threads(FLAGS_threads);                                                                                     \
     } else {                                                                                                          \
