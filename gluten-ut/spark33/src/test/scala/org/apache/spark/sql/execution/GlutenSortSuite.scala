@@ -16,6 +16,83 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.spark.sql.GlutenSQLTestsBaseTrait
+import io.glutenproject.execution.SortExecTransformer
 
-class GlutenSortSuite extends SortSuite with GlutenSQLTestsBaseTrait {}
+import org.apache.spark.sql.{catalyst, GlutenQueryTest, GlutenSQLTestsBaseTrait, Row}
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
+import org.apache.spark.sql.catalyst.analysis.{Resolver, UnresolvedAttribute}
+import org.apache.spark.sql.catalyst.expressions.Length
+import org.apache.spark.sql.catalyst.plans.QueryPlan
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.functions.length
+
+class GlutenSortSuite extends SortSuite with GlutenSQLTestsBaseTrait with AdaptiveSparkPlanHelper {
+  import testImplicits._
+
+  protected val resolver: Resolver = conf.resolver
+
+  protected def attr(name: String): UnresolvedAttribute = {
+    UnresolvedAttribute(name)
+  }
+
+  protected def resolveAttrs[T <: QueryPlan[T]](
+      expr: catalyst.expressions.Expression,
+      plan: QueryPlan[T]): catalyst.expressions.Expression = {
+
+    expr.transform {
+      case UnresolvedAttribute(Seq(attrName)) =>
+        plan.output.find(attr => resolver(attr.name, attrName)).get
+      case UnresolvedAttribute(nameParts) =>
+        val attrName = nameParts.mkString(".")
+        fail(s"cannot resolve a nested attr: $attrName")
+    }
+  }
+
+  test(GLUTEN_TEST + "post-project outputOrdering check") {
+    val input = Seq(
+      ("Hello", 4, 2.0),
+      ("Hello Bob", 10, 1.0),
+      ("Hello Bob", 1, 3.0)
+    )
+
+    val df = input.toDF("a", "b", "c").orderBy(length($"a").desc, $"b".desc)
+    GlutenQueryTest.checkAnswer(
+      df,
+      Seq(
+        Row("Hello Bob", 10, 1.0),
+        Row("Hello Bob", 1, 3.0),
+        Row("Hello", 4, 2.0)
+      )
+    )
+
+    val ordering = Seq(
+      catalyst.expressions.SortOrder(
+        Length(attr("a")),
+        catalyst.expressions.Descending,
+        catalyst.expressions.NullsLast,
+        Seq.empty
+      ),
+      catalyst.expressions.SortOrder(
+        attr("b"),
+        catalyst.expressions.Descending,
+        catalyst.expressions.NullsLast,
+        Seq.empty
+      )
+    )
+
+    assert(
+      getExecutedPlan(df).exists {
+        case _: SortExecTransformer => true
+        case _ => false
+      }
+    )
+    val plan = stripAQEPlan(df.queryExecution.executedPlan)
+    val actualOrdering = plan.outputOrdering
+    val expectedOrdering = ordering.map(resolveAttrs(_, plan))
+    assert(actualOrdering.length == expectedOrdering.length)
+    (actualOrdering.zip(expectedOrdering)).foreach {
+      case (actual, expected) =>
+        assert(actual.semanticEquals(expected), "ordering must match")
+    }
+  }
+}

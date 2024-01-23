@@ -327,7 +327,10 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
       case plan: ProjectExec =>
         val columnarChild = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        ProjectExecTransformer(plan.projectList, columnarChild)
+        val transformer = ProjectExecTransformer(plan.projectList, columnarChild)
+        // Copy the tag for pre-project hint.
+        transformer.copyTagsFrom(plan)
+        transformer
       case plan: FilterExec =>
         genFilterExec(plan)
       case plan: HashAggregateExec =>
@@ -786,6 +789,7 @@ case class ColumnarOverrideRules(session: SparkSession)
       List(
         (spark: SparkSession) => PlanOneRowRelation(spark),
         (_: SparkSession) => FallbackEmptySchemaRelation(),
+        (spark: SparkSession) => ColumnarPullOutPreProject(spark),
         (_: SparkSession) => AddTransformHintRule(),
         (_: SparkSession) => RewriteMultiChildrenCount,
         (_: SparkSession) => FallbackBloomFilterAggIfNeeded(),
