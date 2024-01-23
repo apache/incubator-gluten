@@ -47,7 +47,7 @@ DEFINE_bool(iaa_gzip, false, "Use IAA GZIP as shuffle compression codec");
 DEFINE_int32(shuffle_partitions, 200, "Number of shuffle split (reducer) partitions");
 DEFINE_bool(run_example, false, "Run the example and exit.");
 
-DEFINE_string(json, "", "Path to input json file of the substrait plan.");
+DEFINE_string(plan, "", "Path to input json file of the substrait plan.");
 DEFINE_string(split, "", "Path to input json file of the splits. Only valid for simulating the first stage.");
 DEFINE_string(data, "", "Path to input data files in parquet format. Only valid for simulating the middle stage.");
 
@@ -249,7 +249,7 @@ int main(int argc, char** argv) {
   initVeloxBackend(conf);
 
   // Parse substrait plan, split file and data files.
-  std::string substraitJsonFile = FLAGS_json;
+  std::string substraitJsonFile = FLAGS_plan;
   std::string splitFile = FLAGS_split;
   std::vector<std::string> inputFiles{};
   if (!FLAGS_data.empty()) {
@@ -290,7 +290,7 @@ int main(int argc, char** argv) {
                << "If simulating a middle stage, the usage is:" << std::endl
                << "./generic_benchmark "
                << "--plan /absolute-path/to/substrait_json_file "
-               << "--data-file /absolute-path/to/data_file_1 /absolute-path/to/data_file_2 ...";
+               << "--data /absolute-path/to/data_file_1 /absolute-path/to/data_file_2 ...";
     LOG(ERROR) << "*** Please check docs/developers/MicroBenchmarks.md for the full usage. ***";
     std::exit(EXIT_FAILURE);
   }
