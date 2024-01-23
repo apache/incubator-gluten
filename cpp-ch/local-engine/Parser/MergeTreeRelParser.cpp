@@ -141,7 +141,10 @@ MergeTreeRelParser::parseReadRel(
                 buildMergeTreeSettings());
             return custom_storage_merge_tree;
         });
-    restoreMetaData(storage->getStoragePolicy()->getAnyDisk(), merge_tree_table);
+    {
+        auto lock = storage->lockForAlter(context->getSettingsRef().lock_acquire_timeout);
+        restoreMetaData(storage->getStoragePolicy()->getAnyDisk(), merge_tree_table);
+    }
     for (const auto & [name, sizes] : storage->getColumnSizes())
         column_sizes[name] = sizes.data_compressed;
     query_context.storage_snapshot = std::make_shared<StorageSnapshot>(*storage, metadata);
