@@ -29,15 +29,15 @@
 namespace gluten {
 
 namespace {
-#define LOG_VALIDATION_MSG_FROM_EXCEPTION(err)                                                                                              \
-  logValidateMsg(fmt::format(                                                                                                               \
-      "native validation failed due to exception caught at file:{} line:{} function:{}, thrown from file:{} line:{} function:{} reason:{}", \
-      __FILE__,                                                                                                                             \
-      __LINE__,                                                                                                                             \
-      __FUNCTION__,                                                                                                                         \
-      err.file(),                                                                                                                           \
-      err.line(),                                                                                                                           \
-      err.function(),                                                                                                                       \
+#define LOG_VALIDATION_MSG_FROM_EXCEPTION(err)                                                                                       \
+  logValidateMsg(fmt::format(                                                                                                        \
+      "Validation failed due to exception caught at file:{} line:{} function:{}, thrown from file:{} line:{} function:{} reason:{}", \
+      __FILE__,                                                                                                                      \
+      __LINE__,                                                                                                                      \
+      __FUNCTION__,                                                                                                                  \
+      err.file(),                                                                                                                    \
+      err.line(),                                                                                                                    \
+      err.function(),                                                                                                                \
       err.message()));
 
 #define LOG_VALIDATION_MSG(reason) \
