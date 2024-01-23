@@ -44,10 +44,11 @@ import scala.collection.mutable.ListBuffer
 case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBase(child = child) {
 
   override def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
-    if (!new ValidatorApiImpl().doSchemaValidate(schema)) {
-      throw new UnsupportedOperationException(
-        s"Input schema contains unsupported type when convert row to columnar, " +
-          s"${schema.toString()}")
+    new ValidatorApiImpl().doSchemaValidate(schema).foreach {
+      reason =>
+        throw new UnsupportedOperationException(
+          s"Input schema contains unsupported type when convert row to columnar for $schema " +
+            s"due to $reason")
     }
 
     val numInputRows = longMetric("numInputRows")

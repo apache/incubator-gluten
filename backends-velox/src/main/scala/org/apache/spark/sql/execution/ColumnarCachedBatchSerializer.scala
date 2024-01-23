@@ -27,6 +27,7 @@ import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.{ArrowAbiUtil, Iterators}
 import io.glutenproject.vectorized.ColumnarBatchSerializerJniWrapper
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.{InternalRow, SQLConfHelper}
@@ -77,7 +78,7 @@ case class CachedColumnarBatch(
  *     -> Convert DefaultCachedBatch to InternalRow using vanilla Spark serializer
  */
 // spotless:on
-class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHelper {
+class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHelper with Logging {
   private lazy val rowBasedCachedBatchSerializer = new DefaultCachedBatchSerializer
 
   private def toStructType(schema: Seq[Attribute]): StructType = {
@@ -90,7 +91,13 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
   }
 
   private def validateSchema(schema: StructType): Boolean = {
-    new ValidatorApiImpl().doSchemaValidate(schema)
+    val reason = new ValidatorApiImpl().doSchemaValidate(schema)
+    if (reason.isDefined) {
+      logInfo(s"Columnar cache does not support schema $schema, due to ${reason.get}")
+      false
+    } else {
+      true
+    }
   }
 
   override def supportsColumnarInput(schema: Seq[Attribute]): Boolean = {
