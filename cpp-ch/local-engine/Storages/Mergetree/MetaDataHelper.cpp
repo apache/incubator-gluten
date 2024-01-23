@@ -25,7 +25,7 @@ namespace local_engine
 std::unordered_map<String, String> extractPartMetaData(ReadBuffer & in)
 {
     std::unordered_map<String, String> result;
-    while(!in.eof())
+    while (!in.eof())
     {
         String name;
         readString(name, in);
@@ -43,24 +43,24 @@ std::unordered_map<String, String> extractPartMetaData(ReadBuffer & in)
 
 void restoreMetaData(DiskPtr data_disk, const MergeTreeTable & mergeTreeTable)
 {
-    static std::mutex metadata_mutex;
     if (!data_disk->isRemote())
         return;
-    MetadataStorageFromDisk* metadata_storage = static_cast<MetadataStorageFromDisk *>(data_disk->getMetadataStorage().get());
+    auto s3 = data_disk->getObjectStorage();
+    MetadataStorageFromDisk * metadata_storage = static_cast<MetadataStorageFromDisk *>(data_disk->getMetadataStorage().get());
     auto metadata_disk = metadata_storage->getDisk();
     auto table_path = std::filesystem::path(mergeTreeTable.relative_path);
-    std::lock_guard lock(metadata_mutex);
     if (!metadata_disk->exists(table_path))
-    {
         metadata_disk->createDirectories(table_path.generic_string());
-    }
     for (const auto & part : mergeTreeTable.getPartNames())
     {
         auto part_path = table_path / part;
-        auto metadata_file_path = part_path / "metadata.txt";
+        auto metadata_file_path = part_path / "metadata.gluten";
+
         if (metadata_disk->exists(part_path))
             continue;
-        auto part_metadata = extractPartMetaData(*data_disk->readFile(metadata_file_path));
+        auto key = s3->generateObjectKeyForPath(metadata_file_path.generic_string());
+        StoredObject metadata_object(key.serialize());
+        auto part_metadata = extractPartMetaData(*s3->readObject(metadata_object));
         for (const auto & item : part_metadata)
         {
             auto item_path = part_path / item.first;
