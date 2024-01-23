@@ -226,6 +226,11 @@ case class GetArrayStructFieldsTransformer(
   extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
+    if (BackendsApiManager.getBackendName.equals("velox")) {
+      // Currently velox backend does not support GetArrayStructFields
+      throw new UnsupportedOperationException(s"$original not supported yet in velox.")
+    }
+
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(
       functionMap,
