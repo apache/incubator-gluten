@@ -1711,6 +1711,12 @@ void SubstraitToVeloxPlanConverter::setColumnFilterInfo(
   }
 }
 
+template <facebook::velox::TypeKind kind>
+variant getVariantFromLiteral(const ::substrait::Expression::Literal& literal) {
+  using LitT = typename facebook::velox::TypeTraits<kind>::NativeType;
+  return variant(SubstraitParser::getLiteralValue<LitT>(literal));
+}
+
 void SubstraitToVeloxPlanConverter::setFilterInfo(
     const ::substrait::Expression_ScalarFunction& scalarFunction,
     const std::vector<TypePtr>& inputTypeList,
@@ -1761,71 +1767,19 @@ void SubstraitToVeloxPlanConverter::setFilterInfo(
   std::optional<variant> val;
 
   auto inputType = inputTypeList[colIdxVal];
-  if (inputType->isDate()) {
-    if (substraitLit) {
-      val = variant(int(substraitLit.value().date()));
-    }
-    setColumnFilterInfo(functionName, val, columnToFilterInfo[colIdxVal], reverse);
-    return;
-  }
   switch (inputType->kind()) {
     case TypeKind::TINYINT:
-      if (substraitLit) {
-        val = variant(substraitLit.value().i8());
-      }
-      break;
     case TypeKind::SMALLINT:
-      if (substraitLit) {
-        val = variant(static_cast<int16_t>(substraitLit.value().i16()));
-      }
-      break;
     case TypeKind::INTEGER:
-      if (substraitLit) {
-        val = variant(substraitLit.value().i32());
-      }
-      break;
     case TypeKind::BIGINT:
-      if (substraitLit) {
-        if (inputType->isShortDecimal()) {
-          auto decimal = substraitLit.value().decimal().value();
-          int128_t decimalValue;
-          memcpy(&decimalValue, decimal.c_str(), 16);
-          val = variant(static_cast<int64_t>(decimalValue));
-        } else {
-          val = variant(substraitLit.value().i64());
-        }
-      }
-      break;
     case TypeKind::REAL:
-      if (substraitLit) {
-        val = variant(substraitLit.value().fp32());
-      }
-      break;
     case TypeKind::DOUBLE:
-      if (substraitLit) {
-        val = variant(substraitLit.value().fp64());
-      }
-      break;
     case TypeKind::BOOLEAN:
-      if (substraitLit) {
-        val = variant(substraitLit.value().boolean());
-      }
-      break;
     case TypeKind::VARCHAR:
-      if (substraitLit) {
-        val = variant(substraitLit.value().string());
-      }
-      break;
     case TypeKind::HUGEINT:
       if (substraitLit) {
-        if (inputType->isLongDecimal()) {
-          auto decimal = substraitLit.value().decimal().value();
-          int128_t decimalValue;
-          memcpy(&decimalValue, decimal.c_str(), 16);
-          val = variant(decimalValue);
-        } else {
-          VELOX_NYI("TypeKind::HUGEINT only support inputType LongDecimal");
-        }
+        auto kind = inputType->kind();
+        val = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(getVariantFromLiteral, kind, substraitLit.value());
       }
       break;
     case TypeKind::ARRAY:

@@ -92,6 +92,10 @@ class SubstraitParser {
   /// Extract input types from Substrait function signature.
   static std::vector<facebook::velox::TypePtr> sigToTypes(const std::string& functionSig);
 
+  // Get values for the different supported types.
+  template <typename T>
+  static T getLiteralValue(const ::substrait::Expression::Literal& /* literal */);
+
  private:
   /// A map used for mapping Substrait function keywords into Velox functions'
   /// keywords. Key: the Substrait function keyword, Value: the Velox function
