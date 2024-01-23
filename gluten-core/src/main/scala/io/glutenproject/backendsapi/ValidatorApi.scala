@@ -98,14 +98,14 @@ trait ValidatorApi {
    * types.
    *
    * @return
-   *   true by default
+   *   An option contain a validation failure reason, none means ok
    */
-  def doSchemaValidate(schema: DataType): Boolean = true
+  def doSchemaValidate(schema: DataType): Option[String] = None
 
   /** Validate against ColumnarShuffleExchangeExec. */
   def doColumnarShuffleExchangeExecValidate(
       outputPartitioning: Partitioning,
-      child: SparkPlan): Boolean
+      child: SparkPlan): Option[String]
 
   /** Validate against Generator expression. */
   def doGeneratorValidate(generator: Generator, outer: Boolean): ValidationResult =

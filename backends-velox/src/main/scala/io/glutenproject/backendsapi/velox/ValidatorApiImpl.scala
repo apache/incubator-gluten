@@ -64,30 +64,33 @@ class ValidatorApiImpl extends ValidatorApi {
     true
   }
 
-  override def doSchemaValidate(schema: DataType): Boolean = {
+  override def doSchemaValidate(schema: DataType): Option[String] = {
     if (primitiveTypeValidate(schema)) {
-      return true
+      return None
     }
     schema match {
       case map: MapType =>
-        return doSchemaValidate(map.keyType) && doSchemaValidate(map.valueType)
+        doSchemaValidate(map.keyType).orElse(doSchemaValidate(map.valueType))
       case struct: StructType =>
-        for (field <- struct.fields) {
-          if (!doSchemaValidate(field.dataType)) {
-            return false
-          }
+        struct.fields.foreach {
+          f =>
+            val reason = doSchemaValidate(f.dataType)
+            if (reason.isDefined) {
+              return reason
+            }
         }
+        None
       case array: ArrayType =>
-        return doSchemaValidate(array.elementType)
-      case _ => return false
+        doSchemaValidate(array.elementType)
+      case _ =>
+        Some(s"do not support data type: $schema")
     }
-    true
   }
 
   override def doColumnarShuffleExchangeExecValidate(
       outputPartitioning: Partitioning,
-      child: SparkPlan): Boolean = {
-    new ValidatorApiImpl().doSchemaValidate(child.schema)
+      child: SparkPlan): Option[String] = {
+    doSchemaValidate(child.schema)
   }
 
   override def doGeneratorValidate(generator: Generator, outer: Boolean): ValidationResult = {
