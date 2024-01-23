@@ -33,6 +33,19 @@ import org.apache.spark.sql.types.IntegerType
  *   - the count has more than one child
  *   - the aggregate expressions do not need row construct
  *
+ * A rewrite count multi-children example:
+ * {{{
+ *   Count(c1, c2)
+ *   =>
+ *   Count(
+ *     If(
+ *       Or(IsNull(c1), IsNull(c2)),
+ *       Literal(null),
+ *       Literal(1)
+ *     )
+ *   )
+ * }}}
+ *
  * TODO: Remove this rule when Velox support multi-children Count
  */
 object RewriteCount extends Rule[SparkPlan] {
@@ -119,11 +132,7 @@ object RewriteCount extends Rule[SparkPlan] {
     }
 
     plan.transform {
-      case agg: HashAggregateExec if shouldRewriteAgg(agg) =>
-        applyInternal(agg)
-      case agg: SortAggregateExec if shouldRewriteAgg(agg) =>
-        applyInternal(agg)
-      case agg: ObjectHashAggregateExec if shouldRewriteAgg(agg) =>
+      case agg: BaseAggregateExec if shouldRewriteAgg(agg) =>
         applyInternal(agg)
     }
   }
