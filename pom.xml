@@ -231,8 +231,6 @@
       </modules>
       <properties>
         <backend_type>velox</backend_type>
-        <arrow.version>14.0.1</arrow.version>
-        <build_velox_backend>ON</build_velox_backend>
       </properties>
     </profile>
     <profile>
