@@ -248,7 +248,7 @@ class VeloxOrcDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
                          |""".stripMargin) {
       df =>
         {
-          assert(getExecutedPlan(df).exists(plan => plan.isInstanceOf[UnionExecTransformer]))
+          assert(getExecutedPlan(df).exists(plan => plan.isInstanceOf[ColumnarUnionExec]))
         }
     }
 

@@ -280,7 +280,7 @@ object ProjectExecTransformer {
 }
 
 // An alternatives for UnionExec.
-case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with GlutenPlan {
+case class ColumnarUnionExec(children: Seq[SparkPlan]) extends SparkPlan with GlutenPlan {
   children.foreach(
     child =>
       child match {
@@ -308,7 +308,7 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
   }
 
   override protected def withNewChildrenInternal(
-      newChildren: IndexedSeq[SparkPlan]): UnionExecTransformer =
+      newChildren: IndexedSeq[SparkPlan]): ColumnarUnionExec =
     copy(children = newChildren)
 
   def columnarInputRDD: RDD[ColumnarBatch] = {
@@ -329,10 +329,12 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = columnarInputRDD
 
   override protected def doValidateInternal(): ValidationResult = {
-    if (!BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema)) {
-      return ValidationResult.notOk(s"Found schema check failure for $schema in $nodeName")
-    }
-    ValidationResult.ok
+    BackendsApiManager.getValidatorApiInstance
+      .doSchemaValidate(schema)
+      .map {
+        reason => ValidationResult.notOk(s"Found schema check failure for $schema, due to: $reason")
+      }
+      .getOrElse(ValidationResult.ok)
   }
 }
 

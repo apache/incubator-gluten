@@ -506,7 +506,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           if (!enableColumnarUnion) {
             TransformHints.tagNotTransformable(plan, "columnar Union is not enabled in UnionExec")
           } else {
-            val transformer = UnionExecTransformer(plan.children)
+            val transformer = ColumnarUnionExec(plan.children)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: ExpandExec =>

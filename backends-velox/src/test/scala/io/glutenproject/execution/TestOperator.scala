@@ -383,8 +383,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
                          |""".stripMargin) {
       df =>
         {
-          getExecutedPlan(df).exists(
-            plan => plan.find(_.isInstanceOf[UnionExecTransformer]).isDefined)
+          getExecutedPlan(df).exists(plan => plan.find(_.isInstanceOf[ColumnarUnionExec]).isDefined)
         }
     }
   }
@@ -401,8 +400,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
                          |""".stripMargin) {
       df =>
         {
-          getExecutedPlan(df).exists(
-            plan => plan.find(_.isInstanceOf[UnionExecTransformer]).isDefined)
+          getExecutedPlan(df).exists(plan => plan.find(_.isInstanceOf[ColumnarUnionExec]).isDefined)
         }
     }
   }
@@ -417,8 +415,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
                                   |""".stripMargin) {
       df =>
         {
-          getExecutedPlan(df).exists(
-            plan => plan.find(_.isInstanceOf[UnionExecTransformer]).isDefined)
+          getExecutedPlan(df).exists(plan => plan.find(_.isInstanceOf[ColumnarUnionExec]).isDefined)
         }
     }
   }

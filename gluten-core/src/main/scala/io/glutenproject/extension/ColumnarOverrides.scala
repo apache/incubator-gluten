@@ -366,7 +366,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
       case plan: UnionExec =>
         val children = plan.children.map(replaceWithTransformerPlan)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        UnionExecTransformer(children)
+        ColumnarUnionExec(children)
       case plan: ExpandExec =>
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
