@@ -23,6 +23,7 @@
 #include <Storages/StorageMergeTreeFactory.h>
 #include <Common/CHUtil.h>
 #include <Common/MergeTreeTool.h>
+#include <Storages/Mergetree/MetaDataHelper.h>
 
 #include "MergeTreeRelParser.h"
 
@@ -140,10 +141,9 @@ MergeTreeRelParser::parseReadRel(
                 buildMergeTreeSettings());
             return custom_storage_merge_tree;
         });
-
+    restoreMetaData(storage->getStoragePolicy()->getAnyDisk(), merge_tree_table);
     for (const auto & [name, sizes] : storage->getColumnSizes())
         column_sizes[name] = sizes.data_compressed;
-
     query_context.storage_snapshot = std::make_shared<StorageSnapshot>(*storage, metadata);
     query_context.custom_storage_merge_tree = storage;
     auto names_and_types_list = input.getNamesAndTypesList();
