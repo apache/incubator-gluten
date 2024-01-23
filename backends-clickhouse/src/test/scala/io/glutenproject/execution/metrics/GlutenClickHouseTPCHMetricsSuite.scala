@@ -67,7 +67,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
 
         assert(plans(2).metrics("numFiles").value === 1)
         assert(plans(2).metrics("pruningTime").value === -1)
-        assert(plans(2).metrics("filesSize").value === 17777735)
+        assert(plans(2).metrics("filesSize").value === 19230111)
 
         assert(plans(1).metrics("outputRows").value === 4)
         assert(plans(1).metrics("outputVectors").value === 1)
@@ -108,7 +108,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
 
           assert(plans(2).metrics("numFiles").value === 1)
           assert(plans(2).metrics("pruningTime").value === -1)
-          assert(plans(2).metrics("filesSize").value === 17777735)
+          assert(plans(2).metrics("filesSize").value === 19230111)
 
           assert(plans(1).metrics("outputRows").value === 4)
           assert(plans(1).metrics("outputVectors").value === 1)
