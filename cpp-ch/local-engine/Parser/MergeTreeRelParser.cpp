@@ -91,7 +91,6 @@ CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(
                 "",
                 MergeTreeData::MergingParams(),
                 buildMergeTreeSettings());
-            custom_storage_merge_tree->loadDataParts(false, std::nullopt);
             return custom_storage_merge_tree;
         });
     return storage;
