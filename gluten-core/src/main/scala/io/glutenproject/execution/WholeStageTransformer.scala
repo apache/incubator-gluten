@@ -436,8 +436,7 @@ class ColumnarInputRDDsWrapper(columnarInputRDDs: Seq[RDD[ColumnarBatch]]) exten
     var index = 0
     columnarInputRDDs.flatMap {
       case broadcast: BroadcastBuildSideRDD =>
-        BackendsApiManager.getIteratorApiInstance
-          .genBroadcastBuildSideIterator(broadcast.broadcasted, broadcast.broadCastContext) :: Nil
+        broadcast.genBroadcastBuildSideIterator() :: Nil
       case cartesian: CartesianColumnarBatchRDD =>
         val partition =
           inputColumnarRDDPartitions(index).asInstanceOf[CartesianColumnarBatchRDDPartition]

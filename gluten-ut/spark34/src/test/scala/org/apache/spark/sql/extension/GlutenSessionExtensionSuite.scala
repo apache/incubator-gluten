@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.extension
 
-import io.glutenproject.extension.{ColumnarOverrideRules, FallbackBroadcastExchange, JoinSelectionOverrides}
+import io.glutenproject.extension.{ColumnarOverrideRules, JoinSelectionOverrides}
 import io.glutenproject.extension.columnar.{FallbackMultiCodegens, FallbackOnANSIMode}
 
 import org.apache.spark.SparkConf
@@ -37,9 +37,6 @@ class GlutenSessionExtensionSuite extends GlutenSQLTestsTrait {
     assert(
       spark.sessionState.adaptiveRulesHolder.queryStagePrepRules
         .contains(FallbackMultiCodegens(spark)))
-    assert(
-      spark.sessionState.adaptiveRulesHolder.queryStagePrepRules
-        .contains(FallbackBroadcastExchange(spark)))
     assert(spark.sessionState.columnarRules.contains(ColumnarOverrideRules(spark)))
     assert(spark.sessionState.planner.strategies.contains(JoinSelectionOverrides(spark)))
 

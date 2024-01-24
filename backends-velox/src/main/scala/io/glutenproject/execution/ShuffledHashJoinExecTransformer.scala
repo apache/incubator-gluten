@@ -16,11 +16,16 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.utils.Iterators
+
+import org.apache.spark.{broadcast, SparkContext}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
+import org.apache.spark.sql.execution.joins.BuildSideRelation
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import io.substrait.proto.JoinRel
 
@@ -152,6 +157,20 @@ case class ShuffledHashJoinExecTransformer(
     copy(left = newLeft, right = newRight)
 }
 
+case class VeloxBroadcastBuildSideRDD(
+    @transient private val sc: SparkContext,
+    broadcasted: broadcast.Broadcast[BuildSideRelation])
+  extends BroadcastBuildSideRDD(sc, broadcasted) {
+
+  override def genBroadcastBuildSideIterator(): Iterator[ColumnarBatch] = {
+    val relation = broadcasted.value.asReadOnlyCopy()
+    Iterators
+      .wrap(relation.deserialized)
+      .recyclePayload(batch => batch.close())
+      .create()
+  }
+}
+
 case class GlutenBroadcastHashJoinExecTransformer(
     leftKeys: Seq[Expression],
     rightKeys: Seq[Expression],
@@ -194,4 +213,9 @@ case class GlutenBroadcastHashJoinExecTransformer(
       newLeft: SparkPlan,
       newRight: SparkPlan): GlutenBroadcastHashJoinExecTransformer =
     copy(left = newLeft, right = newRight)
+
+  override protected def createBroadcastBuildSideRDD(): BroadcastBuildSideRDD = {
+    val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
+    VeloxBroadcastBuildSideRDD(sparkContext, broadcast)
+  }
 }

@@ -238,6 +238,13 @@ trait SparkPlanExecApi {
   def genExtendedDataSourceV2Strategies(): List[SparkSession => Strategy]
 
   /**
+   * Generate extended query stage preparation rules.
+   *
+   * @return
+   */
+  def genExtendedQueryStagePrepRules(): List[SparkSession => Rule[SparkPlan]]
+
+  /**
    * Generate extended Analyzers. Currently only for ClickHouse backend.
    *
    * @return

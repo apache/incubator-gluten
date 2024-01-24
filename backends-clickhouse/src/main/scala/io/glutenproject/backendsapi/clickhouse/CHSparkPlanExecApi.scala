@@ -21,6 +21,7 @@ import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
+import io.glutenproject.extension.{FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import io.glutenproject.utils.CHJoinValidateUtil
 import io.glutenproject.vectorized.CHColumnarBatchSerializer
@@ -347,6 +348,14 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   }
 
   /**
+   * Generate extended query stage preparation rules.
+   *
+   * @return
+   */
+  override def genExtendedQueryStagePrepRules(): List[SparkSession => Rule[SparkPlan]] =
+    List(spark => FallbackBroadcastHashJoinPrepQueryStage(spark))
+
+  /**
    * Generate extended Analyzers. Currently only for ClickHouse backend.
    *
    * @return
@@ -371,7 +380,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] = List()
+  override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] =
+    List(spark => FallbackBroadcastHashJoin(spark))
 
   /**
    * Generate extended columnar post-rules.

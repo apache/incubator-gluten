@@ -17,7 +17,7 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenNumaBindingInfo
-import io.glutenproject.execution.{BaseGlutenPartition, BasicScanExecTransformer, BroadCastHashJoinContext, WholeStageTransformContext}
+import io.glutenproject.execution.{BaseGlutenPartition, BasicScanExecTransformer, WholeStageTransformContext}
 import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -26,7 +26,6 @@ import io.glutenproject.substrait.rel.SplitInfo
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
@@ -89,9 +88,4 @@ trait IteratorApi {
       numOutputRows: SQLMetric,
       numOutputBatches: SQLMetric,
       scanTime: SQLMetric): RDD[ColumnarBatch]
-
-  /** Compute for BroadcastBuildSideRDD */
-  def genBroadcastBuildSideIterator(
-      broadcasted: broadcast.Broadcast[BuildSideRelation],
-      broadCastContext: BroadCastHashJoinContext): Iterator[ColumnarBatch]
 }

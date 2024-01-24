@@ -41,8 +41,7 @@ case class ClickHouseBuildSideRelation(
 
   override def deserialized: Iterator[ColumnarBatch] = Iterator.empty
 
-  override def asReadOnlyCopy(
-      broadCastContext: BroadCastHashJoinContext): ClickHouseBuildSideRelation = this
+  override def asReadOnlyCopy(): ClickHouseBuildSideRelation = this
 
   private var hashTableData: Long = 0L
   def buildHashTable(
