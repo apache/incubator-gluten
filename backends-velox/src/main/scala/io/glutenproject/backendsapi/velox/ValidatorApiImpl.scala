@@ -30,8 +30,9 @@ import org.apache.spark.sql.types._
 
 class ValidatorApiImpl extends ValidatorApi {
 
+  /** For velox backend, key validation is on native side. */
   override def doExprValidate(substraitExprName: String, expr: Expression): Boolean =
-    doExprValidate(Map(), substraitExprName, expr)
+    true
 
   override def doNativeValidateWithFailureReason(plan: PlanNode): NativePlanValidationInfo = {
     val tmpRuntime = Runtimes.tmpInstance()
