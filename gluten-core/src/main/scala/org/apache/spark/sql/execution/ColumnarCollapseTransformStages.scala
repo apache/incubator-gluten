@@ -150,6 +150,12 @@ case class ColumnarCollapseTransformStages(
   /** Inserts an InputIteratorTransformer on top of those that do not support transform. */
   private def insertInputIteratorTransformer(plan: SparkPlan): SparkPlan = {
     plan match {
+      case p: CartesianProductExecTransformer =>
+        p.withNewChildren(
+          p.children.map(
+            child =>
+              ColumnarCollapseTransformStages.wrapInputIteratorTransformer(
+                insertWholeStageTransformer(child))))
       case p if !supportTransform(p) =>
         ColumnarCollapseTransformStages.wrapInputIteratorTransformer(insertWholeStageTransformer(p))
       case p =>
@@ -159,6 +165,9 @@ case class ColumnarCollapseTransformStages(
 
   private def insertWholeStageTransformer(plan: SparkPlan): SparkPlan = {
     plan match {
+      case t: CartesianProductExecTransformer =>
+        WholeStageTransformer(insertInputIteratorTransformer(t))(
+          transformStageCounter.incrementAndGet())
       case t if supportTransform(t) =>
         WholeStageTransformer(t.withNewChildren(t.children.map(insertInputIteratorTransformer)))(
           transformStageCounter.incrementAndGet())

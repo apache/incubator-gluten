@@ -120,28 +120,19 @@ case class CartesianProductExecTransformer(
     val rddsLeft = getColumnarInputRDDs(left)
     val rddsRight = getColumnarInputRDDs(right)
 
-    if (rddsLeft.size < 1 && rddsRight.size < 1) {
+    if (rddsLeft.isEmpty || rddsRight.isEmpty) {
       // If any of the child RDD is empty then result will also be empty
       return Seq.empty
     }
 
-    // To calculate the cartesian product, left and right results should be available.
-    // left/right.executeColumnar cannot be called always for cases like InputIteratorTransformer
-    // Which does not support 'executeColumnar()' method.
-    // Anyway, there will be no need to call this method beforehand when the child has single RDD.
-    val rddLeft = if (rddsLeft.size == 1) {
-      rddsLeft.head
-    } else {
-      left.executeColumnar()
-    }
+    /**
+     * Both the children of cartesian product should be [[InputIteratorTransformer]] see
+     * [[ColumnarCollapseTransformStages]]. InputIteratorTransformer should always return single
+     * child RDD. Usually, it should be WholeStageRDD or MapPartitionRDD.
+     */
+    assert(rddsLeft.size == 1 && rddsRight.size == 1)
 
-    val rddRight = if (rddsRight.size == 1) {
-      rddsRight.head
-    } else {
-      right.executeColumnar()
-    }
-
-    val cartesianRDD = new CartesianColumnarBatchRDD(sparkContext, rddLeft, rddRight)
+    val cartesianRDD = new CartesianColumnarBatchRDD(sparkContext, rddsLeft.head, rddsRight.head)
     val rdd1 = cartesianRDD.map(pair => pair._1)
     val rdd2 = cartesianRDD.map(pair => pair._2)
 
