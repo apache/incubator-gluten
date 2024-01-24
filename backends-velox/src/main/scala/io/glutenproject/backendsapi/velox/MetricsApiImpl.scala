@@ -356,7 +356,9 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "numMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
         "number of memory allocations"),
-      "spilledBytes" -> SQLMetrics.createSizeMetric(sparkContext, "total bytes written for spilling"),
+      "spilledBytes" -> SQLMetrics.createSizeMetric(
+        sparkContext,
+        "total bytes written for spilling"),
       "spilledRows" -> SQLMetrics.createMetric(sparkContext, "total rows written for spilling"),
       "spilledPartitions" -> SQLMetrics.createMetric(sparkContext, "total spilled partitions"),
       "spilledFiles" -> SQLMetrics.createMetric(sparkContext, "total spilled files")
