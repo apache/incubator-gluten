@@ -108,23 +108,24 @@ abstract class HashAggregateExecBaseTransformer(
 
   override def simpleString(maxFields: Int): String = toString(verbose = false, maxFields)
 
+  protected def checkType(dataType: DataType): Boolean = {
+    dataType match {
+      case BooleanType | StringType | TimestampType | DateType | BinaryType =>
+        true
+      case _: NumericType => true
+      case _: ArrayType => true
+      case _: NullType => true
+      case _ => false
+    }
+  }
+
   override protected def doValidateInternal(): ValidationResult = {
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
     val aggParams = new AggregationParams
     val relNode = getAggRel(substraitContext, operatorId, aggParams, null, validation = true)
 
-    val typeValidator = (attr: NamedExpression) => {
-      attr.dataType match {
-        case BooleanType | StringType | TimestampType | DateType | BinaryType =>
-          true
-        case _: NumericType => true
-        case _: ArrayType => true
-        case _: NullType => true
-        case _ => false
-      }
-    }
-    val unsupportedAggExprs = aggregateAttributes.filterNot(typeValidator)
+    val unsupportedAggExprs = aggregateAttributes.filterNot(attr => checkType(attr.dataType))
     if (unsupportedAggExprs.nonEmpty) {
       return ValidationResult.notOk(
         "Found unsupported data type in aggregation expression: " +
@@ -132,7 +133,7 @@ abstract class HashAggregateExecBaseTransformer(
             .map(attr => s"${attr.name}#${attr.exprId.id}:${attr.dataType}")
             .mkString(", "))
     }
-    val unsupportedGroupExprs = groupingExpressions.filterNot(typeValidator)
+    val unsupportedGroupExprs = groupingExpressions.filterNot(attr => checkType(attr.dataType))
     if (unsupportedGroupExprs.nonEmpty) {
       return ValidationResult.notOk(
         "Found unsupported data type in grouping expression: " +
