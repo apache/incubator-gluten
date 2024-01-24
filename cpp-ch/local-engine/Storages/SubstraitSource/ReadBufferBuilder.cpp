@@ -160,7 +160,7 @@ public:
     build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position) override
     {
         Poco::URI file_uri(file_info.uri_file());
-        std::unique_ptr<DB::SeekableReadBuffer> read_buffer;
+        std::unique_ptr<DB::ReadBufferFromFileBase> read_buffer;
         const String & file_path = file_uri.getPath();
         struct stat file_stat;
         if (stat(file_path.c_str(), &file_stat))
