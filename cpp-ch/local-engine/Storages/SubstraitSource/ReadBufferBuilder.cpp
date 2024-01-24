@@ -100,9 +100,9 @@ private:
     std::shared_mutex rwLock;
 };
 
-std::pair<size_t, size_t> adjustFileReadPosition(DB::SeekableReadBuffer & buffer, size_t read_start_pos, size_t read_end_pos)
+std::pair<size_t, size_t> adjustFileReadPosition(DB::ReadBufferFromFileBase & buffer, size_t read_start_pos, size_t read_end_pos)
 {
-    auto get_next_line_pos = [&](DB::SeekableReadBuffer & buf) -> size_t
+    auto get_next_line_pos = [&](DB::ReadBufferFromFileBase & buf) -> size_t
     {
         while (!buf.eof())
         {
@@ -160,7 +160,7 @@ public:
     build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position) override
     {
         Poco::URI file_uri(file_info.uri_file());
-        std::unique_ptr<DB::SeekableReadBuffer> read_buffer;
+        std::unique_ptr<DB::ReadBufferFromFileBase> read_buffer;
         const String & file_path = file_uri.getPath();
         struct stat file_stat;
         if (stat(file_path.c_str(), &file_stat))
@@ -174,7 +174,12 @@ public:
 
         if (set_read_util_position)
         {
+            auto * work_around = read_buffer.get();
             read_buffer = std::make_unique<DB::BoundedReadBuffer>(std::move(read_buffer));
+            // workaround for https://github.com/ClickHouse/ClickHouse/pull/58886
+            // ReadBufferFromFileDecorator construtor will call swap, without wrap, BoundedReadBuffer can't work.
+            read_buffer->swap(*work_around);
+
             auto start_end_pos = adjustFileReadPosition(*read_buffer, file_info.start(), file_info.start() + file_info.length());
             LOG_DEBUG(
                 &Poco::Logger::get("ReadBufferBuilder"),
