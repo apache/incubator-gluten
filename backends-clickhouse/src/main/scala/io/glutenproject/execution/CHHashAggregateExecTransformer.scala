@@ -73,6 +73,19 @@ case class CHHashAggregateExecTransformer(
 
   protected val modes: Seq[AggregateMode] = aggregateExpressions.map(_.mode).distinct
 
+  override protected def checkType(dataType: DataType): Boolean = {
+    dataType match {
+      case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
+          StringType | TimestampType | DateType | BinaryType =>
+        true
+      case _: StructType => true
+      case d: DecimalType => true
+      case a: ArrayType => true
+      case n: NullType => true
+      case other => false
+    }
+  }
+
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
