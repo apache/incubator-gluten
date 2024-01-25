@@ -21,7 +21,7 @@ import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
-import org.apache.spark.sql.execution.{FileSourceScanExec, GenerateExec, RDDScanExec}
+import org.apache.spark.sql.execution.{GenerateExec, RDDScanExec}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.functions.{avg, col, lit, udf}
 import org.apache.spark.sql.internal.SQLConf

@@ -24,7 +24,6 @@
 #include "velox/core/ExpressionEvaluator.h"
 #include "velox/exec/Aggregate.h"
 #include "velox/expression/Expr.h"
-#include "velox/expression/FieldReference.h"
 #include "velox/expression/SignatureBinder.h"
 
 namespace gluten {
