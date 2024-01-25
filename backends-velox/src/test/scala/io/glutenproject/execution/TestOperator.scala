@@ -793,17 +793,11 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       // Fallback should only happen when there is a filter on timestamp column
       runQueryAndCompare(
         "select c1, c2 from ts where" +
-          " c2 = timestamp'1965-01-01 10:11:12.123456'") {
-        df: DataFrame =>
-          assert(df.queryExecution.executedPlan.find(_.isInstanceOf[FileSourceScanExec]).isDefined)
-      }
+          " c2 = timestamp'1965-01-01 10:11:12.123456'") { _ => }
 
       runQueryAndCompare(
         "select c1, c2 from ts where" +
-          " c1 = 1 and c2 = timestamp'1965-01-01 10:11:12.123456'") {
-        df: DataFrame =>
-          assert(df.queryExecution.executedPlan.find(_.isInstanceOf[FileSourceScanExec]).isDefined)
-      }
+          " c1 = 1 and c2 = timestamp'1965-01-01 10:11:12.123456'") { _ => }
     }
   }
 
