@@ -19,7 +19,7 @@ package io.glutenproject.execution
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.extension.ValidationResult
-import io.glutenproject.extension.columnar.ProjectTypeHint
+import io.glutenproject.extension.columnar.SortOrderHint
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.SubstraitContext
@@ -39,8 +39,7 @@ case class SortExecTransformer(
     global: Boolean,
     child: SparkPlan,
     testSpillFrequency: Int = 0)
-  extends UnaryTransformSupport
-  with AliasHelper {
+  extends UnaryTransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -51,29 +50,8 @@ case class SortExecTransformer(
 
   override def output: Seq[Attribute] = child.output
 
-  override def outputOrdering: Seq[SortOrder] = child match {
-    case project: ProjectExecTransformer if ProjectTypeHint.isPreProject(project) =>
-      getSortOrderFromPreProject(project.projectList)
-    case InputIteratorTransformer(InputAdapter(r2c: RowToColumnarExecBase)) =>
-      r2c.child match {
-        case project: ProjectExec if ProjectTypeHint.isPreProject(project) =>
-          // This case means pre-project is fallback.
-          getSortOrderFromPreProject(project.projectList)
-        case _ => sortOrder
-      }
-    case _ => sortOrder
-  }
-
-  private def getSortOrderFromPreProject(projectList: Seq[NamedExpression]): Seq[SortOrder] = {
-    // After adding a pre-project to the sort, the expressions in sortOrder are replaced
-    // with attributes. To ensure that the downstream post-project can obtain the correct
-    // outputOrdering, it is necessary to restore the current sortOrder based on the
-    // pre-project's alias. Otherwise, when verifying whether the output attributes of
-    // the downstream are a subset of the references of sortOrder.child, it will not pass.
-    // Please check AliasAwareQueryOutputOrdering.outputOrdering in Spark-3.4.
-    val aliasMap = getAliasMap(projectList)
-    sortOrder.map(_.mapChildren(replaceAlias(_, aliasMap)).asInstanceOf[SortOrder])
-  }
+  override def outputOrdering: Seq[SortOrder] =
+    SortOrderHint.getSortOrder(this).getOrElse(sortOrder)
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 

@@ -27,31 +27,38 @@ import scala.collection.mutable
 
 trait PullOutProjectHelper {
 
-  val generatedNameIndex = new AtomicInteger(0)
+  private val generatedNameIndex = new AtomicInteger(0)
 
-  /** The majority of Expressions only support Attribute when converting them into native plans. */
+  /**
+   * The majority of Expressions only support Attribute and BoundReference when converting them into
+   * native plans.
+   */
   protected def isNotAttribute(expression: Expression): Boolean = expression match {
-    case _: Attribute => false
+    case _: Attribute | _: BoundReference => false
     case _ => true
   }
 
-  protected def getProjectExpressionMap = new mutable.HashMap[ExpressionEquals, NamedExpression]()
-
-  protected def getAndReplaceProjectAttribute(
+  protected def replaceExpressionWithAttribute(
       expr: Expression,
-      projectExprsMap: mutable.HashMap[ExpressionEquals, NamedExpression]): Expression =
+      projectExprsMap: mutable.HashMap[Expression, NamedExpression]): Attribute =
     expr match {
       case alias: Alias =>
-        projectExprsMap.getOrElseUpdate(ExpressionEquals(alias.child), alias).toAttribute
+        projectExprsMap.getOrElseUpdate(alias.child.canonicalized, alias).toAttribute
       case attr: Attribute =>
         attr
       case other =>
         projectExprsMap
           .getOrElseUpdate(
-            ExpressionEquals(other),
+            other.canonicalized,
             Alias(other, s"_pre_${generatedNameIndex.getAndIncrement()}")())
           .toAttribute
     }
+
+  protected def eliminateProjectList(
+      childOutput: Seq[NamedExpression],
+      appendAttributes: Seq[NamedExpression]): Seq[NamedExpression] = {
+    childOutput ++ appendAttributes.filter(attr => !childOutput.contains(attr))
+  }
 
   protected def notSupportTransform(plan: SparkPlan): Boolean =
     TransformHints.isAlreadyTagged(plan) && TransformHints.isNotTransformable(plan)
