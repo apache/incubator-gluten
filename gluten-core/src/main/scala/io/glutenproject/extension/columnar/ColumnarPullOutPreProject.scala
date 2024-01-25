@@ -21,31 +21,9 @@ import io.glutenproject.utils.{PhysicalPlanSelector, PullOutProjectHelper}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{Expression, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan, TakeOrderedAndProjectExec}
 
 import scala.collection.mutable
-
-/**
- * After adding a pre-project to the sort, the expressions in sortOrder are replaced with
- * attributes. To ensure that the downstream post-project can obtain the correct outputOrdering, it
- * is necessary to restore the original sortOrder with this tag hint Otherwise, when verifying
- * whether the output attributes of the downstream are a subset of the references of
- * sortOrder.child, it will not pass. Please check AliasAwareQueryOutputOrdering.outputOrdering in
- * Spark-3.4.
- */
-object SortOrderHint {
-  val TAG: TreeNodeTag[Seq[SortOrder]] =
-    TreeNodeTag[Seq[SortOrder]]("io.glutenproject.sortorderhint")
-
-  def getSortOrder(plan: SparkPlan): Option[Seq[SortOrder]] = {
-    plan.getTagValue(TAG)
-  }
-
-  def tag(plan: SparkPlan, sortOrder: Seq[SortOrder]): Unit = {
-    plan.setTagValue(TAG, sortOrder)
-  }
-}
 
 /**
  * The native engine only supports executing Expressions within the project operator. When there are
@@ -74,26 +52,54 @@ case class ColumnarPullOutPreProject(session: SparkSession)
     }
   }
 
+  /**
+   * Pull out Expressions in SortOrder's children, and return the new SortOrder that contains only
+   * Attributes.
+   */
+  private def getNewSortOrder(
+      sortOrders: Seq[SortOrder],
+      expressionMap: mutable.HashMap[Expression, NamedExpression]): Seq[SortOrder] = {
+    sortOrders.map {
+      originalOrder =>
+        val originalOrderExpressions = mutable.ArrayBuffer[Expression]()
+        val newOrder = originalOrder
+          .mapChildren {
+            child =>
+              val newChild = replaceExpressionWithAttribute(child, expressionMap)
+              if (!newChild.semanticEquals(child)) {
+                // When it is found that a child needs to be pulled out, the original child will
+                // be added to the sameOrderExpressions. This ensures that the correct sort orders
+                // can be obtained when retrieving the post-project outputOrdering. Spark will
+                // verifying whether the output attributes of the post-project are a subset of
+                // the references of sortOrder's children. Please check
+                // AliasAwareQueryOutputOrdering.outputOrdering in Spark-3.4.
+                originalOrderExpressions += child
+              }
+              newChild
+          }
+          .asInstanceOf[SortOrder]
+        newOrder.copy(sameOrderExpressions =
+          newOrder.sameOrderExpressions ++ originalOrderExpressions)
+    }
+  }
+
   override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
     plan.transform {
       case sort: SortExec if needsPreProject(sort) =>
         val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
+        val newSortOrder = getNewSortOrder(sort.sortOrder, expressionMap)
+
         // The output of the sort operator is the same as the output of the child, therefore it
         // is necessary to retain the output columns of the child in the pre-projection, and
         // then add the expressions that need to be evaluated in the sortOrder. Finally, in the
         // post-projection, the additional columns need to be removed, leaving only the original
         // output of the child.
-        val newSortOrder =
-          sort.sortOrder.map(_.mapChildren(replaceExpressionWithAttribute(_, expressionMap)))
-
         val preProject = ProjectExec(
-          eliminateProjectList(sort.child.output, expressionMap.values.toSeq),
+          eliminateProjectList(sort.child.outputSet, expressionMap.values.toSeq),
           sort.child)
 
-        val newSort =
-          sort.copy(sortOrder = newSortOrder.asInstanceOf[Seq[SortOrder]], child = preProject)
+        val newSort = sort.copy(sortOrder = newSortOrder, child = preProject)
         newSort.copyTagsFrom(sort)
-        SortOrderHint.tag(newSort, sort.sortOrder)
 
         // The pre-project and post-project of SortExec always appear together, so it's more
         // convenient to handle them together. Therefore, SortExec's post-project will no longer
@@ -102,15 +108,12 @@ case class ColumnarPullOutPreProject(session: SparkSession)
 
       case topK: TakeOrderedAndProjectExec if needsPreProject(topK) =>
         val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
-        val newSortOrder =
-          topK.sortOrder.map(_.mapChildren(replaceExpressionWithAttribute(_, expressionMap)))
+        val newSortOrder = getNewSortOrder(topK.sortOrder, expressionMap)
         val preProject = ProjectExec(
-          eliminateProjectList(topK.child.output, expressionMap.values.toSeq),
+          eliminateProjectList(topK.child.outputSet, expressionMap.values.toSeq),
           topK.child)
-        val newTopK =
-          topK.copy(sortOrder = newSortOrder.asInstanceOf[Seq[SortOrder]], child = preProject)
+        val newTopK = topK.copy(sortOrder = newSortOrder, child = preProject)
         newTopK.copyTagsFrom(topK)
-        SortOrderHint.tag(newTopK, topK.sortOrder)
         newTopK
     }
   }

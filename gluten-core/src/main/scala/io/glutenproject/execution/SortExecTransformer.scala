@@ -19,7 +19,6 @@ package io.glutenproject.execution
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.extension.ValidationResult
-import io.glutenproject.extension.columnar.SortOrderHint
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.SubstraitContext
@@ -50,8 +49,7 @@ case class SortExecTransformer(
 
   override def output: Seq[Attribute] = child.output
 
-  override def outputOrdering: Seq[SortOrder] =
-    SortOrderHint.getSortOrder(this).getOrElse(sortOrder)
+  override def outputOrdering: Seq[SortOrder] = sortOrder
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 

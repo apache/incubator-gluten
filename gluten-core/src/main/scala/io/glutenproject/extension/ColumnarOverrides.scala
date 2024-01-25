@@ -392,19 +392,11 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
       case plan: SortExec =>
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        val transformer =
-          SortExecTransformer(plan.sortOrder, plan.global, child, plan.testSpillFrequency)
-        // Copy the sortOrder tag.
-        transformer.copyTagsFrom(plan)
-        transformer
+        SortExecTransformer(plan.sortOrder, plan.global, child, plan.testSpillFrequency)
       case plan: TakeOrderedAndProjectExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
-        val transformer =
-          TakeOrderedAndProjectExecTransformer(plan.limit, plan.sortOrder, plan.projectList, child)
-        // Copy the sortOrder tag.
-        transformer.copyTagsFrom(plan)
-        transformer
+        TakeOrderedAndProjectExecTransformer(plan.limit, plan.sortOrder, plan.projectList, child)
       case plan: ShuffleExchangeExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)

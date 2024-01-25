@@ -55,9 +55,9 @@ trait PullOutProjectHelper {
     }
 
   protected def eliminateProjectList(
-      childOutput: Seq[NamedExpression],
+      childOutput: AttributeSet,
       appendAttributes: Seq[NamedExpression]): Seq[NamedExpression] = {
-    childOutput ++ appendAttributes.filter(attr => !childOutput.contains(attr))
+    childOutput.toSeq ++ appendAttributes.filter(attr => !childOutput.contains(attr))
   }
 
   protected def notSupportTransform(plan: SparkPlan): Boolean =

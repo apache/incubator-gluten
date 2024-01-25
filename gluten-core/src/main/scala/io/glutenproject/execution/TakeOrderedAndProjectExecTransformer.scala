@@ -17,7 +17,6 @@
 package io.glutenproject.execution
 
 import io.glutenproject.extension.GlutenPlan
-import io.glutenproject.extension.columnar.SortOrderHint
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -38,8 +37,7 @@ case class TakeOrderedAndProjectExecTransformer(
   extends UnaryExecNode
   with GlutenPlan {
   override def outputPartitioning: Partitioning = SinglePartition
-  override def outputOrdering: Seq[SortOrder] =
-    SortOrderHint.getSortOrder(this).getOrElse(sortOrder)
+  override def outputOrdering: Seq[SortOrder] = sortOrder
   override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = {

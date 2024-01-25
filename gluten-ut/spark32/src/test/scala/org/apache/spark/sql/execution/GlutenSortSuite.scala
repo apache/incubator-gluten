@@ -21,7 +21,7 @@ import io.glutenproject.execution.SortExecTransformer
 import org.apache.spark.sql.{catalyst, GlutenQueryTest, GlutenSQLTestsBaseTrait, Row}
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.analysis.{Resolver, UnresolvedAttribute}
-import org.apache.spark.sql.catalyst.expressions.Length
+import org.apache.spark.sql.catalyst.expressions.{Length, SortOrder}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.functions.length
@@ -88,11 +88,11 @@ class GlutenSortSuite extends SortSuite with GlutenSQLTestsBaseTrait with Adapti
     )
     val plan = stripAQEPlan(df.queryExecution.executedPlan)
     val actualOrdering = plan.outputOrdering
-    val expectedOrdering = ordering.map(resolveAttrs(_, plan))
+    val expectedOrdering = ordering.map(resolveAttrs(_, plan).asInstanceOf[SortOrder])
     assert(actualOrdering.length == expectedOrdering.length)
-    (actualOrdering.zip(expectedOrdering)).foreach {
+    actualOrdering.zip(expectedOrdering).foreach {
       case (actual, expected) =>
-        assert(actual.semanticEquals(expected), "ordering must match")
+        assert(actual.satisfies(expected), "ordering must satisfy")
     }
   }
 }
