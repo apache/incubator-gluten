@@ -36,29 +36,59 @@ namespace ErrorCodes
 namespace local_engine
 {
 
-template <template <typename, typename> class Op, typename Name>
-class SparkFunctionDivide : public DB::FunctionBinaryArithmetic<Op, Name>
+template <typename A, typename B>
+struct SparkDivideFloatingImpl
+{
+    using ResultType = typename NumberTraits::ResultOfFloatingPointDivision<A, B>::Type;
+    static const constexpr bool allow_fixed_string = false;
+    static const constexpr bool allow_string_integer = false;
+
+    template <typename Result = ResultType>
+    static inline NO_SANITIZE_UNDEFINED Result apply(A a [[maybe_unused]], B b [[maybe_unused]])
+    {
+        return static_cast<Result>(a) / b;
+    }
+
+#if USE_EMBEDDED_COMPILER
+    static constexpr bool compilable = true;
+    static inline llvm::Value * compile(llvm::IRBuilder<> & b, llvm::Value * left, llvm::Value * right, bool)
+    {
+        if (left->getType()->isIntegerTy())
+            throw Exception(DB::ErrorCodes::LOGICAL_ERROR, "SparkDivideFloatingImpl expected a floating-point type");
+        return b.CreateFDiv(left, right);
+    }
+#endif
+};
+
+class SparkFunctionDivide : public DB::IFunction
 {
 public:
-    SparkFunctionDivide(ContextPtr context) : FunctionBinaryArithmetic<Op, Name>(context) {}
-    DataTypePtr getReturnTypeImpl(const DataTypes & arguments) const override
+    size_t getNumberOfArguments() const override { return 2; }
+    static constexpr auto name = "sparkDivide";
+    static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionDivide>(); }
+    SparkFunctionDivide() = default;
+    ~SparkFunctionDivide() override = default;
+    String getName() const override { return name; }
+    bool useDefaultImplementationForConstants() const override { return true; }
+    bool isSuitableForShortCircuitArgumentsExecution(const DataTypesWithConstInfo & /*arguments*/) const override { return true; }
+
+    DB::DataTypePtr getReturnTypeImpl(const DB::DataTypes &) const override
     {
-        return makeNullable(FunctionBinaryArithmetic<Op, Name>::getReturnTypeImpl(arguments));
+        return DB::makeNullable(std::make_shared<const DB::DataTypeFloat64>());
     }
 
     ColumnPtr executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr & result_type, size_t input_rows_count) const override
     {
         if (arguments.size() != 2)
-            throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s arguments number must be 2", Name::name);
+            throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s arguments number must be 2", name);
         if (!isNativeNumber(arguments[0].type) || !isNativeNumber(arguments[1].type))
         {
-            return FunctionBinaryArithmetic<Op, Name>::executeImpl(arguments, result_type, input_rows_count);
+            throw Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s arguments type must be native number", name);
         }
-        
-        ColumnPtr result = nullptr;
-
         using Types = TypeList<DataTypeFloat32, DataTypeFloat64,DataTypeUInt8, DataTypeUInt16, DataTypeUInt32,
             DataTypeUInt64, DataTypeInt8, DataTypeInt16, DataTypeInt32, DataTypeInt64>;
+        
+        ColumnPtr result = nullptr;
         bool valid = castTypeToEither(Types{}, arguments[0].type.get(), [&](const auto & left_)
         {
             return castTypeToEither(Types{}, arguments[1].type.get(), [&](const auto & right_)
@@ -66,118 +96,51 @@ public:
                 using L = typename std::decay_t<decltype(left_)>::FieldType;
                 using R = typename std::decay_t<decltype(right_)>::FieldType;
                 using T = typename NumberTraits::ResultOfFloatingPointDivision<L, R>::Type;
-                const ColumnVector<L> * vec1 = assert_cast<const ColumnVector<L> *>(arguments[0].column.get());
-                const ColumnVector<R> * vec2 = assert_cast<const ColumnVector<R> *>(arguments[1].column.get());
-                auto vec3 = ColumnVector<T>::create(vec1->size());
-                auto null_map_col = ColumnVector<UInt8>::create(vec1->size(), 0);
+                const ColumnVector<L> * vec1 = nullptr;
+                const ColumnVector<R> * vec2 = nullptr;
+                const ColumnVector<L> * const_col_left = checkAndGetColumnConstData<ColumnVector<L>>(arguments[0].column.get());
+                const ColumnVector<R> * const_col_right = checkAndGetColumnConstData<ColumnVector<R>>(arguments[1].column.get());
+                L left_const_val = 0;
+                R right_const_val = 0;
+                if (const_col_left)
+                    left_const_val = const_col_left->getElement(0);
+                else
+                    vec1 = assert_cast<const ColumnVector<L> *>(arguments[0].column.get());
+                
+                if (const_col_right)
+                {
+                    right_const_val = const_col_right->getElement(0);
+                    if (right_const_val == 0)
+                    {
+                        auto data_col = ColumnVector<T>::create(arguments[0].column->size(), 0);
+                        auto null_map_col = ColumnVector<UInt8>::create(arguments[0].column->size(), 1);
+                        result = ColumnNullable::create(std::move(data_col), std::move(null_map_col));
+                        return true;
+                    }
+                }
+                else
+                    vec2 = assert_cast<const ColumnVector<R> *>(arguments[1].column.get());
+
+                auto vec3 = ColumnVector<T>::create(input_rows_count, 0);
+                auto null_map_col = ColumnVector<UInt8>::create(input_rows_count, 0);
                 PaddedPODArray<T> & data = vec3->getData();
                 PaddedPODArray<UInt8> & null_map = null_map_col->getData();
-                for (size_t i = 0; i < vec1->size(); ++i)
+                for (size_t i = 0; i < input_rows_count; ++i)
                 {
-                    L l = vec1->getElement(i);
-                    R r = vec2->getElement(i);
+                    L l = vec1 ? vec1->getElement(i) : left_const_val;
+                    R r = vec2 ? vec2->getElement(i) : right_const_val;
                     if (r == 0)
-                    {
-                        data[i] = 0;
                         null_map[i] = 1;
-                    }
                     else
-                        data[i] = Op<L,R>::apply(l, r);
+                        data[i] = SparkDivideFloatingImpl<L,R>::apply(l, r);
                 }
                 result = ColumnNullable::create(std::move(vec3), std::move(null_map_col));
                 return true;
             });
         });
         if (!valid)
-            throw Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s arguments type is not valid", Name::name);
-        
+            throw Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s arguments type is not valid", name);
         return result;
     }
-};
-
-template <template <typename, typename> class Op, typename Name>
-class SparkFunctionDivideWithConstants : public DB::FunctionBinaryArithmeticWithConstants<Op, Name>
-{
-public:
-    SparkFunctionDivideWithConstants(
-        const ColumnWithTypeAndName & left_,
-        const ColumnWithTypeAndName & right_,
-        const DataTypePtr & return_type_,
-        ContextPtr context_) : FunctionBinaryArithmeticWithConstants<Op,Name>(left_,right_,return_type_,context_){}
-    
-    DataTypePtr getReturnTypeImpl(const DataTypes & arguments) const override
-    {
-        return makeNullable(FunctionBinaryArithmeticWithConstants<Op, Name>::getReturnTypeImpl(arguments));
-    }
-    ColumnPtr executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr & result_type, size_t input_rows_count) const override
-    {
-        if (arguments.size() != 2)
-            throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s arguments number must be 2", Name::name);
-        if (!isNativeNumber(arguments[0].type) || !isNativeNumber(arguments[1].type))
-        {
-            return FunctionBinaryArithmetic<Op, Name>::executeImpl(arguments, result_type, input_rows_count);
-        }
-        using Types = TypeList<DataTypeFloat32, DataTypeFloat64, DataTypeUInt8, DataTypeUInt16, DataTypeUInt32, DataTypeUInt64,
-                               DataTypeInt8, DataTypeInt16, DataTypeInt32, DataTypeInt64>;
-        ColumnPtr result = nullptr;
-        bool valid = castTypeToEither(Types{}, arguments[0].type.get(), [&](const auto & left_)
-        {
-            return castTypeToEither(Types{}, arguments[1].type.get(), [&](const auto & right_)
-            {
-                using R = typename std::decay_t<decltype(right_)>::FieldType;
-                const ColumnVector<R> * const_col = checkAndGetColumnConstData<ColumnVector<R>>(arguments[1].column.get());
-                if (const_col && const_col->getElement(0) == 0)
-                {
-                    using L = typename std::decay_t<decltype(left_)>::FieldType;
-                    using T = typename NumberTraits::ResultOfFloatingPointDivision<L, R>::Type;
-                    auto data_col = ColumnVector<T>::create(arguments[0].column->size(), 0);
-                    auto null_map_col = ColumnVector<UInt8>::create(arguments[0].column->size(), 1);
-                    result = ColumnNullable::create(std::move(data_col), std::move(null_map_col));
-                }
-                else
-                    result = FunctionBinaryArithmeticWithConstants<Op, Name>::executeImpl(arguments, result_type, input_rows_count);
-                return true;
-            });
-        });
-        if (!valid)
-            throw Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s arguments type is not valid", Name::name);
-        return result;
-    }
-};
-
-template <template <typename, typename> class Op, typename Name>
-class SparkBinaryArithmeticOverloadResolver : public BinaryArithmeticOverloadResolver<Op, Name>
-{
-public:
-    static FunctionOverloadResolverPtr create(ContextPtr context)
-    {
-        return std::make_unique<SparkBinaryArithmeticOverloadResolver>(context);
-    }
-    explicit SparkBinaryArithmeticOverloadResolver(ContextPtr context_) :
-        BinaryArithmeticOverloadResolver<Op, Name>(context_),
-        context(context_) {}
-
-    FunctionBasePtr buildImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr & return_type) const override
-    {
-        if (arguments.size() == 2
-            && ((arguments[0].column && isColumnConst(*arguments[0].column))
-                || (arguments[1].column && isColumnConst(*arguments[1].column))))
-        {
-            auto function = std::make_shared<SparkFunctionDivideWithConstants<Op, Name>>(
-                    arguments[0], arguments[1], return_type, context);
-            return std::make_unique<FunctionToFunctionBaseAdaptor>(function, collections::map<DataTypes>(arguments, [](const auto & elem) { return elem.type; }),
-                return_type);
-        }
-        auto function = std::make_shared<SparkFunctionDivide<Op, Name>>(context);
-        return std::make_unique<FunctionToFunctionBaseAdaptor>(function, collections::map<DataTypes>(arguments, [](const auto & elem) { return elem.type;}),
-            return_type);
-    }
-    
-    DataTypePtr getReturnTypeImpl(const DataTypes & arguments) const override
-    {
-        return makeNullable(BinaryArithmeticOverloadResolver<Op, Name>::getReturnTypeImpl(arguments));
-    }
-private:
-    ContextPtr context;
 };
 }
