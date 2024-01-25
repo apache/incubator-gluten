@@ -262,6 +262,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDatasetAggregatorSuite]
   enableSuite[GlutenDatasetCacheSuite]
   enableSuite[GlutenDatasetOptimizationSuite]
+    .exclude("Pruned nested serializers: map of map key")
+    .exclude("Pruned nested serializers: map of complex key")
   enableSuite[GlutenDatasetPrimitiveSuite]
   enableSuite[GlutenDatasetSerializerRegistratorSuite]
   enableSuite[GlutenDatasetSuite]
@@ -369,6 +371,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-33134: return partial results only for root JSON objects")
     .exclude("SPARK-33907: bad json input with json pruning optimization: GetStructField")
     .exclude("SPARK-33907: json pruning optimization with corrupt record field")
+    .exclude("SPARK-33907: bad json input with json pruning optimization: GetArrayStructFields")
   enableSuite[GlutenMathFunctionsSuite]
   enableSuite[GlutenMetadataCacheSuite].exclude(
     "SPARK-16336,SPARK-27961 Suggest fixing FileNotFoundException")
@@ -1648,6 +1651,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Spark vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
     .exclude("Non-vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
     .exclude("Non-vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("SPARK-37450: Prunes unnecessary fields from Explode for count aggregation")
   enableSuite[GlutenOrcV2QuerySuite]
     .exclude("Enabling/disabling ignoreCorruptFiles")
     .exclude("SPARK-27160 Predicate pushdown correctness on DecimalType for ORC")
@@ -1673,6 +1681,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "Case-insensitive parser - mixed-case schema - filter with different-case column names")
     .exclude("Case-insensitive parser - mixed-case schema - subquery filter with different-case column names")
     .exclude("SPARK-36352: Spark should check result plan's output schema name")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("SPARK-37450: Prunes unnecessary fields from Explode for count aggregation")
   enableSuite[GlutenParquetColumnIndexSuite]
     .exclude("test reading unaligned pages - test all types")
     .exclude("test reading unaligned pages - test all types (dict encode)")
@@ -1907,6 +1920,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Spark vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
     .exclude("Non-vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
     .exclude("Non-vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("SPARK-37450: Prunes unnecessary fields from Explode for count aggregation")
   enableSuite[GlutenParquetV2FilterSuite]
     .exclude("filter pushdown - date")
     .exclude("filter pushdown - timestamp")
@@ -1953,6 +1971,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "Case-insensitive parser - mixed-case schema - filter with different-case column names")
     .exclude("Case-insensitive parser - mixed-case schema - subquery filter with different-case column names")
     .exclude("SPARK-36352: Spark should check result plan's output schema name")
+    .exclude("Spark vectorized reader - without partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-34638: nested column prune on generator output - case-sensitivity")
+    .exclude("SPARK-37450: Prunes unnecessary fields from Explode for count aggregation")
   enableSuite[GlutenTextV1Suite]
   enableSuite[GlutenTextV2Suite]
   enableSuite[GlutenFileTableSuite]

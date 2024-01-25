@@ -1155,4 +1155,109 @@ class GlutenClickHouseHiveTableSuite()
         """.stripMargin
     runQueryAndCompare(querySql)(df => checkOperatorCount[ProjectExecTransformer](1)(df))
   }
+
+  test(
+    "Gluten GetArrayStructFields: SPARK-33907: bad json input with " +
+      "json pruning optimization: GetArrayStructFields") {
+    val createSql =
+      """
+        |CREATE TABLE table_33907 AS
+        |  SELECT  '[{"a": 1, "b": 2}, {"a": 3, "b": 4}]' AS value
+      """.stripMargin
+    spark.sql(createSql)
+
+    val selectSql = "select from_json(value, 'array<struct<a:int,b:int>>').b from table_33907"
+    Seq("true", "false").foreach {
+      enabled =>
+        withSQLConf(SQLConf.JSON_EXPRESSION_OPTIMIZATION.key -> enabled) {
+          runQueryAndCompare(selectSql)(checkOperatorMatch[ProjectExecTransformer])
+        }
+    }
+  }
+
+  test(
+    "Gluten GetArrayStructFields: SPARK-37450: " +
+      "Prunes unnecessary fields from Explode for count aggregation") {
+    val createSql1 =
+      """
+        |CREATE TABLE table_37450 using json AS
+        |  SELECT '[{"itemId":1,"itemData":"a"},{"itemId":2,"itemData":"b"}]' as value
+      """.stripMargin
+    spark.sql(createSql1)
+
+    val createSql2 =
+      """
+        |CREATE TABLE table_37450_orc using orc
+        |  SELECT from_json(value, 'array<struct<itemId:long, itemData:string>>') as items
+        |  FROM table_37450
+      """.stripMargin
+    spark.sql(createSql2)
+
+    val selectSql = "SELECT count(*) FROM table_37450_orc LATERAL VIEW explode(items) as item"
+    Seq("true", "false").foreach {
+      enabled =>
+        withSQLConf("spark.sql.orc.enableVectorizedReader" -> enabled) {
+          compareResultsAgainstVanillaSpark(selectSql, compareResult = true, _ => {})
+        }
+    }
+  }
+
+  test(
+    "Gluten GetArrayStructFields: SPARK-37450: " +
+      "Prunes unnecessary fields from Explode for friend's middle name") {
+    val createSql =
+      """
+        |CREATE TABLE contacts (
+        |  `id` INT,
+        |  `name` STRUCT<`first`: STRING, `middle`: STRING, `last`: STRING>,
+        |  `address` STRING,
+        |  `pets` INT,
+        |  `friends` ARRAY<STRUCT<`first`: STRING, `middle`: STRING, `last`: STRING>>,
+        |  `relatives` MAP<STRING, STRUCT<`first`: STRING, `middle`: STRING, `last`: STRING>>,
+        |  `employer` STRUCT<`id`: INT, `company`: STRUCT<`name`: STRING, `address`: STRING>>,
+        |  `relations` MAP<STRUCT<`first`: STRING, `middle`: STRING, `last`: STRING>,STRING>,
+        |  `p` INT
+        |) using parquet;
+      """.stripMargin
+    spark.sql(createSql)
+
+    val insertSql =
+      """
+        |INSERT INTO contacts
+        |VALUES
+        |  (
+        |    1,
+        |    named_struct('first', 'John', 'middle', 'M', 'last', 'Doe'),
+        |    '123 Main St',
+        |    2,
+        |    array(named_struct('first', 'Jane', 'middle', 'A', 'last', 'Smith')),
+        |    map('Uncle', named_struct('first', 'Bob', 'middle', 'B', 'last', 'Johnson')),
+        |    named_struct('id', 1, 'company',
+        |      named_struct('name', 'ABC Corp', 'address', '456 Market St')),
+        |    map(named_struct('first', 'Jane', 'middle', 'A', 'last', 'Smith'), 'Friend'),
+        |    1
+        |  ),
+        |  (
+        |    2,
+        |    named_struct('first', 'Jane', 'middle', 'A', 'last', 'Smith'),
+        |    '456 Market St',
+        |    1,
+        |    array(named_struct('first', 'John', 'middle', 'M', 'last', 'Doe')),
+        |    map('Aunt', named_struct('first', 'Alice', 'middle', 'A', 'last', 'Johnson')),
+        |    named_struct('id', 2, 'company',
+        |      named_struct('name', 'XYZ Corp', 'address', '789 Broadway St')),
+        |    map(named_struct('first', 'John', 'middle', 'M', 'last', 'Doe'), 'Friend'),
+        |    2
+        |  );
+      """.stripMargin
+    spark.sql(insertSql)
+
+    val selectSql = "SELECT friend.MIDDLE FROM contacts LATERAL VIEW explode(friends) as friend"
+    Seq("true", "false").foreach {
+      enabled =>
+        withSQLConf("spark.sql.parquet.enableVectorizedReader" -> enabled) {
+          compareResultsAgainstVanillaSpark(selectSql, compareResult = true, _ => {})
+        }
+    }
+  }
 }

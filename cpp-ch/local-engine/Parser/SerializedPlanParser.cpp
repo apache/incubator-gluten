@@ -808,13 +808,13 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
     auto array_join_name = arg_not_null->result_name;
     const auto * array_join_node = &actions_dag->addArrayJoin(*arg_not_null, array_join_name);
 
-    auto tuple_element_builder = FunctionFactory::instance().get("tupleElement", context);
+    auto tuple_element_builder = FunctionFactory::instance().get("sparkTupleElement", context);
     auto tuple_index_type = std::make_shared<DataTypeUInt32>();
     auto add_tuple_element = [&](const ActionsDAG::Node * tuple_node, size_t i) -> const ActionsDAG::Node *
     {
         ColumnWithTypeAndName index_col(tuple_index_type->createColumnConst(1, i), tuple_index_type, getUniqueName(std::to_string(i)));
         const auto * index_node = &actions_dag->addColumn(std::move(index_col));
-        auto result_name = "tupleElement(" + tuple_node->result_name + ", " + index_node->result_name + ")";
+        auto result_name = "sparkTupleElement(" + tuple_node->result_name + ", " + index_node->result_name + ")";
         return &actions_dag->addFunction(tuple_element_builder, {tuple_node, index_node}, result_name);
     };
 
@@ -827,7 +827,7 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
         {
             /// In Spark: explode(map(k, v)) output 2 columns with default names "key" and "value"
             /// In CH: arrayJoin(map(k, v)) output 1 column with Tuple Type.
-            /// So we must wrap arrayJoin with tupleElement function for compatiability.
+            /// So we must wrap arrayJoin with sparkTupleElement function for compatiability.
 
             /// arrayJoin(arg_not_null).1
             const auto * key_node = add_tuple_element(array_join_node, 1);
@@ -864,7 +864,7 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
         {
             /// In Spark: posexplode(array_of_map) output 2 or 3 columns: (pos, col) or (pos, key, value)
             /// In CH: arrayJoin(map(k, v)) output 1 column with Tuple Type.
-            /// So we must wrap arrayJoin with tupleElement function for compatiability.
+            /// So we must wrap arrayJoin with sparkTupleElement function for compatiability.
 
             /// pos = arrayJoin(arg_not_null).1
             const auto * pos_node = add_tuple_element(array_join_node, 1);
@@ -1135,22 +1135,18 @@ void SerializedPlanParser::parseFunctionArguments(
         auto data_type = TypeParser::parseType(scalar_function.output_type());
         parsed_args.emplace_back(addColumn(actions_dag, std::make_shared<DB::DataTypeString>(), data_type->getName()));
     }
-    else if (function_name == "tupleElement")
+    else if (function_name == "sparkTupleElement" || function_name == "tupleElement")
     {
-        // tupleElement. the field index must be unsigned integer in CH, cast the signed integer in substrait
-        // which must be a positive value into unsigned integer here.
         parseFunctionArgument(actions_dag, parsed_args, function_name, args[0]);
 
-        // tuple indecies start from 1, in spark, start from 0
         if (!args[1].value().has_literal())
-        {
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "get_struct_field's second argument must be a literal");
-        }
+
         auto [data_type, field] = parseLiteral(args[1].value().literal());
         if (data_type->getTypeId() != DB::TypeIndex::Int32)
-        {
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "get_struct_field's second argument must be i32");
-        }
+
+        // tuple indecies start from 1, in spark, start from 0
         Int32 field_index = static_cast<Int32>(field.get<Int32>() + 1);
         const auto * index_node = addColumn(actions_dag, std::make_shared<DB::DataTypeUInt32>(), field_index);
         parsed_args.emplace_back(index_node);
@@ -1406,13 +1402,13 @@ ActionsDAGPtr SerializedPlanParser::parseJsonTuple(
     auto json_extract_result_name = "JSONExtract(" + json_expr_node->result_name + "," + extract_expr_node->result_name + ")";
     const ActionsDAG::Node * json_extract_node
         = &actions_dag->addFunction(json_extract_builder, {json_expr_node, extract_expr_node}, json_extract_result_name);
-    auto tuple_element_builder = FunctionFactory::instance().get("tupleElement", context);
+    auto tuple_element_builder = FunctionFactory::instance().get("sparkTupleElement", context);
     auto tuple_index_type = std::make_shared<DataTypeUInt32>();
     auto add_tuple_element = [&](const ActionsDAG::Node * tuple_node, size_t i) -> const ActionsDAG::Node *
     {
         ColumnWithTypeAndName index_col(tuple_index_type->createColumnConst(1, i), tuple_index_type, getUniqueName(std::to_string(i)));
         const auto * index_node = &actions_dag->addColumn(std::move(index_col));
-        auto result_name = "tupleElement(" + tuple_node->result_name + ", " + index_node->result_name + ")";
+        auto result_name = "sparkTupleElement(" + tuple_node->result_name + ", " + index_node->result_name + ")";
         return &actions_dag->addFunction(tuple_element_builder, {tuple_node, index_node}, result_name);
     };
     for (int i = 1; i < args.size(); i++)

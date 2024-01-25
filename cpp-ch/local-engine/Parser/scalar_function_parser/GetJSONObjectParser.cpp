@@ -48,7 +48,7 @@ protected:
         if (args[0].value().has_scalar_function()
             && args[0].value().scalar_function().function_reference() == SelfDefinedFunctionReference::GET_JSON_OBJECT)
         {
-            return "tupleElement";
+            return "sparkTupleElement";
         }
         return name;
     }

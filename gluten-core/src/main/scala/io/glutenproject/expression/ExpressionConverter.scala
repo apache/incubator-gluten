@@ -320,6 +320,18 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             expressionsMap),
           getStructField.ordinal,
           getStructField)
+      case getArrayStructFields: GetArrayStructFields =>
+        GetArrayStructFieldsTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(
+            getArrayStructFields.child,
+            attributeSeq,
+            expressionsMap),
+          getArrayStructFields.ordinal,
+          getArrayStructFields.numFields,
+          getArrayStructFields.containsNull,
+          getArrayStructFields
+        )
       case t: StringTranslate =>
         BackendsApiManager.getSparkPlanExecApiInstance.genStringTranslateTransformer(
           substraitExprName,

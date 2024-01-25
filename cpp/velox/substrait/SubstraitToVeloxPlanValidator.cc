@@ -70,7 +70,8 @@ static const std::unordered_set<std::string> kBlackList = {
     "sequence",
     "posexplode",
     "arrays_overlap",
-    "approx_percentile"};
+    "approx_percentile",
+    "get_array_struct_fields"};
 
 } // namespace
 
