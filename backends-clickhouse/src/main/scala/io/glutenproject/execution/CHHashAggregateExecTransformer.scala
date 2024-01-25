@@ -75,14 +75,8 @@ case class CHHashAggregateExecTransformer(
 
   override protected def checkType(dataType: DataType): Boolean = {
     dataType match {
-      case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
-          StringType | TimestampType | DateType | BinaryType =>
-        true
       case _: StructType => true
-      case d: DecimalType => true
-      case a: ArrayType => true
-      case n: NullType => true
-      case other => false
+      case other => super.checkType(other)
     }
   }
 
