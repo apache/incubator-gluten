@@ -46,18 +46,27 @@ public:
     const substrait::Expression_ScalarFunction & substrait_func,
     ActionsDAGPtr & actions_dag) const override
     {
+        /// Parse divide(left, right) as if (right == 0) null else left / right
         auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
         if (parsed_args.size() != 2)
             throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
-        
+
         ActionsDAG::NodeRawConstPtrs new_args{parsed_args[0], parsed_args[1]};
         plan_parser->convertBinaryArithmeticFunDecimalArgs(actions_dag, new_args, substrait_func);
+
         const auto * left_arg = new_args[0];
         const auto * right_arg = new_args[1];
-        if (isDecimal(removeNullable(left_arg->result_type)) || isDecimal(removeNullable(right_arg->result_type)))
-            return toFunctionNode(actions_dag, "divideDecimal", {left_arg, right_arg});
-        else
+        if (!isDecimal(removeNullable(left_arg->result_type)) && !isDecimal(removeNullable(right_arg->result_type)))
             return toFunctionNode(actions_dag, "sparkDivide", {left_arg, right_arg});
+
+        const auto * divide_node = toFunctionNode(actions_dag, "divide", {left_arg, right_arg});
+        DataTypePtr result_type = divide_node->result_type;
+
+        const auto * zero_node = addColumnToActionsDAG(actions_dag, result_type, removeNullable(result_type)->getDefault());
+        const auto * null_node = addColumnToActionsDAG(actions_dag, makeNullable(result_type), Field{});
+        const auto * is_zero_node = toFunctionNode(actions_dag, "equals", {right_arg, zero_node});
+        const auto * result_node = toFunctionNode(actions_dag, "if", {is_zero_node, null_node, divide_node});
+        return result_node;
     }
 };
 
