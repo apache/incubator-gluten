@@ -11,6 +11,8 @@ Gluten avoids to modify Spark's existing code and use Spark APIs if possible. Ho
 
 So you need to ensure preferentially load the Gluten jar to overwrite the jar of vanilla spark. Refer to [How to prioritize loading Gluten jars in Spark](https://github.com/oap-project/gluten/blob/main/docs/velox-backend-troubleshooting.md#incompatible-class-error-when-using-native-writer).
 
+If not officially supported spark3.2/3.3 version is used, NoSuchMethodError can be thrown at runtime. More details see [issue-4514](https://github.com/oap-project/gluten/issues/4514).
+
 ### Fallbacks
 Except the unsupported operators, functions, file formats, data sources listed in , there are some known cases also fall back to Vanilla Spark. 
 
