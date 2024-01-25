@@ -363,6 +363,9 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
     !scanOnly && columnarConf.enableTakeOrderedAndProject &&
       enableColumnarSort && enableColumnarLimit && enableColumnarShuffle && enableColumnarProject
   val enableColumnarWrite: Boolean = BackendsApiManager.getSettings.enableNativeWriteFiles()
+  val enableCartesianProduct: Boolean =
+    BackendsApiManager.getSettings.supportCartesianProductExec() &&
+      columnarConf.cartesianProductTransformerEnabled
 
   def apply(plan: SparkPlan): SparkPlan = {
     addTransformableTags(plan)
@@ -689,7 +692,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: CartesianProductExec =>
-          if (!GlutenConfig.getConf.cartesianProductTransformerEnabled) {
+          if (!enableCartesianProduct) {
             TransformHints.tagNotTransformable(
               plan,
               "conversion to CartesianProductTransformer is not enabled.")
