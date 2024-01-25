@@ -136,7 +136,7 @@ int32_t SubstraitParser::parseReferenceSegment(const ::substrait::Expression::Re
       return refSegment.struct_field().field();
     }
     default:
-      VELOX_NYI("Substrait conversion not supported for ReferenceSegment '{}'", typeCase);
+      VELOX_NYI("Substrait conversion not supported for ReferenceSegment '{}'", std::to_string(typeCase));
   }
 }
 

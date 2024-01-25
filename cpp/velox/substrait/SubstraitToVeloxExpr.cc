@@ -150,7 +150,7 @@ bool isNullOnFailure(::substrait::Expression::Cast::FailureBehavior failureBehav
     case ::substrait::Expression_Cast_FailureBehavior_FAILURE_BEHAVIOR_RETURN_NULL:
       return true;
     default:
-      VELOX_NYI("The given failure behavior is NOT supported: '{}'", failureBehavior);
+      VELOX_NYI("The given failure behavior is NOT supported: '{}'", std::to_string(failureBehavior));
   }
 }
 
@@ -223,7 +223,7 @@ std::shared_ptr<const core::FieldAccessTypedExpr> SubstraitVeloxExprConverter::t
       return fieldAccess;
     }
     default:
-      VELOX_NYI("Substrait conversion not supported for Reference '{}'", typeCase);
+      VELOX_NYI("Substrait conversion not supported for Reference '{}'", std::to_string(typeCase));
   }
 }
 
@@ -375,7 +375,7 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
         auto kind = veloxType->kind();
         return VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructConstantVector, kind, substraitLit, veloxType);
       }
-      VELOX_NYI("Substrait conversion not supported for type case '{}'", typeCase);
+      VELOX_NYI("Substrait conversion not supported for type case '{}'", std::to_string(typeCase));
   }
 }
 
@@ -463,7 +463,7 @@ VectorPtr SubstraitVeloxExprConverter::literalsToVector(
         return VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(
             constructFlatVector, kind, elementAtFunc, childSize, veloxType, pool_);
       }
-      VELOX_NYI("literals not supported for type case '{}'", childTypeCase);
+      VELOX_NYI("literals not supported for type case '{}'", std::to_string(childTypeCase));
   }
 }
 
@@ -509,7 +509,7 @@ RowVectorPtr SubstraitVeloxExprConverter::literalsToRowVector(const ::substrait:
               VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVectorForStruct, kind, child, 1, veloxType, pool_);
           vectors.emplace_back(vecPtr);
         } else {
-          VELOX_NYI("literalsToRowVector not supported for type case '{}'", typeCase);
+          VELOX_NYI("literalsToRowVector not supported for type case '{}'", std::to_string(typeCase));
         }
     }
   }
@@ -579,7 +579,7 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
     case ::substrait::Expression::RexTypeCase::kSingularOrList:
       return toVeloxExpr(substraitExpr.singular_or_list(), inputType);
     default:
-      VELOX_NYI("Substrait conversion not supported for Expression '{}'", typeCase);
+      VELOX_NYI("Substrait conversion not supported for Expression '{}'", std::to_string(typeCase));
   }
 }
 
