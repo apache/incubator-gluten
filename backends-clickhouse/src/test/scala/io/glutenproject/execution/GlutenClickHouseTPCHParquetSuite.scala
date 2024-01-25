@@ -40,6 +40,9 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"
 
+  protected val BACKEND_CONF_KEY = "spark.gluten.sql.columnar.backend.ch."
+  protected val BACKEND_RUNTIME_CINF_KEY = BACKEND_CONF_KEY + "runtime_config."
+
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "sort")
@@ -2386,6 +2389,21 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     spark.sql(data_insert_sql)
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
     spark.sql("drop table test_tbl_3951")
+  }
+
+  test("GLUTEN-4521: Invalid result from grace mergeing aggregation with spill") {
+    withSQLConf(
+      (
+        BACKEND_RUNTIME_CINF_KEY + "max_allowed_memory_usage_ratio_for_aggregate_merging",
+        "0.0001")) {
+      val sql =
+        """
+          |select count(l_orderkey, l_partkey) from (
+          |  select l_orderkey, l_partkey from lineitem group by l_orderkey, l_partkey
+          |)
+          |""".stripMargin
+      runQueryAndCompare(sql)({ _ => })
+    }
   }
 }
 // scalastyle:on line.size.limit
