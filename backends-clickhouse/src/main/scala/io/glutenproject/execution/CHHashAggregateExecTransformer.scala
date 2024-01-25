@@ -36,6 +36,7 @@ import com.google.protobuf.{Any, StringValue}
 import java.util
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 
 object CHHashAggregateExecTransformer {
   def getAggregateResultAttributes(
@@ -74,14 +75,8 @@ case class CHHashAggregateExecTransformer(
 
   override protected def checkType(dataType: DataType): Boolean = {
     dataType match {
-      case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
-          StringType | TimestampType | DateType | BinaryType =>
-        true
       case _: StructType => true
-      case d: DecimalType => true
-      case a: ArrayType => true
-      case n: NullType => true
-      case other => false
+      case other => super.checkType(other)
     }
   }
 
@@ -415,5 +410,58 @@ case class CHHashAggregateExecTransformer(
         StringValue.newBuilder.setValue(optimizationContent).build)
     ExtensionBuilder.makeAdvancedExtension(optimization, enhancement)
 
+  }
+
+  override protected def getAttrForAggregateExprs(
+      aggregateExpressions: Seq[AggregateExpression],
+      aggregateAttributeList: Seq[Attribute]): List[Attribute] = {
+    val aggregateAttr = new ListBuffer[Attribute]()
+    val size = aggregateExpressions.size
+    var resIndex = 0
+    for (expIdx <- 0 until size) {
+      val exp: AggregateExpression = aggregateExpressions(expIdx)
+      resIndex = getAttrForAggregateExpr(exp, aggregateAttributeList, aggregateAttr, resIndex)
+    }
+    aggregateAttr.toList
+  }
+
+  protected def getAttrForAggregateExpr(
+      exp: AggregateExpression,
+      aggregateAttributeList: Seq[Attribute],
+      aggregateAttr: ListBuffer[Attribute],
+      index: Int): Int = {
+    var resIndex = index
+    val aggregateFunc = exp.aggregateFunction
+    // First handle the custom aggregate functions
+    if (
+      ExpressionMappings.expressionExtensionTransformer.extensionExpressionsMapping.contains(
+        aggregateFunc.getClass)
+    ) {
+      ExpressionMappings.expressionExtensionTransformer
+        .getAttrsIndexForExtensionAggregateExpr(
+          aggregateFunc,
+          exp.mode,
+          exp,
+          aggregateAttributeList,
+          aggregateAttr,
+          index)
+    } else {
+      exp.mode match {
+        case Partial | PartialMerge =>
+          val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
+          for (index <- aggBufferAttr.indices) {
+            val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+            aggregateAttr += attr
+          }
+          resIndex += aggBufferAttr.size
+          resIndex
+        case Final =>
+          aggregateAttr += aggregateAttributeList(resIndex)
+          resIndex += 1
+          resIndex
+        case other =>
+          throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
+      }
+    }
   }
 }

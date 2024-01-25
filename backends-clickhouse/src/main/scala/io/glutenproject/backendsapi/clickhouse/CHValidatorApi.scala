@@ -102,32 +102,37 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper with Logg
 
   override def doColumnarShuffleExchangeExecValidate(
       outputPartitioning: Partitioning,
-      child: SparkPlan): Boolean = {
+      child: SparkPlan): Option[String] = {
     val outputAttributes = child.output
     // check repartition expression
     val substraitContext = new SubstraitContext
     outputPartitioning match {
       case HashPartitioning(exprs, _) =>
-        !(exprs
-          .map(
-            expr => {
-              val node = ExpressionConverter
-                .replaceWithExpressionTransformer(expr, outputAttributes)
-                .doTransform(substraitContext.registeredFunction)
-              if (!node.isInstanceOf[SelectionNode]) {
-                // This is should not happen.
-                logDebug("Expressions are not supported in HashPartitioning.")
-                false
-              } else {
-                true
-              }
-            })
-          .exists(_ == false)) ||
-        BackendsApiManager.getSettings.supportShuffleWithProject(outputPartitioning, child)
+        val allSelectionNodes = exprs.forall {
+          expr =>
+            val node = ExpressionConverter
+              .replaceWithExpressionTransformer(expr, outputAttributes)
+              .doTransform(substraitContext.registeredFunction)
+            node.isInstanceOf[SelectionNode]
+        }
+        if (
+          allSelectionNodes ||
+          BackendsApiManager.getSettings.supportShuffleWithProject(outputPartitioning, child)
+        ) {
+          None
+        } else {
+          Some("expressions are not supported in HashPartitioning")
+        }
       case rangePartitoning: RangePartitioning =>
-        GlutenConfig.getConf.enableColumnarSort &&
-        RangePartitionerBoundsGenerator.supportedOrderings(rangePartitoning, child)
-      case _ => true
+        if (
+          GlutenConfig.getConf.enableColumnarSort &&
+          RangePartitionerBoundsGenerator.supportedOrderings(rangePartitoning, child)
+        ) {
+          None
+        } else {
+          Some("do not support range partitioning columnar sort")
+        }
+      case _ => None
     }
   }
 }

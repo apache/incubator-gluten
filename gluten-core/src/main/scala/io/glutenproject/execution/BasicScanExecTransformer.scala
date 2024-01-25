@@ -82,7 +82,6 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    val fileFormat = ConverterUtils.getFileFormat(this)
     val validationResult = BackendsApiManager.getSettings
       .supportFileFormatRead(
         fileFormat,
@@ -123,14 +122,14 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     val filterNodes = transformer.map(_.doTransform(context.registeredFunction))
     val exprNode = filterNodes.orNull
 
-    val relNode = RelBuilder.makeReadRel(
+    val readNode = RelBuilder.makeReadRel(
       typeNodes,
       nameList,
       columnTypeNodes,
       exprNode,
       context,
       context.nextOperatorId(this.nodeName))
-    relNode.asInstanceOf[ReadRelNode].setDataSchema(getDataSchema)
-    TransformContext(output, output, relNode)
+    readNode.asInstanceOf[ReadRelNode].setDataSchema(getDataSchema)
+    TransformContext(output, output, readNode)
   }
 }

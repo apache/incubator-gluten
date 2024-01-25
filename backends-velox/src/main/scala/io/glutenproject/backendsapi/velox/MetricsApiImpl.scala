@@ -212,7 +212,7 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "aggNumMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
         "number of memory allocations"),
-      "aggSpilledBytes" -> SQLMetrics.createMetric(sparkContext, "number of spilled bytes"),
+      "aggSpilledBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of spilled bytes"),
       "aggSpilledRows" -> SQLMetrics.createMetric(sparkContext, "number of spilled rows"),
       "aggSpilledPartitions" -> SQLMetrics.createMetric(
         sparkContext,
@@ -356,7 +356,9 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "numMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
         "number of memory allocations"),
-      "spilledBytes" -> SQLMetrics.createMetric(sparkContext, "total bytes written for spilling"),
+      "spilledBytes" -> SQLMetrics.createSizeMetric(
+        sparkContext,
+        "total bytes written for spilling"),
       "spilledRows" -> SQLMetrics.createMetric(sparkContext, "total rows written for spilling"),
       "spilledPartitions" -> SQLMetrics.createMetric(sparkContext, "total spilled partitions"),
       "spilledFiles" -> SQLMetrics.createMetric(sparkContext, "total spilled files")
@@ -443,7 +445,7 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "hashBuildNumMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
         "number of hash build memory allocations"),
-      "hashBuildSpilledBytes" -> SQLMetrics.createMetric(
+      "hashBuildSpilledBytes" -> SQLMetrics.createSizeMetric(
         sparkContext,
         "total bytes written for spilling of hash build"),
       "hashBuildSpilledRows" -> SQLMetrics.createMetric(
@@ -479,7 +481,7 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "hashProbeNumMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
         "number of hash probe memory allocations"),
-      "hashProbeSpilledBytes" -> SQLMetrics.createMetric(
+      "hashProbeSpilledBytes" -> SQLMetrics.createSizeMetric(
         sparkContext,
         "total bytes written for spilling of hash probe"),
       "hashProbeSpilledRows" -> SQLMetrics.createMetric(

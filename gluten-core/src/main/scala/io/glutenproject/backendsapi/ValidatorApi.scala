@@ -16,62 +16,20 @@
  */
 package io.glutenproject.backendsapi
 
-import io.glutenproject.expression.{ExpressionMappings, ExpressionNames}
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.validate.NativePlanValidationInfo
 
-import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Generator}
+import org.apache.spark.sql.catalyst.expressions.{Expression, Generator}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.DataType
-
-object TypeKey {
-  final val EMPTY_TYPE = ""
-  final val ARRAY_TYPE = "array"
-  final val MAP_TYPE = "map"
-  final val STRUCT_TYPE = "struct"
-}
 
 /**
  * Determine if a plan or expression can be accepted by the backend, or we fallback the execution to
  * vanilla Spark.
  */
 trait ValidatorApi {
-
-  /**
-   * Validate target expression within an input blacklist. Return false if target expression (with
-   * the information of its args' types) matches any of the entry in the blacklist.
-   */
-  protected def doExprValidate(
-      blacklist: Map[String, Set[String]],
-      substraitExprName: String,
-      expr: Expression): Boolean = {
-    // To handle cast(struct as string) AS col_name expression
-    val key = if (substraitExprName.toLowerCase().equals(ExpressionNames.ALIAS)) {
-      ExpressionMappings.expressionsMap.get(expr.asInstanceOf[Alias].child.getClass)
-    } else Some(substraitExprName)
-    if (key.isEmpty) return false
-    if (blacklist.isEmpty) return true
-    val value = blacklist.get(key.get)
-    if (value.isEmpty) {
-      return true
-    }
-    val inputTypeNames = value.get
-    inputTypeNames.foreach {
-      inputTypeName =>
-        if (inputTypeName.equals(TypeKey.EMPTY_TYPE)) {
-          return false
-        } else {
-          for (input <- expr.children) {
-            if (inputTypeName.equals(input.dataType.typeName)) {
-              return false
-            }
-          }
-        }
-    }
-    true
-  }
 
   /**
    * Validate expression for specific backend, including input type. If the expression isn't
@@ -98,14 +56,14 @@ trait ValidatorApi {
    * types.
    *
    * @return
-   *   true by default
+   *   An option contain a validation failure reason, none means ok
    */
-  def doSchemaValidate(schema: DataType): Boolean = true
+  def doSchemaValidate(schema: DataType): Option[String] = None
 
   /** Validate against ColumnarShuffleExchangeExec. */
   def doColumnarShuffleExchangeExecValidate(
       outputPartitioning: Partitioning,
-      child: SparkPlan): Boolean
+      child: SparkPlan): Option[String]
 
   /** Validate against Generator expression. */
   def doGeneratorValidate(generator: Generator, outer: Boolean): ValidationResult =

@@ -319,7 +319,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
         )
       )
     } else {
-      val buildRelationBatchHolder: mutable.ListBuffer[ColumnarBatch] = mutable.ListBuffer()
 
       /**
        * the whole stage contains NO BasicScanExecTransformer. this the default case for:
@@ -339,7 +338,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
         sparkConf,
         resCtx,
         pipelineTime,
-        buildRelationBatchHolder,
         BackendsApiManager.getMetricsApiInstance.metricsUpdatingFunction(
           child,
           resCtx.substraitContext.registeredRelMap,

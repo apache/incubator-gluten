@@ -69,7 +69,7 @@ public class StorageJoinBuilder {
         keys.stream()
             .map(
                 (Expression key) -> {
-                  Attribute attr = converter.getAttrFromExpr(key, false);
+                  Attribute attr = converter.getAttrFromExpr(key);
                   return converter.genColumnNameWithExprId(attr);
                 })
             .collect(Collectors.joining(","));

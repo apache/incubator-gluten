@@ -107,27 +107,32 @@ object BackendSettings extends BackendSettingsApi {
         validateTypes(typeValidator)
       case DwrfReadFormat => ValidationResult.ok
       case OrcReadFormat =>
-        val typeValidator: PartialFunction[StructField, String] = {
-          case StructField(_, ByteType, _, _) => "ByteType not support"
-          case StructField(_, arrayType: ArrayType, _, _)
-              if arrayType.elementType.isInstanceOf[StructType] =>
-            "StructType as element in ArrayType"
-          case StructField(_, arrayType: ArrayType, _, _)
-              if arrayType.elementType.isInstanceOf[ArrayType] =>
-            "ArrayType as element in ArrayType"
-          case StructField(_, mapType: MapType, _, _) if mapType.keyType.isInstanceOf[StructType] =>
-            "StructType as Key in MapType"
-          case StructField(_, mapType: MapType, _, _)
-              if mapType.valueType.isInstanceOf[ArrayType] =>
-            "ArrayType as Value in MapType"
-          case StructField(_, stringType: StringType, _, metadata)
-              if CharVarcharUtils
-                .getRawTypeString(metadata)
-                .getOrElse(stringType.catalogString) != stringType.catalogString =>
-            CharVarcharUtils.getRawTypeString(metadata) + " not support"
-          case StructField(_, TimestampType, _, _) => "TimestampType not support"
+        if (!GlutenConfig.getConf.veloxOrcScanEnabled) {
+          ValidationResult.notOk(s"Velox ORC scan is turned off.")
+        } else {
+          val typeValidator: PartialFunction[StructField, String] = {
+            case StructField(_, ByteType, _, _) => "ByteType not support"
+            case StructField(_, arrayType: ArrayType, _, _)
+                if arrayType.elementType.isInstanceOf[StructType] =>
+              "StructType as element in ArrayType"
+            case StructField(_, arrayType: ArrayType, _, _)
+                if arrayType.elementType.isInstanceOf[ArrayType] =>
+              "ArrayType as element in ArrayType"
+            case StructField(_, mapType: MapType, _, _)
+                if mapType.keyType.isInstanceOf[StructType] =>
+              "StructType as Key in MapType"
+            case StructField(_, mapType: MapType, _, _)
+                if mapType.valueType.isInstanceOf[ArrayType] =>
+              "ArrayType as Value in MapType"
+            case StructField(_, stringType: StringType, _, metadata)
+                if CharVarcharUtils
+                  .getRawTypeString(metadata)
+                  .getOrElse(stringType.catalogString) != stringType.catalogString =>
+              CharVarcharUtils.getRawTypeString(metadata) + " not support"
+            case StructField(_, TimestampType, _, _) => "TimestampType not support"
+          }
+          validateTypes(typeValidator)
         }
-        validateTypes(typeValidator)
       case _ => ValidationResult.notOk(s"Unsupported file format for $format.")
     }
   }
@@ -420,5 +425,11 @@ object BackendSettings extends BackendSettingsApi {
             s" is $MAXIMUM_BATCH_SIZE for Velox backend.")
       }
     }
+  }
+
+  override def shouldRewriteCount(): Boolean = {
+    // Velox backend does not support count if it has more that one child,
+    // so we should rewrite it.
+    true
   }
 }

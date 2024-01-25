@@ -39,7 +39,6 @@ import com.google.protobuf.StringValue
 import java.util.{ArrayList => JArrayList, List => JList}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
 
 /** Columnar Based HashAggregateExec. */
 abstract class HashAggregateExecBaseTransformer(
@@ -63,13 +62,8 @@ abstract class HashAggregateExecBaseTransformer(
 
   // The direct outputs of Aggregation.
   protected lazy val allAggregateResultAttributes: List[Attribute] = {
-    val groupingAttributes = groupingExpressions.map(
-      expr => {
-        ConverterUtils.getAttrFromExpr(expr).toAttribute
-      })
-    groupingAttributes.toList ::: getAttrForAggregateExprs(
-      aggregateExpressions,
-      aggregateAttributes)
+    groupingExpressions.map(ConverterUtils.getAttrFromExpr(_)).toList :::
+      getAttrForAggregateExprs(aggregateExpressions, aggregateAttributes).toList
   }
 
   protected def isCapableForStreamingAggregation: Boolean = {
@@ -116,10 +110,9 @@ abstract class HashAggregateExecBaseTransformer(
 
   protected def checkType(dataType: DataType): Boolean = {
     dataType match {
-      case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
-          StringType | TimestampType | DateType | BinaryType =>
+      case BooleanType | StringType | TimestampType | DateType | BinaryType =>
         true
-      case _: DecimalType => true
+      case _: NumericType => true
       case _: ArrayType => true
       case _: NullType => true
       case _ => false
@@ -131,15 +124,29 @@ abstract class HashAggregateExecBaseTransformer(
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
     val aggParams = new AggregationParams
     val relNode = getAggRel(substraitContext, operatorId, aggParams, null, validation = true)
-    if (aggregateAttributes.exists(attr => !checkType(attr.dataType))) {
+
+    val unsupportedAggExprs = aggregateAttributes.filterNot(attr => checkType(attr.dataType))
+    if (unsupportedAggExprs.nonEmpty) {
       return ValidationResult.notOk(
-        "Found not supported data type in aggregation expression," +
-          s"${aggregateAttributes.map(_.dataType)}")
+        "Found unsupported data type in aggregation expression: " +
+          unsupportedAggExprs
+            .map(attr => s"${attr.name}#${attr.exprId.id}:${attr.dataType}")
+            .mkString(", "))
     }
-    if (groupingExpressions.exists(attr => !checkType(attr.dataType))) {
+    val unsupportedGroupExprs = groupingExpressions.filterNot(attr => checkType(attr.dataType))
+    if (unsupportedGroupExprs.nonEmpty) {
       return ValidationResult.notOk(
-        "Found not supported data type in group expression," +
-          s"${groupingExpressions.map(_.dataType)}")
+        "Found unsupported data type in grouping expression: " +
+          unsupportedGroupExprs
+            .map(attr => s"${attr.name}#${attr.exprId.id}:${attr.dataType}")
+            .mkString(", "))
+    }
+    aggregateExpressions.foreach {
+      expr =>
+        if (!checkAggFuncModeSupport(expr.aggregateFunction, expr.mode)) {
+          throw new UnsupportedOperationException(
+            s"Unsupported aggregate mode: ${expr.mode} for ${expr.aggregateFunction.prettyName}")
+        }
     }
     doNativeValidation(substraitContext, relNode)
   }
@@ -229,13 +236,20 @@ abstract class HashAggregateExecBaseTransformer(
     // Get the needed expressions from grouping expressions.
     groupingExpressions.foreach(expression => appendIfNotFound(expression))
 
+    val hasDistinct = aggregateExpressions.exists(_.isDistinct)
     // Get the needed expressions from aggregation expressions.
     aggregateExpressions.foreach(
       aggExpr => {
         val aggregateFunc = aggExpr.aggregateFunction
         aggExpr.mode match {
           case Partial =>
-            aggregateFunc.children.foreach(expression => appendIfNotFound(expression))
+            aggregateFunc.children.foreach(appendIfNotFound)
+          case PartialMerge =>
+            // For aggregate with distinct
+            assert(
+              hasDistinct,
+              s"Not support PartialMerge for non-distinct aggregate: $aggregateFunc")
+            aggregateFunc.inputAggBufferAttributes.foreach(appendIfNotFound)
           case other =>
             throw new UnsupportedOperationException(s"$other not supported.")
         }
@@ -302,14 +316,24 @@ abstract class HashAggregateExecBaseTransformer(
       aggExpr => {
         val aggregateFunc = aggExpr.aggregateFunction
         val childrenNodeList = new JArrayList[ExpressionNode]()
-        val childrenNodes = aggregateFunc.children.toList.map(
-          _ => {
-            val aggExpr = ExpressionBuilder.makeSelection(selections(colIdx))
-            colIdx += 1
-            aggExpr
-          })
-        for (node <- childrenNodes) {
-          childrenNodeList.add(node)
+        aggExpr.mode match {
+          case Partial =>
+            aggregateFunc.children.foreach {
+              _ =>
+                val aggExpr = ExpressionBuilder.makeSelection(selections(colIdx))
+                colIdx += 1
+                childrenNodeList.add(aggExpr)
+            }
+          case PartialMerge =>
+            // For aggregate with distinct
+            aggregateFunc.inputAggBufferAttributes.foreach {
+              _ =>
+                val aggExpr = ExpressionBuilder.makeSelection(selections(colIdx))
+                colIdx += 1
+                childrenNodeList.add(aggExpr)
+            }
+          case other =>
+            throw new UnsupportedOperationException(s"$other not supported.")
         }
         addFunctionNode(
           context.registeredFunction,
@@ -395,61 +419,7 @@ abstract class HashAggregateExecBaseTransformer(
   /** This method calculates the output attributes of Aggregation. */
   protected def getAttrForAggregateExprs(
       aggregateExpressions: Seq[AggregateExpression],
-      aggregateAttributeList: Seq[Attribute]): List[Attribute] = {
-    val aggregateAttr = new ListBuffer[Attribute]()
-    val size = aggregateExpressions.size
-    var resIndex = 0
-    for (expIdx <- 0 until size) {
-      val exp: AggregateExpression = aggregateExpressions(expIdx)
-      resIndex = getAttrForAggregateExpr(exp, aggregateAttributeList, aggregateAttr, resIndex)
-    }
-    aggregateAttr.toList
-  }
-
-  protected def getAttrForAggregateExpr(
-      exp: AggregateExpression,
-      aggregateAttributeList: Seq[Attribute],
-      aggregateAttr: ListBuffer[Attribute],
-      index: Int): Int = {
-    var resIndex = index
-    val mode = exp.mode
-    val aggregateFunc = exp.aggregateFunction
-    // First handle the custom aggregate functions
-    if (
-      ExpressionMappings.expressionExtensionTransformer.extensionExpressionsMapping.contains(
-        aggregateFunc.getClass)
-    ) {
-      ExpressionMappings.expressionExtensionTransformer
-        .getAttrsIndexForExtensionAggregateExpr(
-          aggregateFunc,
-          mode,
-          exp,
-          aggregateAttributeList,
-          aggregateAttr,
-          index)
-    } else {
-      if (!checkAggFuncModeSupport(aggregateFunc, mode)) {
-        throw new UnsupportedOperationException(
-          s"Unsupported aggregate mode: $mode for ${aggregateFunc.prettyName}")
-      }
-      mode match {
-        case Partial | PartialMerge =>
-          val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
-          for (index <- aggBufferAttr.indices) {
-            val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-            aggregateAttr += attr
-          }
-          resIndex += aggBufferAttr.size
-          resIndex
-        case Final =>
-          aggregateAttr += aggregateAttributeList(resIndex)
-          resIndex += 1
-          resIndex
-        case other =>
-          throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-      }
-    }
-  }
+      aggregateAttributeList: Seq[Attribute]): Seq[Attribute]
 
   protected def checkAggFuncModeSupport(
       aggFunc: AggregateFunction,
@@ -583,4 +553,19 @@ abstract class HashAggregateExecBaseTransformer(
       aggParams: AggregationParams,
       input: RelNode = null,
       validation: Boolean = false): RelNode
+}
+
+object HashAggregateExecTransformerUtil {
+  // Return whether the outputs partial aggregation should be combined for Velox computing.
+  // When the partial outputs are multiple-column, row construct is needed.
+  def rowConstructNeeded(aggregateExpressions: Seq[AggregateExpression]): Boolean = {
+    aggregateExpressions.exists {
+      aggExpr =>
+        aggExpr.mode match {
+          case PartialMerge | Final =>
+            aggExpr.aggregateFunction.inputAggBufferAttributes.size > 1
+          case _ => false
+        }
+    }
+  }
 }

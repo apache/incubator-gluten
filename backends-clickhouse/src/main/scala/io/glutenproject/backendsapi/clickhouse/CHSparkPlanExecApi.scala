@@ -307,7 +307,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
             wrapChild(r)
           case r2c: RowToCHNativeColumnarExec =>
             wrapChild(r2c)
-          case union: UnionExecTransformer =>
+          case union: ColumnarUnionExec =>
             wrapChild(union)
           case other =>
             throw new UnsupportedOperationException(

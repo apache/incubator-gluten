@@ -1711,6 +1711,12 @@ void SubstraitToVeloxPlanConverter::setColumnFilterInfo(
   }
 }
 
+template <facebook::velox::TypeKind kind>
+variant getVariantFromLiteral(const ::substrait::Expression::Literal& literal) {
+  using LitT = typename facebook::velox::TypeTraits<kind>::NativeType;
+  return variant(SubstraitParser::getLiteralValue<LitT>(literal));
+}
+
 void SubstraitToVeloxPlanConverter::setFilterInfo(
     const ::substrait::Expression_ScalarFunction& scalarFunction,
     const std::vector<TypePtr>& inputTypeList,
@@ -1761,71 +1767,19 @@ void SubstraitToVeloxPlanConverter::setFilterInfo(
   std::optional<variant> val;
 
   auto inputType = inputTypeList[colIdxVal];
-  if (inputType->isDate()) {
-    if (substraitLit) {
-      val = variant(int(substraitLit.value().date()));
-    }
-    setColumnFilterInfo(functionName, val, columnToFilterInfo[colIdxVal], reverse);
-    return;
-  }
   switch (inputType->kind()) {
     case TypeKind::TINYINT:
-      if (substraitLit) {
-        val = variant(substraitLit.value().i8());
-      }
-      break;
     case TypeKind::SMALLINT:
-      if (substraitLit) {
-        val = variant(substraitLit.value().i16());
-      }
-      break;
     case TypeKind::INTEGER:
-      if (substraitLit) {
-        val = variant(substraitLit.value().i32());
-      }
-      break;
     case TypeKind::BIGINT:
-      if (substraitLit) {
-        if (inputType->isShortDecimal()) {
-          auto decimal = substraitLit.value().decimal().value();
-          int128_t decimalValue;
-          memcpy(&decimalValue, decimal.c_str(), 16);
-          val = variant(static_cast<int64_t>(decimalValue));
-        } else {
-          val = variant(substraitLit.value().i64());
-        }
-      }
-      break;
     case TypeKind::REAL:
-      if (substraitLit) {
-        val = variant(substraitLit.value().fp32());
-      }
-      break;
     case TypeKind::DOUBLE:
-      if (substraitLit) {
-        val = variant(substraitLit.value().fp64());
-      }
-      break;
     case TypeKind::BOOLEAN:
-      if (substraitLit) {
-        val = variant(substraitLit.value().boolean());
-      }
-      break;
     case TypeKind::VARCHAR:
-      if (substraitLit) {
-        val = variant(substraitLit.value().string());
-      }
-      break;
     case TypeKind::HUGEINT:
       if (substraitLit) {
-        if (inputType->isLongDecimal()) {
-          auto decimal = substraitLit.value().decimal().value();
-          int128_t decimalValue;
-          memcpy(&decimalValue, decimal.c_str(), 16);
-          val = variant(decimalValue);
-        } else {
-          VELOX_NYI("TypeKind::HUGEINT only support inputType LongDecimal");
-        }
+        auto kind = inputType->kind();
+        val = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(getVariantFromLiteral, kind, substraitLit.value());
       }
       break;
     case TypeKind::ARRAY:
@@ -1850,8 +1804,10 @@ void SubstraitToVeloxPlanConverter::createNotEqualFilter(
   // Value > lower
   std::unique_ptr<FilterType> lowerFilter;
   if constexpr (std::is_same_v<RangeType, common::BigintRange>) {
-    lowerFilter = std::make_unique<common::BigintRange>(
-        notVariant.value<NativeType>() + 1 /*lower*/, getMax<NativeType>() /*upper*/, nullAllowed);
+    if (notVariant.value<NativeType>() < getMax<NativeType>()) {
+      lowerFilter = std::make_unique<common::BigintRange>(
+          notVariant.value<NativeType>() + 1 /*lower*/, getMax<NativeType>() /*upper*/, nullAllowed);
+    }
   } else {
     lowerFilter = std::make_unique<RangeType>(
         notVariant.value<NativeType>() /*lower*/,
@@ -1866,8 +1822,10 @@ void SubstraitToVeloxPlanConverter::createNotEqualFilter(
   // Value < upper
   std::unique_ptr<FilterType> upperFilter;
   if constexpr (std::is_same_v<RangeType, common::BigintRange>) {
-    upperFilter = std::make_unique<common::BigintRange>(
-        getLowest<NativeType>() /*lower*/, notVariant.value<NativeType>() - 1 /*upper*/, nullAllowed);
+    if (getLowest<NativeType>() < notVariant.value<NativeType>()) {
+      upperFilter = std::make_unique<common::BigintRange>(
+          getLowest<NativeType>() /*lower*/, notVariant.value<NativeType>() - 1 /*upper*/, nullAllowed);
+    }
   } else {
     upperFilter = std::make_unique<RangeType>(
         getLowest<NativeType>() /*lower*/,
@@ -1881,8 +1839,12 @@ void SubstraitToVeloxPlanConverter::createNotEqualFilter(
 
   // To avoid overlap of BigintMultiRange, keep this appending order to make sure lower bound of one range is less than
   // the upper bounds of others.
-  colFilters.emplace_back(std::move(upperFilter));
-  colFilters.emplace_back(std::move(lowerFilter));
+  if (upperFilter) {
+    colFilters.emplace_back(std::move(upperFilter));
+  }
+  if (lowerFilter) {
+    colFilters.emplace_back(std::move(lowerFilter));
+  }
 }
 
 template <TypeKind KIND>
@@ -2080,10 +2042,18 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
       // due to multirange is in 'OR' relation but 'AND' is needed.
       VELOX_CHECK(rangeSize == 0, "LowerBounds or upperBounds conditons cannot be supported after not-equal filter.");
       if constexpr (std::is_same_v<MultiRangeType, common::MultiRange>) {
-        filters[common::Subfield(inputName)] =
-            std::make_unique<common::MultiRange>(std::move(colFilters), nullAllowed, true /*nanAllowed*/);
+        if (colFilters.size() == 1) {
+          filters[common::Subfield(inputName)] = std::move(colFilters.front());
+        } else {
+          filters[common::Subfield(inputName)] =
+              std::make_unique<common::MultiRange>(std::move(colFilters), nullAllowed, true /*nanAllowed*/);
+        }
       } else {
-        filters[common::Subfield(inputName)] = std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
+        if (colFilters.size() == 1) {
+          filters[common::Subfield(inputName)] = std::move(colFilters.front());
+        } else {
+          filters[common::Subfield(inputName)] = std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
+        }
       }
       return;
     }

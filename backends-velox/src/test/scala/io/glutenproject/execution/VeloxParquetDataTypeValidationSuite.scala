@@ -192,6 +192,14 @@ class VeloxParquetDataTypeValidationSuite extends VeloxWholeStageTransformerSuit
   }
 
   test("Short type") {
+    // Validation: BatchScan with Filter
+    runQueryAndCompare(
+      "select type1.short, int from type1" +
+        " where type1.short = 1",
+      false) {
+      checkOperatorMatch[BatchScanExecTransformer]
+    }
+
     // Validation: BatchScan Project Aggregate Expand Sort Limit
     runQueryAndCompare(
       "select int, short from type1 " +
@@ -247,7 +255,7 @@ class VeloxParquetDataTypeValidationSuite extends VeloxWholeStageTransformerSuit
                          |""".stripMargin) {
       df =>
         {
-          assert(getExecutedPlan(df).exists(plan => plan.isInstanceOf[UnionExecTransformer]))
+          assert(getExecutedPlan(df).exists(plan => plan.isInstanceOf[ColumnarUnionExec]))
         }
     }
 

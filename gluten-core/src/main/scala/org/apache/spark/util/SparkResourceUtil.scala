@@ -72,7 +72,6 @@ object SparkResourceUtil extends Logging {
   }
 
   def getTaskSlots(conf: SparkConf): Int = {
-    // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
     val executorCores = SparkResourceUtil.getExecutorCores(conf)
     val taskCores = conf.getInt("spark.task.cpus", 1)
     executorCores / taskCores

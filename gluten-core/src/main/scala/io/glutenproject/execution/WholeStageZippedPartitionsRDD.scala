@@ -25,8 +25,6 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import scala.collection.mutable
-
 private[glutenproject] class ZippedPartitionsPartition(
     override val index: Int,
     val inputColumnarRDDPartitions: Seq[Partition])
@@ -39,7 +37,6 @@ class WholeStageZippedPartitionsRDD(
     sparkConf: SparkConf,
     resCtx: WholeStageTransformContext,
     pipelineTime: SQLMetric,
-    buildRelationBatchHolder: mutable.ListBuffer[ColumnarBatch],
     updateNativeMetrics: IMetrics => Unit,
     materializeInput: Boolean)
   extends RDD[ColumnarBatch](sc, rdds.getDependencies) {
@@ -58,7 +55,6 @@ class WholeStageZippedPartitionsRDD(
             resCtx.root,
             pipelineTime,
             updateNativeMetrics,
-            buildRelationBatchHolder,
             materializeInput
           )
     }

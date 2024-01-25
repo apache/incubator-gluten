@@ -277,6 +277,81 @@ std::vector<TypePtr> SubstraitParser::sigToTypes(const std::string& signature) {
   return types;
 }
 
+template <typename T>
+T SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& /* literal */) {
+  VELOX_NYI();
+}
+
+template <>
+int8_t SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& literal) {
+  return static_cast<int8_t>(literal.i8());
+}
+
+template <>
+int16_t SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& literal) {
+  return static_cast<int16_t>(literal.i16());
+}
+
+template <>
+int32_t SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& literal) {
+  if (literal.has_date()) {
+    return int32_t(literal.date());
+  }
+  return literal.i32();
+}
+
+template <>
+int64_t SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& literal) {
+  if (literal.has_decimal()) {
+    auto decimal = literal.decimal().value();
+    int128_t decimalValue;
+    memcpy(&decimalValue, decimal.c_str(), 16);
+    return static_cast<int64_t>(decimalValue);
+  }
+  return literal.i64();
+}
+
+template <>
+int128_t SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& literal) {
+  auto decimal = literal.decimal().value();
+  int128_t decimalValue;
+  memcpy(&decimalValue, decimal.c_str(), 16);
+  return HugeInt::build(static_cast<uint64_t>(decimalValue >> 64), static_cast<uint64_t>(decimalValue));
+}
+
+template <>
+double SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& literal) {
+  return literal.fp64();
+}
+
+template <>
+float SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& literal) {
+  return literal.fp32();
+}
+
+template <>
+bool SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& literal) {
+  return literal.boolean();
+}
+
+template <>
+Timestamp SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& literal) {
+  return Timestamp::fromMicros(literal.timestamp());
+}
+
+template <>
+StringView SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& literal) {
+  if (literal.has_string()) {
+    return StringView(literal.string());
+  } else if (literal.has_var_char()) {
+    return StringView(literal.var_char().value());
+  } else if (literal.has_binary()) {
+    return StringView(literal.binary());
+  } else {
+    VELOX_FAIL("Unexpected string or binary literal");
+  }
+}
+
 std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunctionMap_ = {
     {"is_not_null", "isnotnull"}, /*Spark functions.*/
     {"is_null", "isnull"},

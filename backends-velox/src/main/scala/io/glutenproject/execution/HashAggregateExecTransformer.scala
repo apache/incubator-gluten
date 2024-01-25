@@ -17,6 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.execution.HashAggregateExecTransformerUtil._
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
@@ -54,6 +55,22 @@ abstract class HashAggregateExecTransformer(
     initialInputBufferOffset,
     resultExpressions,
     child) {
+
+  override protected def getAttrForAggregateExprs(
+      aggregateExpressions: Seq[AggregateExpression],
+      aggregateAttributeList: Seq[Attribute]): Seq[Attribute] = {
+    aggregateExpressions.zipWithIndex.flatMap {
+      case (expr, index) =>
+        expr.mode match {
+          case Partial | PartialMerge =>
+            expr.aggregateFunction.aggBufferAttributes
+          case Final =>
+            Seq(aggregateAttributeList(index))
+          case other =>
+            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
+        }
+    }
+  }
 
   override protected def checkAggFuncModeSupport(
       aggFunc: AggregateFunction,
@@ -295,19 +312,6 @@ abstract class HashAggregateExecTransformer(
     typeNodeList
   }
 
-  // Return whether the outputs partial aggregation should be combined for Velox computing.
-  // When the partial outputs are multiple-column, row construct is needed.
-  private def rowConstructNeeded: Boolean = {
-    aggregateExpressions.exists {
-      aggExpr =>
-        aggExpr.mode match {
-          case PartialMerge | Final =>
-            aggExpr.aggregateFunction.inputAggBufferAttributes.size > 1
-          case _ => false
-        }
-    }
-  }
-
   // Return a scalar function node representing row construct function in Velox.
   private def getRowConstructNode(
       args: java.lang.Object,
@@ -517,7 +521,7 @@ abstract class HashAggregateExecTransformer(
       aggParams.preProjectionNeeded = true
       getAggRelWithPreProjection(context, originalInputAttributes, operatorId, input, validation)
     } else {
-      if (rowConstructNeeded) {
+      if (rowConstructNeeded(aggregateExpressions)) {
         aggParams.preProjectionNeeded = true
         getAggRelWithRowConstruct(context, originalInputAttributes, operatorId, input, validation)
       } else {

@@ -121,18 +121,9 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
   getInfoAndIds(veloxPlanConverter.splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
   auto* vmm = toVeloxMemoryManager(memoryManager);
-  if (scanInfos.size() == 0) {
-    // Source node is not required.
-    auto wholestageIter = std::make_unique<WholeStageResultIteratorMiddleStage>(
-        vmm, veloxPlan_, streamIds, spillDir, sessionConf, taskInfo_);
-    auto resultIter = std::make_shared<ResultIterator>(std::move(wholestageIter), this);
-    return resultIter;
-  } else {
-    auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-        vmm, veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf, taskInfo_);
-    auto resultIter = std::make_shared<ResultIterator>(std::move(wholestageIter), this);
-    return resultIter;
-  }
+  auto wholestageIter = std::make_unique<WholeStageResultIterator>(
+      vmm, veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf, taskInfo_);
+  return std::make_shared<ResultIterator>(std::move(wholestageIter), this);
 }
 
 std::shared_ptr<ColumnarToRowConverter> VeloxRuntime::createColumnar2RowConverter(MemoryManager* memoryManager) {

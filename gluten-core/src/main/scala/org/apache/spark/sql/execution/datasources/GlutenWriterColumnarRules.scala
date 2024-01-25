@@ -31,6 +31,7 @@ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.command.{CreateDataSourceTableAsSelectCommand, DataWritingCommand, DataWritingCommandExec}
 import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.execution.datasources.v2.{AppendDataExec, OverwriteByExpressionExec}
 import org.apache.spark.sql.hive.execution.{CreateHiveTableAsSelectCommand, InsertIntoHiveDirCommand, InsertIntoHiveTable}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -143,7 +144,18 @@ object GlutenWriterColumnarRules {
   }
 
   case class NativeWritePostRule(session: SparkSession) extends Rule[SparkPlan] {
+
+    private val NOOP_WRITE = "org.apache.spark.sql.execution.datasources.noop.NoopWrite$"
+
     override def apply(p: SparkPlan): SparkPlan = p match {
+      case rc @ AppendDataExec(_, _, write)
+          if write.getClass.getName == NOOP_WRITE &&
+            BackendsApiManager.getSettings.enableNativeWriteFiles() =>
+        injectFakeRowAdaptor(rc, rc.child)
+      case rc @ OverwriteByExpressionExec(_, _, write)
+          if write.getClass.getName == NOOP_WRITE &&
+            BackendsApiManager.getSettings.enableNativeWriteFiles() =>
+        injectFakeRowAdaptor(rc, rc.child)
       case rc @ DataWritingCommandExec(cmd, child) =>
         val format = getNativeFormat(cmd)
         session.sparkContext.setLocalProperty(
@@ -152,31 +164,35 @@ object GlutenWriterColumnarRules {
         session.sparkContext.setLocalProperty("isNativeAppliable", format.isDefined.toString)
         session.sparkContext.setLocalProperty("nativeFormat", format.getOrElse(""))
         if (format.isDefined) {
-          child match {
-            // if the child is columnar, we can just wrap&transfer the columnar data
-            case c2r: ColumnarToRowExecBase =>
-              rc.withNewChildren(Array(FakeRowAdaptor(c2r.child)))
-            // If the child is aqe, we make aqe "support columnar",
-            // then aqe itself will guarantee to generate columnar outputs.
-            // So FakeRowAdaptor will always consumes columnar data,
-            // thus avoiding the case of c2r->aqe->r2c->writer
-            case aqe: AdaptiveSparkPlanExec =>
-              rc.withNewChildren(
-                Array(
-                  FakeRowAdaptor(
-                    AdaptiveSparkPlanExec(
-                      aqe.inputPlan,
-                      aqe.context,
-                      aqe.preprocessingRules,
-                      aqe.isSubquery,
-                      supportsColumnar = true
-                    ))))
-            case other => rc.withNewChildren(Array(FakeRowAdaptor(other)))
-          }
+          injectFakeRowAdaptor(rc, child)
         } else {
           rc.withNewChildren(rc.children.map(apply))
         }
       case plan: SparkPlan => plan.withNewChildren(plan.children.map(apply))
+    }
+
+    private def injectFakeRowAdaptor(command: SparkPlan, child: SparkPlan): SparkPlan = {
+      child match {
+        // if the child is columnar, we can just wrap&transfer the columnar data
+        case c2r: ColumnarToRowExecBase =>
+          command.withNewChildren(Array(FakeRowAdaptor(c2r.child)))
+        // If the child is aqe, we make aqe "support columnar",
+        // then aqe itself will guarantee to generate columnar outputs.
+        // So FakeRowAdaptor will always consumes columnar data,
+        // thus avoiding the case of c2r->aqe->r2c->writer
+        case aqe: AdaptiveSparkPlanExec =>
+          command.withNewChildren(
+            Array(
+              FakeRowAdaptor(
+                AdaptiveSparkPlanExec(
+                  aqe.inputPlan,
+                  aqe.context,
+                  aqe.preprocessingRules,
+                  aqe.isSubquery,
+                  supportsColumnar = true
+                ))))
+        case other => command.withNewChildren(Array(FakeRowAdaptor(other)))
+      }
     }
   }
 }

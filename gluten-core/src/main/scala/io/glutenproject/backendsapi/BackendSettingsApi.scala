@@ -124,4 +124,6 @@ trait BackendSettingsApi {
   def enableBloomFilterAggFallbackRule(): Boolean = true
 
   def enableNativeWriteFiles(): Boolean
+
+  def shouldRewriteCount(): Boolean = false
 }

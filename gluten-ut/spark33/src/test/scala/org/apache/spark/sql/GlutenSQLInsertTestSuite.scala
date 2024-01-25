@@ -16,20 +16,8 @@
  */
 package org.apache.spark.sql
 
-import org.apache.spark.SparkConf
-
 class GlutenFileSourceSQLInsertTestSuite
   extends FileSourceSQLInsertTestSuite
-  with GlutenSQLTestsTrait {
-  override def sparkConf: SparkConf = {
-    // Timezone is not supported yet.
-    super.sparkConf.set("spark.sql.session.timeZone", "UTC")
-  }
-}
+  with GlutenSQLTestsTrait {}
 
-class GlutenDSV2SQLInsertTestSuite extends DSV2SQLInsertTestSuite {
-  override def sparkConf: SparkConf = {
-    // Timezone is not supported yet.
-    super.sparkConf.set("spark.sql.session.timeZone", "UTC")
-  }
-}
+class GlutenDSV2SQLInsertTestSuite extends DSV2SQLInsertTestSuite {}

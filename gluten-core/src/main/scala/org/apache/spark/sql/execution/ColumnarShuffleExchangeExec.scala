@@ -106,14 +106,14 @@ case class ColumnarShuffleExchangeExec(
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
   override protected def doValidateInternal(): ValidationResult = {
-    if (
-      !BackendsApiManager.getValidatorApiInstance.doColumnarShuffleExchangeExecValidate(
-        outputPartitioning,
-        child)
-    ) {
-      return ValidationResult.notOk("Found schema check failure in shuffle exchange.")
-    }
-    ValidationResult.ok
+    BackendsApiManager.getValidatorApiInstance
+      .doColumnarShuffleExchangeExecValidate(outputPartitioning, child)
+      .map {
+        reason =>
+          ValidationResult.notOk(
+            s"Found schema check failure for schema ${child.schema} due to: $reason")
+      }
+      .getOrElse(ValidationResult.ok)
   }
 
   override def nodeName: String = "ColumnarExchange"

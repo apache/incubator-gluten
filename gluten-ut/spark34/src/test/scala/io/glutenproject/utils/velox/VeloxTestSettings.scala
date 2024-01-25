@@ -1110,6 +1110,8 @@ class VeloxTestSettings extends BackendTestSettings {
   // following UT is removed in spark3.3.1
   // enableSuite[GlutenSimpleShowCreateTableSuite]
   enableSuite[GlutenFileSourceSQLInsertTestSuite]
+    .exclude(
+      "SPARK-34556: checking duplicate static partition columns should respect case sensitive conf")
   enableSuite[GlutenDSV2SQLInsertTestSuite]
   enableSuite[GlutenSQLQuerySuite]
     // Decimal precision exceeds.
