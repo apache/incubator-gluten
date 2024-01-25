@@ -303,7 +303,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       break;
     }
     default:
-      VELOX_NYI("Unsupported Join type: {}", sJoin.type());
+      VELOX_NYI("Unsupported Join type: {}", std::to_string(sJoin.type()));
   }
 
   // extract join keys from join expression
@@ -745,7 +745,7 @@ const core::WindowNode::Frame createWindowFrame(
       frame.type = core::WindowNode::WindowType::kRange;
       break;
     default:
-      VELOX_FAIL("the window type only support ROWS and RANGE, and the input type is ", type);
+      VELOX_FAIL("the window type only support ROWS and RANGE, and the input type is ", std::to_string(type));
   }
 
   auto boundTypeConversion = [](::substrait::Expression_WindowFunction_Bound boundType) -> core::WindowNode::BoundType {
@@ -1263,7 +1263,7 @@ void SubstraitToVeloxPlanConverter::flattenConditions(
       break;
     }
     default:
-      VELOX_NYI("GetFlatConditions not supported for type '{}'", typeCase);
+      VELOX_NYI("GetFlatConditions not supported for type '{}'", std::to_string(typeCase));
   }
 }
 
@@ -1742,7 +1742,7 @@ void SubstraitToVeloxPlanConverter::setFilterInfo(
         substraitLit = param.value().literal();
         break;
       default:
-        VELOX_NYI("Substrait conversion not supported for arg type '{}'", typeCase);
+        VELOX_NYI("Substrait conversion not supported for arg type '{}'", std::to_string(typeCase));
     }
   }
 
@@ -1788,7 +1788,7 @@ void SubstraitToVeloxPlanConverter::setFilterInfo(
       // Doing nothing here can let filter IsNotNull still work.
       break;
     default:
-      VELOX_NYI("Subfield filters creation not supported for input type '{}' in setFilterInfo", inputType);
+      VELOX_NYI("Subfield filters creation not supported for input type '{}' in setFilterInfo", inputType->toString());
   }
 
   setColumnFilterInfo(functionName, val, columnToFilterInfo[colIdxVal], reverse);
@@ -2011,7 +2011,8 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
         filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNull>());
       } else {
         VELOX_NYI(
-            "Only IsNotNull and IsNull are supported in constructSubfieldFilters for input type '{}'.", inputType);
+            "Only IsNotNull and IsNull are supported in constructSubfieldFilters for input type '{}'.",
+            inputType->toString());
       }
     }
   } else {
@@ -2204,7 +2205,8 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::mapToFilters(
               colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
           break;
         default:
-          VELOX_NYI("Subfield filters creation not supported for input type '{}' in mapToFilters", inputType);
+          VELOX_NYI(
+              "Subfield filters creation not supported for input type '{}' in mapToFilters", inputType->toString());
       }
     }
   }

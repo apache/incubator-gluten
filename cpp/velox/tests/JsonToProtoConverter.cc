@@ -28,5 +28,9 @@ void JsonToProtoConverter::readFromFile(const std::string& msgPath, google::prot
   buffer << msgJson.rdbuf();
   std::string msgData = buffer.str();
   auto status = google::protobuf::util::JsonStringToMessage(msgData, &msg);
-  VELOX_CHECK(status.ok(), "Failed to parse Substrait JSON: {} {}", status.code(), status.message());
+  VELOX_CHECK(
+      status.ok(),
+      "Failed to parse Substrait JSON: {} {}",
+      static_cast<int8_t>(status.code()),
+      status.message().ToString());
 }
