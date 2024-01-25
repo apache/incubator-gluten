@@ -17,7 +17,7 @@
 package io.glutenproject.utils
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{AttributeSet, EqualTo, Expression, GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, Not, Or}
+import org.apache.spark.sql.catalyst.expressions.{AttributeSet, EqualTo, Expression, GreaterThan, GreaterThanOrEqual, In, LessThan, LessThanOrEqual, Not, Or}
 import org.apache.spark.sql.catalyst.plans.JoinType
 
 /**
@@ -84,6 +84,9 @@ object CHJoinValidateUtil extends Logging {
             shouldFallback = true
           }
           GreaterThanOrEqual(l, r)
+        case In(l, r) =>
+          shouldFallback = true
+          In(l, r)
       }
     }
     shouldFallback
