@@ -83,7 +83,6 @@ class GlutenClickHouseSyntheticDataSuite
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
     /* .set("spark.sql.catalogImplementation", "hive")
       .set("javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${
         metaStorePathAbsolute + "/metastore_db"};create=true") */

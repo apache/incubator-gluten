@@ -77,10 +77,15 @@ class CHRowSplitter extends GlutenRowSplitter {
   override def splitBlockByPartitionAndBucket(
       row: FakeRow,
       partitionColIndice: Array[Int],
-      hasBucket: Boolean): CHBlockStripes = {
+      hasBucket: Boolean,
+      reserve_partition_columns: Boolean = false): CHBlockStripes = {
     val col = row.batch.column(0).asInstanceOf[CHColumnVector]
     new CHBlockStripes(
       CHDatasourceJniWrapper
-        .splitBlockByPartitionAndBucket(col.getBlockAddress, partitionColIndice, hasBucket))
+        .splitBlockByPartitionAndBucket(
+          col.getBlockAddress,
+          partitionColIndice,
+          hasBucket,
+          reserve_partition_columns))
   }
 }

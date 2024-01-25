@@ -14,28 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.v2.clickhouse.source
+package org.apache.spark.sql.execution.datasources.v1
 
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.connector.write.{BatchWrite, LogicalWriteInfo, WriteBuilder}
-import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
-import org.apache.spark.sql.types.StructType
+import io.glutenproject.execution.datasource.GlutenFormatWriterInjects
 
-class ClickHouseWriteBuilder(
-    spark: SparkSession,
-    table: ClickHouseTableV2,
-    deltaLog: DeltaLog,
-    info: LogicalWriteInfo)
-  extends WriteBuilder {
+object GlutenMergeTreeWriterInjects {
+  private var INSTANCE: GlutenFormatWriterInjects = _
 
-  private val options = info.options()
-
-  def querySchema: StructType = info.schema()
-
-  def queryId: String = info.queryId()
-
-  override def buildForBatch(): BatchWrite = {
-    new ClickHouseBatchWrite(info)
+  def setInstance(instance: GlutenFormatWriterInjects): Unit = {
+    INSTANCE = instance
+  }
+  def getInstance(): GlutenFormatWriterInjects = {
+    if (INSTANCE == null) {
+      throw new IllegalStateException("GlutenOutputWriterFactoryCreator is not initialized")
+    }
+    INSTANCE
   }
 }

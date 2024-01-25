@@ -20,12 +20,22 @@ import org.apache.spark.internal.Logging
 
 import com.google.protobuf.WrappersProto
 import com.google.protobuf.util.JsonFormat
-import io.substrait.proto.Plan
+import io.substrait.proto.{NamedStruct, Plan}
 
 object SubstraitPlanPrinterUtil extends Logging {
 
   /** Transform Substrait Plan to json format. */
   def substraitPlanToJson(substraintPlan: Plan): String = {
+    val defaultRegistry = WrappersProto.getDescriptor.getMessageTypes
+    val registry = com.google.protobuf.TypeRegistry
+      .newBuilder()
+      .add(substraintPlan.getDescriptorForType())
+      .add(defaultRegistry)
+      .build()
+    JsonFormat.printer.usingTypeRegistry(registry).print(substraintPlan)
+  }
+
+  def substraitNamedStructToJson(substraintPlan: NamedStruct): String = {
     val defaultRegistry = WrappersProto.getDescriptor.getMessageTypes
     val registry = com.google.protobuf.TypeRegistry
       .newBuilder()

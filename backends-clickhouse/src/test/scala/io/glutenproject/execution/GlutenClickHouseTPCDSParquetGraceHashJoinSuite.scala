@@ -37,7 +37,6 @@ class GlutenClickHouseTPCDSParquetGraceHashJoinSuite extends GlutenClickHouseTPC
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
       .set("spark.memory.offHeap.size", "8g")
       .set("spark.gluten.sql.columnar.backend.ch.runtime_settings.join_algorithm", "grace_hash")
       .set("spark.gluten.sql.columnar.backend.ch.runtime_settings.max_bytes_in_join", "3145728")

@@ -53,14 +53,32 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       fileFormat: ReadFileFormat): SplitInfo = {
     partition match {
       case p: GlutenMergeTreePartition =>
+        val partLists = new JArrayList[String]()
+        val starts = new JArrayList[JLong]()
+        val lengths = new JArrayList[JLong]()
+        p.partList
+          .foreach(
+            parts => {
+              partLists.add(parts.name)
+              starts.add(parts.start)
+              lengths.add(parts.length)
+            })
         ExtensionTableBuilder
           .makeExtensionTable(
-            p.minParts,
-            p.maxParts,
+            -1L,
+            -1L,
             p.database,
             p.table,
             p.tablePath,
-            CHAffinity.getNativeMergeTreePartitionLocations(p).toList.asJava)
+            p.orderByKey,
+            p.primaryKey,
+            partLists,
+            starts,
+            lengths,
+            p.tableSchemaJson,
+            p.clickhouseTableConfigs.asJava,
+            CHAffinity.getNativeMergeTreePartitionLocations(p).toList.asJava
+          )
       case f: FilePartition =>
         val paths = new JArrayList[String]()
         val starts = new JArrayList[JLong]()

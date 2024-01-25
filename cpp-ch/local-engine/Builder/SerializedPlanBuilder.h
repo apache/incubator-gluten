@@ -64,13 +64,6 @@ public:
     SerializedPlanBuilder & project(const std::vector<substrait::Expression *> & projections);
     SerializedPlanBuilder & aggregate(const std::vector<int32_t> & keys, const std::vector<substrait::AggregateRel_Measure *> & aggregates);
     SerializedPlanBuilder & read(const std::string & path, SchemaPtr schema);
-    SerializedPlanBuilder & readMergeTree(
-        const std::string & database,
-        const std::string & table,
-        const std::string & relative_path,
-        int min_block,
-        int max_block,
-        SchemaPtr schema);
     std::unique_ptr<substrait::Plan> build();
 
     static std::shared_ptr<substrait::Type> buildType(const DB::DataTypePtr & ch_type);

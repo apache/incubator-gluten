@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.datasources.v1
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
-import org.apache.spark.sql.delta.actions.{Metadata, Protocol}
+import org.apache.spark.sql.delta.actions.{AddFile, Metadata, Protocol}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
 
 import org.apache.hadoop.fs.Path
@@ -40,6 +40,12 @@ case class ClickHouseFileIndex(
     snapshotAtAnalysis,
     partitionFilters,
     isTimeTravelQuery) {
+
+  override def matchingFiles(
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[AddFile] = {
+    getSnapshot.filesForScan(this.partitionFilters ++ partitionFilters ++ dataFilters).files
+  }
 
   override def version: Long =
     if (isTimeTravelQuery) snapshotAtAnalysis.version else deltaLog.unsafeVolatileSnapshot.version

@@ -1,0 +1,172 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.spark.sql.execution.datasources.v1
+
+import io.glutenproject.expression.ConverterUtils
+import io.glutenproject.substrait.`type`.ColumnTypeNode
+import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.plan.PlanBuilder
+import io.glutenproject.substrait.rel.{ExtensionTableBuilder, RelBuilder}
+
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, GlutenFormatWriterInjectsBase, OutputWriter}
+import org.apache.spark.sql.execution.datasources.orc.OrcUtils
+import org.apache.spark.sql.execution.datasources.utils.MergeTreeDeltaUtil
+import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeOutputWriter
+import org.apache.spark.sql.types.StructType
+
+import com.google.common.collect.Lists
+import org.apache.hadoop.fs.FileStatus
+import org.apache.hadoop.mapreduce.TaskAttemptContext
+
+import java.lang.{Long => JLong}
+import java.util.{ArrayList => JList, Map => JMap, UUID}
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+
+class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
+
+  override def nativeConf(
+      options: Map[String, String],
+      compressionCodec: String): JMap[String, String] = {
+    // pass options to native so that velox can take user-specified conf to write parquet,
+    // i.e., compression, block size, block rows.
+    val sparkOptions = new mutable.HashMap[String, String]()
+    sparkOptions.asJava
+  }
+
+  override def createOutputWriter(
+      path: String,
+      dataSchema: StructType,
+      context: TaskAttemptContext,
+      nativeConf: JMap[String, String]): OutputWriter = null
+
+  // scalastyle:off argcount
+  override def createOutputWriter(
+      path: String,
+      database: String,
+      tableName: String,
+      orderByKeyOption: Option[Seq[String]],
+      primaryKeyOption: Option[Seq[String]],
+      partitionColumns: Seq[String],
+      tableSchema: StructType,
+      dataSchema: Seq[Attribute],
+      clickhouseTableConfigs: Map[String, String],
+      context: TaskAttemptContext,
+      nativeConf: JMap[String, String]): OutputWriter = {
+    val uuid = UUID.randomUUID.toString
+
+    val writeInfoPlan = CHMergeTreeWriterInjects.genMergeTreeWriteRel(
+      path,
+      database,
+      tableName,
+      orderByKeyOption,
+      primaryKeyOption,
+      partitionColumns,
+      ConverterUtils.convertNamedStructJson(tableSchema),
+      clickhouseTableConfigs,
+      dataSchema
+    )
+
+    val datasourceJniWrapper = new CHDatasourceJniWrapper();
+    val instance =
+      datasourceJniWrapper.nativeInitMergeTreeWriterWrapper(
+        writeInfoPlan,
+        uuid,
+        context.getTaskAttemptID.getTaskID.getId.toString,
+        context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition.dir"),
+        context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid.str")
+      );
+
+    new MergeTreeOutputWriter(database, tableName, datasourceJniWrapper, instance, path)
+  }
+  // scalastyle:on argcount
+
+  override def inferSchema(
+      sparkSession: SparkSession,
+      options: Map[String, String],
+      files: Seq[FileStatus]): Option[StructType] = {
+    OrcUtils.inferSchema(sparkSession, files, options)
+  }
+
+  override def getFormatName(): String = {
+    "mergetree"
+  }
+}
+
+object CHMergeTreeWriterInjects {
+
+  def genMergeTreeWriteRel(
+      path: String,
+      database: String,
+      tableName: String,
+      orderByKeyOption: Option[Seq[String]],
+      primaryKeyOption: Option[Seq[String]],
+      partitionColumns: Seq[String],
+      tableSchemaJson: String,
+      clickhouseTableConfigs: Map[String, String],
+      output: Seq[Attribute]): Array[Byte] = {
+    val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
+    val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
+    val columnTypeNodes = output.map {
+      attr =>
+        if (partitionColumns.exists(_.equals(attr.name))) {
+          new ColumnTypeNode(1)
+        } else {
+          new ColumnTypeNode(0)
+        }
+    }.asJava
+
+    val (orderByKey, primaryKey) = MergeTreeDeltaUtil.genOrderByAndPrimaryKeyStr(
+      orderByKeyOption,
+      primaryKeyOption
+    )
+
+    val substraitContext = new SubstraitContext
+    val extensionTableNode = ExtensionTableBuilder.makeExtensionTable(
+      -1,
+      -1,
+      database,
+      tableName,
+      path,
+      orderByKey,
+      primaryKey,
+      new JList[String](),
+      new JList[JLong](),
+      new JList[JLong](),
+      tableSchemaJson,
+      clickhouseTableConfigs.asJava,
+      new JList[String]()
+    )
+    substraitContext.initSplitInfosIndex(0)
+    substraitContext.setSplitInfos(Seq(extensionTableNode))
+    val relNode = RelBuilder.makeReadRel(
+      typeNodes,
+      nameList,
+      columnTypeNodes,
+      null,
+      substraitContext,
+      substraitContext.nextOperatorId("readRel"))
+
+    val plan =
+      PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode), nameList).toProtobuf
+
+    plan.toByteArray
+  }
+}

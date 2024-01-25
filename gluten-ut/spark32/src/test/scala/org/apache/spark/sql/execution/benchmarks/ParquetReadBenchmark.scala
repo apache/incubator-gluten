@@ -82,7 +82,6 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
         .set("spark.io.compression.codec", "LZ4")
         .set("spark.gluten.sql.enable.native.validation", "false")
         .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-        .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
         .set("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")
         .setIfMissing(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
         .set(

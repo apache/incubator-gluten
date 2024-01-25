@@ -32,12 +32,9 @@ class GlutenClickHouseTPCHBucketSuite
   with AdaptiveSparkPlanHelper {
 
   override protected val tablesPath: String = basePath + "/tpch-data-ch"
-  override protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
+  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "bucket-queries-output"
 
-  protected val bucketTableResourcePath: String = rootPath + "tpch-data-bucket/mergetree_bucket"
-  protected val bucketTableDataPath: String = basePath + "/tpch-mergetree-bucket"
   protected lazy val sparkVersion: String = {
     val version = SPARK_VERSION_SHORT.split("\\.")
     version(0) + "." + version(1)
@@ -55,18 +52,26 @@ class GlutenClickHouseTPCHBucketSuite
 
   override protected val createNullableTables = true
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    FileUtils.copyDirectory(new File(bucketTableResourcePath), new File(bucketTableDataPath))
-    createTPCHMergeTreeBucketTables()
-  }
+  override protected def createTPCHNullableTables(): Unit = {
+    // create parquet data source table
+    val parquetSourceDB = "parquet_source"
+    spark.sql(s"""
+                 |CREATE DATABASE IF NOT EXISTS $parquetSourceDB
+                 |""".stripMargin)
+    spark.sql(s"use $parquetSourceDB")
 
-  protected def createTPCHMergeTreeBucketTables(): Unit = {
+    val parquetTablePath = basePath + "/tpch-data"
+    val parquetTableDataPath: String =
+      "../../../../gluten-core/src/test/resources/tpch-data"
+    FileUtils.copyDirectory(new File(rootPath + parquetTableDataPath), new File(parquetTablePath))
+
+    createTPCHParquetTables(parquetTablePath)
+
     spark.sql(s"""
                  |CREATE DATABASE IF NOT EXISTS tpch_mergetree_bucket
                  |""".stripMargin)
     spark.sql("use tpch_mergetree_bucket")
-    val customerData = bucketTableDataPath + "/customer"
+    val customerData = tablesPath + "/customer"
     spark.sql(s"DROP TABLE IF EXISTS customer")
     // On Spark 3.2, bucket table does not support to create bucket column with sort columns for
     // DS V2
@@ -86,7 +91,7 @@ class GlutenClickHouseTPCHBucketSuite
                  | ${if (sparkVersion.equals("3.2")) "" else "SORTED BY (c_custkey)"} INTO 2 BUCKETS;
                  |""".stripMargin)
 
-    val lineitemData = bucketTableDataPath + "/lineitem"
+    val lineitemData = tablesPath + "/lineitem"
     spark.sql(s"DROP TABLE IF EXISTS lineitem")
     spark.sql(
       s"""
@@ -113,7 +118,7 @@ class GlutenClickHouseTPCHBucketSuite
          | ${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_shipdate, l_orderkey)"} INTO 2 BUCKETS;
          |""".stripMargin)
 
-    val nationData = bucketTableDataPath + "/nation"
+    val nationData = tablesPath + "/nation"
     spark.sql(s"DROP TABLE IF EXISTS nation")
     spark.sql(
       s"""
@@ -128,7 +133,7 @@ class GlutenClickHouseTPCHBucketSuite
          | ${if (sparkVersion.equals("3.2")) "" else "SORTED BY (n_nationkey)"} INTO 1 BUCKETS;
          |""".stripMargin)
 
-    val regionData = bucketTableDataPath + "/region"
+    val regionData = tablesPath + "/region"
     spark.sql(s"DROP TABLE IF EXISTS region")
     spark.sql(
       s"""
@@ -142,7 +147,7 @@ class GlutenClickHouseTPCHBucketSuite
          | ${if (sparkVersion.equals("3.2")) "" else "SORTED BY (r_regionkey)"} INTO 1 BUCKETS;
          |""".stripMargin)
 
-    val ordersData = bucketTableDataPath + "/orders"
+    val ordersData = tablesPath + "/orders"
     spark.sql(s"DROP TABLE IF EXISTS orders")
     spark.sql(
       s"""
@@ -162,7 +167,7 @@ class GlutenClickHouseTPCHBucketSuite
          | ${if (sparkVersion.equals("3.2")) "" else "SORTED BY (o_orderkey, o_orderdate)"} INTO 2 BUCKETS;
          |""".stripMargin)
 
-    val partData = bucketTableDataPath + "/part"
+    val partData = tablesPath + "/part"
     spark.sql(s"DROP TABLE IF EXISTS part")
     spark.sql(s"""
                  | CREATE EXTERNAL TABLE IF NOT EXISTS part (
@@ -181,7 +186,7 @@ class GlutenClickHouseTPCHBucketSuite
                  | ${if (sparkVersion.equals("3.2")) "" else "SORTED BY (p_partkey)"} INTO 2 BUCKETS;
                  |""".stripMargin)
 
-    val partsuppData = bucketTableDataPath + "/partsupp"
+    val partsuppData = tablesPath + "/partsupp"
     spark.sql(s"DROP TABLE IF EXISTS partsupp")
     spark.sql(
       s"""
@@ -197,7 +202,7 @@ class GlutenClickHouseTPCHBucketSuite
          | ${if (sparkVersion.equals("3.2")) "" else "SORTED BY (ps_partkey)"} INTO 2 BUCKETS;
          |""".stripMargin)
 
-    val supplierData = bucketTableDataPath + "/supplier"
+    val supplierData = tablesPath + "/supplier"
     spark.sql(s"DROP TABLE IF EXISTS supplier")
     spark.sql(s"""
                  | CREATE EXTERNAL TABLE IF NOT EXISTS supplier (
@@ -220,6 +225,8 @@ class GlutenClickHouseTPCHBucketSuite
               |""".stripMargin)
       .collect()
     assert(result.length == 8)
+
+    insertIntoMergeTreeTPCHTables(parquetSourceDB)
   }
 
   test("TPCH Q1") {
@@ -229,7 +236,7 @@ class GlutenClickHouseTPCHBucketSuite
           case scanExec: BasicScanExecTransformer => scanExec
         }
         assert(!(plans(0).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
-        assert(plans(0).metrics("numFiles").value === 4)
+        assert(plans(0).metrics("numFiles").value === 2)
         assert(plans(0).metrics("pruningTime").value === -1)
         assert(plans(0).metrics("outputRows").value === 591673)
       })
@@ -325,11 +332,11 @@ class GlutenClickHouseTPCHBucketSuite
         } else {
           assert(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         }
-        assert(plans(2).metrics("numFiles").value === 4)
+        assert(plans(2).metrics("numFiles").value === 2)
         assert(plans(2).metrics("outputRows").value === 3111)
 
         assert(!(plans(3).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
-        assert(plans(3).metrics("numFiles").value === 4)
+        assert(plans(3).metrics("numFiles").value === 2)
         assert(plans(3).metrics("outputRows").value === 72678)
       })
   }
@@ -354,11 +361,11 @@ class GlutenClickHouseTPCHBucketSuite
             .isInstanceOf[ProjectExecTransformer])
 
         assert(plans(1).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
-        assert(plans(1).metrics("numFiles").value === 4)
+        assert(plans(1).metrics("numFiles").value === 2)
         assert(plans(1).metrics("outputRows").value === 5552)
 
         assert(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
-        assert(plans(2).metrics("numFiles").value === 4)
+        assert(plans(2).metrics("numFiles").value === 2)
         assert(plans(2).metrics("outputRows").value === 379809)
       })
   }
@@ -370,7 +377,7 @@ class GlutenClickHouseTPCHBucketSuite
           case scanExec: BasicScanExecTransformer => scanExec
         }
         assert(!(plans(0).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
-        assert(plans(0).metrics("numFiles").value === 4)
+        assert(plans(0).metrics("numFiles").value === 2)
         assert(plans(0).metrics("pruningTime").value === -1)
         assert(plans(0).metrics("outputRows").value === 11618)
       })
@@ -396,11 +403,11 @@ class GlutenClickHouseTPCHBucketSuite
             .isInstanceOf[ProjectExecTransformer])
 
         assert(plans(1).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
-        assert(plans(1).metrics("numFiles").value === 4)
+        assert(plans(1).metrics("numFiles").value === 2)
         assert(plans(1).metrics("outputRows").value === 150000)
 
         assert(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
-        assert(plans(2).metrics("numFiles").value === 4)
+        assert(plans(2).metrics("numFiles").value === 2)
         assert(plans(2).metrics("outputRows").value === 3155)
       })
   }

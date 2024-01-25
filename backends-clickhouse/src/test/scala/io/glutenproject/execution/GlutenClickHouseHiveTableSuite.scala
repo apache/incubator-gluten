@@ -88,13 +88,6 @@ class GlutenClickHouseHiveTableSuite()
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.adaptive.enabled", "false")
       .set("spark.sql.files.minPartitionNum", "1")
-      .set(
-        "spark.sql.catalog.spark_catalog",
-        "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
-      .set("spark.databricks.delta.maxSnapshotLineageLength", "20")
-      .set("spark.databricks.delta.snapshotPartitions", "1")
-      .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")
-      .set("spark.databricks.delta.stalenessLimit", "3600000")
       .set("spark.gluten.sql.columnar.columnartorow", "true")
       .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
       .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
@@ -1072,8 +1065,8 @@ class GlutenClickHouseHiveTableSuite()
   }
 
   test("test 'hive udf'") {
-    val jarPath = "src/test/resources/udfs/hive-test-udfs.jar"
-    val jarUrl = s"file://${System.getProperty("user.dir")}/$jarPath"
+    val jarPath = "udfs/hive-test-udfs.jar"
+    val jarUrl = s"file://$rootPath/$jarPath"
     spark.sql(
       s"CREATE FUNCTION my_add as " +
         s"'org.apache.hadoop.hive.contrib.udf.example.UDFExampleAdd2' USING JAR '$jarUrl'")

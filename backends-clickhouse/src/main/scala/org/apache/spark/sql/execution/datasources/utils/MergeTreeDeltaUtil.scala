@@ -14,13 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.v2.clickhouse.source
+package org.apache.spark.sql.execution.datasources.utils
 
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.connector.write.{DataWriter, DataWriterFactory}
+object MergeTreeDeltaUtil {
 
-case class ClickHouseWriterFactory() extends DataWriterFactory {
-  override def createWriter(partitionId: Int, taskId: Long): DataWriter[InternalRow] = {
-    null
+  val DEFAULT_ORDER_BY_KEY = "tuple()"
+
+  def genOrderByAndPrimaryKeyStr(
+      orderByKeyOption: Option[Seq[String]],
+      primaryKeyOption: Option[Seq[String]]): (String, String) = {
+    val orderByKey =
+      if (orderByKeyOption.isDefined && orderByKeyOption.get.nonEmpty) {
+        orderByKeyOption.get.mkString(",")
+      } else DEFAULT_ORDER_BY_KEY
+
+    val primaryKey =
+      if (
+        !orderByKey.equals(DEFAULT_ORDER_BY_KEY) && primaryKeyOption.isDefined &&
+        primaryKeyOption.get.nonEmpty
+      ) {
+        primaryKeyOption.get.mkString(",")
+      } else ""
+
+    (orderByKey, primaryKey)
   }
 }

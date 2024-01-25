@@ -145,26 +145,30 @@ class ClickHouseSparkCatalog
 
     logInfo(s"create table ${ident.toString} successfully.")
     val loadedNewTable = loadTable(ident)
-    logInfo(s"scanning table ${ident.toString} data ...")
+    /* logInfo(s"scanning table ${ident.toString} data ...")
     loadedNewTable match {
       case v: ClickHouseTableV2 =>
         // TODO: remove this operation after implementing write mergetree into table
         scanMergeTreePartsToAddFile(v)
       case _ =>
-    }
+    } */
     loadedNewTable
   }
 
   def scanMergeTreePartsToAddFile(clickHouseTableV2: ClickHouseTableV2): Unit = {
-    val (pathFilter, isBucketTable) = if (clickHouseTableV2.bucketOption.isDefined) {
-      ("/[0-9]*/*_[0-9]*_[0-9]*_[0-9]*", true)
+    val (pathFilter, isPartition, isBucketTable) = if (clickHouseTableV2.bucketOption.isDefined) {
+      ("/[0-9]*/*_[0-9]*_[0-9]*_[0-9]*", false, true)
+    } else if (clickHouseTableV2.partitioning().nonEmpty) {
+      // TODO: support to list all children paths
+      ("/*/all_[0-9]*_[0-9]*_[0-9]*", true, false)
     } else {
-      ("/*_[0-9]*_[0-9]*_[0-9]*", false)
+      ("/all_[0-9]*_[0-9]*_[0-9]*", false, false)
     }
     ScanMergeTreePartsUtils.scanMergeTreePartsToAddFile(
       spark.sessionState.newHadoopConf(),
       clickHouseTableV2,
       pathFilter,
+      isPartition,
       isBucketTable)
     clickHouseTableV2.refresh()
   }

@@ -30,6 +30,7 @@ object ClickHouseConfig {
   val METADATA_DIR = "_delta_log"
   val DEFAULT_ENGINE = "MergeTree"
 
+  @deprecated
   // Whether to use MergeTree DataSource V2 API, default is false, fall back to V1.
   val USE_DATASOURCE_V2 = "spark.gluten.sql.columnar.backend.ch.use.v2"
   val DEFAULT_USE_DATASOURCE_V2 = "false"
@@ -55,9 +56,6 @@ object ClickHouseConfig {
         configurations += ("engine" -> DEFAULT_ENGINE)
       }
     }
-    if (!configurations.contains("primary_key")) {
-      configurations += ("primary_key" -> "")
-    }
     if (!configurations.contains("sampling_key")) {
       configurations += ("sampling_key" -> "")
     }
@@ -72,7 +70,9 @@ object ClickHouseConfig {
       val bucketSpec = buckets.get
       configurations += ("numBuckets" -> bucketSpec.numBuckets.toString)
       configurations += ("bucketColumnNames" -> bucketSpec.bucketColumnNames.mkString(","))
-      configurations += ("sortColumnNames" -> bucketSpec.sortColumnNames.mkString(","))
+      if (bucketSpec.sortColumnNames.nonEmpty) {
+        configurations += ("sortColumnNames" -> bucketSpec.sortColumnNames.mkString(","))
+      }
     }
     configurations.toMap
   }

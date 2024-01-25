@@ -18,6 +18,7 @@ package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.substrait.`type`._
+import io.glutenproject.utils.SubstraitPlanPrinterUtil
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
@@ -26,7 +27,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import io.substrait.proto.Type
+import io.substrait.proto.{NamedStruct, Type}
 
 import java.util.{ArrayList => JArrayList, List => JList, Locale}
 
@@ -73,6 +74,10 @@ object ConverterUtils extends Logging {
 
   def collectAttributeTypeNodes(attributes: Seq[Attribute]): JList[TypeNode] = {
     attributes.map(attr => getTypeNode(attr.dataType, attr.nullable)).asJava
+  }
+
+  def collectAttributeTypeNodes(structType: StructType): JList[TypeNode] = {
+    structType.fields.map(f => getTypeNode(f.dataType, f.nullable)).toList.asJava
   }
 
   def collectAttributeNamesWithExprId(attributes: JList[Attribute]): JList[String] = {
@@ -124,6 +129,28 @@ object ConverterUtils extends Logging {
       case _ =>
     }
     nameList
+  }
+
+  /** Convert StructType to Json */
+  def convertNamedStructJson(tableSchema: StructType): String = {
+    val typeNodes = ConverterUtils.collectAttributeTypeNodes(tableSchema)
+    val nameList = tableSchema.fieldNames
+
+    val structBuilder = Type.Struct.newBuilder
+    for (typeNode <- typeNodes.asScala) {
+      structBuilder.addTypes(typeNode.toProtobuf)
+    }
+
+    val nStructBuilder = NamedStruct.newBuilder
+    nStructBuilder.setStruct(structBuilder.build)
+    for (name <- nameList) {
+      nStructBuilder.addNames(name)
+    }
+
+    val namedStructJson = SubstraitPlanPrinterUtil.substraitNamedStructToJson(
+      nStructBuilder
+        .build())
+    namedStructJson.replaceAll("\\\n", "").replaceAll(" ", "")
   }
 
   def isNullable(nullability: Type.Nullability): Boolean = {

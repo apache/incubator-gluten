@@ -21,6 +21,7 @@ import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.delta.DeltaOperations
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.util.FileNames
+import org.apache.spark.sql.execution.datasources.PartitioningUtils
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddFileTags
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
 
@@ -33,6 +34,7 @@ object ScanMergeTreePartsUtils extends Logging {
       configuration: Configuration,
       clickHouseTableV2: ClickHouseTableV2,
       pathFilter: String,
+      isPartition: Boolean,
       isBucketTable: Boolean): Seq[AddFile] = {
     // scan parts dir
     val scanPath = new Path(clickHouseTableV2.path + pathFilter)
@@ -43,38 +45,68 @@ object ScanMergeTreePartsUtils extends Logging {
       .map(
         p => {
           logInfo(s"scan merge tree parts: ${p.getPath.toString}")
-          val sum = fs.getContentSummary(p.getPath)
-          val pathName = p.getPath.getName
+          val filePath = p.getPath
+          val sum = fs.getContentSummary(filePath)
+          val pathName = filePath.getName
           val pathNameArr = pathName.split("_")
-          val (partitionId, bucketNum, minBlockNum, maxBlockNum, level) =
+          val (
+            childFilePath,
+            partitionId,
+            bucketNum,
+            minBlockNum,
+            maxBlockNum,
+            level,
+            partitionValues) =
             if (pathNameArr.length == 4) {
-              if (isBucketTable) {
+              if (isPartition) {
+                val partitionPath = filePath.getParent.getName
+                val partitionValues = PartitioningUtils
+                  .parsePathFragmentAsSeq(partitionPath)
+                  .toMap[String, String]
                 (
-                  pathNameArr(0),
-                  p.getPath.getParent.getName,
-                  pathNameArr(1).toLong,
-                  pathNameArr(2).toLong,
-                  pathNameArr(3).toInt)
-              } else {
-                (
+                  partitionPath + "/" + pathName,
                   pathNameArr(0),
                   "",
                   pathNameArr(1).toLong,
                   pathNameArr(2).toLong,
-                  pathNameArr(3).toInt)
+                  pathNameArr(3).toInt,
+                  partitionValues
+                )
+              } else if (isBucketTable) {
+                val bucketPath = filePath.getParent.getName
+                (
+                  bucketPath + "/" + pathName,
+                  pathNameArr(0),
+                  bucketPath,
+                  pathNameArr(1).toLong,
+                  pathNameArr(2).toLong,
+                  pathNameArr(3).toInt,
+                  Map.empty[String, String]
+                )
+              } else {
+                (
+                  pathName,
+                  pathNameArr(0),
+                  "",
+                  pathNameArr(1).toLong,
+                  pathNameArr(2).toLong,
+                  pathNameArr(3).toInt,
+                  Map.empty[String, String]
+                )
               }
             } else {
-              ("", "", 0L, 0L, 0)
+              (pathName, "", "", 0L, 0L, 0, Map.empty[String, String])
             }
           (
-            pathName,
+            childFilePath,
             partitionId,
             minBlockNum,
             maxBlockNum,
             level,
             sum.getLength,
             p.getModificationTime,
-            bucketNum)
+            bucketNum,
+            partitionValues)
         })
       .filter(!_._2.equals(""))
 
@@ -85,13 +117,8 @@ object ScanMergeTreePartsUtils extends Logging {
     }
     val finalActions = allDirSummary.map(
       dir => {
-        val (filePath, name) = if (isBucketTable) {
-          (
-            clickHouseTableV2.deltaLog.dataPath.toString + "/" + dir._8 + "/" + dir._1,
-            dir._8 + "/" + dir._1)
-        } else {
+        val (filePath, name) =
           (clickHouseTableV2.deltaLog.dataPath.toString + "/" + dir._1, dir._1)
-        }
         AddFileTags.partsInfoToAddFile(
           clickHouseTableV2.catalogTable.get.identifier.database.get,
           clickHouseTableV2.catalogTable.get.identifier.table,
@@ -112,7 +139,8 @@ object ScanMergeTreePartsUtils extends Logging {
           dir._3,
           dir._8,
           dir._1,
-          dataChange = true
+          dataChange = true,
+          partitionValues = dir._9
         )
       })
     if (finalActions.nonEmpty) {

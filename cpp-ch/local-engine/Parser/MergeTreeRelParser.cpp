@@ -58,6 +58,39 @@ static Int64 findMinPosition(const NameSet & condition_table_columns, const Name
     return min_position;
 }
 
+CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(const substrait::Rel & rel_, ContextMutablePtr context)
+{
+    const auto & rel = rel_.read();
+    google::protobuf::StringValue table;
+    table.ParseFromString(rel.extension_table().detail().value());
+    auto merge_tree_table = local_engine::parseMergeTreeTableString(table.value());
+    DB::Block header;
+    chassert(rel.has_base_schema());
+    header = TypeParser::buildBlockFromNamedStruct(rel.base_schema());
+    auto names_and_types_list = header.getNamesAndTypesList();
+    auto storage_factory = StorageMergeTreeFactory::instance();
+    auto metadata = buildMetaData(names_and_types_list, context, merge_tree_table);
+
+    auto storage = storage_factory.getStorage(
+        StorageID(merge_tree_table.database, merge_tree_table.table),
+        metadata->getColumns(),
+        [&]() -> CustomStorageMergeTreePtr
+        {
+            auto custom_storage_merge_tree = std::make_shared<CustomStorageMergeTree>(
+                StorageID(merge_tree_table.database, merge_tree_table.table),
+                merge_tree_table.relative_path,
+                *metadata,
+                false,
+                context,
+                "",
+                MergeTreeData::MergingParams(),
+                buildMergeTreeSettings());
+            custom_storage_merge_tree->loadDataParts(false, std::nullopt);
+            return custom_storage_merge_tree;
+        });
+    return storage;
+}
+
 DB::QueryPlanPtr
 MergeTreeRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel_, std::list<const substrait::Rel *> & /*rel_stack_*/)
 {
@@ -67,29 +100,25 @@ MergeTreeRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
     table.ParseFromString(rel.extension_table().detail().value());
     auto merge_tree_table = local_engine::parseMergeTreeTableString(table.value());
     DB::Block header;
+    header = TypeParser::buildBlockFromNamedStruct(merge_tree_table.schema);
+    DB::Block input;
     if (rel.has_base_schema() && rel.base_schema().names_size())
     {
-        header = TypeParser::buildBlockFromNamedStruct(rel.base_schema());
+        input = TypeParser::buildBlockFromNamedStruct(rel.base_schema());
     }
     else
     {
-        // For count(*) case, there will be an empty base_schema, so we try to read at least once column
-        auto all_parts_dir = MergeTreeUtil::getAllMergeTreeParts(std::filesystem::path("/") / merge_tree_table.relative_path);
-        if (all_parts_dir.empty())
-            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Empty mergetree directory: {}", merge_tree_table.relative_path);
-        auto part_names_types_list = MergeTreeUtil::getSchemaFromMergeTreePart(all_parts_dir[0]);
         NamesAndTypesList one_column_name_type;
-        one_column_name_type.push_back(part_names_types_list.front());
-        header = BlockUtil::buildHeader(one_column_name_type);
+        one_column_name_type.push_back(header.getNamesAndTypesList().front());
+        input = BlockUtil::buildHeader(one_column_name_type);
         LOG_DEBUG(&Poco::Logger::get("SerializedPlanParser"), "Try to read ({}) instead of empty header", header.dumpNames());
     }
-    auto names_and_types_list = header.getNamesAndTypesList();
     auto storage_factory = StorageMergeTreeFactory::instance();
-    auto metadata = buildMetaData(names_and_types_list, context);
+    auto metadata = buildMetaData(header.getNamesAndTypesList(), context, merge_tree_table);
     query_context.metadata = metadata;
-
+    StorageID table_id(merge_tree_table.database, merge_tree_table.table);
     auto storage = storage_factory.getStorage(
-        StorageID(merge_tree_table.database, merge_tree_table.table),
+        table_id,
         metadata->getColumns(),
         [&]() -> CustomStorageMergeTreePtr
         {
@@ -102,7 +131,6 @@ MergeTreeRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
                 "",
                 MergeTreeData::MergingParams(),
                 buildMergeTreeSettings());
-            custom_storage_merge_tree->loadDataParts(false, std::nullopt);
             return custom_storage_merge_tree;
         });
 
@@ -111,27 +139,22 @@ MergeTreeRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
 
     query_context.storage_snapshot = std::make_shared<StorageSnapshot>(*storage, metadata);
     query_context.custom_storage_merge_tree = storage;
+    auto names_and_types_list = input.getNamesAndTypesList();
+
     auto query_info = buildQueryInfo(names_and_types_list);
 
     std::set<String> non_nullable_columns;
     if (rel.has_filter())
     {
-        NonNullableColumnsResolver non_nullable_columns_resolver(header, *getPlanParser(), rel.filter());
+        NonNullableColumnsResolver non_nullable_columns_resolver(input, *getPlanParser(), rel.filter());
         non_nullable_columns = non_nullable_columns_resolver.resolve();
-        query_info->prewhere_info = parsePreWhereInfo(rel.filter(), header);
+        query_info->prewhere_info = parsePreWhereInfo(rel.filter(), input);
     }
-    auto data_parts = query_context.custom_storage_merge_tree->getAllDataPartsVector();
-    int min_block = merge_tree_table.min_block;
-    int max_block = merge_tree_table.max_block;
-    MergeTreeData::DataPartsVector selected_parts;
-    std::copy_if(
-        std::begin(data_parts),
-        std::end(data_parts),
-        std::inserter(selected_parts, std::begin(selected_parts)),
-        [min_block, max_block](MergeTreeData::DataPartPtr part)
-        { return part->info.min_block >= min_block && part->info.max_block < max_block; });
+
+    std::vector<DataPartPtr> selected_parts = storage_factory.getDataParts(table_id, merge_tree_table.getPartNames());
+    auto ranges = merge_tree_table.extractRange(selected_parts);
     if (selected_parts.empty())
-        throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "part {} to {} not found.", min_block, max_block);
+        throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "no data part found.");
     auto read_step = query_context.custom_storage_merge_tree->reader.readFromParts(
         selected_parts,
         /* alter_conversions = */ {},
@@ -141,7 +164,7 @@ MergeTreeRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
         context,
         context->getSettingsRef().max_block_size,
         1);
-
+    query_context.custom_storage_merge_tree->wrapRangesInDataParts(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
     steps.emplace_back(read_step.get());
     query_plan->addStep(std::move(read_step));
     if (!non_nullable_columns.empty())

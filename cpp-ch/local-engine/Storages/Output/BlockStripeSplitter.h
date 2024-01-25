@@ -31,7 +31,7 @@ struct BlockStripes
 class BlockStripeSplitter
 {
 public:
-    static BlockStripes split(const DB::Block & block, const std::vector<size_t> & partition_col_indice, bool has_bucket);
+    static BlockStripes split(const DB::Block & block, const std::vector<size_t> & partition_col_indice, bool has_bucket, bool reserve_partition_columns);
 };
 
 }

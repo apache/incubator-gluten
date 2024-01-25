@@ -19,11 +19,10 @@ package io.glutenproject.execution.datasource
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.BlockStripes
-import org.apache.spark.sql.execution.datasources.FakeRow
-import org.apache.spark.sql.execution.datasources.OutputWriter
+import org.apache.spark.sql.execution.datasources.{BlockStripes, FakeRow, OutputWriter}
 import org.apache.spark.sql.types.StructType
 
 import org.apache.hadoop.fs.FileStatus
@@ -35,6 +34,22 @@ trait GlutenFormatWriterInjects {
       dataSchema: StructType,
       context: TaskAttemptContext,
       nativeConf: java.util.Map[String, String]): OutputWriter
+
+  // scalastyle:off argcount
+  /** For CH MergeTree format */
+  def createOutputWriter(
+      path: String,
+      database: String,
+      tableName: String,
+      orderByKeyOption: Option[Seq[String]],
+      primaryKeyOption: Option[Seq[String]],
+      partitionColumns: Seq[String],
+      tableSchema: StructType,
+      dataSchema: Seq[Attribute],
+      clickhouseTableConfigs: Map[String, String],
+      context: TaskAttemptContext,
+      nativeConf: java.util.Map[String, String]): OutputWriter = null
+  // scalastyle:on argcount
 
   def inferSchema(
       sparkSession: SparkSession,
@@ -56,7 +71,8 @@ trait GlutenRowSplitter {
   def splitBlockByPartitionAndBucket(
       row: FakeRow,
       partitionColIndice: Array[Int],
-      hasBucket: Boolean): BlockStripes
+      hasBucket: Boolean,
+      reserve_partition_columns: Boolean = false): BlockStripes
 }
 
 object GlutenRowSplitter {

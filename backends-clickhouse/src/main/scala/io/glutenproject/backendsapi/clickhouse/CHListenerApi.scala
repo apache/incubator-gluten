@@ -25,7 +25,7 @@ import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, JniLibLoader}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.execution.datasources.v1.{CHOrcWriterInjects, CHParquetWriterInjects, CHRowSplitter}
+import org.apache.spark.sql.execution.datasources.v1._
 
 import org.apache.commons.lang3.StringUtils
 
@@ -72,6 +72,7 @@ class CHListenerApi extends ListenerApi with Logging {
     // FIXME: The following set instances twice in local mode?
     GlutenParquetWriterInjects.setInstance(new CHParquetWriterInjects())
     GlutenOrcWriterInjects.setInstance(new CHOrcWriterInjects())
+    GlutenMergeTreeWriterInjects.setInstance(new CHMergeTreeWriterInjects())
     GlutenRowSplitter.setInstance(new CHRowSplitter())
   }
 

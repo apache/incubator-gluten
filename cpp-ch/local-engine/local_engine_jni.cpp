@@ -24,6 +24,7 @@
 #include <Join/BroadCastJoinBuilder.h>
 #include <Operator/BlockCoalesceOperator.h>
 #include <Parser/CHColumnToSparkRow.h>
+#include <Parser/MergeTreeRelParser.h>
 #include <Parser/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SparkRowToCHColumn.h>
@@ -36,6 +37,7 @@
 #include <Shuffle/ShuffleWriter.h>
 #include <Shuffle/ShuffleWriterBase.h>
 #include <Shuffle/WriteBufferFromJavaOutputStream.h>
+#include <Storages/Mergetree/SparkMergeTreeWriter.h>
 #include <Storages/Output/BlockStripeSplitter.h>
 #include <Storages/Output/FileWriterWrappers.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
@@ -51,8 +53,15 @@
 #include <Common/JNIUtils.h>
 #include <Common/QueryContext.h>
 
-#ifdef __cplusplus
 
+#ifdef __cplusplus
+namespace DB
+{
+namespace ErrorCodes
+{
+extern const int CANNOT_PARSE_PROTOBUF_SCHEMA;
+}
+}
 static DB::ColumnWithTypeAndName getColumnFromColumnVector(JNIEnv * /*env*/, jobject /*obj*/, jlong block_address, jint column_position)
 {
     DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
@@ -964,6 +973,44 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
 
+JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_nativeInitMergeTreeWriterWrapper(
+    JNIEnv * env, jobject, jbyteArray schema_, jstring uuid_, jstring task_id_, jstring partition_dir_, jstring bucket_dir_)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    const auto uuid_str = jstring2string(env, uuid_);
+    const auto task_id = jstring2string(env, task_id_);
+    const auto partition_dir = jstring2string(env, partition_dir_);
+    const auto bucket_dir = jstring2string(env, bucket_dir_);
+    jsize plan_buf_size = env->GetArrayLength(schema_);
+    jbyte * plan_buf_addr = env->GetByteArrayElements(schema_, nullptr);
+    std::string schema_str;
+    schema_str.assign(reinterpret_cast<const char *>(plan_buf_addr), plan_buf_size);
+
+    auto plan_ptr = std::make_unique<substrait::Plan>();
+    /// https://stackoverflow.com/questions/52028583/getting-error-parsing-protobuf-data
+    /// Parsing may fail when the number of recursive layers is large.
+    /// Here, set a limit large enough to avoid this problem.
+    /// Once this problem occurs, it is difficult to troubleshoot, because the pb of c++ will not provide any valid information
+    google::protobuf::io::CodedInputStream coded_in(
+        reinterpret_cast<const uint8_t *>(schema_str.data()), static_cast<int>(schema_str.size()));
+    coded_in.SetRecursionLimit(100000);
+
+    auto ok = plan_ptr->ParseFromCodedStream(&coded_in);
+    if (!ok)
+        throw DB::Exception(DB::ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from string failed");
+
+
+    auto storage = local_engine::MergeTreeRelParser::parseStorage(
+        plan_ptr->relations()[0].root().input(), local_engine::SerializedPlanParser::global_context);
+    auto uuid = uuid_str + "_" + task_id;
+    auto * writer = new local_engine::SparkMergeTreeWriter(
+        *storage, storage->getInMemoryMetadataPtr(), local_engine::SerializedPlanParser::global_context, uuid, partition_dir, bucket_dir);
+
+    env->ReleaseByteArrayElements(schema_, plan_buf_addr, JNI_ABORT);
+    return reinterpret_cast<jlong>(writer);
+    LOCAL_ENGINE_JNI_METHOD_END(env, 0)
+}
+
 JNIEXPORT void
 Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_write(JNIEnv * env, jobject, jlong instanceId, jlong block_address)
 {
@@ -984,8 +1031,30 @@ JNIEXPORT void Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWr
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
+JNIEXPORT void
+Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_writeToMergeTree(JNIEnv * env, jobject, jlong instanceId, jlong block_address)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    auto * writer = reinterpret_cast<local_engine::SparkMergeTreeWriter *>(instanceId);
+    auto * block = reinterpret_cast<DB::Block *>(block_address);
+    writer->write(*block);
+    LOCAL_ENGINE_JNI_METHOD_END(env, )
+}
+
+JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_closeMergeTreeWriter(JNIEnv * env, jobject, jlong instanceId)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    auto * writer = reinterpret_cast<local_engine::SparkMergeTreeWriter *>(instanceId);
+    writer->finalize();
+    auto part_infos = writer->getAllPartInfo();
+    auto json_info = local_engine::SparkMergeTreeWriter::partInfosToJson(part_infos);
+    delete writer;
+    return stringTojstring(env, json_info.c_str());
+    LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
+}
+
 JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_splitBlockByPartitionAndBucket(
-    JNIEnv * env, jclass, jlong blockAddress, jintArray partitionColIndice, jboolean hasBucket)
+    JNIEnv * env, jclass, jlong blockAddress, jintArray partitionColIndice, jboolean hasBucket, jboolean reserve_partition_columns)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto * block = reinterpret_cast<DB::Block *>(blockAddress);
@@ -997,7 +1066,7 @@ JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
         partition_col_indice_vec.push_back(pIndice[i]);
 
     env->ReleaseIntArrayElements(partitionColIndice, pIndice, JNI_ABORT);
-    local_engine::BlockStripes bs = local_engine::BlockStripeSplitter::split(*block, partition_col_indice_vec, hasBucket);
+    local_engine::BlockStripes bs = local_engine::BlockStripeSplitter::split(*block, partition_col_indice_vec, hasBucket, reserve_partition_columns);
 
 
     auto * addresses = env->NewLongArray(bs.block_addresses.size());

@@ -116,7 +116,8 @@ class VeloxRowSplitter extends GlutenRowSplitter {
   def splitBlockByPartitionAndBucket(
       row: FakeRow,
       partitionColIndice: Array[Int],
-      hasBucket: Boolean): BlockStripes = {
+      hasBucket: Boolean,
+      reserve_partition_columns: Boolean = false): BlockStripes = {
     val handler = ColumnarBatches.getNativeHandle(row.batch)
     val datasourceJniWrapper = DatasourceJniWrapper.create()
     val originalColumns: Array[Int] = Array.range(0, row.batch.numCols())
