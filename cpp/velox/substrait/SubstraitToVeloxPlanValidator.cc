@@ -29,20 +29,28 @@
 namespace gluten {
 
 namespace {
-#define LOG_VALIDATION_MSG_FROM_EXCEPTION(err)                                                                                       \
-  logValidateMsg(fmt::format(                                                                                                        \
-      "Validation failed due to exception caught at file:{} line:{} function:{}, thrown from file:{} line:{} function:{} reason:{}", \
-      __FILE__,                                                                                                                      \
-      __LINE__,                                                                                                                      \
-      __FUNCTION__,                                                                                                                  \
-      err.file(),                                                                                                                    \
-      err.line(),                                                                                                                    \
-      err.function(),                                                                                                                \
+static const char* extractFileName(const char* file) {
+  return strrchr(file, '/') ? strrchr(file, '/') + 1 : file;
+}
+
+#define LOG_VALIDATION_MSG_FROM_EXCEPTION(err)                                                                                        \
+  logValidateMsg(fmt::format(                                                                                                         \
+      "Validation failed due to exception caught at file:{} line:{} function:{}, thrown from file:{} line:{} function:{}, reason:{}", \
+      extractFileName(__FILE__),                                                                                                      \
+      __LINE__,                                                                                                                       \
+      __FUNCTION__,                                                                                                                   \
+      extractFileName(err.file()),                                                                                                    \
+      err.line(),                                                                                                                     \
+      err.function(),                                                                                                                 \
       err.message()))
 
-#define LOG_VALIDATION_MSG(reason) \
-  logValidateMsg(fmt::format(      \
-      "Validation failed at file:{}, line:{}, function:{}, reason:{}", __FILE__, __LINE__, __FUNCTION__, reason))
+#define LOG_VALIDATION_MSG(reason)                                     \
+  logValidateMsg(fmt::format(                                          \
+      "Validation failed at file:{}, line:{}, function:{}, reason:{}", \
+      extractFileName(__FILE__),                                       \
+      __LINE__,                                                        \
+      __FUNCTION__,                                                    \
+      reason))
 
 static const std::unordered_set<std::string> kRegexFunctions = {
     "regexp_extract",
