@@ -113,6 +113,7 @@ object MergeTreeFileFormatWriter extends Logging {
     val finalOutputSpec = outputSpec.copy(outputColumns = outputSpec.outputColumns)
     val dataColumns = finalOutputSpec.outputColumns.filterNot(partitionSet.contains)
 
+    // TODO: check whether it needs to use `convertEmptyToNullIfNeeded` to convert empty to null
     val empty2NullPlan = plan // convertEmptyToNullIfNeeded(plan, partitionColumns, constraints)
 
     val writerBucketSpec = bucketSpec.map {
