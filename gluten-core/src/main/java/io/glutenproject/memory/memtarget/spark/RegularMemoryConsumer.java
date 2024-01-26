@@ -65,7 +65,9 @@ public class RegularMemoryConsumer extends MemoryConsumer
   @Override
   public long spill(long size, MemoryConsumer trigger) {
     long spilledOut = spiller.spill(this, size);
-    TaskResources.getLocalTaskContext().taskMetrics().incMemoryBytesSpilled(spilledOut);
+    if (TaskResources.inSparkTask()) {
+      TaskResources.getLocalTaskContext().taskMetrics().incMemoryBytesSpilled(spilledOut);
+    }
     return spilledOut;
   }
 
