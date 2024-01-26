@@ -159,12 +159,6 @@
       </properties>
     </profile>
     <profile>
-      <id>dataproc-2.0</id>
-      <properties>
-        <hadoop.version>3.2.2</hadoop.version>
-      </properties>
-    </profile>
-    <profile>
       <id>emr-6.3.0</id>
       <properties>
         <hadoop.version>3.2.2</hadoop.version>
