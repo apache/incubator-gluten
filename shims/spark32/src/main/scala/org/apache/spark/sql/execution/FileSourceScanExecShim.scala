@@ -65,6 +65,8 @@ class FileSourceScanExecShim(
 
   def hasMetadataColumns: Boolean = false
 
+  def isMetadataColumn(attr: Attribute): Boolean = false
+
   def hasFieldIds: Boolean = false
 
   // The codes below are copied from FileSourceScanExec in Spark,

@@ -89,30 +89,27 @@ object DeltaRewriteTransformerRules {
       // should keep the columns order the same as the origin output
       val originColumnNames = mutable.ListBuffer.empty[String]
       val transformedAttrs = mutable.ListBuffer.empty[Attribute]
-      val newOutput = plan.output.map {
-        o =>
-          val newAttr = DeltaColumnMapping
-            .createPhysicalAttributes(Seq(o), fmt.referenceSchema, fmt.columnMappingMode)
+      def mapAttribute(attr: Attribute) = {
+        val newAttr = if (!plan.isMetadataColumn(attr)) {
+          DeltaColumnMapping
+            .createPhysicalAttributes(Seq(attr), fmt.referenceSchema, fmt.columnMappingMode)
             .head
-          if (!originColumnNames.contains(o.name)) {
-            transformedAttrs += newAttr
-            originColumnNames += o.name
-          }
-          newAttr
+        } else {
+          attr
+        }
+        if (!originColumnNames.contains(attr.name)) {
+          transformedAttrs += newAttr
+          originColumnNames += attr.name
+        }
+        newAttr
       }
+      val newOutput = plan.output.map(o => mapAttribute(o))
       // transform dataFilters
       val newDataFilters = plan.dataFilters.map {
         e =>
           e.transformDown {
             case attr: AttributeReference =>
-              val newAttr = DeltaColumnMapping
-                .createPhysicalAttributes(Seq(attr), fmt.referenceSchema, fmt.columnMappingMode)
-                .head
-              if (!originColumnNames.contains(attr.name)) {
-                transformedAttrs += newAttr
-                originColumnNames += attr.name
-              }
-              newAttr
+              mapAttribute(attr)
           }
       }
       // transform partitionFilters
@@ -120,14 +117,7 @@ object DeltaRewriteTransformerRules {
         e =>
           e.transformDown {
             case attr: AttributeReference =>
-              val newAttr = DeltaColumnMapping
-                .createPhysicalAttributes(Seq(attr), fmt.referenceSchema, fmt.columnMappingMode)
-                .head
-              if (!originColumnNames.contains(attr.name)) {
-                transformedAttrs += newAttr
-                originColumnNames += attr.name
-              }
-              newAttr
+              mapAttribute(attr)
           }
       }
       // replace tableName in schema with physicalName
