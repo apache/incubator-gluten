@@ -14,16 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "Logger.h"
-
+#include "LoggerExtend.h"
 #include <Loggers/Loggers.h>
 #include <Poco/AsyncChannel.h>
 #include <Poco/AutoPtr.h>
 #include <Poco/ConsoleChannel.h>
-#include <Poco/PatternFormatter.h>
 #include <Poco/FormattingChannel.h>
+#include <Poco/PatternFormatter.h>
 #include <Poco/SimpleFileChannel.h>
-
 
 using Poco::AsyncChannel;
 using Poco::AutoPtr;
@@ -31,7 +29,9 @@ using Poco::ConsoleChannel;
 using Poco::PatternFormatter;
 using Poco::FormattingChannel;
 
-void local_engine::Logger::initConsoleLogger(const std::string & level)
+namespace local_engine
+{
+void LoggerExtend::initConsoleLogger(const std::string & level)
 {
     AutoPtr<ConsoleChannel> chan(new ConsoleChannel);
 
@@ -46,8 +46,9 @@ void local_engine::Logger::initConsoleLogger(const std::string & level)
     Poco::Logger::root().setLevel(level);
 }
 
-void local_engine::Logger::initFileLogger(Poco::Util::AbstractConfiguration & config, const std::string & cmd_name)
+void LoggerExtend::initFileLogger(Poco::Util::AbstractConfiguration & config, const std::string & cmd_name)
 {
     static Loggers loggers;
     loggers.buildLoggers(config, Poco::Logger::root(), cmd_name);
+}
 }

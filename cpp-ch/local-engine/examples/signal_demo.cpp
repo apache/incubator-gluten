@@ -18,6 +18,7 @@
 #include <base/sleep.h>
 #include <Common/GlutenSignalHandler.h>
 #include <Common/Logger.h>
+#include <Common/LoggerExtend.h>
 #include <Common/logger_useful.h>
 #include <IO/WriteBufferFromFileDescriptorDiscardOnFailure.h>
 #include <IO/WriteHelpers.h>
@@ -29,7 +30,7 @@ using namespace local_engine;
 
 int main(int  /*argc*/, char * /*argv*/[])
 {
-    local_engine::Logger::initConsoleLogger("trace");
+    local_engine::LoggerExtend::initConsoleLogger("trace");
     Poco::Logger * logger = &Poco::Logger::get("signal_demo");
     SignalHandler::instance().init();
 
