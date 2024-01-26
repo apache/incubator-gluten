@@ -24,10 +24,9 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
-import org.apache.spark.sql.delta.{DeltaParquetFileFormat, NoMapping}
+import org.apache.spark.sql.delta.{DeltaColumnMapping, DeltaParquetFileFormat, NoMapping}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.FileFormat
-import org.apache.spark.sql.types.{StructField, StructType}
 
 import scala.collection._
 
@@ -73,50 +72,44 @@ object DeltaRewriteTransformerRules {
   private def transformColumnMappingPlan(plan: SparkPlan): SparkPlan = plan match {
     case plan: DeltaScanTransformer =>
       val fmt = plan.relation.fileFormat.asInstanceOf[DeltaParquetFileFormat]
-      // a mapping between the table schemas name to parquet schemas.
-      val columnNameMapping = mutable.Map.empty[String, String]
-      fmt.referenceSchema.foreach {
-        f =>
-          val pName = f.metadata.getString("delta.columnMapping.physicalName")
-          val lName = f.name
-          columnNameMapping += (lName -> pName)
-      }
 
       // transform HadoopFsRelation
       val relation = plan.relation
-      val newDataFields = relation.dataSchema.map(e => e.copy(columnNameMapping(e.name)))
-      val newPartitionFields = relation.partitionSchema.map {
-        e => e.copy(columnNameMapping(e.name))
-      }
       val newFsRelation = relation.copy(
-        partitionSchema = StructType(newPartitionFields),
-        dataSchema = StructType(newDataFields)
+        partitionSchema = DeltaColumnMapping.createPhysicalSchema(
+          relation.partitionSchema,
+          fmt.referenceSchema,
+          fmt.columnMappingMode),
+        dataSchema = DeltaColumnMapping.createPhysicalSchema(
+          relation.dataSchema,
+          fmt.referenceSchema,
+          fmt.columnMappingMode)
       )(SparkSession.active)
-
       // transform output's name into physical name so Reader can read data correctly
       // should keep the columns order the same as the origin output
       val originColumnNames = mutable.ListBuffer.empty[String]
       val transformedAttrs = mutable.ListBuffer.empty[Attribute]
-      val newOutput = plan.output.map {
-        o =>
-          val newAttr = o.withName(columnNameMapping(o.name))
-          if (!originColumnNames.contains(o.name)) {
-            transformedAttrs += newAttr
-            originColumnNames += o.name
-          }
-          newAttr
+      def mapAttribute(attr: Attribute) = {
+        val newAttr = if (!plan.isMetadataColumn(attr)) {
+          DeltaColumnMapping
+            .createPhysicalAttributes(Seq(attr), fmt.referenceSchema, fmt.columnMappingMode)
+            .head
+        } else {
+          attr
+        }
+        if (!originColumnNames.contains(attr.name)) {
+          transformedAttrs += newAttr
+          originColumnNames += attr.name
+        }
+        newAttr
       }
+      val newOutput = plan.output.map(o => mapAttribute(o))
       // transform dataFilters
       val newDataFilters = plan.dataFilters.map {
         e =>
           e.transformDown {
             case attr: AttributeReference =>
-              val newAttr = attr.withName(columnNameMapping(attr.name)).toAttribute
-              if (!originColumnNames.contains(attr.name)) {
-                transformedAttrs += newAttr
-                originColumnNames += attr.name
-              }
-              newAttr
+              mapAttribute(attr)
           }
       }
       // transform partitionFilters
@@ -124,22 +117,17 @@ object DeltaRewriteTransformerRules {
         e =>
           e.transformDown {
             case attr: AttributeReference =>
-              val newAttr = attr.withName(columnNameMapping(attr.name)).toAttribute
-              if (!originColumnNames.contains(attr.name)) {
-                transformedAttrs += newAttr
-                originColumnNames += attr.name
-              }
-              newAttr
+              mapAttribute(attr)
           }
       }
       // replace tableName in schema with physicalName
-      val newRequiredFields = plan.requiredSchema.map {
-        e => StructField(columnNameMapping(e.name), e.dataType, e.nullable, e.metadata)
-      }
       val scanExecTransformer = new DeltaScanTransformer(
         newFsRelation,
         newOutput,
-        StructType(newRequiredFields),
+        DeltaColumnMapping.createPhysicalSchema(
+          plan.requiredSchema,
+          fmt.referenceSchema,
+          fmt.columnMappingMode),
         newPartitionFilters,
         plan.optionalBucketSet,
         plan.optionalNumCoalescedBuckets,
