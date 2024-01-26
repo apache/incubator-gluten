@@ -42,6 +42,10 @@ function process_setup_debian_11 {
   cp /usr/local/lib/libprotobuf.so.32 $THIRDPARTY_LIB/
 }
 
+function process_setup_debian_12 {
+  cp /usr/lib/x86_64-linux-gnu/{libthrift-0.17.0.so,libboost_context.so.1.74.0,libboost_regex.so.1.74.0,libdouble-conversion.so.3,libevent-2.1.so.7,libgflags.so.2.2,libglog.so.1,libsnappy.so.1,libunwind.so.8,libcurl.so.4,libicui18n.so.72,libicuuc.so.72,libnghttp2.so.14,librtmp.so.1,libssh2.so.1,libpsl.so.5,libldap-2.5.so.0,liblber-2.5.so.0,libbrotlidec.so.1,libicudata.so.72,libsasl2.so.2,libbrotlicommon.so.1,libcrypto.so.3,libssl.so.3,libgssapi_krb5.so.2,libkrb5.so.3,libk5crypto.so.3,libkrb5support.so.0,libkeyutils.so.1} $THIRDPARTY_LIB/
+}
+
 if [[ "$LINUX_OS" == "ubuntu" || "$LINUX_OS" == "pop" ]]; then
   if [ "$VERSION" == "20.04" ]; then
     process_setup_ubuntu_2004
@@ -67,6 +71,8 @@ elif [ "$LINUX_OS" == "tencentos" ]; then
 elif [ "$LINUX_OS" == "debian" ]; then
   if [ "$VERSION" == "11" ]; then
     process_setup_debian_11
+  elif [ "$VERSION" == "12" ]; then
+      process_setup_debian_12
   fi
 fi
 cd $THIRDPARTY_LIB/
