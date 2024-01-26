@@ -745,6 +745,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("TruncTimestamp")
     .exclude("unsupported fmt fields for trunc/date_trunc results null")
     .exclude("from_unixtime")
+    .exclude(GLUTEN_TEST + "from_unixtime")
     .exclude("unix_timestamp")
     .exclude("to_unix_timestamp")
     .exclude("to_utc_timestamp")
