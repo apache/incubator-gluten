@@ -20,7 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.exception.GlutenException
 import io.glutenproject.init.JniUtils
-  
+
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.TaskResource
 
