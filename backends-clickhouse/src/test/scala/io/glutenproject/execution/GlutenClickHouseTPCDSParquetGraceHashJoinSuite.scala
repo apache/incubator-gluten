@@ -103,7 +103,7 @@ class GlutenClickHouseTPCDSParquetGraceHashJoinSuite extends GlutenClickHouseTPC
       """
         | SELECT *
         | FROM date_dim t1
-        | LEFT JOIN date_dim t2 ON t1.d_date_sk = t2.d_date_sk 
+        | LEFT JOIN date_dim t2 ON t1.d_date_sk = t2.d_date_sk
         |   AND datediff(t1.d_day_name, t2.d_day_name) IN (1, 3)
         | LIMIT 100;
         |""".stripMargin
