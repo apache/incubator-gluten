@@ -954,6 +954,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
   enableSuite[GlutenColumnExpressionSuite]
+    // TODO: relating to https://github.com/facebookincubator/velox/pull/8050.
+    .exclude("SPARK-36778: add ilike API for scala")
   enableSuite[GlutenComplexTypeSuite]
   enableSuite[GlutenConfigBehaviorSuite]
     // Will be fixed by cleaning up ColumnarShuffleExchangeExec.
