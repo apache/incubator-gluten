@@ -94,7 +94,7 @@ object TaskResources extends TaskListener with Logging {
       body
     } catch {
       case t: Throwable =>
-        // Similar code to those in Task.scala
+        // Similar code with those in Task.scala
         try {
           context.markTaskFailed(t)
         } catch {
