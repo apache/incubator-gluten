@@ -852,11 +852,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // Timestamp is read as INT96.
     .exclude("read dictionary and plain encoded timestamp_millis written as INT64")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
-    // Timezone is not supported yet.
-    .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]
-    // Timezone is not supported yet.
-    .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
   enableSuite[GlutenParquetProtobufCompatibilitySuite]
   enableSuite[GlutenParquetV1QuerySuite]
     // Only for testing a type mismatch issue caused by hive (before hive 2.2).
