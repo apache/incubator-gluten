@@ -230,65 +230,6 @@ TEST(TestBatchParquetFileSource, local_file)
     ASSERT_TRUE(total_rows == 59986052);
 }
 
-TEST(TestWrite, MergeTreeWriteTest)
-{
-    GTEST_SKIP();
-    auto config = local_engine::SerializedPlanParser::config;
-    config->setString("s3.endpoint", "http://localhost:9000/tpch/");
-    config->setString("s3.region", "us-east-1");
-    config->setString("s3.access_key_id", "admin");
-    config->setString("s3.secret_access_key", "password");
-    auto global_context = local_engine::SerializedPlanParser::global_context;
-
-    auto param = DB::MergeTreeData::MergingParams();
-    auto settings = std::make_unique<DB::MergeTreeSettings>();
-    settings->set("min_bytes_for_wide_part", Field(0));
-    settings->set("min_rows_for_wide_part", Field(0));
-
-    const auto * type_string = "columns format version: 1\n"
-                               "15 columns:\n"
-                               "`l_partkey` Int64\n"
-                               "`l_suppkey` Int64\n"
-                               "`l_linenumber` Int32\n"
-                               "`l_quantity` Float64\n"
-                               "`l_extendedprice` Float64\n"
-                               "`l_discount` Float64\n"
-                               "`l_tax` Float64\n"
-                               "`l_returnflag` String\n"
-                               "`l_linestatus` String\n"
-                               "`l_shipdate` Date\n"
-                               "`l_commitdate` Date\n"
-                               "`l_receiptdate` Date\n"
-                               "`l_shipinstruct` String\n"
-                               "`l_shipmode` String\n"
-                               "`l_comment` String\n";
-    auto names_and_types_list = NamesAndTypesList::parse(type_string);
-    auto metadata = local_engine::buildMetaData(names_and_types_list, global_context);
-
-    local_engine::CustomStorageMergeTree custom_merge_tree(
-        DB::StorageID("default", "test"), "tmp/test-write/", *metadata, false, global_context, "", param, std::move(settings));
-
-    substrait::ReadRel::LocalFiles files;
-    substrait::ReadRel::LocalFiles::FileOrFiles * file = files.add_items();
-    file->set_uri_file("s3://tpch/lineitem/part-00000-f83d0a59-2bff-41bc-acde-911002bf1b33-c000.snappy.parquet");
-    substrait::ReadRel::LocalFiles::FileOrFiles::ParquetReadOptions parquet_format;
-    file->mutable_parquet()->CopyFrom(parquet_format);
-    auto source = std::make_shared<SubstraitFileSource>(SerializedPlanParser::global_context, metadata->getSampleBlock(), files);
-
-    QueryPipelineBuilder query_pipeline_builder;
-    query_pipeline_builder.init(Pipe(source));
-    query_pipeline_builder.setSinks(
-        [&](const Block &, Pipe::StreamType type) -> ProcessorPtr
-        {
-            if (type != Pipe::StreamType::Main)
-                return nullptr;
-
-            return std::make_shared<local_engine::CustomMergeTreeSink>(custom_merge_tree, metadata, global_context);
-        });
-    auto executor = query_pipeline_builder.execute();
-    executor->execute(1, false);
-}
-
 TEST(TestPrewhere, OptimizePrewhereCondition)
 {
     String filter(R"({"scalarFunction":{"outputType":{"bool":{"nullability":"NULLABILITY_REQUIRED"}},"arguments":[{"value":{"scalarFunction":{"outputType":{"bool":{"nullability":"NULLABILITY_REQUIRED"}},"arguments":[{"value":{"scalarFunction":{"outputType":{"bool":{"nullability":"NULLABILITY_REQUIRED"}},"arguments":[{"value":{"scalarFunction":{"outputType":{"bool":{"nullability":"NULLABILITY_REQUIRED"}},   "arguments":[{"value":{"scalarFunction":{"functionReference":1,"outputType":{"bool":{"nullability":"NULLABILITY_REQUIRED"}},"arguments":[{"value":{"selection":{"directReference":{"structField":{"field":2}}}}},    {"value":{"literal":{"date":8766}}}]}}},{"value":{"scalarFunction":{"functionReference":2,"outputType":{"bool":{"nullability":"NULLABILITY_REQUIRED"}},    "arguments":[{"value":{"selection":{"directReference":{"structField":{"field":2}}}}},{"value":{"literal":{"date":9131}}}]}}}]}}},     {"value":{"scalarFunction":{"functionReference":3,"outputType":{"bool":{"nullability":"NULLABILITY_REQUIRED"}},"arguments":[{"value":{"selection":     {"directReference":{"structField":{}}}}},{"value":{"literal":{"decimal":{"value":"YAkAAAAAAAAAAAAAAAAAAA==","precision":15,"scale":2}}}}]}}}]}}},     {"value":{"scalarFunction":{"functionReference":4,"outputType":{"bool":{"nullability":"NULLABILITY_REQUIRED"}},"arguments":[{"value":{"selection":     {"directReference":{"structField":{"field":1}}}}},{"value":{"literal":{"decimal":{"value":"BQAAAAAAAAAAAAAAAAAAAA==","precision":15,"scale":2}}}}]}}}]}}},{"value":     {"scalarFunction":{"functionReference":5,"outputType":{"bool":{"nullability":"NULLABILITY_REQUIRED"}},"arguments":[{"value":{"selection":{"directReference":{"structField":     {"field":1}}}}},{"value":{"literal":{"decimal":{"value":"BwAAAAAAAAAAAAAAAAAAAA==","precision":15,"scale":2}}}}]}}}]}})");
