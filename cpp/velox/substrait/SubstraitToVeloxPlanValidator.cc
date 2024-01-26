@@ -838,12 +838,6 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FilterRel& filte
     LOG_VALIDATION_MSG("Validation failed for input types in FilterRel.");
     return false;
   }
-  for (const auto& type : types) {
-    if (type->kind() == TypeKind::TIMESTAMP) {
-      LOG_VALIDATION_MSG("Timestamp is not fully supported in Filter.");
-      return false;
-    }
-  }
 
   int32_t inputPlanNodeId = 0;
   // Create the fake input names to be used in row type.

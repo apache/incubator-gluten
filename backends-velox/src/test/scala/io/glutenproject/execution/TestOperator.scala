@@ -779,6 +779,28 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
+  test("Fallback on timestamp column filter") {
+    withTable("ts") {
+      sql("create table ts (c1 int, c2 timestamp) using parquet")
+      sql("insert into ts values (1, timestamp'2016-01-01 10:11:12.123456')")
+      sql("insert into ts values (2, null)")
+      sql("insert into ts values (3, timestamp'1965-01-01 10:11:12.123456')")
+
+      runQueryAndCompare("select c1, c2 from ts where c1 = 1") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+
+      // Fallback should only happen when there is a filter on timestamp column
+      runQueryAndCompare(
+        "select c1, c2 from ts where" +
+          " c2 = timestamp'1965-01-01 10:11:12.123456'") { _ => }
+
+      runQueryAndCompare(
+        "select c1, c2 from ts where" +
+          " c1 = 1 and c2 = timestamp'1965-01-01 10:11:12.123456'") { _ => }
+    }
+  }
+
   test("test cross join with equi join conditions") {
     withTable("t1", "t2") {
       sql("""
