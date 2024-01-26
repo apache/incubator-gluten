@@ -67,8 +67,6 @@ private:
     DB::Block output_header;
 
     FormatFile::InputFormatPtr input_format;
-    std::unique_ptr<DB::QueryPipeline> pipeline;
-    std::unique_ptr<DB::PullingPipelineExecutor> reader;
 };
 
 class EmptyFileReader : public FileReaderWrapper

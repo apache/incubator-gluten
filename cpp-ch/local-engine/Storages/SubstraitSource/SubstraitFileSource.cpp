@@ -350,19 +350,12 @@ NormalFileReader::NormalFileReader(
     : FileReaderWrapper(file_), context(context_), to_read_header(to_read_header_), output_header(output_header_)
 {
     input_format = file->createInputFormat(to_read_header);
-    DB::Pipe pipe(input_format->input);
-    pipeline = std::make_unique<DB::QueryPipeline>(std::move(pipe));
-    reader = std::make_unique<DB::PullingPipelineExecutor>(*pipeline);
 }
 
 bool NormalFileReader::pull(DB::Chunk & chunk)
 {
-    DB::Chunk raw_chunk;
-    auto status = reader->pull(raw_chunk);
-    if (!status)
-        return false;
-
-    size_t rows = raw_chunk.getNumRows();
+    DB::Chunk raw_chunk = input_format->input->generate();
+    auto rows = raw_chunk.getNumRows();
     if (!rows)
         return false;
 
