@@ -22,13 +22,6 @@
       <scope>compile</scope>
       <type>test-jar</type>
     </dependency>
-    <dependency>
-      <groupId>org.apache.parquet</groupId>
-      <artifactId>parquet-column</artifactId>
-      <version>1.12.3</version>
-      <scope>test</scope>
-      <classifier>tests</classifier>
-    </dependency>
   </dependencies>
 
   <profiles>
