@@ -786,7 +786,7 @@ case class ColumnarOverrideRules(session: SparkSession)
       List(
         (spark: SparkSession) => PlanOneRowRelation(spark),
         (_: SparkSession) => FallbackEmptySchemaRelation(),
-        (spark: SparkSession) => ColumnarPullOutPreProject(spark),
+        (spark: SparkSession) => PullOutPreProject(spark),
         (_: SparkSession) => AddTransformHintRule(),
         (_: SparkSession) => RewriteMultiChildrenCount,
         (_: SparkSession) => FallbackBloomFilterAggIfNeeded(),

@@ -32,7 +32,7 @@ import scala.collection.mutable
  * to transform the SparkPlan at the physical plan level, constructing a SparkPlan that supports
  * execution by the native engine.
  */
-case class ColumnarPullOutPreProject(session: SparkSession)
+case class PullOutPreProject(session: SparkSession)
   extends Rule[SparkPlan]
   with PullOutProjectHelper {
 

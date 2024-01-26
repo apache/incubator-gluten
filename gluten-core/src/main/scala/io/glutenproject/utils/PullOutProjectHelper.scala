@@ -40,12 +40,12 @@ trait PullOutProjectHelper {
 
   protected def replaceExpressionWithAttribute(
       expr: Expression,
-      projectExprsMap: mutable.HashMap[Expression, NamedExpression]): Attribute =
+      projectExprsMap: mutable.HashMap[Expression, NamedExpression]): Expression =
     expr match {
       case alias: Alias =>
         projectExprsMap.getOrElseUpdate(alias.child.canonicalized, alias).toAttribute
-      case attr: Attribute =>
-        attr
+      case attr: Attribute => attr
+      case e: BoundReference => e
       case other =>
         projectExprsMap
           .getOrElseUpdate(
