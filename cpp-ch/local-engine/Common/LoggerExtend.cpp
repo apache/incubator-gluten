@@ -26,8 +26,8 @@
 using Poco::AsyncChannel;
 using Poco::AutoPtr;
 using Poco::ConsoleChannel;
-using Poco::PatternFormatter;
 using Poco::FormattingChannel;
+using Poco::PatternFormatter;
 
 namespace local_engine
 {
