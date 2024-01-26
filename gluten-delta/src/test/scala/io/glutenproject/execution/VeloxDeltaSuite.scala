@@ -18,6 +18,9 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.types.{ArrayType, IntegerType, MapType, StringType, StructType}
+
+import scala.collection.JavaConverters._
 
 class VeloxDeltaSuite extends WholeStageTransformerSuite {
 
@@ -128,6 +131,56 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
       val df2 = runQueryAndCompare("select name from delta_test2 where id = 2") { _ => }
       checkLengthAndPlan(df2, 1)
       checkAnswer(df2, Row("v2") :: Nil)
+    }
+  }
+
+  testWithSpecifiedSparkVersion("column mapping with complex type", Some("3.3.1")) {
+    withTable("t1") {
+      val simpleNestedSchema = new StructType()
+        .add("a", StringType, true)
+        .add("b", new StructType().add("c", StringType, true).add("d", IntegerType, true))
+        .add("map", MapType(StringType, StringType), true)
+        .add("arr", ArrayType(IntegerType), true)
+
+      val simpleNestedData = spark.createDataFrame(
+        Seq(
+          Row("str1", Row("str1.1", 1), Map("k1" -> "v1"), Array(1, 11)),
+          Row("str2", Row("str1.2", 2), Map("k2" -> "v2"), Array(2, 22))).asJava,
+        simpleNestedSchema)
+
+      spark.sql(
+        """CREATE TABLE t1
+          | (a STRING,b STRUCT<c: STRING NOT NULL, d: INT>,map MAP<STRING, STRING>,arr ARRAY<INT>)
+          | USING DELTA
+          | PARTITIONED BY (`a`)
+          | TBLPROPERTIES ('delta.columnMapping.mode' = 'name')""".stripMargin)
+
+      simpleNestedData.write.format("delta").mode("append").saveAsTable("t1")
+
+      val df1 = runQueryAndCompare("select * from t1") { _ => }
+      checkAnswer(
+        df1,
+        Seq(
+          Row("str1", Row("str1.1", 1), Map("k1" -> "v1"), Array(1, 11)),
+          Row("str2", Row("str1.2", 2), Map("k2" -> "v2"), Array(2, 22))))
+      spark.sql(s"Alter table t1 RENAME COLUMN b to b1")
+      spark.sql(
+        "insert into t1 " +
+          "values ('str3', struct('str1.3', 3), map('k3', 'v3'), array(3, 33))")
+
+      val df2 = runQueryAndCompare("select b1 from t1") { _ => }
+      checkAnswer(df2, Seq(Row(Row("str1.1", 1)), Row(Row("str1.2", 2)), Row(Row("str1.3", 3))))
+
+      spark.sql(s"Alter table t1 RENAME COLUMN b1.c to c1")
+      val df3 = runQueryAndCompare("select * from t1") { _ => }
+      checkAnswer(
+        df3,
+        Seq(
+          Row("str1", Row("str1.1", 1), Map("k1" -> "v1"), Array(1, 11)),
+          Row("str2", Row("str1.2", 2), Map("k2" -> "v2"), Array(2, 22)),
+          Row("str3", Row("str1.3", 3), Map("k3" -> "v3"), Array(3, 33))
+        )
+      )
     }
   }
 }
