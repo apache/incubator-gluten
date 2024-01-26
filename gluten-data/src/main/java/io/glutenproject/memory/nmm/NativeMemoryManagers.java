@@ -48,11 +48,6 @@ public final class NativeMemoryManagers {
         id, () -> createNativeMemoryManager(name, Collections.emptyList()));
   }
 
-  /** Create a temporary memory manager, caller should call NativeMemoryManager#release manually. */
-  public static NativeMemoryManager tmpInstance(String name) {
-    return NativeMemoryManager.create(name, ReservationListener.NOOP);
-  }
-
   public static NativeMemoryManager create(String name, Spiller... spillers) {
     if (!TaskResources.inSparkTask()) {
       throw new IllegalStateException("Spiller must be used in a Spark task.");

@@ -31,10 +31,6 @@ public class ColumnarBatchSerializerJniWrapper implements RuntimeAware {
     return new ColumnarBatchSerializerJniWrapper(Runtimes.contextInstance());
   }
 
-  public static ColumnarBatchSerializerJniWrapper forRuntime(Runtime runtime) {
-    return new ColumnarBatchSerializerJniWrapper(runtime);
-  }
-
   @Override
   public long handle() {
     return runtime.getHandle();

@@ -17,7 +17,6 @@
 package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.backendsapi.TransformerApi
-import io.glutenproject.exec.Runtimes
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.utils.InputPartitionsUtil
@@ -28,6 +27,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types._
+import org.apache.spark.util.TaskResources
 import org.apache.spark.util.collection.BitSet
 
 import com.google.protobuf.{Any, Message}
@@ -87,12 +87,9 @@ class TransformerApiImpl extends TransformerApi with Logging {
   }
 
   override def getNativePlanString(substraitPlan: Array[Byte], details: Boolean): String = {
-    val tmpRuntime = Runtimes.tmpInstance()
-    try {
-      val jniWrapper = PlanEvaluatorJniWrapper.forRuntime(tmpRuntime)
+    TaskResources.runUnsafe {
+      val jniWrapper = PlanEvaluatorJniWrapper.create()
       jniWrapper.nativePlanString(substraitPlan, details)
-    } finally {
-      tmpRuntime.release()
     }
   }
 

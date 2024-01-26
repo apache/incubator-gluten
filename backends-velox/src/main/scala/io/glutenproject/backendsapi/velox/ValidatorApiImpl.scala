@@ -17,7 +17,6 @@
 package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.backendsapi.ValidatorApi
-import io.glutenproject.exec.Runtimes
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.validate.NativePlanValidationInfo
@@ -27,6 +26,7 @@ import org.apache.spark.sql.catalyst.expressions.{CreateMap, Explode, Expression
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
+import org.apache.spark.util.TaskResources
 
 class ValidatorApiImpl extends ValidatorApi {
 
@@ -35,12 +35,9 @@ class ValidatorApiImpl extends ValidatorApi {
     true
 
   override def doNativeValidateWithFailureReason(plan: PlanNode): NativePlanValidationInfo = {
-    val tmpRuntime = Runtimes.tmpInstance()
-    try {
-      val validator = NativePlanEvaluator.createForValidation(tmpRuntime)
+    TaskResources.runUnsafe {
+      val validator = NativePlanEvaluator.create()
       validator.doNativeValidateWithFailureReason(plan.toProtobuf.toByteArray)
-    } finally {
-      tmpRuntime.release()
     }
   }
 

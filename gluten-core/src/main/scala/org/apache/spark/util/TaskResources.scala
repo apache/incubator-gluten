@@ -16,15 +16,18 @@
  */
 package org.apache.spark.util
 
-import org.apache.spark.{TaskContext, TaskFailedReason, TaskKilledException}
+import org.apache.spark.{SparkConf, TaskContext, TaskContextImpl, TaskFailedReason, TaskKilledException}
 import org.apache.spark.internal.Logging
+import org.apache.spark.memory.{TaskMemoryManager, UnifiedMemoryManager}
+import org.apache.spark.metrics.MetricsSystem
+import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.internal.SQLConf
 
 import _root_.io.glutenproject.memory.SimpleMemoryUsageRecorder
 import _root_.io.glutenproject.utils.TaskListener
 
 import java.util
-import java.util.{Collections, UUID}
+import java.util.{Collections, Properties, UUID}
 import java.util.concurrent.atomic.AtomicLong
 
 import scala.collection.JavaConverters._
@@ -39,18 +42,74 @@ object TaskResources extends TaskListener with Logging {
   }
   val ACCUMULATED_LEAK_BYTES = new AtomicLong(0L)
 
-  // For testing purpose only
-  private var fallbackRegistry: Option[TaskResourceRegistry] = None
-
-  // For testing purpose only
-  def setFallbackRegistry(r: TaskResourceRegistry): Unit = {
-    fallbackRegistry = Some(r)
+  private def newUnsafeTaskContext(): TaskContext = {
+    val conf = new SparkConf()
+    conf.set("spark.memory.offHeap.enabled", "true")
+    conf.set("spark.memory.offHeap.size", "1TB")
+    val memoryManager =
+      new UnifiedMemoryManager(conf, ByteUnit.TiB.toBytes(2), ByteUnit.TiB.toBytes(1), 1)
+    new TaskContextImpl(
+      -1,
+      -1,
+      -1,
+      -1L,
+      -1,
+      new TaskMemoryManager(memoryManager, -1L),
+      new Properties,
+      MetricsSystem.createMetricsSystem("GLUTEN_UNSAFE", conf))
   }
 
-  // For testing purpose only
-  def unsetFallbackRegistry(): Unit = {
-    fallbackRegistry.foreach(r => r.releaseAll())
-    fallbackRegistry = None
+  private def setUnsafeTaskContext(): Unit = {
+    if (inSparkTask()) {
+      throw new UnsupportedOperationException(
+        "TaskResources#runUnsafe should only be used outside Spark task")
+    }
+    TaskContext.setTaskContext(newUnsafeTaskContext())
+  }
+
+  private def unsetUnsafeTaskContext(): Unit = {
+    if (!inSparkTask()) {
+      throw new IllegalStateException()
+    }
+    if (getLocalTaskContext().taskAttemptId() != -1) {
+      throw new IllegalStateException()
+    }
+    TaskContext.unset()
+  }
+
+  // Run code with unsafe task context. If the call took place from Spark driver or test code
+  // without a Spark task context registered, a temporary unsafe task context instance will
+  // be created and used. Since fallback registry is not managed by Spark's task memory manager,
+  // Spark may not be aware of the allocations happened inside the user code.
+  //
+  // The API should only be used in the following cases:
+  //
+  // 1. Run code on driver
+  // 2. Run test code
+  def runUnsafe[T](body: => T): T = {
+    TaskResources.setUnsafeTaskContext()
+    onTaskStart()
+    val context = getLocalTaskContext()
+    try {
+      body
+    } catch {
+      case t: Throwable =>
+        // Similar code to those in Task.scala
+        try {
+          context.markTaskFailed(t)
+        } catch {
+          case t: Throwable =>
+            t.addSuppressed(t)
+        }
+        context.markTaskCompleted(Some(t))
+        throw t
+    } finally {
+      try {
+        context.markTaskCompleted(None)
+      } finally {
+        TaskResources.unsetUnsafeTaskContext()
+      }
+    }
   }
 
   private val RESOURCE_REGISTRIES =
@@ -66,14 +125,9 @@ object TaskResources extends TaskListener with Logging {
 
   private def getTaskResourceRegistry(): TaskResourceRegistry = {
     if (!inSparkTask()) {
-      logWarning(
-        "Using the fallback instance of TaskResourceRegistry. " +
-          "This should only happen when call is not from Spark task.")
-      return fallbackRegistry match {
-        case Some(r) => r
-        case _ =>
-          throw new IllegalStateException("No fallback instance of TaskResourceRegistry found.")
-      }
+      throw new UnsupportedOperationException(
+        "Not in a Spark task. If the code is running on driver or for testing purpose, " +
+          "try using TaskResources#runUnsafe")
     }
     val tc = getLocalTaskContext()
     RESOURCE_REGISTRIES.synchronized {

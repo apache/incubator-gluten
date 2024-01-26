@@ -43,9 +43,7 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
       target.repay(granted);
     }
     // Log memory usage
-    if (TaskResources.inSparkTask()) {
-      TaskResources.getLocalTaskContext().taskMemoryManager().showMemoryUsage();
-    }
+    TaskResources.getLocalTaskContext().taskMemoryManager().showMemoryUsage();
     // Build error message, then throw
     StringBuilder errorBuilder = new StringBuilder();
     errorBuilder

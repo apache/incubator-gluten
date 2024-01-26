@@ -14,23 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.exec
+package io.glutenproject.utils
+
+import io.glutenproject.exec.Runtimes
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.memory.nmm.NativeMemoryManagers
 
 import org.apache.spark.util.TaskResources
 
-object Runtimes {
-  private val RUNTIME_NAME = "Runtime"
+import org.scalatest.funsuite.AnyFunSuite
 
-  /** Get or create the runtime which bound with Spark TaskContext. */
-  def contextInstance(): Runtime = {
-    if (!TaskResources.inSparkTask()) {
-      throw new IllegalStateException("This method must be called in a Spark task.")
+class MemoryTaskResourceSuite extends AnyFunSuite {
+  test("Run unsafe - runtime") {
+    TaskResources.runUnsafe {
+      assert(Runtimes.contextInstance() != null)
     }
-
-    TaskResources.addResourceIfNotRegistered(RUNTIME_NAME, () => create())
   }
 
-  private def create(): Runtime = {
-    new Runtime
+  test("Run unsafe - memory allocation, Arrow") {
+    TaskResources.runUnsafe {
+      val allocator = ArrowBufferAllocators.contextInstance()
+      val buf = allocator.buffer(100)
+      assert(buf != null)
+    }
+  }
+
+  test("Run unsafe - memory allocation, Native") {
+    TaskResources.runUnsafe {
+      val nmm = NativeMemoryManagers.contextInstance("test")
+      assert(nmm != null)
+    }
   }
 }

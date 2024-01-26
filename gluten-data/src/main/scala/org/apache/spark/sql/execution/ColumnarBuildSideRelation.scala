@@ -32,6 +32,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.TaskResources
 
 import org.apache.arrow.c.ArrowSchema
 
@@ -92,13 +93,13 @@ case class ColumnarBuildSideRelation(
    * Transform columnar broadcast value to Array[InternalRow] by key and distinct. NOTE: This method
    * was called in Spark Driver, should manage resources carefully.
    */
-  override def transform(key: Expression): Array[InternalRow] = {
+  override def transform(key: Expression): Array[InternalRow] = TaskResources.runUnsafe {
     // This transformation happens in Spark driver, thus resources can not be managed automatically.
-    val runtime = Runtimes.tmpInstance()
-    val nativeMemoryManager = NativeMemoryManagers.tmpInstance("BuildSideRelation#transform")
-    val serializerJniWrapper = ColumnarBatchSerializerJniWrapper.forRuntime(runtime)
+    val runtime = Runtimes.contextInstance()
+    val nativeMemoryManager = NativeMemoryManagers.contextInstance("BuildSideRelation#transform")
+    val serializerJniWrapper = ColumnarBatchSerializerJniWrapper.create()
     val serializeHandle = {
-      val allocator = ArrowBufferAllocators.globalInstance()
+      val allocator = ArrowBufferAllocators.contextInstance()
       val cSchema = ArrowSchema.allocateNew(allocator)
       val arrowSchema = SparkArrowUtil.toArrowSchema(
         StructType.fromAttributes(output),
@@ -113,7 +114,7 @@ case class ColumnarBuildSideRelation(
     var closed = false
 
     // Convert columnar to Row.
-    val jniWrapper = NativeColumnarToRowJniWrapper.forRuntime(runtime)
+    val jniWrapper = NativeColumnarToRowJniWrapper.create()
     val c2rId = jniWrapper.nativeColumnarToRowInit(nativeMemoryManager.getNativeInstanceHandle)
     var batchId = 0
     val iterator = if (batches.length > 0) {

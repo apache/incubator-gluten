@@ -34,10 +34,10 @@ public final class NativeMemoryAllocators {
   private static final Map<NativeMemoryAllocator.Type, NativeMemoryAllocators> INSTANCES =
       new ConcurrentHashMap<>();
 
-  private final NativeMemoryAllocator global;
+  private final NativeMemoryAllocator allocator;
 
   private NativeMemoryAllocators(NativeMemoryAllocator.Type type) {
-    global = NativeMemoryAllocator.create(type);
+    allocator = NativeMemoryAllocator.create(type);
   }
 
   public static NativeMemoryAllocators getDefault() {
@@ -48,7 +48,7 @@ public final class NativeMemoryAllocators {
     return INSTANCES.computeIfAbsent(type, NativeMemoryAllocators::new);
   }
 
-  public NativeMemoryAllocator globalInstance() {
-    return global;
+  public NativeMemoryAllocator get() {
+    return allocator;
   }
 }
