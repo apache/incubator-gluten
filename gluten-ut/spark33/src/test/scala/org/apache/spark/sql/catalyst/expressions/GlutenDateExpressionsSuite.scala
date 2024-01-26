@@ -343,4 +343,71 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
         }
     }
   }
+
+  test(GLUTEN_TEST + "from_unixtime") {
+    val outstandingTimezonesIds: Seq[String] = Seq(
+      // Velox doesn't support timezones like "UTC".
+      // "UTC",
+      // Not supported in velox.
+      // PST.getId,
+      // CET.getId,
+      "Africa/Dakar",
+      LA.getId,
+      "Asia/Urumqi",
+      "Asia/Hong_Kong",
+      "Europe/Brussels"
+    )
+    val outstandingZoneIds: Seq[ZoneId] = outstandingTimezonesIds.map(getZoneId)
+    Seq("legacy", "corrected").foreach {
+      legacyParserPolicy =>
+        for (zid <- outstandingZoneIds) {
+          withSQLConf(
+            SQLConf.LEGACY_TIME_PARSER_POLICY.key -> legacyParserPolicy,
+            SQLConf.SESSION_LOCAL_TIMEZONE.key -> zid.getId) {
+            val fmt1 = "yyyy-MM-dd HH:mm:ss"
+            val sdf1 = new SimpleDateFormat(fmt1, Locale.US)
+            val fmt2 = "yyyy-MM-dd HH:mm:ss.SSS"
+            val sdf2 = new SimpleDateFormat(fmt2, Locale.US)
+            val timeZoneId = Option(zid.getId)
+            val tz = TimeZone.getTimeZone(zid)
+            sdf1.setTimeZone(tz)
+            sdf2.setTimeZone(tz)
+
+            checkEvaluation(
+              FromUnixTime(Literal(0L), Literal(fmt1), timeZoneId),
+              sdf1.format(new Timestamp(0)))
+            checkEvaluation(
+              FromUnixTime(Literal(1000L), Literal(fmt1), timeZoneId),
+              sdf1.format(new Timestamp(1000000)))
+            checkEvaluation(
+              FromUnixTime(Literal(-1000L), Literal(fmt2), timeZoneId),
+              sdf2.format(new Timestamp(-1000000)))
+            checkEvaluation(
+              FromUnixTime(
+                Literal.create(null, LongType),
+                Literal.create(null, StringType),
+                timeZoneId),
+              null)
+            checkEvaluation(
+              FromUnixTime(Literal.create(null, LongType), Literal(fmt1), timeZoneId),
+              null)
+            checkEvaluation(
+              FromUnixTime(Literal(1000L), Literal.create(null, StringType), timeZoneId),
+              null)
+
+            // SPARK-28072 The codegen path for non-literal input should also work
+            checkEvaluation(
+              expression = FromUnixTime(
+                BoundReference(ordinal = 0, dataType = LongType, nullable = true),
+                BoundReference(ordinal = 1, dataType = StringType, nullable = true),
+                timeZoneId),
+              expected = UTF8String.fromString(sdf1.format(new Timestamp(0))),
+              inputRow = InternalRow(0L, UTF8String.fromString(fmt1))
+            )
+          }
+        }
+    }
+    // Test escaping of format
+    GenerateUnsafeProjection.generate(FromUnixTime(Literal(0L), Literal("\""), UTC_OPT) :: Nil)
+  }
 }
