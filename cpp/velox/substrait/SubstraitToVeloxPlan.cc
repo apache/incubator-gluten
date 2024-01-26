@@ -1272,9 +1272,6 @@ std::string SubstraitToVeloxPlanConverter::findFuncSpec(uint64_t id) {
 }
 
 int32_t SubstraitToVeloxPlanConverter::getStreamIndex(const ::substrait::ReadRel& sRead) {
-  if (validationMode_) {
-    return -1;
-  }
   if (sRead.has_local_files()) {
     const auto& fileList = sRead.local_files().items();
     if (fileList.size() == 0) {
