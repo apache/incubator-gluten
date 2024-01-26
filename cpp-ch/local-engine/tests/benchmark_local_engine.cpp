@@ -47,7 +47,6 @@
 #include <Poco/Util/MapConfiguration.h>
 #include <Common/CHUtil.h>
 #include <Common/DebugUtils.h>
-#include <Common/Logger.h>
 #include <Common/MergeTreeTool.h>
 #include <Common/PODArray_fwd.h>
 #include <Common/Stopwatch.h>

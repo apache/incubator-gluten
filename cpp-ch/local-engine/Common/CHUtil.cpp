@@ -58,7 +58,7 @@
 #include <Common/Config/ConfigProcessor.h>
 #include <Common/CurrentThread.h>
 #include <Common/GlutenSignalHandler.h>
-#include <Common/Logger.h>
+#include <Common/LoggerExtend.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
 #include <Disks/registerDisks.h>
@@ -304,7 +304,7 @@ size_t PODArrayUtil::adjustMemoryEfficientSize(size_t n)
     }
     else
     {
-        padded_n = rounded_n - padding_n;    
+        padded_n = rounded_n - padding_n;
     }
     return padded_n;
 }
@@ -576,9 +576,9 @@ void BackendInitializerUtil::initLoggers(DB::Context::ConfigurationPtr config)
 {
     auto level = config->getString("logger.level", "warning");
     if (config->has("logger.log"))
-        local_engine::Logger::initFileLogger(*config, "ClickHouseBackend");
+        local_engine::LoggerExtend::initFileLogger(*config, "ClickHouseBackend");
     else
-        local_engine::Logger::initConsoleLogger(level);
+        local_engine::LoggerExtend::initConsoleLogger(level);
 
     logger = &Poco::Logger::get("ClickHouseBackend");
 }
