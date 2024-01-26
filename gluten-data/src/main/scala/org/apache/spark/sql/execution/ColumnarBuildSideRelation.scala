@@ -124,8 +124,6 @@ case class ColumnarBuildSideRelation(
           if (!itHasNext && !closed) {
             jniWrapper.nativeClose(c2rId)
             serializerJniWrapper.close(serializeHandle)
-            runtime.release()
-            nativeMemoryManager.release()
             closed = true
           }
           itHasNext
