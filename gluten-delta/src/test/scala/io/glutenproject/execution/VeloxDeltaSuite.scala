@@ -134,7 +134,7 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("column mapping with complex type", Some("3.3.1")) {
+  testWithSpecifiedSparkVersion("column mapping with complex type") {
     withTable("t1") {
       val simpleNestedSchema = new StructType()
         .add("a", StringType, true)
