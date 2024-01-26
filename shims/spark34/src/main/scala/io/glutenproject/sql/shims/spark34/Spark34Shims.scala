@@ -20,7 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ExpressionNames, Sig}
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
-import org.apache.spark.SparkException
+import org.apache.spark.{SparkException, TaskContext, TaskContextUtils}
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.paths.SparkPath
 import org.apache.spark.sql.SparkSession
@@ -178,4 +178,8 @@ class Spark34Shims extends SparkShims {
   }
 
   override def enableNativeWriteFilesByDefault(): Boolean = true
+
+  override def createTestTaskContext(): TaskContext = {
+    TaskContextUtils.createTestTaskContext()
+  }
 }

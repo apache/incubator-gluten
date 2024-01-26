@@ -16,18 +16,16 @@
  */
 package org.apache.spark.util
 
-import org.apache.spark.{SparkConf, TaskContext, TaskContextImpl, TaskFailedReason, TaskKilledException}
+import org.apache.spark.{TaskContext, TaskFailedReason, TaskKilledException}
 import org.apache.spark.internal.Logging
-import org.apache.spark.memory.{TaskMemoryManager, UnifiedMemoryManager}
-import org.apache.spark.metrics.MetricsSystem
-import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.internal.SQLConf
 
 import _root_.io.glutenproject.memory.SimpleMemoryUsageRecorder
+import _root_.io.glutenproject.sql.shims.SparkShimLoader
 import _root_.io.glutenproject.utils.TaskListener
 
 import java.util
-import java.util.{Collections, Properties, UUID}
+import java.util.{Collections, UUID}
 import java.util.concurrent.atomic.AtomicLong
 
 import scala.collection.JavaConverters._
@@ -43,20 +41,7 @@ object TaskResources extends TaskListener with Logging {
   val ACCUMULATED_LEAK_BYTES = new AtomicLong(0L)
 
   private def newUnsafeTaskContext(): TaskContext = {
-    val conf = new SparkConf()
-    conf.set("spark.memory.offHeap.enabled", "true")
-    conf.set("spark.memory.offHeap.size", "1TB")
-    val memoryManager =
-      new UnifiedMemoryManager(conf, ByteUnit.TiB.toBytes(2), ByteUnit.TiB.toBytes(1), 1)
-    new TaskContextImpl(
-      -1,
-      -1,
-      -1,
-      -1L,
-      -1,
-      new TaskMemoryManager(memoryManager, -1L),
-      new Properties,
-      MetricsSystem.createMetricsSystem("GLUTEN_UNSAFE", conf))
+    SparkShimLoader.getSparkShims.createTestTaskContext()
   }
 
   private def setUnsafeTaskContext(): Unit = {
