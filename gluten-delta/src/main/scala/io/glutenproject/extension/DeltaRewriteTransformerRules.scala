@@ -76,8 +76,14 @@ object DeltaRewriteTransformerRules {
       // transform HadoopFsRelation
       val relation = plan.relation
       val newFsRelation = relation.copy(
-        partitionSchema = fmt.prepareSchema(relation.partitionSchema),
-        dataSchema = fmt.prepareSchema(relation.dataSchema)
+        partitionSchema = DeltaColumnMapping.createPhysicalSchema(
+          relation.partitionSchema,
+          fmt.referenceSchema,
+          fmt.columnMappingMode),
+        dataSchema = DeltaColumnMapping.createPhysicalSchema(
+          relation.dataSchema,
+          fmt.referenceSchema,
+          fmt.columnMappingMode)
       )(SparkSession.active)
       // transform output's name into physical name so Reader can read data correctly
       // should keep the columns order the same as the origin output
@@ -128,7 +134,10 @@ object DeltaRewriteTransformerRules {
       val scanExecTransformer = new DeltaScanTransformer(
         newFsRelation,
         newOutput,
-        fmt.prepareSchema(plan.requiredSchema),
+        DeltaColumnMapping.createPhysicalSchema(
+          plan.requiredSchema,
+          fmt.referenceSchema,
+          fmt.columnMappingMode),
         newPartitionFilters,
         plan.optionalBucketSet,
         plan.optionalNumCoalescedBuckets,
