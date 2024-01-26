@@ -85,8 +85,18 @@ object CHJoinValidateUtil extends Logging {
           }
           GreaterThanOrEqual(l, r)
         case In(l, r) =>
-          shouldFallback = true
+          r.foreach(
+            e => {
+              if (hasTwoTableColumn(leftOutputSet, rightOutputSet, l, e)) {
+                shouldFallback = true
+              }
+            })
           In(l, r)
+        case EqualTo(l, r) =>
+          if (hasTwoTableColumn(leftOutputSet, rightOutputSet, l, r)) {
+            shouldFallback = true
+          }
+          EqualTo(l, r)
       }
     }
     shouldFallback
