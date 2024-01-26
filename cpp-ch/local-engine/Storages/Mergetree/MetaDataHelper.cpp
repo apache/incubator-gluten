@@ -31,10 +31,10 @@ std::unordered_map<String, String> extractPartMetaData(ReadBuffer & in)
         readString(name, in);
         assertChar('\t', in);
         UInt64 size;
-        readVarUInt(size, in);
+        readIntText(size, in);
         assertChar('\n', in);
         String data;
-        data.reserve(size);
+        data.resize(size);
         in.read(data.data(), size);
         result.emplace(name, data);
     }
@@ -58,6 +58,8 @@ void restoreMetaData(DiskPtr data_disk, const MergeTreeTable & mergeTreeTable)
 
         if (metadata_disk->exists(part_path))
             continue;
+        else
+            metadata_disk->createDirectories(part_path);
         auto key = s3->generateObjectKeyForPath(metadata_file_path.generic_string());
         StoredObject metadata_object(key.serialize());
         auto part_metadata = extractPartMetaData(*s3->readObject(metadata_object));

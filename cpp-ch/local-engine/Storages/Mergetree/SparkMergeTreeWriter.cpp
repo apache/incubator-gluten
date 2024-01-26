@@ -86,18 +86,19 @@ void SparkMergeTreeWriter::saveFileStatus(const DB::MergeTreeDataWriter::Tempora
     auto & data_part_storage = temp_part.part->getDataPartStorage();
 
     const DiskPtr disk = storage.getStoragePolicy()->getAnyDisk();
-    if (disk->isRemote()) return;
+    if (!disk->isRemote()) return;
     if (auto *const disk_metadata = dynamic_cast<MetadataStorageFromDisk *>(disk->getMetadataStorage().get()))
     {
-        std::stringstream gluten_metadata;
+        const auto out = data_part_storage.writeFile("metadata.gluten", DBMS_DEFAULT_BUFFER_SIZE, context->getWriteSettings());
         for (const auto it = data_part_storage.iterate(); it->isValid(); it->next())
         {
             auto content = disk_metadata->readFileToString(it->path());
-            gluten_metadata << it->name() + "\t" + toString(content.length()) << "\n" << content;
+            writeString(it->name(), *out);
+            writeChar('\t', *out);
+            writeIntText(content.length(), *out);
+            writeChar('\n', *out);
+            writeString(content, *out);
         }
-
-        const auto out = data_part_storage.writeFile("metadata.gluten", DBMS_DEFAULT_BUFFER_SIZE, context->getWriteSettings());
-        writeText(gluten_metadata.str(), *out);
         out->finalize();
     }
 }

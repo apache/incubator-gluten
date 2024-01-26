@@ -55,7 +55,7 @@ std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings()
 //    settings->set("min_bytes_for_wide_part", Field(0));
 //    settings->set("min_rows_for_wide_part", Field(0));
     settings->set("allow_nullable_key", Field(1));
-    // settings->set("storage_policy", Field("s3_main"));
+     settings->set("storage_policy", Field("s3_main"));
     return settings;
 }
 
