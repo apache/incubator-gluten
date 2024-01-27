@@ -88,7 +88,6 @@ object BackendSettings extends BackendSettingsApi {
     format match {
       case ParquetReadFormat =>
         val typeValidator: PartialFunction[StructField, String] = {
-          case StructField(_, ByteType, _, _) => "ByteType not support"
           // Parquet scan of nested array with struct/array as element type is unsupported in Velox.
           case StructField(_, arrayType: ArrayType, _, _)
               if arrayType.elementType.isInstanceOf[StructType] =>
