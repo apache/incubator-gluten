@@ -16,12 +16,11 @@
  */
 #pragma once
 
-#include <Poco/Logger.h>
 #include <Poco/Util/AbstractConfiguration.h>
 
 namespace local_engine
 {
-class Logger
+class LoggerExtend
 {
 public:
     static void initConsoleLogger(const std::string & level = "error");

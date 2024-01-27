@@ -30,12 +30,13 @@
 #include <Core/Defines.h>
 #include <Core/NamesAndTypes.h>
 #include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeMap.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/NestedUtils.h>
+#include <Disks/registerDisks.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionsConversion.h>
 #include <Functions/registerFunctions.h>
@@ -49,6 +50,7 @@
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <QueryPipeline/printPipeline.h>
 #include <Storages/Output/WriteBufferBuilder.h>
+#include <Storages/StorageMergeTreeFactory.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/wrappers.pb.h>
@@ -58,25 +60,23 @@
 #include <Common/Config/ConfigProcessor.h>
 #include <Common/CurrentThread.h>
 #include <Common/GlutenSignalHandler.h>
-#include <Common/Logger.h>
+#include <Common/LoggerExtend.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
-#include <Disks/registerDisks.h>
-#include <Storages/StorageMergeTreeFactory.h>
 
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 
 #include "CHUtil.h"
 
-#include <sys/resource.h>
 #include <unistd.h>
+#include <sys/resource.h>
 
 namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int BAD_ARGUMENTS;
+extern const int BAD_ARGUMENTS;
 }
 }
 
@@ -304,7 +304,7 @@ size_t PODArrayUtil::adjustMemoryEfficientSize(size_t n)
     }
     else
     {
-        padded_n = rounded_n - padding_n;    
+        padded_n = rounded_n - padding_n;
     }
     return padded_n;
 }
@@ -326,9 +326,7 @@ std::string PlanUtil::explainPlan(DB::QueryPlan & plan)
 std::vector<MergeTreeUtil::Path> MergeTreeUtil::getAllMergeTreeParts(const Path & storage_path)
 {
     if (!fs::exists(storage_path))
-    {
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Invalid merge tree store path:{}", storage_path.string());
-    }
 
     // TODO: May need to check the storage format version
     std::vector<fs::path> res;
@@ -346,9 +344,7 @@ DB::NamesAndTypesList MergeTreeUtil::getSchemaFromMergeTreePart(const fs::path &
 {
     DB::NamesAndTypesList names_types_list;
     if (!fs::exists(part_path))
-    {
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Invalid merge tree store path:{}", part_path.string());
-    }
     DB::ReadBufferFromFile readbuffer((part_path / "columns.txt").string());
     names_types_list.readText(readbuffer);
     return names_types_list;
@@ -388,9 +384,7 @@ std::optional<DB::ColumnWithTypeAndName> NestedColumnExtractHelper::extractColum
 {
     auto table_iter = nested_tables.find(column_name_prefix);
     if (table_iter == nested_tables.end())
-    {
         return {};
-    }
 
     auto & nested_table = table_iter->second;
     auto nested_names = DB::Nested::splitName(column_name_suffix);
@@ -412,9 +406,7 @@ std::optional<DB::ColumnWithTypeAndName> NestedColumnExtractHelper::extractColum
 
     const auto * sub_col = findColumn(*nested_table, new_column_name_prefix);
     if (!sub_col)
-    {
         return {};
-    }
 
     DB::ColumnsWithTypeAndName columns = {*sub_col};
     DB::Block sub_block(columns);
@@ -431,9 +423,7 @@ const DB::ColumnWithTypeAndName * NestedColumnExtractHelper::findColumn(const DB
         const auto & cols = in_block.getColumnsWithTypeAndName();
         auto found = std::find_if(cols.begin(), cols.end(), [&](const auto & column) { return boost::iequals(column.name, name); });
         if (found == cols.end())
-        {
             return nullptr;
-        }
         return &*found;
     }
 
@@ -476,9 +466,7 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(std
 {
     std::map<std::string, std::string> ch_backend_conf;
     if (plan == nullptr)
-    {
         return ch_backend_conf;
-    }
 
     /// Parse backend configs from plan extensions
     do
@@ -576,9 +564,9 @@ void BackendInitializerUtil::initLoggers(DB::Context::ConfigurationPtr config)
 {
     auto level = config->getString("logger.level", "warning");
     if (config->has("logger.log"))
-        local_engine::Logger::initFileLogger(*config, "ClickHouseBackend");
+        local_engine::LoggerExtend::initFileLogger(*config, "ClickHouseBackend");
     else
-        local_engine::Logger::initConsoleLogger(level);
+        local_engine::LoggerExtend::initConsoleLogger(level);
 
     logger = &Poco::Logger::get("ClickHouseBackend");
 }
@@ -675,9 +663,7 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
     /// Make sure global_context and shared_context are constructed only once.
     auto & shared_context = SerializedPlanParser::shared_context;
     if (!shared_context.get())
-    {
         shared_context = SharedContextHolder(Context::createShared());
-    }
 
     auto & global_context = SerializedPlanParser::global_context;
     if (!global_context)
@@ -856,9 +842,7 @@ UInt64 MemoryUtil::getCurrentMemoryUsage(size_t depth)
     Int64 current_memory_usage = 0;
     auto * current_mem_tracker = DB::CurrentThread::getMemoryTracker();
     for (size_t i = 0; i < depth && current_mem_tracker; ++i)
-    {
         current_mem_tracker = current_mem_tracker->getParent();
-    }
     if (current_mem_tracker)
         current_memory_usage = current_mem_tracker->get();
     return current_memory_usage < 0 ? 0 : current_memory_usage;
@@ -867,12 +851,11 @@ UInt64 MemoryUtil::getCurrentMemoryUsage(size_t depth)
 UInt64 MemoryUtil::getMemoryRSS()
 {
     long rss = 0L;
-    FILE* fp = NULL;
+    FILE * fp = NULL;
     char buf[4096];
     sprintf(buf, "/proc/%d/statm", getpid());
-    if ((fp = fopen(buf, "r")) == NULL) {
+    if ((fp = fopen(buf, "r")) == NULL)
         return 0;
-    }
     fscanf(fp, "%*s%ld", &rss);
     fclose(fp);
     return rss * sysconf(_SC_PAGESIZE);

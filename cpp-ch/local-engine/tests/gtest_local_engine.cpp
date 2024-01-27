@@ -42,7 +42,6 @@
 #include <Poco/Util/MapConfiguration.h>
 #include <Common/CHUtil.h>
 #include <Common/DebugUtils.h>
-#include <Common/Logger.h>
 #include "testConfig.h"
 
 using namespace local_engine;
