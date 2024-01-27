@@ -431,6 +431,13 @@ class ColumnarInputRDDsWrapper(columnarInputRDDs: Seq[RDD[ColumnarBatch]]) exten
       inputColumnarRDDPartitions: Seq[Partition],
       context: TaskContext): Seq[Iterator[ColumnarBatch]] = {
     var index = 0
+    if (columnarInputRDDs.size == 1) {
+      columnarInputRDDs.head match {
+        case cartesianRDD: CartesianColumnarBatchRDD =>
+          return cartesianRDD.getIterators(inputColumnarRDDPartitions.head, context)
+        case _ =>
+      }
+    }
     columnarInputRDDs.map {
       case broadcast: BroadcastBuildSideRDD =>
         BackendsApiManager.getIteratorApiInstance

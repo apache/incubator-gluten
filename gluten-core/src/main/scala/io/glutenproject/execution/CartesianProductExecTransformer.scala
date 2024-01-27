@@ -136,10 +136,7 @@ case class CartesianProductExecTransformer(
     assert(rddsLeft.size == 1 && rddsRight.size == 1)
 
     val cartesianRDD = new CartesianColumnarBatchRDD(sparkContext, rddsLeft.head, rddsRight.head)
-    val rdd1 = cartesianRDD.map(pair => pair._1)
-    val rdd2 = cartesianRDD.map(pair => pair._2)
-
-    Seq(rdd1, rdd2)
+    Seq(cartesianRDD)
   }
 }
 
@@ -163,7 +160,7 @@ class CartesianColumnarBatchRDD(
     sc: SparkContext,
     var rdd1: RDD[ColumnarBatch],
     var rdd2: RDD[ColumnarBatch])
-  extends RDD[(ColumnarBatch, ColumnarBatch)](sc, Nil)
+  extends RDD[ColumnarBatch](sc, Nil)
   with Serializable {
 
   private val numPartitionsInRdd2 = rdd2.partitions.length
@@ -183,14 +180,14 @@ class CartesianColumnarBatchRDD(
     (rdd1.preferredLocations(currSplit.s1) ++ rdd2.preferredLocations(currSplit.s2)).distinct
   }
 
-  override def compute(
-      split: Partition,
-      context: TaskContext): Iterator[(ColumnarBatch, ColumnarBatch)] = {
-    val currSplit = split.asInstanceOf[CartesianColumnarBatchRDDPartition]
-    for (
-      x <- rdd1.iterator(currSplit.s1, context);
-      y <- rdd2.iterator(currSplit.s2, context)
-    ) yield (x, y)
+  override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
+
+    /**
+     * Cartesian RDD returns both left and right RDD iterators. Due to the override method
+     * signature, it is not possible to return Seq from here. see [getIterators] in
+     * [[ColumnarInputRDDsWrapper]]
+     */
+    throw new IllegalStateException("Never reach here")
   }
 
   override def getDependencies: Seq[Dependency[_]] = List(
@@ -206,5 +203,10 @@ class CartesianColumnarBatchRDD(
     super.clearDependencies()
     rdd1 = null
     rdd2 = null
+  }
+
+  def getIterators(split: Partition, context: TaskContext): Seq[Iterator[ColumnarBatch]] = {
+    val currSplit = split.asInstanceOf[CartesianColumnarBatchRDDPartition]
+    Seq(rdd1.iterator(currSplit.s1, context), rdd2.iterator(currSplit.s2, context))
   }
 }

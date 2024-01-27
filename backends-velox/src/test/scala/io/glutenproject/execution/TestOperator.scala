@@ -848,6 +848,14 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
 
       runQueryAndCompare(
         """
+          |select * from t1 cross join t2;
+          |""".stripMargin
+      ) {
+        checkOperatorMatch[CartesianProductExecTransformer]
+      }
+
+      runQueryAndCompare(
+        """
           |select * from t1 cross join t2 on t1.c1 > t2.c1;
           |""".stripMargin
       ) {
