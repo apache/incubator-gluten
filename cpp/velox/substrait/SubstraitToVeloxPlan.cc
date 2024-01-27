@@ -354,6 +354,35 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
 }
 
+core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::CrossRel& crossRel) {
+  // Support basic cross join without any filters
+  if (!crossRel.has_left()) {
+    VELOX_FAIL("Left Rel is expected in CrossRel.");
+  }
+  if (!crossRel.has_right()) {
+    VELOX_FAIL("Right Rel is expected in CrossRel.");
+  }
+
+  auto leftNode = toVeloxPlan(crossRel.left());
+  auto rightNode = toVeloxPlan(crossRel.right());
+
+  auto inputRowType = getJoinInputType(leftNode, rightNode);
+  core::TypedExprPtr joinConditions;
+  if (crossRel.has_expression()) {
+    joinConditions = exprConverter_->toVeloxExpr(crossRel.expression(), inputRowType);
+  }
+
+  core::JoinType joinType = core::JoinType::kInner;
+
+  return std::make_shared<core::NestedLoopJoinNode>(
+      nextPlanNodeId(),
+      joinType,
+      joinConditions,
+      leftNode,
+      rightNode,
+      getJoinOutputType(leftNode, rightNode, joinType));
+}
+
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::AggregateRel& aggRel) {
   auto childNode = convertSingleInput<::substrait::AggregateRel>(aggRel);
   core::AggregationNode::Step aggStep = toAggregationStep(aggRel);
@@ -1166,6 +1195,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     return toVeloxPlan(rel.filter());
   } else if (rel.has_join()) {
     return toVeloxPlan(rel.join());
+  } else if (rel.has_cross()) {
+    return toVeloxPlan(rel.cross());
   } else if (rel.has_read()) {
     return toVeloxPlan(rel.read());
   } else if (rel.has_sort()) {

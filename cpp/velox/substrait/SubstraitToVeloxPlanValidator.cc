@@ -942,6 +942,51 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
   return true;
 }
 
+bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossRel) {
+  if (crossRel.has_left() && !validate(crossRel.left())) {
+    logValidateMsg("native validation failed due to: validation fails for cross join left input. ");
+    return false;
+  }
+
+  if (crossRel.has_right() && !validate(crossRel.right())) {
+    logValidateMsg("native validation failed due to: validation fails for cross join right input. ");
+    return false;
+  }
+
+  // Validate input types.
+  if (!crossRel.has_advanced_extension()) {
+    logValidateMsg("native validation failed due to: Input types are expected in CrossRel.");
+    return false;
+  }
+
+  const auto& extension = crossRel.advanced_extension();
+  std::vector<TypePtr> types;
+  if (!validateInputTypes(extension, types)) {
+    logValidateMsg("native validation failed due to: Validation failed for input types in CrossRel");
+    return false;
+  }
+
+  int32_t inputPlanNodeId = 0;
+  std::vector<std::string> names;
+  names.reserve(types.size());
+  for (auto colIdx = 0; colIdx < types.size(); colIdx++) {
+    names.emplace_back(SubstraitParser::makeNodeName(inputPlanNodeId, colIdx));
+  }
+  auto rowType = std::make_shared<RowType>(std::move(names), std::move(types));
+
+  if (crossRel.has_expression()) {
+    try {
+      auto expression = exprConverter_->toVeloxExpr(crossRel.expression(), rowType);
+      exec::ExprSet exprSet({std::move(expression)}, execCtx_);
+    } catch (const VeloxException& err) {
+      logValidateMsg("native validation failed due to: crossRel expression validation fails, " + err.message());
+      return false;
+    }
+  }
+
+  return true;
+}
+
 bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait::AggregateRel& aggRel) {
   if (aggRel.measures_size() == 0) {
     return true;
@@ -1184,6 +1229,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Rel& rel) {
     return validate(rel.filter());
   } else if (rel.has_join()) {
     return validate(rel.join());
+  } else if (rel.has_cross()) {
+    return validate(rel.cross());
   } else if (rel.has_read()) {
     return validate(rel.read());
   } else if (rel.has_sort()) {

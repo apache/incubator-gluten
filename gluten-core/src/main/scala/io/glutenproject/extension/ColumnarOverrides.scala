@@ -488,6 +488,11 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
             left,
             right,
             isNullAwareAntiJoin = plan.isNullAwareAntiJoin)
+      case plan: CartesianProductExec =>
+        val left = replaceWithTransformerPlan(plan.left)
+        val right = replaceWithTransformerPlan(plan.right)
+        BackendsApiManager.getSparkPlanExecApiInstance
+          .genCartesianProductExecTransformer(left, right, plan.condition)
       case plan: WindowExec =>
         WindowExecTransformer(
           plan.windowExpression,

@@ -807,7 +807,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
-  test("test cross join with equi join conditions") {
+  test("test cross join") {
     withTable("t1", "t2") {
       sql("""
             |create table t1 using parquet as
@@ -844,6 +844,22 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
         ) {
           checkOperatorMatch[SortMergeJoinExecTransformer]
         }
+      }
+
+      runQueryAndCompare(
+        """
+          |select * from t1 cross join t2;
+          |""".stripMargin
+      ) {
+        checkOperatorMatch[CartesianProductExecTransformer]
+      }
+
+      runQueryAndCompare(
+        """
+          |select * from t1 cross join t2 on t1.c1 > t2.c1;
+          |""".stripMargin
+      ) {
+        checkOperatorMatch[CartesianProductExecTransformer]
       }
     }
   }

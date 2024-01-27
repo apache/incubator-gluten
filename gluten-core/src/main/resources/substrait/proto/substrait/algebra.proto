@@ -213,6 +213,7 @@ message CrossRel {
   RelCommon common = 1;
   Rel left = 2;
   Rel right = 3;
+  Expression expression = 4;
 
   substrait.extensions.AdvancedExtension advanced_extension = 10;
 }

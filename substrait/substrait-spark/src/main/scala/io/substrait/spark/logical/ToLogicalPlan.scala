@@ -125,6 +125,16 @@ class ToLogicalPlan(spark: SparkSession) extends DefaultRelVisitor[LogicalPlan] 
     }
   }
 
+  override def visit(join: relation.Cross): LogicalPlan = {
+    val left = join.getLeft.accept(this)
+    val right = join.getRight.accept(this)
+    withChild(left, right) {
+      // TODO: Support different join types here when join types are added to cross rel for BNLJ
+      // Currently, this will change both cross and inner join types to inner join
+      Join(left, right, Inner, Option(null), hint = JoinHint.NONE)
+    }
+  }
+
   private def toSortOrder(sortField: SExpression.SortField): SortOrder = {
     val expression = sortField.expr().accept(expressionConverter)
     val (direction, nullOrdering) = sortField.direction() match {

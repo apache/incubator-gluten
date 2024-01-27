@@ -77,6 +77,9 @@ class SubstraitToVeloxPlanConverter {
   /// Used to convert Substrait JoinRel into Velox PlanNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::JoinRel& joinRel);
 
+  /// Used to convert Substrait CrossRel into Velox PlanNode.
+  core::PlanNodePtr toVeloxPlan(const ::substrait::CrossRel& crossRel);
+
   /// Used to convert Substrait AggregateRel into Velox PlanNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::AggregateRel& aggRel);
 

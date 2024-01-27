@@ -431,4 +431,6 @@ object BackendSettings extends BackendSettingsApi {
     // so we should rewrite it.
     true
   }
+
+  override def supportCartesianProductExec(): Boolean = true
 }
