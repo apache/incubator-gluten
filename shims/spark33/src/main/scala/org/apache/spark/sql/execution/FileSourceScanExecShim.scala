@@ -66,6 +66,8 @@ class FileSourceScanExecShim(
 
   def hasMetadataColumns: Boolean = metadataColumns.nonEmpty
 
+  def isMetadataColumn(attr: Attribute): Boolean = metadataColumns.contains(attr)
+
   def hasFieldIds: Boolean = ParquetUtils.hasFieldIds(requiredSchema)
 
   // The codes below are copied from FileSourceScanExec in Spark,

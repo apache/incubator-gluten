@@ -149,6 +149,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("DateFormat")
     // Legacy mode is not supported, assuming this mode is not commonly used.
     .exclude("to_timestamp exception mode")
+    // Replaced by a gluten test to pass timezone through config.
+    .exclude("from_unixtime")
   enableSuite[GlutenDecimalExpressionSuite]
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenIntervalExpressionsSuite]

@@ -629,14 +629,20 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
   }
 
   test("Support get native plan tree string, Velox single aggregation") {
-    runQueryAndCompare("select l_partkey + 1, count(*) from lineitem group by l_partkey + 1") {
+    runQueryAndCompare("""
+                         |select l_partkey + 1, count(*)
+                         |from (select /*+ repartition(2) */ * from lineitem) group by l_partkey + 1
+                         |""".stripMargin) {
       df =>
         val wholeStageTransformers = collect(df.queryExecution.executedPlan) {
           case w: WholeStageTransformer => w
         }
+        assert(wholeStageTransformers.size == 3)
         val nativePlanString = wholeStageTransformers.head.nativePlanString()
         assert(nativePlanString.contains("Aggregation[SINGLE"))
-        assert(nativePlanString.contains("TableScan"))
+        assert(nativePlanString.contains("ValueStream"))
+        assert(wholeStageTransformers(1).nativePlanString().contains("ValueStream"))
+        assert(wholeStageTransformers.last.nativePlanString().contains("TableScan"))
     }
   }
 
@@ -776,6 +782,28 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       runQueryAndCompare(s"select * from int_table where a != ${Int.MaxValue}") {
         checkOperatorMatch[FileSourceScanExecTransformer]
       }
+    }
+  }
+
+  test("Fallback on timestamp column filter") {
+    withTable("ts") {
+      sql("create table ts (c1 int, c2 timestamp) using parquet")
+      sql("insert into ts values (1, timestamp'2016-01-01 10:11:12.123456')")
+      sql("insert into ts values (2, null)")
+      sql("insert into ts values (3, timestamp'1965-01-01 10:11:12.123456')")
+
+      runQueryAndCompare("select c1, c2 from ts where c1 = 1") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+
+      // Fallback should only happen when there is a filter on timestamp column
+      runQueryAndCompare(
+        "select c1, c2 from ts where" +
+          " c2 = timestamp'1965-01-01 10:11:12.123456'") { _ => }
+
+      runQueryAndCompare(
+        "select c1, c2 from ts where" +
+          " c1 = 1 and c2 = timestamp'1965-01-01 10:11:12.123456'") { _ => }
     }
   }
 

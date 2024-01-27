@@ -198,14 +198,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         BoundReferenceTransformer(b.ordinal, b.dataType, b.nullable)
       case l: Literal =>
         LiteralTransformer(l)
-      case f: FromUnixTime =>
-        FromUnixTimeTransformer(
-          substraitExprName,
-          replaceWithExpressionTransformerInternal(f.sec, attributeSeq, expressionsMap),
-          replaceWithExpressionTransformerInternal(f.format, attributeSeq, expressionsMap),
-          f.timeZoneId,
-          f
-        )
       case d: DateDiff =>
         DateDiffTransformer(
           substraitExprName,

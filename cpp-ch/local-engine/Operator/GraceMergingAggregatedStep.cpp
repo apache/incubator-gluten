@@ -21,6 +21,7 @@
 #include <Common/CHUtil.h>
 #include <Common/CurrentThread.h>
 #include <Common/formatReadable.h>
+#include <Common/BitHelpers.h>
 
 namespace DB
 {
@@ -235,6 +236,7 @@ void GraceMergingAggregatedTransform::work()
         if (!block_converter->hasNext())
         {
             block_converter = nullptr;
+            current_bucket_index++;
         }
     }
 }
@@ -285,6 +287,11 @@ void GraceMergingAggregatedTransform::rehashDataVariants()
         auto scattered_blocks = scatterBlock(block);
         block = {};
         /// the new scattered blocks from block will alway belongs to the buckets with index >= current_bucket_index
+        for (size_t i = 0; i < current_bucket_index; ++i)
+        {
+            if (scattered_blocks[i].rows())
+                throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Scattered blocks should not belong to buckets with index({}) < current_bucket_index({})", i, current_bucket_index);
+        }
         for (size_t i = current_bucket_index + 1; i < getBucketsNum(); ++i)
         {
             addBlockIntoFileBucket(i, scattered_blocks[i]);
@@ -323,6 +330,10 @@ void GraceMergingAggregatedTransform::addBlockIntoFileBucket(size_t bucket_index
 {
     if (!block.rows())
         return;
+    if (roundUpToPowerOfTwoOrZero(bucket_index + 1) > static_cast<size_t>(block.info.bucket_num))
+    {
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Add invalid block with bucket_num {} into bucket {}", block.info.bucket_num, bucket_index);
+    }
     auto & file_stream = buckets[bucket_index];
     file_stream.pending_bytes += block.allocatedBytes();
     file_stream.blocks.push_back(block);
@@ -375,10 +386,8 @@ size_t GraceMergingAggregatedTransform::flushBucket(size_t bucket_index)
     return flush_bytes;
 }
 
-std::unique_ptr<AggregateDataBlockConverter> GraceMergingAggregatedTransform::prepareBucketOutputBlocks(size_t bucket)
+std::unique_ptr<AggregateDataBlockConverter> GraceMergingAggregatedTransform::prepareBucketOutputBlocks(size_t bucket_index)
 {
-    auto bucket_index = current_bucket_index;
-    current_bucket_index += 1;
     auto & buffer_file_stream = buckets[bucket_index];
     if (!current_data_variants && !buffer_file_stream.file_stream && buffer_file_stream.blocks.empty())
     {
@@ -465,7 +474,7 @@ void GraceMergingAggregatedTransform::mergeOneBlock(const DB::Block &block)
         rehashDataVariants();
     }
 
-    LOG_TRACE(
+    LOG_DEBUG(
         logger,
         "merge on block, rows: {}, bytes:{}, bucket: {}. current bucket: {}, total bucket: {}, mem used: {}",
         block.rows(),
@@ -485,6 +494,21 @@ void GraceMergingAggregatedTransform::mergeOneBlock(const DB::Block &block)
     {
         auto bucket_num = block.info.bucket_num;
         auto scattered_blocks = scatterBlock(block);
+        for (size_t i = 0; i < current_bucket_index; ++i)
+        {
+            if (scattered_blocks[i].rows())
+            {
+                throw DB::Exception(
+                    DB::ErrorCodes::LOGICAL_ERROR,
+                    "Scattered blocks should not belong to buckets with index({}) < current_bucket_index({}). bucket_num:{}. "
+                    "scattered_blocks.size: {}, total buckets: {}",
+                    i,
+                    current_bucket_index,
+                    bucket_num,
+                    scattered_blocks.size(),
+                    getBucketsNum());
+            }
+        }
         for (size_t i = current_bucket_index + 1; i < getBucketsNum(); ++i)
         {
             addBlockIntoFileBucket(i, scattered_blocks[i]);

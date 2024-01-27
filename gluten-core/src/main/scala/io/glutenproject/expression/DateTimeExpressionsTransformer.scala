@@ -87,40 +87,6 @@ case class DateDiffTransformer(
   }
 }
 
-case class FromUnixTimeTransformer(
-    substraitExprName: String,
-    sec: ExpressionTransformer,
-    format: ExpressionTransformer,
-    timeZoneId: Option[String] = None,
-    original: FromUnixTime)
-  extends ExpressionTransformer {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val secNode = sec.doTransform(args)
-    val formatNode = format.doTransform(args)
-
-    val dataTypes = if (timeZoneId.isDefined) {
-      Seq(original.sec.dataType, original.format.dataType, StringType)
-    } else {
-      Seq(original.sec.dataType, original.format.dataType)
-    }
-    val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName(substraitExprName, dataTypes))
-
-    val expressionNodes = new JArrayList[ExpressionNode]()
-    expressionNodes.add(secNode)
-    expressionNodes.add(formatNode)
-    if (timeZoneId.isDefined) {
-      expressionNodes.add(ExpressionBuilder.makeStringLiteral(timeZoneId.get))
-    }
-
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
-  }
-}
-
 /**
  * The failOnError depends on the config for ANSI. ANSI is not supported currently. And timeZoneId
  * is passed to backend config.

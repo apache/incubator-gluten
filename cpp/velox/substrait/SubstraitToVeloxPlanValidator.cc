@@ -64,7 +64,6 @@ static const std::unordered_set<std::string> kBlackList = {
     "concat_ws",
     "from_json",
     "json_array_length",
-    "from_unixtime",
     "repeat",
     "trunc",
     "sequence",
@@ -837,12 +836,6 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FilterRel& filte
   if (!validateInputTypes(extension, types)) {
     LOG_VALIDATION_MSG("Validation failed for input types in FilterRel.");
     return false;
-  }
-  for (const auto& type : types) {
-    if (type->kind() == TypeKind::TIMESTAMP) {
-      LOG_VALIDATION_MSG("Timestamp is not fully supported in Filter.");
-      return false;
-    }
   }
 
   int32_t inputPlanNodeId = 0;

@@ -67,6 +67,8 @@ class FileSourceScanExecShim(
 
   def hasMetadataColumns: Boolean = metadataColumns.nonEmpty
 
+  def isMetadataColumn(attr: Attribute): Boolean = metadataColumns.contains(attr)
+
   def hasFieldIds: Boolean = ParquetUtils.hasFieldIds(requiredSchema)
 
   private def isDynamicPruningFilter(e: Expression): Boolean =
