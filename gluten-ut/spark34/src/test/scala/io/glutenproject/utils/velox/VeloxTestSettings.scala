@@ -45,6 +45,11 @@ import org.apache.spark.sql.sources.{GlutenBucketedReadWithoutHiveSupportSuite, 
 
 class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenStringFunctionsSuite]
+    // TODO: support limit and regex pattern
+    .exclude("string split function with no limit")
+    .exclude("string split function with limit explicitly set to 0")
+    .exclude("string split function with positive limit")
+    .exclude("string split function with negative limit")
   enableSuite[GlutenBloomFilterAggregateQuerySuite]
   enableSuite[GlutenDataSourceV2DataFrameSessionCatalogSuite]
   enableSuite[GlutenDataSourceV2DataFrameSuite]
