@@ -78,12 +78,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // NEW SUITE: disable as it expects exception which doesn't happen when offloaded to gluten
     .exclude(
       "INCONSISTENT_BEHAVIOR_CROSS_VERSION: compatibility with Spark 2.4/3.2 in reading/writing dates")
-    // JDBC test
-    .exclude("UNRECOGNIZED_SQL_TYPE: unrecognized SQL type -100")
     // gluten throws different exception
     .excludeByPrefix("SCALAR_SUBQUERY_TOO_MANY_ROWS:")
-    // JDBC test
-    .excludeByPrefix("UNSUPPORTED_FEATURE.MULTI_ACTION_ALTER:")
   enableSuite[GlutenQueryParsingErrorsSuite]
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude("SPARK-45786: Decimal multiply, divide, remainder, quot")
