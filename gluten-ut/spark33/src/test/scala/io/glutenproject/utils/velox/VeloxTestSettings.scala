@@ -84,7 +84,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
-    .exclude("Fast fail for cast string type to decimal type in ansi mode")
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
 
@@ -92,7 +91,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
-//    .exclude("Fast fail for cast string type to decimal type in ansi mode")
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
 
@@ -103,13 +101,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
   enableSuite[GlutenTryCastSuite]
-    .exclude(
-      // array/map/struct not supported yet.
-      "cast from invalid string array to numeric array should throw NumberFormatException",
-      "cast from array II",
-      "cast from map II",
-      "cast from struct II"
-    )
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
   enableSuite[GlutenArithmeticExpressionSuite]
@@ -125,8 +116,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
-    // User defined type.
-    .exclude("SPARK-32828: cast from a derived user-defined type to a base type")
   enableSuite[GlutenCollectionExpressionsSuite]
     .exclude("Map Concat")
     .exclude("Shuffle")
