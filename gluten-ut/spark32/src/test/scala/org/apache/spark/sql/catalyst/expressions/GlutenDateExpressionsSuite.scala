@@ -24,13 +24,13 @@ import org.apache.spark.sql.catalyst.util.DateTimeTestUtils._
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.catalyst.util.DateTimeUtils.{getZoneId, TimeZoneUTC}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DateType, IntegerType, LongType, StringType, TimestampType}
+import org.apache.spark.sql.types.{DateType, IntegerType, LongType, StringType, TimestampNTZType, TimestampType}
 import org.apache.spark.unsafe.types.UTF8String
 
 import java.sql.{Date, Timestamp}
 import java.text.SimpleDateFormat
-import java.time.ZoneId
-import java.util.{Locale, TimeZone}
+import java.time.{LocalDateTime, ZoneId}
+import java.util.{Calendar, Locale, TimeZone}
 
 import scala.concurrent.duration.MICROSECONDS
 
@@ -410,5 +410,69 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     }
     // Test escaping of format
     GenerateUnsafeProjection.generate(FromUnixTime(Literal(0L), Literal("\""), UTC_OPT) :: Nil)
+  }
+
+  test(GLUTEN_TEST + "Hour") {
+    val outstandingTimezonesIds: Seq[String] = Seq(
+      // Velox doesn't support timezones like "UTC".
+      // "UTC",
+      // Due to known issue: "-08:00/+01:00 not found in timezone database",
+      // skip check PST, CET timezone here.
+      // https://github.com/facebookincubator/velox/issues/7804
+      // PST.getId, CET.getId,
+      "Africa/Dakar",
+      LA.getId,
+      "Asia/Urumqi",
+      "Asia/Hong_Kong",
+      "Europe/Brussels"
+    )
+    withDefaultTimeZone(UTC) {
+      Seq("legacy", "corrected").foreach {
+        legacyParserPolicy =>
+          withSQLConf(
+            SQLConf.LEGACY_TIME_PARSER_POLICY.key -> legacyParserPolicy,
+            SQLConf.SESSION_LOCAL_TIMEZONE.key -> UTC_OPT.get
+          ) {
+            assert(Hour(Literal.create(null, DateType), UTC_OPT).resolved === false)
+            assert(Hour(Literal(ts), UTC_OPT).resolved)
+            Seq(TimestampType, TimestampNTZType).foreach {
+              dt =>
+                checkEvaluation(Hour(Cast(Literal(d), dt, UTC_OPT), UTC_OPT), 0)
+                checkEvaluation(Hour(Cast(Literal(date), dt, UTC_OPT), UTC_OPT), 13)
+            }
+            checkEvaluation(Hour(Literal(ts), UTC_OPT), 13)
+          }
+
+          val c = Calendar.getInstance()
+          outstandingTimezonesIds.foreach {
+            zid =>
+              withSQLConf(
+                SQLConf.LEGACY_TIME_PARSER_POLICY.key -> legacyParserPolicy,
+                SQLConf.SESSION_LOCAL_TIMEZONE.key -> zid
+              ) {
+                val timeZoneId = Option(zid)
+                c.setTimeZone(TimeZone.getTimeZone(zid))
+                (0 to 24 by 5).foreach {
+                  h =>
+                    // validate timestamp with local time zone
+                    c.set(2015, 18, 3, h, 29, 59)
+                    checkEvaluation(
+                      Hour(Literal(new Timestamp(c.getTimeInMillis)), timeZoneId),
+                      c.get(Calendar.HOUR_OF_DAY))
+
+                    // validate timestamp without time zone
+                    val localDateTime = LocalDateTime.of(2015, 1, 3, h, 29, 59)
+                    checkEvaluation(Hour(Literal(localDateTime), timeZoneId), h)
+                }
+                Seq(TimestampType, TimestampNTZType).foreach {
+                  dt =>
+                    checkConsistencyBetweenInterpretedAndCodegen(
+                      (child: Expression) => Hour(child, timeZoneId),
+                      dt)
+                }
+              }
+          }
+      }
+    }
   }
 }

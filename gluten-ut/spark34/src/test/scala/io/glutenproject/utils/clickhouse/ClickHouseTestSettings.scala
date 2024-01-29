@@ -614,6 +614,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Gluten - TIMESTAMP_MICROS")
     .exclude("Gluten - unix_timestamp")
     .exclude("Gluten - to_unix_timestamp")
+    .exclude(GLUTEN_TEST + "Hour")
   enableSuite[GlutenDecimalExpressionSuite].exclude("MakeDecimal")
   enableSuite[GlutenHashExpressionsSuite]
     .exclude("sha2")

@@ -963,4 +963,12 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       runQueryAndCompare("SELECT c1 % c2 FROM remainder")(df => checkFallbackOperators(df, 0))
     }
   }
+
+  test("Support HOUR function") {
+    withTable("t1") {
+      sql("create table t1 (c1 int, c2 timestamp) USING PARQUET")
+      sql("INSERT INTO t1 VALUES(1, NOW())")
+      runQueryAndCompare("SELECT c1, HOUR(c2) FROM t1 LIMIT 1")(df => checkFallbackOperators(df, 0))
+    }
+  }
 }
