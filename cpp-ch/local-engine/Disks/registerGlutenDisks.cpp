@@ -24,7 +24,8 @@ void registerGlutenDisks(bool global_skip_access_check)
     const Poco::Util::AbstractConfiguration & config,
     const String & config_prefix,
     ContextPtr context,
-    const DisksMap & /*map*/) -> DiskPtr
+    const DisksMap & /* map */,
+    bool, bool) -> DiskPtr
     {
         bool skip_access_check = global_skip_access_check || config.getBool(config_prefix + ".skip_access_check", false);
         auto object_storage = ObjectStorageFactory::instance().create(name, config, config_prefix, context, skip_access_check);
@@ -34,7 +35,6 @@ void registerGlutenDisks(bool global_skip_access_check)
         DiskObjectStoragePtr disk = std::make_shared<DiskObjectStorage>(
             name,
             object_storage->getCommonKeyPrefix(),
-            fmt::format("Disk_{}({})", toString(object_storage->getDataSourceDescription().type), name),
             std::move(metadata_storage),
             std::move(object_storage),
             config,
