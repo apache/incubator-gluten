@@ -20,6 +20,8 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.test.SharedSparkSession
 
 import org.scalactic.source.Position
@@ -71,5 +73,51 @@ trait GlutenSQLTestsBaseTrait extends SharedSparkSession with GlutenTestsBaseTra
     }
 
     conf
+  }
+
+  /**
+   * Get all the children plan of plans.
+   *
+   * @param plans
+   *   : the input plans.
+   * @return
+   */
+  private def getChildrenPlan(plans: Seq[SparkPlan]): Seq[SparkPlan] = {
+    if (plans.isEmpty) {
+      return Seq()
+    }
+
+    val inputPlans: Seq[SparkPlan] = plans.map {
+      case stage: ShuffleQueryStageExec => stage.plan
+      case plan => plan
+    }
+
+    var newChildren: Seq[SparkPlan] = Seq()
+    inputPlans.foreach {
+      plan =>
+        newChildren = newChildren ++ getChildrenPlan(plan.children)
+        // To avoid duplication of WholeStageCodegenXXX and its children.
+        if (!plan.nodeName.startsWith("WholeStageCodegen")) {
+          newChildren = newChildren :+ plan
+        }
+    }
+    newChildren
+  }
+
+  /**
+   * Get the executed plan of a data frame.
+   *
+   * @param df
+   *   : dataframe.
+   * @return
+   *   A sequence of executed plans.
+   */
+  def getExecutedPlan(df: DataFrame): Seq[SparkPlan] = {
+    df.queryExecution.executedPlan match {
+      case exec: AdaptiveSparkPlanExec =>
+        getChildrenPlan(Seq(exec.executedPlan))
+      case plan =>
+        getChildrenPlan(Seq(plan))
+    }
   }
 }

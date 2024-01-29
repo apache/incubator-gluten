@@ -613,7 +613,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       runQueryAndCompare(
         "select id from range(10) " +
           "order by hash(id%10), hash(hash(id%10))") {
-        df => checkOperatorCount[ProjectExecTransformer](2)(df)
+        df => checkOperatorCount[ProjectExecTransformer](3)(df)
       }
     }
   }

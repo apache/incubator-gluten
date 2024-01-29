@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.datasources
 import io.glutenproject.execution.{ProjectExecTransformer, SortExecTransformer, TransformSupport, WholeStageTransformer}
 import io.glutenproject.execution.datasource.GlutenFormatWriterInjects
 import io.glutenproject.extension.TransformPreOverrides
-import io.glutenproject.extension.columnar.AddTransformHintRule
+import io.glutenproject.extension.columnar.{AddTransformHintRule, PullOutPreProject}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -44,7 +44,9 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
       return plan.execute()
     }
 
-    val transformed = TransformPreOverrides(false).apply(AddTransformHintRule().apply(plan))
+    val pulledOutPlan = PullOutPreProject(plan.session)(plan)
+    val transformed =
+      TransformPreOverrides(false).apply(AddTransformHintRule().apply(pulledOutPlan))
     if (!transformed.isInstanceOf[TransformSupport]) {
       throw new IllegalStateException(
         "Cannot transform the SparkPlans wrapped by FileFormatWriter, " +
