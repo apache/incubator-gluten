@@ -952,6 +952,17 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossR
     return false;
   }
 
+  switch (crossRel.type()) {
+    case ::substrait::CrossRel_JoinType_JOIN_TYPE_INNER:
+    case ::substrait::CrossRel_JoinType_JOIN_TYPE_OUTER:
+    case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
+    case ::substrait::CrossRel_JoinType_JOIN_TYPE_RIGHT:
+      break;
+    default:
+      LOG_VALIDATION_MSG("Nested loop join only support inner and outer join.");
+      return false;
+  }
+
   const auto& extension = crossRel.advanced_extension();
   std::vector<TypePtr> types;
   if (!validateInputTypes(extension, types)) {

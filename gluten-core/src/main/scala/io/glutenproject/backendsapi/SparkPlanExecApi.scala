@@ -127,6 +127,13 @@ trait SparkPlanExecApi {
       right: SparkPlan,
       condition: Option[Expression]): CartesianProductExecTransformer
 
+  def genBroadcastNestedLoopJoinTransformer(
+      left: SparkPlan,
+      right: SparkPlan,
+      buildSide: BuildSide,
+      joinType: JoinType,
+      condition: Option[Expression]): BroadcastNestedLoopJoinTransformer
+
   def genAliasTransformer(
       substraitExprName: String,
       child: ExpressionTransformer,

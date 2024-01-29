@@ -18,7 +18,7 @@ package io.glutenproject.utils
 
 import org.apache.spark.sql.catalyst.plans.{FullOuter, InnerLike, JoinType, LeftAnti, LeftOuter, LeftSemi, RightOuter}
 
-import io.substrait.proto.JoinRel
+import io.substrait.proto.{CrossRel, JoinRel}
 
 object SubstraitUtil {
   def toSubstrait(sparkJoin: JoinType): JoinRel.JoinType = sparkJoin match {
@@ -38,5 +38,20 @@ object SubstraitUtil {
     case _ =>
       // TODO: Support existence join
       JoinRel.JoinType.UNRECOGNIZED
+  }
+
+  def toCrossRelSubstrait(sparkJoin: JoinType): CrossRel.JoinType = sparkJoin match {
+    case _: InnerLike =>
+      CrossRel.JoinType.JOIN_TYPE_INNER
+    case FullOuter =>
+      CrossRel.JoinType.JOIN_TYPE_OUTER
+    case LeftOuter | RightOuter =>
+      // The right side is required to be used for building hash table in Substrait plan.
+      // Therefore, for RightOuter Join, the left and right relations are exchanged and the
+      // join type is reverted.
+      CrossRel.JoinType.JOIN_TYPE_LEFT
+    case _ =>
+      // TODO: Support existence join
+      CrossRel.JoinType.UNRECOGNIZED
   }
 }

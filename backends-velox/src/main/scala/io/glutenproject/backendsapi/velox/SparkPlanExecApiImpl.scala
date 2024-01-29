@@ -247,6 +247,20 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
     )
   }
 
+  override def genBroadcastNestedLoopJoinTransformer(
+      left: SparkPlan,
+      right: SparkPlan,
+      buildSide: BuildSide,
+      joinType: JoinType,
+      condition: Option[Expression]): BroadcastNestedLoopJoinTransformer =
+    BroadcastNestedLoopJoinTransformer(
+      left,
+      right,
+      buildSide,
+      joinType,
+      condition
+    )
+
   override def genHashExpressionTransformer(
       substraitExprName: String,
       exprs: Seq[ExpressionTransformer],

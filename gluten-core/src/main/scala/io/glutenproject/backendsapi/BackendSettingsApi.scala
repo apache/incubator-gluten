@@ -126,4 +126,6 @@ trait BackendSettingsApi {
   def shouldRewriteCount(): Boolean = false
 
   def supportCartesianProductExec(): Boolean = false
+
+  def supportBroadcastNestedLoopJoinExec(): Boolean = false
 }

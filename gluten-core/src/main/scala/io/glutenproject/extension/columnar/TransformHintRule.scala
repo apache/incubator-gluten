@@ -364,6 +364,9 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
   val enableCartesianProduct: Boolean =
     BackendsApiManager.getSettings.supportCartesianProductExec() &&
       columnarConf.cartesianProductTransformerEnabled
+  val enableBroadcastNestedLoopJoin: Boolean =
+    BackendsApiManager.getSettings.supportBroadcastNestedLoopJoinExec() &&
+      columnarConf.broadcastNestedLoopJoinTransformerTransformerEnabled
 
   def apply(plan: SparkPlan): SparkPlan = {
     addTransformableTags(plan)
@@ -622,6 +625,19 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             val transformer = CartesianProductExecTransformer(plan.left, plan.right, plan.condition)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
+        case plan: BroadcastNestedLoopJoinExec =>
+          if (!enableBroadcastNestedLoopJoin) {
+            TransformHints.tagNotTransformable(
+              plan,
+              "conversion to CartesianProductTransformer is not enabled.")
+          }
+          val transformer = BroadcastNestedLoopJoinTransformer(
+            plan.left,
+            plan.right,
+            plan.buildSide,
+            plan.joinType,
+            plan.condition)
+          TransformHints.tag(plan, transformer.doValidate().toTransformHint)
         case plan: WindowExec =>
           if (!enableColumnarWindow) {
             TransformHints.tagNotTransformable(plan, "columnar window is not enabled in WindowExec")

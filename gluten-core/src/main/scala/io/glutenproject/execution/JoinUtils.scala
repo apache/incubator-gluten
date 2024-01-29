@@ -244,6 +244,32 @@ object JoinUtils {
       operatorId
     )
 
+    createProjectRelPostJoinRel(
+      exchangeTable,
+      joinType,
+      inputStreamedOutput,
+      inputBuildOutput,
+      substraitContext,
+      operatorId,
+      joinRel,
+      streamedOutput,
+      buildOutput,
+      validation
+    )
+  }
+
+  def createProjectRelPostJoinRel(
+      exchangeTable: Boolean,
+      joinType: JoinType,
+      inputStreamedOutput: Seq[Attribute],
+      inputBuildOutput: Seq[Attribute],
+      substraitContext: SubstraitContext,
+      operatorId: java.lang.Long,
+      joinRel: RelNode,
+      streamedOutput: Seq[Attribute],
+      buildOutput: Seq[Attribute],
+      validation: Boolean = false
+  ): RelNode = {
     // Result projection will drop the appended keys, and exchange columns order if BuildLeft.
     val resultProjection = if (exchangeTable) {
       val (leftOutput, rightOutput) =

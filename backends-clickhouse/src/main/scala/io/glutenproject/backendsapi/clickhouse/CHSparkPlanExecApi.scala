@@ -203,6 +203,15 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     throw new UnsupportedOperationException(
       "CartesianProductExecTransformer is not supported in ch backend.")
 
+  override def genBroadcastNestedLoopJoinTransformer(
+      left: SparkPlan,
+      right: SparkPlan,
+      buildSide: BuildSide,
+      joinType: JoinType,
+      condition: Option[Expression]): BroadcastNestedLoopJoinTransformer =
+    throw new UnsupportedOperationException(
+      "BroadcastNestedLoopJoinTransformer is not supported in ch backend.")
+
   /** Generate an expression transformer to transform GetMapValue to Substrait. */
   def genGetMapValueTransformer(
       substraitExprName: String,

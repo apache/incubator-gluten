@@ -22,6 +22,7 @@ import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.RelBuilder
+import io.glutenproject.utils.SubstraitUtil
 
 import org.apache.spark.{Dependency, NarrowDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
@@ -50,6 +51,8 @@ case class ColumnarCartesianProductBridge(child: SparkPlan) extends UnaryExecNod
     copy(child = newChild)
 }
 
+import io.substrait.proto.CrossRel
+
 case class CartesianProductExecTransformer(
     left: SparkPlan,
     right: SparkPlan,
@@ -62,6 +65,9 @@ case class CartesianProductExecTransformer(
   override def leftKeys: Seq[Expression] = Nil
 
   override def rightKeys: Seq[Expression] = Nil
+
+  protected lazy val substraitJoinType: CrossRel.JoinType =
+    SubstraitUtil.toCrossRelSubstrait(joinType)
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] =
@@ -95,6 +101,7 @@ case class CartesianProductExecTransformer(
     val currRel = RelBuilder.makeCrossRel(
       inputLeftRelNode,
       inputRightRelNode,
+      substraitJoinType,
       expressionNode.orNull,
       extensionNode,
       context,
@@ -120,6 +127,7 @@ case class CartesianProductExecTransformer(
     val currRel = RelBuilder.makeCrossRel(
       null,
       null,
+      substraitJoinType,
       expressionNode.orNull,
       extensionNode,
       substraitContext,

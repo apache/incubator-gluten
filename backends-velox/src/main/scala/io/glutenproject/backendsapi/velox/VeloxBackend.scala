@@ -442,4 +442,6 @@ object BackendSettings extends BackendSettingsApi {
   }
 
   override def supportCartesianProductExec(): Boolean = true
+
+  override def supportBroadcastNestedLoopJoinExec(): Boolean = true
 }

@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.{GlutenPlan, ValidationResult}
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.metrics.GlutenTimeMetric
 
 import org.apache.spark.{broadcast, SparkException}
@@ -28,7 +28,6 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.Statistics
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, Partitioning}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, BroadcastExchangeLike}
-import org.apache.spark.sql.execution.joins.HashedRelationBroadcastMode
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.SparkFatalException
@@ -132,12 +131,12 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    mode match {
-      case _: HashedRelationBroadcastMode =>
-      case _ =>
-        // TODO IdentityBroadcastMode not supported. Need to support BroadcastNestedLoopJoin first.
-        return ValidationResult.notOk("Only support HashedRelationBroadcastMode for now.")
-    }
+//    mode match {
+//      case _: HashedRelationBroadcastMode =>
+//      case _ =>
+//        // TODO IdentityBroadcastMode not supported. Need to support BroadcastNestedLoopJoin first.
+//        return ValidationResult.notOk("Only support HashedRelationBroadcastMode for now.")
+//    }
     BackendsApiManager.getValidatorApiInstance
       .doSchemaValidate(schema)
       .map {
