@@ -147,7 +147,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"lpad", "leftPadUTF8"},
        {"rpad", "rightPadUTF8"},
        {"reverse", ""}, /// dummy mapping
-       {"md5", "MD5"},
        {"translate", "translateUTF8"},
        {"repeat", "repeat"},
        {"position", "positionUTF8Spark"},
