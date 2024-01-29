@@ -240,9 +240,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("random")
     .exclude("SPARK-9127 codegen with long seed")
   enableSuite[GlutenArithmeticExpressionSuite]
-    .exclude(
-      "% (Remainder)" // Velox will throw exception when right is zero, need fallback
-    )
   enableSuite[GlutenConditionalExpressionSuite]
   enableSuite[GlutenDataFrameWindowFunctionsSuite]
     // Spill not supported yet.

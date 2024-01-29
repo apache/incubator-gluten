@@ -374,7 +374,7 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"bit_and_partial", "bitwise_and_agg_partial"},
     {"bit_and_merge", "bitwise_and_agg_merge"},
     {"murmur3hash", "hash_with_seed"},
-    {"modulus", "mod"}, /*Presto functions.*/
+    {"modulus", "remainder"},
     {"date_format", "format_datetime"}};
 
 const std::unordered_map<std::string, std::string> SubstraitParser::typeMap_ = {
