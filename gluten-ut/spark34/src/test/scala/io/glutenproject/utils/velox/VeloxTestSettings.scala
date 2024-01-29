@@ -100,12 +100,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
-    // Timezone.
-    .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
-    // Timezone.
-    .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
-    // User defined type.
-    .exclude("SPARK-32828: cast from a derived user-defined type to a base type")
   enableSuite[GlutenCollectionExpressionsSuite]
     .exclude("Map Concat")
     .exclude("Shuffle")
