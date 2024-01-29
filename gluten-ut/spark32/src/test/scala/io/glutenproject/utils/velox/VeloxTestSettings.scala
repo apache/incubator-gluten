@@ -193,15 +193,12 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenCollectionExpressionsSuite]
-    // Random.
-    .exclude("Map Concat")
-    // Random.
+    // Rewrite in Gluten to replace Seq with Array
     .exclude("Shuffle")
     // TODO: ArrayDistinct should handle duplicated Double.NaN
     .excludeByPrefix("SPARK-36741")
     // TODO: ArrayIntersect should handle duplicated Double.NaN
     .excludeByPrefix("SPARK-36754")
-    .exclude("Concat")
   enableSuite[GlutenDateExpressionsSuite]
     // Rewrite because Spark collect causes long overflow.
     .exclude("TIMESTAMP_MICROS")
