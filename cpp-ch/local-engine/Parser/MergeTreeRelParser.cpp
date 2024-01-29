@@ -90,7 +90,7 @@ CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(
                 context,
                 "",
                 MergeTreeData::MergingParams(),
-                buildMergeTreeSettings());
+                buildMergeTreeSettings(merge_tree_table.table_configs));
             return custom_storage_merge_tree;
         });
     return storage;
@@ -137,7 +137,7 @@ MergeTreeRelParser::parseReadRel(
                 global_context,
                 "",
                 MergeTreeData::MergingParams(),
-                buildMergeTreeSettings());
+                buildMergeTreeSettings(merge_tree_table.table_configs));
             return custom_storage_merge_tree;
         });
     {
