@@ -54,7 +54,12 @@ void registerGlutenDisks(bool global_skip_access_check)
         auto metadata_storage = DB::MetadataStorageFactory::instance().create(name, config, config_prefix, object_storage, "local");
 
         DB::DiskObjectStoragePtr disk = std::make_shared<DB::DiskObjectStorage>(
-            name, object_storage->getCommonKeyPrefix(), std::move(metadata_storage), std::move(object_storage), config, config_prefix);
+            name,
+            object_storage->getCommonKeyPrefix(),
+            std::move(metadata_storage),
+            std::move(object_storage),
+            config,
+            config_prefix);
 
         disk->startup(context, skip_access_check);
         return disk;
