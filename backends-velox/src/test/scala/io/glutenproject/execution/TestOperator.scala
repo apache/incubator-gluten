@@ -951,4 +951,16 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
         |""".stripMargin
     )(df => checkFallbackOperators(df, 1))
   }
+
+  test("Remainder with non-foldable right side") {
+    withTable("remainder") {
+      spark.sql("""
+                  |CREATE TABLE remainder USING PARQUET
+                  |AS SELECT id as c1, id % 3 as c2 FROM range(3)
+                  |""".stripMargin)
+      spark.sql("INSERT INTO TABLE remainder VALUES(0, null)")
+
+      runQueryAndCompare("SELECT c1 % c2 FROM remainder")(df => checkFallbackOperators(df, 0))
+    }
+  }
 }

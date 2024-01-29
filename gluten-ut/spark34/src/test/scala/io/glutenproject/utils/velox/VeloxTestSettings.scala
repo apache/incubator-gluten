@@ -83,9 +83,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenQueryParsingErrorsSuite]
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude("SPARK-45786: Decimal multiply, divide, remainder, quot")
-    .exclude(
-      "% (Remainder)" // Velox will throw exception when right is zero, need fallback
-    )
   enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenCastSuite]
     .exclude(

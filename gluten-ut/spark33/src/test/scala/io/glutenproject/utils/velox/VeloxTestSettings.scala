@@ -99,9 +99,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
   enableSuite[GlutenArithmeticExpressionSuite]
-    .exclude(
-      "% (Remainder)" // Velox will throw exception when right is zero, need fallback
-    )
   enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenCastSuite]
     .exclude(
