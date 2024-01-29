@@ -52,9 +52,8 @@ class GlutenCollectionExpressionsSuite extends CollectionExpressionsSuite with G
     val as5 = Literal.create(Seq("a"), ArrayType(StringType, containsNull = false))
     val as6 = Literal.create(Seq.empty, ArrayType(StringType, containsNull = false))
     val as7 = Literal.create(null, ArrayType(StringType, containsNull = true))
-    val aa = Literal.create(
-      Seq(Seq("a", "b"), Seq("c", "d"), Seq("e")),
-      ArrayType(ArrayType(StringType)))
+    val aa =
+      Literal.create(Seq(Seq("a", "b"), Seq("c", "d"), Seq("e")), ArrayType(ArrayType(StringType)))
 
     checkEvaluation(Shuffle(as0, Some(0)), Array("b", "a", "c", "d"))
     checkEvaluation(Shuffle(as1, Some(0)), Array("b", "a", "c"))
@@ -68,19 +67,25 @@ class GlutenCollectionExpressionsSuite extends CollectionExpressionsSuite with G
 
     val r = new Random(1234)
     val seed1 = Some(r.nextLong())
-    assert(evaluateWithoutCodegen(Shuffle(ai0, seed1)) ===
-      evaluateWithoutCodegen(Shuffle(ai0, seed1)))
-    assert(evaluateWithMutableProjection(Shuffle(ai0, seed1)) ===
-      evaluateWithMutableProjection(Shuffle(ai0, seed1)))
-    assert(evaluateWithUnsafeProjection(Shuffle(ai0, seed1)) ===
-      evaluateWithUnsafeProjection(Shuffle(ai0, seed1)))
+    assert(
+      evaluateWithoutCodegen(Shuffle(ai0, seed1)) ===
+        evaluateWithoutCodegen(Shuffle(ai0, seed1)))
+    assert(
+      evaluateWithMutableProjection(Shuffle(ai0, seed1)) ===
+        evaluateWithMutableProjection(Shuffle(ai0, seed1)))
+    assert(
+      evaluateWithUnsafeProjection(Shuffle(ai0, seed1)) ===
+        evaluateWithUnsafeProjection(Shuffle(ai0, seed1)))
 
     val seed2 = Some(r.nextLong())
-    assert(evaluateWithoutCodegen(Shuffle(ai0, seed1)) !==
-      evaluateWithoutCodegen(Shuffle(ai0, seed2)))
-    assert(evaluateWithMutableProjection(Shuffle(ai0, seed1)) !==
-      evaluateWithMutableProjection(Shuffle(ai0, seed2)))
-    assert(evaluateWithUnsafeProjection(Shuffle(ai0, seed1)) !==
-      evaluateWithUnsafeProjection(Shuffle(ai0, seed2)))
+    assert(
+      evaluateWithoutCodegen(Shuffle(ai0, seed1)) !==
+        evaluateWithoutCodegen(Shuffle(ai0, seed2)))
+    assert(
+      evaluateWithMutableProjection(Shuffle(ai0, seed1)) !==
+        evaluateWithMutableProjection(Shuffle(ai0, seed2)))
+    assert(
+      evaluateWithUnsafeProjection(Shuffle(ai0, seed1)) !==
+        evaluateWithUnsafeProjection(Shuffle(ai0, seed2)))
   }
 }
