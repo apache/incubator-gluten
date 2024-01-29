@@ -19,7 +19,7 @@ package io.glutenproject.execution
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.ValidationResult
-import io.glutenproject.metrics.MetricsUpdater
+import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.RelBuilder
 import io.glutenproject.utils.SubstraitUtil
@@ -31,7 +31,6 @@ import org.apache.spark.sql.catalyst.plans.{FullOuter, InnerLike, JoinType, Left
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation}
-import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import io.substrait.proto.CrossRel
@@ -51,7 +50,7 @@ case class BroadcastNestedLoopJoinTransformer(
   protected lazy val substraitJoinType: CrossRel.JoinType =
     SubstraitUtil.toCrossRelSubstrait(joinType)
 
-  lazy val buildHashTableId: String = "BuildTable-" + buildPlan.id
+  lazy val buildTableId: String = "BuildTable-" + buildPlan.id
 
   // Hint substrait to switch the left and right,
   // since we assume always build right side in substrait.
@@ -71,7 +70,7 @@ case class BroadcastNestedLoopJoinTransformer(
     val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
 
     val context =
-      BroadCastHashJoinContext(Seq.empty, joinType, buildPlan.output, buildHashTableId)
+      BroadCastHashJoinContext(Seq.empty, joinType, buildPlan.output, buildTableId)
 
     val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
     BackendsApiManager.getBroadcastApiInstance
@@ -80,12 +79,7 @@ case class BroadcastNestedLoopJoinTransformer(
     streamedRDD :+ BroadcastBuildSideRDD(sparkContext, broadcast, context)
   }
 
-  @transient override lazy val metrics: Map[String, SQLMetric] =
-    BackendsApiManager.getMetricsApiInstance.genCartesianProductTransformerMetrics(sparkContext)
-
-  override def metricsUpdater(): MetricsUpdater = {
-    BackendsApiManager.getMetricsApiInstance.genCartesianProductTransformerMetricsUpdater(metrics)
-  }
+  override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater
 
   override protected def withNewChildrenInternal(
       newLeft: SparkPlan,
@@ -180,7 +174,33 @@ case class BroadcastNestedLoopJoinTransformer(
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    // TODO: Add validation logic
-    ValidationResult.ok
+    if (!BackendsApiManager.getSettings.supportBroadcastNestedLoopJoinExec()) {
+      return ValidationResult.notOk("Broadcast Nested Loop join is not supported in this backend")
+    }
+    joinType match {
+      case _: InnerLike | LeftOuter | RightOuter | FullOuter =>
+      case _ =>
+        ValidationResult.notOk(s"$joinType is not supported with Broadcast Nested Loop Join")
+    }
+    val substraitContext = new SubstraitContext
+    val expressionNode = condition.map {
+      expr =>
+        ExpressionConverter
+          .replaceWithExpressionTransformer(expr, left.output ++ right.output)
+          .doTransform(substraitContext.registeredFunction)
+    }
+    val extensionNode =
+      JoinUtils.createExtensionNode(left.output ++ right.output, validation = true)
+
+    val currRel = RelBuilder.makeCrossRel(
+      null,
+      null,
+      substraitJoinType,
+      expressionNode.orNull,
+      extensionNode,
+      substraitContext,
+      substraitContext.nextOperatorId(this.nodeName)
+    )
+    doNativeValidation(substraitContext, currRel)
   }
 }
