@@ -16,7 +16,7 @@
  */
 package org.apache.spark.util
 
-import org.apache.spark.{TaskContext, TaskFailedReason, TaskKilledException}
+import org.apache.spark.{TaskContext, TaskFailedReason, TaskKilledException, UnknownReason}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
@@ -64,7 +64,7 @@ object TaskResources extends TaskListener with Logging {
 
   // Run code with unsafe task context. If the call took place from Spark driver or test code
   // without a Spark task context registered, a temporary unsafe task context instance will
-  // be created and used. Since fallback registry is not managed by Spark's task memory manager,
+  // be created and used. Since unsafe task context is not managed by Spark's task memory manager,
   // Spark may not be aware of the allocations happened inside the user code.
   //
   // The API should only be used in the following cases:
@@ -76,24 +76,31 @@ object TaskResources extends TaskListener with Logging {
     onTaskStart()
     val context = getLocalTaskContext()
     try {
-      body
+      try {
+        body
+      } catch {
+        case t: Throwable =>
+          // Similar code with those in Task.scala
+          try {
+            context.markTaskFailed(t)
+          } catch {
+            case t: Throwable =>
+              t.addSuppressed(t)
+          }
+          context.markTaskCompleted(Some(t))
+          throw t
+      } finally {
+        try {
+          context.markTaskCompleted(None)
+        } finally {
+          TaskResources.unsetUnsafeTaskContext()
+        }
+      }
+      onTaskSucceeded()
     } catch {
       case t: Throwable =>
-        // Similar code with those in Task.scala
-        try {
-          context.markTaskFailed(t)
-        } catch {
-          case t: Throwable =>
-            t.addSuppressed(t)
-        }
-        context.markTaskCompleted(Some(t))
+        onTaskFailed(UnknownReason)
         throw t
-    } finally {
-      try {
-        context.markTaskCompleted(None)
-      } finally {
-        TaskResources.unsetUnsafeTaskContext()
-      }
     }
   }
 
