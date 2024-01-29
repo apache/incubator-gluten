@@ -17,10 +17,8 @@
 package io.glutenproject.substrait
 
 import io.glutenproject.substrait.ddlplan.InsertOutputNode
-import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.substrait.rel.SplitInfo
 
-import java.lang.{Integer => JInt, Long => JLong}
+import java.lang.{Long => JLong}
 import java.security.InvalidParameterException
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList, Map => JMap}
 
@@ -68,37 +66,10 @@ class SubstraitContext extends Serializable {
   // A map stores the relationship between aggregation operator id and its param.
   private val aggregationParamsMap = new JHashMap[JLong, AggregationParams]()
 
-  private var splitInfosIndex: JInt = 0
-  private var splitInfos: Seq[SplitInfo] = _
   private var iteratorIndex: JLong = 0L
-  private var fileFormat: JList[ReadFileFormat] = new JArrayList[ReadFileFormat]()
   private var insertOutputNode: InsertOutputNode = _
   private var operatorId: JLong = 0L
   private var relId: JLong = 0L
-
-  def initSplitInfosIndex(splitInfosIndex: JInt): Unit = {
-    this.splitInfosIndex = splitInfosIndex
-  }
-
-  def getSplitInfos: Seq[SplitInfo] = splitInfos
-
-  // FIXME Hongze 22/11/28
-  // This makes calls to ReadRelNode#toProtobuf non-idempotent which doesn't seem to be
-  // optimal in regard to the method name "toProtobuf".
-  def getCurrentSplitInfo: SplitInfo = {
-    if (getSplitInfos != null && getSplitInfos.size > splitInfosIndex) {
-      val res = getSplitInfos(splitInfosIndex)
-      splitInfosIndex += 1
-      res
-    } else {
-      throw new IllegalStateException(
-        s"LocalFilesNodes index $splitInfosIndex exceeds the size of the LocalFilesNodes.")
-    }
-  }
-
-  def setSplitInfos(SplitInfos: Seq[SplitInfo]): Unit = {
-    this.splitInfos = SplitInfos
-  }
 
   def getInsertOutputNode: InsertOutputNode = insertOutputNode
 

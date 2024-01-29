@@ -132,9 +132,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   def substraitPlan: PlanNode = {
     if (wholeStageTransformerContext.isDefined) {
-      // TODO: remove this work around after we make `RelNode#toProtobuf` idempotent
-      //    see `SubstraitContext#initSplitInfosIndex`.
-      wholeStageTransformerContext.get.substraitContext.initSplitInfosIndex(0)
       wholeStageTransformerContext.get.root
     } else {
       generateWholeStageTransformContext().root

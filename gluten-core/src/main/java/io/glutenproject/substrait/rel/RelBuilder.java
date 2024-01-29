@@ -93,17 +93,6 @@ public class RelBuilder {
     return new AggregateRelNode(input, groupings, aggregateFunctionNodes, filters, extensionNode);
   }
 
-  // CH
-  public static RelNode makeReadRel(
-      List<TypeNode> types,
-      List<String> names,
-      ExpressionNode filter,
-      SubstraitContext context,
-      Long operatorId) {
-    return makeReadRel(types, names, null, filter, null, context, operatorId);
-  }
-
-  // VL
   public static RelNode makeReadRel(
       List<TypeNode> types,
       List<String> names,
@@ -113,7 +102,7 @@ public class RelBuilder {
       SubstraitContext context,
       Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return new ReadRelNode(types, names, context, filter, columnTypeNodes, extensionNode);
+    return new ReadRelNode(types, names, filter, columnTypeNodes, extensionNode);
   }
 
   public static RelNode makeReadRelForInputIterator(
