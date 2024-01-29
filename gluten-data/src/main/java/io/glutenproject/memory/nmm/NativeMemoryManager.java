@@ -45,7 +45,7 @@ public class NativeMemoryManager implements TaskResource {
   }
 
   public static NativeMemoryManager create(String name, ReservationListener listener) {
-    long allocatorId = NativeMemoryAllocators.getDefault().globalInstance().getNativeInstanceId();
+    long allocatorId = NativeMemoryAllocators.getDefault().get().getNativeInstanceId();
     long reservationBlockSize = GlutenConfig.getConf().memoryReservationBlockSize();
     return new NativeMemoryManager(
         name,

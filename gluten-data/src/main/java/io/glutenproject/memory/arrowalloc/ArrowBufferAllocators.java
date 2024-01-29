@@ -35,12 +35,6 @@ public class ArrowBufferAllocators {
 
   private ArrowBufferAllocators() {}
 
-  private static final BufferAllocator GLOBAL = new RootAllocator(Long.MAX_VALUE);
-
-  public static BufferAllocator globalInstance() {
-    return GLOBAL;
-  }
-
   // FIXME: Remove this then use contextInstance(name) instead
   public static BufferAllocator contextInstance() {
     return contextInstance("Default");

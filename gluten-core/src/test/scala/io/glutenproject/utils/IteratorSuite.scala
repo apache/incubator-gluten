@@ -16,7 +16,7 @@
  */
 package io.glutenproject.utils
 
-import org.apache.spark.util.{TaskResourceRegistry, TaskResources}
+import org.apache.spark.util.TaskResources
 
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -34,7 +34,7 @@ class IteratorSuite extends AnyFunSuite {
 
   test("Complete iterator") {
     var completeCount = 0
-    withFakeTaskContext {
+    TaskResources.runUnsafe {
       val strings = Array[String]("one", "two", "three")
       val itr = strings.toIterator
       val wrapped = Iterators
@@ -53,7 +53,7 @@ class IteratorSuite extends AnyFunSuite {
 
   test("Complete intermediate iterator") {
     var completeCount = 0
-    withFakeTaskContext {
+    TaskResources.runUnsafe {
       val strings = Array[String]("one", "two", "three")
       val itr = strings.toIterator
       val _ = Iterators
@@ -69,7 +69,7 @@ class IteratorSuite extends AnyFunSuite {
 
   test("Close payload") {
     var closeCount = 0
-    withFakeTaskContext {
+    TaskResources.runUnsafe {
       val strings = Array[String]("one", "two", "three")
       val itr = strings.toIterator
       val wrapped = Iterators
@@ -86,7 +86,7 @@ class IteratorSuite extends AnyFunSuite {
 
   test("Close intermediate payload") {
     var closeCount = 0
-    withFakeTaskContext {
+    TaskResources.runUnsafe {
       val strings = Array[String]("one", "two", "three")
       val itr = strings.toIterator
       val wrapped = Iterators
@@ -131,14 +131,5 @@ class IteratorSuite extends AnyFunSuite {
     wrapped.next
     assert(hasNextCallCount == 2)
     assert(nextCallCount == 2)
-  }
-
-  private def withFakeTaskContext(body: => Unit): Unit = {
-    TaskResources.setFallbackRegistry(new TaskResourceRegistry)
-    try {
-      body
-    } finally {
-      TaskResources.unsetFallbackRegistry()
-    }
   }
 }

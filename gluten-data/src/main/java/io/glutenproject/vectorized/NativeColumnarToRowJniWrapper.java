@@ -31,10 +31,6 @@ public class NativeColumnarToRowJniWrapper implements RuntimeAware {
     return new NativeColumnarToRowJniWrapper(Runtimes.contextInstance());
   }
 
-  public static NativeColumnarToRowJniWrapper forRuntime(Runtime runtime) {
-    return new NativeColumnarToRowJniWrapper(runtime);
-  }
-
   @Override
   public long handle() {
     return runtime.getHandle();

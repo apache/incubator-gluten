@@ -37,10 +37,6 @@ public class PlanEvaluatorJniWrapper implements RuntimeAware {
     return new PlanEvaluatorJniWrapper(Runtimes.contextInstance());
   }
 
-  public static PlanEvaluatorJniWrapper forRuntime(Runtime runtime) {
-    return new PlanEvaluatorJniWrapper(runtime);
-  }
-
   @Override
   public long handle() {
     return runtime.getHandle();

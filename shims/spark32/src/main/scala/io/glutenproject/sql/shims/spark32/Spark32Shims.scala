@@ -18,8 +18,12 @@ package io.glutenproject.sql.shims.spark32
 
 import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
 import io.glutenproject.expression.{ExpressionNames, Sig}
-import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
+import io.glutenproject.sql.shims.{ShimDescriptor, SparkShimLoader, SparkShims}
 
+import org.apache.spark.{SparkConf, TaskContext, TaskContextImpl, TaskContextUtils}
+import org.apache.spark.memory.{TaskMemoryManager, UnifiedMemoryManager}
+import org.apache.spark.metrics.MetricsSystem
+import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
@@ -36,6 +40,8 @@ import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+
+import java.util.Properties
 
 class Spark32Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
@@ -111,5 +117,9 @@ class Spark32Shims extends SparkShims {
 
   override def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
     List(session => GlutenParquetWriterInjects.getInstance().getExtendedColumnarPostRule(session))
+  }
+
+  override def createTestTaskContext(): TaskContext = {
+    TaskContextUtils.createTestTaskContext()
   }
 }

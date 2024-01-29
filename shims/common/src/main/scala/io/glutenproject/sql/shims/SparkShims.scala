@@ -18,6 +18,7 @@ package io.glutenproject.sql.shims
 
 import io.glutenproject.expression.Sig
 
+import org.apache.spark.TaskContext
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
@@ -102,4 +103,6 @@ trait SparkShims {
   }
 
   def enableNativeWriteFilesByDefault(): Boolean = false
+
+  def createTestTaskContext(): TaskContext
 }

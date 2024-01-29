@@ -18,13 +18,15 @@ package io.glutenproject.exec
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenException
 import io.glutenproject.init.JniUtils
 
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.TaskResource
 
-class Runtime private[exec] () extends TaskResource {
+import java.util.concurrent.atomic.AtomicBoolean
 
+class Runtime private[exec] () extends TaskResource {
   private val handle = RuntimeJniWrapper.createRuntime(
     BackendsApiManager.getBackendName,
     JniUtils.toNativeConf(
@@ -33,9 +35,17 @@ class Runtime private[exec] () extends TaskResource {
         SQLConf.get.getAllConfs))
   )
 
+  private val released: AtomicBoolean = new AtomicBoolean(false)
+
   def getHandle: Long = handle
 
-  override def release(): Unit = RuntimeJniWrapper.releaseRuntime(handle)
+  override def release(): Unit = {
+    if (!released.compareAndSet(false, true)) {
+      throw new GlutenException(
+        s"Runtime instance already released: $getHandle, ${resourceName()}, ${priority()}")
+    }
+    RuntimeJniWrapper.releaseRuntime(handle)
+  }
 
   override def priority(): Int = 10
 

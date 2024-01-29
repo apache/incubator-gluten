@@ -30,11 +30,6 @@ object Runtimes {
     TaskResources.addResourceIfNotRegistered(RUNTIME_NAME, () => create())
   }
 
-  /** Create a temporary runtime, caller must invoke Runtime#release manually. */
-  def tmpInstance(): Runtime = {
-    create()
-  }
-
   private def create(): Runtime = {
     new Runtime
   }
