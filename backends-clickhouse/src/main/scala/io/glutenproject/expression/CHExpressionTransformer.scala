@@ -30,85 +30,6 @@ import com.google.common.collect.Lists
 
 import java.util.Locale
 
-case class CHEqualNullSafeTransformer(
-    substraitExprName: String,
-    left: ExpressionTransformer,
-    right: ExpressionTransformer,
-    original: EqualNullSafe)
-  extends ExpressionTransformer {
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-
-    val leftNode = left.doTransform(args)
-    val rightNode = right.doTransform(args)
-
-    // if isnull(left) && isnull(right), then true
-    // else if isnull(left) || isnull(right), then false
-    // else equal(left, right)
-
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-
-    // isnull(left)
-    val isNullFuncNameLeft = ConverterUtils.makeFuncName(
-      ExpressionNames.IS_NULL,
-      original.left.children.map(_.dataType),
-      FunctionConfig.OPT)
-    val isNullFuncIdLeft = ExpressionBuilder.newScalarFunction(functionMap, isNullFuncNameLeft)
-    val isNullNodeLeft = ExpressionBuilder.makeScalarFunction(
-      isNullFuncIdLeft,
-      Lists.newArrayList(leftNode),
-      TypeBuilder.makeBoolean(false))
-
-    // isnull(right)
-    val isNullFuncNameRight = ConverterUtils.makeFuncName(
-      ExpressionNames.IS_NULL,
-      original.right.children.map(_.dataType),
-      FunctionConfig.OPT)
-    val isNullFuncIdRight = ExpressionBuilder.newScalarFunction(functionMap, isNullFuncNameRight)
-    val isNullNodeRight = ExpressionBuilder.makeScalarFunction(
-      isNullFuncIdRight,
-      Lists.newArrayList(rightNode),
-      TypeBuilder.makeBoolean(false))
-
-    // isnull(left) && isnull(right)
-    val andFuncName = ConverterUtils.makeFuncName(
-      ExpressionNames.AND,
-      Seq(BooleanType, BooleanType),
-      FunctionConfig.OPT)
-    val andFuncId = ExpressionBuilder.newScalarFunction(functionMap, andFuncName)
-    val andNode = ExpressionBuilder.makeScalarFunction(
-      andFuncId,
-      Lists.newArrayList(isNullNodeLeft, isNullNodeRight),
-      TypeBuilder.makeBoolean(false))
-
-    // isnull(left) || isnull(right)
-    val orFuncName = ConverterUtils.makeFuncName(
-      ExpressionNames.OR,
-      Seq(BooleanType, BooleanType),
-      FunctionConfig.OPT)
-    val orFuncId = ExpressionBuilder.newScalarFunction(functionMap, orFuncName)
-    val orNode = ExpressionBuilder.makeScalarFunction(
-      orFuncId,
-      Lists.newArrayList(isNullNodeLeft, isNullNodeRight),
-      TypeBuilder.makeBoolean(false))
-
-    // equal(left, right)
-    val equalFuncName = ConverterUtils.makeFuncName(
-      ExpressionNames.EQUAL,
-      original.children.map(_.dataType),
-      FunctionConfig.OPT)
-    val equalFuncId = ExpressionBuilder.newScalarFunction(functionMap, equalFuncName)
-    val equalNode = ExpressionBuilder.makeScalarFunction(
-      equalFuncId,
-      Lists.newArrayList(leftNode, rightNode),
-      TypeBuilder.makeBoolean(original.left.nullable || original.right.nullable))
-
-    new IfThenNode(
-      Lists.newArrayList(andNode, orNode),
-      Lists.newArrayList(new BooleanLiteralNode(true), new BooleanLiteralNode(false)),
-      equalNode)
-  }
-}
-
 case class CHSizeExpressionTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
@@ -163,7 +84,7 @@ case class CHTruncTimestampTransformer(
   extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    // The format must be constant string in the fucntion date_trunc of ch.
+    // The format must be constant string in the function date_trunc of ch.
     if (!original.format.foldable) {
       throw new UnsupportedOperationException(
         s"The format ${original.format} must be constant string.")

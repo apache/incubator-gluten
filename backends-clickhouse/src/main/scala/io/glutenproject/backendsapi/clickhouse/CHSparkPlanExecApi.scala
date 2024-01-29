@@ -389,14 +389,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   override def genExtendedStrategies(): List[SparkSession => Strategy] =
     List()
 
-  override def genEqualNullSafeTransformer(
-      substraitExprName: String,
-      left: ExpressionTransformer,
-      right: ExpressionTransformer,
-      original: EqualNullSafe): ExpressionTransformer = {
-    CHEqualNullSafeTransformer(substraitExprName, left, right, original)
-  }
-
   override def genStringTranslateTransformer(
       substraitExprName: String,
       srcExpr: ExpressionTransformer,
