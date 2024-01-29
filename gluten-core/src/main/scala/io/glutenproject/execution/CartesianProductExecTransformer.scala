@@ -18,19 +18,37 @@ package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ExpressionConverter
-import io.glutenproject.extension.ValidationResult
+import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.RelBuilder
 
 import org.apache.spark.{Dependency, NarrowDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.{Inner, JoinType}
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.joins.BaseJoinExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import java.io.{IOException, ObjectOutputStream}
+
+/**
+ * A bridge to connect left/right children and [[CartesianProductExecTransformer]] to avoid wrapping
+ * them into one [[WholeStageTransformer]]. The reason is that, [[WholeStageTransformer]] always
+ * assume the input partitions are same, but it is not true for `CartesianProductExec`.
+ */
+case class ColumnarCartesianProductBridge(child: SparkPlan) extends UnaryExecNode with GlutenPlan {
+  override def output: Seq[Attribute] = child.output
+  override def supportsColumnar: Boolean = true
+  override protected def doExecute(): RDD[InternalRow] =
+    throw new UnsupportedOperationException()
+  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = child.executeColumnar()
+  override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
+    copy(child = newChild)
+}
 
 case class CartesianProductExecTransformer(
     left: SparkPlan,
@@ -110,8 +128,6 @@ case class CartesianProductExecTransformer(
     doNativeValidation(substraitContext, currRel)
   }
 
-  override def nodeName: String = "CartesianProductExecTransformer"
-
   override def output: Seq[Attribute] = left.output ++ right.output
 
   override protected def withNewChildrenInternal(
@@ -120,23 +136,9 @@ case class CartesianProductExecTransformer(
     copy(left = newLeft, right = newRight)
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    val rddsLeft = getColumnarInputRDDs(left)
-    val rddsRight = getColumnarInputRDDs(right)
-
-    if (rddsLeft.isEmpty || rddsRight.isEmpty) {
-      // If any of the child RDD is empty then result will also be empty
-      return Seq.empty
-    }
-
-    /**
-     * Both the children of cartesian product should be [[InputIteratorTransformer]] see
-     * [[ColumnarCollapseTransformStages]]. InputIteratorTransformer should always return single
-     * child RDD. Usually, it should be WholeStageRDD or MapPartitionRDD.
-     */
-    assert(rddsLeft.size == 1 && rddsRight.size == 1)
-
-    val cartesianRDD = new CartesianColumnarBatchRDD(sparkContext, rddsLeft.head, rddsRight.head)
-    Seq(cartesianRDD)
+    val leftRDD = getColumnarInputRDDs(left).head
+    val rightRDD = getColumnarInputRDDs(right).head
+    new CartesianColumnarBatchRDD(sparkContext, leftRDD, rightRDD) :: Nil
   }
 }
 
@@ -151,6 +153,14 @@ class CartesianColumnarBatchRDDPartition(
   var s1: Partition = rdd1.partitions(s1Index)
   var s2: Partition = rdd2.partitions(s2Index)
   override val index: Int = idx
+
+  @throws(classOf[IOException])
+  private def writeObject(oos: ObjectOutputStream): Unit = {
+    // Update the reference to parent split at the time of task serialization
+    s1 = rdd1.partitions(s1Index)
+    s2 = rdd2.partitions(s2Index)
+    oos.defaultWriteObject()
+  }
 }
 
 /**
@@ -160,9 +170,7 @@ class CartesianColumnarBatchRDD(
     sc: SparkContext,
     var rdd1: RDD[ColumnarBatch],
     var rdd2: RDD[ColumnarBatch])
-  extends RDD[ColumnarBatch](sc, Nil)
-  with Serializable {
-
+  extends RDD[ColumnarBatch](sc, Nil) {
   private val numPartitionsInRdd2 = rdd2.partitions.length
 
   override def getPartitions: Array[Partition] = {
@@ -205,8 +213,10 @@ class CartesianColumnarBatchRDD(
     rdd2 = null
   }
 
-  def getIterators(split: Partition, context: TaskContext): Seq[Iterator[ColumnarBatch]] = {
-    val currSplit = split.asInstanceOf[CartesianColumnarBatchRDDPartition]
-    Seq(rdd1.iterator(currSplit.s1, context), rdd2.iterator(currSplit.s2, context))
+  def getIterators(
+      split: CartesianColumnarBatchRDDPartition,
+      context: TaskContext): Seq[Iterator[ColumnarBatch]] = {
+    rdd1.iterator(split.s1, context) ::
+      rdd2.iterator(split.s2, context) :: Nil
   }
 }

@@ -696,9 +696,10 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             TransformHints.tagNotTransformable(
               plan,
               "conversion to CartesianProductTransformer is not enabled.")
+          } else {
+            val transformer = CartesianProductExecTransformer(plan.left, plan.right, plan.condition)
+            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
-          val transformer = CartesianProductExecTransformer(plan.left, plan.right, plan.condition)
-          TransformHints.tag(plan, transformer.doValidate().toTransformHint)
         case plan: WindowExec =>
           if (!enableColumnarWindow) {
             TransformHints.tagNotTransformable(plan, "columnar window is not enabled in WindowExec")

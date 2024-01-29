@@ -434,21 +434,19 @@ class ColumnarInputRDDsWrapper(columnarInputRDDs: Seq[RDD[ColumnarBatch]]) exten
       inputColumnarRDDPartitions: Seq[Partition],
       context: TaskContext): Seq[Iterator[ColumnarBatch]] = {
     var index = 0
-    if (columnarInputRDDs.size == 1) {
-      columnarInputRDDs.head match {
-        case cartesianRDD: CartesianColumnarBatchRDD =>
-          return cartesianRDD.getIterators(inputColumnarRDDPartitions.head, context)
-        case _ =>
-      }
-    }
-    columnarInputRDDs.map {
+    columnarInputRDDs.flatMap {
       case broadcast: BroadcastBuildSideRDD =>
         BackendsApiManager.getIteratorApiInstance
-          .genBroadcastBuildSideIterator(broadcast.broadcasted, broadcast.broadCastContext)
+          .genBroadcastBuildSideIterator(broadcast.broadcasted, broadcast.broadCastContext) :: Nil
+      case cartesian: CartesianColumnarBatchRDD =>
+        val partition =
+          inputColumnarRDDPartitions(index).asInstanceOf[CartesianColumnarBatchRDDPartition]
+        index += 1
+        cartesian.getIterators(partition, context)
       case rdd =>
         val it = rdd.iterator(inputColumnarRDDPartitions(index), context)
         index += 1
-        it
+        it :: Nil
     }
   }
 }
