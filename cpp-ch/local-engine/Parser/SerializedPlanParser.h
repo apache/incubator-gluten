@@ -158,7 +158,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
 
        /// hash functions
        {"sha1", "SHA1"},
-       {"sha2", ""}, /// dummy mapping
        {"crc32", "CRC32"},
        {"murmur3hash", "sparkMurmurHash3_32"},
        {"xxhash64", "sparkXxHash64"},

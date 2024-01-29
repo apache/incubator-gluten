@@ -598,27 +598,6 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
         else
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "The first arg of spark extract function is wrong.");
     }
-    else if (function_name == "sha2")
-    {
-        if (args.size() != 2)
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "Spark function sha2 requires two args, function:{}", function.ShortDebugString());
-
-        const auto & bit_length = args.at(1);
-        if (!bit_length.value().has_literal() || !bit_length.value().literal().has_i32())
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "The second arg of spark sha2 function is wrong.");
-
-        const auto & bit_length_value = bit_length.value().literal().i32();
-        if (bit_length_value == 224)
-            ch_function_name = "SHA224";
-        else if (bit_length_value == 256 || bit_length_value == 0)
-            ch_function_name = "SHA256";
-        else if (bit_length_value == 384)
-            ch_function_name = "SHA384";
-        else if (bit_length_value == 512)
-            ch_function_name = "SHA512";
-        else
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "The second arg of spark sha2 function is wrong, value:{}", bit_length_value);
-    }
     else if (function_name == "check_overflow")
     {
         if (args.size() < 2)
