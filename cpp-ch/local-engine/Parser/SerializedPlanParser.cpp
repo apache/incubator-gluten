@@ -122,6 +122,21 @@ std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c)
     return res;
 }
 
+void logDebugMessage(const google::protobuf::Message & message, const char * type)
+{
+    auto * logger = &Poco::Logger::get("SerializedPlanParser");
+    if (logger->debug())
+    {
+        namespace pb_util = google::protobuf::util;
+        pb_util::JsonOptions options;
+        std::string json;
+        auto s = pb_util::MessageToJsonString(message, &json, options);
+        if (!s.ok())
+            throw Exception(ErrorCodes::LOGICAL_ERROR, "Can not convert {} to Json", type);
+        LOG_DEBUG(logger, "{}:\n{}", type, json);
+    }
+}
+
 const ActionsDAG::Node * SerializedPlanParser::addColumn(DB::ActionsDAGPtr actions_dag, const DataTypePtr & type, const Field & field)
 {
     return &actions_dag->addColumn(
@@ -247,17 +262,31 @@ std::string getDecimalFunction(const substrait::Type_Decimal & decimal, bool nul
 
 bool SerializedPlanParser::isReadRelFromJava(const substrait::ReadRel & rel)
 {
-    assert(rel.has_local_files());
-    assert(rel.has_base_schema());
-    return rel.local_files().items().size() == 1 && rel.local_files().items().at(0).uri_file().starts_with("iterator");
+    return rel.has_local_files() && rel.local_files().items().size() == 1 && rel.local_files().items().at(0).uri_file().starts_with("iterator");
+}
+
+bool SerializedPlanParser::isReadFromMergeTree(const substrait::ReadRel & rel)
+{
+    assert(rel.has_advanced_extension());
+    bool is_read_from_merge_tree;
+    google::protobuf::StringValue optimization;
+    optimization.ParseFromString(rel.advanced_extension().optimization().value());
+    ReadBufferFromString in(optimization.value());
+    assertString("isMergeTree=", in);
+    readBoolText(is_read_from_merge_tree, in);
+    assertChar('\n', in);
+    return is_read_from_merge_tree;
 }
 
 QueryPlanStepPtr SerializedPlanParser::parseReadRealWithLocalFile(const substrait::ReadRel & rel)
 {
-    assert(rel.has_local_files());
-    assert(rel.has_base_schema());
     auto header = TypeParser::buildBlockFromNamedStruct(rel.base_schema());
-    auto source = std::make_shared<SubstraitFileSource>(context, header, rel.local_files());
+    substrait::ReadRel::LocalFiles local_files;
+    if (rel.has_local_files())
+        local_files = rel.local_files();
+    else
+        local_files = parseLocalFiles(split_infos.at(nextSplitInfoIndex()));
+    auto source = std::make_shared<SubstraitFileSource>(context, header, local_files);
     auto source_pipe = Pipe(source);
     auto source_step = std::make_unique<SubstraitFileSourceStep>(context, std::move(source_pipe), "substrait local files");
     source_step->setStepDescription("read local files");
@@ -275,7 +304,6 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithJavaIter(const substrait
 {
     assert(rel.has_local_files());
     assert(rel.local_files().items().size() == 1);
-    assert(rel.has_base_schema());
     auto iter = rel.local_files().items().at(0).uri_file();
     auto pos = iter.find(':');
     auto iter_index = std::stoi(iter.substr(pos + 1, iter.size()));
@@ -346,18 +374,7 @@ DataTypePtr wrapNullableType(bool nullable, DataTypePtr nested_type)
 
 QueryPlanPtr SerializedPlanParser::parse(std::unique_ptr<substrait::Plan> plan)
 {
-    auto * logger = &Poco::Logger::get("SerializedPlanParser");
-
-    if (logger->debug())
-    {
-        namespace pb_util = google::protobuf::util;
-        pb_util::JsonOptions options;
-        std::string json;
-        auto s = pb_util::MessageToJsonString(*plan, &json, options);
-        if (!s.ok())
-            throw Exception(ErrorCodes::LOGICAL_ERROR, "Can not convert Substrait Plan to Json");
-        LOG_DEBUG(&Poco::Logger::get("SerializedPlanParser"), "substrait plan:\n{}", json);
-    }
+    logDebugMessage(*plan, "substrait plan");
     parseExtensions(plan->extensions());
     if (plan->relations_size() == 1)
     {
@@ -458,9 +475,12 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
         }
         case substrait::Rel::RelTypeCase::kRead: {
             const auto & read = rel.read();
-            assert(read.has_local_files() || read.has_extension_table() && "Only support local parquet files or merge tree read rel");
-            if (read.has_local_files())
+            // TODO: We still maintain the old logic of parsing LocalFiles or ExtensionTable in RealRel
+            // to be compatiable with some suites about metrics.
+            // Remove this compatiability in later and then only java iter has local files in ReadRel.
+            if (read.has_local_files() || (!read.has_extension_table() && !isReadFromMergeTree(read)))
             {
+                assert(rel.has_base_schema());
                 QueryPlanStepPtr step;
                 if (isReadRelFromJava(read))
                     step = parseReadRealWithJavaIter(read);
@@ -482,9 +502,15 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
             }
             else
             {
+                substrait::ReadRel::ExtensionTable extension_table;
+                if (read.has_extension_table())
+                    extension_table = read.extension_table();
+                else
+                    extension_table = parseExtensionTable(split_infos.at(nextSplitInfoIndex()));
+
                 MergeTreeRelParser mergeTreeParser(this, context, query_context, global_context);
                 std::list<const substrait::Rel *> stack;
-                query_plan = mergeTreeParser.parse(std::make_unique<QueryPlan>(), rel, stack);
+                query_plan = mergeTreeParser.parseReadRel(std::make_unique<QueryPlan>(), read, extension_table, stack);
                 steps = mergeTreeParser.getSteps();
             }
             break;
@@ -1721,6 +1747,33 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
                 rel.DebugString());
     }
 }
+
+substrait::ReadRel::ExtensionTable SerializedPlanParser::parseExtensionTable(const std::string & split_info)
+{
+    substrait::ReadRel::ExtensionTable extension_table;
+    google::protobuf::io::CodedInputStream coded_in(reinterpret_cast<const uint8_t *>(split_info.data()), static_cast<int>(split_info.size()));
+    coded_in.SetRecursionLimit(100000);
+
+    auto ok = extension_table.ParseFromCodedStream(&coded_in);
+    if (!ok)
+        throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::ReadRel::ExtensionTable from string failed");
+    logDebugMessage(extension_table, "extension_table");
+    return extension_table;
+}
+
+substrait::ReadRel::LocalFiles SerializedPlanParser::parseLocalFiles(const std::string & split_info)
+{
+    substrait::ReadRel::LocalFiles local_files;
+    google::protobuf::io::CodedInputStream coded_in(reinterpret_cast<const uint8_t *>(split_info.data()), static_cast<int>(split_info.size()));
+    coded_in.SetRecursionLimit(100000);
+
+    auto ok = local_files.ParseFromCodedStream(&coded_in);
+    if (!ok)
+        throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::ReadRel::LocalFiles from string failed");
+    logDebugMessage(local_files, "local_files");
+    return local_files;
+}
+
 
 QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
 {

@@ -37,7 +37,10 @@ using namespace DB;
 class MergeTreeRelParser : public RelParser
 {
 public:
-    static std::shared_ptr<CustomStorageMergeTree> parseStorage(const substrait::Rel & rel_, ContextMutablePtr context);
+    static std::shared_ptr<CustomStorageMergeTree> parseStorage(
+        const substrait::Rel & rel_,
+        const substrait::ReadRel::ExtensionTable & extension_table,
+        ContextMutablePtr context);
 
     explicit MergeTreeRelParser(
         SerializedPlanParser * plan_paser_, ContextPtr & context_, QueryContext & query_context_, ContextMutablePtr & global_context_)
@@ -48,7 +51,17 @@ public:
     ~MergeTreeRelParser() override = default;
 
     DB::QueryPlanPtr
-    parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
+    parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override
+    {
+        throw Exception(ErrorCodes::LOGICAL_ERROR, "MergeTreeRelParser can't call parse(), call parseReadRel instead.");
+    }
+
+    DB::QueryPlanPtr
+    parseReadRel(
+        DB::QueryPlanPtr query_plan,
+        const substrait::ReadRel & read_rel,
+        const substrait::ReadRel::ExtensionTable & extension_table,
+        std::list<const substrait::Rel *> & rel_stack_);
 
     const substrait::Rel & getSingleInput(const substrait::Rel &) override
     {

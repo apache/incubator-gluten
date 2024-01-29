@@ -22,7 +22,12 @@ public class CHDatasourceJniWrapper {
       String filePath, String[] preferredColumnNames, String formatHint);
 
   public native long nativeInitMergeTreeWriterWrapper(
-      byte[] schema, String uuid, String taskId, String partition_dir, String bucket_dir);
+      byte[] plan,
+      byte[] splitInfo,
+      String uuid,
+      String taskId,
+      String partition_dir,
+      String bucket_dir);
 
   public native void write(long instanceId, long blockAddress);
 

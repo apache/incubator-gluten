@@ -17,7 +17,7 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenNumaBindingInfo
-import io.glutenproject.execution.{BaseGlutenPartition, BroadCastHashJoinContext, WholeStageTransformContext}
+import io.glutenproject.execution.{BaseGlutenPartition, BasicScanExecTransformer, BroadCastHashJoinContext, WholeStageTransformContext}
 import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -42,7 +42,8 @@ trait IteratorApi {
   /** Generate native row partition. */
   def genPartitions(
       wsCtx: WholeStageTransformContext,
-      splitInfos: Seq[Seq[SplitInfo]]): Seq[BaseGlutenPartition]
+      splitInfos: Seq[Seq[SplitInfo]],
+      scans: Seq[BasicScanExecTransformer]): Seq[BaseGlutenPartition]
 
   /**
    * Inject the task attempt temporary path for native write files, this method should be called
@@ -84,6 +85,7 @@ trait IteratorApi {
       sparkContext: SparkContext,
       wsCxt: WholeStageTransformContext,
       splitInfos: Seq[SplitInfo],
+      scan: BasicScanExecTransformer,
       numOutputRows: SQLMetric,
       numOutputBatches: SQLMetric,
       scanTime: SQLMetric): RDD[ColumnarBatch]

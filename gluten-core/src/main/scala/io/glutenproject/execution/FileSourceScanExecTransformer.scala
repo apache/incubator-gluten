@@ -19,9 +19,7 @@ package io.glutenproject.execution
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
-import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.substrait.rel.ReadRelNode
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
@@ -33,8 +31,6 @@ import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.collection.BitSet
-
-import scala.collection.JavaConverters
 
 class FileSourceScanExecTransformer(
     @transient override val relation: HadoopFsRelation,
@@ -133,25 +129,23 @@ class FileSourceScanExecTransformer(
     s"Scan $relation ${tableIdentifier.map(_.unquotedString).getOrElse("")}"
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val transformCtx = super.doTransform(context)
-    if (this.fileFormat == ReadFileFormat.TextReadFormat) {
-      var options: Map[String, String] = Map()
-      relation.options.foreach {
-        case ("delimiter", v) => options += ("field_delimiter" -> v)
-        case ("quote", v) => options += ("quote" -> v)
-        case ("header", v) =>
-          val cnt = if (v == "true") 1 else 0
-          options += ("header" -> cnt.toString)
-        case ("escape", v) => options += ("escape" -> v)
-        case ("nullvalue", v) => options += ("nullValue" -> v)
-        case (_, _) =>
-      }
-
-      val readRelNode = transformCtx.root.asInstanceOf[ReadRelNode]
-      readRelNode.setProperties(JavaConverters.mapAsJavaMap(options))
+  override def getProperties: Map[String, String] = {
+    this.fileFormat match {
+      case ReadFileFormat.TextReadFormat =>
+        var options: Map[String, String] = Map()
+        relation.options.foreach {
+          case ("delimiter", v) => options += ("field_delimiter" -> v)
+          case ("quote", v) => options += ("quote" -> v)
+          case ("header", v) =>
+            val cnt = if (v == "true") 1 else 0
+            options += ("header" -> cnt.toString)
+          case ("escape", v) => options += ("escape" -> v)
+          case ("nullvalue", v) => options += ("nullValue" -> v)
+          case (_, _) =>
+        }
+        options
+      case _ => Map.empty
     }
-    transformCtx
   }
 
   @transient override lazy val fileFormat: ReadFileFormat =

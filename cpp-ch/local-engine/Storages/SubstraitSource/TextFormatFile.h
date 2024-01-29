@@ -31,6 +31,13 @@ public:
 
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
 
+    DB::NamesAndTypesList getSchema() const
+    {
+        const auto & schema = file_info.schema();
+        auto header = TypeParser::buildBlockFromNamedStructWithoutDFS(schema);
+        return header.getNamesAndTypesList();
+    }
+
     bool supportSplit() const override { return true; }
     String getFileFormat() const override { return "HiveText"; }
 };

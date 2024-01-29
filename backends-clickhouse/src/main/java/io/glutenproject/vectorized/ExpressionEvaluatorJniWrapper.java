@@ -46,6 +46,7 @@ public class ExpressionEvaluatorJniWrapper {
   public native long nativeCreateKernelWithIterator(
       long allocatorId,
       byte[] wsPlan,
+      byte[][] splitInfo,
       GeneralInIterator[] batchItr,
       byte[] confArray,
       boolean materializeInput);

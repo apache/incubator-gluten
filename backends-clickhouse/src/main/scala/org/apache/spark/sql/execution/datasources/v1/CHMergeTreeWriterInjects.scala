@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution.datasources.v1
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.substrait.`type`.ColumnTypeNode
 import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, RelBuilder}
 
@@ -31,6 +32,7 @@ import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeOutputW
 import org.apache.spark.sql.types.StructType
 
 import com.google.common.collect.Lists
+import com.google.protobuf.{Any, StringValue}
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
@@ -39,6 +41,8 @@ import java.util.{ArrayList => JList, Map => JMap, UUID}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+
+case class PlanWithSplitInfo(plan: Array[Byte], splitInfo: Array[Byte])
 
 class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
 
@@ -72,7 +76,7 @@ class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
       nativeConf: JMap[String, String]): OutputWriter = {
     val uuid = UUID.randomUUID.toString
 
-    val writeInfoPlan = CHMergeTreeWriterInjects.genMergeTreeWriteRel(
+    val planWithSplitInfo = CHMergeTreeWriterInjects.genMergeTreeWriteRel(
       path,
       database,
       tableName,
@@ -84,15 +88,16 @@ class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
       dataSchema
     )
 
-    val datasourceJniWrapper = new CHDatasourceJniWrapper();
+    val datasourceJniWrapper = new CHDatasourceJniWrapper()
     val instance =
       datasourceJniWrapper.nativeInitMergeTreeWriterWrapper(
-        writeInfoPlan,
+        planWithSplitInfo.plan,
+        planWithSplitInfo.splitInfo,
         uuid,
         context.getTaskAttemptID.getTaskID.getId.toString,
         context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition.dir"),
         context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid.str")
-      );
+      )
 
     new MergeTreeOutputWriter(database, tableName, datasourceJniWrapper, instance, path)
   }
@@ -121,7 +126,7 @@ object CHMergeTreeWriterInjects {
       partitionColumns: Seq[String],
       tableSchemaJson: String,
       clickhouseTableConfigs: Map[String, String],
-      output: Seq[Attribute]): Array[Byte] = {
+      output: Seq[Attribute]): PlanWithSplitInfo = {
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
     val columnTypeNodes = output.map {
@@ -154,19 +159,23 @@ object CHMergeTreeWriterInjects {
       clickhouseTableConfigs.asJava,
       new JList[String]()
     )
-    substraitContext.initSplitInfosIndex(0)
-    substraitContext.setSplitInfos(Seq(extensionTableNode))
+
+    val optimizationContent = "isMergeTree=1\n"
+    val optimization = Any.pack(StringValue.newBuilder.setValue(optimizationContent).build)
+    val extensionNode = ExtensionBuilder.makeAdvancedExtension(optimization, null)
+
     val relNode = RelBuilder.makeReadRel(
       typeNodes,
       nameList,
       columnTypeNodes,
       null,
+      extensionNode,
       substraitContext,
       substraitContext.nextOperatorId("readRel"))
 
     val plan =
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode), nameList).toProtobuf
 
-    plan.toByteArray
+    PlanWithSplitInfo(plan.toByteArray, extensionTableNode.toProtobuf.toByteArray)
   }
 }

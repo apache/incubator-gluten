@@ -18,6 +18,7 @@ package io.glutenproject.substrait.rel;
 
 import io.glutenproject.substrait.SubstraitContext;
 import io.glutenproject.substrait.expression.ExpressionNode;
+import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 import io.glutenproject.substrait.type.ColumnTypeNode;
 import io.glutenproject.substrait.type.TypeNode;
 
@@ -42,24 +43,29 @@ public class ReadRelNode implements RelNode, Serializable {
   private final ExpressionNode filterNode;
   private StructType dataSchema;
   private Map<String, String> properties;
+  private final AdvancedExtensionNode extensionNode;
 
   ReadRelNode(
       List<TypeNode> types,
       List<String> names,
       SubstraitContext context,
       ExpressionNode filterNode,
-      List<ColumnTypeNode> columnTypeNodes) {
+      List<ColumnTypeNode> columnTypeNodes,
+      AdvancedExtensionNode extensionNode) {
     this.types.addAll(types);
     this.names.addAll(names);
     this.context = context;
     this.filterNode = filterNode;
     this.columnTypeNodes.addAll(columnTypeNodes);
+    this.extensionNode = extensionNode;
   }
 
+  // TODO: remove setDataSchema and setProperties
+  //  and codes about splitInfo in substrait context
   public void setDataSchema(StructType schema) {
     this.dataSchema = new StructType();
     for (StructField field : schema.fields()) {
-      Boolean found = false;
+      boolean found = false;
       for (int i = 0; i < names.size(); i++) {
         // Case-insensitive schema matching
         if (field.name().equalsIgnoreCase(names.get(i))) {
@@ -122,6 +128,11 @@ public class ReadRelNode implements RelNode, Serializable {
         readBuilder.setExtensionTable(((ExtensionTableNode) currentSplitInfo).toProtobuf());
       }
     }
+
+    if (extensionNode != null) {
+      readBuilder.setAdvancedExtension(extensionNode.toProtobuf());
+    }
+
     Rel.Builder builder = Rel.newBuilder();
     builder.setRead(readBuilder.build());
     return builder.build();

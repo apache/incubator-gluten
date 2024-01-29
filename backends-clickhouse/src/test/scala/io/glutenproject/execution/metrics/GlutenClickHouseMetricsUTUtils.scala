@@ -50,6 +50,7 @@ object GlutenClickHouseMetricsUTUtils {
     val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
       mockMemoryAllocator.getNativeInstanceId,
       substraitPlan.toByteArray,
+      new Array[Array[Byte]](0),
       inBatchIters)
     val iter = new Iterator[Any] {
       private var outputRowCount = 0L

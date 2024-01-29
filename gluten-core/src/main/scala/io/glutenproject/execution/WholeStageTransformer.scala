@@ -296,7 +296,10 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       val (wsCtx, inputPartitions) = GlutenTimeMetric.withMillisTime {
         val wsCtx = doWholeStageTransform()
         val partitions =
-          BackendsApiManager.getIteratorApiInstance.genPartitions(wsCtx, allScanSplitInfos)
+          BackendsApiManager.getIteratorApiInstance.genPartitions(
+            wsCtx,
+            allScanSplitInfos,
+            basicScanExecTransformers)
 
         (wsCtx, partitions)
       }(

@@ -281,11 +281,27 @@ public:
     PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input);
 
     static bool isReadRelFromJava(const substrait::ReadRel & rel);
+    static bool isReadFromMergeTree(const substrait::ReadRel & rel);
+
+    static substrait::ReadRel::LocalFiles parseLocalFiles(const std::string & split_info);
+    static substrait::ReadRel::ExtensionTable parseExtensionTable(const std::string & split_info);
 
     void addInputIter(jobject iter, bool materialize_input)
     {
         input_iters.emplace_back(iter);
         materialize_inputs.emplace_back(materialize_input);
+    }
+
+    void addSplitInfo(std::string & split_info)
+    {
+        split_infos.emplace_back(std::move(split_info));
+    }
+
+    int nextSplitInfoIndex()
+    {
+        if (split_info_index >= split_infos.size())
+            throw Exception(ErrorCodes::LOGICAL_ERROR, "split info index out of range, split_info_index: {}, split_infos.size(): {}", split_info_index, split_infos.size());
+        return split_info_index++;
     }
 
     void parseExtensions(const ::google::protobuf::RepeatedPtrField<substrait::extensions::SimpleExtensionDeclaration> & extensions);
@@ -373,6 +389,8 @@ private:
     int name_no = 0;
     std::unordered_map<std::string, std::string> function_mapping;
     std::vector<jobject> input_iters;
+    std::vector<std::string> split_infos;
+    int split_info_index = 0;
     std::vector<bool> materialize_inputs;
     ContextPtr context;
     // for parse rel node, collect steps from a rel node
