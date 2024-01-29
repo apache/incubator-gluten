@@ -37,41 +37,11 @@ case class CHSizeExpressionTransformer(
   extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-
-    if (original.legacySizeOfNull) {
-      // when legacySizeOfNull is true, size(null) should return -1
-      // so we wrap it to if(isnull(child), -1, size(child))
-      val childNode = child.doTransform(args)
-      val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-
-      val sizeFuncName = ConverterUtils.makeFuncName(
-        substraitExprName,
-        original.children.map(_.dataType),
-        FunctionConfig.OPT)
-      val sizeFuncId = ExpressionBuilder.newScalarFunction(functionMap, sizeFuncName)
-
-      val exprNodes = Lists.newArrayList(childNode)
-      val typeNode = ConverterUtils.getTypeNode(original.dataType, original.child.nullable)
-      val sizeFuncNode = ExpressionBuilder.makeScalarFunction(sizeFuncId, exprNodes, typeNode)
-
-      // isnull(child)
-      val isNullFuncName = ConverterUtils.makeFuncName(
-        ExpressionNames.IS_NULL,
-        original.children.map(_.dataType),
-        FunctionConfig.OPT)
-      val isNullFuncId = ExpressionBuilder.newScalarFunction(functionMap, isNullFuncName)
-      val isNullNode = ExpressionBuilder.makeScalarFunction(
-        isNullFuncId,
-        Lists.newArrayList(childNode),
-        TypeBuilder.makeBoolean(false))
-
-      new IfThenNode(
-        Lists.newArrayList(isNullNode),
-        Lists.newArrayList(new IntLiteralNode(-1)),
-        sizeFuncNode)
-    } else {
-      GenericExpressionTransformer(substraitExprName, Seq(child), original).doTransform(args)
-    }
+    // Pass legacyLiteral as second argument in substrait function
+    val legacyLiteral = new Literal(original.legacySizeOfNull, BooleanType)
+    val legacyTransformer = new LiteralTransformer(legacyLiteral)
+    GenericExpressionTransformer(substraitExprName, Seq(child, legacyTransformer), original)
+      .doTransform(args)
   }
 }
 
