@@ -39,7 +39,7 @@ ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool compressed, I
     {
         compressed_in = std::make_unique<CompressedReadBuffer>(*in);
         configureCompressedReadBuffer(static_cast<DB::CompressedReadBuffer &>(*compressed_in));
-        input_stream = std::make_unique<NativeReader>(*compressed_in);
+        input_stream = std::make_unique<NativeReader>(*compressed_in, max_shuffle_read_rows_, max_shuffle_read_bytes_);
     }
     else
     {
@@ -48,44 +48,8 @@ ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool compressed, I
 }
 Block * ShuffleReader::read()
 {
-    // Avoid to generate out a lot of small blocks.
-    size_t buffer_rows = 0;
-    size_t buffer_bytes = 0;
-    std::vector<DB::Block> blocks;
-    if (pending_block)
-    {
-        blocks.emplace_back(std::move(pending_block));
-        buffer_rows += blocks.back().rows();
-        buffer_bytes += blocks.back().bytes();
-        pending_block = {};
-    }
-
-    while (!buffer_rows
-           || ((max_shuffle_read_rows < 0 || buffer_rows < max_shuffle_read_rows)
-               && (max_shuffle_read_bytes < 0 || buffer_bytes < max_shuffle_read_bytes)))
-    {
-        auto block = input_stream->read();
-        if (!block.rows())
-            break;
-        if (!blocks.empty()
-            && (blocks[0].info.is_overflows != block.info.is_overflows || blocks[0].info.bucket_num != block.info.bucket_num))
-        {
-            pending_block = std::move(block);
-            break;
-        }
-        buffer_rows += block.rows();
-        buffer_bytes += block.bytes();
-        blocks.emplace_back(std::move(block));
-    }
-
-    DB::Block final_block;
-    if (!blocks.empty())
-    {
-        auto block_info = blocks[0].info;
-        final_block = DB::concatenateBlocks(blocks);
-        final_block.info = block_info;
-    }
-    setCurrentBlock(final_block);
+    auto block = input_stream->read();
+    setCurrentBlock(block);
     if (unlikely(header.columns() == 0))
         header = currentBlock().cloneEmpty();
     return &currentBlock();

@@ -18,6 +18,7 @@
 
 #include <Common/PODArray.h>
 #include <Core/Block.h>
+#include <Core/Defines.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 
 namespace local_engine
@@ -26,7 +27,30 @@ namespace local_engine
 class NativeReader
 {
 public:
-    NativeReader(DB::ReadBuffer & istr_) : istr(istr_) {}
+    // For improving the parsing performance
+    struct ColumnParseUtil
+    {
+        DB::DataTypePtr type = nullptr;
+        std::string name;
+        DB::SerializationPtr serializer = nullptr;
+        size_t avg_value_size_hint = 0;
+        
+        // for aggregate data
+        size_t aggregate_state_size = 0;
+        size_t aggregate_state_align = 0;
+        DB::AggregateFunctionPtr aggregate_function = nullptr;
+
+        std::function<void(DB::ReadBuffer &, DB::ColumnPtr &, size_t, ColumnParseUtil &)> parse;
+
+    };
+
+    NativeReader(
+        DB::ReadBuffer & istr_, Int64 max_block_size_ = DB::DEFAULT_BLOCK_SIZE, Int64 max_block_bytes_ = DB::DEFAULT_BLOCK_SIZE * 256)
+        : istr(istr_)
+        , max_block_size(max_block_size_ != 0 ? static_cast<size_t>(max_block_size_) : DB::DEFAULT_BLOCK_SIZE)
+        , max_block_bytes(max_block_bytes_ != 0 ? static_cast<size_t>(max_block_bytes_) : DB::DEFAULT_BLOCK_SIZE * 256)
+    {
+    }
 
     static void readData(const DB::ISerialization & serialization, DB::ColumnPtr & column, DB::ReadBuffer & istr, size_t rows, double avg_value_size_hint);
     template <bool FIXED>
@@ -38,11 +62,18 @@ public:
 
 private:
     DB::ReadBuffer & istr;
+    /// Try to merge small blocks into a larger one. It's helpful for reducing memory allocations.
+    size_t max_block_size;
+    /// Avoid generating overly large blocks.
+    size_t max_block_bytes;
     DB::Block header;
 
-    DB::PODArray<double> avg_value_size_hints;
+    std::vector<ColumnParseUtil> columns_parse_util;
 
     void updateAvgValueSizeHints(const DB::Block & block);
+
+    DB::Block prepareByFirstBlock();
+    bool appendNextBlock(DB::Block & result_block);
 };
 
 }
