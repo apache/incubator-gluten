@@ -415,14 +415,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHStringLocateTransformer(substraitExprName, first, second, third, original)
   }
 
-  /** Generate an ExpressionTransformer to transform Sha1 expression. */
-  override def genSha1Transformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Sha1): ExpressionTransformer = {
-    CHSha1Transformer(substraitExprName, child, original)
-  }
-
   override def genSizeExpressionTransformer(
       substraitExprName: String,
       child: ExpressionTransformer,

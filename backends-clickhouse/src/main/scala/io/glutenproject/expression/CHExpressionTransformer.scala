@@ -28,49 +28,7 @@ import org.apache.spark.unsafe.types.UTF8String
 
 import com.google.common.collect.Lists
 
-import java.util.{ArrayList, Locale}
-
-case class CHSha1Transformer(
-    substraitExprName: String,
-    child: ExpressionTransformer,
-    original: Sha1)
-  extends ExpressionTransformer {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    // Spark sha1(child) = CH lower(hex(sha1(child)))
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-
-    // sha1(child)
-    var fixedCharLength = 20
-    val sha1FuncId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName(
-        substraitExprName,
-        Seq(original.child.dataType),
-        FunctionConfig.OPT))
-    val sha1TypeNode = TypeBuilder.makeFixedChar(original.child.nullable, fixedCharLength)
-    val sha1FuncNode = ExpressionBuilder.makeScalarFunction(
-      sha1FuncId,
-      Lists.newArrayList(child.doTransform(args)),
-      sha1TypeNode)
-
-    // wrap in hex: hex(sha1(str))
-    val hexFuncId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName("hex", Seq(CharType(fixedCharLength)), FunctionConfig.OPT))
-    val hexExprNodes: ArrayList[ExpressionNode] = Lists.newArrayList(sha1FuncNode)
-    val hexTypeNode = TypeBuilder.makeString(original.child.nullable)
-    val hexFuncNode = ExpressionBuilder.makeScalarFunction(hexFuncId, hexExprNodes, hexTypeNode)
-
-    // wrap in lower: lower(hex(sha1(str)))
-    val lowerFuncId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName("lower", Seq(StringType), FunctionConfig.OPT))
-    val lowerExprNodes: ArrayList[ExpressionNode] = Lists.newArrayList(hexFuncNode)
-    val lowerTypeNode = TypeBuilder.makeString(original.child.nullable)
-    ExpressionBuilder.makeScalarFunction(lowerFuncId, lowerExprNodes, lowerTypeNode)
-  }
-}
+import java.util.Locale
 
 case class CHEqualNullSafeTransformer(
     substraitExprName: String,
