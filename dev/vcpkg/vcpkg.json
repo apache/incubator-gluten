@@ -109,6 +109,6 @@
     }
   },
   "overrides": [
-    { "name": "fmt", "version": "8.0.1" }
+    { "name": "fmt", "version": "10.1.1" }
   ]
 }
