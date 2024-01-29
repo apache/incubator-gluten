@@ -76,27 +76,29 @@ object TaskResources extends TaskListener with Logging {
     onTaskStart()
     val context = getLocalTaskContext()
     try {
-      try {
-        body
-      } catch {
-        case t: Throwable =>
-          // Similar code with those in Task.scala
-          try {
-            context.markTaskFailed(t)
-          } catch {
-            case t: Throwable =>
-              t.addSuppressed(t)
-          }
-          context.markTaskCompleted(Some(t))
-          throw t
-      } finally {
+      val out =
         try {
-          context.markTaskCompleted(None)
+          body
+        } catch {
+          case t: Throwable =>
+            // Similar code with those in Task.scala
+            try {
+              context.markTaskFailed(t)
+            } catch {
+              case t: Throwable =>
+                t.addSuppressed(t)
+            }
+            context.markTaskCompleted(Some(t))
+            throw t
         } finally {
-          TaskResources.unsetUnsafeTaskContext()
+          try {
+            context.markTaskCompleted(None)
+          } finally {
+            TaskResources.unsetUnsafeTaskContext()
+          }
         }
-      }
       onTaskSucceeded()
+      out
     } catch {
       case t: Throwable =>
         onTaskFailed(UnknownReason)
