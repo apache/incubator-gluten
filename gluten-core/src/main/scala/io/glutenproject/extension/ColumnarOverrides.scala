@@ -376,6 +376,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val writeTransformer = WriteFilesExecTransformer(
           child,
+          child.outputOrdering,
           plan.fileFormat,
           plan.partitionColumns,
           plan.bucketSpec,

@@ -531,6 +531,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           } else {
             val transformer = WriteFilesExecTransformer(
               plan.child,
+              plan.child.outputOrdering,
               plan.fileFormat,
               plan.partitionColumns,
               plan.bucketSpec,
