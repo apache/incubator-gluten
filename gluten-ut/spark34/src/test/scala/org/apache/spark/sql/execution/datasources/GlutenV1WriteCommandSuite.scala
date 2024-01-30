@@ -63,6 +63,8 @@ trait GlutenV1WriteCommandSuiteBase extends V1WriteCommandSuiteBase {
 
     query
 
+    // RemoveNativeWriteFilesSortAndProject remove SortExec or SortExecTransformer,
+    // thus, FileFormatWriter.outputOrderingMatched is false.
     if (!conf.getConf(SQLConf.PLANNED_WRITE_ENABLED)) {
       // Check whether the output ordering is matched before FileFormatWriter executes rdd.
       assert(
