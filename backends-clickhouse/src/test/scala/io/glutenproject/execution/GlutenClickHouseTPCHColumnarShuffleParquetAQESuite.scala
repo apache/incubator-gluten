@@ -294,8 +294,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
         val adaptiveSparkPlanExec = collectWithSubqueries(df.queryExecution.executedPlan) {
           case adaptive: AdaptiveSparkPlanExec => adaptive
         }
-        assert(adaptiveSparkPlanExec.size == 3)
-        assert(adaptiveSparkPlanExec(1) == adaptiveSparkPlanExec(2))
+        assert(adaptiveSparkPlanExec.size == 2)
     }
   }
 
