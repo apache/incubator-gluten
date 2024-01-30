@@ -22,6 +22,7 @@
         "glog",
         "snappy",
         "libdwarf",
+        "fmt",
         {
           "name": "folly",
           "features": ["zstd", "lz4", "lzma", "snappy"]
@@ -106,5 +107,8 @@
         }
       ]
     }
-  }
+  },
+  "overrides": [
+    { "name": "fmt", "version": "10.1.1" }
+  ]
 }
