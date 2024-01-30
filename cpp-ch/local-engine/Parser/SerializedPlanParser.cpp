@@ -185,6 +185,7 @@ std::shared_ptr<DB::ActionsDAG> SerializedPlanParser::expressionsToActionsDAG(
                 result_names.resize(1);
                 actions_dag = parseFunction(header, expr, result_names[0], actions_dag, true);
             }
+
             for (const auto & result_name : result_names)
             {
                 if (result_name.empty())
@@ -651,6 +652,61 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
     return ch_function_name;
 }
 
+void SerializedPlanParser::parseArrayJoinArguments(
+    DB::ActionsDAGPtr & actions_dag,
+    const std::string & function_name,
+    const substrait::Expression_ScalarFunction & scalar_function,
+    bool position,
+    ActionsDAG::NodeRawConstPtrs & parsed_args,
+    bool & is_map)
+{
+    if (function_name != "arrayJoin")
+        throw Exception(
+            ErrorCodes::LOGICAL_ERROR,
+            "Function parseArrayJoinArguments should only process arrayJoin function instead of {}",
+            function_name);
+
+    /// The argument number of arrayJoin(converted from Spark explode/posexplode) should be 1
+    if (scalar_function.arguments_size() != 1)
+        throw Exception(
+            ErrorCodes::BAD_ARGUMENTS, "Argument number of arrayJoin should be 1 instead of {}", scalar_function.arguments_size());
+
+    auto function_name_copy = function_name;
+    parseFunctionArguments(actions_dag, parsed_args, function_name_copy, scalar_function);
+
+    auto arg = parsed_args[0];
+    auto arg_type = DB::removeNullable(arg->result_type);
+    if (isMap(arg_type))
+        is_map = true;
+    else if (isArray(arg_type))
+        is_map = false;
+    else
+        throw Exception(ErrorCodes::BAD_ARGUMENTS, "Argument type of arrayJoin should be Array or Map but is {}", arg_type->getName());
+
+    /// Remove Nullable for input argument of arrayJoin function because arrayJoin function only accept non-nullable input
+    /// array() or map()
+    const auto * empty_node = addColumn(actions_dag, arg_type, is_map ? Field(Map()) : Field(Array()));
+    /// ifNull(arg, array()) or ifNull(arg, map())
+    const auto * if_null_node = toFunctionNode(actions_dag, "ifNull", {arg, empty_node});
+    /// assumeNotNull(ifNull(arg, array())) or assumeNotNull(ifNull(arg, map()))
+    const auto * not_null_node = toFunctionNode(actions_dag, "assumeNotNull", {if_null_node});
+    /// Wrap with materalize function to make sure column input to ARRAY JOIN STEP is materaized
+    arg = &actions_dag->materializeNode(*not_null_node);
+
+    /// If spark function is posexplode, we need to add position column together with input argument
+    if (position)
+    {
+        /// length(arg)
+        const auto * length_node = toFunctionNode(actions_dag, "length", {arg});
+        /// range(length(arg))
+        const auto * range_node = toFunctionNode(actions_dag, "range", {length_node});
+        /// mapFromArrays(range(length(arg)), arg)
+        arg = toFunctionNode(actions_dag, "mapFromArrays", {range_node, arg});
+    }
+
+    parsed_args[0] = arg;
+}
+
 ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
     const substrait::Expression & rel, std::vector<String> & result_names, DB::ActionsDAGPtr actions_dag, bool keep_result, bool position)
 {
@@ -661,34 +717,17 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
 
     auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
     auto function_name = getFunctionName(function_signature, scalar_function);
-    if (function_name != "arrayJoin")
-        throw Exception(
-            ErrorCodes::LOGICAL_ERROR,
-            "Function parseArrayJoinWithDAG should only process arrayJoin function, but input is {}",
-            rel.ShortDebugString());
 
-    /// The argument number of arrayJoin(converted from Spark explode/posexplode) should be 1
-    if (scalar_function.arguments_size() != 1)
-        throw Exception(ErrorCodes::BAD_ARGUMENTS, "Argument number of arrayJoin should be 1 but is {}", scalar_function.arguments_size());
-
+    /// Whether the input argument of explode/posexplode is map type
+    bool is_map;
     ActionsDAG::NodeRawConstPtrs args;
-    parseFunctionArguments(actions_dag, args, function_name, scalar_function);
+    parseArrayJoinArguments(actions_dag, function_name, scalar_function, position, args, is_map);
 
-    auto arg_type = DB::removeNullable(args[0]->result_type);
-    /// array() or map()
-    const auto * empty_map_or_array_node
-        = addColumn(actions_dag, DB::removeNullable(args[0]->result_type), isMap(arg_type) ? Field(Map()) : Field(Array()));
-    /// ifNull(args[0], array() or map())
-    const auto * if_null_node = toFunctionNode(actions_dag, "ifNull", {args[0], empty_map_or_array_node});
-    /// assumeNotNull(ifNull(args[0], array() or map()))
-    const auto * arg_not_null = toFunctionNode(actions_dag, "assumeNotNull", {if_null_node});
-    /// Wrap with materalize function to make sure column input to ARRAY JOIN STEP is materaized
-    arg_not_null = &actions_dag->materializeNode(*arg_not_null);
-
-    /// arrayJoin(arg_not_null)
     /// Note: Make sure result_name keep the same after applying arrayJoin function, which makes it much easier to transform arrayJoin function to ARRAY JOIN STEP
     /// Otherwise an alias node must be appended after ARRAY JOIN STEP, which is not a graceful implementation.
+    const auto & arg_not_null = args[0];
     auto array_join_name = arg_not_null->result_name;
+    /// arrayJoin(arg_not_null)
     const auto * array_join_node = &actions_dag->addArrayJoin(*arg_not_null, array_join_name);
 
     auto tuple_element_builder = FunctionFactory::instance().get("sparkTupleElement", context);
@@ -702,11 +741,10 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
     };
 
     /// Special process to keep compatiable with Spark
-    WhichDataType which(arg_type.get());
     if (!position)
     {
         /// Spark: explode(array_or_map) -> CH: arrayJoin(array_or_map)
-        if (which.isMap())
+        if (is_map)
         {
             /// In Spark: explode(map(k, v)) output 2 columns with default names "key" and "value"
             /// In CH: arrayJoin(map(k, v)) output 1 column with Tuple Type.
@@ -727,76 +765,62 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
             }
             return {key_node, val_node};
         }
-        else if (which.isArray())
+        else
         {
             result_names.push_back(array_join_name);
             if (keep_result)
                 actions_dag->addOrReplaceInOutputs(*array_join_node);
             return {array_join_node};
         }
-        else
-            throw Exception(
-                ErrorCodes::BAD_ARGUMENTS,
-                "Argument type of arrayJoin converted from explode should be Array or Map but is {}",
-                arg_type->getName());
     }
     else
     {
         /// Spark: posexplode(array_or_map) -> CH: arrayJoin(map), in which map = mapFromArrays(range(length(array_or_map)), array_or_map)
-        if (which.isMap())
+
+        /// In Spark: posexplode(array_of_map) output 2 or 3 columns: (pos, col) or (pos, key, value)
+        /// In CH: arrayJoin(map(k, v)) output 1 column with Tuple Type.
+        /// So we must wrap arrayJoin with sparkTupleElement function for compatiability.
+
+        /// pos = cast(arrayJoin(arg_not_null).1, "Int32")
+        const auto * pos_node = add_tuple_element(array_join_node, 1);
+        pos_node = ActionsDAGUtil::convertNodeType(actions_dag, pos_node, "Int32");
+
+        /// if is_map is false, output col = arrayJoin(arg_not_null).2
+        /// if is_map is true,  output (key, value) = arrayJoin(arg_not_null).2
+        const auto * item_node = add_tuple_element(array_join_node, 2);
+
+        if (is_map)
         {
-            /// In Spark: posexplode(array_of_map) output 2 or 3 columns: (pos, col) or (pos, key, value)
-            /// In CH: arrayJoin(map(k, v)) output 1 column with Tuple Type.
-            /// So we must wrap arrayJoin with sparkTupleElement function for compatiability.
+            /// key = arrayJoin(arg_not_null).2.1
+            const auto * key_node = add_tuple_element(item_node, 1);
 
-            /// pos = arrayJoin(arg_not_null).1
-            const auto * pos_node = add_tuple_element(array_join_node, 1);
+            /// value = arrayJoin(arg_not_null).2.2
+            const auto * value_node = add_tuple_element(item_node, 2);
 
-            /// col = arrayJoin(arg_not_null).2 or (key, value) = arrayJoin(arg_not_null).2
-            const auto * item_node = add_tuple_element(array_join_node, 2);
-
-            /// It is a tricky but efficient way to get the original type of argument type in posexplode
-            if (endsWith(args[0]->result_name, "type_hint:map"))
+            result_names.push_back(pos_node->result_name);
+            result_names.push_back(key_node->result_name);
+            result_names.push_back(value_node->result_name);
+            if (keep_result)
             {
-                /// key = arrayJoin(arg_not_null).2.1
-                const auto * item_key_node = add_tuple_element(item_node, 1);
-
-                /// value = arrayJoin(arg_not_null).2.2
-                const auto * item_value_node = add_tuple_element(item_node, 2);
-
-                result_names.push_back(pos_node->result_name);
-                result_names.push_back(item_key_node->result_name);
-                result_names.push_back(item_value_node->result_name);
-                if (keep_result)
-                {
-                    actions_dag->addOrReplaceInOutputs(*pos_node);
-                    actions_dag->addOrReplaceInOutputs(*item_key_node);
-                    actions_dag->addOrReplaceInOutputs(*item_value_node);
-                }
-
-                return {pos_node, item_key_node, item_value_node};
+                actions_dag->addOrReplaceInOutputs(*pos_node);
+                actions_dag->addOrReplaceInOutputs(*key_node);
+                actions_dag->addOrReplaceInOutputs(*value_node);
             }
-            else if (endsWith(args[0]->result_name, "type_hint:array"))
-            {
-                /// col = arrayJoin(arg_not_null).2
-                result_names.push_back(pos_node->result_name);
-                result_names.push_back(item_node->result_name);
-                if (keep_result)
-                {
-                    actions_dag->addOrReplaceInOutputs(*pos_node);
-                    actions_dag->addOrReplaceInOutputs(*item_node);
-                }
-                return {pos_node, item_node};
-            }
-            else
-                throw Exception(
-                    ErrorCodes::BAD_ARGUMENTS, "The raw input of arrayJoin converted from posexplode should be Array or Map type");
+
+            return {pos_node, key_node, value_node};
         }
         else
-            throw Exception(
-                ErrorCodes::BAD_ARGUMENTS,
-                "Argument type of arrayJoin converted from posexplode should be Map but is {}",
-                arg_type->getName());
+        {
+            /// col = arrayJoin(arg_not_null).2
+            result_names.push_back(pos_node->result_name);
+            result_names.push_back(item_node->result_name);
+            if (keep_result)
+            {
+                actions_dag->addOrReplaceInOutputs(*pos_node);
+                actions_dag->addOrReplaceInOutputs(*item_node);
+            }
+            return {pos_node, item_node};
+        }
     }
 }
 
