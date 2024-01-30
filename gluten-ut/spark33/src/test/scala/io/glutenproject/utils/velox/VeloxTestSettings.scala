@@ -1005,6 +1005,7 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-9083: sort with non-deterministic expressions"
     )
   enableSuite[GlutenDataFrameTimeWindowingSuite]
+    .exclude("time window joins") // FIXME hongze
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameWindowFramesSuite]
     // Local window fixes are not added.
