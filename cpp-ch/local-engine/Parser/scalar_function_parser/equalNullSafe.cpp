@@ -54,7 +54,7 @@ public:
             throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
 
         const auto * left_arg = parsed_args[0];
-        const auto * right_arg = parsed_args[0];
+        const auto * right_arg = parsed_args[1];
         const auto * is_left_null_node = toFunctionNode(actions_dag, "isNull", {left_arg});
         const auto * is_right_null_node = toFunctionNode(actions_dag, "isNull", {right_arg});
         const auto * is_both_null_node = toFunctionNode(actions_dag, "and", {is_left_null_node, is_right_null_node});
