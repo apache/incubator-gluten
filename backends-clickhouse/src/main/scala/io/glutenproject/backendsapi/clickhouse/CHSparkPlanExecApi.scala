@@ -44,6 +44,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
 import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
 import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules.NativeWritePostRule
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.ClickHouseScan
@@ -592,6 +593,32 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
               "unsupported window function type: " +
                 wExpression.windowFunction)
         }
+    }
+  }
+
+  /** Clickhouse Backend only supports part of filters for parquet. */
+  override def postProcessPushDownFilter(
+      extraFilters: Seq[Expression],
+      sparkExecNode: LeafExecNode): Seq[Expression] = {
+    // FIXME: DeltaMergeTreeFileFormat should not inherit from ParquetFileFormat.
+    def isParquetFormat(fileFormat: FileFormat): Boolean = fileFormat match {
+      case p: ParquetFileFormat if p.shortName().equals("parquet") => true
+      case _ => false
+    }
+
+    // TODO: datasource v2 ?
+    // TODO: Push down conditions with scalar subquery
+    // For example, consider TPCH 22 'c_acctbal > (select avg(c_acctbal) from customer where ...)'.
+    // Vanilla Spark only pushes down the Parquet Filter not Catalyst Filter, so it can not get the
+    // subquery result, while gluten pushes down the Catalyst Filter which we can benefit from this
+    // to get result. But the current implementation is ineffective, since we didn't use
+    // ReusedSubqueryExec
+
+    sparkExecNode match {
+      case fileSourceScan: FileSourceScanExec
+          if isParquetFormat(fileSourceScan.relation.fileFormat) =>
+        fileSourceScan.dataFilters
+      case _ => super.postProcessPushDownFilter(extraFilters, sparkExecNode)
     }
   }
 }

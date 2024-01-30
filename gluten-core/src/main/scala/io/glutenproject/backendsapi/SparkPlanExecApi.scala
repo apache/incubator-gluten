@@ -36,8 +36,9 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{FileSourceScanExec, LeafExecNode, SparkPlan}
 import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
@@ -516,4 +517,39 @@ trait SparkPlanExecApi {
   def genInjectedFunctions(): Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = Seq.empty
 
   def rewriteSpillPath(path: String): String = path
+
+  /**
+   * Vanilla spark just push down part of filter condition into scan, however gluten can push down
+   * all filters. This function calculates the remaining conditions in FilterExec, add into the
+   * dataFilters of the leaf node.
+   * @param extraFilters:
+   *   Conjunctive Predicates, which are split from the upper FilterExec
+   * @param sparkExecNode:
+   *   The vanilla leaf node of the plan tree, which is FileSourceScanExec or BatchScanExec
+   * @return
+   *   return all push down filters
+   */
+  def postProcessPushDownFilter(
+      extraFilters: Seq[Expression],
+      sparkExecNode: LeafExecNode): Seq[Expression] = {
+    sparkExecNode match {
+      case fileSourceScan: FileSourceScanExec =>
+        fileSourceScan.dataFilters ++ FilterHandler.getRemainingFilters(
+          fileSourceScan.dataFilters,
+          extraFilters)
+      case batchScan: BatchScanExec =>
+        batchScan.scan match {
+          case fileScan: FileScan =>
+            fileScan.dataFilters ++ FilterHandler.getRemainingFilters(
+              fileScan.dataFilters,
+              extraFilters)
+          case _ =>
+            // TODO: For data lake format use pushedFilters in SupportsPushDownFilters
+            extraFilters
+        }
+      case _ =>
+        throw new UnsupportedOperationException(
+          s"${sparkExecNode.getClass.toString} is not supported.")
+    }
+  }
 }
