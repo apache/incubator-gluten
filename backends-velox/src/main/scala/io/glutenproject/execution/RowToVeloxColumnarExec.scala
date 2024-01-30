@@ -121,7 +121,7 @@ object RowToVeloxColumnarExec {
       SparkArrowUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
     val jniWrapper = NativeRowToColumnarJniWrapper.create()
     val arrowAllocator = ArrowBufferAllocators.contextInstance()
-    val memoryManager = NativeMemoryManagers.contextInstance("RowToColumnarBroadcast")
+    val memoryManager = NativeMemoryManagers.contextInstance("RowToColumnar")
     val cSchema = ArrowSchema.allocateNew(arrowAllocator)
     val r2cHandle =
       try {
