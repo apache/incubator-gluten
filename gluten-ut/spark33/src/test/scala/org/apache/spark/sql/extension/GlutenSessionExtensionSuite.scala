@@ -17,7 +17,6 @@
 package org.apache.spark.sql.extension
 
 import io.glutenproject.extension.{ColumnarOverrideRules, JoinSelectionOverrides}
-import io.glutenproject.extension.columnar.{FallbackMultiCodegens, FallbackOnANSIMode}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql._
