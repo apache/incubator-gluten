@@ -181,7 +181,7 @@ class GlutenClickHouseTPCDSParquetGraceHashJoinSuite extends GlutenClickHouseTPC
       }
     }
   }
- 
+
   test("Gluten-4452: Fix get wrong hash table when multi joins in a task") {
     val testSql =
       """
