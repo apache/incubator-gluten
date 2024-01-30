@@ -72,14 +72,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     }
   }
 
-  private def genCloseableColumnBatchIterator(
-      iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
-    iter match {
-      case _: CloseableCHColumnBatchIterator => iter
-      case _ => new CloseableCHColumnBatchIterator(iter)
-    }
-  }
-
   override def genSplitInfo(
       partition: InputPartition,
       partitionSchema: StructType,
@@ -351,7 +343,9 @@ object CHIteratorApi {
 
   /** Generate closeable ColumnBatch iterator. */
   def genCloseableColumnBatchIterator(iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
-    if (iter.isInstanceOf[CloseableCHColumnBatchIterator]) iter
-    else new CloseableCHColumnBatchIterator(iter)
+    iter match {
+      case _: CloseableCHColumnBatchIterator => iter
+      case _ => new CloseableCHColumnBatchIterator(iter)
+    }
   }
 }
