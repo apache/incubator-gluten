@@ -187,7 +187,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
 
     val transKernel = new CHNativeExpressionEvaluator()
     val inBatchIters = new JArrayList[GeneralInIterator](inputIterators.map {
-      iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
+      iter => new ColumnarNativeIterator(CHIteratorApi.genCloseableColumnBatchIterator(iter).asJava)
     }.asJava)
 
     val splitInfoByteArray = inputPartition
@@ -253,7 +253,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     val transKernel = new CHNativeExpressionEvaluator()
     val columnarNativeIterator =
       new JArrayList[GeneralInIterator](inputIterators.map {
-        iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
+        iter =>
+          new ColumnarNativeIterator(CHIteratorApi.genCloseableColumnBatchIterator(iter).asJava)
       }.asJava)
     // we need to complete dependency RDD's firstly
     val nativeIterator = transKernel.createKernelWithBatchIterator(
