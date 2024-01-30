@@ -27,7 +27,7 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
-import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.FileFormat
@@ -51,8 +51,7 @@ case class WriteFilesExecTransformer(
     partitionColumns: Seq[Attribute],
     bucketSpec: Option[BucketSpec],
     options: Map[String, String],
-    staticPartitions: TablePartitionSpec,
-    var outputOrderOpt: Option[Seq[SortOrder]] = None)
+    staticPartitions: TablePartitionSpec)
   extends UnaryTransformSupport {
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -62,12 +61,6 @@ case class WriteFilesExecTransformer(
     BackendsApiManager.getMetricsApiInstance.genWriteFilesTransformerMetricsUpdater(metrics)
 
   override def output: Seq[Attribute] = Seq.empty
-
-  override def outputOrdering: Seq[SortOrder] = if (outputOrderOpt.isDefined) {
-    outputOrderOpt.get
-  } else {
-    child.outputOrdering
-  }
 
   private val caseInsensitiveOptions = CaseInsensitiveMap(options)
 

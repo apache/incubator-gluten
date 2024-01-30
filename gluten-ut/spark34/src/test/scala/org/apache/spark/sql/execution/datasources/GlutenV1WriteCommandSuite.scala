@@ -20,12 +20,81 @@ import io.glutenproject.execution.SortExecTransformer
 
 import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, GlutenTestConstants}
 import org.apache.spark.sql.catalyst.expressions.{Ascending, AttributeReference, NullsFirst, SortOrder}
-import org.apache.spark.sql.execution.SortExec
+import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
+import org.apache.spark.sql.execution.{QueryExecution, SortExec}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{IntegerType, StringType}
+import org.apache.spark.sql.util.QueryExecutionListener
 
-class GlutenV1WriteCommandSuite extends V1WriteCommandSuite with GlutenSQLTestsBaseTrait {
+trait GlutenV1WriteCommandSuiteBase extends V1WriteCommandSuiteBase {
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+  }
+
+  override def afterAll(): Unit = {
+    super.afterAll()
+  }
+
+  override def executeAndCheckOrdering(
+      hasLogicalSort: Boolean,
+      orderingMatched: Boolean,
+      hasEmpty2Null: Boolean = false)(query: => Unit): Unit = {
+    var optimizedPlan: LogicalPlan = null
+
+    val listener = new QueryExecutionListener {
+      override def onSuccess(funcName: String, qe: QueryExecution, durationNs: Long): Unit = {
+        qe.optimizedPlan match {
+          case w: V1WriteCommand =>
+            if (hasLogicalSort && conf.getConf(SQLConf.PLANNED_WRITE_ENABLED)) {
+              assert(w.query.isInstanceOf[WriteFiles])
+              assert(w.partitionColumns == w.query.asInstanceOf[WriteFiles].partitionColumns)
+              optimizedPlan = w.query.asInstanceOf[WriteFiles].child
+            } else {
+              optimizedPlan = w.query
+            }
+          case _ =>
+        }
+      }
+      override def onFailure(funcName: String, qe: QueryExecution, exception: Exception): Unit = {}
+    }
+    spark.listenerManager.register(listener)
+
+    query
+
+    if (!conf.getConf(SQLConf.PLANNED_WRITE_ENABLED)) {
+      // Check whether the output ordering is matched before FileFormatWriter executes rdd.
+      assert(
+        FileFormatWriter.outputOrderingMatched == orderingMatched,
+        s"Expect: $orderingMatched, Actual: ${FileFormatWriter.outputOrderingMatched}")
+    }
+
+    sparkContext.listenerBus.waitUntilEmpty()
+
+    assert(optimizedPlan != null)
+    // Check whether exists a logical sort node of the write query.
+    // If user specified sort matches required ordering, the sort node may not at the top of query.
+    assert(
+      optimizedPlan.exists(_.isInstanceOf[Sort]) == hasLogicalSort,
+      s"Expect hasLogicalSort: $hasLogicalSort," +
+        s"Actual: ${optimizedPlan.exists(_.isInstanceOf[Sort])}"
+    )
+
+    // Check empty2null conversion.
+    val empty2nullExpr = optimizedPlan.exists(p => V1WritesUtils.hasEmptyToNull(p.expressions))
+    assert(
+      empty2nullExpr == hasEmpty2Null,
+      s"Expect hasEmpty2Null: $hasEmpty2Null, Actual: $empty2nullExpr. Plan:\n$optimizedPlan")
+
+    spark.listenerManager.unregister(listener)
+  }
+}
+
+class GlutenV1WriteCommandSuite
+  extends V1WriteCommandSuite
+  with GlutenV1WriteCommandSuiteBase
+  with GlutenSQLTestsBaseTrait {
 
   test(
     GlutenTestConstants.GLUTEN_TEST +
