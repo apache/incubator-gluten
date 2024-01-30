@@ -785,16 +785,19 @@ case class ColumnarOverrideRules(session: SparkSession)
       (spark: SparkSession) => FallbackMultiCodegens(spark),
       (spark: SparkSession) => PlanOneRowRelation(spark),
       (_: SparkSession) => FallbackEmptySchemaRelation(),
-      (spark: SparkSession) => PullOutPreProject(spark),
-      (_: SparkSession) => AddTransformHintRule(),
-      (_: SparkSession) => RewriteMultiChildrenCount,
-      (_: SparkSession) => FallbackBloomFilterAggIfNeeded(),
-      (_: SparkSession) => TransformPreOverrides(isAdaptiveContext),
-      (_: SparkSession) => RemoveNativeWriteFilesSortAndProject(),
-      (spark: SparkSession) => RewriteTransformer(spark),
-      (_: SparkSession) => EnsureLocalSortRequirements,
-      (_: SparkSession) => CollapseProjectExecTransformer
+      (spark: SparkSession) => PullOutPreProject(spark)
     ) :::
+      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarValidationRules() :::
+      List(
+        (_: SparkSession) => AddTransformHintRule(),
+        (_: SparkSession) => RewriteMultiChildrenCount,
+        (_: SparkSession) => FallbackBloomFilterAggIfNeeded(),
+        (_: SparkSession) => TransformPreOverrides(isAdaptiveContext),
+        (_: SparkSession) => RemoveNativeWriteFilesSortAndProject(),
+        (spark: SparkSession) => RewriteTransformer(spark),
+        (_: SparkSession) => EnsureLocalSortRequirements,
+        (_: SparkSession) => CollapseProjectExecTransformer
+      ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules() :::
       SparkRuleUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPreRules)
   }

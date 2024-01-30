@@ -493,6 +493,13 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
     List(AggregateFunctionRewriteRule)
 
   /**
+   * Generate extended columnar pre-rules, in the validation phase.
+   *
+   * @return
+   */
+  override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] = List()
+
+  /**
    * Generate extended columnar pre-rules.
    *
    * @return

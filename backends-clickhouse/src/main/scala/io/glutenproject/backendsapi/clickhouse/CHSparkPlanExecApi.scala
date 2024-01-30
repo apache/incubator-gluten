@@ -376,12 +376,20 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   }
 
   /**
+   * Generate extended columnar pre-rules, in the validation phase.
+   *
+   * @return
+   */
+  override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] =
+    List(spark => FallbackBroadcastHashJoin(spark))
+
+  /**
    * Generate extended columnar pre-rules.
    *
    * @return
    */
   override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] =
-    List(spark => FallbackBroadcastHashJoin(spark))
+    List()
 
   /**
    * Generate extended columnar post-rules.

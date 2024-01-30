@@ -266,6 +266,13 @@ trait SparkPlanExecApi {
   def genExtendedStrategies(): List[SparkSession => Strategy]
 
   /**
+   * Generate extended columnar pre-rules, in the validation phase.
+   *
+   * @return
+   */
+  def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]]
+
+  /**
    * Generate extended columnar pre-rules.
    *
    * @return
