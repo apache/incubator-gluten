@@ -21,6 +21,8 @@ import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.FallbackUtil
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.internal.SQLConf
 
 import org.junit.Assert
 
@@ -113,4 +115,32 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
       Assert.assertTrue(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
     }
   }
+
+  Seq("true", "false").foreach {
+    sensitive =>
+      test(s"kPartitionPathAsLowerCaseSession should not affected by kCaseSensitive - $sensitive") {
+        withTempPath {
+          path =>
+            val colToUnescape = "Column/#%'?"
+            Seq("true", "false").foreach(
+              glutenEnabled => {
+                withSQLConf(
+                  SQLConf.CASE_SENSITIVE.key -> sensitive,
+                  "spark.gluten.enabled" -> glutenEnabled) {
+                  spark
+                    .range(1)
+                    .select(col("id").as(colToUnescape), col("id"))
+                    .write
+                    .partitionBy(colToUnescape)
+                    .mode("overwrite")
+                    .parquet(path.getAbsolutePath)
+                  val schema = spark.read.parquet(path.getAbsolutePath).schema
+                  assert(schema.exists(_.name == colToUnescape))
+                }
+              })
+
+        }
+      }
+  }
+
 }
