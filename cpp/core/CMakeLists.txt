@@ -169,17 +169,6 @@ set(GLUTEN_PROTO_OUTPUT_FILES ${GLUTEN_PROTO_HDRS} ${GLUTEN_PROTO_SRCS})
 set_source_files_properties(${GLUTEN_PROTO_OUTPUT_FILES} PROPERTIES GENERATED TRUE)
 get_filename_component(GLUTEN_PROTO_DIR ${GLUTEN_PROTO_SRC_DIR}/ DIRECTORY)
 
-set(CODEGEN_HEADERS third_party/)
-set(THIRD_PARTY_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${THIRD_PARTY_INCLUDE})
-file(MAKE_DIRECTORY ${root_directory}/releases/include)
-file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/common/)
-file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/third_party/)
-file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/precompile/)
-file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/utils/)
-file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/arrow_compute/ext/)
-file(COPY utils/metrics.h DESTINATION ${root_directory}/releases/include/common/)
-
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
 set(SPARK_COLUMNAR_PLUGIN_SRCS
         ${SUBSTRAIT_PROTO_SRCS}
