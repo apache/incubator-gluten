@@ -905,6 +905,28 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       df.queryExecution)
   }
 
+  test("Columnar cartesian product with other join") {
+    withTable("cartesian1", "cartesian2") {
+      spark.sql("""
+                  |CREATE TABLE cartesian1 USING PARQUET
+                  |AS SELECT id as c1, id % 3 as c2 FROM range(20)
+                  |""".stripMargin)
+      spark.sql("""
+                  |CREATE TABLE cartesian2 USING PARQUET
+                  |AS SELECT id as c1, id % 3 as c2 FROM range(20)
+                  |""".stripMargin)
+
+      runQueryAndCompare(
+        """
+          |SELECT * FROM (
+          | SELECT /*+ shuffle_replicate_nl(cartesian1) */ cartesian1.c1, cartesian2.c2
+          | FROM cartesian1 join cartesian2
+          |)tmp
+          |join cartesian2 on tmp.c1 = cartesian2.c1
+          |""".stripMargin)(df => checkFallbackOperators(df, 0))
+    }
+  }
+
   test("Support multi-children count") {
     runQueryAndCompare(
       """
