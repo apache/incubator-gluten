@@ -62,7 +62,7 @@ class BatchScanExecTransformer(
   // class. Otherwise, we will encounter an issue where makeCopy cannot find a constructor
   // with the corresponding number of parameters.
   // The workaround is to add a mutable list to pass in pushdownFilters.
-  private var pushdownFilters: Option[Seq[Expression]] = None
+  protected var pushdownFilters: Option[Seq[Expression]] = None
 
   def setPushDownFilters(filters: Seq[Expression]): Unit = {
     pushdownFilters = Some(filters)
