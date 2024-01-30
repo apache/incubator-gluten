@@ -26,6 +26,7 @@ import org.apache.spark.sql.connector.distributions.Distributions
 import org.apache.spark.sql.connector.expressions._
 import org.apache.spark.sql.connector.expressions.Expressions._
 import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, SparkPlan}
+import org.apache.spark.sql.execution.joins.SortMergeJoinExec
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
@@ -107,8 +108,10 @@ class GlutenKeyGroupedPartitioningSuite
   private def collectColumnarShuffleExchangeExec(
       plan: SparkPlan): Seq[ColumnarShuffleExchangeExec] = {
     // here we skip collecting shuffle operators that are not associated with SMJ
-    collect(plan) { case s: SortMergeJoinExecTransformer => s }.flatMap(
-      smj => collect(smj) { case s: ColumnarShuffleExchangeExec => s })
+    collect(plan) {
+      case s: SortMergeJoinExecTransformer => s
+      case s: SortMergeJoinExec => s
+    }.flatMap(smj => collect(smj) { case s: ColumnarShuffleExchangeExec => s })
   }
 
   test("gluten - partitioned join: only one side reports partitioning") {
