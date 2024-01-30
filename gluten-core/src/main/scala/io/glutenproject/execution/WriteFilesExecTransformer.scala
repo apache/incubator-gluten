@@ -47,12 +47,12 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
  */
 case class WriteFilesExecTransformer(
     child: SparkPlan,
-    override val outputOrdering: Seq[SortOrder],
     fileFormat: FileFormat,
     partitionColumns: Seq[Attribute],
     bucketSpec: Option[BucketSpec],
     options: Map[String, String],
-    staticPartitions: TablePartitionSpec)
+    staticPartitions: TablePartitionSpec,
+    var outputOrderOpt: Option[Seq[SortOrder]] = None)
   extends UnaryTransformSupport {
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -62,6 +62,12 @@ case class WriteFilesExecTransformer(
     BackendsApiManager.getMetricsApiInstance.genWriteFilesTransformerMetricsUpdater(metrics)
 
   override def output: Seq[Attribute] = Seq.empty
+
+  override def outputOrdering: Seq[SortOrder] = if (outputOrderOpt.isDefined) {
+    outputOrderOpt.get
+  } else {
+    child.outputOrdering
+  }
 
   private val caseInsensitiveOptions = CaseInsensitiveMap(options)
 

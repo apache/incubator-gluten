@@ -39,6 +39,7 @@ case class RemoveNativeWriteFilesSortAndProject() extends Rule[SparkPlan] {
 
     plan.transform {
       case NativeWriteFilesWithSkippingSortAndProject(writeFiles, newChild) =>
+        val originalOutputOrdering = writeFiles.outputOrdering
         val originalOutput = writeFiles.child.output
         val newOutput = newChild.output
         assert(
@@ -49,6 +50,7 @@ case class RemoveNativeWriteFilesSortAndProject() extends Rule[SparkPlan] {
           case attr: Attribute if attrMap.contains(attr) =>
             attr.withExprId(attrMap(attr).exprId)
         }
+        newWriteFiles.outputOrderOpt = Some(originalOutputOrdering)
         newWriteFiles.withNewChildren(newChild :: Nil)
     }
   }
