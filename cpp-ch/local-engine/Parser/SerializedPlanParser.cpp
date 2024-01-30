@@ -1081,24 +1081,6 @@ void SerializedPlanParser::parseFunctionArguments(
         DB::ActionsDAG::NodeRawConstPtrs ifnull_func_args = {arg_node, addColumn(actions_dag, std::make_shared<DataTypeInt32>(), 0)};
         parsed_args.emplace_back(toFunctionNode(actions_dag, "IfNull", ifnull_func_args));
     }
-    else if (function_name == "positionUTF8Spark")
-    {
-        if (args.size() >= 2)
-        {
-            // In Spark: position(substr, str, Int32)
-            // In CH:    position(str, subtr, UInt32)
-            parseFunctionArgument(actions_dag, parsed_args, function_name, args[1]);
-            parseFunctionArgument(actions_dag, parsed_args, function_name, args[0]);
-        }
-        if (args.size() >= 3)
-        {
-            // add cast: cast(start_pos as UInt32)
-            const auto * start_pos_node = parseFunctionArgument(actions_dag, function_name, args[2]);
-            DB::DataTypeNullable target_type(std::make_shared<DB::DataTypeUInt32>());
-            start_pos_node = ActionsDAGUtil::convertNodeType(actions_dag, start_pos_node, target_type.getName());
-            parsed_args.emplace_back(start_pos_node);
-        }
-    }
     else if (function_name == "space")
     {
         // convert space function to repeat

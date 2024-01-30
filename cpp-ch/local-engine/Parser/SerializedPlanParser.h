@@ -149,8 +149,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"reverse", ""}, /// dummy mapping
        {"translate", "translateUTF8"},
        {"repeat", "repeat"},
-       {"position", "positionUTF8Spark"},
-       {"locate", "positionUTF8Spark"},
        {"space", "space"},
        {"initcap", "initcapUTF8"},
        {"conv", "sparkConv"},

@@ -18,7 +18,6 @@ package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.substrait.`type`._
 import io.glutenproject.substrait.expression._
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -151,49 +150,6 @@ case class CHStringTranslateTransformer(
       Seq(srcExpr, matchingExpr, replaceExpr),
       original)
       .doTransform(args)
-  }
-}
-
-case class CHStringLocateTransformer(
-    substraitExprName: String,
-    substrExpr: ExpressionTransformer,
-    strExpr: ExpressionTransformer,
-    startExpr: ExpressionTransformer,
-    original: StringLocate)
-  extends ExpressionTransformer {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val substrNode = substrExpr.doTransform(args)
-    val strNode = strExpr.doTransform(args)
-    val startNode = startExpr.doTransform(args)
-
-    // Special Case
-    // In Spark, return 0 when start_pos is null
-    // but when start_pos is not null, return null if either str or substr is null
-    // so we need convert it to if(isnull(start_pos), 0, position(substr, str, start_pos)
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val locateFuncName = ConverterUtils.makeFuncName(
-      substraitExprName,
-      original.children.map(_.dataType),
-      FunctionConfig.OPT)
-    val locateFuncId = ExpressionBuilder.newScalarFunction(functionMap, locateFuncName)
-    val exprNodes = Lists.newArrayList(substrNode, strNode, startNode)
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    val locateFuncNode = ExpressionBuilder.makeScalarFunction(locateFuncId, exprNodes, typeNode)
-
-    // isnull(start_pos)
-    val isnullFuncName =
-      ConverterUtils.makeFuncName(ExpressionNames.IS_NULL, Seq(IntegerType), FunctionConfig.OPT)
-    val isnullFuncId = ExpressionBuilder.newScalarFunction(functionMap, isnullFuncName)
-    val isnullNode = ExpressionBuilder.makeScalarFunction(
-      isnullFuncId,
-      Lists.newArrayList(startNode),
-      TypeBuilder.makeBoolean(false))
-
-    new IfThenNode(
-      Lists.newArrayList(isnullNode),
-      Lists.newArrayList(new IntLiteralNode(0)),
-      locateFuncNode)
   }
 }
 
