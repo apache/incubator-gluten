@@ -83,7 +83,7 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
     val numRows = conf.columnBatchSize
     val mode = BroadcastUtils.getBroadcastMode(outputPartitioning)
     val relation = child.executeBroadcast()
-    BroadcastUtils.vanillaToVeloxUnsafe(
+    BroadcastUtils.sparkToVeloxUnsafe(
       sparkContext,
       mode,
       schema,

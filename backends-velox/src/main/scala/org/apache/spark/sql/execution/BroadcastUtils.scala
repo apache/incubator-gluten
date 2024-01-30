@@ -35,7 +35,7 @@ import scala.collection.JavaConverters._;
 // FIXME: Add checking for broadcast mode.
 // FIXME: Truncate output with batch size.
 object BroadcastUtils {
-  def veloxToVanillaUnsafe[F, T](
+  def veloxToSparkUnsafe[F, T](
       context: SparkContext,
       mode: BroadcastMode,
       from: Broadcast[F],
@@ -56,7 +56,7 @@ object BroadcastUtils {
     context.broadcast(toRelation).asInstanceOf[Broadcast[T]]
   }
 
-  def vanillaToVeloxUnsafe[F, T](
+  def sparkToVeloxUnsafe[F, T](
       context: SparkContext,
       mode: BroadcastMode,
       schema: StructType,

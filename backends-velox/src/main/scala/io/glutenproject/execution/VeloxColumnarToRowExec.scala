@@ -89,7 +89,7 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
 
     val mode = BroadcastUtils.getBroadcastMode(outputPartitioning)
     val relation = child.executeBroadcast()
-    BroadcastUtils.veloxToVanillaUnsafe(
+    BroadcastUtils.veloxToSparkUnsafe(
       sparkContext,
       mode,
       relation,
