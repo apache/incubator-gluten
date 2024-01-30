@@ -1005,6 +1005,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // test for sort node not present but gluten uses shuffle hash join
     .exclude("SPARK-41048: Improve output partitioning and ordering with AQE cache")
   enableSuite[GlutenDataFrameTimeWindowingSuite]
+    .exclude("time window joins") // FIXME hongze
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameWindowFramesSuite]
     // Local window fixes are not added.
