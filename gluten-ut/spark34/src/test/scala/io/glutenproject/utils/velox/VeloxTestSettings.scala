@@ -748,7 +748,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataSourceSuite]
   enableSuite[GlutenFileFormatWriterSuite]
   enableSuite[GlutenFileIndexSuite]
-    .exclude("SPARK-20367 - properly unescape column names in inferPartitioning")
   enableSuite[GlutenFileMetadataStructSuite]
   enableSuite[GlutenParquetV1AggregatePushDownSuite]
   enableSuite[GlutenParquetV2AggregatePushDownSuite]
@@ -1089,8 +1088,6 @@ class VeloxTestSettings extends BackendTestSettings {
   // following UT is removed in spark3.3.1
   // enableSuite[GlutenSimpleShowCreateTableSuite]
   enableSuite[GlutenFileSourceSQLInsertTestSuite]
-    .exclude(
-      "SPARK-34556: checking duplicate static partition columns should respect case sensitive conf")
   enableSuite[GlutenDSV2SQLInsertTestSuite]
   enableSuite[GlutenSQLQuerySuite]
     // Decimal precision exceeds.
