@@ -156,6 +156,9 @@
       <plugin>
         <groupId>org.scalatest</groupId>
         <artifactId>scalatest-maven-plugin</artifactId>
+        <configuration>
+          <junitxml>.</junitxml>
+        </configuration>
         <executions>
           <execution>
             <id>test</id>

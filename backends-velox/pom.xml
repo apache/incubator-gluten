@@ -215,6 +215,7 @@
         <groupId>org.scalatest</groupId>
         <artifactId>scalatest-maven-plugin</artifactId>
         <configuration>
+          <junitxml>.</junitxml>
           <tagsToExclude>${tagsToExclude}</tagsToExclude>
           <systemProperties>
             <velox.udf.lib.path>${cpp.build.dir}/velox/udf/examples/libmyudf.so</velox.udf.lib.path>
