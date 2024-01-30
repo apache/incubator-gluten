@@ -195,6 +195,7 @@ case class FallbackBroadcastHashJoin(session: SparkSession) extends Rule[SparkPl
                     }
                 }
               }
+            case other =>
           }
         } catch {
           case e: UnsupportedOperationException =>
