@@ -471,24 +471,24 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
         case plan: SortAggregateExec =>
           if (!BackendsApiManager.getSettings.replaceSortAggWithHashAgg) {
             TransformHints.tagNotTransformable(plan, "replaceSortAggWithHashAgg is not enabled")
-          }
-          if (!enableColumnarHashAgg) {
+          } else if (!enableColumnarHashAgg) {
             TransformHints.tagNotTransformable(
               plan,
               "columnar HashAgg is not enabled in SortAggregateExec")
+          } else {
+            val rewrittenAgg = RewriteMultiChildrenCount.applyForValidation(plan)
+            val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+              .genHashAggregateExecTransformer(
+                rewrittenAgg.requiredChildDistributionExpressions,
+                rewrittenAgg.groupingExpressions,
+                rewrittenAgg.aggregateExpressions,
+                rewrittenAgg.aggregateAttributes,
+                rewrittenAgg.initialInputBufferOffset,
+                rewrittenAgg.resultExpressions,
+                rewrittenAgg.child
+              )
+            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
-          val rewrittenAgg = RewriteMultiChildrenCount.applyForValidation(plan)
-          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
-            .genHashAggregateExecTransformer(
-              rewrittenAgg.requiredChildDistributionExpressions,
-              rewrittenAgg.groupingExpressions,
-              rewrittenAgg.aggregateExpressions,
-              rewrittenAgg.aggregateAttributes,
-              rewrittenAgg.initialInputBufferOffset,
-              rewrittenAgg.resultExpressions,
-              rewrittenAgg.child
-            )
-          TransformHints.tag(plan, transformer.doValidate().toTransformHint)
         case plan: ObjectHashAggregateExec =>
           if (!enableColumnarHashAgg) {
             TransformHints.tagNotTransformable(

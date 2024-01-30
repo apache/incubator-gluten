@@ -89,13 +89,12 @@ class VeloxTestSettings extends BackendTestSettings {
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
   enableSuite[GlutenCollectionExpressionsSuite]
-    .exclude("Map Concat")
+    // Rewrite in Gluten to replace Seq with Array
     .exclude("Shuffle")
     // TODO: ArrayDistinct should handle duplicated Double.NaN
     .excludeByPrefix("SPARK-36741")
     // TODO: ArrayIntersect should handle duplicated Double.NaN
     .excludeByPrefix("SPARK-36754")
-    .exclude("Concat")
   enableSuite[GlutenConditionalExpressionSuite]
   enableSuite[GlutenDateExpressionsSuite]
     // Has exception in fallback execution when we use resultDF.collect in evaluation.
@@ -104,6 +103,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("unix_timestamp")
     // Replaced by a gluten test to pass timezone through config.
     .exclude("to_unix_timestamp")
+    // Replaced by a gluten test to pass timezone through config.
+    .exclude("Hour")
     // Unsupported format: yyyy-MM-dd HH:mm:ss.SSS
     .exclude("SPARK-33498: GetTimestamp,UnixTimestamp,ToUnixTimestamp with parseError")
     // Replaced by a gluten test to pass timezone through config.

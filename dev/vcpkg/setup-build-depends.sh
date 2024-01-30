@@ -8,7 +8,7 @@ function semver {
     echo "$@" | awk -F. '{ printf("%d%03d%03d", $1,$2,$3); }'
 }
 
-install_centos_any_maven() {
+install_maven_from_source() {
     if [ -z "$(which mvn)" ]; then
         maven_version=3.9.2
         maven_install_dir=/opt/maven-$maven_version
@@ -73,7 +73,7 @@ install_centos_7() {
         echo /usr/share/aclocal > /usr/local/share/aclocal/dirlist
     fi
 
-    install_centos_any_maven
+    install_maven_from_source
 }
 
 install_centos_8() {
@@ -84,7 +84,55 @@ install_centos_8() {
         flex bison python3 \
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
 
-    install_centos_any_maven
+    install_maven_from_source
+}
+
+install_ubuntu_18.04() {
+    # Support for gcc-9 and g++-9
+    apt-get update && apt-get install -y software-properties-common
+    add-apt-repository -y ppa:ubuntu-toolchain-r/test
+
+    apt-get -y install \
+        wget curl tar zip unzip git \
+        build-essential ccache ninja-build pkg-config autoconf autoconf-archive libtool \
+        flex bison \
+        openjdk-8-jdk \
+        gcc-9 g++-9
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 900 --slave /usr/bin/g++ g++ /usr/bin/g++-9
+
+    # Install cmake 3.28.1 from source
+    apt remove -y --purge --auto-remove cmake
+    apt-get install -y libssl-dev
+
+    version=3.28
+    build=1
+    mkdir cmake_install
+    cd cmake_install
+    wget https://cmake.org/files/v$version/cmake-$version.$build.tar.gz
+    tar -xzvf cmake-$version.$build.tar.gz
+    cd cmake-$version.$build/
+
+    ./bootstrap
+    make -j$(nproc)
+    make install
+
+    cd ../../
+    rm -rf cmake_install
+    ln -fs /usr/local/bin/cmake /usr/bin/cmake
+
+    # Install automake 1.16
+    mkdir -p /tmp/automake
+    wget -O - http://ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz | tar -x --xz -C /tmp/automake --strip-components=1
+    cd /tmp/automake
+    ./configure
+    make install -j
+    cd
+    rm -rf /tmp/automake
+
+    # Fix aclocal search path
+    echo /usr/share/aclocal > /usr/local/share/aclocal/dirlist
+
+    install_maven_from_source
 }
 
 install_ubuntu_20.04() {
@@ -114,7 +162,7 @@ install_tencentos_3.2() {
         flex bison python3 \
         java-8-konajdk
 
-    install_centos_any_maven
+    install_maven_from_source
 }
 
 install_debian_11() {

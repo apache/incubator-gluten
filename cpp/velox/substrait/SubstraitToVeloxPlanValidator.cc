@@ -147,13 +147,6 @@ bool SubstraitToVeloxPlanValidator::validateExtractExpr(const std::vector<core::
       return false;
     }
 
-    // The first parameter specifies extracting from which field.
-    const auto& from = variant.value<std::string>();
-    // Hour causes incorrect result.
-    if (from == "HOUR") {
-      LOG_VALIDATION_MSG("Extract from hour.");
-      return false;
-    }
     return true;
   }
   LOG_VALIDATION_MSG("Constant is expected to be the first parameter in extract.");

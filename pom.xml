@@ -159,9 +159,9 @@
       </properties>
     </profile>
     <profile>
-      <id>dataproc-2.0</id>
+      <id>dataproc-2.2</id>
       <properties>
-        <hadoop.version>3.2.2</hadoop.version>
+        <hadoop.version>3.3.6</hadoop.version>
       </properties>
     </profile>
     <profile>
