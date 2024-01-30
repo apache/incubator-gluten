@@ -35,7 +35,7 @@ import org.apache.commons.lang3.StringUtils
 import scala.sys.process._
 
 class ListenerApiImpl extends ListenerApi {
-  private val ARROW_VERSION = "1400"
+  private val ARROW_VERSION = "1500"
 
   override def onDriverStart(conf: SparkConf): Unit = {
     // sql table cache serializer
@@ -109,9 +109,9 @@ class ListenerApiImpl extends ListenerApi {
     }
     loader
       .newTransaction()
-      .loadAndCreateLink(s"libarrow.so.$ARROW_VERSION.1.0", s"libarrow.so.$ARROW_VERSION", false)
+      .loadAndCreateLink(s"libarrow.so.$ARROW_VERSION.0.0", s"libarrow.so.$ARROW_VERSION", false)
       .loadAndCreateLink(
-        s"libparquet.so.$ARROW_VERSION.1.0",
+        s"libparquet.so.$ARROW_VERSION.0.0",
         s"libparquet.so.$ARROW_VERSION",
         false)
       .commit()
@@ -121,11 +121,11 @@ class ListenerApiImpl extends ListenerApi {
     loader
       .newTransaction()
       .loadAndCreateLink(
-        s"libarrow.$ARROW_VERSION.1.0.dylib",
+        s"libarrow.$ARROW_VERSION.0.0.dylib",
         s"libarrow.$ARROW_VERSION.dylib",
         false)
       .loadAndCreateLink(
-        s"libparquet.$ARROW_VERSION.1.0.dylib",
+        s"libparquet.$ARROW_VERSION.0.0.dylib",
         s"libparquet.$ARROW_VERSION.dylib",
         false)
       .commit()
