@@ -22,19 +22,17 @@ import io.glutenproject.execution._
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.metrics.{GlutenTimeMetric, IMetrics, NativeMetrics}
 import io.glutenproject.substrait.plan.PlanNode
-import io.glutenproject.substrait.rel.{ExtensionTableBuilder, ExtensionTableNode, LocalFilesBuilder, LocalFilesNode, SplitInfo}
+import io.glutenproject.substrait.rel._
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.LogLevelUtil
 import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator, GeneralOutIterator}
 
 import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.affinity.CHAffinity
-import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
-import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
@@ -71,14 +69,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       val names =
         ConverterUtils.collectAttributeNamesWithoutExprId(scan.outputAttributes())
       localFilesNode.setFileSchema(getFileSchema(scan.getDataSchema, names.asScala))
-    }
-  }
-
-  private def genCloseableColumnBatchIterator(
-      iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
-    iter match {
-      case _: CloseableCHColumnBatchIterator => iter
-      case _ => new CloseableCHColumnBatchIterator(iter)
     }
   }
 
@@ -197,7 +187,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
 
     val transKernel = new CHNativeExpressionEvaluator()
     val inBatchIters = new JArrayList[GeneralInIterator](inputIterators.map {
-      iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
+      iter => new ColumnarNativeIterator(CHIteratorApi.genCloseableColumnBatchIterator(iter).asJava)
     }.asJava)
 
     val splitInfoByteArray = inputPartition
@@ -263,7 +253,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     val transKernel = new CHNativeExpressionEvaluator()
     val columnarNativeIterator =
       new JArrayList[GeneralInIterator](inputIterators.map {
-        iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
+        iter =>
+          new ColumnarNativeIterator(CHIteratorApi.genCloseableColumnBatchIterator(iter).asJava)
       }.asJava)
     // we need to complete dependency RDD's firstly
     val nativeIterator = transKernel.createKernelWithBatchIterator(
@@ -347,12 +338,15 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       numOutputBatches,
       scanTime)
   }
+}
 
-  /** Compute for BroadcastBuildSideRDD */
-  override def genBroadcastBuildSideIterator(
-      broadcasted: Broadcast[BuildSideRelation],
-      broadCastContext: BroadCastHashJoinContext): Iterator[ColumnarBatch] = {
-    CHBroadcastBuildSideCache.getOrBuildBroadcastHashTable(broadcasted, broadCastContext)
-    genCloseableColumnBatchIterator(Iterator.empty)
+object CHIteratorApi {
+
+  /** Generate closeable ColumnBatch iterator. */
+  def genCloseableColumnBatchIterator(iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
+    iter match {
+      case _: CloseableCHColumnBatchIterator => iter
+      case _ => new CloseableCHColumnBatchIterator(iter)
+    }
   }
 }

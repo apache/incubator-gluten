@@ -27,7 +27,6 @@ import io.glutenproject.utils._
 import io.glutenproject.vectorized._
 
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
-import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.softaffinity.SoftAffinity
@@ -35,7 +34,6 @@ import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
-import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.{BinaryType, DateType, StructType, TimestampType}
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
@@ -232,16 +230,5 @@ class IteratorApiImpl extends IteratorApi with Logging {
       numOutputBatches: SQLMetric,
       scanTime: SQLMetric): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException("Cannot support to generate Native FileScanRDD.")
-  }
-
-  /** Compute for BroadcastBuildSideRDD */
-  override def genBroadcastBuildSideIterator(
-      broadcasted: Broadcast[BuildSideRelation],
-      broadCastContext: BroadCastHashJoinContext): Iterator[ColumnarBatch] = {
-    val relation = broadcasted.value.asReadOnlyCopy(broadCastContext)
-    Iterators
-      .wrap(relation.deserialized)
-      .recyclePayload(batch => batch.close())
-      .create()
   }
 }

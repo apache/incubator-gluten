@@ -216,6 +216,7 @@ class VeloxTPCHV1Suite extends VeloxTPCHSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.sql.sources.useV1SourceList", "parquet")
+      .set("spark.sql.autoBroadcastJoinThreshold", "-1")
   }
 }
 
@@ -231,6 +232,7 @@ class VeloxTPCHV2Suite extends VeloxTPCHSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.sql.sources.useV1SourceList", "")
+      .set("spark.sql.autoBroadcastJoinThreshold", "-1")
   }
 }
 
@@ -269,5 +271,25 @@ class VeloxPartitionedTableTPCHSuite extends VeloxTPCHSuite {
       TPCHTableDataFrames.keys.foreach(table => spark.sql(s"DROP TABLE IF EXISTS $table"))
     }
     super.afterAll()
+  }
+}
+
+class VeloxTPCHV1GlutenBhjVanillaBeSuite extends VeloxTPCHSuite {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.sql.sources.useV1SourceList", "parquet")
+      .set("spark.sql.autoBroadcastJoinThreshold", "30M")
+      .set("spark.gluten.sql.columnar.broadcastJoin", "true")
+      .set("spark.gluten.sql.columnar.broadcastExchange", "false")
+  }
+}
+
+class VeloxTPCHV1VanillaBhjGlutenBeSuite extends VeloxTPCHSuite {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.sql.sources.useV1SourceList", "parquet")
+      .set("spark.sql.autoBroadcastJoinThreshold", "30M")
+      .set("spark.gluten.sql.columnar.broadcastJoin", "false")
+      .set("spark.gluten.sql.columnar.broadcastExchange", "true")
   }
 }

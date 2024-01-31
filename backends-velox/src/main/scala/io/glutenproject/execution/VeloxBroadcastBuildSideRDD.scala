@@ -14,23 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.joins
+package io.glutenproject.execution
 
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Expression
+import io.glutenproject.utils.Iterators
+
+import org.apache.spark.{broadcast, SparkContext}
+import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-trait BuildSideRelation extends Serializable {
+case class VeloxBroadcastBuildSideRDD(
+    @transient private val sc: SparkContext,
+    broadcasted: broadcast.Broadcast[BuildSideRelation])
+  extends BroadcastBuildSideRDD(sc, broadcasted) {
 
-  /** Deserialized relation from broadcasted value */
-  def deserialized: Iterator[ColumnarBatch]
-
-  /**
-   * Transform columnar broadcasted value to Array[InternalRow] by key and distinct.
-   * @return
-   */
-  def transform(key: Expression): Array[InternalRow]
-
-  /** Returns a read-only copy of this, to be safely used in current thread. */
-  def asReadOnlyCopy(): BuildSideRelation
+  override def genBroadcastBuildSideIterator(): Iterator[ColumnarBatch] = {
+    val relation = broadcasted.value.asReadOnlyCopy()
+    Iterators
+      .wrap(relation.deserialized)
+      .recyclePayload(batch => batch.close())
+      .create()
+  }
 }

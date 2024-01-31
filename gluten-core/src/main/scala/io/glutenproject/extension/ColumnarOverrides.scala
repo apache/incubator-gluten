@@ -780,18 +780,15 @@ case class ColumnarOverrideRules(session: SparkSession)
   private def resetOriginalPlan(): Unit = localOriginalPlans.get.remove(0)
 
   private def preOverrides(): List[SparkSession => Rule[SparkPlan]] = {
-    val tagBeforeTransformHitsRules =
-      if (isAdaptiveContext) {
-        // When AQE is supported, rules are applied in ColumnarQueryStagePrepOverrides
-        List.empty
-      } else {
-        TagBeforeTransformHits.ruleBuilders
-      }
-    tagBeforeTransformHitsRules :::
+    List(
+      (spark: SparkSession) => FallbackOnANSIMode(spark),
+      (spark: SparkSession) => FallbackMultiCodegens(spark),
+      (spark: SparkSession) => PlanOneRowRelation(spark),
+      (_: SparkSession) => FallbackEmptySchemaRelation(),
+      (spark: SparkSession) => PullOutPreProject(spark)
+    ) :::
+      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarValidationRules() :::
       List(
-        (spark: SparkSession) => PlanOneRowRelation(spark),
-        (_: SparkSession) => FallbackEmptySchemaRelation(),
-        (spark: SparkSession) => PullOutPreProject(spark),
         (_: SparkSession) => AddTransformHintRule(),
         (_: SparkSession) => RewriteMultiChildrenCount,
         (_: SparkSession) => FallbackBloomFilterAggIfNeeded(),

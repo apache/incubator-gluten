@@ -21,6 +21,7 @@ import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.metrics.GlutenTimeMetric
 import io.glutenproject.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock}
 
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
@@ -86,6 +87,10 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
           Iterator.empty
         }
     }
+  }
+
+  override def doExecuteBroadcast[T](): Broadcast[T] = {
+    child.executeBroadcast[T]()
   }
 
   // For spark 3.2.

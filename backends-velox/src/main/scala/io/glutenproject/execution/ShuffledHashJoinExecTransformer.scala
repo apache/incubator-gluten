@@ -21,6 +21,7 @@ import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
+import org.apache.spark.sql.execution.joins.BuildSideRelation
 
 import io.substrait.proto.JoinRel
 
@@ -194,4 +195,9 @@ case class GlutenBroadcastHashJoinExecTransformer(
       newLeft: SparkPlan,
       newRight: SparkPlan): GlutenBroadcastHashJoinExecTransformer =
     copy(left = newLeft, right = newRight)
+
+  override protected def createBroadcastBuildSideRDD(): BroadcastBuildSideRDD = {
+    val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
+    VeloxBroadcastBuildSideRDD(sparkContext, broadcast)
+  }
 }

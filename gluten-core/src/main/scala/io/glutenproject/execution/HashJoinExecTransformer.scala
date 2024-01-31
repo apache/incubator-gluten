@@ -31,9 +31,8 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
-import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
-import org.apache.spark.sql.execution.ExpandOutputPartitioningShim
-import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, HashJoin}
+import org.apache.spark.sql.execution.{ExpandOutputPartitioningShim, SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashJoin}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -366,12 +365,6 @@ abstract class ShuffledHashJoinExecTransformerBase(
   }
 }
 
-case class BroadCastHashJoinContext(
-    buildSideJoinKeys: Seq[Expression],
-    joinType: JoinType,
-    buildSideStructure: Seq[Attribute],
-    buildHashTableId: String)
-
 abstract class BroadcastHashJoinExecTransformer(
     leftKeys: Seq[Expression],
     rightKeys: Seq[Expression],
@@ -396,15 +389,16 @@ abstract class BroadcastHashJoinExecTransformer(
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     val streamedRDD = getColumnarInputRDDs(streamedPlan)
-    val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
-
-    val context =
-      BroadCastHashJoinContext(buildKeyExprs, joinType, buildPlan.output, buildHashTableId)
-
-    val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
-    BackendsApiManager.getBroadcastApiInstance
-      .collectExecutionBroadcastHashTableId(executionId, context.buildHashTableId)
-
-    streamedRDD :+ BroadcastBuildSideRDD(sparkContext, broadcast, context)
+    val broadcastRDD = {
+      val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
+      BackendsApiManager.getBroadcastApiInstance
+        .collectExecutionBroadcastHashTableId(executionId, buildHashTableId)
+      createBroadcastBuildSideRDD()
+    }
+    // FIXME: Do we have to make build side a RDD?
+    streamedRDD :+ broadcastRDD
   }
+
+  protected def createBroadcastBuildSideRDD(): BroadcastBuildSideRDD
+
 }

@@ -20,6 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.extension.{GlutenPlan, RewriteMultiChildrenCount, ValidationResult}
+import io.glutenproject.extension.columnar.TransformHints.EncodeTransformableTagImplicits
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.PhysicalPlanSelector
 
@@ -27,12 +28,11 @@ import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, SortOrder}
-import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, BroadcastQueryStageExec, QueryStageExec}
+import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, QueryStageExec}
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
@@ -44,8 +44,6 @@ import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.StringType
 
 import org.apache.commons.lang3.exception.ExceptionUtils
-
-import scala.util.control.Breaks.{break, breakable}
 
 trait TransformHint {
   val stacktrace: Option[String] =
@@ -140,12 +138,15 @@ object TransformHints {
   def getHintOption(plan: SparkPlan): Option[TransformHint] = {
     plan.getTagValue(TAG)
   }
-}
 
-// Holds rules which have higher privilege to tag (not) transformable before AddTransformHintRule.
-object TagBeforeTransformHits {
-  val ruleBuilders: List[SparkSession => Rule[SparkPlan]] = {
-    List(FallbackOnANSIMode, FallbackMultiCodegens)
+  implicit class EncodeTransformableTagImplicits(validationResult: ValidationResult) {
+    def toTransformHint: TransformHint = {
+      if (validationResult.isValid) {
+        TRANSFORM_SUPPORTED()
+      } else {
+        TRANSFORM_UNSUPPORTED(validationResult.reason)
+      }
+    }
   }
 }
 
@@ -352,9 +353,9 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
   val enableColumnarShuffledHashJoin: Boolean =
     !scanOnly && columnarConf.enableColumnarShuffledHashJoin
   val enableColumnarBroadcastExchange: Boolean = !scanOnly &&
-    columnarConf.enableColumnarBroadcastJoin && columnarConf.enableColumnarBroadcastExchange
+    columnarConf.enableColumnarBroadcastExchange
   val enableColumnarBroadcastJoin: Boolean = !scanOnly &&
-    columnarConf.enableColumnarBroadcastJoin && columnarConf.enableColumnarBroadcastExchange
+    columnarConf.enableColumnarBroadcastJoin
   val enableColumnarArrowUDF: Boolean = !scanOnly && columnarConf.enableColumnarArrowUDF
   val enableColumnarLimit: Boolean = !scanOnly && columnarConf.enableColumnarLimit
   val enableColumnarGenerate: Boolean = !scanOnly && columnarConf.enableColumnarGenerate
@@ -588,92 +589,22 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case bhj: BroadcastHashJoinExec =>
-          // FIXME Hongze: In following codes we perform a lot of if-else conditions to
-          //  make sure the broadcast exchange and broadcast hash-join are of same type,
-          //  either vanilla or columnar. In order to simplify the codes we have to do
-          //  some tricks around C2R and R2C to make them adapt to columnar broadcast.
-          //  Currently their doBroadcast() methods just propagate child's broadcast
-          //  payloads which is not right in speaking of columnar.
           if (!enableColumnarBroadcastJoin) {
             TransformHints.tagNotTransformable(
               bhj,
               "columnar BroadcastJoin is not enabled in BroadcastHashJoinExec")
           } else {
-            val isBhjTransformable: ValidationResult = {
-              val transformer = BackendsApiManager.getSparkPlanExecApiInstance
-                .genBroadcastHashJoinExecTransformer(
-                  bhj.leftKeys,
-                  bhj.rightKeys,
-                  bhj.joinType,
-                  bhj.buildSide,
-                  bhj.condition,
-                  bhj.left,
-                  bhj.right,
-                  isNullAwareAntiJoin = bhj.isNullAwareAntiJoin)
-              transformer.doValidate()
-            }
-            val buildSidePlan = bhj.buildSide match {
-              case BuildLeft => bhj.left
-              case BuildRight => bhj.right
-            }
-
-            val maybeExchange = buildSidePlan
-              .find {
-                case BroadcastExchangeExec(_, _) => true
-                case _ => false
-              }
-              .map(_.asInstanceOf[BroadcastExchangeExec])
-
-            maybeExchange match {
-              case Some(exchange @ BroadcastExchangeExec(mode, child)) =>
-                TransformHints.tag(bhj, isBhjTransformable.toTransformHint)
-                if (!isBhjTransformable.isValid) {
-                  TransformHints.tagNotTransformable(exchange, isBhjTransformable)
-                }
-              case None =>
-                // we are in AQE, find the hidden exchange
-                // FIXME did we consider the case that AQE: OFF && Reuse: ON ?
-                var maybeHiddenExchange: Option[BroadcastExchangeLike] = None
-                breakable {
-                  buildSidePlan.foreach {
-                    case e: BroadcastExchangeLike =>
-                      maybeHiddenExchange = Some(e)
-                      break
-                    case t: BroadcastQueryStageExec =>
-                      t.plan.foreach {
-                        case e2: BroadcastExchangeLike =>
-                          maybeHiddenExchange = Some(e2)
-                          break
-                        case r: ReusedExchangeExec =>
-                          r.child match {
-                            case e2: BroadcastExchangeLike =>
-                              maybeHiddenExchange = Some(e2)
-                              break
-                            case _ =>
-                          }
-                        case _ =>
-                      }
-                    case _ =>
-                  }
-                }
-                // restriction to force the hidden exchange to be found
-                val exchange = maybeHiddenExchange.get
-                // to conform to the underlying exchange's type, columnar or vanilla
-                exchange match {
-                  case BroadcastExchangeExec(mode, child) =>
-                    TransformHints.tagNotTransformable(
-                      bhj,
-                      "it's a materialized broadcast exchange or reused broadcast exchange")
-                  case ColumnarBroadcastExchangeExec(mode, child) =>
-                    if (!isBhjTransformable.isValid) {
-                      throw new IllegalStateException(
-                        s"BroadcastExchange has already been" +
-                          s" transformed to columnar version but BHJ is determined as" +
-                          s" non-transformable: ${bhj.toString()}")
-                    }
-                    TransformHints.tagTransformable(bhj)
-                }
-            }
+            val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+              .genBroadcastHashJoinExecTransformer(
+                bhj.leftKeys,
+                bhj.rightKeys,
+                bhj.joinType,
+                bhj.buildSide,
+                bhj.condition,
+                bhj.left,
+                bhj.right,
+                isNullAwareAntiJoin = bhj.isNullAwareAntiJoin)
+            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: SortMergeJoinExec =>
           if (!enableColumnarSortMergeJoin || plan.joinType == FullOuter) {
@@ -794,18 +725,8 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
       case e: UnsupportedOperationException =>
         TransformHints.tagNotTransformable(
           plan,
-          s"${e.getMessage}, original sparkplan is " +
+          s"${e.getMessage}, original Spark plan is " +
             s"${plan.getClass}(${plan.children.toList.map(_.getClass)})")
-    }
-  }
-
-  implicit class EncodeTransformableTagImplicits(validationResult: ValidationResult) {
-    def toTransformHint: TransformHint = {
-      if (validationResult.isValid) {
-        TRANSFORM_SUPPORTED()
-      } else {
-        TRANSFORM_UNSUPPORTED(validationResult.reason)
-      }
     }
   }
 }

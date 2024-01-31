@@ -39,8 +39,11 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 
 public class ColumnarBatches {
   private static final Field FIELD_COLUMNS;
@@ -386,5 +389,15 @@ public class ColumnarBatches {
 
   public static Runtime getRuntime(ColumnarBatch batch) {
     return getIndicatorVector(batch).runtime();
+  }
+
+  public static Runtime getRuntime(List<ColumnarBatch> batch) {
+    final Set<Runtime> all = new HashSet<>();
+    batch.forEach(b -> all.add(getRuntime(b)));
+    if (all.size() != 1) {
+      throw new IllegalArgumentException(
+          "The input columnar batches has different associated runtimes");
+    }
+    return all.toArray(new Runtime[0])[0];
   }
 }

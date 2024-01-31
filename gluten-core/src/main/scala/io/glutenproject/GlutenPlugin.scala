@@ -21,7 +21,7 @@ import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSI
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.events.GlutenBuildInfoEvent
 import io.glutenproject.expression.ExpressionMappings
-import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOverrides, OthersExtensionOverrides, StrategyOverrides}
+import io.glutenproject.extension.{ColumnarOverrides, OthersExtensionOverrides, QueryStagePrepOverrides, StrategyOverrides}
 import io.glutenproject.test.TestStats
 import io.glutenproject.utils.TaskListener
 
@@ -268,7 +268,7 @@ private[glutenproject] object GlutenPlugin {
 
   /** Specify all injectors that Gluten is using in following list. */
   val DEFAULT_INJECTORS: List[GlutenSparkExtensionsInjector] = List(
-    ColumnarQueryStagePrepOverrides,
+    QueryStagePrepOverrides,
     ColumnarOverrides,
     StrategyOverrides,
     OthersExtensionOverrides

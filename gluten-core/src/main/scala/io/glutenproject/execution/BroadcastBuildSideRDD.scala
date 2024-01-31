@@ -21,10 +21,9 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class BroadcastBuildSideRDD(
+abstract class BroadcastBuildSideRDD(
     @transient private val sc: SparkContext,
-    broadcasted: broadcast.Broadcast[BuildSideRelation],
-    broadCastContext: BroadCastHashJoinContext)
+    broadcasted: broadcast.Broadcast[BuildSideRelation])
   extends RDD[ColumnarBatch](sc, Nil) {
 
   override def getPartitions: Array[Partition] = {
@@ -34,4 +33,6 @@ case class BroadcastBuildSideRDD(
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
     throw new IllegalStateException("Never reach here")
   }
+
+  def genBroadcastBuildSideIterator(): Iterator[ColumnarBatch]
 }

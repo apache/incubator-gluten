@@ -18,14 +18,12 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.SparkPlanExecApi
-import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode}
-import io.glutenproject.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializerJniWrapper}
+import io.glutenproject.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializeResult}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
@@ -42,12 +40,12 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, IdentityBroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarBuildSideRelation, SparkPlan, VeloxColumnarWriteFilesExec}
+import org.apache.spark.sql.execution.{BroadcastUtils, ColumnarBuildSideRelation, SparkPlan, VeloxColumnarWriteFilesExec}
 import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
-import org.apache.spark.sql.execution.joins.BuildSideRelation
+import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.ExecUtil
 import org.apache.spark.sql.expression.{UDFExpression, UDFResolver}
@@ -63,7 +61,7 @@ import javax.ws.rs.core.UriBuilder
 import java.lang.{Long => JLong}
 import java.util.{Map => JMap}
 
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.mutable.ListBuffer
 
 class SparkPlanExecApiImpl extends SparkPlanExecApi {
 
@@ -327,48 +325,24 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       child: SparkPlan,
       numOutputRows: SQLMetric,
       dataSize: SQLMetric): BuildSideRelation = {
-    val countsAndBytes = child
-      .executeColumnar()
-      .mapPartitions {
-        iter =>
-          val input = new ArrayBuffer[ColumnarBatch]()
-          // This iter is ClosableColumnarBatch, hasNext will remove it from native batch map,
-          // however, we need collect all batches for serialize, so retain is needed.
-          while (iter.hasNext) {
-            val batch = iter.next
-            if (batch.numCols() != 0) {
-              ColumnarBatches.retain(batch)
-              input += batch
-            }
-          }
-
-          if (input.isEmpty) {
-            Iterator((0L, Array[Byte]()))
-          } else {
-            val handleArray = input.map(ColumnarBatches.getNativeHandle).toArray
-            val serializeResult = ColumnarBatchSerializerJniWrapper
-              .create()
-              .serialize(
-                handleArray,
-                NativeMemoryManagers
-                  .contextInstance("BroadcastRelation")
-                  .getNativeInstanceHandle)
-            input.foreach(ColumnarBatches.release)
-            Iterator((serializeResult.getNumRows, serializeResult.getSerialized))
-          }
-      }
-      .collect
-
-    val batches = countsAndBytes.filter(_._1 != 0).map(_._2)
-    val rawSize = batches.map(_.length).sum
-    if (rawSize >= BroadcastExchangeExec.MAX_BROADCAST_TABLE_BYTES) {
-      throw new SparkException(
-        s"Cannot broadcast the table that is larger than 8GB: ${rawSize >> 30} GB")
+    mode match {
+      case IdentityBroadcastMode =>
+        throw new IllegalStateException("Unreachable code")
+      case HashedRelationBroadcastMode(_, _) =>
+        val serialized: Array[ColumnarBatchSerializeResult] = child
+          .executeColumnar()
+          .mapPartitions(itr => Iterator(BroadcastUtils.serializeStream(itr)))
+          .filter(_.getNumRows != 0)
+          .collect
+        val rawSize = serialized.map(_.getSerialized.length).sum
+        if (rawSize >= BroadcastExchangeExec.MAX_BROADCAST_TABLE_BYTES) {
+          throw new SparkException(
+            s"Cannot broadcast the table that is larger than 8GB: ${rawSize >> 30} GB")
+        }
+        numOutputRows += serialized.map(_.getNumRows).sum
+        dataSize += rawSize
+        ColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized))
     }
-    numOutputRows += countsAndBytes.map(_._1).sum
-    dataSize += rawSize
-
-    ColumnarBuildSideRelation(mode, child.output, batches)
   }
 
   /**
@@ -497,6 +471,13 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
   override def genExtendedDataSourceV2Strategies(): List[SparkSession => Strategy] = List()
 
   /**
+   * Generate extended query stage preparation rules.
+   *
+   * @return
+   */
+  override def genExtendedQueryStagePrepRules(): List[SparkSession => Rule[SparkPlan]] = List()
+
+  /**
    * Generate extended Analyzer.
    *
    * @return
@@ -510,6 +491,13 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
    */
   override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] =
     List(AggregateFunctionRewriteRule)
+
+  /**
+   * Generate extended columnar pre-rules, in the validation phase.
+   *
+   * @return
+   */
+  override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] = List()
 
   /**
    * Generate extended columnar pre-rules.
