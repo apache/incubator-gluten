@@ -40,7 +40,7 @@ trait BackendSettingsApi {
       format: FileFormat,
       fields: Array[StructField],
       bucketSpec: Option[BucketSpec],
-      options: Map[String, String]): Option[String]
+      options: Map[String, String]): ValidationResult = ValidationResult.ok
   def supportExpandExec(): Boolean = false
   def supportSortExec(): Boolean = false
   def supportSortMergeJoinExec(): Boolean = true

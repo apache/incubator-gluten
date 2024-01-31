@@ -140,14 +140,14 @@ object BackendSettings extends BackendSettingsApi {
       format: FileFormat,
       fields: Array[StructField],
       bucketSpec: Option[BucketSpec],
-      options: Map[String, String]): Option[String] = {
+      options: Map[String, String]): ValidationResult = {
 
     def validateCompressionCodec(): Option[String] = {
       // Velox doesn't support brotli and lzo.
       val unSupportedCompressions = Set("brotli, lzo")
       val compressionCodec = WriteFilesExecTransformer.getCompressionCodec(options)
       if (unSupportedCompressions.contains(compressionCodec)) {
-        Some("brotli or lzo compression codec is not support in velox backend.")
+        Some("Brotli or lzo compression codec is unsupported in Velox backend.")
       } else {
         None
       }
@@ -155,7 +155,7 @@ object BackendSettings extends BackendSettingsApi {
 
     // Validate if all types are supported.
     def validateDateTypes(): Option[String] = {
-      fields.flatMap {
+      val unsupportedTypes = fields.flatMap {
         field =>
           field.dataType match {
             case _: TimestampType => Some("TimestampType")
@@ -164,7 +164,12 @@ object BackendSettings extends BackendSettingsApi {
             case _: MapType => Some("MapType")
             case _ => None
           }
-      }.headOption
+      }
+      if (unsupportedTypes.nonEmpty) {
+        Some(unsupportedTypes.mkString("Found unsupported type:", ",", ""))
+      } else {
+        None
+      }
     }
 
     def validateFieldMetadata(): Option[String] = {
@@ -176,7 +181,7 @@ object BackendSettings extends BackendSettingsApi {
     def validateFileFormat(): Option[String] = {
       format match {
         case _: ParquetFileFormat => None
-        case _: FileFormat => Some("Only parquet fileformat is supported in native write.")
+        case _: FileFormat => Some("Only parquet fileformat is supported in Velox backend.")
       }
     }
 
@@ -205,7 +210,10 @@ object BackendSettings extends BackendSettingsApi {
       .orElse(validateFieldMetadata())
       .orElse(validateDateTypes())
       .orElse(validateWriteFilesOptions())
-      .orElse(validateBucketSpec())
+      .orElse(validateBucketSpec()) match {
+      case Some(reason) => ValidationResult.notOk(reason)
+      case _ => ValidationResult.ok
+    }
   }
 
   override def supportExpandExec(): Boolean = true
