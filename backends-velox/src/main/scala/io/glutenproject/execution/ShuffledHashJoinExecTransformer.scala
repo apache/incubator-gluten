@@ -16,13 +16,14 @@
  */
 package io.glutenproject.execution
 
-import io.substrait.proto.JoinRel
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
+import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
-import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
+
+import io.substrait.proto.JoinRel
 
 case class ShuffledHashJoinExecTransformer(
     leftKeys: Seq[Expression],

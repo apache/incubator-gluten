@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized.{ColumnarBatchSerializeResult, ColumnarBatchSerializerJniWrapper}
+
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.catalyst.InternalRow

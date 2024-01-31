@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import io.glutenproject.utils.Iterators
+
+import org.apache.spark.{broadcast, SparkContext}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.{SparkContext, broadcast}
 
 case class VeloxBroadcastBuildSideRDD(
     @transient private val sc: SparkContext,
