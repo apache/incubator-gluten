@@ -185,6 +185,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def fallbackIgnoreRowToColumnar: Boolean = conf.getConf(COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR)
 
+  def fallbackExpressionsThreshold: Int = conf.getConf(COLUMNAR_FALLBACK_EXPRESSIONS_THRESHOLD)
+
   def fallbackPreferColumnar: Boolean = conf.getConf(COLUMNAR_FALLBACK_PREFER_COLUMNAR)
 
   def numaBindingInfo: GlutenNumaBindingInfo = {
@@ -1027,6 +1029,14 @@ object GlutenConfig {
         "When true, the fallback policy ignores the RowToColumnar when counting fallback number.")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_FALLBACK_EXPRESSIONS_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.fallback.expressions.threshold")
+      .internal()
+      .doc("Fall back filter/project if number of expressions reaches this threshold," +
+        " considering Spark codegen can bring better performance for such case.")
+      .intConf
+      .createWithDefault(50)
 
   val COLUMNAR_FALLBACK_PREFER_COLUMNAR =
     buildConf("spark.gluten.sql.columnar.fallback.preferColumnar")
