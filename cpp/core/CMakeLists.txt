@@ -315,7 +315,7 @@ endif()
 
 target_link_libraries(gluten
     PUBLIC Arrow::arrow Arrow::parquet)
-target_link_libraries(gluten PRIVATE google::glog "-Wl,--exclude-libs,ALL")
+target_link_libraries(gluten PRIVATE google::glog "-Wl,--exclude-libs,libglog.a")
 
 install(TARGETS gluten
         DESTINATION ${CMAKE_INSTALL_LIBDIR})
