@@ -1033,7 +1033,7 @@ object GlutenConfig {
   val COLUMNAR_FALLBACK_EXPRESSIONS_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.fallback.expressions.threshold")
       .internal()
-      .doc("Fall back filter/project if number of expressions reaches this threshold," +
+      .doc("Fall back filter/project if number of nested expressions reaches this threshold," +
         " considering Spark codegen can bring better performance for such case.")
       .intConf
       .createWithDefault(50)

@@ -430,11 +430,19 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
         case plan: ProjectExec =>
           if (!enableColumnarProject) {
             TransformHints.tagNotTransformable(plan, "columnar project is disabled")
-          } else if (plan.projectList.size >= fallbackExpressionsThreshold) {
+          } else if (
+            plan.projectList
+              .map(
+                expr =>
+                  expr.collect {
+                    case expr if !expr.isInstanceOf[LeafExpression] => expr
+                  }.size)
+              .max >= fallbackExpressionsThreshold
+          ) {
             TransformHints.tagNotTransformable(
               plan,
               "Fall back project plan because its" +
-                " expressions number reaches the configured threshold")
+                " max nested expressions number reaches the configured threshold")
           } else {
             val transformer = ProjectExecTransformer(plan.projectList, plan.child)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
@@ -452,7 +460,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             TransformHints.tagNotTransformable(
               plan,
               "Fall back filter plan because its" +
-                " expressions number reaches the configured threshold")
+                " nested expressions number reaches the configured threshold")
           } else if (scanOnly && !childIsScan) {
             // When scanOnly is enabled, filter after scan will be offloaded.
             TransformHints.tagNotTransformable(
