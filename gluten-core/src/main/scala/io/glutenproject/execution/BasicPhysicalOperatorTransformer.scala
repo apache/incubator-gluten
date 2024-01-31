@@ -29,7 +29,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase, FileScan}
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.utils.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -70,10 +70,8 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
       operatorId: Long,
       input: RelNode,
       validation: Boolean): RelNode = {
+    assert(condExpr != null)
     val args = context.registeredFunction
-    if (condExpr == null) {
-      return input
-    }
     val condExprNode = ExpressionConverter
       .replaceWithExpressionTransformer(condExpr, attributeSeq = originalInputAttributes)
       .doTransform(args)
@@ -107,42 +105,47 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
 
   override protected def outputExpressions: Seq[NamedExpression] = child.output
 
+  protected def getRemainingCondition: Expression
+
   override protected def doValidateInternal(): ValidationResult = {
-    if (cond == null) {
-      // The computing of this Filter is not needed.
+    val remainingCondition = getRemainingCondition
+    if (remainingCondition == null) {
+      // All the filters can be pushed down and the computing of this Filter
+      // is not needed.
       return ValidationResult.ok
     }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
-    val relNode =
-      getRelNode(substraitContext, cond, child.output, operatorId, null, validation = true)
-    // For now backends only support scan + filter pattern
-    if (BackendsApiManager.getSettings.fallbackFilterWithoutConjunctiveScan()) {
-      if (
-        !(child.isInstanceOf[DataSourceScanExec] ||
-          child.isInstanceOf[DataSourceV2ScanExecBase])
-      ) {
-        return ValidationResult
-          .notOk("Filter operator's child is not DataSourceScanExec or DataSourceV2ScanExecBase")
-      }
-    }
-
+    val relNode = getRelNode(
+      substraitContext,
+      remainingCondition,
+      child.output,
+      operatorId,
+      null,
+      validation = true)
     // Then, validate the generated plan in native engine.
     doNativeValidation(substraitContext, relNode)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
+    val remainingCondition = getRemainingCondition
     val operatorId = context.nextOperatorId(this.nodeName)
-    if (cond == null && childCtx != null) {
+    if (remainingCondition == null) {
       // The computing for this filter is not needed.
       context.registerEmptyRelToOperator(operatorId)
-      return childCtx
+      // Since some columns' nullability will be removed after this filter, we need to update the
+      // outputAttributes of child context.
+      return TransformContext(childCtx.inputAttributes, output, childCtx.root)
     }
-
-    val currRel =
-      getRelNode(context, cond, child.output, operatorId, childCtx.root, validation = false)
+    val currRel = getRelNode(
+      context,
+      remainingCondition,
+      child.output,
+      operatorId,
+      childCtx.root,
+      validation = false)
     assert(currRel != null, "Filter rel should be valid.")
     TransformContext(childCtx.outputAttributes, output, currRel)
   }

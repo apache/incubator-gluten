@@ -81,8 +81,6 @@ trait BackendSettingsApi {
   def supportShuffleWithProject(outputPartitioning: Partitioning, child: SparkPlan): Boolean = false
   def utilizeShuffledHashJoinHint(): Boolean = false
   def excludeScanExecFromCollapsedStage(): Boolean = false
-  def avoidOverwritingFilterTransformer(): Boolean = false
-  def fallbackFilterWithoutConjunctiveScan(): Boolean = false
   def rescaleDecimalLiteral: Boolean = false
 
   /**
