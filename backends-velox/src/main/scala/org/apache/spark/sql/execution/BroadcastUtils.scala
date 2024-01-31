@@ -19,12 +19,11 @@ package org.apache.spark.sql.execution
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized.{ColumnarBatchSerializeResult, ColumnarBatchSerializerJniWrapper}
-
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, Partitioning}
-import org.apache.spark.sql.execution.joins.HashedRelation
+import org.apache.spark.sql.execution.joins.{HashedRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.TaskResources
@@ -32,7 +31,6 @@ import org.apache.spark.util.TaskResources
 import scala.collection.JavaConverters._;
 
 // Utility methods to convert Vanilla broadcast relations from/to Velox broadcast relations.
-// FIXME: Add checking for broadcast mode.
 // FIXME: Truncate output with batch size.
 object BroadcastUtils {
   def veloxToSparkUnsafe[F, T](
@@ -40,6 +38,10 @@ object BroadcastUtils {
       mode: BroadcastMode,
       from: Broadcast[F],
       fn: Iterator[ColumnarBatch] => Iterator[InternalRow]): Broadcast[T] = {
+    mode match {
+      case HashedRelationBroadcastMode(_, _) => // no-op
+      case _ => throw new IllegalStateException("Unexpected broadcast mode: " + mode)
+    }
     // ColumnarBuildSideRelation to HashedRelation.
     val fromBroadcast = from.asInstanceOf[Broadcast[ColumnarBuildSideRelation]]
     val fromRelation = fromBroadcast.value.asReadOnlyCopy()
@@ -62,6 +64,10 @@ object BroadcastUtils {
       schema: StructType,
       from: Broadcast[F],
       fn: Iterator[InternalRow] => Iterator[ColumnarBatch]): Broadcast[T] = {
+    mode match {
+      case HashedRelationBroadcastMode(_, _) => // no-op
+      case _ => throw new IllegalStateException("Unexpected broadcast mode: " + mode)
+    }
     // HashedRelation to ColumnarBuildSideRelation.
     val fromBroadcast = from.asInstanceOf[Broadcast[HashedRelation]]
     val fromRelation = fromBroadcast.value.asReadOnlyCopy()
