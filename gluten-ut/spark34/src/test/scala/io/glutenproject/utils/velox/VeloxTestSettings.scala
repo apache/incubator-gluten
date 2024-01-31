@@ -597,11 +597,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("parquet v2 pages - rle encoding for boolean value columns")
   enableSuite[GlutenParquetFieldIdIOSuite]
   enableSuite[GlutenParquetFileFormatV1Suite]
-    // exclude for vectorization column reader
-    .exclude("support batch reads for schema")
   enableSuite[GlutenParquetFileFormatV2Suite]
-    // exclude for vectorization column reader
-    .exclude("support batch reads for schema")
   enableSuite[GlutenParquetV1FilterSuite]
     // Rewrite.
     .exclude("Filter applied on merged Parquet schema with new column should work")
