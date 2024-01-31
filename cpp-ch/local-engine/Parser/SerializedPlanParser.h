@@ -147,19 +147,14 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"lpad", "leftPadUTF8"},
        {"rpad", "rightPadUTF8"},
        {"reverse", ""}, /// dummy mapping
-       {"md5", "MD5"},
        {"translate", "translateUTF8"},
        {"repeat", "repeat"},
-       {"position", "positionUTF8Spark"},
-       {"locate", "positionUTF8Spark"},
        {"space", "space"},
        {"initcap", "initcapUTF8"},
        {"conv", "sparkConv"},
        {"uuid", "generateUUIDv4"},
 
        /// hash functions
-       {"sha1", "SHA1"},
-       {"sha2", ""}, /// dummy mapping
        {"crc32", "CRC32"},
        {"murmur3hash", "sparkMurmurHash3_32"},
        {"xxhash64", "sparkXxHash64"},
@@ -184,7 +179,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
 
        // array functions
        {"array", "array"},
-       {"size", "length"},
        {"range", "range"}, /// dummy mapping
 
        // map functions
@@ -374,6 +368,16 @@ private:
         const substrait::FunctionArgument & arg);
     const DB::ActionsDAG::Node *
     parseFunctionArgument(DB::ActionsDAGPtr & actions_dag, const std::string & function_name, const substrait::FunctionArgument & arg);
+
+    void parseArrayJoinArguments(
+        DB::ActionsDAGPtr & actions_dag,
+        const std::string & function_name,
+        const substrait::Expression_ScalarFunction & scalar_function,
+        bool position,
+        ActionsDAG::NodeRawConstPtrs & parsed_args,
+        bool & is_map);
+
+
     const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAGPtr actions_dag, const substrait::Expression & rel);
     const ActionsDAG::Node *
     toFunctionNode(ActionsDAGPtr actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args);

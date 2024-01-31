@@ -389,14 +389,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   override def genExtendedStrategies(): List[SparkSession => Strategy] =
     List()
 
-  override def genEqualNullSafeTransformer(
-      substraitExprName: String,
-      left: ExpressionTransformer,
-      right: ExpressionTransformer,
-      original: EqualNullSafe): ExpressionTransformer = {
-    CHEqualNullSafeTransformer(substraitExprName, left, right, original)
-  }
-
   override def genStringTranslateTransformer(
       substraitExprName: String,
       srcExpr: ExpressionTransformer,
@@ -404,39 +396,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       replaceExpr: ExpressionTransformer,
       original: StringTranslate): ExpressionTransformer = {
     CHStringTranslateTransformer(substraitExprName, srcExpr, matchingExpr, replaceExpr, original)
-  }
-
-  override def genStringLocateTransformer(
-      substraitExprName: String,
-      first: ExpressionTransformer,
-      second: ExpressionTransformer,
-      third: ExpressionTransformer,
-      original: StringLocate): ExpressionTransformer = {
-    CHStringLocateTransformer(substraitExprName, first, second, third, original)
-  }
-
-  override def genMd5Transformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Md5): ExpressionTransformer = {
-    CHMd5Transformer(substraitExprName, child, original)
-  }
-
-  /** Generate an ExpressionTransformer to transform Sha2 expression. */
-  override def genSha2Transformer(
-      substraitExprName: String,
-      left: ExpressionTransformer,
-      right: ExpressionTransformer,
-      original: Sha2): ExpressionTransformer = {
-    CHSha2Transformer(substraitExprName, left, right, original)
-  }
-
-  /** Generate an ExpressionTransformer to transform Sha1 expression. */
-  override def genSha1Transformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Sha1): ExpressionTransformer = {
-    CHSha1Transformer(substraitExprName, child, original)
   }
 
   override def genSizeExpressionTransformer(
