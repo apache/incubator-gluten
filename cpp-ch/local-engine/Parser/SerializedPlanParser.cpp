@@ -329,6 +329,19 @@ IQueryPlanStep * SerializedPlanParser::addRemoveNullableStep(QueryPlan & plan, c
     return step_ptr;
 }
 
+IQueryPlanStep * SerializedPlanParser::addRollbackFilterHeaderStep(QueryPlanPtr & query_plan, const Block & input_header)
+{
+    auto convert_actions_dag = ActionsDAG::makeConvertingActions(
+        query_plan->getCurrentDataStream().header.getColumnsWithTypeAndName(),
+        input_header.getColumnsWithTypeAndName(),
+        ActionsDAG::MatchColumnsMode::Name);
+    auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), convert_actions_dag);
+    expression_step->setStepDescription("Generator for rollback filter");
+    auto * step_ptr = expression_step.get();
+    query_plan->addStep(std::move(expression_step));
+    return step_ptr;
+}
+
 PrewhereInfoPtr SerializedPlanParser::parsePreWhereInfo(const substrait::Expression & rel, Block & input)
 {
     auto prewhere_info = std::make_shared<PrewhereInfo>();
