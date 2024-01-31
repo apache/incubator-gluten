@@ -147,7 +147,7 @@ object BackendSettings extends BackendSettingsApi {
       val unSupportedCompressions = Set("brotli, lzo")
       val compressionCodec = WriteFilesExecTransformer.getCompressionCodec(options)
       if (unSupportedCompressions.contains(compressionCodec)) {
-        Some("brotli or lzo compression codec is not support in Velox backend.")
+        Some("Brotli or lzo compression codec is unsupported in Velox backend.")
       } else {
         None
       }
