@@ -387,30 +387,27 @@ object FilterHandler extends PredicateHelper {
     (ExpressionSet(filters) -- ExpressionSet(scanFilters)).toSeq
 
   // Separate and compare the filter conditions in Scan and Filter.
-  // Push down the remaining conditions in Filter into Scan.
+  // Try push down the remaining conditions in Filter into Scan.
   def applyFilterPushdownToScan(filter: FilterExec, reuseSubquery: Boolean): SparkPlan =
     filter.child match {
       case fileSourceScan: FileSourceScanExec =>
-        val remainingFilters =
-          getRemainingFilters(
-            fileSourceScan.dataFilters,
-            splitConjunctivePredicates(filter.condition))
+        val pushDownFilters =
+          BackendsApiManager.getSparkPlanExecApiInstance.postProcessPushDownFilter(
+            splitConjunctivePredicates(filter.condition),
+            fileSourceScan)
         ScanTransformerFactory.createFileSourceScanTransformer(
           fileSourceScan,
           reuseSubquery,
-          extraFilters = remainingFilters)
+          allPushDownFilters = Some(pushDownFilters))
       case batchScan: BatchScanExec =>
-        val remainingFilters = batchScan.scan match {
-          case fileScan: FileScan =>
-            getRemainingFilters(fileScan.dataFilters, splitConjunctivePredicates(filter.condition))
-          case _ =>
-            // TODO: For data lake format use pushedFilters in SupportsPushDownFilters
-            splitConjunctivePredicates(filter.condition)
-        }
+        val pushDownFilters =
+          BackendsApiManager.getSparkPlanExecApiInstance.postProcessPushDownFilter(
+            splitConjunctivePredicates(filter.condition),
+            batchScan)
         ScanTransformerFactory.createBatchScanTransformer(
           batchScan,
           reuseSubquery,
-          pushdownFilters = remainingFilters)
+          allPushDownFilters = Some(pushDownFilters))
       case other =>
         throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
     }

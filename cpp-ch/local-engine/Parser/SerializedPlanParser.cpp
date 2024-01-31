@@ -481,7 +481,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
             // Remove this compatiability in later and then only java iter has local files in ReadRel.
             if (read.has_local_files() || (!read.has_extension_table() && !isReadFromMergeTree(read)))
             {
-                assert(rel.has_base_schema());
+                assert(read.has_base_schema());
                 QueryPlanStepPtr step;
                 if (isReadRelFromJava(read))
                     step = parseReadRealWithJavaIter(read);

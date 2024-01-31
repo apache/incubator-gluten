@@ -37,7 +37,7 @@ object ScanTransformerFactory {
   def createFileSourceScanTransformer(
       scanExec: FileSourceScanExec,
       reuseSubquery: Boolean,
-      extraFilters: Seq[Expression] = Seq.empty,
+      allPushDownFilters: Option[Seq[Expression]] = None,
       validation: Boolean = false): FileSourceScanExecTransformer = {
     // transform BroadcastExchangeExec to ColumnarBroadcastExchangeExec in partitionFilters
     val newPartitionFilters = if (validation) {
@@ -61,7 +61,7 @@ object ScanTransformerFactory {
           newPartitionFilters,
           scanExec.optionalBucketSet,
           scanExec.optionalNumCoalescedBuckets,
-          scanExec.dataFilters ++ extraFilters,
+          allPushDownFilters.getOrElse(scanExec.dataFilters),
           scanExec.tableIdentifier,
           scanExec.disableBucketedScan
         )
@@ -97,7 +97,7 @@ object ScanTransformerFactory {
   def createBatchScanTransformer(
       batchScan: BatchScanExec,
       reuseSubquery: Boolean,
-      pushdownFilters: Seq[Expression] = Seq.empty,
+      allPushDownFilters: Option[Seq[Expression]] = None,
       validation: Boolean = false): SparkPlan = {
     if (supportedBatchScan(batchScan.scan)) {
       val newPartitionFilters = if (validation) {
@@ -108,9 +108,9 @@ object ScanTransformerFactory {
         ExpressionConverter.transformDynamicPruningExpr(batchScan.runtimeFilters, reuseSubquery)
       }
       val transformer = lookupBatchScanTransformer(batchScan, newPartitionFilters)
-      if (!validation && pushdownFilters.nonEmpty) {
-        transformer.addPushdownFilters(pushdownFilters)
-        // Validate again if pushdownFilters is not empty.
+      if (!validation && allPushDownFilters.isDefined) {
+        transformer.setPushDownFilters(allPushDownFilters.get)
+        // Validate again if allPushDownFilters is defined.
         val validationResult = transformer.doValidate()
         if (validationResult.isValid) {
           transformer
@@ -135,7 +135,7 @@ object ScanTransformerFactory {
     }
   }
 
-  def supportedBatchScan(scan: Scan): Boolean = scan match {
+  private def supportedBatchScan(scan: Scan): Boolean = scan match {
     case _: FileScan => true
     case _ => lookupDataSourceScanTransformer(scan.getClass.getName).nonEmpty
   }
