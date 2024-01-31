@@ -299,6 +299,7 @@ public:
     static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
 
     IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
+    IQueryPlanStep * addRollbackFilterHeaderStep(QueryPlanPtr & query_plan, const Block & input_header);
 
     static ContextMutablePtr global_context;
     static Context::ConfigurationPtr config;
