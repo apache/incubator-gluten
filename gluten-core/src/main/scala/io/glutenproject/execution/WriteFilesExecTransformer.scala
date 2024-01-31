@@ -132,14 +132,14 @@ case class WriteFilesExecTransformer(
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    val supportedWrite =
+    val validationResult =
       BackendsApiManager.getSettings.supportWriteFilesExec(
         fileFormat,
         child.output.toStructType.fields,
         bucketSpec,
         caseInsensitiveOptions)
-    if (supportedWrite.nonEmpty) {
-      return ValidationResult.notOk("Unsupported native write: " + supportedWrite.get)
+    if (!validationResult.isValid) {
+      return ValidationResult.notOk("Unsupported native write: " + validationResult.reason.get)
     }
 
     val substraitContext = new SubstraitContext
