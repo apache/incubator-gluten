@@ -183,6 +183,14 @@ trait SparkPlanExecApi {
     throw new UnsupportedOperationException("NaNvl is not supported")
   }
 
+  /** Transform map_entries to Substrait. */
+  def genMapEntriesTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: Expression): ExpressionTransformer = {
+    throw new UnsupportedOperationException("map_entries is not supported")
+  }
+
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
    *
