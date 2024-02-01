@@ -2387,6 +2387,42 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     spark.sql("drop table test_tbl_3951")
   }
 
+  // will test on local NativeWriter and NativeReader on different types
+  test("GLUTEN-4603: NativeWriter and NativeReader on different types") {
+    val create_sql =
+      """
+        |create table if not exists test_shuffle_type(
+        | id int,
+        | str string,
+        | f32 float,
+        | f64 double,
+        | dec decimal(10, 2),
+        | a_str array<string>,
+        | m_str map<string, string>,
+        | st struct<x: int, y: string>
+        |) using parquet
+        |""".stripMargin
+    val fill_sql =
+      """
+        |insert into test_shuffle_type select
+        | l_orderkey as id, '123213', 1.2, 3.4, 5.6,
+        | array('123', '22'), map('1', '2'),
+        | named_struct('x', 1, 'y', 'sdfsd')
+        |from lineitem limit 100000;
+        |""".stripMargin
+    val query_sql =
+      """
+        |select t1.l_orderkey, t2.* from
+        | (select l_orderkey from lineitem limit 100000) as t1
+        |left join test_shuffle_type as t2
+        |on t1.l_orderkey = t2.id order by t1.l_orderkey limit 10;
+        |""".stripMargin
+    spark.sql(create_sql)
+    spark.sql(fill_sql)
+    compareResultsAgainstVanillaSpark(query_sql, true, { _ => })
+    spark.sql("drop table test_shuffle_type")
+  }
+
   test("GLUTEN-4521: Invalid result from grace mergeing aggregation with spill") {
     withSQLConf(
       (
