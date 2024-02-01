@@ -134,7 +134,7 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("column mapping with complex type") {
+  test("column mapping with complex type") {
     withTable("t1") {
       val simpleNestedSchema = new StructType()
         .add("a", StringType, true)
@@ -181,6 +181,23 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
           Row("str3", Row("str1.3", 3), Map("k3" -> "v3"), Array(3, 33))
         )
       )
+    }
+  }
+
+  testWithSpecifiedSparkVersion("deletion vector", Some("3.4.2")) {
+    withTempPath {
+      p =>
+        import testImplicits._
+        val path = p.getCanonicalPath
+        val df1 = Seq(1, 2, 3, 4, 5).toDF("id")
+        val values2 = Seq(6, 7, 8, 9, 10)
+        val df2 = values2.toDF("id")
+        df1.union(df2).coalesce(1).write.format("delta").save(path)
+        spark.sql(
+          s"ALTER TABLE delta.`$path` SET TBLPROPERTIES ('delta.enableDeletionVectors' = true)")
+        checkAnswer(spark.read.format("delta").load(path), df1.union(df2))
+        spark.sql(s"DELETE FROM delta.`$path` WHERE id IN (${values2.mkString(", ")})")
+        checkAnswer(spark.read.format("delta").load(path), df1)
     }
   }
 }
