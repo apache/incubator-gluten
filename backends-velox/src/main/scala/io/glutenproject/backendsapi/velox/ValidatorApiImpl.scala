@@ -81,7 +81,7 @@ class ValidatorApiImpl extends ValidatorApi {
       case array: ArrayType =>
         doSchemaValidate(array.elementType)
       case _ =>
-        Some(s"do not support data type: $schema")
+        Some(s"Schema / data type not supported: $schema")
     }
   }
 

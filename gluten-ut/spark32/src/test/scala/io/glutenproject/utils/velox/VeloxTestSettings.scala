@@ -293,7 +293,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameImplicitsSuite]
   enableSuite[GlutenGeneratorFunctionSuite]
   enableSuite[GlutenDataFrameTimeWindowingSuite]
-    .exclude("time window joins") // FIXME hongze
   enableSuite[GlutenDataFrameSessionWindowingSuite]
   enableSuite[GlutenBroadcastExchangeSuite]
   enableSuite[GlutenDataFramePivotSuite]

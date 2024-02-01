@@ -18,7 +18,6 @@ package org.apache.spark.sql.execution
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.backendsapi.velox.ValidatorApiImpl
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.exec.Runtimes
 import io.glutenproject.execution.{RowToVeloxColumnarExec, VeloxColumnarToRowExec}
@@ -51,31 +50,30 @@ case class CachedColumnarBatch(
 // spotless:off
 /**
  * Feature:
- * 1. This serializer supports column pruning
- * 2. TODO: support push down filter
- * 3. Super TODO: support store offheap object directly
+ *   1. This serializer supports column pruning 2. TODO: support push down filter 3. Super TODO:
+ *      support store offheap object directly
  *
  * The data transformation pipeline:
  *
  *   - Serializer ColumnarBatch -> CachedColumnarBatch
- *     -> serialize to byte[]
+ * -> serialize to byte[]
  *
  *   - Deserializer CachedColumnarBatch -> ColumnarBatch
- *     -> deserialize to byte[] to create Velox ColumnarBatch
+ * -> deserialize to byte[] to create Velox ColumnarBatch
  *
  *   - Serializer InternalRow -> CachedColumnarBatch (support RowToColumnar)
- *     -> Convert InternalRow to ColumnarBatch
- *     -> Serializer ColumnarBatch -> CachedColumnarBatch
+ * -> Convert InternalRow to ColumnarBatch
+ * -> Serializer ColumnarBatch -> CachedColumnarBatch
  *
  *   - Serializer InternalRow -> DefaultCachedBatch (unsupport RowToColumnar)
- *     -> Convert InternalRow to DefaultCachedBatch using vanilla Spark serializer
+ * -> Convert InternalRow to DefaultCachedBatch using vanilla Spark serializer
  *
  *   - Deserializer CachedColumnarBatch -> InternalRow (support ColumnarToRow)
- *     -> Deserializer CachedColumnarBatch -> ColumnarBatch
- *     -> Convert ColumnarBatch to InternalRow
+ * -> Deserializer CachedColumnarBatch -> ColumnarBatch
+ * -> Convert ColumnarBatch to InternalRow
  *
  *   - Deserializer DefaultCachedBatch -> InternalRow (unsupport ColumnarToRow)
- *     -> Convert DefaultCachedBatch to InternalRow using vanilla Spark serializer
+ * -> Convert DefaultCachedBatch to InternalRow using vanilla Spark serializer
  */
 // spotless:on
 class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHelper with Logging {
@@ -91,7 +89,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
   }
 
   private def validateSchema(schema: StructType): Boolean = {
-    val reason = new ValidatorApiImpl().doSchemaValidate(schema)
+    val reason = BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema)
     if (reason.isDefined) {
       logInfo(s"Columnar cache does not support schema $schema, due to ${reason.get}")
       false
