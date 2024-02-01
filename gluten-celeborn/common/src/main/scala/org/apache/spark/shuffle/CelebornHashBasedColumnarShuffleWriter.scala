@@ -89,7 +89,7 @@ abstract class CelebornHashBasedColumnarShuffleWriter[K, V](
   final override def stop(success: Boolean): Option[MapStatus] = {
     try {
       if (stopping) {
-        None
+        return None
       }
       stopping = true
       if (success) {
