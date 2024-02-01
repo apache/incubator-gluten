@@ -34,7 +34,6 @@
     <module>gluten-ui</module>
     <module>package</module>
     <module>shims</module>
-    <module>substrait/substrait-spark</module>
   </modules>
 
   <properties>
@@ -68,7 +67,6 @@
     <!-- Package name to use when relocating shaded classes -->
     <gluten.shade.packageName>io.glutenproject.shaded</gluten.shade.packageName>
 
-    <substrait.version>0.24.0</substrait.version>
     <!-- The original protobuf version -->
     <protobuf.version>3.23.4</protobuf.version>
     <!-- The custom protobuf version (based on 3.23.4) with recursion limit enlarged. -->
@@ -341,21 +339,6 @@
         <artifactId>spark-yarn_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
         <scope>provided</scope>
-      </dependency>
-      <dependency>
-        <groupId>io.substrait</groupId>
-        <artifactId>core</artifactId>
-        <version>${substrait.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-jdk14</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
       <!-- test dependencies -->
       <dependency>

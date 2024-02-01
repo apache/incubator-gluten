@@ -35,7 +35,6 @@ on:
       - 'cpp/velox/**'
       - 'cpp/core/**'
       - 'dev/**'
-      - 'substrait/substrait-spark/**'
 
 env:
   HTTP_PROXY_HOST: proxy-shz.intel.com
