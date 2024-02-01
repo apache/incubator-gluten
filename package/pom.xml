@@ -25,13 +25,6 @@
   </parent>
 
   <dependencies>
-    <dependency>
-      <groupId>org.apache.gluten</groupId>
-      <artifactId>gluten-core</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-    </dependency>
-
     <!-- Do not remove the following. They are for enforcer plugin -->
     <dependency>
       <groupId>org.apache.spark</groupId>
@@ -166,6 +159,16 @@
                   <shadedPattern>${gluten.shade.packageName}.com.google.flatbuffers</shadedPattern>
                 </relocation>
               </relocations>
+                <filters>
+                    <filter>
+                        <artifact>*:*</artifact>
+                        <excludes>
+                            <exclude>META-INF/*.SF</exclude>
+                            <exclude>META-INF/*.DSA</exclude>
+                            <exclude>META-INF/*.RSA</exclude>
+                        </excludes>
+                    </filter>
+                </filters>
             </configuration>
           </execution>
         </executions>
