@@ -145,10 +145,11 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit =
     withDataFrame(tpchSQL(queryNum, tpchQueries)) {
       df =>
-        if (compareResult)
+        if (compareResult) {
           verifyTPCHResult(df, s"q${"%02d".format(queryNum)}", queriesResults)
-        else
+        } else {
           df.collect()
+        }
         checkDataFrame(noFallBack, customCheck, df)
     }
 

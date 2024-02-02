@@ -626,10 +626,11 @@ abstract class GlutenClickHouseTPCHAbstractSuite
       compareResult: Boolean = true,
       noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = withDataFrame(sqlStr) {
     df =>
-      if (compareResult)
+      if (compareResult) {
         verifyTPCHResult(df, s"q${"%02d".format(queryNum)}", queriesResults)
-      else
+      } else {
         df.collect()
+      }
       checkDataFrame(noFallBack, customCheck, df)
   }
 
