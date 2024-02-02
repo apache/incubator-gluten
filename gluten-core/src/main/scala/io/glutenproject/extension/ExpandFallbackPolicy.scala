@@ -17,7 +17,6 @@
 package io.glutenproject.extension
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.BroadcastHashJoinExecTransformer
 import io.glutenproject.extension.columnar.{TRANSFORM_UNSUPPORTED, TransformHints}
 import io.glutenproject.utils.PlanUtil
@@ -26,8 +25,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarToRowExec, CommandResultExec, LeafExecNode, RowToColumnarExec, SparkPlan, UnaryExecNode}
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AQEShuffleReadExec, BroadcastQueryStageExec, QueryStageExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, BroadcastQueryStageExec, QueryStageExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.command.ExecutedCommandExec
 import org.apache.spark.sql.execution.exchange.Exchange
@@ -236,19 +235,9 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
   }
 
   private def fallbackToRowBasedPlan(outputsColumnar: Boolean): SparkPlan = {
-    val transformPostOverrides = TransformPostOverrides(isAdaptiveContext)
+    val transformPostOverrides = TransformPostOverrides()
     val planWithTransitions = InsertTransitions.insertTransitions(originalPlan, outputsColumnar)
-    planWithTransitions.transform {
-      case c2r @ ColumnarToRowExec(_: ShuffleQueryStageExec) =>
-        transformPostOverrides.transformColumnarToRowExec(c2r)
-      case c2r @ ColumnarToRowExec(_: AQEShuffleReadExec) =>
-        transformPostOverrides.transformColumnarToRowExec(c2r)
-      // `InMemoryTableScanExec` itself supports columnar to row
-      case ColumnarToRowExec(child: SparkPlan) if PlanUtil.isGlutenTableCache(child) =>
-        child
-      case plan: RowToColumnarExec =>
-        BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(plan.child)
-    }
+    transformPostOverrides.apply(planWithTransitions)
   }
 
   private def countTransitionCostForVanillaSparkPlan(plan: SparkPlan): Int = {
