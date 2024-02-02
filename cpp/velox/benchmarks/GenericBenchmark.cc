@@ -50,6 +50,7 @@ DEFINE_bool(run_example, false, "Run the example and exit.");
 DEFINE_string(plan, "", "Path to input json file of the substrait plan.");
 DEFINE_string(split, "", "Path to input json file of the splits. Only valid for simulating the first stage.");
 DEFINE_string(data, "", "Path to input data files in parquet format. Only valid for simulating the middle stage.");
+DEFINE_string(conf, "", "Path to the configuration file.");
 
 struct WriterMetrics {
   int64_t splitTime;
@@ -246,6 +247,22 @@ int main(int argc, char** argv) {
   std::unordered_map<std::string, std::string> conf;
   conf.insert({gluten::kSparkBatchSize, std::to_string(FLAGS_batch_size)});
   conf.insert({kDebugModeEnabled, "true"});
+  if (!FLAGS_conf.empty()) {
+    abortIfFileNotExists(FLAGS_conf);
+    std::ifstream file(FLAGS_conf);
+
+    if (file.is_open()) {
+      std::string key, value;
+      while (file >> key >> value) {
+        conf[key] = value;
+      }
+      file.close();
+    } else {
+      LOG(ERROR) << "Unable to open configuration file";
+      ::benchmark::Shutdown();
+      std::exit(EXIT_FAILURE);
+    }
+  }
   initVeloxBackend(conf);
 
   // Parse substrait plan, split file and data files.
