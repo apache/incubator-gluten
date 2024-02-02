@@ -131,12 +131,23 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
     ColumnarBroadcastExchangeExec(mode.canonicalized, child.canonicalized)
   }
 
-  override protected def doValidateInternal(): ValidationResult = mode match {
-    case _: HashedRelationBroadcastMode =>
-      ValidationResult.ok
-    case _ =>
-      // TODO IdentityBroadcastMode not supported. Need to support BroadcastNestedLoopJoin first.
-      ValidationResult.notOk("Only support HashedRelationBroadcastMode for now.")
+  override protected def doValidateInternal(): ValidationResult = {
+    mode match {
+      case _: HashedRelationBroadcastMode =>
+      case _ =>
+        // TODO IdentityBroadcastMode not supported. Need to support BroadcastNestedLoopJoin first.
+        return ValidationResult.notOk("Only support HashedRelationBroadcastMode for now.")
+    }
+    BackendsApiManager.getValidatorApiInstance
+      .doSchemaValidate(schema)
+      .map {
+        reason =>
+          {
+            ValidationResult.notOk(
+              s"Unsupported schema in broadcast exchange: $schema, reason: $reason")
+          }
+      }
+      .getOrElse(ValidationResult.ok)
   }
 
   override def doPrepare(): Unit = {
