@@ -16,6 +16,7 @@
  */
 #include <bit>
 #include <IO/Operators.h>
+#include <IO/PeekableReadBuffer.h>
 #include <base/hex.h>
 #include <Common/PODArray.h>
 #include <Common/StringUtils/StringUtils.h>
