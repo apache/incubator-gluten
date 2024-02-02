@@ -80,7 +80,9 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
   }
 
   override def apply(plan: SparkPlan): SparkPlan = {
-    AddTransformHintRule().apply(plan.transform(applyLocally))
+    val transformedPlan = plan.transform(applyLocally)
+    TransformHints.untag(transformedPlan)
+    AddTransformHintRule().apply(transformedPlan)
   }
 
   def applyForValidation[T <: SparkPlan](plan: T): T =
