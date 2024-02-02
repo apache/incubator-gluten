@@ -18,7 +18,6 @@ package io.glutenproject.extension
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.HashAggregateExecTransformerUtil._
-import io.glutenproject.extension.columnar.TransformHints
 
 import org.apache.spark.sql.catalyst.expressions.{If, IsNull, Literal, Or}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Partial}
