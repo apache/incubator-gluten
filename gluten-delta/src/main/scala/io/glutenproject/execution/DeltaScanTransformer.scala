@@ -16,6 +16,7 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.sql.catalyst.TableIdentifier
@@ -48,6 +49,14 @@ class DeltaScanTransformer(
   ) {
 
   override lazy val fileFormat: ReadFileFormat = ReadFileFormat.ParquetReadFormat
+
+  override protected def doValidateInternal(): ValidationResult = {
+    if (requiredSchema.fields.exists(_.name == "__delta_internal_is_row_deleted")) {
+      return ValidationResult.notOk(s"Deletion vector is not supported in native.")
+    }
+
+    super.doValidateInternal()
+  }
 
 }
 
