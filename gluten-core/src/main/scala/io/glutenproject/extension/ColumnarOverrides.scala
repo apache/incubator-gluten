@@ -547,7 +547,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
    */
   def applyScanTransformer(plan: SparkPlan): SparkPlan = plan match {
     case plan: FileSourceScanExec =>
-      val transformer = ScanTransformerFactory.createFileSourceScanTransformer(plan, reuseSubquery)
+      val transformer = ScanTransformerFactory.createFileSourceScanTransformer(plan)
       val validationResult = transformer.doValidate()
       if (validationResult.isValid) {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -559,13 +559,12 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
         newSource
       }
     case plan: BatchScanExec =>
-      ScanTransformerFactory.createBatchScanTransformer(plan, reuseSubquery)
+      ScanTransformerFactory.createBatchScanTransformer(plan)
 
     case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
       // TODO: Add DynamicPartitionPruningHiveScanSuite.scala
       val newPartitionFilters: Seq[Expression] = ExpressionConverter.transformDynamicPruningExpr(
-        HiveTableScanExecTransformer.getPartitionFilters(plan),
-        reuseSubquery)
+        HiveTableScanExecTransformer.getPartitionFilters(plan))
       val hiveTableScanExecTransformer =
         BackendsApiManager.getSparkPlanExecApiInstance.genHiveTableScanExecTransformer(plan)
       val validateResult = hiveTableScanExecTransformer.doValidate()
