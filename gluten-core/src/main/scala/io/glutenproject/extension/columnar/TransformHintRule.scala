@@ -399,7 +399,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             } else {
               val transformer =
                 ScanTransformerFactory
-                  .createBatchScanTransformer(plan, reuseSubquery = false, validation = true)
+                  .createBatchScanTransformer(plan, validation = true)
                   .asInstanceOf[BatchScanExecTransformer]
               TransformHints.tag(plan, transformer.doValidate().toTransformHint)
             }
@@ -415,10 +415,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               TransformHints.tagTransformable(plan)
             } else {
               val transformer =
-                ScanTransformerFactory.createFileSourceScanTransformer(
-                  plan,
-                  reuseSubquery = false,
-                  validation = true)
+                ScanTransformerFactory.createFileSourceScanTransformer(plan, validation = true)
               TransformHints.tag(plan, transformer.doValidate().toTransformHint)
             }
           }
