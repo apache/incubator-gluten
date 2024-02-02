@@ -19,6 +19,7 @@ package io.glutenproject.utils
 import io.glutenproject.extension.columnar.TransformHints
 
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution.SparkPlan
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -26,6 +27,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 
 trait PullOutProjectHelper {
+
+  // A tag set in post-project, used to prevent the transform method from calling copyTagsFrom.
+  val PULLOUT_PROJECT_TAG = TreeNodeTag[Boolean]("io.glutenproject.pulloutproject")
 
   private val generatedNameIndex = new AtomicInteger(0)
 

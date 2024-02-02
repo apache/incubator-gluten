@@ -81,7 +81,6 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
 
   override def apply(plan: SparkPlan): SparkPlan = {
     val transformedPlan = plan.transform(applyLocally)
-    TransformHints.untag(transformedPlan)
     AddTransformHintRule().apply(transformedPlan)
   }
 
@@ -115,7 +114,9 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
       // The pre-project and post-project of SortExec always appear together, so it's more
       // convenient to handle them together. Therefore, SortExec's post-project will no longer
       // be pulled out separately.
-      ProjectExec(sort.child.output, newSort)
+      val postProject = ProjectExec(sort.child.output, newSort)
+      postProject.setTagValue(PULLOUT_PROJECT_TAG, true)
+      postProject
 
     case topK: TakeOrderedAndProjectExec if needsPreProject(topK) =>
       val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
