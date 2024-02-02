@@ -537,6 +537,13 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     runQueryAndCompare(
       "select * from date_table where to_date(from_unixtime(ts)) = '2019-01-01'",
       noFallBack = true) { _ => }
+    runQueryAndCompare(
+      "select * from date_table where from_unixtime(ts) between '2019-01-01' and '2019-01-02'",
+      noFallBack = true) { _ => }
+    runQueryAndCompare(
+      "select * from date_table where from_unixtime(ts, 'yyyy-MM-dd') between" +
+        " '2019-01-01' and '2019-01-02'",
+      noFallBack = true) { _ => }
   }
 
   test("test element_at function") {
