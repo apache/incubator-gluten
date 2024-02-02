@@ -210,6 +210,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(d.startDate, attributeSeq, expressionsMap),
           d
         )
+      case r: Round if r.child.dataType.isInstanceOf[DecimalType] =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genDecimalRoundTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(r.child, attributeSeq, expressionsMap),
+          r
+        )
       case t: ToUnixTimestamp =>
         BackendsApiManager.getSparkPlanExecApiInstance.genUnixTimestampTransformer(
           substraitExprName,
