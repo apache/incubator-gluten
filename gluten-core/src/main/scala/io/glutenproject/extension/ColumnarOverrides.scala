@@ -54,8 +54,6 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
   val columnarConf: GlutenConfig = GlutenConfig.getConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
-  val reuseSubquery: Boolean = isAdaptiveContext && conf.subqueryReuseEnabled
-
   /**
    * Insert a Project as the new child of Shuffle to calculate the hash expressions.
    * @param exprs
@@ -143,7 +141,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
       case _: FileSourceScanExec | _: BatchScanExec =>
         TransformHints.getHint(scan) match {
           case TRANSFORM_SUPPORTED() =>
-            val newScan = FilterHandler.applyFilterPushdownToScan(plan, reuseSubquery)
+            val newScan = FilterHandler.applyFilterPushdownToScan(plan)
             newScan match {
               case ts: TransformSupport if ts.doValidate().isValid => ts
               case _ => replaceWithTransformerPlan(scan)
@@ -245,7 +243,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
   def applyScanNotTransformable(plan: SparkPlan): SparkPlan = plan match {
     case plan: FileSourceScanExec =>
       val newPartitionFilters =
-        ExpressionConverter.transformDynamicPruningExpr(plan.partitionFilters, reuseSubquery)
+        ExpressionConverter.transformDynamicPruningExpr(plan.partitionFilters)
       val newSource = plan.copy(partitionFilters = newPartitionFilters)
       if (plan.logicalLink.nonEmpty) {
         newSource.setLogicalLink(plan.logicalLink.get)
@@ -255,9 +253,9 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
     case plan: BatchScanExec =>
       val newPartitionFilters: Seq[Expression] = plan.scan match {
         case scan: FileScan =>
-          ExpressionConverter.transformDynamicPruningExpr(scan.partitionFilters, reuseSubquery)
+          ExpressionConverter.transformDynamicPruningExpr(scan.partitionFilters)
         case _ =>
-          ExpressionConverter.transformDynamicPruningExpr(plan.runtimeFilters, reuseSubquery)
+          ExpressionConverter.transformDynamicPruningExpr(plan.runtimeFilters)
       }
       val newSource = plan.copy(runtimeFilters = newPartitionFilters)
       if (plan.logicalLink.nonEmpty) {
@@ -267,8 +265,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
       newSource
     case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
       val newPartitionFilters: Seq[Expression] = ExpressionConverter.transformDynamicPruningExpr(
-        HiveTableScanExecTransformer.getPartitionFilters(plan),
-        reuseSubquery)
+        HiveTableScanExecTransformer.getPartitionFilters(plan))
       val newSource = HiveTableScanExecTransformer.copyWith(plan, newPartitionFilters)
       if (plan.logicalLink.nonEmpty) {
         newSource.setLogicalLink(plan.logicalLink.get)

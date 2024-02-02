@@ -36,14 +36,13 @@ object ScanTransformerFactory {
 
   def createFileSourceScanTransformer(
       scanExec: FileSourceScanExec,
-      reuseSubquery: Boolean,
       allPushDownFilters: Option[Seq[Expression]] = None,
       validation: Boolean = false): FileSourceScanExecTransformer = {
     // transform BroadcastExchangeExec to ColumnarBroadcastExchangeExec in partitionFilters
     val newPartitionFilters = if (validation) {
       scanExec.partitionFilters
     } else {
-      ExpressionConverter.transformDynamicPruningExpr(scanExec.partitionFilters, reuseSubquery)
+      ExpressionConverter.transformDynamicPruningExpr(scanExec.partitionFilters)
     }
     val fileFormat = scanExec.relation.fileFormat
     lookupDataSourceScanTransformer(fileFormat.getClass.getName) match {

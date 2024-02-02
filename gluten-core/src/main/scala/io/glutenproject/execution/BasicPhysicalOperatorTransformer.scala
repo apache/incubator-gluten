@@ -388,7 +388,7 @@ object FilterHandler extends PredicateHelper {
 
   // Separate and compare the filter conditions in Scan and Filter.
   // Try to push down the remaining conditions in Filter into Scan.
-  def applyFilterPushdownToScan(filter: FilterExec, reuseSubquery: Boolean): SparkPlan =
+  def applyFilterPushdownToScan(filter: FilterExec): SparkPlan =
     filter.child match {
       case fileSourceScan: FileSourceScanExec =>
         val pushDownFilters =
@@ -397,7 +397,6 @@ object FilterHandler extends PredicateHelper {
             fileSourceScan)
         ScanTransformerFactory.createFileSourceScanTransformer(
           fileSourceScan,
-          reuseSubquery,
           allPushDownFilters = Some(pushDownFilters))
       case batchScan: BatchScanExec =>
         val pushDownFilters =
@@ -406,7 +405,6 @@ object FilterHandler extends PredicateHelper {
             batchScan)
         ScanTransformerFactory.createBatchScanTransformer(
           batchScan,
-          reuseSubquery,
           allPushDownFilters = Some(pushDownFilters))
       case other =>
         throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
