@@ -540,8 +540,13 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           if (!enableColumnarSort) {
             TransformHints.tagNotTransformable(plan, "columnar Sort is not enabled in SortExec")
           } else {
+            val rewrittenSort = PullOutPreProject.applyForValidation(plan)
             val transformer =
-              SortExecTransformer(plan.sortOrder, plan.global, plan.child, plan.testSpillFrequency)
+              SortExecTransformer(
+                rewrittenSort.sortOrder,
+                rewrittenSort.global,
+                rewrittenSort.child,
+                rewrittenSort.testSpillFrequency)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: ShuffleExchangeExec =>
@@ -693,12 +698,13 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar topK is not enabled in TakeOrderedAndProjectExec")
           } else {
-            val (limit, offset) = SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(plan)
+            val rewrittenTopK = PullOutPreProject.applyForValidation(plan)
+            val (limit, offset) = SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(rewrittenTopK)
             val transformer = TakeOrderedAndProjectExecTransformer(
               limit,
-              plan.sortOrder,
-              plan.projectList,
-              plan.child,
+              rewrittenTopK.sortOrder,
+              rewrittenTopK.projectList,
+              rewrittenTopK.child,
               offset)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
