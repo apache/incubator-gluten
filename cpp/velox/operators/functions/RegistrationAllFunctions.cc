@@ -69,7 +69,7 @@ void registerAllFunctions() {
   velox::functions::prestosql::registerAllScalarFunctions();
   velox::functions::sparksql::registerFunctions("");
   velox::aggregate::prestosql::registerAllAggregateFunctions(
-      "", true /*registerCompanionFunctions*/, true /*overwrite*/);
+      "", true /*registerCompanionFunctions*/, false /*onlyPrestoSignatures*/, true /*overwrite*/);
   velox::functions::aggregate::sparksql::registerAggregateFunctions(
       "", true /*registerCompanionFunctions*/, true /*overwrite*/);
   velox::window::prestosql::registerAllWindowFunctions();
