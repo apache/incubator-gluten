@@ -387,7 +387,7 @@ object FilterHandler extends PredicateHelper {
     (ExpressionSet(filters) -- ExpressionSet(scanFilters)).toSeq
 
   // Separate and compare the filter conditions in Scan and Filter.
-  // Try push down the remaining conditions in Filter into Scan.
+  // Try to push down the remaining conditions in Filter into Scan.
   def applyFilterPushdownToScan(filter: FilterExec, reuseSubquery: Boolean): SparkPlan =
     filter.child match {
       case fileSourceScan: FileSourceScanExec =>

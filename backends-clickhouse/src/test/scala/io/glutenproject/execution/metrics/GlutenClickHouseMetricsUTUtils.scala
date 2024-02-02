@@ -81,13 +81,6 @@ object GlutenClickHouseMetricsUTUtils {
     nativeMetricsList.toSeq
   }
 
-  def getTPCHQueryExecution(spark: SparkSession, queryNum: Int, tpchQueries: String): DataFrame = {
-    val sqlNum = "q" + "%02d".format(queryNum)
-    val sqlFile = tpchQueries + "/" + sqlNum + ".sql"
-    val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
-    spark.sql(sqlStr)
-  }
-
   def getTPCDSQueryExecution(
       spark: SparkSession,
       queryNum: String,

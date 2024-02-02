@@ -174,106 +174,106 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("Check TPCH Q2 metrics updater") {
-    val q2Df = GlutenClickHouseMetricsUTUtils
-      .getTPCHQueryExecution(spark, 2, tpchQueries)
-    val allWholeStageTransformers = q2Df.queryExecution.executedPlan.collect {
-      case wholeStage: WholeStageTransformer => wholeStage
-    }
-
-    assert(allWholeStageTransformers.size == 10)
-
-    val wholeStageTransformer0 = allWholeStageTransformers(2)
-
-    GlutenClickHouseMetricsUTUtils.executeMetricsUpdater(
-      wholeStageTransformer0,
-      metricsJsonFilePath + "/tpch-q2-wholestage-1-metrics.json"
-    ) {
-      () =>
-        wholeStageTransformer0.collect {
-          case s: FileSourceScanExecTransformer =>
-            assert(s.metrics("scanTime").value == 2)
-            assert(s.metrics("inputWaitTime").value == 4)
-            assert(s.metrics("outputWaitTime").value == 2)
-            assert(s.metrics("outputRows").value == 20000)
-            assert(s.metrics("outputBytes").value == 1451663)
-          case f: FilterExecTransformerBase =>
-            assert(f.metrics("totalTime").value == 3)
-            assert(f.metrics("inputWaitTime").value == 14)
-            assert(f.metrics("outputWaitTime").value == 1)
-            assert(f.metrics("outputRows").value == 73)
-            assert(f.metrics("outputBytes").value == 5304)
-            assert(f.metrics("inputRows").value == 20000)
-            assert(f.metrics("inputBytes").value == 1451663)
-            assert(f.metrics("extraTime").value == 1)
-          case p: ProjectExecTransformer =>
-            assert(p.metrics("totalTime").value == 0)
-            assert(p.metrics("inputWaitTime").value == 7)
-            assert(p.metrics("outputWaitTime").value == 0)
-            assert(p.metrics("outputRows").value == 73)
-            assert(p.metrics("outputBytes").value == 2336)
-            assert(p.metrics("inputRows").value == 73)
-            assert(p.metrics("inputBytes").value == 5085)
+    withDataFrame(tpchSQL(2, tpchQueries)) {
+      q2Df =>
+        val allWholeStageTransformers = q2Df.queryExecution.executedPlan.collect {
+          case wholeStage: WholeStageTransformer => wholeStage
         }
-    }
+        assert(allWholeStageTransformers.size == 10)
 
-    val wholeStageTransformer1 = allWholeStageTransformers(1)
+        val wholeStageTransformer0 = allWholeStageTransformers(2)
 
-    GlutenClickHouseMetricsUTUtils.executeMetricsUpdater(
-      wholeStageTransformer1,
-      metricsJsonFilePath + "/tpch-q2-wholestage-2-metrics.json"
-    ) {
-      () =>
-        val allGlutenPlans = wholeStageTransformer1.collect {
-          case g: GlutenPlan if !g.isInstanceOf[InputIteratorTransformer] => g
+        GlutenClickHouseMetricsUTUtils.executeMetricsUpdater(
+          wholeStageTransformer0,
+          metricsJsonFilePath + "/tpch-q2-wholestage-1-metrics.json"
+        ) {
+          () =>
+            wholeStageTransformer0.collect {
+              case s: FileSourceScanExecTransformer =>
+                assert(s.metrics("scanTime").value == 2)
+                assert(s.metrics("inputWaitTime").value == 4)
+                assert(s.metrics("outputWaitTime").value == 2)
+                assert(s.metrics("outputRows").value == 20000)
+                assert(s.metrics("outputBytes").value == 1451663)
+              case f: FilterExecTransformerBase =>
+                assert(f.metrics("totalTime").value == 3)
+                assert(f.metrics("inputWaitTime").value == 14)
+                assert(f.metrics("outputWaitTime").value == 1)
+                assert(f.metrics("outputRows").value == 73)
+                assert(f.metrics("outputBytes").value == 5304)
+                assert(f.metrics("inputRows").value == 20000)
+                assert(f.metrics("inputBytes").value == 1451663)
+                assert(f.metrics("extraTime").value == 1)
+              case p: ProjectExecTransformer =>
+                assert(p.metrics("totalTime").value == 0)
+                assert(p.metrics("inputWaitTime").value == 7)
+                assert(p.metrics("outputWaitTime").value == 0)
+                assert(p.metrics("outputRows").value == 73)
+                assert(p.metrics("outputBytes").value == 2336)
+                assert(p.metrics("inputRows").value == 73)
+                assert(p.metrics("inputBytes").value == 5085)
+            }
         }
 
-        val scanPlan = allGlutenPlans(9)
-        assert(scanPlan.metrics("scanTime").value == 2)
-        assert(scanPlan.metrics("inputWaitTime").value == 3)
-        assert(scanPlan.metrics("outputWaitTime").value == 1)
-        assert(scanPlan.metrics("outputRows").value == 80000)
-        assert(scanPlan.metrics("outputBytes").value == 2160000)
+        val wholeStageTransformer1 = allWholeStageTransformers(1)
 
-        val filterPlan = allGlutenPlans(8)
-        assert(filterPlan.metrics("totalTime").value == 1)
-        assert(filterPlan.metrics("inputWaitTime").value == 13)
-        assert(filterPlan.metrics("outputWaitTime").value == 1)
-        assert(filterPlan.metrics("outputRows").value == 80000)
-        assert(filterPlan.metrics("outputBytes").value == 2160000)
-        assert(filterPlan.metrics("inputRows").value == 80000)
-        assert(filterPlan.metrics("inputBytes").value == 2160000)
+        GlutenClickHouseMetricsUTUtils.executeMetricsUpdater(
+          wholeStageTransformer1,
+          metricsJsonFilePath + "/tpch-q2-wholestage-2-metrics.json"
+        ) {
+          () =>
+            val allGlutenPlans = wholeStageTransformer1.collect {
+              case g: GlutenPlan if !g.isInstanceOf[InputIteratorTransformer] => g
+            }
 
-        val joinPlan = allGlutenPlans(2)
-        assert(joinPlan.metrics("totalTime").value == 1)
-        assert(joinPlan.metrics("inputWaitTime").value == 6)
-        assert(joinPlan.metrics("outputWaitTime").value == 0)
-        assert(joinPlan.metrics("outputRows").value == 292)
-        assert(joinPlan.metrics("outputBytes").value == 16644)
-        assert(joinPlan.metrics("inputRows").value == 80000)
-        assert(joinPlan.metrics("inputBytes").value == 1920000)
-    }
+            val scanPlan = allGlutenPlans(9)
+            assert(scanPlan.metrics("scanTime").value == 2)
+            assert(scanPlan.metrics("inputWaitTime").value == 3)
+            assert(scanPlan.metrics("outputWaitTime").value == 1)
+            assert(scanPlan.metrics("outputRows").value == 80000)
+            assert(scanPlan.metrics("outputBytes").value == 2160000)
 
-    val wholeStageTransformer2 = allWholeStageTransformers(0)
+            val filterPlan = allGlutenPlans(8)
+            assert(filterPlan.metrics("totalTime").value == 1)
+            assert(filterPlan.metrics("inputWaitTime").value == 13)
+            assert(filterPlan.metrics("outputWaitTime").value == 1)
+            assert(filterPlan.metrics("outputRows").value == 80000)
+            assert(filterPlan.metrics("outputBytes").value == 2160000)
+            assert(filterPlan.metrics("inputRows").value == 80000)
+            assert(filterPlan.metrics("inputBytes").value == 2160000)
 
-    GlutenClickHouseMetricsUTUtils.executeMetricsUpdater(
-      wholeStageTransformer2,
-      metricsJsonFilePath + "/tpch-q2-wholestage-11-metrics.json"
-    ) {
-      () =>
-        val allGlutenPlans = wholeStageTransformer2.collect {
-          case g: GlutenPlan if !g.isInstanceOf[InputIteratorTransformer] => g
+            val joinPlan = allGlutenPlans(2)
+            assert(joinPlan.metrics("totalTime").value == 1)
+            assert(joinPlan.metrics("inputWaitTime").value == 6)
+            assert(joinPlan.metrics("outputWaitTime").value == 0)
+            assert(joinPlan.metrics("outputRows").value == 292)
+            assert(joinPlan.metrics("outputBytes").value == 16644)
+            assert(joinPlan.metrics("inputRows").value == 80000)
+            assert(joinPlan.metrics("inputBytes").value == 1920000)
         }
 
-        assert(allGlutenPlans.size == 57)
+        val wholeStageTransformer2 = allWholeStageTransformers(0)
 
-        val shjPlan = allGlutenPlans(8)
-        assert(shjPlan.metrics("totalTime").value == 6)
-        assert(shjPlan.metrics("inputWaitTime").value == 5)
-        assert(shjPlan.metrics("outputWaitTime").value == 0)
-        assert(shjPlan.metrics("outputRows").value == 44)
-        assert(shjPlan.metrics("outputBytes").value == 3740)
-        assert(shjPlan.metrics("inputRows").value == 11985)
-        assert(shjPlan.metrics("inputBytes").value == 299625)
+        GlutenClickHouseMetricsUTUtils.executeMetricsUpdater(
+          wholeStageTransformer2,
+          metricsJsonFilePath + "/tpch-q2-wholestage-11-metrics.json"
+        ) {
+          () =>
+            val allGlutenPlans = wholeStageTransformer2.collect {
+              case g: GlutenPlan if !g.isInstanceOf[InputIteratorTransformer] => g
+            }
+
+            assert(allGlutenPlans.size == 57)
+
+            val shjPlan = allGlutenPlans(8)
+            assert(shjPlan.metrics("totalTime").value == 6)
+            assert(shjPlan.metrics("inputWaitTime").value == 5)
+            assert(shjPlan.metrics("outputWaitTime").value == 0)
+            assert(shjPlan.metrics("outputRows").value == 44)
+            assert(shjPlan.metrics("outputBytes").value == 3740)
+            assert(shjPlan.metrics("inputRows").value == 11985)
+            assert(shjPlan.metrics("inputBytes").value == 299625)
+        }
     }
   }
 

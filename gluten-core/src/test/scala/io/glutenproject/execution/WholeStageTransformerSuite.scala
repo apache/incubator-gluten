@@ -16,7 +16,7 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.utils.FallbackUtil
+import io.glutenproject.utils.{Arm, FallbackUtil}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
@@ -24,7 +24,7 @@ import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.test.SharedSparkSession
-import org.apache.spark.sql.types.{DoubleType, StructType}
+import org.apache.spark.sql.types.DoubleType
 
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
@@ -41,7 +41,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   protected val fileFormat: String
   protected val logLevel: String = "WARN"
 
-  protected val TPCHTables = Seq(
+  protected val TPCHTables: Seq[Table] = Seq(
     Table("part", partitionColumns = "p_brand" :: Nil),
     Table("supplier", partitionColumns = Nil),
     Table("partsupp", partitionColumns = Nil),
@@ -59,7 +59,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   final protected def disableFallbackCheck: Boolean =
     isFallbackCheckDisabled0.compareAndSet(false, true)
 
-  protected def isFallbackCheckDisabled = isFallbackCheckDisabled0.get()
+  protected def needCheckFallback: Boolean = !isFallbackCheckDisabled0.get()
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -95,96 +95,69 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       .set("spark.memory.offHeap.size", "1024MB")
   }
 
-  protected def compareResultStr(
-      sqlNum: String,
-      result: Array[Row],
-      queriesResults: String): Unit = {
+  protected def compareResultStr(sqlNum: String, result: Seq[Row], queriesResults: String): Unit = {
     val resultStr = new StringBuffer()
     resultStr.append(result.length).append("\n")
     result.foreach(r => resultStr.append(r.mkString("|-|")).append("\n"))
     val queryResultStr =
-      Source.fromFile(new File(queriesResults + "/" + sqlNum + ".out"), "UTF-8").mkString
+      Arm.withResource(Source.fromFile(new File(queriesResults + "/" + sqlNum + ".out"), "UTF-8"))(
+        _.mkString)
     assert(queryResultStr.equals(resultStr.toString))
   }
 
   protected def compareDoubleResult(
       sqlNum: String,
-      result: Array[Row],
-      schema: StructType,
-      queriesResults: String): Unit = {
-    val queryResults =
-      Source.fromFile(new File(queriesResults + "/" + sqlNum + ".out"), "UTF-8").getLines()
-    var recordCnt = queryResults.next().toInt
-    assert(result.size == recordCnt)
-    for (row <- result) {
-      assert(queryResults.hasNext)
-      val result = queryResults.next().split("\\|-\\|")
-      var i = 0
-      row.schema.foreach(
-        s => {
-          s match {
-            case d if d.dataType == DoubleType =>
-              // handle null value
-              if (row.isNullAt(i)) {
-                assert(result(i).equals("null"))
-              } else {
-                val v1 = row.getDouble(i)
-                assert(!result(i).equals("null"))
-                val v2 = result(i).toDouble
-                assert(Math.abs(v1 - v2) < 0.0005)
+      result: Seq[Row],
+      queriesResults: String): Unit =
+    Arm.withResource(Source.fromFile(new File(queriesResults + "/" + sqlNum + ".out"), "UTF-8")) {
+      resource =>
+        val queryResults = resource.getLines()
+        val recordCnt = queryResults.next().toInt
+        assert(result.length == recordCnt)
+        for (row <- result) {
+          assert(queryResults.hasNext)
+          val result = queryResults.next().split("\\|-\\|")
+          var i = 0
+          row.schema.foreach {
+            s =>
+              val isNull = row.isNullAt(i)
+              val v1 = if (s.dataType == DoubleType) row.getDouble(i) else row.get(i)
+              val v2 = result(i)
+
+              assert(isNull == v2.equals("null"))
+              if (!isNull) {
+                if (s.dataType == DoubleType) {
+                  assert(Math.abs(v1.asInstanceOf[Double] - v2.toDouble) < 0.0005)
+                } else {
+                  assert(v1.toString.equals(v2))
+                }
               }
-            case _ =>
-              // handle null value
-              if (row.isNullAt(i)) {
-                assert(result(i).equals("null"))
-              } else {
-                val v1 = row.get(i)
-                assert(!result(i).equals("null"))
-                val v2 = result(i)
-                assert(v1.toString.equals(v2))
-              }
+              i += 1
           }
-          i += 1
-        })
+        }
     }
-  }
 
   protected def runTPCHQuery(
       queryNum: Int,
       tpchQueries: String,
       queriesResults: String,
       compareResult: Boolean = true,
-      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    val sqlNum = "q" + "%02d".format(queryNum)
-    val sqlFile = tpchQueries + "/" + sqlNum + ".sql"
-    val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
-    val df = spark.sql(sqlStr)
-    val result = df.collect()
-    if (compareResult) {
-      val schema = df.schema
-      if (schema.exists(_.dataType == DoubleType)) {
-        compareDoubleResult(sqlNum, result, schema, queriesResults)
-      } else {
-        compareResultStr(sqlNum, result, queriesResults)
-      }
-    } else {
-      df.collect()
+      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit =
+    withDataFrame(tpchSQL(queryNum, tpchQueries)) {
+      df =>
+        if (compareResult)
+          verifyTPCHResult(df, s"q${"%02d".format(queryNum)}", queriesResults)
+        else
+          df.collect()
+        checkDataFrame(noFallBack, customCheck, df)
     }
-    if (!isFallbackCheckDisabled) {
-      WholeStageTransformerSuite.checkFallBack(df, noFallBack)
-    }
-    customCheck(df)
-  }
 
   protected def runSql(sql: String, noFallBack: Boolean = true)(
-      customCheck: DataFrame => Unit): Seq[Row] = {
-    val df = spark.sql(sql)
-    val result = df.collect()
-    if (!isFallbackCheckDisabled) {
-      WholeStageTransformerSuite.checkFallBack(df, noFallBack)
-    }
-    customCheck(df)
-    result
+      customCheck: DataFrame => Unit): Seq[Row] = withDataFrame(sql) {
+    df =>
+      val result = df.collect()
+      checkDataFrame(noFallBack, customCheck, df)
+      result
   }
 
   def checkLengthAndPlan(df: DataFrame, len: Int = 100): Unit = {
@@ -281,10 +254,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
         df.unpersist()
       }
     }
-    if (!isFallbackCheckDisabled) {
-      WholeStageTransformerSuite.checkFallBack(df, noFallBack)
-    }
-    customCheck(df)
+    checkDataFrame(noFallBack, customCheck, df)
     df
   }
 
@@ -309,15 +279,40 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       tpchQueries: String,
       customCheck: DataFrame => Unit,
       noFallBack: Boolean = true,
-      compareResult: Boolean = true): Unit = {
-    val sqlNum = "q" + "%02d".format(queryNum)
-    val sqlFile = tpchQueries + "/" + sqlNum + ".sql"
-    val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
-    compareResultsAgainstVanillaSpark(sqlStr, compareResult, customCheck, noFallBack)
-  }
+      compareResult: Boolean = true): Unit =
+    compareResultsAgainstVanillaSpark(
+      tpchSQL(queryNum, tpchQueries),
+      compareResult,
+      customCheck,
+      noFallBack)
 
   protected def vanillaSparkConfs(): Seq[(String, String)] = {
     List(("spark.gluten.enabled", "false"))
+  }
+
+  protected def checkDataFrame(
+      noFallBack: Boolean,
+      customCheck: DataFrame => Unit,
+      df: DataFrame): Unit = {
+    if (needCheckFallback) {
+      WholeStageTransformerSuite.checkFallBack(df, noFallBack)
+    }
+    customCheck(df)
+  }
+  protected def withDataFrame[R](sql: String)(f: DataFrame => R): R = f(spark.sql(sql))
+
+  protected def tpchSQL(queryNum: Int, tpchQueries: String): String =
+    Arm.withResource(
+      Source.fromFile(new File(s"$tpchQueries/q${"%02d".format(queryNum)}.sql"), "UTF-8"))(
+      _.mkString)
+
+  protected def verifyTPCHResult(df: DataFrame, sqlNum: String, queriesResults: String): Unit = {
+    val result = df.collect()
+    if (df.schema.exists(_.dataType == DoubleType)) {
+      compareDoubleResult(sqlNum, result, queriesResults)
+    } else {
+      compareResultStr(sqlNum, result, queriesResults)
+    }
   }
 }
 
