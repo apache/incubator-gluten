@@ -103,22 +103,10 @@ object RewriteMultiChildrenCount extends Rule[SparkPlan] {
         a.copy(aggregateExpressions = newAggExprs)
       case a: ObjectHashAggregateExec =>
         a.copy(aggregateExpressions = newAggExprs)
-      case _ => throw new IllegalStateException(s"Unknown aggregate: $agg")
+      case _ => throw new IllegalStateException(s"Unsupported aggregate: $agg")
     }
     newAgg.copyTagsFrom(agg)
     newAgg.asInstanceOf[T]
-  }
-
-  def applyForValidation[T <: BaseAggregateExec](plan: T): T = {
-    if (!BackendsApiManager.getSettings.shouldRewriteCount()) {
-      return plan
-    }
-
-    plan match {
-      case agg: BaseAggregateExec if shouldRewrite(agg.aggregateExpressions) =>
-        applyInternal(agg.asInstanceOf[T])
-      case _ => plan
-    }
   }
 
   override def apply(plan: SparkPlan): SparkPlan = {
@@ -126,13 +114,8 @@ object RewriteMultiChildrenCount extends Rule[SparkPlan] {
       return plan
     }
 
-    def shouldRewriteAgg(agg: BaseAggregateExec): Boolean = {
-      TransformHints.isTransformable(agg) &&
-      shouldRewrite(agg.aggregateExpressions)
-    }
-
     plan.transform {
-      case agg: BaseAggregateExec if shouldRewriteAgg(agg) =>
+      case agg: BaseAggregateExec if shouldRewrite(agg.aggregateExpressions) =>
         applyInternal(agg)
     }
   }

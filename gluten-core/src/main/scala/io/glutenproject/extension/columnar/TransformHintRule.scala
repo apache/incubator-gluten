@@ -456,16 +456,15 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAggregate is not enabled in HashAggregateExec")
           } else {
-            val rewrittenAgg = RewriteMultiChildrenCount.applyForValidation(plan)
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genHashAggregateExecTransformer(
-                rewrittenAgg.requiredChildDistributionExpressions,
-                rewrittenAgg.groupingExpressions,
-                rewrittenAgg.aggregateExpressions,
-                rewrittenAgg.aggregateAttributes,
-                rewrittenAgg.initialInputBufferOffset,
-                rewrittenAgg.resultExpressions,
-                rewrittenAgg.child
+                plan.requiredChildDistributionExpressions,
+                plan.groupingExpressions,
+                plan.aggregateExpressions,
+                plan.aggregateAttributes,
+                plan.initialInputBufferOffset,
+                plan.resultExpressions,
+                plan.child
               )
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
@@ -477,16 +476,15 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAgg is not enabled in SortAggregateExec")
           } else {
-            val rewrittenAgg = RewriteMultiChildrenCount.applyForValidation(plan)
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genHashAggregateExecTransformer(
-                rewrittenAgg.requiredChildDistributionExpressions,
-                rewrittenAgg.groupingExpressions,
-                rewrittenAgg.aggregateExpressions,
-                rewrittenAgg.aggregateAttributes,
-                rewrittenAgg.initialInputBufferOffset,
-                rewrittenAgg.resultExpressions,
-                rewrittenAgg.child
+                plan.requiredChildDistributionExpressions,
+                plan.groupingExpressions,
+                plan.aggregateExpressions,
+                plan.aggregateAttributes,
+                plan.initialInputBufferOffset,
+                plan.resultExpressions,
+                plan.child
               )
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
@@ -496,16 +494,15 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAgg is not enabled in ObjectHashAggregateExec")
           } else {
-            val rewrittenAgg = RewriteMultiChildrenCount.applyForValidation(plan)
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genHashAggregateExecTransformer(
-                rewrittenAgg.requiredChildDistributionExpressions,
-                rewrittenAgg.groupingExpressions,
-                rewrittenAgg.aggregateExpressions,
-                rewrittenAgg.aggregateAttributes,
-                rewrittenAgg.initialInputBufferOffset,
-                rewrittenAgg.resultExpressions,
-                rewrittenAgg.child
+                plan.requiredChildDistributionExpressions,
+                plan.groupingExpressions,
+                plan.aggregateExpressions,
+                plan.aggregateAttributes,
+                plan.initialInputBufferOffset,
+                plan.resultExpressions,
+                plan.child
               )
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }

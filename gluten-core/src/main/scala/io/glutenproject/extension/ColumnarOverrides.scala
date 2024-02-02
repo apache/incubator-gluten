@@ -785,12 +785,12 @@ case class ColumnarOverrideRules(session: SparkSession)
       (spark: SparkSession) => FallbackMultiCodegens(spark),
       (spark: SparkSession) => PlanOneRowRelation(spark),
       (_: SparkSession) => FallbackEmptySchemaRelation(),
+      (_: SparkSession) => RewriteMultiChildrenCount,
       (spark: SparkSession) => PullOutPreProject(spark)
     ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarValidationRules() :::
       List(
         (_: SparkSession) => AddTransformHintRule(),
-        (_: SparkSession) => RewriteMultiChildrenCount,
         (_: SparkSession) => FallbackBloomFilterAggIfNeeded(),
         (_: SparkSession) => TransformPreOverrides(isAdaptiveContext),
         (_: SparkSession) => RemoveNativeWriteFilesSortAndProject(),
