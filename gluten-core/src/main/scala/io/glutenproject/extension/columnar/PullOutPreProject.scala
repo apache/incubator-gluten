@@ -16,11 +16,14 @@
  */
 package io.glutenproject.extension.columnar
 
+import io.glutenproject.extension.ValidationApplyRule
 import io.glutenproject.utils.PullOutProjectHelper
 
-import org.apache.spark.sql.catalyst.expressions.{Expression, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Expression, Literal, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateFunction, Partial}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan, TakeOrderedAndProjectExec}
+import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, TypedAggregateExpression}
 
 import scala.collection.mutable
 
@@ -31,10 +34,13 @@ import scala.collection.mutable
  * to transform the SparkPlan at the physical plan level, constructing a SparkPlan that supports
  * execution by the native engine.
  */
-object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
+object PullOutPreProject
+  extends Rule[SparkPlan]
+  with PullOutProjectHelper
+  with ValidationApplyRule {
 
   private def needsPreProject(plan: SparkPlan): Boolean = {
-    if (notSupportTransform(plan)) {
+    if (TransformHints.isTaggedAsNotTransformable(plan)) {
       // We should not pull out pre-project for SparkPlan that already been tagged as
       // not transformable.
       return false
@@ -44,6 +50,23 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
         sort.sortOrder.exists(o => isNotAttribute(o.child))
       case take: TakeOrderedAndProjectExec =>
         take.sortOrder.exists(o => isNotAttribute(o.child))
+      case agg: BaseAggregateExec =>
+        agg.groupingExpressions.exists(isNotAttribute) ||
+        agg.aggregateExpressions.exists {
+          expr =>
+            if (expr.aggregateFunction.isInstanceOf[TypedAggregateExpression]) {
+              // We cannot pull out the children of TypedAggregateExpression to pre-project,
+              // and Gluten cannot support TypedAggregateExpression.
+              false
+            } else {
+              expr.filter.exists(isNotAttribute) ||
+              (expr.mode match {
+                case Partial =>
+                  expr.aggregateFunction.children.exists(isNotAttributeAndLiteral)
+                case _ => false
+              })
+            }
+        }
       case _ => false
     }
   }
@@ -81,7 +104,7 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
 
   override def apply(plan: SparkPlan): SparkPlan = plan.transform(applyLocally)
 
-  def applyForValidation[T <: SparkPlan](plan: T): T =
+  override def applyForValidation[T <: SparkPlan](plan: T): T =
     applyLocally
       .lift(plan)
       .map {
@@ -91,7 +114,7 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
       .getOrElse(plan)
       .asInstanceOf[T]
 
-  val applyLocally: PartialFunction[SparkPlan, SparkPlan] = {
+  private val applyLocally: PartialFunction[SparkPlan, SparkPlan] = {
     case sort: SortExec if needsPreProject(sort) =>
       val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
       val newSortOrder = getNewSortOrder(sort.sortOrder, expressionMap)
@@ -124,5 +147,35 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
       val newTopK = topK.copy(sortOrder = newSortOrder, child = preProject)
       newTopK.copyTagsFrom(topK)
       newTopK
+
+    case agg: BaseAggregateExec if supportedAggregate(agg) && needsPreProject(agg) =>
+      val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
+      // Handle groupingExpressions.
+      val newGroupingExpressions =
+        agg.groupingExpressions.toIndexedSeq.map(
+          replaceExpressionWithAttribute(_, expressionMap).asInstanceOf[NamedExpression])
+
+      // Handle aggregateExpressions.
+      val newAggregateExpressions = agg.aggregateExpressions.toIndexedSeq.map {
+        ae =>
+          val newAggFuncChildren = ae.aggregateFunction.children.map {
+            case literal: Literal => literal
+            case other => replaceExpressionWithAttribute(other, expressionMap)
+          }
+          val newAggFunc = ae.aggregateFunction
+            .withNewChildren(newAggFuncChildren)
+            .asInstanceOf[AggregateFunction]
+          val newFilter =
+            ae.filter.map(replaceExpressionWithAttribute(_, expressionMap))
+          ae.copy(aggregateFunction = newAggFunc, filter = newFilter)
+      }
+
+      val newAgg = copyBaseAggregateExec(agg, newGroupingExpressions, newAggregateExpressions)
+      newAgg.copyTagsFrom(agg)
+
+      val preProject = ProjectExec(
+        eliminateProjectList(agg.child.outputSet, expressionMap.values.toSeq),
+        agg.child)
+      newAgg.withNewChildren(Seq(preProject))
   }
 }
