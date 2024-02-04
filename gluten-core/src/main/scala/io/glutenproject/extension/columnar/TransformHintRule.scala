@@ -699,7 +699,8 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               "columnar topK is not enabled in TakeOrderedAndProjectExec")
           } else {
             val rewrittenTopK = PullOutPreProject.applyForValidation(plan)
-            val (limit, offset) = SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(rewrittenTopK)
+            val (limit, offset) =
+              SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(rewrittenTopK)
             val transformer = TakeOrderedAndProjectExecTransformer(
               limit,
               rewrittenTopK.sortOrder,
