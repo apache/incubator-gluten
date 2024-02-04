@@ -14,18 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.extension
+package io.glutenproject.extension
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.extension.CommonSubexpressionEliminateRule._
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.internal.SQLConf
+
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable
 
@@ -41,6 +43,7 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
         plan.resolved && GlutenConfig.getConf.enableGluten
         && GlutenConfig.getConf.enableCommonSubexpressionEliminate && !plan.fastEquals(lastPlan)
       ) {
+        logTrace(s"visit root plan:\n$plan")
         lastPlan = plan
         visitPlan(plan)
       } else {
@@ -54,12 +57,12 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
   private case class RewriteContext(exprs: Seq[Expression], child: LogicalPlan)
 
   private def visitPlan(plan: LogicalPlan): LogicalPlan = {
-    var newPlan = plan match {
+    // Don't apply CSE for Aggregate, see https://github.com/oap-project/gluten/issues/4642
+    val newPlan = plan match {
       case project: Project => visitProject(project)
       // TODO: CSE in Filter doesn't work for unknown reason, need to fix it later
       // case filter: Filter => visitFilter(filter)
       case window: Window => visitWindow(window)
-      case aggregate: Aggregate => visitAggregate(aggregate)
       case sort: Sort => visitSort(sort)
       case other =>
         val children = other.children.map(visitPlan)
@@ -93,32 +96,32 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
       || (expr.isInstanceOf[AttributeReference]
         && expr.asInstanceOf[AttributeReference].name == VirtualColumn.groupingIdName)
     ) {
-      logTrace(s"Check common expression failed $expr class ${expr.getClass.toString}")
+      logTrace(s"check common expression failed $expr, class ${expr.getClass.toString}")
       return false
     }
 
-    expr.children.forall(isValidCommonExpr(_))
+    expr.children.forall(isValidCommonExpr)
   }
 
-  private def rewrite(inputCtx: RewriteContext): RewriteContext = {
-    logTrace(s"Start rewrite with input exprs:${inputCtx.exprs} input child:${inputCtx.child}")
+  private def rewrite(inputCtx: RewriteContext, planName: String): RewriteContext = {
     val equivalentExpressions = new EquivalentExpressions
     inputCtx.exprs.foreach(equivalentExpressions.addExprTree(_))
 
     // Get all the expressions that appear at least twice
     val newChild = visitPlan(inputCtx.child)
-    val commonExprs = equivalentExpressions.getCommonSubexpressions
+    logTrace(
+      s"start rewrite $planName\ninput exprs:\n${inputCtx.exprs}\ninput child:\n${inputCtx.child}")
 
+    val commonExprs = equivalentExpressions.getCommonSubexpressions
     // Put the common expressions into a hash map
     val commonExprMap = mutable.HashMap.empty[ExpressionEquals, AliasAndAttribute]
     commonExprs.foreach {
       expr =>
         if (!expr.foldable && !expr.isInstanceOf[Attribute] && isValidCommonExpr(expr)) {
-          logTrace(s"Common subexpression $expr class ${expr.getClass.toString}")
+          logTrace(s"common subexpression $expr, class ${expr.getClass.toString}")
           val exprEquals = ExpressionEquals(expr)
-          val alias = Alias(expr, expr.toString)()
-          val attribute = alias.toAttribute
-          commonExprMap.put(exprEquals, AliasAndAttribute(alias, attribute))
+          val alias = Alias(expr, s"cse_alias_${exprCounter.getAndIncrement()}")()
+          commonExprMap.put(exprEquals, AliasAndAttribute(alias, alias.toAttribute))
         }
     }
 
@@ -128,13 +131,13 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
     }
 
     // Generate pre-project as new child
-    var preProjectList = newChild.output ++ commonExprMap.values.map(_.alias)
+    val preProjectList = newChild.output ++ commonExprMap.values.map(_.alias)
     val preProject = Project(preProjectList, newChild)
-    logTrace(s"newChild after rewrite: $preProject")
+    logTrace(s"newChild after rewrite:\n$preProject")
 
     // Replace the common expressions with the first expression that produces it.
     try {
-      var newExprs = inputCtx.exprs
+      val newExprs = inputCtx.exprs
         .map(replaceCommonExprWithAttribute(_, commonExprMap))
       logTrace(s"newExprs after rewrite: $newExprs")
       RewriteContext(newExprs, preProject)
@@ -149,19 +152,19 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
 
   private def visitProject(project: Project): Project = {
     val inputCtx = RewriteContext(project.projectList, project.child)
-    val outputCtx = rewrite(inputCtx)
+    val outputCtx = rewrite(inputCtx, project.getClass.getSimpleName)
     Project(outputCtx.exprs.map(_.asInstanceOf[NamedExpression]), outputCtx.child)
   }
 
   private def visitFilter(filter: Filter): Filter = {
     val inputCtx = RewriteContext(Seq(filter.condition), filter.child)
-    val outputCtx = rewrite(inputCtx)
+    val outputCtx = rewrite(inputCtx, filter.getClass.getSimpleName)
     Filter(outputCtx.exprs.head, outputCtx.child)
   }
 
   private def visitWindow(window: Window): Window = {
     val inputCtx = RewriteContext(window.windowExpressions, window.child)
-    val outputCtx = rewrite(inputCtx)
+    val outputCtx = rewrite(inputCtx, window.getClass.getSimpleName)
     Window(
       outputCtx.exprs.map(_.asInstanceOf[NamedExpression]),
       window.partitionSpec,
@@ -169,31 +172,12 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
       outputCtx.child)
   }
 
-  private def visitAggregate(aggregate: Aggregate): Aggregate = {
-    logTrace(
-      s"aggregate groupingExpressions: ${aggregate.groupingExpressions} " +
-        s"aggregateExpressions: ${aggregate.aggregateExpressions}")
-    val exprsWithIndex = aggregate.aggregateExpressions.zipWithIndex
-      .filter(_._1.find(_.isInstanceOf[AggregateExpression]).isDefined)
-    val inputCtx = RewriteContext(exprsWithIndex.map(_._1), aggregate.child)
-    val outputCtx = rewrite(inputCtx)
-    val newExprs = outputCtx.exprs
-    val indexToNewExpr = exprsWithIndex.map(_._2).zip(newExprs).toMap
-    val updatedAggregateExpressions = aggregate.aggregateExpressions.indices.map {
-      index => indexToNewExpr.getOrElse(index, aggregate.aggregateExpressions(index))
-    }
-    Aggregate(
-      aggregate.groupingExpressions,
-      updatedAggregateExpressions.toSeq.map(_.asInstanceOf[NamedExpression]),
-      outputCtx.child)
-  }
-
   private def visitSort(sort: Sort): Sort = {
     val exprs = sort.order.flatMap(_.children)
     val inputCtx = RewriteContext(exprs, sort.child)
-    val outputCtx = rewrite(inputCtx)
+    val outputCtx = rewrite(inputCtx, sort.getClass.getSimpleName)
 
-    var start = 0;
+    var start = 0
     var newOrder = Seq.empty[SortOrder]
     sort.order.foreach(
       order => {
@@ -205,4 +189,8 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
 
     Sort(newOrder, sort.global, outputCtx.child)
   }
+}
+
+object CommonSubexpressionEliminateRule {
+  private val exprCounter = new AtomicInteger(0)
 }
