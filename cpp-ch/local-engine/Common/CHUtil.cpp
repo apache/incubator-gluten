@@ -684,6 +684,14 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
 
         global_context->setTemporaryStoragePath(config->getString("tmp_path", getDefaultPath()), 0);
         global_context->setPath(config->getString("path", "/"));
+
+        String mark_cache_policy = config->getString("mark_cache_policy", DEFAULT_MARK_CACHE_POLICY);
+        size_t mark_cache_size = config->getUInt64("mark_cache_size", DEFAULT_MARK_CACHE_MAX_SIZE);
+        double mark_cache_size_ratio = config->getDouble("mark_cache_size_ratio", DEFAULT_MARK_CACHE_SIZE_RATIO);
+        if (!mark_cache_size)
+            LOG_ERROR(&Poco::Logger::get("CHUtil"), "Too low mark cache size will lead to severe performance degradation.");
+
+        global_context->setMarkCache(mark_cache_policy, mark_cache_size, mark_cache_size_ratio);
     }
 }
 
