@@ -67,41 +67,42 @@ public:
             else
                 return true;
         };
-        if (buf_size < 4 || !isNumericASCII(*(buf.position() + buf_size - 1)))
-        {
-            can_be_parsed = 0;
-            return false;
-        }
-        else if (buf_size == 10
+        if ((buf_size == 10 || buf_size == 11)
             && checkNumbericASCII(buf, 0, 4) && checkDelimiter(buf, 4, '-')
             && checkNumbericASCII(buf, 5, 2) && checkDelimiter(buf, 7, '-')
             && checkNumbericASCII(buf, 8, 2))
         {
-            return true;
-        }
-        else if (buf_size < 19)
+            if (buf_size == 10)
+                return true;
+            else if (*(buf.position() + 10) != ' ')
+                can_be_parsed = 0;
             return false;
-        else if (buf_size == 19 
-            && (!checkNumbericASCII(buf, 0, 4) || !checkDelimiter(buf, 4, '-')
-            || !checkNumbericASCII(buf, 5, 2) || !checkDelimiter(buf, 7, '-')
-            || !checkNumbericASCII(buf, 8, 2) || !checkDelimiter(buf, 10, ' ')
-            || !checkNumbericASCII(buf, 11, 2) || !checkDelimiter(buf, 13, ':')
-            || !checkNumbericASCII(buf, 14, 2) || !checkDelimiter(buf, 16, ':')
-            || !checkNumbericASCII(buf, 17, 2)))
+        }
+        else if ((buf_size == 19 || buf_size == 20) 
+            && (checkNumbericASCII(buf, 0, 4) && checkDelimiter(buf, 4, '-')
+            && checkNumbericASCII(buf, 5, 2) && checkDelimiter(buf, 7, '-')
+            && checkNumbericASCII(buf, 8, 2) && checkDelimiter(buf, 10, ' ')
+            && checkNumbericASCII(buf, 11, 2) && checkDelimiter(buf, 13, ':')
+            && checkNumbericASCII(buf, 14, 2) && checkDelimiter(buf, 16, ':')
+            && checkNumbericASCII(buf, 17, 2)))
+        {
+            if (buf_size == 19)
+                return true;
+            else
+                return *(buf.position() + 19) == '.';
+        }
+        else if (buf_size < 4 || !isNumericASCII(*(buf.position() + buf_size - 1)))
         {
             can_be_parsed = 0;
             return false;
         }
-        else if (buf_size > 19)
+        else if (buf_size < 19)
+            return false;
+        else if (buf_size > 20)
         {
-            for (size_t i = 19; i < buf_size; ++i)
+            for (size_t i = 20; i < buf_size; ++i)
             {
-                if (i == 19 && !checkDelimiter(buf, i, '.'))
-                {
-                    can_be_parsed = 0;
-                    return false;
-                }
-                else if (i != 19 && !isNumericASCII(*(buf.position() + i)))
+                if (!isNumericASCII(*(buf.position() + i)))
                     return false;
             }
         }
