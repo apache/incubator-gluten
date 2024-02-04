@@ -127,6 +127,14 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
     )
   }
 
+  /** Transform map_entries to Substrait. */
+  override def genMapEntriesTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: Expression): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(child), expr)
+  }
+
   /**
    * * Plans.
    */

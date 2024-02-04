@@ -365,6 +365,26 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
+  test("test map_entries function") {
+    withTempPath {
+      path =>
+        Seq(
+          Map[Int, String](1 -> null, 2 -> "200"),
+          Map[Int, String](1 -> "100", 2 -> "200", 3 -> "300"),
+          null
+        )
+          .toDF("i")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
+
+        runQueryAndCompare("select map_entries(i) from map_tbl") {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("Test isnan function") {
     runQueryAndCompare(
       "SELECT isnan(l_orderkey), isnan(cast('NaN' as double)), isnan(0.0F/0.0F)" +
