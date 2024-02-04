@@ -271,7 +271,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameStatSuite]
   enableSuite[GlutenComplexTypesSuite]
     // Incorrect result for array and length.
-    .excludeGlutenTests("types bool/byte/short/float/double/decimal/binary/map/array/struct")
+    .excludeGlutenTest("types bool/byte/short/float/double/decimal/binary/map/array/struct")
   enableSuite[GlutenDataFrameComplexTypeSuite]
   enableSuite[GlutenApproximatePercentileQuerySuite]
   enableSuite[GlutenDataFrameRangeSuite]
@@ -507,9 +507,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("appending insert")
     .exclude("overwrite insert")
     .exclude("SPARK-34897: Support reconcile schemas based on index after nested column pruning")
-    .excludeGlutenTests("SPARK-31238: compatibility with Spark 2.4 in reading dates")
-    .excludeGlutenTests("SPARK-31238, SPARK-31423: rebasing dates in write")
-    .excludeGlutenTests("SPARK-34862: Support ORC vectorized reader for nested column")
+    .excludeGlutenTest("SPARK-31238: compatibility with Spark 2.4 in reading dates")
+    .excludeGlutenTest("SPARK-31238, SPARK-31423: rebasing dates in write")
+    .excludeGlutenTest("SPARK-34862: Support ORC vectorized reader for nested column")
   enableSuite[GlutenOrcV1FilterSuite]
     .exclude("SPARK-32622: case sensitivity in predicate pushdown")
   enableSuite[GlutenOrcV1SchemaPruningSuite]
@@ -963,8 +963,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("change column type from short to int/long")
     .exclude("change column type from int to long")
     .exclude("change column type from float to double")
-    .excludeGlutenTests("read byte, int, short, long together")
-    .excludeGlutenTests("read float and double together")
+    .excludeGlutenTest("read byte, int, short, long together")
+    .excludeGlutenTest("read float and double together")
   enableSuite[GlutenMergedOrcReadSchemaSuite]
     .exclude("append column into middle")
     .exclude("add a nested column at the end of the leaf struct column")
