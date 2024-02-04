@@ -66,13 +66,14 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
 
   /// Parse and cache the plan.
   /// Return true if parsed successfully.
-  virtual void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) = 0;
+  virtual void
+  parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo, std::optional<std::string> dumpFile) = 0;
 
   virtual std::string planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) = 0;
 
   virtual void injectWriteFilesTempPath(const std::string& path) = 0;
 
-  virtual void parseSplitInfo(const uint8_t* data, int32_t size) = 0;
+  virtual void parseSplitInfo(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) = 0;
 
   // Just for benchmark
   ::substrait::Plan& getPlan() {

@@ -39,11 +39,15 @@ namespace gluten {
 
 VeloxRuntime::VeloxRuntime(const std::unordered_map<std::string, std::string>& confMap) : Runtime(confMap) {}
 
-void VeloxRuntime::parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) {
+void VeloxRuntime::parsePlan(
+    const uint8_t* data,
+    int32_t size,
+    SparkTaskInfo taskInfo,
+    std::optional<std::string> dumpFile) {
   taskInfo_ = taskInfo;
   if (debugModeEnabled(confMap_)) {
     try {
-      auto jsonPlan = substraitFromPbToJson("Plan", data, size);
+      auto jsonPlan = substraitFromPbToJson("Plan", data, size, dumpFile);
       LOG(INFO) << std::string(50, '#') << " received substrait::Plan:";
       LOG(INFO) << taskInfo_ << std::endl << jsonPlan;
     } catch (const std::exception& e) {
@@ -54,10 +58,10 @@ void VeloxRuntime::parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo ta
   GLUTEN_CHECK(parseProtobuf(data, size, &substraitPlan_) == true, "Parse substrait plan failed");
 }
 
-void VeloxRuntime::parseSplitInfo(const uint8_t* data, int32_t size) {
+void VeloxRuntime::parseSplitInfo(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) {
   if (debugModeEnabled(confMap_)) {
     try {
-      auto jsonPlan = substraitFromPbToJson("ReadRel.LocalFiles", data, size);
+      auto jsonPlan = substraitFromPbToJson("ReadRel.LocalFiles", data, size, dumpFile);
       LOG(INFO) << std::string(50, '#') << " received substrait::ReadRel.LocalFiles:";
       LOG(INFO) << std::endl << jsonPlan;
     } catch (const std::exception& e) {
@@ -209,15 +213,15 @@ std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerial
 }
 
 void VeloxRuntime::dumpConf(const std::string& path) {
-  // Get all configuration from the backend and merge with the session configuration.
-  auto allConf = VeloxBackend::get()->getBackendConf();
+  auto backendConf = VeloxBackend::get()->getBackendConf();
+  auto allConf = backendConf;
   allConf.merge(confMap_);
 
   // Open file "velox.conf" for writing, automatically creating it if it doesn't exist,
   // or overwriting it if it does.
-  std::ofstream outFile("velox.conf");
+  std::ofstream outFile(path);
   if (!outFile.is_open()) {
-    std::cerr << "Failed to open file for writing: velox.conf" << std::endl;
+    LOG(ERROR) << "Failed to open file for writing: " << path;
     return;
   }
 
@@ -228,7 +232,12 @@ void VeloxRuntime::dumpConf(const std::string& path) {
   }
 
   // Write each key-value pair to the file with adjusted spacing for alignment
-  for (const auto& pair : allConf) {
+  outFile << "[Backend Conf]" << std::endl;
+  for (const auto& pair : backendConf) {
+    outFile << std::left << std::setw(maxKeyLength + 1) << pair.first << ' ' << pair.second << std::endl;
+  }
+  outFile << std::endl << "[Session Conf]" << std::endl;
+  for (const auto& pair : confMap_) {
     outFile << std::left << std::setw(maxKeyLength + 1) << pair.first << ' ' << pair.second << std::endl;
   }
 

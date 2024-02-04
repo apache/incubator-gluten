@@ -26,6 +26,7 @@
 #include "operators/writer/Datasource.h"
 
 #include <arrow/c/bridge.h>
+#include <optional>
 #include "memory/AllocationListener.h"
 #include "operators/serializer/ColumnarBatchSerializer.h"
 #include "shuffle/LocalPartitionWriter.h"
@@ -74,9 +75,6 @@ static jmethodID shuffleReaderMetricsSetDeserializeTime;
 
 static jclass block_stripes_class;
 static jmethodID block_stripes_constructor;
-
-static jclass nativeBackendInitializerClass;
-static jmethodID nativeBackendInitializerGetNativeBackendConf;
 
 class JavaInputStreamAdaptor final : public arrow::io::InputStream {
  public:
@@ -341,7 +339,7 @@ JNIEXPORT jstring JNICALL Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapp
   auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
   auto planSize = env->GetArrayLength(planArray);
   auto ctx = gluten::getRuntime(env, wrapper);
-  ctx->parsePlan(planData, planSize, {});
+  ctx->parsePlan(planData, planSize, {}, std::nullopt);
   auto& conf = ctx->getConfMap();
   auto planString = ctx->planString(details, conf);
   return env->NewStringUTF(planString.c_str());
@@ -381,6 +379,22 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
   JNI_METHOD_START
 
   auto ctx = gluten::getRuntime(env, wrapper);
+  auto& conf = ctx->getConfMap();
+
+  std::string saveDir{};
+  std::string fileIdentifier = "_" + std::to_string(stageId) + "_" + std::to_string(partitionId);
+  if (saveInput) {
+    if (conf.find(kGlutenSaveDir) == conf.end()) {
+      throw gluten::GlutenException(kGlutenSaveDir + " is not configured.");
+    }
+    saveDir = conf.at(kGlutenSaveDir);
+    std::filesystem::path f{saveDir};
+    if (!std::filesystem::exists(f)) {
+      throw gluten::GlutenException("Save input path " + saveDir + " does not exists");
+    }
+    ctx->dumpConf(saveDir + "/conf" + fileIdentifier + ".ini");
+  }
+
   auto memoryManager = jniCastOrThrow<MemoryManager>(memoryManagerHandle);
 
   auto spillDirStr = jStringToCString(env, spillDir);
@@ -389,29 +403,20 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
     jbyteArray splitInfoArray = static_cast<jbyteArray>(env->GetObjectArrayElement(splitInfosArr, i));
     jsize splitInfoSize = env->GetArrayLength(splitInfoArray);
     auto splitInfoData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(splitInfoArray, nullptr));
-    ctx->parseSplitInfo(splitInfoData, splitInfoSize);
+    ctx->parseSplitInfo(
+        splitInfoData,
+        splitInfoSize,
+        saveInput ? std::optional<std::string>(saveDir + "/split" + fileIdentifier + "_" + std::to_string(i) + ".json")
+                  : std::nullopt);
   }
 
   auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArr, nullptr));
   auto planSize = env->GetArrayLength(planArr);
-  ctx->parsePlan(planData, planSize, {stageId, partitionId, taskId});
-
-  auto& conf = ctx->getConfMap();
-
-  if (saveInput) {
-    if (conf.find(kGlutenSaveDir) == conf.end()) {
-      throw gluten::GlutenException(kGlutenSaveDir + " is not configured.");
-    }
-    auto dir = conf.at(kGlutenSaveDir);
-    std::filesystem::path f{dir};
-    if (!std::filesystem::exists(f)) {
-      throw gluten::GlutenException("Save input path " + dir + " does not exists");
-    }
-
-    if (conf.find(kDumpConf) != conf.end()) {
-      ctx->dumpConf(dir);
-    }
-  }
+  ctx->parsePlan(
+      planData,
+      planSize,
+      {stageId, partitionId, taskId},
+      saveInput ? std::optional<std::string>(saveDir + "/plan" + fileIdentifier + ".json") : std::nullopt);
 
   // Handle the Java iters
   jsize itersLen = env->GetArrayLength(iterArr);
@@ -419,8 +424,7 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
   for (int idx = 0; idx < itersLen; idx++) {
     std::shared_ptr<ArrowWriter> writer = nullptr;
     if (saveInput) {
-      auto file = conf.at(kGlutenSaveDir) + "/input_" + std::to_string(taskId) + "_" + std::to_string(idx) + "_" +
-          std::to_string(partitionId) + ".parquet";
+      auto file = saveDir + "/data" + fileIdentifier + "_" + std::to_string(idx) + ".parquet";
       writer = std::make_shared<ArrowWriter>(file);
     }
     jobject iter = env->GetObjectArrayElement(iterArr, idx);

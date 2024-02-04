@@ -35,9 +35,9 @@ class VeloxRuntime final : public Runtime {
  public:
   explicit VeloxRuntime(const std::unordered_map<std::string, std::string>& confMap);
 
-  void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) override;
+  void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo, std::optional<std::string> dumpFile) override;
 
-  void parseSplitInfo(const uint8_t* data, int32_t size) override;
+  void parseSplitInfo(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) override;
 
   static std::shared_ptr<facebook::velox::memory::MemoryPool> getAggregateVeloxPool(MemoryManager* memoryManager) {
     return toVeloxMemoryManager(memoryManager)->getAggregateMemoryPool();
