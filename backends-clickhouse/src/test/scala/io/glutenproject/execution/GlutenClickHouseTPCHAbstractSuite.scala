@@ -24,7 +24,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
-import org.apache.spark.sql.types.DoubleType
 
 import org.apache.commons.io.FileUtils
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
@@ -625,24 +624,14 @@ abstract class GlutenClickHouseTPCHAbstractSuite
       sqlStr: String,
       queriesResults: String = queriesResults,
       compareResult: Boolean = true,
-      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    val sqlNum = "q" + "%02d".format(queryNum)
-    val df = spark.sql(sqlStr)
-    val result = df.collect()
-    if (compareResult) {
-      val schema = df.schema
-      if (schema.exists(_.dataType == DoubleType)) {
-        compareDoubleResult(sqlNum, result, schema, queriesResults)
+      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = withDataFrame(sqlStr) {
+    df =>
+      if (compareResult) {
+        verifyTPCHResult(df, s"q${"%02d".format(queryNum)}", queriesResults)
       } else {
-        compareResultStr(sqlNum, result, queriesResults)
+        df.collect()
       }
-    } else {
-      df.collect()
-    }
-    if (!isFallbackCheckDisabled) {
-      WholeStageTransformerSuite.checkFallBack(df, noFallBack)
-    }
-    customCheck(df)
+      checkDataFrame(noFallBack, customCheck, df)
   }
 
 }

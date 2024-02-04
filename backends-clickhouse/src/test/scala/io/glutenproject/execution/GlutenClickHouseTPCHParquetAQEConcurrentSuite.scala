@@ -21,14 +21,9 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.types.DoubleType
 
-import java.io.File
 import java.util.concurrent.ForkJoinPool
 
 import scala.collection.parallel.ForkJoinTaskSupport
-import scala.io.Source
-
-// Some sqls' line length exceeds 100
-// scalastyle:off line.size.limit
 
 class GlutenClickHouseTPCHParquetAQEConcurrentSuite
   extends GlutenClickHouseTPCHAbstractSuite
@@ -59,26 +54,26 @@ class GlutenClickHouseTPCHParquetAQEConcurrentSuite
       compareResult: Boolean = true,
       noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
     val sqlNum = "q" + "%02d".format(queryNum)
-    val sqlFile = tpchQueries + "/" + sqlNum + ".sql"
-    val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
-    val df = spark.sql(sqlStr)
-    val result = df.collect()
-    if (compareResult) {
-      val schema = df.schema
-      if (schema.exists(_.dataType == DoubleType)) {} else {
-        compareResultStr(sqlNum, result, queriesResults)
-      }
-    } else {
-      df.collect()
+    withDataFrame(tpchSQL(queryNum, tpchQueries)) {
+      df =>
+        val result = df.collect()
+        if (compareResult) {
+          val schema = df.schema
+          if (schema.exists(_.dataType == DoubleType)) {} else {
+            compareResultStr(sqlNum, result, queriesResults)
+          }
+        } else {
+          df.collect()
+        }
+        customCheck(df)
     }
-    customCheck(df)
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
     createTPCHParquetTables(tablesPath)
   }
 
-  test("fix race condition at the global variable of isAdaptiveContext in ColumnarOverrideRules") {
+  test("fix race condition at the global variable of ColumnarOverrideRules::isAdaptiveContext") {
 
     val queries = ((1 to 22) ++ (1 to 22) ++ (1 to 22) ++ (1 to 22)).par
     queries.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(22))
@@ -87,4 +82,3 @@ class GlutenClickHouseTPCHParquetAQEConcurrentSuite
   }
 
 }
-// scalastyle:off line.size.limit

@@ -52,7 +52,7 @@ import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.ClickHous
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.execution.utils.CHExecUtil
+import org.apache.spark.sql.execution.utils.{CHExecUtil, PushDownUtil}
 import org.apache.spark.sql.extension.ClickHouseAnalysis
 import org.apache.spark.sql.extension.CommonSubexpressionEliminateRule
 import org.apache.spark.sql.extension.RewriteDateTimestampComparisonRule
@@ -586,15 +586,18 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     // TODO: datasource v2 ?
     // TODO: Push down conditions with scalar subquery
     // For example, consider TPCH 22 'c_acctbal > (select avg(c_acctbal) from customer where ...)'.
-    // Vanilla Spark only pushes down the Parquet Filter not Catalyst Filter, so it can not get the
-    // subquery result, while gluten pushes down the Catalyst Filter which we can benefit from this
-    // to get result. But the current implementation is ineffective, since we didn't use
-    // ReusedSubqueryExec
+    // Vanilla Spark only pushes down the Parquet Filter not Catalyst Filter, which can not get the
+    // subquery result, while gluten pushes down the Catalyst Filter can benefit from this case.
+    //
+    // Let's make push down functionally same as vanilla Spark for now.
 
     sparkExecNode match {
       case fileSourceScan: FileSourceScanExec
           if isParquetFormat(fileSourceScan.relation.fileFormat) =>
-        fileSourceScan.dataFilters
+        PushDownUtil.removeNotSupportPushDownFilters(
+          fileSourceScan.conf,
+          fileSourceScan.output,
+          fileSourceScan.dataFilters)
       case _ => super.postProcessPushDownFilter(extraFilters, sparkExecNode)
     }
   }
