@@ -35,7 +35,7 @@ import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.types.{BinaryType, DateType, StructType, TimestampType}
+import org.apache.spark.sql.types.{BinaryType, DateType, Decimal, DecimalType, StructType, TimestampType}
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.ExecutorManager
@@ -118,6 +118,8 @@ class IteratorApiImpl extends IteratorApi with Logging {
                 new String(pn.asInstanceOf[Array[Byte]], StandardCharsets.UTF_8)
               case _: DateType =>
                 DateFormatter.apply().format(pn.asInstanceOf[Integer])
+              case _: DecimalType =>
+                pn.asInstanceOf[Decimal].toJavaBigInteger.toString
               case _: TimestampType =>
                 TimestampFormatter
                   .getFractionFormatter(ZoneOffset.UTC)
