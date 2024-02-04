@@ -29,7 +29,6 @@
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
-#include <Storages/ArrowParquetBlockInputFormat.h>
 #include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/metadata.h>
@@ -80,9 +79,8 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
         row_group_indices.reserve(required_row_groups.size());
         for (const auto & row_group : required_row_groups)
             row_group_indices.emplace_back(row_group.index);
-
-        res->input
-            = std::make_shared<local_engine::ArrowParquetBlockInputFormat>(*(res->read_buffer), header, format_settings, row_group_indices);
+        //TODO: use_local_format
+        assert(false);
     }
     else
     {

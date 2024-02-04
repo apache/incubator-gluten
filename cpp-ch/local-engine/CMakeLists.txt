@@ -139,7 +139,7 @@ PRIVATE
         substrait
 )
 
-target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC ch_parquet)
+#TODO: target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC ch_parquet)
 
 if (ENABLE_JEMALLOC)
     target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE

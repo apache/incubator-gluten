@@ -37,9 +37,6 @@
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <QueryPipeline/QueryPipeline.h>
-#include <Storages/ch_parquet/OptimizedArrowColumnToCHColumn.h>
-#include <Storages/ch_parquet/OptimizedParquetBlockInputFormat.h>
-#include <Storages/ch_parquet/arrow/reader.h>
 #include <gtest/gtest.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/column_reader.h>
@@ -202,9 +199,6 @@ TEST(ParquetRead, ReadSchema)
 {
     readSchema<ParquetSchemaReader>("alltypes/alltypes_notnull.parquet");
     readSchema<ParquetSchemaReader>("alltypes/alltypes_null.parquet");
-
-    readSchema<OptimizedParquetSchemaReader>("alltypes/alltypes_notnull.parquet");
-    readSchema<OptimizedParquetSchemaReader>("alltypes/alltypes_null.parquet");
 }
 
 TEST(ParquetRead, ReadDataNotNull)
@@ -346,7 +340,6 @@ TEST(ParquetRead, ReadDataNotNull)
     };
 
     readData<ParquetSchemaReader, ParquetBlockInputFormat>("alltypes/alltypes_notnull.parquet", fields);
-    //TODO: readData<OptimizedParquetSchemaReader, OptimizedParquetBlockInputFormat>("alltypes/alltypes_notnull.parquet", fields);
 }
 
 
@@ -364,6 +357,5 @@ TEST(ParquetRead, ReadDataNull)
     };
 
     readData<ParquetSchemaReader, ParquetBlockInputFormat>("alltypes/alltypes_null.parquet", fields);
-    readData<OptimizedParquetSchemaReader, OptimizedParquetBlockInputFormat>("alltypes/alltypes_notnull.parquet", fields);
 }
 #endif
