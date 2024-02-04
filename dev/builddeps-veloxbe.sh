@@ -32,7 +32,19 @@ VELOX_BRANCH=""
 VELOX_HOME=""
 VELOX_PARAMETER=""
 COMPILE_ARROW_JAVA=OFF
-NUM_THREADS=${NUM_THREADS:-$(nproc --ignore=2)}
+
+# set default number of threads as logical cores minus 2
+if [[ "$(uname)" == "Darwin" ]]; then
+    physical_cpu_cores=$(sysctl -n hw.physicalcpu)
+    ignore_cores=2
+    if [ "$physical_cpu_cores" -gt "$ignore_cores" ]; then
+        NUM_THREADS=${NUM_THREADS:-$(($physical_cpu_cores - $ignore_cores))}
+    else
+        NUM_THREADS=${NUM_THREADS:-$physical_cpu_cores}
+    fi
+else
+    NUM_THREADS=${NUM_THREADS:-$(nproc --ignore=2)}
+fi
 
 for arg in "$@"
 do
