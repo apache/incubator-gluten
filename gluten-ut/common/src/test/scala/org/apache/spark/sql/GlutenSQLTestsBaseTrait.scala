@@ -35,7 +35,7 @@ trait GlutenSQLTestsBaseTrait extends SharedSparkSession with GlutenTestsBaseTra
     if (shouldRun(testName)) {
       super.test(testName, testTags: _*)(testFun)
     } else {
-      logInfo(s"Ignore test case: $testName")
+      super.ignore(testName, testTags: _*)(testFun)
     }
   }
 
