@@ -44,8 +44,13 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
       return plan.execute()
     }
 
-    val transformed = TransformPreOverrides(false).apply(
-      PullOutPreProject.apply(AddTransformHintRule().apply(plan)))
+    val rules = List(
+      AddTransformHintRule(),
+      PullOutPreProject,
+      AddTransformHintRule(),
+      TransformPreOverrides(false)
+    )
+    val transformed = rules.foldLeft(plan) { case (latestPlan, rule) => rule.apply(latestPlan) }
     if (!transformed.isInstanceOf[TransformSupport]) {
       throw new IllegalStateException(
         "Cannot transform the SparkPlans wrapped by FileFormatWriter, " +
