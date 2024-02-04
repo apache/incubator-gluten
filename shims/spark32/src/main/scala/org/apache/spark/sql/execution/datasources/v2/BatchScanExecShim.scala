@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution.datasources.v2
 
 import org.apache.spark.SparkException
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
@@ -30,7 +31,12 @@ class BatchScanExecShim(
     output: Seq[AttributeReference],
     @transient scan: Scan,
     runtimeFilters: Seq[Expression],
-    @transient table: Table)
+    keyGroupedPartitioning: Option[Seq[Expression]] = None,
+    ordering: Option[Seq[SortOrder]] = None,
+    @transient table: Table,
+    commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None,
+    applyPartialClustering: Boolean = false,
+    replicatePartitions: Boolean = false)
   extends BatchScanExec(output, scan, runtimeFilters) {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
@@ -86,6 +92,14 @@ class BatchScanExecShim(
   @transient lazy val pushedAggregate: Option[Aggregation] = None
 
   final override protected def otherCopyArgs: Seq[AnyRef] = {
-    output :: scan :: runtimeFilters :: Nil
+    Seq(
+      keyGroupedPartitioning,
+      ordering,
+      table,
+      commonPartitionValues,
+      // Box boolean to match `AnyRef`
+      Boolean.box(applyPartialClustering),
+      Boolean.box(replicatePartitions)
+    )
   }
 }

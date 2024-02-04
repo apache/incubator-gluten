@@ -50,7 +50,7 @@ class BatchScanExecTransformer(
     commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None,
     applyPartialClustering: Boolean = false,
     replicatePartitions: Boolean = false)
-  extends BatchScanExecShim(output, scan, runtimeFilters, table)
+  extends BatchScanExecShim(output, scan, runtimeFilters, table = table)
   with BasicScanExecTransformer {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
