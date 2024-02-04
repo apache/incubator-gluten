@@ -33,7 +33,7 @@ VELOX_HOME=""
 VELOX_PARAMETER=""
 COMPILE_ARROW_JAVA=OFF
 
-# set default number of threads as logical cores minus 2
+# set default number of threads as cpu cores minus 2
 if [[ "$(uname)" == "Darwin" ]]; then
     physical_cpu_cores=$(sysctl -n hw.physicalcpu)
     ignore_cores=2
