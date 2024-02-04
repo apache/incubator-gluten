@@ -43,7 +43,7 @@ class GlutenJsonV2Suite extends GlutenJsonSuite with GlutenSQLTestsBaseTrait {
     super.sparkConf
       .set(SQLConf.USE_V1_SOURCE_LIST, "")
 
-  test("get pushed filters") {
+  testGluten("get pushed filters") {
     val attr = "col"
     def getBuilder(path: String): JsonScanBuilder = {
       val fileIndex = new InMemoryFileIndex(

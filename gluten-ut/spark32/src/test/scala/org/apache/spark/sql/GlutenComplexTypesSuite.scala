@@ -47,9 +47,7 @@ class GlutenComplexTypesSuite extends ComplexTypesSuite with GlutenSQLTestsTrait
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "types bool/byte/short/float/double/decimal/binary/map/array/struct") {
+  testGluten("types bool/byte/short/float/double/decimal/binary/map/array/struct") {
     val df = spark
       .table("tab_types")
       .selectExpr(

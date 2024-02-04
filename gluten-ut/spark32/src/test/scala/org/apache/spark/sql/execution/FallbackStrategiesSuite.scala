@@ -27,7 +27,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 
 class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
 
-  test("Fall back the whole query if one unsupported") {
+  testGluten("Fall back the whole query if one unsupported") {
     withSQLConf(("spark.gluten.sql.columnar.query.fallback.threshold", "1")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
       val rule = ColumnarOverrideRules(spark)
@@ -42,7 +42,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     }
   }
 
-  test("Fall back the whole plan if meeting the configured threshold") {
+  testGluten("Fall back the whole plan if meeting the configured threshold") {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "1")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
       val rule = ColumnarOverrideRules(spark)
@@ -58,7 +58,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     }
   }
 
-  test("Don't fall back the whole plan if NOT meeting the configured threshold") {
+  testGluten("Don't fall back the whole plan if NOT meeting the configured threshold") {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "4")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
       val rule = ColumnarOverrideRules(spark)
@@ -74,7 +74,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     }
   }
 
-  test(
+  testGluten(
     "Fall back the whole plan if meeting the configured threshold (leaf node is" +
       " transformable)") {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "2")) {
@@ -93,7 +93,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     }
   }
 
-  test(
+  testGluten(
     "Don't Fall back the whole plan if NOT meeting the configured threshold (" +
       "leaf node is transformable)") {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "3")) {
@@ -112,7 +112,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     }
   }
 
-  test("test enabling/disabling Gluten at thread level") {
+  testGluten("test enabling/disabling Gluten at thread level") {
     spark.sql("create table fallback_by_thread_config (a int) using parquet")
     spark.sql("insert overwrite fallback_by_thread_config select id as a from range(3)")
     val sql =

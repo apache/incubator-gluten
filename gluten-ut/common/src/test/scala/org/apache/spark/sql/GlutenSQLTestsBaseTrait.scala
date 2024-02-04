@@ -20,6 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.test.SharedSparkSession
@@ -30,6 +31,10 @@ import org.scalatest.Tag
 /** Basic trait for Gluten SQL test cases. */
 trait GlutenSQLTestsBaseTrait extends SharedSparkSession with GlutenTestsBaseTrait {
 
+  protected def testGluten(testName: String, testTag: Tag*)(testFun: => Any)(implicit
+      pos: Position): Unit = {
+    test(GLUTEN_TEST + testName, testTag: _*)(testFun)
+  }
   override protected def test(testName: String, testTags: Tag*)(testFun: => Any)(implicit
       pos: Position): Unit = {
     if (shouldRun(testName)) {

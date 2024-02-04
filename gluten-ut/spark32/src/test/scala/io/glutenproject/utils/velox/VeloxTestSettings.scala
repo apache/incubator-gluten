@@ -153,8 +153,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffWSCGOffDisableProject]
 
   enableSuite[VeloxAdaptiveQueryExecSuite]
+    .includeAllGlutenTests()
     .includeByPrefix(
-      "gluten",
       "SPARK-29906",
       "SPARK-30291",
       "SPARK-30403",
@@ -271,7 +271,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameStatSuite]
   enableSuite[GlutenComplexTypesSuite]
     // Incorrect result for array and length.
-    .exclude("Gluten - types bool/byte/short/float/double/decimal/binary/map/array/struct")
+    .excludeGlutenTests("types bool/byte/short/float/double/decimal/binary/map/array/struct")
   enableSuite[GlutenDataFrameComplexTypeSuite]
   enableSuite[GlutenApproximatePercentileQuerySuite]
   enableSuite[GlutenDataFrameRangeSuite]
@@ -279,9 +279,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeByPrefix("Cancelling stage in a query with Range")
   enableSuite[GlutenTakeOrderedAndProjectSuite]
   enableSuite[GlutenSubquerySuite]
-    .excludeByPrefix(
-      "SPARK-26893" // Rewrite this test because it checks Spark's physical operators.
-    )
+    // Rewrite this test because it checks Spark's physical operators.
+    .exclude("SPARK-26893: Allow pushdown of partition pruning subquery filters to file source")
   enableSuite[GlutenDataFrameWindowFramesSuite]
     // Local window fixes are not added.
     .exclude("range between should accept int/long values as boundary")
@@ -508,9 +507,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("appending insert")
     .exclude("overwrite insert")
     .exclude("SPARK-34897: Support reconcile schemas based on index after nested column pruning")
-    .exclude("Gluten - SPARK-31238: compatibility with Spark 2.4 in reading dates")
-    .exclude("Gluten - SPARK-31238, SPARK-31423: rebasing dates in write")
-    .exclude("Gluten - SPARK-34862: Support ORC vectorized reader for nested column")
+    .excludeGlutenTests("SPARK-31238: compatibility with Spark 2.4 in reading dates")
+    .excludeGlutenTests("SPARK-31238, SPARK-31423: rebasing dates in write")
+    .excludeGlutenTests("SPARK-34862: Support ORC vectorized reader for nested column")
   enableSuite[GlutenOrcV1FilterSuite]
     .exclude("SPARK-32622: case sensitivity in predicate pushdown")
   enableSuite[GlutenOrcV1SchemaPruningSuite]
@@ -964,8 +963,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("change column type from short to int/long")
     .exclude("change column type from int to long")
     .exclude("change column type from float to double")
-    .exclude("Gluten - read byte, int, short, long together")
-    .exclude("Gluten - read float and double together")
+    .excludeGlutenTests("read byte, int, short, long together")
+    .excludeGlutenTests("read float and double together")
   enableSuite[GlutenMergedOrcReadSchemaSuite]
     .exclude("append column into middle")
     .exclude("add a nested column at the end of the leaf struct column")

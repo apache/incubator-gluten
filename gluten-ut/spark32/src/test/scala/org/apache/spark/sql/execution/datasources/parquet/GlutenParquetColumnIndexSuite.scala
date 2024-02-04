@@ -28,7 +28,7 @@ class GlutenParquetColumnIndexSuite extends ParquetColumnIndexSuite with GlutenS
     "(_1 >= 500 and _1 < 1000) or (_1 >= 1500 and _1 < 1600)"
   ).map(f => (df: DataFrame) => df.filter(f))
 
-  test("Gluten: test reading unaligned pages - test all types except timestamp") {
+  testGluten("test reading unaligned pages - test all types except timestamp") {
     val df = spark
       .range(0, 2000)
       .selectExpr(

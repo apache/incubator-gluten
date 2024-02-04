@@ -24,7 +24,7 @@ import test.org.apache.spark.sql.connector.JavaPartitionAwareDataSource
 class GlutenDataSourceV2Suite extends DataSourceV2Suite with GlutenSQLTestsBaseTrait {
   import testImplicits._
 
-  test("Gluten: partitioning reporting") {
+  testGluten("partitioning reporting") {
     import org.apache.spark.sql.functions.{count, sum}
     Seq(classOf[PartitionAwareDataSource], classOf[JavaPartitionAwareDataSource]).foreach {
       cls =>
