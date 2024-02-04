@@ -790,6 +790,8 @@ case class ColumnarOverrideRules(session: SparkSession)
         (_: SparkSession) => AddTransformHintRule(),
         (_: SparkSession) => RewriteMultiChildrenCount,
         (_: SparkSession) => PullOutPreProject,
+        // Apply AddTransformHintRule again for pulled-out project.
+        (_: SparkSession) => AddTransformHintRule(),
         (_: SparkSession) => FallbackBloomFilterAggIfNeeded(),
         (_: SparkSession) => TransformPreOverrides(isAdaptiveContext),
         (_: SparkSession) => RemoveNativeWriteFilesSortAndProject(),
