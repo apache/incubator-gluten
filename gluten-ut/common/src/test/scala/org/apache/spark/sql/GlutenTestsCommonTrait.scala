@@ -58,7 +58,7 @@ trait GlutenTestsCommonTrait
     if (shouldRun(testName)) {
       super.test(testName, testTags: _*)(testFun)
     } else {
-      super.ignore(testName, testTags: _*)(testFun)
+      logInfo(s"Ignore test case: $testName")
     }
   }
 }
