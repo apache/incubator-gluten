@@ -783,13 +783,15 @@ case class ColumnarOverrideRules(session: SparkSession)
       (spark: SparkSession) => FallbackOnANSIMode(spark),
       (spark: SparkSession) => FallbackMultiCodegens(spark),
       (spark: SparkSession) => PlanOneRowRelation(spark),
-      (_: SparkSession) => FallbackEmptySchemaRelation(),
-      (spark: SparkSession) => PullOutPreProject(spark)
+      (_: SparkSession) => FallbackEmptySchemaRelation()
     ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarValidationRules() :::
       List(
         (_: SparkSession) => AddTransformHintRule(),
         (_: SparkSession) => RewriteMultiChildrenCount,
+        (_: SparkSession) => PullOutPreProject,
+        // Apply AddTransformHintRule again for pulled-out project.
+        (_: SparkSession) => AddTransformHintRule(),
         (_: SparkSession) => FallbackBloomFilterAggIfNeeded(),
         (_: SparkSession) => TransformPreOverrides(isAdaptiveContext),
         (_: SparkSession) => RemoveNativeWriteFilesSortAndProject(),
