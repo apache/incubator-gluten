@@ -85,8 +85,6 @@ function process_setup_ubuntu {
   sed -i '/git \\/d' scripts/setup-ubuntu.sh
   # Do not install libunwind which can cause interruption when catching native exception.
   sed -i 's/sudo --preserve-env apt install -y libunwind-dev && //' scripts/setup-ubuntu.sh
-  sed -i '/libprotobuf-dev/d' scripts/setup-ubuntu.sh
-  sed -i '/protobuf-compiler/d' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  *thrift* \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  libiberty-dev \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  libxml2-dev \\' scripts/setup-ubuntu.sh
@@ -94,7 +92,6 @@ function process_setup_ubuntu {
   sed -i '/ccache /a\  libgsasl7-dev \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  libuuid1 \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  uuid-dev \\' scripts/setup-ubuntu.sh
-  sed -i 's/^  liblzo2-dev.*/  liblzo2-dev \\/g' scripts/setup-ubuntu.sh
   sed -i '/libre2-dev/d' scripts/setup-ubuntu.sh
   sed -i '/libgmock-dev/d' scripts/setup-ubuntu.sh # resolved by ep/build-velox/build/velox_ep/CMake/resolve_dependency_modules/gtest.cmake
   if [ $ENABLE_HDFS == "ON" ]; then
@@ -116,7 +113,7 @@ function process_setup_ubuntu {
   if [ $ENABLE_ABFS == "ON" ]; then
     sed -i '/^  run_and_time install_folly/a \ \ export AZURE_SDK_DISABLE_AUTO_VCPKG=ON \n '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-ubuntu.sh
   fi
-  sed -i 's/run_and_time install_conda/#run_and_time install_conda/' scripts/setup-ubuntu.sh
+  sed -i '/run_and_time install_conda/d' scripts/setup-ubuntu.sh
 
 }
 
