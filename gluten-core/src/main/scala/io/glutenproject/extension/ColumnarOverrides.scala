@@ -22,6 +22,7 @@ import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar._
 import io.glutenproject.metrics.GlutenTimeMetric
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.{LogLevelUtil, PhysicalPlanSelector, PlanUtil}
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
@@ -393,7 +394,8 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
       case plan: TakeOrderedAndProjectExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
-        TakeOrderedAndProjectExecTransformer(plan.limit, plan.sortOrder, plan.projectList, child)
+        val (limit, offset) = SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(plan)
+        TakeOrderedAndProjectExecTransformer(limit, plan.sortOrder, plan.projectList, child, offset)
       case plan: ShuffleExchangeExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
@@ -499,7 +501,8 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
       case plan: GlobalLimitExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
-        LimitTransformer(child, 0L, plan.limit)
+        val (limit, offset) = SparkShimLoader.getSparkShims.getLimitAndOffsetFromGlobalLimit(plan)
+        LimitTransformer(child, offset, limit)
       case plan: LocalLimitExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)

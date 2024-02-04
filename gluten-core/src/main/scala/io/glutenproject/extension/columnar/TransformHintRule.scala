@@ -27,7 +27,7 @@ import io.glutenproject.utils.PhysicalPlanSelector
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression}
 import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
@@ -654,7 +654,9 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar limit is not enabled in GlobalLimitExec")
           } else {
-            val transformer = LimitTransformer(plan.child, 0L, plan.limit)
+            val (limit, offset) =
+              SparkShimLoader.getSparkShims.getLimitAndOffsetFromGlobalLimit(plan)
+            val transformer = LimitTransformer(plan.child, offset, limit)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: LocalLimitExec =>
@@ -691,28 +693,14 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar topK is not enabled in TakeOrderedAndProjectExec")
           } else {
-            var tagged: ValidationResult = null
-            val orderingSatisfies =
-              SortOrder.orderingSatisfies(plan.child.outputOrdering, plan.sortOrder)
-            if (orderingSatisfies) {
-              val limitPlan = LimitTransformer(plan.child, 0, plan.limit)
-              tagged = limitPlan.doValidate()
-            } else {
-              // Here we are validating sort + limit which is a kind of whole stage transformer,
-              // because we would call sort.doTransform in limit.
-              // So, we should add adapter to make it work.
-              val inputTransformer =
-                ColumnarCollapseTransformStages.wrapInputIteratorTransformer(plan.child)
-              val sortPlan = SortExecTransformer(plan.sortOrder, false, inputTransformer)
-              val limitPlan = LimitTransformer(sortPlan, 0, plan.limit)
-              tagged = limitPlan.doValidate()
-            }
-
-            if (tagged.isValid) {
-              val projectPlan = ProjectExecTransformer(plan.projectList, plan.child)
-              tagged = projectPlan.doValidate()
-            }
-            TransformHints.tag(plan, tagged.toTransformHint)
+            val (limit, offset) = SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(plan)
+            val transformer = TakeOrderedAndProjectExecTransformer(
+              limit,
+              plan.sortOrder,
+              plan.projectList,
+              plan.child,
+              offset)
+            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case _ =>
           // currently we assume a plan to be transformable by default
