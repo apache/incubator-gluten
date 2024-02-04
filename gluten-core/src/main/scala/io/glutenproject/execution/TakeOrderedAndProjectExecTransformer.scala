@@ -16,7 +16,7 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -30,10 +30,11 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import java.util.concurrent.atomic.AtomicInteger
 
 case class TakeOrderedAndProjectExecTransformer(
-    limit: Int,
+    limit: Long,
     sortOrder: Seq[SortOrder],
     projectList: Seq[NamedExpression],
-    child: SparkPlan)
+    child: SparkPlan,
+    offset: Int = 0)
   extends UnaryExecNode
   with GlutenPlan {
   override def outputPartitioning: Partitioning = SinglePartition
@@ -60,6 +61,34 @@ case class TakeOrderedAndProjectExecTransformer(
     throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
   }
 
+  override protected def doValidateInternal(): ValidationResult = {
+    if (offset != 0) {
+      return ValidationResult.notOk(s"Native TopK does not support offset: $offset")
+    }
+
+    var tagged: ValidationResult = null
+    val orderingSatisfies = SortOrder.orderingSatisfies(child.outputOrdering, sortOrder)
+    if (orderingSatisfies) {
+      val limitPlan = LimitTransformer(child, offset, limit)
+      tagged = limitPlan.doValidate()
+    } else {
+      // Here we are validating sort + limit which is a kind of whole stage transformer,
+      // because we would call sort.doTransform in limit.
+      // So, we should add adapter to make it work.
+      val inputTransformer =
+        ColumnarCollapseTransformStages.wrapInputIteratorTransformer(child)
+      val sortPlan = SortExecTransformer(sortOrder, false, inputTransformer)
+      val limitPlan = LimitTransformer(sortPlan, offset, limit)
+      tagged = limitPlan.doValidate()
+    }
+
+    if (tagged.isValid) {
+      val projectPlan = ProjectExecTransformer(projectList, child)
+      tagged = projectPlan.doValidate()
+    }
+    tagged
+  }
+
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     // No real computation here
     val childRDD = child.executeColumnar()
@@ -77,23 +106,30 @@ case class TakeOrderedAndProjectExecTransformer(
         }
       }
 
+      val hasShuffle = childRDDPartsNum == 1
+      val limitBeforeShuffleOffset = if (hasShuffle) {
+        // Local limit does not need offset
+        0
+      } else {
+        offset
+      }
       // The child should have been replaced by ColumnarCollapseTransformStages.
       val limitBeforeShuffle = child match {
         case wholeStage: WholeStageTransformer =>
           // remove this WholeStageTransformer, put the new sort, limit and project
           // into a new whole stage.
           val localSortPlan = withLocalSort(wholeStage.child)
-          LimitTransformer(localSortPlan, 0, limit)
+          LimitTransformer(localSortPlan, limitBeforeShuffleOffset, limit)
         case other =>
           // if the child it is not WholeStageTransformer, add the adapter first
           // so that, later we can wrap WholeStageTransformer.
           val localSortPlan = withLocalSort(
             ColumnarCollapseTransformStages.wrapInputIteratorTransformer(other))
-          LimitTransformer(localSortPlan, 0, limit)
+          LimitTransformer(localSortPlan, limitBeforeShuffleOffset, limit)
       }
       val transformStageCounter: AtomicInteger =
         ColumnarCollapseTransformStages.transformStageCounter
-      val finalLimitPlan = if (childRDDPartsNum == 1) {
+      val finalLimitPlan = if (hasShuffle) {
         limitBeforeShuffle
       } else {
         val limitStagePlan =
@@ -106,7 +142,7 @@ case class TakeOrderedAndProjectExecTransformer(
             sortOrder,
             false,
             ColumnarCollapseTransformStages.wrapInputIteratorTransformer(transformedShuffleExec))
-        LimitTransformer(localSortPlan, 0, limit)
+        LimitTransformer(localSortPlan, offset, limit)
       }
 
       val projectPlan = if (projectList != child.output) {

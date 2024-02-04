@@ -32,9 +32,7 @@ import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Dist
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.execution.{PartitionedFileUtil, SparkPlan}
-import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.execution.GlutenFileFormatWriter
+import org.apache.spark.sql.execution.{FileSourceScanExec, GlobalLimitExec, GlutenFileFormatWriter, PartitionedFileUtil, SparkPlan, TakeOrderedAndProjectExec}
 import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex, WriteJobDescription, WriteTaskResult}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
@@ -154,6 +152,24 @@ class Spark34Shims extends SparkShims {
       errorClass = "INVALID_BUCKET_FILE",
       messageParameters = Map("path" -> path),
       cause = null)
+  }
+
+  private def getLimit(limit: Int, offset: Int): Int = {
+    if (limit == -1) {
+      // Only offset specified, so fetch the maximum number rows
+      Int.MaxValue
+    } else {
+      assert(limit > offset)
+      limit - offset
+    }
+  }
+
+  override def getLimitAndOffsetFromGlobalLimit(plan: GlobalLimitExec): (Int, Int) = {
+    (getLimit(plan.limit, plan.offset), plan.offset)
+  }
+
+  override def getLimitAndOffsetFromTopK(plan: TakeOrderedAndProjectExec): (Int, Int) = {
+    (getLimit(plan.limit, plan.offset), plan.offset)
   }
 
   override def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = List()

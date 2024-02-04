@@ -119,7 +119,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "subquery/in-subquery/in-group-by.sql",
     "subquery/in-subquery/in-having.sql",
     "subquery/in-subquery/in-joins.sql",
-    // "subquery/in-subquery/in-limit.sql",
+    "subquery/in-subquery/in-limit.sql",
     "subquery/in-subquery/in-multiple-columns.sql",
     "subquery/in-subquery/in-order-by.sql",
     "subquery/in-subquery/in-set-operations.sql",

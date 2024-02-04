@@ -221,7 +221,6 @@ class GlutenSQLQueryTestSuite
     "udf/udf-window.sql", // Local window fixes are not added.
     "window.sql", // Local window fixes are not added.
     "select_having.sql", // 3.4 failed
-    "subquery/in-subquery/in-limit.sql", // 3.4 fail @see line 322
     "mapconcat.sql" // 3.4 failed
   ) ++ otherIgnoreList
 
