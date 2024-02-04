@@ -25,13 +25,10 @@
 #include <QueryPipeline/QueryPipeline.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
-#include <Storages/ch_parquet/OptimizedArrowColumnToCHColumn.h>
-#include <Storages/ch_parquet/OptimizedParquetBlockInputFormat.h>
-#include <Storages/ch_parquet/arrow/reader.h>
 #include <benchmark/benchmark.h>
 #include <parquet/arrow/reader.h>
 #include <substrait/plan.pb.h>
-#include <Common/DebugUtils.h>
+
 
 static void BM_ParquetReadString(benchmark::State & state)
 {

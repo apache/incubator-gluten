@@ -43,7 +43,7 @@ class GlutenClickHouseTPCHParquetAQESuite
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format", "false")
+      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format", "true")
       .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
   }
 

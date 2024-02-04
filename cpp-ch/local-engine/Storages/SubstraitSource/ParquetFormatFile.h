@@ -42,9 +42,9 @@ class ParquetFormatFile : public FormatFile
 {
 public:
     explicit ParquetFormatFile(
-        DB::ContextPtr context_,
+        const DB::ContextPtr & context_,
         const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_,
-        ReadBufferBuilderPtr read_buffer_builder_,
+        const ReadBufferBuilderPtr & read_buffer_builder_,
         bool useLocalFormat);
     ~ParquetFormatFile() override = default;
 
@@ -60,8 +60,8 @@ private:
     std::mutex mutex;
     std::optional<size_t> total_rows;
 
-    std::vector<RowGroupInformation> collectRequiredRowGroups(int & total_row_groups);
-    std::vector<RowGroupInformation> collectRequiredRowGroups(DB::ReadBuffer * read_buffer, int & total_row_groups);
+    std::vector<RowGroupInformation> collectRequiredRowGroups(int & total_row_groups) const;
+    std::vector<RowGroupInformation> collectRequiredRowGroups(DB::ReadBuffer * read_buffer, int & total_row_groups) const;
 };
 
 }

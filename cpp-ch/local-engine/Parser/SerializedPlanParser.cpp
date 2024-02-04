@@ -1768,13 +1768,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             elem_block.insert(ColumnWithTypeAndName(nullptr, elem_type, name));
             elem_block.setColumns(std::move(elem_columns));
 
-            SizeLimits limit;
-            auto elem_set = std::make_shared<Set>(limit, true, false);
-            elem_set->setHeader(elem_block.getColumnsWithTypeAndName());
-            elem_set->insertFromBlock(elem_block.getColumnsWithTypeAndName());
-            elem_set->finishInsert();
-
-            auto future_set = std::make_shared<FutureSetFromStorage>(std::move(elem_set));
+            auto future_set = std::make_shared<FutureSetFromTuple>(elem_block, context->getSettingsRef());
             auto arg = ColumnSet::create(1, std::move(future_set));
             args.emplace_back(&actions_dag->addColumn(ColumnWithTypeAndName(std::move(arg), std::make_shared<DataTypeSet>(), name)));
 
