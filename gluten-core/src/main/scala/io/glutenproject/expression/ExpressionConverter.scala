@@ -527,9 +527,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
    * @return
    *   Transformed partition filter
    */
-  def transformDynamicPruningExpr(
-      partitionFilters: Seq[Expression],
-      reuseSubquery: Boolean): Seq[Expression] = {
+  def transformDynamicPruningExpr(partitionFilters: Seq[Expression]): Seq[Expression] = {
 
     def convertBroadcastExchangeToColumnar(
         exchange: BroadcastExchangeExec): ColumnarBroadcastExchangeExec = {
@@ -588,7 +586,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
                   // the AdaptiveSparkPlanExec.AdaptiveExecutionContext to hold the reused map
                   // for each query.
                   newIn.child match {
-                    case a: AdaptiveSparkPlanExec if reuseSubquery =>
+                    case a: AdaptiveSparkPlanExec if SQLConf.get.subqueryReuseEnabled =>
                       // When AQE is on and reuseSubquery is on.
                       a.context.subqueryCache
                         .update(newIn.canonicalized, transformSubqueryBroadcast)

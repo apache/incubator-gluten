@@ -36,14 +36,13 @@ object ScanTransformerFactory {
 
   def createFileSourceScanTransformer(
       scanExec: FileSourceScanExec,
-      reuseSubquery: Boolean,
       allPushDownFilters: Option[Seq[Expression]] = None,
       validation: Boolean = false): FileSourceScanExecTransformer = {
     // transform BroadcastExchangeExec to ColumnarBroadcastExchangeExec in partitionFilters
     val newPartitionFilters = if (validation) {
       scanExec.partitionFilters
     } else {
-      ExpressionConverter.transformDynamicPruningExpr(scanExec.partitionFilters, reuseSubquery)
+      ExpressionConverter.transformDynamicPruningExpr(scanExec.partitionFilters)
     }
     val fileFormat = scanExec.relation.fileFormat
     lookupDataSourceScanTransformer(fileFormat.getClass.getName) match {
@@ -96,7 +95,6 @@ object ScanTransformerFactory {
 
   def createBatchScanTransformer(
       batchScan: BatchScanExec,
-      reuseSubquery: Boolean,
       allPushDownFilters: Option[Seq[Expression]] = None,
       validation: Boolean = false): SparkPlan = {
     if (supportedBatchScan(batchScan.scan)) {
@@ -105,7 +103,7 @@ object ScanTransformerFactory {
         // during the validation process.
         batchScan.runtimeFilters
       } else {
-        ExpressionConverter.transformDynamicPruningExpr(batchScan.runtimeFilters, reuseSubquery)
+        ExpressionConverter.transformDynamicPruningExpr(batchScan.runtimeFilters)
       }
       val transformer = lookupBatchScanTransformer(batchScan, newPartitionFilters)
       if (!validation && allPushDownFilters.isDefined) {
@@ -129,7 +127,7 @@ object ScanTransformerFactory {
       // If filter expressions aren't empty, we need to transform the inner operators,
       // and fallback the BatchScanExec itself.
       val newSource = batchScan.copy(runtimeFilters = ExpressionConverter
-        .transformDynamicPruningExpr(batchScan.runtimeFilters, reuseSubquery))
+        .transformDynamicPruningExpr(batchScan.runtimeFilters))
       TransformHints.tagNotTransformable(newSource, "The scan in BatchScanExec is not supported.")
       newSource
     }
