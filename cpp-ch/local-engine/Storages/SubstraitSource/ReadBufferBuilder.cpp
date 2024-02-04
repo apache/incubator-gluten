@@ -26,6 +26,7 @@
 #include <IO/S3Common.h>
 #include <IO/SeekableReadBuffer.h>
 #include <Interpreters/Context_fwd.h>
+#include <Storages/HDFS/AsynchronousReadBufferFromHDFS.h>
 #include <Storages/HDFS/HDFSCommon.h>
 #include <Storages/HDFS/ReadBufferFromHDFS.h>
 #include <Storages/StorageS3Settings.h>
@@ -201,12 +202,13 @@ public:
 class HDFSFileReadBufferBuilder : public ReadBufferBuilder
 {
 public:
-    explicit HDFSFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
+    explicit HDFSFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_), context(context_) { }
     ~HDFSFileReadBufferBuilder() override = default;
 
     std::unique_ptr<DB::ReadBuffer>
     build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position) override
     {
+        bool enable_async_io = context->getConfigRef().getBool("hdfs.enable_async_io", true);
         Poco::URI file_uri(file_info.uri_file());
         std::string uri_path = "hdfs://" + file_uri.getHost();
         if (file_uri.getPort())
@@ -225,8 +227,16 @@ public:
                 file_info.start() + file_info.length(),
                 start_end_pos.first,
                 start_end_pos.second);
-            read_buffer = std::make_unique<DB::ReadBufferFromHDFS>(
-                uri_path, file_uri.getPath(), context->getConfigRef(), read_settings, start_end_pos.second);
+
+            auto read_buffer_impl = std::make_unique<DB::ReadBufferFromHDFS>(
+                uri_path, file_uri.getPath(), context->getConfigRef(), read_settings, start_end_pos.second, true);
+            if (enable_async_io)
+            {
+                auto & pool_reader = context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER);
+                read_buffer = std::make_unique<DB::AsynchronousReadBufferFromHDFS>(pool_reader, read_settings, std::move(read_buffer_impl));
+            }
+            else
+                read_buffer = std::move(read_buffer_impl);
 
             if (auto * seekable_in = dynamic_cast<DB::SeekableReadBuffer *>(read_buffer.get()))
                 if (start_end_pos.first)
@@ -234,7 +244,17 @@ public:
         }
         else
         {
-            read_buffer = std::make_unique<DB::ReadBufferFromHDFS>(uri_path, file_uri.getPath(), context->getConfigRef(), read_settings);
+            auto read_buffer_impl
+                = std::make_unique<DB::ReadBufferFromHDFS>(uri_path, file_uri.getPath(), context->getConfigRef(), read_settings, 0, true);
+            if (enable_async_io)
+            {
+                read_buffer = std::make_unique<DB::AsynchronousReadBufferFromHDFS>(
+                    context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER),
+                    read_settings,
+                    std::move(read_buffer_impl));
+            }
+            else
+                read_buffer = std::move(read_buffer_impl);
         }
         return read_buffer;
     }
@@ -343,6 +363,8 @@ public:
         result.second = get_next_line_pos(fs.get(), fin, read_end_pos, hdfs_file_size);
         return result;
     }
+private:
+    DB::ContextPtr context;
 };
 #endif
 
