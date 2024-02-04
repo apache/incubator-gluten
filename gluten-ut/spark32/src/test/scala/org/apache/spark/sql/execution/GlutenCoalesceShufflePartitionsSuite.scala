@@ -20,7 +20,6 @@ import org.apache.spark.SparkConf
 import org.apache.spark.internal.config.IO_ENCRYPTION_ENABLED
 import org.apache.spark.internal.config.UI.UI_ENABLED
 import org.apache.spark.sql.{GlutenTestsCommonTrait, QueryTest, Row, SparkSession}
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, QueryStageExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 import org.apache.spark.sql.functions.{col, max}
@@ -72,9 +71,7 @@ class GlutenCoalesceShufflePartitionsSuite
     }
   }
 
-  test(
-    GLUTEN_TEST +
-      "SPARK-24705 adaptive query execution works correctly when exchange reuse enabled") {
+  testGluten("SPARK-24705 adaptive query execution works correctly when exchange reuse enabled") {
     val test: SparkSession => Unit = {
       spark: SparkSession =>
         spark.sql("SET spark.sql.exchange.reuse=true")
@@ -154,7 +151,7 @@ class GlutenCoalesceShufflePartitionsSuite
       }
 
       // Ported from vanilla spark with targetPostShuffleInputSize changed.
-      test(GLUTEN_TEST + s"determining the number of reducers: aggregate operator$testNameNote") {
+      testGluten(s"determining the number of reducers: aggregate operator$testNameNote") {
         val test: SparkSession => Unit = {
           spark: SparkSession =>
             val df =
@@ -187,7 +184,7 @@ class GlutenCoalesceShufflePartitionsSuite
         withSparkSession(test, 2500, minNumPostShufflePartitions)
       }
 
-      test(GLUTEN_TEST + s"determining the number of reducers: join operator$testNameNote") {
+      testGluten(s"determining the number of reducers: join operator$testNameNote") {
         val test: SparkSession => Unit = {
           spark: SparkSession =>
             val df1 =
@@ -231,7 +228,7 @@ class GlutenCoalesceShufflePartitionsSuite
         withSparkSession(test, 20000, minNumPostShufflePartitions)
       }
 
-      test(GLUTEN_TEST + s"determining the number of reducers: complex query 1$testNameNote") {
+      testGluten(s"determining the number of reducers: complex query 1$testNameNote") {
         val test: (SparkSession) => Unit = {
           spark: SparkSession =>
             val df1 =
@@ -281,7 +278,7 @@ class GlutenCoalesceShufflePartitionsSuite
         withSparkSession(test, 20000, minNumPostShufflePartitions)
       }
 
-      test(GLUTEN_TEST + s"determining the number of reducers: complex query 2$testNameNote") {
+      testGluten(s"determining the number of reducers: complex query 2$testNameNote") {
         val test: (SparkSession) => Unit = {
           spark: SparkSession =>
             val df1 =
@@ -331,8 +328,8 @@ class GlutenCoalesceShufflePartitionsSuite
         withSparkSession(test, 16000, minNumPostShufflePartitions)
       }
 
-      test(
-        GLUTEN_TEST + s"determining the number of reducers:" +
+      testGluten(
+        "determining the number of reducers:" +
           s" plan already partitioned$testNameNote") {
         val test: SparkSession => Unit = {
           spark: SparkSession =>

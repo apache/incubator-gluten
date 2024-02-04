@@ -21,7 +21,6 @@ import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ColumnarToR
 import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.sql.{GlutenTestsCommonTrait, SparkSession}
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.execution.exchange.EnsureRequirements
 import org.apache.spark.sql.functions.broadcast
@@ -96,7 +95,7 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
 
   // === Following cases override super class's cases ===
 
-  test(GLUTEN_TEST + "Shouldn't change broadcast join buildSide if user clearly specified") {
+  testGluten("Shouldn't change broadcast join buildSide if user clearly specified") {
     withTempView("t1", "t2") {
       Seq((1, "4"), (2, "2")).toDF("key", "value").createTempView("t1")
       Seq((1, "1"), (2, "12.3"), (2, "123")).toDF("key", "value").createTempView("t2")
@@ -167,7 +166,7 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
     }
   }
 
-  test(GLUTEN_TEST + "Shouldn't bias towards build right if user didn't specify") {
+  testGluten("Shouldn't bias towards build right if user didn't specify") {
 
     withTempView("t1", "t2") {
       Seq((1, "4"), (2, "2")).toDF("key", "value").createTempView("t1")
@@ -210,7 +209,7 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
     }
   }
 
-  test(GLUTEN_TEST + "SPARK-23192: broadcast hint should be retained after using the cached data") {
+  testGluten("SPARK-23192: broadcast hint should be retained after using the cached data") {
     withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
       try {
         val df1 = Seq((1, "4"), (2, "2")).toDF("key", "value")
@@ -227,7 +226,7 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
     }
   }
 
-  test(GLUTEN_TEST + "broadcast hint isn't propagated after a join") {
+  testGluten("broadcast hint isn't propagated after a join") {
     withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
       val df1 = Seq((1, "4"), (2, "2")).toDF("key", "value")
       val df2 = Seq((1, "1"), (2, "2")).toDF("key", "value")

@@ -31,9 +31,8 @@ class GlutenParquetV1QuerySuite extends ParquetV1QuerySuite with GlutenSQLTestsB
 
   import testImplicits._
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-26677: negated null-safe equality comparison should not filter matched row groups") {
+  testGluten(
+    "SPARK-26677: negated null-safe equality comparison should not filter matched row groups") {
     withAllParquetReaders {
       withTempPath {
         path =>
@@ -57,9 +56,8 @@ class GlutenParquetV2QuerySuite extends ParquetV2QuerySuite with GlutenSQLTestsB
 
   import testImplicits._
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-26677: negated null-safe equality comparison should not filter matched row groups") {
+  testGluten(
+    "SPARK-26677: negated null-safe equality comparison should not filter matched row groups") {
     withAllParquetReaders {
       withTempPath {
         path =>

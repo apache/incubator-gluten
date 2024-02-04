@@ -25,7 +25,7 @@ import org.apache.spark.sql.internal.SQLConf
 class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
   import testImplicits._
 
-  test(GlutenTestConstants.GLUTEN_TEST + "SPARK-28156: self-join should not miss cached view") {
+  testGluten("SPARK-28156: self-join should not miss cached view") {
     withTable("table1") {
       withView("table1_vw") {
         withTempView("cachedview") {
@@ -56,9 +56,7 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
 
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-33338: GROUP BY using literal map should not fail") {
+  testGluten("SPARK-33338: GROUP BY using literal map should not fail") {
     withTable("t") {
       withTempDir {
         dir =>
@@ -74,9 +72,7 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "Support run with Vector reader in FileSourceScan or BatchScan") {
+  testGluten("Support run with Vector reader in FileSourceScan or BatchScan") {
     withSQLConf(
       SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "true",
       SQLConf.CACHE_VECTORIZED_READER_ENABLED.key -> "true",
@@ -94,9 +90,7 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-33593: Vector reader got incorrect data with binary partition value") {
+  testGluten("SPARK-33593: Vector reader got incorrect data with binary partition value") {
     Seq("false").foreach(
       value => {
         withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> value) {
@@ -123,9 +117,8 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
       })
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-33677: LikeSimplification should be skipped if pattern contains any escapeChar") {
+  testGluten(
+    "SPARK-33677: LikeSimplification should be skipped if pattern contains any escapeChar") {
     withTempView("df") {
       Seq("m@ca").toDF("s").createOrReplaceTempView("df")
 

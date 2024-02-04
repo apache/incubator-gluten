@@ -21,7 +21,7 @@ import org.apache.spark.sql.GlutenTestsTrait
 class GlutenStringExpressionsSuite extends StringExpressionsSuite with GlutenTestsTrait {
 
   // Ported from spark 3.3.1, applicable to spark 3.2.3 or higher.
-  test("SPARK-40213: ascii for Latin-1 Supplement characters") {
+  testGluten("SPARK-40213: ascii for Latin-1 Supplement characters") {
     // scalastyle:off
     checkEvaluation(Ascii(Literal("¥")), 165, create_row("¥"))
     checkEvaluation(Ascii(Literal("®")), 174, create_row("®"))
