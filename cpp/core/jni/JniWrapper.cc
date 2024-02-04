@@ -75,6 +75,9 @@ static jmethodID shuffleReaderMetricsSetDeserializeTime;
 static jclass block_stripes_class;
 static jmethodID block_stripes_constructor;
 
+static jclass nativeBackendInitializerClass;
+static jmethodID nativeBackendInitializerGetNativeBackendConf;
+
 class JavaInputStreamAdaptor final : public arrow::io::InputStream {
  public:
   JavaInputStreamAdaptor(JNIEnv* env, arrow::MemoryPool* pool, jobject jniIn) : pool_(pool) {
@@ -395,17 +398,27 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
 
   auto& conf = ctx->getConfMap();
 
+  if (saveInput) {
+    if (conf.find(kGlutenSaveDir) == conf.end()) {
+      throw gluten::GlutenException(kGlutenSaveDir + " is not configured.");
+    }
+    auto dir = conf.at(kGlutenSaveDir);
+    std::filesystem::path f{dir};
+    if (!std::filesystem::exists(f)) {
+      throw gluten::GlutenException("Save input path " + dir + " does not exists");
+    }
+
+    if (conf.find(kDumpConf) != conf.end()) {
+      ctx->dumpConf(dir);
+    }
+  }
+
   // Handle the Java iters
   jsize itersLen = env->GetArrayLength(iterArr);
   std::vector<std::shared_ptr<ResultIterator>> inputIters;
   for (int idx = 0; idx < itersLen; idx++) {
     std::shared_ptr<ArrowWriter> writer = nullptr;
     if (saveInput) {
-      auto dir = conf.at(kGlutenSaveDir);
-      std::filesystem::path f{dir};
-      if (!std::filesystem::exists(f)) {
-        throw gluten::GlutenException("Save input path " + dir + " does not exists");
-      }
       auto file = conf.at(kGlutenSaveDir) + "/input_" + std::to_string(taskId) + "_" + std::to_string(idx) + "_" +
           std::to_string(partitionId) + ".parquet";
       writer = std::make_shared<ArrowWriter>(file);

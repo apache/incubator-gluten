@@ -113,6 +113,8 @@ class VeloxRuntime final : public Runtime {
 
   void injectWriteFilesTempPath(const std::string& path) override;
 
+  void dumpConf(const std::string& path) override;
+
   std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlan() {
     return veloxPlan_;
   }

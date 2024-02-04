@@ -95,6 +95,10 @@ class DummyRuntime final : public Runtime {
     throw GlutenException("Not yet implemented");
   }
 
+  void dumpConf(const std::string& path) override {
+    throw GlutenException("Not yet implemented");
+  }
+
  private:
   ResourceMap<std::shared_ptr<ResultIterator>> resultIteratorHolder_;
 

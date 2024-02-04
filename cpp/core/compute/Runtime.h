@@ -127,6 +127,8 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
       arrow::MemoryPool* arrowPool,
       struct ArrowSchema* cSchema) = 0;
 
+  virtual void dumpConf(const std::string& path) = 0;
+
   const std::unordered_map<std::string, std::string>& getConfMap() {
     return confMap_;
   }
@@ -146,6 +148,6 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   std::optional<std::string> writeFilesTempPath_;
   SparkTaskInfo taskInfo_;
   // Session conf map
-  const std::unordered_map<std::string, std::string> confMap_;
+  std::unordered_map<std::string, std::string> confMap_;
 };
 } // namespace gluten

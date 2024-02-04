@@ -17,7 +17,10 @@
 
 #include "VeloxRuntime.h"
 
+#include <algorithm>
 #include <filesystem>
+#include <fstream>
+#include <iomanip>
 
 #include "VeloxBackend.h"
 #include "compute/ResultIterator.h"
@@ -203,6 +206,33 @@ std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerial
     struct ArrowSchema* cSchema) {
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
   return std::make_unique<VeloxColumnarBatchSerializer>(arrowPool, ctxVeloxPool, cSchema);
+}
+
+void VeloxRuntime::dumpConf(const std::string& path) {
+  // Get all configuration from the backend and merge with the session configuration.
+  auto allConf = VeloxBackend::get()->getBackendConf();
+  allConf.merge(confMap_);
+
+  // Open file "velox.conf" for writing, automatically creating it if it doesn't exist,
+  // or overwriting it if it does.
+  std::ofstream outFile("velox.conf");
+  if (!outFile.is_open()) {
+    std::cerr << "Failed to open file for writing: velox.conf" << std::endl;
+    return;
+  }
+
+  // Calculate the maximum key length for alignment.
+  size_t maxKeyLength = 0;
+  for (const auto& pair : allConf) {
+    maxKeyLength = std::max(maxKeyLength, pair.first.length());
+  }
+
+  // Write each key-value pair to the file with adjusted spacing for alignment
+  for (const auto& pair : allConf) {
+    outFile << std::left << std::setw(maxKeyLength + 1) << pair.first << ' ' << pair.second << std::endl;
+  }
+
+  outFile.close();
 }
 
 } // namespace gluten
