@@ -295,6 +295,13 @@ trait SparkPlanExecApi {
    */
   def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]]
 
+  def genDecimalRoundTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Round): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(child), original)
+  }
+
   def genGetStructFieldTransformer(
       substraitExprName: String,
       childTransformer: ExpressionTransformer,
