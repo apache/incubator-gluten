@@ -93,6 +93,8 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       .set("spark.default.parallelism", "1")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
+      .set("spark.ui.enabled", "false")
+      .set("spark.gluten.ui.enabled", "false")
   }
 
   protected def compareResultStr(sqlNum: String, result: Seq[Row], queriesResults: String): Unit = {
