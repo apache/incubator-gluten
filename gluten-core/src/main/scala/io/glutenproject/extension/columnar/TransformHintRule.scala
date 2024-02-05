@@ -19,7 +19,7 @@ package io.glutenproject.extension.columnar
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
-import io.glutenproject.extension.{GlutenPlan, RewriteMultiChildrenCount, ValidationResult}
+import io.glutenproject.extension.{GlutenPlan, RewriteMultiChildrenCount, ValidationApplyRule, ValidationResult}
 import io.glutenproject.extension.columnar.TransformHints.EncodeTransformableTagImplicits
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.PhysicalPlanSelector
@@ -73,6 +73,9 @@ object TransformHints {
   def isNotTransformable(plan: SparkPlan): Boolean = {
     plan.getTagValue(TAG).get.isInstanceOf[TRANSFORM_UNSUPPORTED]
   }
+
+  def isTaggedAsNotTransformable(plan: SparkPlan): Boolean =
+    isAlreadyTagged(plan) && isNotTransformable(plan)
 
   def tag(plan: SparkPlan, hint: TransformHint): Unit = {
     val mergedHint = getHintOption(plan)
@@ -453,7 +456,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAggregate is not enabled in HashAggregateExec")
           } else {
-            val rewrittenAgg = RewriteMultiChildrenCount.applyForValidation(plan)
+            val rewrittenAgg = AddTransformHintRule.applyRulesForValidation(plan)
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genHashAggregateExecTransformer(
                 rewrittenAgg.requiredChildDistributionExpressions,
@@ -474,7 +477,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAgg is not enabled in SortAggregateExec")
           } else {
-            val rewrittenAgg = RewriteMultiChildrenCount.applyForValidation(plan)
+            val rewrittenAgg = AddTransformHintRule.applyRulesForValidation(plan)
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genHashAggregateExecTransformer(
                 rewrittenAgg.requiredChildDistributionExpressions,
@@ -493,7 +496,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAgg is not enabled in ObjectHashAggregateExec")
           } else {
-            val rewrittenAgg = RewriteMultiChildrenCount.applyForValidation(plan)
+            val rewrittenAgg = AddTransformHintRule.applyRulesForValidation(plan)
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genHashAggregateExecTransformer(
                 rewrittenAgg.requiredChildDistributionExpressions,
@@ -540,7 +543,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           if (!enableColumnarSort) {
             TransformHints.tagNotTransformable(plan, "columnar Sort is not enabled in SortExec")
           } else {
-            val rewrittenSort = PullOutPreProject.applyForValidation(plan)
+            val rewrittenSort = AddTransformHintRule.applyRulesForValidation(plan)
             val transformer =
               SortExecTransformer(
                 rewrittenSort.sortOrder,
@@ -719,6 +722,25 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           plan,
           s"${e.getMessage}, original Spark plan is " +
             s"${plan.getClass}(${plan.children.toList.map(_.getClass)})")
+    }
+  }
+}
+
+object AddTransformHintRule {
+  // These rules should be applied before validation, use applyRulesForValidation method to apply
+  // these rules when needed.
+  // TODO: Currently, developers need to decide on their own when to apply these rules during
+  // SparkPlan validation. In the future, we will need to add a mechanism to apply these rules
+  // before all SparkPlan validations.
+  val rulesForValidation: Seq[ValidationApplyRule] = Seq(
+    RewriteMultiChildrenCount,
+    PullOutPreProject,
+    PullOutPostProject
+  )
+
+  def applyRulesForValidation[T <: SparkPlan](plan: T): T = {
+    rulesForValidation.foldLeft(plan) {
+      case (latestPlan, rule) => rule.applyForValidation(latestPlan)
     }
   }
 }

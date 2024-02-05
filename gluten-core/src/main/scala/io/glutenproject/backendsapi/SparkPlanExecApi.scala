@@ -93,6 +93,12 @@ trait SparkPlanExecApi {
       resultExpressions: Seq[NamedExpression],
       child: SparkPlan): HashAggregateExecBaseTransformer
 
+  /** Generate HashAggregateExecPullOutHelper */
+  def genHashAggregateExecPullOutHelper(
+      groupingExpressions: Seq[NamedExpression],
+      aggregateExpressions: Seq[AggregateExpression],
+      aggregateAttributes: Seq[Attribute]): HashAggregateExecPullOutBaseHelper
+
   /** Generate ShuffledHashJoinExecTransformer. */
   def genShuffledHashJoinExecTransformer(
       leftKeys: Seq[Expression],
