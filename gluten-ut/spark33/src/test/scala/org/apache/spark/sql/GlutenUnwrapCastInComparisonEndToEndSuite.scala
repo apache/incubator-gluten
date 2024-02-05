@@ -16,17 +16,13 @@
  */
 package org.apache.spark.sql
 
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
-
-import scala.collection.immutable.Seq
-
 class GlutenUnwrapCastInComparisonEndToEndSuite
   extends UnwrapCastInComparisonEndToEndSuite
   with GlutenSQLTestsTrait {
 
   import testImplicits._
 
-  test(GLUTEN_TEST + "cases when literal is max") {
+  testGluten("cases when literal is max") {
     withTable(t) {
       Seq[(Integer, java.lang.Short, java.lang.Float)](
         (1, 100.toShort, 3.14.toFloat),
