@@ -48,7 +48,7 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
     Row(95337, 12, decimal(915.61))
   )
 
-  test("Literal in window partition by and sort") {
+  testGluten("Literal in window partition by and sort") {
     withTable("customer") {
       val rdd = spark.sparkContext.parallelize(customerData)
       val customerDF = spark.createDataFrame(rdd, customerSchema)
@@ -94,7 +94,7 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
     }
   }
 
-  test("Expression in WindowExpression that will fallback") {
+  testGluten("Expression in WindowExpression that will fallback") {
     withTable("customer") {
       val rdd = spark.sparkContext.parallelize(customerData)
       val customerDF = spark.createDataFrame(rdd, customerSchema)

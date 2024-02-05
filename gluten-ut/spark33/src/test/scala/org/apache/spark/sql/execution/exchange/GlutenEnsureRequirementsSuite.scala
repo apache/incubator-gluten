@@ -28,9 +28,8 @@ class GlutenEnsureRequirementsSuite extends EnsureRequirementsSuite with GlutenS
       .set("spark.sql.shuffle.partitions", "5")
   }
 
-  test(
-    GLUTEN_TEST +
-      "SPARK-35675: EnsureRequirements remove shuffle should respect PartitioningCollection") {
+  testGluten(
+    "SPARK-35675: EnsureRequirements remove shuffle should respect PartitioningCollection") {
     import testImplicits._
     withSQLConf(
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1",

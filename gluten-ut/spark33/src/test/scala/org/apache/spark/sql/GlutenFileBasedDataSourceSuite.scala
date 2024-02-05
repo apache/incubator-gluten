@@ -35,7 +35,7 @@ class GlutenFileBasedDataSourceSuite extends FileBasedDataSourceSuite with Glute
   }
 
   // test data path is jar path, so failed, test code is same with spark
-  test("gluten Option recursiveFileLookup: disable partition inferring") {
+  testGluten("Option recursiveFileLookup: disable partition inferring") {
     val dataPath = getWorkspaceFilePath(
       "sql",
       "core",
@@ -59,7 +59,7 @@ class GlutenFileBasedDataSourceSuite extends FileBasedDataSourceSuite with Glute
     assert(fileList.toSet === expectedFileList.toSet)
   }
 
-  test("gluten Spark native readers should respect spark.sql.caseSensitive - parquet") {
+  testGluten("Spark native readers should respect spark.sql.caseSensitive - parquet") {
     withTempDir {
       dir =>
         val format = "parquet"
@@ -106,7 +106,7 @@ class GlutenFileBasedDataSourceSuite extends FileBasedDataSourceSuite with Glute
     }
   }
 
-  test("gluten SPARK-22790,SPARK-27668: spark.sql.sources.compressionFactor takes effect") {
+  testGluten("SPARK-22790,SPARK-27668: spark.sql.sources.compressionFactor takes effect") {
     Seq(1.0, 0.5).foreach {
       compressionFactor =>
         withSQLConf(
@@ -148,7 +148,7 @@ class GlutenFileBasedDataSourceSuite extends FileBasedDataSourceSuite with Glute
     }
   }
 
-  test("gluten SPARK-25237 compute correct input metrics in FileScanRDD") {
+  testGluten("SPARK-25237 compute correct input metrics in FileScanRDD") {
     // TODO: Test CSV V2 as well after it implements [[SupportsReportStatistics]].
     withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> "csv") {
       withTempPath {

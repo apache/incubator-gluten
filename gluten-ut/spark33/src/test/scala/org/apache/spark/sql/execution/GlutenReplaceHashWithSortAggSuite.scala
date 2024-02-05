@@ -55,7 +55,7 @@ class GlutenReplaceHashWithSortAggSuite
 
   // === Following cases override super class's cases ===
 
-  test(GLUTEN_TEST + "replace partial hash aggregate with sort aggregate") {
+  testGluten("replace partial hash aggregate with sort aggregate") {
     withTempView("t") {
       spark.range(100).selectExpr("id as key").repartition(10).createOrReplaceTempView("t")
 
@@ -83,7 +83,7 @@ class GlutenReplaceHashWithSortAggSuite
     }
   }
 
-  test(GLUTEN_TEST + "replace partial and final hash aggregate together with sort aggregate") {
+  testGluten("replace partial and final hash aggregate together with sort aggregate") {
     withTempView("t1", "t2") {
       spark.range(100).selectExpr("id as key").createOrReplaceTempView("t1")
       spark.range(50).selectExpr("id as key").createOrReplaceTempView("t2")
@@ -106,7 +106,7 @@ class GlutenReplaceHashWithSortAggSuite
     }
   }
 
-  test(GLUTEN_TEST + "do not replace hash aggregate if child does not have sort order") {
+  testGluten("do not replace hash aggregate if child does not have sort order") {
     withTempView("t1", "t2") {
       spark.range(100).selectExpr("id as key").createOrReplaceTempView("t1")
       spark.range(50).selectExpr("id as key").createOrReplaceTempView("t2")
@@ -129,7 +129,7 @@ class GlutenReplaceHashWithSortAggSuite
     }
   }
 
-  test(GLUTEN_TEST + "do not replace hash aggregate if there is no group-by column") {
+  testGluten("do not replace hash aggregate if there is no group-by column") {
     withTempView("t1") {
       spark.range(100).selectExpr("id as key").createOrReplaceTempView("t1")
       Seq("COUNT", "COLLECT_LIST").foreach {

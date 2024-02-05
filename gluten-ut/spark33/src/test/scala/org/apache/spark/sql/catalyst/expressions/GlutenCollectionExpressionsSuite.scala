@@ -23,7 +23,7 @@ import org.apache.spark.sql.types._
 import scala.util.Random
 
 class GlutenCollectionExpressionsSuite extends CollectionExpressionsSuite with GlutenTestsTrait {
-  test(GLUTEN_TEST + "Shuffle") {
+  testGluten("Shuffle") {
     // Primitive-type elements
     val ai0 = Literal.create(Seq(1, 2, 3, 4, 5), ArrayType(IntegerType, containsNull = false))
     val ai1 = Literal.create(Seq(1, 2, 3), ArrayType(IntegerType, containsNull = false))

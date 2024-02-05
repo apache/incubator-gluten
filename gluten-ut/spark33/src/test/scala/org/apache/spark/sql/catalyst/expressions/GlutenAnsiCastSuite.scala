@@ -102,9 +102,7 @@ class GlutenTryCastSuite extends TryCastSuite with GlutenTestsTrait {
     "9999-12-31T23:59:59" // the last supported timestamp according to SQL standard
   )
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-35698: cast timestamp without time zone to string") {
+  testGluten("SPARK-35698: cast timestamp without time zone to string") {
     specialTs.foreach {
       s => checkEvaluation(cast(LocalDateTime.parse(s), StringType), s.replace("T", " "))
     }

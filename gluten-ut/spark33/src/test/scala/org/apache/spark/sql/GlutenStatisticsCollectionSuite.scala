@@ -29,9 +29,7 @@ class GlutenStatisticsCollectionSuite extends StatisticsCollectionSuite with Glu
 
   import testImplicits._
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "store and retrieve column stats in different time zones") {
+  testGluten("store and retrieve column stats in different time zones") {
     // TODO: bug fix on TableScan.
     // val (start, end) = (0, TimeUnit.DAYS.toSeconds(2))
     val (start, end) = (0, 200)

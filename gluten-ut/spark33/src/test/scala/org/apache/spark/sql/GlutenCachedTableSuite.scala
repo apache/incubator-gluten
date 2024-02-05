@@ -33,7 +33,7 @@ class GlutenCachedTableSuite
     super.sparkConf.set(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, "true")
   }
 
-  test("GLUTEN - InMemoryRelation statistics") {
+  testGluten("InMemoryRelation statistics") {
     sql("CACHE TABLE testData")
     spark.table("testData").queryExecution.withCachedData.collect {
       case cached: InMemoryRelation =>

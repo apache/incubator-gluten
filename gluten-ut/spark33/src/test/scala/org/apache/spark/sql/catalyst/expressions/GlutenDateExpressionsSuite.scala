@@ -60,7 +60,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     // checkResult(Int.MinValue.toLong - 100)
   }
 
-  test(GLUTEN_TEST + "TIMESTAMP_MICROS") {
+  testGluten("TIMESTAMP_MICROS") {
     def testIntegralFunc(value: Number): Unit = {
       checkEvaluation(MicrosToTimestamp(Literal(value)), value.longValue())
     }
@@ -88,7 +88,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     "Europe/Brussels")
   val outstandingZoneIds: Seq[ZoneId] = outstandingTimezonesIds.map(getZoneId)
 
-  test(GLUTEN_TEST + "unix_timestamp") {
+  testGluten("unix_timestamp") {
     Seq("legacy", "corrected").foreach {
       legacyParserPolicy =>
         withDefaultTimeZone(UTC) {
@@ -189,7 +189,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
       UnixTimestamp(Literal("2015-07-24"), Literal("\""), UTC_OPT) :: Nil)
   }
 
-  test(GLUTEN_TEST + "to_unix_timestamp") {
+  testGluten("to_unix_timestamp") {
     withDefaultTimeZone(UTC) {
       for (zid <- outstandingZoneIds) {
         Seq("legacy", "corrected").foreach {
@@ -287,7 +287,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
   }
 
   // Modified based on vanilla spark to explicitly set timezone in config.
-  test(GLUTEN_TEST + "DateFormat") {
+  testGluten("DateFormat") {
     val PST_OPT = Option("America/Los_Angeles")
     val JST_OPT = Option("Asia/Tokyo")
 
@@ -344,7 +344,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     }
   }
 
-  test(GLUTEN_TEST + "from_unixtime") {
+  testGluten("from_unixtime") {
     val outstandingTimezonesIds: Seq[String] = Seq(
       // Velox doesn't support timezones like "UTC".
       // "UTC",
@@ -411,7 +411,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     GenerateUnsafeProjection.generate(FromUnixTime(Literal(0L), Literal("\""), UTC_OPT) :: Nil)
   }
 
-  test(GLUTEN_TEST + "Hour") {
+  testGluten("Hour") {
     val outstandingTimezonesIds: Seq[String] = Seq(
       // Velox doesn't support timezones like "UTC".
       // "UTC",

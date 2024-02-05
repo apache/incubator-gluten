@@ -31,7 +31,7 @@ class GlutenCustomerExtensionSuite extends GlutenSQLTestsTrait {
       .set("spark.gluten.sql.columnar.extended.columnar.post.rules", "")
   }
 
-  test("test customer column rules") {
+  testGluten("test customer column rules") {
     withSQLConf(("spark.gluten.enabled", "false")) {
       sql("create table my_parquet(id int) using parquet")
       sql("insert into my_parquet values (1)")
