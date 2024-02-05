@@ -34,6 +34,8 @@ import org.apache.spark.sql.execution.joins.BaseJoinExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import io.substrait.proto.CrossRel
+
 import java.io.{IOException, ObjectOutputStream}
 
 /**
@@ -50,8 +52,6 @@ case class ColumnarCartesianProductBridge(child: SparkPlan) extends UnaryExecNod
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
     copy(child = newChild)
 }
-
-import io.substrait.proto.CrossRel
 
 case class CartesianProductExecTransformer(
     left: SparkPlan,

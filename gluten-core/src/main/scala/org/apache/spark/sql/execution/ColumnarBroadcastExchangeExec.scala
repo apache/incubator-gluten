@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.metrics.GlutenTimeMetric
 
 import org.apache.spark.{broadcast, SparkException}
@@ -134,7 +134,7 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
 //    mode match {
 //      case _: HashedRelationBroadcastMode =>
 //      case _ =>
-//        // TODO IdentityBroadcastMode not supported. Need to support BroadcastNestedLoopJoin first.
+//     // TODO IdentityBroadcastMode not supported. Need to support BroadcastNestedLoopJoin first.
 //        return ValidationResult.notOk("Only support HashedRelationBroadcastMode for now.")
 //    }
     BackendsApiManager.getValidatorApiInstance

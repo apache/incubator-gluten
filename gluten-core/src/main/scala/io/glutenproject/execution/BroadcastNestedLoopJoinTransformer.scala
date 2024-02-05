@@ -29,13 +29,13 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.{FullOuter, InnerLike, JoinType, LeftOuter, RightOuter}
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
-import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
-import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation}
+import org.apache.spark.sql.execution.{SQLExecution, SparkPlan}
+import org.apache.spark.sql.execution.joins.BaseJoinExec
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import io.substrait.proto.CrossRel
 
-case class BroadcastNestedLoopJoinTransformer(
+abstract class BroadcastNestedLoopJoinTransformer(
     left: SparkPlan,
     right: SparkPlan,
     buildSide: BuildSide,
@@ -67,24 +67,19 @@ case class BroadcastNestedLoopJoinTransformer(
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     val streamedRDD = getColumnarInputRDDs(streamedPlan)
-    val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
-
-    val context =
-      BroadCastHashJoinContext(Seq.empty, joinType, buildPlan.output, buildTableId)
-
-    val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
-    BackendsApiManager.getBroadcastApiInstance
-      .collectExecutionBroadcastHashTableId(executionId, context.buildHashTableId)
-
-    streamedRDD :+ BroadcastBuildSideRDD(sparkContext, broadcast, context)
+    val broadcastRDD = {
+      val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
+      BackendsApiManager.getBroadcastApiInstance
+        .collectExecutionBroadcastHashTableId(executionId, buildTableId)
+      createBroadcastBuildSideRDD()
+    }
+    // FIXME: Do we have to make build side a RDD?
+    streamedRDD :+ broadcastRDD
   }
 
-  override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater
+  protected def createBroadcastBuildSideRDD(): BroadcastBuildSideRDD
 
-  override protected def withNewChildrenInternal(
-      newLeft: SparkPlan,
-      newRight: SparkPlan): BroadcastNestedLoopJoinTransformer =
-    copy(left = newLeft, right = newRight)
+  override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater
 
   override def output: Seq[Attribute] = {
     joinType match {
