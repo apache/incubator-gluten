@@ -16,10 +16,10 @@
  */
 package org.apache.spark.sql.execution.datasources.orc
 
-import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, GlutenTestConstants, Row}
+import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, Row}
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DayTimeIntervalType, IntegerType, StructField, StructType, YearMonthIntervalType}
+import org.apache.spark.sql.types._
 
 import java.sql.Date
 import java.time.{Duration, Period}

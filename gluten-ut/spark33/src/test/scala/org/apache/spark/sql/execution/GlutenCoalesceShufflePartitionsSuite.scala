@@ -20,7 +20,6 @@ import org.apache.spark.SparkConf
 import org.apache.spark.internal.config.IO_ENCRYPTION_ENABLED
 import org.apache.spark.internal.config.UI.UI_ENABLED
 import org.apache.spark.sql.{GlutenTestsCommonTrait, QueryTest, SparkSession}
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.internal.SQLConf

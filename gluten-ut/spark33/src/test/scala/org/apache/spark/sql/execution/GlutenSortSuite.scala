@@ -19,7 +19,6 @@ package org.apache.spark.sql.execution
 import io.glutenproject.execution.SortExecTransformer
 
 import org.apache.spark.sql.{catalyst, GlutenQueryTest, GlutenSQLTestsBaseTrait, Row}
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.analysis.{Resolver, UnresolvedAttribute}
 import org.apache.spark.sql.catalyst.expressions.{Length, SortOrder}
 import org.apache.spark.sql.catalyst.plans.QueryPlan

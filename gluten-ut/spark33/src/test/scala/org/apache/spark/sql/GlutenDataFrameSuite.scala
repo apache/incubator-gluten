@@ -19,7 +19,6 @@ package org.apache.spark.sql
 import io.glutenproject.execution.{ProjectExecTransformer, WholeStageTransformer}
 
 import org.apache.spark.SparkException
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions.{EqualTo, Expression}
 import org.apache.spark.sql.execution.ColumnarShuffleExchangeExec
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
