@@ -26,10 +26,10 @@ import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 
 /**
- * The output of the native engine after executing the agg is not completely consistent with Spark.
- * When the output is inconsistent, it is necessary to use post-project to adjust the output of
- * native agg to match the output of Spark, ensuring that the data output of the native agg can
- * match the fallback Spark plan when a fallback occurs.
+ * The output of the native plan is not completely consistent with Spark. When the output is
+ * inconsistent, it is necessary to use post-project to adjust the output of native plan to match
+ * the output of Spark, ensuring that the output data of the native plan can match the Spark plan
+ * when a fallback occurs.
  */
 object PullOutPostProject
   extends Rule[SparkPlan]
@@ -70,11 +70,14 @@ object PullOutPostProject
     }
   }
 
-  override def apply(plan: SparkPlan): SparkPlan = {
-    val transformedPlan = plan.transform(applyLocally)
-    AddTransformHintRule().apply(transformedPlan)
-  }
+  override def apply(plan: SparkPlan): SparkPlan = plan.transform(applyLocally)
 
+  /**
+   * Only apply the rule to the input plan, without recursively traversing its children. If the rule
+   * does not match, the input will be returned directly. Due to the possibility of generating
+   * additional post-projects, the post-projects should be removed when output, and return the
+   * pulled-out plan.
+   */
   override def applyForValidation[T <: SparkPlan](plan: T): T =
     applyLocally
       .lift(plan)
