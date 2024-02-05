@@ -93,7 +93,7 @@ class GlutenClickHouseTPCDSMetricsSuite extends GlutenClickHouseTPCDSAbstractSui
           case g: GlutenPlan if !g.isInstanceOf[InputIteratorTransformer] => g
         }
 
-        assert(allGlutenPlans.size == 29)
+        assert(allGlutenPlans.size == 30)
 
         val windowPlan0 = allGlutenPlans(3)
         assert(windowPlan0.metrics("totalTime").value == 2)

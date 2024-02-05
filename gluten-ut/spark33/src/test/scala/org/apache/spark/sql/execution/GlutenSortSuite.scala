@@ -19,7 +19,6 @@ package org.apache.spark.sql.execution
 import io.glutenproject.execution.SortExecTransformer
 
 import org.apache.spark.sql.{catalyst, GlutenQueryTest, GlutenSQLTestsBaseTrait, Row}
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.analysis.{Resolver, UnresolvedAttribute}
 import org.apache.spark.sql.catalyst.expressions.{Length, SortOrder}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
@@ -48,7 +47,7 @@ class GlutenSortSuite extends SortSuite with GlutenSQLTestsBaseTrait with Adapti
     }
   }
 
-  test(GLUTEN_TEST + "post-project outputOrdering check") {
+  testGluten("post-project outputOrdering check") {
     val input = Seq(
       ("Hello", 4, 2.0),
       ("Hello Bob", 10, 1.0),

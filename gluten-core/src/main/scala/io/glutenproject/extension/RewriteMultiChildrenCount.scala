@@ -48,7 +48,7 @@ import org.apache.spark.sql.types.IntegerType
  *
  * TODO: Remove this rule when Velox support multi-children Count
  */
-object RewriteMultiChildrenCount extends Rule[SparkPlan] {
+object RewriteMultiChildrenCount extends Rule[SparkPlan] with ValidationApplyRule {
   private def extractCountForRewrite(aggExpr: AggregateExpression): Option[Count] = {
     val isPartialCountWithMoreThanOneChild = aggExpr.mode == Partial && {
       aggExpr.aggregateFunction match {
@@ -94,31 +94,30 @@ object RewriteMultiChildrenCount extends Rule[SparkPlan] {
     }
   }
 
-  private def applyInternal[T <: BaseAggregateExec](agg: T): T = {
-    val newAggExprs = rewriteCount(agg.aggregateExpressions)
-    val newAgg = agg match {
-      case a: HashAggregateExec =>
-        a.copy(aggregateExpressions = newAggExprs)
-      case a: SortAggregateExec =>
-        a.copy(aggregateExpressions = newAggExprs)
-      case a: ObjectHashAggregateExec =>
-        a.copy(aggregateExpressions = newAggExprs)
-      case _ => throw new IllegalStateException(s"Unknown aggregate: $agg")
-    }
-    newAgg.copyTagsFrom(agg)
-    newAgg.asInstanceOf[T]
+  private val applyLocally: PartialFunction[SparkPlan, SparkPlan] = {
+    case agg: BaseAggregateExec
+        if !TransformHints.isTaggedAsNotTransformable(agg)
+          && shouldRewrite(agg.aggregateExpressions) =>
+      val newAggExprs = rewriteCount(agg.aggregateExpressions)
+      val newAgg = agg match {
+        case a: HashAggregateExec =>
+          a.copy(aggregateExpressions = newAggExprs)
+        case a: SortAggregateExec =>
+          a.copy(aggregateExpressions = newAggExprs)
+        case a: ObjectHashAggregateExec =>
+          a.copy(aggregateExpressions = newAggExprs)
+        case _ => throw new IllegalStateException(s"Unknown aggregate: $agg")
+      }
+      newAgg.copyTagsFrom(agg)
+      newAgg
   }
 
-  def applyForValidation[T <: BaseAggregateExec](plan: T): T = {
+  override def applyForValidation[T <: SparkPlan](plan: T): T = {
     if (!BackendsApiManager.getSettings.shouldRewriteCount()) {
       return plan
     }
 
-    plan match {
-      case agg: BaseAggregateExec if shouldRewrite(agg.aggregateExpressions) =>
-        applyInternal(agg.asInstanceOf[T])
-      case _ => plan
-    }
+    applyLocally.lift(plan).getOrElse(plan).asInstanceOf[T]
   }
 
   override def apply(plan: SparkPlan): SparkPlan = {
@@ -126,14 +125,6 @@ object RewriteMultiChildrenCount extends Rule[SparkPlan] {
       return plan
     }
 
-    def shouldRewriteAgg(agg: BaseAggregateExec): Boolean = {
-      TransformHints.isTransformable(agg) &&
-      shouldRewrite(agg.aggregateExpressions)
-    }
-
-    plan.transform {
-      case agg: BaseAggregateExec if shouldRewriteAgg(agg) =>
-        applyInternal(agg)
-    }
+    plan.transform(applyLocally)
   }
 }

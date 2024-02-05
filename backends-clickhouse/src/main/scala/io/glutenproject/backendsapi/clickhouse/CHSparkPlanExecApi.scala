@@ -148,6 +148,13 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       resultExpressions,
       child)
 
+  /** Generate HashAggregateExecPullOutHelper */
+  override def genHashAggregateExecPullOutHelper(
+      groupingExpressions: Seq[NamedExpression],
+      aggregateExpressions: Seq[AggregateExpression],
+      aggregateAttributes: Seq[Attribute]): HashAggregateExecPullOutBaseHelper =
+    CHHashAggregateExecPullOutHelper(groupingExpressions, aggregateExpressions, aggregateAttributes)
+
   /** Generate ShuffledHashJoinExecTransformer. */
   def genShuffledHashJoinExecTransformer(
       leftKeys: Seq[Expression],

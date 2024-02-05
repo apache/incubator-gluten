@@ -29,7 +29,7 @@ class GlutenBloomFilterAggregateQuerySuite
   with AdaptiveSparkPlanHelper {
   import testImplicits._
 
-  test("Test bloom_filter_agg with big RUNTIME_BLOOM_FILTER_MAX_NUM_ITEMS") {
+  testGluten("Test bloom_filter_agg with big RUNTIME_BLOOM_FILTER_MAX_NUM_ITEMS") {
     val table = "bloom_filter_test"
     withSQLConf(
       SQLConf.RUNTIME_BLOOM_FILTER_MAX_NUM_ITEMS.key -> "5000000",
@@ -55,7 +55,7 @@ class GlutenBloomFilterAggregateQuerySuite
     }
   }
 
-  test("Test that might_contain on bloom_filter_agg with empty input") {
+  testGluten("Test that might_contain on bloom_filter_agg with empty input") {
     checkAnswer(
       spark.sql("""SELECT might_contain((select bloom_filter_agg(cast(id as long))
                   | from range(1, 1)), cast(123 as long))""".stripMargin),
@@ -68,7 +68,7 @@ class GlutenBloomFilterAggregateQuerySuite
       Row(null))
   }
 
-  test("Test bloom_filter_agg fallback") {
+  testGluten("Test bloom_filter_agg fallback") {
     val table = "bloom_filter_test"
     val numEstimatedItems = 5000000L
     val numBits = GlutenConfig.getConf.veloxBloomFilterMaxNumBits

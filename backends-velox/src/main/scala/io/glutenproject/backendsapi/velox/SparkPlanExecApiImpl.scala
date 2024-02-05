@@ -35,7 +35,7 @@ import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FlushableHas
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, Literal, NamedExpression, NaNvl, StringSplit, StringTrim}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, Literal, NamedExpression, NaNvl, Round, StringSplit, StringTrim}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -188,6 +188,13 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       initialInputBufferOffset,
       resultExpressions,
       child)
+
+  /** Generate HashAggregateExecPullOutHelper */
+  override def genHashAggregateExecPullOutHelper(
+      groupingExpressions: Seq[NamedExpression],
+      aggregateExpressions: Seq[AggregateExpression],
+      aggregateAttributes: Seq[Attribute]): HashAggregateExecPullOutBaseHelper =
+    HashAggregateExecPullOutHelper(groupingExpressions, aggregateExpressions, aggregateAttributes)
 
   /** Generate ShuffledHashJoinExecTransformer. */
   override def genShuffledHashJoinExecTransformer(
@@ -356,6 +363,14 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
   /**
    * * Expressions.
    */
+
+  /** Generates a transformer for decimal round. */
+  override def genDecimalRoundTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Round): ExpressionTransformer = {
+    DecimalRoundTransformer(substraitExprName, child, original)
+  }
 
   /** Generate StringSplit transformer. */
   override def genStringSplitTransformer(

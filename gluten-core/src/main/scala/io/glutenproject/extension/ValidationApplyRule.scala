@@ -14,21 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql
+package io.glutenproject.extension
 
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.execution.SparkPlan
 
-class GlutenDataFrameTungstenSuite extends DataFrameTungstenSuite with GlutenSQLTestsTrait {
-
-  testGluten("Map type with struct type as key") {
-    val kv = Map(Row(1, 2L) -> Seq("v"))
-    val data = sparkContext.parallelize(Seq(Row(1, kv)))
-    val schema = new StructType()
-      .add("a", IntegerType)
-      .add(
-        "b",
-        MapType(new StructType().add("k1", IntegerType).add("k2", LongType), ArrayType(StringType)))
-    val df = spark.createDataFrame(data, schema)
-    assert(df.select("b").first() === Row(kv))
-  }
+/**
+ * Spark Rule that needs to be applied before validation should extends this trait, and implements
+ * the applyForValidation method. This methods should apply the rule locally(There is no need to
+ * recursively traverse the entire plan tree) to the input SparkPlan, and return the transformed
+ * SparkPlan.
+ */
+trait ValidationApplyRule {
+  def applyForValidation[T <: SparkPlan](plan: T): T
 }
