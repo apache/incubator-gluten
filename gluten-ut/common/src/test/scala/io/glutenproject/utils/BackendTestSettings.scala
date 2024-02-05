@@ -94,11 +94,11 @@ abstract class BackendTestSettings {
       exclusion.add(Exclude(testNames: _*))
       this
     }
-    def includeGlutenTests(testName: String*): SuiteSettings = {
+    def includeGlutenTest(testName: String*): SuiteSettings = {
       inclusion.add(IncludeGlutenTest(testName: _*))
       this
     }
-    def excludeGlutenTests(testName: String*): SuiteSettings = {
+    def excludeGlutenTest(testName: String*): SuiteSettings = {
       exclusion.add(ExcludeGlutenTest(testName: _*))
       this
     }
