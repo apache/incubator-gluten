@@ -18,8 +18,8 @@
 #pragma once
 
 #include <google/protobuf/message.h>
-#include <string>
 #include <optional>
+#include <string>
 
 namespace gluten {
 
