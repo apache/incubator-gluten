@@ -73,32 +73,11 @@ trait PullOutProjectHelper {
     case _ => false
   }
 
-  protected def copyBaseAggregateExec(
-      agg: BaseAggregateExec,
-      newGroupingExpressions: Seq[NamedExpression],
-      newAggregateExpressions: Seq[AggregateExpression]): BaseAggregateExec = {
-    copyBaseAggregateExec(
-      agg,
-      newGroupingExpressions,
-      newAggregateExpressions,
-      agg.resultExpressions)
-  }
-
-  protected def copyBaseAggregateExec(
-      agg: BaseAggregateExec,
-      newResultExpressions: Seq[NamedExpression]): BaseAggregateExec = {
-    copyBaseAggregateExec(
-      agg,
-      agg.groupingExpressions,
-      agg.aggregateExpressions,
-      newResultExpressions)
-  }
-
-  protected def copyBaseAggregateExec(
-      agg: BaseAggregateExec,
-      newGroupingExpressions: Seq[NamedExpression],
-      newAggregateExpressions: Seq[AggregateExpression],
-      newResultExpressions: Seq[NamedExpression]): BaseAggregateExec = agg match {
+  protected def copyBaseAggregateExec(agg: BaseAggregateExec)(
+      newGroupingExpressions: Seq[NamedExpression] = agg.groupingExpressions,
+      newAggregateExpressions: Seq[AggregateExpression] = agg.aggregateExpressions,
+      newResultExpressions: Seq[NamedExpression] = agg.resultExpressions
+  ): BaseAggregateExec = agg match {
     case hash: HashAggregateExec =>
       hash.copy(
         groupingExpressions = newGroupingExpressions,

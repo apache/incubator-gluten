@@ -18,13 +18,13 @@ package io.glutenproject.extension
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.HashAggregateExecTransformerUtil._
-import io.glutenproject.extension.columnar.TransformHints
+import io.glutenproject.utils.PullOutProjectHelper
 
 import org.apache.spark.sql.catalyst.expressions.{If, IsNull, Literal, Or}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Partial}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
+import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.types.IntegerType
 
 /**
@@ -48,7 +48,9 @@ import org.apache.spark.sql.types.IntegerType
  *
  * TODO: Remove this rule when Velox support multi-children Count
  */
-object RewriteMultiChildrenCount extends Rule[SparkPlan] with ValidationApplyRule {
+object RewriteMultiChildrenCount extends Rule[SparkPlan] with PullOutProjectHelper {
+  private lazy val shouldRewriteCount = BackendsApiManager.getSettings.shouldRewriteCount()
+
   private def extractCountForRewrite(aggExpr: AggregateExpression): Option[Count] = {
     val isPartialCountWithMoreThanOneChild = aggExpr.mode == Partial && {
       aggExpr.aggregateFunction match {
@@ -94,37 +96,17 @@ object RewriteMultiChildrenCount extends Rule[SparkPlan] with ValidationApplyRul
     }
   }
 
-  private val applyLocally: PartialFunction[SparkPlan, SparkPlan] = {
-    case agg: BaseAggregateExec
-        if !TransformHints.isTaggedAsNotTransformable(agg)
-          && shouldRewrite(agg.aggregateExpressions) =>
-      val newAggExprs = rewriteCount(agg.aggregateExpressions)
-      val newAgg = agg match {
-        case a: HashAggregateExec =>
-          a.copy(aggregateExpressions = newAggExprs)
-        case a: SortAggregateExec =>
-          a.copy(aggregateExpressions = newAggExprs)
-        case a: ObjectHashAggregateExec =>
-          a.copy(aggregateExpressions = newAggExprs)
-        case _ => throw new IllegalStateException(s"Unknown aggregate: $agg")
-      }
-      newAgg.copyTagsFrom(agg)
-      newAgg
-  }
-
-  override def applyForValidation[T <: SparkPlan](plan: T): T = {
-    if (!BackendsApiManager.getSettings.shouldRewriteCount()) {
-      return plan
-    }
-
-    applyLocally.lift(plan).getOrElse(plan).asInstanceOf[T]
-  }
-
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (!BackendsApiManager.getSettings.shouldRewriteCount()) {
+    if (!shouldRewriteCount) {
       return plan
     }
 
-    plan.transform(applyLocally)
+    plan match {
+      case agg: BaseAggregateExec if shouldRewrite(agg.aggregateExpressions) =>
+        val newAggExprs = rewriteCount(agg.aggregateExpressions)
+        copyBaseAggregateExec(agg)(newAggregateExpressions = newAggExprs)
+
+      case _ => plan
+    }
   }
 }
