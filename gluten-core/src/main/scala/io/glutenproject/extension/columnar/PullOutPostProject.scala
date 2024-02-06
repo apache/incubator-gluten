@@ -17,7 +17,6 @@
 package io.glutenproject.extension.columnar
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.ValidationApplyRule
 import io.glutenproject.utils.PullOutProjectHelper
 
 import org.apache.spark.sql.catalyst.expressions.{AliasHelper, Attribute}
@@ -31,18 +30,9 @@ import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
  * the output of Spark, ensuring that the output data of the native plan can match the Spark plan
  * when a fallback occurs.
  */
-object PullOutPostProject
-  extends Rule[SparkPlan]
-  with PullOutProjectHelper
-  with AliasHelper
-  with ValidationApplyRule {
+object PullOutPostProject extends Rule[SparkPlan] with PullOutProjectHelper with AliasHelper {
 
   private def needsPostProjection(plan: SparkPlan): Boolean = {
-    if (TransformHints.isTaggedAsNotTransformable(plan)) {
-      // We should not pull out post-project for SparkPlan that already been tagged as
-      // not transformable.
-      return false
-    }
     plan match {
       case agg: BaseAggregateExec =>
         val pullOutHelper =
@@ -70,25 +60,7 @@ object PullOutPostProject
     }
   }
 
-  override def apply(plan: SparkPlan): SparkPlan = plan.transform(applyLocally)
-
-  /**
-   * Only apply the rule to the input plan, without recursively traversing its children. If the rule
-   * does not match, the input will be returned directly. Due to the possibility of generating
-   * additional post-projects, the post-projects should be removed when output, and return the
-   * pulled-out plan.
-   */
-  override def applyForValidation[T <: SparkPlan](plan: T): T =
-    applyLocally
-      .lift(plan)
-      .map {
-        case p: ProjectExec => p.child
-        case other => other
-      }
-      .getOrElse(plan)
-      .asInstanceOf[T]
-
-  private val applyLocally: PartialFunction[SparkPlan, SparkPlan] = {
+  override def apply(plan: SparkPlan): SparkPlan = plan match {
     case agg: BaseAggregateExec if supportedAggregate(agg) && needsPostProjection(agg) =>
       val pullOutHelper =
         BackendsApiManager.getSparkPlanExecApiInstance.genHashAggregateExecPullOutHelper(
@@ -96,12 +68,9 @@ object PullOutPostProject
           agg.aggregateExpressions,
           agg.aggregateAttributes)
       val newResultExpressions = pullOutHelper.allAggregateResultAttributes
+      val newAgg = copyBaseAggregateExec(agg)(newResultExpressions = newResultExpressions)
+      ProjectExec(agg.resultExpressions, newAgg)
 
-      val newAgg = copyBaseAggregateExec(agg, newResultExpressions)
-      newAgg.copyTagsFrom(agg)
-
-      agg.unsetTagValue(TransformHints.TAG)
-      val postProject = ProjectExec(agg.resultExpressions, newAgg)
-      postProject
+    case _ => plan
   }
 }
