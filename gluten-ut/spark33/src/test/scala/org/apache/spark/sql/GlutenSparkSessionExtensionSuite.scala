@@ -22,7 +22,7 @@ class GlutenSparkSessionExtensionSuite
   extends SparkSessionExtensionSuite
   with GlutenTestsCommonTrait {
 
-  test("customColumnarOp") {
+  testGluten("customColumnarOp") {
     val extensions = DummyFilterColmnarHelper.create {
       extensions => extensions.injectPlannerStrategy(_ => DummyFilterColumnarStrategy)
     }

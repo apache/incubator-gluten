@@ -29,7 +29,7 @@ class GlutenSessionExtensionSuite extends GlutenSQLTestsTrait {
       .set(SPARK_SESSION_EXTENSIONS.key, classOf[MyExtensions].getCanonicalName)
   }
 
-  test("test gluten extensions") {
+  testGluten("test gluten extensions") {
     assert(spark.sessionState.columnarRules.contains(ColumnarOverrideRules(spark)))
     assert(spark.sessionState.planner.strategies.contains(JoinSelectionOverrides(spark)))
 

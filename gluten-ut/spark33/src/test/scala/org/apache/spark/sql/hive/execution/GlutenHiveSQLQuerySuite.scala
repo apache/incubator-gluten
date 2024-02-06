@@ -102,7 +102,7 @@ class GlutenHiveSQLQuerySuite extends GlutenSQLTestsTrait {
       .set("spark.memory.offHeap.size", "1024MB")
   }
 
-  test("hive orc scan") {
+  testGluten("hive orc scan") {
     withSQLConf("spark.sql.hive.convertMetastoreOrc" -> "false") {
       sql("DROP TABLE IF EXISTS test_orc")
       sql(
@@ -119,7 +119,7 @@ class GlutenHiveSQLQuerySuite extends GlutenSQLTestsTrait {
       purge = false)
   }
 
-  test("avoid unnecessary filter binding for subfield during scan") {
+  testGluten("avoid unnecessary filter binding for subfield during scan") {
     withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "false") {
       sql("DROP TABLE IF EXISTS test_subfield")
       sql(

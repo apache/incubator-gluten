@@ -25,9 +25,10 @@ class DummyRuntime final : public Runtime {
  public:
   DummyRuntime(const std::unordered_map<std::string, std::string>& conf) : Runtime(conf) {}
 
-  void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) override {}
+  void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo, std::optional<std::string> dumpFile)
+      override {}
 
-  void parseSplitInfo(const uint8_t* data, int32_t size) override {}
+  void parseSplitInfo(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) override {}
 
   std::shared_ptr<ResultIterator> createResultIterator(
       MemoryManager* memoryManager,
@@ -92,6 +93,10 @@ class DummyRuntime final : public Runtime {
     throw GlutenException("Not yet implemented");
   }
   void injectWriteFilesTempPath(const std::string& path) override {
+    throw GlutenException("Not yet implemented");
+  }
+
+  void dumpConf(const std::string& path) override {
     throw GlutenException("Not yet implemented");
   }
 

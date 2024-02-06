@@ -94,7 +94,7 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFailu
   auto planSize = env->GetArrayLength(planArray);
   if (gluten::debugModeEnabled(ctx->getConfMap())) {
     try {
-      auto jsonPlan = gluten::substraitFromPbToJson("Plan", planData, planSize);
+      auto jsonPlan = gluten::substraitFromPbToJson("Plan", planData, planSize, std::nullopt);
       LOG(INFO) << std::string(50, '#') << " received substrait::Plan: for validation";
       LOG(INFO) << jsonPlan;
     } catch (const std::exception& e) {

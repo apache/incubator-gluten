@@ -34,20 +34,21 @@ import java.nio.file.Files
 abstract class GlutenTextSuite
   extends QueryTest
   with SharedSparkSession
-  with CommonFileDataSourceSuite {
+  with CommonFileDataSourceSuite
+  with GlutenSQLTestsBaseTrait {
   import testImplicits._
 
   override protected def dataSourceFormat = "text"
 
-  test("reading text file") {
+  testGluten("reading text file") {
     verifyFrame(spark.read.format("text").load(testFile))
   }
 
-  test("SQLContext.read.text() API") {
+  testGluten("SQLContext.read.text() API") {
     verifyFrame(spark.read.text(testFile))
   }
 
-  test("SPARK-12562 verify write.text() can handle column name beyond `value`") {
+  testGluten("SPARK-12562 verify write.text() can handle column name beyond `value`") {
     val df = spark.read.text(testFile).withColumnRenamed("value", "adwrasdf")
 
     val tempFile = Utils.createTempDir()
@@ -58,7 +59,7 @@ abstract class GlutenTextSuite
     Utils.deleteRecursively(tempFile)
   }
 
-  test("error handling for invalid schema") {
+  testGluten("error handling for invalid schema") {
     val tempFile = Utils.createTempDir()
     tempFile.delete()
 
@@ -72,7 +73,7 @@ abstract class GlutenTextSuite
     }
   }
 
-  test("reading partitioned data using read.textFile()") {
+  testGluten("reading partitioned data using read.textFile()") {
     val ds = spark.read.textFile(textPartitioned)
     val data = ds.collect()
 
@@ -80,7 +81,7 @@ abstract class GlutenTextSuite
     assert(data.length == 2)
   }
 
-  test("support for partitioned reading using read.text()") {
+  testGluten("support for partitioned reading using read.text()") {
     val df = spark.read.text(textPartitioned)
     val data = df.filter("year = '2015'").select("value").collect()
 
@@ -88,7 +89,7 @@ abstract class GlutenTextSuite
     assert(data.length == 1)
   }
 
-  test("SPARK-13503 Support to specify the option for compression codec for TEXT") {
+  testGluten("SPARK-13503 Support to specify the option for compression codec for TEXT") {
     val testDf = spark.read.text(testFile)
     val extensionNameMap = Map("bzip2" -> ".bz2", "deflate" -> ".deflate", "gzip" -> ".gz")
     extensionNameMap.foreach {
@@ -110,7 +111,7 @@ abstract class GlutenTextSuite
         "Known codecs are"))
   }
 
-  test("SPARK-13543 Write the output as uncompressed via option()") {
+  testGluten("SPARK-13543 Write the output as uncompressed via option()") {
     val extraOptions = Map[String, String](
       "mapreduce.output.fileoutputformat.compress" -> "true",
       "mapreduce.output.fileoutputformat.compress.type" -> CompressionType.BLOCK.toString,
@@ -133,7 +134,7 @@ abstract class GlutenTextSuite
     }
   }
 
-  test("case insensitive option") {
+  testGluten("case insensitive option") {
     val extraOptions = Map[String, String](
       "mApReDuCe.output.fileoutputformat.compress" -> "true",
       "mApReDuCe.output.fileoutputformat.compress.type" -> CompressionType.BLOCK.toString,
@@ -156,7 +157,7 @@ abstract class GlutenTextSuite
     }
   }
 
-  test("SPARK-14343: select partitioning column") {
+  testGluten("SPARK-14343: select partitioning column") {
     withTempPath {
       dir =>
         val path = dir.getCanonicalPath
@@ -170,7 +171,7 @@ abstract class GlutenTextSuite
     }
   }
 
-  test("SPARK-15654: should not split gz files") {
+  testGluten("SPARK-15654: should not split gz files") {
     withTempDir {
       dir =>
         val path = dir.getCanonicalPath
@@ -189,7 +190,7 @@ abstract class GlutenTextSuite
   }
 
   def testLineSeparator(lineSep: String): Unit = {
-    test(s"SPARK-23577: Support line separator - lineSep: '$lineSep'") {
+    testGluten(s"SPARK-23577: Support line separator - lineSep: '$lineSep'") {
       // Read
       val values = Seq("a", "b", "\nc")
       val data = values.mkString(lineSep)

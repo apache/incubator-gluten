@@ -134,10 +134,11 @@ gluten::Runtime* veloxRuntimeFactory(const std::unordered_map<std::string, std::
 } // namespace
 
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
+  backendConf_ = conf;
+
   // Register Velox runtime factory
   gluten::Runtime::registerFactory(gluten::kVeloxRuntimeKind, veloxRuntimeFactory);
 
-  // Init glog and log level.
   std::shared_ptr<const facebook::velox::Config> veloxcfg =
       std::make_shared<facebook::velox::core::MemConfigMutable>(conf);
 
@@ -145,6 +146,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
     LOG(INFO) << "VeloxBackend config:" << printConfig(veloxcfg->valuesCopy());
   }
 
+  // Init glog and log level.
   if (!veloxcfg->get<bool>(kDebugModeEnabled, false)) {
     uint32_t vlogLevel = veloxcfg->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
     FLAGS_v = vlogLevel;
@@ -335,6 +337,10 @@ VeloxBackend* VeloxBackend::get() {
     throw GlutenException("VeloxBackend instance is null.");
   }
   return instance_.get();
+}
+
+const std::unordered_map<std::string, std::string>& VeloxBackend::getBackendConf() const {
+  return backendConf_;
 }
 
 } // namespace gluten

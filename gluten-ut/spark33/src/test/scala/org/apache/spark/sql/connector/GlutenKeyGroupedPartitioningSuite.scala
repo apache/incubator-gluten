@@ -114,13 +114,13 @@ class GlutenKeyGroupedPartitioningSuite
     }.flatMap(smj => collect(smj) { case s: ColumnarShuffleExchangeExec => s })
   }
 
-  test("gluten - partitioned join: only one side reports partitioning") {
+  testGluten("partitioned join: only one side reports partitioning") {
     val customers_partitions = Array(bucket(4, "customer_id"))
     val orders_partitions = Array(bucket(2, "customer_id"))
 
     testWithCustomersAndOrders(customers_partitions, orders_partitions, 2)
   }
-  test("gluten - partitioned join: exact distribution (same number of buckets) from both sides") {
+  testGluten("partitioned join: exact distribution (same number of buckets) from both sides") {
     val customers_partitions = Array(bucket(4, "customer_id"))
     val orders_partitions = Array(bucket(4, "customer_id"))
 
@@ -140,8 +140,7 @@ class GlutenKeyGroupedPartitioningSuite
     .add("price", FloatType)
     .add("time", TimestampType)
 
-  test(
-    "gluten - partitioned join:  join with two partition keys and matching & sorted partitions") {
+  testGluten("partitioned join:  join with two partition keys and matching & sorted partitions") {
     val items_partitions = Array(bucket(8, "id"), days("arrive_time"))
     createTable(items, items_schema, items_partitions)
     sql(
@@ -180,7 +179,7 @@ class GlutenKeyGroupedPartitioningSuite
         Row(3, "cc", 15.5, 19.5)))
   }
 
-  test("gluten - partitioned join: join with two partition keys and unsorted partitions") {
+  testGluten("partitioned join: join with two partition keys and unsorted partitions") {
     val items_partitions = Array(bucket(8, "id"), days("arrive_time"))
     createTable(items, items_schema, items_partitions)
     sql(
@@ -219,8 +218,7 @@ class GlutenKeyGroupedPartitioningSuite
         Row(3, "cc", 15.5, 19.5)))
   }
 
-  test(
-    "gluten - partitioned join: join with two partition keys and different # of partition keys") {
+  testGluten("partitioned join: join with two partition keys and different # of partition keys") {
     val items_partitions = Array(bucket(8, "id"), days("arrive_time"))
     createTable(items, items_schema, items_partitions)
 
@@ -246,7 +244,7 @@ class GlutenKeyGroupedPartitioningSuite
     assert(shuffles.nonEmpty, "should add shuffle when partition keys mismatch")
   }
 
-  test("gluten: data source partitioning + dynamic partition filtering") {
+  testGluten("data source partitioning + dynamic partition filtering") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false",
       SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
