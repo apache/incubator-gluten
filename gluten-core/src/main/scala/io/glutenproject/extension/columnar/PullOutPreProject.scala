@@ -16,7 +16,6 @@
  */
 package io.glutenproject.extension.columnar
 
-import io.glutenproject.extension.ValidationApplyRule
 import io.glutenproject.utils.PullOutProjectHelper
 
 import org.apache.spark.sql.catalyst.expressions.{Expression, Literal, NamedExpression, SortOrder}
@@ -34,17 +33,9 @@ import scala.collection.mutable
  * to transform the SparkPlan at the physical plan level, constructing a SparkPlan that supports
  * execution by the native engine.
  */
-object PullOutPreProject
-  extends Rule[SparkPlan]
-  with PullOutProjectHelper
-  with ValidationApplyRule {
+object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
 
   private def needsPreProject(plan: SparkPlan): Boolean = {
-    if (TransformHints.isTaggedAsNotTransformable(plan)) {
-      // We should not pull out pre-project for SparkPlan that already been tagged as
-      // not transformable.
-      return false
-    }
     plan match {
       case sort: SortExec =>
         sort.sortOrder.exists(o => isNotAttribute(o.child))
@@ -102,23 +93,10 @@ object PullOutPreProject
     }
   }
 
-  override def apply(plan: SparkPlan): SparkPlan = plan.transform(applyLocally)
-
-  override def applyForValidation[T <: SparkPlan](plan: T): T =
-    applyLocally
-      .lift(plan)
-      .map {
-        case p: ProjectExec => p.child
-        case other => other
-      }
-      .getOrElse(plan)
-      .asInstanceOf[T]
-
-  private val applyLocally: PartialFunction[SparkPlan, SparkPlan] = {
+  override def apply(plan: SparkPlan): SparkPlan = plan match {
     case sort: SortExec if needsPreProject(sort) =>
       val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
       val newSortOrder = getNewSortOrder(sort.sortOrder, expressionMap)
-
       // The output of the sort operator is the same as the output of the child, therefore it
       // is necessary to retain the output columns of the child in the pre-projection, and
       // then add the expressions that need to be evaluated in the sortOrder. Finally, in the
@@ -127,12 +105,7 @@ object PullOutPreProject
       val preProject = ProjectExec(
         eliminateProjectList(sort.child.outputSet, expressionMap.values.toSeq),
         sort.child)
-
       val newSort = sort.copy(sortOrder = newSortOrder, child = preProject)
-      newSort.copyTagsFrom(sort)
-
-      // Unset the transform hint tag, so that transform will not copy it to post-project.
-      sort.unsetTagValue(TransformHints.TAG)
       // The pre-project and post-project of SortExec always appear together, so it's more
       // convenient to handle them together. Therefore, SortExec's post-project will no longer
       // be pulled out separately.
@@ -144,9 +117,7 @@ object PullOutPreProject
       val preProject = ProjectExec(
         eliminateProjectList(topK.child.outputSet, expressionMap.values.toSeq),
         topK.child)
-      val newTopK = topK.copy(sortOrder = newSortOrder, child = preProject)
-      newTopK.copyTagsFrom(topK)
-      newTopK
+      topK.copy(sortOrder = newSortOrder, child = preProject)
 
     case agg: BaseAggregateExec if supportedAggregate(agg) && needsPreProject(agg) =>
       val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
@@ -170,12 +141,14 @@ object PullOutPreProject
           ae.copy(aggregateFunction = newAggFunc, filter = newFilter)
       }
 
-      val newAgg = copyBaseAggregateExec(agg, newGroupingExpressions, newAggregateExpressions)
-      newAgg.copyTagsFrom(agg)
-
+      val newAgg = copyBaseAggregateExec(agg)(
+        newGroupingExpressions = newGroupingExpressions,
+        newAggregateExpressions = newAggregateExpressions)
       val preProject = ProjectExec(
         eliminateProjectList(agg.child.outputSet, expressionMap.values.toSeq),
         agg.child)
       newAgg.withNewChildren(Seq(preProject))
+
+    case _ => plan
   }
 }
