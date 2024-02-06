@@ -33,19 +33,15 @@
 #include <Storages/Parquet/ParquetConverter.h>
 #include <Storages/Parquet/RowRanges.h>
 #include <Storages/Parquet/VectorizedParquetRecordReader.h>
-#include <arrow/io/memory.h>
 #include <gtest/gtest.h>
-#include <parquet/metadata.h>
 #include <parquet/page_index.h>
 #include <parquet/schema.h>
 #include <parquet/statistics.h>
+#include <tests/gluten_test_util.h>
 
-namespace DB
-{
-namespace ErrorCodes
+namespace DB::ErrorCodes
 {
 extern const int LOGICAL_ERROR;
-}
 }
 
 namespace parquet
@@ -59,66 +55,7 @@ using namespace DB;
 
 namespace test_utils
 {
-
-using BlockRowType = ColumnsWithTypeAndName;
-using BlockFieldType = ColumnWithTypeAndName;
-using OtherRowType = NamesAndTypesList;
-using OtherFieldType = NameAndTypePair;
-
-//std::shared_ptr<const RowType> ROW(
-//    const std::vector<std::string>&& names,
-//    const std::vector<DB::DataTypePtr>&& types) {
-//
-//}
-DataTypePtr BIGINT()
-{
-    return std::make_shared<DataTypeInt64>();
-}
-DataTypePtr INT()
-{
-    return std::make_shared<DataTypeInt32>();
-}
-DataTypePtr INT16()
-{
-    return std::make_shared<DataTypeInt16>();
-}
-DataTypePtr INT8()
-{
-    return std::make_shared<DataTypeInt8>();
-}
-DataTypePtr UBIGINT()
-{
-    return std::make_shared<DataTypeUInt64>();
-}
-DataTypePtr UINT()
-{
-    return std::make_shared<DataTypeUInt32>();
-}
-DataTypePtr UINT16()
-{
-    return std::make_shared<DataTypeUInt16>();
-}
-DataTypePtr UINT8()
-{
-    return std::make_shared<DataTypeUInt8>();
-}
-
-DataTypePtr DOUBLE()
-{
-    return std::make_shared<DataTypeFloat64>();
-}
-
-DataTypePtr STRING()
-{
-    return std::make_shared<DataTypeString>();
-}
-
-BlockFieldType fromOther(const OtherFieldType & type)
-{
-    return BlockFieldType(type.type, type.name);
-}
-
-ActionsDAGPtr parseFilter(const std::string & filter, const OtherRowType & name_and_types)
+ActionsDAGPtr parseFilter(const std::string & filter, const AnotherRowType & name_and_types)
 {
     using namespace DB;
 
@@ -126,19 +63,19 @@ ActionsDAGPtr parseFilter(const std::string & filter, const OtherRowType & name_
     std::ranges::transform(
         name_and_types,
         std::inserter(node_name_to_input_column, node_name_to_input_column.end()),
-        [](const auto & name_and_type) { return std::make_pair(name_and_type.name, fromOther(name_and_type)); });
+        [](const auto & name_and_type) { return std::make_pair(name_and_type.name, toBlockFieldType(name_and_type)); });
 
     NamesAndTypesList aggregation_keys;
     ColumnNumbersList aggregation_keys_indexes_list;
-    AggregationKeysInfo info(aggregation_keys, aggregation_keys_indexes_list, GroupByKind::NONE);
-    SizeLimits size_limits_for_set;
+    const AggregationKeysInfo info(aggregation_keys, aggregation_keys_indexes_list, GroupByKind::NONE);
+    constexpr SizeLimits size_limits_for_set;
     ParserExpression parser2;
-    ASTPtr ast_exp = parseQuery(parser2, filter.data(), filter.data() + filter.size(), "", 0, 0);
-    const PreparedSetsPtr prepared_sets = std::make_shared<PreparedSets>();
+    const ASTPtr ast_exp = parseQuery(parser2, filter.data(), filter.data() + filter.size(), "", 0, 0);
+    const auto prepared_sets = std::make_shared<PreparedSets>();
     ActionsMatcher::Data visitor_data(
         local_engine::SerializedPlanParser::global_context,
         size_limits_for_set,
-        size_t(0),
+        static_cast<size_t>(0),
         name_and_types,
         std::make_shared<ActionsDAG>(name_and_types),
         prepared_sets /* prepared_sets */,
@@ -375,80 +312,6 @@ static const CIBuilder c5 = CIBuilder(PNB::optional(parquet::Type::INT64).named(
 static const OIBuilder o5 = OIBuilder().addPage(1).addPage(29);
 static const parquet::ColumnDescriptor d5 = c5.descr();
 
-DataTypePtr ParquetType(const parquet::ColumnDescriptor & type)
-{
-    switch (type.physical_type())
-    {
-        case parquet::Type::BOOLEAN:
-            break;
-        case parquet::Type::INT32:
-            switch (type.converted_type())
-            {
-                case parquet::ConvertedType::NONE:
-                    return INT();
-                case parquet::ConvertedType::UINT_8:
-                    return UINT8();
-                case parquet::ConvertedType::UINT_16:
-                    return UINT16();
-                case parquet::ConvertedType::UINT_32:
-                    return UINT();
-                case parquet::ConvertedType::INT_8:
-                    return INT8();
-                case parquet::ConvertedType::INT_16:
-                    return INT16();
-                case parquet::ConvertedType::INT_32:
-                    return INT();
-                default:
-                    break;
-            }
-            break;
-        case parquet::Type::INT64:
-            switch (type.converted_type())
-            {
-                case parquet::ConvertedType::NONE:
-                case parquet::ConvertedType::INT_64:
-                    return BIGINT();
-                case parquet::ConvertedType::UINT_64:
-                    return UBIGINT();
-                default:
-                    break;
-            }
-            break;
-        case parquet::Type::INT96:
-            break;
-        case parquet::Type::FLOAT:
-            break;
-        case parquet::Type::DOUBLE:
-            switch (type.converted_type())
-            {
-                case parquet::ConvertedType::NONE:
-                    return DOUBLE();
-                default:
-                    break;
-            }
-            break;
-        case parquet::Type::BYTE_ARRAY:
-            switch (type.converted_type())
-            {
-                case parquet::ConvertedType::UTF8:
-                    return STRING();
-                default:
-                    break;
-            }
-            break;
-        case parquet::Type::FIXED_LEN_BYTE_ARRAY:
-            break;
-        case parquet::Type::UNDEFINED:
-            break;
-    }
-    assert(false);
-}
-
-OtherFieldType FromParquetType(const parquet::ColumnDescriptor & type)
-{
-    return {type.name(), ParquetType(type)};
-}
-
 local_engine::ColumnIndexStore buildTestColumnIndexStore()
 {
     local_engine::ColumnIndexStore result;
@@ -460,14 +323,14 @@ local_engine::ColumnIndexStore buildTestColumnIndexStore()
     return result;
 }
 
-OtherRowType buildTestRowType()
+AnotherRowType buildTestRowType()
 {
-    OtherRowType result;
-    result.emplace_back(FromParquetType(d1));
-    result.emplace_back(FromParquetType(d2));
-    result.emplace_back(FromParquetType(d3));
-    result.emplace_back(FromParquetType(d4));
-    result.emplace_back(FromParquetType(d5));
+    AnotherRowType result;
+    result.emplace_back(toAnotherFieldType(d1));
+    result.emplace_back(toAnotherFieldType(d2));
+    result.emplace_back(toAnotherFieldType(d3));
+    result.emplace_back(toAnotherFieldType(d4));
+    result.emplace_back(toAnotherFieldType(d5));
     return result;
 }
 
@@ -508,7 +371,7 @@ void assertRows(const local_engine::RowRanges & ranges, const std::vector<size_t
 
 void testCondition(const std::string & exp, const std::vector<size_t> & expectedRows)
 {
-    static const OtherRowType name_and_types = buildTestRowType();
+    static const AnotherRowType name_and_types = buildTestRowType();
     static const local_engine::ColumnIndexStore column_index_store = buildTestColumnIndexStore();
     const local_engine::ColumnIndexFilter filter(parseFilter(exp, name_and_types), local_engine::SerializedPlanParser::global_context);
     assertRows(filter.calculateRowRanges(column_index_store, TOTALSIZE), expectedRows);
@@ -683,11 +546,6 @@ ParquetValue to(const DB::Field & value, const parquet::ColumnDescriptor & desc)
     }
     abort();
 }
-static parquet::ByteArray ByteArrayFromString(const std::string & s)
-{
-    const auto * const ptr = reinterpret_cast<const uint8_t *>(s.data());
-    return parquet::ByteArray(static_cast<uint32_t>(s.size()), ptr);
-}
 
 TEST(ColumnIndex, Field)
 {
@@ -755,16 +613,6 @@ TEST(ColumnIndex, Field)
         });
 }
 
-std::shared_ptr<arrow::io::RandomAccessFile> asArrowFileForParquet(DB::ReadBuffer & in, const DB::FormatSettings & settings)
-{
-    std::atomic<int> is_stopped{0};
-    return asArrowFile(in, settings, is_stopped, "Parquet", PARQUET_MAGIC_BYTES, /* avoid_buffering */ true);
-}
-namespace parquet
-{
-::arrow::io::ReadRange ComputeColumnChunkRange(FileMetaData * file_metadata, int64_t source_size, int row_group_index, int column_index);
-}
-
 struct ReadStatesParam
 {
     ReadStatesParam() = default;
@@ -789,14 +637,11 @@ void PrintTo(const ReadStatesParam & infos, std::ostream * os)
     }
     *os << "]";
 }
-namespace arrow
-{
-namespace io
+namespace arrow::io
 {
 void PrintTo(const ReadRange & infos, std::ostream * os)
 {
     *os << "[" << infos.offset << "," << infos.length << "]";
-}
 }
 }
 
@@ -1127,13 +972,14 @@ TEST_P(TestBuildPageReadStates, BuildPageReadStates)
 
 TEST(ColumnIndex, VectorizedParquetRecordReader)
 {
+    //TODO: move test parquet to s3 and download to CI machine.
     const std::string filename
         = "/home/chang/test/tpch/parquet/Index/60001/part-00000-76ef9b89-f292-495f-9d0d-98325f3d8956-c000.snappy.parquet";
     ReadBufferFromFilePRead in(filename);
     const FormatSettings format_settings{};
-    auto arrow_file = asArrowFileForParquet(in, format_settings);
+    auto arrow_file = local_engine::test::asArrowFileForParquet(in, format_settings);
 
-    static const OtherRowType name_and_types{{"11", BIGINT()}};
+    static const AnotherRowType name_and_types{{"11", BIGINT()}};
     const auto filterAction = parseFilter("`11` = 10 or `11` = 50", name_and_types);
     auto column_index_filter
         = std::make_shared<local_engine::ColumnIndexFilter>(filterAction, local_engine::SerializedPlanParser::global_context);

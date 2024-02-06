@@ -67,7 +67,7 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
 
   override def getSparkSession: SparkSession = {
     beforeAll()
-    val conf = getSparkcConf
+    val conf = getSparkConf
       .setIfMissing("spark.sql.columnVector.offheap.enabled", "true")
       .set("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "true")
 

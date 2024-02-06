@@ -54,7 +54,11 @@ if (ENABLE_TESTS)
     message("local engine udf sources: ${local_engine_udf_sources}")
     message("local engine function parser sources: ${local_engine_function_parser_sources}")
 
-    add_executable(unit_tests_local_engine ${local_engine_gtest_sources} ${local_engine_udf_sources} ${local_engine_function_parser_sources})
+    add_executable(unit_tests_local_engine
+        gluten_test_util.cpp
+        ${local_engine_gtest_sources}
+        ${local_engine_udf_sources}
+        ${local_engine_function_parser_sources})
     target_include_directories(unit_tests_local_engine PRIVATE
         ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine
         ${CMAKE_CURRENT_SOURCE_DIR}
@@ -68,6 +72,7 @@ else()
         ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine
     )
     add_executable(benchmark_local_engine
+        gluten_test_util.cpp
         benchmark_local_engine.cpp
         benchmark_parquet_read.cpp
         benchmark_spark_row.cpp

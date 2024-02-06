@@ -29,7 +29,7 @@ trait CHSqlBasedBenchmark extends SqlBasedBenchmark {
   protected val thrdNum: String
   protected val memorySize: String
   protected val offheapSize: String
-  def getSparkcConf: SparkConf = {
+  def getSparkConf: SparkConf = {
     val conf = new SparkConf()
       .setAppName(appName)
       .setIfMissing(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
