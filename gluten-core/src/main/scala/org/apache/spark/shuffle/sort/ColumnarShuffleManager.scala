@@ -123,12 +123,27 @@ class ColumnarShuffleManager(conf: SparkConf) extends ShuffleManager with Loggin
       endPartition: Int,
       context: TaskContext,
       metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C] = {
-    val blocksByAddress = SparkEnv.get.mapOutputTracker.getMapSizesByExecutorId(
-      handle.shuffleId,
-      startMapIndex,
-      endMapIndex,
-      startPartition,
-      endPartition)
+    val baseShuffleHandle = handle.asInstanceOf[BaseShuffleHandle[K, _, C]]
+    val (blocksByAddress, canEnableBatchFetch) =
+      if (baseShuffleHandle.dependency.isShuffleMergeFinalizedMarked) {
+        val res = SparkEnv.get.mapOutputTracker.getPushBasedShuffleMapSizesByExecutorId(
+          handle.shuffleId,
+          startMapIndex,
+          endMapIndex,
+          startPartition,
+          endPartition)
+        (res.iter, res.enableBatchFetch)
+      } else {
+        val address = SparkEnv.get.mapOutputTracker.getMapSizesByExecutorId(
+          handle.shuffleId,
+          startMapIndex,
+          endMapIndex,
+          startPartition,
+          endPartition)
+        (address, true)
+      }
+    val shouldBatchFetch =
+      canEnableBatchFetch && canUseBatchFetch(startPartition, endPartition, context)
     if (handle.isInstanceOf[ColumnarShuffleHandle[_, _]]) {
       new BlockStoreShuffleReader(
         handle.asInstanceOf[BaseShuffleHandle[K, _, C]],
@@ -136,7 +151,7 @@ class ColumnarShuffleManager(conf: SparkConf) extends ShuffleManager with Loggin
         context,
         metrics,
         serializerManager = bypassDecompressionSerializerManger,
-        shouldBatchFetch = canUseBatchFetch(startPartition, endPartition, context)
+        shouldBatchFetch = shouldBatchFetch
       )
     } else {
       new BlockStoreShuffleReader(
@@ -144,7 +159,8 @@ class ColumnarShuffleManager(conf: SparkConf) extends ShuffleManager with Loggin
         blocksByAddress,
         context,
         metrics,
-        shouldBatchFetch = canUseBatchFetch(startPartition, endPartition, context))
+        shouldBatchFetch = shouldBatchFetch
+      )
     }
   }
 
