@@ -159,8 +159,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSortOrderExpressionsSuite]
   enableSuite[GlutenStringExpressionsSuite]
   enableSuite[VeloxAdaptiveQueryExecSuite]
+    .includeAllGlutenTests()
     .includeByPrefix(
-      "gluten",
       "SPARK-29906",
       "SPARK-30291",
       "SPARK-30403",
@@ -315,9 +315,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("appending insert")
     .exclude("overwrite insert")
     .exclude("SPARK-34897: Support reconcile schemas based on index after nested column pruning")
-    .exclude("Gluten - SPARK-31238: compatibility with Spark 2.4 in reading dates")
-    .exclude("Gluten - SPARK-31238, SPARK-31423: rebasing dates in write")
-    .exclude("Gluten - SPARK-34862: Support ORC vectorized reader for nested column")
+    .excludeGlutenTest("SPARK-31238: compatibility with Spark 2.4 in reading dates")
+    .excludeGlutenTest("SPARK-31238, SPARK-31423: rebasing dates in write")
+    .excludeGlutenTest("SPARK-34862: Support ORC vectorized reader for nested column")
     // exclude as struct not supported
     .exclude("SPARK-36663: OrcUtils.toCatalystSchema should correctly handle a column name which consists of only numbers")
     .exclude("SPARK-37812: Reuse result row when deserializing a struct")
@@ -815,8 +815,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("change column type from short to int/long")
     .exclude("change column type from int to long")
     .exclude("change column type from float to double")
-    .exclude("Gluten - read byte, int, short, long together")
-    .exclude("Gluten - read float and double together")
+    .excludeGlutenTest("read byte, int, short, long together")
+    .excludeGlutenTest("read float and double together")
   enableSuite[GlutenMergedOrcReadSchemaSuite]
     .exclude("append column into middle")
     .exclude("add a nested column at the end of the leaf struct column")
@@ -988,15 +988,15 @@ class VeloxTestSettings extends BackendTestSettings {
       "NaN is greater than all other non-NaN numeric values",
       // Rewrite this test because the describe functions creates unmatched plan.
       "describe",
-      // The describe issue is just fixed by https://github.com/apache/spark/pull/40914.
-      // We can enable the below test for spark 3.4 and higher versions.
-      "Gluten - describe",
       // decimal failed ut.
       "SPARK-22271: mean overflows and returns null for some decimal variables",
       // Result depends on the implementation for nondeterministic expression rand.
       // Not really an issue.
       "SPARK-9083: sort with non-deterministic expressions"
     )
+    // The describe issue is just fixed by https://github.com/apache/spark/pull/40914.
+    // We can enable the below test for spark 3.4 and higher versions.
+    .excludeGlutenTest("describe")
   enableSuite[GlutenDataFrameTimeWindowingSuite]
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameWindowFramesSuite]

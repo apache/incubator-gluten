@@ -56,22 +56,6 @@ abstract class HashAggregateExecTransformer(
     resultExpressions,
     child) {
 
-  override protected def getAttrForAggregateExprs(
-      aggregateExpressions: Seq[AggregateExpression],
-      aggregateAttributeList: Seq[Attribute]): Seq[Attribute] = {
-    aggregateExpressions.zipWithIndex.flatMap {
-      case (expr, index) =>
-        expr.mode match {
-          case Partial | PartialMerge =>
-            expr.aggregateFunction.aggBufferAttributes
-          case Final =>
-            Seq(aggregateAttributeList(index))
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-        }
-    }
-  }
-
   override protected def checkAggFuncModeSupport(
       aggFunc: AggregateFunction,
       mode: AggregateMode): Boolean = {
@@ -517,21 +501,11 @@ abstract class HashAggregateExecTransformer(
       validation: Boolean = false): RelNode = {
     val originalInputAttributes = child.output
 
-    var aggRel = if (needsPreProjection) {
-      aggParams.preProjectionNeeded = true
-      getAggRelWithPreProjection(context, originalInputAttributes, operatorId, input, validation)
+    var aggRel = if (rowConstructNeeded(aggregateExpressions)) {
+      aggParams.rowConstructionNeeded = true
+      getAggRelWithRowConstruct(context, originalInputAttributes, operatorId, input, validation)
     } else {
-      if (rowConstructNeeded(aggregateExpressions)) {
-        aggParams.preProjectionNeeded = true
-        getAggRelWithRowConstruct(context, originalInputAttributes, operatorId, input, validation)
-      } else {
-        getAggRelWithoutPreProjection(
-          context,
-          originalInputAttributes,
-          operatorId,
-          input,
-          validation)
-      }
+      getAggRelInternal(context, originalInputAttributes, operatorId, input, validation)
     }
 
     if (extractStructNeeded()) {
@@ -539,14 +513,8 @@ abstract class HashAggregateExecTransformer(
       aggRel = applyExtractStruct(context, aggRel, operatorId, validation)
     }
 
-    val resRel = if (!needsPostProjection(allAggregateResultAttributes)) {
-      aggRel
-    } else {
-      aggParams.postProjectionNeeded = true
-      applyPostProjection(context, aggRel, operatorId, validation)
-    }
     context.registerAggregationParam(operatorId, aggParams)
-    resRel
+    aggRel
   }
 
   def isStreaming: Boolean = false
@@ -659,5 +627,30 @@ case class FlushableHashAggregateExecTransformer(
 
   override protected def withNewChildInternal(newChild: SparkPlan): HashAggregateExecTransformer = {
     copy(child = newChild)
+  }
+}
+
+case class HashAggregateExecPullOutHelper(
+    groupingExpressions: Seq[NamedExpression],
+    aggregateExpressions: Seq[AggregateExpression],
+    aggregateAttributes: Seq[Attribute])
+  extends HashAggregateExecPullOutBaseHelper(
+    groupingExpressions,
+    aggregateExpressions,
+    aggregateAttributes) {
+
+  /** This method calculates the output attributes of Aggregation. */
+  override protected def getAttrForAggregateExprs: List[Attribute] = {
+    aggregateExpressions.zipWithIndex.flatMap {
+      case (expr, index) =>
+        expr.mode match {
+          case Partial | PartialMerge =>
+            expr.aggregateFunction.aggBufferAttributes
+          case Final =>
+            Seq(aggregateAttributes(index))
+          case other =>
+            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
+        }
+    }.toList
   }
 }

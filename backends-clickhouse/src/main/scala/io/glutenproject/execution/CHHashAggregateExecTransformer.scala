@@ -162,31 +162,13 @@ case class CHHashAggregateExecTransformer(
       aggParams: AggregationParams,
       input: RelNode = null,
       validation: Boolean = false): RelNode = {
-    val originalInputAttributes = child.output
-    val aggRel = if (needsPreProjection) {
-      aggParams.preProjectionNeeded = true
-      getAggRelWithPreProjection(context, originalInputAttributes, operatorId, input, validation)
-    } else {
-      getAggRelWithoutPreProjection(
-        context,
-        aggregateResultAttributes,
-        operatorId,
-        input,
-        validation)
-    }
-    // Will check if post-projection is needed. If yes, a ProjectRel will be added after the
-    // AggregateRel.
-    val resRel = if (!needsPostProjection(allAggregateResultAttributes)) {
-      aggRel
-    } else {
-      aggParams.postProjectionNeeded = true
-      applyPostProjection(context, aggRel, operatorId, validation)
-    }
+    val aggRel =
+      getAggRelInternal(context, aggregateResultAttributes, operatorId, input, validation)
     context.registerAggregationParam(operatorId, aggParams)
-    resRel
+    aggRel
   }
 
-  override def getAggRelWithoutPreProjection(
+  override def getAggRelInternal(
       context: SubstraitContext,
       originalInputAttributes: Seq[Attribute],
       operatorId: Long,
@@ -411,16 +393,25 @@ case class CHHashAggregateExecTransformer(
     ExtensionBuilder.makeAdvancedExtension(optimization, enhancement)
 
   }
+}
 
-  override protected def getAttrForAggregateExprs(
-      aggregateExpressions: Seq[AggregateExpression],
-      aggregateAttributeList: Seq[Attribute]): List[Attribute] = {
+case class CHHashAggregateExecPullOutHelper(
+    groupingExpressions: Seq[NamedExpression],
+    aggregateExpressions: Seq[AggregateExpression],
+    aggregateAttributes: Seq[Attribute])
+  extends HashAggregateExecPullOutBaseHelper(
+    groupingExpressions,
+    aggregateExpressions,
+    aggregateAttributes) {
+
+  /** This method calculates the output attributes of Aggregation. */
+  override protected def getAttrForAggregateExprs: List[Attribute] = {
     val aggregateAttr = new ListBuffer[Attribute]()
     val size = aggregateExpressions.size
     var resIndex = 0
     for (expIdx <- 0 until size) {
       val exp: AggregateExpression = aggregateExpressions(expIdx)
-      resIndex = getAttrForAggregateExpr(exp, aggregateAttributeList, aggregateAttr, resIndex)
+      resIndex = getAttrForAggregateExpr(exp, aggregateAttributes, aggregateAttr, resIndex)
     }
     aggregateAttr.toList
   }

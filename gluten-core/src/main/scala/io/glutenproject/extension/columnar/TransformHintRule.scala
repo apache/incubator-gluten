@@ -19,7 +19,7 @@ package io.glutenproject.extension.columnar
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
-import io.glutenproject.extension.{GlutenPlan, RewriteMultiChildrenCount, ValidationResult}
+import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.extension.columnar.TransformHints.EncodeTransformableTagImplicits
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.PhysicalPlanSelector
@@ -333,8 +333,6 @@ case class FallbackBloomFilterAggIfNeeded() extends Rule[SparkPlan] {
 // be added on the top of that plan to prevent actual conversion.
 case class AddTransformHintRule() extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getConf
-  val preferColumnar: Boolean = columnarConf.enablePreferColumnar
-  val optimizeLevel: Integer = columnarConf.physicalJoinOptimizationThrottle
   val scanOnly: Boolean = columnarConf.enableScanOnly
   val enableColumnarShuffle: Boolean =
     !scanOnly && BackendsApiManager.getSettings.supportColumnarShuffleExec()
@@ -356,7 +354,6 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
     columnarConf.enableColumnarBroadcastExchange
   val enableColumnarBroadcastJoin: Boolean = !scanOnly &&
     columnarConf.enableColumnarBroadcastJoin
-  val enableColumnarArrowUDF: Boolean = !scanOnly && columnarConf.enableColumnarArrowUDF
   val enableColumnarLimit: Boolean = !scanOnly && columnarConf.enableColumnarLimit
   val enableColumnarGenerate: Boolean = !scanOnly && columnarConf.enableColumnarGenerate
   val enableColumnarCoalesce: Boolean = !scanOnly && columnarConf.enableColumnarCoalesce
@@ -375,7 +372,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
   /** Inserts a transformable tag on top of those that are not supported. */
   private def addTransformableTags(plan: SparkPlan): SparkPlan = {
     // Walk the tree with post-order
-    val out = plan.withNewChildren(plan.children.map(addTransformableTags))
+    val out = plan.mapChildren(addTransformableTags)
     addTransformableTag(out)
     out
   }
@@ -453,16 +450,15 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAggregate is not enabled in HashAggregateExec")
           } else {
-            val rewrittenAgg = RewriteMultiChildrenCount.applyForValidation(plan)
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genHashAggregateExecTransformer(
-                rewrittenAgg.requiredChildDistributionExpressions,
-                rewrittenAgg.groupingExpressions,
-                rewrittenAgg.aggregateExpressions,
-                rewrittenAgg.aggregateAttributes,
-                rewrittenAgg.initialInputBufferOffset,
-                rewrittenAgg.resultExpressions,
-                rewrittenAgg.child
+                plan.requiredChildDistributionExpressions,
+                plan.groupingExpressions,
+                plan.aggregateExpressions,
+                plan.aggregateAttributes,
+                plan.initialInputBufferOffset,
+                plan.resultExpressions,
+                plan.child
               )
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
@@ -474,16 +470,15 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAgg is not enabled in SortAggregateExec")
           } else {
-            val rewrittenAgg = RewriteMultiChildrenCount.applyForValidation(plan)
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genHashAggregateExecTransformer(
-                rewrittenAgg.requiredChildDistributionExpressions,
-                rewrittenAgg.groupingExpressions,
-                rewrittenAgg.aggregateExpressions,
-                rewrittenAgg.aggregateAttributes,
-                rewrittenAgg.initialInputBufferOffset,
-                rewrittenAgg.resultExpressions,
-                rewrittenAgg.child
+                plan.requiredChildDistributionExpressions,
+                plan.groupingExpressions,
+                plan.aggregateExpressions,
+                plan.aggregateAttributes,
+                plan.initialInputBufferOffset,
+                plan.resultExpressions,
+                plan.child
               )
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
@@ -493,16 +488,15 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar HashAgg is not enabled in ObjectHashAggregateExec")
           } else {
-            val rewrittenAgg = RewriteMultiChildrenCount.applyForValidation(plan)
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
               .genHashAggregateExecTransformer(
-                rewrittenAgg.requiredChildDistributionExpressions,
-                rewrittenAgg.groupingExpressions,
-                rewrittenAgg.aggregateExpressions,
-                rewrittenAgg.aggregateAttributes,
-                rewrittenAgg.initialInputBufferOffset,
-                rewrittenAgg.resultExpressions,
-                rewrittenAgg.child
+                plan.requiredChildDistributionExpressions,
+                plan.groupingExpressions,
+                plan.aggregateExpressions,
+                plan.aggregateAttributes,
+                plan.initialInputBufferOffset,
+                plan.resultExpressions,
+                plan.child
               )
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
@@ -540,13 +534,8 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           if (!enableColumnarSort) {
             TransformHints.tagNotTransformable(plan, "columnar Sort is not enabled in SortExec")
           } else {
-            val rewrittenSort = PullOutPreProject.applyForValidation(plan)
             val transformer =
-              SortExecTransformer(
-                rewrittenSort.sortOrder,
-                rewrittenSort.global,
-                rewrittenSort.child,
-                rewrittenSort.testSpillFrequency)
+              SortExecTransformer(plan.sortOrder, plan.global, plan.child, plan.testSpillFrequency)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: ShuffleExchangeExec =>
@@ -698,14 +687,13 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar topK is not enabled in TakeOrderedAndProjectExec")
           } else {
-            val rewrittenTopK = PullOutPreProject.applyForValidation(plan)
             val (limit, offset) =
-              SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(rewrittenTopK)
+              SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(plan)
             val transformer = TakeOrderedAndProjectExecTransformer(
               limit,
-              rewrittenTopK.sortOrder,
-              rewrittenTopK.projectList,
-              rewrittenTopK.child,
+              plan.sortOrder,
+              plan.projectList,
+              plan.child,
               offset)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }

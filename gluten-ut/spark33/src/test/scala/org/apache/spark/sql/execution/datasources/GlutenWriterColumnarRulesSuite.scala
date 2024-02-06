@@ -34,7 +34,7 @@ class GlutenWriterColumnarRulesSuite extends GlutenSQLTestsBaseTrait {
     override def onFailure(funcName: String, qe: QueryExecution, exception: Exception): Unit = {}
   }
 
-  test("Gluten - writing to noop") {
+  testGluten("writing to noop") {
     withTempDir {
       dir =>
         withSQLConf(GlutenConfig.NATIVE_WRITER_ENABLED.key -> "true") {

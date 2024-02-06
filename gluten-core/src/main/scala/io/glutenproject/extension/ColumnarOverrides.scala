@@ -711,6 +711,11 @@ case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[Spar
 
 object ColumnarOverrideRules {
   val GLUTEN_IS_ADAPTIVE_CONTEXT = "gluten.isAdaptiveContext"
+
+  def rewriteSparkPlanRule(): Rule[SparkPlan] = {
+    val rewriteRules = Seq(RewriteMultiChildrenCount, PullOutPreProject, PullOutPostProject)
+    new RewriteSparkPlanRulesManager(rewriteRules)
+  }
 }
 
 case class ColumnarOverrideRules(session: SparkSession)
@@ -787,10 +792,7 @@ case class ColumnarOverrideRules(session: SparkSession)
     ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarValidationRules() :::
       List(
-        (_: SparkSession) => AddTransformHintRule(),
-        (_: SparkSession) => RewriteMultiChildrenCount,
-        (_: SparkSession) => PullOutPreProject,
-        // Apply AddTransformHintRule again for pulled-out project.
+        (_: SparkSession) => rewriteSparkPlanRule(),
         (_: SparkSession) => AddTransformHintRule(),
         (_: SparkSession) => FallbackBloomFilterAggIfNeeded(),
         (_: SparkSession) => TransformPreOverrides(isAdaptiveContext),

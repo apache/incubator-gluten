@@ -65,7 +65,7 @@ class GlutenImplicitsTest extends GlutenSQLTestsBaseTrait {
     }
   }
 
-  test("fallbackSummary with query") {
+  testGluten("fallbackSummary with query") {
     withAQEEnabledAndDisabled {
       val df = spark.table("t1").filter(_.getLong(0) > 0)
       assert(df.fallbackSummary().numGlutenNodes == 1, df.fallbackSummary())
@@ -76,7 +76,7 @@ class GlutenImplicitsTest extends GlutenSQLTestsBaseTrait {
     }
   }
 
-  test("fallbackSummary with shuffle") {
+  testGluten("fallbackSummary with shuffle") {
     withAQEEnabledAndDisabled {
       val df = spark.sql("SELECT c2 FROM t1 group by c2").filter(_.getLong(0) > 0)
       assert(df.fallbackSummary().numGlutenNodes == 5, df.fallbackSummary())
@@ -87,7 +87,7 @@ class GlutenImplicitsTest extends GlutenSQLTestsBaseTrait {
     }
   }
 
-  test("fallbackSummary with set command") {
+  testGluten("fallbackSummary with set command") {
     withAQEEnabledAndDisabled {
       val df = spark.sql("set k=v")
       assert(df.fallbackSummary().numGlutenNodes == 0, df.fallbackSummary())
@@ -95,7 +95,7 @@ class GlutenImplicitsTest extends GlutenSQLTestsBaseTrait {
     }
   }
 
-  test("fallbackSummary with data write command") {
+  testGluten("fallbackSummary with data write command") {
     withAQEEnabledAndDisabled {
       withTable("tmp") {
         val df = spark.sql("create table tmp using parquet as select * from t1")
@@ -105,7 +105,7 @@ class GlutenImplicitsTest extends GlutenSQLTestsBaseTrait {
     }
   }
 
-  test("fallbackSummary with cache") {
+  testGluten("fallbackSummary with cache") {
     withAQEEnabledAndDisabled {
       val df = spark.table("t1").cache().filter(_.getLong(0) > 0)
       assert(df.fallbackSummary().numGlutenNodes == 2, df.fallbackSummary())
@@ -116,7 +116,7 @@ class GlutenImplicitsTest extends GlutenSQLTestsBaseTrait {
     }
   }
 
-  test("fallbackSummary with cached data and shuffle") {
+  testGluten("fallbackSummary with cached data and shuffle") {
     withAQEEnabledAndDisabled {
       val df = spark.sql("select * from t1").filter(_.getLong(0) > 0).cache.repartition()
       assert(df.fallbackSummary().numGlutenNodes == 3, df.fallbackSummary())

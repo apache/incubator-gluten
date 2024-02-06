@@ -16,10 +16,9 @@
  */
 package io.glutenproject.utils
 
-import io.glutenproject.extension.columnar.TransformHints
-
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.execution.aggregate._
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -29,12 +28,23 @@ trait PullOutProjectHelper {
 
   private val generatedNameIndex = new AtomicInteger(0)
 
+  protected def generatePreAliasName = s"_pre_${generatedNameIndex.getAndIncrement()}"
+
   /**
    * The majority of Expressions only support Attribute and BoundReference when converting them into
    * native plans.
    */
   protected def isNotAttribute(expression: Expression): Boolean = expression match {
     case _: Attribute | _: BoundReference => false
+    case _ => true
+  }
+
+  /**
+   * Some Expressions support Attribute, BoundReference and Literal when converting them into native
+   * plans, such as the child of AggregateFunction.
+   */
+  protected def isNotAttributeAndLiteral(expression: Expression): Boolean = expression match {
+    case _: Attribute | _: BoundReference | _: Literal => false
     case _ => true
   }
 
@@ -48,9 +58,7 @@ trait PullOutProjectHelper {
       case e: BoundReference => e
       case other =>
         projectExprsMap
-          .getOrElseUpdate(
-            other.canonicalized,
-            Alias(other, s"_pre_${generatedNameIndex.getAndIncrement()}")())
+          .getOrElseUpdate(other.canonicalized, Alias(other, generatePreAliasName)())
           .toAttribute
     }
 
@@ -60,6 +68,35 @@ trait PullOutProjectHelper {
     childOutput.toIndexedSeq ++ appendAttributes.filter(attr => !childOutput.contains(attr))
   }
 
-  protected def notSupportTransform(plan: SparkPlan): Boolean =
-    TransformHints.isAlreadyTagged(plan) && TransformHints.isNotTransformable(plan)
+  protected def supportedAggregate(agg: BaseAggregateExec): Boolean = agg match {
+    case _: HashAggregateExec | _: SortAggregateExec | _: ObjectHashAggregateExec => true
+    case _ => false
+  }
+
+  protected def copyBaseAggregateExec(agg: BaseAggregateExec)(
+      newGroupingExpressions: Seq[NamedExpression] = agg.groupingExpressions,
+      newAggregateExpressions: Seq[AggregateExpression] = agg.aggregateExpressions,
+      newResultExpressions: Seq[NamedExpression] = agg.resultExpressions
+  ): BaseAggregateExec = agg match {
+    case hash: HashAggregateExec =>
+      hash.copy(
+        groupingExpressions = newGroupingExpressions,
+        aggregateExpressions = newAggregateExpressions,
+        resultExpressions = newResultExpressions
+      )
+    case sort: SortAggregateExec =>
+      sort.copy(
+        groupingExpressions = newGroupingExpressions,
+        aggregateExpressions = newAggregateExpressions,
+        resultExpressions = newResultExpressions
+      )
+    case objectHash: ObjectHashAggregateExec =>
+      objectHash.copy(
+        groupingExpressions = newGroupingExpressions,
+        aggregateExpressions = newAggregateExpressions,
+        resultExpressions = newResultExpressions
+      )
+    case _ =>
+      throw new UnsupportedOperationException(s"Unsupported agg $agg")
+  }
 }

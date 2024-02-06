@@ -34,7 +34,7 @@ class GlutenStringFunctionsSuite
     "string / binary length function"
   )
 
-  test(GlutenTestConstants.GLUTEN_TEST + "string split function with no limit and regex pattern") {
+  testGluten("string split function with no limit and regex pattern") {
     val df1 = Seq(("aaAbbAcc4")).toDF("a").select(split($"a", "A"))
     checkAnswer(df1, Row(Seq("aa", "bb", "cc4")))
     Assert.assertFalse(FallbackUtil.hasFallback(df1.queryExecution.executedPlan))
@@ -46,7 +46,7 @@ class GlutenStringFunctionsSuite
     Assert.assertFalse(FallbackUtil.hasFallback(df2.queryExecution.executedPlan))
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST + "string split function with limit explicitly set to 0") {
+  testGluten("string split function with limit explicitly set to 0") {
     val df1 = Seq(("aaAbbAcc4")).toDF("a").select(split($"a", "A", 0))
     checkAnswer(df1, Row(Seq("aa", "bb", "cc4")))
     Assert.assertFalse(FallbackUtil.hasFallback(df1.queryExecution.executedPlan))
@@ -58,7 +58,7 @@ class GlutenStringFunctionsSuite
     Assert.assertFalse(FallbackUtil.hasFallback(df2.queryExecution.executedPlan))
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST + "string split function with negative limit") {
+  testGluten("string split function with negative limit") {
     val df1 = Seq(("aaAbbAcc4")).toDF("a").select(split($"a", "A", -1))
     checkAnswer(df1, Row(Seq("aa", "bb", "cc4")))
     Assert.assertFalse(FallbackUtil.hasFallback(df1.queryExecution.executedPlan))

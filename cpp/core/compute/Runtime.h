@@ -66,13 +66,14 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
 
   /// Parse and cache the plan.
   /// Return true if parsed successfully.
-  virtual void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) = 0;
+  virtual void
+  parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo, std::optional<std::string> dumpFile) = 0;
 
   virtual std::string planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) = 0;
 
   virtual void injectWriteFilesTempPath(const std::string& path) = 0;
 
-  virtual void parseSplitInfo(const uint8_t* data, int32_t size) = 0;
+  virtual void parseSplitInfo(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) = 0;
 
   // Just for benchmark
   ::substrait::Plan& getPlan() {
@@ -127,6 +128,8 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
       arrow::MemoryPool* arrowPool,
       struct ArrowSchema* cSchema) = 0;
 
+  virtual void dumpConf(const std::string& path) = 0;
+
   const std::unordered_map<std::string, std::string>& getConfMap() {
     return confMap_;
   }
@@ -146,6 +149,6 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   std::optional<std::string> writeFilesTempPath_;
   SparkTaskInfo taskInfo_;
   // Session conf map
-  const std::unordered_map<std::string, std::string> confMap_;
+  std::unordered_map<std::string, std::string> confMap_;
 };
 } // namespace gluten
