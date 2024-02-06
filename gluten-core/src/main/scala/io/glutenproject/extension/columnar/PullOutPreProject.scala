@@ -18,13 +18,15 @@ package io.glutenproject.extension.columnar
 
 import io.glutenproject.utils.PullOutProjectHelper
 
-import org.apache.spark.sql.catalyst.expressions.{Expression, Literal, NamedExpression, SortOrder}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateFunction, Partial}
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Partial}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan, TakeOrderedAndProjectExec}
 import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, TypedAggregateExpression}
+import org.apache.spark.sql.execution.window.WindowExec
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 /**
  * The native engine only supports executing Expressions within the project operator. When there are
@@ -58,6 +60,21 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
               })
             }
         }
+      case window: WindowExec =>
+        window.orderSpec.exists(o => isNotAttribute(o.child)) ||
+        window.partitionSpec.exists(isNotAttribute) ||
+        window.windowExpression.exists(_.find {
+          case we: WindowExpression =>
+            we.windowFunction match {
+              case windowFunc: WindowFunction =>
+                windowFunc.children.exists(isNotAttributeAndLiteral)
+              case ae: AggregateExpression =>
+                ae.filter.exists(isNotAttribute) ||
+                ae.aggregateFunction.children.exists(isNotAttributeAndLiteral)
+              case _ => false
+            }
+          case _ => false
+        }.isDefined)
       case _ => false
     }
   }
@@ -127,19 +144,8 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
           replaceExpressionWithAttribute(_, expressionMap).asInstanceOf[NamedExpression])
 
       // Handle aggregateExpressions.
-      val newAggregateExpressions = agg.aggregateExpressions.toIndexedSeq.map {
-        ae =>
-          val newAggFuncChildren = ae.aggregateFunction.children.map {
-            case literal: Literal => literal
-            case other => replaceExpressionWithAttribute(other, expressionMap)
-          }
-          val newAggFunc = ae.aggregateFunction
-            .withNewChildren(newAggFuncChildren)
-            .asInstanceOf[AggregateFunction]
-          val newFilter =
-            ae.filter.map(replaceExpressionWithAttribute(_, expressionMap))
-          ae.copy(aggregateFunction = newAggFunc, filter = newFilter)
-      }
+      val newAggregateExpressions =
+        agg.aggregateExpressions.toIndexedSeq.map(rewriteAggregateExpression(_, expressionMap))
 
       val newAgg = copyBaseAggregateExec(agg)(
         newGroupingExpressions = newGroupingExpressions,
@@ -148,6 +154,49 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
         eliminateProjectList(agg.child.outputSet, expressionMap.values.toSeq),
         agg.child)
       newAgg.withNewChildren(Seq(preProject))
+
+    case window: WindowExec if needsPreProject(window) =>
+      val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
+      // Handle orderSpec.
+      val newOrderSpec = getNewSortOrder(window.orderSpec, expressionMap)
+
+      // Handle partitionSpec.
+      val newPartitionSpec =
+        window.partitionSpec.map(replaceExpressionWithAttribute(_, expressionMap))
+
+      // Handle windowExpressions.
+      val postWindowExpressions = new ArrayBuffer[NamedExpression]()
+      val newWindowExpressions = window.windowExpression.toIndexedSeq
+        .map {
+          _.transform { case we: WindowExpression => rewriteWindowExpression(we, expressionMap) }
+        }
+        .map {
+          case alias @ Alias(_: WindowExpression, _) =>
+            postWindowExpressions += alias.toAttribute
+            alias
+          case other =>
+            // Directly use the output of WindowExpression, and move expression evaluation to
+            // post-project for computation.
+            assert(hasWindowExpression(other))
+            val we = other.collectFirst { case w: WindowExpression => w }.get
+            val rewriteWindowExpr = rewriteWindowExpression(we, expressionMap)
+            val alias = Alias(rewriteWindowExpr, generatePostAliasName)()
+            postWindowExpressions += other
+              .transform { case _: WindowExpression => alias.toAttribute }
+              .asInstanceOf[NamedExpression]
+            alias
+        }
+
+      val newWindow = window.copy(
+        orderSpec = newOrderSpec,
+        partitionSpec = newPartitionSpec,
+        windowExpression = newWindowExpressions.asInstanceOf[Seq[NamedExpression]],
+        child = ProjectExec(
+          eliminateProjectList(window.child.outputSet, expressionMap.values.toSeq),
+          window.child)
+      )
+
+      ProjectExec(window.child.output ++ postWindowExpressions, newWindow)
 
     case _ => plan
   }

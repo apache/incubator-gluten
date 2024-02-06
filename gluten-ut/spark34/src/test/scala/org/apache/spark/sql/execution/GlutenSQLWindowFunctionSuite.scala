@@ -20,7 +20,6 @@ import io.glutenproject.execution.WindowExecTransformer
 
 import org.apache.spark.sql.GlutenSQLTestsTrait
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.types._
 
 class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQLTestsTrait {
@@ -94,7 +93,7 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
     }
   }
 
-  testGluten("Expression in WindowExpression that will fallback") {
+  testGluten("Expression in WindowExpression") {
     withTable("customer") {
       val rdd = spark.sparkContext.parallelize(customerData)
       val customerDF = spark.createDataFrame(rdd, customerSchema)
@@ -129,7 +128,7 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
       )
       assert(
         getExecutedPlan(df).exists {
-          case _: WindowExec => true
+          case _: WindowExecTransformer => true
           case _ => false
         }
       )
