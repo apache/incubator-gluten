@@ -23,13 +23,15 @@ import io.glutenproject.vectorized.{ColumnarBatchSerializeResult, ColumnarBatchS
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, Partitioning}
+import org.apache.spark.sql.catalyst.expressions.UnsafeRow
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, IdentityBroadcastMode, Partitioning}
 import org.apache.spark.sql.execution.joins.{HashedRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.TaskResources
 
-import scala.collection.JavaConverters._;
+import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer;
 
 // Utility methods to convert Vanilla broadcast relations from/to Velox broadcast relations.
 // FIXME: Truncate output with batch size.
@@ -40,23 +42,46 @@ object BroadcastUtils {
       from: Broadcast[F],
       fn: Iterator[ColumnarBatch] => Iterator[InternalRow]): Broadcast[T] = {
     mode match {
-      case HashedRelationBroadcastMode(_, _) => // no-op
+      case HashedRelationBroadcastMode(_, _) =>
+        // ColumnarBuildSideRelation to HashedRelation.
+        val fromBroadcast = from.asInstanceOf[Broadcast[ColumnarBuildSideRelation]]
+        val fromRelation = fromBroadcast.value.asReadOnlyCopy()
+        var rowCount: Long = 0
+        val toRelation = TaskResources.runUnsafe {
+          val rowIterator = fn(fromRelation.deserialized.flatMap {
+            cb =>
+              rowCount += cb.numRows()
+              Iterator(cb)
+          })
+          mode.transform(rowIterator, Some(rowCount))
+        }
+        // Rebroadcast Spark relation.
+        context.broadcast(toRelation).asInstanceOf[Broadcast[T]]
+      case IdentityBroadcastMode =>
+        // ColumnarBuildSideRelation to HashedRelation.
+        val fromBroadcast = from.asInstanceOf[Broadcast[ColumnarBuildSideRelation]]
+        val fromRelation = fromBroadcast.value.asReadOnlyCopy()
+        val toRelation = TaskResources.runUnsafe {
+          val rowIterator = fn(fromRelation.deserialized)
+          val rowArray = new ArrayBuffer[InternalRow]
+
+          /**
+           * [[io.glutenproject.execution.VeloxColumnarToRowExec.toRowIterator()]] creates a single
+           * UnsafeRow. The iterator uses this same unsafe row and keep on changing the pointer to
+           * point to new value. If we directly call rowIterator.toArray() then all the elements in
+           * array points to same UnsafeRow object resulting in wrong output. here we need to create
+           * a array having individual UnsafeRow object.
+           */
+          while (rowIterator.hasNext) {
+            val unsafeRow = rowIterator.next().asInstanceOf[UnsafeRow]
+            rowArray.append(unsafeRow.copy())
+          }
+          rowArray.toArray
+        }
+        // Rebroadcast Spark relation.
+        context.broadcast(toRelation).asInstanceOf[Broadcast[T]]
       case _ => throw new IllegalStateException("Unexpected broadcast mode: " + mode)
     }
-    // ColumnarBuildSideRelation to HashedRelation.
-    val fromBroadcast = from.asInstanceOf[Broadcast[ColumnarBuildSideRelation]]
-    val fromRelation = fromBroadcast.value.asReadOnlyCopy()
-    var rowCount: Long = 0
-    val toRelation = TaskResources.runUnsafe {
-      val rowIterator = fn(fromRelation.deserialized.flatMap {
-        cb =>
-          rowCount += cb.numRows()
-          Iterator(cb)
-      })
-      mode.transform(rowIterator, Some(rowCount))
-    }
-    // Rebroadcast Spark relation.
-    context.broadcast(toRelation).asInstanceOf[Broadcast[T]]
   }
 
   def sparkToVeloxUnsafe[F, T](
@@ -66,25 +91,41 @@ object BroadcastUtils {
       from: Broadcast[F],
       fn: Iterator[InternalRow] => Iterator[ColumnarBatch]): Broadcast[T] = {
     mode match {
-      case HashedRelationBroadcastMode(_, _) => // no-op
+      case HashedRelationBroadcastMode(_, _) =>
+        // HashedRelation to ColumnarBuildSideRelation.
+        val fromBroadcast = from.asInstanceOf[Broadcast[HashedRelation]]
+        val fromRelation = fromBroadcast.value.asReadOnlyCopy()
+        val keys = fromRelation.keys()
+        val toRelation = TaskResources.runUnsafe {
+          val batchItr: Iterator[ColumnarBatch] = fn(keys.flatMap(key => fromRelation.get(key)))
+          val serialized: Array[Array[Byte]] = serializeStream(batchItr) match {
+            case ColumnarBatchSerializeResult.EMPTY =>
+              Array()
+            case result: ColumnarBatchSerializeResult =>
+              Array(result.getSerialized)
+          }
+          ColumnarBuildSideRelation(schema.toAttributes, serialized)
+        }
+        // Rebroadcast Velox relation.
+        context.broadcast(toRelation).asInstanceOf[Broadcast[T]]
+      case IdentityBroadcastMode =>
+        // Array[InternalRow] to ColumnarBuildSideRelation.
+        val fromBroadcast = from.asInstanceOf[Broadcast[Array[InternalRow]]]
+        val fromRelation = fromBroadcast.value
+        val toRelation = TaskResources.runUnsafe {
+          val batchItr: Iterator[ColumnarBatch] = fn(fromRelation.iterator)
+          val serialized: Array[Array[Byte]] = serializeStream(batchItr) match {
+            case ColumnarBatchSerializeResult.EMPTY =>
+              Array()
+            case result: ColumnarBatchSerializeResult =>
+              Array(result.getSerialized)
+          }
+          ColumnarBuildSideRelation(schema.toAttributes, serialized)
+        }
+        // Rebroadcast Velox relation.
+        context.broadcast(toRelation).asInstanceOf[Broadcast[T]]
       case _ => throw new IllegalStateException("Unexpected broadcast mode: " + mode)
     }
-    // HashedRelation to ColumnarBuildSideRelation.
-    val fromBroadcast = from.asInstanceOf[Broadcast[HashedRelation]]
-    val fromRelation = fromBroadcast.value.asReadOnlyCopy()
-    val keys = fromRelation.keys()
-    val toRelation = TaskResources.runUnsafe {
-      val batchItr: Iterator[ColumnarBatch] = fn(keys.flatMap(key => fromRelation.get(key)))
-      val serialized: Array[Array[Byte]] = serializeStream(batchItr) match {
-        case ColumnarBatchSerializeResult.EMPTY =>
-          Array()
-        case result: ColumnarBatchSerializeResult =>
-          Array(result.getSerialized)
-      }
-      ColumnarBuildSideRelation(schema.toAttributes, serialized)
-    }
-    // Rebroadcast Velox relation.
-    context.broadcast(toRelation).asInstanceOf[Broadcast[T]]
   }
 
   def getBroadcastMode(partitioning: Partitioning): BroadcastMode = {

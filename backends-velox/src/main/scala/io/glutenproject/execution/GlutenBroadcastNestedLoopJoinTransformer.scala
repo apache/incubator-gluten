@@ -23,20 +23,27 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 
 case class GlutenBroadcastNestedLoopJoinTransformer(
-                                                     left: SparkPlan,
-                                                     right: SparkPlan,
-                                                     buildSide: BuildSide,
-                                                     joinType: JoinType,
-                                                     condition: Option[Expression]) extends BroadcastNestedLoopJoinTransformer(
-  left, right, buildSide, joinType, condition
-) {
+    left: SparkPlan,
+    right: SparkPlan,
+    buildSide: BuildSide,
+    joinType: JoinType,
+    condition: Option[Expression])
+  extends BroadcastNestedLoopJoinTransformer(
+    left,
+    right,
+    buildSide,
+    joinType,
+    condition
+  ) {
 
   override protected def createBroadcastBuildSideRDD(): BroadcastBuildSideRDD = {
     val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
     VeloxBroadcastBuildSideRDD(sparkContext, broadcast)
   }
 
-  override protected def withNewChildrenInternal(newLeft: SparkPlan, newRight: SparkPlan): GlutenBroadcastNestedLoopJoinTransformer =
+  override protected def withNewChildrenInternal(
+      newLeft: SparkPlan,
+      newRight: SparkPlan): GlutenBroadcastNestedLoopJoinTransformer =
     copy(left = newLeft, right = newRight)
 
 }
