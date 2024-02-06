@@ -173,9 +173,10 @@ object BackendSettings extends BackendSettingsApi {
     }
 
     def validateFieldMetadata(): Option[String] = {
-      if (fields.exists(!_.metadata.equals(Metadata.empty))) {
-        Some("StructField contain the metadata information.")
-      } else None
+      fields.find(_.metadata != Metadata.empty).map {
+        filed =>
+          s"StructField contain the metadata information: $filed, metadata: ${filed.metadata}"
+      }
     }
 
     def validateFileFormat(): Option[String] = {

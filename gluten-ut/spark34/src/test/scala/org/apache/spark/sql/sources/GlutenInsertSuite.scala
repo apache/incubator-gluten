@@ -25,6 +25,7 @@ import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.execution.{CommandResultExec, QueryExecution, VeloxColumnarWriteFilesExec}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.util.QueryExecutionListener
@@ -33,7 +34,10 @@ import org.apache.hadoop.fs.{Path, RawLocalFileSystem}
 
 import java.io.{File, IOException}
 
-class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
+class GlutenInsertSuite
+  extends InsertSuite
+  with GlutenSQLTestsBaseTrait
+  with AdaptiveSparkPlanHelper {
 
   override def sparkConf: SparkConf = {
     super.sparkConf.set("spark.sql.leafNodeDefaultParallelism", "1")
@@ -55,12 +59,11 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
     super.afterAll()
   }
 
-  private def getWriteFiles(df: DataFrame): VeloxColumnarWriteFilesExec = {
-    val writeFiles = df.queryExecution.executedPlan
-      .asInstanceOf[CommandResultExec]
-      .commandPhysicalPlan
-      .children
-      .head
+  private def checkAndGetWriteFiles(df: DataFrame): VeloxColumnarWriteFilesExec = {
+    val writeFiles = stripAQEPlan(
+      df.queryExecution.executedPlan
+        .asInstanceOf[CommandResultExec]
+        .commandPhysicalPlan).children.head
     assert(writeFiles.isInstanceOf[VeloxColumnarWriteFilesExec])
     writeFiles.asInstanceOf[VeloxColumnarWriteFilesExec]
   }
@@ -93,7 +96,7 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
         val df =
           spark.sql("INSERT INTO TABLE pt partition(pt='a') SELECT * FROM VALUES(1, 'a'),(2, 'b')")
         spark.sparkContext.listenerBus.waitUntilEmpty()
-        getWriteFiles(df)
+        checkAndGetWriteFiles(df)
 
         assert(taskMetrics.bytesWritten > 0)
         assert(taskMetrics.recordsWritten == 2)
@@ -131,7 +134,7 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
   private def validateDynamicPartitionWrite(
       df: DataFrame,
       expectedPartitionNames: Set[String]): Unit = {
-    val writeFiles = getWriteFiles(df)
+    val writeFiles = checkAndGetWriteFiles(df)
     assert(
       writeFiles
         .find(_.isInstanceOf[SortExecTransformer])
@@ -205,7 +208,7 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
       spark.sql("CREATE TABLE t (c1 int, c2 string) USING PARQUET")
 
       val df = spark.sql("INSERT OVERWRITE TABLE t SELECT c1, c2 FROM source SORT BY c1")
-      val writeFiles = getWriteFiles(df)
+      val writeFiles = checkAndGetWriteFiles(df)
       assert(writeFiles.find(x => x.isInstanceOf[SortExecTransformer]).isDefined)
       checkAnswer(spark.sql("SELECT * FROM t"), spark.sql("SELECT * FROM source SORT BY c1"))
     }
@@ -232,6 +235,15 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
             assert(e.getMessage.contains("Failed to rename"))
           }
       }
+    }
+  }
+
+  testGluten("Do not fallback write files if output columns contain Spark internal metadata") {
+    withTable("t1", "t2") {
+      spark.sql("CREATE TABLE t1 USING PARQUET AS SELECT id as c1, id % 3 as c2 FROM range(10)")
+      spark.sql("CREATE TABLE t2 (c1 long, c2 long) USING PARQUET")
+      val df = spark.sql("INSERT INTO TABLE t2 SELECT c2, count(*) FROM t1 GROUP BY c2")
+      checkAndGetWriteFiles(df)
     }
   }
 }
