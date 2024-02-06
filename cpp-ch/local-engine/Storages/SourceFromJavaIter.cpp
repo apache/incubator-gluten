@@ -16,24 +16,35 @@
  */
 #include "SourceFromJavaIter.h"
 #include <Columns/ColumnConst.h>
-#include <Columns/ColumnNullable.h>
 #include <Columns/ColumnMap.h>
+#include <Columns/ColumnNullable.h>
 #include <Columns/ColumnTuple.h>
 #include <Columns/IColumn.h>
 #include <Core/ColumnsWithTypeAndName.h>
+#include <DataTypes/DataTypeArray.h>
+#include <DataTypes/DataTypeMap.h>
+#include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesNumber.h>
+#include <DataTypes/IDataType.h>
+#include <Interpreters/threadPoolCallbackRunner.h>
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <jni/jni_common.h>
-#include <Common/assert_cast.h>
 #include <Common/CHUtil.h>
+#include <Common/CurrentMetrics.h>
 #include <Common/DebugUtils.h>
 #include <Common/Exception.h>
 #include <Common/JNIUtils.h>
-#include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeTuple.h>
-#include <DataTypes/DataTypeMap.h>
-#include <DataTypes/DataTypeNullable.h>
-#include <DataTypes/IDataType.h>
+#include <Common/assert_cast.h>
+
+
+namespace CurrentMetrics
+{
+    extern const Metric Read;
+    extern const Metric ThreadPoolFSReaderThreads;
+    extern const Metric ThreadPoolFSReaderThreadsActive;
+    extern const Metric ThreadPoolFSReaderThreadsScheduled;
+}
 
 namespace local_engine
 {
@@ -41,6 +52,35 @@ jclass SourceFromJavaIter::serialized_record_batch_iterator_class = nullptr;
 jmethodID SourceFromJavaIter::serialized_record_batch_iterator_hasNext = nullptr;
 jmethodID SourceFromJavaIter::serialized_record_batch_iterator_next = nullptr;
 
+class AsynchronousReaderPool
+{
+public:
+    AsynchronousReaderPool()
+    {
+        reader_pool = std::make_unique<ThreadPool>(
+            CurrentMetrics::ThreadPoolFSReaderThreads,
+            CurrentMetrics::ThreadPoolFSReaderThreadsActive,
+            CurrentMetrics::ThreadPoolFSReaderThreadsScheduled,
+            64,
+            64,
+            128);
+    }
+    static AsynchronousReaderPool & instance()
+    {
+        static std::unique_ptr<AsynchronousReaderPool> pool = nullptr;
+        if (!pool)
+            pool = std::make_unique<AsynchronousReaderPool>();
+        return *pool;
+    }
+
+    ThreadPool & getPool()
+    {
+        return *reader_pool;
+    }
+
+private:
+    std::unique_ptr<ThreadPool> reader_pool;
+};
 
 static DB::Block getRealHeader(const DB::Block & header)
 {
@@ -56,9 +96,20 @@ SourceFromJavaIter::SourceFromJavaIter(DB::ContextPtr context_, DB::Block header
     , original_header(header)
     , context(context_)
 {
+    enable_prefetch = context->getSettingsRef().remote_filesystem_read_prefetch;
 }
 
-DB::Chunk SourceFromJavaIter::generate()
+void SourceFromJavaIter::prefetch()
+{
+    if (enable_prefetch)
+    {
+        auto & reader_pool = AsynchronousReaderPool::instance().getPool();
+        prefetch_future = DB::scheduleFromThreadPool<DB::Chunk>(
+            [this]() { return generateImpl(); }, reader_pool, "JavaIterReader", DB::DEFAULT_PREFETCH_PRIORITY);
+    }
+}
+
+DB::Chunk SourceFromJavaIter::generateImpl()
 {
     GET_JNIENV(env)
     jboolean has_next = safeCallBooleanMethod(env, java_iter, serialized_record_batch_iterator_hasNext);
@@ -90,6 +141,23 @@ DB::Chunk SourceFromJavaIter::generate()
         }
     }
     CLEAN_JNIENV
+    return result;
+
+}
+
+DB::Chunk SourceFromJavaIter::generate()
+{
+    DB::Chunk result;
+    if (prefetch_future.valid())
+    {
+        result = prefetch_future.get();
+        prefetch_future = {};
+    }
+    else
+    {
+        result = generateImpl();
+    }
+    prefetch();
     return result;
 }
 

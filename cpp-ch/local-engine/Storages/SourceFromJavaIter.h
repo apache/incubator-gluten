@@ -19,6 +19,7 @@
 #include <Processors/ISource.h>
 #include <Interpreters/Context.h>
 #include <Columns/IColumn.h>
+#include <future>
 
 namespace local_engine
 {
@@ -37,7 +38,10 @@ public:
     String getName() const override { return "SourceFromJavaIter"; }
 
 private:
+
     DB::Chunk generate() override;
+    DB::Chunk generateImpl();
+    void prefetch();
     void convertNullable(DB::Chunk & chunk);
     DB::ColumnPtr convertNestedNullable(const DB::ColumnPtr & column, const DB::DataTypePtr & target_type);
 
@@ -45,6 +49,8 @@ private:
     bool materialize_input;
     DB::ContextPtr context;
     DB::Block original_header;
+    bool enable_prefetch = false;
+    std::future<DB::Chunk> prefetch_future;
 };
 
 }
