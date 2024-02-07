@@ -21,7 +21,9 @@ import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
 import io.glutenproject.expression.{ExpressionNames, Sig}
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
-import org.apache.spark.{SparkException, TaskContext, TaskContextUtils}
+import org.apache.spark.{ShuffleDependency, ShuffleUtils, SparkEnv, SparkException, TaskContext, TaskContextUtils}
+import org.apache.spark.serializer.SerializerManager
+import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
@@ -39,6 +41,7 @@ import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+import org.apache.spark.storage.{BlockId, BlockManagerId}
 
 import org.apache.hadoop.fs.Path
 
@@ -160,5 +163,15 @@ class Spark33Shims extends SparkShims {
 
   override def createTestTaskContext(): TaskContext = {
     TaskContextUtils.createTestTaskContext()
+  }
+
+  override def getShuffleReaderParam[K, C](
+      handle: ShuffleHandle,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      startPartition: Int,
+      endPartition: Int)
+      : Tuple2[Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])], Boolean] = {
+    ShuffleUtils.getReaderParam(handle, startMapIndex, endMapIndex, startPartition, endPartition)
   }
 }

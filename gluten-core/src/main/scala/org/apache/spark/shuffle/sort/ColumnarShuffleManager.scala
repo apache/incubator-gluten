@@ -123,25 +123,14 @@ class ColumnarShuffleManager(conf: SparkConf) extends ShuffleManager with Loggin
       endPartition: Int,
       context: TaskContext,
       metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C] = {
-    val baseShuffleHandle = handle.asInstanceOf[BaseShuffleHandle[K, _, C]]
-    val (blocksByAddress, canEnableBatchFetch) =
-      if (baseShuffleHandle.dependency.isShuffleMergeFinalizedMarked) {
-        val res = SparkEnv.get.mapOutputTracker.getPushBasedShuffleMapSizesByExecutorId(
-          handle.shuffleId,
-          startMapIndex,
-          endMapIndex,
-          startPartition,
-          endPartition)
-        (res.iter, res.enableBatchFetch)
-      } else {
-        val address = SparkEnv.get.mapOutputTracker.getMapSizesByExecutorId(
-          handle.shuffleId,
-          startMapIndex,
-          endMapIndex,
-          startPartition,
-          endPartition)
-        (address, true)
-      }
+    val (blocksByAddress, canEnableBatchFetch) = {
+      GlutenShuffleUtils.getReaderParam(
+        handle,
+        startMapIndex,
+        endMapIndex,
+        startPartition,
+        endPartition)
+    }
     val shouldBatchFetch =
       canEnableBatchFetch && canUseBatchFetch(startPartition, endPartition, context)
     if (handle.isInstanceOf[ColumnarShuffleHandle[_, _]]) {
