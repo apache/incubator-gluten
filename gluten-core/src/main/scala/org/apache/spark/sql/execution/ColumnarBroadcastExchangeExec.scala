@@ -71,7 +71,8 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
             // compare the isNullAware, so gluten will not generate HashedRelationWithAllNullKeys
             // or EmptyHashedRelation, this difference will cause performance regression in some
             // cases.
-            // For the above reason, the same implementation can be used for both HashedRelationBroadcastMode as well as IdentityBroadcastMode.
+            // For the above reason, the same implementation can be used for both 
+            // HashedRelationBroadcastMode as well as IdentityBroadcastMode.
             BackendsApiManager.getSparkPlanExecApiInstance.createBroadcastRelation(
               mode,
               child,
