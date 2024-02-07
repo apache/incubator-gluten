@@ -518,7 +518,8 @@ class MetricsApiImpl extends MetricsApi with Logging {
   override def genHashJoinTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new HashJoinMetricsUpdater(metrics)
 
-  def genCartesianProductTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
+  override def genCartesianProductTransformerMetrics(
+      sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
@@ -533,7 +534,7 @@ class MetricsApiImpl extends MetricsApi with Logging {
         "number of memory allocations")
     )
 
-  def genCartesianProductTransformerMetricsUpdater(
+  override def genCartesianProductTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new CartesianProductMetricsUpdater(metrics)
 
   override def genGenerateTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] = {

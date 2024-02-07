@@ -79,6 +79,7 @@ abstract class BroadcastNestedLoopJoinTransformer(
 
   protected def createBroadcastBuildSideRDD(): BroadcastBuildSideRDD
 
+  // TODO: Add Metrics Updater
   override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater
 
   override def output: Seq[Attribute] = {
@@ -172,10 +173,8 @@ abstract class BroadcastNestedLoopJoinTransformer(
     if (!BackendsApiManager.getSettings.supportBroadcastNestedLoopJoinExec()) {
       return ValidationResult.notOk("Broadcast Nested Loop join is not supported in this backend")
     }
-    joinType match {
-      case _: InnerLike | LeftOuter | RightOuter | FullOuter =>
-      case _ =>
-        ValidationResult.notOk(s"$joinType is not supported with Broadcast Nested Loop Join")
+    if (substraitJoinType == CrossRel.JoinType.UNRECOGNIZED) {
+      return ValidationResult.notOk(s"$joinType is not supported with Broadcast Nested Loop Join")
     }
     val substraitContext = new SubstraitContext
     val expressionNode = condition.map {

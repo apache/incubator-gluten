@@ -71,6 +71,7 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
             // compare the isNullAware, so gluten will not generate HashedRelationWithAllNullKeys
             // or EmptyHashedRelation, this difference will cause performance regression in some
             // cases.
+            // For the above reason, the same implementation can be used for both HashedRelationBroadcastMode as well as IdentityBroadcastMode.
             BackendsApiManager.getSparkPlanExecApiInstance.createBroadcastRelation(
               mode,
               child,
@@ -131,12 +132,6 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-//    mode match {
-//      case _: HashedRelationBroadcastMode =>
-//      case _ =>
-//     // TODO IdentityBroadcastMode not supported. Need to support BroadcastNestedLoopJoin first.
-//        return ValidationResult.notOk("Only support HashedRelationBroadcastMode for now.")
-//    }
     BackendsApiManager.getValidatorApiInstance
       .doSchemaValidate(schema)
       .map {
