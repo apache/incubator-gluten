@@ -402,7 +402,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   // Used by complex types.
   // Partition id -> Serialized complex data.
-  std::vector<std::unique_ptr<facebook::velox::VectorSerializer>> complexTypeData_;
+  std::vector<std::unique_ptr<facebook::velox::IterativeVectorSerializer>> complexTypeData_;
   std::vector<std::shared_ptr<arrow::ResizableBuffer>> complexTypeFlushBuffer_;
   std::shared_ptr<const facebook::velox::RowType> complexWriteType_;
 
