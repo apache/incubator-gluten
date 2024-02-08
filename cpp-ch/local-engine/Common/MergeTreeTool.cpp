@@ -42,7 +42,10 @@ std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(const DB::NamesAndTyp
     metadata->sorting_key = KeyDescription::parse(table.order_by_key, metadata->getColumns(), context);
     if (table.primary_key.empty())
     {
-        metadata->primary_key.expression = std::make_shared<ExpressionActions>(std::make_shared<ActionsDAG>());
+         if (table.order_by_key != MergeTreeTable::TUPLE)
+             metadata->primary_key = KeyDescription::parse(table.order_by_key, metadata->getColumns(), context);
+         else
+            metadata->primary_key.expression = std::make_shared<ExpressionActions>(std::make_shared<ActionsDAG>());
     }
     else
     {
