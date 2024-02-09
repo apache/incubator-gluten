@@ -40,16 +40,10 @@ object SubstraitUtil {
       JoinRel.JoinType.UNRECOGNIZED
   }
 
+  // Currently, only supports inner joins
   def toCrossRelSubstrait(sparkJoin: JoinType): CrossRel.JoinType = sparkJoin match {
     case _: InnerLike =>
       CrossRel.JoinType.JOIN_TYPE_INNER
-    case FullOuter =>
-      CrossRel.JoinType.JOIN_TYPE_OUTER
-    case LeftOuter | RightOuter =>
-      // The right side is required to be used for building hash table in Substrait plan.
-      // Therefore, for RightOuter Join, the left and right relations are exchanged and the
-      // join type is reverted.
-      CrossRel.JoinType.JOIN_TYPE_LEFT
     case _ =>
       // TODO: Support existence join
       CrossRel.JoinType.UNRECOGNIZED

@@ -27,8 +27,8 @@ import io.glutenproject.utils.SubstraitUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.plans.{FullOuter, InnerLike, JoinType, LeftOuter, RightOuter}
-import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
+import org.apache.spark.sql.catalyst.plans.{InnerLike, JoinType}
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.joins.BaseJoinExec
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -86,12 +86,6 @@ abstract class BroadcastNestedLoopJoinTransformer(
     joinType match {
       case _: InnerLike =>
         left.output ++ right.output
-      case LeftOuter =>
-        left.output ++ right.output.map(_.withNullability(true))
-      case RightOuter =>
-        left.output.map(_.withNullability(true)) ++ right.output
-      case FullOuter =>
-        (left.output ++ right.output).map(_.withNullability(true))
       case x =>
         throw new IllegalArgumentException(s"${getClass.getSimpleName} not take $x as the JoinType")
     }
@@ -101,9 +95,6 @@ abstract class BroadcastNestedLoopJoinTransformer(
     case BuildLeft =>
       joinType match {
         case _: InnerLike => right.outputPartitioning
-        case RightOuter => right.outputPartitioning
-        case LeftOuter => left.outputPartitioning
-        case FullOuter => UnknownPartitioning(left.outputPartitioning.numPartitions)
         case x =>
           throw new IllegalArgumentException(
             s"BroadcastNestedLoopJoin should not take $x as the JoinType with building left side")
@@ -111,9 +102,6 @@ abstract class BroadcastNestedLoopJoinTransformer(
     case BuildRight =>
       joinType match {
         case _: InnerLike => left.outputPartitioning
-        case LeftOuter => left.outputPartitioning
-        case RightOuter => right.outputPartitioning
-        case FullOuter => UnknownPartitioning(right.outputPartitioning.numPartitions)
         case x =>
           throw new IllegalArgumentException(
             s"BroadcastNestedLoopJoin should not take $x as the JoinType with building right side")
