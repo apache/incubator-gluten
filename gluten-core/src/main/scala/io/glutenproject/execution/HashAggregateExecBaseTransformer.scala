@@ -144,11 +144,6 @@ abstract class HashAggregateExecBaseTransformer(
       mode: AggregateMode): Boolean = {
     aggFunc match {
       case s: Sum if s.prettyName.equals("try_sum") => false
-      case _: CollectList | _: CollectSet =>
-        mode match {
-          case Partial | Final | Complete => true
-          case _ => false
-        }
       case bloom if bloom.getClass.getSimpleName.equals("BloomFilterAggregate") =>
         mode match {
           case Partial | Final | Complete => true

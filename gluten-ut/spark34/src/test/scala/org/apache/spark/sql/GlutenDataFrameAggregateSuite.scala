@@ -20,7 +20,7 @@ import io.glutenproject.execution.HashAggregateExecBaseTransformer
 
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.execution.WholeStageCodegenExec
-import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
+import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.expressions.Aggregator
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
@@ -262,13 +262,10 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
         // test case for ObjectHashAggregate and SortAggregate
         val objHashAggOrSortAggDF = df.groupBy("x").agg(c, collect_list("y"))
         objHashAggOrSortAggDF.collect()
-        val objHashAggOrSortAggPlan =
-          stripAQEPlan(objHashAggOrSortAggDF.queryExecution.executedPlan)
-        if (useObjectHashAgg) {
-          assert(objHashAggOrSortAggPlan.isInstanceOf[ObjectHashAggregateExec])
-        } else {
-          assert(objHashAggOrSortAggPlan.isInstanceOf[SortAggregateExec])
-        }
+        assert(stripAQEPlan(objHashAggOrSortAggDF.queryExecution.executedPlan).find {
+          case _: HashAggregateExecBaseTransformer => true
+          case _ => false
+        }.isDefined)
       }
     }
   }

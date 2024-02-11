@@ -130,4 +130,6 @@ trait BackendSettingsApi {
 
   /** Merge two phases hash based aggregate if need */
   def mergeTwoPhasesHashBaseAggregateIfNeed(): Boolean = false
+
+  def shouldRewriteTypedImperativeAggregate(): Boolean = false
 }

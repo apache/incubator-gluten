@@ -73,12 +73,7 @@ class GlutenReplaceHashWithSortAggSuite
                |)
                |GROUP BY key
              """.stripMargin
-          aggExpr match {
-            case "FIRST" =>
-              checkAggs(query, 2, 0, 2, 0)
-            case _ =>
-              checkAggs(query, 1, 1, 2, 0)
-          }
+          checkAggs(query, 2, 0, 2, 0)
       }
     }
   }
