@@ -256,7 +256,7 @@ void RangeSelectorBuilder::initRangeBlock(Poco::JSON::Array::Ptr range_bounds)
                 }
                 else if (type_name == "Int8")
                 {
-                    col->insert(field_value.convert<Int8>());
+                    col->insert(field_value.convert<Poco::Int8>());
                 }
                 else if (type_name == "Int16")
                 {
