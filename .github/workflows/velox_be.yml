@@ -63,7 +63,7 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --run_setup_script=OFF --velox_home=/opt/velox --enable_ep_cache=ON --build_test_utils=ON'
+          ./build_velox.sh --run_setup_script=ON --velox_home=/opt/velox --enable_ep_cache=ON --build_test_utils=ON'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -110,7 +110,7 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --run_setup_script=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
+          ./build_velox.sh --run_setup_script=ON --velox_home=/opt/velox --enable_ep_cache=ON'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
