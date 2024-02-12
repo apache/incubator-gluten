@@ -47,19 +47,19 @@ abstract class BroadcastNestedLoopJoinTransformer(
   override def leftKeys: Seq[Expression] = Nil
   override def rightKeys: Seq[Expression] = Nil
 
-  protected lazy val substraitJoinType: CrossRel.JoinType =
+  private lazy val substraitJoinType: CrossRel.JoinType =
     SubstraitUtil.toCrossRelSubstrait(joinType)
 
-  lazy val buildTableId: String = "BuildTable-" + buildPlan.id
+  private lazy val buildTableId: String = "BuildTable-" + buildPlan.id
 
   // Hint substrait to switch the left and right,
   // since we assume always build right side in substrait.
-  protected lazy val needSwitchChildren: Boolean = buildSide match {
+  private lazy val needSwitchChildren: Boolean = buildSide match {
     case BuildLeft => true
     case BuildRight => false
   }
 
-  lazy val (buildPlan, streamedPlan) = if (needSwitchChildren) {
+  protected lazy val (buildPlan, streamedPlan) = if (needSwitchChildren) {
     (left, right)
   } else {
     (right, left)
