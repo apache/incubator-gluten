@@ -109,11 +109,11 @@ abstract class BroadcastNestedLoopJoinTransformer(
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    val streamedPlanContext = left.asInstanceOf[TransformSupport].doTransform(context)
+    val streamedPlanContext = streamedPlan.asInstanceOf[TransformSupport].doTransform(context)
     val (inputStreamedRelNode, inputStreamedOutput) =
       (streamedPlanContext.root, streamedPlanContext.outputAttributes)
 
-    val buildPlanContext = right.asInstanceOf[TransformSupport].doTransform(context)
+    val buildPlanContext = buildPlan.asInstanceOf[TransformSupport].doTransform(context)
     val (inputBuildRelNode, inputBuildOutput) =
       (buildPlanContext.root, buildPlanContext.outputAttributes)
 
@@ -168,11 +168,11 @@ abstract class BroadcastNestedLoopJoinTransformer(
     val expressionNode = condition.map {
       expr =>
         ExpressionConverter
-          .replaceWithExpressionTransformer(expr, left.output ++ right.output)
+          .replaceWithExpressionTransformer(expr, streamedPlan.output ++ buildPlan.output)
           .doTransform(substraitContext.registeredFunction)
     }
     val extensionNode =
-      JoinUtils.createExtensionNode(left.output ++ right.output, validation = true)
+      JoinUtils.createExtensionNode(streamedPlan.output ++ buildPlan.output, validation = true)
 
     val currRel = RelBuilder.makeCrossRel(
       null,
