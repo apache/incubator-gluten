@@ -1105,8 +1105,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Not useful and time consuming.
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL")
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL -- jar contains udf class")
-    // overflow support needed in velox
-    .exclude("SPARK-38548: try_sum should return null if overflow happens before merging")
     // exception test, rewritten in gluten
     .exclude("the escape character is not allowed to end with")
     // ORC related
