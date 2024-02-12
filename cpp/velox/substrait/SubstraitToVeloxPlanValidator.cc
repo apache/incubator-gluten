@@ -1088,11 +1088,17 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
       const auto& aggFunction = smea.measure();
       const auto& functionSpec = planConverter_.findFuncSpec(aggFunction.function_reference());
       funcSpecs.emplace_back(functionSpec);
-      SubstraitParser::parseType(aggFunction.output_type());
+      const auto outputType = SubstraitParser::parseType(aggFunction.output_type());
       // Validate the size of arguments.
       if (SubstraitParser::getNameBeforeDelimiter(functionSpec) == "count" && aggFunction.arguments().size() > 1) {
         LOG_VALIDATION_MSG("Count should have only one argument.");
         // Count accepts only one argument.
+        return false;
+      }
+
+      // Partial try_sum generate sum and isEmpty as output
+      if (SubstraitParser::getNameBeforeDelimiter(functionSpec) == "sum" && outputType->kind() == TypeKind::ROW) {
+        LOG_VALIDATION_MSG("try_sum not supported.");
         return false;
       }
 
