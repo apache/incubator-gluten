@@ -364,8 +364,8 @@ object ConverterUtils extends Logging {
         val scale = decimalType.scale
         // TODO: different with Substrait due to more details here.
         "dec<" + precision + "," + scale + ">"
-      case ArrayType(_, _) =>
-        "list"
+      case ArrayType(elementType, _) =>
+        s"list<${getTypeSigName(elementType)}>"
       case StructType(fields) =>
         // TODO: different with Substrait due to more details here.
         var sigName = "struct<"

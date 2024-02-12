@@ -993,4 +993,12 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       runQueryAndCompare("SELECT c1, HOUR(c2) FROM t1 LIMIT 1")(df => checkFallbackOperators(df, 0))
     }
   }
+
+  test("Support Array type signature") {
+    withTable("t") {
+      sql("CREATE TABLE t(id INT, l ARRAY<INT>) USING PARQUET")
+      sql("INSERT INTO t VALUES(1, ARRAY(1, 2)), (2, ARRAY(3, 4))")
+      runQueryAndCompare("SELECT first(l) FROM t")(df => checkFallbackOperators(df, 0))
+    }
+  }
 }
