@@ -1538,7 +1538,7 @@ object GlutenConfig {
   val BROADCAST_NESTED_LOOP_JOIN_TRANSFORMER_ENABLED =
     buildConf("spark.gluten.sql.broadcastNestedLoopJoinTransformerEnabled")
       .internal()
-      .doc("Config to enable BroadcastNestedLoopJoinTransformer.")
+      .doc("Config to enable BroadcastNestedLoopJoinExecTransformer.")
       .booleanConf
       .createWithDefault(true)
 
