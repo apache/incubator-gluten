@@ -286,6 +286,7 @@ macro(find_azure)
   find_package(LibXml2 REQUIRED)
   set (CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(azure-storage-blobs-cpp CONFIG REQUIRED)
+  find_package(azure-storage-files-datalake-cpp CONFIG REQUIRED)
 endmacro()
 
 # Build Velox backend.
@@ -425,4 +426,5 @@ if(ENABLE_ABFS)
   add_definitions(-DENABLE_ABFS)
   find_azure()
   target_link_libraries(velox PUBLIC Azure::azure-storage-blobs)
+  target_link_libraries(velox PUBLIC Azure::azure-storage-files-datalake)
 endif()
