@@ -132,7 +132,7 @@ trait SparkPlanExecApi {
       right: SparkPlan,
       buildSide: BuildSide,
       joinType: JoinType,
-      condition: Option[Expression]): BroadcastNestedLoopJoinTransformer
+      condition: Option[Expression]): BroadcastNestedLoopJoinExecTransformer
 
   def genAliasTransformer(
       substraitExprName: String,

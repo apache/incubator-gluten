@@ -35,7 +35,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import io.substrait.proto.CrossRel
 
-abstract class BroadcastNestedLoopJoinTransformer(
+abstract class BroadcastNestedLoopJoinExecTransformer(
     left: SparkPlan,
     right: SparkPlan,
     buildSide: BuildSide,
@@ -43,6 +43,8 @@ abstract class BroadcastNestedLoopJoinTransformer(
     condition: Option[Expression])
   extends BaseJoinExec
   with TransformSupport {
+
+  def joinBuildSide: BuildSide = buildSide
 
   override def leftKeys: Seq[Expression] = Nil
   override def rightKeys: Seq[Expression] = Nil

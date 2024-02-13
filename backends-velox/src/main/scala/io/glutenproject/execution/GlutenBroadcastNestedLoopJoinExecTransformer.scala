@@ -22,13 +22,13 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 
-case class GlutenBroadcastNestedLoopJoinTransformer(
+case class GlutenBroadcastNestedLoopJoinExecTransformer(
     left: SparkPlan,
     right: SparkPlan,
     buildSide: BuildSide,
     joinType: JoinType,
     condition: Option[Expression])
-  extends BroadcastNestedLoopJoinTransformer(
+  extends BroadcastNestedLoopJoinExecTransformer(
     left,
     right,
     buildSide,
@@ -43,7 +43,7 @@ case class GlutenBroadcastNestedLoopJoinTransformer(
 
   override protected def withNewChildrenInternal(
       newLeft: SparkPlan,
-      newRight: SparkPlan): GlutenBroadcastNestedLoopJoinTransformer =
+      newRight: SparkPlan): GlutenBroadcastNestedLoopJoinExecTransformer =
     copy(left = newLeft, right = newRight)
 
 }

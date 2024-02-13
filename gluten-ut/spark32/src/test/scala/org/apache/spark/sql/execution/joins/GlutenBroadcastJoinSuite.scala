@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution.joins
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ColumnarToRowExecBase, WholeStageTransformer}
+import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, BroadcastNestedLoopJoinExecTransformer, ColumnarToRowExecBase, WholeStageTransformer}
 import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.sql.{GlutenTestsCommonTrait, SparkSession}
@@ -43,10 +43,16 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
 
   private val EnsureRequirements = new EnsureRequirements()
 
+  private val isVeloxBackend = BackendTestUtils.isVeloxBackendLoaded()
+
   // BroadcastHashJoinExecTransformer is not case class, can't call toString method,
   // let's put constant string here.
   private val bh = "BroadcastHashJoinExecTransformer"
-  private val bl = BroadcastNestedLoopJoinExec.toString
+  private val bl = if (isVeloxBackend) {
+    "BroadcastNestedLoopJoinExecTransformer"
+  } else {
+    BroadcastNestedLoopJoinExec.toString
+  }
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -249,10 +255,15 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
         c2r.child match {
           case w: WholeStageTransformer =>
             val join = w.child match {
-              case b: BroadcastHashJoinExecTransformer => b
+              case b: BroadcastHashJoinExecTransformer =>
+                b
+                assert(join.getClass.getSimpleName.endsWith(joinMethod))
+                assert(join.joinBuildSide == buildSide)
+              case b: BroadcastNestedLoopJoinExecTransformer =>
+                b
+                assert(join.getClass.getSimpleName.endsWith(joinMethod))
+                assert(join.joinBuildSide == buildSide)
             }
-            assert(join.getClass.getSimpleName.endsWith(joinMethod))
-            assert(join.joinBuildSide == buildSide)
         }
       case b: BroadcastNestedLoopJoinExec =>
         assert(b.getClass.getSimpleName === joinMethod)

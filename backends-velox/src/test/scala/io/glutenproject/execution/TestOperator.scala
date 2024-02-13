@@ -868,7 +868,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
             |select * from t1 cross join t2;
             |""".stripMargin
         ) {
-          checkOperatorMatch[BroadcastNestedLoopJoinTransformer]
+          checkOperatorMatch[BroadcastNestedLoopJoinExecTransformer]
         }
       }
     }

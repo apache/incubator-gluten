@@ -26,7 +26,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.Statistics
-import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, Partitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, IdentityBroadcastMode, Partitioning}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, BroadcastExchangeLike}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.internal.SQLConf
@@ -133,6 +133,13 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
   }
 
   override protected def doValidateInternal(): ValidationResult = {
+    // CH backend does not support IdentityBroadcastMode used in BNLJ
+    if (
+      mode == IdentityBroadcastMode && !BackendsApiManager.getSettings
+        .supportBroadcastNestedLoopJoinExec()
+    ) {
+      return ValidationResult.notOk("This backend does not support IdentityBroadcastMode and BNLJ")
+    }
     BackendsApiManager.getValidatorApiInstance
       .doSchemaValidate(schema)
       .map {

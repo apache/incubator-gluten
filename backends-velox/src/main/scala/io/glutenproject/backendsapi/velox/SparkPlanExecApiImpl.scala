@@ -252,8 +252,8 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       right: SparkPlan,
       buildSide: BuildSide,
       joinType: JoinType,
-      condition: Option[Expression]): BroadcastNestedLoopJoinTransformer =
-    GlutenBroadcastNestedLoopJoinTransformer(
+      condition: Option[Expression]): BroadcastNestedLoopJoinExecTransformer =
+    GlutenBroadcastNestedLoopJoinExecTransformer(
       left,
       right,
       buildSide,
