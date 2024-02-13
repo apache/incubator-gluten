@@ -496,7 +496,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
         val left = replaceWithTransformerPlan(plan.left)
         val right = replaceWithTransformerPlan(plan.right)
         BackendsApiManager.getSparkPlanExecApiInstance
-          .genBroadcastNestedLoopJoinTransformer(
+          .genBroadcastNestedLoopJoinExecTransformer(
             left,
             right,
             plan.buildSide,

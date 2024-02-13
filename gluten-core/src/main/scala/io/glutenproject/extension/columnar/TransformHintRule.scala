@@ -634,7 +634,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               "conversion to BroadcastNestedLoopJoinTransformer is not enabled.")
           } else {
             val transformer = BackendsApiManager.getSparkPlanExecApiInstance
-              .genBroadcastNestedLoopJoinTransformer(
+              .genBroadcastNestedLoopJoinExecTransformer(
                 plan.left,
                 plan.right,
                 plan.buildSide,

@@ -254,15 +254,13 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
       case c2r: ColumnarToRowExecBase =>
         c2r.child match {
           case w: WholeStageTransformer =>
-            val join = w.child match {
+            w.child match {
               case b: BroadcastHashJoinExecTransformer =>
-                b
-                assert(join.getClass.getSimpleName.endsWith(joinMethod))
-                assert(join.joinBuildSide == buildSide)
+                assert(b.getClass.getSimpleName.endsWith(joinMethod))
+                assert(b.joinBuildSide == buildSide)
               case b: BroadcastNestedLoopJoinExecTransformer =>
-                b
-                assert(join.getClass.getSimpleName.endsWith(joinMethod))
-                assert(join.joinBuildSide == buildSide)
+                assert(b.getClass.getSimpleName.endsWith(joinMethod))
+                assert(b.joinBuildSide == buildSide)
             }
         }
       case b: BroadcastNestedLoopJoinExec =>

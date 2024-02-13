@@ -247,7 +247,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
     )
   }
 
-  override def genBroadcastNestedLoopJoinTransformer(
+  override def genBroadcastNestedLoopJoinExecTransformer(
       left: SparkPlan,
       right: SparkPlan,
       buildSide: BuildSide,
