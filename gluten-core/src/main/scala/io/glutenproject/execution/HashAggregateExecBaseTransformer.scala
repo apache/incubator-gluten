@@ -176,7 +176,7 @@ abstract class HashAggregateExecBaseTransformer(
       aggFunc: AggregateFunction,
       mode: AggregateMode): Boolean = {
     aggFunc match {
-      case s: Sum if s.evalMode == EvalMode.TRY => false
+      case s: Sum if s.prettyName.equals("try_sum") => false
       case _: CollectList | _: CollectSet =>
         mode match {
           case Partial | Final => true
