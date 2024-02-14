@@ -526,7 +526,7 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
       "wallNanos" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
-        "totaltime of cartesian product"),
+        "total time of NestedLoopJoin"),
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
       "numMemoryAllocations" -> SQLMetrics.createMetric(
@@ -535,7 +535,7 @@ class MetricsApiImpl extends MetricsApi with Logging {
     )
 
   override def genNestedLoopJoinTransformerMetricsUpdater(
-      metrics: Map[String, SQLMetric]): MetricsUpdater = new CartesianProductMetricsUpdater(metrics)
+      metrics: Map[String, SQLMetric]): MetricsUpdater = new NestedLoopJoinMetricsUpdater(metrics)
 
   override def genGenerateTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] = {
     Map("numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))

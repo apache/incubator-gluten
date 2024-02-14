@@ -27,7 +27,7 @@ import io.glutenproject.utils.SubstraitUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.plans.{InnerLike, JoinType}
+import org.apache.spark.sql.catalyst.plans.{InnerLike, JoinType, LeftOuter, RightOuter}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.joins.BaseJoinExec
@@ -93,6 +93,10 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
     joinType match {
       case _: InnerLike =>
         left.output ++ right.output
+      case LeftOuter =>
+        left.output ++ right.output.map(_.withNullability(true))
+      case RightOuter =>
+        left.output.map(_.withNullability(true)) ++ right.output
       case x =>
         throw new IllegalArgumentException(s"${getClass.getSimpleName} not take $x as the JoinType")
     }
@@ -102,6 +106,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
     case BuildLeft =>
       joinType match {
         case _: InnerLike => right.outputPartitioning
+        case RightOuter => right.outputPartitioning
         case x =>
           throw new IllegalArgumentException(
             s"BroadcastNestedLoopJoin should not take $x as the JoinType with building left side")
@@ -109,6 +114,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
     case BuildRight =>
       joinType match {
         case _: InnerLike => left.outputPartitioning
+        case LeftOuter => left.outputPartitioning
         case x =>
           throw new IllegalArgumentException(
             s"BroadcastNestedLoopJoin should not take $x as the JoinType with building right side")
@@ -170,6 +176,11 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
     }
     if (substraitJoinType == CrossRel.JoinType.UNRECOGNIZED) {
       return ValidationResult.notOk(s"$joinType is not supported with Broadcast Nested Loop Join")
+    }
+    (joinType, buildSide) match {
+      case (LeftOuter, BuildLeft) | (RightOuter, BuildRight) =>
+        return ValidationResult.notOk(s"$joinType join is not supported with $buildSide")
+      case _ => // continue
     }
     val substraitContext = new SubstraitContext
     val expressionNode = condition.map {

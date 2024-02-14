@@ -151,9 +151,9 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
         // FULL OUTER && t1Size < t2Size => BuildLeft
         assertJoinBuildSide("SELECT * FROM t1 FULL OUTER JOIN t2", bl, BuildLeft)
         // LEFT JOIN => BuildRight
-        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 LEFT JOIN t2", bl, BuildRight)
+        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 LEFT JOIN t2", blt, BuildRight)
         // RIGHT JOIN => BuildLeft
-        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 RIGHT JOIN t2", bl, BuildLeft)
+        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 RIGHT JOIN t2", blt, BuildLeft)
 
         /* #### test with broadcast hint #### */
         // INNER JOIN && broadcast(t1) => BuildLeft
@@ -208,12 +208,12 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
         }
 
         // For left join, prefer to broadcast the right side.
-        assertJoinBuildSide("SELECT * FROM t1 LEFT JOIN t2", bl, BuildRight)
-        assertJoinBuildSide("SELECT * FROM t2 LEFT JOIN t1", bl, BuildRight)
+        assertJoinBuildSide("SELECT * FROM t1 LEFT JOIN t2", blt, BuildRight)
+        assertJoinBuildSide("SELECT * FROM t2 LEFT JOIN t1", blt, BuildRight)
 
         // For right join, prefer to broadcast the left side.
-        assertJoinBuildSide("SELECT * FROM t1 RIGHT JOIN t2", bl, BuildLeft)
-        assertJoinBuildSide("SELECT * FROM t2 RIGHT JOIN t1", bl, BuildLeft)
+        assertJoinBuildSide("SELECT * FROM t1 RIGHT JOIN t2", blt, BuildLeft)
+        assertJoinBuildSide("SELECT * FROM t2 RIGHT JOIN t1", blt, BuildLeft)
       }
     }
   }
