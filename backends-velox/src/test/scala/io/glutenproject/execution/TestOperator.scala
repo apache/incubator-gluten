@@ -995,10 +995,14 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
   }
 
   test("Support Array type signature") {
-    withTable("t") {
-      sql("CREATE TABLE t(id INT, l ARRAY<INT>) USING PARQUET")
-      sql("INSERT INTO t VALUES(1, ARRAY(1, 2)), (2, ARRAY(3, 4))")
-      runQueryAndCompare("SELECT first(l) FROM t")(df => checkFallbackOperators(df, 0))
+    withTable("t1", "t2") {
+      sql("CREATE TABLE t1(id INT, l ARRAY<INT>) USING PARQUET")
+      sql("INSERT INTO t1 VALUES(1, ARRAY(1, 2)), (2, ARRAY(3, 4))")
+      runQueryAndCompare("SELECT first(l) FROM t1")(df => checkFallbackOperators(df, 0))
+
+      sql("CREATE TABLE t2(id INT, l ARRAY<STRUCT<k: INT, v: INT>>) USING PARQUET")
+      sql("INSERT INTO t2 VALUES(1, ARRAY(STRUCT(1, 100))), (2, ARRAY(STRUCT(2, 200)))")
+      runQueryAndCompare("SELECT first(l) FROM t2")(df => checkFallbackOperators(df, 0))
     }
   }
 }

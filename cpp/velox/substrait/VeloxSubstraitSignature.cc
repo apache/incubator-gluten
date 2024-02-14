@@ -171,7 +171,7 @@ TypePtr VeloxSubstraitSignature::fromSubstraitSignature(const std::string& signa
 
   if (startWith(signature, "list")) {
     auto listStart = signature.find_first_of('<');
-    auto listEnd = signature.find_first_of('>');
+    auto listEnd = signature.find_last_of('>');
     VELOX_CHECK(
         listEnd - listStart > 1,
         "Native validation failed due to: more information is needed to create ListType: {}",
