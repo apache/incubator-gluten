@@ -19,7 +19,7 @@ package io.glutenproject.execution
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.ValidationResult
-import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
+import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.RelBuilder
 import io.glutenproject.utils.SubstraitUtil
@@ -31,6 +31,7 @@ import org.apache.spark.sql.catalyst.plans.{InnerLike, JoinType}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.joins.BaseJoinExec
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import io.substrait.proto.CrossRel
@@ -81,8 +82,12 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
 
   protected def createBroadcastBuildSideRDD(): BroadcastBuildSideRDD
 
-  // TODO: Add Metrics Updater
-  override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater
+  @transient override lazy val metrics: Map[String, SQLMetric] =
+    BackendsApiManager.getMetricsApiInstance.genNestedLoopJoinTransformerMetrics(sparkContext)
+
+  override def metricsUpdater(): MetricsUpdater = {
+    BackendsApiManager.getMetricsApiInstance.genNestedLoopJoinTransformerMetricsUpdater(metrics)
+  }
 
   override def output: Seq[Attribute] = {
     joinType match {

@@ -71,10 +71,10 @@ case class CartesianProductExecTransformer(
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] =
-    BackendsApiManager.getMetricsApiInstance.genCartesianProductTransformerMetrics(sparkContext)
+    BackendsApiManager.getMetricsApiInstance.genNestedLoopJoinTransformerMetrics(sparkContext)
 
   override def metricsUpdater(): MetricsUpdater = {
-    BackendsApiManager.getMetricsApiInstance.genCartesianProductTransformerMetricsUpdater(metrics)
+    BackendsApiManager.getMetricsApiInstance.genNestedLoopJoinTransformerMetricsUpdater(metrics)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
