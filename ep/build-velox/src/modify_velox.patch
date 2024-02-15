@@ -36,10 +36,10 @@ index d49115f12..1aaa8e532 100644
 +  endif()
  endif()
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index e2099787a..698aa2994 100644
+index 82fed089f..91e4cc0df 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -248,10 +248,15 @@ if(VELOX_ENABLE_ABFS)
+@@ -249,10 +249,15 @@ if(VELOX_ENABLE_ABFS)
  endif()
  
  if(VELOX_ENABLE_HDFS)
@@ -59,7 +59,7 @@ index e2099787a..698aa2994 100644
    add_definitions(-DVELOX_ENABLE_HDFS3)
  endif()
  
-@@ -398,7 +403,7 @@ resolve_dependency(Boost 1.66.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
+@@ -399,7 +404,7 @@ resolve_dependency(Boost 1.66.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
  # for reference. find_package(range-v3)
  
  set_source(gflags)
