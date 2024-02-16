@@ -963,6 +963,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFramePivotSuite]
     // substring issue
     .exclude("pivot with column definition in groupby")
+    // array comparison not supported for values that contain nulls
+    .exclude(
+      "pivot with null and aggregate type not supported by PivotFirst returns correct result")
   enableSuite[GlutenDataFrameRangeSuite]
     .exclude("SPARK-20430 Initialize Range parameters in a driver side")
     .excludeByPrefix("Cancelling stage in a query with Range")
