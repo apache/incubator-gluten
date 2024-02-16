@@ -27,7 +27,7 @@ apt install maven build-essential cmake libssl-dev libre2-dev libcurl4-openssl-d
 apt install sudo
 
 # make sure jemalloc is uninstalled, jemalloc will be build in vcpkg, which conflicts with the default jemalloc in system
-apt remove jemalloc_dev jemalloc
+apt purge libjemalloc-dev libjemalloc2 librust-jemalloc-sys-dev
 
 #make sure jdk8 is used. New version of jdk is not supported
 apt install -y openjdk-8-jdk
