@@ -112,7 +112,7 @@ add_custom_command(
         -DENABLE_CLICKHOUSE_ALL=OFF
         -DCOMPILER_FLAGS='-fvisibility=hidden -fvisibility-inlines-hidden'
         -S ${CH_SOURCE_DIR} -G Ninja -B ${CH_BINARY_DIR} &&
-        cmake --build ${CH_BINARY_DIR} --target ch\"
+        cmake --build ${CH_BINARY_DIR} --target libch\"
         OUTPUT _build_ch)
 endif()
 
