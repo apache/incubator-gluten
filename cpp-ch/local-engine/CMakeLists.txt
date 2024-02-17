@@ -38,8 +38,7 @@ include(UseJava)
 include(FindJNI)
 
 #set(JNI_NATIVE_SOURCES local_engine_jni.cpp)
-set(LOCALENGINE_SHARED_LIB ch)
-set (ENABLE_CURL_BUILD OFF)
+set(LOCALENGINE_SHARED_LIB _gluten_ch)
 
 add_subdirectory(proto)
 
@@ -148,6 +147,20 @@ else()
     target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE
         -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch-hide-jemalloc.map)
 endif()
+
+if ("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
+    set(LOCALENGINE_SHARED_LIB_NAME "libchd.so")
+else ()
+    set(LOCALENGINE_SHARED_LIB_NAME "libch.so")
+endif ()
+
+add_custom_command(
+        OUTPUT ${LOCALENGINE_SHARED_LIB_NAME}
+        COMMAND ${CMAKE_COMMAND} -E rename $<TARGET_FILE:${LOCALENGINE_SHARED_LIB}> ${LOCALENGINE_SHARED_LIB_NAME}
+        COMMENT "Renaming $<TARGET_FILE:${LOCALENGINE_SHARED_LIB}> to ${LOCALENGINE_SHARED_LIB_NAME}"
+        DEPENDS ${LOCALENGINE_SHARED_LIB})
+
+add_custom_target(libch ALL DEPENDS ${LOCALENGINE_SHARED_LIB_NAME})
 
 add_subdirectory(tests)
 
