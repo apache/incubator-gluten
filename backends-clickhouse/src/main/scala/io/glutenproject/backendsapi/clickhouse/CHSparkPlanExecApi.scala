@@ -22,6 +22,7 @@ import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.extension.{FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage}
+import io.glutenproject.extension.CountDistinctWithoutExpand
 import io.glutenproject.extension.columnar.AddTransformHintRule
 import io.glutenproject.extension.columnar.MiscColumnarRules.TransformPreOverrides
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
@@ -503,7 +504,10 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = {
-    List(spark => new CommonSubexpressionEliminateRule(spark, spark.sessionState.conf))
+    List(
+      spark => new CommonSubexpressionEliminateRule(spark, spark.sessionState.conf),
+      _ => CountDistinctWithoutExpand
+    )
   }
 
   /**
