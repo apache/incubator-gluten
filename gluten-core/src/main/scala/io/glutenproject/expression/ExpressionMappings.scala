@@ -245,6 +245,7 @@ object ExpressionMappings {
     Sig[Sum](SUM),
     Sig[Average](AVG),
     Sig[Count](COUNT),
+    Sig[CountDistinct](COUNT_DISTINCT),
     Sig[Min](MIN),
     Sig[Max](MAX),
     Sig[MaxBy](MAX_BY),

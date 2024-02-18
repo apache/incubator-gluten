@@ -21,6 +21,7 @@ import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
+import io.glutenproject.extension.CountDistinctWithoutExpand
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import io.glutenproject.utils.CHJoinValidateUtil
 import io.glutenproject.vectorized.CHColumnarBatchSerializer
@@ -51,9 +52,7 @@ import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
-import org.apache.spark.sql.extension.ClickHouseAnalysis
-import org.apache.spark.sql.extension.CommonSubexpressionEliminateRule
-import org.apache.spark.sql.extension.RewriteDateTimestampComparisonRule
+import org.apache.spark.sql.extension.{ClickHouseAnalysis, CommonSubexpressionEliminateRule, RewriteDateTimestampComparisonRule}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -355,7 +354,10 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = {
-    List(spark => new CommonSubexpressionEliminateRule(spark, spark.sessionState.conf))
+    List(
+      spark => new CommonSubexpressionEliminateRule(spark, spark.sessionState.conf),
+      _ => CountDistinctWithoutExpand
+    )
   }
 
   /**

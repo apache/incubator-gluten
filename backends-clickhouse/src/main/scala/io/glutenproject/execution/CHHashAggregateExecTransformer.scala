@@ -376,6 +376,12 @@ case class CHHashAggregateExecTransformer(
               (makeStructType(fields), attr.nullable)
             case expr if "bloom_filter_agg".equals(expr.prettyName) =>
               (makeStructTypeSingleOne(expr.children.head.dataType, attr.nullable), attr.nullable)
+            case cd: CountDistinct =>
+              var fields = Seq[(DataType, Boolean)]()
+              for (child <- cd.children) {
+                fields = fields :+ (child.dataType, child.nullable)
+              }
+              (makeStructType(fields), false)
             case _ =>
               (makeStructTypeSingleOne(attr.dataType, attr.nullable), attr.nullable)
           }
@@ -437,7 +443,7 @@ case class CHHashAggregateExecTransformer(
       ExpressionMappings.expressionExtensionTransformer.extensionExpressionsMapping.contains(
         aggregateFunc.getClass)
     ) {
-      ExpressionMappings.expressionExtensionTransformer
+      val option = ExpressionMappings.expressionExtensionTransformer
         .getAttrsIndexForExtensionAggregateExpr(
           aggregateFunc,
           exp.mode,
@@ -445,7 +451,12 @@ case class CHHashAggregateExecTransformer(
           aggregateAttributeList,
           aggregateAttr,
           index)
-    } else {
+      if (option.nonEmpty) {
+        return option.get
+      }
+    }
+
+    {
       exp.mode match {
         case Partial | PartialMerge =>
           val aggBufferAttr = aggregateFunc.inputAggBufferAttributes

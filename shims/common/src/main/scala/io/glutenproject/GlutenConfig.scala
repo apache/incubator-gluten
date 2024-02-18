@@ -94,6 +94,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableCommonSubexpressionEliminate: Boolean =
     conf.getConf(ENABLE_COMMON_SUBEXPRESSION_ELIMINATE)
 
+  def enableCountDistinctWithoutExpand: Boolean =
+    conf.getConf(ENABLE_COUNT_DISTINCT_WITHOUT_EXPAND)
+
   def veloxOrcScanEnabled: Boolean =
     conf.getConf(VELOX_ORC_SCAN_ENABLED)
 
@@ -1489,6 +1492,14 @@ object GlutenConfig {
           + "expression, may improve performance")
       .booleanConf
       .createWithDefault(true)
+
+  val ENABLE_COUNT_DISTINCT_WITHOUT_EXPAND =
+    buildConf("spark.gluten.sql.countDistinctWithoutExpand")
+      .internal()
+      .doc("Convert Count Distinct to a UDAF called count_distinct to " +
+        "prevent SparkPlanner converting it to Expand+Count")
+      .booleanConf
+      .createWithDefault(false)
 
   val COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS =
     buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems")

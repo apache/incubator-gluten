@@ -16,7 +16,7 @@
  */
 package io.glutenproject.execution.extension
 
-import io.glutenproject.expression._
+import io.glutenproject.expression.Sig
 import io.glutenproject.extension.ExpressionExtensionTrait
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -41,7 +41,7 @@ case class CustomAggExpressionTransformer() extends ExpressionExtensionTrait {
       exp: AggregateExpression,
       aggregateAttributeList: Seq[Attribute],
       aggregateAttr: ListBuffer[Attribute],
-      resIndex: Int): Int = {
+      resIndex: Int): Option[Int] = {
     var reIndex = resIndex
     aggregateFunc match {
       case CustomSum(_, _) =>
@@ -56,10 +56,12 @@ case class CustomAggExpressionTransformer() extends ExpressionExtensionTrait {
           case Final =>
             aggregateAttr += aggregateAttributeList(reIndex)
             reIndex += 1
-            reIndex
+            Option(reIndex)
           case other =>
             throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
+      case _ =>
+        None
     }
   }
 

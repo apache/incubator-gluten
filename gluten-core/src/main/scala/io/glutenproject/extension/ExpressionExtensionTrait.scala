@@ -49,7 +49,7 @@ trait ExpressionExtensionTrait {
       exp: AggregateExpression,
       aggregateAttributeList: Seq[Attribute],
       aggregateAttr: ListBuffer[Attribute],
-      resIndex: Int): Int = {
+      resIndex: Int): Option[Int] = {
     throw new UnsupportedOperationException(
       s"Aggregate function ${aggregateFunc.getClass} is not supported.")
   }
