@@ -246,8 +246,25 @@ abstract class HashAggregateExecBaseTransformer(
           case PartialMerge | Final =>
             aggregateFunc.inputAggBufferAttributes.toList.map(
               attr => {
+                val sameAttr = originalInputAttributes.find(_.exprId == attr.exprId)
+                val rewriteAttr =
+                  if (sameAttr.isEmpty) {
+                    // When aggregateExpressions includes subquery, Spark's PlanAdaptiveSubqueries
+                    // Rule will transform the subquery within the final agg. The aggregateFunction
+                    // in the aggregateExpressions of the final aggregation will be cloned,
+                    // resulting in creating new aggregateFunction object. The
+                    // inputAggBufferAttributes will also generate new AttributeReference instances
+                    // with larger exprId, which leads to a failure in binding with the output of
+                    // the partial agg. We need to adapt to this situation; when encountering a
+                    // failure to bind, it is necessary to allow the binding of
+                    // inputAggBufferAttribute with the same name but different exprId.
+                    assert(
+                      originalInputAttributes.count(_.name == attr.name) == 1,
+                      "Only support one attribute with the same name")
+                    originalInputAttributes.find(_.name == attr.name).get
+                  } else attr
                 ExpressionConverter
-                  .replaceWithExpressionTransformer(attr, originalInputAttributes)
+                  .replaceWithExpressionTransformer(rewriteAttr, originalInputAttributes)
                   .doTransform(args)
               })
           case other =>
