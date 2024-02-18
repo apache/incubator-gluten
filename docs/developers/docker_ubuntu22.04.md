@@ -55,6 +55,6 @@ cd gluten/
 # the script download velox & arrow and compile all dependency library automatically
 # To access HDFS or S3, you need to add the parameters `--enable_hdfs=ON` and `--enable_s3=ON`
 # It's suggested to build using static link, enabled by `--enable_vcpkg=ON`
-# For developer, it's suggested to enable Debug info, by --buld_type=RelWithDebInfo. Note RelWithDebInfo uses -o2, release uses -o3
+# For developer, it's suggested to enable Debug info, by --build_type=RelWithDebInfo. Note RelWithDebInfo uses -o2, release uses -o3
 ./dev/buildbundle-veloxbe.sh --enable_vcpkg=ON --build_type=RelWithDebInfo
 ```
