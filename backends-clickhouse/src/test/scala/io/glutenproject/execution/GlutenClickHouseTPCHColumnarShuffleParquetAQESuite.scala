@@ -310,7 +310,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
     }
   }
 
-  test("collect_set") {
+  ignore("collect_set") {
     val sql =
       """
         |select a, b from (

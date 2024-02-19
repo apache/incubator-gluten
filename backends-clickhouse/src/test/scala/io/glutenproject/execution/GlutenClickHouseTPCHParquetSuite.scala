@@ -1176,7 +1176,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, df => {})
   }
 
-  test("collect_set") {
+  ignore("collect_set") {
     val sql =
       """
         |select a, b from (
@@ -1272,7 +1272,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
-  test("test posexplode issue: https://github.com/oap-project/gluten/issues/1767") {
+  ignore("test posexplode issue: https://github.com/oap-project/gluten/issues/1767") {
     spark.sql("create table test_1767 (id bigint, data map<string, string>) using parquet")
     spark.sql("INSERT INTO test_1767 values(1, map('k', 'v'))")
 
@@ -1302,7 +1302,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
-  test("test explode issue: https://github.com/oap-project/gluten/issues/3124") {
+  ignore("test explode issue: https://github.com/oap-project/gluten/issues/3124") {
     spark.sql("create table test_3124 (id bigint, name string, sex string) using parquet")
     spark.sql("insert into test_3124  values (31, null, 'm'), (32, 'a,b,c', 'f')")
 

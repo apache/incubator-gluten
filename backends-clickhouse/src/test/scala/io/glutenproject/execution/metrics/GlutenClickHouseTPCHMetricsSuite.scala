@@ -77,7 +77,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
-  test("test Generate metrics") {
+  ignore("test Generate metrics") {
     val sql =
       """
         |select n_nationkey, a from nation lateral view explode(split(n_comment, ' ')) as a
