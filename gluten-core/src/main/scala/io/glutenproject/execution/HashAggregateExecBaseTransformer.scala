@@ -257,9 +257,10 @@ abstract class HashAggregateExecBaseTransformer(
                   // to this situation; when encountering a failure to bind, it is necessary to
                   // allow the binding of inputAggBufferAttribute with the same name but different
                   // exprId.
-                  val attrsWithSameName = originalInputAttributes.collect {
-                    case a if a.name == attr.name => a
-                  }
+                  val attrsWithSameName =
+                    originalInputAttributes.drop(groupingExpressions.size).collect {
+                      case a if a.name == attr.name => a
+                    }
                   val aggBufferAttrsWithSameName = aggregateExpressions.toIndexedSeq
                     .flatMap(_.aggregateFunction.inputAggBufferAttributes)
                     .filter(_.name == attr.name)
