@@ -4,6 +4,19 @@ title: Gluten with Velox Backend
 nav_order: 1
 parent: Getting-Started
 ---
+# Supported Version
+| Type  | Version                      |
+|-------|------------------------------|
+| Spark | 3.2.2, 3.3.1                 |
+| OS    | Ubuntu20.04/22.04, Centos7/8 |
+| jdk   | openjdk8                     |
+| scala | 2.12
+
+Spark3.4.0 support is still WIP. TPCH/DS can pass, UT is not yet passed.
+
+There are pending PRs for jdk11 support.
+
+
 Currently, the mvn script can automatically fetch and build all dependency libraries incluing Velox. Our nightly build still use Velox under oap-project. 
 
 # Prerequisite
