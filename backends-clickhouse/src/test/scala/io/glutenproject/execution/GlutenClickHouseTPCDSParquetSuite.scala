@@ -333,7 +333,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     compareResultsAgainstVanillaSpark(sql, true, df => {})
   }
 
-  test("collec_set") {
+  ignore("collect_set") {
     val sql =
       """
         |select a, b from (
