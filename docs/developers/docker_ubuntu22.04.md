@@ -27,7 +27,7 @@ apt install maven build-essential cmake libssl-dev libre2-dev libcurl4-openssl-d
 apt install sudo
 
 # make sure jemalloc is uninstalled, jemalloc will be build in vcpkg, which conflicts with the default jemalloc in system
-apt uninstall jemalloc_dev jemalloc
+apt purge libjemalloc-dev libjemalloc2 librust-jemalloc-sys-dev
 
 #make sure jdk8 is used. New version of jdk is not supported
 apt install -y openjdk-8-jdk
@@ -54,7 +54,7 @@ cd gluten/
 
 # the script download velox & arrow and compile all dependency library automatically
 # To access HDFS or S3, you need to add the parameters `--enable_hdfs=ON` and `--enable_s3=ON`
-# It's suggested to build using static link, enabled by --ENABLE_VCPKG=ON
-# For developer, it's suggested to enable Debug info, by --BUILD_TYPE=RelWithDebInfo. Note RelWithDebInfo uses -o2, release uses -o3
-./dev/buildbundle-veloxbe.sh --ENABLE_VCPKG=ON --BUILD_TYPE=RelWithDebInfo
+# It's suggested to build using static link, enabled by `--enable_vcpkg=ON`
+# For developer, it's suggested to enable Debug info, by --build_type=RelWithDebInfo. Note RelWithDebInfo uses -o2, release uses -o3
+./dev/buildbundle-veloxbe.sh --enable_vcpkg=ON --build_type=RelWithDebInfo
 ```
