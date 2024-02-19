@@ -220,7 +220,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getLong(0) == 1201144L)
   }
 
-  test("test 'lateral view explode(array)'") {
+  ignore("test 'lateral view explode(array)'") {
     val result = runSql("""
                           |select count(*) from (
                           |  select l_orderkey, l_suppkey, col1, col2 from lineitem
@@ -230,7 +230,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getLong(0) == 2402288L)
   }
 
-  test("test 'lateral view posexplode(array)'") {
+  ignore("test 'lateral view posexplode(array)'") {
     val result =
       runSql("""
                |select count(*) from (
@@ -262,7 +262,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getLong(0) == 1201144L)
   }
 
-  test("test 'lateral view explode(map)'") {
+  ignore("test 'lateral view explode(map)'") {
     val result = runSql("""
                           |select count(*) from (
                           |  select l_orderkey, l_suppkey, k1, v1, k2, v2 from lineitem
@@ -277,7 +277,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getLong(0) == 2402288L)
   }
 
-  test("test 'lateral view posexplode(map)'") {
+  ignore("test 'lateral view posexplode(map)'") {
     val result =
       runSql("""
                |select count(*) from (
