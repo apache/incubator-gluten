@@ -21,6 +21,7 @@ import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
+import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode}
 import io.glutenproject.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializeResult}
@@ -35,16 +36,16 @@ import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FlushableHas
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, Literal, NamedExpression, NaNvl, Round, StringSplit, StringTrim}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, Literal, Murmur3Hash, NamedExpression, NaNvl, Round, StringSplit, StringTrim}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, IdentityBroadcastMode, Partitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, HashPartitioning, IdentityBroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{BroadcastUtils, ColumnarBuildSideRelation, SparkPlan, VeloxColumnarWriteFilesExec}
+import org.apache.spark.sql.execution.{BroadcastUtils, ColumnarBuildSideRelation, ColumnarShuffleExchangeExec, ProjectExec, SparkPlan, VeloxColumnarWriteFilesExec}
 import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
-import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
+import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.ExecUtil
@@ -195,6 +196,30 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       aggregateExpressions: Seq[AggregateExpression],
       aggregateAttributes: Seq[Attribute]): HashAggregateExecPullOutBaseHelper =
     HashAggregateExecPullOutHelper(groupingExpressions, aggregateExpressions, aggregateAttributes)
+
+  override def genColumnarShuffleExchange(
+      shuffle: ShuffleExchangeExec,
+      newChild: SparkPlan): SparkPlan = {
+    shuffle.outputPartitioning match {
+      case HashPartitioning(exprs, _) =>
+        val hashExpr = new Murmur3Hash(exprs)
+        val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ newChild.output
+        val projectTransformer = ProjectExecTransformer(projectList, newChild)
+        val validationResult = projectTransformer.doValidate()
+        if (validationResult.isValid) {
+          ColumnarShuffleExchangeExec(
+            shuffle,
+            projectTransformer,
+            projectTransformer.output.drop(1))
+        } else {
+          TransformHints.tagNotTransformable(shuffle, validationResult)
+          shuffle.withNewChildren(newChild :: Nil)
+        }
+
+      case _ =>
+        ColumnarShuffleExchangeExec(shuffle, newChild, null)
+    }
+  }
 
   /** Generate ShuffledHashJoinExecTransformer. */
   override def genShuffledHashJoinExecTransformer(

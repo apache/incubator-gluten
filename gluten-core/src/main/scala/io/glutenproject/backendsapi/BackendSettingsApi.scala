@@ -71,7 +71,6 @@ trait BackendSettingsApi {
       GlutenConfig.VANILLA_VECTORIZED_READERS_ENABLED.defaultValue.get)
 
   def recreateJoinExecOnFallback(): Boolean = false
-  def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = false
 
   /**
    * A shuffle key may be an expression. We would add a projection for this expression shuffle key
