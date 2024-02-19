@@ -29,10 +29,8 @@
 
 namespace gluten {
 
-std::unique_ptr<arrow::util::Codec> createArrowIpcCodec(
-    arrow::Compression::type compressedType,
-    CodecBackend codecBackend,
-    int32_t compressionLevel) {
+std::unique_ptr<arrow::util::Codec>
+createArrowIpcCodec(arrow::Compression::type compressedType, CodecBackend codecBackend, int32_t compressionLevel) {
   std::unique_ptr<arrow::util::Codec> codec;
   switch (compressedType) {
     case arrow::Compression::LZ4_FRAME: {
