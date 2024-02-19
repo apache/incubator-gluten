@@ -175,12 +175,7 @@ public:
 
         if (set_read_util_position)
         {
-            auto * work_around = read_buffer.get();
             read_buffer = std::make_unique<DB::BoundedReadBuffer>(std::move(read_buffer));
-            // workaround for https://github.com/ClickHouse/ClickHouse/pull/58886
-            // ReadBufferFromFileDecorator construtor will call swap, without wrap, BoundedReadBuffer can't work.
-            read_buffer->swap(*work_around);
-
             auto start_end_pos = adjustFileReadPosition(*read_buffer, file_info.start(), file_info.start() + file_info.length());
             LOG_DEBUG(
                 &Poco::Logger::get("ReadBufferBuilder"),
