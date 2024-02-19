@@ -244,29 +244,36 @@ abstract class HashAggregateExecBaseTransformer(
                   .doTransform(args)
               })
           case PartialMerge | Final =>
-            aggregateFunc.inputAggBufferAttributes.toList.map(
-              attr => {
+            aggregateFunc.inputAggBufferAttributes.toList.map {
+              attr =>
                 val sameAttr = originalInputAttributes.find(_.exprId == attr.exprId)
-                val rewriteAttr =
-                  if (sameAttr.isEmpty) {
-                    // When aggregateExpressions includes subquery, Spark's PlanAdaptiveSubqueries
-                    // Rule will transform the subquery within the final agg. The aggregateFunction
-                    // in the aggregateExpressions of the final aggregation will be cloned,
-                    // resulting in creating new aggregateFunction object. The
-                    // inputAggBufferAttributes will also generate new AttributeReference instances
-                    // with larger exprId, which leads to a failure in binding with the output of
-                    // the partial agg. We need to adapt to this situation; when encountering a
-                    // failure to bind, it is necessary to allow the binding of
-                    // inputAggBufferAttribute with the same name but different exprId.
-                    assert(
-                      originalInputAttributes.count(_.name == attr.name) == 1,
-                      "Only support one attribute with the same name")
-                    originalInputAttributes.find(_.name == attr.name).get
-                  } else attr
+                val rewriteAttr = if (sameAttr.isEmpty) {
+                  // When aggregateExpressions includes subquery, Spark's PlanAdaptiveSubqueries
+                  // Rule will transform the subquery within the final agg. The aggregateFunction
+                  // in the aggregateExpressions of the final aggregation will be cloned, resulting
+                  // in creating new aggregateFunction object. The inputAggBufferAttributes will
+                  // also generate new AttributeReference instances with larger exprId, which leads
+                  // to a failure in binding with the output of the partial agg. We need to adapt
+                  // to this situation; when encountering a failure to bind, it is necessary to
+                  // allow the binding of inputAggBufferAttribute with the same name but different
+                  // exprId.
+                  val attrsWithSameName = originalInputAttributes.collect {
+                    case a if a.name == attr.name => a
+                  }
+                  val aggBufferAttrsWithSameName = aggregateExpressions.toIndexedSeq
+                    .flatMap(_.aggregateFunction.inputAggBufferAttributes)
+                    .filter(_.name == attr.name)
+                  assert(
+                    attrsWithSameName.size == aggBufferAttrsWithSameName.size,
+                    "The attribute with the same name in final agg inputAggBufferAttribute must" +
+                      "have the same size of corresponding attributes in originalInputAttributes."
+                  )
+                  attrsWithSameName(aggBufferAttrsWithSameName.indexOf(attr))
+                } else attr
                 ExpressionConverter
                   .replaceWithExpressionTransformer(rewriteAttr, originalInputAttributes)
                   .doTransform(args)
-              })
+            }
           case other =>
             throw new UnsupportedOperationException(s"$other not supported.")
         }
