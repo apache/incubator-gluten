@@ -88,6 +88,9 @@ class ColumnarShuffleWriter[K, V](
   private val compressionCodecBackend =
     GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
 
+  private val compressionLevel =
+    GlutenShuffleUtils.getCompressionLevel(conf, compressionCodec, compressionCodecBackend)
+
   private val bufferCompressThreshold =
     GlutenConfig.getConf.columnarShuffleCompressionThreshold
 
@@ -140,6 +143,7 @@ class ColumnarShuffleWriter[K, V](
             nativeMergeThreshold,
             compressionCodec,
             compressionCodecBackend,
+            compressionLevel,
             bufferCompressThreshold,
             GlutenConfig.getConf.columnarShuffleCompressionMode,
             dataTmp.getAbsolutePath,

@@ -818,6 +818,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jdouble mergeThreshold,
     jstring codecJstr,
     jstring codecBackendJstr,
+    jint compressionLevel,
     jint compressionThreshold,
     jstring compressionModeJstr,
     jstring dataFileJstr,
@@ -864,6 +865,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
       .mergeThreshold = mergeThreshold,
       .compressionThreshold = compressionThreshold,
       .compressionType = getCompressionType(env, codecJstr),
+      .compressionLevel = compressionLevel,
       .bufferedWrite = true,
       .numSubDirs = numSubDirs,
       .pushBufferMaxSize = pushBufferMaxSize > 0 ? pushBufferMaxSize : kDefaultShuffleWriterBufferSize};
@@ -1040,6 +1042,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
     jlong memoryManagerHandle,
     jstring compressionType,
     jstring compressionBackend,
+    jint compressionLevel,
     jint batchSize) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
@@ -1051,6 +1054,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
   if (compressionType != nullptr) {
     options.codecBackend = getCodecBackend(env, compressionBackend);
   }
+  options.compressionLevel = compressionLevel;
   options.batchSize = batchSize;
   // TODO: Add coalesce option and maximum coalesced size.
   std::shared_ptr<arrow::Schema> schema =

@@ -197,7 +197,7 @@ std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
     arrow::MemoryPool* pool,
     MemoryManager* memoryManager) {
   auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
-  auto codec = gluten::createArrowIpcCodec(options.compressionType, options.codecBackend);
+  auto codec = gluten::createArrowIpcCodec(options.compressionType, options.codecBackend, options.compressionLevel);
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
   auto deserializerFactory = std::make_unique<gluten::VeloxColumnarBatchDeserializerFactory>(
       schema, std::move(codec), rowType, options.batchSize, pool, ctxVeloxPool);

@@ -83,6 +83,8 @@ private class CelebornColumnarBatchSerializerInstance(
       }
     val compressionCodecBackend =
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
+    val compressionLevel =
+      GlutenShuffleUtils.getCompressionLevel(conf, compressionCodec, compressionCodecBackend)
     val jniWrapper = ShuffleReaderJniWrapper.create()
     val batchSize = GlutenConfig.getConf.maxBatchSize
     val handle = jniWrapper
@@ -91,6 +93,7 @@ private class CelebornColumnarBatchSerializerInstance(
         nmm.getNativeInstanceHandle,
         compressionCodec,
         compressionCodecBackend,
+        compressionLevel,
         batchSize
       )
     // Close shuffle reader instance as lately as the end of task processing,
