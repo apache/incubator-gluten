@@ -194,7 +194,7 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
     logTrace(
       s"aggregate groupingExpressions: ${aggregate.groupingExpressions} " +
         s"aggregateExpressions: ${aggregate.aggregateExpressions}")
-    // Only extrace common subexpressions from aggregateExpressions
+    // Only extract common subexpressions from aggregateExpressions
     // that contains AggregateExpression.
     // Fix issue: https://github.com/oap-project/gluten/issues/4642
     val exprsWithIndex = aggregate.aggregateExpressions.zipWithIndex
