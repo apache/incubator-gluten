@@ -244,7 +244,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
 
   override def genColumnarShuffleExchange(
       shuffle: ShuffleExchangeExec,
-      newChild: SparkPlan): SparkPlan = {
+      child: SparkPlan): SparkPlan = {
     if (
       BackendsApiManager.getSettings.supportShuffleWithProject(
         shuffle.outputPartitioning,
@@ -263,13 +263,13 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
             newChild.output.dropRight(projectColumnNumber))
         } else {
           // It's the case that partitioning expressions could be offloaded into native.
-          shuffle.withNewChildren(Seq(newChild))
+          shuffle.withNewChildren(Seq(child))
         }
       } else {
-        ColumnarShuffleExchangeExec(shuffle, newChild, null)
+        ColumnarShuffleExchangeExec(shuffle, child, null)
       }
     } else {
-      ColumnarShuffleExchangeExec(shuffle, newChild, null)
+      ColumnarShuffleExchangeExec(shuffle, child, null)
     }
   }
 
