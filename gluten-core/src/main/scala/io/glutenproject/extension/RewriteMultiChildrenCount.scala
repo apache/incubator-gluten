@@ -17,7 +17,6 @@
 package io.glutenproject.extension
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.HashAggregateExecTransformerUtil._
 import io.glutenproject.utils.PullOutProjectHelper
 
 import org.apache.spark.sql.catalyst.expressions.{If, IsNull, Literal, Or}
@@ -31,7 +30,6 @@ import org.apache.spark.sql.types.IntegerType
  * This Rule is used to rewrite the count for aggregates if:
  *   - the count is partial
  *   - the count has more than one child
- *   - the aggregate expressions do not need row construct
  *
  * A rewrite count multi-children example:
  * {{{
@@ -66,8 +64,6 @@ object RewriteMultiChildrenCount extends Rule[SparkPlan] with PullOutProjectHelp
   }
 
   private def shouldRewrite(aggregateExpressions: Seq[AggregateExpression]): Boolean = {
-    // There is a conflict if we would also add a pre-project for row construct
-    !rowConstructNeeded(aggregateExpressions) &&
     aggregateExpressions.exists(extractCountForRewrite(_).isDefined)
   }
 

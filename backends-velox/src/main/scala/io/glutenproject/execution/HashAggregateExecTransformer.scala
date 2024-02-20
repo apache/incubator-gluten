@@ -17,7 +17,6 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.HashAggregateExecTransformerUtil._
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
@@ -78,6 +77,19 @@ abstract class HashAggregateExecTransformer(
         }
       case _ =>
         super.checkAggFuncModeSupport(aggFunc, mode)
+    }
+  }
+
+  // Return whether the outputs partial aggregation should be combined for Velox computing.
+  // When the partial outputs are multiple-column, row construct is needed.
+  private def rowConstructNeeded(aggregateExpressions: Seq[AggregateExpression]): Boolean = {
+    aggregateExpressions.exists {
+      aggExpr =>
+        aggExpr.mode match {
+          case PartialMerge | Final =>
+            aggExpr.aggregateFunction.inputAggBufferAttributes.size > 1
+          case _ => false
+        }
     }
   }
 
@@ -354,8 +366,7 @@ abstract class HashAggregateExecTransformer(
       val aggFunc = aggregateExpression.aggregateFunction
       val functionInputAttributes = aggFunc.inputAggBufferAttributes
       aggFunc match {
-        case _
-            if aggregateExpression.mode == Partial => // FIXME: Any difference with the last branch?
+        case _ if aggregateExpression.mode == Partial =>
           val childNodes = aggFunc.children
             .map(
               ExpressionConverter
@@ -369,6 +380,8 @@ abstract class HashAggregateExecTransformer(
           throw new UnsupportedOperationException("Only one input attribute is expected.")
 
         case _ @VeloxIntermediateData.Type(veloxTypes: Seq[DataType]) =>
+          val rewrittenInputAttributes =
+            rewriteAggBufferAttributes(functionInputAttributes, originalInputAttributes)
           // The process of handling the inconsistency in column types and order between
           // Spark and Velox is exactly the opposite of applyExtractStruct.
           aggregateExpression.mode match {
@@ -382,7 +395,7 @@ abstract class HashAggregateExecTransformer(
               veloxTypes.zipWithIndex.foreach {
                 case (veloxType, idx) =>
                   val sparkType = sparkTypes(adjustedOrders(idx))
-                  val attr = functionInputAttributes(adjustedOrders(idx))
+                  val attr = rewrittenInputAttributes(adjustedOrders(idx))
                   val aggFuncInputAttrNode = ExpressionConverter
                     .replaceWithExpressionTransformer(attr, originalInputAttributes)
                     .doTransform(args)
@@ -405,7 +418,9 @@ abstract class HashAggregateExecTransformer(
           }
 
         case _ =>
-          val childNodes = functionInputAttributes
+          val rewrittenInputAttributes =
+            rewriteAggBufferAttributes(functionInputAttributes, originalInputAttributes)
+          val childNodes = rewrittenInputAttributes
             .map(
               ExpressionConverter
                 .replaceWithExpressionTransformer(_, originalInputAttributes)
@@ -528,6 +543,44 @@ abstract class HashAggregateExecTransformer(
     aggRel
   }
 
+  private def rewriteAggBufferAttributes(
+      inputAggBufferAttributes: Seq[AttributeReference],
+      originalInputAttributes: Seq[Attribute]): Seq[AttributeReference] = {
+    inputAggBufferAttributes.map {
+      attr =>
+        val sameAttr = originalInputAttributes.find(_.exprId == attr.exprId)
+        if (sameAttr.isEmpty) {
+          // 1. When aggregateExpressions includes subquery, Spark's PlanAdaptiveSubqueries
+          // Rule will transform the subquery within the final agg. The aggregateFunction
+          // in the aggregateExpressions of the final aggregation will be cloned, resulting
+          // in creating new aggregateFunction object. The inputAggBufferAttributes will
+          // also generate new AttributeReference instances with larger exprId, which leads
+          // to a failure in binding with the output of the partial agg. We need to adapt
+          // to this situation; when encountering a failure to bind, it is necessary to
+          // allow the binding of inputAggBufferAttribute with the same name but different
+          // exprId.
+          // 2. After apply `PullOutPreProject`, the aggregate expression may be created a new
+          // instance.
+          val attrsWithSameName =
+            originalInputAttributes.drop(groupingExpressions.size).collect {
+              case a if a.name == attr.name => a
+            }
+          val aggBufferAttrsWithSameName = aggregateExpressions.toIndexedSeq
+            .flatMap(_.aggregateFunction.inputAggBufferAttributes)
+            .filter(_.name == attr.name)
+          assert(
+            attrsWithSameName.size == aggBufferAttrsWithSameName.size,
+            "The attribute with the same name in final agg inputAggBufferAttribute must" +
+              "have the same size of corresponding attributes in originalInputAttributes."
+          )
+          attrsWithSameName(aggBufferAttrsWithSameName.indexOf(attr))
+            .asInstanceOf[AttributeReference]
+        } else {
+          attr
+        }
+    }
+  }
+
   private def getAggRelInternal(
       context: SubstraitContext,
       originalInputAttributes: Seq[Attribute],
@@ -568,35 +621,12 @@ abstract class HashAggregateExecTransformer(
                   .doTransform(args)
               })
           case PartialMerge | Final =>
-            aggregateFunc.inputAggBufferAttributes.toList.map {
+            rewriteAggBufferAttributes(
+              aggregateFunc.inputAggBufferAttributes,
+              originalInputAttributes).map {
               attr =>
-                val sameAttr = originalInputAttributes.find(_.exprId == attr.exprId)
-                val rewriteAttr = if (sameAttr.isEmpty) {
-                  // When aggregateExpressions includes subquery, Spark's PlanAdaptiveSubqueries
-                  // Rule will transform the subquery within the final agg. The aggregateFunction
-                  // in the aggregateExpressions of the final aggregation will be cloned, resulting
-                  // in creating new aggregateFunction object. The inputAggBufferAttributes will
-                  // also generate new AttributeReference instances with larger exprId, which leads
-                  // to a failure in binding with the output of the partial agg. We need to adapt
-                  // to this situation; when encountering a failure to bind, it is necessary to
-                  // allow the binding of inputAggBufferAttribute with the same name but different
-                  // exprId.
-                  val attrsWithSameName =
-                    originalInputAttributes.drop(groupingExpressions.size).collect {
-                      case a if a.name == attr.name => a
-                    }
-                  val aggBufferAttrsWithSameName = aggregateExpressions.toIndexedSeq
-                    .flatMap(_.aggregateFunction.inputAggBufferAttributes)
-                    .filter(_.name == attr.name)
-                  assert(
-                    attrsWithSameName.size == aggBufferAttrsWithSameName.size,
-                    "The attribute with the same name in final agg inputAggBufferAttribute must" +
-                      "have the same size of corresponding attributes in originalInputAttributes."
-                  )
-                  attrsWithSameName(aggBufferAttrsWithSameName.indexOf(attr))
-                } else attr
                 ExpressionConverter
-                  .replaceWithExpressionTransformer(rewriteAttr, originalInputAttributes)
+                  .replaceWithExpressionTransformer(attr, originalInputAttributes)
                   .doTransform(args)
             }
           case other =>
