@@ -225,9 +225,7 @@ class GlutenSQLQueryTestSuite
     "array.sql", // blocked by VELOX-5768
     "higher-order-functions.sql", // blocked by VELOX-5768
     "udf/udf-window.sql", // Local window fixes are not added.
-    "window.sql", // Local window fixes are not added.
-    "select_having.sql", // 3.4 failed
-    "mapconcat.sql" // 3.4 failed
+    "window.sql" // Local window fixes are not added.
   ) ++ otherIgnoreList ++ udafIgnoreList
 
   // List of supported cases to run with a certain backend, in lower case.
