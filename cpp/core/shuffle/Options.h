@@ -38,7 +38,6 @@ enum PartitionWriterType { kLocal, kCeleborn };
 struct ShuffleReaderOptions {
   arrow::Compression::type compressionType = arrow::Compression::type::LZ4_FRAME;
   CodecBackend codecBackend = CodecBackend::NONE;
-  int32_t compressionLevel = arrow::util::kUseDefaultCompressionLevel;
   int32_t batchSize = kDefaultBatchSize;
 };
 

@@ -1042,7 +1042,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
     jlong memoryManagerHandle,
     jstring compressionType,
     jstring compressionBackend,
-    jint compressionLevel,
     jint batchSize) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
@@ -1054,7 +1053,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
   if (compressionType != nullptr) {
     options.codecBackend = getCodecBackend(env, compressionBackend);
   }
-  options.compressionLevel = compressionLevel;
   options.batchSize = batchSize;
   // TODO: Add coalesce option and maximum coalesced size.
   std::shared_ptr<arrow::Schema> schema =
