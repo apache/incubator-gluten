@@ -168,7 +168,7 @@ case class CHHashAggregateExecTransformer(
     aggRel
   }
 
-  override def getAggRelInternal(
+  private def getAggRelInternal(
       context: SubstraitContext,
       originalInputAttributes: Seq[Attribute],
       operatorId: Long,
@@ -373,7 +373,7 @@ case class CHHashAggregateExecTransformer(
     copy(child = newChild)
   }
 
-  override protected def getAdvancedExtension(
+  private def getAdvancedExtension(
       validation: Boolean = false,
       originalInputAttributes: Seq[Attribute] = Seq.empty): AdvancedExtensionNode = {
     val enhancement = if (validation) {
