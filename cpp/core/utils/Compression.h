@@ -29,6 +29,7 @@ enum CompressionMode { BUFFER, ROWVECTOR };
 
 std::unique_ptr<arrow::util::Codec> createArrowIpcCodec(
     arrow::Compression::type compressedType,
-    CodecBackend codecBackend);
+    CodecBackend codecBackend,
+    int32_t compressionLevel = arrow::util::kUseDefaultCompressionLevel);
 
 } // namespace gluten

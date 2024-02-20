@@ -212,6 +212,8 @@ object ExpressionMappings {
     Sig[ArrayUnion](ARRAY_UNION),
     Sig[ArrayIntersect](ARRAY_INTERSECT),
     Sig[GetArrayStructFields](GET_ARRAY_STRUCT_FIELDS),
+    Sig[ArrayExcept](ARRAY_EXCEPT),
+    Sig[ArrayRepeat](ARRAY_REPEAT),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),

@@ -47,7 +47,7 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
     val rules = List(
       ColumnarOverrideRules.rewriteSparkPlanRule(),
       AddTransformHintRule(),
-      TransformPreOverrides(false)
+      TransformPreOverrides()
     )
     val transformed = rules.foldLeft(plan) { case (latestPlan, rule) => rule.apply(latestPlan) }
     if (!transformed.isInstanceOf[TransformSupport]) {

@@ -95,6 +95,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeByPrefix("SPARK-36741")
     // TODO: ArrayIntersect should handle duplicated Double.NaN
     .excludeByPrefix("SPARK-36754")
+    // Not supported case.
+    .exclude("SPARK-36753: ArrayExcept should handle duplicated Double.NaN and Float.Nan")
   enableSuite[GlutenConditionalExpressionSuite]
   enableSuite[GlutenDateExpressionsSuite]
     // Has exception in fallback execution when we use resultDF.collect in evaluation.
@@ -1108,8 +1110,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Not useful and time consuming.
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL")
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL -- jar contains udf class")
-    // overflow support needed in velox
-    .exclude("SPARK-38548: try_sum should return null if overflow happens before merging")
     // exception test, rewritten in gluten
     .exclude("the escape character is not allowed to end with")
     // ORC related
