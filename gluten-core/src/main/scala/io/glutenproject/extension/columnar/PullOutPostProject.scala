@@ -44,9 +44,8 @@ object PullOutPostProject extends Rule[SparkPlan] with PullOutProjectHelper with
         // If the result expressions has different size with output attribute,
         // post-projection is needed.
         agg.resultExpressions.size != allAggregateResultAttributes.size ||
-        // Compare each item in result expressions and output attributes. Attribute in Alias
-        // should be trimmed before checking.
-        agg.resultExpressions.map(trimAliases).zip(allAggregateResultAttributes).exists {
+        // Compare each item in result expressions and output attributes.
+        agg.resultExpressions.zip(allAggregateResultAttributes).exists {
           case (exprAttr: Attribute, resAttr) =>
             // If the result attribute and result expression has different name or type,
             // post-projection is needed.
