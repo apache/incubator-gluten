@@ -17,11 +17,12 @@
 package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.SparkPlanExecApi
+import io.glutenproject.backendsapi.{BackendsApiManager, SparkPlanExecApi}
 import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.extension.{FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage}
+import io.glutenproject.extension.{FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage, TransformPreOverrides}
+import io.glutenproject.extension.columnar.AddTransformHintRule
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import io.glutenproject.utils.CHJoinValidateUtil
 import io.glutenproject.vectorized.CHColumnarBatchSerializer
@@ -29,7 +30,7 @@ import io.glutenproject.vectorized.CHColumnarBatchSerializer
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
-import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
+import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper, HashPartitioningWrapper}
 import org.apache.spark.shuffle.utils.CHShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
@@ -39,7 +40,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
@@ -49,7 +50,7 @@ import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.ClickHouseScan
-import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
+import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.{CHExecUtil, PushDownUtil}
@@ -154,6 +155,123 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       aggregateExpressions: Seq[AggregateExpression],
       aggregateAttributes: Seq[Attribute]): HashAggregateExecPullOutBaseHelper =
     CHHashAggregateExecPullOutHelper(groupingExpressions, aggregateExpressions, aggregateAttributes)
+
+  /**
+   * If there are expressions (not field reference) in the partitioning's children, add a projection
+   * before shuffle exchange and make a new partitioning with the old expressions replaced by the
+   * result columns from the projection.
+   */
+  private def addProjectionForShuffleExchange(
+      plan: ShuffleExchangeExec): (Int, Partitioning, SparkPlan) = {
+    def selectExpressions(
+        exprs: Seq[Expression],
+        attributes: Seq[Attribute]): (Seq[NamedExpression], Seq[Int]) = {
+      var expressionPos = Seq[Int]()
+      var projectExpressions = Seq[NamedExpression]()
+
+      exprs.foreach(
+        expr => {
+          if (!expr.isInstanceOf[AttributeReference]) {
+            val n = projectExpressions.size
+            val namedExpression = Alias(expr, s"projected_partitioning_value_$n")()
+            projectExpressions = projectExpressions :+ namedExpression
+            expressionPos = expressionPos :+ (attributes.size + n)
+          } else {
+            // the new projected columns are appended at the end
+            expressionPos = expressionPos :+ BindReferences
+              .bindReference(expr, attributes)
+              .asInstanceOf[BoundReference]
+              .ordinal
+          }
+        })
+      (projectExpressions, expressionPos)
+    }
+
+    plan.outputPartitioning match {
+      case HashPartitioning(exprs, numPartitions) =>
+        val (projectExpressions, newExpressionsPosition) = {
+          selectExpressions(
+            exprs,
+            BackendsApiManager.getTransformerApiInstance
+              .getPlanOutput(plan.child))
+        }
+        if (projectExpressions.isEmpty) {
+          return (0, plan.outputPartitioning, plan.child)
+        }
+        val project = TransformPreOverrides().replaceWithTransformerPlan(
+          AddTransformHintRule().apply(
+            ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
+        var newExprs = Seq[Expression]()
+        for (i <- exprs.indices) {
+          val pos = newExpressionsPosition(i)
+          newExprs = newExprs :+ project.output(pos)
+        }
+        (
+          projectExpressions.size,
+          new HashPartitioningWrapper(exprs, newExprs, numPartitions),
+          project)
+      case RangePartitioning(orderings, numPartitions) =>
+        val exprs = orderings.map(ordering => ordering.child)
+        val (projectExpressions, newExpressionsPosition) = {
+          selectExpressions(
+            exprs,
+            BackendsApiManager.getTransformerApiInstance
+              .getPlanOutput(plan.child))
+        }
+        if (projectExpressions.isEmpty) {
+          return (0, plan.outputPartitioning, plan.child)
+        }
+        val project = TransformPreOverrides().replaceWithTransformerPlan(
+          AddTransformHintRule().apply(
+            ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
+        var newOrderings = Seq[SortOrder]()
+        for (i <- orderings.indices) {
+          val oldOrdering = orderings(i)
+          val pos = newExpressionsPosition(i)
+          val ordering = SortOrder(
+            project.output(pos),
+            oldOrdering.direction,
+            oldOrdering.nullOrdering,
+            oldOrdering.sameOrderExpressions)
+          newOrderings = newOrderings :+ ordering
+        }
+        (projectExpressions.size, RangePartitioning(newOrderings, numPartitions), project)
+      case _ =>
+        // no change for other cases
+        (0, plan.outputPartitioning, plan.child)
+    }
+  }
+
+  override def genColumnarShuffleExchange(
+      shuffle: ShuffleExchangeExec,
+      child: SparkPlan): SparkPlan = {
+    if (
+      BackendsApiManager.getSettings.supportShuffleWithProject(
+        shuffle.outputPartitioning,
+        shuffle.child)
+    ) {
+      val (projectColumnNumber, newPartitioning, newChild) =
+        addProjectionForShuffleExchange(shuffle)
+
+      if (projectColumnNumber != 0) {
+        if (newChild.supportsColumnar) {
+          val newPlan = ShuffleExchangeExec(newPartitioning, newChild, shuffle.shuffleOrigin)
+          // the new projections columns are appended at the end.
+          ColumnarShuffleExchangeExec(
+            newPlan,
+            newChild,
+            newChild.output.dropRight(projectColumnNumber))
+        } else {
+          // It's the case that partitioning expressions could be offloaded into native.
+          shuffle.withNewChildren(Seq(child))
+        }
+      } else {
+        ColumnarShuffleExchangeExec(shuffle, child, null)
+      }
+    } else {
+      ColumnarShuffleExchangeExec(shuffle, child, null)
+    }
+  }
 
   /** Generate ShuffledHashJoinExecTransformer. */
   def genShuffledHashJoinExecTransformer(
