@@ -85,6 +85,14 @@ object BackendSettings extends BackendSettingsApi {
       }
     }
 
+    val typeValidatorWithComplexTypeFallback: PartialFunction[StructField, String] = {
+      case StructField(_, arrayType: ArrayType, _, _) =>
+        arrayType.simpleString + " is forced to fallback."
+      case StructField(_, mapType: MapType, _, _) =>
+        mapType.simpleString + " is forced to fallback."
+      case StructField(_, structType: StructType, _, _) =>
+        structType.simpleString + " is forced to fallback."
+    }
     format match {
       case ParquetReadFormat =>
         val typeValidator: PartialFunction[StructField, String] = {
@@ -103,7 +111,11 @@ object BackendSettings extends BackendSettingsApi {
               if mapType.valueType.isInstanceOf[ArrayType] =>
             "ArrayType as Value in MapType"
         }
-        validateTypes(typeValidator)
+        if (!GlutenConfig.getConf.forceComplexTypeScanFallbackEnabled) {
+          validateTypes(typeValidator)
+        } else {
+          validateTypes(typeValidatorWithComplexTypeFallback)
+        }
       case DwrfReadFormat => ValidationResult.ok
       case OrcReadFormat =>
         if (!GlutenConfig.getConf.veloxOrcScanEnabled) {
@@ -130,7 +142,11 @@ object BackendSettings extends BackendSettingsApi {
               CharVarcharUtils.getRawTypeString(metadata) + " not support"
             case StructField(_, TimestampType, _, _) => "TimestampType not support"
           }
-          validateTypes(typeValidator)
+          if (!GlutenConfig.getConf.forceComplexTypeScanFallbackEnabled) {
+            validateTypes(typeValidator)
+          } else {
+            validateTypes(typeValidatorWithComplexTypeFallback)
+          }
         }
       case _ => ValidationResult.notOk(s"Unsupported file format for $format.")
     }
