@@ -176,6 +176,7 @@ object ExpressionMappings {
     Sig[NextDay](NEXT_DAY),
     Sig[LastDay](LAST_DAY),
     Sig[MonthsBetween](MONTHS_BETWEEN),
+    Sig[DateFromUnixDate](DATE_FROM_UNIX_DATE),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
