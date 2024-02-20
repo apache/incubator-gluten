@@ -117,7 +117,9 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     // Check whether Gluten supports this expression
     val substraitExprNameOpt = expressionsMap.get(expr.getClass)
     if (substraitExprNameOpt.isEmpty) {
-      throw new UnsupportedOperationException(s"Not supported: $expr. ${expr.getClass}")
+      throw new UnsupportedOperationException(
+        s"Not supported to map spark function name" +
+          s" to substrait function name: $expr, class name: ${expr.getClass.getSimpleName}.")
     }
     val substraitExprName = substraitExprNameOpt.get
 
