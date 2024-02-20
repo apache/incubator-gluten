@@ -185,10 +185,17 @@ class GlutenClickHouseTPCDSParquetGraceHashJoinSuite extends GlutenClickHouseTPC
   test("Gluten-4452: Fix get wrong hash table when multi joins in a task") {
     val testSql =
       """
-        | SELECT i_brand_id AS brand_id, i_brand AS brand, i_manufact_id, i_manufact
-        | FROM date_dim
-        | LEFT JOIN store_sales ON d_date_sk == ss_sold_date_sk
-        | INNER JOIN item ON ss_item_sk = i_item_sk AND i_manager_id = 7
+        | SELECT ws_item_sk, ws_sold_date_sk, ws_ship_date_sk,
+        |        t1.d_date_id as sold_date_id, t2.d_date_id as ship_date_id
+        | FROM
+        | SELECT ws_item_sk, ws_sold_date_sk, ws_ship_date_sk, t1.d_date_id
+        | FROM web_sales
+        | LEFT JOIN
+        |   (SELECT d_date_id, d_date_sk from date_dim GROUP BY d_date_id, d_date_sk) t1
+        | ON ss_sold_date_sk == t1.d_date_sk)
+        | INNER JOIN
+        |   (SELECT d_date_id, d_date_sk from date_dim GROUP BY d_date_id, d_date_sk) t2
+        | on ss_ship_date_sk == t2.d_date_sk 
         | LIMIT 100;
         |""".stripMargin
     compareResultsAgainstVanillaSpark(
