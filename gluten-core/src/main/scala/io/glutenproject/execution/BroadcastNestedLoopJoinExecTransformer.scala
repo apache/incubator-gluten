@@ -17,11 +17,9 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.rel.RelBuilder
 import io.glutenproject.utils.SubstraitUtil
 
 import org.apache.spark.rdd.RDD
@@ -130,22 +128,15 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
     val (inputBuildRelNode, inputBuildOutput) =
       (buildPlanContext.root, buildPlanContext.outputAttributes)
 
-    val expressionNode = condition.map {
-      expr =>
-        ExpressionConverter
-          .replaceWithExpressionTransformer(expr, inputStreamedOutput ++ inputBuildOutput)
-          .doTransform(context.registeredFunction)
-    }
-    val extensionNode =
-      JoinUtils.createExtensionNode(inputStreamedOutput ++ inputBuildOutput, validation = false)
     val operatorId = context.nextOperatorId(this.nodeName)
 
-    val crossRel = RelBuilder.makeCrossRel(
+    val crossRel = JoinUtils.createCrossRel(
+      substraitJoinType,
+      condition,
       inputStreamedRelNode,
       inputBuildRelNode,
-      substraitJoinType,
-      expressionNode.orNull,
-      extensionNode,
+      inputStreamedOutput,
+      inputBuildOutput,
       context,
       operatorId
     )
@@ -183,24 +174,18 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
       case _ => // continue
     }
     val substraitContext = new SubstraitContext
-    val expressionNode = condition.map {
-      expr =>
-        ExpressionConverter
-          .replaceWithExpressionTransformer(expr, streamedPlan.output ++ buildPlan.output)
-          .doTransform(substraitContext.registeredFunction)
-    }
-    val extensionNode =
-      JoinUtils.createExtensionNode(streamedPlan.output ++ buildPlan.output, validation = true)
 
-    val currRel = RelBuilder.makeCrossRel(
-      null,
-      null,
+    val crossRel = JoinUtils.createCrossRel(
       substraitJoinType,
-      expressionNode.orNull,
-      extensionNode,
+      condition,
+      null,
+      null,
+      streamedPlan.output,
+      buildPlan.output,
       substraitContext,
-      substraitContext.nextOperatorId(this.nodeName)
+      substraitContext.nextOperatorId(this.nodeName),
+      validation = true
     )
-    doNativeValidation(substraitContext, currRel)
+    doNativeValidation(substraitContext, crossRel)
   }
 }

@@ -40,7 +40,6 @@ object SubstraitUtil {
       JoinRel.JoinType.UNRECOGNIZED
   }
 
-  // Currently, only supports inner joins
   def toCrossRelSubstrait(sparkJoin: JoinType): CrossRel.JoinType = sparkJoin match {
     case _: InnerLike =>
       CrossRel.JoinType.JOIN_TYPE_INNER

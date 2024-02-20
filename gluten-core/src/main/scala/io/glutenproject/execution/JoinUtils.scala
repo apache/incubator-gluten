@@ -29,7 +29,7 @@ import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.types.DataType
 
 import com.google.protobuf.Any
-import io.substrait.proto.JoinRel
+import io.substrait.proto.{CrossRel, JoinRel}
 
 import scala.collection.JavaConverters._
 
@@ -326,5 +326,36 @@ object JoinUtils {
       inputStreamedOutput ++ inputBuildOutput
     }
     TransformContext(inputAttributes, output, rel)
+  }
+
+  def createCrossRel(
+      substraitJoinType: CrossRel.JoinType,
+      condition: Option[Expression],
+      inputStreamedRelNode: RelNode,
+      inputBuildRelNode: RelNode,
+      inputStreamedOutput: Seq[Attribute],
+      inputBuildOutput: Seq[Attribute],
+      substraitContext: SubstraitContext,
+      operatorId: java.lang.Long,
+      validation: Boolean = false
+  ): RelNode = {
+    val expressionNode = condition.map {
+      expr =>
+        ExpressionConverter
+          .replaceWithExpressionTransformer(expr, inputStreamedOutput ++ inputBuildOutput)
+          .doTransform(substraitContext.registeredFunction)
+    }
+    val extensionNode =
+      JoinUtils.createExtensionNode(inputStreamedOutput ++ inputBuildOutput, validation)
+
+    RelBuilder.makeCrossRel(
+      inputStreamedRelNode,
+      inputBuildRelNode,
+      substraitJoinType,
+      expressionNode.orNull,
+      extensionNode,
+      substraitContext,
+      operatorId
+    )
   }
 }
