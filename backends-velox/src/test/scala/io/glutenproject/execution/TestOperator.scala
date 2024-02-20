@@ -1041,4 +1041,37 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       runQueryAndCompare("SELECT first(l) FROM t2")(df => checkFallbackOperators(df, 0))
     }
   }
+
+  test("Fall back multiple expressions") {
+    runQueryAndCompare(
+      """
+        |select (l_partkey % 10 + 5)
+        |from lineitem
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+
+    runQueryAndCompare(
+      """
+        |select l_partkey
+        |from lineitem where (l_partkey % 10 + 5) > 100
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+
+    withSQLConf(GlutenConfig.COLUMNAR_FALLBACK_EXPRESSIONS_THRESHOLD.key -> "2") {
+      runQueryAndCompare(
+        """
+          |select (l_partkey % 10 + 5)
+          |from lineitem
+          |""".stripMargin
+      )(df => checkFallbackOperators(df, 1))
+
+      runQueryAndCompare(
+        """
+          |select l_partkey
+          |from lineitem where (l_partkey % 10 + 5) > 100
+          |""".stripMargin
+      )(df => checkFallbackOperators(df, 1))
+    }
+  }
+
 }
