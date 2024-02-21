@@ -29,11 +29,13 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanExec, GlobalLimitExec, SparkPlan, TakeOrderedAndProjectExec}
-import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex, WriteJobDescription, WriteTaskResult}
+import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+
+import org.apache.hadoop.fs.Path
 
 sealed abstract class ShimDescriptor
 
@@ -59,6 +61,14 @@ trait SparkShims {
       readFunction: (PartitionedFile) => Iterator[InternalRow],
       filePartitions: Seq[FilePartition],
       fileSourceScanExec: FileSourceScanExec): FileScanRDD
+
+  def splitFiles(
+      sparkSession: SparkSession,
+      file: FileStatusWithMetadata,
+      filePath: Path,
+      isSplitable: Boolean,
+      maxSplitBytes: Long,
+      partitionValues: InternalRow): Seq[PartitionedFile]
 
   def getTextScan(
       sparkSession: SparkSession,

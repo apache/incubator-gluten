@@ -33,7 +33,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanExec, GlobalLimitExec, GlutenFileFormatWriter, PartitionedFileUtil, SparkPlan, TakeOrderedAndProjectExec}
-import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex, WriteJobDescription, WriteTaskResult}
+import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
@@ -195,7 +195,24 @@ class Spark34Shims extends SparkShims {
 
   override def enableNativeWriteFilesByDefault(): Boolean = true
 
+
   override def createTestTaskContext(): TaskContext = {
     TaskContextUtils.createTestTaskContext()
+  }
+
+  override def splitFiles(
+       sparkSession: SparkSession,
+       file: FileStatusWithMetadata,
+       filePath: Path,
+       isSplitable: Boolean,
+       maxSplitBytes: Long,
+       partitionValues: InternalRow): Seq[PartitionedFile] = {
+    PartitionedFileUtil.splitFiles(
+      sparkSession,
+      file,
+      filePath,
+      isSplitable,
+      maxSplitBytes,
+      partitionValues)
   }
 }

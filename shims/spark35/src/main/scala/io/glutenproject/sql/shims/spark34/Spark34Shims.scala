@@ -33,7 +33,7 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanLike, PartitionedFileUtil, SparkPlan}
 import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
@@ -42,7 +42,7 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 import org.apache.hadoop.fs.Path
 
-class Spark34Shims extends SparkShims {
+class Spark35Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
 
   override def getDistribution(
@@ -152,5 +152,38 @@ class Spark34Shims extends SparkShims {
       errorClass = "INVALID_BUCKET_FILE",
       messageParameters = Map("path" -> path),
       cause = null)
+  }
+
+  override def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = List()
+
+  override def writeFilesExecuteTask(
+      description: WriteJobDescription,
+      jobTrackerID: String,
+      sparkStageId: Int,
+      sparkPartitionId: Int,
+      sparkAttemptNumber: Int,
+      committer: FileCommitProtocol,
+      iterator: Iterator[InternalRow]): WriteTaskResult = {
+    GlutenFileFormatWriter.writeFilesExecuteTask(
+      description,
+      jobTrackerID,
+      sparkStageId,
+      sparkPartitionId,
+      sparkAttemptNumber,
+      committer,
+      iterator
+    )
+  }
+
+  override def enableNativeWriteFilesByDefault(): Boolean = true
+
+  override def splitFiles(
+      sparkSession: SparkSession,
+      file: FileStatusWithMetadata,
+      filePath: Path,
+      isSplitable: Boolean,
+      maxSplitBytes: Long,
+      partitionValues: InternalRow): Seq[PartitionedFile] = {
+    PartitionedFileUtil.splitFiles(sparkSession, file, isSplitable, maxSplitBytes, partitionValues)
   }
 }

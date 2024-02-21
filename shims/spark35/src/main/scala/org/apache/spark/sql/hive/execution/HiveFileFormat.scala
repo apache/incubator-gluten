@@ -28,7 +28,6 @@ import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, Out
 import org.apache.spark.sql.execution.datasources.orc.OrcOptions
 import org.apache.spark.sql.execution.datasources.parquet.ParquetOptions
 import org.apache.spark.sql.hive.{HiveInspectors, HiveTableUtil}
-import org.apache.spark.sql.hive.HiveShim.{ShimFileSinkDesc => FileSinkDesc}
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SerializableJobConf
@@ -36,6 +35,7 @@ import org.apache.spark.util.SerializableJobConf
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.hadoop.hive.ql.exec.Utilities
 import org.apache.hadoop.hive.ql.io.{HiveFileFormatUtils, HiveOutputFormat}
+import org.apache.hadoop.hive.ql.plan.FileSinkDesc
 import org.apache.hadoop.hive.serde2.Serializer
 import org.apache.hadoop.hive.serde2.objectinspector.{ObjectInspectorUtils, StructObjectInspector}
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils.ObjectInspectorCopyOption
@@ -96,13 +96,13 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
 
     // Avoid referencing the outer object.
     val fileSinkConfSer = fileSinkConf
-    val outputFormat = fileSinkConf.tableInfo.getOutputFileFormatClassName
+    val outputFormat = fileSinkConf.getTableInfo.getOutputFileFormatClassName
     if ("true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable"))) {
       val nativeFormat = sparkSession.sparkContext.getLocalProperty("nativeFormat")
       val isParquetFormat = nativeFormat.equals("parquet")
-      val compressionCodec = if (fileSinkConf.compressed) {
+      val compressionCodec = if (fileSinkConf.getCompressed) {
         // hive related configurations
-        fileSinkConf.compressCodec
+        fileSinkConf.getCompressCodec
       } else if (isParquetFormat) {
         val parquetOptions = new ParquetOptions(options, sparkSession.sessionState.conf)
         parquetOptions.compressionCodecClassName
