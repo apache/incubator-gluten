@@ -181,21 +181,6 @@ abstract class HashAggregateExecBaseTransformer(
       validation: Boolean = false): RelNode
 }
 
-object HashAggregateExecTransformerUtil {
-  // Return whether the outputs partial aggregation should be combined for Velox computing.
-  // When the partial outputs are multiple-column, row construct is needed.
-  def rowConstructNeeded(aggregateExpressions: Seq[AggregateExpression]): Boolean = {
-    aggregateExpressions.exists {
-      aggExpr =>
-        aggExpr.mode match {
-          case PartialMerge | Final =>
-            aggExpr.aggregateFunction.inputAggBufferAttributes.size > 1
-          case _ => false
-        }
-    }
-  }
-}
-
 abstract class HashAggregateExecPullOutBaseHelper(
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
