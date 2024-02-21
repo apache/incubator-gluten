@@ -185,6 +185,7 @@ object ExpressionNames {
   final val NEXT_DAY = "next_day"
   final val LAST_DAY = "last_day"
   final val MONTHS_BETWEEN = "months_between"
+  final val DATE_FROM_UNIX_DATE = "date_from_unix_date"
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
