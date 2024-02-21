@@ -209,6 +209,12 @@ class GlutenSQLQueryTestSuite
   private val otherIgnoreList =
     if (testCommandAvailable("/bin/bash")) Nil else Set("transform.sql")
 
+  // 3.4 inadvertently enabled with "group-by.sql" and "group-by-ordinal.sql"
+  private val udafIgnoreList = Set(
+    "udaf/udaf-group-by-ordinal.sql",
+    "udaf/udaf-group-by.sql"
+  )
+
   /** List of test cases to ignore, in lower cases. */
   protected def ignoreList: Set[String] = Set(
     "ignored.sql", // Do NOT remove this one. It is here to test the ignore functionality.
@@ -222,7 +228,7 @@ class GlutenSQLQueryTestSuite
     "window.sql", // Local window fixes are not added.
     "select_having.sql", // 3.4 failed
     "mapconcat.sql" // 3.4 failed
-  ) ++ otherIgnoreList
+  ) ++ otherIgnoreList ++ udafIgnoreList
 
   // List of supported cases to run with a certain backend, in lower case.
   private val supportedList: Set[String] =
