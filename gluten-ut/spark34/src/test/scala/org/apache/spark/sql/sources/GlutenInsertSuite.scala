@@ -246,6 +246,19 @@ class GlutenInsertSuite
       checkAndGetWriteFiles(df)
     }
   }
+
+  testGluten("Add metadata white list to allow native write files") {
+    withTable("t1", "t2") {
+      spark.sql("""
+                  |CREATE TABLE t1 (c1 long comment 'data column1', c2 long comment 'data column2')
+                  |USING PARQUET
+                  |""".stripMargin)
+      spark.sql("INSERT INTO TABLE t1 VALUES(1, 1),(2, 2)")
+      spark.sql("CREATE TABLE t2 (c1 long, c2 long) USING PARQUET")
+      val df = spark.sql("INSERT INTO TABLE t2 SELECT * FROM t1")
+      checkAndGetWriteFiles(df)
+    }
+  }
 }
 
 class GlutenRenameFromSparkStagingToFinalDirAlwaysTurnsFalseFilesystem extends RawLocalFileSystem {
