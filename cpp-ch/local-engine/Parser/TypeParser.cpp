@@ -315,6 +315,12 @@ bool TypeParser::isTypeMatched(const substrait::Type & substrait_type, const Dat
     return a->equals(*b);
 }
 
+bool TypeParser::isTypeMatchedWithNullability(const substrait::Type & substrait_type, const DataTypePtr & ch_type)
+{
+    const auto parsed_ch_type = TypeParser::parseType(substrait_type);
+    return parsed_ch_type->equals(*ch_type);
+}
+
 DB::DataTypePtr TypeParser::tryWrapNullable(substrait::Type_Nullability nullable, DB::DataTypePtr nested_type)
 {
     if (nullable == substrait::Type_Nullability::Type_Nullability_NULLABILITY_NULLABLE && !nested_type->isNullable())

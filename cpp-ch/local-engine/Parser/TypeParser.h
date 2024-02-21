@@ -48,6 +48,7 @@ public:
     static DB::Block buildBlockFromNamedStructWithoutDFS(const substrait::NamedStruct & struct_);
 
     static bool isTypeMatched(const substrait::Type & substrait_type, const DB::DataTypePtr & ch_type);
+    static bool isTypeMatchedWithNullability(const substrait::Type & substrait_type, const DB::DataTypePtr & ch_type);
 private:
     /// Mapping spark type names to CH type names.
     static std::unordered_map<String, String> type_names_mapping;
