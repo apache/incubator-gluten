@@ -427,26 +427,26 @@ struct<>
 -- !query output
 java.lang.IllegalStateException
 more than one row returned by a subquery used as an expression:
-Subquery subquery#2023, [id=#7865]
+Subquery subquery#1, [id=#2]
 +- AdaptiveSparkPlan isFinalPlan=true
    +- == Final Plan ==
       VeloxColumnarToRowExec
       +- ColumnarUnion
-         :- ^(114) ProjectExecTransformer [1 AS a#2021]
-         :  +- ^(114) InputIteratorTransformer[fake_column#2027]
-         :     +- ^(114) InputAdapter
-         :        +- ^(114) RowToVeloxColumnar
-         :           +- *(1) Scan OneRowRelation[fake_column#2027]
-         +- ^(115) ProjectExecTransformer [2 AS a#2022]
-            +- ^(115) InputIteratorTransformer[fake_column#2028]
-               +- ^(115) InputAdapter
-                  +- ^(115) RowToVeloxColumnar
-                     +- *(2) Scan OneRowRelation[fake_column#2028]
+         :-  ProjectExecTransformer [1 AS a#3]
+         :  +-  InputIteratorTransformer[fake_column#4]
+         :     +-  InputAdapter
+         :        +-  RowToVeloxColumnar
+         :           +-  Scan OneRowRelation[fake_column#4]
+         +-  ProjectExecTransformer [2 AS a#5]
+            +-  InputIteratorTransformer[fake_column#6]
+               +-  InputAdapter
+                  +-  RowToVeloxColumnar
+                     +-  Scan OneRowRelation[fake_column#6]
    +- == Initial Plan ==
       Union
-      :- Project [1 AS a#2021]
+      :- Project [1 AS a#3]
       :  +- Scan OneRowRelation[]
-      +- Project [2 AS a#2022]
+      +- Project [2 AS a#5]
          +- Scan OneRowRelation[]
 
 

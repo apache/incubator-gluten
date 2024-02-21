@@ -36,6 +36,7 @@ import java.io.File
 import java.net.URI
 import java.util.Locale
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.sys.process.{Process, ProcessLogger}
 import scala.util.Try
@@ -509,7 +510,7 @@ class GlutenSQLQueryTestSuite
         QueryOutput(
           sql = sql,
           schema = schema,
-          output = output.mkString("\n").replaceAll("\\s+$", ""))
+          output = normalizeIds(output.mkString("\n").replaceAll("\\s+$", "")))
     }
 
     if (regenerateGoldenFiles) {
@@ -586,6 +587,17 @@ class GlutenSQLQueryTestSuite
               s" for query #$i\n${expected.sql}")(output.output)
       }
     }
+  }
+
+  protected val normalizeRegex = "#\\d+L?".r
+  protected val nodeNumberRegex = "[\\^*]\\(\\d+\\)".r
+  protected def normalizeIds(plan: String): String = {
+    val normalizedPlan = nodeNumberRegex.replaceAllIn(plan, "")
+    val map = new mutable.HashMap[String, String]()
+    normalizeRegex.findAllMatchIn(normalizedPlan).map(_.toString)
+      .foreach(map.getOrElseUpdate(_, (map.size + 1).toString))
+    normalizeRegex.replaceAllIn(
+      normalizedPlan, regexMatch => s"#${map(regexMatch.toString)}")
   }
 
   protected lazy val listTestCases: Seq[TestCase] = {
