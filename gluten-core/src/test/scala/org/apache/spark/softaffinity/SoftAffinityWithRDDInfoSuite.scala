@@ -95,7 +95,7 @@ class SoftAffinityWithRDDInfoSuite extends QueryTest with SharedSparkSession wit
       // check location (executor 0) of dulicate reading is returned.
       val locations = SoftAffinity.getFilePartitionLocations(filePartition)
 
-      val nativePartition = new GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations)
+      val nativePartition = new GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations = locations)
 
       assertResult(Set("executor_host-0_0")) {
         nativePartition.preferredLocations().toSet
