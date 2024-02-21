@@ -40,7 +40,7 @@ case class JoinParams() {
 }
 
 case class AggregationParams() {
-  // Whether preProjection is needed.
+  // Whether rowConstruction is needed.
   var rowConstructionNeeded = false
 
   // Whether extraction from intermediate struct is needed.
