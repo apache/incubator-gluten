@@ -529,7 +529,8 @@ object GlutenConfig {
       })
 
     val keyWithDefault = ImmutableList.of(
-      (SQLConf.CASE_SENSITIVE.key, "false")
+      (SQLConf.CASE_SENSITIVE.key, "false"),
+      (SQLConf.IGNORE_MISSING_FILES.key, "false")
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 

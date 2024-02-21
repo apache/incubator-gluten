@@ -1055,7 +1055,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeByPrefix("SPARK-22790")
     // plan is different cause metric is different, rewrite
     .excludeByPrefix("SPARK-25237")
-    // ignoreMissingFiles mode, wait to fix
+    // ignoreMissingFiles mode: error msg from velox is different, rewrite
     .exclude("Enabling/disabling ignoreMissingFiles using parquet")
     .exclude("Enabling/disabling ignoreMissingFiles using orc")
     .exclude("Spark native readers should respect spark.sql.caseSensitive - orc")

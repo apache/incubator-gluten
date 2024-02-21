@@ -42,7 +42,7 @@ In certain cases, Gluten result may be different from Vanilla spark.
 Velox only supports double quotes surrounded strings, not single quotes, in JSON data. If single quotes are used, gluten will produce incorrect result.
 
 #### Parquet read conf
-Gluten supports `spark.files.ignoreCorruptFiles` and `spark.files.ignoreMissingFiles` with default false, if true, the behavior is same as config false.
+Gluten supports `spark.files.ignoreCorruptFiles` with default false, if true, the behavior is same as config false.
 Gluten ignores `spark.sql.parquet.datetimeRebaseModeInRead`, it only returns what write in parquet file. It does not consider the difference between legacy
 hybrid (Julian Gregorian) calendar and Proleptic Gregorian calendar. The result may be different with vanilla spark.
 

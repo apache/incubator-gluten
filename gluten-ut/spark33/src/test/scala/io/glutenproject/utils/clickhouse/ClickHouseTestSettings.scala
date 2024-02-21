@@ -329,6 +329,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileBasedDataSourceSuite]
     .exclude("SPARK-23072 Write and read back unicode column names - csv")
     .excludeByPrefix("Enabling/disabling ignoreMissingFiles using")
+    .excludeGlutenTestsByPrefix("Enabling/disabling ignoreMissingFiles using")
     .exclude("Spark native readers should respect spark.sql.caseSensitive - parquet")
     .exclude("Spark native readers should respect spark.sql.caseSensitive - orc")
     .exclude("SPARK-25237 compute correct input metrics in FileScanRDD")

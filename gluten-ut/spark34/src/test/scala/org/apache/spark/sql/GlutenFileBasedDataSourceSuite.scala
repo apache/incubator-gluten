@@ -16,12 +16,15 @@
  */
 package org.apache.spark.sql
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, SortMergeJoinExec}
 import org.apache.spark.sql.internal.SQLConf
 
 import org.apache.hadoop.fs.Path
+
+import java.io.FileNotFoundException
 
 import scala.collection.mutable
 
@@ -172,6 +175,73 @@ class GlutenFileBasedDataSourceSuite extends FileBasedDataSourceSuite with Glute
           }
       }
     }
+  }
+
+  Seq("orc", "parquet").foreach {
+    format =>
+      testQuietly(GLUTEN_TEST + s"Enabling/disabling ignoreMissingFiles using $format") {
+        def testIgnoreMissingFiles(options: Map[String, String]): Unit = {
+          withTempDir {
+            dir =>
+              val basePath = dir.getCanonicalPath
+
+              Seq("0").toDF("a").write.format(format).save(new Path(basePath, "second").toString)
+              Seq("1").toDF("a").write.format(format).save(new Path(basePath, "fourth").toString)
+
+              val firstPath = new Path(basePath, "first")
+              val thirdPath = new Path(basePath, "third")
+              val fs = thirdPath.getFileSystem(spark.sessionState.newHadoopConf())
+              Seq("2").toDF("a").write.format(format).save(firstPath.toString)
+              Seq("3").toDF("a").write.format(format).save(thirdPath.toString)
+              val files = Seq(firstPath, thirdPath).flatMap {
+                p => fs.listStatus(p).filter(_.isFile).map(_.getPath)
+              }
+
+              val df = spark.read
+                .options(options)
+                .format(format)
+                .load(
+                  new Path(basePath, "first").toString,
+                  new Path(basePath, "second").toString,
+                  new Path(basePath, "third").toString,
+                  new Path(basePath, "fourth").toString)
+
+              // Make sure all data files are deleted and can't be opened.
+              files.foreach(f => fs.delete(f, false))
+              assert(fs.delete(thirdPath, true))
+              for (f <- files) {
+                intercept[FileNotFoundException](fs.open(f))
+              }
+
+              checkAnswer(df, Seq(Row("0"), Row("1")))
+          }
+        }
+
+        // Test set ignoreMissingFiles via SQL Conf
+        // Rewrite this test as error msg is different from velox and data Source reader options
+        // is not supported.
+        for {
+          (ignore, options, sqlConf) <- Seq(
+            // Set via SQL Conf: leave options empty
+            ("true", Map.empty[String, String], "true"),
+            ("false", Map.empty[String, String], "false")
+          )
+          sources <- Seq("", format)
+        } {
+          withSQLConf(
+            SQLConf.USE_V1_SOURCE_LIST.key -> sources,
+            SQLConf.IGNORE_MISSING_FILES.key -> sqlConf) {
+            if (ignore.toBoolean) {
+              testIgnoreMissingFiles(options)
+            } else {
+              val exception = intercept[SparkException] {
+                testIgnoreMissingFiles(options)
+              }
+              assert(exception.getMessage().contains("No such file or directory"))
+            }
+          }
+        }
+      }
   }
 
 }
