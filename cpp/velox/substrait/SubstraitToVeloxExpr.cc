@@ -590,6 +590,7 @@ std::unordered_map<std::string, std::string> SubstraitVeloxExprConverter::extrac
     {"HOUR", "hour"},
     {"DAY", "day"},
     {"DAY_OF_WEEK", "dayofweek"},
+    {"WEEK_DAY", "weekday"},
     {"DAY_OF_YEAR", "dayofyear"},
     {"MONTH", "month"},
     {"QUARTER", "quarter"},

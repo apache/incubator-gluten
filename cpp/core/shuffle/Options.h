@@ -18,6 +18,7 @@
 #pragma once
 
 #include <arrow/ipc/options.h>
+#include <arrow/util/compression.h>
 #include "shuffle/Partitioning.h"
 #include "utils/Compression.h"
 
@@ -56,6 +57,7 @@ struct PartitionWriterOptions {
   int32_t compressionThreshold = kDefaultCompressionThreshold;
   arrow::Compression::type compressionType = arrow::Compression::LZ4_FRAME;
   CodecBackend codecBackend = CodecBackend::NONE;
+  int32_t compressionLevel = arrow::util::kUseDefaultCompressionLevel;
   CompressionMode compressionMode = CompressionMode::BUFFER;
 
   bool bufferedWrite = kEnableBufferedWrite;

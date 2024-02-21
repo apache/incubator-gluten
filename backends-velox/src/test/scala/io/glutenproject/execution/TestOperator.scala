@@ -721,6 +721,33 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
+  test("test array functions") {
+    withTable("t") {
+      sql("CREATE TABLE t (c1 ARRAY<INT>, c2 ARRAY<INT>, c3 STRING) using parquet")
+      sql("INSERT INTO t VALUES (ARRAY(0, 1, 2, 3, 3), ARRAY(2, 2, 3, 4, 6), 'abc')")
+      runQueryAndCompare("""
+                           |SELECT array_except(c1, c2) FROM t;
+                           |""".stripMargin) {
+        checkOperatorMatch[ProjectExecTransformer]
+      }
+      runQueryAndCompare("""
+                           |SELECT array_distinct(c1), array_distinct(c2) FROM t;
+                           |""".stripMargin) {
+        checkOperatorMatch[ProjectExecTransformer]
+      }
+      runQueryAndCompare("""
+                           |SELECT array_position(c1, 3), array_position(c2, 2) FROM t;
+                           |""".stripMargin) {
+        checkOperatorMatch[ProjectExecTransformer]
+      }
+      runQueryAndCompare("""
+                           |SELECT array_repeat(c3, 5) FROM t;
+                           |""".stripMargin) {
+        checkOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
+
   test("Support bool type filter in scan") {
     withTable("t") {
       sql("create table t (id int, b boolean) using parquet")
@@ -991,6 +1018,18 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       sql("create table t1 (c1 int, c2 timestamp) USING PARQUET")
       sql("INSERT INTO t1 VALUES(1, NOW())")
       runQueryAndCompare("SELECT c1, HOUR(c2) FROM t1 LIMIT 1")(df => checkFallbackOperators(df, 0))
+    }
+  }
+
+  test("Support Array type signature") {
+    withTable("t1", "t2") {
+      sql("CREATE TABLE t1(id INT, l ARRAY<INT>) USING PARQUET")
+      sql("INSERT INTO t1 VALUES(1, ARRAY(1, 2)), (2, ARRAY(3, 4))")
+      runQueryAndCompare("SELECT first(l) FROM t1")(df => checkFallbackOperators(df, 0))
+
+      sql("CREATE TABLE t2(id INT, l ARRAY<STRUCT<k: INT, v: INT>>) USING PARQUET")
+      sql("INSERT INTO t2 VALUES(1, ARRAY(STRUCT(1, 100))), (2, ARRAY(STRUCT(2, 200)))")
+      runQueryAndCompare("SELECT first(l) FROM t2")(df => checkFallbackOperators(df, 0))
     }
   }
 }

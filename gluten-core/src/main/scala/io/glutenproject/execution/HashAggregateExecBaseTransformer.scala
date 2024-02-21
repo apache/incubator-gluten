@@ -21,11 +21,8 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
-import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
-import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
-import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
-import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+import io.glutenproject.substrait.rel.RelNode
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -33,12 +30,6 @@ import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.types._
-
-import com.google.protobuf.StringValue
-
-import java.util.{ArrayList => JArrayList, List => JList}
-
-import scala.collection.JavaConverters._
 
 /** Columnar Based HashAggregateExec. */
 abstract class HashAggregateExecBaseTransformer(
@@ -145,50 +136,27 @@ abstract class HashAggregateExecBaseTransformer(
     doNativeValidation(substraitContext, relNode)
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
-
-    val aggParams = new AggregationParams
-    val operatorId = context.nextOperatorId(this.nodeName)
-    val relNode = getAggRel(context, operatorId, aggParams, childCtx.root)
-    TransformContext(childCtx.outputAttributes, output, relNode)
-  }
-
   // Members declared in org.apache.spark.sql.execution.AliasAwareOutputPartitioning
   override protected def outputExpressions: Seq[NamedExpression] = resultExpressions
-
-  protected def addFunctionNode(
-      args: java.lang.Object,
-      aggregateFunction: AggregateFunction,
-      childrenNodeList: JList[ExpressionNode],
-      aggregateMode: AggregateMode,
-      aggregateNodeList: JList[AggregateFunctionNode]): Unit = {
-    aggregateNodeList.add(
-      ExpressionBuilder.makeAggregateFunction(
-        AggregateFunctionsBuilder.create(args, aggregateFunction),
-        childrenNodeList,
-        modeToKeyWord(aggregateMode),
-        ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
-      ))
-  }
 
   protected def checkAggFuncModeSupport(
       aggFunc: AggregateFunction,
       mode: AggregateMode): Boolean = {
     aggFunc match {
+      case s: Sum if s.prettyName.equals("try_sum") => false
       case _: CollectList | _: CollectSet =>
         mode match {
-          case Partial | Final => true
+          case Partial | Final | Complete => true
           case _ => false
         }
       case bloom if bloom.getClass.getSimpleName.equals("BloomFilterAggregate") =>
         mode match {
-          case Partial | Final => true
+          case Partial | Final | Complete => true
           case _ => false
         }
       case _ =>
         mode match {
-          case Partial | PartialMerge | Final => true
+          case Partial | PartialMerge | Final | Complete => true
           case _ => false
         }
     }
@@ -198,104 +166,11 @@ abstract class HashAggregateExecBaseTransformer(
     aggregateMode match {
       case Partial => "PARTIAL"
       case PartialMerge => "PARTIAL_MERGE"
+      case Complete => "COMPLETE"
       case Final => "FINAL"
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
     }
-  }
-
-  protected def getAggRelInternal(
-      context: SubstraitContext,
-      originalInputAttributes: Seq[Attribute],
-      operatorId: Long,
-      input: RelNode = null,
-      validation: Boolean): RelNode = {
-    val args = context.registeredFunction
-    // Get the grouping nodes.
-    // Use 'child.output' as based Seq[Attribute], the originalInputAttributes
-    // may be different for each backend.
-    val groupingList = groupingExpressions
-      .map(
-        ExpressionConverter
-          .replaceWithExpressionTransformer(_, child.output)
-          .doTransform(args))
-      .asJava
-    // Get the aggregate function nodes.
-    val aggFilterList = new JArrayList[ExpressionNode]()
-    val aggregateFunctionList = new JArrayList[AggregateFunctionNode]()
-    aggregateExpressions.foreach(
-      aggExpr => {
-        if (aggExpr.filter.isDefined) {
-          val exprNode = ExpressionConverter
-            .replaceWithExpressionTransformer(aggExpr.filter.get, child.output)
-            .doTransform(args)
-          aggFilterList.add(exprNode)
-        } else {
-          // The number of filters should be aligned with that of aggregate functions.
-          aggFilterList.add(null)
-        }
-        val aggregateFunc = aggExpr.aggregateFunction
-        val childrenNodes = aggExpr.mode match {
-          case Partial =>
-            aggregateFunc.children.toList.map(
-              expr => {
-                ExpressionConverter
-                  .replaceWithExpressionTransformer(expr, originalInputAttributes)
-                  .doTransform(args)
-              })
-          case PartialMerge | Final =>
-            aggregateFunc.inputAggBufferAttributes.toList.map(
-              attr => {
-                ExpressionConverter
-                  .replaceWithExpressionTransformer(attr, originalInputAttributes)
-                  .doTransform(args)
-              })
-          case other =>
-            throw new UnsupportedOperationException(s"$other not supported.")
-        }
-        addFunctionNode(
-          args,
-          aggregateFunc,
-          childrenNodes.asJava,
-          aggExpr.mode,
-          aggregateFunctionList)
-      })
-
-    val extensionNode = getAdvancedExtension(validation, originalInputAttributes)
-    RelBuilder.makeAggregateRel(
-      input,
-      groupingList,
-      aggregateFunctionList,
-      aggFilterList,
-      extensionNode,
-      context,
-      operatorId)
-  }
-
-  protected def getAdvancedExtension(
-      validation: Boolean = false,
-      originalInputAttributes: Seq[Attribute] = Seq.empty): AdvancedExtensionNode = {
-    val enhancement = if (validation) {
-      // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = originalInputAttributes
-        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-        .asJava
-      BackendsApiManager.getTransformerApiInstance.packPBMessage(
-        TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf)
-    } else {
-      null
-    }
-
-    val optimization =
-      BackendsApiManager.getTransformerApiInstance.packPBMessage(
-        StringValue.newBuilder
-          .setValue(formatExtOptimizationString(isCapableForStreamingAggregation))
-          .build)
-    ExtensionBuilder.makeAdvancedExtension(optimization, enhancement)
-  }
-
-  protected def formatExtOptimizationString(isStreaming: Boolean): String = {
-    s"isStreaming=${if (isStreaming) "1" else "0"}\n"
   }
 
   protected def getAggRel(

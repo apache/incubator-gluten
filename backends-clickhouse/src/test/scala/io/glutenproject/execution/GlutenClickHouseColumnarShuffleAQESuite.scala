@@ -139,7 +139,13 @@ class GlutenClickHouseColumnarShuffleAQESuite
   }
 
   test("TPCH Q18") {
-    runTPCHQuery(18) { df => }
+    runTPCHQuery(18) {
+      df =>
+        val hashAggregates = collect(df.queryExecution.executedPlan) {
+          case hash: HashAggregateExecBaseTransformer => hash
+        }
+        assert(hashAggregates.size == 3)
+    }
   }
 
   test("TPCH Q19") {

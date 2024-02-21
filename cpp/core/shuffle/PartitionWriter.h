@@ -34,7 +34,7 @@ class PartitionWriter : public Reclaimable {
   PartitionWriter(uint32_t numPartitions, PartitionWriterOptions options, arrow::MemoryPool* pool)
       : numPartitions_(numPartitions), options_(std::move(options)), pool_(pool) {
     payloadPool_ = std::make_unique<ShuffleMemoryPool>(pool);
-    codec_ = createArrowIpcCodec(options_.compressionType, options_.codecBackend);
+    codec_ = createArrowIpcCodec(options_.compressionType, options_.codecBackend, options_.compressionLevel);
   }
 
   virtual ~PartitionWriter() = default;

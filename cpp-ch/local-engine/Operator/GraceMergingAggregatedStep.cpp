@@ -47,19 +47,21 @@ static DB::ITransformingStep::Traits getTraits()
     };
 }
 
-static DB::Block buildOutputHeader(const DB::Block & input_header_, const DB::Aggregator::Params params_)
+static DB::Block buildOutputHeader(const DB::Block & input_header_, const DB::Aggregator::Params params_, bool final)
 {
-    return params_.getHeader(input_header_, true);
+    return params_.getHeader(input_header_, final);
 }
 
 GraceMergingAggregatedStep::GraceMergingAggregatedStep(
     DB::ContextPtr context_,
     const DB::DataStream & input_stream_,
-    DB::Aggregator::Params params_)
+    DB::Aggregator::Params params_,
+    bool no_pre_aggregated_)
     : DB::ITransformingStep(
-        input_stream_, buildOutputHeader(input_stream_.header, params_), getTraits())
+        input_stream_, buildOutputHeader(input_stream_.header, params_, true), getTraits())
     , context(context_)
     , params(std::move(params_))
+    , no_pre_aggregated(no_pre_aggregated_)
 {
 }
 
@@ -73,7 +75,7 @@ void GraceMergingAggregatedStep::transformPipeline(DB::QueryPipelineBuilder & pi
         DB::Processors new_processors;
         for (auto & output : outputs)
         {
-            auto op = std::make_shared<GraceMergingAggregatedTransform>(pipeline.getHeader(), transform_params, context);
+            auto op = std::make_shared<GraceMergingAggregatedTransform>(pipeline.getHeader(), transform_params, context, no_pre_aggregated);
             new_processors.push_back(op);
             DB::connect(*output, op->getInputs().front());
         }
@@ -95,14 +97,17 @@ void GraceMergingAggregatedStep::describeActions(DB::JSONBuilder::JSONMap & map)
 
 void GraceMergingAggregatedStep::updateOutputStream()
 {
-    output_stream = createOutputStream(input_streams.front(), buildOutputHeader(input_streams.front().header, params), getDataStreamTraits());
+    output_stream = createOutputStream(input_streams.front(), buildOutputHeader(input_streams.front().header, params, true), getDataStreamTraits());
 }
 
-GraceMergingAggregatedTransform::GraceMergingAggregatedTransform(const DB::Block &header_, DB::AggregatingTransformParamsPtr params_, DB::ContextPtr context_)
+GraceMergingAggregatedTransform::GraceMergingAggregatedTransform(const DB::Block &header_, DB::AggregatingTransformParamsPtr params_, DB::ContextPtr context_, bool no_pre_aggregated_)
     : IProcessor({header_}, {params_->getHeader()})
     , header(header_)
     , params(params_)
     , context(context_)
+    , key_columns(params_->params.keys_size)
+    , aggregate_columns(params_->params.aggregates_size)
+    , no_pre_aggregated(no_pre_aggregated_)
     , tmp_data_disk(std::make_unique<DB::TemporaryDataOnDisk>(context_->getTempDataOnDisk()))
 {
     max_buckets = context->getConfigRef().getUInt64("max_grace_aggregate_merging_buckets", 32);
@@ -201,7 +206,7 @@ void GraceMergingAggregatedTransform::work()
     {
         assert(!input_finished);
         auto block = header.cloneWithColumns(input_chunk.detachColumns());
-        mergeOneBlock(block);
+        mergeOneBlock(block, true);
         has_input = false;
     }
     else
@@ -294,9 +299,10 @@ void GraceMergingAggregatedTransform::rehashDataVariants()
         }
         for (size_t i = current_bucket_index + 1; i < getBucketsNum(); ++i)
         {
-            addBlockIntoFileBucket(i, scattered_blocks[i]);
+            addBlockIntoFileBucket(i, scattered_blocks[i], false);
             scattered_blocks[i] = {};
         }
+
         params->aggregator.mergeOnBlock(scattered_blocks[current_bucket_index], *current_data_variants, no_more_keys);
     }
     if (block_rows)
@@ -326,7 +332,7 @@ DB::Blocks GraceMergingAggregatedTransform::scatterBlock(const DB::Block & block
     return blocks;
 }
 
-void GraceMergingAggregatedTransform::addBlockIntoFileBucket(size_t bucket_index, const DB::Block & block)
+void GraceMergingAggregatedTransform::addBlockIntoFileBucket(size_t bucket_index, const DB::Block & block, bool is_original_block)
 {
     if (!block.rows())
         return;
@@ -336,7 +342,10 @@ void GraceMergingAggregatedTransform::addBlockIntoFileBucket(size_t bucket_index
     }
     auto & file_stream = buckets[bucket_index];
     file_stream.pending_bytes += block.allocatedBytes();
-    file_stream.blocks.push_back(block);
+    if (is_original_block && no_pre_aggregated)
+        file_stream.original_blocks.push_back(block);
+    else
+        file_stream.intermediate_blocks.push_back(block);
     if (file_stream.pending_bytes > max_pending_flush_blocks_per_bucket)
     {
         flushBucket(bucket_index);
@@ -350,37 +359,54 @@ void GraceMergingAggregatedTransform::flushBuckets()
         flushBucket(i);
 }
 
+static size_t flushBlocksInfoDisk(DB::TemporaryFileStream * file_stream, std::list<DB::Block> & blocks)
+{
+    size_t flush_bytes = 0;
+    DB::Blocks tmp_blocks;
+    while (!blocks.empty())
+    {
+        while (!blocks.empty())
+        {
+            if (!tmp_blocks.empty() && tmp_blocks.back().info.bucket_num != blocks.front().info.bucket_num)
+                break;
+            tmp_blocks.push_back(blocks.front());
+            blocks.pop_front();
+        }
+        auto bucket = tmp_blocks.front().info.bucket_num;
+        auto merged_block = BlockUtil::concatenateBlocksMemoryEfficiently(std::move(tmp_blocks));
+        merged_block.info.bucket_num = bucket;
+        tmp_blocks.clear();
+        flush_bytes += merged_block.bytes();
+        if (merged_block.rows())
+        {
+            file_stream->write(merged_block);
+        }
+    }
+    if (flush_bytes)
+        file_stream->flush();
+    return flush_bytes;
+}
+
 size_t GraceMergingAggregatedTransform::flushBucket(size_t bucket_index)
 {
     Stopwatch watch;
     auto & file_stream = buckets[bucket_index];
-    if (file_stream.blocks.empty())
-        return 0;
-    if (!file_stream.file_stream)
-        file_stream.file_stream = &tmp_data_disk->createStream(header);
-    DB::Blocks blocks;
     size_t flush_bytes = 0;
-    while (!file_stream.blocks.empty())
+    if (!file_stream.original_blocks.empty())
     {
-        while (!file_stream.blocks.empty())
-        {
-            if (!blocks.empty() && blocks.back().info.bucket_num != file_stream.blocks.front().info.bucket_num)
-                break;
-            blocks.push_back(file_stream.blocks.front());
-            file_stream.blocks.pop_front();
-        }
-        auto bucket = blocks.front().info.bucket_num;
-        auto merged_block = BlockUtil::concatenateBlocksMemoryEfficiently(std::move(blocks));
-        merged_block.info.bucket_num = bucket;
-        blocks.clear();
-        flush_bytes += merged_block.bytes();
-        if (merged_block.rows())
-        {
-            file_stream.file_stream->write(merged_block);
-        }
+        if (!file_stream.original_file_stream)
+            file_stream.original_file_stream = &tmp_data_disk->createStream(header);
+        flush_bytes += flushBlocksInfoDisk(file_stream.original_file_stream, file_stream.original_blocks);
     }
-    if (flush_bytes)
-        file_stream.file_stream->flush();
+    if (!file_stream.intermediate_blocks.empty())
+    {
+        if (!file_stream.intermediate_file_stream)
+        {
+            auto intermediate_header = params->aggregator.getHeader(false);
+            file_stream.intermediate_file_stream = &tmp_data_disk->createStream(intermediate_header);
+        }
+        flush_bytes += flushBlocksInfoDisk(file_stream.intermediate_file_stream, file_stream.intermediate_blocks);
+    }
     total_spill_disk_bytes += flush_bytes;
     total_spill_disk_time += watch.elapsedMilliseconds();
     return flush_bytes;
@@ -389,7 +415,8 @@ size_t GraceMergingAggregatedTransform::flushBucket(size_t bucket_index)
 std::unique_ptr<AggregateDataBlockConverter> GraceMergingAggregatedTransform::prepareBucketOutputBlocks(size_t bucket_index)
 {
     auto & buffer_file_stream = buckets[bucket_index];
-    if (!current_data_variants && !buffer_file_stream.file_stream && buffer_file_stream.blocks.empty())
+    if (!current_data_variants && !buffer_file_stream.intermediate_file_stream && buffer_file_stream.intermediate_blocks.empty()
+        && !buffer_file_stream.original_file_stream && buffer_file_stream.original_blocks.empty())
     {
         return nullptr;
     }
@@ -400,30 +427,56 @@ std::unique_ptr<AggregateDataBlockConverter> GraceMergingAggregatedTransform::pr
 
     checkAndSetupCurrentDataVariants();
 
-    if (buffer_file_stream.file_stream)
+    if (buffer_file_stream.intermediate_file_stream)
     {
-        buffer_file_stream.file_stream->finishWriting();
+        buffer_file_stream.intermediate_file_stream->finishWriting();
         while (true)
         {
-            auto block = buffer_file_stream.file_stream->read();
+            auto block = buffer_file_stream.intermediate_file_stream->read();
             if (!block.rows())
                 break;
             read_bytes += block.bytes();
             read_rows += block.rows();
-            mergeOneBlock(block);
+            mergeOneBlock(block, false);
             block = {};
         }
-        buffer_file_stream.file_stream = nullptr;
+        buffer_file_stream.intermediate_file_stream = nullptr;
         total_read_disk_time += watch.elapsedMilliseconds();
     }
-    if (!buffer_file_stream.blocks.empty())
+    if (!buffer_file_stream.intermediate_blocks.empty())
     {
-        for (auto & block : buffer_file_stream.blocks)
+        for (auto & block : buffer_file_stream.intermediate_blocks)
         {
-            mergeOneBlock(block);
+            mergeOneBlock(block, false);
             block = {};
         }
     }
+    
+    if (buffer_file_stream.original_file_stream)
+    {
+        buffer_file_stream.original_file_stream->finishWriting();
+        while (true)
+        {
+            auto block = buffer_file_stream.original_file_stream->read();
+            if (!block.rows())
+                break;
+            read_bytes += block.bytes();
+            read_rows += block.rows();
+            mergeOneBlock(block, true);
+            block = {};
+        }
+        buffer_file_stream.original_file_stream = nullptr;
+        total_read_disk_time += watch.elapsedMilliseconds();
+    }
+    if (!buffer_file_stream.original_blocks.empty())
+    {
+        for (auto & block : buffer_file_stream.original_blocks)
+        {
+            mergeOneBlock(block, true);
+            block = {};
+        }
+    }
+
     auto last_data_variants_size = current_data_variants->size();
     auto converter = currentDataVariantToBlockConverter(true);
     LOG_INFO(
@@ -458,7 +511,7 @@ void GraceMergingAggregatedTransform::checkAndSetupCurrentDataVariants()
     }
 }
 
-void GraceMergingAggregatedTransform::mergeOneBlock(const DB::Block &block)
+void GraceMergingAggregatedTransform::mergeOneBlock(const DB::Block &block, bool is_original_block)
 {
     if (!block.rows())
         return;
@@ -488,7 +541,10 @@ void GraceMergingAggregatedTransform::mergeOneBlock(const DB::Block &block)
     /// so if the buckets number is not changed since it was scattered, we don't need to scatter it again.
     if (block.info.bucket_num == static_cast<Int32>(getBucketsNum()) || getBucketsNum() == 1)
     {
-        params->aggregator.mergeOnBlock(block, *current_data_variants, no_more_keys);
+        if (is_original_block && no_pre_aggregated)
+            params->aggregator.executeOnBlock(block, *current_data_variants, key_columns, aggregate_columns, no_more_keys);
+        else
+            params->aggregator.mergeOnBlock(block, *current_data_variants, no_more_keys);
     }
     else
     {
@@ -511,9 +567,17 @@ void GraceMergingAggregatedTransform::mergeOneBlock(const DB::Block &block)
         }
         for (size_t i = current_bucket_index + 1; i < getBucketsNum(); ++i)
         {
-            addBlockIntoFileBucket(i, scattered_blocks[i]);
+            addBlockIntoFileBucket(i, scattered_blocks[i], is_original_block);
         }
-        params->aggregator.mergeOnBlock(scattered_blocks[current_bucket_index], *current_data_variants, no_more_keys);
+
+        if (is_original_block && no_pre_aggregated)
+        {
+            params->aggregator.executeOnBlock(scattered_blocks[current_bucket_index], *current_data_variants, key_columns, aggregate_columns, no_more_keys);
+        }
+        else
+        {
+            params->aggregator.mergeOnBlock(scattered_blocks[current_bucket_index], *current_data_variants, no_more_keys);
+        }
     }
 }
 

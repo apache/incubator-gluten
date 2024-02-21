@@ -71,7 +71,7 @@ public class SplitResult {
   }
 
   public long getTotalPushTime() {
-    return totalBytesEvicted;
+    return totalEvictTime;
   }
 
   public long[] getPartitionLengths() {

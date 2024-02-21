@@ -831,6 +831,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("do not replace hash aggregate if child does not have sort order")
     .exclude("do not replace hash aggregate if there is no group-by column")
     .exclude("Gluten - replace partial hash aggregate with sort aggregate")
+    .exclude("Gluten - replace partial and final hash aggregate together with sort aggregate")
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
   enableSuite[GlutenSQLWindowFunctionSuite]
     .exclude("window function: partition and order expressions")

@@ -17,12 +17,16 @@
 package io.glutenproject.execution
 
 import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
+import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.execution.InputIteratorTransformer
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.aggregate.SortAggregateExec
 
 import org.apache.commons.io.FileUtils
 
 import java.io.File
+
+import scala.collection.mutable
 
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
@@ -490,6 +494,230 @@ class GlutenClickHouseTPCHBucketSuite
             .right
             .isInstanceOf[ProjectExecTransformer])
       })
+  }
+
+  test("GLUTEN-4668: Merge two phase hash-based aggregate into one aggregate") {
+    def checkHashAggregateCount(df: DataFrame, expectedCount: Int): Unit = {
+      val plans = collect(df.queryExecution.executedPlan) {
+        case agg: HashAggregateExecBaseTransformer => agg
+      }
+      assert(plans.size == expectedCount)
+    }
+
+    def checkResult(df: DataFrame, exceptedResult: Array[Row]): Unit = {
+      // check the result
+      val result = df.collect()
+      assert(result.size == exceptedResult.size)
+      result.equals(exceptedResult)
+    }
+
+    val SQL =
+      """
+        |select l_orderkey, l_returnflag, collect_list(l_linenumber) as t
+        |from lineitem group by l_orderkey, l_returnflag
+        |order by l_orderkey, l_returnflag, t limit 5
+        |""".stripMargin
+    runSql(SQL)(
+      df => {
+        checkResult(
+          df,
+          Array(
+            Row(1, "N", mutable.WrappedArray.make(Array(3, 6, 1, 5, 2, 4))),
+            Row(2, "N", mutable.WrappedArray.make(Array(1))),
+            Row(3, "A", mutable.WrappedArray.make(Array(6, 4, 3))),
+            Row(3, "R", mutable.WrappedArray.make(Array(2, 5, 1))),
+            Row(4, "N", mutable.WrappedArray.make(Array(1)))
+          )
+        )
+        checkHashAggregateCount(df, 1)
+      })
+
+    val SQL1 =
+      """
+        |select l_orderkey, l_returnflag,
+        |sum(l_linenumber) as t,
+        |count(l_linenumber) as t1,
+        |min(l_linenumber) as t2
+        |from lineitem group by l_orderkey, l_returnflag
+        |order by l_orderkey, l_returnflag, t, t1, t2 limit 5
+        |""".stripMargin
+    runSql(SQL1)(
+      df => {
+        checkResult(
+          df,
+          Array(
+            Row(1, "N", 21, 6, 1),
+            Row(2, "N", 1, 1, 1),
+            Row(3, "A", 13, 3, 3),
+            Row(3, "R", 8, 3, 1),
+            Row(4, "N", 1, 1, 1)
+          )
+        )
+        checkHashAggregateCount(df, 1)
+      })
+
+    val SQL2 =
+      """
+        |select l_returnflag, l_orderkey, collect_list(l_linenumber) as t
+        |from lineitem group by l_orderkey, l_returnflag
+        |order by l_returnflag, l_orderkey, t limit 5
+        |""".stripMargin
+    runSql(SQL2)(
+      df => {
+        checkResult(
+          df,
+          Array(
+            Row("A", 3, mutable.WrappedArray.make(Array(6, 4, 3))),
+            Row("A", 5, mutable.WrappedArray.make(Array(3))),
+            Row("A", 6, mutable.WrappedArray.make(Array(1))),
+            Row("A", 33, mutable.WrappedArray.make(Array(1, 2, 3))),
+            Row("A", 37, mutable.WrappedArray.make(Array(2, 3, 1)))
+          )
+        )
+        checkHashAggregateCount(df, 1)
+      })
+
+    // will merge four aggregates into two one.
+    val SQL3 =
+      """
+        |select l_returnflag, l_orderkey,
+        |count(distinct l_linenumber) as t
+        |from lineitem group by l_orderkey, l_returnflag
+        |order by l_returnflag, l_orderkey, t limit 5
+        |""".stripMargin
+    runSql(SQL3)(
+      df => {
+        checkResult(
+          df,
+          Array(
+            Row("A", 3, 3),
+            Row("A", 5, 1),
+            Row("A", 6, 1),
+            Row("A", 33, 3),
+            Row("A", 37, 3)
+          )
+        )
+        checkHashAggregateCount(df, 2)
+      })
+
+    // not support when there are more than one count distinct
+    val SQL4 =
+      """
+        |select l_returnflag, l_orderkey,
+        |count(distinct l_linenumber) as t,
+        |count(distinct l_discount) as t1
+        |from lineitem group by l_orderkey, l_returnflag
+        |order by l_returnflag, l_orderkey, t, t1 limit 5
+        |""".stripMargin
+    runSql(SQL4)(
+      df => {
+        checkResult(
+          df,
+          Array(
+            Row("A", 3, 3, 3),
+            Row("A", 5, 1, 1),
+            Row("A", 6, 1, 1),
+            Row("A", 33, 3, 3),
+            Row("A", 37, 3, 2)
+          )
+        )
+        checkHashAggregateCount(df, 4)
+      })
+
+    val SQL5 =
+      """
+        |select l_returnflag, l_orderkey,
+        |count(distinct l_linenumber) as t,
+        |sum(l_linenumber) as t1
+        |from lineitem group by l_orderkey, l_returnflag
+        |order by l_returnflag, l_orderkey, t, t1 limit 5
+        |""".stripMargin
+    runSql(SQL5)(
+      df => {
+        checkResult(
+          df,
+          Array(
+            Row("A", 3, 3, 13),
+            Row("A", 5, 1, 3),
+            Row("A", 6, 1, 1),
+            Row("A", 33, 3, 6),
+            Row("A", 37, 3, 6)
+          )
+        )
+        checkHashAggregateCount(df, 4)
+      })
+
+    val SQL6 =
+      """
+        |select count(1) from lineitem
+        |""".stripMargin
+    runSql(SQL6)(
+      df => {
+        checkResult(df, Array(Row(600572)))
+        // there is a shuffle between two phase hash aggregates.
+        checkHashAggregateCount(df, 2)
+      })
+
+    // test sort aggregates
+    val SQL7 =
+      """
+        |select l_orderkey, l_returnflag, max(l_shipinstruct) as t
+        |from lineitem
+        |group by l_orderkey, l_returnflag
+        |order by l_orderkey, l_returnflag, t
+        |limit 10
+        |""".stripMargin
+    runSql(SQL7)(
+      df => {
+        checkResult(
+          df,
+          Array(
+            Row(1, "N", "TAKE BACK RETURN"),
+            Row(2, "N", "TAKE BACK RETURN"),
+            Row(3, "A", "TAKE BACK RETURN"),
+            Row(3, "R", "TAKE BACK RETURN"),
+            Row(4, "N", "DELIVER IN PERSON"),
+            Row(5, "A", "DELIVER IN PERSON"),
+            Row(5, "R", "NONE"),
+            Row(6, "A", "TAKE BACK RETURN"),
+            Row(7, "N", "TAKE BACK RETURN"),
+            Row(32, "N", "TAKE BACK RETURN")
+          )
+        )
+        checkHashAggregateCount(df, 1)
+      })
+
+    withSQLConf(("spark.gluten.sql.columnar.force.hashagg", "false")) {
+      val SQL =
+        """
+          |select l_orderkey, l_returnflag, max(l_shipinstruct) as t
+          |from lineitem
+          |group by l_orderkey, l_returnflag
+          |order by l_orderkey, l_returnflag, t
+          |limit 10
+          |""".stripMargin
+      runSql(SQL7, false)(
+        df => {
+          checkResult(
+            df,
+            Array(
+              Row(1, "N", "TAKE BACK RETURN"),
+              Row(2, "N", "TAKE BACK RETURN"),
+              Row(3, "A", "TAKE BACK RETURN"),
+              Row(3, "R", "TAKE BACK RETURN"),
+              Row(4, "N", "DELIVER IN PERSON"),
+              Row(5, "A", "DELIVER IN PERSON"),
+              Row(5, "R", "NONE"),
+              Row(6, "A", "TAKE BACK RETURN"),
+              Row(7, "N", "TAKE BACK RETURN"),
+              Row(32, "N", "TAKE BACK RETURN")
+            )
+          )
+          checkHashAggregateCount(df, 0)
+          val plans = collect(df.queryExecution.executedPlan) { case agg: SortAggregateExec => agg }
+          assert(plans.size == 2)
+        })
+    }
   }
 }
 // scalastyle:off line.size.limit

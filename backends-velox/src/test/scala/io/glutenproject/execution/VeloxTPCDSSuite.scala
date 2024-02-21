@@ -55,7 +55,7 @@ class VeloxTPCDSSuite extends VeloxWholeStageTransformerSuite {
       .set("spark.sql.autoBroadcastJoinThreshold", "10M")
       .set("spark.driver.maxResultSize", "4g")
       .set("spark.sql.sources.useV1SourceList", "avro")
-      .set("park.sql.adaptive.enabled", "true")
+      .set("spark.sql.adaptive.enabled", "true")
       .set("spark.gluten.sql.columnar.maxBatchSize", "4096")
       .set("spark.gluten.shuffleWriter.bufferSize", "4096")
       .set("spark.executor.memory", "4g")
