@@ -58,38 +58,39 @@ case class GlutenFallbackReporter(glutenConfig: GlutenConfig, spark: SparkSessio
     plan.foreachUp {
       case _: GlutenPlan => // ignore
       case plan: SparkPlan =>
-        TransformHints.getHintOption(plan) match {
-          case Some(TRANSFORM_UNSUPPORTED(Some(reason), append)) =>
-            logFallbackReason(validationLogLevel, plan.nodeName, reason)
-            // With in next round stage in AQE, the physical plan would be a new instance that
-            // can not preserve the tag, so we need to set the fallback reason to logical plan.
-            // Then we can be aware of the fallback reason for the whole plan.
-            // If a logical plan mapping to several physical plan, we add all reason into
-            // that logical plan to make sure we do not lose any fallback reason.
-            plan.logicalLink.foreach {
-              logicalPlan =>
-                val newReason = logicalPlan
-                  .getTagValue(FALLBACK_REASON_TAG)
-                  .map {
-                    lastReason =>
-                      if (!append) {
-                        lastReason
-                      } else if (lastReason.contains(reason)) {
-                        // use the last reason, as the reason is redundant
-                        lastReason
-                      } else if (reason.contains(lastReason)) {
-                        // overwrite the reason
-                        reason
-                      } else {
-                        // add the new reason
-                        lastReason + "; " + reason
-                      }
-                  }
-                  .getOrElse(reason)
-                logicalPlan.setTagValue(FALLBACK_REASON_TAG, newReason)
-            }
-
-          case _ =>
+        if (TransformHints.isNotTransformable(plan)) {
+          TransformHints.getHint(plan) match {
+            case TRANSFORM_UNSUPPORTED(Some(reason), append) =>
+              logFallbackReason(validationLogLevel, plan.nodeName, reason)
+              // With in next round stage in AQE, the physical plan would be a new instance that
+              // can not preserve the tag, so we need to set the fallback reason to logical plan.
+              // Then we can be aware of the fallback reason for the whole plan.
+              // If a logical plan mapping to several physical plan, we add all reason into
+              // that logical plan to make sure we do not lose any fallback reason.
+              plan.logicalLink.foreach {
+                logicalPlan =>
+                  val newReason = logicalPlan
+                    .getTagValue(FALLBACK_REASON_TAG)
+                    .map {
+                      lastReason =>
+                        if (!append) {
+                          lastReason
+                        } else if (lastReason.contains(reason)) {
+                          // use the last reason, as the reason is redundant
+                          lastReason
+                        } else if (reason.contains(lastReason)) {
+                          // overwrite the reason
+                          reason
+                        } else {
+                          // add the new reason
+                          lastReason + "; " + reason
+                        }
+                    }
+                    .getOrElse(reason)
+                  logicalPlan.setTagValue(FALLBACK_REASON_TAG, newReason)
+              }
+            case _ =>
+          }
         }
     }
   }

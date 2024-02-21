@@ -108,13 +108,12 @@ case class TransformPreOverrides() extends Rule[SparkPlan] with LogLevelUtil {
     // Push down the left conditions in Filter into FileSourceScan.
     val newChild: SparkPlan = scan match {
       case _: FileSourceScanExec | _: BatchScanExec =>
-        TransformHints.getHint(scan) match {
-          case TRANSFORM_SUPPORTED() =>
-            val newScan = FilterHandler.applyFilterPushdownToScan(plan)
-            newScan match {
-              case ts: TransformSupport if ts.doValidate().isValid => ts
-              case _ => replaceWithTransformerPlan(scan)
-            }
+        val newScan = FilterHandler.applyFilterPushdownToScan(plan)
+        if (TransformHints.isNotTransformable(newScan)) {
+          throw new IllegalStateException("Unreachable code")
+        }
+        newScan match {
+          case ts: TransformSupport if ts.doValidate().isValid => ts
           case _ => replaceWithTransformerPlan(scan)
         }
       case _ => replaceWithTransformerPlan(plan.child)
@@ -161,39 +160,36 @@ case class TransformPreOverrides() extends Rule[SparkPlan] with LogLevelUtil {
   }
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = {
-    TransformHints.getHint(plan) match {
-      case _: TRANSFORM_SUPPORTED =>
-      // supported, break
-      case _: TRANSFORM_UNSUPPORTED =>
-        logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
-        plan match {
-          case shj: ShuffledHashJoinExec =>
-            if (BackendsApiManager.getSettings.recreateJoinExecOnFallback()) {
-              // Because we manually removed the build side limitation for LeftOuter, LeftSemi and
-              // RightOuter, need to change the build side back if this join fallback into vanilla
-              // Spark for execution.
-              return ShuffledHashJoinExec(
-                shj.leftKeys,
-                shj.rightKeys,
-                shj.joinType,
-                getSparkSupportedBuildSide(shj),
-                shj.condition,
-                replaceWithTransformerPlan(shj.left),
-                replaceWithTransformerPlan(shj.right),
-                shj.isSkewJoin
-              )
-            } else {
-              return shj.withNewChildren(shj.children.map(replaceWithTransformerPlan))
-            }
-          case plan: BatchScanExec =>
-            return applyScanNotTransformable(plan)
-          case plan: FileSourceScanExec =>
-            return applyScanNotTransformable(plan)
-          case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
-            return applyScanNotTransformable(plan)
-          case p =>
-            return p.withNewChildren(p.children.map(replaceWithTransformerPlan))
-        }
+    if (TransformHints.isNotTransformable(plan)) {
+      logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
+      plan match {
+        case shj: ShuffledHashJoinExec =>
+          if (BackendsApiManager.getSettings.recreateJoinExecOnFallback()) {
+            // Because we manually removed the build side limitation for LeftOuter, LeftSemi and
+            // RightOuter, need to change the build side back if this join fallback into vanilla
+            // Spark for execution.
+            return ShuffledHashJoinExec(
+              shj.leftKeys,
+              shj.rightKeys,
+              shj.joinType,
+              getSparkSupportedBuildSide(shj),
+              shj.condition,
+              replaceWithTransformerPlan(shj.left),
+              replaceWithTransformerPlan(shj.right),
+              shj.isSkewJoin
+            )
+          } else {
+            return shj.withNewChildren(shj.children.map(replaceWithTransformerPlan))
+          }
+        case plan: BatchScanExec =>
+          return applyScanNotTransformable(plan)
+        case plan: FileSourceScanExec =>
+          return applyScanNotTransformable(plan)
+        case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
+          return applyScanNotTransformable(plan)
+        case p =>
+          return p.withNewChildren(p.children.map(replaceWithTransformerPlan))
+      }
     }
     plan match {
       case plan: BatchScanExec =>
