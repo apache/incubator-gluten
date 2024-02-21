@@ -159,6 +159,24 @@ class Spark35Shims extends SparkShims {
       cause = null)
   }
 
+  private def getLimit(limit: Int, offset: Int): Int = {
+    if (limit == -1) {
+      // Only offset specified, so fetch the maximum number rows
+      Int.MaxValue
+    } else {
+      assert(limit > offset)
+      limit - offset
+    }
+  }
+
+  override def getLimitAndOffsetFromGlobalLimit(plan: GlobalLimitExec): (Int, Int) = {
+    (getLimit(plan.limit, plan.offset), plan.offset)
+  }
+
+  override def getLimitAndOffsetFromTopK(plan: TakeOrderedAndProjectExec): (Int, Int) = {
+    (getLimit(plan.limit, plan.offset), plan.offset)
+  }
+
   override def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = List()
 
   override def writeFilesExecuteTask(
@@ -181,6 +199,10 @@ class Spark35Shims extends SparkShims {
   }
 
   override def enableNativeWriteFilesByDefault(): Boolean = true
+
+  override def createTestTaskContext(): TaskContext = {
+    TaskContextUtils.createTestTaskContext()
+  }
 
   override def splitFiles(
       sparkSession: SparkSession,
