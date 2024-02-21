@@ -27,27 +27,14 @@
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/IDataType.h>
-#include <Interpreters/threadPoolCallbackRunner.h>
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <jni/jni_common.h>
 #include <Common/CHUtil.h>
-#include <Common/CurrentMetrics.h>
 #include <Common/DebugUtils.h>
 #include <Common/Exception.h>
 #include <Common/JNIUtils.h>
 #include <Common/assert_cast.h>
 
-#include <Common/logger_useful.h>
-#include <Poco/Logger.h>
-
-
-namespace CurrentMetrics
-{
-    extern const Metric Read;
-    extern const Metric ThreadPoolFSReaderThreads;
-    extern const Metric ThreadPoolFSReaderThreadsActive;
-    extern const Metric ThreadPoolFSReaderThreadsScheduled;
-}
 
 namespace local_engine
 {
@@ -55,35 +42,6 @@ jclass SourceFromJavaIter::serialized_record_batch_iterator_class = nullptr;
 jmethodID SourceFromJavaIter::serialized_record_batch_iterator_hasNext = nullptr;
 jmethodID SourceFromJavaIter::serialized_record_batch_iterator_next = nullptr;
 
-class AsynchronousReaderPool
-{
-public:
-    AsynchronousReaderPool()
-    {
-        reader_pool = std::make_unique<ThreadPool>(
-            CurrentMetrics::ThreadPoolFSReaderThreads,
-            CurrentMetrics::ThreadPoolFSReaderThreadsActive,
-            CurrentMetrics::ThreadPoolFSReaderThreadsScheduled,
-            64,
-            64,
-            128);
-    }
-    static AsynchronousReaderPool & instance()
-    {
-        static std::unique_ptr<AsynchronousReaderPool> pool = nullptr;
-        if (!pool)
-            pool = std::make_unique<AsynchronousReaderPool>();
-        return *pool;
-    }
-
-    ThreadPool & getPool()
-    {
-        return *reader_pool;
-    }
-
-private:
-    std::unique_ptr<ThreadPool> reader_pool;
-};
 
 static DB::Block getRealHeader(const DB::Block & header)
 {
@@ -99,21 +57,9 @@ SourceFromJavaIter::SourceFromJavaIter(DB::ContextPtr context_, DB::Block header
     , original_header(header)
     , context(context_)
 {
-    enable_prefetch = context->getSettingsRef().remote_filesystem_read_prefetch;
 }
 
-void SourceFromJavaIter::prefetch()
-{
-    if (enable_prefetch)
-    {
-        LOG_ERROR(&Poco::Logger::get("SourceFromJavaIter"), "xxx to prefetch");
-        auto & reader_pool = AsynchronousReaderPool::instance().getPool();
-        prefetch_future = DB::scheduleFromThreadPool<DB::Chunk>(
-            [this]() { return generateImpl(); }, reader_pool, "JavaIterReader", DB::DEFAULT_PREFETCH_PRIORITY);
-    }
-}
-
-DB::Chunk SourceFromJavaIter::generateImpl()
+DB::Chunk SourceFromJavaIter::generate()
 {
     GET_JNIENV(env)
     jboolean has_next = safeCallBooleanMethod(env, java_iter, serialized_record_batch_iterator_hasNext);
@@ -145,27 +91,8 @@ DB::Chunk SourceFromJavaIter::generateImpl()
         }
     }
     CLEAN_JNIENV
-    LOG_ERROR(&Poco::Logger::get("SourceFromJavaIter"), "xxxx env {}, generateImpl {} has_next: {}, rows: {}", reinterpret_cast<UInt64>(env), reinterpret_cast<UInt64>(this), has_next, result.getNumRows());
     return result;
 
-}
-
-DB::Chunk SourceFromJavaIter::generate()
-{
-    DB::Chunk result;
-    if (prefetch_future.valid())
-    {
-        result = prefetch_future.get();
-        LOG_ERROR(&Poco::Logger::get("SourceFromJavaIter"), "xxx prefetch {} chunk:{}", reinterpret_cast<UInt64>(this), result.dumpStructure());
-        prefetch_future = {};
-    }
-    else
-    {
-        result = generateImpl();
-        LOG_ERROR(&Poco::Logger::get("SourceFromJavaIter"), "xxx sync {} chunk:{}", reinterpret_cast<UInt64>(this), result.dumpStructure());
-    }
-    prefetch();
-    return result;
 }
 
 SourceFromJavaIter::~SourceFromJavaIter()
