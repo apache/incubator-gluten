@@ -20,6 +20,7 @@ import io.glutenproject.expression.Sig
 
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.io.FileCommitProtocol
+import org.apache.spark.shuffle.{ShuffleHandle, ShuffleReader, ShuffleReadMetricsReporter}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
@@ -34,6 +35,7 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+import org.apache.spark.storage.{BlockId, BlockManagerId}
 
 sealed abstract class ShimDescriptor
 
@@ -109,4 +111,12 @@ trait SparkShims {
   def enableNativeWriteFilesByDefault(): Boolean = false
 
   def createTestTaskContext(): TaskContext
+
+  def getShuffleReaderParam[K, C](
+      handle: ShuffleHandle,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      startPartition: Int,
+      endPartition: Int)
+      : Tuple2[Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])], Boolean]
 }

@@ -18,10 +18,12 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.vectorized.NativePartitioning
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.config._
+import org.apache.spark.storage.{BlockId, BlockManagerId}
 import org.apache.spark.util.random.XORShiftRandom
 
 import java.util.Locale
@@ -87,5 +89,20 @@ object GlutenShuffleUtils {
       // Follow arrow default compression level `kUseDefaultCompressionLevel`
       Int.MinValue
     }
+  }
+
+  def getReaderParam[K, C](
+      handle: ShuffleHandle,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      startPartition: Int,
+      endPartition: Int
+  ): Tuple2[Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])], Boolean] = {
+    SparkShimLoader.getSparkShims.getShuffleReaderParam(
+      handle,
+      startMapIndex,
+      endMapIndex,
+      startPartition,
+      endPartition)
   }
 }
