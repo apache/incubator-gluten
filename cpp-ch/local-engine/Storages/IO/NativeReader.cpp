@@ -24,6 +24,8 @@
 #include <Common/Arena.h>
 #include <Storages/IO/NativeWriter.h>
 #include <Storages/IO/AggregateSerializationUtils.h>
+#include <Poco/Logger.h>
+#include <Common/logger_useful.h>
 
 namespace DB
 {
@@ -56,7 +58,10 @@ DB::Block NativeReader::read()
     {
         result_block = prepareByFirstBlock();
         if (!result_block)
+        {
+            LOG_ERROR(&Poco::Logger::get("NativeReader"), "xxx reach the end {}", reinterpret_cast<UInt64>(this));
             return {};
+        }
     }
     else
     {
@@ -79,6 +84,7 @@ DB::Block NativeReader::read()
             column_parse_util.avg_value_size_hint = column.column->byteSize() / column.column->size();
         }
     }
+    LOG_ERROR(&Poco::Logger::get("NativeReader"), "xxx read block {} : {}", reinterpret_cast<UInt64>(this), result_block.dumpStructure());
     return result_block;
 }
 

@@ -37,6 +37,9 @@
 #include <Common/JNIUtils.h>
 #include <Common/assert_cast.h>
 
+#include <Common/logger_useful.h>
+#include <Poco/Logger.h>
+
 
 namespace CurrentMetrics
 {
@@ -103,6 +106,7 @@ void SourceFromJavaIter::prefetch()
 {
     if (enable_prefetch)
     {
+        LOG_ERROR(&Poco::Logger::get("SourceFromJavaIter"), "xxx to prefetch");
         auto & reader_pool = AsynchronousReaderPool::instance().getPool();
         prefetch_future = DB::scheduleFromThreadPool<DB::Chunk>(
             [this]() { return generateImpl(); }, reader_pool, "JavaIterReader", DB::DEFAULT_PREFETCH_PRIORITY);
@@ -141,6 +145,7 @@ DB::Chunk SourceFromJavaIter::generateImpl()
         }
     }
     CLEAN_JNIENV
+    LOG_ERROR(&Poco::Logger::get("SourceFromJavaIter"), "xxxx env {}, generateImpl {} has_next: {}, rows: {}", reinterpret_cast<UInt64>(env), reinterpret_cast<UInt64>(this), has_next, result.getNumRows());
     return result;
 
 }
@@ -151,11 +156,13 @@ DB::Chunk SourceFromJavaIter::generate()
     if (prefetch_future.valid())
     {
         result = prefetch_future.get();
+        LOG_ERROR(&Poco::Logger::get("SourceFromJavaIter"), "xxx prefetch {} chunk:{}", reinterpret_cast<UInt64>(this), result.dumpStructure());
         prefetch_future = {};
     }
     else
     {
         result = generateImpl();
+        LOG_ERROR(&Poco::Logger::get("SourceFromJavaIter"), "xxx sync {} chunk:{}", reinterpret_cast<UInt64>(this), result.dumpStructure());
     }
     prefetch();
     return result;
