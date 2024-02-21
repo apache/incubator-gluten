@@ -106,7 +106,7 @@ public:
 
     /// Make a postprojection for the function result.
     virtual const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
-        const CommonFunctionInfo & func_info, const DB::ActionsDAG::Node * func_node, DB::ActionsDAGPtr & actions_dag) const;
+        const CommonFunctionInfo & func_info, const DB::ActionsDAG::Node * func_node, DB::ActionsDAGPtr & actions_dag, bool withNullability) const;
 
     /// Parameters are only used in aggregate functions at present. e.g. percentiles(0.5)(x).
     /// 0.5 is the parameter of percentiles function.
