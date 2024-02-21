@@ -80,6 +80,17 @@ object GlutenShuffleUtils {
     }
   }
 
+  def getCompressionLevel(conf: SparkConf, codec: String, compressionCodecBackend: String): Int = {
+    if ("zstd" == codec && compressionCodecBackend == null) {
+      conf.getInt(
+        IO_COMPRESSION_ZSTD_LEVEL.key,
+        IO_COMPRESSION_ZSTD_LEVEL.defaultValue.getOrElse(1))
+    } else {
+      // Follow arrow default compression level `kUseDefaultCompressionLevel`
+      Int.MinValue
+    }
+  }
+
   def getReaderParam[K, C](
       handle: ShuffleHandle,
       startMapIndex: Int,

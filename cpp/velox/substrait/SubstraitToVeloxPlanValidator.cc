@@ -1007,7 +1007,7 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
     auto funcName = planConverter_.toAggregationFunctionName(baseFuncName, funcStep);
     auto signaturesOpt = exec::getAggregateFunctionSignatures(funcName);
     if (!signaturesOpt) {
-      LOG_VALIDATION_MSG("can not find function signature for" + funcName + " in AggregateRel.");
+      LOG_VALIDATION_MSG("can not find function signature for " + funcName + " in AggregateRel.");
       return false;
     }
 

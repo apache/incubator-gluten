@@ -699,6 +699,20 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
           getExecutedPlan(df).count(plan => plan.isInstanceOf[HashAggregateExecTransformer]) >= 2)
     }
   }
+
+  test("bind reference failed when subquery in agg expressions") {
+    runQueryAndCompare("""
+                         |select sum(if(c > (select sum(a) from values (1), (-1) AS tab(a)), 1, -1))
+                         |from values (5), (-10), (15) AS tab(c);
+                         |""".stripMargin)(
+      df => assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecTransformer]) == 2))
+
+    runQueryAndCompare("""
+                         |select sum(if(c > (select sum(a) from values (1), (-1) AS tab(a)), 1, -1))
+                         |from values (1L, 5), (1L, -10), (2L, 15) AS tab(sum, c) group by sum;
+                         |""".stripMargin)(
+      df => assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecTransformer]) == 2))
+  }
 }
 
 class VeloxAggregateFunctionsDefaultSuite extends VeloxAggregateFunctionsSuite {

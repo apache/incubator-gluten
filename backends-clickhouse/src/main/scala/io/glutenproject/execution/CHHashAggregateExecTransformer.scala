@@ -109,8 +109,8 @@ case class CHHashAggregateExecTransformer(
       val typeList = new util.ArrayList[TypeNode]()
       val nameList = new util.ArrayList[String]()
       val (inputAttrs, outputAttrs) = {
-        if (modes.isEmpty) {
-          // When there is no aggregate function, it does not need
+        if (modes.isEmpty || modes.forall(_ == Complete)) {
+          // When there is no aggregate function or there is complete mode, it does not need
           // to handle outputs according to the AggregateMode
           for (attr <- child.output) {
             typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
@@ -168,7 +168,7 @@ case class CHHashAggregateExecTransformer(
     aggRel
   }
 
-  override def getAggRelInternal(
+  private def getAggRelInternal(
       context: SubstraitContext,
       originalInputAttributes: Seq[Attribute],
       operatorId: Long,
@@ -212,7 +212,7 @@ case class CHHashAggregateExecTransformer(
         val aggregateFunc = aggExpr.aggregateFunction
         val childrenNodeList = new util.ArrayList[ExpressionNode]()
         val childrenNodes = aggExpr.mode match {
-          case Partial =>
+          case Partial | Complete =>
             aggregateFunc.children.toList.map(
               expr => {
                 ExpressionConverter
@@ -373,7 +373,7 @@ case class CHHashAggregateExecTransformer(
     copy(child = newChild)
   }
 
-  override protected def getAdvancedExtension(
+  private def getAdvancedExtension(
       validation: Boolean = false,
       originalInputAttributes: Seq[Attribute] = Seq.empty): AdvancedExtensionNode = {
     val enhancement = if (validation) {
@@ -446,7 +446,7 @@ case class CHHashAggregateExecPullOutHelper(
           }
           resIndex += aggBufferAttr.size
           resIndex
-        case Final =>
+        case Final | Complete =>
           aggregateAttr += aggregateAttributeList(resIndex)
           resIndex += 1
           resIndex

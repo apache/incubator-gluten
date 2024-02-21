@@ -176,6 +176,7 @@ object ExpressionMappings {
     Sig[NextDay](NEXT_DAY),
     Sig[LastDay](LAST_DAY),
     Sig[MonthsBetween](MONTHS_BETWEEN),
+    Sig[DateFromUnixDate](DATE_FROM_UNIX_DATE),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
@@ -212,6 +213,8 @@ object ExpressionMappings {
     Sig[ArrayUnion](ARRAY_UNION),
     Sig[ArrayIntersect](ARRAY_INTERSECT),
     Sig[GetArrayStructFields](GET_ARRAY_STRUCT_FIELDS),
+    Sig[ArrayExcept](ARRAY_EXCEPT),
+    Sig[ArrayRepeat](ARRAY_REPEAT),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
