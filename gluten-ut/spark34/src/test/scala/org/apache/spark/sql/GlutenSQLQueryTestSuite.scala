@@ -594,10 +594,11 @@ class GlutenSQLQueryTestSuite
   protected def normalizeIds(plan: String): String = {
     val normalizedPlan = nodeNumberRegex.replaceAllIn(plan, "")
     val map = new mutable.HashMap[String, String]()
-    normalizeRegex.findAllMatchIn(normalizedPlan).map(_.toString)
+    normalizeRegex
+      .findAllMatchIn(normalizedPlan)
+      .map(_.toString)
       .foreach(map.getOrElseUpdate(_, (map.size + 1).toString))
-    normalizeRegex.replaceAllIn(
-      normalizedPlan, regexMatch => s"#${map(regexMatch.toString)}")
+    normalizeRegex.replaceAllIn(normalizedPlan, regexMatch => s"#${map(regexMatch.toString)}")
   }
 
   protected lazy val listTestCases: Seq[TestCase] = {
