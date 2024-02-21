@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql
 
+import io.glutenproject.utils.BackendTestUtils
+
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
@@ -228,16 +230,18 @@ class GlutenFileBasedDataSourceSuite extends FileBasedDataSourceSuite with Glute
           )
           sources <- Seq("", format)
         } {
-          withSQLConf(
-            SQLConf.USE_V1_SOURCE_LIST.key -> sources,
-            SQLConf.IGNORE_MISSING_FILES.key -> sqlConf) {
-            if (ignore.toBoolean) {
-              testIgnoreMissingFiles(options)
-            } else {
-              val exception = intercept[SparkException] {
+          if (BackendTestUtils.isVeloxBackendLoaded()) {
+            withSQLConf(
+              SQLConf.USE_V1_SOURCE_LIST.key -> sources,
+              SQLConf.IGNORE_MISSING_FILES.key -> sqlConf) {
+              if (ignore.toBoolean) {
                 testIgnoreMissingFiles(options)
+              } else {
+                val exception = intercept[SparkException] {
+                  testIgnoreMissingFiles(options)
+                }
+                assert(exception.getMessage().contains("No such file or directory"))
               }
-              assert(exception.getMessage().contains("No such file or directory"))
             }
           }
         }
