@@ -19,7 +19,7 @@ package io.glutenproject.extension.columnar
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.utils.PullOutProjectHelper
 
-import org.apache.spark.sql.catalyst.expressions.{AliasHelper, Attribute}
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
@@ -30,7 +30,7 @@ import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
  * the output of Spark, ensuring that the output data of the native plan can match the Spark plan
  * when a fallback occurs.
  */
-object PullOutPostProject extends Rule[SparkPlan] with PullOutProjectHelper with AliasHelper {
+object PullOutPostProject extends Rule[SparkPlan] with PullOutProjectHelper {
 
   private def needsPostProjection(plan: SparkPlan): Boolean = {
     plan match {
@@ -44,9 +44,8 @@ object PullOutPostProject extends Rule[SparkPlan] with PullOutProjectHelper with
         // If the result expressions has different size with output attribute,
         // post-projection is needed.
         agg.resultExpressions.size != allAggregateResultAttributes.size ||
-        // Compare each item in result expressions and output attributes. Attribute in Alias
-        // should be trimmed before checking.
-        agg.resultExpressions.map(trimAliases).zip(allAggregateResultAttributes).exists {
+        // Compare each item in result expressions and output attributes.
+        agg.resultExpressions.zip(allAggregateResultAttributes).exists {
           case (exprAttr: Attribute, resAttr) =>
             // If the result attribute and result expression has different name or type,
             // post-projection is needed.

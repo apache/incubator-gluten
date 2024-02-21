@@ -61,15 +61,19 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         val plans = df.queryExecution.executedPlan.collect {
           case scanExec: BasicScanExecTransformer => scanExec
           case hashAggExec: HashAggregateExecBaseTransformer => hashAggExec
+          case postProject @ ProjectExecTransformer(_, _: HashAggregateExecBaseTransformer) =>
+            // CH backend only set outputVectors for the last element in metricsDataList for the
+            // final stage, we need to get the final post-project to check outputVectors.
+            postProject
         }
-        assert(plans.size == 3)
+        assert(plans.size == 4)
 
-        assert(plans(2).metrics("numFiles").value === 1)
-        assert(plans(2).metrics("pruningTime").value === -1)
-        assert(plans(2).metrics("filesSize").value === 19230111)
+        assert(plans(3).metrics("numFiles").value === 1)
+        assert(plans(3).metrics("pruningTime").value === -1)
+        assert(plans(3).metrics("filesSize").value === 19230111)
 
-        assert(plans(1).metrics("outputRows").value === 4)
-        assert(plans(1).metrics("outputVectors").value === 1)
+        assert(plans(2).metrics("outputRows").value === 4)
+        assert(plans(2).metrics("outputVectors").value === 1)
 
         // Execute Sort operator, it will read the data twice.
         assert(plans(0).metrics("outputRows").value === 4)
@@ -102,15 +106,19 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
           val plans = df.queryExecution.executedPlan.collect {
             case scanExec: BasicScanExecTransformer => scanExec
             case hashAggExec: HashAggregateExecBaseTransformer => hashAggExec
+            case postProject @ ProjectExecTransformer(_, _: HashAggregateExecBaseTransformer) =>
+              // CH backend only set outputVectors for the last element in metricsDataList for the
+              // final stage, we need to get the final post-project to check outputVectors.
+              postProject
           }
-          assert(plans.size == 3)
+          assert(plans.size == 4)
 
-          assert(plans(2).metrics("numFiles").value === 1)
-          assert(plans(2).metrics("pruningTime").value === -1)
-          assert(plans(2).metrics("filesSize").value === 19230111)
+          assert(plans(3).metrics("numFiles").value === 1)
+          assert(plans(3).metrics("pruningTime").value === -1)
+          assert(plans(3).metrics("filesSize").value === 19230111)
 
-          assert(plans(1).metrics("outputRows").value === 4)
-          assert(plans(1).metrics("outputVectors").value === 1)
+          assert(plans(2).metrics("outputRows").value === 4)
+          assert(plans(2).metrics("outputVectors").value === 1)
 
           // Execute Sort operator, it will read the data twice.
           assert(plans(0).metrics("outputRows").value === 4)
