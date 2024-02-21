@@ -195,7 +195,7 @@ class GlutenClickHouseTPCDSParquetGraceHashJoinSuite extends GlutenClickHouseTPC
         | ON ss_sold_date_sk == t1.d_date_sk)
         | INNER JOIN
         |   (SELECT d_date_id, d_date_sk from date_dim GROUP BY d_date_id, d_date_sk) t2
-        | on ss_ship_date_sk == t2.d_date_sk 
+        | on ss_ship_date_sk == t2.d_date_sk
         | LIMIT 100;
         |""".stripMargin
     compareResultsAgainstVanillaSpark(
