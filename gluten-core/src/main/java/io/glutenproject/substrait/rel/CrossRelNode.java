@@ -28,13 +28,19 @@ import java.io.Serializable;
 public class CrossRelNode implements RelNode, Serializable {
   private final RelNode left;
   private final RelNode right;
+  private final CrossRel.JoinType joinType;
   private final ExpressionNode expression;
   private final AdvancedExtensionNode extensionNode;
 
   CrossRelNode(
-      RelNode left, RelNode right, ExpressionNode expression, AdvancedExtensionNode extensionNode) {
+      RelNode left,
+      RelNode right,
+      CrossRel.JoinType joinType,
+      ExpressionNode expression,
+      AdvancedExtensionNode extensionNode) {
     this.left = left;
     this.right = right;
+    this.joinType = joinType;
     this.expression = expression;
     this.extensionNode = extensionNode;
   }
@@ -46,6 +52,8 @@ public class CrossRelNode implements RelNode, Serializable {
 
     CrossRel.Builder crossRelBuilder = CrossRel.newBuilder();
     crossRelBuilder.setCommon(relCommonBuilder.build());
+
+    crossRelBuilder.setType(joinType);
 
     if (left != null) {
       crossRelBuilder.setLeft(left.toProtobuf());

@@ -18,7 +18,7 @@ package io.glutenproject.metrics
 
 import org.apache.spark.sql.execution.metric.SQLMetric
 
-class CartesianProductMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
+class NestedLoopJoinMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
 
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
     if (opMetrics != null) {

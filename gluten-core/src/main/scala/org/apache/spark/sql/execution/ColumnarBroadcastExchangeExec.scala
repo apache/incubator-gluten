@@ -26,9 +26,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.Statistics
-import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, Partitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, IdentityBroadcastMode, Partitioning}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, BroadcastExchangeLike}
-import org.apache.spark.sql.execution.joins.HashedRelationBroadcastMode
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.SparkFatalException
@@ -72,6 +71,8 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
             // compare the isNullAware, so gluten will not generate HashedRelationWithAllNullKeys
             // or EmptyHashedRelation, this difference will cause performance regression in some
             // cases.
+            // For the above reason, the same implementation can be used for both
+            // HashedRelationBroadcastMode as well as IdentityBroadcastMode.
             BackendsApiManager.getSparkPlanExecApiInstance.createBroadcastRelation(
               mode,
               child,
@@ -132,11 +133,12 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    mode match {
-      case _: HashedRelationBroadcastMode =>
-      case _ =>
-        // TODO IdentityBroadcastMode not supported. Need to support BroadcastNestedLoopJoin first.
-        return ValidationResult.notOk("Only support HashedRelationBroadcastMode for now.")
+    // CH backend does not support IdentityBroadcastMode used in BNLJ
+    if (
+      mode == IdentityBroadcastMode && !BackendsApiManager.getSettings
+        .supportBroadcastNestedLoopJoinExec()
+    ) {
+      return ValidationResult.notOk("This backend does not support IdentityBroadcastMode and BNLJ")
     }
     BackendsApiManager.getValidatorApiInstance
       .doSchemaValidate(schema)

@@ -888,6 +888,16 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       ) {
         checkOperatorMatch[CartesianProductExecTransformer]
       }
+
+      withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "1MB") {
+        runQueryAndCompare(
+          """
+            |select * from t1 cross join t2;
+            |""".stripMargin
+        ) {
+          checkOperatorMatch[BroadcastNestedLoopJoinExecTransformer]
+        }
+      }
     }
   }
 

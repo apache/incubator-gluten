@@ -937,25 +937,34 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
 
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossRel) {
   if (crossRel.has_left() && !validate(crossRel.left())) {
-    logValidateMsg("native validation failed due to: validation fails for cross join left input. ");
+    logValidateMsg("Native validation failed due to: validation fails for cross join left input. ");
     return false;
   }
 
   if (crossRel.has_right() && !validate(crossRel.right())) {
-    logValidateMsg("native validation failed due to: validation fails for cross join right input. ");
+    logValidateMsg("Native validation failed due to: validation fails for cross join right input. ");
     return false;
   }
 
   // Validate input types.
   if (!crossRel.has_advanced_extension()) {
-    logValidateMsg("native validation failed due to: Input types are expected in CrossRel.");
+    logValidateMsg("Native validation failed due to: Input types are expected in CrossRel.");
     return false;
+  }
+
+  switch (crossRel.type()) {
+    case ::substrait::CrossRel_JoinType_JOIN_TYPE_INNER:
+    case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
+      break;
+    default:
+      LOG_VALIDATION_MSG("Unsupported Join type in CrossRel");
+      return false;
   }
 
   const auto& extension = crossRel.advanced_extension();
   std::vector<TypePtr> types;
   if (!validateInputTypes(extension, types)) {
-    logValidateMsg("native validation failed due to: Validation failed for input types in CrossRel");
+    logValidateMsg("Native validation failed due to: Validation failed for input types in CrossRel");
     return false;
   }
 
@@ -972,7 +981,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossR
       auto expression = exprConverter_->toVeloxExpr(crossRel.expression(), rowType);
       exec::ExprSet exprSet({std::move(expression)}, execCtx_);
     } catch (const VeloxException& err) {
-      logValidateMsg("native validation failed due to: crossRel expression validation fails, " + err.message());
+      logValidateMsg("Native validation failed due to: crossRel expression validation fails, " + err.message());
       return false;
     }
   }

@@ -25,6 +25,7 @@ import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 import io.glutenproject.substrait.type.ColumnTypeNode;
 import io.glutenproject.substrait.type.TypeNode;
 
+import io.substrait.proto.CrossRel;
 import io.substrait.proto.JoinRel;
 import io.substrait.proto.SortField;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
@@ -155,12 +156,13 @@ public class RelBuilder {
   public static RelNode makeCrossRel(
       RelNode left,
       RelNode right,
+      CrossRel.JoinType joinType,
       ExpressionNode expression,
       AdvancedExtensionNode extensionNode,
       SubstraitContext context,
       Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return new CrossRelNode(left, right, expression, extensionNode);
+    return new CrossRelNode(left, right, joinType, expression, extensionNode);
   }
 
   public static RelNode makeExpandRel(

@@ -338,6 +338,16 @@ case class TransformPreOverrides() extends Rule[SparkPlan] with LogLevelUtil {
         val right = replaceWithTransformerPlan(plan.right)
         BackendsApiManager.getSparkPlanExecApiInstance
           .genCartesianProductExecTransformer(left, right, plan.condition)
+      case plan: BroadcastNestedLoopJoinExec =>
+        val left = replaceWithTransformerPlan(plan.left)
+        val right = replaceWithTransformerPlan(plan.right)
+        BackendsApiManager.getSparkPlanExecApiInstance
+          .genBroadcastNestedLoopJoinExecTransformer(
+            left,
+            right,
+            plan.buildSide,
+            plan.joinType,
+            plan.condition)
       case plan: WindowExec =>
         WindowExecTransformer(
           plan.windowExpression,

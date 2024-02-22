@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution.joins
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ColumnarToRowExecBase, WholeStageTransformer}
+import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, BroadcastNestedLoopJoinExecTransformer, ColumnarToRowExecBase, WholeStageTransformer}
 import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.sql.{GlutenTestsCommonTrait, SparkSession}
@@ -43,10 +43,19 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
 
   private val EnsureRequirements = new EnsureRequirements()
 
+  private val isVeloxBackend = BackendTestUtils.isVeloxBackendLoaded()
+
   // BroadcastHashJoinExecTransformer is not case class, can't call toString method,
   // let's put constant string here.
   private val bh = "BroadcastHashJoinExecTransformer"
   private val bl = BroadcastNestedLoopJoinExec.toString
+
+  // BroadcastNestedLoopJoinExecTransformer is supported in velox backend for innerlike joins.
+  private val blt = if (isVeloxBackend) {
+    "BroadcastNestedLoopJoinExecTransformer"
+  } else {
+    BroadcastNestedLoopJoinExec.toString
+  }
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -136,21 +145,21 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
       /* ######## test cases for non-equal join ######### */
       withSQLConf(SQLConf.CROSS_JOINS_ENABLED.key -> "true") {
         // INNER JOIN && t1Size < t2Size => BuildLeft
-        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 JOIN t2", bl, BuildLeft)
+        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 JOIN t2", blt, BuildLeft)
         // FULL JOIN && t1Size < t2Size => BuildLeft
         assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 FULL JOIN t2", bl, BuildLeft)
         // FULL OUTER && t1Size < t2Size => BuildLeft
         assertJoinBuildSide("SELECT * FROM t1 FULL OUTER JOIN t2", bl, BuildLeft)
         // LEFT JOIN => BuildRight
-        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 LEFT JOIN t2", bl, BuildRight)
+        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 LEFT JOIN t2", blt, BuildRight)
         // RIGHT JOIN => BuildLeft
-        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 RIGHT JOIN t2", bl, BuildLeft)
+        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 RIGHT JOIN t2", blt, BuildLeft)
 
         /* #### test with broadcast hint #### */
         // INNER JOIN && broadcast(t1) => BuildLeft
-        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1) */ * FROM t1 JOIN t2", bl, BuildLeft)
+        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1) */ * FROM t1 JOIN t2", blt, BuildLeft)
         // INNER JOIN && broadcast(t2) => BuildRight
-        assertJoinBuildSide("SELECT /*+ MAPJOIN(t2) */ * FROM t1 JOIN t2", bl, BuildRight)
+        assertJoinBuildSide("SELECT /*+ MAPJOIN(t2) */ * FROM t1 JOIN t2", blt, BuildRight)
         // FULL OUTER && broadcast(t1) => BuildLeft
         assertJoinBuildSide("SELECT /*+ MAPJOIN(t1) */ * FROM t1 FULL OUTER JOIN t2", bl, BuildLeft)
         // FULL OUTER && broadcast(t2) => BuildRight
@@ -194,17 +203,17 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
 
         // For inner join, prefer to broadcast the smaller side, if broadcast-able.
         withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> (t2Size + 1).toString()) {
-          assertJoinBuildSide("SELECT * FROM t1 JOIN t2", bl, BuildLeft)
-          assertJoinBuildSide("SELECT * FROM t2 JOIN t1", bl, BuildRight)
+          assertJoinBuildSide("SELECT * FROM t1 JOIN t2", blt, BuildLeft)
+          assertJoinBuildSide("SELECT * FROM t2 JOIN t1", blt, BuildRight)
         }
 
         // For left join, prefer to broadcast the right side.
-        assertJoinBuildSide("SELECT * FROM t1 LEFT JOIN t2", bl, BuildRight)
-        assertJoinBuildSide("SELECT * FROM t2 LEFT JOIN t1", bl, BuildRight)
+        assertJoinBuildSide("SELECT * FROM t1 LEFT JOIN t2", blt, BuildRight)
+        assertJoinBuildSide("SELECT * FROM t2 LEFT JOIN t1", blt, BuildRight)
 
         // For right join, prefer to broadcast the left side.
-        assertJoinBuildSide("SELECT * FROM t1 RIGHT JOIN t2", bl, BuildLeft)
-        assertJoinBuildSide("SELECT * FROM t2 RIGHT JOIN t1", bl, BuildLeft)
+        assertJoinBuildSide("SELECT * FROM t1 RIGHT JOIN t2", blt, BuildLeft)
+        assertJoinBuildSide("SELECT * FROM t2 RIGHT JOIN t1", blt, BuildLeft)
       }
     }
   }
@@ -248,11 +257,14 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
       case c2r: ColumnarToRowExecBase =>
         c2r.child match {
           case w: WholeStageTransformer =>
-            val join = w.child match {
-              case b: BroadcastHashJoinExecTransformer => b
+            w.child match {
+              case b: BroadcastHashJoinExecTransformer =>
+                assert(b.getClass.getSimpleName.endsWith(joinMethod))
+                assert(b.joinBuildSide == buildSide)
+              case b: BroadcastNestedLoopJoinExecTransformer =>
+                assert(b.getClass.getSimpleName.endsWith(joinMethod))
+                assert(b.joinBuildSide == buildSide)
             }
-            assert(join.getClass.getSimpleName.endsWith(joinMethod))
-            assert(join.joinBuildSide == buildSide)
         }
       case b: BroadcastNestedLoopJoinExec =>
         assert(b.getClass.getSimpleName === joinMethod)
