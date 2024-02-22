@@ -57,7 +57,7 @@ public class WindowFunctionNode implements Serializable {
   }
 
   private Expression.WindowFunction.Bound.Builder setBound(
-      Expression.WindowFunction.Bound.Builder builder, String boundType, boolean isLowerBound) {
+      Expression.WindowFunction.Bound.Builder builder, String boundType) {
     switch (boundType) {
       case ("CURRENT ROW"):
         Expression.WindowFunction.Bound.CurrentRow.Builder currentRowBuilder =
@@ -77,7 +77,7 @@ public class WindowFunctionNode implements Serializable {
       default:
         try {
           Long offset = Long.valueOf(boundType);
-          if (isLowerBound) {
+          if (offset < 0) {
             Expression.WindowFunction.Bound.Preceding.Builder offsetPrecedingBuilder =
                 Expression.WindowFunction.Bound.Preceding.newBuilder();
             offsetPrecedingBuilder.setOffset(0 - offset);
@@ -129,8 +129,8 @@ public class WindowFunctionNode implements Serializable {
 
     Expression.WindowFunction.Bound.Builder upperBoundBuilder =
         Expression.WindowFunction.Bound.newBuilder();
-    windowBuilder.setLowerBound(setBound(lowerBoundBuilder, lowerBound, true).build());
-    windowBuilder.setUpperBound(setBound(upperBoundBuilder, upperBound, false).build());
+    windowBuilder.setLowerBound(setBound(lowerBoundBuilder, lowerBound).build());
+    windowBuilder.setUpperBound(setBound(upperBoundBuilder, upperBound).build());
     windowBuilder.setWindowType(getWindowType(frameType));
     return windowBuilder.build();
   }
