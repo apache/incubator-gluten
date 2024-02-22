@@ -188,7 +188,7 @@ class GlutenClickHouseTPCDSParquetGraceHashJoinSuite extends GlutenClickHouseTPC
         | SELECT ws_item_sk, ws_sold_date_sk, ws_ship_date_sk,
         |        t1.d_date_id as sold_date_id, t2.d_date_id as ship_date_id
         | FROM (
-        | SELECT ws_item_sk, ws_sold_date_sk, ws_ship_date_sk, t1.d_date_id
+        | SELECT ws_item_sk, ws_sold_date_sk, ws_ship_date_sk
         | FROM web_sales
         | LEFT JOIN
         |   (SELECT d_date_id, d_date_sk from date_dim GROUP BY d_date_id, d_date_sk) t1
