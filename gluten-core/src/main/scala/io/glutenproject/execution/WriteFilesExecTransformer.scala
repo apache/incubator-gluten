@@ -134,12 +134,12 @@ case class WriteFilesExecTransformer(
   }
 
   private def getFinalChildOutput(): Seq[Attribute] = {
-    val metadataWhiteList = conf
-      .getConf(GlutenConfig.NATIVE_WRITE_FILES_COLUMN_METADATA_WHITE_LIST)
+    val metadataExclusionList = conf
+      .getConf(GlutenConfig.NATIVE_WRITE_FILES_COLUMN_METADATA_EXCLUSION_LIST)
       .split(",")
       .map(_.trim)
       .toSeq
-    child.output.map(attr => WriteFilesExecTransformer.removeMetadata(attr, metadataWhiteList))
+    child.output.map(attr => WriteFilesExecTransformer.removeMetadata(attr, metadataExclusionList))
   }
 
   override protected def doValidateInternal(): ValidationResult = {
@@ -196,8 +196,8 @@ object WriteFilesExecTransformer {
     "__file_source_generated_metadata_col"
   )
 
-  def removeMetadata(attr: Attribute, whiteList: Seq[String]): Attribute = {
-    val metadataKeys = INTERNAL_METADATA_KEYS ++ whiteList
+  def removeMetadata(attr: Attribute, metadataExclusionList: Seq[String]): Attribute = {
+    val metadataKeys = INTERNAL_METADATA_KEYS ++ metadataExclusionList
     attr.withMetadata {
       var builder = new MetadataBuilder().withMetadata(attr.metadata)
       metadataKeys.foreach(key => builder = builder.remove(key))
