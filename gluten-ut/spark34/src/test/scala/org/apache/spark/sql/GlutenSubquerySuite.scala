@@ -18,8 +18,6 @@ package org.apache.spark.sql
 
 import io.glutenproject.execution.{FileSourceScanExecTransformer, WholeStageTransformer}
 
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
-
 class GlutenSubquerySuite extends SubquerySuite with GlutenSQLTestsTrait {
 
   // Test Canceled: IntegratedUDFTestUtils.shouldTestPythonUDFs was false

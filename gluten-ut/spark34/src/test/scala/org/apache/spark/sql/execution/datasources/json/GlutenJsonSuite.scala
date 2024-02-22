@@ -18,7 +18,6 @@ package org.apache.spark.sql.execution.datasources.json
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{sources, GlutenSQLTestsBaseTrait, Row}
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.execution.datasources.{InMemoryFileIndex, NoopCache}
 import org.apache.spark.sql.execution.datasources.v2.json.JsonScanBuilder
 import org.apache.spark.sql.internal.SQLConf

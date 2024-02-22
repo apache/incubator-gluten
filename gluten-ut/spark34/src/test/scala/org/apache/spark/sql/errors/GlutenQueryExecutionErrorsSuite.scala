@@ -17,7 +17,6 @@
 package org.apache.spark.sql.errors
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 
 class GlutenQueryExecutionErrorsSuite
   extends QueryExecutionErrorsSuite

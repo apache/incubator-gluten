@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources
 
-import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, GlutenTestConstants}
+import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.sql.internal.SQLConf
 
 import java.io.File

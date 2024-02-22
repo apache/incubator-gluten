@@ -16,10 +16,6 @@
  */
 package org.apache.spark.sql
 
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
-
-import scala.collection.immutable.Seq
-
 class GlutenUnwrapCastInComparisonEndToEndSuite
   extends UnwrapCastInComparisonEndToEndSuite
   with GlutenSQLTestsTrait {

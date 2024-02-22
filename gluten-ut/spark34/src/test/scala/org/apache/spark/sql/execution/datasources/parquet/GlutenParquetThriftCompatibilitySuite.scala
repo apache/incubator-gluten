@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.parquet
 
-import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, GlutenTestConstants, Row}
+import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, Row}
 
 class GlutenParquetThriftCompatibilitySuite
   extends ParquetThriftCompatibilitySuite
