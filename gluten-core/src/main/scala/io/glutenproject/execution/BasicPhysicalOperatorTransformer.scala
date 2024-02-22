@@ -235,6 +235,14 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
     }
   }
 
+  override def verboseStringWithOperatorId(): String = {
+    s"""
+       |$formattedNodeName
+       |${ExplainUtils.generateFieldString("Output", projectList)}
+       |${ExplainUtils.generateFieldString("Input", child.output)}
+       |""".stripMargin
+  }
+
   override protected def withNewChildInternal(newChild: SparkPlan): ProjectExecTransformer =
     copy(child = newChild)
 }
