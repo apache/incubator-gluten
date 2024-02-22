@@ -801,8 +801,8 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
 
   // EmptyRelation case
   ignore(
-    GLUTEN_TEST + "SPARK-35455: Unify empty relation optimization between normal and AQE optimizer " +
-      "- single join") {}
+    GLUTEN_TEST + "SPARK-35455: Unify empty relation optimization " +
+      "between normal and AQE optimizer - single join") {}
 
   testGluten("SPARK-32753: Only copy tags to node with no tags") {
     withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true") {
