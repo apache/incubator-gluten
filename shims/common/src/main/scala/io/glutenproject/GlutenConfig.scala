@@ -1330,6 +1330,14 @@ object GlutenConfig {
       .booleanConf
       .createOptional
 
+  val NATIVE_WRITE_FILES_COLUMN_METADATA_EXCLUSION_LIST =
+    buildConf("spark.gluten.sql.native.writeColumnMetadataExclusionList")
+      .doc(
+        "Native write files does not support column metadata. Metadata in list would be " +
+          "removed to support native write files. Multiple values separated by commas.")
+      .stringConf
+      .createWithDefault("comment")
+
   val REMOVE_NATIVE_WRITE_FILES_SORT_AND_PROJECT =
     buildConf("spark.gluten.sql.removeNativeWriteFilesSortAndProject")
       .internal()
