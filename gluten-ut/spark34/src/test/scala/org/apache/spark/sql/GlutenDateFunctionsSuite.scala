@@ -30,7 +30,7 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
 
   private def secs(millis: Long): Long = TimeUnit.MILLISECONDS.toSeconds(millis)
 
-  test(GLUTEN_TEST + "unix_timestamp") {
+  testGluten("unix_timestamp") {
     Seq("corrected", "legacy").foreach {
       legacyParserPolicy =>
         withSQLConf(
@@ -143,7 +143,7 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
     }
   }
 
-  test(GLUTEN_TEST + "to_unix_timestamp") {
+  testGluten("to_unix_timestamp") {
     Seq("corrected", "legacy").foreach {
       legacyParserPolicy =>
         withSQLConf(
@@ -207,7 +207,7 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
   }
 
   // Ported from spark with a test case for legacy mode removed.
-  test(GLUTEN_TEST + "to_timestamp") {
+  testGluten("to_timestamp") {
     Seq("legacy", "corrected").foreach {
       legacyParserPolicy =>
         withSQLConf(SQLConf.LEGACY_TIME_PARSER_POLICY.key -> legacyParserPolicy) {

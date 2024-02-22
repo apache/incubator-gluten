@@ -19,7 +19,7 @@ package org.apache.spark.sql.connector
 import io.glutenproject.execution.SortMergeJoinExecTransformer
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, GlutenTestConstants, Row}
+import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, Row}
 import org.apache.spark.sql.connector.catalog.{Identifier, InMemoryTableCatalog}
 import org.apache.spark.sql.connector.distributions.Distributions
 import org.apache.spark.sql.connector.expressions.Expressions.{bucket, days, identity}
@@ -28,7 +28,7 @@ import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.joins.SortMergeJoinExec
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DoubleType, FloatType, IntegerType, LongType, StringType, StructType, TimestampType}
+import org.apache.spark.sql.types._
 
 import java.util.Collections
 
@@ -118,13 +118,13 @@ class GlutenKeyGroupedPartitioningSuite
         Row("ccc", 30, 400.50)))
   }
 
-  test("gluten - partitioned join: only one side reports partitioning") {
+  testGluten("partitioned join: only one side reports partitioning") {
     val customers_partitions = Array(bucket(4, "customer_id"))
     val orders_partitions = Array(bucket(2, "customer_id"))
 
     testWithCustomersAndOrders(customers_partitions, orders_partitions, 2)
   }
-  test("gluten - partitioned join: exact distribution (same number of buckets) from both sides") {
+  testGluten("partitioned join: exact distribution (same number of buckets) from both sides") {
     val customers_partitions = Array(bucket(4, "customer_id"))
     val orders_partitions = Array(bucket(4, "customer_id"))
 
@@ -143,8 +143,8 @@ class GlutenKeyGroupedPartitioningSuite
     .add("price", FloatType)
     .add("time", TimestampType)
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST + "SPARK-41413: partitioned join: partition values" +
+  testGluten(
+    "SPARK-41413: partitioned join: partition values" +
       " from one side are subset of those from the other side") {
     val items_partitions = Array(bucket(4, "id"))
     createTable(items, items_schema, items_partitions)
@@ -186,9 +186,7 @@ class GlutenKeyGroupedPartitioningSuite
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST + "SPARK-41413: partitioned join:" +
-      " partition values from both sides overlaps") {
+  testGluten("SPARK-41413: partitioned join: partition values from both sides overlaps") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
 
@@ -229,9 +227,7 @@ class GlutenKeyGroupedPartitioningSuite
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST + "SPARK-41413: partitioned join:" +
-      " non-overlapping partition values from both sides") {
+  testGluten("SPARK-41413: partitioned join: non-overlapping partition values from both sides") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
     sql(
@@ -271,8 +267,8 @@ class GlutenKeyGroupedPartitioningSuite
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST + "SPARK-42038: partially clustered:" +
+  testGluten(
+    "SPARK-42038: partially clustered:" +
       " with same partition keys and one side fully clustered") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
@@ -323,8 +319,8 @@ class GlutenKeyGroupedPartitioningSuite
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST + "SPARK-42038: partially clustered:" +
+  testGluten(
+    "SPARK-42038: partially clustered:" +
       " with same partition keys and both sides partially clustered") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
@@ -385,8 +381,8 @@ class GlutenKeyGroupedPartitioningSuite
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST + "SPARK-42038: partially clustered: with different" +
+  testGluten(
+    "SPARK-42038: partially clustered: with different" +
       " partition keys and both sides partially clustered") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
@@ -455,8 +451,8 @@ class GlutenKeyGroupedPartitioningSuite
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST + "SPARK-42038: partially clustered: with different" +
+  testGluten(
+    "SPARK-42038: partially clustered: with different" +
       " partition keys and missing keys on left-hand side") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
@@ -515,8 +511,8 @@ class GlutenKeyGroupedPartitioningSuite
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST + "SPARK-42038: partially clustered:" +
+  testGluten(
+    "SPARK-42038: partially clustered:" +
       " with different partition keys and missing keys on right-hand side") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
@@ -567,7 +563,7 @@ class GlutenKeyGroupedPartitioningSuite
     }
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST + "SPARK-42038: partially clustered: left outer join") {
+  testGluten("SPARK-42038: partially clustered: left outer join") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
     sql(
@@ -629,7 +625,7 @@ class GlutenKeyGroupedPartitioningSuite
     }
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST + "SPARK-42038: partially clustered: right outer join") {
+  testGluten("SPARK-42038: partially clustered: right outer join") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
     sql(
@@ -695,9 +691,7 @@ class GlutenKeyGroupedPartitioningSuite
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST + "SPARK-42038: partially clustered:" +
-      " full outer join is not applicable") {
+  testGluten("SPARK-42038: partially clustered: full outer join is not applicable") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
     sql(
@@ -763,9 +757,7 @@ class GlutenKeyGroupedPartitioningSuite
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-44641: duplicated records when SPJ is not triggered") {
+  testGluten("SPARK-44641: duplicated records when SPJ is not triggered") {
     val items_partitions = Array(bucket(8, "id"))
     createTable(items, items_schema, items_partitions)
     sql(s"""
@@ -824,8 +816,7 @@ class GlutenKeyGroupedPartitioningSuite
     }
   }
 
-  test(
-    "gluten - partitioned join:  join with two partition keys and matching & sorted partitions") {
+  testGluten("partitioned join:  join with two partition keys and matching & sorted partitions") {
     val items_partitions = Array(bucket(8, "id"), days("arrive_time"))
     createTable(items, items_schema, items_partitions)
     sql(
@@ -864,7 +855,7 @@ class GlutenKeyGroupedPartitioningSuite
         Row(3, "cc", 15.5, 19.5)))
   }
 
-  test("gluten - partitioned join: join with two partition keys and unsorted partitions") {
+  testGluten("partitioned join: join with two partition keys and unsorted partitions") {
     val items_partitions = Array(bucket(8, "id"), days("arrive_time"))
     createTable(items, items_schema, items_partitions)
     sql(
@@ -903,8 +894,7 @@ class GlutenKeyGroupedPartitioningSuite
         Row(3, "cc", 15.5, 19.5)))
   }
 
-  test(
-    "gluten - partitioned join: join with two partition keys and different # of partition keys") {
+  testGluten("partitioned join: join with two partition keys and different # of partition keys") {
     val items_partitions = Array(bucket(8, "id"), days("arrive_time"))
     createTable(items, items_schema, items_partitions)
 
@@ -930,7 +920,7 @@ class GlutenKeyGroupedPartitioningSuite
     assert(shuffles.nonEmpty, "should add shuffle when partition keys mismatch")
   }
 
-  test("gluten: data source partitioning + dynamic partition filtering") {
+  testGluten("data source partitioning + dynamic partition filtering") {
     withSQLConf(
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1",
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false",

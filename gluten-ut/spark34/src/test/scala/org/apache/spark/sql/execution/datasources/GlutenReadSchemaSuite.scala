@@ -42,7 +42,7 @@ class GlutenVectorizedOrcReadSchemaSuite
   private lazy val doubleDF = values.map(_.toDouble).toDF("col1")
   private lazy val unionDF = floatDF.union(doubleDF)
 
-  test(GlutenTestConstants.GLUTEN_TEST + "change column position") {
+  testGluten("change column position") {
     withTempPath {
       dir =>
         withSQLConf(SQLConf.ORC_VECTORIZED_READER_ENABLED.key -> "false") {
@@ -70,7 +70,7 @@ class GlutenVectorizedOrcReadSchemaSuite
     }
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST + "read byte, int, short, long together") {
+  testGluten("read byte, int, short, long together") {
     withTempPath {
       dir =>
         withSQLConf(SQLConf.ORC_VECTORIZED_READER_ENABLED.key -> "false") {
@@ -104,7 +104,7 @@ class GlutenVectorizedOrcReadSchemaSuite
     }
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST + "read float and double together") {
+  testGluten("read float and double together") {
     withTempPath {
       dir =>
         withSQLConf(SQLConf.ORC_VECTORIZED_READER_ENABLED.key -> "false") {

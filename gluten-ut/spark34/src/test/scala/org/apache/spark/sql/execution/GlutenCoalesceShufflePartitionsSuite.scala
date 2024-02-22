@@ -79,7 +79,7 @@ class GlutenCoalesceShufflePartitionsSuite
       }
 
       // Ported from vanilla spark with targetPostShuffleInputSize changed.
-      test(GLUTEN_TEST + s"determining the number of reducers: aggregate operator$testNameNote") {
+      testGluten(s"determining the number of reducers: aggregate operator$testNameNote") {
         val test: SparkSession => Unit = {
           spark: SparkSession =>
             val df =
@@ -112,7 +112,7 @@ class GlutenCoalesceShufflePartitionsSuite
         withSparkSession(test, 2500, minNumPostShufflePartitions)
       }
 
-      test(GLUTEN_TEST + s"determining the number of reducers: join operator$testNameNote") {
+      testGluten(s"determining the number of reducers: join operator$testNameNote") {
         val test: SparkSession => Unit = {
           spark: SparkSession =>
             val df1 =
@@ -156,7 +156,7 @@ class GlutenCoalesceShufflePartitionsSuite
         withSparkSession(test, 20000, minNumPostShufflePartitions)
       }
 
-      test(GLUTEN_TEST + s"determining the number of reducers: complex query 1$testNameNote") {
+      testGluten(s"determining the number of reducers: complex query 1$testNameNote") {
         val test: (SparkSession) => Unit = {
           spark: SparkSession =>
             val df1 =
@@ -206,7 +206,7 @@ class GlutenCoalesceShufflePartitionsSuite
         withSparkSession(test, 20000, minNumPostShufflePartitions)
       }
 
-      test(GLUTEN_TEST + s"determining the number of reducers: complex query 2$testNameNote") {
+      testGluten(s"determining the number of reducers: complex query 2$testNameNote") {
         val test: (SparkSession) => Unit = {
           spark: SparkSession =>
             val df1 =
@@ -256,9 +256,7 @@ class GlutenCoalesceShufflePartitionsSuite
         withSparkSession(test, 16000, minNumPostShufflePartitions)
       }
 
-      test(
-        GLUTEN_TEST + s"determining the number of reducers:" +
-          s" plan already partitioned$testNameNote") {
+      testGluten(s"determining the number of reducers: plan already partitioned$testNameNote") {
         val test: SparkSession => Unit = {
           spark: SparkSession =>
             try {

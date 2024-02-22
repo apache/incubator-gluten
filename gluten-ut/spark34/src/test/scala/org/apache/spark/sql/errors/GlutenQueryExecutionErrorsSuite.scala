@@ -26,8 +26,8 @@ class GlutenQueryExecutionErrorsSuite
     getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + name
   }
 
-  test(
-    GLUTEN_TEST + "SCALAR_SUBQUERY_TOO_MANY_ROWS: " +
+  testGluten(
+    "SCALAR_SUBQUERY_TOO_MANY_ROWS: " +
       "More than one row returned by a subquery used as an expression") {
     val exception = intercept[IllegalStateException] {
       sql("select (select a from (select 1 as a union all select 2 as a) t) as b").collect()

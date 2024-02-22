@@ -20,7 +20,7 @@ import org.apache.spark.sql.types._
 
 class GlutenDataFrameTungstenSuite extends DataFrameTungstenSuite with GlutenSQLTestsTrait {
 
-  test("Map type with struct type as key") {
+  testGluten("Map type with struct type as key") {
     val kv = Map(Row(1, 2L) -> Seq("v"))
     val data = sparkContext.parallelize(Seq(Row(1, kv)))
     val schema = new StructType()

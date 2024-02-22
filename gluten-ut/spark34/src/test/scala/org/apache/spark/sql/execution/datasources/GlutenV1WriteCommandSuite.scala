@@ -98,9 +98,8 @@ class GlutenV1WriteCommandSuite
   with GlutenV1WriteCommandSuiteBase
   with GlutenSQLTestsBaseTrait {
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-41914: v1 write with AQE and in-partition sorted - non-string partition column") {
+  testGluten(
+    "SPARK-41914: v1 write with AQE and in-partition sorted - non-string partition column") {
     withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true") {
       withPlannedWrite {
         enabled =>
@@ -180,9 +179,7 @@ class GlutenV1WriteCommandSuite
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-41914: v1 write with AQE and in-partition sorted - string partition column") {
+  testGluten("SPARK-41914: v1 write with AQE and in-partition sorted - string partition column") {
     withPlannedWrite {
       enabled =>
         withTable("t") {

@@ -50,7 +50,7 @@ class GlutenJsonV2Suite extends GlutenJsonSuite with GlutenSQLTestsBaseTrait {
     super.sparkConf
       .set(SQLConf.USE_V1_SOURCE_LIST, "")
 
-  test("get pushed filters") {
+  testGluten("get pushed filters") {
     val attr = "col"
     def getBuilder(path: String): JsonScanBuilder = {
       val fileIndex = new InMemoryFileIndex(
@@ -81,7 +81,7 @@ class GlutenJsonV2Suite extends GlutenJsonSuite with GlutenSQLTestsBaseTrait {
     }
   }
 
-  test(GLUTEN_TEST + "SPARK-39731: Correctly parse dates and timestamps with yyyyMMdd pattern") {
+  testGluten("SPARK-39731: Correctly parse dates and timestamps with yyyyMMdd pattern") {
     withTempPath {
       path =>
         Seq(

@@ -27,9 +27,7 @@ class GlutenDataFrameWindowFunctionsSuite
 
   import testImplicits._
 
-  test(
-    GLUTEN_TEST +
-      "covar_samp, var_samp (variance), stddev_samp (stddev) functions in specific window") {
+  testGluten("covar_samp, var_samp (variance), stddev_samp (stddev) functions in specific window") {
     withSQLConf(SQLConf.LEGACY_STATISTICAL_AGGREGATE.key -> "true") {
       val df = Seq(
         ("a", "p1", 10.0, 20.0),
@@ -84,7 +82,7 @@ class GlutenDataFrameWindowFunctionsSuite
     }
   }
 
-  test(GLUTEN_TEST + "corr, covar_pop, stddev_pop functions in specific window") {
+  testGluten("corr, covar_pop, stddev_pop functions in specific window") {
     withSQLConf(SQLConf.LEGACY_STATISTICAL_AGGREGATE.key -> "true") {
       val df = Seq(
         ("a", "p1", 10.0, 20.0),

@@ -43,7 +43,7 @@ class GlutenJoinSuite extends JoinSuite with GlutenSQLTestsTrait {
     "NaN and -0.0 in join keys"
   )
 
-  test(GlutenTestConstants.GLUTEN_TEST + "test case sensitive for BHJ") {
+  testGluten("test case sensitive for BHJ") {
     spark.sql("create table t_bhj(a int, b int, C int) using parquet")
     spark.sql("insert overwrite t_bhj select id as a, (id+1) as b, (id+2) as c from range(3)")
     val sql =
@@ -56,8 +56,8 @@ class GlutenJoinSuite extends JoinSuite with GlutenSQLTestsTrait {
     checkAnswer(spark.sql(sql), Seq(Row(0, 1), Row(1, 2), Row(2, 3)))
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST + "SPARK-43113: Full outer join with duplicate stream-side" +
+  testGluten(
+    "SPARK-43113: Full outer join with duplicate stream-side" +
       " references in condition (SHJ)") {
     def check(plan: SparkPlan): Unit = {
       assert(collect(plan) { case _: ShuffledHashJoinExec => true }.size === 1)

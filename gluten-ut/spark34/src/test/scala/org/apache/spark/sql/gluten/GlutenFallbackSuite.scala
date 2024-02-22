@@ -30,7 +30,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelper {
 
-  test("test fallback logging") {
+  testGluten("test fallback logging") {
     val testAppender = new LogAppender("fallback reason")
     withLogAppender(testAppender) {
       withSQLConf(
@@ -48,7 +48,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
     }
   }
 
-  test("test fallback event") {
+  testGluten("test fallback event") {
     val kvStore = spark.sparkContext.statusStore.store.asInstanceOf[ElementTrackingStore]
     val glutenStore = new GlutenSQLAppStatusStore(kvStore)
     assert(glutenStore.buildInfo().info.find(_._1 == "Gluten Version").exists(_._2 == VERSION))
@@ -95,7 +95,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
     }
   }
 
-  test("Improve merge fallback reason") {
+  testGluten("Improve merge fallback reason") {
     spark.sql("create table t using parquet as select 1 as c1, timestamp '2023-01-01' as c2")
     withTable("t") {
       val events = new ArrayBuffer[GlutenPlanFallbackEvent]

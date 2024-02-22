@@ -83,7 +83,7 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
     }
   }
 
-  test(GLUTEN_TEST + "no partition pruning when the build side is a stream") {
+  testGluten("no partition pruning when the build side is a stream") {
     withTable("fact") {
       val input = MemoryStream[Int]
       val stream = input.toDF.select($"value".as("one"), ($"value" * 3).as("code"))
@@ -125,7 +125,7 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
     }
   }
 
-  test(GLUTEN_TEST + "Make sure dynamic pruning works on uncorrelated queries") {
+  testGluten("Make sure dynamic pruning works on uncorrelated queries") {
     withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "true") {
       val df = sql("""
                      |SELECT d.store_id,
@@ -157,8 +157,8 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
     }
   }
 
-  test(
-    GLUTEN_TEST + "SPARK-32509: Unused Dynamic Pruning filter shouldn't affect " +
+  testGluten(
+    "SPARK-32509: Unused Dynamic Pruning filter shouldn't affect " +
       "canonicalization and exchange reuse") {
     withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "true") {
       withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
@@ -183,7 +183,7 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
     }
   }
 
-  test(GLUTEN_TEST + "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type") {
+  testGluten("SPARK-32659: Fix the data issue when pruning DPP on non-atomic type") {
     Seq(NO_CODEGEN, CODEGEN_ONLY).foreach {
       mode =>
         Seq(true, false).foreach {
@@ -283,7 +283,7 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
     }
   }
 
-  test(GLUTEN_TEST + "SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec") {
+  testGluten("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec") {
     withTable("duplicate_keys") {
       withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true") {
         Seq[(Int, String)]((1, "NL"), (1, "NL"), (3, "US"), (3, "US"), (3, "US"))
@@ -442,7 +442,7 @@ abstract class GlutenDynamicPartitionPruningV1Suite extends GlutenDynamicPartiti
   import testImplicits._
 
   /** Check the static scan metrics with and without DPP */
-  test("static scan metrics", DisableAdaptiveExecution("DPP in AQE must reuse broadcast")) {
+  testGluten("static scan metrics", DisableAdaptiveExecution("DPP in AQE must reuse broadcast")) {
     withSQLConf(
       SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
       SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "false",
@@ -557,8 +557,8 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff
 
   import testImplicits._
 
-  test(
-    GLUTEN_TEST + "static scan metrics",
+  testGluten(
+    "override static scan metrics",
     DisableAdaptiveExecution("DPP in AQE must reuse broadcast")) {
     withSQLConf(
       SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
@@ -672,8 +672,8 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff
     }
   }
 
-  test(
-    GLUTEN_TEST + "Subquery reuse across the whole plan",
+  testGluten(
+    "Subquery reuse across the whole plan",
     DisableAdaptiveExecution("DPP in AQE must reuse broadcast")) {
     withSQLConf(
       SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
@@ -734,7 +734,7 @@ class GlutenDynamicPartitionPruningV1SuiteAEOn
   extends GlutenDynamicPartitionPruningV1Suite
   with EnableAdaptiveExecutionSuite {
 
-  test("SPARK-39447: Avoid AssertionError in AdaptiveSparkPlanExec.doExecuteBroadcast") {
+  testGluten("SPARK-39447: Avoid AssertionError in AdaptiveSparkPlanExec.doExecuteBroadcast") {
     val df = sql("""
                    |WITH empty_result AS (
                    |  SELECT * FROM fact_stats WHERE product_id < 0
@@ -752,7 +752,7 @@ class GlutenDynamicPartitionPruningV1SuiteAEOn
     checkAnswer(df, Nil)
   }
 
-  test(
+  testGluten(
     "SPARK-37995: PlanAdaptiveDynamicPruningFilters should use prepareExecutedPlan " +
       "rather than createSparkPlan to re-plan subquery") {
     withSQLConf(
