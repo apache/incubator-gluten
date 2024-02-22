@@ -2437,5 +2437,18 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       runQueryAndCompare(sql)({ _ => })
     }
   }
+
+  test("GLUTEN-4279: Bug fix hour diff") {
+    val tbl_create_sql = "create table test_tbl_4279(id bigint, data string) using parquet";
+    val tbl_insert_sql = "insert into test_tbl_4279 values(1, '2024-01-04 11:22:33'), " +
+      "(2, '2024-01-04 11:22:33.456+08'), (3, '2024'), (4, '2024-01'), (5, '2024-01-04'), " +
+      "(6, '2024-01-04 12'), (7, '2024-01-04 12:12'), (8, '11:22:33'), (9, '22:33')," +
+      "(10, '2024-01-04 '), (11, '2024-01-04 11.22.33.')"
+    val select_sql = "select id, hour(data) from test_tbl_4279 order by id"
+    spark.sql(tbl_create_sql)
+    spark.sql(tbl_insert_sql)
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    spark.sql("drop table test_tbl_4279")
+  }
 }
 // scalastyle:on line.size.limit

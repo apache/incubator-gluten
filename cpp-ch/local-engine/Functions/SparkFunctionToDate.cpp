@@ -37,7 +37,7 @@ namespace local_engine
 class SparkFunctionConvertToDate : public DB::FunctionToDate32OrNull
 {
 public:
-    static constexpr auto name = "spark_to_date";
+    static constexpr auto name = "sparkToDate";
     static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionConvertToDate>(); }
     SparkFunctionConvertToDate() = default;
     ~SparkFunctionConvertToDate() override = default;
