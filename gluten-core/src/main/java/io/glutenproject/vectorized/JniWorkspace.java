@@ -22,6 +22,7 @@ import org.apache.spark.util.SparkDirectoryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -33,6 +34,10 @@ public class JniWorkspace {
   private static final Logger LOG = LoggerFactory.getLogger(JniWorkspace.class);
   private static final Map<String, JniWorkspace> INSTANCES = new ConcurrentHashMap<>();
   private static final JniWorkspace DEFAULT_INSTANCE = createDefault();
+
+  // For debugging purposes only
+  private static JniWorkspace DEBUG_INSTANCE = null;
+  private static final Object DEBUG_INSTANCE_INIT_LOCK = new Object();
 
   private final String workDir;
   private final JniLibLoader jniLibLoader;
@@ -64,11 +69,29 @@ public class JniWorkspace {
     }
   }
 
+  public static JniWorkspace getDebug() {
+    // Preserve the JNI libraries even after process exits.
+    // This is useful for debugging native code if the debug symbols were embedded in
+    // the libraries.
+    synchronized (DEBUG_INSTANCE_INIT_LOCK) {
+      if (DEBUG_INSTANCE == null) {
+        final String tempRoot;
+        try {
+          tempRoot = Files.createTempDirectory("gluten-jni-debug-").toAbsolutePath().toString();
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        DEBUG_INSTANCE = createOrGet(tempRoot);
+      }
+    }
+    return DEBUG_INSTANCE;
+  }
+
   public static JniWorkspace getDefault() {
     return DEFAULT_INSTANCE;
   }
 
-  public static JniWorkspace createOrGet(String rootDir) {
+  private static JniWorkspace createOrGet(String rootDir) {
     return INSTANCES.computeIfAbsent(rootDir, JniWorkspace::new);
   }
 

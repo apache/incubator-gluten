@@ -299,7 +299,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def memoryUseHugePages: Boolean =
     conf.getConf(COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES)
 
-  def debug: Boolean = conf.getConf(DEBUG_LEVEL_ENABLED)
+  def debug: Boolean = conf.getConf(DEBUG_ENABLED)
   def taskStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
   def taskPartitionId: Int = conf.getConf(BENCHMARK_TASK_PARTITIONID)
   def taskId: Long = conf.getConf(BENCHMARK_TASK_TASK_ID)
@@ -1299,7 +1299,7 @@ object GlutenConfig {
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
       .createWithDefault("DEBUG")
 
-  val DEBUG_LEVEL_ENABLED =
+  val DEBUG_ENABLED =
     buildConf(GLUTEN_DEBUG_MODE)
       .internal()
       .booleanConf
