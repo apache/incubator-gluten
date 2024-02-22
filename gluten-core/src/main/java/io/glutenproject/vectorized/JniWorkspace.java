@@ -18,10 +18,12 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.exception.GlutenException;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.spark.util.SparkDirectoryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -75,13 +77,14 @@ public class JniWorkspace {
     // the libraries.
     synchronized (DEBUG_INSTANCE_INIT_LOCK) {
       if (DEBUG_INSTANCE == null) {
-        final String tempRoot;
+        final File tempRoot =
+            Paths.get("/tmp").resolve("gluten-jni-debug-" + UUID.randomUUID()).toFile();
         try {
-          tempRoot = Files.createTempDirectory("gluten-jni-debug-").toAbsolutePath().toString();
+          FileUtils.forceMkdir(tempRoot);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
-        DEBUG_INSTANCE = createOrGet(tempRoot);
+        DEBUG_INSTANCE = createOrGet(tempRoot.getAbsolutePath());
       }
     }
     return DEBUG_INSTANCE;
