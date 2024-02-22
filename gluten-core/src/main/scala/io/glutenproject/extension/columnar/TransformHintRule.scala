@@ -45,7 +45,7 @@ import org.apache.spark.sql.types.StringType
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-trait TransformHint {
+sealed trait TransformHint {
   val stacktrace: Option[String] =
     if (TransformHints.DEBUG) {
       Some(ExceptionUtils.getStackTrace(new Throwable()))

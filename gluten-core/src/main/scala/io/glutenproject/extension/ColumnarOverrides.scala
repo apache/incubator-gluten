@@ -108,13 +108,14 @@ case class TransformPreOverrides() extends Rule[SparkPlan] with LogLevelUtil {
     // Push down the left conditions in Filter into FileSourceScan.
     val newChild: SparkPlan = scan match {
       case _: FileSourceScanExec | _: BatchScanExec =>
-        val newScan = FilterHandler.applyFilterPushdownToScan(plan)
-        if (TransformHints.isNotTransformable(newScan)) {
-          throw new IllegalStateException("Unreachable code")
-        }
-        newScan match {
-          case ts: TransformSupport if ts.doValidate().isValid => ts
-          case _ => replaceWithTransformerPlan(scan)
+        if (TransformHints.isTransformable(scan)) {
+          val newScan = FilterHandler.applyFilterPushdownToScan(plan)
+          newScan match {
+            case ts: TransformSupport if ts.doValidate().isValid => ts
+            case _ => replaceWithTransformerPlan(scan)
+          }
+        } else {
+          replaceWithTransformerPlan(scan)
         }
       case _ => replaceWithTransformerPlan(plan.child)
     }
