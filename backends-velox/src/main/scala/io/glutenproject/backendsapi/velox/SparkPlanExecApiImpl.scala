@@ -41,12 +41,12 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, HashPartitioning, IdentityBroadcastMode, Partitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, HashPartitioning, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{BroadcastUtils, ColumnarBuildSideRelation, ColumnarShuffleExchangeExec, SparkPlan, VeloxColumnarWriteFilesExec}
 import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
-import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
+import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.ExecUtil
 import org.apache.spark.sql.expression.{UDFExpression, UDFResolver}
@@ -272,6 +272,20 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
     )
   }
 
+  override def genBroadcastNestedLoopJoinExecTransformer(
+      left: SparkPlan,
+      right: SparkPlan,
+      buildSide: BuildSide,
+      joinType: JoinType,
+      condition: Option[Expression]): BroadcastNestedLoopJoinExecTransformer =
+    GlutenBroadcastNestedLoopJoinExecTransformer(
+      left,
+      right,
+      buildSide,
+      joinType,
+      condition
+    )
+
   override def genHashExpressionTransformer(
       substraitExprName: String,
       exprs: Seq[ExpressionTransformer],
@@ -365,24 +379,19 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       child: SparkPlan,
       numOutputRows: SQLMetric,
       dataSize: SQLMetric): BuildSideRelation = {
-    mode match {
-      case IdentityBroadcastMode =>
-        throw new IllegalStateException("Unreachable code")
-      case HashedRelationBroadcastMode(_, _) =>
-        val serialized: Array[ColumnarBatchSerializeResult] = child
-          .executeColumnar()
-          .mapPartitions(itr => Iterator(BroadcastUtils.serializeStream(itr)))
-          .filter(_.getNumRows != 0)
-          .collect
-        val rawSize = serialized.map(_.getSerialized.length).sum
-        if (rawSize >= BroadcastExchangeExec.MAX_BROADCAST_TABLE_BYTES) {
-          throw new SparkException(
-            s"Cannot broadcast the table that is larger than 8GB: ${rawSize >> 30} GB")
-        }
-        numOutputRows += serialized.map(_.getNumRows).sum
-        dataSize += rawSize
-        ColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized))
+    val serialized: Array[ColumnarBatchSerializeResult] = child
+      .executeColumnar()
+      .mapPartitions(itr => Iterator(BroadcastUtils.serializeStream(itr)))
+      .filter(_.getNumRows != 0)
+      .collect
+    val rawSize = serialized.map(_.getSerialized.length).sum
+    if (rawSize >= BroadcastExchangeExec.MAX_BROADCAST_TABLE_BYTES) {
+      throw new SparkException(
+        s"Cannot broadcast the table that is larger than 8GB: ${rawSize >> 30} GB")
     }
+    numOutputRows += serialized.map(_.getNumRows).sum
+    dataSize += rawSize
+    ColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized))
   }
 
   /**

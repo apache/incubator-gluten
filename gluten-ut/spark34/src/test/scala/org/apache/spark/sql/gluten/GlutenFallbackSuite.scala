@@ -93,19 +93,6 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
         assert(fallbackReason._2.contains("columnar FileScan is not enabled in FileSourceScanExec"))
       }
     }
-
-    withTable("t1", "t2") {
-      spark.range(10).write.format("parquet").saveAsTable("t1")
-      spark.range(10).write.format("parquet").saveAsTable("t2")
-
-      val id = runExecution("SELECT * FROM t1 JOIN t2")
-      val execution = glutenStore.execution(id)
-      // broadcast exchange and broadcast nested loop join
-      assert(execution.get.numFallbackNodes == 2)
-      assert(
-        execution.get.fallbackNodeToReason.head._2
-          .contains("Gluten does not touch it or does not support it"))
-    }
   }
 
   test("Improve merge fallback reason") {

@@ -366,13 +366,24 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   auto leftNode = toVeloxPlan(crossRel.left());
   auto rightNode = toVeloxPlan(crossRel.right());
 
+  // Map join type.
+  core::JoinType joinType;
+  switch (crossRel.type()) {
+    case ::substrait::CrossRel_JoinType::CrossRel_JoinType_JOIN_TYPE_INNER:
+      joinType = core::JoinType::kInner;
+      break;
+    case ::substrait::CrossRel_JoinType::CrossRel_JoinType_JOIN_TYPE_LEFT:
+      joinType = core::JoinType::kLeft;
+      break;
+    default:
+      VELOX_NYI("Unsupported Join type: {}", std::to_string(crossRel.type()));
+  }
+
   auto inputRowType = getJoinInputType(leftNode, rightNode);
   core::TypedExprPtr joinConditions;
   if (crossRel.has_expression()) {
     joinConditions = exprConverter_->toVeloxExpr(crossRel.expression(), inputRowType);
   }
-
-  core::JoinType joinType = core::JoinType::kInner;
 
   return std::make_shared<core::NestedLoopJoinNode>(
       nextPlanNodeId(),

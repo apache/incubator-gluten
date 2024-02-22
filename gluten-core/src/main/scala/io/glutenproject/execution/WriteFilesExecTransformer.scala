@@ -16,6 +16,7 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.extension.ValidationResult
@@ -133,7 +134,12 @@ case class WriteFilesExecTransformer(
   }
 
   private def getFinalChildOutput(): Seq[Attribute] = {
-    child.output.map(WriteFilesExecTransformer.removeInternalMetadata)
+    val metadataExclusionList = conf
+      .getConf(GlutenConfig.NATIVE_WRITE_FILES_COLUMN_METADATA_EXCLUSION_LIST)
+      .split(",")
+      .map(_.trim)
+      .toSeq
+    child.output.map(attr => WriteFilesExecTransformer.removeMetadata(attr, metadataExclusionList))
   }
 
   override protected def doValidateInternal(): ValidationResult = {
@@ -190,10 +196,11 @@ object WriteFilesExecTransformer {
     "__file_source_generated_metadata_col"
   )
 
-  def removeInternalMetadata(attr: Attribute): Attribute = {
+  def removeMetadata(attr: Attribute, metadataExclusionList: Seq[String]): Attribute = {
+    val metadataKeys = INTERNAL_METADATA_KEYS ++ metadataExclusionList
     attr.withMetadata {
       var builder = new MetadataBuilder().withMetadata(attr.metadata)
-      INTERNAL_METADATA_KEYS.foreach(key => builder = builder.remove(key))
+      metadataKeys.foreach(key => builder = builder.remove(key))
       builder.build()
     }
   }

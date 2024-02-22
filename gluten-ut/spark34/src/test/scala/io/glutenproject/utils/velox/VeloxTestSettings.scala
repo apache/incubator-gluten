@@ -1078,7 +1078,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "SPARK-43113: Full outer join with duplicate stream-side references in condition (SMJ)")
   enableSuite[GlutenMathFunctionsSuite]
-    .exclude("SPARK-44973: conv must allocate enough space for all digits plus negative sign")
   enableSuite[GlutenMetadataCacheSuite]
     .exclude("SPARK-16336,SPARK-27961 Suggest fixing FileNotFoundException")
   enableSuite[GlutenMiscFunctionsSuite]
