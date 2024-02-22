@@ -125,6 +125,20 @@ class GlutenClickHouseTPCDSParquetGraceHashJoinSuite extends GlutenClickHouseTPC
     assert(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
   }
 
+  test("Gluten-4458: test inner join can support join with IN condition") {
+    val testSql =
+      """
+        | SELECT *
+        | FROM date_dim t1
+        | INNER JOIN date_dim t2 ON t1.d_date_sk = t2.d_date_sk
+        |   AND datediff(t1.d_day_name, t2.d_day_name) IN (1, 3)
+        | LIMIT 100;
+        |""".stripMargin
+
+    val df = spark.sql(testSql)
+    assert(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
+  }
+
   test("Gluten-1235: Fix missing reading from the broadcasted value when executing DPP") {
     val testSql =
       """
