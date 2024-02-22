@@ -90,6 +90,7 @@ case class GlutenFallbackReporter(glutenConfig: GlutenConfig, spark: SparkSessio
                   logicalPlan.setTagValue(FALLBACK_REASON_TAG, newReason)
               }
             case _ =>
+              throw new IllegalStateException("Unreachable code")
           }
         }
     }
