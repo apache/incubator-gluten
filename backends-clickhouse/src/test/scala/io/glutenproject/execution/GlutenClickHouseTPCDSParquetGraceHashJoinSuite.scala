@@ -186,13 +186,13 @@ class GlutenClickHouseTPCDSParquetGraceHashJoinSuite extends GlutenClickHouseTPC
     val testSql =
       """
         | SELECT ws_item_sk, ws_sold_date_sk, ws_ship_date_sk,
-        |        t1.d_date_id as sold_date_id, t2.d_date_id as ship_date_id
+        |        t3.d_date_id as sold_date_id, t2.d_date_id as ship_date_id
         | FROM (
-        | SELECT ws_item_sk, ws_sold_date_sk, ws_ship_date_sk
+        | SELECT ws_item_sk, ws_sold_date_sk, ws_ship_date_sk, t1.d_date_id
         | FROM web_sales
         | LEFT JOIN
         |   (SELECT d_date_id, d_date_sk from date_dim GROUP BY d_date_id, d_date_sk) t1
-        | ON ws_sold_date_sk == t1.d_date_sk)
+        | ON ws_sold_date_sk == t1.d_date_sk) t3
         | INNER JOIN
         |   (SELECT d_date_id, d_date_sk from date_dim GROUP BY d_date_id, d_date_sk) t2
         | ON ws_ship_date_sk == t2.d_date_sk
