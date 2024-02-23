@@ -58,7 +58,7 @@ case class GlutenFallbackReporter(glutenConfig: GlutenConfig, spark: SparkSessio
     plan.foreachUp {
       case _: GlutenPlan => // ignore
       case plan: SparkPlan =>
-        if (TransformHints.isNotTransformable(plan)) {
+        if (TransformHints.isNotTransformable(plan))
           TransformHints.getHint(plan) match {
             case TRANSFORM_UNSUPPORTED(Some(reason), append) =>
               logFallbackReason(validationLogLevel, plan.nodeName, reason)
@@ -92,7 +92,6 @@ case class GlutenFallbackReporter(glutenConfig: GlutenConfig, spark: SparkSessio
             case _ =>
               throw new IllegalStateException("Unreachable code")
           }
-        }
     }
   }
 
