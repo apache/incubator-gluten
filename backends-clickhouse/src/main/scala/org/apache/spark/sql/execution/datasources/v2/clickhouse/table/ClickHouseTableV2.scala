@@ -97,7 +97,7 @@ case class ClickHouseTableV2(
 
   protected def metadata: Metadata = if (snapshot == null) Metadata() else snapshot.metadata
 
-  private lazy val (rootPath, partitionFilters, timeTravelByPath) = {
+  lazy val (rootPath, partitionFilters, timeTravelByPath) = {
     if (catalogTable.isDefined) {
       // Fast path for reducing path munging overhead
       (new Path(catalogTable.get.location), Nil, None)
@@ -380,6 +380,8 @@ object ClickHouseTableV2 extends Logging {
     .build[Path, Seq[AddMergeTreeParts]](fileStatusCacheLoader)
 
   def clearAllFileStatusCache: Unit = fileStatusCache.invalidateAll()
+
+  def clearFileStatusCacheByPath(p: Path): Unit = fileStatusCache.invalidate(p)
 
   protected val stalenessLimit: Long = SparkSession.active.sessionState.conf
     .getConf(DeltaSQLConf.DELTA_ASYNC_UPDATE_STALENESS_TIME_LIMIT)
