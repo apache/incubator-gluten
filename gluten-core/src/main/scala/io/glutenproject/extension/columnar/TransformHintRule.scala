@@ -62,12 +62,12 @@ object TransformHints {
   val DEBUG = false
 
   /**
-   * If true, the plan node will be guaranteed fallback to Vanilla plan node
-   * while being implemented.
+   * If true, the plan node will be guaranteed fallback to Vanilla plan node while being
+   * implemented.
    *
-   * If false, the plan still has chance to be turned into "non-transformable"
-   * in any another validation rule. So user should not consider the plan "transformable"
-   * unless all validation rules are passed.
+   * If false, the plan still has chance to be turned into "non-transformable" in any another
+   * validation rule. So user should not consider the plan "transformable" unless all validation
+   * rules are passed.
    */
   def isNotTransformable(plan: SparkPlan): Boolean = {
     getHintOption(plan) match {
