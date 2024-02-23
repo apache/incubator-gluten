@@ -222,7 +222,6 @@ class SafeNativeArray {
   }
 
  private:
-
   SafeNativeArray(JNIEnv* env, JavaArrayType javaArray, NativeArrayType nativeArray)
       : env_(env), javaArray_(javaArray), nativeArray_(nativeArray){};
 
