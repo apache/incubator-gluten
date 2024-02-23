@@ -32,18 +32,18 @@ void configureCompressedReadBuffer(DB::CompressedReadBuffer & compressedReadBuff
 {
     compressedReadBuffer.disableChecksumming();
 }
-ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool compressed, Int64 max_shuffle_read_rows_, Int64 max_shuffle_read_bytes_)
+ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool compressed, Int64 max_shuffle_read_rows_, Int64 max_shuffle_read_bytes_, bool enable_prefetch)
     : in(std::move(in_)), max_shuffle_read_rows(max_shuffle_read_rows_), max_shuffle_read_bytes(max_shuffle_read_bytes_)
 {
     if (compressed)
     {
         compressed_in = std::make_unique<CompressedReadBuffer>(*in);
         configureCompressedReadBuffer(static_cast<DB::CompressedReadBuffer &>(*compressed_in));
-        input_stream = std::make_unique<NativeReader>(*compressed_in, max_shuffle_read_rows_, max_shuffle_read_bytes_);
+        input_stream = std::make_unique<NativeReader>(*compressed_in, max_shuffle_read_rows_, max_shuffle_read_bytes_, enable_prefetch);
     }
     else
     {
-        input_stream = std::make_unique<NativeReader>(*in);
+        input_stream = std::make_unique<NativeReader>(*in, max_shuffle_read_rows_, max_shuffle_read_bytes_, enable_prefetch);
     }
 }
 Block * ShuffleReader::read()
