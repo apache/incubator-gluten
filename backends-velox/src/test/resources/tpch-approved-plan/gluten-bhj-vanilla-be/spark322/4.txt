@@ -1,0 +1,252 @@
+== Physical Plan ==
+AdaptiveSparkPlan (47)
++- == Final Plan ==
+   VeloxColumnarToRowExec (32)
+   +- ^ SortExecTransformer (30)
+      +- ^ InputIteratorTransformer (29)
+         +- ^ InputAdapter (28)
+            +- ^ ShuffleQueryStage (27)
+               +- ColumnarExchange (26)
+                  +- ^ ProjectExecTransformer (24)
+                     +- ^ RegularHashAggregateExecTransformer (23)
+                        +- ^ InputIteratorTransformer (22)
+                           +- ^ InputAdapter (21)
+                              +- ^ ShuffleQueryStage (20)
+                                 +- ColumnarExchange (19)
+                                    +- ^ ProjectExecTransformer (17)
+                                       +- ^ FlushableHashAggregateExecTransformer (16)
+                                          +- ^ ProjectExecTransformer (15)
+                                             +- ^ GlutenBroadcastHashJoinExecTransformer LeftSemi (14)
+                                                :- ^ ProjectExecTransformer (3)
+                                                :  +- ^ FilterExecTransformer (2)
+                                                :     +- ^ Scan parquet (1)
+                                                +- ^ InputIteratorTransformer (13)
+                                                   +- ^ InputAdapter (12)
+                                                      +- ^ RowToVeloxColumnar (11)
+                                                         +- ^ BroadcastQueryStage (10)
+                                                            +- BroadcastExchange (9)
+                                                               +- VeloxColumnarToRowExec (8)
+                                                                  +- ^ ProjectExecTransformer (6)
+                                                                     +- ^ FilterExecTransformer (5)
+                                                                        +- ^ Scan parquet (4)
++- == Initial Plan ==
+   Sort (46)
+   +- Exchange (45)
+      +- HashAggregate (44)
+         +- Exchange (43)
+            +- HashAggregate (42)
+               +- Project (41)
+                  +- BroadcastHashJoin LeftSemi BuildRight (40)
+                     :- Project (35)
+                     :  +- Filter (34)
+                     :     +- Scan parquet (33)
+                     +- BroadcastExchange (39)
+                        +- Project (38)
+                           +- Filter (37)
+                              +- Scan parquet (36)
+
+
+(1) Scan parquet
+Output [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
+Batched: true
+Location: InMemoryFileIndex [*]
+PushedFilters: [IsNotNull(o_orderdate), GreaterThanOrEqual(o_orderdate,1993-07-01), LessThan(o_orderdate,1993-10-01)]
+ReadSchema: struct<o_orderkey:bigint,o_orderdate:date,o_orderpriority:string>
+
+(2) FilterExecTransformer
+Input [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
+Arguments: ((isnotnull(o_orderdate#X) AND (o_orderdate#X >= 1993-07-01)) AND (o_orderdate#X < 1993-10-01))
+
+(3) ProjectExecTransformer
+Output [2]: [o_orderkey#X, o_orderpriority#X]
+Input [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
+
+(4) Scan parquet
+Output [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
+Batched: true
+Location: InMemoryFileIndex [*]
+PushedFilters: [IsNotNull(l_commitdate), IsNotNull(l_receiptdate)]
+ReadSchema: struct<l_orderkey:bigint,l_commitdate:date,l_receiptdate:date>
+
+(5) FilterExecTransformer
+Input [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
+Arguments: ((isnotnull(l_commitdate#X) AND isnotnull(l_receiptdate#X)) AND (l_commitdate#X < l_receiptdate#X))
+
+(6) ProjectExecTransformer
+Output [1]: [l_orderkey#X]
+Input [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
+
+(7) WholeStageCodegenTransformer (X)
+Input [1]: [l_orderkey#X]
+Arguments: false
+
+(8) VeloxColumnarToRowExec
+Input [1]: [l_orderkey#X]
+
+(9) BroadcastExchange
+Input [1]: [l_orderkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
+
+(10) BroadcastQueryStage
+Output [1]: [l_orderkey#X]
+Arguments: 0
+
+(11) RowToVeloxColumnar
+Input [1]: [l_orderkey#X]
+
+(12) InputAdapter
+Input [1]: [l_orderkey#X]
+
+(13) InputIteratorTransformer
+Input [1]: [l_orderkey#X]
+
+(14) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [o_orderkey#X]
+Right keys [1]: [l_orderkey#X]
+Join condition: None
+
+(15) ProjectExecTransformer
+Output [1]: [o_orderpriority#X]
+Input [2]: [o_orderkey#X, o_orderpriority#X]
+
+(16) FlushableHashAggregateExecTransformer
+Input [1]: [o_orderpriority#X]
+Keys [1]: [o_orderpriority#X]
+Functions [1]: [partial_count(1)]
+Aggregate Attributes [1]: [count#X]
+Results [2]: [o_orderpriority#X, count#X]
+
+(17) ProjectExecTransformer
+Output [3]: [hash(o_orderpriority#X, 42) AS hash_partition_key#X, o_orderpriority#X, count#X]
+Input [2]: [o_orderpriority#X, count#X]
+
+(18) WholeStageCodegenTransformer (X)
+Input [3]: [hash_partition_key#X, o_orderpriority#X, count#X]
+Arguments: false
+
+(19) ColumnarExchange
+Input [3]: [hash_partition_key#X, o_orderpriority#X, count#X]
+Arguments: hashpartitioning(o_orderpriority#X, 1), ENSURE_REQUIREMENTS, [o_orderpriority#X, count#X], [plan_id=X], [id=#X]
+
+(20) ShuffleQueryStage
+Output [2]: [o_orderpriority#X, count#X]
+Arguments: 1
+
+(21) InputAdapter
+Input [2]: [o_orderpriority#X, count#X]
+
+(22) InputIteratorTransformer
+Input [2]: [o_orderpriority#X, count#X]
+
+(23) RegularHashAggregateExecTransformer
+Input [2]: [o_orderpriority#X, count#X]
+Keys [1]: [o_orderpriority#X]
+Functions [1]: [count(1)]
+Aggregate Attributes [1]: [count(1)#X]
+Results [2]: [o_orderpriority#X, count(1)#X]
+
+(24) ProjectExecTransformer
+Output [2]: [o_orderpriority#X, count(1)#X AS order_count#X]
+Input [2]: [o_orderpriority#X, count(1)#X]
+
+(25) WholeStageCodegenTransformer (X)
+Input [2]: [o_orderpriority#X, order_count#X]
+Arguments: false
+
+(26) ColumnarExchange
+Input [2]: [o_orderpriority#X, order_count#X]
+Arguments: rangepartitioning(o_orderpriority#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+
+(27) ShuffleQueryStage
+Output [2]: [o_orderpriority#X, order_count#X]
+Arguments: 2
+
+(28) InputAdapter
+Input [2]: [o_orderpriority#X, order_count#X]
+
+(29) InputIteratorTransformer
+Input [2]: [o_orderpriority#X, order_count#X]
+
+(30) SortExecTransformer
+Input [2]: [o_orderpriority#X, order_count#X]
+Arguments: [o_orderpriority#X ASC NULLS FIRST], true, 0
+
+(31) WholeStageCodegenTransformer (X)
+Input [2]: [o_orderpriority#X, order_count#X]
+Arguments: false
+
+(32) VeloxColumnarToRowExec
+Input [2]: [o_orderpriority#X, order_count#X]
+
+(33) Scan parquet
+Output [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
+Batched: true
+Location: InMemoryFileIndex [*]
+PushedFilters: [IsNotNull(o_orderdate), GreaterThanOrEqual(o_orderdate,1993-07-01), LessThan(o_orderdate,1993-10-01)]
+ReadSchema: struct<o_orderkey:bigint,o_orderdate:date,o_orderpriority:string>
+
+(34) Filter
+Input [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
+Condition : ((isnotnull(o_orderdate#X) AND (o_orderdate#X >= 1993-07-01)) AND (o_orderdate#X < 1993-10-01))
+
+(35) Project
+Output [2]: [o_orderkey#X, o_orderpriority#X]
+Input [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
+
+(36) Scan parquet
+Output [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
+Batched: true
+Location: InMemoryFileIndex [*]
+PushedFilters: [IsNotNull(l_commitdate), IsNotNull(l_receiptdate)]
+ReadSchema: struct<l_orderkey:bigint,l_commitdate:date,l_receiptdate:date>
+
+(37) Filter
+Input [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
+Condition : ((isnotnull(l_commitdate#X) AND isnotnull(l_receiptdate#X)) AND (l_commitdate#X < l_receiptdate#X))
+
+(38) Project
+Output [1]: [l_orderkey#X]
+Input [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
+
+(39) BroadcastExchange
+Input [1]: [l_orderkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
+
+(40) BroadcastHashJoin
+Left keys [1]: [o_orderkey#X]
+Right keys [1]: [l_orderkey#X]
+Join condition: None
+
+(41) Project
+Output [1]: [o_orderpriority#X]
+Input [2]: [o_orderkey#X, o_orderpriority#X]
+
+(42) HashAggregate
+Input [1]: [o_orderpriority#X]
+Keys [1]: [o_orderpriority#X]
+Functions [1]: [partial_count(1)]
+Aggregate Attributes [1]: [count#X]
+Results [2]: [o_orderpriority#X, count#X]
+
+(43) Exchange
+Input [2]: [o_orderpriority#X, count#X]
+Arguments: hashpartitioning(o_orderpriority#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
+
+(44) HashAggregate
+Input [2]: [o_orderpriority#X, count#X]
+Keys [1]: [o_orderpriority#X]
+Functions [1]: [count(1)]
+Aggregate Attributes [1]: [count(1)#X]
+Results [2]: [o_orderpriority#X, count(1)#X AS order_count#X]
+
+(45) Exchange
+Input [2]: [o_orderpriority#X, order_count#X]
+Arguments: rangepartitioning(o_orderpriority#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X]
+
+(46) Sort
+Input [2]: [o_orderpriority#X, order_count#X]
+Arguments: [o_orderpriority#X ASC NULLS FIRST], true, 0
+
+(47) AdaptiveSparkPlan
+Output [2]: [o_orderpriority#X, order_count#X]
+Arguments: isFinalPlan=true

@@ -1,0 +1,456 @@
+== Physical Plan ==
+AdaptiveSparkPlan (80)
++- == Final Plan ==
+   VeloxColumnarToRowExec (47)
+   +- ^ SortExecTransformer (45)
+      +- ^ ProjectExecTransformer (44)
+         +- ^ GlutenBroadcastHashJoinExecTransformer Inner (43)
+            :- ^ ProjectExecTransformer (34)
+            :  +- ^ ShuffledHashJoinExecTransformer LeftSemi (33)
+            :     :- ^ FilterExecTransformer (2)
+            :     :  +- ^ BatchScanExecTransformer (1)
+            :     +- ^ ProjectExecTransformer (32)
+            :        +- ^ GlutenBroadcastHashJoinExecTransformer Inner (31)
+            :           :- ^ InputIteratorTransformer (18)
+            :           :  +- ^ InputAdapter (17)
+            :           :     +- ^ BroadcastQueryStage (16)
+            :           :        +- ColumnarBroadcastExchange (15)
+            :           :           +- ^ GlutenBroadcastHashJoinExecTransformer LeftSemi (13)
+            :           :              :- ^ FilterExecTransformer (4)
+            :           :              :  +- ^ BatchScanExecTransformer (3)
+            :           :              +- ^ InputIteratorTransformer (12)
+            :           :                 +- ^ InputAdapter (11)
+            :           :                    +- ^ BroadcastQueryStage (10)
+            :           :                       +- ColumnarBroadcastExchange (9)
+            :           :                          +- ^ ProjectExecTransformer (7)
+            :           :                             +- ^ FilterExecTransformer (6)
+            :           :                                +- ^ BatchScanExecTransformer (5)
+            :           +- ^ FilterExecTransformer (30)
+            :              +- ^ ProjectExecTransformer (29)
+            :                 +- ^ RegularHashAggregateExecTransformer (28)
+            :                    +- ^ RegularHashAggregateExecTransformer (27)
+            :                       +- ^ GlutenBroadcastHashJoinExecTransformer LeftSemi (26)
+            :                          :- ^ ProjectExecTransformer (21)
+            :                          :  +- ^ FilterExecTransformer (20)
+            :                          :     +- ^ BatchScanExecTransformer (19)
+            :                          +- ^ InputIteratorTransformer (25)
+            :                             +- ^ InputAdapter (24)
+            :                                +- ^ BroadcastQueryStage (23)
+            :                                   +- ReusedExchange (22)
+            +- ^ InputIteratorTransformer (42)
+               +- ^ InputAdapter (41)
+                  +- ^ BroadcastQueryStage (40)
+                     +- ColumnarBroadcastExchange (39)
+                        +- ^ ProjectExecTransformer (37)
+                           +- ^ FilterExecTransformer (36)
+                              +- ^ BatchScanExecTransformer (35)
++- == Initial Plan ==
+   Sort (79)
+   +- Project (78)
+      +- BroadcastHashJoin Inner BuildRight (77)
+         :- Project (72)
+         :  +- ShuffledHashJoin LeftSemi BuildRight (71)
+         :     :- Filter (49)
+         :     :  +- BatchScan (48)
+         :     +- Project (70)
+         :        +- BroadcastHashJoin Inner BuildLeft (69)
+         :           :- BroadcastExchange (57)
+         :           :  +- BroadcastHashJoin LeftSemi BuildRight (56)
+         :           :     :- Filter (51)
+         :           :     :  +- BatchScan (50)
+         :           :     +- BroadcastExchange (55)
+         :           :        +- Project (54)
+         :           :           +- Filter (53)
+         :           :              +- BatchScan (52)
+         :           +- Filter (68)
+         :              +- HashAggregate (67)
+         :                 +- HashAggregate (66)
+         :                    +- BroadcastHashJoin LeftSemi BuildRight (65)
+         :                       :- Project (60)
+         :                       :  +- Filter (59)
+         :                       :     +- BatchScan (58)
+         :                       +- BroadcastExchange (64)
+         :                          +- Project (63)
+         :                             +- Filter (62)
+         :                                +- BatchScan (61)
+         +- BroadcastExchange (76)
+            +- Project (75)
+               +- Filter (74)
+                  +- BatchScan (73)
+
+
+(1) BatchScanExecTransformer
+Output [4]: [s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
+DataFilters: [isnotnull(s_nationkey#X)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(s_nationkey)]
+ReadSchema: struct<s_suppkey:bigint,s_name:string,s_address:string,s_nationkey:bigint>
+
+(2) FilterExecTransformer
+Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
+Arguments: isnotnull(s_nationkey#X)
+
+(3) BatchScanExecTransformer
+Output [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
+DataFilters: [isnotnull(ps_availqty#X), isnotnull(ps_partkey#X), isnotnull(ps_suppkey#X)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(ps_availqty), IsNotNull(ps_partkey), IsNotNull(ps_suppkey)]
+ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint,ps_availqty:int>
+
+(4) FilterExecTransformer
+Input [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
+Arguments: ((isnotnull(ps_availqty#X) AND isnotnull(ps_partkey#X)) AND isnotnull(ps_suppkey#X))
+
+(5) BatchScanExecTransformer
+Output [2]: [p_partkey#X, p_name#X]
+DataFilters: [isnotnull(p_name#X), StartsWith(p_name#X, forest)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(p_name), StringStartsWith(p_name,forest)]
+ReadSchema: struct<p_partkey:bigint,p_name:string>
+
+(6) FilterExecTransformer
+Input [2]: [p_partkey#X, p_name#X]
+Arguments: (isnotnull(p_name#X) AND StartsWith(p_name#X, forest))
+
+(7) ProjectExecTransformer
+Output [1]: [p_partkey#X]
+Input [2]: [p_partkey#X, p_name#X]
+
+(8) WholeStageCodegenTransformer (X)
+Input [1]: [p_partkey#X]
+Arguments: false
+
+(9) ColumnarBroadcastExchange
+Input [1]: [p_partkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
+
+(10) BroadcastQueryStage
+Output [1]: [p_partkey#X]
+Arguments: 0
+
+(11) InputAdapter
+Input [1]: [p_partkey#X]
+
+(12) InputIteratorTransformer
+Input [1]: [p_partkey#X]
+
+(13) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [ps_partkey#X]
+Right keys [1]: [p_partkey#X]
+Join condition: None
+
+(14) WholeStageCodegenTransformer (X)
+Input [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
+Arguments: false
+
+(15) ColumnarBroadcastExchange
+Input [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false], input[1, bigint, false]),false), [plan_id=X]
+
+(16) BroadcastQueryStage
+Output [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
+Arguments: 4
+
+(17) InputAdapter
+Input [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
+
+(18) InputIteratorTransformer
+Input [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
+
+(19) BatchScanExecTransformer
+Output [4]: [l_partkey#X, l_suppkey#X, l_quantity#X, l_shipdate#X]
+DataFilters: [isnotnull(l_shipdate#X), (l_shipdate#X >= 1994-01-01), (l_shipdate#X < 1995-01-01)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(l_shipdate), GreaterThanOrEqual(l_shipdate,1994-01-01), LessThan(l_shipdate,1995-01-01)]
+ReadSchema: struct<l_partkey:bigint,l_suppkey:bigint,l_quantity:decimal(12,2),l_shipdate:date>
+
+(20) FilterExecTransformer
+Input [4]: [l_partkey#X, l_suppkey#X, l_quantity#X, l_shipdate#X]
+Arguments: ((((isnotnull(l_shipdate#X) AND (l_shipdate#X >= 1994-01-01)) AND (l_shipdate#X < 1995-01-01)) AND isnotnull(l_partkey#X)) AND isnotnull(l_suppkey#X))
+
+(21) ProjectExecTransformer
+Output [3]: [l_partkey#X, l_suppkey#X, l_quantity#X]
+Input [4]: [l_partkey#X, l_suppkey#X, l_quantity#X, l_shipdate#X]
+
+(22) ReusedExchange [Reuses operator id: 9]
+Output [1]: [p_partkey#X]
+
+(23) BroadcastQueryStage
+Output [1]: [p_partkey#X]
+Arguments: 2
+
+(24) InputAdapter
+Input [1]: [p_partkey#X]
+
+(25) InputIteratorTransformer
+Input [1]: [p_partkey#X]
+
+(26) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [l_partkey#X]
+Right keys [1]: [p_partkey#X]
+Join condition: None
+
+(27) RegularHashAggregateExecTransformer
+Input [3]: [l_partkey#X, l_suppkey#X, l_quantity#X]
+Keys [2]: [l_partkey#X, l_suppkey#X]
+Functions [1]: [partial_sum(l_quantity#X)]
+Aggregate Attributes [2]: [sum#X, isEmpty#X]
+Results [4]: [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
+
+(28) RegularHashAggregateExecTransformer
+Input [4]: [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
+Keys [2]: [l_partkey#X, l_suppkey#X]
+Functions [1]: [sum(l_quantity#X)]
+Aggregate Attributes [1]: [sum(l_quantity#X)#X]
+Results [3]: [l_partkey#X, l_suppkey#X, sum(l_quantity#X)#X]
+
+(29) ProjectExecTransformer
+Output [3]: [CheckOverflow((0.50 * promote_precision(sum(l_quantity#X)#X)), DecimalType(24,3), true) AS (0.5 * sum(l_quantity))#X, l_partkey#X, l_suppkey#X]
+Input [3]: [l_partkey#X, l_suppkey#X, sum(l_quantity#X)#X]
+
+(30) FilterExecTransformer
+Input [3]: [(0.5 * sum(l_quantity))#X, l_partkey#X, l_suppkey#X]
+Arguments: isnotnull((0.5 * sum(l_quantity))#X)
+
+(31) GlutenBroadcastHashJoinExecTransformer
+Left keys [2]: [ps_partkey#X, ps_suppkey#X]
+Right keys [2]: [l_partkey#X, l_suppkey#X]
+Join condition: (cast(cast(ps_availqty#X as decimal(10,0)) as decimal(24,3)) > (0.5 * sum(l_quantity))#X)
+
+(32) ProjectExecTransformer
+Output [1]: [ps_suppkey#X]
+Input [6]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, (0.5 * sum(l_quantity))#X, l_partkey#X, l_suppkey#X]
+
+(33) ShuffledHashJoinExecTransformer
+Left keys [1]: [s_suppkey#X]
+Right keys [1]: [ps_suppkey#X]
+Join condition: None
+
+(34) ProjectExecTransformer
+Output [3]: [s_name#X, s_address#X, s_nationkey#X]
+Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
+
+(35) BatchScanExecTransformer
+Output [2]: [n_nationkey#X, n_name#X]
+DataFilters: [isnotnull(n_name#X), (n_name#X = CANADA), isnotnull(n_nationkey#X)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(n_name), EqualTo(n_name,CANADA), IsNotNull(n_nationkey)]
+ReadSchema: struct<n_nationkey:bigint,n_name:string>
+
+(36) FilterExecTransformer
+Input [2]: [n_nationkey#X, n_name#X]
+Arguments: ((isnotnull(n_name#X) AND (n_name#X = CANADA)) AND isnotnull(n_nationkey#X))
+
+(37) ProjectExecTransformer
+Output [1]: [n_nationkey#X]
+Input [2]: [n_nationkey#X, n_name#X]
+
+(38) WholeStageCodegenTransformer (X)
+Input [1]: [n_nationkey#X]
+Arguments: false
+
+(39) ColumnarBroadcastExchange
+Input [1]: [n_nationkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
+
+(40) BroadcastQueryStage
+Output [1]: [n_nationkey#X]
+Arguments: 3
+
+(41) InputAdapter
+Input [1]: [n_nationkey#X]
+
+(42) InputIteratorTransformer
+Input [1]: [n_nationkey#X]
+
+(43) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [s_nationkey#X]
+Right keys [1]: [n_nationkey#X]
+Join condition: None
+
+(44) ProjectExecTransformer
+Output [2]: [s_name#X, s_address#X]
+Input [4]: [s_name#X, s_address#X, s_nationkey#X, n_nationkey#X]
+
+(45) SortExecTransformer
+Input [2]: [s_name#X, s_address#X]
+Arguments: [s_name#X ASC NULLS FIRST], true, 0
+
+(46) WholeStageCodegenTransformer (X)
+Input [2]: [s_name#X, s_address#X]
+Arguments: false
+
+(47) VeloxColumnarToRowExec
+Input [2]: [s_name#X, s_address#X]
+
+(48) BatchScan
+Output [4]: [s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
+DataFilters: [isnotnull(s_nationkey#X)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(s_nationkey)]
+ReadSchema: struct<s_suppkey:bigint,s_name:string,s_address:string,s_nationkey:bigint>
+
+(49) Filter
+Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
+Condition : isnotnull(s_nationkey#X)
+
+(50) BatchScan
+Output [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
+DataFilters: [isnotnull(ps_availqty#X), isnotnull(ps_partkey#X), isnotnull(ps_suppkey#X)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(ps_availqty), IsNotNull(ps_partkey), IsNotNull(ps_suppkey)]
+ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint,ps_availqty:int>
+
+(51) Filter
+Input [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
+Condition : ((isnotnull(ps_availqty#X) AND isnotnull(ps_partkey#X)) AND isnotnull(ps_suppkey#X))
+
+(52) BatchScan
+Output [2]: [p_partkey#X, p_name#X]
+DataFilters: [isnotnull(p_name#X), StartsWith(p_name#X, forest)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(p_name), StringStartsWith(p_name,forest)]
+ReadSchema: struct<p_partkey:bigint,p_name:string>
+
+(53) Filter
+Input [2]: [p_partkey#X, p_name#X]
+Condition : (isnotnull(p_name#X) AND StartsWith(p_name#X, forest))
+
+(54) Project
+Output [1]: [p_partkey#X]
+Input [2]: [p_partkey#X, p_name#X]
+
+(55) BroadcastExchange
+Input [1]: [p_partkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
+
+(56) BroadcastHashJoin
+Left keys [1]: [ps_partkey#X]
+Right keys [1]: [p_partkey#X]
+Join condition: None
+
+(57) BroadcastExchange
+Input [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false], input[1, bigint, false]),false), [plan_id=X]
+
+(58) BatchScan
+Output [4]: [l_partkey#X, l_suppkey#X, l_quantity#X, l_shipdate#X]
+DataFilters: [isnotnull(l_shipdate#X), (l_shipdate#X >= 1994-01-01), (l_shipdate#X < 1995-01-01)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(l_shipdate), GreaterThanOrEqual(l_shipdate,1994-01-01), LessThan(l_shipdate,1995-01-01)]
+ReadSchema: struct<l_partkey:bigint,l_suppkey:bigint,l_quantity:decimal(12,2),l_shipdate:date>
+
+(59) Filter
+Input [4]: [l_partkey#X, l_suppkey#X, l_quantity#X, l_shipdate#X]
+Condition : ((((isnotnull(l_shipdate#X) AND (l_shipdate#X >= 1994-01-01)) AND (l_shipdate#X < 1995-01-01)) AND isnotnull(l_partkey#X)) AND isnotnull(l_suppkey#X))
+
+(60) Project
+Output [3]: [l_partkey#X, l_suppkey#X, l_quantity#X]
+Input [4]: [l_partkey#X, l_suppkey#X, l_quantity#X, l_shipdate#X]
+
+(61) BatchScan
+Output [2]: [p_partkey#X, p_name#X]
+DataFilters: [isnotnull(p_name#X), StartsWith(p_name#X, forest)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(p_name), StringStartsWith(p_name,forest)]
+ReadSchema: struct<p_partkey:bigint,p_name:string>
+
+(62) Filter
+Input [2]: [p_partkey#X, p_name#X]
+Condition : (isnotnull(p_name#X) AND StartsWith(p_name#X, forest))
+
+(63) Project
+Output [1]: [p_partkey#X]
+Input [2]: [p_partkey#X, p_name#X]
+
+(64) BroadcastExchange
+Input [1]: [p_partkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
+
+(65) BroadcastHashJoin
+Left keys [1]: [l_partkey#X]
+Right keys [1]: [p_partkey#X]
+Join condition: None
+
+(66) HashAggregate
+Input [3]: [l_partkey#X, l_suppkey#X, l_quantity#X]
+Keys [2]: [l_partkey#X, l_suppkey#X]
+Functions [1]: [partial_sum(l_quantity#X)]
+Aggregate Attributes [2]: [sum#X, isEmpty#X]
+Results [4]: [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
+
+(67) HashAggregate
+Input [4]: [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
+Keys [2]: [l_partkey#X, l_suppkey#X]
+Functions [1]: [sum(l_quantity#X)]
+Aggregate Attributes [1]: [sum(l_quantity#X)#X]
+Results [3]: [CheckOverflow((0.50 * promote_precision(sum(l_quantity#X)#X)), DecimalType(24,3), true) AS (0.5 * sum(l_quantity))#X, l_partkey#X, l_suppkey#X]
+
+(68) Filter
+Input [3]: [(0.5 * sum(l_quantity))#X, l_partkey#X, l_suppkey#X]
+Condition : isnotnull((0.5 * sum(l_quantity))#X)
+
+(69) BroadcastHashJoin
+Left keys [2]: [ps_partkey#X, ps_suppkey#X]
+Right keys [2]: [l_partkey#X, l_suppkey#X]
+Join condition: (cast(cast(ps_availqty#X as decimal(10,0)) as decimal(24,3)) > (0.5 * sum(l_quantity))#X)
+
+(70) Project
+Output [1]: [ps_suppkey#X]
+Input [6]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, (0.5 * sum(l_quantity))#X, l_partkey#X, l_suppkey#X]
+
+(71) ShuffledHashJoin
+Left keys [1]: [s_suppkey#X]
+Right keys [1]: [ps_suppkey#X]
+Join condition: None
+
+(72) Project
+Output [3]: [s_name#X, s_address#X, s_nationkey#X]
+Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
+
+(73) BatchScan
+Output [2]: [n_nationkey#X, n_name#X]
+DataFilters: [isnotnull(n_name#X), (n_name#X = CANADA), isnotnull(n_nationkey#X)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(n_name), EqualTo(n_name,CANADA), IsNotNull(n_nationkey)]
+ReadSchema: struct<n_nationkey:bigint,n_name:string>
+
+(74) Filter
+Input [2]: [n_nationkey#X, n_name#X]
+Condition : ((isnotnull(n_name#X) AND (n_name#X = CANADA)) AND isnotnull(n_nationkey#X))
+
+(75) Project
+Output [1]: [n_nationkey#X]
+Input [2]: [n_nationkey#X, n_name#X]
+
+(76) BroadcastExchange
+Input [1]: [n_nationkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
+
+(77) BroadcastHashJoin
+Left keys [1]: [s_nationkey#X]
+Right keys [1]: [n_nationkey#X]
+Join condition: None
+
+(78) Project
+Output [2]: [s_name#X, s_address#X]
+Input [4]: [s_name#X, s_address#X, s_nationkey#X, n_nationkey#X]
+
+(79) Sort
+Input [2]: [s_name#X, s_address#X]
+Arguments: [s_name#X ASC NULLS FIRST], true, 0
+
+(80) AdaptiveSparkPlan
+Output [2]: [s_name#X, s_address#X]
+Arguments: isFinalPlan=true

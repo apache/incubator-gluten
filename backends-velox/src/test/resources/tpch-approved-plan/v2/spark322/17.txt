@@ -1,0 +1,237 @@
+== Physical Plan ==
+AdaptiveSparkPlan (37)
++- == Final Plan ==
+   VeloxColumnarToRowExec (20)
+   +- ^ ProjectExecTransformer (18)
+      +- ^ RegularHashAggregateExecTransformer (17)
+         +- ^ RegularHashAggregateExecTransformer (16)
+            +- ^ ProjectExecTransformer (15)
+               +- ^ ShuffledHashJoinExecTransformer Inner (14)
+                  :- ^ ProjectExecTransformer (7)
+                  :  +- ^ ShuffledHashJoinExecTransformer Inner (6)
+                  :     :- ^ FilterExecTransformer (2)
+                  :     :  +- ^ BatchScanExecTransformer (1)
+                  :     +- ^ ProjectExecTransformer (5)
+                  :        +- ^ FilterExecTransformer (4)
+                  :           +- ^ BatchScanExecTransformer (3)
+                  +- ^ FilterExecTransformer (13)
+                     +- ^ ProjectExecTransformer (12)
+                        +- ^ RegularHashAggregateExecTransformer (11)
+                           +- ^ RegularHashAggregateExecTransformer (10)
+                              +- ^ FilterExecTransformer (9)
+                                 +- ^ BatchScanExecTransformer (8)
++- == Initial Plan ==
+   HashAggregate (36)
+   +- HashAggregate (35)
+      +- Project (34)
+         +- ShuffledHashJoin Inner BuildRight (33)
+            :- Project (27)
+            :  +- ShuffledHashJoin Inner BuildRight (26)
+            :     :- Filter (22)
+            :     :  +- BatchScan (21)
+            :     +- Project (25)
+            :        +- Filter (24)
+            :           +- BatchScan (23)
+            +- Filter (32)
+               +- HashAggregate (31)
+                  +- HashAggregate (30)
+                     +- Filter (29)
+                        +- BatchScan (28)
+
+
+(1) BatchScanExecTransformer
+Output [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
+DataFilters: [isnotnull(l_partkey#X), isnotnull(l_quantity#X)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(l_partkey), IsNotNull(l_quantity)]
+ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2),l_extendedprice:decimal(12,2)>
+
+(2) FilterExecTransformer
+Input [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
+Arguments: (isnotnull(l_partkey#X) AND isnotnull(l_quantity#X))
+
+(3) BatchScanExecTransformer
+Output [3]: [p_partkey#X, p_brand#X, p_container#X]
+DataFilters: [isnotnull(p_brand#X), isnotnull(p_container#X), (p_brand#X = Brand#X), (p_container#X = MED BOX), isnotnull(p_partkey#X)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(p_brand), IsNotNull(p_container), EqualTo(p_brand,Brand#X), EqualTo(p_container,MED BOX), IsNotNull(p_partkey)]
+ReadSchema: struct<p_partkey:bigint,p_brand:string,p_container:string>
+
+(4) FilterExecTransformer
+Input [3]: [p_partkey#X, p_brand#X, p_container#X]
+Arguments: ((((isnotnull(p_brand#X) AND isnotnull(p_container#X)) AND (p_brand#X = Brand#X)) AND (p_container#X = MED BOX)) AND isnotnull(p_partkey#X))
+
+(5) ProjectExecTransformer
+Output [1]: [p_partkey#X]
+Input [3]: [p_partkey#X, p_brand#X, p_container#X]
+
+(6) ShuffledHashJoinExecTransformer
+Left keys [1]: [l_partkey#X]
+Right keys [1]: [p_partkey#X]
+Join condition: None
+
+(7) ProjectExecTransformer
+Output [3]: [l_quantity#X, l_extendedprice#X, p_partkey#X]
+Input [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, p_partkey#X]
+
+(8) BatchScanExecTransformer
+Output [2]: [l_partkey#X, l_quantity#X]
+DataFilters: [isnotnull(l_partkey#X)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2)>
+
+(9) FilterExecTransformer
+Input [2]: [l_partkey#X, l_quantity#X]
+Arguments: isnotnull(l_partkey#X)
+
+(10) RegularHashAggregateExecTransformer
+Input [2]: [l_partkey#X, l_quantity#X]
+Keys [1]: [l_partkey#X]
+Functions [1]: [partial_avg(l_quantity#X)]
+Aggregate Attributes [2]: [sum#X, count#X]
+Results [3]: [l_partkey#X, sum#X, count#X]
+
+(11) RegularHashAggregateExecTransformer
+Input [3]: [l_partkey#X, sum#X, count#X]
+Keys [1]: [l_partkey#X]
+Functions [1]: [avg(l_quantity#X)]
+Aggregate Attributes [1]: [avg(l_quantity#X)#X]
+Results [2]: [l_partkey#X, avg(l_quantity#X)#X]
+
+(12) ProjectExecTransformer
+Output [2]: [CheckOverflow((0.200000 * promote_precision(avg(l_quantity#X)#X)), DecimalType(18,7), true) AS (0.2 * avg(l_quantity))#X, l_partkey#X]
+Input [2]: [l_partkey#X, avg(l_quantity#X)#X]
+
+(13) FilterExecTransformer
+Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
+Arguments: isnotnull((0.2 * avg(l_quantity))#X)
+
+(14) ShuffledHashJoinExecTransformer
+Left keys [1]: [p_partkey#X]
+Right keys [1]: [l_partkey#X]
+Join condition: (cast(l_quantity#X as decimal(18,7)) < (0.2 * avg(l_quantity))#X)
+
+(15) ProjectExecTransformer
+Output [1]: [l_extendedprice#X]
+Input [5]: [l_quantity#X, l_extendedprice#X, p_partkey#X, (0.2 * avg(l_quantity))#X, l_partkey#X]
+
+(16) RegularHashAggregateExecTransformer
+Input [1]: [l_extendedprice#X]
+Keys: []
+Functions [1]: [partial_sum(l_extendedprice#X)]
+Aggregate Attributes [2]: [sum#X, isEmpty#X]
+Results [2]: [sum#X, isEmpty#X]
+
+(17) RegularHashAggregateExecTransformer
+Input [2]: [sum#X, isEmpty#X]
+Keys: []
+Functions [1]: [sum(l_extendedprice#X)]
+Aggregate Attributes [1]: [sum(l_extendedprice#X)#X]
+Results [1]: [sum(l_extendedprice#X)#X]
+
+(18) ProjectExecTransformer
+Output [1]: [CheckOverflow((promote_precision(sum(l_extendedprice#X)#X) / 7.00), DecimalType(27,6), true) AS avg_yearly#X]
+Input [1]: [sum(l_extendedprice#X)#X]
+
+(19) WholeStageCodegenTransformer (X)
+Input [1]: [avg_yearly#X]
+Arguments: false
+
+(20) VeloxColumnarToRowExec
+Input [1]: [avg_yearly#X]
+
+(21) BatchScan
+Output [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
+DataFilters: [isnotnull(l_partkey#X), isnotnull(l_quantity#X)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(l_partkey), IsNotNull(l_quantity)]
+ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2),l_extendedprice:decimal(12,2)>
+
+(22) Filter
+Input [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
+Condition : (isnotnull(l_partkey#X) AND isnotnull(l_quantity#X))
+
+(23) BatchScan
+Output [3]: [p_partkey#X, p_brand#X, p_container#X]
+DataFilters: [isnotnull(p_brand#X), isnotnull(p_container#X), (p_brand#X = Brand#X), (p_container#X = MED BOX), isnotnull(p_partkey#X)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(p_brand), IsNotNull(p_container), EqualTo(p_brand,Brand#X), EqualTo(p_container,MED BOX), IsNotNull(p_partkey)]
+ReadSchema: struct<p_partkey:bigint,p_brand:string,p_container:string>
+
+(24) Filter
+Input [3]: [p_partkey#X, p_brand#X, p_container#X]
+Condition : ((((isnotnull(p_brand#X) AND isnotnull(p_container#X)) AND (p_brand#X = Brand#X)) AND (p_container#X = MED BOX)) AND isnotnull(p_partkey#X))
+
+(25) Project
+Output [1]: [p_partkey#X]
+Input [3]: [p_partkey#X, p_brand#X, p_container#X]
+
+(26) ShuffledHashJoin
+Left keys [1]: [l_partkey#X]
+Right keys [1]: [p_partkey#X]
+Join condition: None
+
+(27) Project
+Output [3]: [l_quantity#X, l_extendedprice#X, p_partkey#X]
+Input [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, p_partkey#X]
+
+(28) BatchScan
+Output [2]: [l_partkey#X, l_quantity#X]
+DataFilters: [isnotnull(l_partkey#X)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2)>
+
+(29) Filter
+Input [2]: [l_partkey#X, l_quantity#X]
+Condition : isnotnull(l_partkey#X)
+
+(30) HashAggregate
+Input [2]: [l_partkey#X, l_quantity#X]
+Keys [1]: [l_partkey#X]
+Functions [1]: [partial_avg(l_quantity#X)]
+Aggregate Attributes [2]: [sum#X, count#X]
+Results [3]: [l_partkey#X, sum#X, count#X]
+
+(31) HashAggregate
+Input [3]: [l_partkey#X, sum#X, count#X]
+Keys [1]: [l_partkey#X]
+Functions [1]: [avg(l_quantity#X)]
+Aggregate Attributes [1]: [avg(l_quantity#X)#X]
+Results [2]: [CheckOverflow((0.200000 * promote_precision(avg(l_quantity#X)#X)), DecimalType(18,7), true) AS (0.2 * avg(l_quantity))#X, l_partkey#X]
+
+(32) Filter
+Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
+Condition : isnotnull((0.2 * avg(l_quantity))#X)
+
+(33) ShuffledHashJoin
+Left keys [1]: [p_partkey#X]
+Right keys [1]: [l_partkey#X]
+Join condition: (cast(l_quantity#X as decimal(18,7)) < (0.2 * avg(l_quantity))#X)
+
+(34) Project
+Output [1]: [l_extendedprice#X]
+Input [5]: [l_quantity#X, l_extendedprice#X, p_partkey#X, (0.2 * avg(l_quantity))#X, l_partkey#X]
+
+(35) HashAggregate
+Input [1]: [l_extendedprice#X]
+Keys: []
+Functions [1]: [partial_sum(l_extendedprice#X)]
+Aggregate Attributes [2]: [sum#X, isEmpty#X]
+Results [2]: [sum#X, isEmpty#X]
+
+(36) HashAggregate
+Input [2]: [sum#X, isEmpty#X]
+Keys: []
+Functions [1]: [sum(l_extendedprice#X)]
+Aggregate Attributes [1]: [sum(l_extendedprice#X)#X]
+Results [1]: [CheckOverflow((promote_precision(sum(l_extendedprice#X)#X) / 7.00), DecimalType(27,6), true) AS avg_yearly#X]
+
+(37) AdaptiveSparkPlan
+Output [1]: [avg_yearly#X]
+Arguments: isFinalPlan=true

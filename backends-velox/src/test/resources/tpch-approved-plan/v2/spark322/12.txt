@@ -1,0 +1,152 @@
+== Physical Plan ==
+AdaptiveSparkPlan (24)
++- == Final Plan ==
+   VeloxColumnarToRowExec (13)
+   +- ^ SortExecTransformer (11)
+      +- ^ ProjectExecTransformer (10)
+         +- ^ RegularHashAggregateExecTransformer (9)
+            +- ^ RegularHashAggregateExecTransformer (8)
+               +- ^ ProjectExecTransformer (7)
+                  +- ^ ShuffledHashJoinExecTransformer Inner (6)
+                     :- ^ FilterExecTransformer (2)
+                     :  +- ^ BatchScanExecTransformer (1)
+                     +- ^ ProjectExecTransformer (5)
+                        +- ^ FilterExecTransformer (4)
+                           +- ^ BatchScanExecTransformer (3)
++- == Initial Plan ==
+   Sort (23)
+   +- HashAggregate (22)
+      +- HashAggregate (21)
+         +- Project (20)
+            +- ShuffledHashJoin Inner BuildLeft (19)
+               :- Filter (15)
+               :  +- BatchScan (14)
+               +- Project (18)
+                  +- Filter (17)
+                     +- BatchScan (16)
+
+
+(1) BatchScanExecTransformer
+Output [2]: [o_orderkey#X, o_orderpriority#X]
+DataFilters: [isnotnull(o_orderkey#X)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(o_orderkey)]
+ReadSchema: struct<o_orderkey:bigint,o_orderpriority:string>
+
+(2) FilterExecTransformer
+Input [2]: [o_orderkey#X, o_orderpriority#X]
+Arguments: isnotnull(o_orderkey#X)
+
+(3) BatchScanExecTransformer
+Output [5]: [l_orderkey#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipmode#X]
+DataFilters: [(l_commitdate#X < l_receiptdate#X), (l_shipdate#X < l_commitdate#X), isnotnull(l_commitdate#X), isnotnull(l_receiptdate#X), isnotnull(l_shipdate#X), l_shipmode#X IN (MAIL,SHIP), (l_receiptdate#X >= 1994-01-01), (l_receiptdate#X < 1995-01-01), isnotnull(l_orderkey#X)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(l_commitdate), IsNotNull(l_receiptdate), IsNotNull(l_shipdate), In(l_shipmode, [MAIL,SHIP]), GreaterThanOrEqual(l_receiptdate,1994-01-01), LessThan(l_receiptdate,1995-01-01), IsNotNull(l_orderkey)]
+ReadSchema: struct<l_orderkey:bigint,l_shipdate:date,l_commitdate:date,l_receiptdate:date,l_shipmode:string>
+
+(4) FilterExecTransformer
+Input [5]: [l_orderkey#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipmode#X]
+Arguments: (((((((((l_commitdate#X < l_receiptdate#X) AND (l_shipdate#X < l_commitdate#X)) AND isnotnull(l_commitdate#X)) AND isnotnull(l_receiptdate#X)) AND isnotnull(l_shipdate#X)) AND l_shipmode#X IN (MAIL,SHIP)) AND (l_receiptdate#X >= 1994-01-01)) AND (l_receiptdate#X < 1995-01-01)) AND isnotnull(l_orderkey#X))
+
+(5) ProjectExecTransformer
+Output [2]: [l_orderkey#X, l_shipmode#X]
+Input [5]: [l_orderkey#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipmode#X]
+
+(6) ShuffledHashJoinExecTransformer
+Left keys [1]: [o_orderkey#X]
+Right keys [1]: [l_orderkey#X]
+Join condition: None
+
+(7) ProjectExecTransformer
+Output [4]: [o_orderpriority#X, l_shipmode#X, CASE WHEN (NOT (o_orderpriority#X = 1-URGENT) AND NOT (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END AS _pre_199#X, CASE WHEN ((o_orderpriority#X = 1-URGENT) OR (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END AS _pre_198#X]
+Input [4]: [o_orderkey#X, o_orderpriority#X, l_orderkey#X, l_shipmode#X]
+
+(8) RegularHashAggregateExecTransformer
+Input [4]: [o_orderpriority#X, l_shipmode#X, _pre_199#X, _pre_198#X]
+Keys [1]: [l_shipmode#X]
+Functions [2]: [partial_sum(_pre_198#X), partial_sum(_pre_199#X)]
+Aggregate Attributes [2]: [sum#X, sum#X]
+Results [3]: [l_shipmode#X, sum#X, sum#X]
+
+(9) RegularHashAggregateExecTransformer
+Input [3]: [l_shipmode#X, sum#X, sum#X]
+Keys [1]: [l_shipmode#X]
+Functions [2]: [sum(CASE WHEN ((o_orderpriority#X = 1-URGENT) OR (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END), sum(CASE WHEN (NOT (o_orderpriority#X = 1-URGENT) AND NOT (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END)]
+Aggregate Attributes [2]: [sum(CASE WHEN ((o_orderpriority#X = 1-URGENT) OR (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END)#X, sum(CASE WHEN (NOT (o_orderpriority#X = 1-URGENT) AND NOT (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END)#X]
+Results [3]: [l_shipmode#X, sum(CASE WHEN ((o_orderpriority#X = 1-URGENT) OR (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END)#X, sum(CASE WHEN (NOT (o_orderpriority#X = 1-URGENT) AND NOT (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END)#X]
+
+(10) ProjectExecTransformer
+Output [3]: [l_shipmode#X, sum(CASE WHEN ((o_orderpriority#X = 1-URGENT) OR (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END)#X AS high_line_count#X, sum(CASE WHEN (NOT (o_orderpriority#X = 1-URGENT) AND NOT (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END)#X AS low_line_count#X]
+Input [3]: [l_shipmode#X, sum(CASE WHEN ((o_orderpriority#X = 1-URGENT) OR (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END)#X, sum(CASE WHEN (NOT (o_orderpriority#X = 1-URGENT) AND NOT (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END)#X]
+
+(11) SortExecTransformer
+Input [3]: [l_shipmode#X, high_line_count#X, low_line_count#X]
+Arguments: [l_shipmode#X ASC NULLS FIRST], true, 0
+
+(12) WholeStageCodegenTransformer (X)
+Input [3]: [l_shipmode#X, high_line_count#X, low_line_count#X]
+Arguments: false
+
+(13) VeloxColumnarToRowExec
+Input [3]: [l_shipmode#X, high_line_count#X, low_line_count#X]
+
+(14) BatchScan
+Output [2]: [o_orderkey#X, o_orderpriority#X]
+DataFilters: [isnotnull(o_orderkey#X)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(o_orderkey)]
+ReadSchema: struct<o_orderkey:bigint,o_orderpriority:string>
+
+(15) Filter
+Input [2]: [o_orderkey#X, o_orderpriority#X]
+Condition : isnotnull(o_orderkey#X)
+
+(16) BatchScan
+Output [5]: [l_orderkey#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipmode#X]
+DataFilters: [(l_commitdate#X < l_receiptdate#X), (l_shipdate#X < l_commitdate#X), isnotnull(l_commitdate#X), isnotnull(l_receiptdate#X), isnotnull(l_shipdate#X), l_shipmode#X IN (MAIL,SHIP), (l_receiptdate#X >= 1994-01-01), (l_receiptdate#X < 1995-01-01), isnotnull(l_orderkey#X)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(l_commitdate), IsNotNull(l_receiptdate), IsNotNull(l_shipdate), In(l_shipmode, [MAIL,SHIP]), GreaterThanOrEqual(l_receiptdate,1994-01-01), LessThan(l_receiptdate,1995-01-01), IsNotNull(l_orderkey)]
+ReadSchema: struct<l_orderkey:bigint,l_shipdate:date,l_commitdate:date,l_receiptdate:date,l_shipmode:string>
+
+(17) Filter
+Input [5]: [l_orderkey#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipmode#X]
+Condition : (((((((((l_commitdate#X < l_receiptdate#X) AND (l_shipdate#X < l_commitdate#X)) AND isnotnull(l_commitdate#X)) AND isnotnull(l_receiptdate#X)) AND isnotnull(l_shipdate#X)) AND l_shipmode#X IN (MAIL,SHIP)) AND (l_receiptdate#X >= 1994-01-01)) AND (l_receiptdate#X < 1995-01-01)) AND isnotnull(l_orderkey#X))
+
+(18) Project
+Output [2]: [l_orderkey#X, l_shipmode#X]
+Input [5]: [l_orderkey#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipmode#X]
+
+(19) ShuffledHashJoin
+Left keys [1]: [o_orderkey#X]
+Right keys [1]: [l_orderkey#X]
+Join condition: None
+
+(20) Project
+Output [2]: [o_orderpriority#X, l_shipmode#X]
+Input [4]: [o_orderkey#X, o_orderpriority#X, l_orderkey#X, l_shipmode#X]
+
+(21) HashAggregate
+Input [2]: [o_orderpriority#X, l_shipmode#X]
+Keys [1]: [l_shipmode#X]
+Functions [2]: [partial_sum(CASE WHEN ((o_orderpriority#X = 1-URGENT) OR (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END), partial_sum(CASE WHEN (NOT (o_orderpriority#X = 1-URGENT) AND NOT (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END)]
+Aggregate Attributes [2]: [sum#X, sum#X]
+Results [3]: [l_shipmode#X, sum#X, sum#X]
+
+(22) HashAggregate
+Input [3]: [l_shipmode#X, sum#X, sum#X]
+Keys [1]: [l_shipmode#X]
+Functions [2]: [sum(CASE WHEN ((o_orderpriority#X = 1-URGENT) OR (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END), sum(CASE WHEN (NOT (o_orderpriority#X = 1-URGENT) AND NOT (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END)]
+Aggregate Attributes [2]: [sum(CASE WHEN ((o_orderpriority#X = 1-URGENT) OR (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END)#X, sum(CASE WHEN (NOT (o_orderpriority#X = 1-URGENT) AND NOT (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END)#X]
+Results [3]: [l_shipmode#X, sum(CASE WHEN ((o_orderpriority#X = 1-URGENT) OR (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END)#X AS high_line_count#X, sum(CASE WHEN (NOT (o_orderpriority#X = 1-URGENT) AND NOT (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END)#X AS low_line_count#X]
+
+(23) Sort
+Input [3]: [l_shipmode#X, high_line_count#X, low_line_count#X]
+Arguments: [l_shipmode#X ASC NULLS FIRST], true, 0
+
+(24) AdaptiveSparkPlan
+Output [3]: [l_shipmode#X, high_line_count#X, low_line_count#X]
+Arguments: isFinalPlan=true

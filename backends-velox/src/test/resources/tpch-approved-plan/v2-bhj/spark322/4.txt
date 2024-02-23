@@ -1,0 +1,189 @@
+== Physical Plan ==
+AdaptiveSparkPlan (32)
++- == Final Plan ==
+   VeloxColumnarToRowExec (19)
+   +- ^ SortExecTransformer (17)
+      +- ^ ProjectExecTransformer (16)
+         +- ^ RegularHashAggregateExecTransformer (15)
+            +- ^ RegularHashAggregateExecTransformer (14)
+               +- ^ ProjectExecTransformer (13)
+                  +- ^ GlutenBroadcastHashJoinExecTransformer LeftSemi (12)
+                     :- ^ ProjectExecTransformer (3)
+                     :  +- ^ FilterExecTransformer (2)
+                     :     +- ^ BatchScanExecTransformer (1)
+                     +- ^ InputIteratorTransformer (11)
+                        +- ^ InputAdapter (10)
+                           +- ^ BroadcastQueryStage (9)
+                              +- ColumnarBroadcastExchange (8)
+                                 +- ^ ProjectExecTransformer (6)
+                                    +- ^ FilterExecTransformer (5)
+                                       +- ^ BatchScanExecTransformer (4)
++- == Initial Plan ==
+   Sort (31)
+   +- HashAggregate (30)
+      +- HashAggregate (29)
+         +- Project (28)
+            +- BroadcastHashJoin LeftSemi BuildRight (27)
+               :- Project (22)
+               :  +- Filter (21)
+               :     +- BatchScan (20)
+               +- BroadcastExchange (26)
+                  +- Project (25)
+                     +- Filter (24)
+                        +- BatchScan (23)
+
+
+(1) BatchScanExecTransformer
+Output [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
+DataFilters: [isnotnull(o_orderdate#X), (o_orderdate#X >= 1993-07-01), (o_orderdate#X < 1993-10-01)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(o_orderdate), GreaterThanOrEqual(o_orderdate,1993-07-01), LessThan(o_orderdate,1993-10-01)]
+ReadSchema: struct<o_orderkey:bigint,o_orderdate:date,o_orderpriority:string>
+
+(2) FilterExecTransformer
+Input [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
+Arguments: ((isnotnull(o_orderdate#X) AND (o_orderdate#X >= 1993-07-01)) AND (o_orderdate#X < 1993-10-01))
+
+(3) ProjectExecTransformer
+Output [2]: [o_orderkey#X, o_orderpriority#X]
+Input [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
+
+(4) BatchScanExecTransformer
+Output [16]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_linenumber#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_tax#X, l_returnflag#X, l_linestatus#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipinstruct#X, l_shipmode#X, l_comment#X]
+DataFilters: [(l_commitdate#X < l_receiptdate#X), isnotnull(l_commitdate#X), isnotnull(l_receiptdate#X)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(l_commitdate), IsNotNull(l_receiptdate)]
+ReadSchema: struct<l_orderkey:bigint,l_partkey:bigint,l_suppkey:bigint,l_linenumber:int,l_quantity:decimal(12,2),l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_tax:decimal(12,2),l_returnflag:string,l_linestatus:string,l_shipdate:date,l_commitdate:date,l_receiptdate:date,l_shipinstruct:string,l_shipmode:string,l_comment:string>
+
+(5) FilterExecTransformer
+Input [16]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_linenumber#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_tax#X, l_returnflag#X, l_linestatus#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipinstruct#X, l_shipmode#X, l_comment#X]
+Arguments: (((l_commitdate#X < l_receiptdate#X) AND isnotnull(l_commitdate#X)) AND isnotnull(l_receiptdate#X))
+
+(6) ProjectExecTransformer
+Output [1]: [l_orderkey#X]
+Input [16]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_linenumber#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_tax#X, l_returnflag#X, l_linestatus#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipinstruct#X, l_shipmode#X, l_comment#X]
+
+(7) WholeStageCodegenTransformer (X)
+Input [1]: [l_orderkey#X]
+Arguments: false
+
+(8) ColumnarBroadcastExchange
+Input [1]: [l_orderkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
+
+(9) BroadcastQueryStage
+Output [1]: [l_orderkey#X]
+Arguments: 0
+
+(10) InputAdapter
+Input [1]: [l_orderkey#X]
+
+(11) InputIteratorTransformer
+Input [1]: [l_orderkey#X]
+
+(12) GlutenBroadcastHashJoinExecTransformer
+Left keys [1]: [o_orderkey#X]
+Right keys [1]: [l_orderkey#X]
+Join condition: None
+
+(13) ProjectExecTransformer
+Output [1]: [o_orderpriority#X]
+Input [2]: [o_orderkey#X, o_orderpriority#X]
+
+(14) RegularHashAggregateExecTransformer
+Input [1]: [o_orderpriority#X]
+Keys [1]: [o_orderpriority#X]
+Functions [1]: [partial_count(1)]
+Aggregate Attributes [1]: [count#X]
+Results [2]: [o_orderpriority#X, count#X]
+
+(15) RegularHashAggregateExecTransformer
+Input [2]: [o_orderpriority#X, count#X]
+Keys [1]: [o_orderpriority#X]
+Functions [1]: [count(1)]
+Aggregate Attributes [1]: [count(1)#X]
+Results [2]: [o_orderpriority#X, count(1)#X]
+
+(16) ProjectExecTransformer
+Output [2]: [o_orderpriority#X, count(1)#X AS order_count#X]
+Input [2]: [o_orderpriority#X, count(1)#X]
+
+(17) SortExecTransformer
+Input [2]: [o_orderpriority#X, order_count#X]
+Arguments: [o_orderpriority#X ASC NULLS FIRST], true, 0
+
+(18) WholeStageCodegenTransformer (X)
+Input [2]: [o_orderpriority#X, order_count#X]
+Arguments: false
+
+(19) VeloxColumnarToRowExec
+Input [2]: [o_orderpriority#X, order_count#X]
+
+(20) BatchScan
+Output [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
+DataFilters: [isnotnull(o_orderdate#X), (o_orderdate#X >= 1993-07-01), (o_orderdate#X < 1993-10-01)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(o_orderdate), GreaterThanOrEqual(o_orderdate,1993-07-01), LessThan(o_orderdate,1993-10-01)]
+ReadSchema: struct<o_orderkey:bigint,o_orderdate:date,o_orderpriority:string>
+
+(21) Filter
+Input [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
+Condition : ((isnotnull(o_orderdate#X) AND (o_orderdate#X >= 1993-07-01)) AND (o_orderdate#X < 1993-10-01))
+
+(22) Project
+Output [2]: [o_orderkey#X, o_orderpriority#X]
+Input [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
+
+(23) BatchScan
+Output [16]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_linenumber#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_tax#X, l_returnflag#X, l_linestatus#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipinstruct#X, l_shipmode#X, l_comment#X]
+DataFilters: [(l_commitdate#X < l_receiptdate#X), isnotnull(l_commitdate#X), isnotnull(l_receiptdate#X)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(l_commitdate), IsNotNull(l_receiptdate)]
+ReadSchema: struct<l_orderkey:bigint,l_partkey:bigint,l_suppkey:bigint,l_linenumber:int,l_quantity:decimal(12,2),l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_tax:decimal(12,2),l_returnflag:string,l_linestatus:string,l_shipdate:date,l_commitdate:date,l_receiptdate:date,l_shipinstruct:string,l_shipmode:string,l_comment:string>
+
+(24) Filter
+Input [16]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_linenumber#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_tax#X, l_returnflag#X, l_linestatus#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipinstruct#X, l_shipmode#X, l_comment#X]
+Condition : (((l_commitdate#X < l_receiptdate#X) AND isnotnull(l_commitdate#X)) AND isnotnull(l_receiptdate#X))
+
+(25) Project
+Output [1]: [l_orderkey#X]
+Input [16]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_linenumber#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_tax#X, l_returnflag#X, l_linestatus#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipinstruct#X, l_shipmode#X, l_comment#X]
+
+(26) BroadcastExchange
+Input [1]: [l_orderkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
+
+(27) BroadcastHashJoin
+Left keys [1]: [o_orderkey#X]
+Right keys [1]: [l_orderkey#X]
+Join condition: None
+
+(28) Project
+Output [1]: [o_orderpriority#X]
+Input [2]: [o_orderkey#X, o_orderpriority#X]
+
+(29) HashAggregate
+Input [1]: [o_orderpriority#X]
+Keys [1]: [o_orderpriority#X]
+Functions [1]: [partial_count(1)]
+Aggregate Attributes [1]: [count#X]
+Results [2]: [o_orderpriority#X, count#X]
+
+(30) HashAggregate
+Input [2]: [o_orderpriority#X, count#X]
+Keys [1]: [o_orderpriority#X]
+Functions [1]: [count(1)]
+Aggregate Attributes [1]: [count(1)#X]
+Results [2]: [o_orderpriority#X, count(1)#X AS order_count#X]
+
+(31) Sort
+Input [2]: [o_orderpriority#X, order_count#X]
+Arguments: [o_orderpriority#X ASC NULLS FIRST], true, 0
+
+(32) AdaptiveSparkPlan
+Output [2]: [o_orderpriority#X, order_count#X]
+Arguments: isFinalPlan=true
