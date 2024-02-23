@@ -98,8 +98,8 @@ index 2fce354e3..64cfcb2ab 100644
  add_test(velox_process_test velox_process_test)
  
  target_link_libraries(velox_process_test PRIVATE velox_process fmt::fmt gtest
--                                                 gtest_main)
-+                                                 gtest_main glog::glog gflags::gflags)
+-                                                 velox_time gtest_main)
++                                                 velox_time gtest_main glog::glog gflags::gflags)
 diff --git a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
 index e2a638df6..e383cf205 100644
 --- a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
