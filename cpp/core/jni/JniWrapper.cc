@@ -312,7 +312,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_exec_RuntimeJniWrapper_createRunti
     jbyteArray sessionConf) {
   JNI_METHOD_START
   auto backendType = jStringToCString(env, jbackendType);
-  auto sparkConf = gluten::parseConfMap(env, sessionConf);
+  auto safeArray = gluten::getByteArrayElementsSafe(env, sessionConf);
+  auto sparkConf = gluten::parseConfMap(env, safeArray.elems(), safeArray.length());
   auto runtime = gluten::Runtime::create(backendType, sparkConf);
   return reinterpret_cast<jlong>(runtime);
   JNI_METHOD_END(kInvalidResourceHandle)
@@ -337,7 +338,7 @@ JNIEXPORT jstring JNICALL Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapp
   JNI_METHOD_START
 
   auto safeArray = gluten::getByteArrayElementsSafe(env, planArray);
-  auto planData = reinterpret_cast<const uint8_t*>(safeArray.elems());
+  auto planData = safeArray.elems();
   auto planSize = env->GetArrayLength(planArray);
   auto ctx = gluten::getRuntime(env, wrapper);
   ctx->parsePlan(planData, planSize, {}, std::nullopt);
@@ -403,7 +404,7 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
     jbyteArray splitInfoArray = static_cast<jbyteArray>(env->GetObjectArrayElement(splitInfosArr, i));
     jsize splitInfoSize = env->GetArrayLength(splitInfoArray);
     auto safeArray = gluten::getByteArrayElementsSafe(env, splitInfoArray);
-    auto splitInfoData = reinterpret_cast<const uint8_t*>(safeArray.elems());
+    auto splitInfoData = safeArray.elems();
     ctx->parseSplitInfo(
         splitInfoData,
         splitInfoSize,
@@ -414,7 +415,7 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
   auto safeArray = gluten::getByteArrayElementsSafe(env, planArr);
   auto planSize = env->GetArrayLength(planArr);
   ctx->parsePlan(
-      reinterpret_cast<const uint8_t*>(safeArray.elems()),
+      safeArray.elems(),
       planSize,
       {stageId, partitionId, taskId},
       saveInput ? std::optional<std::string>(saveDir + "/plan" + fileIdentifier + ".json") : std::nullopt);
@@ -646,7 +647,7 @@ Java_io_glutenproject_vectorized_NativeRowToColumnarJniWrapper_nativeConvertRowT
   uint8_t* address = reinterpret_cast<uint8_t*>(memoryAddress);
 
   auto converter = ctx->objectStore()->retrieve<RowToColumnarConverter>(r2cHandle);
-  auto cb = converter->convert(numRows, reinterpret_cast<int64_t*>(safeArray.elems()), address);
+  auto cb = converter->convert(numRows, safeArray.elems(), address);
   return ctx->objectStore()->save(cb);
   JNI_METHOD_END(kInvalidResourceHandle)
 }
@@ -718,7 +719,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrap
 
   std::vector<std::shared_ptr<ColumnarBatch>> batches;
   for (int i = 0; i < handleCount; ++i) {
-    jlong handle = safeArray.elems()[i];
+    int64_t handle = safeArray.elems()[i];
     auto batch = ctx->objectStore()->retrieve<ColumnarBatch>(handle);
     batches.push_back(batch);
   }
@@ -1028,7 +1029,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_OnHeapJniByteInputStream
     jint size) {
   JNI_METHOD_START
   auto safeArray = gluten::getByteArrayElementsSafe(env, source);
-  std::memcpy(reinterpret_cast<void*>(destAddress), reinterpret_cast<const void*>(safeArray.elems()), size);
+  std::memcpy(reinterpret_cast<void*>(destAddress), safeArray.elems(), size);
   JNI_METHOD_END()
 }
 
@@ -1121,7 +1122,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_datasource_DatasourceJniWrapper_na
     // Only inspect the schema and not write
     handle = ctx->objectStore()->save(ctx->createDatasource(jStringToCString(env, filePath), memoryManager, nullptr));
   } else {
-    auto datasourceOptions = gluten::parseConfMap(env, options);
+    auto safeArray = gluten::getByteArrayElementsSafe(env, options);
+    auto datasourceOptions = gluten::parseConfMap(env, safeArray.elems(), safeArray.length());
     auto& sparkConf = ctx->getConfMap();
     datasourceOptions.insert(sparkConf.begin(), sparkConf.end());
     auto schema = gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
@@ -1412,7 +1414,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializer
   GLUTEN_DCHECK(serializer != nullptr, "ColumnarBatchSerializer cannot be null");
   int32_t size = env->GetArrayLength(data);
   auto safeArray = gluten::getByteArrayElementsSafe(env, data);
-  auto batch = serializer->deserialize(reinterpret_cast<uint8_t*>(safeArray.elems()), size);
+  auto batch = serializer->deserialize(safeArray.elems(), size);
   return ctx->objectStore()->save(batch);
   JNI_METHOD_END(kInvalidResourceHandle)
 }

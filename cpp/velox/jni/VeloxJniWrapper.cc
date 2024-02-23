@@ -69,7 +69,8 @@ JNIEXPORT void JNICALL Java_io_glutenproject_init_NativeBackendInitializer_initi
     jclass,
     jbyteArray conf) {
   JNI_METHOD_START
-  auto sparkConf = gluten::parseConfMap(env, conf);
+  auto safeArray = gluten::getByteArrayElementsSafe(env, conf);
+  auto sparkConf = gluten::parseConfMap(env, safeArray.elems(), safeArray.length());
   gluten::VeloxBackend::create(sparkConf);
   JNI_METHOD_END()
 }
@@ -91,7 +92,7 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFailu
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
   auto safeArray = gluten::getByteArrayElementsSafe(env, planArray);
-  auto planData = reinterpret_cast<const uint8_t*>(safeArray.elems());
+  auto planData = safeArray.elems();
   auto planSize = env->GetArrayLength(planArray);
   if (gluten::debugModeEnabled(ctx->getConfMap())) {
     try {

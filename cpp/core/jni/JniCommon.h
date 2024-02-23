@@ -169,17 +169,18 @@ enum class JniPrimitiveArrayType {
 
 #define CONCATENATE(t1, t2, t3) t1##t2##t3
 
-#define DEFINE_PRIMITIVE_ARRAY(PRIM_TYPE, NATIVE_TYPE, JAVA_TYPE, METHOD_VAR)                  \
+#define DEFINE_PRIMITIVE_ARRAY(PRIM_TYPE, JAVA_TYPE, JNI_NATIVE_TYPE, NATIVE_TYPE, METHOD_VAR) \
   template <>                                                                                  \
   struct JniPrimitiveArray<JniPrimitiveArrayType::PRIM_TYPE> {                                 \
-    using NativeType = NATIVE_TYPE;                                                            \
     using JavaType = JAVA_TYPE;                                                                \
+    using JniNativeType = JNI_NATIVE_TYPE;                                                     \
+    using NativeType = NATIVE_TYPE;                                                            \
                                                                                                \
-    static NativeType get(JNIEnv* env, JavaType javaArray) {                                   \
+    static JniNativeType get(JNIEnv* env, JavaType javaArray) {                                \
       return env->CONCATENATE(Get, METHOD_VAR, ArrayElements)(javaArray, nullptr);             \
     }                                                                                          \
                                                                                                \
-    static void release(JNIEnv* env, JavaType javaArray, NativeType nativeArray) {             \
+    static void release(JNIEnv* env, JavaType javaArray, JniNativeType nativeArray) {          \
       env->CONCATENATE(Release, METHOD_VAR, ArrayElements)(javaArray, nativeArray, JNI_ABORT); \
     }                                                                                          \
   };
@@ -187,20 +188,21 @@ enum class JniPrimitiveArrayType {
 template <JniPrimitiveArrayType TYPE>
 struct JniPrimitiveArray {};
 
-DEFINE_PRIMITIVE_ARRAY(kBoolean, jboolean*, jbooleanArray, Boolean)
-DEFINE_PRIMITIVE_ARRAY(kByte, jbyte*, jbyteArray, Byte)
-DEFINE_PRIMITIVE_ARRAY(kChar, jchar*, jcharArray, Char)
-DEFINE_PRIMITIVE_ARRAY(kShort, jshort*, jshortArray, Short)
-DEFINE_PRIMITIVE_ARRAY(kInt, jint*, jintArray, Int)
-DEFINE_PRIMITIVE_ARRAY(kLong, jlong*, jlongArray, Long)
-DEFINE_PRIMITIVE_ARRAY(kFloat, jfloat*, jfloatArray, Float)
-DEFINE_PRIMITIVE_ARRAY(kDouble, jdouble*, jdoubleArray, Double)
+DEFINE_PRIMITIVE_ARRAY(kBoolean, jbooleanArray, jboolean*, bool*, Boolean)
+DEFINE_PRIMITIVE_ARRAY(kByte, jbyteArray, jbyte*, uint8_t*, Byte)
+DEFINE_PRIMITIVE_ARRAY(kChar, jcharArray, jchar*, uint16_t*, Char)
+DEFINE_PRIMITIVE_ARRAY(kShort, jshortArray, jshort*, int16_t*, Short)
+DEFINE_PRIMITIVE_ARRAY(kInt, jintArray, jint*, int32_t*, Int)
+DEFINE_PRIMITIVE_ARRAY(kLong, jlongArray, jlong*, int64_t*, Long)
+DEFINE_PRIMITIVE_ARRAY(kFloat, jfloatArray, jfloat*, float_t*, Float)
+DEFINE_PRIMITIVE_ARRAY(kDouble, jdoubleArray, jdouble*, double_t*, Double)
 
 template <JniPrimitiveArrayType TYPE>
 class SafeNativeArray {
   using PrimitiveArray = JniPrimitiveArray<TYPE>;
-  using NativeArrayType = typename PrimitiveArray::NativeType;
   using JavaArrayType = typename PrimitiveArray::JavaType;
+  using JniNativeArrayType = typename PrimitiveArray::JniNativeType;
+  using NativeArrayType = typename PrimitiveArray::NativeType;
 
  public:
   virtual ~SafeNativeArray() {
@@ -212,22 +214,26 @@ class SafeNativeArray {
   SafeNativeArray& operator=(const SafeNativeArray&) = delete;
   SafeNativeArray& operator=(SafeNativeArray&&) = delete;
 
-  NativeArrayType elems() const {
-    return nativeArray_;
+  const NativeArrayType elems() const {
+    return reinterpret_cast<const NativeArrayType>(nativeArray_);
+  }
+
+  jsize length() const {
+    return env_->GetArrayLength(javaArray_);
   }
 
   static SafeNativeArray<TYPE> get(JNIEnv* env, JavaArrayType javaArray) {
-    NativeArrayType nativeArray = PrimitiveArray::get(env, javaArray);
+    JniNativeArrayType nativeArray = PrimitiveArray::get(env, javaArray);
     return SafeNativeArray<TYPE>(env, javaArray, nativeArray);
   }
 
  private:
-  SafeNativeArray(JNIEnv* env, JavaArrayType javaArray, NativeArrayType nativeArray)
+  SafeNativeArray(JNIEnv* env, JavaArrayType javaArray, JniNativeArrayType nativeArray)
       : env_(env), javaArray_(javaArray), nativeArray_(nativeArray){};
 
   JNIEnv* env_;
   JavaArrayType javaArray_;
-  NativeArrayType nativeArray_;
+  JniNativeArrayType nativeArray_;
 };
 
 #define DEFINE_SAFE_GET_PRIMITIVE_ARRAY_FUNCTIONS(PRIM_TYPE, JAVA_TYPE, METHOD_VAR)                         \
