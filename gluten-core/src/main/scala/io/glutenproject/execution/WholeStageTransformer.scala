@@ -30,10 +30,12 @@ import io.glutenproject.utils.SubstraitPlanPrinterUtil
 
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
+import org.apache.spark.softaffinity.SoftAffinity
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -305,7 +307,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
             substraitPlanLogLevel,
             s"$nodeName generating the substrait plan took: $t ms."))
 
-      new GlutenWholeStageColumnarRDD(
+      val rdd = new GlutenWholeStageColumnarRDD(
         sparkContext,
         inputPartitions,
         inputRDDs,
@@ -318,6 +320,19 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
           wsCtx.substraitContext.registeredAggregationParams
         )
       )
+      val allScanPartitions = basicScanExecTransformers.map(_.getPartitions)
+      (0 until allScanPartitions.head.size).foreach(
+        i => {
+          val currentPartitions = allScanPartitions.map(_(i))
+          currentPartitions.indices.foreach(
+            i =>
+              currentPartitions(i) match {
+                case f: FilePartition =>
+                  SoftAffinity.updateFilePartitionLocations(f, rdd.id)
+                case _ =>
+              })
+        })
+      rdd
     } else {
 
       /**

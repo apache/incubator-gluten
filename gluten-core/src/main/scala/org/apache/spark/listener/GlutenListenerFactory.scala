@@ -16,6 +16,9 @@
  */
 package org.apache.spark.listener
 
+import io.glutenproject.GlutenConfig
+import io.glutenproject.softaffinity.scheduler.SoftAffinityListener
+
 import org.apache.spark.SparkContext
 import org.apache.spark.rpc.GlutenDriverEndpoint
 
@@ -23,5 +26,13 @@ object GlutenListenerFactory {
   def addToSparkListenerBus(sc: SparkContext): Unit = {
     sc.listenerBus.addToStatusQueue(
       new GlutenSQLAppStatusListener(GlutenDriverEndpoint.glutenDriverEndpointRef))
+    if (
+      sc.getConf.getBoolean(
+        GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED,
+        GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED_DEFAULT_VALUE
+      )
+    ) {
+      sc.listenerBus.addToStatusQueue(new SoftAffinityListener())
+    }
   }
 }

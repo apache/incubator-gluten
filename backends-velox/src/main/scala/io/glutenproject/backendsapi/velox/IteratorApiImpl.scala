@@ -59,7 +59,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
         val (paths, starts, lengths, partitionColumns) =
           constructSplitInfo(partitionSchema, f.files)
         val preferredLocations =
-          SoftAffinity.getFilePartitionLocations(paths.asScala.toArray, f.preferredLocations())
+          SoftAffinity.getFilePartitionLocations(f)
         LocalFilesBuilder.makeLocalFiles(
           f.index,
           paths,
