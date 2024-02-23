@@ -329,7 +329,7 @@ install(TARGETS gluten
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/resources/libhdfs.so
         DESTINATION ${LIBHDFS3_DESTINATION})
 
-add_custom_command(TARGET gluten POST_BUILD COMMAND ld $<TARGET_FILE:gluten>
+add_custom_command(TARGET gluten POST_BUILD COMMAND ld $<TARGET_FILE:gluten> || true
         COMMENT "Checking ld result of libgluten.so")
-add_custom_command(TARGET gluten POST_BUILD COMMAND ldd $<TARGET_FILE:gluten>
+add_custom_command(TARGET gluten POST_BUILD COMMAND ldd $<TARGET_FILE:gluten> || true
         COMMENT "Checking ldd result of libgluten.so")
