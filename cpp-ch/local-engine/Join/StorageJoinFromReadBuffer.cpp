@@ -90,9 +90,6 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
 
 DB::JoinPtr StorageJoinFromReadBuffer::getJoinLocked(std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr /*context*/) const
 {
-    if (!analyzed_join->sameStrictnessAndKind(join_->getTableJoin().strictness(), join_->getTableJoin().kind()))
-        throw Exception(ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN, "Table {} has incompatible type of JOIN.", storage_metadata_.comment);
-
     if ((analyzed_join->forceNullableRight() && !use_nulls_)
         || (!analyzed_join->forceNullableRight() && isLeftOrFull(analyzed_join->kind()) && use_nulls_))
         throw Exception(
