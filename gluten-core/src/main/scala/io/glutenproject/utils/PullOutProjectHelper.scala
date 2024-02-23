@@ -65,7 +65,9 @@ trait PullOutProjectHelper {
   protected def eliminateProjectList(
       childOutput: AttributeSet,
       appendAttributes: Seq[NamedExpression]): Seq[NamedExpression] = {
-    childOutput.toIndexedSeq ++ appendAttributes.filter(attr => !childOutput.contains(attr))
+    childOutput.toIndexedSeq ++ appendAttributes
+      .filter(attr => !childOutput.contains(attr))
+      .sortWith(_.exprId.id < _.exprId.id)
   }
 
   protected def supportedAggregate(agg: BaseAggregateExec): Boolean = agg match {
