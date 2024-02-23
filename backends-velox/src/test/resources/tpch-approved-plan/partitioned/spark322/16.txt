@@ -98,7 +98,7 @@ Input [2]: [ps_partkey#X, ps_suppkey#X]
 (9) Scan parquetdefault.part
 Output [4]: [p_partkey#X, p_type#X, p_size#X, p_brand#X]
 Batched: true
-Location: InMemoryFileIndex [file:/opt/gluten/backends-velox/spark-warehouse/io.glutenproject.execution.VeloxPartitionedTableTPCHSuite/part/p_brand=Brand%2343, ... 23 entries]
+Location: InMemoryFileIndex [file:/opt/gluten/backends-velox/spark-warehouse/io.glutenproject.execution.VeloxPartitionedTableTPCHSuite/part/p_brand=Brand%2335, ... 23 entries]
 PartitionFilters: [isnotnull(p_brand#X), NOT (p_brand#X = Brand#X)]
 PushedFilters: [IsNotNull(p_type), Not(StringStartsWith(p_type,MEDIUM POLISHED)), In(p_size, [14,19,23,3,36,45,49,9]), IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_type:string,p_size:int>
@@ -285,7 +285,7 @@ Arguments: hashpartitioning(ps_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 (52) Scan parquetdefault.part
 Output [4]: [p_partkey#X, p_type#X, p_size#X, p_brand#X]
 Batched: true
-Location: InMemoryFileIndex [file:/opt/gluten/backends-velox/spark-warehouse/io.glutenproject.execution.VeloxPartitionedTableTPCHSuite/part/p_brand=Brand%2343, ... 23 entries]
+Location: InMemoryFileIndex [file:/opt/gluten/backends-velox/spark-warehouse/io.glutenproject.execution.VeloxPartitionedTableTPCHSuite/part/p_brand=Brand%2335, ... 23 entries]
 PartitionFilters: [isnotnull(p_brand#X), NOT (p_brand#X = Brand#X)]
 PushedFilters: [IsNotNull(p_type), Not(StringStartsWith(p_type,MEDIUM POLISHED)), In(p_size, [14,19,23,3,36,45,49,9]), IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_type:string,p_size:int>

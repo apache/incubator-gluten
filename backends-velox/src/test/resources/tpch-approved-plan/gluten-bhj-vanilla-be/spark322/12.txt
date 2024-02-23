@@ -100,11 +100,11 @@ Right keys [1]: [l_orderkey#X]
 Join condition: None
 
 (14) ProjectExecTransformer
-Output [4]: [o_orderpriority#X, l_shipmode#X, CASE WHEN (NOT (o_orderpriority#X = 1-URGENT) AND NOT (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END AS _pre_183#X, CASE WHEN ((o_orderpriority#X = 1-URGENT) OR (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END AS _pre_182#X]
+Output [4]: [o_orderpriority#X, l_shipmode#X, CASE WHEN ((o_orderpriority#X = 1-URGENT) OR (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END AS _pre_182#X, CASE WHEN (NOT (o_orderpriority#X = 1-URGENT) AND NOT (o_orderpriority#X = 2-HIGH)) THEN 1 ELSE 0 END AS _pre_183#X]
 Input [4]: [o_orderkey#X, o_orderpriority#X, l_orderkey#X, l_shipmode#X]
 
 (15) FlushableHashAggregateExecTransformer
-Input [4]: [o_orderpriority#X, l_shipmode#X, _pre_183#X, _pre_182#X]
+Input [4]: [o_orderpriority#X, l_shipmode#X, _pre_182#X, _pre_183#X]
 Keys [1]: [l_shipmode#X]
 Functions [2]: [partial_sum(_pre_182#X), partial_sum(_pre_183#X)]
 Aggregate Attributes [2]: [sum#X, sum#X]

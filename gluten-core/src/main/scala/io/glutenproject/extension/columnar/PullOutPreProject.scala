@@ -145,9 +145,7 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
         newGroupingExpressions = newGroupingExpressions,
         newAggregateExpressions = newAggregateExpressions)
       val preProject = ProjectExec(
-        eliminateProjectList(
-          agg.child.outputSet,
-          expressionMap.values.toSeq.sortWith(_.exprId.id < _.exprId.id)),
+        eliminateProjectList(agg.child.outputSet, expressionMap.values.toSeq),
         agg.child)
       newAgg.withNewChildren(Seq(preProject))
 
