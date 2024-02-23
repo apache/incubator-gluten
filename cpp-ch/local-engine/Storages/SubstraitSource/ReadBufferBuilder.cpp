@@ -203,7 +203,7 @@ public:
     std::unique_ptr<DB::ReadBuffer>
     build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position) override
     {
-        bool enable_async_io = context->getConfigRef().getBool("hdfs.enable_async_io", true);
+        bool enable_async_io = context->getSettingsRef().remote_filesystem_read_prefetch;
         Poco::URI file_uri(file_info.uri_file());
         std::string uri_path = "hdfs://" + file_uri.getHost();
         if (file_uri.getPort())
