@@ -90,7 +90,8 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFailu
     jbyteArray planArray) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
-  auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
+  auto safeArray = gluten::getByteArrayElementsSafe(env, planArray);
+  auto planData = reinterpret_cast<const uint8_t*>(safeArray.elems());
   auto planSize = env->GetArrayLength(planArray);
   if (gluten::debugModeEnabled(ctx->getConfMap())) {
     try {

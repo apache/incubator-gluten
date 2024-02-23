@@ -151,6 +151,95 @@ inline JniCommonState* getJniCommonState() {
 }
 
 Runtime* getRuntime(JNIEnv* env, jobject runtimeAware);
+
+// Safe version of JNI {Get|Release}<PrimitiveType>ArrayElements routines.
+// JniPrimitiveArrayType would release the managed array elements automatically
+// during destruction.
+
+enum class JniPrimitiveArrayType {
+  kBoolean = 0,
+  kByte = 1,
+  kChar = 2,
+  kShort = 3,
+  kInt = 4,
+  kLong = 5,
+  kFloat = 6,
+  kDouble = 7
+};
+
+#define CONCATENATE(t1, t2, t3) t1##t2##t3
+
+#define DEFINE_PRIMITIVE_ARRAY(PRIM_TYPE, NATIVE_TYPE, JAVA_TYPE, METHOD_VAR)                  \
+  template <>                                                                                  \
+  struct JniPrimitiveArray<JniPrimitiveArrayType::PRIM_TYPE> {                                 \
+    using NativeType = NATIVE_TYPE;                                                            \
+    using JavaType = JAVA_TYPE;                                                                \
+                                                                                               \
+    static NativeType get(JNIEnv* env, JavaType javaArray) {                                   \
+      return env->CONCATENATE(Get, METHOD_VAR, ArrayElements)(javaArray, nullptr);             \
+    }                                                                                          \
+                                                                                               \
+    static void release(JNIEnv* env, JavaType javaArray, NativeType nativeArray) {             \
+      env->CONCATENATE(Release, METHOD_VAR, ArrayElements)(javaArray, nativeArray, JNI_ABORT); \
+    }                                                                                          \
+  };
+
+template <JniPrimitiveArrayType TYPE>
+struct JniPrimitiveArray {};
+
+DEFINE_PRIMITIVE_ARRAY(kBoolean, jboolean*, jbooleanArray, Boolean)
+DEFINE_PRIMITIVE_ARRAY(kByte, jbyte*, jbyteArray, Byte)
+DEFINE_PRIMITIVE_ARRAY(kChar, jchar*, jcharArray, Char)
+DEFINE_PRIMITIVE_ARRAY(kShort, jshort*, jshortArray, Short)
+DEFINE_PRIMITIVE_ARRAY(kInt, jint*, jintArray, Int)
+DEFINE_PRIMITIVE_ARRAY(kLong, jlong*, jlongArray, Long)
+DEFINE_PRIMITIVE_ARRAY(kFloat, jfloat*, jfloatArray, Float)
+DEFINE_PRIMITIVE_ARRAY(kDouble, jdouble*, jdoubleArray, Double)
+
+template <JniPrimitiveArrayType TYPE>
+class SafeNativeArray {
+  using PrimitiveArray = JniPrimitiveArray<TYPE>;
+  using NativeArrayType = typename PrimitiveArray::NativeType;
+  using JavaArrayType = typename PrimitiveArray::JavaType;
+
+ public:
+  SafeNativeArray(JNIEnv* env, JavaArrayType javaArray, NativeArrayType nativeArray)
+      : env_(env), javaArray_(javaArray), nativeArray_(nativeArray){};
+
+  virtual ~SafeNativeArray() {
+    PrimitiveArray::release(env_, javaArray_, nativeArray_);
+  }
+
+  NativeArrayType elems() const {
+    return nativeArray_;
+  }
+
+  static SafeNativeArray<TYPE> get(JNIEnv* env, JavaArrayType javaArray) {
+    NativeArrayType nativeArray = PrimitiveArray::get(env, javaArray);
+    return SafeNativeArray<TYPE>(env, javaArray, nativeArray);
+  }
+
+ private:
+  JNIEnv* env_;
+  JavaArrayType javaArray_;
+  NativeArrayType nativeArray_;
+};
+
+#define DEFINE_SAFE_GET_PRIMITIVE_ARRAY_FUNCTIONS(PRIM_TYPE, JAVA_TYPE, METHOD_VAR)                         \
+  inline SafeNativeArray<JniPrimitiveArrayType::PRIM_TYPE> CONCATENATE(get, METHOD_VAR, ArrayElementsSafe)( \
+      JNIEnv * env, JAVA_TYPE array) {                                                                      \
+    return SafeNativeArray<JniPrimitiveArrayType::PRIM_TYPE>::get(env, array);                              \
+  }
+
+DEFINE_SAFE_GET_PRIMITIVE_ARRAY_FUNCTIONS(kBoolean, jbooleanArray, Boolean)
+DEFINE_SAFE_GET_PRIMITIVE_ARRAY_FUNCTIONS(kByte, jbyteArray, Byte)
+DEFINE_SAFE_GET_PRIMITIVE_ARRAY_FUNCTIONS(kChar, jcharArray, Char)
+DEFINE_SAFE_GET_PRIMITIVE_ARRAY_FUNCTIONS(kShort, jshortArray, Short)
+DEFINE_SAFE_GET_PRIMITIVE_ARRAY_FUNCTIONS(kInt, jintArray, Int)
+DEFINE_SAFE_GET_PRIMITIVE_ARRAY_FUNCTIONS(kLong, jlongArray, Long)
+DEFINE_SAFE_GET_PRIMITIVE_ARRAY_FUNCTIONS(kFloat, jfloatArray, Float)
+DEFINE_SAFE_GET_PRIMITIVE_ARRAY_FUNCTIONS(kDouble, jdoubleArray, Double)
+
 } // namespace gluten
 
 // TODO: Move the static functions to namespace gluten
