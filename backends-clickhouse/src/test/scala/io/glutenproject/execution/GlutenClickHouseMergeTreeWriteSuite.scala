@@ -21,6 +21,8 @@ import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 
+import java.io.File
+
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
 
@@ -490,6 +492,105 @@ class GlutenClickHouseMergeTreeWriteSuite
                   "00000"))
             .size == 1)
     }
+  }
+
+  test("GLUTEN-4749: Support to purge mergetree data for CH backend") {
+    def createAndDropTable(
+        tableName: String,
+        tableLocation: String,
+        isExternal: Boolean = false,
+        purgeTable: Boolean = false): Unit = {
+      spark.sql(s"""
+                   |DROP TABLE IF EXISTS $tableName;
+                   |""".stripMargin)
+
+      spark.sql(s"""
+                   |CREATE ${if (isExternal) "EXTERNAL" else ""} TABLE IF NOT EXISTS $tableName
+                   |(
+                   | l_orderkey      bigint,
+                   | l_partkey       bigint,
+                   | l_suppkey       bigint,
+                   | l_linenumber    bigint,
+                   | l_quantity      double,
+                   | l_extendedprice double,
+                   | l_discount      double,
+                   | l_tax           double,
+                   | l_returnflag    string,
+                   | l_linestatus    string,
+                   | l_shipdate      date,
+                   | l_commitdate    date,
+                   | l_receiptdate   date,
+                   | l_shipinstruct  string,
+                   | l_shipmode      string,
+                   | l_comment       string
+                   |)
+                   |USING clickhouse
+                   |TBLPROPERTIES (orderByKey='l_shipdate,l_orderkey',
+                   |               primaryKey='l_shipdate')
+                   |${if (tableLocation.nonEmpty) "LOCATION '" + tableLocation + "'" else ""}
+                   |""".stripMargin)
+
+      spark.sql(s"""
+                   | insert into table $tableName
+                   | select * from lineitem
+                   |""".stripMargin)
+
+      spark.sql(s"""
+                   |DROP TABLE IF EXISTS $tableName ${if (purgeTable) "PURGE" else ""};
+                   |""".stripMargin)
+    }
+
+    def checkTableExists(
+        tableName: String,
+        tableLocation: String,
+        exceptedExists: Boolean): Unit = {
+      val tableList = spark
+        .sql(s"""
+                |show tables;
+                |""".stripMargin)
+        .collect()
+      assert(!tableList.exists(_.getString(1).equals(tableName)))
+
+      val deletedPathStr = if (tableLocation.nonEmpty) {
+        tableLocation
+      } else {
+        warehouse + "/" + tableName
+      }
+      val deletedPath = new File(deletedPathStr)
+      assert(deletedPath.exists() == exceptedExists)
+    }
+
+    // test non external table
+    var tableName = "lineitem_mergetree_drop"
+    var tableLocation = ""
+    createAndDropTable(tableName, tableLocation)
+    checkTableExists(tableName, tableLocation, false)
+
+    // test external table
+    tableName = "lineitem_mergetree_external_drop"
+    createAndDropTable(tableName, tableLocation, true)
+    checkTableExists(tableName, tableLocation, false)
+
+    // test table with the specified location
+    tableName = "lineitem_mergetree_location_drop"
+    tableLocation = basePath + "/" + tableName
+    createAndDropTable(tableName, tableLocation)
+    checkTableExists(tableName, tableLocation, true)
+
+    tableName = "lineitem_mergetree_external_location_drop"
+    tableLocation = basePath + "/" + tableName
+    createAndDropTable(tableName, tableLocation, true)
+    checkTableExists(tableName, tableLocation, true)
+
+    tableName = "lineitem_mergetree_location_purge"
+    tableLocation = basePath + "/" + tableName
+    createAndDropTable(tableName, tableLocation, purgeTable = true)
+    checkTableExists(tableName, tableLocation, false)
+
+    tableName = "lineitem_mergetree_external_location_purge"
+    tableLocation = basePath + "/" + tableName
+    createAndDropTable(tableName, tableLocation, true, true)
+    checkTableExists(tableName, tableLocation, false)
   }
 }
 // scalastyle:off line.size.limit

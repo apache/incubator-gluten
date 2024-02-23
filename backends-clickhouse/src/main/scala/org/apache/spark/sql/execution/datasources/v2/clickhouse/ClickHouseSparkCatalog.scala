@@ -268,6 +268,49 @@ class ClickHouseSparkCatalog
     ClickHouseTableV2(spark, new Path(ident.name()))
   }
 
+  /** override `dropTable`` method, calling `clearFileStatusCacheByPath` after dropping */
+  override def dropTable(ident: Identifier): Boolean = {
+    try {
+      loadTable(ident) match {
+        case t: ClickHouseTableV2 =>
+          val tablePath = t.rootPath
+          val deletedTable = super.dropTable(ident)
+          if (deletedTable) ClickHouseTableV2.clearFileStatusCacheByPath(tablePath)
+          deletedTable
+        case _ => super.dropTable(ident)
+      }
+    } catch {
+      case _: Exception =>
+        false
+    }
+  }
+
+  /** support to delete mergetree data from the external table */
+  override def purgeTable(ident: Identifier): Boolean = {
+    try {
+      loadTable(ident) match {
+        case t: ClickHouseTableV2 =>
+          val tableType = t.properties().getOrDefault("Type", "")
+          // file-based or external table
+          val isExternal = tableType.isEmpty || tableType.equalsIgnoreCase("external")
+          val tablePath = t.rootPath
+          // first delete the table metadata
+          val deletedTable = super.dropTable(ident)
+          if (deletedTable && isExternal) {
+            val fs = tablePath.getFileSystem(spark.sessionState.newHadoopConf())
+            // delete all data if there is a external table
+            fs.delete(tablePath, true)
+            ClickHouseTableV2.clearFileStatusCacheByPath(tablePath)
+          }
+          true
+        case _ => super.purgeTable(ident)
+      }
+    } catch {
+      case _: Exception =>
+        false
+    }
+  }
+
   override def stageCreate(
       ident: Identifier,
       schema: StructType,
