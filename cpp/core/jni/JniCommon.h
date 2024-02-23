@@ -210,6 +210,11 @@ class SafeNativeArray {
     PrimitiveArray::release(env_, javaArray_, nativeArray_);
   }
 
+  SafeNativeArray(const SafeNativeArray&) = delete;
+  SafeNativeArray(SafeNativeArray&&) = delete;
+  SafeNativeArray& operator=(const SafeNativeArray&) = delete;
+  SafeNativeArray& operator=(SafeNativeArray&&) = delete;
+
   NativeArrayType elems() const {
     return nativeArray_;
   }
