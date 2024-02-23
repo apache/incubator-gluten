@@ -153,7 +153,7 @@ inline JniCommonState* getJniCommonState() {
 Runtime* getRuntime(JNIEnv* env, jobject runtimeAware);
 
 // Safe version of JNI {Get|Release}<PrimitiveType>ArrayElements routines.
-// JniPrimitiveArrayType would release the managed array elements automatically
+// SafeNativeArray would release the managed array elements automatically
 // during destruction.
 
 enum class JniPrimitiveArrayType {
