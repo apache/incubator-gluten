@@ -38,14 +38,16 @@ public class CHStreamReader implements AutoCloseable {
             this.inputStream,
             inputStream.isCompressed(),
             CHBackendSettings.maxShuffleReadRows(),
-            CHBackendSettings.maxShuffleReadBytes());
+            CHBackendSettings.maxShuffleReadBytes(),
+            CHBackendSettings.enableShufflePrefetch());
   }
 
   private static native long createNativeShuffleReader(
       ShuffleInputStream inputStream,
       boolean compressed,
       long maxShuffleReadRows,
-      long maxShuffleReadBytes);
+      long maxShuffleReadBytes,
+      boolean enable_prefetch);
 
   private native long nativeNext(long nativeShuffleReader);
 
