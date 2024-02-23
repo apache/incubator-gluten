@@ -95,7 +95,7 @@ Input [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
 (9) Scan parquetdefault.part
 Output [3]: [p_partkey#X, p_container#X, p_brand#X]
 Batched: true
-Location: InMemoryFileIndex [file:/opt/gluten/backends-velox/spark-warehouse/io.glutenproject.execution.VeloxPartitionedTableTPCHSuite/part/p_brand=Brand%2323]
+Location: InMemoryFileIndex [*]
 PartitionFilters: [isnotnull(p_brand#X), (p_brand#X = Brand#X)]
 PushedFilters: [IsNotNull(p_container), EqualTo(p_container,MED BOX), IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_container:string>
@@ -250,7 +250,7 @@ Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 (43) Scan parquetdefault.part
 Output [3]: [p_partkey#X, p_container#X, p_brand#X]
 Batched: true
-Location: InMemoryFileIndex [file:/opt/gluten/backends-velox/spark-warehouse/io.glutenproject.execution.VeloxPartitionedTableTPCHSuite/part/p_brand=Brand%2323]
+Location: InMemoryFileIndex [*]
 PartitionFilters: [isnotnull(p_brand#X), (p_brand#X = Brand#X)]
 PushedFilters: [IsNotNull(p_container), EqualTo(p_container,MED BOX), IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_container:string>

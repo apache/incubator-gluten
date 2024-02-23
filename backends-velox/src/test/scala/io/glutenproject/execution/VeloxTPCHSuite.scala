@@ -65,7 +65,7 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
       .replaceAll("plan_id=[0-9]*", "plan_id=X")
       .replaceAll("Statistics[(A-Za-z0-9=. ,+)]*", "Statistics(X)")
       .replaceAll("WholeStageCodegenTransformer[0-9 ()]*", "WholeStageCodegenTransformer (X)")
-      .replaceAll("\\[file:[.\\-/a-zA-z0-9= ,]*]", "[*]")
+      .replaceAll("\\[file:[.\\-/a-zA-z0-9= ,_%]*]", "[*]")
       // for unexpected blank
       .replaceAll("Scan parquet ", "Scan parquet")
       .trim

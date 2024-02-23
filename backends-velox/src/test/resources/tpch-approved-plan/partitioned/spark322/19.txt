@@ -71,7 +71,7 @@ Input [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
 (9) Scan parquetdefault.part
 Output [4]: [p_partkey#X, p_size#X, p_container#X, p_brand#X]
 Batched: true
-Location: InMemoryFileIndex [file:/opt/gluten/backends-velox/spark-warehouse/io.glutenproject.execution.VeloxPartitionedTableTPCHSuite/part/p_brand=Brand%2334, ... 2 entries]
+Location: InMemoryFileIndex [*]
 PartitionFilters: [(((p_brand#X = Brand#X) OR (p_brand#X = Brand#X)) OR (p_brand#X = Brand#X))]
 PushedFilters: [IsNotNull(p_size), GreaterThanOrEqual(p_size,1), IsNotNull(p_partkey), Or(Or(And(In(p_container, [SM BOX,SM CASE,SM PACK,SM PKG]),LessThanOrEqual(p_size,5)),And(In(p_container, [MED BAG,MED BOX,MED PACK,MED PKG]),LessThanOrEqual(p_size,10))),And(In(p_container, [LG BOX,LG CASE,LG PACK,LG PKG]),LessThanOrEqual(p_size,15))), Or(Or(And(And(EqualTo(p_brand,Brand#X),In(p_container, [SM BOX,SM CASE,SM PACK,SM PKG])),LessThanOrEqual(p_size,5)),And(And(EqualTo(p_brand,Brand#X),In(p_container, [MED BAG,MED BOX,MED PACK,MED PKG])),LessThanOrEqual(p_size,10))),And(And(EqualTo(p_brand,Brand#X),In(p_container, [LG BOX,LG CASE,LG PACK,LG PKG])),LessThanOrEqual(p_size,15)))]
 ReadSchema: struct<p_partkey:bigint,p_size:int,p_container:string>
@@ -158,7 +158,7 @@ Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 (28) Scan parquetdefault.part
 Output [4]: [p_partkey#X, p_size#X, p_container#X, p_brand#X]
 Batched: true
-Location: InMemoryFileIndex [file:/opt/gluten/backends-velox/spark-warehouse/io.glutenproject.execution.VeloxPartitionedTableTPCHSuite/part/p_brand=Brand%2334, ... 2 entries]
+Location: InMemoryFileIndex [*]
 PartitionFilters: [(((p_brand#X = Brand#X) OR (p_brand#X = Brand#X)) OR (p_brand#X = Brand#X))]
 PushedFilters: [IsNotNull(p_size), GreaterThanOrEqual(p_size,1), IsNotNull(p_partkey), Or(Or(And(In(p_container, [SM BOX,SM CASE,SM PACK,SM PKG]),LessThanOrEqual(p_size,5)),And(In(p_container, [MED BAG,MED BOX,MED PACK,MED PKG]),LessThanOrEqual(p_size,10))),And(In(p_container, [LG BOX,LG CASE,LG PACK,LG PKG]),LessThanOrEqual(p_size,15)))]
 ReadSchema: struct<p_partkey:bigint,p_size:int,p_container:string>

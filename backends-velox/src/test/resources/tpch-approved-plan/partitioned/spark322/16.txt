@@ -1,65 +1,64 @@
 == Physical Plan ==
-AdaptiveSparkPlan (65)
+AdaptiveSparkPlan (64)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (43)
-   +- ^ SortExecTransformer (41)
-      +- ^ InputIteratorTransformer (40)
-         +- ^ InputAdapter (39)
-            +- ^ ShuffleQueryStage (38)
-               +- ColumnarExchange (37)
-                  +- ^ ProjectExecTransformer (35)
-                     +- ^ RegularHashAggregateExecTransformer (34)
-                        +- ^ InputIteratorTransformer (33)
-                           +- ^ InputAdapter (32)
-                              +- ^ ShuffleQueryStage (31)
-                                 +- ColumnarExchange (30)
-                                    +- ^ ProjectExecTransformer (28)
-                                       +- ^ FlushableHashAggregateExecTransformer (27)
-                                          +- ^ RegularHashAggregateExecTransformer (26)
-                                             +- ^ InputIteratorTransformer (25)
-                                                +- ^ InputAdapter (24)
-                                                   +- ^ ShuffleQueryStage (23)
-                                                      +- ColumnarExchange (22)
-                                                         +- ^ ProjectExecTransformer (20)
-                                                            +- ^ FlushableHashAggregateExecTransformer (19)
-                                                               +- ^ ProjectExecTransformer (18)
-                                                                  +- ^ ShuffledHashJoinExecTransformer Inner (17)
-                                                                     :- ^ InputIteratorTransformer (8)
-                                                                     :  +- ^ InputAdapter (7)
-                                                                     :     +- ^ ShuffleQueryStage (6)
-                                                                     :        +- ColumnarExchange (5)
-                                                                     :           +- ^ ProjectExecTransformer (3)
-                                                                     :              +- ^ FilterExecTransformer (2)
-                                                                     :                 +- ^ Scan parquetdefault.partsupp (1)
-                                                                     +- ^ InputIteratorTransformer (16)
-                                                                        +- ^ InputAdapter (15)
-                                                                           +- ^ ShuffleQueryStage (14)
-                                                                              +- ColumnarExchange (13)
-                                                                                 +- ^ ProjectExecTransformer (11)
-                                                                                    +- ^ FilterExecTransformer (10)
-                                                                                       +- ^ Scan parquetdefault.part (9)
+   VeloxColumnarToRowExec (42)
+   +- ^ SortExecTransformer (40)
+      +- ^ InputIteratorTransformer (39)
+         +- ^ InputAdapter (38)
+            +- ^ ShuffleQueryStage (37)
+               +- ColumnarExchange (36)
+                  +- ^ RegularHashAggregateExecTransformer (34)
+                     +- ^ InputIteratorTransformer (33)
+                        +- ^ InputAdapter (32)
+                           +- ^ ShuffleQueryStage (31)
+                              +- ColumnarExchange (30)
+                                 +- ^ ProjectExecTransformer (28)
+                                    +- ^ FlushableHashAggregateExecTransformer (27)
+                                       +- ^ RegularHashAggregateExecTransformer (26)
+                                          +- ^ InputIteratorTransformer (25)
+                                             +- ^ InputAdapter (24)
+                                                +- ^ ShuffleQueryStage (23)
+                                                   +- ColumnarExchange (22)
+                                                      +- ^ ProjectExecTransformer (20)
+                                                         +- ^ FlushableHashAggregateExecTransformer (19)
+                                                            +- ^ ProjectExecTransformer (18)
+                                                               +- ^ ShuffledHashJoinExecTransformer Inner (17)
+                                                                  :- ^ InputIteratorTransformer (8)
+                                                                  :  +- ^ InputAdapter (7)
+                                                                  :     +- ^ ShuffleQueryStage (6)
+                                                                  :        +- ColumnarExchange (5)
+                                                                  :           +- ^ ProjectExecTransformer (3)
+                                                                  :              +- ^ FilterExecTransformer (2)
+                                                                  :                 +- ^ Scan parquetdefault.partsupp (1)
+                                                                  +- ^ InputIteratorTransformer (16)
+                                                                     +- ^ InputAdapter (15)
+                                                                        +- ^ ShuffleQueryStage (14)
+                                                                           +- ColumnarExchange (13)
+                                                                              +- ^ ProjectExecTransformer (11)
+                                                                                 +- ^ FilterExecTransformer (10)
+                                                                                    +- ^ Scan parquetdefault.part (9)
 +- == Initial Plan ==
-   Sort (64)
-   +- Exchange (63)
-      +- HashAggregate (62)
-         +- Exchange (61)
-            +- HashAggregate (60)
-               +- HashAggregate (59)
-                  +- Exchange (58)
-                     +- HashAggregate (57)
-                        +- Project (56)
-                           +- ShuffledHashJoin Inner BuildRight (55)
-                              :- Exchange (51)
-                              :  +- BroadcastHashJoin LeftAnti BuildRight (50)
-                              :     :- Filter (45)
-                              :     :  +- Scan parquetdefault.partsupp (44)
-                              :     +- BroadcastExchange (49)
-                              :        +- Project (48)
-                              :           +- Filter (47)
-                              :              +- Scan parquetdefault.supplier (46)
-                              +- Exchange (54)
-                                 +- Filter (53)
-                                    +- Scan parquetdefault.part (52)
+   Sort (63)
+   +- Exchange (62)
+      +- HashAggregate (61)
+         +- Exchange (60)
+            +- HashAggregate (59)
+               +- HashAggregate (58)
+                  +- Exchange (57)
+                     +- HashAggregate (56)
+                        +- Project (55)
+                           +- ShuffledHashJoin Inner BuildRight (54)
+                              :- Exchange (50)
+                              :  +- BroadcastHashJoin LeftAnti BuildRight (49)
+                              :     :- Filter (44)
+                              :     :  +- Scan parquetdefault.partsupp (43)
+                              :     +- BroadcastExchange (48)
+                              :        +- Project (47)
+                              :           +- Filter (46)
+                              :              +- Scan parquetdefault.supplier (45)
+                              +- Exchange (53)
+                                 +- Filter (52)
+                                    +- Scan parquetdefault.part (51)
 
 
 (1) Scan parquetdefault.partsupp
@@ -98,7 +97,7 @@ Input [2]: [ps_partkey#X, ps_suppkey#X]
 (9) Scan parquetdefault.part
 Output [4]: [p_partkey#X, p_type#X, p_size#X, p_brand#X]
 Batched: true
-Location: InMemoryFileIndex [file:/opt/gluten/backends-velox/spark-warehouse/io.glutenproject.execution.VeloxPartitionedTableTPCHSuite/part/p_brand=Brand%2335, ... 23 entries]
+Location: InMemoryFileIndex [*]
 PartitionFilters: [isnotnull(p_brand#X), NOT (p_brand#X = Brand#X)]
 PushedFilters: [IsNotNull(p_type), Not(StringStartsWith(p_type,MEDIUM POLISHED)), In(p_size, [14,19,23,3,36,45,49,9]), IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_type:string,p_size:int>
@@ -208,149 +207,145 @@ Input [4]: [p_brand#X, p_type#X, p_size#X, count#X]
 Keys [3]: [p_brand#X, p_type#X, p_size#X]
 Functions [1]: [count(distinct ps_suppkey#X)]
 Aggregate Attributes [1]: [count(ps_suppkey#X)#X]
-Results [4]: [p_brand#X, p_type#X, p_size#X, count(ps_suppkey#X)#X]
+Results [4]: [p_brand#X, p_type#X, p_size#X, count(ps_suppkey#X)#X AS supplier_cnt#X]
 
-(35) ProjectExecTransformer
-Output [4]: [p_brand#X, p_type#X, p_size#X, count(ps_suppkey#X)#X AS supplier_cnt#X]
-Input [4]: [p_brand#X, p_type#X, p_size#X, count(ps_suppkey#X)#X]
-
-(36) WholeStageCodegenTransformer (X)
+(35) WholeStageCodegenTransformer (X)
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 Arguments: false
 
-(37) ColumnarExchange
+(36) ColumnarExchange
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 Arguments: rangepartitioning(supplier_cnt#X DESC NULLS LAST, p_brand#X ASC NULLS FIRST, p_type#X ASC NULLS FIRST, p_size#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
-(38) ShuffleQueryStage
+(37) ShuffleQueryStage
 Output [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 Arguments: 5
 
-(39) InputAdapter
+(38) InputAdapter
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 
-(40) InputIteratorTransformer
+(39) InputIteratorTransformer
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 
-(41) SortExecTransformer
+(40) SortExecTransformer
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 Arguments: [supplier_cnt#X DESC NULLS LAST, p_brand#X ASC NULLS FIRST, p_type#X ASC NULLS FIRST, p_size#X ASC NULLS FIRST], true, 0
 
-(42) WholeStageCodegenTransformer (X)
+(41) WholeStageCodegenTransformer (X)
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 Arguments: false
 
-(43) VeloxColumnarToRowExec
+(42) VeloxColumnarToRowExec
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 
-(44) Scan parquetdefault.partsupp
+(43) Scan parquetdefault.partsupp
 Output [2]: [ps_partkey#X, ps_suppkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(ps_partkey)]
 ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint>
 
-(45) Filter
+(44) Filter
 Input [2]: [ps_partkey#X, ps_suppkey#X]
 Condition : isnotnull(ps_partkey#X)
 
-(46) Scan parquetdefault.supplier
+(45) Scan parquetdefault.supplier
 Output [2]: [s_suppkey#X, s_comment#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(s_comment)]
 ReadSchema: struct<s_suppkey:bigint,s_comment:string>
 
-(47) Filter
+(46) Filter
 Input [2]: [s_suppkey#X, s_comment#X]
 Condition : (isnotnull(s_comment#X) AND s_comment#X LIKE %Customer%Complaints%)
 
-(48) Project
+(47) Project
 Output [1]: [s_suppkey#X]
 Input [2]: [s_suppkey#X, s_comment#X]
 
-(49) BroadcastExchange
+(48) BroadcastExchange
 Input [1]: [s_suppkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),true), [plan_id=X]
 
-(50) BroadcastHashJoin
+(49) BroadcastHashJoin
 Left keys [1]: [ps_suppkey#X]
 Right keys [1]: [s_suppkey#X]
 Join condition: None
 
-(51) Exchange
+(50) Exchange
 Input [2]: [ps_partkey#X, ps_suppkey#X]
 Arguments: hashpartitioning(ps_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(52) Scan parquetdefault.part
+(51) Scan parquetdefault.part
 Output [4]: [p_partkey#X, p_type#X, p_size#X, p_brand#X]
 Batched: true
-Location: InMemoryFileIndex [file:/opt/gluten/backends-velox/spark-warehouse/io.glutenproject.execution.VeloxPartitionedTableTPCHSuite/part/p_brand=Brand%2335, ... 23 entries]
+Location: InMemoryFileIndex [*]
 PartitionFilters: [isnotnull(p_brand#X), NOT (p_brand#X = Brand#X)]
 PushedFilters: [IsNotNull(p_type), Not(StringStartsWith(p_type,MEDIUM POLISHED)), In(p_size, [14,19,23,3,36,45,49,9]), IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_type:string,p_size:int>
 
-(53) Filter
+(52) Filter
 Input [4]: [p_partkey#X, p_type#X, p_size#X, p_brand#X]
 Condition : (((isnotnull(p_type#X) AND NOT StartsWith(p_type#X, MEDIUM POLISHED)) AND p_size#X IN (49,14,23,45,19,3,36,9)) AND isnotnull(p_partkey#X))
 
-(54) Exchange
+(53) Exchange
 Input [4]: [p_partkey#X, p_type#X, p_size#X, p_brand#X]
 Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(55) ShuffledHashJoin
+(54) ShuffledHashJoin
 Left keys [1]: [ps_partkey#X]
 Right keys [1]: [p_partkey#X]
 Join condition: None
 
-(56) Project
+(55) Project
 Output [4]: [ps_suppkey#X, p_type#X, p_size#X, p_brand#X]
 Input [6]: [ps_partkey#X, ps_suppkey#X, p_partkey#X, p_type#X, p_size#X, p_brand#X]
 
-(57) HashAggregate
+(56) HashAggregate
 Input [4]: [ps_suppkey#X, p_type#X, p_size#X, p_brand#X]
 Keys [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 Functions: []
 Aggregate Attributes: []
 Results [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 
-(58) Exchange
+(57) Exchange
 Input [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 Arguments: hashpartitioning(p_brand#X, p_type#X, p_size#X, ps_suppkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(59) HashAggregate
+(58) HashAggregate
 Input [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 Keys [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 Functions: []
 Aggregate Attributes: []
 Results [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 
-(60) HashAggregate
+(59) HashAggregate
 Input [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 Keys [3]: [p_brand#X, p_type#X, p_size#X]
 Functions [1]: [partial_count(distinct ps_suppkey#X)]
 Aggregate Attributes [1]: [count(ps_suppkey#X)#X]
 Results [4]: [p_brand#X, p_type#X, p_size#X, count#X]
 
-(61) Exchange
+(60) Exchange
 Input [4]: [p_brand#X, p_type#X, p_size#X, count#X]
 Arguments: hashpartitioning(p_brand#X, p_type#X, p_size#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(62) HashAggregate
+(61) HashAggregate
 Input [4]: [p_brand#X, p_type#X, p_size#X, count#X]
 Keys [3]: [p_brand#X, p_type#X, p_size#X]
 Functions [1]: [count(distinct ps_suppkey#X)]
 Aggregate Attributes [1]: [count(ps_suppkey#X)#X]
 Results [4]: [p_brand#X, p_type#X, p_size#X, count(ps_suppkey#X)#X AS supplier_cnt#X]
 
-(63) Exchange
+(62) Exchange
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 Arguments: rangepartitioning(supplier_cnt#X DESC NULLS LAST, p_brand#X ASC NULLS FIRST, p_type#X ASC NULLS FIRST, p_size#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(64) Sort
+(63) Sort
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 Arguments: [supplier_cnt#X DESC NULLS LAST, p_brand#X ASC NULLS FIRST, p_type#X ASC NULLS FIRST, p_size#X ASC NULLS FIRST], true, 0
 
-(65) AdaptiveSparkPlan
+(64) AdaptiveSparkPlan
 Output [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 Arguments: isFinalPlan=true
