@@ -25,7 +25,8 @@ import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.{SparkListenerStageCompleted, SparkListenerStageSubmitted, SparkListenerTaskEnd}
 import org.apache.spark.sql.execution.datasources.FilePartition
-import org.apache.spark.sql.execution.ui._
+
+import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -58,22 +59,20 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
   lazy val maxDuplicateReadingRecords =
     GlutenConfig.GLUTEN_SOFT_AFFINITY_MAX_DUPLICATE_READING_RECORDS_DEFAULT_VALUE
 
-  val totalDuplicateReadingRecords = new AtomicInteger(0)
-  val totalSoftAffinitySetRecords = new AtomicInteger(0)
-  val totalSoftAffinityMissRecords = new AtomicInteger(0)
-  val totalSoftAffinityEffiencyRecords = new AtomicInteger(0)
-
-  val querySoftAffinityDetectInfo = new ConcurrentHashMap[Long, Int]()
-  val querySoftAffinityDetectMissInfo = new ConcurrentHashMap[Long, Int]()
-  val querySoftAffinityDetectResultInfo = new ConcurrentHashMap[Long, Int]()
-
   // rdd id -> patition id, file path, start, length
   val rddPartitionInfoMap = new ConcurrentHashMap[Int, Array[(Int, String, Long, Long)]]()
   // stage id -> execution id + rdd ids: job start / execution end
   val stageInfoMap = new ConcurrentHashMap[Int, Array[Int]]()
   // final result: partition composed key("path1_start_length,path2_start_length") --> array_host
-  val duplicateReadingInfos =
-    new ConcurrentHashMap[String, Array[(String, String)]]()
+  val duplicateReadingInfos: LoadingCache[String, Array[(String, String)]] =
+    CacheBuilder
+      .newBuilder()
+      .maximumSize(maxDuplicateReadingRecords)
+      .build(new CacheLoader[String, Array[(String, String)]] {
+        override def load(name: String): Array[(String, String)] = {
+          Array.empty[(String, String)]
+        }
+      })
 
   private val rand = new Random(System.currentTimeMillis)
 
@@ -148,10 +147,7 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
   }
 
   def updateStageMap(event: SparkListenerStageSubmitted): Unit = {
-    if (
-      !detectDuplicateReading ||
-      totalDuplicateReadingRecords.get > maxDuplicateReadingRecords
-    ) {
+    if (!detectDuplicateReading) {
       return
     }
     val info = event.stageInfo
@@ -160,10 +156,7 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
   }
 
   def updateHostMap(event: SparkListenerTaskEnd): Unit = {
-    if (
-      !detectDuplicateReading ||
-      totalDuplicateReadingRecords.get > maxDuplicateReadingRecords
-    ) {
+    if (!detectDuplicateReading) {
       return
     }
     event.reason match {
@@ -175,65 +168,25 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
             rddId =>
               val partitions = rddPartitionInfoMap.get(rddId)
               if (partitions != null) {
-                var rddIsScheculedtoPreferLocation = true
-                var partitionDeteted = false
                 val key = partitions
                   .filter(p => p._1 == SparkShimLoader.getSparkShims.getPratitionId(event.taskInfo))
                   .map(pInfo => s"${pInfo._2}_${pInfo._3}_${pInfo._4}")
                   .sortBy(p => p)
                   .mkString(",")
                 val value = Array(((event.taskInfo.executorId, event.taskInfo.host)))
-                val values = if (duplicateReadingInfos.containsKey(key)) {
-                  val originalValues = duplicateReadingInfos.get(key)
-                  if (originalValues.contains(value(0))) {
-                    originalValues
-                  } else {
-                    rddIsScheculedtoPreferLocation = false
-                    (originalValues ++ value)
-                  }
+                val originalValues = duplicateReadingInfos.get(key)
+                val values = if (originalValues.contains(value(0))) {
+                  originalValues
                 } else {
-                  rddIsScheculedtoPreferLocation = false
-                  totalDuplicateReadingRecords.addAndGet(1)
-                  value
+                  (originalValues ++ value)
                 }
-                partitionDeteted = true
                 logOnLevel(logLevel, s"update host for $key: ${values.mkString(",")}")
                 duplicateReadingInfos.put(key, values)
-
-                if (rddIsScheculedtoPreferLocation && partitionDeteted) {
-                  totalSoftAffinityEffiencyRecords.addAndGet(1)
-                }
               }
           }
         }
       case _ =>
     }
-  }
-
-  def onExecutionStart(event: SparkListenerSQLExecutionStart): Unit = {
-    querySoftAffinityDetectInfo.put(event.executionId, totalSoftAffinitySetRecords.get)
-    querySoftAffinityDetectMissInfo.put(event.executionId, totalSoftAffinityMissRecords.get)
-    querySoftAffinityDetectResultInfo.put(event.executionId, totalSoftAffinityEffiencyRecords.get)
-  }
-
-  def onExecutionEnd(event: SparkListenerSQLExecutionEnd): Unit = {
-    val countPreferLocationSet = Option(querySoftAffinityDetectInfo.remove(event.executionId))
-      .map(totalSoftAffinitySetRecords.get - _)
-      .getOrElse(0)
-    val countPreferLocationMiss = Option(querySoftAffinityDetectMissInfo.remove(event.executionId))
-      .map(totalSoftAffinityMissRecords.get - _)
-      .getOrElse(0)
-    val countPreferLocationUsed =
-      Option(querySoftAffinityDetectResultInfo.remove(event.executionId))
-        .map(totalSoftAffinityEffiencyRecords.get - _)
-        .getOrElse(0)
-    logOnLevel(
-      logLevel,
-      s"For query ${event.executionId}, soft affinity manager sets preferred location for " +
-        s"$countPreferLocationSet data reading tasks, $countPreferLocationMiss tasks are " +
-        s"missed. Spark scheduler schedules $countPreferLocationUsed tasks to " +
-        s"the preferred location."
-    )
   }
 
   def cleanMiddleStatusMap(event: SparkListenerStageCompleted): Unit = {
@@ -302,22 +255,19 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
       .sortBy(p => p)
       .mkString(",")
     val host = duplicateReadingInfos.get(key)
-    if (host != null) {
+    if (!host.isEmpty) {
       hosts ++= host
     }
 
     if (!hosts.isEmpty) {
       rand.shuffle(hosts)
       logOnLevel(logLevel, s"get host for $f: ${hosts.distinct.mkString(",")}")
-      totalSoftAffinitySetRecords.addAndGet(1)
-    } else {
-      totalSoftAffinityMissRecords.addAndGet(1)
     }
     hosts.distinct
   }
 
   def updatePartitionMap(f: FilePartition, rddId: Int): Unit = {
-    if (!detectDuplicateReading || totalDuplicateReadingRecords.get > maxDuplicateReadingRecords) {
+    if (!detectDuplicateReading) {
       return
     }
 
