@@ -1,115 +1,114 @@
 == Physical Plan ==
-AdaptiveSparkPlan (120)
+AdaptiveSparkPlan (119)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (83)
-   +- TakeOrderedAndProjectExecTransformer (82)
-      +- ^ ProjectExecTransformer (80)
-         +- ^ RegularHashAggregateExecTransformer (79)
-            +- ^ InputIteratorTransformer (78)
-               +- ^ InputAdapter (77)
-                  +- ^ ShuffleQueryStage (76)
-                     +- ColumnarExchange (75)
-                        +- ^ ProjectExecTransformer (73)
-                           +- ^ FlushableHashAggregateExecTransformer (72)
-                              +- ^ ProjectExecTransformer (71)
-                                 +- ^ ShuffledHashJoinExecTransformer Inner (70)
-                                    :- ^ InputIteratorTransformer (61)
-                                    :  +- ^ InputAdapter (60)
-                                    :     +- ^ ShuffleQueryStage (59)
-                                    :        +- ColumnarExchange (58)
-                                    :           +- ^ ProjectExecTransformer (56)
-                                    :              +- ^ ShuffledHashJoinExecTransformer Inner (55)
-                                    :                 :- ^ InputIteratorTransformer (46)
-                                    :                 :  +- ^ InputAdapter (45)
-                                    :                 :     +- ^ ShuffleQueryStage (44)
-                                    :                 :        +- ColumnarExchange (43)
-                                    :                 :           +- ^ ProjectExecTransformer (41)
-                                    :                 :              +- ^ ShuffledHashJoinExecTransformer Inner (40)
-                                    :                 :                 :- ^ InputIteratorTransformer (8)
-                                    :                 :                 :  +- ^ InputAdapter (7)
-                                    :                 :                 :     +- ^ ShuffleQueryStage (6)
-                                    :                 :                 :        +- ColumnarExchange (5)
-                                    :                 :                 :           +- ^ ProjectExecTransformer (3)
-                                    :                 :                 :              +- ^ FilterExecTransformer (2)
-                                    :                 :                 :                 +- ^ Scan parquet (1)
-                                    :                 :                 +- ^ InputIteratorTransformer (39)
-                                    :                 :                    +- ^ InputAdapter (38)
-                                    :                 :                       +- ^ ShuffleQueryStage (37)
-                                    :                 :                          +- ColumnarExchange (36)
-                                    :                 :                             +- ^ ProjectExecTransformer (34)
-                                    :                 :                                +- ^ ShuffledHashJoinExecTransformer LeftAnti (33)
-                                    :                 :                                   :- ^ ShuffledHashJoinExecTransformer LeftSemi (24)
-                                    :                 :                                   :  :- ^ InputIteratorTransformer (16)
-                                    :                 :                                   :  :  +- ^ InputAdapter (15)
-                                    :                 :                                   :  :     +- ^ ShuffleQueryStage (14)
-                                    :                 :                                   :  :        +- ColumnarExchange (13)
-                                    :                 :                                   :  :           +- ^ ProjectExecTransformer (11)
-                                    :                 :                                   :  :              +- ^ FilterExecTransformer (10)
-                                    :                 :                                   :  :                 +- ^ Scan parquet (9)
-                                    :                 :                                   :  +- ^ InputIteratorTransformer (23)
-                                    :                 :                                   :     +- ^ InputAdapter (22)
-                                    :                 :                                   :        +- ^ ShuffleQueryStage (21)
-                                    :                 :                                   :           +- ColumnarExchange (20)
-                                    :                 :                                   :              +- ^ ProjectExecTransformer (18)
-                                    :                 :                                   :                 +- ^ Scan parquet (17)
-                                    :                 :                                   +- ^ InputIteratorTransformer (32)
-                                    :                 :                                      +- ^ InputAdapter (31)
-                                    :                 :                                         +- ^ ShuffleQueryStage (30)
-                                    :                 :                                            +- ColumnarExchange (29)
-                                    :                 :                                               +- ^ ProjectExecTransformer (27)
-                                    :                 :                                                  +- ^ FilterExecTransformer (26)
-                                    :                 :                                                     +- ^ Scan parquet (25)
-                                    :                 +- ^ InputIteratorTransformer (54)
-                                    :                    +- ^ InputAdapter (53)
-                                    :                       +- ^ ShuffleQueryStage (52)
-                                    :                          +- ColumnarExchange (51)
-                                    :                             +- ^ ProjectExecTransformer (49)
-                                    :                                +- ^ FilterExecTransformer (48)
-                                    :                                   +- ^ Scan parquet (47)
-                                    +- ^ InputIteratorTransformer (69)
-                                       +- ^ InputAdapter (68)
-                                          +- ^ ShuffleQueryStage (67)
-                                             +- ColumnarExchange (66)
-                                                +- ^ ProjectExecTransformer (64)
-                                                   +- ^ FilterExecTransformer (63)
-                                                      +- ^ Scan parquet (62)
+   VeloxColumnarToRowExec (82)
+   +- TakeOrderedAndProjectExecTransformer (81)
+      +- ^ RegularHashAggregateExecTransformer (79)
+         +- ^ InputIteratorTransformer (78)
+            +- ^ InputAdapter (77)
+               +- ^ ShuffleQueryStage (76)
+                  +- ColumnarExchange (75)
+                     +- ^ ProjectExecTransformer (73)
+                        +- ^ FlushableHashAggregateExecTransformer (72)
+                           +- ^ ProjectExecTransformer (71)
+                              +- ^ ShuffledHashJoinExecTransformer Inner (70)
+                                 :- ^ InputIteratorTransformer (61)
+                                 :  +- ^ InputAdapter (60)
+                                 :     +- ^ ShuffleQueryStage (59)
+                                 :        +- ColumnarExchange (58)
+                                 :           +- ^ ProjectExecTransformer (56)
+                                 :              +- ^ ShuffledHashJoinExecTransformer Inner (55)
+                                 :                 :- ^ InputIteratorTransformer (46)
+                                 :                 :  +- ^ InputAdapter (45)
+                                 :                 :     +- ^ ShuffleQueryStage (44)
+                                 :                 :        +- ColumnarExchange (43)
+                                 :                 :           +- ^ ProjectExecTransformer (41)
+                                 :                 :              +- ^ ShuffledHashJoinExecTransformer Inner (40)
+                                 :                 :                 :- ^ InputIteratorTransformer (8)
+                                 :                 :                 :  +- ^ InputAdapter (7)
+                                 :                 :                 :     +- ^ ShuffleQueryStage (6)
+                                 :                 :                 :        +- ColumnarExchange (5)
+                                 :                 :                 :           +- ^ ProjectExecTransformer (3)
+                                 :                 :                 :              +- ^ FilterExecTransformer (2)
+                                 :                 :                 :                 +- ^ Scan parquet (1)
+                                 :                 :                 +- ^ InputIteratorTransformer (39)
+                                 :                 :                    +- ^ InputAdapter (38)
+                                 :                 :                       +- ^ ShuffleQueryStage (37)
+                                 :                 :                          +- ColumnarExchange (36)
+                                 :                 :                             +- ^ ProjectExecTransformer (34)
+                                 :                 :                                +- ^ ShuffledHashJoinExecTransformer LeftAnti (33)
+                                 :                 :                                   :- ^ ShuffledHashJoinExecTransformer LeftSemi (24)
+                                 :                 :                                   :  :- ^ InputIteratorTransformer (16)
+                                 :                 :                                   :  :  +- ^ InputAdapter (15)
+                                 :                 :                                   :  :     +- ^ ShuffleQueryStage (14)
+                                 :                 :                                   :  :        +- ColumnarExchange (13)
+                                 :                 :                                   :  :           +- ^ ProjectExecTransformer (11)
+                                 :                 :                                   :  :              +- ^ FilterExecTransformer (10)
+                                 :                 :                                   :  :                 +- ^ Scan parquet (9)
+                                 :                 :                                   :  +- ^ InputIteratorTransformer (23)
+                                 :                 :                                   :     +- ^ InputAdapter (22)
+                                 :                 :                                   :        +- ^ ShuffleQueryStage (21)
+                                 :                 :                                   :           +- ColumnarExchange (20)
+                                 :                 :                                   :              +- ^ ProjectExecTransformer (18)
+                                 :                 :                                   :                 +- ^ Scan parquet (17)
+                                 :                 :                                   +- ^ InputIteratorTransformer (32)
+                                 :                 :                                      +- ^ InputAdapter (31)
+                                 :                 :                                         +- ^ ShuffleQueryStage (30)
+                                 :                 :                                            +- ColumnarExchange (29)
+                                 :                 :                                               +- ^ ProjectExecTransformer (27)
+                                 :                 :                                                  +- ^ FilterExecTransformer (26)
+                                 :                 :                                                     +- ^ Scan parquet (25)
+                                 :                 +- ^ InputIteratorTransformer (54)
+                                 :                    +- ^ InputAdapter (53)
+                                 :                       +- ^ ShuffleQueryStage (52)
+                                 :                          +- ColumnarExchange (51)
+                                 :                             +- ^ ProjectExecTransformer (49)
+                                 :                                +- ^ FilterExecTransformer (48)
+                                 :                                   +- ^ Scan parquet (47)
+                                 +- ^ InputIteratorTransformer (69)
+                                    +- ^ InputAdapter (68)
+                                       +- ^ ShuffleQueryStage (67)
+                                          +- ColumnarExchange (66)
+                                             +- ^ ProjectExecTransformer (64)
+                                                +- ^ FilterExecTransformer (63)
+                                                   +- ^ Scan parquet (62)
 +- == Initial Plan ==
-   TakeOrderedAndProject (119)
-   +- HashAggregate (118)
-      +- Exchange (117)
-         +- HashAggregate (116)
-            +- Project (115)
-               +- ShuffledHashJoin Inner BuildRight (114)
-                  :- Exchange (109)
-                  :  +- Project (108)
-                  :     +- ShuffledHashJoin Inner BuildRight (107)
-                  :        :- Exchange (102)
-                  :        :  +- Project (101)
-                  :        :     +- ShuffledHashJoin Inner BuildLeft (100)
-                  :        :        :- Exchange (86)
-                  :        :        :  +- Filter (85)
-                  :        :        :     +- Scan parquet (84)
-                  :        :        +- Exchange (99)
-                  :        :           +- ShuffledHashJoin LeftAnti BuildRight (98)
-                  :        :              :- ShuffledHashJoin LeftSemi BuildRight (93)
-                  :        :              :  :- Exchange (90)
-                  :        :              :  :  +- Project (89)
-                  :        :              :  :     +- Filter (88)
-                  :        :              :  :        +- Scan parquet (87)
-                  :        :              :  +- Exchange (92)
-                  :        :              :     +- Scan parquet (91)
-                  :        :              +- Exchange (97)
-                  :        :                 +- Project (96)
-                  :        :                    +- Filter (95)
-                  :        :                       +- Scan parquet (94)
-                  :        +- Exchange (106)
-                  :           +- Project (105)
-                  :              +- Filter (104)
-                  :                 +- Scan parquet (103)
-                  +- Exchange (113)
-                     +- Project (112)
-                        +- Filter (111)
-                           +- Scan parquet (110)
+   TakeOrderedAndProject (118)
+   +- HashAggregate (117)
+      +- Exchange (116)
+         +- HashAggregate (115)
+            +- Project (114)
+               +- ShuffledHashJoin Inner BuildRight (113)
+                  :- Exchange (108)
+                  :  +- Project (107)
+                  :     +- ShuffledHashJoin Inner BuildRight (106)
+                  :        :- Exchange (101)
+                  :        :  +- Project (100)
+                  :        :     +- ShuffledHashJoin Inner BuildLeft (99)
+                  :        :        :- Exchange (85)
+                  :        :        :  +- Filter (84)
+                  :        :        :     +- Scan parquet (83)
+                  :        :        +- Exchange (98)
+                  :        :           +- ShuffledHashJoin LeftAnti BuildRight (97)
+                  :        :              :- ShuffledHashJoin LeftSemi BuildRight (92)
+                  :        :              :  :- Exchange (89)
+                  :        :              :  :  +- Project (88)
+                  :        :              :  :     +- Filter (87)
+                  :        :              :  :        +- Scan parquet (86)
+                  :        :              :  +- Exchange (91)
+                  :        :              :     +- Scan parquet (90)
+                  :        :              +- Exchange (96)
+                  :        :                 +- Project (95)
+                  :        :                    +- Filter (94)
+                  :        :                       +- Scan parquet (93)
+                  :        +- Exchange (105)
+                  :           +- Project (104)
+                  :              +- Filter (103)
+                  :                 +- Scan parquet (102)
+                  +- Exchange (112)
+                     +- Project (111)
+                        +- Filter (110)
+                           +- Scan parquet (109)
 
 
 (1) Scan parquet
@@ -434,195 +433,191 @@ Input [2]: [s_name#X, count#X]
 Keys [1]: [s_name#X]
 Functions [1]: [count(1)]
 Aggregate Attributes [1]: [count(1)#X]
-Results [2]: [s_name#X, count(1)#X]
+Results [2]: [s_name#X, count(1)#X AS numwait#X]
 
-(80) ProjectExecTransformer
-Output [2]: [s_name#X, count(1)#X AS numwait#X]
-Input [2]: [s_name#X, count(1)#X]
-
-(81) WholeStageCodegenTransformer (X)
+(80) WholeStageCodegenTransformer (X)
 Input [2]: [s_name#X, numwait#X]
 Arguments: false
 
-(82) TakeOrderedAndProjectExecTransformer
+(81) TakeOrderedAndProjectExecTransformer
 Input [2]: [s_name#X, numwait#X]
 Arguments: 100, [numwait#X DESC NULLS LAST, s_name#X ASC NULLS FIRST], [s_name#X, numwait#X], 0
 
-(83) VeloxColumnarToRowExec
+(82) VeloxColumnarToRowExec
 Input [2]: [s_name#X, numwait#X]
 
-(84) Scan parquet
+(83) Scan parquet
 Output [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
 ReadSchema: struct<s_suppkey:bigint,s_name:string,s_nationkey:bigint>
 
-(85) Filter
+(84) Filter
 Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
 Condition : (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
 
-(86) Exchange
+(85) Exchange
 Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
 Arguments: hashpartitioning(s_suppkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(87) Scan parquet
+(86) Scan parquet
 Output [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_receiptdate), IsNotNull(l_commitdate), IsNotNull(l_suppkey), IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint,l_commitdate:date,l_receiptdate:date>
 
-(88) Filter
+(87) Filter
 Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 Condition : ((((isnotnull(l_receiptdate#X) AND isnotnull(l_commitdate#X)) AND (l_receiptdate#X > l_commitdate#X)) AND isnotnull(l_suppkey#X)) AND isnotnull(l_orderkey#X))
 
-(89) Project
+(88) Project
 Output [2]: [l_orderkey#X, l_suppkey#X]
 Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 
-(90) Exchange
+(89) Exchange
 Input [2]: [l_orderkey#X, l_suppkey#X]
 Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(91) Scan parquet
+(90) Scan parquet
 Output [2]: [l_orderkey#X, l_suppkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint>
 
-(92) Exchange
+(91) Exchange
 Input [2]: [l_orderkey#X, l_suppkey#X]
 Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(93) ShuffledHashJoin
+(92) ShuffledHashJoin
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [l_orderkey#X]
 Join condition: NOT (l_suppkey#X = l_suppkey#X)
 
-(94) Scan parquet
+(93) Scan parquet
 Output [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_receiptdate), IsNotNull(l_commitdate)]
 ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint,l_commitdate:date,l_receiptdate:date>
 
-(95) Filter
+(94) Filter
 Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 Condition : ((isnotnull(l_receiptdate#X) AND isnotnull(l_commitdate#X)) AND (l_receiptdate#X > l_commitdate#X))
 
-(96) Project
+(95) Project
 Output [2]: [l_orderkey#X, l_suppkey#X]
 Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
 
-(97) Exchange
+(96) Exchange
 Input [2]: [l_orderkey#X, l_suppkey#X]
 Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(98) ShuffledHashJoin
+(97) ShuffledHashJoin
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [l_orderkey#X]
 Join condition: NOT (l_suppkey#X = l_suppkey#X)
 
-(99) Exchange
+(98) Exchange
 Input [2]: [l_orderkey#X, l_suppkey#X]
 Arguments: hashpartitioning(l_suppkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(100) ShuffledHashJoin
+(99) ShuffledHashJoin
 Left keys [1]: [s_suppkey#X]
 Right keys [1]: [l_suppkey#X]
 Join condition: None
 
-(101) Project
+(100) Project
 Output [3]: [s_name#X, s_nationkey#X, l_orderkey#X]
 Input [5]: [s_suppkey#X, s_name#X, s_nationkey#X, l_orderkey#X, l_suppkey#X]
 
-(102) Exchange
+(101) Exchange
 Input [3]: [s_name#X, s_nationkey#X, l_orderkey#X]
 Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(103) Scan parquet
+(102) Scan parquet
 Output [2]: [o_orderkey#X, o_orderstatus#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(o_orderstatus), EqualTo(o_orderstatus,F), IsNotNull(o_orderkey)]
 ReadSchema: struct<o_orderkey:bigint,o_orderstatus:string>
 
-(104) Filter
+(103) Filter
 Input [2]: [o_orderkey#X, o_orderstatus#X]
 Condition : ((isnotnull(o_orderstatus#X) AND (o_orderstatus#X = F)) AND isnotnull(o_orderkey#X))
 
-(105) Project
+(104) Project
 Output [1]: [o_orderkey#X]
 Input [2]: [o_orderkey#X, o_orderstatus#X]
 
-(106) Exchange
+(105) Exchange
 Input [1]: [o_orderkey#X]
 Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(107) ShuffledHashJoin
+(106) ShuffledHashJoin
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [o_orderkey#X]
 Join condition: None
 
-(108) Project
+(107) Project
 Output [2]: [s_name#X, s_nationkey#X]
 Input [4]: [s_name#X, s_nationkey#X, l_orderkey#X, o_orderkey#X]
 
-(109) Exchange
+(108) Exchange
 Input [2]: [s_name#X, s_nationkey#X]
 Arguments: hashpartitioning(s_nationkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(110) Scan parquet
+(109) Scan parquet
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(n_name), EqualTo(n_name,SAUDI ARABIA), IsNotNull(n_nationkey)]
 ReadSchema: struct<n_nationkey:bigint,n_name:string>
 
-(111) Filter
+(110) Filter
 Input [2]: [n_nationkey#X, n_name#X]
 Condition : ((isnotnull(n_name#X) AND (n_name#X = SAUDI ARABIA)) AND isnotnull(n_nationkey#X))
 
-(112) Project
+(111) Project
 Output [1]: [n_nationkey#X]
 Input [2]: [n_nationkey#X, n_name#X]
 
-(113) Exchange
+(112) Exchange
 Input [1]: [n_nationkey#X]
 Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(114) ShuffledHashJoin
+(113) ShuffledHashJoin
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
 Join condition: None
 
-(115) Project
+(114) Project
 Output [1]: [s_name#X]
 Input [3]: [s_name#X, s_nationkey#X, n_nationkey#X]
 
-(116) HashAggregate
+(115) HashAggregate
 Input [1]: [s_name#X]
 Keys [1]: [s_name#X]
 Functions [1]: [partial_count(1)]
 Aggregate Attributes [1]: [count#X]
 Results [2]: [s_name#X, count#X]
 
-(117) Exchange
+(116) Exchange
 Input [2]: [s_name#X, count#X]
 Arguments: hashpartitioning(s_name#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(118) HashAggregate
+(117) HashAggregate
 Input [2]: [s_name#X, count#X]
 Keys [1]: [s_name#X]
 Functions [1]: [count(1)]
 Aggregate Attributes [1]: [count(1)#X]
 Results [2]: [s_name#X, count(1)#X AS numwait#X]
 
-(119) TakeOrderedAndProject
+(118) TakeOrderedAndProject
 Input [2]: [s_name#X, numwait#X]
 Arguments: 100, [numwait#X DESC NULLS LAST, s_name#X ASC NULLS FIRST], [s_name#X, numwait#X]
 
-(120) AdaptiveSparkPlan
+(119) AdaptiveSparkPlan
 Output [2]: [s_name#X, numwait#X]
 Arguments: isFinalPlan=true

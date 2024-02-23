@@ -1,32 +1,31 @@
 == Physical Plan ==
-AdaptiveSparkPlan (28)
+AdaptiveSparkPlan (27)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (17)
-   +- ^ SortExecTransformer (15)
-      +- ^ ProjectExecTransformer (14)
-         +- ^ RegularHashAggregateExecTransformer (13)
-            +- ^ RegularHashAggregateExecTransformer (12)
-               +- ^ ProjectExecTransformer (11)
-                  +- ^ GlutenBroadcastHashJoinExecTransformer LeftAnti (10)
-                     :- ^ FilterExecTransformer (2)
-                     :  +- ^ BatchScanExecTransformer (1)
-                     +- ^ InputIteratorTransformer (9)
-                        +- ^ InputAdapter (8)
-                           +- ^ BroadcastQueryStage (7)
-                              +- ColumnarBroadcastExchange (6)
-                                 +- ^ ProjectExecTransformer (4)
-                                    +- ^ BatchScanExecTransformer (3)
+   VeloxColumnarToRowExec (16)
+   +- ^ SortExecTransformer (14)
+      +- ^ RegularHashAggregateExecTransformer (13)
+         +- ^ RegularHashAggregateExecTransformer (12)
+            +- ^ ProjectExecTransformer (11)
+               +- ^ GlutenBroadcastHashJoinExecTransformer LeftAnti (10)
+                  :- ^ FilterExecTransformer (2)
+                  :  +- ^ BatchScanExecTransformer (1)
+                  +- ^ InputIteratorTransformer (9)
+                     +- ^ InputAdapter (8)
+                        +- ^ BroadcastQueryStage (7)
+                           +- ColumnarBroadcastExchange (6)
+                              +- ^ ProjectExecTransformer (4)
+                                 +- ^ BatchScanExecTransformer (3)
 +- == Initial Plan ==
-   Sort (27)
-   +- HashAggregate (26)
-      +- HashAggregate (25)
-         +- Project (24)
-            +- BroadcastHashJoin LeftAnti BuildRight (23)
-               :- Filter (19)
-               :  +- BatchScan (18)
-               +- BroadcastExchange (22)
-                  +- Project (21)
-                     +- BatchScan (20)
+   Sort (26)
+   +- HashAggregate (25)
+      +- HashAggregate (24)
+         +- Project (23)
+            +- BroadcastHashJoin LeftAnti BuildRight (22)
+               :- Filter (18)
+               :  +- BatchScan (17)
+               +- BroadcastExchange (21)
+                  +- Project (20)
+                     +- BatchScan (19)
 
 
 (1) BatchScanExecTransformer
@@ -90,24 +89,20 @@ Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 Keys [1]: [cntrycode#X]
 Functions [2]: [count(1), sum(c_acctbal#X)]
 Aggregate Attributes [2]: [count(1)#X, sum(c_acctbal#X)#X]
-Results [3]: [cntrycode#X, count(1)#X, sum(c_acctbal#X)#X]
+Results [3]: [cntrycode#X, count(1)#X AS numcust#X, sum(c_acctbal#X)#X AS totacctbal#X]
 
-(14) ProjectExecTransformer
-Output [3]: [cntrycode#X, count(1)#X AS numcust#X, sum(c_acctbal#X)#X AS totacctbal#X]
-Input [3]: [cntrycode#X, count(1)#X, sum(c_acctbal#X)#X]
-
-(15) SortExecTransformer
+(14) SortExecTransformer
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: [cntrycode#X ASC NULLS FIRST], true, 0
 
-(16) WholeStageCodegenTransformer (X)
+(15) WholeStageCodegenTransformer (X)
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: false
 
-(17) VeloxColumnarToRowExec
+(16) VeloxColumnarToRowExec
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 
-(18) BatchScan
+(17) BatchScan
 Output [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 DataFilters: [substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17), isnotnull(c_acctbal#X)]
 Format: parquet
@@ -115,76 +110,75 @@ Location: InMemoryFileIndex(1 paths)[*]
 PushedFilters: [IsNotNull(c_acctbal)]
 ReadSchema: struct<c_custkey:bigint,c_phone:string,c_acctbal:decimal(12,2)>
 
-(19) Filter
+(18) Filter
 Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 Condition : ((substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17) AND isnotnull(c_acctbal#X)) AND (cast(c_acctbal#X as decimal(16,6)) > Subquery subquery#X, [id=#X]))
 
-(20) BatchScan
+(19) BatchScan
 Output [9]: [o_orderkey#X, o_custkey#X, o_orderstatus#X, o_totalprice#X, o_orderdate#X, o_orderpriority#X, o_clerk#X, o_shippriority#X, o_comment#X]
 Format: parquet
 Location: InMemoryFileIndex(1 paths)[*]
 ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_orderstatus:string,o_totalprice:decimal(12,2),o_orderdate:date,o_orderpriority:string,o_clerk:string,o_shippriority:int,o_comment:string>
 
-(21) Project
+(20) Project
 Output [1]: [o_custkey#X]
 Input [9]: [o_orderkey#X, o_custkey#X, o_orderstatus#X, o_totalprice#X, o_orderdate#X, o_orderpriority#X, o_clerk#X, o_shippriority#X, o_comment#X]
 
-(22) BroadcastExchange
+(21) BroadcastExchange
 Input [1]: [o_custkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(23) BroadcastHashJoin
+(22) BroadcastHashJoin
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
 Join condition: None
 
-(24) Project
+(23) Project
 Output [2]: [substring(c_phone#X, 1, 2) AS cntrycode#X, c_acctbal#X]
 Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 
-(25) HashAggregate
+(24) HashAggregate
 Input [2]: [cntrycode#X, c_acctbal#X]
 Keys [1]: [cntrycode#X]
 Functions [2]: [partial_count(1), partial_sum(c_acctbal#X)]
 Aggregate Attributes [3]: [count#X, sum#X, isEmpty#X]
 Results [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 
-(26) HashAggregate
+(25) HashAggregate
 Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 Keys [1]: [cntrycode#X]
 Functions [2]: [count(1), sum(c_acctbal#X)]
 Aggregate Attributes [2]: [count(1)#X, sum(c_acctbal#X)#X]
 Results [3]: [cntrycode#X, count(1)#X AS numcust#X, sum(c_acctbal#X)#X AS totacctbal#X]
 
-(27) Sort
+(26) Sort
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: [cntrycode#X ASC NULLS FIRST], true, 0
 
-(28) AdaptiveSparkPlan
+(27) AdaptiveSparkPlan
 Output [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: isFinalPlan=true
 
 ===== Subqueries =====
 
 Subquery:1 Hosting operator id = 2 Hosting Expression = Subquery subquery#X, [id=#X]
-AdaptiveSparkPlan (42)
+AdaptiveSparkPlan (40)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (36)
-   +- ^ ProjectExecTransformer (34)
-      +- ^ RegularHashAggregateExecTransformer (33)
-         +- ^ RegularHashAggregateExecTransformer (32)
-            +- ^ ProjectExecTransformer (31)
-               +- ^ FilterExecTransformer (30)
-                  +- ^ BatchScanExecTransformer (29)
+   VeloxColumnarToRowExec (34)
+   +- ^ RegularHashAggregateExecTransformer (32)
+      +- ^ RegularHashAggregateExecTransformer (31)
+         +- ^ ProjectExecTransformer (30)
+            +- ^ FilterExecTransformer (29)
+               +- ^ BatchScanExecTransformer (28)
 +- == Initial Plan ==
-   HashAggregate (41)
-   +- HashAggregate (40)
-      +- Project (39)
-         +- Filter (38)
-            +- BatchScan (37)
+   HashAggregate (39)
+   +- HashAggregate (38)
+      +- Project (37)
+         +- Filter (36)
+            +- BatchScan (35)
 
 
-(29) BatchScanExecTransformer
+(28) BatchScanExecTransformer
 Output [2]: [c_phone#X, c_acctbal#X]
 DataFilters: [substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17), isnotnull(c_acctbal#X), (c_acctbal#X > 0.00)]
 Format: parquet
@@ -192,69 +186,65 @@ Location: InMemoryFileIndex(1 paths)[*]
 PushedFilters: [IsNotNull(c_acctbal), GreaterThan(c_acctbal,0.00)]
 ReadSchema: struct<c_phone:string,c_acctbal:decimal(12,2)>
 
-(30) FilterExecTransformer
+(29) FilterExecTransformer
 Input [2]: [c_phone#X, c_acctbal#X]
 Arguments: ((substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17) AND isnotnull(c_acctbal#X)) AND (c_acctbal#X > 0.00))
 
-(31) ProjectExecTransformer
+(30) ProjectExecTransformer
 Output [1]: [c_acctbal#X]
 Input [2]: [c_phone#X, c_acctbal#X]
+
+(31) RegularHashAggregateExecTransformer
+Input [1]: [c_acctbal#X]
+Keys: []
+Functions [1]: [partial_avg(c_acctbal#X)]
+Aggregate Attributes [2]: [sum#X, count#X]
+Results [2]: [sum#X, count#X]
 
 (32) RegularHashAggregateExecTransformer
-Input [1]: [c_acctbal#X]
-Keys: []
-Functions [1]: [partial_avg(c_acctbal#X)]
-Aggregate Attributes [2]: [sum#X, count#X]
-Results [2]: [sum#X, count#X]
-
-(33) RegularHashAggregateExecTransformer
-Input [2]: [sum#X, count#X]
-Keys: []
-Functions [1]: [avg(c_acctbal#X)]
-Aggregate Attributes [1]: [avg(c_acctbal#X)#X]
-Results [1]: [avg(c_acctbal#X)#X]
-
-(34) ProjectExecTransformer
-Output [1]: [avg(c_acctbal#X)#X AS avg(c_acctbal)#X]
-Input [1]: [avg(c_acctbal#X)#X]
-
-(35) WholeStageCodegenTransformer (X)
-Input [1]: [avg(c_acctbal)#X]
-Arguments: false
-
-(36) VeloxColumnarToRowExec
-Input [1]: [avg(c_acctbal)#X]
-
-(37) BatchScan
-Output [2]: [c_phone#X, c_acctbal#X]
-DataFilters: [substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17), isnotnull(c_acctbal#X), (c_acctbal#X > 0.00)]
-Format: parquet
-Location: InMemoryFileIndex(1 paths)[*]
-PushedFilters: [IsNotNull(c_acctbal), GreaterThan(c_acctbal,0.00)]
-ReadSchema: struct<c_phone:string,c_acctbal:decimal(12,2)>
-
-(38) Filter
-Input [2]: [c_phone#X, c_acctbal#X]
-Condition : ((substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17) AND isnotnull(c_acctbal#X)) AND (c_acctbal#X > 0.00))
-
-(39) Project
-Output [1]: [c_acctbal#X]
-Input [2]: [c_phone#X, c_acctbal#X]
-
-(40) HashAggregate
-Input [1]: [c_acctbal#X]
-Keys: []
-Functions [1]: [partial_avg(c_acctbal#X)]
-Aggregate Attributes [2]: [sum#X, count#X]
-Results [2]: [sum#X, count#X]
-
-(41) HashAggregate
 Input [2]: [sum#X, count#X]
 Keys: []
 Functions [1]: [avg(c_acctbal#X)]
 Aggregate Attributes [1]: [avg(c_acctbal#X)#X]
 Results [1]: [avg(c_acctbal#X)#X AS avg(c_acctbal)#X]
 
-(42) AdaptiveSparkPlan
+(33) WholeStageCodegenTransformer (X)
+Input [1]: [avg(c_acctbal)#X]
+Arguments: false
+
+(34) VeloxColumnarToRowExec
+Input [1]: [avg(c_acctbal)#X]
+
+(35) BatchScan
+Output [2]: [c_phone#X, c_acctbal#X]
+DataFilters: [substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17), isnotnull(c_acctbal#X), (c_acctbal#X > 0.00)]
+Format: parquet
+Location: InMemoryFileIndex(1 paths)[*]
+PushedFilters: [IsNotNull(c_acctbal), GreaterThan(c_acctbal,0.00)]
+ReadSchema: struct<c_phone:string,c_acctbal:decimal(12,2)>
+
+(36) Filter
+Input [2]: [c_phone#X, c_acctbal#X]
+Condition : ((substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17) AND isnotnull(c_acctbal#X)) AND (c_acctbal#X > 0.00))
+
+(37) Project
+Output [1]: [c_acctbal#X]
+Input [2]: [c_phone#X, c_acctbal#X]
+
+(38) HashAggregate
+Input [1]: [c_acctbal#X]
+Keys: []
+Functions [1]: [partial_avg(c_acctbal#X)]
+Aggregate Attributes [2]: [sum#X, count#X]
+Results [2]: [sum#X, count#X]
+
+(39) HashAggregate
+Input [2]: [sum#X, count#X]
+Keys: []
+Functions [1]: [avg(c_acctbal#X)]
+Aggregate Attributes [1]: [avg(c_acctbal#X)#X]
+Results [1]: [avg(c_acctbal#X)#X AS avg(c_acctbal)#X]
+
+(40) AdaptiveSparkPlan
 Output [1]: [avg(c_acctbal)#X]
 Arguments: isFinalPlan=true

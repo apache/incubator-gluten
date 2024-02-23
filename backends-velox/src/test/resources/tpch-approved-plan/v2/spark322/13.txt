@@ -1,32 +1,31 @@
 == Physical Plan ==
-AdaptiveSparkPlan (27)
+AdaptiveSparkPlan (26)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (15)
-   +- ^ SortExecTransformer (13)
-      +- ^ ProjectExecTransformer (12)
-         +- ^ RegularHashAggregateExecTransformer (11)
-            +- ^ RegularHashAggregateExecTransformer (10)
-               +- ^ ProjectExecTransformer (9)
-                  +- ^ RegularHashAggregateExecTransformer (8)
-                     +- ^ RegularHashAggregateExecTransformer (7)
-                        +- ^ ProjectExecTransformer (6)
-                           +- ^ ShuffledHashJoinExecTransformer LeftOuter (5)
-                              :- ^ BatchScanExecTransformer (1)
-                              +- ^ ProjectExecTransformer (4)
-                                 +- ^ FilterExecTransformer (3)
-                                    +- ^ BatchScanExecTransformer (2)
+   VeloxColumnarToRowExec (14)
+   +- ^ SortExecTransformer (12)
+      +- ^ RegularHashAggregateExecTransformer (11)
+         +- ^ RegularHashAggregateExecTransformer (10)
+            +- ^ ProjectExecTransformer (9)
+               +- ^ RegularHashAggregateExecTransformer (8)
+                  +- ^ RegularHashAggregateExecTransformer (7)
+                     +- ^ ProjectExecTransformer (6)
+                        +- ^ ShuffledHashJoinExecTransformer LeftOuter (5)
+                           :- ^ BatchScanExecTransformer (1)
+                           +- ^ ProjectExecTransformer (4)
+                              +- ^ FilterExecTransformer (3)
+                                 +- ^ BatchScanExecTransformer (2)
 +- == Initial Plan ==
-   Sort (26)
-   +- HashAggregate (25)
-      +- HashAggregate (24)
-         +- HashAggregate (23)
-            +- HashAggregate (22)
-               +- Project (21)
-                  +- ShuffledHashJoin LeftOuter BuildRight (20)
-                     :- BatchScan (16)
-                     +- Project (19)
-                        +- Filter (18)
-                           +- BatchScan (17)
+   Sort (25)
+   +- HashAggregate (24)
+      +- HashAggregate (23)
+         +- HashAggregate (22)
+            +- HashAggregate (21)
+               +- Project (20)
+                  +- ShuffledHashJoin LeftOuter BuildRight (19)
+                     :- BatchScan (15)
+                     +- Project (18)
+                        +- Filter (17)
+                           +- BatchScan (16)
 
 
 (1) BatchScanExecTransformer
@@ -90,30 +89,26 @@ Input [2]: [c_count#X, count#X]
 Keys [1]: [c_count#X]
 Functions [1]: [count(1)]
 Aggregate Attributes [1]: [count(1)#X]
-Results [2]: [c_count#X, count(1)#X]
+Results [2]: [c_count#X, count(1)#X AS custdist#X]
 
-(12) ProjectExecTransformer
-Output [2]: [c_count#X, count(1)#X AS custdist#X]
-Input [2]: [c_count#X, count(1)#X]
-
-(13) SortExecTransformer
+(12) SortExecTransformer
 Input [2]: [c_count#X, custdist#X]
 Arguments: [custdist#X DESC NULLS LAST, c_count#X DESC NULLS LAST], true, 0
 
-(14) WholeStageCodegenTransformer (X)
+(13) WholeStageCodegenTransformer (X)
 Input [2]: [c_count#X, custdist#X]
 Arguments: false
 
-(15) VeloxColumnarToRowExec
+(14) VeloxColumnarToRowExec
 Input [2]: [c_count#X, custdist#X]
 
-(16) BatchScan
+(15) BatchScan
 Output [1]: [c_custkey#X]
 Format: parquet
 Location: InMemoryFileIndex(1 paths)[*]
 ReadSchema: struct<c_custkey:bigint>
 
-(17) BatchScan
+(16) BatchScan
 Output [3]: [o_orderkey#X, o_custkey#X, o_comment#X]
 DataFilters: [NOT o_comment#X LIKE %special%requests%, isnotnull(o_comment#X), isnotnull(o_custkey#X)]
 Format: parquet
@@ -121,55 +116,55 @@ Location: InMemoryFileIndex(1 paths)[*]
 PushedFilters: [IsNotNull(o_comment), IsNotNull(o_custkey)]
 ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_comment:string>
 
-(18) Filter
+(17) Filter
 Input [3]: [o_orderkey#X, o_custkey#X, o_comment#X]
 Condition : ((NOT o_comment#X LIKE %special%requests% AND isnotnull(o_comment#X)) AND isnotnull(o_custkey#X))
 
-(19) Project
+(18) Project
 Output [2]: [o_orderkey#X, o_custkey#X]
 Input [3]: [o_orderkey#X, o_custkey#X, o_comment#X]
 
-(20) ShuffledHashJoin
+(19) ShuffledHashJoin
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
 Join condition: None
 
-(21) Project
+(20) Project
 Output [2]: [c_custkey#X, o_orderkey#X]
 Input [3]: [c_custkey#X, o_orderkey#X, o_custkey#X]
 
-(22) HashAggregate
+(21) HashAggregate
 Input [2]: [c_custkey#X, o_orderkey#X]
 Keys [1]: [c_custkey#X]
 Functions [1]: [partial_count(o_orderkey#X)]
 Aggregate Attributes [1]: [count#X]
 Results [2]: [c_custkey#X, count#X]
 
-(23) HashAggregate
+(22) HashAggregate
 Input [2]: [c_custkey#X, count#X]
 Keys [1]: [c_custkey#X]
 Functions [1]: [count(o_orderkey#X)]
 Aggregate Attributes [1]: [count(o_orderkey#X)#X]
 Results [1]: [count(o_orderkey#X)#X AS c_count#X]
 
-(24) HashAggregate
+(23) HashAggregate
 Input [1]: [c_count#X]
 Keys [1]: [c_count#X]
 Functions [1]: [partial_count(1)]
 Aggregate Attributes [1]: [count#X]
 Results [2]: [c_count#X, count#X]
 
-(25) HashAggregate
+(24) HashAggregate
 Input [2]: [c_count#X, count#X]
 Keys [1]: [c_count#X]
 Functions [1]: [count(1)]
 Aggregate Attributes [1]: [count(1)#X]
 Results [2]: [c_count#X, count(1)#X AS custdist#X]
 
-(26) Sort
+(25) Sort
 Input [2]: [c_count#X, custdist#X]
 Arguments: [custdist#X DESC NULLS LAST, c_count#X DESC NULLS LAST], true, 0
 
-(27) AdaptiveSparkPlan
+(26) AdaptiveSparkPlan
 Output [2]: [c_count#X, custdist#X]
 Arguments: isFinalPlan=true

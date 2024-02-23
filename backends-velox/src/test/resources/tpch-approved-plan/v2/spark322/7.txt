@@ -1,59 +1,58 @@
 == Physical Plan ==
-AdaptiveSparkPlan (54)
+AdaptiveSparkPlan (53)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (28)
-   +- ^ SortExecTransformer (26)
-      +- ^ ProjectExecTransformer (25)
-         +- ^ RegularHashAggregateExecTransformer (24)
-            +- ^ RegularHashAggregateExecTransformer (23)
-               +- ^ ProjectExecTransformer (22)
-                  +- ^ ShuffledHashJoinExecTransformer Inner (21)
-                     :- ^ ProjectExecTransformer (18)
-                     :  +- ^ ShuffledHashJoinExecTransformer Inner (17)
-                     :     :- ^ ProjectExecTransformer (14)
-                     :     :  +- ^ ShuffledHashJoinExecTransformer Inner (13)
-                     :     :     :- ^ ProjectExecTransformer (10)
-                     :     :     :  +- ^ ShuffledHashJoinExecTransformer Inner (9)
-                     :     :     :     :- ^ ProjectExecTransformer (6)
-                     :     :     :     :  +- ^ ShuffledHashJoinExecTransformer Inner (5)
-                     :     :     :     :     :- ^ FilterExecTransformer (2)
-                     :     :     :     :     :  +- ^ BatchScanExecTransformer (1)
-                     :     :     :     :     +- ^ FilterExecTransformer (4)
-                     :     :     :     :        +- ^ BatchScanExecTransformer (3)
-                     :     :     :     +- ^ FilterExecTransformer (8)
-                     :     :     :        +- ^ BatchScanExecTransformer (7)
-                     :     :     +- ^ FilterExecTransformer (12)
-                     :     :        +- ^ BatchScanExecTransformer (11)
-                     :     +- ^ FilterExecTransformer (16)
-                     :        +- ^ BatchScanExecTransformer (15)
-                     +- ^ FilterExecTransformer (20)
-                        +- ^ BatchScanExecTransformer (19)
+   VeloxColumnarToRowExec (27)
+   +- ^ SortExecTransformer (25)
+      +- ^ RegularHashAggregateExecTransformer (24)
+         +- ^ RegularHashAggregateExecTransformer (23)
+            +- ^ ProjectExecTransformer (22)
+               +- ^ ShuffledHashJoinExecTransformer Inner (21)
+                  :- ^ ProjectExecTransformer (18)
+                  :  +- ^ ShuffledHashJoinExecTransformer Inner (17)
+                  :     :- ^ ProjectExecTransformer (14)
+                  :     :  +- ^ ShuffledHashJoinExecTransformer Inner (13)
+                  :     :     :- ^ ProjectExecTransformer (10)
+                  :     :     :  +- ^ ShuffledHashJoinExecTransformer Inner (9)
+                  :     :     :     :- ^ ProjectExecTransformer (6)
+                  :     :     :     :  +- ^ ShuffledHashJoinExecTransformer Inner (5)
+                  :     :     :     :     :- ^ FilterExecTransformer (2)
+                  :     :     :     :     :  +- ^ BatchScanExecTransformer (1)
+                  :     :     :     :     +- ^ FilterExecTransformer (4)
+                  :     :     :     :        +- ^ BatchScanExecTransformer (3)
+                  :     :     :     +- ^ FilterExecTransformer (8)
+                  :     :     :        +- ^ BatchScanExecTransformer (7)
+                  :     :     +- ^ FilterExecTransformer (12)
+                  :     :        +- ^ BatchScanExecTransformer (11)
+                  :     +- ^ FilterExecTransformer (16)
+                  :        +- ^ BatchScanExecTransformer (15)
+                  +- ^ FilterExecTransformer (20)
+                     +- ^ BatchScanExecTransformer (19)
 +- == Initial Plan ==
-   Sort (53)
-   +- HashAggregate (52)
-      +- HashAggregate (51)
-         +- Project (50)
-            +- ShuffledHashJoin Inner BuildRight (49)
-               :- Project (46)
-               :  +- ShuffledHashJoin Inner BuildRight (45)
-               :     :- Project (42)
-               :     :  +- ShuffledHashJoin Inner BuildRight (41)
-               :     :     :- Project (38)
-               :     :     :  +- ShuffledHashJoin Inner BuildRight (37)
-               :     :     :     :- Project (34)
-               :     :     :     :  +- ShuffledHashJoin Inner BuildLeft (33)
-               :     :     :     :     :- Filter (30)
-               :     :     :     :     :  +- BatchScan (29)
-               :     :     :     :     +- Filter (32)
-               :     :     :     :        +- BatchScan (31)
-               :     :     :     +- Filter (36)
-               :     :     :        +- BatchScan (35)
-               :     :     +- Filter (40)
-               :     :        +- BatchScan (39)
-               :     +- Filter (44)
-               :        +- BatchScan (43)
-               +- Filter (48)
-                  +- BatchScan (47)
+   Sort (52)
+   +- HashAggregate (51)
+      +- HashAggregate (50)
+         +- Project (49)
+            +- ShuffledHashJoin Inner BuildRight (48)
+               :- Project (45)
+               :  +- ShuffledHashJoin Inner BuildRight (44)
+               :     :- Project (41)
+               :     :  +- ShuffledHashJoin Inner BuildRight (40)
+               :     :     :- Project (37)
+               :     :     :  +- ShuffledHashJoin Inner BuildRight (36)
+               :     :     :     :- Project (33)
+               :     :     :     :  +- ShuffledHashJoin Inner BuildLeft (32)
+               :     :     :     :     :- Filter (29)
+               :     :     :     :     :  +- BatchScan (28)
+               :     :     :     :     +- Filter (31)
+               :     :     :     :        +- BatchScan (30)
+               :     :     :     +- Filter (35)
+               :     :     :        +- BatchScan (34)
+               :     :     +- Filter (39)
+               :     :        +- BatchScan (38)
+               :     +- Filter (43)
+               :        +- BatchScan (42)
+               +- Filter (47)
+                  +- BatchScan (46)
 
 
 (1) BatchScanExecTransformer
@@ -185,24 +184,20 @@ Input [5]: [supp_nation#X, cust_nation#X, l_year#X, sum#X, isEmpty#X]
 Keys [3]: [supp_nation#X, cust_nation#X, l_year#X]
 Functions [1]: [sum(volume#X)]
 Aggregate Attributes [1]: [sum(volume#X)#X]
-Results [4]: [supp_nation#X, cust_nation#X, l_year#X, sum(volume#X)#X]
+Results [4]: [supp_nation#X, cust_nation#X, l_year#X, sum(volume#X)#X AS revenue#X]
 
-(25) ProjectExecTransformer
-Output [4]: [supp_nation#X, cust_nation#X, l_year#X, sum(volume#X)#X AS revenue#X]
-Input [4]: [supp_nation#X, cust_nation#X, l_year#X, sum(volume#X)#X]
-
-(26) SortExecTransformer
+(25) SortExecTransformer
 Input [4]: [supp_nation#X, cust_nation#X, l_year#X, revenue#X]
 Arguments: [supp_nation#X ASC NULLS FIRST, cust_nation#X ASC NULLS FIRST, l_year#X ASC NULLS FIRST], true, 0
 
-(27) WholeStageCodegenTransformer (X)
+(26) WholeStageCodegenTransformer (X)
 Input [4]: [supp_nation#X, cust_nation#X, l_year#X, revenue#X]
 Arguments: false
 
-(28) VeloxColumnarToRowExec
+(27) VeloxColumnarToRowExec
 Input [4]: [supp_nation#X, cust_nation#X, l_year#X, revenue#X]
 
-(29) BatchScan
+(28) BatchScan
 Output [2]: [s_suppkey#X, s_nationkey#X]
 DataFilters: [isnotnull(s_suppkey#X), isnotnull(s_nationkey#X)]
 Format: parquet
@@ -210,11 +205,11 @@ Location: InMemoryFileIndex(1 paths)[*]
 PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
 ReadSchema: struct<s_suppkey:bigint,s_nationkey:bigint>
 
-(30) Filter
+(29) Filter
 Input [2]: [s_suppkey#X, s_nationkey#X]
 Condition : (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
 
-(31) BatchScan
+(30) BatchScan
 Output [5]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 DataFilters: [isnotnull(l_shipdate#X), (l_shipdate#X >= 1995-01-01), (l_shipdate#X <= 1996-12-31), isnotnull(l_suppkey#X), isnotnull(l_orderkey#X)]
 Format: parquet
@@ -222,20 +217,20 @@ Location: InMemoryFileIndex(1 paths)[*]
 PushedFilters: [IsNotNull(l_shipdate), GreaterThanOrEqual(l_shipdate,1995-01-01), LessThanOrEqual(l_shipdate,1996-12-31), IsNotNull(l_suppkey), IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint,l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_shipdate:date>
 
-(32) Filter
+(31) Filter
 Input [5]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Condition : ((((isnotnull(l_shipdate#X) AND (l_shipdate#X >= 1995-01-01)) AND (l_shipdate#X <= 1996-12-31)) AND isnotnull(l_suppkey#X)) AND isnotnull(l_orderkey#X))
 
-(33) ShuffledHashJoin
+(32) ShuffledHashJoin
 Left keys [1]: [s_suppkey#X]
 Right keys [1]: [l_suppkey#X]
 Join condition: None
 
-(34) Project
+(33) Project
 Output [5]: [s_nationkey#X, l_orderkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Input [7]: [s_suppkey#X, s_nationkey#X, l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 
-(35) BatchScan
+(34) BatchScan
 Output [2]: [o_orderkey#X, o_custkey#X]
 DataFilters: [isnotnull(o_orderkey#X), isnotnull(o_custkey#X)]
 Format: parquet
@@ -243,20 +238,20 @@ Location: InMemoryFileIndex(1 paths)[*]
 PushedFilters: [IsNotNull(o_orderkey), IsNotNull(o_custkey)]
 ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint>
 
-(36) Filter
+(35) Filter
 Input [2]: [o_orderkey#X, o_custkey#X]
 Condition : (isnotnull(o_orderkey#X) AND isnotnull(o_custkey#X))
 
-(37) ShuffledHashJoin
+(36) ShuffledHashJoin
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [o_orderkey#X]
 Join condition: None
 
-(38) Project
+(37) Project
 Output [5]: [s_nationkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X, o_custkey#X]
 Input [7]: [s_nationkey#X, l_orderkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X, o_orderkey#X, o_custkey#X]
 
-(39) BatchScan
+(38) BatchScan
 Output [2]: [c_custkey#X, c_nationkey#X]
 DataFilters: [isnotnull(c_custkey#X), isnotnull(c_nationkey#X)]
 Format: parquet
@@ -264,20 +259,20 @@ Location: InMemoryFileIndex(1 paths)[*]
 PushedFilters: [IsNotNull(c_custkey), IsNotNull(c_nationkey)]
 ReadSchema: struct<c_custkey:bigint,c_nationkey:bigint>
 
-(40) Filter
+(39) Filter
 Input [2]: [c_custkey#X, c_nationkey#X]
 Condition : (isnotnull(c_custkey#X) AND isnotnull(c_nationkey#X))
 
-(41) ShuffledHashJoin
+(40) ShuffledHashJoin
 Left keys [1]: [o_custkey#X]
 Right keys [1]: [c_custkey#X]
 Join condition: None
 
-(42) Project
+(41) Project
 Output [5]: [s_nationkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X, c_nationkey#X]
 Input [7]: [s_nationkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X, o_custkey#X, c_custkey#X, c_nationkey#X]
 
-(43) BatchScan
+(42) BatchScan
 Output [2]: [n_nationkey#X, n_name#X]
 DataFilters: [isnotnull(n_nationkey#X), ((n_name#X = FRANCE) OR (n_name#X = GERMANY))]
 Format: parquet
@@ -285,20 +280,20 @@ Location: InMemoryFileIndex(1 paths)[*]
 PushedFilters: [IsNotNull(n_nationkey), Or(EqualTo(n_name,FRANCE),EqualTo(n_name,GERMANY))]
 ReadSchema: struct<n_nationkey:bigint,n_name:string>
 
-(44) Filter
+(43) Filter
 Input [2]: [n_nationkey#X, n_name#X]
 Condition : (isnotnull(n_nationkey#X) AND ((n_name#X = FRANCE) OR (n_name#X = GERMANY)))
 
-(45) ShuffledHashJoin
+(44) ShuffledHashJoin
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
 Join condition: None
 
-(46) Project
+(45) Project
 Output [5]: [l_extendedprice#X, l_discount#X, l_shipdate#X, c_nationkey#X, n_name#X]
 Input [7]: [s_nationkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X, c_nationkey#X, n_nationkey#X, n_name#X]
 
-(47) BatchScan
+(46) BatchScan
 Output [2]: [n_nationkey#X, n_name#X]
 DataFilters: [isnotnull(n_nationkey#X), ((n_name#X = GERMANY) OR (n_name#X = FRANCE))]
 Format: parquet
@@ -306,37 +301,37 @@ Location: InMemoryFileIndex(1 paths)[*]
 PushedFilters: [IsNotNull(n_nationkey), Or(EqualTo(n_name,GERMANY),EqualTo(n_name,FRANCE))]
 ReadSchema: struct<n_nationkey:bigint,n_name:string>
 
-(48) Filter
+(47) Filter
 Input [2]: [n_nationkey#X, n_name#X]
 Condition : (isnotnull(n_nationkey#X) AND ((n_name#X = GERMANY) OR (n_name#X = FRANCE)))
 
-(49) ShuffledHashJoin
+(48) ShuffledHashJoin
 Left keys [1]: [c_nationkey#X]
 Right keys [1]: [n_nationkey#X]
 Join condition: (((n_name#X = FRANCE) AND (n_name#X = GERMANY)) OR ((n_name#X = GERMANY) AND (n_name#X = FRANCE)))
 
-(50) Project
+(49) Project
 Output [4]: [n_name#X AS supp_nation#X, n_name#X AS cust_nation#X, year(l_shipdate#X) AS l_year#X, CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true) AS volume#X]
 Input [7]: [l_extendedprice#X, l_discount#X, l_shipdate#X, c_nationkey#X, n_name#X, n_nationkey#X, n_name#X]
 
-(51) HashAggregate
+(50) HashAggregate
 Input [4]: [supp_nation#X, cust_nation#X, l_year#X, volume#X]
 Keys [3]: [supp_nation#X, cust_nation#X, l_year#X]
 Functions [1]: [partial_sum(volume#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [5]: [supp_nation#X, cust_nation#X, l_year#X, sum#X, isEmpty#X]
 
-(52) HashAggregate
+(51) HashAggregate
 Input [5]: [supp_nation#X, cust_nation#X, l_year#X, sum#X, isEmpty#X]
 Keys [3]: [supp_nation#X, cust_nation#X, l_year#X]
 Functions [1]: [sum(volume#X)]
 Aggregate Attributes [1]: [sum(volume#X)#X]
 Results [4]: [supp_nation#X, cust_nation#X, l_year#X, sum(volume#X)#X AS revenue#X]
 
-(53) Sort
+(52) Sort
 Input [4]: [supp_nation#X, cust_nation#X, l_year#X, revenue#X]
 Arguments: [supp_nation#X ASC NULLS FIRST, cust_nation#X ASC NULLS FIRST, l_year#X ASC NULLS FIRST], true, 0
 
-(54) AdaptiveSparkPlan
+(53) AdaptiveSparkPlan
 Output [4]: [supp_nation#X, cust_nation#X, l_year#X, revenue#X]
 Arguments: isFinalPlan=true

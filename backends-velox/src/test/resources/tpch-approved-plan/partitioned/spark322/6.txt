@@ -1,24 +1,23 @@
 == Physical Plan ==
-AdaptiveSparkPlan (20)
+AdaptiveSparkPlan (19)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (13)
-   +- ^ ProjectExecTransformer (11)
-      +- ^ RegularHashAggregateExecTransformer (10)
-         +- ^ InputIteratorTransformer (9)
-            +- ^ InputAdapter (8)
-               +- ^ ShuffleQueryStage (7)
-                  +- ColumnarExchange (6)
-                     +- ^ FlushableHashAggregateExecTransformer (4)
-                        +- ^ ProjectExecTransformer (3)
-                           +- ^ FilterExecTransformer (2)
-                              +- ^ Scan parquetdefault.lineitem (1)
+   VeloxColumnarToRowExec (12)
+   +- ^ RegularHashAggregateExecTransformer (10)
+      +- ^ InputIteratorTransformer (9)
+         +- ^ InputAdapter (8)
+            +- ^ ShuffleQueryStage (7)
+               +- ColumnarExchange (6)
+                  +- ^ FlushableHashAggregateExecTransformer (4)
+                     +- ^ ProjectExecTransformer (3)
+                        +- ^ FilterExecTransformer (2)
+                           +- ^ Scan parquetdefault.lineitem (1)
 +- == Initial Plan ==
-   HashAggregate (19)
-   +- Exchange (18)
-      +- HashAggregate (17)
-         +- Project (16)
-            +- Filter (15)
-               +- Scan parquetdefault.lineitem (14)
+   HashAggregate (18)
+   +- Exchange (17)
+      +- HashAggregate (16)
+         +- Project (15)
+            +- Filter (14)
+               +- Scan parquetdefault.lineitem (13)
 
 
 (1) Scan parquetdefault.lineitem
@@ -67,20 +66,16 @@ Input [2]: [sum#X, isEmpty#X]
 Keys: []
 Functions [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true))]
 Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true))#X]
-Results [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true))#X]
+Results [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true))#X AS revenue#X]
 
-(11) ProjectExecTransformer
-Output [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true))#X AS revenue#X]
-Input [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true))#X]
-
-(12) WholeStageCodegenTransformer (X)
+(11) WholeStageCodegenTransformer (X)
 Input [1]: [revenue#X]
 Arguments: false
 
-(13) VeloxColumnarToRowExec
+(12) VeloxColumnarToRowExec
 Input [1]: [revenue#X]
 
-(14) Scan parquetdefault.lineitem
+(13) Scan parquetdefault.lineitem
 Output [4]: [l_quantity#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -88,32 +83,32 @@ PartitionFilters: [isnotnull(l_shipdate#X), (l_shipdate#X >= 1994-01-01), (l_shi
 PushedFilters: [IsNotNull(l_discount), IsNotNull(l_quantity), GreaterThanOrEqual(l_discount,0.05), LessThanOrEqual(l_discount,0.07), LessThan(l_quantity,24.00)]
 ReadSchema: struct<l_quantity:decimal(12,2),l_extendedprice:decimal(12,2),l_discount:decimal(12,2)>
 
-(15) Filter
+(14) Filter
 Input [4]: [l_quantity#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Condition : ((((isnotnull(l_discount#X) AND isnotnull(l_quantity#X)) AND (l_discount#X >= 0.05)) AND (l_discount#X <= 0.07)) AND (l_quantity#X < 24.00))
 
-(16) Project
+(15) Project
 Output [2]: [l_extendedprice#X, l_discount#X]
 Input [4]: [l_quantity#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 
-(17) HashAggregate
+(16) HashAggregate
 Input [2]: [l_extendedprice#X, l_discount#X]
 Keys: []
 Functions [1]: [partial_sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [2]: [sum#X, isEmpty#X]
 
-(18) Exchange
+(17) Exchange
 Input [2]: [sum#X, isEmpty#X]
 Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X]
 
-(19) HashAggregate
+(18) HashAggregate
 Input [2]: [sum#X, isEmpty#X]
 Keys: []
 Functions [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true))]
 Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true))#X]
 Results [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true))#X AS revenue#X]
 
-(20) AdaptiveSparkPlan
+(19) AdaptiveSparkPlan
 Output [1]: [revenue#X]
 Arguments: isFinalPlan=true

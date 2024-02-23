@@ -1,48 +1,47 @@
 == Physical Plan ==
-AdaptiveSparkPlan (47)
+AdaptiveSparkPlan (46)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (34)
-   +- ^ SortExecTransformer (32)
-      +- ^ InputIteratorTransformer (31)
-         +- ^ InputAdapter (30)
-            +- ^ ShuffleQueryStage (29)
-               +- ColumnarExchange (28)
-                  +- ^ ProjectExecTransformer (26)
-                     +- ^ RegularHashAggregateExecTransformer (25)
-                        +- ^ InputIteratorTransformer (24)
-                           +- ^ InputAdapter (23)
-                              +- ^ ShuffleQueryStage (22)
-                                 +- ColumnarExchange (21)
-                                    +- ^ ProjectExecTransformer (19)
-                                       +- ^ FlushableHashAggregateExecTransformer (18)
-                                          +- ^ ProjectExecTransformer (17)
-                                             +- ^ ShuffledHashJoinExecTransformer LeftAnti (16)
-                                                :- ^ InputIteratorTransformer (8)
-                                                :  +- ^ InputAdapter (7)
-                                                :     +- ^ ShuffleQueryStage (6)
-                                                :        +- ColumnarExchange (5)
-                                                :           +- ^ ProjectExecTransformer (3)
-                                                :              +- ^ FilterExecTransformer (2)
-                                                :                 +- ^ Scan parquet (1)
-                                                +- ^ InputIteratorTransformer (15)
-                                                   +- ^ InputAdapter (14)
-                                                      +- ^ ShuffleQueryStage (13)
-                                                         +- ColumnarExchange (12)
-                                                            +- ^ ProjectExecTransformer (10)
-                                                               +- ^ Scan parquet (9)
+   VeloxColumnarToRowExec (33)
+   +- ^ SortExecTransformer (31)
+      +- ^ InputIteratorTransformer (30)
+         +- ^ InputAdapter (29)
+            +- ^ ShuffleQueryStage (28)
+               +- ColumnarExchange (27)
+                  +- ^ RegularHashAggregateExecTransformer (25)
+                     +- ^ InputIteratorTransformer (24)
+                        +- ^ InputAdapter (23)
+                           +- ^ ShuffleQueryStage (22)
+                              +- ColumnarExchange (21)
+                                 +- ^ ProjectExecTransformer (19)
+                                    +- ^ FlushableHashAggregateExecTransformer (18)
+                                       +- ^ ProjectExecTransformer (17)
+                                          +- ^ ShuffledHashJoinExecTransformer LeftAnti (16)
+                                             :- ^ InputIteratorTransformer (8)
+                                             :  +- ^ InputAdapter (7)
+                                             :     +- ^ ShuffleQueryStage (6)
+                                             :        +- ColumnarExchange (5)
+                                             :           +- ^ ProjectExecTransformer (3)
+                                             :              +- ^ FilterExecTransformer (2)
+                                             :                 +- ^ Scan parquet (1)
+                                             +- ^ InputIteratorTransformer (15)
+                                                +- ^ InputAdapter (14)
+                                                   +- ^ ShuffleQueryStage (13)
+                                                      +- ColumnarExchange (12)
+                                                         +- ^ ProjectExecTransformer (10)
+                                                            +- ^ Scan parquet (9)
 +- == Initial Plan ==
-   Sort (46)
-   +- Exchange (45)
-      +- HashAggregate (44)
-         +- Exchange (43)
-            +- HashAggregate (42)
-               +- Project (41)
-                  +- ShuffledHashJoin LeftAnti BuildRight (40)
-                     :- Exchange (37)
-                     :  +- Filter (36)
-                     :     +- Scan parquet (35)
-                     +- Exchange (39)
-                        +- Scan parquet (38)
+   Sort (45)
+   +- Exchange (44)
+      +- HashAggregate (43)
+         +- Exchange (42)
+            +- HashAggregate (41)
+               +- Project (40)
+                  +- ShuffledHashJoin LeftAnti BuildRight (39)
+                     :- Exchange (36)
+                     :  +- Filter (35)
+                     :     +- Scan parquet (34)
+                     +- Exchange (38)
+                        +- Scan parquet (37)
 
 
 (1) Scan parquet
@@ -149,101 +148,97 @@ Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 Keys [1]: [cntrycode#X]
 Functions [2]: [count(1), sum(c_acctbal#X)]
 Aggregate Attributes [2]: [count(1)#X, sum(c_acctbal#X)#X]
-Results [3]: [cntrycode#X, count(1)#X, sum(c_acctbal#X)#X]
+Results [3]: [cntrycode#X, count(1)#X AS numcust#X, sum(c_acctbal#X)#X AS totacctbal#X]
 
-(26) ProjectExecTransformer
-Output [3]: [cntrycode#X, count(1)#X AS numcust#X, sum(c_acctbal#X)#X AS totacctbal#X]
-Input [3]: [cntrycode#X, count(1)#X, sum(c_acctbal#X)#X]
-
-(27) WholeStageCodegenTransformer (X)
+(26) WholeStageCodegenTransformer (X)
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: false
 
-(28) ColumnarExchange
+(27) ColumnarExchange
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: rangepartitioning(cntrycode#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
-(29) ShuffleQueryStage
+(28) ShuffleQueryStage
 Output [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: 3
 
-(30) InputAdapter
+(29) InputAdapter
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 
-(31) InputIteratorTransformer
+(30) InputIteratorTransformer
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 
-(32) SortExecTransformer
+(31) SortExecTransformer
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: [cntrycode#X ASC NULLS FIRST], true, 0
 
-(33) WholeStageCodegenTransformer (X)
+(32) WholeStageCodegenTransformer (X)
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: false
 
-(34) VeloxColumnarToRowExec
+(33) VeloxColumnarToRowExec
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 
-(35) Scan parquet
+(34) Scan parquet
 Output [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(c_acctbal)]
 ReadSchema: struct<c_custkey:bigint,c_phone:string,c_acctbal:decimal(12,2)>
 
-(36) Filter
+(35) Filter
 Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 Condition : ((isnotnull(c_acctbal#X) AND substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17)) AND (cast(c_acctbal#X as decimal(16,6)) > Subquery subquery#X, [id=#X]))
 
-(37) Exchange
+(36) Exchange
 Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(38) Scan parquet
+(37) Scan parquet
 Output [1]: [o_custkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 ReadSchema: struct<o_custkey:bigint>
 
-(39) Exchange
+(38) Exchange
 Input [1]: [o_custkey#X]
 Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(40) ShuffledHashJoin
+(39) ShuffledHashJoin
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
 Join condition: None
 
-(41) Project
+(40) Project
 Output [2]: [substring(c_phone#X, 1, 2) AS cntrycode#X, c_acctbal#X]
 Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 
-(42) HashAggregate
+(41) HashAggregate
 Input [2]: [cntrycode#X, c_acctbal#X]
 Keys [1]: [cntrycode#X]
 Functions [2]: [partial_count(1), partial_sum(c_acctbal#X)]
 Aggregate Attributes [3]: [count#X, sum#X, isEmpty#X]
 Results [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 
-(43) Exchange
+(42) Exchange
 Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 Arguments: hashpartitioning(cntrycode#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(44) HashAggregate
+(43) HashAggregate
 Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 Keys [1]: [cntrycode#X]
 Functions [2]: [count(1), sum(c_acctbal#X)]
 Aggregate Attributes [2]: [count(1)#X, sum(c_acctbal#X)#X]
 Results [3]: [cntrycode#X, count(1)#X AS numcust#X, sum(c_acctbal#X)#X AS totacctbal#X]
 
-(45) Exchange
+(44) Exchange
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: rangepartitioning(cntrycode#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(46) Sort
+(45) Sort
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: [cntrycode#X ASC NULLS FIRST], true, 0
 
-(47) AdaptiveSparkPlan
+(46) AdaptiveSparkPlan
 Output [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: isFinalPlan=true
