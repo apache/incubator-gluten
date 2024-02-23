@@ -218,7 +218,7 @@ class SafeNativeArray {
     return reinterpret_cast<const NativeArrayType>(nativeArray_);
   }
 
-  jsize length() const {
+  const jsize length() const {
     return env_->GetArrayLength(javaArray_);
   }
 
