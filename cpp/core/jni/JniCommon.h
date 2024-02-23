@@ -203,9 +203,6 @@ class SafeNativeArray {
   using JavaArrayType = typename PrimitiveArray::JavaType;
 
  public:
-  SafeNativeArray(JNIEnv* env, JavaArrayType javaArray, NativeArrayType nativeArray)
-      : env_(env), javaArray_(javaArray), nativeArray_(nativeArray){};
-
   virtual ~SafeNativeArray() {
     PrimitiveArray::release(env_, javaArray_, nativeArray_);
   }
@@ -225,6 +222,10 @@ class SafeNativeArray {
   }
 
  private:
+
+  SafeNativeArray(JNIEnv* env, JavaArrayType javaArray, NativeArrayType nativeArray)
+      : env_(env), javaArray_(javaArray), nativeArray_(nativeArray){};
+
   JNIEnv* env_;
   JavaArrayType javaArray_;
   NativeArrayType nativeArray_;
