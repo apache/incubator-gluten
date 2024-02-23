@@ -18,6 +18,7 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.exception.GlutenException;
 
+import com.google.common.base.Preconditions;
 import org.apache.commons.io.FileUtils;
 import org.apache.spark.util.SparkDirectoryUtil;
 import org.slf4j.Logger;
@@ -35,11 +36,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class JniWorkspace {
   private static final Logger LOG = LoggerFactory.getLogger(JniWorkspace.class);
   private static final Map<String, JniWorkspace> INSTANCES = new ConcurrentHashMap<>();
-  private static final JniWorkspace DEFAULT_INSTANCE = createDefault();
+
+  // Will be initialized by user code
+  private static JniWorkspace DEFAULT_INSTANCE = null;
+  private static final Object DEFAULT_INSTANCE_INIT_LOCK = new Object();
 
   // For debugging purposes only
   private static JniWorkspace DEBUG_INSTANCE = null;
-  private static final Object DEBUG_INSTANCE_INIT_LOCK = new Object();
 
   private final String workDir;
   private final JniLibLoader jniLibLoader;
@@ -71,11 +74,11 @@ public class JniWorkspace {
     }
   }
 
-  public static JniWorkspace getDebug() {
+  public static void enableDebug() {
     // Preserve the JNI libraries even after process exits.
     // This is useful for debugging native code if the debug symbols were embedded in
     // the libraries.
-    synchronized (DEBUG_INSTANCE_INIT_LOCK) {
+    synchronized (DEFAULT_INSTANCE_INIT_LOCK) {
       if (DEBUG_INSTANCE == null) {
         final File tempRoot =
             Paths.get("/tmp").resolve("gluten-jni-debug-" + UUID.randomUUID()).toFile();
@@ -86,12 +89,41 @@ public class JniWorkspace {
         }
         DEBUG_INSTANCE = createOrGet(tempRoot.getAbsolutePath());
       }
+      Preconditions.checkNotNull(DEBUG_INSTANCE);
+      if (DEFAULT_INSTANCE == null) {
+        DEFAULT_INSTANCE = DEBUG_INSTANCE;
+      }
+      Preconditions.checkNotNull(DEFAULT_INSTANCE);
+      if (DEFAULT_INSTANCE != DEBUG_INSTANCE) {
+        throw new IllegalStateException("Default instance is already set to a non-debug instance");
+      }
     }
-    return DEBUG_INSTANCE;
+  }
+
+  // For testing
+  private static boolean isDebugEnabled() {
+    synchronized (DEFAULT_INSTANCE_INIT_LOCK) {
+      return DEFAULT_INSTANCE != null
+          && DEBUG_INSTANCE != null
+          && DEFAULT_INSTANCE == DEBUG_INSTANCE;
+    }
+  }
+
+  // For testing
+  private static void resetDefaultInstance() {
+    synchronized (DEFAULT_INSTANCE_INIT_LOCK) {
+      DEFAULT_INSTANCE = null;
+    }
   }
 
   public static JniWorkspace getDefault() {
-    return DEFAULT_INSTANCE;
+    synchronized (DEFAULT_INSTANCE_INIT_LOCK) {
+      if (DEFAULT_INSTANCE == null) {
+        DEFAULT_INSTANCE = createDefault();
+      }
+      Preconditions.checkNotNull(DEFAULT_INSTANCE);
+      return DEFAULT_INSTANCE;
+    }
   }
 
   private static JniWorkspace createOrGet(String rootDir) {

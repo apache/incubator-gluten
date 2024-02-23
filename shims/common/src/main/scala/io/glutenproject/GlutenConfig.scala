@@ -300,6 +300,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConf(COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES)
 
   def debug: Boolean = conf.getConf(DEBUG_ENABLED)
+  def debugKeepJniWorkspace: Boolean =
+    conf.getConf(DEBUG_ENABLED) && conf.getConf(DEBUG_KEEP_JNI_WORKSPACE)
   def taskStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
   def taskPartitionId: Int = conf.getConf(BENCHMARK_TASK_PARTITIONID)
   def taskId: Long = conf.getConf(BENCHMARK_TASK_TASK_ID)
@@ -430,6 +432,7 @@ object GlutenConfig {
   val GLUTEN_SAVE_DIR = "spark.gluten.saveDir"
 
   val GLUTEN_DEBUG_MODE = "spark.gluten.sql.debug"
+  val GLUTEN_DEBUG_KEEP_JNI_WORKSPACE = "spark.gluten.sql.debug.keepJniWorkspace"
 
   // Added back to Spark Conf during executor initialization
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
@@ -1301,6 +1304,12 @@ object GlutenConfig {
 
   val DEBUG_ENABLED =
     buildConf(GLUTEN_DEBUG_MODE)
+      .internal()
+      .booleanConf
+      .createWithDefault(false)
+
+  val DEBUG_KEEP_JNI_WORKSPACE =
+    buildConf(GLUTEN_DEBUG_KEEP_JNI_WORKSPACE)
       .internal()
       .booleanConf
       .createWithDefault(false)
