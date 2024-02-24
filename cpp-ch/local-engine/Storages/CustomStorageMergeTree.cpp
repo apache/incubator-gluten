@@ -86,7 +86,7 @@ CustomStorageMergeTree::CustomStorageMergeTree(
           merging_params_,
           std::move(storage_settings_),
           false, /// require_part_metadata
-          attach)
+          attach ? LoadingStrictnessLevel::ATTACH : LoadingStrictnessLevel::FORCE_RESTORE)
     , writer(*this)
     , reader(*this)
 {
