@@ -44,7 +44,6 @@ case class ClickHouseBuildSideRelation(
   override def asReadOnlyCopy(): ClickHouseBuildSideRelation = this
 
   private var hashTableData: Long = 0L
-
   def buildHashTable(
       broadCastContext: BroadCastHashJoinContext): (Long, ClickHouseBuildSideRelation) =
     synchronized {
