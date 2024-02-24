@@ -59,15 +59,54 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
   }
 
   test("iceberg transformer exists") {
-    spark.sql("""
-                |create table iceberg_tb using iceberg as
-                |(select 1 as col1, 2 as col2, 3 as col3)
-                |""".stripMargin)
+    withTable("iceberg_tb") {
+      spark.sql("""
+                  |create table iceberg_tb using iceberg as
+                  |(select 1 as col1, 2 as col2, 3 as col3)
+                  |""".stripMargin)
 
-    runQueryAndCompare("""
-                         |select * from iceberg_tb;
-                         |""".stripMargin) {
-      checkOperatorMatch[IcebergScanTransformer]
+      runQueryAndCompare("""
+                           |select * from iceberg_tb;
+                           |""".stripMargin) {
+        checkOperatorMatch[IcebergScanTransformer]
+      }
+    }
+  }
+
+  test("iceberg read mor table") {
+    withTable("iceberg_mor_tb") {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLE_KEY -> "false") {
+        spark.sql("""
+                    |create table iceberg_mor_tb (
+                    |  id int,
+                    |  name string,
+                    |  p string
+                    |) using iceberg
+                    |tblproperties (
+                    |  'format-version' = '2',
+                    |  'write.delete.mode' = 'merge-on-read',
+                    |  'write.update.mode' = 'merge-on-read',
+                    |  'write.merge.mode' = 'merge-on-read'
+                    |)
+                    |partitioned by (p);
+                    |""".stripMargin)
+        // Insert some test rows.
+        spark.sql("""
+                    |insert into table iceberg_mor_tb
+                    |values (1, 'a1', 'p1'), (2, 'a2', 'p1'), (3, 'a3', 'p2');
+                    |""".stripMargin)
+        // Delete row.
+        spark.sql(
+          """
+            |delete from iceberg_mor_tb where name = 'a1';
+            |""".stripMargin
+        )
+      }
+      runQueryAndCompare("""
+                           |select * from iceberg_mor_tb;
+                           |""".stripMargin) {
+        checkOperatorMatch[IcebergScanTransformer]
+      }
     }
   }
 

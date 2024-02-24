@@ -50,6 +50,9 @@ struct SplitInfo {
 
   /// The file format of the files to be scanned.
   dwio::common::FileFormat format;
+
+  /// Make SplitInfo polymorphic
+  virtual ~SplitInfo() = default;
 };
 
 /// This class is used to convert the Substrait plan into Velox plan.

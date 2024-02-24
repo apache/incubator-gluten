@@ -154,19 +154,39 @@ WholeStageResultIterator::WholeStageResultIterator(
       auto metadataColumn = metadataColumns[idx];
       std::unordered_map<std::string, std::optional<std::string>> partitionKeys;
       constructPartitionColumns(partitionKeys, partitionColumn);
-      auto split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
-          kHiveConnectorId,
-          paths[idx],
-          format,
-          starts[idx],
-          lengths[idx],
-          partitionKeys,
-          std::nullopt,
-          std::unordered_map<std::string, std::string>(),
-          nullptr,
-          std::unordered_map<std::string, std::string>(),
-          0,
-          metadataColumn);
+      std::shared_ptr<velox::connector::ConnectorSplit> split;
+      if (auto icebergSplitInfo = std::dynamic_pointer_cast<IcebergSplitInfo>(scanInfo)) {
+        // Set Iceberg split.
+        std::unordered_map<std::string, std::string> customSplitInfo{{"table_format", "hive-iceberg"}};
+        auto deleteFilesFind = icebergSplitInfo->deleteFilesMap.find(paths[idx]);
+        auto deleteFiles = deleteFilesFind != icebergSplitInfo->deleteFilesMap.end() ? deleteFilesFind->second
+                                                                                     : std::vector<IcebergDeleteFile>{};
+        split = std::make_shared<velox::connector::hive::iceberg::HiveIcebergSplit>(
+            kHiveConnectorId,
+            paths[idx],
+            format,
+            starts[idx],
+            lengths[idx],
+            partitionKeys,
+            std::nullopt,
+            customSplitInfo,
+            nullptr,
+            deleteFiles);
+      } else {
+        split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
+            kHiveConnectorId,
+            paths[idx],
+            format,
+            starts[idx],
+            lengths[idx],
+            partitionKeys,
+            std::nullopt,
+            std::unordered_map<std::string, std::string>(),
+            nullptr,
+            std::unordered_map<std::string, std::string>(),
+            0,
+            metadataColumn);
+      }
       connectorSplits.emplace_back(split);
     }
 
