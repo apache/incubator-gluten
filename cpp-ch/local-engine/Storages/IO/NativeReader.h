@@ -20,9 +20,6 @@
 #include <Core/Block.h>
 #include <Core/Defines.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
-#include <future>
-#include <memory>
-#include <Common/ThreadPool.h>
 
 namespace local_engine
 {
@@ -48,22 +45,16 @@ public:
     };
 
     NativeReader(
-        DB::ReadBuffer & istr_,
-        Int64 max_block_size_ = DB::DEFAULT_BLOCK_SIZE,
-        Int64 max_block_bytes_ = DB::DEFAULT_BLOCK_SIZE * 256,
-        bool enable_prefetch_ = false)
+        DB::ReadBuffer & istr_, Int64 max_block_size_ = DB::DEFAULT_BLOCK_SIZE, Int64 max_block_bytes_ = DB::DEFAULT_BLOCK_SIZE * 256)
         : istr(istr_)
         , max_block_size(max_block_size_ != 0 ? static_cast<size_t>(max_block_size_) : DB::DEFAULT_BLOCK_SIZE)
         , max_block_bytes(max_block_bytes_ != 0 ? static_cast<size_t>(max_block_bytes_) : DB::DEFAULT_BLOCK_SIZE * 256)
-        , enable_prefetch(enable_prefetch_)
     {
     }
 
     DB::Block getHeader() const;
 
     DB::Block read();
-    DB::Block readImpl();
-    void prefetch();
 
 private:
     DB::ReadBuffer & istr;
@@ -74,9 +65,6 @@ private:
     DB::Block header;
 
     std::vector<ColumnParseUtil> columns_parse_util;
-
-    bool enable_prefetch = false;
-    std::future<DB::Block> prefetch_future;
 
     void updateAvgValueSizeHints(const DB::Block & block);
 

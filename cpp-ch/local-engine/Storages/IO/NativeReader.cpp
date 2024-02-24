@@ -24,21 +24,6 @@
 #include <Common/Arena.h>
 #include <Storages/IO/NativeWriter.h>
 #include <Storages/IO/AggregateSerializationUtils.h>
-#include <Poco/Logger.h>
-#include <Common/logger_useful.h>
-
-#include <Interpreters/threadPoolCallbackRunner.h>
-#include <Common/CurrentMetrics.h>
-#include <Interpreters/Context.h>
-
-namespace CurrentMetrics
-{
-    extern const Metric Read;
-    extern const Metric ThreadPoolFSReaderThreads;
-    extern const Metric ThreadPoolFSReaderThreadsActive;
-    extern const Metric ThreadPoolFSReaderThreadsScheduled;
-}
-
 
 namespace DB
 {
@@ -62,33 +47,7 @@ Block NativeReader::getHeader() const
     return header;
 }
 
-std::atomic<size_t> nn = 0;
-
-void NativeReader::prefetch()
-{
-    if (!enable_prefetch)
-        return;
-    auto & tpool = DB::Context::getGlobalContextInstance()->getPrefetchThreadpool();
-    prefetch_future = DB::scheduleFromThreadPool<DB::Block>(
-        [this]() { return this->readImpl(); }, tpool, "NativeReader", DB::DEFAULT_PREFETCH_PRIORITY);
-}
-
 DB::Block NativeReader::read()
-{
-    DB::Block res;
-    if (prefetch_future.valid())
-    {
-        res = prefetch_future.get();
-        prefetch_future = {};
-    }
-    else
-        res = readImpl();
-    if (res)
-        prefetch();
-    return res;
-}
-
-DB::Block NativeReader::readImpl()
 {
     DB::Block result_block;
     if (istr.eof())

@@ -566,19 +566,13 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHNativeBlock_nativeTotalBytes(
 }
 
 JNIEXPORT jlong Java_io_glutenproject_vectorized_CHStreamReader_createNativeShuffleReader(
-    JNIEnv * env,
-    jclass /*clazz*/,
-    jobject input_stream,
-    jboolean compressed,
-    jlong max_shuffle_read_rows,
-    jlong max_shuffle_read_bytes,
-    jboolean enable_prefetch)
+    JNIEnv * env, jclass /*clazz*/, jobject input_stream, jboolean compressed, jlong max_shuffle_read_rows, jlong max_shuffle_read_bytes)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto * input = env->NewGlobalRef(input_stream);
     auto read_buffer = std::make_unique<local_engine::ReadBufferFromJavaInputStream>(input);
     auto * shuffle_reader
-        = new local_engine::ShuffleReader(std::move(read_buffer), compressed, max_shuffle_read_rows, max_shuffle_read_bytes, enable_prefetch);
+        = new local_engine::ShuffleReader(std::move(read_buffer), compressed, max_shuffle_read_rows, max_shuffle_read_bytes);
     return reinterpret_cast<jlong>(shuffle_reader);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }

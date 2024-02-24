@@ -35,7 +35,7 @@ class ShuffleReader : BlockIterator
 {
 public:
     explicit ShuffleReader(
-        std::unique_ptr<DB::ReadBuffer> in_, bool compressed, Int64 max_shuffle_read_rows_, Int64 max_shuffle_read_bytes_, bool enable_prefetch);
+        std::unique_ptr<DB::ReadBuffer> in_, bool compressed, Int64 max_shuffle_read_rows_, Int64 max_shuffle_read_bytes_);
     DB::Block * read();
     ~ShuffleReader();
     static jclass input_stream_class;

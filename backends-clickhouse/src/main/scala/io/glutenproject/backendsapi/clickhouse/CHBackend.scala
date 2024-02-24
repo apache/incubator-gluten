@@ -129,11 +129,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       ".runtime_config.max_source_concatenate_bytes"
   val GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT = -1
 
-  val GLUTEN_SHUFFLE_EBABLE_PREFETCH: String =
-    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
-      ".runtime_config.shuffle_enable_prefetch"
-  val GLUTEN_SHUFFLE_EBABLE_PREFETCH_DEFAULT = true
-
   def affinityMode: String = {
     SparkEnv.get.conf
       .get(
@@ -275,11 +270,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   def maxShuffleReadBytes(): Long = {
     SparkEnv.get.conf
       .getLong(GLUTEN_MAX_SHUFFLE_READ_BYTES, GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT)
-  }
-
-  def enableShufflePrefetch(): Boolean = {
-    SparkEnv.get.conf
-      .getBoolean(GLUTEN_SHUFFLE_EBABLE_PREFETCH, GLUTEN_SHUFFLE_EBABLE_PREFETCH_DEFAULT)
   }
 
   override def supportWriteFilesExec(
