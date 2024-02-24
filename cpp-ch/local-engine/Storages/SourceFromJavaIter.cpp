@@ -16,25 +16,24 @@
  */
 #include "SourceFromJavaIter.h"
 #include <Columns/ColumnConst.h>
-#include <Columns/ColumnMap.h>
 #include <Columns/ColumnNullable.h>
+#include <Columns/ColumnMap.h>
 #include <Columns/ColumnTuple.h>
 #include <Columns/IColumn.h>
 #include <Core/ColumnsWithTypeAndName.h>
-#include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeMap.h>
-#include <DataTypes/DataTypeNullable.h>
-#include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesNumber.h>
-#include <DataTypes/IDataType.h>
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <jni/jni_common.h>
+#include <Common/assert_cast.h>
 #include <Common/CHUtil.h>
 #include <Common/DebugUtils.h>
 #include <Common/Exception.h>
 #include <Common/JNIUtils.h>
-#include <Common/assert_cast.h>
-
+#include <DataTypes/DataTypeArray.h>
+#include <DataTypes/DataTypeTuple.h>
+#include <DataTypes/DataTypeMap.h>
+#include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/IDataType.h>
 
 namespace local_engine
 {
@@ -92,7 +91,6 @@ DB::Chunk SourceFromJavaIter::generate()
     }
     CLEAN_JNIENV
     return result;
-
 }
 
 SourceFromJavaIter::~SourceFromJavaIter()
