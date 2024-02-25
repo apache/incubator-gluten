@@ -70,8 +70,8 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     std::lock_guard<std::recursive_mutex> l(mutex_); // FIXME: Do we have recursive locking for this mutex?
     auto pool = pools.at(0);
     const uint64_t oldCapacity = pool->capacity();
-    uint64_t spilledOut = pool->reclaim(targetBytes, 0, status); // ignore the output
-    uint64_t shrunken = pool->shrink(0);
+    pool->reclaim(targetBytes, 0, status); // ignore the output
+    pool->shrink(0);
     const uint64_t newCapacity = pool->capacity();
     uint64_t total = oldCapacity - newCapacity;
     listener_->allocationChanged(-total);

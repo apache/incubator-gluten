@@ -307,7 +307,7 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::lite
   std::vector<variant> variants;
   variants.reserve(literals.size());
   VELOX_CHECK_GE(literals.size(), 0, "List should have at least one item.");
-  std::optional<TypePtr> literalType = std::nullopt;
+  std::optional<TypePtr> literalType;
   for (const auto& literal : literals) {
     auto veloxVariant = toVeloxExpr(literal);
     if (!literalType.has_value()) {
