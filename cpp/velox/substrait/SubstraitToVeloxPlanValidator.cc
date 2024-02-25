@@ -249,13 +249,13 @@ bool SubstraitToVeloxPlanValidator::validateLiteral(
         return false;
       }
     }
-   } else if (literal.has_map()) {
-     for (auto child : literal.map().key_values()) {
-        if (!validateLiteral(child.key(), inputType) || !validateLiteral(child.value(), inputType)) {
-          // the error msg has been set, so do not need to set it again.
-          return false;
-        }
-     }
+  } else if (literal.has_map()) {
+    for (auto child : literal.map().key_values()) {
+      if (!validateLiteral(child.key(), inputType) || !validateLiteral(child.value(), inputType)) {
+        // the error msg has been set, so do not need to set it again.
+        return false;
+      }
+    }
   }
   return true;
 }
