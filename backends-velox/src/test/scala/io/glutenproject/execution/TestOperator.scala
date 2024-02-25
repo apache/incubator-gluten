@@ -21,7 +21,7 @@ import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
-import org.apache.spark.sql.execution.{GenerateExec, RDDScanExec}
+import org.apache.spark.sql.execution.{FilterExec, GenerateExec, ProjectExec, RDDScanExec}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.functions.{avg, col, lit, udf}
 import org.apache.spark.sql.internal.SQLConf
@@ -1048,14 +1048,14 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
         |select (l_partkey % 10 + 5)
         |from lineitem
         |""".stripMargin
-    )(df => checkFallbackOperators(df, 0))
+    )(checkOperatorMatch[ProjectExecTransformer])
 
     runQueryAndCompare(
       """
         |select l_partkey
-        |from lineitem where (l_partkey % 10 + 5) > 100
+        |from lineitem where (l_partkey % 10 + 5) > 6
         |""".stripMargin
-    )(df => checkFallbackOperators(df, 0))
+    )(checkOperatorMatch[FilterExecTransformer])
 
     withSQLConf(GlutenConfig.COLUMNAR_FALLBACK_EXPRESSIONS_THRESHOLD.key -> "2") {
       runQueryAndCompare(
@@ -1063,14 +1063,14 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
           |select (l_partkey % 10 + 5)
           |from lineitem
           |""".stripMargin
-      )(df => checkFallbackOperators(df, 1))
+      )(checkFallbackOperatorMatch[ProjectExec])
 
       runQueryAndCompare(
         """
           |select l_partkey
-          |from lineitem where (l_partkey % 10 + 5) > 100
+          |from lineitem where (l_partkey % 10 + 5) > 6
           |""".stripMargin
-      )(df => checkFallbackOperators(df, 1))
+      )(checkFallbackOperatorMatch[FilterExec])
     }
   }
 
