@@ -60,16 +60,16 @@ RowVectorPtr makeRowVector(const std::vector<VectorPtr>& children) {
   return std::make_shared<RowVector>(children[0]->pool(), rowType, BufferPtr(nullptr), vectorSize, children);
 }
 
-ArrayVectorPtr makeEmptyArrayVector(memory::MemoryPool* pool) {
+ArrayVectorPtr makeEmptyArrayVector(memory::MemoryPool* pool, const TypePtr& elementType) {
   BufferPtr offsets = allocateOffsets(1, pool);
   BufferPtr sizes = allocateOffsets(1, pool);
-  return std::make_shared<ArrayVector>(pool, ARRAY(UNKNOWN()), nullptr, 1, offsets, sizes, nullptr);
+  return std::make_shared<ArrayVector>(pool, ARRAY(elementType), nullptr, 1, offsets, sizes, nullptr);
 }
 
-MapVectorPtr makeEmptyMapVector(memory::MemoryPool* pool) {
+MapVectorPtr makeEmptyMapVector(memory::MemoryPool* pool, const TypePtr& keyType, const TypePtr& valueType) {
   BufferPtr offsets = allocateOffsets(1, pool);
   BufferPtr sizes = allocateOffsets(1, pool);
-  return std::make_shared<MapVector>(pool, MAP(UNKNOWN(), UNKNOWN()), nullptr, 1, offsets, sizes, nullptr, nullptr);
+  return std::make_shared<MapVector>(pool, MAP(keyType, valueType), nullptr, 1, offsets, sizes, nullptr, nullptr);
 }
 
 RowVectorPtr makeEmptyRowVector(memory::MemoryPool* pool) {
@@ -382,7 +382,8 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
 ArrayVectorPtr SubstraitVeloxExprConverter::literalsToArrayVector(const ::substrait::Expression::Literal& literal) {
   auto childSize = literal.list().values().size();
   if (childSize == 0) {
-    return makeEmptyArrayVector(pool_);
+    // childSize == 0 should not happend here but just for integrity check
+    return makeEmptyArrayVector(pool_, UNKNOWN());
   }
   auto childTypeCase = literal.list().values(0).literal_type_case();
   auto elementAtFunc = [&](vector_size_t idx) { return literal.list().values(idx); };
@@ -393,7 +394,8 @@ ArrayVectorPtr SubstraitVeloxExprConverter::literalsToArrayVector(const ::substr
 MapVectorPtr SubstraitVeloxExprConverter::literalsToMapVector(const ::substrait::Expression::Literal& literal) {
   auto childSize = literal.map().key_values().size();
   if (childSize == 0) {
-    return makeEmptyMapVector(pool_);
+    // childSize == 0 should not happend here but just for integrity check
+    return makeEmptyMapVector(pool_, UNKNOWN(), UNKNOWN());
   }
   auto keyTypeCase = literal.map().key_values(0).key().literal_type_case();
   auto valueTypeCase = literal.map().key_values(0).value().literal_type_case();
@@ -493,9 +495,20 @@ RowVectorPtr SubstraitVeloxExprConverter::literalsToRowVector(const ::substrait:
         vectors.emplace_back(literalsToArrayVector(child));
         break;
       }
+      case ::substrait::Expression_Literal::LiteralTypeCase::kEmptyList: {
+        auto elementType = SubstraitParser::parseType(substraitLit.empty_list().type());
+        auto constantVector = BaseVector::wrapInConstant(1, 0, makeEmptyArrayVector(pool_, elementType));
+        return std::make_shared<const core::ConstantTypedExpr>(constantVector);
+      }
       case ::substrait::Expression_Literal::LiteralTypeCase::kMap: {
         vectors.emplace_back(literalsToMapVector(child));
         break;
+      }
+      case ::substrait::Expression_Literal::LiteralTypeCase::kEmptyMap: {
+        auto keyType = SubstraitParser::parseType(substraitLit.empty_map().key());
+        auto valueType = SubstraitParser::parseType(substraitLit.empty_map().value());
+        auto constantVector = BaseVector::wrapInConstant(1, 0, makeEmptyMapVector(pool_, keyType, valueType));
+        return std::make_shared<const core::ConstantTypedExpr>(constantVector);
       }
       case ::substrait::Expression_Literal::LiteralTypeCase::kStruct: {
         vectors.emplace_back(literalsToRowVector(child));
