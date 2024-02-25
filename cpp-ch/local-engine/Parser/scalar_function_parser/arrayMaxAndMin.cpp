@@ -18,6 +18,7 @@
 #include <Common/CHUtil.h>
 #include <Core/Field.h>
 #include <DataTypes/IDataType.h>
+#include <DataTypes/DataTypeArray.h>
 
 namespace DB
 {
@@ -45,9 +46,22 @@ public:
         if (parsed_args.size() != 1)
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "Function {} requires exactly one arguments", getName());
 
-        const auto * max_const_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), getCHFunctionName(substrait_func));
-        const auto * array_reduce_node = toFunctionNode(actions_dag, "arrayReduce", {max_const_node, parsed_args[0]});
-        return convertNodeTypeIfNeeded(substrait_func, array_reduce_node, actions_dag);
+        const auto * arr_arg = parsed_args[0];
+        const auto * func_const_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), getCHFunctionName(substrait_func));
+
+        auto is_arr_nullable = arr_arg->result_type->isNullable();
+        if (!is_arr_nullable)
+        {
+            const auto * array_reduce_node = toFunctionNode(actions_dag, "arrayReduce", {func_const_node, arr_arg});
+            return convertNodeTypeIfNeeded(substrait_func, array_reduce_node, actions_dag);
+        }
+
+        const auto * arr_is_null_node = toFunctionNode(actions_dag, "isNull", {arr_arg});
+        const auto * arr_not_null_node = toFunctionNode(actions_dag, "assumeNotNull", {arr_arg});
+        const auto * array_reduce_node = toFunctionNode(actions_dag, "arrayReduce", {func_const_node, arr_not_null_node});
+        const auto * null_const_node = addColumnToActionsDAG(actions_dag, makeNullable(array_reduce_node->result_type), Field{});
+        const auto * if_node = toFunctionNode(actions_dag, "if", {arr_is_null_node, null_const_node, array_reduce_node});
+        return convertNodeTypeIfNeeded(substrait_func, if_node, actions_dag);
     }
 };
 
