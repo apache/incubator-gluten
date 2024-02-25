@@ -615,6 +615,12 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         "select id % 10, sum(id +100) + max(id+100) from range(100) group by id % 10") {
         df => checkOperatorCount[ProjectExecTransformer](2)(df)
       }
+      // issue https://github.com/oap-project/gluten/issues/4642
+      runQueryAndCompare(
+        "select id, if(id % 2 = 0, sum(id), max(id)) as s1, " +
+          "if(id %2 = 0, sum(id+1), sum(id+2)) as s2 from range(10) group by id") {
+        df => checkOperatorCount[ProjectExecTransformer](1)(df)
+      }
 
       // CSE in sort
       runQueryAndCompare(
