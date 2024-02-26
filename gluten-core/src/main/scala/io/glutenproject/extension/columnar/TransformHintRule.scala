@@ -19,6 +19,7 @@ package io.glutenproject.extension.columnar
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
+import io.glutenproject.expression.ExpressionUtils.getExpressionTreeDepth
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.extension.columnar.TransformHints.EncodeTransformableTagImplicits
 import io.glutenproject.sql.shims.SparkShimLoader
@@ -27,7 +28,7 @@ import io.glutenproject.utils.PhysicalPlanSelector
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, LeafExpression}
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression}
 import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
@@ -432,11 +433,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             TransformHints.tagNotTransformable(plan, "columnar project is disabled")
           } else if (
             plan.projectList.size > 0 && plan.projectList
-              .map(
-                expr =>
-                  expr.collect {
-                    case expr if !expr.isInstanceOf[LeafExpression] => expr
-                  }.size)
+              .map(getExpressionTreeDepth(_))
               .max >= fallbackExpressionsThreshold
           ) {
             TransformHints.tagNotTransformable(
@@ -452,11 +449,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             plan.child.isInstanceOf[BatchScanExec]
           if (!enableColumnarFilter) {
             TransformHints.tagNotTransformable(plan, "columnar Filter is not enabled in FilterExec")
-          } else if (
-            plan.condition.collect {
-              case expr if !expr.isInstanceOf[LeafExpression] => expr
-            }.size >= fallbackExpressionsThreshold
-          ) {
+          } else if (getExpressionTreeDepth(plan.condition) >= fallbackExpressionsThreshold) {
             TransformHints.tagNotTransformable(
               plan,
               "Fall back filter plan because its" +
