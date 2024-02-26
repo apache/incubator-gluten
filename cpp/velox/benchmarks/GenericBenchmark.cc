@@ -55,6 +55,7 @@ DEFINE_string(
     "Path to input json file of the splits. Only valid for simulating the first stage. Use comma-separated list for multiple splits.");
 DEFINE_string(data, "", "Path to input data files in parquet format. Only valid for simulating the middle stage.");
 DEFINE_string(conf, "", "Path to the configuration file.");
+DEFINE_string(write_path, "/tmp", "Path for simulate write task.");
 
 struct WriterMetrics {
   int64_t splitTime;
@@ -156,7 +157,7 @@ auto BM_Generic = [](::benchmark::State& state,
             return static_cast<FileReaderIterator*>(iter->getInputIter());
           });
     }
-
+    runtime->injectWriteFilesTempPath(FLAGS_write_path);
     runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size(), {}, std::nullopt);
     for (auto& split : splits) {
       runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size(), std::nullopt);
