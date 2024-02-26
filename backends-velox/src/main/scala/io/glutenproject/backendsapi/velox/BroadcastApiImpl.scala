@@ -22,13 +22,9 @@ import java.util
 
 class BroadcastApiImpl extends BroadcastApi {
 
-  override def collectExecutionBroadcastHashTableId(
-      executionId: String,
-      buildHashTableId: String): Unit =
-    super.collectExecutionBroadcastHashTableId(executionId, buildHashTableId)
+  override def collectExecutionBroadcastTableId(executionId: String, buildTableId: String): Unit =
+    super.collectExecutionBroadcastTableId(executionId, buildTableId)
 
-  override def cleanExecutionBroadcastHashtable(
-      executionId: String,
-      broadcastHashIds: util.Set[String]): Unit =
-    super.cleanExecutionBroadcastHashtable(executionId, broadcastHashIds)
+  override def cleanExecutionBroadcastTable(executionId: String, broadcastTableIds: util.Set[String]): Unit =
+    super.cleanExecutionBroadcastTable(executionId, broadcastTableIds)
 }

@@ -71,7 +71,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
     val broadcastRDD = {
       val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
       BackendsApiManager.getBroadcastApiInstance
-        .collectExecutionBroadcastHashTableId(executionId, buildTableId)
+        .collectExecutionBroadcastTableId(executionId, buildTableId)
       createBroadcastBuildSideRDD()
     }
     // FIXME: Do we have to make build side a RDD?

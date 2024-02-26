@@ -23,23 +23,23 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rpc.GlutenDriverEndpoint
 
 class CHBroadcastApi extends BroadcastApi with Logging {
-  override def cleanExecutionBroadcastHashtable(
+  override def cleanExecutionBroadcastTable(
       executionId: String,
-      broadcastHashIds: java.util.Set[String]): Unit = {
-    if (broadcastHashIds != null) {
-      broadcastHashIds.forEach(
+      broadcastTableIds: java.util.Set[String]): Unit = {
+    if (broadcastTableIds != null) {
+      broadcastTableIds.forEach(
         resource_id => CHBroadcastBuildSideCache.invalidateBroadcastHashtable(resource_id))
     }
   }
 
-  override def collectExecutionBroadcastHashTableId(
+  override def collectExecutionBroadcastTableId(
       executionId: String,
-      buildHashTableId: String): Unit = {
+      buildTableId: String): Unit = {
     if (executionId != null) {
-      GlutenDriverEndpoint.collectResources(executionId, buildHashTableId)
+      GlutenDriverEndpoint.collectResources(executionId, buildTableId)
     } else {
       logWarning(
-        s"Can't not trace broadcast hash table data $buildHashTableId" +
+        s"Can't not trace broadcast hash table data $buildTableId" +
           s" because execution id is null." +
           s" Will clean up until expire time.")
     }
