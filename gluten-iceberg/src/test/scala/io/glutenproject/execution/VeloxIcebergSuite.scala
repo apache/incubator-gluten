@@ -16,6 +16,8 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.GlutenConfig
+
 import org.apache.spark.SparkConf
 
 class VeloxIcebergSuite extends WholeStageTransformerSuite {
@@ -51,6 +53,48 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
                          |select * from iceberg_tb;
                          |""".stripMargin) {
       checkOperatorMatch[IcebergScanTransformer]
+    }
+  }
+
+  test("iceberg partitioned table") {
+    withTable("p_str_tb", "p_int_tb") {
+      // Partition key of string type.
+      withSQLConf(GlutenConfig.GLUTEN_ENABLE_KEY -> "false") {
+        // Gluten does not support write iceberg table.
+        spark.sql(
+          """
+            |create table p_str_tb(id int, name string, p string) using iceberg partitioned by (p);
+            |""".stripMargin)
+        spark.sql(
+          """
+            |insert into table p_str_tb values(1, 'a1', 'p1'), (2, 'a2', 'p1'), (3, 'a3', 'p2');
+            |""".stripMargin
+        )
+      }
+      runQueryAndCompare("""
+                           |select * from p_str_tb;
+                           |""".stripMargin) {
+        checkOperatorMatch[IcebergScanTransformer]
+      }
+
+      // Partition key of integer type.
+      withSQLConf(GlutenConfig.GLUTEN_ENABLE_KEY -> "false") {
+        // Gluten does not support write iceberg table.
+        spark.sql(
+          """
+            |create table p_int_tb(id int, name string, p int) using iceberg partitioned by (p);
+            |""".stripMargin)
+        spark.sql(
+          """
+            |insert into table p_int_tb values(1, 'a1', 1), (2, 'a2', 1), (3, 'a3', 2);
+            |""".stripMargin
+        )
+      }
+      runQueryAndCompare("""
+                           |select * from p_int_tb;
+                           |""".stripMargin) {
+        checkOperatorMatch[IcebergScanTransformer]
+      }
     }
   }
 }

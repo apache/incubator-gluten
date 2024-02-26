@@ -53,7 +53,7 @@ object TypeUtil {
           .getFractionFormatter(ZoneOffset.UTC)
           .format(partitionValue.asInstanceOf[JLong])
       case _ =>
-        partitionType.toString
+        partitionValue.toString
     }
   }
 }
