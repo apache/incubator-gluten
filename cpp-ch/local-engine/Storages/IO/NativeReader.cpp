@@ -27,7 +27,7 @@
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
 
-#include <Interpreters/threadPoolCallbackRunner.h>
+#include <Common/threadPoolCallbackRunner.h>
 #include <Common/CurrentMetrics.h>
 #include <Interpreters/Context.h>
 
