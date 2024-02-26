@@ -57,16 +57,16 @@ case class GlutenFallbackReporter(glutenConfig: GlutenConfig, spark: SparkSessio
     val validationLogLevel = glutenConfig.validationLogLevel
     plan.foreachUp {
       case _: GlutenPlan => // ignore
-      case plan: SparkPlan =>
-        TransformHints.getHintOption(plan) match {
-          case Some(TRANSFORM_UNSUPPORTED(Some(reason), append)) =>
-            logFallbackReason(validationLogLevel, plan.nodeName, reason)
+      case p: SparkPlan if TransformHints.isNotTransformable(p) =>
+        TransformHints.getHint(p) match {
+          case TRANSFORM_UNSUPPORTED(Some(reason), append) =>
+            logFallbackReason(validationLogLevel, p.nodeName, reason)
             // With in next round stage in AQE, the physical plan would be a new instance that
             // can not preserve the tag, so we need to set the fallback reason to logical plan.
             // Then we can be aware of the fallback reason for the whole plan.
             // If a logical plan mapping to several physical plan, we add all reason into
             // that logical plan to make sure we do not lose any fallback reason.
-            plan.logicalLink.foreach {
+            p.logicalLink.foreach {
               logicalPlan =>
                 val newReason = logicalPlan
                   .getTagValue(FALLBACK_REASON_TAG)
@@ -88,9 +88,11 @@ case class GlutenFallbackReporter(glutenConfig: GlutenConfig, spark: SparkSessio
                   .getOrElse(reason)
                 logicalPlan.setTagValue(FALLBACK_REASON_TAG, newReason)
             }
-
+          case TRANSFORM_UNSUPPORTED(_, _) =>
           case _ =>
+            throw new IllegalStateException("Unreachable code")
         }
+      case _ =>
     }
   }
 

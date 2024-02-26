@@ -61,7 +61,7 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
                   "columnar broadcast exchange is disabled or " +
                     "columnar broadcast join is disabled")
               } else {
-                if (TransformHints.isAlreadyTagged(bhj) && TransformHints.isNotTransformable(bhj)) {
+                if (TransformHints.isNotTransformable(bhj)) {
                   ValidationResult.notOk("broadcast join is already tagged as not transformable")
                 } else {
                   val bhjTransformer = BackendsApiManager.getSparkPlanExecApiInstance
@@ -146,7 +146,7 @@ case class FallbackBroadcastHashJoin(session: SparkSession) extends Rule[SparkPl
 
                 maybeExchange match {
                   case Some(exchange @ BroadcastExchangeExec(mode, child)) =>
-                    TransformHints.tag(bhj, isBhjTransformable.toTransformHint)
+                    isBhjTransformable.tagOnFallback(bhj)
                     if (!isBhjTransformable.isValid) {
                       TransformHints.tagNotTransformable(exchange, isBhjTransformable)
                     }
@@ -191,7 +191,6 @@ case class FallbackBroadcastHashJoin(session: SparkSession) extends Rule[SparkPl
                               s" transformed to columnar version but BHJ is determined as" +
                               s" non-transformable: ${bhj.toString()}")
                         }
-                        TransformHints.tagTransformable(bhj)
                     }
                 }
               }

@@ -16,7 +16,7 @@
  */
 package io.glutenproject.extension
 
-import io.glutenproject.extension.columnar.{AddTransformHintRule, TRANSFORM_SUPPORTED, TransformHint, TransformHints}
+import io.glutenproject.extension.columnar.{AddTransformHintRule, TRANSFORM_UNSUPPORTED, TransformHint, TransformHints}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -46,7 +46,7 @@ case class RewrittenNodeWall(originalChild: SparkPlan) extends LeafExecNode {
 class RewriteSparkPlanRulesManager(rewriteRules: Seq[Rule[SparkPlan]]) extends Rule[SparkPlan] {
 
   private def mayNeedRewrite(plan: SparkPlan): Boolean = {
-    TransformHints.getHintOption(plan).isEmpty && {
+    TransformHints.isTransformable(plan) && {
       plan match {
         case _: SortExec => true
         case _: TakeOrderedAndProjectExec => true
@@ -58,13 +58,19 @@ class RewriteSparkPlanRulesManager(rewriteRules: Seq[Rule[SparkPlan]]) extends R
     }
   }
 
-  private def getTransformHintBack(origin: SparkPlan, rewrittenPlan: SparkPlan): TransformHint = {
+  private def getTransformHintBack(
+      origin: SparkPlan,
+      rewrittenPlan: SparkPlan): Option[TransformHint] = {
     // The rewritten plan may contain more nodes than origin, here use the node name to get it back
     val target = rewrittenPlan.collect {
       case p if p.nodeName == origin.nodeName => p
     }
     assert(target.size == 1)
-    TransformHints.getHint(target.head)
+    if (TransformHints.isTransformable(target.head)) {
+      None
+    } else {
+      Some(TransformHints.getHint(target.head))
+    }
   }
 
   private def applyRewriteRules(origin: SparkPlan): (SparkPlan, Option[String]) = {
@@ -100,12 +106,15 @@ class RewriteSparkPlanRulesManager(rewriteRules: Seq[Rule[SparkPlan]]) extends R
         } else {
           addHint.apply(rewrittenPlan)
           val hint = getTransformHintBack(origin, rewrittenPlan)
-          if (hint.isInstanceOf[TRANSFORM_SUPPORTED]) {
-            rewrittenPlan.transformUp { case wall: RewrittenNodeWall => wall.originalChild }
-          } else {
-            // If the rewritten plan is still not transformable, return the original plan.
-            TransformHints.tag(origin, hint)
-            origin
+          hint match {
+            case Some(tu @ TRANSFORM_UNSUPPORTED(_, _)) =>
+              // If the rewritten plan is still not transformable, return the original plan.
+              TransformHints.tag(origin, tu)
+              origin
+            case None =>
+              rewrittenPlan.transformUp { case wall: RewrittenNodeWall => wall.originalChild }
+            case _ =>
+              throw new IllegalStateException("Unreachable code")
           }
         }
     }

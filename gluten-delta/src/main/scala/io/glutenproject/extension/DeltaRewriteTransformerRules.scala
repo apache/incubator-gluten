@@ -18,7 +18,6 @@ package io.glutenproject.extension
 
 import io.glutenproject.execution.{DeltaScanTransformer, ProjectExecTransformer}
 import io.glutenproject.extension.DeltaRewriteTransformerRules.columnMappingRule
-import io.glutenproject.extension.columnar.TransformHints
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference}
@@ -137,14 +136,12 @@ object DeltaRewriteTransformerRules {
       )
       scanExecTransformer.copyTagsFrom(plan)
       tagColumnMappingRule(scanExecTransformer)
-      TransformHints.tagTransformable(scanExecTransformer)
 
       // alias physicalName into tableName
       val expr = (transformedAttrs, originColumnNames).zipped.map {
         (attr, columnName) => Alias(attr, columnName)(exprId = attr.exprId)
       }
       val projectExecTransformer = ProjectExecTransformer(expr, scanExecTransformer)
-      TransformHints.tagTransformable(projectExecTransformer)
       projectExecTransformer
     case _ => plan
   }
