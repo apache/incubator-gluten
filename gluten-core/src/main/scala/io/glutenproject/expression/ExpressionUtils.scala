@@ -24,6 +24,11 @@ object ExpressionUtils {
     if (expr.isInstanceOf[LeafExpression]) {
       return 0
     }
-    1 + expr.children.map(child => getExpressionTreeDepth(child)).max
+    val childrenDepth = expr.children.map(child => getExpressionTreeDepth(child))
+    if (childrenDepth.isEmpty) {
+      1
+    } else {
+      1 + childrenDepth.max
+    }
   }
 }
