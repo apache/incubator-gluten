@@ -154,11 +154,7 @@ abstract class HashAggregateExecBaseTransformer(
           case Partial | Final | Complete => true
           case _ => false
         }
-      case _ =>
-        mode match {
-          case Partial | PartialMerge | Final | Complete => true
-          case _ => false
-        }
+      case _ => true
     }
   }
 
