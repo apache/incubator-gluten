@@ -1036,7 +1036,7 @@ object GlutenConfig {
       .doc("Fall back filter/project if number of nested expressions reaches this threshold," +
         " considering Spark codegen can bring better performance for such case.")
       .intConf
-      .createWithDefault(50)
+      .createWithDefault(80)
 
   val COLUMNAR_FALLBACK_PREFER_COLUMNAR =
     buildConf("spark.gluten.sql.columnar.fallback.preferColumnar")
