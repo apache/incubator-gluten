@@ -111,12 +111,20 @@ inline AnotherFieldType toAnotherFieldType(const parquet::ColumnDescriptor & typ
     return {type.name(), local_engine::test::toDataType(type)};
 }
 
-inline BlockRowType toBlockRowType(const AnotherRowType & type)
+inline BlockRowType toBlockRowType(const AnotherRowType & type, const bool reverse = false)
 {
     BlockRowType result;
     result.reserve(type.size());
-    for (const auto & field : type)
-        result.emplace_back(toBlockFieldType(field));
+    if (reverse)
+    {
+        for (auto it = type.rbegin(); it != type.rend(); ++it)
+            result.emplace_back(toBlockFieldType(*it));
+    }
+    else
+    {
+        for (const auto & field : type)
+            result.emplace_back(toBlockFieldType(field));
+    }
     return result;
 }
 

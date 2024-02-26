@@ -24,6 +24,7 @@
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <QueryPipeline/QueryPipeline.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Storages/Parquet/VectorizedParquetRecordReader2.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <benchmark/benchmark.h>
 #include <parquet/arrow/reader.h>
@@ -45,7 +46,7 @@ void BM_ParquetReadAllLocal(benchmark::State & state)
     for (auto _ : state)
     {
         auto in = std::make_unique<ReadBufferFromFile>(file);
-        auto format = std::make_shared<local_engine::VectorizedParquetBlockInputFormat>(*in, header, format_settings);
+        auto format = std::make_shared<local_engine2::VectorizedParquetBlockInputFormat>(*in, header, format_settings);
         auto pipeline = QueryPipeline(std::move(format));
         auto reader = std::make_unique<PullingPipelineExecutor>(pipeline);
         while (reader->pull(res))
