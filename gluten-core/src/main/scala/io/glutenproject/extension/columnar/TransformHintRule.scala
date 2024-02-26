@@ -431,7 +431,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           if (!enableColumnarProject) {
             TransformHints.tagNotTransformable(plan, "columnar project is disabled")
           } else if (
-            plan.projectList
+            plan.projectList.size > 0 && plan.projectList
               .map(
                 expr =>
                   expr.collect {
