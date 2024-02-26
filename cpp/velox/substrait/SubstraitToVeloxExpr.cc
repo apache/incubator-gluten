@@ -510,7 +510,6 @@ RowVectorPtr SubstraitVeloxExprConverter::literalsToRowVector(const ::substrait:
         vectors.emplace_back(literalsToMapVector(child));
         break;
       }
-
       case ::substrait::Expression_Literal::LiteralTypeCase::kStruct: {
         vectors.emplace_back(literalsToRowVector(child));
         break;
