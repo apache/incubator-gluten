@@ -24,6 +24,7 @@ import io.glutenproject.extension.columnar._
 import io.glutenproject.metrics.GlutenTimeMetric
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.{LogLevelUtil, PhysicalPlanSelector, PlanUtil}
+
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
@@ -643,6 +644,7 @@ case class ColumnarOverrideRules(session: SparkSession)
    */
   private def suggestRules(): List[SparkSession => Rule[SparkPlan]] = {
     List(
+      (_: SparkSession) => RemoveTransitions,
       (spark: SparkSession) => FallbackOnANSIMode(spark),
       (spark: SparkSession) => FallbackMultiCodegens(spark),
       (spark: SparkSession) => PlanOneRowRelation(spark),
@@ -720,23 +722,24 @@ case class ColumnarOverrideRules(session: SparkSession)
   }
 
   // Visible for testing.
-  def withSuggestRules(suggestRules: List[SparkSession => Rule[SparkPlan]]): Rule[SparkPlan] = plan =>
-    PhysicalPlanSelector.maybe(session, plan) {
-      val finalPlan = prepareFallback(plan) {
-        p =>
-          val suggestedPlan = transformPlan(suggestRules, p, "suggest")
-          transformPlan(fallbackPolicies(), suggestedPlan, "fallback") match {
-            case FallbackNode(fallbackPlan) =>
-              // we should use vanilla c2r rather than native c2r,
-              // and there should be no `GlutenPlan` any more,
-              // so skip the `postRules()`.
-              fallbackPlan
-            case plan =>
-              transformPlan(postRules(), plan, "post")
-          }
+  def withSuggestRules(suggestRules: List[SparkSession => Rule[SparkPlan]]): Rule[SparkPlan] =
+    plan =>
+      PhysicalPlanSelector.maybe(session, plan) {
+        val finalPlan = prepareFallback(plan) {
+          p =>
+            val suggestedPlan = transformPlan(suggestRules, p, "suggest")
+            transformPlan(fallbackPolicies(), suggestedPlan, "fallback") match {
+              case FallbackNode(fallbackPlan) =>
+                // we should use vanilla c2r rather than native c2r,
+                // and there should be no `GlutenPlan` any more,
+                // so skip the `postRules()`.
+                fallbackPlan
+              case plan =>
+                transformPlan(postRules(), plan, "post")
+            }
+        }
+        transformPlan(finalRules(), finalPlan, "final")
       }
-      transformPlan(finalRules(), finalPlan, "final")
-    }
 
   private def transformPlan(
       getRules: List[SparkSession => Rule[SparkPlan]],

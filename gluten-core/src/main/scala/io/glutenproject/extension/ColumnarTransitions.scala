@@ -21,6 +21,13 @@ import org.apache.spark.sql.execution.{ApplyColumnarRulesAndInsertTransitions, C
 
 /** See rule code from vanilla Spark: [[ApplyColumnarRulesAndInsertTransitions]]. */
 case class InsertTransitions(outputsColumnar: Boolean) extends Rule[SparkPlan] {
+  private object RemoveRedundantTransitions extends Rule[SparkPlan] {
+    override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
+      case ColumnarToRowExec(RowToColumnarExec(child)) => child
+      case RowToColumnarExec(ColumnarToRowExec(child)) => child
+    }
+  }
+
   private val rules = List(
     ApplyColumnarRulesAndInsertTransitions(List(), outputsColumnar),
     RemoveRedundantTransitions)
@@ -29,14 +36,14 @@ case class InsertTransitions(outputsColumnar: Boolean) extends Rule[SparkPlan] {
   }
 }
 
-object RemoveRedundantTransitions extends Rule[SparkPlan] {
+object RemoveTransitions extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
-    case ColumnarToRowExec(RowToColumnarExec(child)) => child
-    case RowToColumnarExec(ColumnarToRowExec(child)) => child
+    case ColumnarToRowExec(child) => child
+    case RowToColumnarExec(child) => child
   }
 }
 
-object InsertTransitions {
+object ColumnarTransitions {
   def insertTransitions(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
     InsertTransitions(outputsColumnar).apply(plan)
   }
