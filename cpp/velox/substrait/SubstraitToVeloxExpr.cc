@@ -351,8 +351,19 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
       auto constantVector = BaseVector::wrapInConstant(1, 0, literalsToArrayVector(substraitLit));
       return std::make_shared<const core::ConstantTypedExpr>(constantVector);
     }
+    case ::substrait::Expression_Literal::LiteralTypeCase::kEmptyList: {
+      auto elementType = SubstraitParser::parseType(substraitLit.empty_list().type());
+      auto constantVector = BaseVector::wrapInConstant(1, 0, makeEmptyArrayVector(pool_, elementType));
+      return std::make_shared<const core::ConstantTypedExpr>(constantVector);
+    }
     case ::substrait::Expression_Literal::LiteralTypeCase::kMap: {
       auto constantVector = BaseVector::wrapInConstant(1, 0, literalsToMapVector(substraitLit));
+      return std::make_shared<const core::ConstantTypedExpr>(constantVector);
+    }
+    case ::substrait::Expression_Literal::LiteralTypeCase::kEmptyMap: {
+      auto keyType = SubstraitParser::parseType(substraitLit.empty_map().key());
+      auto valueType = SubstraitParser::parseType(substraitLit.empty_map().value());
+      auto constantVector = BaseVector::wrapInConstant(1, 0, makeEmptyMapVector(pool_, keyType, valueType));
       return std::make_shared<const core::ConstantTypedExpr>(constantVector);
     }
     case ::substrait::Expression_Literal::LiteralTypeCase::kStruct: {
@@ -495,21 +506,11 @@ RowVectorPtr SubstraitVeloxExprConverter::literalsToRowVector(const ::substrait:
         vectors.emplace_back(literalsToArrayVector(child));
         break;
       }
-      case ::substrait::Expression_Literal::LiteralTypeCase::kEmptyList: {
-        auto elementType = SubstraitParser::parseType(substraitLit.empty_list().type());
-        auto constantVector = BaseVector::wrapInConstant(1, 0, makeEmptyArrayVector(pool_, elementType));
-        return std::make_shared<const core::ConstantTypedExpr>(constantVector);
-      }
       case ::substrait::Expression_Literal::LiteralTypeCase::kMap: {
         vectors.emplace_back(literalsToMapVector(child));
         break;
       }
-      case ::substrait::Expression_Literal::LiteralTypeCase::kEmptyMap: {
-        auto keyType = SubstraitParser::parseType(substraitLit.empty_map().key());
-        auto valueType = SubstraitParser::parseType(substraitLit.empty_map().value());
-        auto constantVector = BaseVector::wrapInConstant(1, 0, makeEmptyMapVector(pool_, keyType, valueType));
-        return std::make_shared<const core::ConstantTypedExpr>(constantVector);
-      }
+
       case ::substrait::Expression_Literal::LiteralTypeCase::kStruct: {
         vectors.emplace_back(literalsToRowVector(child));
         break;
