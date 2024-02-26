@@ -23,6 +23,7 @@
 #include <exception>
 #include "JniUdf.h"
 #include "compute/VeloxBackend.h"
+#include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 #include "jni/JniError.h"
 #include "jni/JniFileSystem.h"
@@ -94,7 +95,8 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFailu
   auto safeArray = gluten::getByteArrayElementsSafe(env, planArray);
   auto planData = safeArray.elems();
   auto planSize = env->GetArrayLength(planArray);
-  if (gluten::debugModeEnabled(ctx->getConfMap())) {
+  auto runtime = dynamic_cast<gluten::VeloxRuntime*>(ctx);
+  if (runtime->debugModeEnabled()) {
     try {
       auto jsonPlan = gluten::substraitFromPbToJson("Plan", planData, planSize, std::nullopt);
       LOG(INFO) << std::string(50, '#') << " received substrait::Plan: for validation";
