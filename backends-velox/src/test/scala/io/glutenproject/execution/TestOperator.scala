@@ -213,6 +213,12 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       windowType =>
         withSQLConf("spark.gluten.sql.columnar.backend.velox.window.type" -> windowType) {
           runQueryAndCompare(
+            "select ntile(4) over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+            assertWindowOffloaded
+          }
+
+          runQueryAndCompare(
             "select row_number() over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
             assertWindowOffloaded

@@ -26,7 +26,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Literal, NamedExpression, NthValue, PercentRank, Rand, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Literal, NamedExpression, NthValue, NTile, PercentRank, Rand, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Sum}
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.util.CharVarcharUtils
@@ -286,7 +286,7 @@ object BackendSettings extends BackendSettingsApi {
           }
           windowExpression.windowFunction match {
             case _: RowNumber | _: AggregateExpression | _: Rank | _: CumeDist | _: DenseRank |
-                _: PercentRank | _: NthValue =>
+                _: PercentRank | _: NthValue | _: NTile =>
             case _ =>
               allSupported = false
           }
