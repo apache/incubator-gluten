@@ -18,13 +18,14 @@ package org.apache.spark.sql.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.BasicScanExecTransformer
-import io.glutenproject.extension.columnar.{FallbackEmptySchemaRelation, TRANSFORM_UNSUPPORTED, TransformHints}
 import io.glutenproject.extension.{ColumnarOverrideRules, GlutenPlan, InsertTransitions}
+import io.glutenproject.extension.columnar.{FallbackEmptySchemaRelation, TRANSFORM_UNSUPPORTED, TransformHints}
 import io.glutenproject.utils.QueryPlanSelector
+
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{GlutenSQLTestsTrait, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.{GlutenSQLTestsTrait, SparkSession}
 
 class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
 
