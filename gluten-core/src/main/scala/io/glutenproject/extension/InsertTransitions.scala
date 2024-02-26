@@ -17,12 +17,23 @@
 package io.glutenproject.extension
 
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ApplyColumnarRulesAndInsertTransitions, SparkPlan}
+import org.apache.spark.sql.execution.{ApplyColumnarRulesAndInsertTransitions, ColumnarToRowExec, RowToColumnarExec, SparkPlan}
 
 /** See rule code from vanilla Spark: [[ApplyColumnarRulesAndInsertTransitions]]. */
 case class InsertTransitions(outputsColumnar: Boolean) extends Rule[SparkPlan] {
-  private val rule = ApplyColumnarRulesAndInsertTransitions(List(), outputsColumnar)
-  override def apply(plan: SparkPlan): SparkPlan = rule.apply(plan)
+  private val rules = List(
+    ApplyColumnarRulesAndInsertTransitions(List(), outputsColumnar),
+    RemoveRedundantTransitions)
+  override def apply(plan: SparkPlan): SparkPlan = rules.foldLeft(plan) {
+    case (p, r) => r.apply(p)
+  }
+}
+
+object RemoveRedundantTransitions extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
+    case ColumnarToRowExec(RowToColumnarExec(child)) => child
+    case RowToColumnarExec(ColumnarToRowExec(child)) => child
+  }
 }
 
 object InsertTransitions {
