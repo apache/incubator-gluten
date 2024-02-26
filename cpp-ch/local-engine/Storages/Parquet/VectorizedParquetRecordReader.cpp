@@ -273,27 +273,57 @@ DB::Chunk VectorizedParquetRecordReader::nextBatch()
     return result;
 }
 
-const RowRanges & ParquetFileReaderExt::getRowRanges(int row_group_index)
+ParquetFileReaderExtBase::ParquetFileReaderExtBase(
+    const std::shared_ptr<arrow::io::RandomAccessFile> & source,
+    std::unique_ptr<parquet::ParquetFileReader> parquetFileReader,
+    const std::shared_ptr<ColumnIndexFilter> & column_index_filter,
+    const std::vector<int32_t> & column_indices)
+    : source_(source)
+    , fileReader_(std::move(parquetFileReader))
+    , column_index_filter_(column_index_filter)
+    , column_indices_(column_indices.begin(), column_indices.end())
 {
-    assert(row_group_row_ranges_.size() == row_groups_.size());
-    if (!row_group_row_ranges_[row_group_index])
-    {
-        const auto & rowGroup = *row_group_metas_[row_group_index];
-        const ColumnIndexStore & column_index_store = getColumnIndexStore(row_group_index);
-
-        row_group_row_ranges_[row_group_index]
-            = std::make_unique<RowRanges>(column_index_filter_->calculateRowRanges(column_index_store, rowGroup.num_rows()));
-    }
-    return *(row_group_row_ranges_[row_group_index]);
+    THROW_ARROW_NOT_OK_OR_ASSIGN(const int64_t source_size, source_->GetSize());
+    source_size_ = source_size;
 }
 
-const ColumnIndexStore & ParquetFileReaderExt::getColumnIndexStore(const int row_group_index)
+ColumnChunkPageRead ParquetFileReaderExtBase::readColumnChunkPageBase(
+    const parquet::RowGroupMetaData & rg, const int32_t column_index, const BuildRead & build_read) const
 {
-    assert(row_group_column_index_stores_.size() == row_groups_.size());
-    if (!row_group_column_index_stores_[row_group_index])
+    const auto file_metadata = fileReader_->metadata();
+
+    // Prior to Arrow 3.0.0, is_compressed was always set to false in column headers,
+    // even if compression was used. See ARROW-17100.
+    const bool always_compressed
+        = file_metadata->writer_version().VersionLt(parquet::ApplicationVersion::PARQUET_CPP_10353_FIXED_VERSION());
+    const auto column_metadata = rg.ColumnChunk(column_index);
+    const auto col_range = ComputeColumnChunkRange(*file_metadata, *column_metadata, source_size_);
+    const parquet::ReaderProperties properties;
+    auto [read_ranges, read_sequence] = build_read(column_index, col_range);
+    const auto input_stream = getStream(*source_, read_ranges);
+    return std::make_pair(
+        parquet::PageReader::Open(
+            input_stream, column_metadata->num_values(), column_metadata->compression(), properties, always_compressed),
+        read_sequence);
+}
+
+const RowRanges & ParquetFileReaderExtBase::getRowRanges(const int32_t row_group)
+{
+    if (!row_group_row_ranges_.contains(row_group))
     {
-        const auto & rowGroup = *row_group_metas_[row_group_index];
-        auto & rowGroupIndex = *row_group_index_readers_[row_group_index];
+        const auto rowGroup = RowGroup(row_group);
+        const ColumnIndexStore & column_index_store = getColumnIndexStore(row_group);
+        row_group_row_ranges_[row_group] = calculateRowRanges(column_index_store, rowGroup->num_rows());
+    }
+    return *(row_group_row_ranges_[row_group]);
+}
+
+const ColumnIndexStore & ParquetFileReaderExtBase::getColumnIndexStore(const int32_t row_group)
+{
+    if (!row_group_column_index_stores_.contains(row_group))
+    {
+        const auto rowGroup = RowGroup(row_group);
+        const auto rowGroupIndex = RowGroupPageIndexReader(row_group);
 
         auto result = std::make_unique<ColumnIndexStore>();
         ColumnIndexStore & column_index_store = *result;
@@ -301,46 +331,27 @@ const ColumnIndexStore & ParquetFileReaderExt::getColumnIndexStore(const int row
 
         for (auto const column_index : column_indices_)
         {
-            const auto * col_desc = rowGroup.schema()->Column(column_index);
-            const auto col_index = rowGroupIndex.GetColumnIndex(column_index);
-            const auto offset_index = rowGroupIndex.GetOffsetIndex(column_index);
+            const auto * col_desc = rowGroup->schema()->Column(column_index);
+            const auto col_index = rowGroupIndex->GetColumnIndex(column_index);
+            const auto offset_index = rowGroupIndex->GetOffsetIndex(column_index);
             column_index_store[col_desc->name()] = ColumnIndex::Make(col_desc, col_index, offset_index);
         }
-        row_group_column_index_stores_[row_group_index] = std::move(result);
+        row_group_column_index_stores_[row_group] = std::move(result);
     }
-    return *(row_group_column_index_stores_[row_group_index]);
+    return *(row_group_column_index_stores_[row_group]);
 }
 
 ColumnChunkPageReadStorePtr
 ParquetFileReaderExt::readRowGroupsBase(const parquet::RowGroupMetaData & rg, const BuildRead & build_read) const
 {
     const int columns = rg.num_columns();
-    const auto file_metadata = fileReader_->metadata();
-
-    // Prior to Arrow 3.0.0, is_compressed was always set to false in column headers,
-    // even if compression was used. See ARROW-17100.
-    const bool always_compressed
-        = file_metadata->writer_version().VersionLt(parquet::ApplicationVersion::PARQUET_CPP_10353_FIXED_VERSION());
-
     auto result = std::make_unique<ColumnChunkPageReadStore>();
     result->reserve(column_indices_.size());
-
     for (int column_index = 0; column_index < columns; ++column_index)
     {
         if (!column_indices_.contains(column_index))
             continue;
-
-        const auto column_metadata = rg.ColumnChunk(column_index);
-        auto col_range = ComputeColumnChunkRange(*file_metadata, *column_metadata, source_size_);
-        parquet::ReaderProperties properties;
-        ReadRanges read_ranges;
-        ReadSequence read_sequence;
-        build_read(column_index, col_range, read_ranges, read_sequence);
-        const auto input_stream = getStream(*source_, read_ranges);
-        (*result)[column_index] = std::make_pair(
-            parquet::PageReader::Open(
-                input_stream, column_metadata->num_values(), column_metadata->compression(), properties, always_compressed),
-            read_sequence);
+        result->emplace(column_index, readColumnChunkPageBase(rg, column_index, build_read));
     }
     return result;
 }
@@ -350,20 +361,17 @@ ColumnChunkPageReadStorePtr ParquetFileReaderExt::readFilteredRowGroups(
 {
     return readRowGroupsBase(
         rg,
-        [&](const int32_t column_index, const arrow::io::ReadRange & col_range, ReadRanges & read_ranges, ReadSequence & read_sequence)
+        [&](const int32_t column_index, const arrow::io::ReadRange & col_range)
         {
             const auto * col_desc = rg.schema()->Column(column_index);
             const ColumnIndex & index = *(column_index_store.find(col_desc->name())->second);
-            std::tie(read_ranges, read_sequence) = buildRead(rg.num_rows(), col_range, index.GetOffsetIndex().page_locations(), row_ranges);
+            return buildRead(rg.num_rows(), col_range, index.GetOffsetIndex().page_locations(), row_ranges);
         });
 }
 
 ColumnChunkPageReadStorePtr ParquetFileReaderExt::readRowGroups(const parquet::RowGroupMetaData & rg) const
 {
-    return readRowGroupsBase(
-        rg,
-        [&](int32_t, const arrow::io::ReadRange & col_range, ReadRanges & read_ranges, ReadSequence & read_sequence)
-        { std::tie(read_ranges, read_sequence) = buildAllRead(rg.num_rows(), col_range); });
+    return readRowGroupsBase(rg, [&](int32_t, const arrow::io::ReadRange & col_range) { return buildAllRead(rg.num_rows(), col_range); });
 }
 
 ParquetFileReaderExt::ParquetFileReaderExt(
@@ -372,35 +380,17 @@ ParquetFileReaderExt::ParquetFileReaderExt(
     const std::shared_ptr<ColumnIndexFilter> & column_index_filter,
     const std::vector<int32_t> & row_groups,
     const std::vector<int32_t> & column_indices)
-    : source_(source)
-    , fileReader_(std::move(parquetFileReader))
-    , row_groups_(row_groups)
-    , column_index_filter_(column_index_filter)
-    , column_indices_(column_indices.begin(), column_indices.end())
+    : ParquetFileReaderExtBase(source, std::move(parquetFileReader), column_index_filter, column_indices)
+    , row_groups_(row_groups.begin(), row_groups.end())
 {
-    THROW_ARROW_NOT_OK_OR_ASSIGN(const int64_t source_size, source_->GetSize());
-    source_size_ = source_size;
-    row_group_row_ranges_.resize(row_groups_.size());
-    row_group_column_index_stores_.resize(row_groups_.size());
-    const auto file_metadata = fileReader_->metadata();
-    const auto page_index_reader = fileReader_->GetPageIndexReader();
-
-
-    row_group_metas_.reserve(row_groups_.size());
-    row_group_index_readers_.reserve(row_groups_.size());
-    for (auto const row_group_index : row_groups_)
-    {
-        row_group_metas_.push_back(file_metadata->RowGroup(row_group_index));
-        row_group_index_readers_.push_back(page_index_reader->RowGroup(row_group_index));
-    }
 }
 
 ColumnChunkPageReadStorePtr ParquetFileReaderExt::readFilteredRowGroups()
 {
     while (hasMoreRead())
     {
-        const auto rowGroupIndex = row_groups_[current_row_group_];
-        const auto & rowGroup = row_group_metas_[rowGroupIndex];
+        const int32_t row_group = row_groups_.front();
+        const auto rowGroup = RowGroup(row_group);
 
         if (rowGroup->num_rows() == 0) // Skip Empty RowGroup
         {
@@ -409,15 +399,15 @@ ColumnChunkPageReadStorePtr ParquetFileReaderExt::readFilteredRowGroups()
         }
 
         ColumnChunkPageReadStorePtr result;
-        if (canPruningPage())
+        if (canPruningPage(row_group))
         {
-            const RowRanges & row_ranges = getRowRanges(current_row_group_);
+            const RowRanges & row_ranges = getRowRanges(row_group);
             if (row_ranges.rowCount() == 0) // There are no matching rows in this row group -> skipping it
             {
                 advanceRowGroup();
                 continue;
             }
-            result = readFilteredRowGroups(*rowGroup, row_ranges, getColumnIndexStore(current_row_group_));
+            result = readFilteredRowGroups(*rowGroup, row_ranges, getColumnIndexStore(row_group));
         }
         else
         {

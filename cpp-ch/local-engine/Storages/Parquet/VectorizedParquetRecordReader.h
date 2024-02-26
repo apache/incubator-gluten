@@ -53,7 +53,7 @@ class ColumnIndexFilter;
 class VectorizedParquetRecordReader;
 class VectorizedParquetBlockInputFormat;
 
-ColumnReadState buildAllRead(const int64_t rg_count, const arrow::io::ReadRange & chunk_range);
+ColumnReadState buildAllRead(int64_t rg_count, const arrow::io::ReadRange & chunk_range);
 ColumnReadState buildRead(
     int64_t rg_count,
     const arrow::io::ReadRange & chunk_range,
@@ -112,45 +112,61 @@ public:
     }
 };
 
-class ParquetFileReaderExt
-{
-    using BuildRead
-        = std::function<void(int32_t, const arrow::io::ReadRange & col_range, ReadRanges & read_ranges, ReadSequence & read_infos)>;
+using BuildRead = std::function<ColumnReadState(int32_t, const arrow::io::ReadRange & col_range)>;
 
+class ParquetFileReaderExtBase
+{
+private:
     std::shared_ptr<::arrow::io::RandomAccessFile> source_;
     int64_t source_size_;
     std::unique_ptr<parquet::ParquetFileReader> fileReader_;
-    int32_t current_row_group_ = 0;
-    std::vector<int32_t> row_groups_;
-    std::vector<std::unique_ptr<RowRanges>> row_group_row_ranges_;
-    std::vector<std::unique_ptr<ColumnIndexStore>> row_group_column_index_stores_;
-    std::vector<std::unique_ptr<parquet::RowGroupMetaData>> row_group_metas_;
-    std::vector<std::shared_ptr<parquet::RowGroupPageIndexReader>> row_group_index_readers_;
     std::shared_ptr<ColumnIndexFilter> column_index_filter_;
+    std::unordered_map<int32_t, std::unique_ptr<RowRanges>> row_group_row_ranges_;
+    std::unordered_map<int32_t, std::unique_ptr<ColumnIndexStore>> row_group_column_index_stores_;
+
+protected:
     std::unordered_set<int32_t> column_indices_;
+    const RowRanges & getRowRanges(int32_t row_group);
+    const ColumnIndexStore & getColumnIndexStore(int32_t row_group);
 
-    const RowRanges & getRowRanges(int row_group_index);
-    const ColumnIndexStore & getColumnIndexStore(int row_group_index);
-
-    bool advanceRowGroup()
+    bool canPruningPage(const int32_t row_group) const { return column_index_filter_ && RowGroupPageIndexReader(row_group) != nullptr; }
+    std::unique_ptr<RowRanges> calculateRowRanges(const ColumnIndexStore & index_store, const size_t rowgroup_count) const
     {
-        if (current_row_group_ == row_groups_.size())
-            return false;
-        // update the current block
-        ++current_row_group_;
-        return true;
+        return std::make_unique<RowRanges>(column_index_filter_->calculateRowRanges(index_store, rowgroup_count));
     }
+    std::unique_ptr<parquet::RowGroupMetaData> RowGroup(const int32_t row_group) const
+    {
+        const auto file_metadata = fileReader_->metadata();
+        return file_metadata->RowGroup(row_group);
+    }
+
+    std::shared_ptr<parquet::RowGroupPageIndexReader> RowGroupPageIndexReader(const int32_t row_group) const
+    {
+        const auto pageIndex = fileReader_->GetPageIndexReader();
+        return pageIndex == nullptr ? nullptr : pageIndex->RowGroup(row_group);
+    }
+
+    ColumnChunkPageRead
+    readColumnChunkPageBase(const parquet::RowGroupMetaData & rg, int32_t column_index, const BuildRead & build_read) const;
+
+public:
+    ParquetFileReaderExtBase(
+        const std::shared_ptr<::arrow::io::RandomAccessFile> & source,
+        std::unique_ptr<parquet::ParquetFileReader> parquetFileReader,
+        const std::shared_ptr<ColumnIndexFilter> & column_index_filter,
+        const std::vector<int32_t> & column_indices);
+};
+
+class ParquetFileReaderExt : public ParquetFileReaderExtBase
+{
+    std::deque<int32_t> row_groups_;
+    void advanceRowGroup() { row_groups_.pop_front(); }
+    bool hasMoreRead() const { return !row_groups_.empty(); }
 
     ColumnChunkPageReadStorePtr readFilteredRowGroups(
         const parquet::RowGroupMetaData & rg, const RowRanges & row_ranges, const ColumnIndexStore & column_index_store) const;
     ColumnChunkPageReadStorePtr readRowGroups(const parquet::RowGroupMetaData & rg) const;
     ColumnChunkPageReadStorePtr readRowGroupsBase(const parquet::RowGroupMetaData & rg, const BuildRead & build_read) const;
-
-    bool canPruningPage() const
-    {
-        assert(hasMoreRead());
-        return column_index_filter_ && row_group_index_readers_[current_row_group_];
-    }
 
 public:
     ParquetFileReaderExt(
@@ -160,7 +176,6 @@ public:
         const std::vector<int32_t> & row_groups,
         const std::vector<int32_t> & column_indices);
     ColumnChunkPageReadStorePtr readFilteredRowGroups();
-    bool hasMoreRead() const { return current_row_group_ < row_groups_.size(); }
 };
 
 class VectorizedColumnReader
