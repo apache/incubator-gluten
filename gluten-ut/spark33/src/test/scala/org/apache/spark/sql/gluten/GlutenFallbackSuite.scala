@@ -93,6 +93,18 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
       }
     }
 
+    withTable("t1", "t2") {
+      spark.range(10).write.format("parquet").saveAsTable("t1")
+      spark.range(10).write.format("parquet").saveAsTable("t2")
+
+      val id = runExecution("SELECT * FROM t1 FULL OUTER JOIN t2")
+      val execution = glutenStore.execution(id)
+      assert(execution.get.numFallbackNodes == 1)
+      assert(
+        execution.get.fallbackNodeToReason.head._2
+          .contains("FullOuter join is not supported with Broadcast Nested Loop Join"))
+    }
+
     // [GLUTEN-4119] Skip add ReusedExchange to fallback node
     withTable("t1") {
       spark.range(10).write.format("parquet").saveAsTable("t1")
