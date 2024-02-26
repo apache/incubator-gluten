@@ -32,9 +32,7 @@ class CHBroadcastApi extends BroadcastApi with Logging {
     }
   }
 
-  override def collectExecutionBroadcastTableId(
-      executionId: String,
-      buildTableId: String): Unit = {
+  override def collectExecutionBroadcastTableId(executionId: String, buildTableId: String): Unit = {
     if (executionId != null) {
       GlutenDriverEndpoint.collectResources(executionId, buildTableId)
     } else {

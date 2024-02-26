@@ -36,5 +36,7 @@ trait BroadcastApi {
    * @param broadcastTableIds
    *   broadcast table ids
    */
-  def cleanExecutionBroadcastTable(executionId: String, broadcastTableIds: java.util.Set[String]): Unit = {}
+  def cleanExecutionBroadcastTable(
+      executionId: String,
+      broadcastTableIds: java.util.Set[String]): Unit = {}
 }
