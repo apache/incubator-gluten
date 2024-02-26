@@ -97,6 +97,47 @@ class GlutenClickHouseTPCDSParquetGraceHashJoinSuite extends GlutenClickHouseTPC
     assert(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
   }
 
+  test("Gluten-4458: test clickhouse not support join with IN condition") {
+    val testSql =
+      """
+        | SELECT *
+        | FROM date_dim t1
+        | LEFT JOIN date_dim t2 ON t1.d_date_sk = t2.d_date_sk
+        |   AND datediff(t1.d_day_name, t2.d_day_name) IN (1, 3)
+        | LIMIT 100;
+        |""".stripMargin
+
+    val df = spark.sql(testSql)
+    assert(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
+  }
+
+  test("Gluten-4458: test join with Equal computing two table in one side") {
+    val testSql =
+      """
+        | SELECT *
+        | FROM date_dim t1
+        | LEFT JOIN date_dim t2 ON t1.d_date_sk = t2.d_date_sk AND t1.d_year - t2.d_year = 1
+        | LIMIT 100;
+        |""".stripMargin
+
+    val df = spark.sql(testSql)
+    assert(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
+  }
+
+  test("Gluten-4458: test inner join can support join with IN condition") {
+    val testSql =
+      """
+        | SELECT *
+        | FROM date_dim t1
+        | INNER JOIN date_dim t2 ON t1.d_date_sk = t2.d_date_sk
+        |   AND datediff(t1.d_day_name, t2.d_day_name) IN (1, 3)
+        | LIMIT 100;
+        |""".stripMargin
+
+    val df = spark.sql(testSql)
+    assert(!FallbackUtil.hasFallback(df.queryExecution.executedPlan))
+  }
+
   test("Gluten-1235: Fix missing reading from the broadcasted value when executing DPP") {
     val testSql =
       """
