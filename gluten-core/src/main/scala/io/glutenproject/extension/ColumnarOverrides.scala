@@ -582,7 +582,7 @@ case class ColumnarOverrideRules(session: SparkSession)
   @transient private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   // This is an empirical value, may need to be changed for supporting other versions of spark.
-  private val aqeStackTraceIndex = 14
+  private val aqeStackTraceIndex = 18
 
   // Holds the original plan for possible entire fallback.
   private val localOriginalPlans: ThreadLocal[ListBuffer[SparkPlan]] =
