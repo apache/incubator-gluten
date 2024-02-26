@@ -16,34 +16,17 @@
  */
 package io.glutenproject.extension
 
-import org.apache.spark.sql.execution.{ColumnarToRowExec, ColumnarToRowTransition, RowToColumnarExec, RowToColumnarTransition, SparkPlan}
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.{ApplyColumnarRulesAndInsertTransitions, SparkPlan}
 
-/** Ported from [[ApplyColumnarRulesAndInsertTransitions]] of vanilla Spark. */
+/** See rule code from vanilla Spark: [[ApplyColumnarRulesAndInsertTransitions]]. */
+case class InsertTransitions(outputsColumnar: Boolean) extends Rule[SparkPlan] {
+  private val rule = ApplyColumnarRulesAndInsertTransitions(List(), outputsColumnar)
+  override def apply(plan: SparkPlan): SparkPlan = rule.apply(plan)
+}
+
 object InsertTransitions {
-
-  private def insertRowToColumnar(plan: SparkPlan): SparkPlan = {
-    if (!plan.supportsColumnar) {
-      // The tree feels kind of backwards
-      // Columnar Processing will start here, so transition from row to columnar
-      RowToColumnarExec(insertTransitions(plan, outputsColumnar = false))
-    } else if (!plan.isInstanceOf[RowToColumnarTransition]) {
-      plan.withNewChildren(plan.children.map(insertRowToColumnar))
-    } else {
-      plan
-    }
-  }
-
   def insertTransitions(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
-    if (outputsColumnar) {
-      insertRowToColumnar(plan)
-    } else if (plan.supportsColumnar) {
-      // `outputsColumnar` is false but the plan outputs columnar format, so add a
-      // to-row transition here.
-      ColumnarToRowExec(insertRowToColumnar(plan))
-    } else if (!plan.isInstanceOf[ColumnarToRowTransition]) {
-      plan.withNewChildren(plan.children.map(insertTransitions(_, outputsColumnar = false)))
-    } else {
-      plan
-    }
+    InsertTransitions(outputsColumnar).apply(plan)
   }
 }

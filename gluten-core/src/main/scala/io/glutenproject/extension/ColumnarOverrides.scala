@@ -24,7 +24,6 @@ import io.glutenproject.extension.columnar._
 import io.glutenproject.metrics.GlutenTimeMetric
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.{LogLevelUtil, PhysicalPlanSelector, PlanUtil}
-
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
@@ -44,6 +43,7 @@ import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.util.SparkRuleUtil
 
+import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
@@ -594,11 +594,12 @@ case class ColumnarOverrideRules(session: SparkSession)
   // while creating the rules. At this time SQLConf may not be there yet.
 
   // Just for test use.
-  def enableAdaptiveContext(): Unit = {
+  def enableAdaptiveContext(): ColumnarOverrideRules = {
     session.sparkContext.setLocalProperty(GLUTEN_IS_ADAPTIVE_CONTEXT, "true")
+    this
   }
 
-  def isAdaptiveContext: Boolean =
+  private def isAdaptiveContext: Boolean =
     Option(session.sparkContext.getLocalProperty(GLUTEN_IS_ADAPTIVE_CONTEXT))
       .getOrElse("false")
       .toBoolean ||
@@ -636,7 +637,11 @@ case class ColumnarOverrideRules(session: SparkSession)
 
   private def resetOriginalPlan(): Unit = localOriginalPlans.get.remove(0)
 
-  private def preOverrides(): List[SparkSession => Rule[SparkPlan]] = {
+  /**
+   * Rules to let planner create a suggested Gluten plan being sent to `fallbackPolicies` in which
+   * the plan will be breakdown and decided to be fallen back or not.
+   */
+  private def suggestRules(): List[SparkSession => Rule[SparkPlan]] = {
     List(
       (spark: SparkSession) => FallbackOnANSIMode(spark),
       (spark: SparkSession) => FallbackMultiCodegens(spark),
@@ -655,15 +660,26 @@ case class ColumnarOverrideRules(session: SparkSession)
         (_: SparkSession) => EnsureLocalSortRequirements,
         (_: SparkSession) => CollapseProjectExecTransformer
       ) :::
-      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules() :::
-      SparkRuleUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPreRules)
+      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarSuggestRules() :::
+      SparkRuleUtil.extendedColumnarRules(
+        session,
+        GlutenConfig.getConf.extendedColumnarSuggestRules) :::
+      List((_: SparkSession) => InsertTransitions(outputsColumnar = false))
   }
 
-  private def fallbackPolicy(): List[SparkSession => Rule[SparkPlan]] = {
+  /**
+   * Rules to add wrapper `FallbackNode`s on top of the input plan, as hints to make planner fall
+   * back the whole input plan to the original vanilla Spark plan.
+   */
+  private def fallbackPolicies(): List[SparkSession => Rule[SparkPlan]] = {
     List((_: SparkSession) => ExpandFallbackPolicy(isAdaptiveContext, originalPlan))
   }
 
-  private def postOverrides(): List[SparkSession => Rule[SparkPlan]] =
+  /**
+   * Rules applying to non-fallen-back Gluten plans. To do some post cleanup works on the plan to
+   * make sure it be able to run and be compatible with Spark's execution engine.
+   */
+  private def postRules(): List[SparkSession => Rule[SparkPlan]] =
     List(
       (_: SparkSession) => TransformPostOverrides(),
       (s: SparkSession) => VanillaColumnarPlanOverrides(s),
@@ -673,7 +689,11 @@ case class ColumnarOverrideRules(session: SparkSession)
       List((_: SparkSession) => ColumnarCollapseTransformStages(GlutenConfig.getConf)) :::
       SparkRuleUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPostRules)
 
-  private def finallyRules(): List[SparkSession => Rule[SparkPlan]] = {
+  /*
+   * Rules consistently applying to all input plans after all other rules have been applied, despite
+   * whether the input plan is fallen back or not.
+   */
+  private def finalRules(): List[SparkSession => Rule[SparkPlan]] = {
     List(
       // The rule is required despite whether the stage is fallen back or not. Since
       // ColumnarCachedBatchSerializer is statically registered to Spark without a columnar rule
@@ -684,28 +704,38 @@ case class ColumnarOverrideRules(session: SparkSession)
     )
   }
 
-  override def preColumnarTransitions: Rule[SparkPlan] = plan =>
-    PhysicalPlanSelector.maybe(session, plan) {
-      setAdaptiveContext()
-      setOriginalPlan(plan)
-      transformPlan(preOverrides(), plan, "pre")
-    }
-
-  override def postColumnarTransitions: Rule[SparkPlan] = plan =>
-    PhysicalPlanSelector.maybe(session, plan) {
-      val planWithFallbackPolicy = transformPlan(fallbackPolicy(), plan, "fallback")
-      val finalPlan = planWithFallbackPolicy match {
-        case FallbackNode(fallbackPlan) =>
-          // we should use vanilla c2r rather than native c2r,
-          // and there should be no `GlutenPlan` any more,
-          // so skip the `postOverrides()`.
-          fallbackPlan
-        case plan =>
-          transformPlan(postOverrides(), plan, "post")
-      }
+  private def prepareFallback[T](plan: SparkPlan)(f: SparkPlan => T): T = {
+    setAdaptiveContext()
+    setOriginalPlan(plan)
+    try {
+      f(plan)
+    } finally {
       resetOriginalPlan()
       resetAdaptiveContext()
-      transformPlan(finallyRules(), finalPlan, "final")
+    }
+  }
+
+  override def postColumnarTransitions: Rule[SparkPlan] = plan => {
+    withSuggestRules(suggestRules()).apply(plan)
+  }
+
+  // Visible for testing.
+  def withSuggestRules(suggestRules: List[SparkSession => Rule[SparkPlan]]): Rule[SparkPlan] = plan =>
+    PhysicalPlanSelector.maybe(session, plan) {
+      val finalPlan = prepareFallback(plan) {
+        p =>
+          val suggestedPlan = transformPlan(suggestRules, p, "suggest")
+          transformPlan(fallbackPolicies(), suggestedPlan, "fallback") match {
+            case FallbackNode(fallbackPlan) =>
+              // we should use vanilla c2r rather than native c2r,
+              // and there should be no `GlutenPlan` any more,
+              // so skip the `postRules()`.
+              fallbackPlan
+            case plan =>
+              transformPlan(postRules(), plan, "post")
+          }
+      }
+      transformPlan(finalRules(), finalPlan, "final")
     }
 
   private def transformPlan(

@@ -302,7 +302,7 @@ trait SparkPlanExecApi {
    *
    * @return
    */
-  def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]]
+  def genExtendedColumnarSuggestRules(): List[SparkSession => Rule[SparkPlan]]
 
   /**
    * Generate extended columnar post-rules.

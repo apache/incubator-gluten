@@ -28,7 +28,7 @@ object SparkRuleUtil extends Logging {
       session: SparkSession,
       conf: String
   ): List[SparkSession => Rule[SparkPlan]] = {
-    val extendedRules = conf.split(",").filter(!_.isEmpty)
+    val extendedRules = conf.split(",").filter(_.nonEmpty)
     extendedRules
       .map {
         ruleStr =>
@@ -49,7 +49,7 @@ object SparkRuleUtil extends Logging {
               None
           }
       }
-      .filter(!_.isEmpty)
+      .filter(_.isDefined)
       .map(_.get)
       .toList
   }
