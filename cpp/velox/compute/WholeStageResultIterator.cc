@@ -461,6 +461,8 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
           std::to_string(veloxCfg_->get<int32_t>(kAbandonPartialAggregationMinPct, 90));
       configs[velox::core::QueryConfig::kAbandonPartialAggregationMinRows] =
           std::to_string(veloxCfg_->get<int32_t>(kAbandonPartialAggregationMinRows, 100000));
+      // Spark's collect_set ignore nulls.
+      configs[velox::core::QueryConfig::kPrestoArrayAggIgnoreNulls] = std::to_string(true);
     }
     // Spill configs
     if (spillStrategy_ == "none") {

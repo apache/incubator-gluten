@@ -375,7 +375,13 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"bit_and_merge", "bitwise_and_agg_merge"},
     {"murmur3hash", "hash_with_seed"},
     {"modulus", "remainder"},
-    {"date_format", "format_datetime"}};
+    {"date_format", "format_datetime"},
+    {"collect_set", "set_agg"},
+    {"collect_set_partial", "set_agg_partial"},
+    {"collect_set_merge", "set_agg_merge"},
+    {"collect_list", "array_agg"},
+    {"collect_list_partial", "array_agg_partial"},
+    {"collect_list_merge", "array_agg_merge"}};
 
 const std::unordered_map<std::string, std::string> SubstraitParser::typeMap_ = {
     {"bool", "BOOLEAN"},

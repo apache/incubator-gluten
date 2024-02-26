@@ -1127,6 +1127,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
   static const std::unordered_set<std::string> supportedAggFuncs = {
       "sum",
       "collect_set",
+      "collect_list",
       "count",
       "avg",
       "min",

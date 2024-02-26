@@ -566,7 +566,11 @@ object ColumnarOverrideRules {
   val GLUTEN_IS_ADAPTIVE_CONTEXT = "gluten.isAdaptiveContext"
 
   def rewriteSparkPlanRule(): Rule[SparkPlan] = {
-    val rewriteRules = Seq(RewriteMultiChildrenCount, PullOutPreProject, PullOutPostProject)
+    val rewriteRules = Seq(
+      RewriteMultiChildrenCount,
+      RewriteTypedImperativeAggregate,
+      PullOutPreProject,
+      PullOutPostProject)
     new RewriteSparkPlanRulesManager(rewriteRules)
   }
 }

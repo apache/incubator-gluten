@@ -19,6 +19,7 @@ package io.glutenproject.execution
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
+import io.glutenproject.extension.RewriteTypedImperativeAggregate
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode, ScalarFunctionNode}
@@ -799,14 +800,25 @@ case class HashAggregateExecPullOutHelper(
   override protected def getAttrForAggregateExprs: List[Attribute] = {
     aggregateExpressions.zipWithIndex.flatMap {
       case (expr, index) =>
-        expr.mode match {
-          case Partial | PartialMerge =>
-            expr.aggregateFunction.aggBufferAttributes
-          case Final =>
-            Seq(aggregateAttributes(index))
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-        }
+        handleSpecialAggregateAttr
+          .lift(expr)
+          .getOrElse(expr.mode match {
+            case Partial | PartialMerge =>
+              expr.aggregateFunction.aggBufferAttributes
+            case Final =>
+              Seq(aggregateAttributes(index))
+            case other =>
+              throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
+          })
     }.toList
+  }
+
+  private val handleSpecialAggregateAttr: PartialFunction[AggregateExpression, Seq[Attribute]] = {
+    case ae: AggregateExpression if RewriteTypedImperativeAggregate.shouldRewrite(ae) =>
+      val aggBufferAttr = ae.aggregateFunction.inputAggBufferAttributes.head
+      Seq(
+        aggBufferAttr.copy(dataType = ae.aggregateFunction.dataType)(
+          aggBufferAttr.exprId,
+          aggBufferAttr.qualifier))
   }
 }

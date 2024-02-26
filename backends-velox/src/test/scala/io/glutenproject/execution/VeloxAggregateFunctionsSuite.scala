@@ -686,6 +686,17 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
               }) == 4)
         }
     }
+    runQueryAndCompare(
+      "SELECT collect_list(DISTINCT n_name), count(*), collect_list(n_name) FROM nation") {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 4)
+        }
+    }
   }
 
   test("count(1)") {
@@ -710,6 +721,13 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare("""
                          |select sum(if(c > (select sum(a) from values (1), (-1) AS tab(a)), 1, -1))
                          |from values (1L, 5), (1L, -10), (2L, 15) AS tab(sum, c) group by sum;
+                         |""".stripMargin)(
+      df => assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecTransformer]) == 2))
+  }
+
+  test("collect_list null inputs") {
+    runQueryAndCompare("""
+                         |select collect_list(a) from values (1), (-1), (null) AS tab(a)
                          |""".stripMargin)(
       df => assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecTransformer]) == 2))
   }

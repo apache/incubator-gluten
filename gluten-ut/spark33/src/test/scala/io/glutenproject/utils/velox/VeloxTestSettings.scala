@@ -45,6 +45,7 @@ import org.apache.spark.sql.sources.{GlutenBucketedReadWithoutHiveSupportSuite, 
 
 class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenStringFunctionsSuite]
+    .exclude("SPARK-31993: concat_ws in agg function with plenty of string/array types columns")
   enableSuite[GlutenBloomFilterAggregateQuerySuite]
   enableSuite[GlutenDataSourceV2DataFrameSessionCatalogSuite]
   enableSuite[GlutenDataSourceV2DataFrameSuite]
