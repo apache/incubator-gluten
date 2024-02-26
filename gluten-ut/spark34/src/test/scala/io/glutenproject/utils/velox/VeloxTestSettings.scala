@@ -141,8 +141,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSortOrderExpressionsSuite]
   enableSuite[GlutenStringExpressionsSuite]
   enableSuite[VeloxAdaptiveQueryExecSuite]
+    .includeAllGlutenTests()
     .includeByPrefix(
-      "gluten",
       "SPARK-29906",
       "SPARK-30291",
       "SPARK-30403",
@@ -299,9 +299,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("appending insert")
     .exclude("overwrite insert")
     .exclude("SPARK-34897: Support reconcile schemas based on index after nested column pruning")
-    .exclude("Gluten - SPARK-31238: compatibility with Spark 2.4 in reading dates")
-    .exclude("Gluten - SPARK-31238, SPARK-31423: rebasing dates in write")
-    .exclude("Gluten - SPARK-34862: Support ORC vectorized reader for nested column")
+    .excludeGlutenTest("SPARK-31238: compatibility with Spark 2.4 in reading dates")
+    .excludeGlutenTest("SPARK-31238, SPARK-31423: rebasing dates in write")
+    .excludeGlutenTest("SPARK-34862: Support ORC vectorized reader for nested column")
     // exclude as struct not supported
     .exclude("SPARK-36663: OrcUtils.toCatalystSchema should correctly handle a column name which consists of only numbers")
     .exclude("SPARK-37812: Reuse result row when deserializing a struct")
@@ -812,8 +812,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("change column type from short to int/long")
     .exclude("change column type from int to long")
     .exclude("change column type from float to double")
-    .exclude("Gluten - read byte, int, short, long together")
-    .exclude("Gluten - read float and double together")
+    .excludeGlutenTest("read byte, int, short, long together")
+    .excludeGlutenTest("read float and double together")
   enableSuite[GlutenMergedOrcReadSchemaSuite]
     .exclude("append column into middle")
     .exclude("add a nested column at the end of the leaf struct column")

@@ -22,7 +22,7 @@ import org.apache.spark.sql.internal.SQLConf
 
 class GlutenExchangeSuite extends ExchangeSuite with GlutenSQLTestsBaseTrait {
 
-  test("Exchange reuse across the whole plan with shuffle partition 2") {
+  testGluten("Exchange reuse across the whole plan with shuffle partition 2") {
     // The shuffle exchange will be inserted between Aggregate
     // when shuffle partition is > 1.
     withSQLConf(

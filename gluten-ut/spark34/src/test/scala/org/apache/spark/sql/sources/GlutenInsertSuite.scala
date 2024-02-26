@@ -69,7 +69,7 @@ class GlutenInsertSuite
     writeFiles.asInstanceOf[VeloxColumnarWriteFilesExec]
   }
 
-  test("Gluten: insert partition table") {
+  testGluten("insert partition table") {
     withTable("pt") {
       spark.sql("CREATE TABLE pt (c1 int, c2 string) USING PARQUET PARTITIONED BY (pt string)")
 
@@ -114,7 +114,7 @@ class GlutenInsertSuite
     }
   }
 
-  test("Gluten: Cleanup staging files if job is failed") {
+  testGluten("Cleanup staging files if job is failed") {
     withTable("t") {
       spark.sql("CREATE TABLE t (c1 int, c2 string) USING PARQUET")
       val table = spark.sessionState.catalog.getTableMetadata(TableIdentifier("t"))
@@ -147,7 +147,7 @@ class GlutenInsertSuite
     assert(parts == expectedPartitionNames)
   }
 
-  test("Gluten: remove v1writes sort and project") {
+  testGluten("remove v1writes sort and project") {
     // Only string type has empty2null expression
     withTable("pt") {
       spark.sql("CREATE TABLE pt (c1 int) USING PARQUET PARTITIONED BY(p string)")
@@ -167,7 +167,7 @@ class GlutenInsertSuite
     }
   }
 
-  test("Gluten: remove v1writes sort") {
+  testGluten("remove v1writes sort") {
     // __HIVE_DEFAULT_PARTITION__ for other types are covered by other tests.
     Seq(
       ("p boolean", "coalesce(cast(c2 as boolean), false)", Set("p=false", "p=true")),
@@ -204,7 +204,7 @@ class GlutenInsertSuite
       }
   }
 
-  test("Gluten: do not remove non-v1writes sort and project") {
+  testGluten("do not remove non-v1writes sort and project") {
     withTable("t") {
       spark.sql("CREATE TABLE t (c1 int, c2 string) USING PARQUET")
 
@@ -215,7 +215,7 @@ class GlutenInsertSuite
     }
   }
 
-  test("Gluten: SPARK-35106: Throw exception when rename custom partition paths returns false") {
+  testGluten("SPARK-35106: Throw exception when rename custom partition paths returns false") {
     withSQLConf(
       "fs.file.impl" -> classOf[
         GlutenRenameFromSparkStagingToFinalDirAlwaysTurnsFalseFilesystem].getName,

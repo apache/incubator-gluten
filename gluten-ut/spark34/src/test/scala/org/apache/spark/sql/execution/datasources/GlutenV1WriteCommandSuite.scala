@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution.datasources
 
 import io.glutenproject.execution.SortExecTransformer
 
-import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, GlutenTestConstants}
+import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.sql.catalyst.expressions.{Ascending, AttributeReference, NullsFirst, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
 import org.apache.spark.sql.execution.{QueryExecution, SortExec}
@@ -98,9 +98,8 @@ class GlutenV1WriteCommandSuite
   with GlutenV1WriteCommandSuiteBase
   with GlutenSQLTestsBaseTrait {
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-41914: v1 write with AQE and in-partition sorted - non-string partition column") {
+  testGluten(
+    "SPARK-41914: v1 write with AQE and in-partition sorted - non-string partition column") {
     withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true") {
       withPlannedWrite {
         enabled =>
@@ -180,9 +179,7 @@ class GlutenV1WriteCommandSuite
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-41914: v1 write with AQE and in-partition sorted - string partition column") {
+  testGluten("SPARK-41914: v1 write with AQE and in-partition sorted - string partition column") {
     withPlannedWrite {
       enabled =>
         withTable("t") {

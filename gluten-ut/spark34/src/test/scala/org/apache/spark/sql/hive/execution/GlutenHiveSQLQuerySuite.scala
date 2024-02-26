@@ -102,7 +102,7 @@ class GlutenHiveSQLQuerySuite extends GlutenSQLTestsTrait {
       .set("spark.memory.offHeap.size", "1024MB")
   }
 
-  test("hive orc scan") {
+  testGluten("hive orc scan") {
     withSQLConf("spark.sql.hive.convertMetastoreOrc" -> "false") {
       sql("DROP TABLE IF EXISTS test_orc")
       sql(
