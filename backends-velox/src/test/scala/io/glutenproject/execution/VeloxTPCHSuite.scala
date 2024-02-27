@@ -77,17 +77,17 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
 
   def subType(): String = ""
   def shouldCheckGoldenFiles(): Boolean = {
-    formatSparkVersion match {
+    Seq("v1", "v1-bhj").contains(subType()) && (formatSparkVersion match {
       case "322" => true
       case "331" => false
       case "342" => false
       case _ => false
-    }
+    })
   }
 
   private def checkGoldenFile(df: DataFrame, id: Int): Unit = {
     // skip checking golden file for non-ready subtype and spark version
-    if (subType().isEmpty || !shouldCheckGoldenFiles) {
+    if (!shouldCheckGoldenFiles) {
       return
     }
     val file = s"tpch-approved-plan/${subType()}/spark$formatSparkVersion/$id.txt"
