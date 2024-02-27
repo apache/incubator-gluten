@@ -1662,7 +1662,7 @@ object GlutenConfig {
       .createWithDefault(true)
 
   val VELOX_FORCE_COMPLEX_TYPE_SCAN_FALLBACK =
-    buildStaticConf("spark.gluten.sql.complexType.scan.fallback.enabled")
+    buildConf("spark.gluten.sql.complexType.scan.fallback.enabled")
       .internal()
       .doc("Force fallback for complex type scan, including struct, map, array.")
       .booleanConf

@@ -422,6 +422,18 @@ class VeloxParquetDataTypeValidationSuite extends VeloxWholeStageTransformerSuit
         " type2 where type1.struct.struct_1 = type2.struct.struct_1") { _ => }
   }
 
+  test("Force complex type scan fallback") {
+    withSQLConf(("spark.gluten.sql.complexType.scan.fallback.enabled", "true")) {
+      runQueryAndCompare("select struct from type1") {
+        df =>
+          {
+            val executedPlan = getExecutedPlan(df)
+            assert(!executedPlan.exists(plan => plan.isInstanceOf[BatchScanExecTransformer]))
+          }
+      }
+    }
+  }
+
   test("Decimal type") {
     // Validation: BatchScan Project Aggregate Expand Sort Limit
     runQueryAndCompare(
