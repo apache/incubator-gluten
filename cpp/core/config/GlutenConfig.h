@@ -64,6 +64,7 @@ const std::string kIaaBackendName = "iaa";
 // Velox conf
 const std::string kGlogVerboseLevel = "spark.gluten.sql.columnar.backend.velox.glogVerboseLevel";
 const uint32_t kGlogVerboseLevelDefault = 0;
+const uint32_t kGlogVerboseLevelMaximum = 99;
 const std::string kGlogSeverityLevel = "spark.gluten.sql.columnar.backend.velox.glogSeverityLevel";
 const uint32_t kGlogSeverityLevelDefault = 1;
 

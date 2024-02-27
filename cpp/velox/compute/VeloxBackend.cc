@@ -148,7 +148,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
     if (veloxcfg->isValueExists(kGlogVerboseLevel)) {
       FLAGS_v = veloxcfg->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
     } else {
-      FLAGS_v = 99;
+      FLAGS_v = kGlogVerboseLevelMaximum;
     }
   }
   FLAGS_logtostderr = true;
