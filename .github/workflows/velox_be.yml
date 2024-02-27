@@ -25,6 +25,7 @@ on:
       - 'gluten-core/**'
       - 'gluten-data/**'
       - 'gluten-delta/**'
+      - 'gluten-iceberg/**'
       - 'gluten-ut/**'
       - 'shims/**'
       - 'tools/gluten-it/**'
