@@ -728,18 +728,19 @@ case class ColumnarOverrideRules(session: SparkSession)
   }
 
   override def postColumnarTransitions: Rule[SparkPlan] = plan => {
-    val outputsColumnar = plan.supportsColumnar
-    val outputsRow = plan.supportsRowBased
-    val out = withSuggestRules(suggestRules(outputsColumnar)).apply(plan)
-    assert(
-      out.supportsColumnar == outputsColumnar,
-      s"Columnar support is changed from $outputsColumnar to ${out.supportsColumnar}. " +
-        s"Plan before: $plan. Plan after: $out"
-    )
-    assert(
-      out.supportsRowBased == outputsRow,
-      s"Row support is changed from $outputsRow to ${out.supportsRowBased}. " +
-        s"Plan before: $plan. Plan after: $out")
+    val isColumnarIn = plan.supportsColumnar
+    val isRowIn = plan.supportsRowBased
+    val out = withSuggestRules(suggestRules(isColumnarIn)).apply(plan)
+    if (isColumnarIn && isRowIn) {
+      // In vanilla Spark's #insertTransitions method, when `outputsColumnar == false` and
+      // `plan.supportsColumnar == true` and `plan.supportsRowBased == true`,
+      // the method may directly output the input plan. So we need to check the output plan
+      // to make sure it doesn't lose row support to keep up with Vanilla Spark.
+      assert(
+        out.supportsRowBased,
+        s"Row support is changed from $isRowIn to ${out.supportsRowBased}.\n" +
+          s"Plan before: \n$plan\nPlan after: \n$out")
+    }
     out
   }
 
