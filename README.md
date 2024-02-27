@@ -1,4 +1,5 @@
 # Gluten: Plugin to Double SparkSQL's Performance
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/8452/badge)](https://www.bestpractices.dev/projects/8452)
 *<b>This project is still under active development now, and doesn't have a stable release. Welcome to evaluate it.</b>*
 
 # 1 Introduction
