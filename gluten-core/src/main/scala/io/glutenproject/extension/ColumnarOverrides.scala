@@ -732,13 +732,14 @@ case class ColumnarOverrideRules(session: SparkSession)
     val isRowIn = plan.supportsRowBased
     val out = withSuggestRules(suggestRules(isColumnarIn)).apply(plan)
     if (isColumnarIn && isRowIn) {
-      // In vanilla Spark's #insertTransitions method, when `outputsColumnar == false` and
-      // `plan.supportsColumnar == true` and `plan.supportsRowBased == true`,
-      // the method may directly output the input plan. So we need to check the output plan
-      // to make sure it doesn't lose row support to keep up with Vanilla Spark.
+      // To make Gluten's plan output compatible with the input to maximum extent.
       assert(
         out.supportsRowBased,
         s"Row support is changed from $isRowIn to ${out.supportsRowBased}.\n" +
+          s"Plan before: \n$plan\nPlan after: \n$out")
+      assert(
+        out.supportsColumnar,
+        s"Columnar support is changed from $isColumnarIn to ${out.supportsColumnar}.\n" +
           s"Plan before: \n$plan\nPlan after: \n$out")
     }
     out
