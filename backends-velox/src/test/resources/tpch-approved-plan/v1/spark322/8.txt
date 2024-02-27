@@ -188,7 +188,7 @@ Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [p_partkey#X],
 
 (6) ShuffleQueryStage
 Output [1]: [p_partkey#X]
-Arguments: 0
+Arguments: X
 
 (7) InputAdapter
 Input [1]: [p_partkey#X]
@@ -221,7 +221,7 @@ Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X,
 
 (14) ShuffleQueryStage
 Output [5]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
-Arguments: 1
+Arguments: X
 
 (15) InputAdapter
 Input [5]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
@@ -248,7 +248,7 @@ Arguments: hashpartitioning(l_suppkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X,
 
 (21) ShuffleQueryStage
 Output [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
-Arguments: 8
+Arguments: X
 
 (22) InputAdapter
 Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
@@ -281,7 +281,7 @@ Arguments: hashpartitioning(s_suppkey#X, 1), ENSURE_REQUIREMENTS, [s_suppkey#X, 
 
 (29) ShuffleQueryStage
 Output [2]: [s_suppkey#X, s_nationkey#X]
-Arguments: 2
+Arguments: X
 
 (30) InputAdapter
 Input [2]: [s_suppkey#X, s_nationkey#X]
@@ -308,7 +308,7 @@ Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X
 
 (36) ShuffleQueryStage
 Output [4]: [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
-Arguments: 9
+Arguments: X
 
 (37) InputAdapter
 Input [4]: [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
@@ -341,7 +341,7 @@ Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X
 
 (44) ShuffleQueryStage
 Output [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
-Arguments: 3
+Arguments: X
 
 (45) InputAdapter
 Input [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
@@ -368,7 +368,7 @@ Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [l_extendedpri
 
 (51) ShuffleQueryStage
 Output [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X]
-Arguments: 10
+Arguments: X
 
 (52) InputAdapter
 Input [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X]
@@ -401,7 +401,7 @@ Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X, 
 
 (59) ShuffleQueryStage
 Output [2]: [c_custkey#X, c_nationkey#X]
-Arguments: 4
+Arguments: X
 
 (60) InputAdapter
 Input [2]: [c_custkey#X, c_nationkey#X]
@@ -428,7 +428,7 @@ Arguments: hashpartitioning(c_nationkey#X, 1), ENSURE_REQUIREMENTS, [l_extendedp
 
 (66) ShuffleQueryStage
 Output [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X]
-Arguments: 11
+Arguments: X
 
 (67) InputAdapter
 Input [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X]
@@ -461,7 +461,7 @@ Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [n_nationkey
 
 (74) ShuffleQueryStage
 Output [2]: [n_nationkey#X, n_regionkey#X]
-Arguments: 5
+Arguments: X
 
 (75) InputAdapter
 Input [2]: [n_nationkey#X, n_regionkey#X]
@@ -488,7 +488,7 @@ Arguments: hashpartitioning(s_nationkey#X, 1), ENSURE_REQUIREMENTS, [l_extendedp
 
 (81) ShuffleQueryStage
 Output [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X]
-Arguments: 12
+Arguments: X
 
 (82) InputAdapter
 Input [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X]
@@ -521,7 +521,7 @@ Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [n_nationkey
 
 (89) ShuffleQueryStage
 Output [2]: [n_nationkey#X, n_name#X]
-Arguments: 6
+Arguments: X
 
 (90) InputAdapter
 Input [2]: [n_nationkey#X, n_name#X]
@@ -548,7 +548,7 @@ Arguments: hashpartitioning(n_regionkey#X, 1), ENSURE_REQUIREMENTS, [l_extendedp
 
 (96) ShuffleQueryStage
 Output [5]: [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X]
-Arguments: 13
+Arguments: X
 
 (97) InputAdapter
 Input [5]: [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X]
@@ -581,7 +581,7 @@ Arguments: hashpartitioning(r_regionkey#X, 1), ENSURE_REQUIREMENTS, [r_regionkey
 
 (104) ShuffleQueryStage
 Output [1]: [r_regionkey#X]
-Arguments: 7
+Arguments: X
 
 (105) InputAdapter
 Input [1]: [r_regionkey#X]
@@ -619,7 +619,7 @@ Arguments: hashpartitioning(o_year#X, 1), ENSURE_REQUIREMENTS, [o_year#X, sum#X,
 
 (113) ShuffleQueryStage
 Output [5]: [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
-Arguments: 14
+Arguments: X
 
 (114) InputAdapter
 Input [5]: [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
@@ -648,7 +648,7 @@ Arguments: rangepartitioning(o_year#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, 
 
 (120) ShuffleQueryStage
 Output [2]: [o_year#X, mkt_share#X]
-Arguments: 15
+Arguments: X
 
 (121) InputAdapter
 Input [2]: [o_year#X, mkt_share#X]

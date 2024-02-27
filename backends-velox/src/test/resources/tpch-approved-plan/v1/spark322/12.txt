@@ -72,7 +72,7 @@ Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X
 
 (6) ShuffleQueryStage
 Output [2]: [o_orderkey#X, o_orderpriority#X]
-Arguments: 0
+Arguments: X
 
 (7) InputAdapter
 Input [2]: [o_orderkey#X, o_orderpriority#X]
@@ -105,7 +105,7 @@ Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X
 
 (14) ShuffleQueryStage
 Output [2]: [l_orderkey#X, l_shipmode#X]
-Arguments: 1
+Arguments: X
 
 (15) InputAdapter
 Input [2]: [l_orderkey#X, l_shipmode#X]
@@ -143,7 +143,7 @@ Arguments: hashpartitioning(l_shipmode#X, 1), ENSURE_REQUIREMENTS, [l_shipmode#X
 
 (23) ShuffleQueryStage
 Output [3]: [l_shipmode#X, sum#X, sum#X]
-Arguments: 2
+Arguments: X
 
 (24) InputAdapter
 Input [3]: [l_shipmode#X, sum#X, sum#X]
@@ -168,7 +168,7 @@ Arguments: rangepartitioning(l_shipmode#X ASC NULLS FIRST, 1), ENSURE_REQUIREMEN
 
 (29) ShuffleQueryStage
 Output [3]: [l_shipmode#X, high_line_count#X, low_line_count#X]
-Arguments: 3
+Arguments: X
 
 (30) InputAdapter
 Input [3]: [l_shipmode#X, high_line_count#X, low_line_count#X]

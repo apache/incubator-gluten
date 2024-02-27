@@ -77,7 +77,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 
 (6) BroadcastQueryStage
 Output [1]: [c_custkey#X]
-Arguments: 0
+Arguments: X
 
 (7) InputAdapter
 Input [1]: [c_custkey#X]
@@ -130,7 +130,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 
 (18) BroadcastQueryStage
 Output [3]: [l_orderkey#X, l_extendedprice#X, l_discount#X]
-Arguments: 1
+Arguments: X
 
 (19) InputAdapter
 Input [3]: [l_orderkey#X, l_extendedprice#X, l_discount#X]
@@ -168,7 +168,7 @@ Arguments: hashpartitioning(l_orderkey#X, o_orderdate#X, o_shippriority#X, 1), E
 
 (27) ShuffleQueryStage
 Output [5]: [l_orderkey#X, o_orderdate#X, o_shippriority#X, sum#X, isEmpty#X]
-Arguments: 2
+Arguments: X
 
 (28) InputAdapter
 Input [5]: [l_orderkey#X, o_orderdate#X, o_shippriority#X, sum#X, isEmpty#X]
@@ -193,7 +193,7 @@ Arguments: false
 
 (33) TakeOrderedAndProjectExecTransformer
 Input [4]: [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]
-Arguments: 10, [revenue#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X], 0
+Arguments: X, [revenue#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X], 0
 
 (34) VeloxColumnarToRowExec
 Input [4]: [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]
@@ -285,7 +285,7 @@ Results [4]: [l_orderkey#X, sum(CheckOverflow((promote_precision(cast(l_extended
 
 (52) TakeOrderedAndProject
 Input [4]: [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]
-Arguments: 10, [revenue#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]
+Arguments: X, [revenue#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]
 
 (53) AdaptiveSparkPlan
 Output [4]: [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]

@@ -69,7 +69,7 @@ Arguments: hashpartitioning(s_suppkey#X, 1), ENSURE_REQUIREMENTS, [s_suppkey#X, 
 
 (6) ShuffleQueryStage
 Output [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
-Arguments: 0
+Arguments: X
 
 (7) InputAdapter
 Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
@@ -113,7 +113,7 @@ Arguments: hashpartitioning(l_suppkey#X, 1), ENSURE_REQUIREMENTS, [l_suppkey#X, 
 
 (16) ShuffleQueryStage
 Output [3]: [l_suppkey#X, sum#X, isEmpty#X]
-Arguments: 1
+Arguments: X
 
 (17) InputAdapter
 Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
@@ -151,7 +151,7 @@ Arguments: rangepartitioning(s_suppkey#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENT
 
 (25) ShuffleQueryStage
 Output [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
-Arguments: 2
+Arguments: X
 
 (26) InputAdapter
 Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]

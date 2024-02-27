@@ -107,7 +107,7 @@ Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X, 
 
 (6) ShuffleQueryStage
 Output [7]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X]
-Arguments: 0
+Arguments: X
 
 (7) InputAdapter
 Input [7]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X]
@@ -140,7 +140,7 @@ Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X,
 
 (14) ShuffleQueryStage
 Output [2]: [o_orderkey#X, o_custkey#X]
-Arguments: 1
+Arguments: X
 
 (15) InputAdapter
 Input [2]: [o_orderkey#X, o_custkey#X]
@@ -167,7 +167,7 @@ Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X,
 
 (21) ShuffleQueryStage
 Output [8]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X, o_orderkey#X]
-Arguments: 4
+Arguments: X
 
 (22) InputAdapter
 Input [8]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X, o_orderkey#X]
@@ -200,7 +200,7 @@ Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X
 
 (29) ShuffleQueryStage
 Output [3]: [l_orderkey#X, l_extendedprice#X, l_discount#X]
-Arguments: 2
+Arguments: X
 
 (30) InputAdapter
 Input [3]: [l_orderkey#X, l_extendedprice#X, l_discount#X]
@@ -227,7 +227,7 @@ Arguments: hashpartitioning(c_nationkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X
 
 (36) ShuffleQueryStage
 Output [9]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X, l_extendedprice#X, l_discount#X]
-Arguments: 5
+Arguments: X
 
 (37) InputAdapter
 Input [9]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X, l_extendedprice#X, l_discount#X]
@@ -260,7 +260,7 @@ Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [n_nationkey
 
 (44) ShuffleQueryStage
 Output [2]: [n_nationkey#X, n_name#X]
-Arguments: 3
+Arguments: X
 
 (45) InputAdapter
 Input [2]: [n_nationkey#X, n_name#X]
@@ -298,7 +298,7 @@ Arguments: hashpartitioning(c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_nam
 
 (53) ShuffleQueryStage
 Output [9]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X, sum#X, isEmpty#X]
-Arguments: 6
+Arguments: X
 
 (54) InputAdapter
 Input [9]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X, sum#X, isEmpty#X]
@@ -323,7 +323,7 @@ Arguments: false
 
 (59) TakeOrderedAndProjectExecTransformer
 Input [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
-Arguments: 20, [revenue#X DESC NULLS LAST], [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X], 0
+Arguments: X, [revenue#X DESC NULLS LAST], [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X], 0
 
 (60) VeloxColumnarToRowExec
 Input [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
@@ -451,7 +451,7 @@ Results [8]: [c_custkey#X, c_name#X, sum(CheckOverflow((promote_precision(cast(l
 
 (86) TakeOrderedAndProject
 Input [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
-Arguments: 20, [revenue#X DESC NULLS LAST], [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
+Arguments: X, [revenue#X DESC NULLS LAST], [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
 
 (87) AdaptiveSparkPlan
 Output [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]

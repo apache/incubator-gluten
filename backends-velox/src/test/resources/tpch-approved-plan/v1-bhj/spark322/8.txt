@@ -147,7 +147,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 
 (6) BroadcastQueryStage
 Output [1]: [p_partkey#X]
-Arguments: 0
+Arguments: X
 
 (7) InputAdapter
 Input [1]: [p_partkey#X]
@@ -196,7 +196,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 
 (17) BroadcastQueryStage
 Output [2]: [s_suppkey#X, s_nationkey#X]
-Arguments: 1
+Arguments: X
 
 (18) InputAdapter
 Input [2]: [s_suppkey#X, s_nationkey#X]
@@ -234,7 +234,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 
 (26) BroadcastQueryStage
 Output [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
-Arguments: 2
+Arguments: X
 
 (27) InputAdapter
 Input [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
@@ -272,7 +272,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 
 (35) BroadcastQueryStage
 Output [2]: [c_custkey#X, c_nationkey#X]
-Arguments: 3
+Arguments: X
 
 (36) InputAdapter
 Input [2]: [c_custkey#X, c_nationkey#X]
@@ -310,7 +310,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 
 (44) BroadcastQueryStage
 Output [2]: [n_nationkey#X, n_regionkey#X]
-Arguments: 4
+Arguments: X
 
 (45) InputAdapter
 Input [2]: [n_nationkey#X, n_regionkey#X]
@@ -348,7 +348,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 
 (53) BroadcastQueryStage
 Output [2]: [n_nationkey#X, n_name#X]
-Arguments: 5
+Arguments: X
 
 (54) InputAdapter
 Input [2]: [n_nationkey#X, n_name#X]
@@ -390,7 +390,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 
 (63) BroadcastQueryStage
 Output [1]: [r_regionkey#X]
-Arguments: 6
+Arguments: X
 
 (64) InputAdapter
 Input [1]: [r_regionkey#X]
@@ -428,7 +428,7 @@ Arguments: hashpartitioning(o_year#X, 1), ENSURE_REQUIREMENTS, [o_year#X, sum#X,
 
 (72) ShuffleQueryStage
 Output [5]: [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
-Arguments: 7
+Arguments: X
 
 (73) InputAdapter
 Input [5]: [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
@@ -457,7 +457,7 @@ Arguments: rangepartitioning(o_year#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, 
 
 (79) ShuffleQueryStage
 Output [2]: [o_year#X, mkt_share#X]
-Arguments: 8
+Arguments: X
 
 (80) InputAdapter
 Input [2]: [o_year#X, mkt_share#X]

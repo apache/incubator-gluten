@@ -127,7 +127,7 @@ Arguments: hashpartitioning(s_suppkey#X, 1), ENSURE_REQUIREMENTS, [s_suppkey#X, 
 
 (6) ShuffleQueryStage
 Output [4]: [s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
-Arguments: 0
+Arguments: X
 
 (7) AQEShuffleRead
 Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
@@ -175,7 +175,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 
 (17) BroadcastQueryStage
 Output [1]: [p_partkey#X]
-Arguments: 1
+Arguments: X
 
 (18) InputAdapter
 Input [1]: [p_partkey#X]
@@ -198,7 +198,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false], input[1, bi
 
 (23) BroadcastQueryStage
 Output [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
-Arguments: 5
+Arguments: X
 
 (24) InputAdapter
 Input [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
@@ -226,7 +226,7 @@ Output [1]: [p_partkey#X]
 
 (30) BroadcastQueryStage
 Output [1]: [p_partkey#X]
-Arguments: 3
+Arguments: X
 
 (31) InputAdapter
 Input [1]: [p_partkey#X]
@@ -260,7 +260,7 @@ Arguments: hashpartitioning(l_partkey#X, l_suppkey#X, 1), ENSURE_REQUIREMENTS, [
 
 (38) ShuffleQueryStage
 Output [4]: [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
-Arguments: 6
+Arguments: X
 
 (39) InputAdapter
 Input [4]: [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
@@ -302,7 +302,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 
 (48) BroadcastQueryStage
 Output [1]: [ps_suppkey#X]
-Arguments: 7
+Arguments: X
 
 (49) InputAdapter
 Input [1]: [ps_suppkey#X]
@@ -344,7 +344,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 
 (58) BroadcastQueryStage
 Output [1]: [n_nationkey#X]
-Arguments: 4
+Arguments: X
 
 (59) InputAdapter
 Input [1]: [n_nationkey#X]
@@ -371,7 +371,7 @@ Arguments: rangepartitioning(s_name#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, 
 
 (65) ShuffleQueryStage
 Output [2]: [s_name#X, s_address#X]
-Arguments: 8
+Arguments: X
 
 (66) InputAdapter
 Input [2]: [s_name#X, s_address#X]

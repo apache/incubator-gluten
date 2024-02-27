@@ -52,7 +52,7 @@ Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
 (7) ShuffleQueryStage
 Output [2]: [sum#X, isEmpty#X]
-Arguments: 0
+Arguments: X
 
 (8) InputAdapter
 Input [2]: [sum#X, isEmpty#X]

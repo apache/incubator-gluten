@@ -83,7 +83,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 
 (9) BroadcastQueryStage
 Output [1]: [l_orderkey#X]
-Arguments: 0
+Arguments: X
 
 (10) InputAdapter
 Input [1]: [l_orderkey#X]
@@ -121,7 +121,7 @@ Arguments: hashpartitioning(o_orderpriority#X, 1), ENSURE_REQUIREMENTS, [o_order
 
 (18) ShuffleQueryStage
 Output [2]: [o_orderpriority#X, count#X]
-Arguments: 1
+Arguments: X
 
 (19) InputAdapter
 Input [2]: [o_orderpriority#X, count#X]
@@ -146,7 +146,7 @@ Arguments: rangepartitioning(o_orderpriority#X ASC NULLS FIRST, 1), ENSURE_REQUI
 
 (24) ShuffleQueryStage
 Output [2]: [o_orderpriority#X, order_count#X]
-Arguments: 2
+Arguments: X
 
 (25) InputAdapter
 Input [2]: [o_orderpriority#X, order_count#X]

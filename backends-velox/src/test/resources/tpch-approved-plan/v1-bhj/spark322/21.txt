@@ -109,7 +109,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 
 (5) BroadcastQueryStage
 Output [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
-Arguments: 0
+Arguments: X
 
 (6) InputAdapter
 Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
@@ -148,7 +148,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 
 (14) BroadcastQueryStage
 Output [2]: [l_orderkey#X, l_suppkey#X]
-Arguments: 1
+Arguments: X
 
 (15) InputAdapter
 Input [2]: [l_orderkey#X, l_suppkey#X]
@@ -186,7 +186,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 
 (23) BroadcastQueryStage
 Output [2]: [l_orderkey#X, l_suppkey#X]
-Arguments: 2
+Arguments: X
 
 (24) InputAdapter
 Input [2]: [l_orderkey#X, l_suppkey#X]
@@ -233,7 +233,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 
 (34) BroadcastQueryStage
 Output [1]: [o_orderkey#X]
-Arguments: 3
+Arguments: X
 
 (35) InputAdapter
 Input [1]: [o_orderkey#X]
@@ -275,7 +275,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 
 (44) BroadcastQueryStage
 Output [1]: [n_nationkey#X]
-Arguments: 4
+Arguments: X
 
 (45) InputAdapter
 Input [1]: [n_nationkey#X]
@@ -313,7 +313,7 @@ Arguments: hashpartitioning(s_name#X, 1), ENSURE_REQUIREMENTS, [s_name#X, count#
 
 (53) ShuffleQueryStage
 Output [2]: [s_name#X, count#X]
-Arguments: 5
+Arguments: X
 
 (54) InputAdapter
 Input [2]: [s_name#X, count#X]
@@ -334,7 +334,7 @@ Arguments: false
 
 (58) TakeOrderedAndProjectExecTransformer
 Input [2]: [s_name#X, numwait#X]
-Arguments: 100, [numwait#X DESC NULLS LAST, s_name#X ASC NULLS FIRST], [s_name#X, numwait#X], 0
+Arguments: X, [numwait#X DESC NULLS LAST, s_name#X ASC NULLS FIRST], [s_name#X, numwait#X], 0
 
 (59) VeloxColumnarToRowExec
 Input [2]: [s_name#X, numwait#X]
@@ -493,7 +493,7 @@ Results [2]: [s_name#X, count(1)#X AS numwait#X]
 
 (91) TakeOrderedAndProject
 Input [2]: [s_name#X, numwait#X]
-Arguments: 100, [numwait#X DESC NULLS LAST, s_name#X ASC NULLS FIRST], [s_name#X, numwait#X]
+Arguments: X, [numwait#X DESC NULLS LAST, s_name#X ASC NULLS FIRST], [s_name#X, numwait#X]
 
 (92) AdaptiveSparkPlan
 Output [2]: [s_name#X, numwait#X]

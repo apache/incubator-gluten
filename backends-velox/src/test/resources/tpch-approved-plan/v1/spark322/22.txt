@@ -69,7 +69,7 @@ Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X, 
 
 (6) ShuffleQueryStage
 Output [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
-Arguments: 0
+Arguments: X
 
 (7) InputAdapter
 Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
@@ -97,7 +97,7 @@ Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [o_custkey#X],
 
 (13) ShuffleQueryStage
 Output [1]: [o_custkey#X]
-Arguments: 1
+Arguments: X
 
 (14) InputAdapter
 Input [1]: [o_custkey#X]
@@ -135,7 +135,7 @@ Arguments: hashpartitioning(cntrycode#X, 1), ENSURE_REQUIREMENTS, [cntrycode#X, 
 
 (22) ShuffleQueryStage
 Output [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
-Arguments: 2
+Arguments: X
 
 (23) InputAdapter
 Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
@@ -160,7 +160,7 @@ Arguments: rangepartitioning(cntrycode#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENT
 
 (28) ShuffleQueryStage
 Output [3]: [cntrycode#X, numcust#X, totacctbal#X]
-Arguments: 3
+Arguments: X
 
 (29) InputAdapter
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]

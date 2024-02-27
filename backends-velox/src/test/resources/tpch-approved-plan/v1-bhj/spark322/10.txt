@@ -101,7 +101,7 @@ Arguments: HashedRelationBroadcastMode(List(input[1, bigint, true]),false), [pla
 
 (8) BroadcastQueryStage
 Output [2]: [o_orderkey#X, o_custkey#X]
-Arguments: 0
+Arguments: X
 
 (9) InputAdapter
 Input [2]: [o_orderkey#X, o_custkey#X]
@@ -143,7 +143,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 
 (18) BroadcastQueryStage
 Output [3]: [l_orderkey#X, l_extendedprice#X, l_discount#X]
-Arguments: 1
+Arguments: X
 
 (19) InputAdapter
 Input [3]: [l_orderkey#X, l_extendedprice#X, l_discount#X]
@@ -181,7 +181,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 
 (27) BroadcastQueryStage
 Output [2]: [n_nationkey#X, n_name#X]
-Arguments: 2
+Arguments: X
 
 (28) InputAdapter
 Input [2]: [n_nationkey#X, n_name#X]
@@ -219,7 +219,7 @@ Arguments: hashpartitioning(c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_nam
 
 (36) ShuffleQueryStage
 Output [9]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X, sum#X, isEmpty#X]
-Arguments: 3
+Arguments: X
 
 (37) InputAdapter
 Input [9]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X, sum#X, isEmpty#X]
@@ -244,7 +244,7 @@ Arguments: false
 
 (42) TakeOrderedAndProjectExecTransformer
 Input [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
-Arguments: 20, [revenue#X DESC NULLS LAST], [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X], 0
+Arguments: X, [revenue#X DESC NULLS LAST], [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X], 0
 
 (43) VeloxColumnarToRowExec
 Input [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
@@ -360,7 +360,7 @@ Results [8]: [c_custkey#X, c_name#X, sum(CheckOverflow((promote_precision(cast(l
 
 (66) TakeOrderedAndProject
 Input [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
-Arguments: 20, [revenue#X DESC NULLS LAST], [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
+Arguments: X, [revenue#X DESC NULLS LAST], [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
 
 (67) AdaptiveSparkPlan
 Output [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]

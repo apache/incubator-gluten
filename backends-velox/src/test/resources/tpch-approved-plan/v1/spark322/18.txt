@@ -118,7 +118,7 @@ Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X, 
 
 (6) ShuffleQueryStage
 Output [2]: [c_custkey#X, c_name#X]
-Arguments: 0
+Arguments: X
 
 (7) InputAdapter
 Input [2]: [c_custkey#X, c_name#X]
@@ -151,7 +151,7 @@ Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X
 
 (14) ShuffleQueryStage
 Output [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
-Arguments: 1
+Arguments: X
 
 (15) InputAdapter
 Input [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
@@ -186,7 +186,7 @@ Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X
 
 (22) ShuffleQueryStage
 Output [3]: [l_orderkey#X, sum#X, isEmpty#X]
-Arguments: 2
+Arguments: X
 
 (23) InputAdapter
 Input [3]: [l_orderkey#X, sum#X, isEmpty#X]
@@ -228,7 +228,7 @@ Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X,
 
 (32) ShuffleQueryStage
 Output [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
-Arguments: 6
+Arguments: X
 
 (33) InputAdapter
 Input [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
@@ -255,7 +255,7 @@ Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X,
 
 (39) ShuffleQueryStage
 Output [5]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X]
-Arguments: 7
+Arguments: X
 
 (40) InputAdapter
 Input [5]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X]
@@ -288,7 +288,7 @@ Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X
 
 (47) ShuffleQueryStage
 Output [2]: [l_orderkey#X, l_quantity#X]
-Arguments: 3
+Arguments: X
 
 (48) InputAdapter
 Input [2]: [l_orderkey#X, l_quantity#X]
@@ -301,7 +301,7 @@ Output [3]: [l_orderkey#X, sum#X, isEmpty#X]
 
 (51) ShuffleQueryStage
 Output [3]: [l_orderkey#X, sum#X, isEmpty#X]
-Arguments: 5
+Arguments: X
 
 (52) InputAdapter
 Input [3]: [l_orderkey#X, sum#X, isEmpty#X]
@@ -358,7 +358,7 @@ Arguments: false
 
 (63) TakeOrderedAndProjectExecTransformer
 Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
-Arguments: 100, [o_totalprice#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X], 0
+Arguments: X, [o_totalprice#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X], 0
 
 (64) VeloxColumnarToRowExec
 Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
@@ -524,7 +524,7 @@ Results [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X
 
 (96) TakeOrderedAndProject
 Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
-Arguments: 100, [o_totalprice#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
+Arguments: X, [o_totalprice#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
 
 (97) AdaptiveSparkPlan
 Output [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]

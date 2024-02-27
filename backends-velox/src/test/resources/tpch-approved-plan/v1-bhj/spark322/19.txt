@@ -69,7 +69,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 
 (8) BroadcastQueryStage
 Output [4]: [p_partkey#X, p_brand#X, p_size#X, p_container#X]
-Arguments: 0
+Arguments: X
 
 (9) InputAdapter
 Input [4]: [p_partkey#X, p_brand#X, p_size#X, p_container#X]
@@ -103,7 +103,7 @@ Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
 (16) ShuffleQueryStage
 Output [2]: [sum#X, isEmpty#X]
-Arguments: 1
+Arguments: X
 
 (17) InputAdapter
 Input [2]: [sum#X, isEmpty#X]

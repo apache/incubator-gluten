@@ -82,7 +82,7 @@ Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X],
 
 (6) ShuffleQueryStage
 Output [1]: [c_custkey#X]
-Arguments: 0
+Arguments: X
 
 (7) InputAdapter
 Input [1]: [c_custkey#X]
@@ -115,7 +115,7 @@ Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X,
 
 (14) ShuffleQueryStage
 Output [4]: [o_orderkey#X, o_custkey#X, o_orderdate#X, o_shippriority#X]
-Arguments: 1
+Arguments: X
 
 (15) InputAdapter
 Input [4]: [o_orderkey#X, o_custkey#X, o_orderdate#X, o_shippriority#X]
@@ -142,7 +142,7 @@ Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X
 
 (21) ShuffleQueryStage
 Output [3]: [o_orderkey#X, o_orderdate#X, o_shippriority#X]
-Arguments: 3
+Arguments: X
 
 (22) InputAdapter
 Input [3]: [o_orderkey#X, o_orderdate#X, o_shippriority#X]
@@ -175,7 +175,7 @@ Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X
 
 (29) ShuffleQueryStage
 Output [3]: [l_orderkey#X, l_extendedprice#X, l_discount#X]
-Arguments: 2
+Arguments: X
 
 (30) InputAdapter
 Input [3]: [l_orderkey#X, l_extendedprice#X, l_discount#X]
@@ -216,7 +216,7 @@ Arguments: false
 
 (38) TakeOrderedAndProjectExecTransformer
 Input [4]: [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]
-Arguments: 10, [revenue#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X], 0
+Arguments: X, [revenue#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X], 0
 
 (39) VeloxColumnarToRowExec
 Input [4]: [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]
@@ -312,7 +312,7 @@ Results [4]: [l_orderkey#X, sum(CheckOverflow((promote_precision(cast(l_extended
 
 (58) TakeOrderedAndProject
 Input [4]: [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]
-Arguments: 10, [revenue#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]
+Arguments: X, [revenue#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]
 
 (59) AdaptiveSparkPlan
 Output [4]: [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]

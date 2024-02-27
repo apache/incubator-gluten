@@ -148,7 +148,7 @@ Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [p_partkey#X],
 
 (6) ShuffleQueryStage
 Output [1]: [p_partkey#X]
-Arguments: 0
+Arguments: X
 
 (7) InputAdapter
 Input [1]: [p_partkey#X]
@@ -181,7 +181,7 @@ Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X,
 
 (14) ShuffleQueryStage
 Output [6]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
-Arguments: 1
+Arguments: X
 
 (15) InputAdapter
 Input [6]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
@@ -208,7 +208,7 @@ Arguments: hashpartitioning(l_suppkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X,
 
 (21) ShuffleQueryStage
 Output [6]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
-Arguments: 6
+Arguments: X
 
 (22) InputAdapter
 Input [6]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
@@ -241,7 +241,7 @@ Arguments: hashpartitioning(s_suppkey#X, 1), ENSURE_REQUIREMENTS, [s_suppkey#X, 
 
 (29) ShuffleQueryStage
 Output [2]: [s_suppkey#X, s_nationkey#X]
-Arguments: 2
+Arguments: X
 
 (30) InputAdapter
 Input [2]: [s_suppkey#X, s_nationkey#X]
@@ -268,7 +268,7 @@ Arguments: hashpartitioning(l_suppkey#X, l_partkey#X, 1), ENSURE_REQUIREMENTS, [
 
 (36) ShuffleQueryStage
 Output [7]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
-Arguments: 7
+Arguments: X
 
 (37) InputAdapter
 Input [7]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
@@ -301,7 +301,7 @@ Arguments: hashpartitioning(ps_suppkey#X, ps_partkey#X, 1), ENSURE_REQUIREMENTS,
 
 (44) ShuffleQueryStage
 Output [3]: [ps_partkey#X, ps_suppkey#X, ps_supplycost#X]
-Arguments: 3
+Arguments: X
 
 (45) InputAdapter
 Input [3]: [ps_partkey#X, ps_suppkey#X, ps_supplycost#X]
@@ -328,7 +328,7 @@ Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X
 
 (51) ShuffleQueryStage
 Output [6]: [l_orderkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X, ps_supplycost#X]
-Arguments: 8
+Arguments: X
 
 (52) InputAdapter
 Input [6]: [l_orderkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X, ps_supplycost#X]
@@ -361,7 +361,7 @@ Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X
 
 (59) ShuffleQueryStage
 Output [2]: [o_orderkey#X, o_orderdate#X]
-Arguments: 4
+Arguments: X
 
 (60) InputAdapter
 Input [2]: [o_orderkey#X, o_orderdate#X]
@@ -388,7 +388,7 @@ Arguments: hashpartitioning(s_nationkey#X, 1), ENSURE_REQUIREMENTS, [l_quantity#
 
 (66) ShuffleQueryStage
 Output [6]: [l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X, ps_supplycost#X, o_orderdate#X]
-Arguments: 9
+Arguments: X
 
 (67) InputAdapter
 Input [6]: [l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X, ps_supplycost#X, o_orderdate#X]
@@ -421,7 +421,7 @@ Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [n_nationkey
 
 (74) ShuffleQueryStage
 Output [2]: [n_nationkey#X, n_name#X]
-Arguments: 5
+Arguments: X
 
 (75) InputAdapter
 Input [2]: [n_nationkey#X, n_name#X]
@@ -459,7 +459,7 @@ Arguments: hashpartitioning(nation#X, o_year#X, 1), ENSURE_REQUIREMENTS, [nation
 
 (83) ShuffleQueryStage
 Output [4]: [nation#X, o_year#X, sum#X, isEmpty#X]
-Arguments: 10
+Arguments: X
 
 (84) InputAdapter
 Input [4]: [nation#X, o_year#X, sum#X, isEmpty#X]
@@ -484,7 +484,7 @@ Arguments: rangepartitioning(nation#X ASC NULLS FIRST, o_year#X DESC NULLS LAST,
 
 (89) ShuffleQueryStage
 Output [3]: [nation#X, o_year#X, sum_profit#X]
-Arguments: 11
+Arguments: X
 
 (90) InputAdapter
 Input [3]: [nation#X, o_year#X, sum_profit#X]

@@ -64,7 +64,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 
 (5) BroadcastQueryStage
 Output [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
-Arguments: 0
+Arguments: X
 
 (6) InputAdapter
 Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
@@ -108,7 +108,7 @@ Arguments: hashpartitioning(l_suppkey#X, 1), ENSURE_REQUIREMENTS, [l_suppkey#X, 
 
 (15) ShuffleQueryStage
 Output [3]: [l_suppkey#X, sum#X, isEmpty#X]
-Arguments: 1
+Arguments: X
 
 (16) InputAdapter
 Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
@@ -146,7 +146,7 @@ Arguments: rangepartitioning(s_suppkey#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENT
 
 (24) ShuffleQueryStage
 Output [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
-Arguments: 2
+Arguments: X
 
 (25) InputAdapter
 Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]

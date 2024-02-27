@@ -110,7 +110,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 
 (5) BroadcastQueryStage
 Output [2]: [s_suppkey#X, s_nationkey#X]
-Arguments: 0
+Arguments: X
 
 (6) InputAdapter
 Input [2]: [s_suppkey#X, s_nationkey#X]
@@ -159,7 +159,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 
 (16) BroadcastQueryStage
 Output [2]: [o_orderkey#X, o_custkey#X]
-Arguments: 1
+Arguments: X
 
 (17) InputAdapter
 Input [2]: [o_orderkey#X, o_custkey#X]
@@ -197,7 +197,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 
 (25) BroadcastQueryStage
 Output [2]: [c_custkey#X, c_nationkey#X]
-Arguments: 2
+Arguments: X
 
 (26) InputAdapter
 Input [2]: [c_custkey#X, c_nationkey#X]
@@ -235,7 +235,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 
 (34) BroadcastQueryStage
 Output [2]: [n_nationkey#X, n_name#X]
-Arguments: 3
+Arguments: X
 
 (35) InputAdapter
 Input [2]: [n_nationkey#X, n_name#X]
@@ -257,7 +257,7 @@ Output [2]: [n_nationkey#X, n_name#X]
 
 (40) BroadcastQueryStage
 Output [2]: [n_nationkey#X, n_name#X]
-Arguments: 5
+Arguments: X
 
 (41) InputAdapter
 Input [2]: [n_nationkey#X, n_name#X]
@@ -295,7 +295,7 @@ Arguments: hashpartitioning(supp_nation#X, cust_nation#X, l_year#X, 1), ENSURE_R
 
 (49) ShuffleQueryStage
 Output [5]: [supp_nation#X, cust_nation#X, l_year#X, sum#X, isEmpty#X]
-Arguments: 6
+Arguments: X
 
 (50) InputAdapter
 Input [5]: [supp_nation#X, cust_nation#X, l_year#X, sum#X, isEmpty#X]
@@ -320,7 +320,7 @@ Arguments: rangepartitioning(supp_nation#X ASC NULLS FIRST, cust_nation#X ASC NU
 
 (55) ShuffleQueryStage
 Output [4]: [supp_nation#X, cust_nation#X, l_year#X, revenue#X]
-Arguments: 7
+Arguments: X
 
 (56) InputAdapter
 Input [4]: [supp_nation#X, cust_nation#X, l_year#X, revenue#X]

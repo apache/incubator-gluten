@@ -86,7 +86,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 
 (7) BroadcastQueryStage
 Output [4]: [p_partkey#X, p_brand#X, p_type#X, p_size#X]
-Arguments: 1
+Arguments: X
 
 (8) InputAdapter
 Input [4]: [p_partkey#X, p_brand#X, p_type#X, p_size#X]
@@ -124,7 +124,7 @@ Arguments: hashpartitioning(p_brand#X, p_type#X, p_size#X, ps_suppkey#X, 1), ENS
 
 (16) ShuffleQueryStage
 Output [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
-Arguments: 2
+Arguments: X
 
 (17) InputAdapter
 Input [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
@@ -160,7 +160,7 @@ Arguments: hashpartitioning(p_brand#X, p_type#X, p_size#X, 1), ENSURE_REQUIREMEN
 
 (24) ShuffleQueryStage
 Output [4]: [p_brand#X, p_type#X, p_size#X, count#X]
-Arguments: 3
+Arguments: X
 
 (25) InputAdapter
 Input [4]: [p_brand#X, p_type#X, p_size#X, count#X]
@@ -185,7 +185,7 @@ Arguments: rangepartitioning(supplier_cnt#X DESC NULLS LAST, p_brand#X ASC NULLS
 
 (30) ShuffleQueryStage
 Output [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
-Arguments: 4
+Arguments: X
 
 (31) InputAdapter
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]

@@ -86,7 +86,7 @@ Arguments: hashpartitioning(ps_partkey#X, 1), ENSURE_REQUIREMENTS, [ps_partkey#X
 
 (6) ShuffleQueryStage
 Output [2]: [ps_partkey#X, ps_suppkey#X]
-Arguments: 2
+Arguments: X
 
 (7) InputAdapter
 Input [2]: [ps_partkey#X, ps_suppkey#X]
@@ -119,7 +119,7 @@ Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [p_partkey#X, 
 
 (14) ShuffleQueryStage
 Output [4]: [p_partkey#X, p_brand#X, p_type#X, p_size#X]
-Arguments: 1
+Arguments: X
 
 (15) InputAdapter
 Input [4]: [p_partkey#X, p_brand#X, p_type#X, p_size#X]
@@ -157,7 +157,7 @@ Arguments: hashpartitioning(p_brand#X, p_type#X, p_size#X, ps_suppkey#X, 1), ENS
 
 (23) ShuffleQueryStage
 Output [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
-Arguments: 3
+Arguments: X
 
 (24) InputAdapter
 Input [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
@@ -193,7 +193,7 @@ Arguments: hashpartitioning(p_brand#X, p_type#X, p_size#X, 1), ENSURE_REQUIREMEN
 
 (31) ShuffleQueryStage
 Output [4]: [p_brand#X, p_type#X, p_size#X, count#X]
-Arguments: 4
+Arguments: X
 
 (32) InputAdapter
 Input [4]: [p_brand#X, p_type#X, p_size#X, count#X]
@@ -218,7 +218,7 @@ Arguments: rangepartitioning(supplier_cnt#X DESC NULLS LAST, p_brand#X ASC NULLS
 
 (37) ShuffleQueryStage
 Output [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
-Arguments: 5
+Arguments: X
 
 (38) InputAdapter
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]

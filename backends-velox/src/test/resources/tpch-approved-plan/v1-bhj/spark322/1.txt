@@ -64,7 +64,7 @@ Arguments: hashpartitioning(l_returnflag#X, l_linestatus#X, 1), ENSURE_REQUIREME
 
 (8) ShuffleQueryStage
 Output [17]: [l_returnflag#X, l_linestatus#X, sum#X, isEmpty#X, sum#X, isEmpty#X, sum#X, isEmpty#X, sum#X, isEmpty#X, sum#X, count#X, sum#X, count#X, sum#X, count#X, count#X]
-Arguments: 0
+Arguments: X
 
 (9) InputAdapter
 Input [17]: [l_returnflag#X, l_linestatus#X, sum#X, isEmpty#X, sum#X, isEmpty#X, sum#X, isEmpty#X, sum#X, isEmpty#X, sum#X, count#X, sum#X, count#X, sum#X, count#X, count#X]
@@ -89,7 +89,7 @@ Arguments: rangepartitioning(l_returnflag#X ASC NULLS FIRST, l_linestatus#X ASC 
 
 (14) ShuffleQueryStage
 Output [10]: [l_returnflag#X, l_linestatus#X, sum_qty#X, sum_base_price#X, sum_disc_price#X, sum_charge#X, avg_qty#X, avg_price#X, avg_disc#X, count_order#X]
-Arguments: 1
+Arguments: X
 
 (15) InputAdapter
 Input [10]: [l_returnflag#X, l_linestatus#X, sum_qty#X, sum_base_price#X, sum_disc_price#X, sum_charge#X, avg_qty#X, avg_price#X, avg_disc#X, count_order#X]

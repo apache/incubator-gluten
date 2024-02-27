@@ -93,7 +93,7 @@ Arguments: hashpartitioning(ps_suppkey#X, 1), ENSURE_REQUIREMENTS, [ps_partkey#X
 
 (6) ShuffleQueryStage
 Output [4]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
-Arguments: 0
+Arguments: X
 
 (7) InputAdapter
 Input [4]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
@@ -126,7 +126,7 @@ Arguments: hashpartitioning(s_suppkey#X, 1), ENSURE_REQUIREMENTS, [s_suppkey#X, 
 
 (14) ShuffleQueryStage
 Output [2]: [s_suppkey#X, s_nationkey#X]
-Arguments: 1
+Arguments: X
 
 (15) InputAdapter
 Input [2]: [s_suppkey#X, s_nationkey#X]
@@ -153,7 +153,7 @@ Arguments: hashpartitioning(s_nationkey#X, 1), ENSURE_REQUIREMENTS, [ps_partkey#
 
 (21) ShuffleQueryStage
 Output [4]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X]
-Arguments: 3
+Arguments: X
 
 (22) InputAdapter
 Input [4]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X]
@@ -186,7 +186,7 @@ Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [n_nationkey
 
 (29) ShuffleQueryStage
 Output [1]: [n_nationkey#X]
-Arguments: 2
+Arguments: X
 
 (30) InputAdapter
 Input [1]: [n_nationkey#X]
@@ -224,7 +224,7 @@ Arguments: hashpartitioning(ps_partkey#X, 1), ENSURE_REQUIREMENTS, [ps_partkey#X
 
 (38) ShuffleQueryStage
 Output [3]: [ps_partkey#X, sum#X, isEmpty#X]
-Arguments: 4
+Arguments: X
 
 (39) InputAdapter
 Input [3]: [ps_partkey#X, sum#X, isEmpty#X]
@@ -253,7 +253,7 @@ Arguments: rangepartitioning(value#X DESC NULLS LAST, 1), ENSURE_REQUIREMENTS, [
 
 (45) ShuffleQueryStage
 Output [2]: [ps_partkey#X, value#X]
-Arguments: 5
+Arguments: X
 
 (46) InputAdapter
 Input [2]: [ps_partkey#X, value#X]

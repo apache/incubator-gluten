@@ -70,7 +70,7 @@ Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X],
 
 (5) ShuffleQueryStage
 Output [1]: [c_custkey#X]
-Arguments: 0
+Arguments: X
 
 (6) InputAdapter
 Input [1]: [c_custkey#X]
@@ -103,7 +103,7 @@ Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X,
 
 (13) ShuffleQueryStage
 Output [2]: [o_orderkey#X, o_custkey#X]
-Arguments: 1
+Arguments: X
 
 (14) InputAdapter
 Input [2]: [o_orderkey#X, o_custkey#X]
@@ -159,7 +159,7 @@ Arguments: hashpartitioning(c_count#X, 1), ENSURE_REQUIREMENTS, [c_count#X, coun
 
 (25) ShuffleQueryStage
 Output [2]: [c_count#X, count#X]
-Arguments: 2
+Arguments: X
 
 (26) InputAdapter
 Input [2]: [c_count#X, count#X]
@@ -184,7 +184,7 @@ Arguments: rangepartitioning(custdist#X DESC NULLS LAST, c_count#X DESC NULLS LA
 
 (31) ShuffleQueryStage
 Output [2]: [c_count#X, custdist#X]
-Arguments: 3
+Arguments: X
 
 (32) InputAdapter
 Input [2]: [c_count#X, custdist#X]

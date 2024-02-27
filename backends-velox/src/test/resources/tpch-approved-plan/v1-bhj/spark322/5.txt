@@ -116,7 +116,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 
 (5) BroadcastQueryStage
 Output [2]: [c_custkey#X, c_nationkey#X]
-Arguments: 0
+Arguments: X
 
 (6) InputAdapter
 Input [2]: [c_custkey#X, c_nationkey#X]
@@ -169,7 +169,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 
 (17) BroadcastQueryStage
 Output [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
-Arguments: 1
+Arguments: X
 
 (18) InputAdapter
 Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
@@ -207,7 +207,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false], input[1, bi
 
 (26) BroadcastQueryStage
 Output [2]: [s_suppkey#X, s_nationkey#X]
-Arguments: 2
+Arguments: X
 
 (27) InputAdapter
 Input [2]: [s_suppkey#X, s_nationkey#X]
@@ -245,7 +245,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [pl
 
 (35) BroadcastQueryStage
 Output [3]: [n_nationkey#X, n_name#X, n_regionkey#X]
-Arguments: 3
+Arguments: X
 
 (36) InputAdapter
 Input [3]: [n_nationkey#X, n_name#X, n_regionkey#X]
@@ -287,7 +287,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 
 (45) BroadcastQueryStage
 Output [1]: [r_regionkey#X]
-Arguments: 4
+Arguments: X
 
 (46) InputAdapter
 Input [1]: [r_regionkey#X]
@@ -325,7 +325,7 @@ Arguments: hashpartitioning(n_name#X, 1), ENSURE_REQUIREMENTS, [n_name#X, sum#X,
 
 (54) ShuffleQueryStage
 Output [3]: [n_name#X, sum#X, isEmpty#X]
-Arguments: 5
+Arguments: X
 
 (55) InputAdapter
 Input [3]: [n_name#X, sum#X, isEmpty#X]
@@ -350,7 +350,7 @@ Arguments: rangepartitioning(revenue#X DESC NULLS LAST, 1), ENSURE_REQUIREMENTS,
 
 (60) ShuffleQueryStage
 Output [2]: [n_name#X, revenue#X]
-Arguments: 6
+Arguments: X
 
 (61) InputAdapter
 Input [2]: [n_name#X, revenue#X]

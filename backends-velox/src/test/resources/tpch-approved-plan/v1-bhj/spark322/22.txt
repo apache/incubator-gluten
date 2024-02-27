@@ -64,7 +64,7 @@ Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [pla
 
 (6) BroadcastQueryStage
 Output [1]: [o_custkey#X]
-Arguments: 0
+Arguments: X
 
 (7) InputAdapter
 Input [1]: [o_custkey#X]
@@ -102,7 +102,7 @@ Arguments: hashpartitioning(cntrycode#X, 1), ENSURE_REQUIREMENTS, [cntrycode#X, 
 
 (15) ShuffleQueryStage
 Output [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
-Arguments: 1
+Arguments: X
 
 (16) InputAdapter
 Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
@@ -127,7 +127,7 @@ Arguments: rangepartitioning(cntrycode#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENT
 
 (21) ShuffleQueryStage
 Output [3]: [cntrycode#X, numcust#X, totacctbal#X]
-Arguments: 2
+Arguments: X
 
 (22) InputAdapter
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]

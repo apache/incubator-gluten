@@ -136,7 +136,7 @@ Arguments: hashpartitioning(s_suppkey#X, 1), ENSURE_REQUIREMENTS, [s_suppkey#X, 
 
 (6) ShuffleQueryStage
 Output [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
-Arguments: 0
+Arguments: X
 
 (7) InputAdapter
 Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
@@ -169,7 +169,7 @@ Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X
 
 (14) ShuffleQueryStage
 Output [2]: [l_orderkey#X, l_suppkey#X]
-Arguments: 1
+Arguments: X
 
 (15) InputAdapter
 Input [2]: [l_orderkey#X, l_suppkey#X]
@@ -197,7 +197,7 @@ Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X
 
 (21) ShuffleQueryStage
 Output [2]: [l_orderkey#X, l_suppkey#X]
-Arguments: 2
+Arguments: X
 
 (22) InputAdapter
 Input [2]: [l_orderkey#X, l_suppkey#X]
@@ -235,7 +235,7 @@ Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X
 
 (30) ShuffleQueryStage
 Output [2]: [l_orderkey#X, l_suppkey#X]
-Arguments: 3
+Arguments: X
 
 (31) InputAdapter
 Input [2]: [l_orderkey#X, l_suppkey#X]
@@ -262,7 +262,7 @@ Arguments: hashpartitioning(l_suppkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X,
 
 (37) ShuffleQueryStage
 Output [2]: [l_orderkey#X, l_suppkey#X]
-Arguments: 6
+Arguments: X
 
 (38) InputAdapter
 Input [2]: [l_orderkey#X, l_suppkey#X]
@@ -289,7 +289,7 @@ Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [s_name#X, s_
 
 (44) ShuffleQueryStage
 Output [3]: [s_name#X, s_nationkey#X, l_orderkey#X]
-Arguments: 7
+Arguments: X
 
 (45) InputAdapter
 Input [3]: [s_name#X, s_nationkey#X, l_orderkey#X]
@@ -322,7 +322,7 @@ Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X
 
 (52) ShuffleQueryStage
 Output [1]: [o_orderkey#X]
-Arguments: 4
+Arguments: X
 
 (53) InputAdapter
 Input [1]: [o_orderkey#X]
@@ -349,7 +349,7 @@ Arguments: hashpartitioning(s_nationkey#X, 1), ENSURE_REQUIREMENTS, [s_name#X, s
 
 (59) ShuffleQueryStage
 Output [2]: [s_name#X, s_nationkey#X]
-Arguments: 8
+Arguments: X
 
 (60) InputAdapter
 Input [2]: [s_name#X, s_nationkey#X]
@@ -382,7 +382,7 @@ Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [n_nationkey
 
 (67) ShuffleQueryStage
 Output [1]: [n_nationkey#X]
-Arguments: 5
+Arguments: X
 
 (68) InputAdapter
 Input [1]: [n_nationkey#X]
@@ -420,7 +420,7 @@ Arguments: hashpartitioning(s_name#X, 1), ENSURE_REQUIREMENTS, [s_name#X, count#
 
 (76) ShuffleQueryStage
 Output [2]: [s_name#X, count#X]
-Arguments: 9
+Arguments: X
 
 (77) InputAdapter
 Input [2]: [s_name#X, count#X]
@@ -441,7 +441,7 @@ Arguments: false
 
 (81) TakeOrderedAndProjectExecTransformer
 Input [2]: [s_name#X, numwait#X]
-Arguments: 100, [numwait#X DESC NULLS LAST, s_name#X ASC NULLS FIRST], [s_name#X, numwait#X], 0
+Arguments: X, [numwait#X DESC NULLS LAST, s_name#X ASC NULLS FIRST], [s_name#X, numwait#X], 0
 
 (82) VeloxColumnarToRowExec
 Input [2]: [s_name#X, numwait#X]
@@ -616,7 +616,7 @@ Results [2]: [s_name#X, count(1)#X AS numwait#X]
 
 (118) TakeOrderedAndProject
 Input [2]: [s_name#X, numwait#X]
-Arguments: 100, [numwait#X DESC NULLS LAST, s_name#X ASC NULLS FIRST], [s_name#X, numwait#X]
+Arguments: X, [numwait#X DESC NULLS LAST, s_name#X ASC NULLS FIRST], [s_name#X, numwait#X]
 
 (119) AdaptiveSparkPlan
 Output [2]: [s_name#X, numwait#X]

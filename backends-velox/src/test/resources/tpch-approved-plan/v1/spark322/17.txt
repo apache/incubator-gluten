@@ -81,7 +81,7 @@ Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [l_partkey#X, 
 
 (6) ShuffleQueryStage
 Output [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
-Arguments: 0
+Arguments: X
 
 (7) InputAdapter
 Input [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
@@ -114,7 +114,7 @@ Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [p_partkey#X],
 
 (14) ShuffleQueryStage
 Output [1]: [p_partkey#X]
-Arguments: 1
+Arguments: X
 
 (15) InputAdapter
 Input [1]: [p_partkey#X]
@@ -163,7 +163,7 @@ Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [l_partkey#X, 
 
 (25) ShuffleQueryStage
 Output [3]: [l_partkey#X, sum#X, count#X]
-Arguments: 2
+Arguments: X
 
 (26) InputAdapter
 Input [3]: [l_partkey#X, sum#X, count#X]
