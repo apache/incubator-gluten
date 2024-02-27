@@ -44,6 +44,7 @@ class CHTransformerApi extends TransformerApi with Logging {
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(
       relation: HadoopFsRelation,
+      requiredSchema: StructType,
       selectedPartitions: Array[PartitionDirectory],
       output: Seq[Attribute],
       bucketedScan: Boolean,
@@ -72,6 +73,7 @@ class CHTransformerApi extends TransformerApi with Logging {
         // Generate FilePartition for Parquet
         CHInputPartitionsUtil(
           relation,
+          requiredSchema,
           selectedPartitions,
           output,
           bucketedScan,

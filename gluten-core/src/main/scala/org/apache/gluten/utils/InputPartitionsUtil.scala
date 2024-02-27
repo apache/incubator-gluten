@@ -21,11 +21,13 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.datasources.{FilePartition, HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.execution.datasources.{FilePartition, HadoopFsRelation, PartitionDirectory, RowIndexUtil}
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.collection.BitSet
 
 case class InputPartitionsUtil(
     relation: HadoopFsRelation,
+    requiredSchema: StructType,
     selectedPartitions: Array[PartitionDirectory],
     output: Seq[Attribute],
     bucketedScan: Boolean,
@@ -58,7 +60,11 @@ case class InputPartitionsUtil(
               // getPath() is very expensive so we only want to call it once in this block:
               val filePath = file.getPath
               val isSplitable =
-                relation.fileFormat.isSplitable(relation.sparkSession, relation.options, filePath)
+                relation.fileFormat
+                  .isSplitable(relation.sparkSession, relation.options, filePath) &&
+                  // SPARK-39634: Allow file splitting in combination with row index generation once
+                  // the fix for PARQUET-2161 is available.
+                  !RowIndexUtil.isNeededForSchema(requiredSchema)
               SparkShimLoader.getSparkShims.splitFiles(
                 sparkSession = relation.sparkSession,
                 file = file,

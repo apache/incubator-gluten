@@ -39,6 +39,7 @@ class TransformerApiImpl extends TransformerApi with Logging {
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(
       relation: HadoopFsRelation,
+      requiredSchema: StructType,
       selectedPartitions: Array[PartitionDirectory],
       output: Seq[Attribute],
       bucketedScan: Boolean,
@@ -47,6 +48,7 @@ class TransformerApiImpl extends TransformerApi with Logging {
       disableBucketedScan: Boolean): Seq[InputPartition] = {
     InputPartitionsUtil(
       relation,
+      requiredSchema,
       selectedPartitions,
       output,
       bucketedScan,

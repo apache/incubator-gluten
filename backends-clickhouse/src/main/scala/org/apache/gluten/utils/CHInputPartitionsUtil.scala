@@ -33,6 +33,7 @@ import scala.collection.mutable.ArrayBuffer
 
 case class CHInputPartitionsUtil(
     relation: HadoopFsRelation,
+    requiredSchema: StructType,
     selectedPartitions: Array[PartitionDirectory],
     output: Seq[Attribute],
     bucketedScan: Boolean,
@@ -70,10 +71,13 @@ case class CHInputPartitionsUtil(
             file =>
               // getPath() is very expensive so we only want to call it once in this block:
               val filePath = file.getPath
-
               if (shouldProcess(filePath)) {
-                val isSplitable =
-                  relation.fileFormat.isSplitable(relation.sparkSession, relation.options, filePath)
+              val isSplitable =
+                relation.fileFormat.isSplitable(
+                  relation.sparkSession, relation.options, filePath) &&
+                  // SPARK-39634: Allow file splitting in combination with row index generation once
+                  // the fix for PARQUET-2161 is available.
+                  !RowIndexUtil.isNeededForSchema(requiredSchema)
                 PartitionedFileUtil.splitFiles(
                   sparkSession = relation.sparkSession,
                   file = file,

@@ -110,6 +110,7 @@ abstract class FileSourceScanExecTransformerBase(
   override def getPartitions: Seq[InputPartition] = {
     BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
       relation,
+      requiredSchema,
       dynamicallySelectedPartitions,
       output,
       bucketedScan,

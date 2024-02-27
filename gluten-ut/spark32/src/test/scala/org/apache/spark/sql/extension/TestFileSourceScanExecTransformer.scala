@@ -52,6 +52,7 @@ case class TestFileSourceScanExecTransformer(
   override def getPartitions: Seq[InputPartition] =
     BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
       relation,
+      requiredSchema,
       selectedPartitions,
       output,
       bucketedScan,

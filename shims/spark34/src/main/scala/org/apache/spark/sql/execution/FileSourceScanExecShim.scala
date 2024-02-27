@@ -55,7 +55,12 @@ abstract class FileSourceScanExecShim(
     case FileSourceGeneratedMetadataAttribute(attr) => attr
   }
 
-  def dataFiltersInScan: Seq[Expression] = dataFilters
+  def dataFiltersInScan: Seq[Expression] = dataFilters.filterNot(_.references.exists {
+    case attr: Attribute if (attr.name == "_tmp_metadata_row_index") => true
+    case FileSourceMetadataAttribute(_) => true
+    case FileSourceGeneratedMetadataAttribute(_) => true
+    case _ => false
+  })
 
   def hasUnsupportedColumns: Boolean = {
     val metadataColumnsNames = metadataColumns.map(_.name)

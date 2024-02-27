@@ -22,7 +22,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.types.DecimalType
+import org.apache.spark.sql.types.{DecimalType, StructType}
 import org.apache.spark.util.collection.BitSet
 
 import com.google.protobuf.{Any, Message}
@@ -34,6 +34,7 @@ trait TransformerApi {
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(
       relation: HadoopFsRelation,
+      requiredSchema: StructType,
       selectedPartitions: Array[PartitionDirectory],
       output: Seq[Attribute],
       bucketedScan: Boolean,
