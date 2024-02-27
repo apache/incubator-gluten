@@ -717,6 +717,16 @@ case class ColumnarOverrideRules(session: SparkSession)
     }
   }
 
+  /**
+   * Note: Do not implement this API. We basically inject
+   * all of Gluten's physical rules through `postColumnarTransitions`.
+   *
+   * See: https://github.com/oap-project/gluten/pull/4790
+   */
+  override final def preColumnarTransitions: Rule[SparkPlan] = {
+    super.preColumnarTransitions
+  }
+
   override def postColumnarTransitions: Rule[SparkPlan] = plan => {
     withSuggestRules(suggestRules()).apply(plan)
   }
