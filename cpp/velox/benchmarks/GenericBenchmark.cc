@@ -397,6 +397,7 @@ int main(int argc, char** argv) {
   LOG(INFO) << "print_result: " << FLAGS_print_result;
   LOG(INFO) << "write_file: " << FLAGS_write_file;
   LOG(INFO) << "batch_size: " << FLAGS_batch_size;
+  LOG(INFO) << "write_path: " << FLAGS_write_path;
 
   if (dataFiles.empty()) {
     GENERIC_BENCHMARK("SkipInput", FileReaderType::kNone);
