@@ -56,12 +56,13 @@ void SubstraitFileSourceStep::initializePipeline(DB::QueryPipelineBuilder & pipe
     pipeline.init(std::move(pipe));
 }
 
-void SubstraitFileSourceStep::applyFilters()
+void SubstraitFileSourceStep::applyFilters(const DB::ActionDAGNodes added_filter_nodes)
 {
+    filter_actions_dag = DB::ActionsDAG::buildFilterActionsDAG(added_filter_nodes.nodes);
     for (const auto & processor : pipe.getProcessors())
     {
         if (auto * source = dynamic_cast<DB::SourceWithKeyCondition *>(processor.get()))
-            source->setKeyCondition(filter_nodes.nodes, context);
+            source->setKeyCondition(filter_actions_dag, context);
     }
 }
 }

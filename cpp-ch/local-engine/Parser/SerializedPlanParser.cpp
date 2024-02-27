@@ -296,7 +296,7 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithLocalFile(const substrai
         const ActionsDAGPtr actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(header));
         const ActionsDAG::Node * filter_node = parseExpression(actions_dag, rel.filter());
         actions_dag->addOrReplaceInOutputs(*filter_node);
-        source_step->addFilter(actions_dag, filter_node);
+        source_step->addFilterFromParentStep(filter_node);
     }
     return source_step;
 }

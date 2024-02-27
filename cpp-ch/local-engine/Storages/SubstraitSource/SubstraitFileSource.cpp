@@ -86,19 +86,9 @@ SubstraitFileSource::SubstraitFileSource(
     }
 }
 
-void SubstraitFileSource::setKeyCondition(const DB::ActionsDAG::NodeRawConstPtrs & nodes, DB::ContextPtr context_)
+void SubstraitFileSource::setKeyCondition(const DB::ActionsDAGPtr & filter_actions_dag, DB::ContextPtr context_)
 {
-    const auto & keys = to_read_header;
-    std::unordered_map<std::string, DB::ColumnWithTypeAndName> node_name_to_input_column;
-    for (const auto & column : keys.getColumnsWithTypeAndName())
-        node_name_to_input_column.insert({column.name, column});
-
-    auto filter_actions_dag = DB::ActionsDAG::buildFilterActionsDAG(nodes, node_name_to_input_column);
-    key_condition = std::make_shared<const DB::KeyCondition>(
-        filter_actions_dag,
-        context_,
-        keys.getNames(),
-        std::make_shared<DB::ExpressionActions>(std::make_shared<DB::ActionsDAG>(keys.getColumnsWithTypeAndName())));
+    setKeyConditionImpl(filter_actions_dag, context_, to_read_header);
 }
 
 DB::Chunk SubstraitFileSource::generate()
