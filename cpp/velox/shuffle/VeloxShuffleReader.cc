@@ -422,8 +422,7 @@ void VeloxColumnarBatchDeserializerFactory::initFromSchema() {
       } break;
       case arrow::StructType::type_id:
       case arrow::MapType::type_id:
-      case arrow::ListType::type_id:
-      case arrow::Decimal128Type::type_id: {
+      case arrow::ListType::type_id: {
         hasComplexType_ = true;
       } break;
       case arrow::BooleanType::type_id: {

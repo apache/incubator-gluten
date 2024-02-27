@@ -55,6 +55,10 @@ void VeloxColumnarBatch::ensureFlattened() {
       child = child->as<facebook::velox::LazyVector>()->loadedVectorShared();
       VELOX_DCHECK_NOT_NULL(child);
     }
+    // In case of output from Limit, RowVector size can be smaller than its children size.
+    if (child->size() > rowVector_->size()) {
+      child->resize(rowVector_->size());
+    }
   }
   flattened_ = true;
 }
