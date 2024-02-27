@@ -727,15 +727,20 @@ case class ColumnarOverrideRules(session: SparkSession)
     super.preColumnarTransitions
   }
 
+  private def supportsRowBased(plan: SparkPlan): Boolean = {
+    SparkShimLoader.getSparkShims.supportsRowBased(plan)
+  }
+
   override def postColumnarTransitions: Rule[SparkPlan] = plan => {
+
     val isColumnarIn = plan.supportsColumnar
-    val isRowIn = plan.supportsRowBased
+    val isRowIn = supportsRowBased(plan)
     val out = withSuggestRules(suggestRules(isColumnarIn)).apply(plan)
     if (isColumnarIn && isRowIn) {
       // To make Gluten's plan output compatible with the input to maximum extent.
       assert(
-        out.supportsRowBased,
-        s"Row support is changed from $isRowIn to ${out.supportsRowBased}.\n" +
+        supportsRowBased(out),
+        s"Row support is changed from $isRowIn to ${supportsRowBased(out)}.\n" +
           s"Plan before: \n$plan\nPlan after: \n$out")
       assert(
         out.supportsColumnar,

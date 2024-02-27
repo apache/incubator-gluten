@@ -212,9 +212,11 @@ class Spark34Shims extends SparkShims {
     ShuffleUtils.getReaderParam(handle, startMapIndex, endMapIndex, startPartition, endPartition)
   }
 
-  override def getPratitionId(taskInfo: TaskInfo): Int = {
+  override def getPartitionId(taskInfo: TaskInfo): Int = {
     taskInfo.partitionId
   }
 
   override def supportDuplicateReadingTracking: Boolean = true
+
+  override def supportsRowBased(plan: SparkPlan): Boolean = plan.supportsRowBased
 }
