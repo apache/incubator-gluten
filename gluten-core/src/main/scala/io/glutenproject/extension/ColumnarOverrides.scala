@@ -684,7 +684,8 @@ case class ColumnarOverrideRules(session: SparkSession)
   private def postRules(): List[SparkSession => Rule[SparkPlan]] =
     List(
       (_: SparkSession) => TransformPostOverrides(),
-      (s: SparkSession) => VanillaColumnarPlanOverrides(s)
+      (s: SparkSession) => VanillaColumnarPlanOverrides(s),
+      (s: SparkSession) => RemoveTopmostColumnarToRow(s, isAdaptiveContext)
     ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
       List((_: SparkSession) => ColumnarCollapseTransformStages(GlutenConfig.getConf)) :::
@@ -700,7 +701,6 @@ case class ColumnarOverrideRules(session: SparkSession)
       // ColumnarCachedBatchSerializer is statically registered to Spark without a columnar rule
       // when columnar table cache is enabled.
       (s: SparkSession) => RemoveGlutenTableCacheColumnarToRow(s),
-      (s: SparkSession) => RemoveTopmostColumnarToRow(s, isAdaptiveContext),
       (s: SparkSession) => GlutenFallbackReporter(GlutenConfig.getConf, s),
       (_: SparkSession) => RemoveTransformHintRule()
     )
