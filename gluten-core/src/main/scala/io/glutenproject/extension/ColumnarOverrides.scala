@@ -642,7 +642,7 @@ case class ColumnarOverrideRules(session: SparkSession)
    * Rules to let planner create a suggested Gluten plan being sent to `fallbackPolicies` in which
    * the plan will be breakdown and decided to be fallen back or not.
    */
-  private def suggestRules(): List[SparkSession => Rule[SparkPlan]] = {
+  private def suggestRules(outputsColumnar: Boolean): List[SparkSession => Rule[SparkPlan]] = {
     List(
       (_: SparkSession) => RemoveTransitions,
       (spark: SparkSession) => FallbackOnANSIMode(spark),
@@ -666,7 +666,7 @@ case class ColumnarOverrideRules(session: SparkSession)
       SparkRuleUtil.extendedColumnarRules(
         session,
         GlutenConfig.getConf.extendedColumnarSuggestRules) :::
-      List((_: SparkSession) => InsertTransitions(outputsColumnar = false))
+      List((_: SparkSession) => InsertTransitions(outputsColumnar))
   }
 
   /**
@@ -728,7 +728,7 @@ case class ColumnarOverrideRules(session: SparkSession)
   }
 
   override def postColumnarTransitions: Rule[SparkPlan] = plan => {
-    withSuggestRules(suggestRules()).apply(plan)
+    withSuggestRules(suggestRules(plan.supportsColumnar)).apply(plan)
   }
 
   // Visible for testing.
