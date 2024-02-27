@@ -788,7 +788,9 @@ const core::WindowNode::Frame createWindowFrame(
       VELOX_FAIL("the window type only support ROWS and RANGE, and the input type is ", std::to_string(type));
   }
 
-  auto boundTypeConversion = [](::substrait::Expression_WindowFunction_Bound boundType) -> std::tuple<core::WindowNode::BoundType, core::TypedExprPtr> {
+  auto boundTypeConversion = [](::substrait::Expression_WindowFunction_Bound boundType)
+      -> std::tuple<core::WindowNode::BoundType, core::TypedExprPtr> {
+    // TODO: support non-literal expression.
     if (boundType.has_current_row()) {
       return std::make_tuple(core::WindowNode::BoundType::kCurrentRow, nullptr);
     } else if (boundType.has_unbounded_following()) {
@@ -797,20 +799,18 @@ const core::WindowNode::Frame createWindowFrame(
       return std::make_tuple(core::WindowNode::BoundType::kUnboundedPreceding, nullptr);
     } else if (boundType.has_following()) {
       return std::make_tuple(
-        core::WindowNode::BoundType::kFollowing,
-        std::make_shared<core::ConstantTypedExpr>(BIGINT(), variant(boundType.following().offset()))
-      );
+          core::WindowNode::BoundType::kFollowing,
+          std::make_shared<core::ConstantTypedExpr>(BIGINT(), variant(boundType.following().offset())));
     } else if (boundType.has_preceding()) {
       return std::make_tuple(
-        core::WindowNode::BoundType::kPreceding,
-        std::make_shared<core::ConstantTypedExpr>(BIGINT(), variant(boundType.preceding().offset()))
-      );
+          core::WindowNode::BoundType::kPreceding,
+          std::make_shared<core::ConstantTypedExpr>(BIGINT(), variant(boundType.preceding().offset())));
     } else {
       VELOX_FAIL("The BoundType is not supported.");
     }
   };
-  tie (frame.startType, frame.startValue) = boundTypeConversion(lower_bound);
-  tie (frame.endType, frame.endValue) = boundTypeConversion(upper_bound);
+  std::tie(frame.startType, frame.startValue) = boundTypeConversion(lower_bound);
+  std::tie(frame.endType, frame.endValue) = boundTypeConversion(upper_bound);
   return frame;
 }
 
