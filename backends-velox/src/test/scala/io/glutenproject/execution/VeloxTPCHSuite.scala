@@ -68,6 +68,8 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
       .replaceAll("\\[file:[.\\-/a-zA-z0-9= ,_%]*]", "[*]")
       // for unexpected blank
       .replaceAll("Scan parquet ", "Scan parquet")
+      // Spark QueryStageExec will take it's id as argument, replace it with X
+      .replaceAll("Arguments: [0-9]+", "Arguments: X")
       .trim
   }
 
