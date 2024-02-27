@@ -392,7 +392,9 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
 
 ArrayVectorPtr SubstraitVeloxExprConverter::literalsToArrayVector(const ::substrait::Expression::Literal& literal) {
   auto childSize = literal.list().values().size();
-  VELOX_USER_CHECK_GT(childSize, 0, "Expect a non-empty array literal");
+  if (childSize == 0) {
+    return makeEmptyArrayVector(pool_, UNKNOWN());
+  }
   auto childTypeCase = literal.list().values(0).literal_type_case();
   auto elementAtFunc = [&](vector_size_t idx) { return literal.list().values(idx); };
   auto childVector = literalsToVector(childTypeCase, childSize, literal, elementAtFunc);
@@ -401,7 +403,9 @@ ArrayVectorPtr SubstraitVeloxExprConverter::literalsToArrayVector(const ::substr
 
 MapVectorPtr SubstraitVeloxExprConverter::literalsToMapVector(const ::substrait::Expression::Literal& literal) {
   auto childSize = literal.map().key_values().size();
-  VELOX_USER_CHECK_GT(childSize, 0, "Expect a non-empty map literal");
+  if (childSize == 0) {
+    return makeEmptyMapVector(pool_, UNKNOWN(), UNKNOWN());
+  }
   auto keyTypeCase = literal.map().key_values(0).key().literal_type_case();
   auto valueTypeCase = literal.map().key_values(0).value().literal_type_case();
   auto keyAtFunc = [&](vector_size_t idx) { return literal.map().key_values(idx).key(); };
