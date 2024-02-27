@@ -788,39 +788,29 @@ const core::WindowNode::Frame createWindowFrame(
       VELOX_FAIL("the window type only support ROWS and RANGE, and the input type is ", std::to_string(type));
   }
 
-  auto boundTypeConversion = [](::substrait::Expression_WindowFunction_Bound boundType) -> core::WindowNode::BoundType {
+  auto boundTypeConversion = [](::substrait::Expression_WindowFunction_Bound boundType)
+      -> std::tuple<core::WindowNode::BoundType, core::TypedExprPtr> {
+    // TODO: support non-literal expression.
     if (boundType.has_current_row()) {
-      return core::WindowNode::BoundType::kCurrentRow;
+      return std::make_tuple(core::WindowNode::BoundType::kCurrentRow, nullptr);
     } else if (boundType.has_unbounded_following()) {
-      return core::WindowNode::BoundType::kUnboundedFollowing;
+      return std::make_tuple(core::WindowNode::BoundType::kUnboundedFollowing, nullptr);
     } else if (boundType.has_unbounded_preceding()) {
-      return core::WindowNode::BoundType::kUnboundedPreceding;
+      return std::make_tuple(core::WindowNode::BoundType::kUnboundedPreceding, nullptr);
     } else if (boundType.has_following()) {
-      return core::WindowNode::BoundType::kFollowing;
+      return std::make_tuple(
+          core::WindowNode::BoundType::kFollowing,
+          std::make_shared<core::ConstantTypedExpr>(BIGINT(), variant(boundType.following().offset())));
     } else if (boundType.has_preceding()) {
-      return core::WindowNode::BoundType::kPreceding;
+      return std::make_tuple(
+          core::WindowNode::BoundType::kPreceding,
+          std::make_shared<core::ConstantTypedExpr>(BIGINT(), variant(boundType.preceding().offset())));
     } else {
       VELOX_FAIL("The BoundType is not supported.");
     }
   };
-  frame.startType = boundTypeConversion(lower_bound);
-  switch (frame.startType) {
-    case core::WindowNode::BoundType::kPreceding:
-      // TODO: support non-literal expression.
-      frame.startValue = std::make_shared<core::ConstantTypedExpr>(BIGINT(), variant(lower_bound.preceding().offset()));
-      break;
-    default:
-      frame.startValue = nullptr;
-  }
-  frame.endType = boundTypeConversion(upper_bound);
-  switch (frame.endType) {
-    // TODO: support non-literal expression.
-    case core::WindowNode::BoundType::kFollowing:
-      frame.endValue = std::make_shared<core::ConstantTypedExpr>(BIGINT(), variant(upper_bound.following().offset()));
-      break;
-    default:
-      frame.endValue = nullptr;
-  }
+  std::tie(frame.startType, frame.startValue) = boundTypeConversion(lower_bound);
+  std::tie(frame.endType, frame.endValue) = boundTypeConversion(upper_bound);
   return frame;
 }
 
