@@ -231,6 +231,11 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     )
   }
 
+  def checkFallbackOperatorMatch[T <: SparkPlan](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
+    val executedPlan = getExecutedPlan(df)
+    assert(executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)))
+  }
+
   /**
    * run a query with native engine as well as vanilla spark then compare the result set for
    * correctness check
