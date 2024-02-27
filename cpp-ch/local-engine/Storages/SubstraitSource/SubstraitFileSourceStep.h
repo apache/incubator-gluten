@@ -28,7 +28,7 @@ namespace local_engine
 class SubstraitFileSourceStep : public DB::SourceStepWithFilter
 {
 public:
-    explicit SubstraitFileSourceStep(DB::ContextPtr context_, DB::Pipe pipe_, const String & name);
+    explicit SubstraitFileSourceStep(const DB::ContextPtr & context_, DB::Pipe pipe_, const String & name);
 
     void applyFilters(DB::ActionDAGNodes added_filter_nodes) override;
 
@@ -38,8 +38,6 @@ public:
 
 private:
     DB::Pipe pipe;
-    DB::ContextPtr context;
 };
 
 }
-
