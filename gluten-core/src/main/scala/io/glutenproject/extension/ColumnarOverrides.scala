@@ -733,10 +733,13 @@ case class ColumnarOverrideRules(session: SparkSession)
     val out = withSuggestRules(suggestRules(outputsColumnar)).apply(plan)
     assert(
       out.supportsColumnar == outputsColumnar,
-      s"Columnar support is changed from $outputsColumnar to ${out.supportsColumnar}")
+      s"Columnar support is changed from $outputsColumnar to ${out.supportsColumnar}. " +
+        s"Plan before: $plan. Plan after: $out"
+    )
     assert(
       out.supportsRowBased == outputsRow,
-      s"Row support is changed from $outputsRow to ${out.supportsRowBased}")
+      s"Row support is changed from $outputsRow to ${out.supportsRowBased}. " +
+        s"Plan before: $plan. Plan after: $out")
     out
   }
 
