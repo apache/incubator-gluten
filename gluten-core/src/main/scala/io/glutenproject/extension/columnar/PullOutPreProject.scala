@@ -26,7 +26,6 @@ import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, TypedAggrega
 import org.apache.spark.sql.execution.window.WindowExec
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 
 /**
  * The native engine only supports executing Expressions within the project operator. When there are
@@ -165,27 +164,9 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
         window.partitionSpec.map(replaceExpressionWithAttribute(_, expressionMap))
 
       // Handle windowExpressions.
-      val postWindowExpressions = new ArrayBuffer[NamedExpression]()
-      val newWindowExpressions = window.windowExpression.toIndexedSeq
-        .map {
-          _.transform { case we: WindowExpression => rewriteWindowExpression(we, expressionMap) }
-        }
-        .map {
-          case alias @ Alias(_: WindowExpression, _) =>
-            postWindowExpressions += alias.toAttribute
-            alias
-          case other =>
-            // Directly use the output of WindowExpression, and move expression evaluation to
-            // post-project for computation.
-            assert(hasWindowExpression(other))
-            val we = other.collectFirst { case w: WindowExpression => w }.get
-            val rewriteWindowExpr = rewriteWindowExpression(we, expressionMap)
-            val alias = Alias(rewriteWindowExpr, generatePostAliasName)()
-            postWindowExpressions += other
-              .transform { case _: WindowExpression => alias.toAttribute }
-              .asInstanceOf[NamedExpression]
-            alias
-        }
+      val newWindowExpressions = window.windowExpression.toIndexedSeq.map {
+        _.transform { case we: WindowExpression => rewriteWindowExpression(we, expressionMap) }
+      }
 
       val newWindow = window.copy(
         orderSpec = newOrderSpec,
@@ -196,7 +177,7 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
           window.child)
       )
 
-      ProjectExec(window.child.output ++ postWindowExpressions, newWindow)
+      ProjectExec(window.output, newWindow)
 
     case _ => plan
   }

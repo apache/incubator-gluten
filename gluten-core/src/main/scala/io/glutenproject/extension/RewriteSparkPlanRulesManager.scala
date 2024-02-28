@@ -77,7 +77,10 @@ class RewriteSparkPlanRulesManager(rewriteRules: Seq[Rule[SparkPlan]]) extends R
     try {
       val rewrittenPlan = rewriteRules.foldLeft(origin) {
         case (plan, rule) =>
-          rule.apply(plan)
+          // Some rewrite rules may generate new parent plan node, we should use transform to
+          // rewrite the original plan. For example, PullOutPreProject and PullOutPostProject
+          // will generate post-project plan node.
+          plan.transform { case p => rule.apply(p) }
       }
       (rewrittenPlan, None)
     } catch {
