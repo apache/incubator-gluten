@@ -21,7 +21,7 @@ import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
-import org.apache.spark.sql.execution.{GenerateExec, RDDScanExec}
+import org.apache.spark.sql.execution.{FilterExec, GenerateExec, ProjectExec, RDDScanExec}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.functions.{avg, col, lit, udf}
 import org.apache.spark.sql.internal.SQLConf
@@ -212,6 +212,12 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     Seq("sort", "streaming").foreach {
       windowType =>
         withSQLConf("spark.gluten.sql.columnar.backend.velox.window.type" -> windowType) {
+          runQueryAndCompare(
+            "select ntile(4) over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+            assertWindowOffloaded
+          }
+
           runQueryAndCompare(
             "select row_number() over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
@@ -1041,4 +1047,37 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       runQueryAndCompare("SELECT first(l) FROM t2")(df => checkFallbackOperators(df, 0))
     }
   }
+
+  test("Fall back multiple expressions") {
+    runQueryAndCompare(
+      """
+        |select (l_partkey % 10 + 5)
+        |from lineitem
+        |""".stripMargin
+    )(checkOperatorMatch[ProjectExecTransformer])
+
+    runQueryAndCompare(
+      """
+        |select l_partkey
+        |from lineitem where (l_partkey % 10 + 5) > 6
+        |""".stripMargin
+    )(checkOperatorMatch[FilterExecTransformer])
+
+    withSQLConf(GlutenConfig.COLUMNAR_FALLBACK_EXPRESSIONS_THRESHOLD.key -> "2") {
+      runQueryAndCompare(
+        """
+          |select (l_partkey % 10 + 5)
+          |from lineitem
+          |""".stripMargin
+      )(checkFallbackOperatorMatch[ProjectExec])
+
+      runQueryAndCompare(
+        """
+          |select l_partkey
+          |from lineitem where (l_partkey % 10 + 5) > 6
+          |""".stripMargin
+      )(checkFallbackOperatorMatch[FilterExec])
+    }
+  }
+
 }

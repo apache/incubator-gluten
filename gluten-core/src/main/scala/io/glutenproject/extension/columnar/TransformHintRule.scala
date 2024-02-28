@@ -19,6 +19,7 @@ package io.glutenproject.extension.columnar
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
+import io.glutenproject.expression.ExpressionUtils.getExpressionTreeDepth
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.extension.columnar.TransformHints.EncodeTransformableTagImplicits
 import io.glutenproject.sql.shims.SparkShimLoader
@@ -355,6 +356,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
   val enableColumnarHiveTableScan: Boolean = columnarConf.enableColumnarHiveTableScan
   val enableColumnarProject: Boolean = !scanOnly && columnarConf.enableColumnarProject
   val enableColumnarFilter: Boolean = columnarConf.enableColumnarFilter
+  val fallbackExpressionsThreshold: Int = columnarConf.fallbackExpressionsThreshold
   val enableColumnarHashAgg: Boolean = !scanOnly && columnarConf.enableColumnarHashAgg
   val enableColumnarUnion: Boolean = !scanOnly && columnarConf.enableColumnarUnion
   val enableColumnarExpand: Boolean = !scanOnly && columnarConf.enableColumnarExpand
@@ -435,6 +437,15 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
         case plan: ProjectExec =>
           if (!enableColumnarProject) {
             TransformHints.tagNotTransformable(plan, "columnar project is disabled")
+          } else if (
+            plan.projectList.size > 0 && plan.projectList
+              .map(getExpressionTreeDepth(_))
+              .max >= fallbackExpressionsThreshold
+          ) {
+            TransformHints.tagNotTransformable(
+              plan,
+              "Fall back project plan because its" +
+                " max nested expressions number reaches the configured threshold")
           } else {
             val transformer = ProjectExecTransformer(plan.projectList, plan.child)
             transformer.doValidate().tagOnFallback(plan)
@@ -444,6 +455,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             plan.child.isInstanceOf[BatchScanExec]
           if (!enableColumnarFilter) {
             TransformHints.tagNotTransformable(plan, "columnar Filter is not enabled in FilterExec")
+          } else if (getExpressionTreeDepth(plan.condition) >= fallbackExpressionsThreshold) {
+            TransformHints.tagNotTransformable(
+              plan,
+              "Fall back filter plan because its" +
+                " nested expressions number reaches the configured threshold")
           } else if (scanOnly && !childIsScan) {
             // When scanOnly is enabled, filter after scan will be offloaded.
             TransformHints.tagNotTransformable(

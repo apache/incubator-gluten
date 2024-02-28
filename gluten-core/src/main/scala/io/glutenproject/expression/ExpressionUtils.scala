@@ -14,30 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.expression
 
-#pragma once
+import org.apache.spark.sql.catalyst.expressions.{Expression, LeafExpression}
 
-#include <Processors/QueryPlan/ReadFromPreparedSource.h>
-#include <Processors/QueryPlan/SourceStepWithFilter.h>
-#include <Storages/MergeTree/KeyCondition.h>
-#include <Interpreters/Context_fwd.h>
-#include <Core/NamesAndTypes.h>
+object ExpressionUtils {
 
-namespace local_engine
-{
-class SubstraitFileSourceStep : public DB::SourceStepWithFilter
-{
-public:
-    explicit SubstraitFileSourceStep(const DB::ContextPtr & context_, DB::Pipe pipe_, const String & name);
-
-    void applyFilters(DB::ActionDAGNodes added_filter_nodes) override;
-
-    String getName() const override { return "SubstraitFileSourceStep"; }
-
-    void initializePipeline(DB::QueryPipelineBuilder &, const DB::BuildQueryPipelineSettings &) override;
-
-private:
-    DB::Pipe pipe;
-};
-
+  def getExpressionTreeDepth(expr: Expression): Integer = {
+    if (expr.isInstanceOf[LeafExpression]) {
+      return 0
+    }
+    val childrenDepth = expr.children.map(child => getExpressionTreeDepth(child))
+    if (childrenDepth.isEmpty) {
+      1
+    } else {
+      1 + childrenDepth.max
+    }
+  }
 }

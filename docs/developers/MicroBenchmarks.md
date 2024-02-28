@@ -194,6 +194,18 @@ cd /path/to/gluten/cpp/build/velox/benchmarks
 --threads 1 --noprint-result --write-file=/absolute_path/to/result.parquet
 ```
 
+## Simulate write task
+
+Write path can be specified by `--write_path` option, default is /tmp.
+
+```shell
+cd /path/to/gluten/cpp/build/velox/benchmarks
+./generic_benchmark \
+--plan /absolute_path/to/plan.json \
+--split /absolute_path/to/split.json \
+--write_path /absolute_path/<dir>
+```
+
 ## Add shuffle write process
 
 You can add the shuffle write process at the end of this stage. Note that this will ignore the `--write-file` option.

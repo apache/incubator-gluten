@@ -100,7 +100,7 @@ public:
 
     String getName() const override { return "SubstraitFileSource"; }
 
-    void setKeyCondition(const DB::ActionsDAG::NodeRawConstPtrs & nodes, DB::ContextPtr context_) override;
+    void setKeyCondition(const DB::ActionsDAGPtr & filter_actions_dag, DB::ContextPtr context_) override;
 
 protected:
     DB::Chunk generate() override;

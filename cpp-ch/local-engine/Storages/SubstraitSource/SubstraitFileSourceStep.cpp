@@ -42,9 +42,26 @@ namespace ErrorCodes
 
 namespace local_engine
 {
+namespace
+{
+/*
+ * As discussed with community, we need to create a dummy storage to be used in SubstraitFileSourceStep.
+ */
+class SubstraitFileStorage final : public DB::IStorage
+{
+public:
+    explicit SubstraitFileStorage(const DB::StorageID & storage_id_) : IStorage(storage_id_) { }
+    bool canMoveConditionsToPrewhere() const override { return false; }
+    std::string getName() const override { return "SubstraitFile"; };
+};
+SubstraitFileStorage dummy_storage{DB::StorageID("dummy_db", "dummy_table")};
 
-SubstraitFileSourceStep::SubstraitFileSourceStep(DB::ContextPtr context_, DB::Pipe pipe_, const String &)
-    : SourceStepWithFilter(DB::DataStream{.header = pipe_.getHeader()}), pipe(std::move(pipe_)), context(context_)
+}
+
+SubstraitFileSourceStep::SubstraitFileSourceStep(const DB::ContextPtr & context_, DB::Pipe pipe_, const String &)
+    : SourceStepWithFilter(
+        DB::DataStream{.header = pipe_.getHeader()}, {}, {}, dummy_storage.getStorageSnapshot(nullptr, nullptr), context_)
+    , pipe(std::move(pipe_))
 {
 }
 
@@ -56,12 +73,13 @@ void SubstraitFileSourceStep::initializePipeline(DB::QueryPipelineBuilder & pipe
     pipeline.init(std::move(pipe));
 }
 
-void SubstraitFileSourceStep::applyFilters()
+void SubstraitFileSourceStep::applyFilters(const DB::ActionDAGNodes added_filter_nodes)
 {
+    filter_actions_dag = DB::ActionsDAG::buildFilterActionsDAG(added_filter_nodes.nodes);
     for (const auto & processor : pipe.getProcessors())
     {
         if (auto * source = dynamic_cast<DB::SourceWithKeyCondition *>(processor.get()))
-            source->setKeyCondition(filter_nodes.nodes, context);
+            source->setKeyCondition(filter_actions_dag, context);
     }
 }
 }
