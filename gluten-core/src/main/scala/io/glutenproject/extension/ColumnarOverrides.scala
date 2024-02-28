@@ -27,8 +27,10 @@ import io.glutenproject.utils.{LogLevelUtil, PhysicalPlanSelector, PlanUtil}
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
@@ -557,6 +559,51 @@ object ColumnarOverrideRules {
     val rewriteRules = Seq(RewriteMultiChildrenCount, PullOutPreProject, PullOutPostProject)
     new RewriteSparkPlanRulesManager(rewriteRules)
   }
+
+  // Utilities to infer columnar rule's caller's property:
+  // ApplyColumnarRulesAndInsertTransitions#outputsColumnar.
+
+  case class DummyRowOutputExec(override val child: SparkPlan) extends UnaryExecNode {
+    override def supportsColumnar: Boolean = false
+    override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
+    override def output: Seq[Attribute] = throw new UnsupportedOperationException()
+    override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
+      copy(child = newChild)
+  }
+
+  case class DummyColumnarOutputExec(override val child: SparkPlan) extends UnaryExecNode {
+    override def supportsColumnar: Boolean = true
+    override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
+    override def output: Seq[Attribute] = throw new UnsupportedOperationException()
+    override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
+      copy(child = newChild)
+  }
+
+  object OutputsColumnarTester {
+    def wrap(plan: SparkPlan): SparkPlan = {
+      if (plan.supportsColumnar) {
+        DummyColumnarOutputExec(plan)
+      } else {
+        DummyRowOutputExec(plan)
+      }
+    }
+
+    def inferOutputsColumnar(plan: SparkPlan): Boolean = plan match {
+      case DummyRowOutputExec(_) => false
+      case RowToColumnarExec(DummyRowOutputExec(_)) => true
+      case DummyColumnarOutputExec(_) => true
+      case ColumnarToRowExec(DummyColumnarOutputExec(_)) => false
+      case _ => throw new IllegalStateException()
+    }
+
+    def unwrap(plan: SparkPlan): SparkPlan = plan match {
+      case DummyRowOutputExec(child) => child
+      case RowToColumnarExec(DummyRowOutputExec(child)) => child
+      case DummyColumnarOutputExec(child) => child
+      case ColumnarToRowExec(DummyColumnarOutputExec(child)) => child
+      case _ => throw new IllegalStateException()
+    }
+  }
 }
 
 case class ColumnarOverrideRules(session: SparkSession)
@@ -710,34 +757,15 @@ case class ColumnarOverrideRules(session: SparkSession)
    *
    * See: https://github.com/oap-project/gluten/pull/4790
    */
-  final override def preColumnarTransitions: Rule[SparkPlan] = {
-    super.preColumnarTransitions
-  }
-
-  private def supportsRowBased(plan: SparkPlan): Boolean = {
-    PlanUtil.supportsRowBased(plan)
+  final override def preColumnarTransitions: Rule[SparkPlan] = plan => {
+    // To infer caller's property: ApplyColumnarRulesAndInsertTransitions#outputsColumnar.
+    OutputsColumnarTester.wrap(plan)
   }
 
   override def postColumnarTransitions: Rule[SparkPlan] = plan => {
-    val isColumnarIn = plan.supportsColumnar
-    val isRowIn = supportsRowBased(plan)
-    // Using !isRowIn will ensure output is row-based if the root node supports
-    // both columnar and row-based output.
-    val out = withSuggestRules(suggestRules(!isRowIn)).apply(plan)
-    if (isColumnarIn && isRowIn) {
-      // To make Gluten's plan output compatible with the input to maximum extent.
-      if (!supportsRowBased(out)) {
-        logWarning(
-          s"Row support is changed from $isRowIn to ${supportsRowBased(out)}.\n" +
-            s"Plan before: \n$plan\nPlan after: \n$out")
-      }
-      if (!out.supportsColumnar) {
-        logWarning(
-          s"Columnar support is changed from $isColumnarIn to ${out.supportsColumnar}.\n" +
-            s"Plan before: \n$plan\nPlan after: \n$out")
-      }
-    }
-    out
+    val outputsColumnar = OutputsColumnarTester.inferOutputsColumnar(plan)
+    val unwrapped = OutputsColumnarTester.unwrap(plan)
+    withSuggestRules(suggestRules(outputsColumnar)).apply(unwrapped)
   }
 
   // Visible for testing.
