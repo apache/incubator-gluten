@@ -69,20 +69,21 @@ index 82fed089f..91e4cc0df 100644
    # This is a bit convoluted, but we want to be able to use gflags::gflags as a
    # target even when velox is built as a subproject which uses
 diff --git a/third_party/CMakeLists.txt b/third_party/CMakeLists.txt
-index ce4c24dbe..0f1f77ba6 100644
+index ce4c24dbe..785a2acc6 100644
 --- a/third_party/CMakeLists.txt
 +++ b/third_party/CMakeLists.txt
-@@ -26,7 +26,8 @@ if(VELOX_ENABLE_ARROW)
+@@ -26,7 +26,9 @@ if(VELOX_ENABLE_ARROW)
    endif()
    set(ARROW_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep")
    set(ARROW_CMAKE_ARGS
 -      -DARROW_PARQUET=OFF
 +      -DARROW_PARQUET=ON
 +      -DARROW_FILESYSTEM=ON
++      -DARROW_PROTOBUF_USE_SHARED=OFF
        -DARROW_WITH_THRIFT=ON
        -DARROW_WITH_LZ4=ON
        -DARROW_WITH_SNAPPY=ON
-@@ -69,6 +70,7 @@ if(VELOX_ENABLE_ARROW)
+@@ -69,6 +71,7 @@ if(VELOX_ENABLE_ARROW)
      arrow_ep
      PREFIX ${ARROW_PREFIX}
      URL ${VELOX_ARROW_SOURCE_URL}

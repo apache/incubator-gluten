@@ -429,3 +429,8 @@ if(ENABLE_ABFS)
   target_link_libraries(velox PUBLIC Azure::azure-storage-blobs)
   target_link_libraries(velox PUBLIC Azure::azure-storage-files-datalake)
 endif()
+
+add_custom_command(TARGET velox POST_BUILD COMMAND ld $<TARGET_FILE:velox> || true
+        COMMENT "Checking ld result of libvelox.so")
+add_custom_command(TARGET velox POST_BUILD COMMAND ldd $<TARGET_FILE:velox> || true
+        COMMENT "Checking ldd result of libvelox.so")

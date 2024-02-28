@@ -134,8 +134,12 @@ class ListenerApiImpl extends ListenerApi {
   }
 
   private def initialize(conf: SparkConf): Unit = {
-    val workspace = JniWorkspace.getDefault
-    val loader = workspace.libLoader
+    val debugJni = conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_MODE, defaultValue = false) &&
+      conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_KEEP_JNI_WORKSPACE, defaultValue = false)
+    if (debugJni) {
+      JniWorkspace.enableDebug()
+    }
+    val loader = JniWorkspace.getDefault.libLoader
 
     val osName = System.getProperty("os.name")
     if (osName.startsWith("Mac OS X") || osName.startsWith("macOS")) {
