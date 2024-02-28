@@ -28,16 +28,40 @@
 #include <benchmark/benchmark.h>
 #include <parquet/arrow/reader.h>
 #include <substrait/plan.pb.h>
+#include <tests/gluten_test_util.h>
 
+namespace
+{
 
-static void BM_ParquetReadString(benchmark::State & state)
+void BM_ParquetReadAllLocal(benchmark::State & state)
 {
     using namespace DB;
-    Block header{
-        ColumnWithTypeAndName(DataTypeString().createColumn(), std::make_shared<DataTypeString>(), "l_returnflag"),
-        ColumnWithTypeAndName(DataTypeString().createColumn(), std::make_shared<DataTypeString>(), "l_linestatus")};
-    std::string file = "/data1/liyang/cppproject/gluten/jvm/src/test/resources/tpch-data/lineitem/"
-                       "part-00000-d08071cb-0dfa-42dc-9198-83cb334ccda3-c000.snappy.parquet";
+
+    std::string file = "/home/chang/test/tpch/parquet/s100/lineitem1/"
+                       "part-00000-9395e12a-3620-4085-9677-c63b920353f4-c000.snappy.parquet";
+    Block header{toBlockRowType(local_engine::test::readParquetSchema(file))};
+    FormatSettings format_settings;
+    Block res;
+    for (auto _ : state)
+    {
+        auto in = std::make_unique<ReadBufferFromFile>(file);
+        auto format = std::make_shared<local_engine::VectorizedParquetBlockInputFormat>(*in, header, format_settings);
+        auto pipeline = QueryPipeline(std::move(format));
+        auto reader = std::make_unique<PullingPipelineExecutor>(pipeline);
+        while (reader->pull(res))
+        {
+            // debug::headBlock(res);
+        }
+    }
+}
+
+void BM_ParquetReadAllOld(benchmark::State & state)
+{
+    using namespace DB;
+
+    std::string file = "/home/chang/test/tpch/parquet/s100/lineitem1/"
+                       "part-00000-9395e12a-3620-4085-9677-c63b920353f4-c000.snappy.parquet";
+    Block header{toBlockRowType(local_engine::test::readParquetSchema(file))};
     FormatSettings format_settings;
     Block res;
     for (auto _ : state)
@@ -53,7 +77,7 @@ static void BM_ParquetReadString(benchmark::State & state)
     }
 }
 
-static void BM_ParquetReadDate32(benchmark::State & state)
+void BM_ParquetReadDate32(benchmark::State & state)
 {
     using namespace DB;
     Block header{
@@ -77,7 +101,7 @@ static void BM_ParquetReadDate32(benchmark::State & state)
     }
 }
 
-static void BM_OptimizedParquetReadString(benchmark::State & state)
+void BM_OptimizedParquetReadString(benchmark::State & state)
 {
     using namespace DB;
     using namespace local_engine;
@@ -108,7 +132,7 @@ static void BM_OptimizedParquetReadString(benchmark::State & state)
     }
 }
 
-static void BM_OptimizedParquetReadDate32(benchmark::State & state)
+void BM_OptimizedParquetReadDate32(benchmark::State & state)
 {
     using namespace DB;
     using namespace local_engine;
@@ -139,8 +163,10 @@ static void BM_OptimizedParquetReadDate32(benchmark::State & state)
         }
     }
 }
+}
 
-BENCHMARK(BM_ParquetReadString)->Unit(benchmark::kMillisecond)->Iterations(10);
+BENCHMARK(BM_ParquetReadAllOld)->Unit(benchmark::kMillisecond)->Iterations(50);
+BENCHMARK(BM_ParquetReadAllLocal)->Unit(benchmark::kMillisecond)->Iterations(50);
 BENCHMARK(BM_ParquetReadDate32)->Unit(benchmark::kMillisecond)->Iterations(10);
 BENCHMARK(BM_OptimizedParquetReadString)->Unit(benchmark::kMillisecond)->Iterations(10);
 BENCHMARK(BM_OptimizedParquetReadDate32)->Unit(benchmark::kMillisecond)->Iterations(200);

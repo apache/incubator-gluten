@@ -114,7 +114,7 @@ DB::ContextMutablePtr global_context;
     {
         auto read_buffer = std::make_unique<ReadBufferFromFile>("/tmp/test_shuffle/ZSTD/data.dat");
         //        read_buffer->seek(357841655, SEEK_SET);
-        auto shuffle_reader = local_engine::ShuffleReader(std::move(read_buffer), true, -1, -1);
+        auto shuffle_reader = local_engine::ShuffleReader(std::move(read_buffer), true, -1, -1, false);
         Block * block;
         int sum = 0;
         do
