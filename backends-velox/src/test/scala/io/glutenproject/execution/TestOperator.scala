@@ -278,6 +278,12 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
             assertWindowOffloaded
           }
 
+          runQueryAndCompare(
+            "select lag(l_orderkey) over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+            assertWindowOffloaded
+          }
+
           // Test same partition/ordering keys.
           runQueryAndCompare(
             "select avg(l_partkey) over" +
