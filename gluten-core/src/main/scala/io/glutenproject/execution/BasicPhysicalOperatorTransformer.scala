@@ -293,15 +293,12 @@ object ProjectExecTransformer {
 }
 
 // An alternatives for UnionExec.
-case class ColumnarUnionExec(children: Seq[SparkPlan]) extends SparkPlan with GlutenPlan {
+case class ColumnarUnionExec(children: Seq[SparkPlan]) extends UnionExecShim with GlutenPlan {
   children.foreach {
     case w: WholeStageTransformer =>
       w.setOutputSchemaForPlan(output)
     case _ =>
   }
-
-  override def supportsRowBased: Boolean =
-    children.forall(SparkShimLoader.getSparkShims.supportsRowBased(_))
 
   override protected def doExecute(): RDD[InternalRow] =
     sparkContext.union(children.map(_.execute()))
