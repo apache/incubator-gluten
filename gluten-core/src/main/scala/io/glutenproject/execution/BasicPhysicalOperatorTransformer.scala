@@ -20,6 +20,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.metrics.MetricsUpdater
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.extensions.ExtensionBuilder
@@ -299,7 +300,8 @@ case class ColumnarUnionExec(children: Seq[SparkPlan]) extends SparkPlan with Gl
     case _ =>
   }
 
-  override def supportsRowBased: Boolean = children.forall(_.supportsRowBased)
+  override def supportsRowBased: Boolean =
+    children.forall(SparkShimLoader.getSparkShims.supportsRowBased(_))
 
   override protected def doExecute(): RDD[InternalRow] =
     sparkContext.union(children.map(_.execute()))
