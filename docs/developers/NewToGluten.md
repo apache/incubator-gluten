@@ -390,4 +390,6 @@ As a result, developers may encounter unit test fail in Github CI or locally, wi
 ```
 For developers to update the golden plan, you can find the actual plan in Github CI Artifacts or in local `/tmp/` directory. 
 
+![](../image/gluten_golden_file_upload.png)
+
 Developers can simply copy the actual plan to the golden plan path, and then re-run the unit test to make sure the plan is stabled.
