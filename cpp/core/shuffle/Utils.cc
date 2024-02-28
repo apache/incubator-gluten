@@ -290,6 +290,7 @@ arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> gluten::toShuffleTy
       case arrow::LargeListType::type_id:
       case arrow::Decimal128Type::type_id:
       case arrow::NullType::type_id:
+      case arrow::MonthIntervalType::type_id:
         shuffleTypeId.push_back(field->type());
         break;
       default:
