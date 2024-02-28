@@ -49,8 +49,8 @@ DB::ActionsDAG::NodeRawConstPtrs AggregateFunctionParser::parseFunctionArguments
 
         // If the aggregate result is required to be nullable, make all inputs be nullable at the first stage.
         auto required_output_type = DB::WhichDataType(TypeParser::parseType(func_info.output_type));
-        if (required_output_type.isNullable() && func_info.phase == substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE
-            && !arg_node->result_type->isNullable())
+        if (required_output_type.isNullable() && (func_info.phase == substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE
+            || func_info.phase == substrait::AGGREGATION_PHASE_INITIAL_TO_RESULT) && !arg_node->result_type->isNullable())
         {
             DB::ActionsDAG::NodeRawConstPtrs args;
             args.emplace_back(arg_node);
