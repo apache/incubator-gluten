@@ -126,6 +126,4 @@ trait SparkShims {
 
   // Because above, this feature is only supported after spark 3.3
   def supportDuplicateReadingTracking: Boolean
-
-  def supportsRowBased(plan: SparkPlan): Boolean
 }

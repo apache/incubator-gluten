@@ -17,7 +17,6 @@
 package io.glutenproject.utils
 
 import io.glutenproject.extension.GlutenPlan
-import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
@@ -77,9 +76,5 @@ object PlanUtil {
 
   def isGlutenColumnarOp(plan: SparkPlan): Boolean = {
     plan.isInstanceOf[GlutenPlan]
-  }
-
-  def supportsRowBased(plan: SparkPlan): Boolean = {
-    SparkShimLoader.getSparkShims.supportsRowBased(plan)
   }
 }

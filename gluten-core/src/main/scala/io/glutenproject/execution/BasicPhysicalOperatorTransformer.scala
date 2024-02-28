@@ -27,7 +27,6 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
@@ -292,15 +291,14 @@ object ProjectExecTransformer {
 }
 
 // An alternatives for UnionExec.
-case class ColumnarUnionExec(children: Seq[SparkPlan]) extends UnionExecShim with GlutenPlan {
-  children.foreach {
-    case w: WholeStageTransformer =>
-      w.setOutputSchemaForPlan(output)
-    case _ =>
-  }
-
-  override protected def doExecute(): RDD[InternalRow] =
-    sparkContext.union(children.map(_.execute()))
+case class ColumnarUnionExec(children: Seq[SparkPlan]) extends SparkPlan with GlutenPlan {
+  children.foreach(
+    child =>
+      child match {
+        case w: WholeStageTransformer =>
+          w.setOutputSchemaForPlan(output)
+        case _ =>
+      })
 
   override def supportsColumnar: Boolean = true
 
@@ -332,6 +330,11 @@ case class ColumnarUnionExec(children: Seq[SparkPlan]) extends UnionExecShim wit
       .map(c => Seq(c.executeColumnar()))
       .reduce((a, b) => a ++ b)
       .reduce((a, b) => a.union(b))
+  }
+
+  override protected def doExecute()
+      : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = columnarInputRDD

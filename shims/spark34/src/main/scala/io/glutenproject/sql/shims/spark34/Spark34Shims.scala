@@ -217,6 +217,4 @@ class Spark34Shims extends SparkShims {
   }
 
   override def supportDuplicateReadingTracking: Boolean = true
-
-  override def supportsRowBased(plan: SparkPlan): Boolean = plan.supportsRowBased
 }
