@@ -20,7 +20,6 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.metrics.MetricsUpdater
-import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.extensions.ExtensionBuilder
