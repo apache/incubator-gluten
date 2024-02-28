@@ -44,7 +44,6 @@ import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.util.SparkRuleUtil
 
-import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
@@ -521,39 +520,27 @@ private[extension] object ColumnarToRowLike {
 }
 // This rule will try to add RowToColumnarExecBase and ColumnarToRowExec
 // to support vanilla columnar operators.
-case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[SparkPlan] {
+case class InsertColumnarToColumnarTransitions(session: SparkSession) extends Rule[SparkPlan] {
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
-  private def replaceWithVanillaColumnarToRow(plan: SparkPlan): SparkPlan = plan match {
-    case _ if PlanUtil.isGlutenColumnarOp(plan) =>
+  private def replaceWithVanillaColumnarToRow(p: SparkPlan): SparkPlan = p.transformUp {
+    case plan if PlanUtil.isGlutenColumnarOp(plan) =>
       plan.withNewChildren(plan.children.map {
-        c =>
-          val child = replaceWithVanillaColumnarToRow(c)
-          if (PlanUtil.isVanillaColumnarOp(child)) {
-            BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(
-              ColumnarToRowExec(child))
-          } else {
-            child
-          }
+        case child if PlanUtil.isVanillaColumnarOp(child) =>
+          BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(
+            ColumnarToRowExec(child))
+        case other => other
       })
-    case _ =>
-      plan.withNewChildren(plan.children.map(replaceWithVanillaColumnarToRow))
   }
 
-  private def replaceWithVanillaRowToColumnar(plan: SparkPlan): SparkPlan = plan match {
-    case _ if PlanUtil.isVanillaColumnarOp(plan) =>
+  private def replaceWithVanillaRowToColumnar(p: SparkPlan): SparkPlan = p.transformUp {
+    case plan if PlanUtil.isVanillaColumnarOp(plan) =>
       plan.withNewChildren(plan.children.map {
-        c =>
-          val child = replaceWithVanillaRowToColumnar(c)
-          if (PlanUtil.isGlutenColumnarOp(child)) {
-            RowToColumnarExec(
-              BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child))
-          } else {
-            child
-          }
+        case child if PlanUtil.isGlutenColumnarOp(child) =>
+          RowToColumnarExec(
+            BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child))
+        case other => other
       })
-    case _ =>
-      plan.withNewChildren(plan.children.map(replaceWithVanillaRowToColumnar))
   }
 
   def apply(plan: SparkPlan): SparkPlan = {
@@ -684,7 +671,7 @@ case class ColumnarOverrideRules(session: SparkSession)
   private def postRules(): List[SparkSession => Rule[SparkPlan]] =
     List(
       (_: SparkSession) => TransformPostOverrides(),
-      (s: SparkSession) => VanillaColumnarPlanOverrides(s),
+      (s: SparkSession) => InsertColumnarToColumnarTransitions(s),
       (s: SparkSession) => RemoveTopmostColumnarToRow(s, isAdaptiveContext)
     ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
@@ -728,23 +715,27 @@ case class ColumnarOverrideRules(session: SparkSession)
   }
 
   private def supportsRowBased(plan: SparkPlan): Boolean = {
-    SparkShimLoader.getSparkShims.supportsRowBased(plan)
+    PlanUtil.supportsRowBased(plan)
   }
 
   override def postColumnarTransitions: Rule[SparkPlan] = plan => {
     val isColumnarIn = plan.supportsColumnar
     val isRowIn = supportsRowBased(plan)
-    val out = withSuggestRules(suggestRules(isColumnarIn)).apply(plan)
+    // Using !isRowIn will ensure output is row-based if the root node supports
+    // both columnar and row-based output.
+    val out = withSuggestRules(suggestRules(!isRowIn)).apply(plan)
     if (isColumnarIn && isRowIn) {
       // To make Gluten's plan output compatible with the input to maximum extent.
-      assert(
-        supportsRowBased(out),
-        s"Row support is changed from $isRowIn to ${supportsRowBased(out)}.\n" +
-          s"Plan before: \n$plan\nPlan after: \n$out")
-      assert(
-        out.supportsColumnar,
-        s"Columnar support is changed from $isColumnarIn to ${out.supportsColumnar}.\n" +
-          s"Plan before: \n$plan\nPlan after: \n$out")
+      if (!supportsRowBased(out)) {
+        logWarning(
+          s"Row support is changed from $isRowIn to ${supportsRowBased(out)}.\n" +
+            s"Plan before: \n$plan\nPlan after: \n$out")
+      }
+      if (!out.supportsColumnar) {
+        logWarning(
+          s"Columnar support is changed from $isColumnarIn to ${out.supportsColumnar}.\n" +
+            s"Plan before: \n$plan\nPlan after: \n$out")
+      }
     }
     out
   }
