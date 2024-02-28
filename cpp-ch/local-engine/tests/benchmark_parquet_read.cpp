@@ -24,7 +24,6 @@
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <QueryPipeline/QueryPipeline.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
-#include <Storages/Parquet/VectorizedParquetRecordReader2.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <benchmark/benchmark.h>
 #include <parquet/arrow/reader.h>
