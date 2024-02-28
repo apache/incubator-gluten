@@ -20,7 +20,6 @@ import io.glutenproject.execution.WindowExecTransformer
 
 import org.apache.spark.sql.GlutenSQLTestsTrait
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.types._
 
 class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQLTestsTrait {
@@ -40,7 +39,7 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
     Row(4953, 10, decimal(6037.28)),
     Row(35403, 5, decimal(6034.70)),
     Row(35803, 12, decimal(5284.87)),
-    Row(60865, 5, decimal(-227.83)),
+    Row(60865, 5, decimal(-227.82)),
     Row(61065, 13, decimal(7284.77)),
     Row(127412, 13, decimal(4621.41)),
     Row(148303, 10, decimal(4302.30)),
@@ -73,16 +72,16 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
       checkAnswer(
         df,
         Seq(
-          Row(4553, BigDecimal(6388.41), 1),
-          Row(4953, BigDecimal(6037.28), 1),
-          Row(9954, BigDecimal(7587.25), 1),
-          Row(35403, BigDecimal(6034.70), 2),
-          Row(35803, BigDecimal(5284.87), 1),
-          Row(60865, BigDecimal(-227.83), 3),
-          Row(61065, BigDecimal(7284.77), 1),
-          Row(95337, BigDecimal(915.61), 2),
-          Row(127412, BigDecimal(4621.41), 2),
-          Row(148303, BigDecimal(4302.30), 2)
+          Row(4553, BigDecimal(638841L, 2), 1),
+          Row(4953, BigDecimal(603728L, 2), 1),
+          Row(9954, BigDecimal(758725L, 2), 1),
+          Row(35403, BigDecimal(603470L, 2), 2),
+          Row(35803, BigDecimal(528487L, 2), 1),
+          Row(60865, BigDecimal(-22782L, 2), 3),
+          Row(61065, BigDecimal(728477L, 2), 1),
+          Row(95337, BigDecimal(91561L, 2), 2),
+          Row(127412, BigDecimal(462141L, 2), 2),
+          Row(148303, BigDecimal(430230L, 2), 2)
         )
       )
       assert(
@@ -94,7 +93,7 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
     }
   }
 
-  testGluten("Expression in WindowExpression that will fallback") {
+  testGluten("Expression in WindowExpression") {
     withTable("customer") {
       val rdd = spark.sparkContext.parallelize(customerData)
       val customerDF = spark.createDataFrame(rdd, customerSchema)
@@ -115,21 +114,21 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
       checkAnswer(
         df,
         Seq(
-          Row(4553, BigDecimal(6388.410000)),
-          Row(4953, BigDecimal(6037.280000)),
-          Row(9954, BigDecimal(7587.250000)),
-          Row(35403, BigDecimal(6810.975000)),
-          Row(35803, BigDecimal(5284.870000)),
-          Row(60865, BigDecimal(4464.706667)),
-          Row(61065, BigDecimal(7284.770000)),
-          Row(95337, BigDecimal(3100.240000)),
-          Row(127412, BigDecimal(5953.090000)),
-          Row(148303, BigDecimal(5169.790000))
+          Row(4553, BigDecimal(6388410000L, 6)),
+          Row(4953, BigDecimal(6037280000L, 6)),
+          Row(9954, BigDecimal(7587250000L, 6)),
+          Row(35403, BigDecimal(6810975000L, 6)),
+          Row(35803, BigDecimal(5284870000L, 6)),
+          Row(60865, BigDecimal(4464710000L, 6)),
+          Row(61065, BigDecimal(7284770000L, 6)),
+          Row(95337, BigDecimal(3100240000L, 6)),
+          Row(127412, BigDecimal(5953090000L, 6)),
+          Row(148303, BigDecimal(5169790000L, 6))
         )
       )
       assert(
         getExecutedPlan(df).exists {
-          case _: WindowExec => true
+          case _: WindowExecTransformer => true
           case _ => false
         }
       )

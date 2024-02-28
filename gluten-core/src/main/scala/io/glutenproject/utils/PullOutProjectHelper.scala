@@ -17,7 +17,7 @@
 package io.glutenproject.utils
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
 import org.apache.spark.sql.execution.aggregate._
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -29,6 +29,7 @@ trait PullOutProjectHelper {
   private val generatedNameIndex = new AtomicInteger(0)
 
   protected def generatePreAliasName = s"_pre_${generatedNameIndex.getAndIncrement()}"
+  protected def generatePostAliasName = s"_post_${generatedNameIndex.getAndIncrement()}"
 
   /**
    * The majority of Expressions only support Attribute and BoundReference when converting them into
@@ -46,6 +47,10 @@ trait PullOutProjectHelper {
   protected def isNotAttributeAndLiteral(expression: Expression): Boolean = expression match {
     case _: Attribute | _: BoundReference | _: Literal => false
     case _ => true
+  }
+
+  protected def hasWindowExpression(e: Expression): Boolean = {
+    e.find(_.isInstanceOf[WindowExpression]).isDefined
   }
 
   protected def replaceExpressionWithAttribute(
@@ -100,5 +105,36 @@ trait PullOutProjectHelper {
       )
     case _ =>
       throw new UnsupportedOperationException(s"Unsupported agg $agg")
+  }
+
+  protected def rewriteAggregateExpression(
+      ae: AggregateExpression,
+      expressionMap: mutable.HashMap[Expression, NamedExpression]): AggregateExpression = {
+    val newAggFuncChildren = ae.aggregateFunction.children.map {
+      case literal: Literal => literal
+      case other => replaceExpressionWithAttribute(other, expressionMap)
+    }
+    val newAggFunc = ae.aggregateFunction
+      .withNewChildren(newAggFuncChildren)
+      .asInstanceOf[AggregateFunction]
+    val newFilter =
+      ae.filter.map(replaceExpressionWithAttribute(_, expressionMap))
+    ae.copy(aggregateFunction = newAggFunc, filter = newFilter)
+  }
+
+  protected def rewriteWindowExpression(
+      we: WindowExpression,
+      expressionMap: mutable.HashMap[Expression, NamedExpression]): WindowExpression = {
+    val newWindowFunc = we.windowFunction match {
+      case windowFunc: WindowFunction =>
+        val newWindowFuncChildren = windowFunc.children.map {
+          case literal: Literal => literal
+          case other => replaceExpressionWithAttribute(other, expressionMap)
+        }
+        windowFunc.withNewChildren(newWindowFuncChildren)
+      case ae: AggregateExpression => rewriteAggregateExpression(ae, expressionMap)
+      case other => other
+    }
+    we.copy(windowFunction = newWindowFunc)
   }
 }

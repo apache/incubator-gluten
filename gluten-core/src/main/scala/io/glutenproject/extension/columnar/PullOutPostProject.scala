@@ -19,10 +19,13 @@ package io.glutenproject.extension.columnar
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.utils.PullOutProjectHelper
 
-import org.apache.spark.sql.catalyst.expressions.{AliasHelper, Attribute}
+import org.apache.spark.sql.catalyst.expressions.{Alias, AliasHelper, Attribute, NamedExpression, WindowExpression}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
+import org.apache.spark.sql.execution.window.WindowExec
+
+import scala.collection.mutable.ArrayBuffer
 
 /**
  * The output of the native plan is not completely consistent with Spark. When the output is
@@ -56,6 +59,11 @@ object PullOutPostProject extends Rule[SparkPlan] with PullOutProjectHelper with
             // post-projection is needed.
             true
         }
+      case window: WindowExec =>
+        window.windowExpression.exists {
+          case _ @Alias(_: WindowExpression, _) => false
+          case _ => true
+        }
       case _ => false
     }
   }
@@ -70,6 +78,27 @@ object PullOutPostProject extends Rule[SparkPlan] with PullOutProjectHelper with
       val newResultExpressions = pullOutHelper.allAggregateResultAttributes
       val newAgg = copyBaseAggregateExec(agg)(newResultExpressions = newResultExpressions)
       ProjectExec(agg.resultExpressions, newAgg)
+
+    case window: WindowExec if needsPostProjection(window) =>
+      val postWindowExpressions = new ArrayBuffer[NamedExpression]()
+      val newWindowExpressions = window.windowExpression.map {
+        case alias @ Alias(_: WindowExpression, _) =>
+          postWindowExpressions += alias.toAttribute
+          alias
+        case other =>
+          // Directly use the output of WindowExpression, and move expression evaluation to
+          // post-project for computation.
+          assert(hasWindowExpression(other))
+          val we = other.collectFirst { case w: WindowExpression => w }.get
+          val alias = Alias(we, generatePostAliasName)()
+          postWindowExpressions += other
+            .transform { case _: WindowExpression => alias.toAttribute }
+            .asInstanceOf[NamedExpression]
+          alias
+      }
+      val newWindow =
+        window.copy(windowExpression = newWindowExpressions.asInstanceOf[Seq[NamedExpression]])
+      ProjectExec(window.child.output ++ postWindowExpressions, newWindow)
 
     case _ => plan
   }
