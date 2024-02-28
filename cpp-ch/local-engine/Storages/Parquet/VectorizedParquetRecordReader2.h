@@ -23,9 +23,9 @@
 #include <Formats/FormatSettings.h>
 #include <Processors/Formats/IInputFormat.h>
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
+#include <Storages/Parquet/ArrowUtils.h>
 #include <parquet/arrow/reader_internal.h>
 #include <parquet/arrow/schema.h>
-#include <Storages/Parquet/ArrowUtils.h>
 
 namespace DB
 {
@@ -66,7 +66,8 @@ public:
     std::shared_ptr<arrow::ChunkedArray> finishRead() const
     {
         std::shared_ptr<arrow::ChunkedArray> result;
-        THROW_ARROW_NOT_OK(parquet::arrow::TransferColumnData(record_reader_.get(), arrowField_, input_.descr(), local_engine::default_arrow_pool(), &result));
+        THROW_ARROW_NOT_OK(parquet::arrow::TransferColumnData(
+            record_reader_.get(), arrowField_, input_.descr(), local_engine::default_arrow_pool(), &result));
         return result;
     }
 };

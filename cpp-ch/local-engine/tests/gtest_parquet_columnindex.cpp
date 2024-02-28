@@ -986,7 +986,7 @@ TEST(ColumnIndex, VectorizedParquetRecordReader)
 
     Block blockHeader({{BIGINT(), "11"}, {STRING(), "18"}});
 
-    local_engine::VectorizedParquetRecordReader recordReader(blockHeader, format_settings);
+    local_engine::VectorizedParquetRecordReader2 recordReader(blockHeader, format_settings);
     recordReader.initialize(blockHeader, arrow_file, column_index_filter);
     auto chunk{recordReader.nextBatch()};
     ASSERT_EQ(chunk.getNumColumns(), 2);

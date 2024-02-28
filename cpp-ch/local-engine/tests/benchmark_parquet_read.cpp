@@ -46,7 +46,7 @@ void BM_ParquetReadAllLocal(benchmark::State & state)
     for (auto _ : state)
     {
         auto in = std::make_unique<ReadBufferFromFile>(file);
-        auto format = std::make_shared<local_engine::VectorizedParquetBlockInputFormat>(*in, header, format_settings);
+        auto format = std::make_shared<local_engine ::VectorizedParquetBlockInputFormat>(*in, header, format_settings);
         auto pipeline = QueryPipeline(std::move(format));
         auto reader = std::make_unique<PullingPipelineExecutor>(pipeline);
         while (reader->pull(res))

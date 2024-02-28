@@ -36,7 +36,8 @@ VectorizedColumnReader::VectorizedColumnReader(
     , record_reader_(parquet::internal::RecordReader::Make(
           input_.descr(),
           local_engine::ComputeLevelInfo(input_.descr()),
-          local_engine::default_arrow_pool(), arrowField_->type()->id() == ::arrow::Type::DICTIONARY))
+          local_engine::default_arrow_pool(),
+          arrowField_->type()->id() == ::arrow::Type::DICTIONARY))
 {
     NextRowGroup();
 }
@@ -97,9 +98,7 @@ void VectorizedParquetRecordReader::initialize(
     std::vector<int32_t> row_groups(
         boost::counting_iterator<int32_t>(0), boost::counting_iterator<int32_t>(parquetFileReader_->metadata()->num_row_groups()));
     if (!format_settings_.parquet.skip_row_groups.empty())
-    {
         std::erase_if(row_groups, [&](int32_t i) { return format_settings_.parquet.skip_row_groups.contains(i); });
-    }
 
     assert(!row_groups.empty());
     columnVectors_.reserve(field_indices.size());
@@ -122,10 +121,8 @@ DB::Chunk VectorizedParquetRecordReader::nextBatch()
 
     for (size_t i = 0; i < columnVectors_.size(); ++i)
     {
-        auto& vectorized_column_reader = columnVectors_[i];
-        vectorized_column_reader.readBatch(remainReads, [&]() {
-            vectorized_column_reader.NextRowGroup();
-        });
+        auto & vectorized_column_reader = columnVectors_[i];
+        vectorized_column_reader.readBatch(remainReads, [&]() { vectorized_column_reader.NextRowGroup(); });
         const std::shared_ptr<arrow::ChunkedArray> arrow_column = vectorized_column_reader.finishRead();
         std::string column_name = vectorized_column_reader.arrowField_->name();
         if (format_settings_.parquet.case_insensitive_column_matching)
