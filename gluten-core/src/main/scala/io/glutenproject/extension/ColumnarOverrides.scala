@@ -732,7 +732,6 @@ case class ColumnarOverrideRules(session: SparkSession)
   }
 
   override def postColumnarTransitions: Rule[SparkPlan] = plan => {
-
     val isColumnarIn = plan.supportsColumnar
     val isRowIn = supportsRowBased(plan)
     val out = withSuggestRules(suggestRules(isColumnarIn)).apply(plan)
