@@ -1666,5 +1666,5 @@ object GlutenConfig {
       .internal()
       .doc("Force fallback for complex type scan, including struct, map, array.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 }
