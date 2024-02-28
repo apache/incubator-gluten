@@ -402,7 +402,7 @@ TEST(ParquetRead, VectorizedColumnReader)
     ReadBufferFromFile in(sample);
     const FormatSettings format_settings{};
     auto arrow_file = local_engine::test::asArrowFileForParquet(in, format_settings);
-    local_engine::VectorizedParquetRecordReader2 recordReader(blockHeader, format_settings);
+    local_engine::VectorizedParquetRecordReader recordReader(blockHeader, format_settings);
     recordReader.initialize(blockHeader, arrow_file, nullptr);
     auto chunk{recordReader.nextBatch()};
     ASSERT_EQ(chunk.getNumColumns(), 2);
