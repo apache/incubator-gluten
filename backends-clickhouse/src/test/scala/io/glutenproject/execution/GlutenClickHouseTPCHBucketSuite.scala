@@ -343,6 +343,23 @@ class GlutenClickHouseTPCHBucketSuite
         assert(plans(3).metrics("numFiles").value === 2)
         assert(plans(3).metrics("outputRows").value === 72678)
       })
+
+    withSQLConf(
+      ("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "1KB"),
+      ("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")) {
+      runTPCHQuery(3)(
+        df => {
+          if (sparkVersion.equals("3.3")) {
+            val plans = collectWithSubqueries(df.queryExecution.executedPlan) {
+              case aggExec: HashAggregateExecBaseTransformer
+                  if aggExec.aggregateExpressions.exists(
+                    _.aggregateFunction.getClass.getSimpleName.equals("BloomFilterAggregate")) =>
+                aggExec
+            }
+            assert(plans.size == 8)
+          }
+        })
+    }
   }
 
   test("TPCH Q4") {
@@ -372,6 +389,23 @@ class GlutenClickHouseTPCHBucketSuite
         assert(plans(2).metrics("numFiles").value === 2)
         assert(plans(2).metrics("outputRows").value === 379809)
       })
+
+    withSQLConf(
+      ("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "1KB"),
+      ("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")) {
+      runTPCHQuery(4)(
+        df => {
+          if (sparkVersion.equals("3.3")) {
+            val plans = collectWithSubqueries(df.queryExecution.executedPlan) {
+              case aggExec: HashAggregateExecBaseTransformer
+                  if aggExec.aggregateExpressions.exists(
+                    _.aggregateFunction.getClass.getSimpleName.equals("BloomFilterAggregate")) =>
+                aggExec
+            }
+            assert(plans.size == 4)
+          }
+        })
+    }
   }
 
   test("TPCH Q6") {
@@ -414,6 +448,23 @@ class GlutenClickHouseTPCHBucketSuite
         assert(plans(2).metrics("numFiles").value === 2)
         assert(plans(2).metrics("outputRows").value === 3155)
       })
+
+    withSQLConf(
+      ("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "1KB"),
+      ("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")) {
+      runTPCHQuery(12)(
+        df => {
+          if (sparkVersion.equals("3.3")) {
+            val plans = collectWithSubqueries(df.queryExecution.executedPlan) {
+              case aggExec: HashAggregateExecBaseTransformer
+                  if aggExec.aggregateExpressions.exists(
+                    _.aggregateFunction.getClass.getSimpleName.equals("BloomFilterAggregate")) =>
+                aggExec
+            }
+            assert(plans.size == 4)
+          }
+        })
+    }
   }
 
   test("TPCH Q18") {
@@ -494,6 +545,23 @@ class GlutenClickHouseTPCHBucketSuite
             .right
             .isInstanceOf[ProjectExecTransformer])
       })
+
+    withSQLConf(
+      ("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "1KB"),
+      ("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")) {
+      runTPCHQuery(20)(
+        df => {
+          if (sparkVersion.equals("3.3")) {
+            val plans = collectWithSubqueries(df.queryExecution.executedPlan) {
+              case aggExec: HashAggregateExecBaseTransformer
+                  if aggExec.aggregateExpressions.exists(
+                    _.aggregateFunction.getClass.getSimpleName.equals("BloomFilterAggregate")) =>
+                aggExec
+            }
+            assert(plans.size == 6)
+          }
+        })
+    }
   }
 
   test("GLUTEN-4668: Merge two phase hash-based aggregate into one aggregate") {

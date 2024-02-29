@@ -376,6 +376,26 @@ class GlutenClickHouseTPCHParquetBucketSuite
         assert(plans(3).metrics("outputRows").value === 150000)
       }
     )
+
+    withSQLConf(
+      ("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "1KB"),
+      ("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")) {
+      compareTPCHQueryAgainstVanillaSpark(
+        3,
+        tpchQueries,
+        df => {
+          if (sparkVersion.equals("3.3")) {
+            val plans = collectWithSubqueries(df.queryExecution.executedPlan) {
+              case aggExec: HashAggregateExecBaseTransformer
+                  if aggExec.aggregateExpressions.exists(
+                    _.aggregateFunction.getClass.getSimpleName.equals("BloomFilterAggregate")) =>
+                aggExec
+            }
+            assert(plans.size == 4)
+          }
+        }
+      )
+    }
   }
 
   test("TPCH Q4") {
@@ -408,6 +428,26 @@ class GlutenClickHouseTPCHParquetBucketSuite
         assert(plans(2).metrics("outputRows").value === 600572)
       }
     )
+
+    withSQLConf(
+      ("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "1KB"),
+      ("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")) {
+      compareTPCHQueryAgainstVanillaSpark(
+        4,
+        tpchQueries,
+        df => {
+          if (sparkVersion.equals("3.3")) {
+            val plans = collectWithSubqueries(df.queryExecution.executedPlan) {
+              case aggExec: HashAggregateExecBaseTransformer
+                  if aggExec.aggregateExpressions.exists(
+                    _.aggregateFunction.getClass.getSimpleName.equals("BloomFilterAggregate")) =>
+                aggExec
+            }
+            assert(plans.size == 2)
+          }
+        }
+      )
+    }
   }
 
   test("TPCH Q6") {
@@ -456,6 +496,26 @@ class GlutenClickHouseTPCHParquetBucketSuite
         assert(plans(2).metrics("outputRows").value === 600572)
       }
     )
+
+    withSQLConf(
+      ("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "1KB"),
+      ("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")) {
+      compareTPCHQueryAgainstVanillaSpark(
+        12,
+        tpchQueries,
+        df => {
+          if (sparkVersion.equals("3.3")) {
+            val plans = collectWithSubqueries(df.queryExecution.executedPlan) {
+              case aggExec: HashAggregateExecBaseTransformer
+                  if aggExec.aggregateExpressions.exists(
+                    _.aggregateFunction.getClass.getSimpleName.equals("BloomFilterAggregate")) =>
+                aggExec
+            }
+            assert(plans.size == 2)
+          }
+        }
+      )
+    }
   }
 
   test("TPCH Q18") {
@@ -542,6 +602,26 @@ class GlutenClickHouseTPCHParquetBucketSuite
             .isInstanceOf[ProjectExecTransformer])
       }
     )
+
+    withSQLConf(
+      ("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "1KB"),
+      ("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")) {
+      compareTPCHQueryAgainstVanillaSpark(
+        20,
+        tpchQueries,
+        df => {
+          if (sparkVersion.equals("3.3")) {
+            val plans = collectWithSubqueries(df.queryExecution.executedPlan) {
+              case aggExec: HashAggregateExecBaseTransformer
+                  if aggExec.aggregateExpressions.exists(
+                    _.aggregateFunction.getClass.getSimpleName.equals("BloomFilterAggregate")) =>
+                aggExec
+            }
+            assert(plans.size == 3)
+          }
+        }
+      )
+    }
   }
 
   test("GLUTEN-3922: Fix incorrect shuffle hash id value when executing modulo") {

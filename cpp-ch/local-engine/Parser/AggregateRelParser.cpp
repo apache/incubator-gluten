@@ -223,9 +223,9 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
         else
         {
             // If the function is a state function, we don't need to apply `PartialMerge`.
-            // In INITIAL_TO_INTERMEDIATE phase, we do arguments -> xxState.
+            // In INITIAL_TO_INTERMEDIATE or INITIAL_TO_RESULT phase, we do arguments -> xxState.
             // In INTERMEDIATE_TO_RESULT phase, we do xxState -> xxState.
-            if (agg_info.parser_func_info.phase == substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
+            if (agg_info.parser_func_info.phase == substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE || agg_info.parser_func_info.phase == substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_RESULT)
             {
                 description.function = getAggregateFunction(agg_info.function_name, agg_info.arg_column_types, properties, agg_info.params);
             }
