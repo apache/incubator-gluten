@@ -60,7 +60,7 @@ std::shared_ptr<arrow::Buffer> VeloxColumnarBatchSerializer::serializeColumnarBa
   auto numRows = firstRowVector->size();
   auto arena = std::make_unique<StreamArena>(veloxPool_.get());
   auto rowType = asRowType(firstRowVector->type());
-  auto serializer = serde_->createSerializer(rowType, numRows, arena.get(), /* serdeOptions */ nullptr);
+  auto serializer = serde_->createIterativeSerializer(rowType, numRows, arena.get(), /* serdeOptions */ nullptr);
   for (auto& batch : batches) {
     auto rowVector = VeloxColumnarBatch::from(veloxPool_.get(), batch)->getRowVector();
     numRows = rowVector->size();
