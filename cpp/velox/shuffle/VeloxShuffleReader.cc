@@ -419,6 +419,8 @@ void VeloxColumnarBatchDeserializerFactory::initFromSchema() {
         isValidityBuffer_.push_back(true);
         isValidityBuffer_.push_back(true);
       } break;
+      case arrow::NullType::type_id:
+        break;
       default: {
         isValidityBuffer_.push_back(true);
         isValidityBuffer_.push_back(false);
