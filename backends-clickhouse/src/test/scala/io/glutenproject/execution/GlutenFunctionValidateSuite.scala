@@ -19,10 +19,8 @@ package io.glutenproject.execution
 import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
 
-import org.apache.spark.SPARK_VERSION_SHORT
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.Row
+import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
+import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
@@ -30,7 +28,6 @@ import org.apache.spark.sql.types._
 import java.nio.file.Files
 import java.sql.Date
 
-import scala.collection.immutable.Seq
 import scala.reflect.ClassTag
 
 class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerSuite {

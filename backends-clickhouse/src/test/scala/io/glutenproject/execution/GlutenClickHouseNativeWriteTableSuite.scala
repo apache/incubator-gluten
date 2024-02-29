@@ -21,8 +21,8 @@ import io.glutenproject.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.test.SharedSparkSession
 
 import org.apache.commons.io.FileUtils
@@ -153,7 +153,7 @@ class GlutenClickHouseNativeWriteTableSuite
   }
 
   override protected def afterAll(): Unit = {
-    ClickHouseLog.clearCache()
+    DeltaLog.clearCache()
 
     try {
       super.afterAll()

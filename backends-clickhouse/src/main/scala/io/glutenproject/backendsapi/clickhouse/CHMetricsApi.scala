@@ -17,7 +17,7 @@
 package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.backendsapi.MetricsApi
-import io.glutenproject.metrics.{ExpandMetricsUpdater, LimitMetricsUpdater, _}
+import io.glutenproject.metrics._
 import io.glutenproject.substrait.{AggregationParams, JoinParams}
 import io.glutenproject.utils.LogLevelUtil
 

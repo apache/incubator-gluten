@@ -19,12 +19,10 @@ package io.glutenproject.execution
 import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
 
-import org.apache.spark.SPARK_VERSION_SHORT
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
+import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.internal.SQLConf
 
@@ -252,7 +250,7 @@ class GlutenClickHouseHiveTableSuite()
   }
 
   override protected def afterAll(): Unit = {
-    ClickHouseLog.clearCache()
+    DeltaLog.clearCache()
 
     try {
       super.afterAll()

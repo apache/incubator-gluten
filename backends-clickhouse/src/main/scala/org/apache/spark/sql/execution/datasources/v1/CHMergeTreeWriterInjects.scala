@@ -150,6 +150,7 @@ object CHMergeTreeWriterInjects {
       database,
       tableName,
       path,
+      "",
       orderByKey,
       primaryKey,
       new JList[String](),

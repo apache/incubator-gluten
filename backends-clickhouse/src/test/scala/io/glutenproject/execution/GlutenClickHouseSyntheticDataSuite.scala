@@ -22,7 +22,7 @@ import io.glutenproject.utils.UTSystemParameters
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
+import org.apache.spark.sql.delta.DeltaLog
 
 import org.apache.commons.io.FileUtils
 
@@ -89,7 +89,7 @@ class GlutenClickHouseSyntheticDataSuite
   }
 
   override protected def afterAll(): Unit = {
-    ClickHouseLog.clearCache()
+    DeltaLog.clearCache()
     super.afterAll()
     // init GlutenConfig in the next beforeAll
     GlutenConfig.ins = null

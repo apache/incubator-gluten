@@ -23,6 +23,7 @@ import io.glutenproject.metrics.{GlutenTimeMetric, IMetrics}
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.execution.InputFileBlockHolderProxy
 import org.apache.spark.sql.execution.datasources.PartitionedFile
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
@@ -39,8 +40,10 @@ case class GlutenPartition(
     index: Int,
     plan: Array[Byte],
     splitInfosByteArray: Array[Array[Byte]] = Array.empty[Array[Byte]],
-    locations: Array[String] = Array.empty[String])
-  extends BaseGlutenPartition {
+    locations: Array[String] = Array.empty[String],
+    files: Array[String] =
+      Array.empty[String] // touched files, for implementing UDF input_file_names
+) extends BaseGlutenPartition {
 
   override def preferredLocations(): Array[String] = locations
 }
@@ -84,6 +87,17 @@ class GlutenWholeStageColumnarRDD(
   private val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
+
+    // To support input_file_name(). According to semantic we should return
+    // the exact file name a row belongs to. However in columnar engine it's
+    // not easy to accomplish this. so we return a list of file(part) names
+    split match {
+      case FirstZippedPartitionsPartition(_, g: GlutenPartition, _) =>
+        InputFileBlockHolderProxy.set(g.files.mkString(","))
+      case _ =>
+        InputFileBlockHolderProxy.unset()
+    }
+
     GlutenTimeMetric.millis(pipelineTime) {
       _ =>
         ExecutorManager.tryTaskSet(numaBindingInfo)

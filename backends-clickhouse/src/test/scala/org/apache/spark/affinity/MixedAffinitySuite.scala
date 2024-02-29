@@ -49,7 +49,18 @@ class MixedAffinitySuite extends QueryTest with SharedSparkSession {
     }
     val file = MergeTreePartSplit("0", "", "", -1, -1, -1)
     val partition =
-      GlutenMergeTreePartition(0, "", "", "", "fakePath", "", "", Array(file), "", Map.empty)
+      GlutenMergeTreePartition(
+        0,
+        "",
+        "",
+        "",
+        "fakePath",
+        "fakePath2",
+        "",
+        "",
+        Array(file),
+        "",
+        Map.empty)
     val locations = affinity.getNativeMergeTreePartitionLocations(partition)
     val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations = locations)
     assertResult(Set("forced_host_host-0")) {
