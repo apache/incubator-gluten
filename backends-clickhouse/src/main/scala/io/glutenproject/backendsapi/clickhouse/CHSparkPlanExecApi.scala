@@ -42,21 +42,18 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
 import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
 import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules.NativeWritePostRule
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.ClickHouseScan
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.{CHExecUtil, PushDownUtil}
-import org.apache.spark.sql.extension.ClickHouseAnalysis
-import org.apache.spark.sql.extension.CommonSubexpressionEliminateRule
-import org.apache.spark.sql.extension.RewriteDateTimestampComparisonRule
+import org.apache.spark.sql.extension.{CommonSubexpressionEliminateRule, RewriteDateTimestampComparisonRule}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -122,9 +119,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       condition: Expression,
       child: SparkPlan): FilterExecTransformerBase = {
     child match {
-      case scan: FileSourceScanExec if scan.relation.location.isInstanceOf[ClickHouseFileIndex] =>
-        CHFilterExecTransformer(condition, child)
-      case scan: BatchScanExec if scan.batch.isInstanceOf[ClickHouseScan] =>
+      case scan: FileSourceScanExec
+          if (scan.relation.location.isInstanceOf[TahoeFileIndex] &&
+            scan.relation.fileFormat.isInstanceOf[DeltaMergeTreeFileFormat]) =>
         CHFilterExecTransformer(condition, child)
       case _ =>
         FilterExecTransformer(condition, child)
@@ -496,9 +493,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]] = {
-    List(
-      spark => new ClickHouseAnalysis(spark, spark.sessionState.conf),
-      spark => new RewriteDateTimestampComparisonRule(spark, spark.sessionState.conf))
+    List(spark => new RewriteDateTimestampComparisonRule(spark, spark.sessionState.conf))
   }
 
   /**

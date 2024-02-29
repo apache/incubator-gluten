@@ -14,19 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.v2.clickhouse.source
+package org.apache.spark.sql.execution
 
-import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.connector.read.{InputPartition, PartitionReader, PartitionReaderFactory}
+import org.apache.spark.rdd.InputFileBlockHolder
 
-class ClickHousePartitionReaderFactory extends PartitionReaderFactory with Logging {
-
-  override def createReader(partition: InputPartition): PartitionReader[InternalRow] = {
-    null
+object InputFileBlockHolderProxy {
+  def set(files: String): Unit = {
+    InputFileBlockHolder.set(files, 0, 0)
   }
 
-  override def supportColumnarReads(partition: InputPartition): Boolean = {
-    true
+  def unset(): Unit = {
+    InputFileBlockHolder.unset()
   }
+
 }

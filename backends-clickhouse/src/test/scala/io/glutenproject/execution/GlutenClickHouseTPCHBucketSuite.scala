@@ -496,6 +496,21 @@ class GlutenClickHouseTPCHBucketSuite
       })
   }
 
+  test("check bucket pruning on filter") {
+    // TODO use comparewithvanilla
+    val df = spark.sql("select count(*) from lineitem where l_orderkey = 12647")
+    val result = df.collect()
+    val scanExec = collect(df.queryExecution.executedPlan) {
+      case f: FileSourceScanExecTransformer => f
+    }
+    val touchedParts = scanExec.head.getPartitions
+      .flatMap(partition => partition.asInstanceOf[GlutenMergeTreePartition].partList)
+      .map(_.name)
+      .distinct
+    assert(touchedParts.size == 1)
+    assert(result.apply(0).apply(0) == 1)
+  }
+
   test("GLUTEN-4668: Merge two phase hash-based aggregate into one aggregate") {
     def checkHashAggregateCount(df: DataFrame, expectedCount: Int): Unit = {
       val plans = collect(df.queryExecution.executedPlan) {
