@@ -159,6 +159,15 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
     RowToVeloxColumnarExec(child)
 
   /**
+   * Generate ColumnarToColumnarExec.
+   *
+   * @param child
+   * @return
+   */
+  override def genColumnarToColumnarExec(child: SparkPlan): ColumnarToColumnarExecBase =
+    ColumnarToVeloxColumnarExec(child)
+
+  /**
    * Generate FilterExecTransformer.
    *
    * @param condition

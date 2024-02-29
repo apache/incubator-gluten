@@ -735,4 +735,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       case _ => super.postProcessPushDownFilter(extraFilters, sparkExecNode)
     }
   }
+
+  override def genColumnarToColumnarExec(child: SparkPlan): ColumnarToColumnarExecBase = {
+    throw new UnsupportedOperationException(
+      "ColumnarToColumnarExec is not supported in ch backend.")
+  }
 }

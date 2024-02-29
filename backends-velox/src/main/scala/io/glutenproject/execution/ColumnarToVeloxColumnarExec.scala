@@ -19,39 +19,31 @@ package io.glutenproject.execution
 import io.glutenproject.backendsapi.velox.ValidatorApiImpl
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.exec.Runtimes
-import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.{ArrowAbiUtil, Iterators}
 import io.glutenproject.vectorized.VanillaColumnarToNativeColumnarJniWrapper
-import org.apache.arrow.c.{ArrowArray, ArrowSchema, Data}
-import org.apache.spark.TaskContext
+
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.arrow.ArrowColumnarBatchConverter
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.TaskResources
 
-case class VanillaColumnarToVeloxColumnarExec(child: SparkPlan) extends GlutenPlan with UnaryExecNode {
+import org.apache.arrow.c.{ArrowArray, ArrowSchema, Data}
 
-  override def supportsColumnar: Boolean = true
+case class ColumnarToVeloxColumnarExec(child: SparkPlan) extends ColumnarToColumnarExecBase(child) {
 
-  override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
-  }
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+  override def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     new ValidatorApiImpl().doSchemaValidate(schema).foreach {
       reason =>
         throw new UnsupportedOperationException(
-          s"Input schema contains unsupported type when convert columnar to columnar for $schema " +
-            s"due to $reason")
+          s"Input schema contains unsupported type when performing columnar" +
+            s" to columnar for $schema " + s"due to $reason")
     }
 
     val numInputBatches = longMetric("numInputBatches")
@@ -63,33 +55,30 @@ case class VanillaColumnarToVeloxColumnarExec(child: SparkPlan) extends GlutenPl
     // This avoids calling `schema` in the RDD closure, so that we don't need to include the entire
     // plan (this) in the closure.
     val localSchema = schema
-    child.execute().mapPartitions {
+    child.executeColumnar().mapPartitions {
       rowIterator =>
-        VanillaColumnarToVeloxColumnarExec.toColumnarBatchIterator(
-          rowIterator.asInstanceOf[Iterator[ColumnarBatch]],
+        ColumnarToVeloxColumnarExec.toColumnarBatchIterator(
+          rowIterator,
           localSchema,
           numInputBatches,
           numOutputBatches,
-          convertTime,
-          TaskContext.get())
+          convertTime)
     }
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan = {
     copy(child = newChild)
   }
-
-  override def output: Seq[Attribute] = child.output
 }
 
-object VanillaColumnarToVeloxColumnarExec {
+object ColumnarToVeloxColumnarExec {
 
-  def toColumnarBatchIterator(it: Iterator[ColumnarBatch],
-                              schema: StructType,
-                              numInputBatches: SQLMetric,
-                              numOutputBatches: SQLMetric,
-                              convertTime: SQLMetric,
-                              taskContext: TaskContext): Iterator[ColumnarBatch] = {
+  def toColumnarBatchIterator(
+      it: Iterator[ColumnarBatch],
+      schema: StructType,
+      numInputBatches: SQLMetric,
+      numOutputBatches: SQLMetric,
+      convertTime: SQLMetric): Iterator[ColumnarBatch] = {
     if (it.isEmpty) {
       return Iterator.empty
     }
@@ -99,49 +88,51 @@ object VanillaColumnarToVeloxColumnarExec {
     val jniWrapper = VanillaColumnarToNativeColumnarJniWrapper.create()
     val allocator = ArrowBufferAllocators.contextInstance()
     val cSchema = ArrowSchema.allocateNew(allocator)
-    val c2cHandle =
-      try {
-        ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-        jniWrapper.init(
-          cSchema.memoryAddress(),
-          NativeMemoryManagers
-            .contextInstance("ColumnarToColumnar")
-            .getNativeInstanceHandle)
-      } finally {
-        cSchema.close()
-      }
+    ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+    val c2cHandle = jniWrapper.init(
+      cSchema.memoryAddress(),
+      NativeMemoryManagers
+        .contextInstance("ColumnarToColumnar")
+        .getNativeInstanceHandle)
 
     val converter = ArrowColumnarBatchConverter.create(arrowSchema, allocator)
 
+    TaskResources.addRecycler("ColumnarToColumnar_resourceClean", 100) {
+      jniWrapper.close(c2cHandle)
+      converter.close()
+      cSchema.close()
+    }
+
     val res: Iterator[ColumnarBatch] = new Iterator[ColumnarBatch] {
 
+      var arrowArray: ArrowArray = null
+      TaskResources.addRecycler("ColumnarToColumnar_arrowArray", 100) {
+        if (arrowArray != null) {
+          arrowArray.release()
+          arrowArray.close()
+          converter.reset()
+        }
+      }
+
       override def hasNext: Boolean = {
+        if (arrowArray != null) {
+          arrowArray.release()
+          arrowArray.close()
+          converter.reset()
+          arrowArray = null
+        }
         it.hasNext
       }
 
       def nativeConvert(cb: ColumnarBatch): ColumnarBatch = {
-        var arrowArray: ArrowArray = null
-        TaskResources.addRecycler("ColumnarToColumnar_arrowArray", 100) {
-          // Remind, remove isOpen here
-          if (arrowArray != null) {
-            arrowArray.close()
-          }
-        }
-
         numInputBatches += 1
-        try {
-          arrowArray = ArrowArray.allocateNew(allocator)
-          converter.write(cb)
-          converter.finish()
-          Data.exportVectorSchemaRoot(allocator, converter.root, null, arrowArray)
-          val handle = jniWrapper
-            .nativeConvertVanillaColumnarToColumnar(c2cHandle, arrowArray.memoryAddress())
-          ColumnarBatches.create(Runtimes.contextInstance(), handle)
-        } finally {
-          converter.reset()
-          arrowArray.close()
-          arrowArray = null
-        }
+        arrowArray = ArrowArray.allocateNew(allocator)
+        converter.write(cb)
+        converter.finish()
+        Data.exportVectorSchemaRoot(allocator, converter.root, null, arrowArray)
+        val handle = jniWrapper
+          .nativeConvertVanillaColumnarToColumnar(c2cHandle, arrowArray.memoryAddress())
+        ColumnarBatches.create(Runtimes.contextInstance(), handle)
       }
 
       override def next(): ColumnarBatch = {
@@ -154,20 +145,12 @@ object VanillaColumnarToVeloxColumnarExec {
       }
     }
 
-    if (taskContext != null) {
-      taskContext.addTaskCompletionListener[Unit] { _ =>
-        jniWrapper.close(c2cHandle)
-        allocator.close()
-        converter.close()
-      }
-    }
-
     Iterators
       .wrap(res)
       .recycleIterator {
         jniWrapper.close(c2cHandle)
-        allocator.close()
         converter.close()
+        cSchema.close()
       }
       .recyclePayload(_.close())
       .create()

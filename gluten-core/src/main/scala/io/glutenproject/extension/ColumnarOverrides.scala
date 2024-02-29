@@ -547,8 +547,28 @@ case class InsertColumnarToColumnarTransitions(session: SparkSession) extends Ru
       })
   }
 
+  private def replaceWithColumnarToColumnar(plan: SparkPlan): SparkPlan = {
+    plan match {
+      case p: RowToColumnarExecBase if p.child.isInstanceOf[ColumnarToRowExec] =>
+        val replacedChild = replaceWithColumnarToColumnar(
+          p.child.asInstanceOf[ColumnarToRowExec].child)
+        BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToColumnarExec(replacedChild)
+      case _ =>
+        plan.withNewChildren(plan.children.map(replaceWithColumnarToColumnar))
+    }
+  }
+
   def apply(plan: SparkPlan): SparkPlan = {
-    val newPlan = replaceWithVanillaRowToColumnar(replaceWithVanillaColumnarToRow(plan))
+    val newPlan =
+      if (
+        GlutenConfig.getConf.enableNativeColumnarToColumnar && BackendsApiManager.getSettings
+          .supportColumnarToColumnarExec()
+      ) {
+        replaceWithColumnarToColumnar(
+          replaceWithVanillaRowToColumnar(replaceWithVanillaColumnarToRow(plan)))
+      } else {
+        replaceWithVanillaRowToColumnar(replaceWithVanillaColumnarToRow(plan))
+      }
     planChangeLogger.logRule(ruleName, plan, newPlan)
     newPlan
   }

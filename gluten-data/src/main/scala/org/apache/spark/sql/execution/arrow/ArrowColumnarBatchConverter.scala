@@ -16,22 +16,23 @@
  */
 package org.apache.spark.sql.execution.arrow
 
-import org.apache.arrow.memory.BufferAllocator
-
-import scala.collection.JavaConverters._
-import org.apache.arrow.vector._
-import org.apache.arrow.vector.complex._
-import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.types._
 import org.apache.spark.sql.catalyst.expressions.SpecializedGetters
 import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
 import org.apache.spark.sql.errors.QueryExecutionErrors
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.sql.vectorized.ColumnVector
+import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
+
+import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector._
+import org.apache.arrow.vector.complex._
+import org.apache.arrow.vector.types.pojo.Schema
+
+import scala.collection.JavaConverters._
 
 object ArrowColumnarBatchConverter {
 
@@ -41,9 +42,10 @@ object ArrowColumnarBatchConverter {
   }
 
   def create(root: VectorSchemaRoot): ArrowColumnarBatchConverter = {
-    val children = root.getFieldVectors.asScala.map { vector =>
-      vector.allocateNew()
-      createFieldWriter(vector)
+    val children = root.getFieldVectors.asScala.map {
+      vector =>
+        vector.allocateNew()
+        createFieldWriter(vector)
     }
     new ArrowColumnarBatchConverter(root, children.toArray)
   }
@@ -72,8 +74,8 @@ object ArrowColumnarBatchConverter {
         val valueWriter = createFieldWriter(structVector.getChild(MapVector.VALUE_NAME))
         new MapWriter(vector, structVector, keyWriter, valueWriter)
       case (StructType(_), vector: StructVector) =>
-        val children = (0 until vector.size()).map { ordinal =>
-          createFieldWriter(vector.getChildByOrdinal(ordinal))
+        val children = (0 until vector.size()).map {
+          ordinal => createFieldWriter(vector.getChildByOrdinal(ordinal))
         }
         new StructWriter(vector, children.toArray)
       case (NullType, vector: NullVector) => new NullWriter(vector)
@@ -103,7 +105,8 @@ case class ColumnarSpecializedGetters(columnVector: ColumnVector) extends Specia
 
   override def getDouble(rowId: Int): Double = columnVector.getDouble(rowId)
 
-  override def getDecimal(rowId: Int, precision: Int, scale: Int): Decimal = columnVector.getDecimal(rowId, precision, scale)
+  override def getDecimal(rowId: Int, precision: Int, scale: Int): Decimal =
+    columnVector.getDecimal(rowId, precision, scale)
 
   override def getUTF8String(rowId: Int): UTF8String = columnVector.getUTF8String(rowId)
 
@@ -127,11 +130,12 @@ class ArrowColumnarBatchConverter(val root: VectorSchemaRoot, fields: Array[Arro
   private var count: Int = 0
 
   def write(columnarBatch: ColumnarBatch): Unit = {
-    fields.zipWithIndex.foreach { case (field, ordinal) =>
-      val columnVector = ColumnarSpecializedGetters(columnarBatch.column(ordinal))
-      for (rowId <- 0 until columnarBatch.numRows()) {
-        field.write(columnVector, rowId)
-      }
+    fields.zipWithIndex.foreach {
+      case (field, ordinal) =>
+        val columnVector = ColumnarSpecializedGetters(columnarBatch.column(ordinal))
+        for (rowId <- 0 until columnarBatch.numRows()) {
+          field.write(columnVector, rowId)
+        }
     }
     count += columnarBatch.numRows()
   }

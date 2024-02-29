@@ -313,6 +313,13 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime to convert")
     )
 
+  override def genColumnarToColumnarMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
+    Map(
+      "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"),
+      "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
+      "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime to convert")
+    )
+
   override def genLimitTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
       "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
