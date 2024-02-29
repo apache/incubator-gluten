@@ -146,7 +146,7 @@ object TransformHints {
       throw new IllegalStateException("Transform hint tag not set in plan: " + plan.toString()))
   }
 
-  private def getHintOption(plan: SparkPlan): Option[TransformHint] = {
+  def getHintOption(plan: SparkPlan): Option[TransformHint] = {
     plan.getTagValue(TAG)
   }
 

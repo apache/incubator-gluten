@@ -16,7 +16,7 @@
  */
 package io.glutenproject.extension
 
-import io.glutenproject.extension.columnar.{AddTransformHintRule, TRANSFORM_UNSUPPORTED, TransformHint, TransformHints}
+import io.glutenproject.extension.columnar.{AddTransformHintRule, TransformHint, TransformHints}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -66,11 +66,7 @@ class RewriteSparkPlanRulesManager(rewriteRules: Seq[Rule[SparkPlan]]) extends R
       case p if p.nodeName == origin.nodeName => p
     }
     assert(target.size == 1)
-    if (TransformHints.isTransformable(target.head)) {
-      None
-    } else {
-      Some(TransformHints.getHint(target.head))
-    }
+    TransformHints.getHintOption(target.head)
   }
 
   private def applyRewriteRules(origin: SparkPlan): (SparkPlan, Option[String]) = {
@@ -109,15 +105,19 @@ class RewriteSparkPlanRulesManager(rewriteRules: Seq[Rule[SparkPlan]]) extends R
         } else {
           addHint.apply(rewrittenPlan)
           val hint = getTransformHintBack(origin, rewrittenPlan)
-          hint match {
-            case Some(tu @ TRANSFORM_UNSUPPORTED(_, _)) =>
-              // If the rewritten plan is still not transformable, return the original plan.
-              TransformHints.tag(origin, tu)
-              origin
-            case None =>
-              rewrittenPlan.transformUp { case wall: RewrittenNodeWall => wall.originalChild }
-            case _ =>
-              throw new IllegalStateException("Unreachable code")
+          if (hint.isDefined) {
+            // If the rewritten plan is still not transformable, return the original plan.
+            TransformHints.tag(origin, hint.get)
+            origin
+          } else {
+            rewrittenPlan.transformUp {
+              case wall: RewrittenNodeWall => wall.originalChild
+              case p if p.logicalLink.isEmpty =>
+                // Add logical link to pull out project to make fallback reason work,
+                // see `GlutenFallbackReporter`.
+                origin.logicalLink.foreach(p.setLogicalLink)
+                p
+            }
           }
         }
     }
