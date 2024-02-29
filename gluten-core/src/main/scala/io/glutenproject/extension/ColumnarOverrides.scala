@@ -690,7 +690,7 @@ case class ColumnarOverrideRules(session: SparkSession)
    * Rules to let planner create a suggested Gluten plan being sent to `fallbackPolicies` in which
    * the plan will be breakdown and decided to be fallen back or not.
    */
-  private def suggestRules(outputsColumnar: Boolean): List[SparkSession => Rule[SparkPlan]] = {
+  private def transformRules(outputsColumnar: Boolean): List[SparkSession => Rule[SparkPlan]] = {
     List(
       (_: SparkSession) => RemoveTransitions,
       (spark: SparkSession) => FallbackOnANSIMode(spark),
@@ -710,10 +710,10 @@ case class ColumnarOverrideRules(session: SparkSession)
         (_: SparkSession) => EnsureLocalSortRequirements,
         (_: SparkSession) => CollapseProjectExecTransformer
       ) :::
-      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarSuggestRules() :::
+      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarTransformRules() :::
       SparkRuleUtil.extendedColumnarRules(
         session,
-        GlutenConfig.getConf.extendedColumnarSuggestRules) :::
+        GlutenConfig.getConf.extendedColumnarTransformRules) :::
       List((_: SparkSession) => InsertTransitions(outputsColumnar))
   }
 
@@ -780,16 +780,16 @@ case class ColumnarOverrideRules(session: SparkSession)
     val outputsColumnar = OutputsColumnarTester.inferOutputsColumnar(plan)
     val unwrapped = OutputsColumnarTester.unwrap(plan)
     val vanillaPlan = ColumnarTransitions.insertTransitions(unwrapped, outputsColumnar)
-    withSuggestRules(suggestRules(outputsColumnar)).apply(vanillaPlan)
+    withTransformRules(transformRules(outputsColumnar)).apply(vanillaPlan)
   }
 
   // Visible for testing.
-  def withSuggestRules(suggestRules: List[SparkSession => Rule[SparkPlan]]): Rule[SparkPlan] =
+  def withTransformRules(transformRules: List[SparkSession => Rule[SparkPlan]]): Rule[SparkPlan] =
     plan =>
       PhysicalPlanSelector.maybe(session, plan) {
         val finalPlan = prepareFallback(plan) {
           p =>
-            val suggestedPlan = transformPlan(suggestRules, p, "suggest")
+            val suggestedPlan = transformPlan(transformRules, p, "transfrom")
             transformPlan(fallbackPolicies(), suggestedPlan, "fallback") match {
               case FallbackNode(fallbackPlan) =>
                 // we should use vanilla c2r rather than native c2r,

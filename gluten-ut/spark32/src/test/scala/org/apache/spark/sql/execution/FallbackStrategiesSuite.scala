@@ -30,7 +30,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
   testGluten("Fall back the whole query if one unsupported") {
     withSQLConf(("spark.gluten.sql.columnar.query.fallback.threshold", "1")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
-      val rule = ColumnarOverrideRules(spark).withSuggestRules(
+      val rule = ColumnarOverrideRules(spark).withTransformRules(
         List(
           _ =>
             _ => {
@@ -48,7 +48,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
       val rule = ColumnarOverrideRules(spark)
         .enableAdaptiveContext()
-        .withSuggestRules(
+        .withTransformRules(
           List(
             _ =>
               _ => {
@@ -66,7 +66,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
       val rule = ColumnarOverrideRules(spark)
         .enableAdaptiveContext()
-        .withSuggestRules(
+        .withTransformRules(
           List(
             _ =>
               _ => {
@@ -86,7 +86,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
       val rule = ColumnarOverrideRules(spark)
         .enableAdaptiveContext()
-        .withSuggestRules(
+        .withTransformRules(
           List(
             _ =>
               _ => {
@@ -106,7 +106,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
       val rule = ColumnarOverrideRules(spark)
         .enableAdaptiveContext()
-        .withSuggestRules(
+        .withTransformRules(
           List(
             _ =>
               _ => {
