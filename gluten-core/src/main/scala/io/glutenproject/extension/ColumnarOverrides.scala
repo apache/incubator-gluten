@@ -789,7 +789,7 @@ case class ColumnarOverrideRules(session: SparkSession)
       PhysicalPlanSelector.maybe(session, plan) {
         val finalPlan = prepareFallback(plan) {
           p =>
-            val suggestedPlan = transformPlan(transformRules, p, "transfrom")
+            val suggestedPlan = transformPlan(transformRules, p, "transform")
             transformPlan(fallbackPolicies(), suggestedPlan, "fallback") match {
               case FallbackNode(fallbackPlan) =>
                 // we should use vanilla c2r rather than native c2r,
