@@ -91,6 +91,21 @@ jobs:
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten/cpp/build/velox/benchmarks && \
           ./generic_benchmark --run-example --with-shuffle --threads 1 --iterations 1'
+      - name: Copy golden files from container to host
+        if: failure()
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/cp.sh /tmp/tpch-approved-plan/ /tmp/$GITHUB_RUN_ID/tpch-approved-plan
+      - name: Upload golden files
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-files-spark32
+          path: |
+            /tmp/${{ github.run_id }}/tpch-approved-plan/**
+      - name: Clean temp golden files
+        if: failure()
+        run: |
+          rm -rf /tmp/$GITHUB_RUN_ID/tpch-approved-plan
       - name: Exit docker container
         if: ${{ always() }}
         run: |

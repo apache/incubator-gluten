@@ -374,3 +374,22 @@ spark-shell --name run_gluten \
  --jars https://github.com/oap-project/gluten/releases/download/v1.0.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04_x86_64-1.0.0.jar \
  --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager
 ```
+
+# Check Gluten Approved Spark Plan
+
+To make sure we don't accidentally modify the Gluten and Spark Plan build logic.
+We introduce new logic in `VeloxTPCHSuite` to check whether the plan has been changed or not,
+and this will be triggered when running the unit test.
+
+As a result, developers may encounter unit test fail in Github CI or locally, with the following error message:
+```log
+- TPC-H q5 *** FAILED ***
+  Mismatch for query 5
+  Actual Plan path: /tmp/tpch-approved-plan/v2-bhj/spark322/5.txt
+  Golden Plan path: /opt/gluten/backends-velox/target/scala-2.12/test-classes/tpch-approved-plan/v2-bhj/spark322/5.txt (VeloxTPCHSuite.scala:101)
+```
+For developers to update the golden plan, you can find the actual plan in Github CI Artifacts or in local `/tmp/` directory. 
+
+![](../image/gluten_golden_file_upload.png)
+
+Developers can simply copy the actual plan to the golden plan path, and then re-run the unit test to make sure the plan is stabled.
