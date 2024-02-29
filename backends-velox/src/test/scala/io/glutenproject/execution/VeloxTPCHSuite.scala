@@ -82,12 +82,8 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
 
   def subType(): String = ""
   def shouldCheckGoldenFiles(): Boolean = {
-    Seq("v1", "v1-bhj").contains(subType()) && (formatSparkVersion match {
-      case "322" => true
-      case "331" => true
-      case "342" => false
-      case _ => false
-    })
+    Seq("v1", "v1-bhj").contains(subType()) &&
+      (formatSparkVersion.startsWith("32") || formatSparkVersion.startsWith("33"))
   }
 
   private def checkGoldenFile(df: DataFrame, id: Int): Unit = {

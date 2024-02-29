@@ -94,18 +94,18 @@ jobs:
       - name: Copy golden files from container to host
         if: failure()
         run: |
-          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/cp.sh /tmp/tpch-approved-plan/ /tmp/$GITHUB_RUN_ID/spark322/tpch-approved-plan
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/cp.sh /tmp/tpch-approved-plan/ /tmp/$GITHUB_RUN_ID/spark32/tpch-approved-plan
       - name: Upload golden files
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: golden-files-spark32
           path: |
-            /tmp/${{ github.run_id }}/spark322/tpch-approved-plan/**
+            /tmp/${{ github.run_id }}/spark32/tpch-approved-plan/**
       - name: Clean temp golden files
         if: failure()
         run: |
-          rm -rf /tmp/$GITHUB_RUN_ID/spark322/tpch-approved-plan
+          rm -rf /tmp/$GITHUB_RUN_ID/spark32/tpch-approved-plan
       - name: Exit docker container
         if: ${{ always() }}
         run: |
@@ -227,18 +227,18 @@ jobs:
       - name: Copy golden files from container to host
         if: failure()
         run: |
-          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/cp.sh /tmp/tpch-approved-plan/ /tmp/$GITHUB_RUN_ID/spark331/tpch-approved-plan
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/cp.sh /tmp/tpch-approved-plan/ /tmp/$GITHUB_RUN_ID/spark33/tpch-approved-plan
       - name: Upload golden files
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: golden-files-spark33
           path: |
-            /tmp/${{ github.run_id }}/spark331/tpch-approved-plan/**
+            /tmp/${{ github.run_id }}/spark33/tpch-approved-plan/**
       - name: Clean temp golden files
         if: failure()
         run: |
-          rm -rf /tmp/$GITHUB_RUN_ID/spark331/tpch-approved-plan
+          rm -rf /tmp/$GITHUB_RUN_ID/spark33/tpch-approved-plan
       - name: Exit docker container
         if: ${{ always() }}
         run: |
