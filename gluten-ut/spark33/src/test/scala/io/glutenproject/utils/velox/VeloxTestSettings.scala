@@ -613,8 +613,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetDeltaEncodingLong]
   enableSuite[GlutenParquetDeltaLengthByteArrayEncodingSuite]
   enableSuite[GlutenParquetEncodingSuite]
-    // exclude as cases use Vectorization Column reader
-    .exclude("parquet v2 pages - delta encoding")
+    // Velox does not support rle encoding.
     .exclude("parquet v2 pages - rle encoding for boolean value columns")
   enableSuite[GlutenParquetFieldIdIOSuite]
   enableSuite[GlutenParquetFileFormatV1Suite]
