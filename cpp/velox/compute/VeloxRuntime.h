@@ -120,6 +120,10 @@ class VeloxRuntime final : public Runtime {
     return veloxPlan_;
   }
 
+  bool debugModeEnabled() const {
+    return debugModeEnabled_;
+  }
+
   static void getInfoAndIds(
       const std::unordered_map<facebook::velox::core::PlanNodeId, std::shared_ptr<SplitInfo>>& splitInfoMap,
       const std::unordered_set<facebook::velox::core::PlanNodeId>& leafPlanNodeIds,
@@ -129,6 +133,8 @@ class VeloxRuntime final : public Runtime {
 
  private:
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
+  std::shared_ptr<const facebook::velox::Config> veloxCfg_;
+  bool debugModeEnabled_{false};
 
   std::unordered_map<int32_t, std::shared_ptr<ColumnarBatch>> emptySchemaBatchLoopUp_;
 };

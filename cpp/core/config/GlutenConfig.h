@@ -61,6 +61,13 @@ const std::string kShuffleCompressionCodecBackend = "spark.gluten.sql.columnar.s
 const std::string kQatBackendName = "qat";
 const std::string kIaaBackendName = "iaa";
 
+// Velox conf
+const std::string kGlogVerboseLevel = "spark.gluten.sql.columnar.backend.velox.glogVerboseLevel";
+const uint32_t kGlogVerboseLevelDefault = 0;
+const uint32_t kGlogVerboseLevelMaximum = 99;
+const std::string kGlogSeverityLevel = "spark.gluten.sql.columnar.backend.velox.glogSeverityLevel";
+const uint32_t kGlogSeverityLevelDefault = 1;
+
 std::unordered_map<std::string, std::string>
 parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength);
 

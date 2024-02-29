@@ -37,7 +37,13 @@ using namespace facebook;
 
 namespace gluten {
 
-VeloxRuntime::VeloxRuntime(const std::unordered_map<std::string, std::string>& confMap) : Runtime(confMap) {}
+VeloxRuntime::VeloxRuntime(const std::unordered_map<std::string, std::string>& confMap) : Runtime(confMap) {
+  // Refresh session config.
+  veloxCfg_ = std::make_shared<const facebook::velox::core::MemConfigMutable>(confMap_);
+  debugModeEnabled_ = veloxCfg_->get<bool>(kDebugModeEnabled, false);
+  FLAGS_minloglevel = veloxCfg_->get<uint32_t>(kGlogSeverityLevel, FLAGS_minloglevel);
+  FLAGS_v = veloxCfg_->get<uint32_t>(kGlogVerboseLevel, FLAGS_v);
+}
 
 void VeloxRuntime::parsePlan(
     const uint8_t* data,
@@ -45,7 +51,7 @@ void VeloxRuntime::parsePlan(
     SparkTaskInfo taskInfo,
     std::optional<std::string> dumpFile) {
   taskInfo_ = taskInfo;
-  if (debugModeEnabled(confMap_)) {
+  if (debugModeEnabled_) {
     try {
       auto jsonPlan = substraitFromPbToJson("Plan", data, size, dumpFile);
       LOG(INFO) << std::string(50, '#') << " received substrait::Plan:";
@@ -59,7 +65,7 @@ void VeloxRuntime::parsePlan(
 }
 
 void VeloxRuntime::parseSplitInfo(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) {
-  if (debugModeEnabled(confMap_)) {
+  if (debugModeEnabled_) {
     try {
       auto jsonPlan = substraitFromPbToJson("ReadRel.LocalFiles", data, size, dumpFile);
       LOG(INFO) << std::string(50, '#') << " received substrait::ReadRel.LocalFiles:";
@@ -111,7 +117,7 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
     const std::string& spillDir,
     const std::vector<std::shared_ptr<ResultIterator>>& inputs,
     const std::unordered_map<std::string, std::string>& sessionConf) {
-  if (debugModeEnabled(confMap_)) {
+  if (debugModeEnabled_) {
     LOG(INFO) << "VeloxRuntime session config:" << printConfig(confMap_);
   }
 
