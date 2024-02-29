@@ -26,6 +26,7 @@ import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.{LogLevelUtil, PhysicalPlanSelector, PlanUtil}
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
@@ -44,6 +45,7 @@ import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
+import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.SparkRuleUtil
 
 import scala.collection.mutable.ListBuffer
@@ -566,7 +568,11 @@ object ColumnarOverrideRules {
   case class DummyRowOutputExec(override val child: SparkPlan) extends UnaryExecNode {
     override def supportsColumnar: Boolean = false
     override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
-    override def output: Seq[Attribute] = throw new UnsupportedOperationException()
+    override protected def doExecuteColumnar(): RDD[ColumnarBatch] =
+      throw new UnsupportedOperationException()
+    override def doExecuteBroadcast[T](): Broadcast[T] =
+      throw new UnsupportedOperationException()
+    override def output: Seq[Attribute] = child.output
     override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
       copy(child = newChild)
   }
@@ -574,7 +580,11 @@ object ColumnarOverrideRules {
   case class DummyColumnarOutputExec(override val child: SparkPlan) extends UnaryExecNode {
     override def supportsColumnar: Boolean = true
     override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
-    override def output: Seq[Attribute] = throw new UnsupportedOperationException()
+    override protected def doExecuteColumnar(): RDD[ColumnarBatch] =
+      throw new UnsupportedOperationException()
+    override def doExecuteBroadcast[T](): Broadcast[T] =
+      throw new UnsupportedOperationException()
+    override def output: Seq[Attribute] = child.output
     override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
       copy(child = newChild)
   }
@@ -765,7 +775,8 @@ case class ColumnarOverrideRules(session: SparkSession)
   override def postColumnarTransitions: Rule[SparkPlan] = plan => {
     val outputsColumnar = OutputsColumnarTester.inferOutputsColumnar(plan)
     val unwrapped = OutputsColumnarTester.unwrap(plan)
-    withSuggestRules(suggestRules(outputsColumnar)).apply(unwrapped)
+    val vanillaPlan = ColumnarTransitions.insertTransitions(unwrapped, outputsColumnar)
+    withSuggestRules(suggestRules(outputsColumnar)).apply(vanillaPlan)
   }
 
   // Visible for testing.
