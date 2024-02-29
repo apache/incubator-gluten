@@ -947,7 +947,7 @@ arrow::Status VeloxShuffleWriter::allocatePartitionBuffer(uint32_t partitionId, 
         memset(validityBuffer->mutable_data(), 0, validityBuffer->capacity());
         partitionValidityAddrs_[i][partitionId] = validityBuffer->mutable_data();
         // No need to create valueBuffer for NullType.
-        partitionBuffers_[i][partitionId] = {std::move(validityBuffer), nullptr};
+        buffers = {std::move(validityBuffer), nullptr};
         break;
       }
       default: { // fixed-width types
@@ -1060,6 +1060,24 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> VeloxShuffleWriter::a
       case arrow::MapType::type_id:
       case arrow::ListType::type_id:
         break;
+      case arrow::NullType::type_id: {
+        auto& buffers = partitionBuffers_[fixedWidthIdx][partitionId];
+        // validity buffer
+        if (buffers[kValidityBufferIndex] != nullptr) {
+          auto validityBufferSize = arrow::bit_util::BytesForBits(numRows);
+          if (reuseBuffers) {
+            allBuffers.push_back(
+                arrow::SliceBuffer(buffers[kValidityBufferIndex], 0, arrow::bit_util::BytesForBits(numRows)));
+          } else {
+            RETURN_NOT_OK(buffers[kValidityBufferIndex]->Resize(validityBufferSize, true));
+            allBuffers.push_back(std::move(buffers[kValidityBufferIndex]));
+          }
+        } else {
+          allBuffers.push_back(nullptr);
+        }
+        fixedWidthIdx++;
+        break;
+      }
       default: {
         auto& buffers = partitionBuffers_[fixedWidthIdx][partitionId];
         // validity buffer
@@ -1238,6 +1256,8 @@ arrow::Status VeloxShuffleWriter::resizePartitionBuffer(uint32_t partitionId, ui
         binaryBuf = BinaryBuf(valueBuffer->mutable_data(), lengthBuffer->mutable_data(), valueBufferSize, valueOffset);
         break;
       }
+      case arrow::NullType::type_id:
+        break;
       default: { // fixed-width types
         auto& valueBuffer = buffers[kFixedWidthValueBufferIndex];
         ARROW_RETURN_IF(!valueBuffer, arrow::Status::Invalid("Value buffer of fixed-width array is null."));
