@@ -5,7 +5,7 @@ AdaptiveSparkPlan (19)
    +- ^ RegularHashAggregateExecTransformer (10)
       +- ^ InputIteratorTransformer (9)
          +- ^ InputAdapter (8)
-            +- ^ ShuffleQueryStage (7)
+            +- ^ ShuffleQueryStage (7), Statistics(X)
                +- ColumnarExchange (6)
                   +- ^ FlushableHashAggregateExecTransformer (4)
                      +- ^ ProjectExecTransformer (3)
@@ -32,7 +32,7 @@ Input [4]: [l_quantity#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Arguments: (((((((isnotnull(l_shipdate#X) AND isnotnull(l_discount#X)) AND isnotnull(l_quantity#X)) AND (l_shipdate#X >= 1994-01-01)) AND (l_shipdate#X < 1995-01-01)) AND (l_discount#X >= 0.05)) AND (l_discount#X <= 0.07)) AND (l_quantity#X < 24.00))
 
 (3) ProjectExecTransformer
-Output [3]: [l_extendedprice#X, l_discount#X, CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true) AS _pre_112#X]
+Output [3]: [l_extendedprice#X, l_discount#X, CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4)) AS _pre_112#X]
 Input [4]: [l_quantity#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 
 (4) FlushableHashAggregateExecTransformer
@@ -63,9 +63,9 @@ Input [2]: [sum#X, isEmpty#X]
 (10) RegularHashAggregateExecTransformer
 Input [2]: [sum#X, isEmpty#X]
 Keys: []
-Functions [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true))#X]
-Results [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true))#X AS revenue#X]
+Functions [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4)))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4)))#X]
+Results [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4)))#X AS revenue#X]
 
 (11) WholeStageCodegenTransformer (X)
 Input [1]: [revenue#X]
@@ -92,7 +92,7 @@ Input [4]: [l_quantity#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 (16) HashAggregate
 Input [2]: [l_extendedprice#X, l_discount#X]
 Keys: []
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true))]
+Functions [1]: [partial_sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4)))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [2]: [sum#X, isEmpty#X]
 
@@ -103,9 +103,9 @@ Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X]
 (18) HashAggregate
 Input [2]: [sum#X, isEmpty#X]
 Keys: []
-Functions [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true))#X]
-Results [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true))#X AS revenue#X]
+Functions [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4)))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4)))#X]
+Results [1]: [sum(CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4)))#X AS revenue#X]
 
 (19) AdaptiveSparkPlan
 Output [1]: [revenue#X]

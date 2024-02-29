@@ -1,47 +1,40 @@
 == Physical Plan ==
-AdaptiveSparkPlan (46)
+AdaptiveSparkPlan (38)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (33)
-   +- ^ SortExecTransformer (31)
-      +- ^ InputIteratorTransformer (30)
-         +- ^ InputAdapter (29)
-            +- ^ ShuffleQueryStage (28)
-               +- ColumnarExchange (27)
-                  +- ^ RegularHashAggregateExecTransformer (25)
-                     +- ^ InputIteratorTransformer (24)
-                        +- ^ InputAdapter (23)
-                           +- ^ ShuffleQueryStage (22)
-                              +- ColumnarExchange (21)
-                                 +- ^ ProjectExecTransformer (19)
-                                    +- ^ FlushableHashAggregateExecTransformer (18)
-                                       +- ^ ProjectExecTransformer (17)
-                                          +- ^ ShuffledHashJoinExecTransformer LeftAnti (16)
-                                             :- ^ InputIteratorTransformer (8)
-                                             :  +- ^ InputAdapter (7)
-                                             :     +- ^ ShuffleQueryStage (6)
-                                             :        +- ColumnarExchange (5)
-                                             :           +- ^ ProjectExecTransformer (3)
-                                             :              +- ^ FilterExecTransformer (2)
-                                             :                 +- ^ Scan parquet (1)
-                                             +- ^ InputIteratorTransformer (15)
-                                                +- ^ InputAdapter (14)
-                                                   +- ^ ShuffleQueryStage (13)
-                                                      +- ColumnarExchange (12)
-                                                         +- ^ ProjectExecTransformer (10)
-                                                            +- ^ Scan parquet (9)
+   VeloxColumnarToRowExec (26)
+   +- ^ SortExecTransformer (24)
+      +- ^ InputIteratorTransformer (23)
+         +- ^ InputAdapter (22)
+            +- ^ ShuffleQueryStage (21), Statistics(X)
+               +- ColumnarExchange (20)
+                  +- ^ RegularHashAggregateExecTransformer (18)
+                     +- ^ InputIteratorTransformer (17)
+                        +- ^ InputAdapter (16)
+                           +- ^ ShuffleQueryStage (15), Statistics(X)
+                              +- ColumnarExchange (14)
+                                 +- ^ ProjectExecTransformer (12)
+                                    +- ^ FlushableHashAggregateExecTransformer (11)
+                                       +- ^ ProjectExecTransformer (10)
+                                          +- ^ GlutenBroadcastHashJoinExecTransformer LeftAnti (9)
+                                             :- ^ FilterExecTransformer (2)
+                                             :  +- ^ Scan parquet (1)
+                                             +- ^ InputIteratorTransformer (8)
+                                                +- ^ InputAdapter (7)
+                                                   +- ^ BroadcastQueryStage (6), Statistics(X)
+                                                      +- ColumnarBroadcastExchange (5)
+                                                         +- ^ Scan parquet (3)
 +- == Initial Plan ==
-   Sort (45)
-   +- Exchange (44)
-      +- HashAggregate (43)
-         +- Exchange (42)
-            +- HashAggregate (41)
-               +- Project (40)
-                  +- ShuffledHashJoin LeftAnti BuildRight (39)
-                     :- Exchange (36)
-                     :  +- Filter (35)
-                     :     +- Scan parquet (34)
-                     +- Exchange (38)
-                        +- Scan parquet (37)
+   Sort (37)
+   +- Exchange (36)
+      +- HashAggregate (35)
+         +- Exchange (34)
+            +- HashAggregate (33)
+               +- Project (32)
+                  +- BroadcastHashJoin LeftAnti BuildRight (31)
+                     :- Filter (28)
+                     :  +- Scan parquet (27)
+                     +- BroadcastExchange (30)
+                        +- Scan parquet (29)
 
 
 (1) Scan parquet
@@ -55,190 +48,296 @@ ReadSchema: struct<c_custkey:bigint,c_phone:string,c_acctbal:decimal(12,2)>
 Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 Arguments: ((isnotnull(c_acctbal#X) AND substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17)) AND (cast(c_acctbal#X as decimal(16,6)) > Subquery subquery#X, [id=#X]))
 
-(3) ProjectExecTransformer
-Output [4]: [hash(c_custkey#X, 42) AS hash_partition_key#X, c_custkey#X, c_phone#X, c_acctbal#X]
-Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
-
-(4) WholeStageCodegenTransformer (X)
-Input [4]: [hash_partition_key#X, c_custkey#X, c_phone#X, c_acctbal#X]
-Arguments: false
-
-(5) ColumnarExchange
-Input [4]: [hash_partition_key#X, c_custkey#X, c_phone#X, c_acctbal#X]
-Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X, c_phone#X, c_acctbal#X], [plan_id=X], [id=#X]
-
-(6) ShuffleQueryStage
-Output [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
-Arguments: X
-
-(7) InputAdapter
-Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
-
-(8) InputIteratorTransformer
-Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
-
-(9) Scan parquet
+(3) Scan parquet
 Output [1]: [o_custkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 ReadSchema: struct<o_custkey:bigint>
 
-(10) ProjectExecTransformer
-Output [2]: [hash(o_custkey#X, 42) AS hash_partition_key#X, o_custkey#X]
+(4) WholeStageCodegenTransformer (X)
 Input [1]: [o_custkey#X]
-
-(11) WholeStageCodegenTransformer (X)
-Input [2]: [hash_partition_key#X, o_custkey#X]
 Arguments: false
 
-(12) ColumnarExchange
-Input [2]: [hash_partition_key#X, o_custkey#X]
-Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [o_custkey#X], [plan_id=X], [id=#X]
+(5) ColumnarBroadcastExchange
+Input [1]: [o_custkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(13) ShuffleQueryStage
+(6) BroadcastQueryStage
 Output [1]: [o_custkey#X]
 Arguments: X
 
-(14) InputAdapter
+(7) InputAdapter
 Input [1]: [o_custkey#X]
 
-(15) InputIteratorTransformer
+(8) InputIteratorTransformer
 Input [1]: [o_custkey#X]
 
-(16) ShuffledHashJoinExecTransformer
+(9) GlutenBroadcastHashJoinExecTransformer
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
 Join condition: None
 
-(17) ProjectExecTransformer
+(10) ProjectExecTransformer
 Output [2]: [substring(c_phone#X, 1, 2) AS cntrycode#X, c_acctbal#X]
 Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 
-(18) FlushableHashAggregateExecTransformer
+(11) FlushableHashAggregateExecTransformer
 Input [2]: [cntrycode#X, c_acctbal#X]
 Keys [1]: [cntrycode#X]
 Functions [2]: [partial_count(1), partial_sum(c_acctbal#X)]
 Aggregate Attributes [3]: [count#X, sum#X, isEmpty#X]
 Results [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 
-(19) ProjectExecTransformer
+(12) ProjectExecTransformer
 Output [5]: [hash(cntrycode#X, 42) AS hash_partition_key#X, cntrycode#X, count#X, sum#X, isEmpty#X]
 Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 
-(20) WholeStageCodegenTransformer (X)
+(13) WholeStageCodegenTransformer (X)
 Input [5]: [hash_partition_key#X, cntrycode#X, count#X, sum#X, isEmpty#X]
 Arguments: false
 
-(21) ColumnarExchange
+(14) ColumnarExchange
 Input [5]: [hash_partition_key#X, cntrycode#X, count#X, sum#X, isEmpty#X]
 Arguments: hashpartitioning(cntrycode#X, 1), ENSURE_REQUIREMENTS, [cntrycode#X, count#X, sum#X, isEmpty#X], [plan_id=X], [id=#X]
 
-(22) ShuffleQueryStage
+(15) ShuffleQueryStage
 Output [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 Arguments: X
 
-(23) InputAdapter
+(16) InputAdapter
 Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 
-(24) InputIteratorTransformer
+(17) InputIteratorTransformer
 Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 
-(25) RegularHashAggregateExecTransformer
+(18) RegularHashAggregateExecTransformer
 Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 Keys [1]: [cntrycode#X]
 Functions [2]: [count(1), sum(c_acctbal#X)]
 Aggregate Attributes [2]: [count(1)#X, sum(c_acctbal#X)#X]
 Results [3]: [cntrycode#X, count(1)#X AS numcust#X, sum(c_acctbal#X)#X AS totacctbal#X]
 
-(26) WholeStageCodegenTransformer (X)
+(19) WholeStageCodegenTransformer (X)
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: false
 
-(27) ColumnarExchange
+(20) ColumnarExchange
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: rangepartitioning(cntrycode#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
-(28) ShuffleQueryStage
+(21) ShuffleQueryStage
 Output [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: X
 
-(29) InputAdapter
+(22) InputAdapter
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 
-(30) InputIteratorTransformer
+(23) InputIteratorTransformer
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 
-(31) SortExecTransformer
+(24) SortExecTransformer
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: [cntrycode#X ASC NULLS FIRST], true, 0
 
-(32) WholeStageCodegenTransformer (X)
+(25) WholeStageCodegenTransformer (X)
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: false
 
-(33) VeloxColumnarToRowExec
+(26) VeloxColumnarToRowExec
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 
-(34) Scan parquet
+(27) Scan parquet
 Output [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(c_acctbal)]
 ReadSchema: struct<c_custkey:bigint,c_phone:string,c_acctbal:decimal(12,2)>
 
-(35) Filter
+(28) Filter
 Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 Condition : ((isnotnull(c_acctbal#X) AND substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17)) AND (cast(c_acctbal#X as decimal(16,6)) > Subquery subquery#X, [id=#X]))
 
-(36) Exchange
-Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
-Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
-
-(37) Scan parquet
+(29) Scan parquet
 Output [1]: [o_custkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 ReadSchema: struct<o_custkey:bigint>
 
-(38) Exchange
+(30) BroadcastExchange
 Input [1]: [o_custkey#X]
-Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(39) ShuffledHashJoin
+(31) BroadcastHashJoin
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
 Join condition: None
 
-(40) Project
+(32) Project
 Output [2]: [substring(c_phone#X, 1, 2) AS cntrycode#X, c_acctbal#X]
 Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 
-(41) HashAggregate
+(33) HashAggregate
 Input [2]: [cntrycode#X, c_acctbal#X]
 Keys [1]: [cntrycode#X]
 Functions [2]: [partial_count(1), partial_sum(c_acctbal#X)]
 Aggregate Attributes [3]: [count#X, sum#X, isEmpty#X]
 Results [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 
-(42) Exchange
+(34) Exchange
 Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 Arguments: hashpartitioning(cntrycode#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(43) HashAggregate
+(35) HashAggregate
 Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 Keys [1]: [cntrycode#X]
 Functions [2]: [count(1), sum(c_acctbal#X)]
 Aggregate Attributes [2]: [count(1)#X, sum(c_acctbal#X)#X]
 Results [3]: [cntrycode#X, count(1)#X AS numcust#X, sum(c_acctbal#X)#X AS totacctbal#X]
 
-(44) Exchange
+(36) Exchange
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: rangepartitioning(cntrycode#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(45) Sort
+(37) Sort
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: [cntrycode#X ASC NULLS FIRST], true, 0
 
-(46) AdaptiveSparkPlan
+(38) AdaptiveSparkPlan
 Output [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: isFinalPlan=true
+
+===== Subqueries =====
+
+Subquery:1 Hosting operator id = 2 Hosting Expression = Subquery subquery#X, [id=#X]
+AdaptiveSparkPlan (57)
++- == Final Plan ==
+   VeloxColumnarToRowExec (50)
+   +- ^ RegularHashAggregateExecTransformer (48)
+      +- ^ InputIteratorTransformer (47)
+         +- ^ InputAdapter (46)
+            +- ^ ShuffleQueryStage (45), Statistics(X)
+               +- ColumnarExchange (44)
+                  +- ^ FlushableHashAggregateExecTransformer (42)
+                     +- ^ ProjectExecTransformer (41)
+                        +- ^ FilterExecTransformer (40)
+                           +- ^ Scan parquet (39)
++- == Initial Plan ==
+   HashAggregate (56)
+   +- Exchange (55)
+      +- HashAggregate (54)
+         +- Project (53)
+            +- Filter (52)
+               +- Scan parquet (51)
+
+
+(39) Scan parquet
+Output [2]: [c_phone#X, c_acctbal#X]
+Batched: true
+Location: InMemoryFileIndex [*]
+PushedFilters: [IsNotNull(c_acctbal), GreaterThan(c_acctbal,0.00)]
+ReadSchema: struct<c_phone:string,c_acctbal:decimal(12,2)>
+
+(40) FilterExecTransformer
+Input [2]: [c_phone#X, c_acctbal#X]
+Arguments: ((isnotnull(c_acctbal#X) AND (c_acctbal#X > 0.00)) AND substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17))
+
+(41) ProjectExecTransformer
+Output [1]: [c_acctbal#X]
+Input [2]: [c_phone#X, c_acctbal#X]
+
+(42) FlushableHashAggregateExecTransformer
+Input [1]: [c_acctbal#X]
+Keys: []
+Functions [1]: [partial_avg(c_acctbal#X)]
+Aggregate Attributes [2]: [sum#X, count#X]
+Results [2]: [sum#X, count#X]
+
+(43) WholeStageCodegenTransformer (X)
+Input [2]: [sum#X, count#X]
+Arguments: false
+
+(44) ColumnarExchange
+Input [2]: [sum#X, count#X]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+
+(45) ShuffleQueryStage
+Output [2]: [sum#X, count#X]
+Arguments: X
+
+(46) InputAdapter
+Input [2]: [sum#X, count#X]
+
+(47) InputIteratorTransformer
+Input [2]: [sum#X, count#X]
+
+(48) RegularHashAggregateExecTransformer
+Input [2]: [sum#X, count#X]
+Keys: []
+Functions [1]: [avg(c_acctbal#X)]
+Aggregate Attributes [1]: [avg(c_acctbal#X)#X]
+Results [1]: [avg(c_acctbal#X)#X AS avg(c_acctbal)#X]
+
+(49) WholeStageCodegenTransformer (X)
+Input [1]: [avg(c_acctbal)#X]
+Arguments: false
+
+(50) VeloxColumnarToRowExec
+Input [1]: [avg(c_acctbal)#X]
+
+(51) Scan parquet
+Output [2]: [c_phone#X, c_acctbal#X]
+Batched: true
+Location: InMemoryFileIndex [*]
+PushedFilters: [IsNotNull(c_acctbal), GreaterThan(c_acctbal,0.00)]
+ReadSchema: struct<c_phone:string,c_acctbal:decimal(12,2)>
+
+(52) Filter
+Input [2]: [c_phone#X, c_acctbal#X]
+Condition : ((isnotnull(c_acctbal#X) AND (c_acctbal#X > 0.00)) AND substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17))
+
+(53) Project
+Output [1]: [c_acctbal#X]
+Input [2]: [c_phone#X, c_acctbal#X]
+
+(54) HashAggregate
+Input [1]: [c_acctbal#X]
+Keys: []
+Functions [1]: [partial_avg(c_acctbal#X)]
+Aggregate Attributes [2]: [sum#X, count#X]
+Results [2]: [sum#X, count#X]
+
+(55) Exchange
+Input [2]: [sum#X, count#X]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X]
+
+(56) HashAggregate
+Input [2]: [sum#X, count#X]
+Keys: []
+Functions [1]: [avg(c_acctbal#X)]
+Aggregate Attributes [1]: [avg(c_acctbal#X)#X]
+Results [1]: [avg(c_acctbal#X)#X AS avg(c_acctbal)#X]
+
+(57) AdaptiveSparkPlan
+Output [1]: [avg(c_acctbal)#X]
+Arguments: isFinalPlan=true
+
+Subquery:2 Hosting operator id = 1 Hosting Expression = Subquery subquery#X, [id=#X]
+AdaptiveSparkPlan (57)
++- == Final Plan ==
+   VeloxColumnarToRowExec (50)
+   +- ^ RegularHashAggregateExecTransformer (48)
+      +- ^ InputIteratorTransformer (47)
+         +- ^ InputAdapter (46)
+            +- ^ ShuffleQueryStage (45), Statistics(X)
+               +- ColumnarExchange (44)
+                  +- ^ FlushableHashAggregateExecTransformer (42)
+                     +- ^ ProjectExecTransformer (41)
+                        +- ^ FilterExecTransformer (40)
+                           +- ^ Scan parquet (39)
++- == Initial Plan ==
+   HashAggregate (56)
+   +- Exchange (55)
+      +- HashAggregate (54)
+         +- Project (53)
+            +- Filter (52)
+               +- Scan parquet (51)

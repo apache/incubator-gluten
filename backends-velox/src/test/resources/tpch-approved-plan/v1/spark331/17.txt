@@ -11,14 +11,14 @@ AdaptiveSparkPlan (57)
                   :  +- ^ ShuffledHashJoinExecTransformer Inner (17)
                   :     :- ^ InputIteratorTransformer (8)
                   :     :  +- ^ InputAdapter (7)
-                  :     :     +- ^ ShuffleQueryStage (6)
+                  :     :     +- ^ ShuffleQueryStage (6), Statistics(X)
                   :     :        +- ColumnarExchange (5)
                   :     :           +- ^ ProjectExecTransformer (3)
                   :     :              +- ^ FilterExecTransformer (2)
                   :     :                 +- ^ Scan parquet (1)
                   :     +- ^ InputIteratorTransformer (16)
                   :        +- ^ InputAdapter (15)
-                  :           +- ^ ShuffleQueryStage (14)
+                  :           +- ^ ShuffleQueryStage (14), Statistics(X)
                   :              +- ColumnarExchange (13)
                   :                 +- ^ ProjectExecTransformer (11)
                   :                    +- ^ FilterExecTransformer (10)
@@ -28,7 +28,7 @@ AdaptiveSparkPlan (57)
                         +- ^ RegularHashAggregateExecTransformer (28)
                            +- ^ InputIteratorTransformer (27)
                               +- ^ InputAdapter (26)
-                                 +- ^ ShuffleQueryStage (25)
+                                 +- ^ ShuffleQueryStage (25), Statistics(X)
                                     +- ColumnarExchange (24)
                                        +- ^ ProjectExecTransformer (22)
                                           +- ^ FlushableHashAggregateExecTransformer (21)
@@ -179,7 +179,7 @@ Aggregate Attributes [1]: [avg(l_quantity#X)#X]
 Results [2]: [l_partkey#X, avg(l_quantity#X)#X]
 
 (29) ProjectExecTransformer
-Output [2]: [CheckOverflow((0.200000 * promote_precision(avg(l_quantity#X)#X)), DecimalType(18,7), true) AS (0.2 * avg(l_quantity))#X, l_partkey#X]
+Output [2]: [CheckOverflow((0.200000 * promote_precision(avg(l_quantity#X)#X)), DecimalType(18,7)) AS (0.2 * avg(l_quantity))#X, l_partkey#X]
 Input [2]: [l_partkey#X, avg(l_quantity#X)#X]
 
 (30) FilterExecTransformer
@@ -210,7 +210,7 @@ Aggregate Attributes [1]: [sum(l_extendedprice#X)#X]
 Results [1]: [sum(l_extendedprice#X)#X]
 
 (35) ProjectExecTransformer
-Output [1]: [CheckOverflow((promote_precision(sum(l_extendedprice#X)#X) / 7.00), DecimalType(27,6), true) AS avg_yearly#X]
+Output [1]: [CheckOverflow((promote_precision(sum(l_extendedprice#X)#X) / 7.00), DecimalType(27,6)) AS avg_yearly#X]
 Input [1]: [sum(l_extendedprice#X)#X]
 
 (36) WholeStageCodegenTransformer (X)
@@ -290,7 +290,7 @@ Input [3]: [l_partkey#X, sum#X, count#X]
 Keys [1]: [l_partkey#X]
 Functions [1]: [avg(l_quantity#X)]
 Aggregate Attributes [1]: [avg(l_quantity#X)#X]
-Results [2]: [CheckOverflow((0.200000 * promote_precision(avg(l_quantity#X)#X)), DecimalType(18,7), true) AS (0.2 * avg(l_quantity))#X, l_partkey#X]
+Results [2]: [CheckOverflow((0.200000 * promote_precision(avg(l_quantity#X)#X)), DecimalType(18,7)) AS (0.2 * avg(l_quantity))#X, l_partkey#X]
 
 (52) Filter
 Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
@@ -317,7 +317,7 @@ Input [2]: [sum#X, isEmpty#X]
 Keys: []
 Functions [1]: [sum(l_extendedprice#X)]
 Aggregate Attributes [1]: [sum(l_extendedprice#X)#X]
-Results [1]: [CheckOverflow((promote_precision(sum(l_extendedprice#X)#X) / 7.00), DecimalType(27,6), true) AS avg_yearly#X]
+Results [1]: [CheckOverflow((promote_precision(sum(l_extendedprice#X)#X) / 7.00), DecimalType(27,6)) AS avg_yearly#X]
 
 (57) AdaptiveSparkPlan
 Output [1]: [avg_yearly#X]

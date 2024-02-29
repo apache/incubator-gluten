@@ -5,12 +5,12 @@ AdaptiveSparkPlan (134)
    +- ^ SortExecTransformer (92)
       +- ^ InputIteratorTransformer (91)
          +- ^ InputAdapter (90)
-            +- ^ ShuffleQueryStage (89)
+            +- ^ ShuffleQueryStage (89), Statistics(X)
                +- ColumnarExchange (88)
                   +- ^ RegularHashAggregateExecTransformer (86)
                      +- ^ InputIteratorTransformer (85)
                         +- ^ InputAdapter (84)
-                           +- ^ ShuffleQueryStage (83)
+                           +- ^ ShuffleQueryStage (83), Statistics(X)
                               +- ColumnarExchange (82)
                                  +- ^ ProjectExecTransformer (80)
                                     +- ^ FlushableHashAggregateExecTransformer (79)
@@ -18,66 +18,66 @@ AdaptiveSparkPlan (134)
                                           +- ^ ShuffledHashJoinExecTransformer Inner (77)
                                              :- ^ InputIteratorTransformer (68)
                                              :  +- ^ InputAdapter (67)
-                                             :     +- ^ ShuffleQueryStage (66)
+                                             :     +- ^ ShuffleQueryStage (66), Statistics(X)
                                              :        +- ColumnarExchange (65)
                                              :           +- ^ ProjectExecTransformer (63)
                                              :              +- ^ ShuffledHashJoinExecTransformer Inner (62)
                                              :                 :- ^ InputIteratorTransformer (53)
                                              :                 :  +- ^ InputAdapter (52)
-                                             :                 :     +- ^ ShuffleQueryStage (51)
+                                             :                 :     +- ^ ShuffleQueryStage (51), Statistics(X)
                                              :                 :        +- ColumnarExchange (50)
                                              :                 :           +- ^ ProjectExecTransformer (48)
                                              :                 :              +- ^ ShuffledHashJoinExecTransformer Inner (47)
                                              :                 :                 :- ^ InputIteratorTransformer (38)
                                              :                 :                 :  +- ^ InputAdapter (37)
-                                             :                 :                 :     +- ^ ShuffleQueryStage (36)
+                                             :                 :                 :     +- ^ ShuffleQueryStage (36), Statistics(X)
                                              :                 :                 :        +- ColumnarExchange (35)
                                              :                 :                 :           +- ^ ProjectExecTransformer (33)
                                              :                 :                 :              +- ^ ShuffledHashJoinExecTransformer Inner (32)
                                              :                 :                 :                 :- ^ InputIteratorTransformer (23)
                                              :                 :                 :                 :  +- ^ InputAdapter (22)
-                                             :                 :                 :                 :     +- ^ ShuffleQueryStage (21)
+                                             :                 :                 :                 :     +- ^ ShuffleQueryStage (21), Statistics(X)
                                              :                 :                 :                 :        +- ColumnarExchange (20)
                                              :                 :                 :                 :           +- ^ ProjectExecTransformer (18)
                                              :                 :                 :                 :              +- ^ ShuffledHashJoinExecTransformer Inner (17)
                                              :                 :                 :                 :                 :- ^ InputIteratorTransformer (8)
                                              :                 :                 :                 :                 :  +- ^ InputAdapter (7)
-                                             :                 :                 :                 :                 :     +- ^ ShuffleQueryStage (6)
+                                             :                 :                 :                 :                 :     +- ^ ShuffleQueryStage (6), Statistics(X)
                                              :                 :                 :                 :                 :        +- ColumnarExchange (5)
                                              :                 :                 :                 :                 :           +- ^ ProjectExecTransformer (3)
                                              :                 :                 :                 :                 :              +- ^ FilterExecTransformer (2)
                                              :                 :                 :                 :                 :                 +- ^ Scan parquet (1)
                                              :                 :                 :                 :                 +- ^ InputIteratorTransformer (16)
                                              :                 :                 :                 :                    +- ^ InputAdapter (15)
-                                             :                 :                 :                 :                       +- ^ ShuffleQueryStage (14)
+                                             :                 :                 :                 :                       +- ^ ShuffleQueryStage (14), Statistics(X)
                                              :                 :                 :                 :                          +- ColumnarExchange (13)
                                              :                 :                 :                 :                             +- ^ ProjectExecTransformer (11)
                                              :                 :                 :                 :                                +- ^ FilterExecTransformer (10)
                                              :                 :                 :                 :                                   +- ^ Scan parquet (9)
                                              :                 :                 :                 +- ^ InputIteratorTransformer (31)
                                              :                 :                 :                    +- ^ InputAdapter (30)
-                                             :                 :                 :                       +- ^ ShuffleQueryStage (29)
+                                             :                 :                 :                       +- ^ ShuffleQueryStage (29), Statistics(X)
                                              :                 :                 :                          +- ColumnarExchange (28)
                                              :                 :                 :                             +- ^ ProjectExecTransformer (26)
                                              :                 :                 :                                +- ^ FilterExecTransformer (25)
                                              :                 :                 :                                   +- ^ Scan parquet (24)
                                              :                 :                 +- ^ InputIteratorTransformer (46)
                                              :                 :                    +- ^ InputAdapter (45)
-                                             :                 :                       +- ^ ShuffleQueryStage (44)
+                                             :                 :                       +- ^ ShuffleQueryStage (44), Statistics(X)
                                              :                 :                          +- ColumnarExchange (43)
                                              :                 :                             +- ^ ProjectExecTransformer (41)
                                              :                 :                                +- ^ FilterExecTransformer (40)
                                              :                 :                                   +- ^ Scan parquet (39)
                                              :                 +- ^ InputIteratorTransformer (61)
                                              :                    +- ^ InputAdapter (60)
-                                             :                       +- ^ ShuffleQueryStage (59)
+                                             :                       +- ^ ShuffleQueryStage (59), Statistics(X)
                                              :                          +- ColumnarExchange (58)
                                              :                             +- ^ ProjectExecTransformer (56)
                                              :                                +- ^ FilterExecTransformer (55)
                                              :                                   +- ^ Scan parquet (54)
                                              +- ^ InputIteratorTransformer (76)
                                                 +- ^ InputAdapter (75)
-                                                   +- ^ ShuffleQueryStage (74)
+                                                   +- ^ ShuffleQueryStage (74), Statistics(X)
                                                       +- ColumnarExchange (73)
                                                          +- ^ ProjectExecTransformer (71)
                                                             +- ^ FilterExecTransformer (70)
@@ -436,7 +436,7 @@ Right keys [1]: [r_regionkey#X]
 Join condition: None
 
 (78) ProjectExecTransformer
-Output [4]: [l_extendedprice#X, l_discount#X, n_name#X, CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true) AS _pre_111#X]
+Output [4]: [l_extendedprice#X, l_discount#X, n_name#X, CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) AS _pre_111#X]
 Input [5]: [l_extendedprice#X, l_discount#X, n_name#X, n_regionkey#X, r_regionkey#X]
 
 (79) FlushableHashAggregateExecTransformer
@@ -471,9 +471,9 @@ Input [3]: [n_name#X, sum#X, isEmpty#X]
 (86) RegularHashAggregateExecTransformer
 Input [3]: [n_name#X, sum#X, isEmpty#X]
 Keys [1]: [n_name#X]
-Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))#X]
-Results [2]: [n_name#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))#X AS revenue#X]
+Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
+Results [2]: [n_name#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS revenue#X]
 
 (87) WholeStageCodegenTransformer (X)
 Input [2]: [n_name#X, revenue#X]
@@ -666,7 +666,7 @@ Input [5]: [l_extendedprice#X, l_discount#X, n_name#X, n_regionkey#X, r_regionke
 (129) HashAggregate
 Input [3]: [l_extendedprice#X, l_discount#X, n_name#X]
 Keys [1]: [n_name#X]
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))]
+Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [3]: [n_name#X, sum#X, isEmpty#X]
 
@@ -677,9 +677,9 @@ Arguments: hashpartitioning(n_name#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 (131) HashAggregate
 Input [3]: [n_name#X, sum#X, isEmpty#X]
 Keys [1]: [n_name#X]
-Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))#X]
-Results [2]: [n_name#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))#X AS revenue#X]
+Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
+Results [2]: [n_name#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS revenue#X]
 
 (132) Exchange
 Input [2]: [n_name#X, revenue#X]
