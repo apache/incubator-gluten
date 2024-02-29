@@ -84,7 +84,7 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
   def shouldCheckGoldenFiles(): Boolean = {
     Seq("v1", "v1-bhj").contains(subType()) && (formatSparkVersion match {
       case "322" => true
-      case "331" => false
+      case "331" => true
       case "342" => false
       case _ => false
     })
