@@ -21,6 +21,8 @@
 #include <Interpreters/GraceHashJoin.h>
 #include <Interpreters/HashJoin.h>
 #include <Interpreters/TableJoin.h>
+#include <Interpreters/MergeJoin.h>
+#include <Interpreters/FullSortingMergeJoin.h>
 #include <Join/BroadCastJoinBuilder.h>
 #include <Join/StorageJoinFromReadBuffer.h>
 #include <Parser/SerializedPlanParser.h>
@@ -217,6 +219,14 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
                 left->getCurrentDataStream().header,
                 right->getCurrentDataStream().header,
                 context->getTempDataOnDisk());
+        }
+        else if (join_algorithm.isSet(DB::JoinAlgorithm::PARTIAL_MERGE))
+        {
+            hash_join = std::make_shared<MergeJoin>(table_join, right->getCurrentDataStream().header.cloneEmpty());
+        }
+        else if (join_algorithm.isSet(DB::JoinAlgorithm::FULL_SORTING_MERGE))
+        {
+            hash_join = std::make_shared<FullSortingMergeJoin>(table_join, right->getCurrentDataStream().header.cloneEmpty());
         }
         else
         {
