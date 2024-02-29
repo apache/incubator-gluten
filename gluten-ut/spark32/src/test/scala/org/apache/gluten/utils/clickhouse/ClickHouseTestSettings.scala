@@ -1185,6 +1185,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-36020: Check logical link in remove redundant projects")
     .exclude("SPARK-36032: Use inputPlan instead of currentPhysicalPlan to initialize logical link")
     .exclude("SPARK-37742: AQE reads invalid InMemoryRelation stats and mistakenly plans BHJ")
+    // SMJ Exec have changed to CH SMJ Transformer
+    .exclude("Change broadcast join to merge join")
+    .exclude("Avoid plan change if cost is greater")
+    .exclude("SPARK-30524: Do not optimize skew join if introduce additional shuffle")
     .excludeGlutenTest("Change broadcast join to merge join")
     .excludeGlutenTest("Empty stage coalesced to 1-partition RDD")
     .excludeGlutenTest(
