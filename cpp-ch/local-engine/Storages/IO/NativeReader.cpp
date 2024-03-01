@@ -88,7 +88,7 @@ static void readFixedSizeAggregateData(DB::ReadBuffer &in, DB::ColumnPtr & colum
     auto & arena = real_column.createOrGetArena();
     ColumnAggregateFunction::Container & vec = real_column.getData();
     size_t initial_size = vec.size();
-    vec.reserve(initial_size + rows);
+    vec.reserve_exact(initial_size + rows);
     for (size_t i = 0; i < rows; ++i)
     {
         AggregateDataPtr place = arena.alignedAlloc(column_parse_util.aggregate_state_size, column_parse_util.aggregate_state_align);
@@ -105,7 +105,7 @@ static void readVarSizeAggregateData(DB::ReadBuffer &in, DB::ColumnPtr & column,
     auto & arena = real_column.createOrGetArena();
     ColumnAggregateFunction::Container & vec = real_column.getData();
     size_t initial_size = vec.size();
-    vec.reserve(initial_size + rows);
+    vec.reserve_exact(initial_size + rows);
     for (size_t i = 0; i < rows; ++i)
     {
         AggregateDataPtr place = arena.alignedAlloc(column_parse_util.aggregate_state_size, column_parse_util.aggregate_state_align);

@@ -45,8 +45,8 @@ struct ExtractNullableSubstringImpl
         DB::ColumnString::Chars & res_data, DB::ColumnString::Offsets & res_offsets, DB::IColumn & null_map)
     {
         size_t size = offsets.size();
-        res_offsets.resize(size);
-        res_data.reserve(size * Extractor::getReserveLengthForElement());
+        res_offsets.resize_exact(size);
+        res_data.reserve_exact(size * Extractor::getReserveLengthForElement());
         null_map.reserve(size);
 
         size_t prev_offset = 0;
@@ -60,7 +60,7 @@ struct ExtractNullableSubstringImpl
         {
             Extractor::execute(reinterpret_cast<const char *>(&data[prev_offset]), offsets[i] - prev_offset - 1, start, length);
 
-            res_data.resize(res_data.size() + length + 1);
+            res_data.resize_exact(res_data.size() + length + 1);
             if (start)
             {
                 memcpySmallAllowReadWriteOverflow15(&res_data[res_offset], start, length);
@@ -261,8 +261,8 @@ struct SparkExtractURLOneQuery
         DB::ColumnString::Chars & res_data, DB::ColumnString::Offsets & res_offsets, DB::IColumn & null_map)
     {
         const static String protocol_delim = "://";
-        res_data.reserve(data.size() / 5);
-        res_offsets.resize(offsets.size());
+        res_data.reserve_exact(data.size() / 5);
+        res_offsets.resize_exact(offsets.size());
 
         pattern += '=';
         const char * param_str = pattern.c_str();
@@ -332,7 +332,7 @@ struct SparkExtractURLOneQuery
 
                 size_t param_size = param_end - param_begin;
 
-                res_data.resize(res_offset + param_size + 1);
+                res_data.resize_exact(res_offset + param_size + 1);
                 memcpySmallAllowReadWriteOverflow15(&res_data[res_offset], param_begin, param_size);
                 res_offset += param_size;
                 null_map.insert(0);
@@ -340,7 +340,7 @@ struct SparkExtractURLOneQuery
             else
             {
                 /// No parameter found, put empty string in result.
-                res_data.resize(res_offset + 1);
+                res_data.resize_exact(res_offset + 1);
                 null_map.insert(1);
             }
 

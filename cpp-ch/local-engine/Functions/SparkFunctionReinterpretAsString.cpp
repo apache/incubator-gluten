@@ -77,7 +77,7 @@ namespace
             size_t rows = src.size();
             ColumnString::Chars & data_to = dst_concrete->getChars();
             ColumnString::Offsets & offsets_to = dst_concrete->getOffsets();
-            offsets_to.resize(rows);
+            offsets_to.resize_exact(rows);
 
             ColumnString::Offset offset = 0;
             for (size_t i = 0; i < rows; ++i)

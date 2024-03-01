@@ -148,7 +148,7 @@ namespace
                     const auto & vector = typeid_cast<const ColumnVector<FromFieldType> *>(arguments[0].column.get());
                     auto & vec_to = col_to->getData();
                     auto & datas = vector->getData();
-                    vec_to.resize(input_rows_count);
+                    vec_to.resize_exact(input_rows_count);
 
                     for (size_t i = 0; i < input_rows_count; ++i)
                     {
