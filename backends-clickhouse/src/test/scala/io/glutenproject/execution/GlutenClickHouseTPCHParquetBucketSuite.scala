@@ -267,7 +267,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         assert(!(plans(0).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
         assert(plans(0).metrics("numFiles").value === 4)
         assert(plans(0).metrics("pruningTime").value === -1)
-        assert(plans(0).metrics("outputRows").value === 600572)
+        assert(plans(0).metrics("numOutputRows").value === 600572)
       }
     )
   }
@@ -329,7 +329,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
           assert(plans(11).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         }
         assert(plans(11).metrics("numFiles").value === 1)
-        assert(plans(11).metrics("outputRows").value === 1000)
+        assert(plans(11).metrics("numOutputRows").value === 1000)
       }
     )
   }
@@ -369,11 +369,11 @@ class GlutenClickHouseTPCHParquetBucketSuite
           assert(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         }
         assert(plans(2).metrics("numFiles").value === 4)
-        assert(plans(2).metrics("outputRows").value === 15000)
+        assert(plans(2).metrics("numOutputRows").value === 15000)
 
         assert(!(plans(3).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
         assert(plans(3).metrics("numFiles").value === 4)
-        assert(plans(3).metrics("outputRows").value === 150000)
+        assert(plans(3).metrics("numOutputRows").value === 150000)
       }
     )
 
@@ -421,11 +421,11 @@ class GlutenClickHouseTPCHParquetBucketSuite
 
         assert(plans(1).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans(1).metrics("numFiles").value === 4)
-        assert(plans(1).metrics("outputRows").value === 150000)
+        assert(plans(1).metrics("numOutputRows").value === 150000)
 
         assert(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans(2).metrics("numFiles").value === 4)
-        assert(plans(2).metrics("outputRows").value === 600572)
+        assert(plans(2).metrics("numOutputRows").value === 600572)
       }
     )
 
@@ -461,7 +461,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         assert(!(plans(0).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
         assert(plans(0).metrics("numFiles").value === 4)
         assert(plans(0).metrics("pruningTime").value === -1)
-        assert(plans(0).metrics("outputRows").value === 600572)
+        assert(plans(0).metrics("numOutputRows").value === 600572)
       }
     )
   }
@@ -489,11 +489,11 @@ class GlutenClickHouseTPCHParquetBucketSuite
 
         assert(plans(1).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans(1).metrics("numFiles").value === 4)
-        assert(plans(1).metrics("outputRows").value === 150000)
+        assert(plans(1).metrics("numOutputRows").value === 150000)
 
         assert(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans(2).metrics("numFiles").value === 4)
-        assert(plans(2).metrics("outputRows").value === 600572)
+        assert(plans(2).metrics("numOutputRows").value === 600572)
       }
     )
 

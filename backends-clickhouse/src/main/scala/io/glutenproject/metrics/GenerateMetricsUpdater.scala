@@ -33,9 +33,9 @@ class GenerateMetricsUpdater(val metrics: Map[String, SQLMetric]) extends Metric
         MetricsUtil.updateExtraTimeMetric(
           metricsData,
           metrics("extraTime"),
-          metrics("outputRows"),
+          metrics("numOutputRows"),
           metrics("outputBytes"),
-          metrics("inputRows"),
+          metrics("numInputRows"),
           metrics("inputBytes"),
           GenerateMetricsUpdater.INCLUDING_PROCESSORS,
           GenerateMetricsUpdater.CH_PLAN_NODE_NAME
