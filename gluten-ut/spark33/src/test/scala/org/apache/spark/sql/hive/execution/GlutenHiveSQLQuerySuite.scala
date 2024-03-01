@@ -120,7 +120,9 @@ class GlutenHiveSQLQuerySuite extends GlutenSQLTestsTrait {
   }
 
   testGluten("avoid unnecessary filter binding for subfield during scan") {
-    withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "false") {
+    withSQLConf(
+      "spark.sql.hive.convertMetastoreParquet" -> "false",
+      "spark.gluten.sql.complexType.scan.fallback.enabled" -> "false") {
       sql("DROP TABLE IF EXISTS test_subfield")
       sql(
         "CREATE TABLE test_subfield (name STRING, favorite_color STRING," +

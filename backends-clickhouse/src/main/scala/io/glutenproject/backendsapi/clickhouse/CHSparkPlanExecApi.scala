@@ -523,7 +523,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] =
+  override def genExtendedColumnarTransformRules(): List[SparkSession => Rule[SparkPlan]] =
     List()
 
   /**

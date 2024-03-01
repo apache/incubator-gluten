@@ -21,7 +21,7 @@ import io.glutenproject.extension.{ColumnarOverrideRules, GlutenPlan, InsertTran
 import io.glutenproject.utils.QueryPlanSelector
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.GlutenSQLTestsTrait
+import org.apache.spark.sql.{GlutenSQLTestsTrait, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 
@@ -30,13 +30,14 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
   testGluten("Fall back the whole query if one unsupported") {
     withSQLConf(("spark.gluten.sql.columnar.query.fallback.threshold", "1")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
-      val rule = ColumnarOverrideRules(spark)
-      rule.preColumnarTransitions(originalPlan)
-      // Fake output of preColumnarTransitions, mocking replacing UnaryOp1 with UnaryOp1Transformer.
-      val planAfterPreOverride =
-        UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOp()))))
-      val planWithTransition = InsertTransitions.insertTransitions(planAfterPreOverride, false)
-      val outputPlan = rule.postColumnarTransitions(planWithTransition)
+      val rule = ColumnarOverrideRules(spark).withTransformRules(
+        List(
+          _ =>
+            _ => {
+              UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOp()))))
+            },
+          (_: SparkSession) => InsertTransitions(outputsColumnar = false)))
+      val outputPlan = rule.apply(originalPlan)
       // Expect to fall back the entire plan.
       assert(outputPlan == originalPlan)
     }
@@ -46,13 +47,15 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "1")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
       val rule = ColumnarOverrideRules(spark)
-      rule.preColumnarTransitions(originalPlan)
-      rule.enableAdaptiveContext()
-      // Fake output of preColumnarTransitions, mocking replacing UnaryOp1 with UnaryOp1Transformer.
-      val planAfterPreOverride =
-        UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOp()))))
-      val planWithTransition = InsertTransitions.insertTransitions(planAfterPreOverride, false)
-      val outputPlan = rule.postColumnarTransitions(planWithTransition)
+        .enableAdaptiveContext()
+        .withTransformRules(
+          List(
+            _ =>
+              _ => {
+                UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOp()))))
+              },
+            (_: SparkSession) => InsertTransitions(outputsColumnar = false)))
+      val outputPlan = rule.apply(originalPlan)
       // Expect to fall back the entire plan.
       assert(outputPlan == originalPlan)
     }
@@ -62,13 +65,15 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "4")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
       val rule = ColumnarOverrideRules(spark)
-      rule.preColumnarTransitions(originalPlan)
-      rule.enableAdaptiveContext()
-      // Fake output of preColumnarTransitions, mocking replacing UnaryOp1 with UnaryOp1Transformer.
-      val planAfterPreOverride =
-        UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOp()))))
-      val planWithTransition = InsertTransitions.insertTransitions(planAfterPreOverride, false)
-      val outputPlan = rule.postColumnarTransitions(planWithTransition)
+        .enableAdaptiveContext()
+        .withTransformRules(
+          List(
+            _ =>
+              _ => {
+                UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOp()))))
+              },
+            (_: SparkSession) => InsertTransitions(outputsColumnar = false)))
+      val outputPlan = rule.apply(originalPlan)
       // Expect to get the plan with columnar rule applied.
       assert(outputPlan != originalPlan)
     }
@@ -80,14 +85,15 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "2")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
       val rule = ColumnarOverrideRules(spark)
-      rule.preColumnarTransitions(originalPlan)
-      rule.enableAdaptiveContext()
-      // Fake output of preColumnarTransitions, mocking replacing UnaryOp1 with UnaryOp1Transformer
-      // and replacing LeafOp with LeafOpTransformer.
-      val planAfterPreOverride =
-        UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOpTransformer()))))
-      val planWithTransition = InsertTransitions.insertTransitions(planAfterPreOverride, false)
-      val outputPlan = rule.postColumnarTransitions(planWithTransition)
+        .enableAdaptiveContext()
+        .withTransformRules(
+          List(
+            _ =>
+              _ => {
+                UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOpTransformer()))))
+              },
+            (_: SparkSession) => InsertTransitions(outputsColumnar = false)))
+      val outputPlan = rule.apply(originalPlan)
       // Expect to fall back the entire plan.
       assert(outputPlan == originalPlan)
     }
@@ -99,14 +105,15 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "3")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
       val rule = ColumnarOverrideRules(spark)
-      rule.preColumnarTransitions(originalPlan)
-      rule.enableAdaptiveContext()
-      // Fake output of preColumnarTransitions, mocking replacing UnaryOp1 with UnaryOp1Transformer
-      // and replacing LeafOp with LeafOpTransformer.
-      val planAfterPreOverride =
-        UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOpTransformer()))))
-      val planWithTransition = InsertTransitions.insertTransitions(planAfterPreOverride, false)
-      val outputPlan = rule.postColumnarTransitions(planWithTransition)
+        .enableAdaptiveContext()
+        .withTransformRules(
+          List(
+            _ =>
+              _ => {
+                UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOpTransformer()))))
+              },
+            (_: SparkSession) => InsertTransitions(outputsColumnar = false)))
+      val outputPlan = rule.apply(originalPlan)
       // Expect to get the plan with columnar rule applied.
       assert(outputPlan != originalPlan)
     }

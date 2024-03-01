@@ -122,7 +122,7 @@ trait SparkShims {
       : Tuple2[Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])], Boolean]
 
   // Partition id in TaskInfo is only available after spark 3.3.
-  def getPratitionId(taskInfo: TaskInfo): Int
+  def getPartitionId(taskInfo: TaskInfo): Int
 
   // Because above, this feature is only supported after spark 3.3
   def supportDuplicateReadingTracking: Boolean

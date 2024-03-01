@@ -298,11 +298,11 @@ trait SparkPlanExecApi {
   def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]]
 
   /**
-   * Generate extended columnar pre-rules.
+   * Generate extended columnar transform-rules.
    *
    * @return
    */
-  def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]]
+  def genExtendedColumnarTransformRules(): List[SparkSession => Rule[SparkPlan]]
 
   /**
    * Generate extended columnar post-rules.

@@ -18,7 +18,6 @@ package io.glutenproject.extension
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.utils.PhysicalPlanSelector
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Complete, Final, Partial}
@@ -57,7 +56,7 @@ case class MergeTwoPhasesHashBaseAggregate(session: SparkSession) extends Rule[S
     }
   }
 
-  override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
+  override def apply(plan: SparkPlan): SparkPlan = {
     if (
       !enableColumnarHashAgg || !BackendsApiManager.getSettings
         .mergeTwoPhasesHashBaseAggregateIfNeed()

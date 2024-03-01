@@ -23,7 +23,6 @@ import io.glutenproject.expression.ExpressionUtils.getExpressionTreeDepth
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.extension.columnar.TransformHints.EncodeTransformableTagImplicits
 import io.glutenproject.sql.shims.SparkShimLoader
-import io.glutenproject.utils.PhysicalPlanSelector
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.sql.SparkSession
@@ -162,7 +161,7 @@ object TransformHints {
 }
 
 case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
+  override def apply(plan: SparkPlan): SparkPlan = {
     if (GlutenConfig.getConf.enableAnsiMode) {
       plan.foreach(TransformHints.tagNotTransformable(_, "does not support ansi mode"))
     }
@@ -230,7 +229,7 @@ case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] 
     }
   }
 
-  override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
+  override def apply(plan: SparkPlan): SparkPlan = {
     if (physicalJoinOptimize) {
       tagNotTransformableForMultiCodegens(plan)
     } else plan
