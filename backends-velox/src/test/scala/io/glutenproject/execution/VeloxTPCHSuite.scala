@@ -70,7 +70,9 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
       .replaceAll("Scan parquet ", "Scan parquet")
       // Spark QueryStageExec will take it's id as argument, replace it with X
       .replaceAll("Arguments: [0-9]+", "Arguments: X")
+      // mask PullOutPostProject and PullOutPreProject id
       .replaceAll("_pre_[0-9]*", "_pre_X")
+      .replaceAll("_post_[0-9]*", "_post_X")
       .trim
   }
 
