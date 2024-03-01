@@ -22,6 +22,7 @@ import io.glutenproject.execution.FileSourceScanExecTransformer
 
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.{GlutenSQLTestsTrait, Row}
+import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.ui.{GlutenSQLAppStatusStore, SparkListenerSQLExecutionStart}
 import org.apache.spark.status.ElementTrackingStore
@@ -130,6 +131,35 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
         } finally {
           spark.sparkContext.removeSparkListener(listener)
         }
+      }
+    }
+  }
+
+  test("Add logical link to rewritten spark plan") {
+    val events = new ArrayBuffer[GlutenPlanFallbackEvent]
+    val listener = new SparkListener {
+      override def onOtherEvent(event: SparkListenerEvent): Unit = {
+        event match {
+          case e: GlutenPlanFallbackEvent => events.append(e)
+          case _ =>
+        }
+      }
+    }
+    spark.sparkContext.addSparkListener(listener)
+    withSQLConf(GlutenConfig.EXPRESSION_BLACK_LIST.key -> "add") {
+      try {
+        val df = spark.sql("select sum(id + 1) from range(10)")
+        spark.sparkContext.listenerBus.waitUntilEmpty()
+        df.collect()
+        val project = find(df.queryExecution.executedPlan) {
+          _.isInstanceOf[ProjectExec]
+        }
+        assert(project.isDefined)
+        events.exists(
+          _.fallbackNodeToReason.values.toSet
+            .contains("Project: Not supported to map spark function name"))
+      } finally {
+        spark.sparkContext.removeSparkListener(listener)
       }
     }
   }
