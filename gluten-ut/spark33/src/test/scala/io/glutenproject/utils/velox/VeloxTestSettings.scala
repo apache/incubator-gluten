@@ -658,30 +658,20 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetInteroperabilitySuite]
     .exclude("parquet timestamp conversion")
   enableSuite[GlutenParquetIOSuite]
-    // Disable Spark's vectorized reading tests.
-    .exclude("Standard mode - fixed-length decimals")
-    .exclude("Legacy mode - fixed-length decimals")
-    .exclude("SPARK-34167: read LongDecimals with precision < 10, VectorizedReader true")
-    .exclude("read dictionary encoded decimals written as FIXED_LEN_BYTE_ARRAY")
-    .exclude("read dictionary encoded decimals written as INT64")
-    .exclude("read dictionary encoded decimals written as INT32")
-    .exclude("SPARK-34817: Read UINT_64 as Decimal from parquet")
-    // Spark plans scan schema as (i16/i32/i64) so the fallback does not take effect.
-    // But Velox reads data based on the schema acquired from file metadata,
-    // while i8 is not supported, so error occurs.
-    .exclude("SPARK-34817: Read UINT_8/UINT_16/UINT_32 from parquet")
     // Exception.
     .exclude("SPARK-35640: read binary as timestamp should throw schema incompatible error")
     // Exception msg.
     .exclude("SPARK-35640: int as long should throw schema incompatible error")
-    // Timestamp is read as INT96.
+    // Velox only support read Timestamp with INT96 for now.
     .exclude("read dictionary and plain encoded timestamp_millis written as INT64")
     // TODO: Unsupported Array schema in Parquet.
     .exclude("vectorized reader: optional array with required elements")
     .exclude("vectorized reader: required array with required elements")
     .exclude("vectorized reader: required array with optional elements")
     .exclude("vectorized reader: required array with legacy format")
-    .exclude("SPARK-36726: test incorrect Parquet row group file offset")
+    // add support in native reader
+    .exclude("SPARK-41096: FIXED_LEN_BYTE_ARRAY support")
+    .exclude("SPARK-40128 read DELTA_LENGTH_BYTE_ARRAY encoded strings")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]
     // Timezone is not supported yet.
