@@ -21,7 +21,6 @@ import io.glutenproject.sql.shims.SparkShimLoader
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.PartitionedFileUtil
 import org.apache.spark.sql.execution.datasources.{FilePartition, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.util.collection.BitSet
 
@@ -54,13 +53,13 @@ case class InputPartitionsUtil(
     val splitFiles = selectedPartitions
       .flatMap {
         partition =>
-          partition.files.flatMap {
+          SparkShimLoader.getSparkShims.getFileStatus(partition).flatMap {
             file =>
               // getPath() is very expensive so we only want to call it once in this block:
               val filePath = file.getPath
               val isSplitable =
                 relation.fileFormat.isSplitable(relation.sparkSession, relation.options, filePath)
-              PartitionedFileUtil.splitFiles(
+              SparkShimLoader.getSparkShims.splitFiles(
                 sparkSession = relation.sparkSession,
                 file = file,
                 filePath = filePath,

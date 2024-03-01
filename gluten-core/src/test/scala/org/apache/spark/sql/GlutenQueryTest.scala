@@ -22,6 +22,7 @@ package org.apache.spark.sql
  */
 import org.apache.spark.SPARK_VERSION_SHORT
 import org.apache.spark.rpc.GlutenDriverEndpoint
+import org.apache.spark.sql.catalyst.ExtendedAnalysisException
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical.{Join, LogicalPlan, Sort, Subquery, SubqueryAlias}
@@ -110,7 +111,7 @@ abstract class GlutenQueryTest extends PlanTest {
     val analyzedDS =
       try ds
       catch {
-        case ae: AnalysisException =>
+        case ae: ExtendedAnalysisException =>
           if (ae.plan.isDefined) {
             fail(s"""
                     |Failed to analyze query: $ae
@@ -151,7 +152,7 @@ abstract class GlutenQueryTest extends PlanTest {
     val analyzedDF =
       try df
       catch {
-        case ae: AnalysisException =>
+        case ae: ExtendedAnalysisException =>
           if (ae.plan.isDefined) {
             fail(s"""
                     |Failed to analyze query: $ae

@@ -14,16 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.sql.shims.spark33
+package io.glutenproject.sql.shims.spark35
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
 import io.glutenproject.expression.{ExpressionNames, Sig}
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
-import org.apache.spark.{ShuffleDependency, ShuffleUtils, SparkEnv, SparkException, TaskContext, TaskContextUtils}
+import org.apache.spark.{ShuffleUtils, SparkException, TaskContext, TaskContextUtils}
+import org.apache.spark.internal.io.FileCommitProtocol
+import org.apache.spark.paths.SparkPath
 import org.apache.spark.scheduler.TaskInfo
-import org.apache.spark.serializer.SerializerManager
 import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
@@ -32,21 +32,21 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.BloomFilterAggregate
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.catalyst.types.DataTypeUtils
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
-import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex}
-import org.apache.spark.sql.execution.datasources.FileFormatWriter.Empty2Null
+import org.apache.spark.sql.execution.{FileSourceScanExec, GlobalLimitExec, GlutenFileFormatWriter, PartitionedFileUtil, SparkPlan, TakeOrderedAndProjectExec}
+import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, FileStatusWithMetadata, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex, WriteJobDescription, WriteTaskResult}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
-import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
 import org.apache.hadoop.fs.{FileStatus, Path}
 
-class Spark33Shims extends SparkShims {
+class Spark35Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
 
   override def getDistribution(
@@ -66,6 +66,7 @@ class Spark33Shims extends SparkShims {
       Sig[Sec](ExpressionNames.SEC),
       Sig[Csc](ExpressionNames.CSC),
       Sig[Empty2Null](ExpressionNames.EMPTY2NULL))
+
   }
 
   override def convertPartitionTransforms(
@@ -85,7 +86,7 @@ class Spark33Shims extends SparkShims {
       new StructType(
         fileSourceScanExec.requiredSchema.fields ++
           fileSourceScanExec.relation.partitionSchema.fields),
-      fileSourceScanExec.metadataColumns
+      fileSourceScanExec.fileConstantMetadataColumns
     )
   }
 
@@ -112,18 +113,16 @@ class Spark33Shims extends SparkShims {
   override def filesGroupedToBuckets(
       selectedPartitions: Array[PartitionDirectory]): Map[Int, Array[PartitionedFile]] = {
     selectedPartitions
-      .flatMap {
-        p => p.files.map(f => PartitionedFileUtil.getPartitionedFile(f, f.getPath, p.values))
-      }
+      .flatMap(p => p.files.map(f => PartitionedFileUtil.getPartitionedFile(f, p.values)))
       .groupBy {
         f =>
           BucketingUtils
-            .getBucketId(new Path(f.filePath).getName)
-            .getOrElse(throw invalidBucketFile(f.filePath))
+            .getBucketId(f.toPath.getName)
+            .getOrElse(throw invalidBucketFile(f.urlEncodedPath))
       }
   }
 
-  override def getBatchScanExecTable(batchScan: BatchScanExec): Table = null
+  override def getBatchScanExecTable(batchScan: BatchScanExec): Table = batchScan.table
 
   override def generatePartitionedFile(
       partitionValues: InternalRow,
@@ -131,7 +130,7 @@ class Spark33Shims extends SparkShims {
       start: Long,
       length: Long,
       @transient locations: Array[String] = Array.empty): PartitionedFile =
-    PartitionedFile(partitionValues, filePath, start, length, locations)
+    PartitionedFile(partitionValues, SparkPath.fromPathString(filePath), start, length, locations)
 
   override def hasBloomFilterAggregate(
       agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec): Boolean = {
@@ -151,16 +150,54 @@ class Spark33Shims extends SparkShims {
     }
   }
 
+  // https://issues.apache.org/jira/browse/SPARK-40400
   private def invalidBucketFile(path: String): Throwable = {
     new SparkException(
       errorClass = "INVALID_BUCKET_FILE",
-      messageParameters = Array(path),
+      messageParameters = Map("path" -> path),
       cause = null)
   }
 
-  override def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
-    List(session => GlutenParquetWriterInjects.getInstance().getExtendedColumnarPostRule(session))
+  private def getLimit(limit: Int, offset: Int): Int = {
+    if (limit == -1) {
+      // Only offset specified, so fetch the maximum number rows
+      Int.MaxValue
+    } else {
+      assert(limit > offset)
+      limit - offset
+    }
   }
+
+  override def getLimitAndOffsetFromGlobalLimit(plan: GlobalLimitExec): (Int, Int) = {
+    (getLimit(plan.limit, plan.offset), plan.offset)
+  }
+
+  override def getLimitAndOffsetFromTopK(plan: TakeOrderedAndProjectExec): (Int, Int) = {
+    (getLimit(plan.limit, plan.offset), plan.offset)
+  }
+
+  override def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = List()
+
+  override def writeFilesExecuteTask(
+      description: WriteJobDescription,
+      jobTrackerID: String,
+      sparkStageId: Int,
+      sparkPartitionId: Int,
+      sparkAttemptNumber: Int,
+      committer: FileCommitProtocol,
+      iterator: Iterator[InternalRow]): WriteTaskResult = {
+    GlutenFileFormatWriter.writeFilesExecuteTask(
+      description,
+      jobTrackerID,
+      sparkStageId,
+      sparkPartitionId,
+      sparkAttemptNumber,
+      committer,
+      iterator
+    )
+  }
+
+  override def enableNativeWriteFilesByDefault(): Boolean = true
 
   override def createTestTaskContext(): TaskContext = {
     TaskContextUtils.createTestTaskContext()
@@ -182,7 +219,8 @@ class Spark33Shims extends SparkShims {
 
   override def supportDuplicateReadingTracking: Boolean = true
 
-  def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] = partition.files
+  def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] =
+    partition.files.map(_.fileStatus)
 
   def splitFiles(
       sparkSession: SparkSession,
@@ -193,20 +231,17 @@ class Spark33Shims extends SparkShims {
       partitionValues: InternalRow): Seq[PartitionedFile] = {
     PartitionedFileUtil.splitFiles(
       sparkSession,
-      file,
-      filePath,
+      FileStatusWithMetadata(file),
       isSplitable,
       maxSplitBytes,
       partitionValues)
   }
 
   def structFromAttributes(attrs: Seq[Attribute]): StructType = {
-    StructType(attrs.map(a => StructField(a.name, a.dataType, a.nullable, a.metadata)))
+    DataTypeUtils.fromAttributes(attrs)
   }
 
   def attributesFromStruct(structType: StructType): Seq[Attribute] = {
-    structType.fields.map {
-      field => AttributeReference(field.name, field.dataType, field.nullable, field.metadata)()
-    }
+    DataTypeUtils.toAttributes(structType)
   }
 }

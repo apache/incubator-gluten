@@ -41,7 +41,8 @@ case class ColumnarShuffleExchangeExec(
     override val outputPartitioning: Partitioning,
     child: SparkPlan,
     shuffleOrigin: ShuffleOrigin = ENSURE_REQUIREMENTS,
-    projectOutputAttributes: Seq[Attribute])
+    projectOutputAttributes: Seq[Attribute],
+    advisoryPartitionSize: Option[Long] = None)
   extends ShuffleExchangeLike
   with GlutenPlan {
   private[sql] lazy val writeMetrics =
