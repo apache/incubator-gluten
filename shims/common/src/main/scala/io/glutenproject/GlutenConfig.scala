@@ -277,7 +277,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def softAffinityLogLevel: String = conf.getConf(SOFT_AFFINITY_LOG_LEVEL)
 
   // A comma-separated list of classes for the extended columnar pre rules
-  def extendedColumnarPreRules: String = conf.getConf(EXTENDED_COLUMNAR_PRE_RULES)
+  def extendedColumnarTransformRules: String = conf.getConf(EXTENDED_COLUMNAR_TRANSFORM_RULES)
 
   // A comma-separated list of classes for the extended columnar post rules
   def extendedColumnarPostRules: String = conf.getConf(EXTENDED_COLUMNAR_POST_RULES)
@@ -1383,9 +1383,10 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
-  val EXTENDED_COLUMNAR_PRE_RULES =
-    buildConf("spark.gluten.sql.columnar.extended.columnar.pre.rules")
-      .doc("A comma-separated list of classes for the extended columnar pre rules.")
+  val EXTENDED_COLUMNAR_TRANSFORM_RULES =
+    buildConf("spark.gluten.sql.columnar.extended.columnar.transform.rules")
+      .withAlternative("spark.gluten.sql.columnar.extended.columnar.pre.rules")
+      .doc("A comma-separated list of classes for the extended columnar transform rules.")
       .stringConf
       .createWithDefaultString("")
 

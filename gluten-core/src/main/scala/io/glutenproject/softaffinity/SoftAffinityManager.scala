@@ -169,7 +169,7 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
               val partitions = rddPartitionInfoMap.get(rddId)
               if (partitions != null) {
                 val key = partitions
-                  .filter(p => p._1 == SparkShimLoader.getSparkShims.getPratitionId(event.taskInfo))
+                  .filter(p => p._1 == SparkShimLoader.getSparkShims.getPartitionId(event.taskInfo))
                   .map(pInfo => s"${pInfo._2}_${pInfo._3}_${pInfo._4}")
                   .sortBy(p => p)
                   .mkString(",")

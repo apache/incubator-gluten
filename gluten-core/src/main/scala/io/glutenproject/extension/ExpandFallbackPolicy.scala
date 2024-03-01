@@ -236,7 +236,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
 
   private def fallbackToRowBasedPlan(outputsColumnar: Boolean): SparkPlan = {
     val transformPostOverrides = TransformPostOverrides()
-    val planWithTransitions = InsertTransitions.insertTransitions(originalPlan, outputsColumnar)
+    val planWithTransitions = ColumnarTransitions.insertTransitions(originalPlan, outputsColumnar)
     transformPostOverrides.apply(planWithTransitions)
   }
 

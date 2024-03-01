@@ -131,7 +131,7 @@ class Spark32Shims extends SparkShims {
     ShuffleUtils.getReaderParam(handle, startMapIndex, endMapIndex, startPartition, endPartition)
   }
 
-  override def getPratitionId(taskInfo: TaskInfo): Int = {
+  override def getPartitionId(taskInfo: TaskInfo): Int = {
     throw new IllegalStateException("This is not supported.")
   }
 
