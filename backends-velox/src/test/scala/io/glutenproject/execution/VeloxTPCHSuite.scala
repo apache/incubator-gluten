@@ -57,7 +57,8 @@ abstract class VeloxTPCHTableSupport extends VeloxWholeStageTransformerSuite {
 }
 
 abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
-  private lazy val formatSparkVersion: String = spark.version.replace(".", "")
+  // here we only get spark major version
+  private lazy val formatSparkVersion: String = spark.version.replace(".", "").substring(0, 2)
 
   private def formatMaterializedPlan(plan: String): String = {
     plan
@@ -82,12 +83,14 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
 
   def subType(): String = ""
   def shouldCheckGoldenFiles(): Boolean = {
-    Seq("v1", "v1-bhj").contains(subType()) && (formatSparkVersion match {
-      case "322" => true
-      case "331" => false
-      case "342" => false
-      case _ => false
-    })
+    Seq("v1", "v1-bhj").contains(subType()) && (
+      formatSparkVersion match {
+        case "32" => true
+        case "33" => true
+        case "34" => false
+        case _ => false
+      }
+    )
   }
 
   private def checkGoldenFile(df: DataFrame, id: Int): Unit = {
