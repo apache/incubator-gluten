@@ -1,0 +1,200 @@
+== Physical Plan ==
+AdaptiveSparkPlan (35)
++- == Final Plan ==
+   VeloxColumnarToRowExec (14)
+   +- ^ ProjectExecTransformer (12)
+      +- ^ RegularHashAggregateExecTransformer (11)
+         +- ^ InputIteratorTransformer (10)
+            +- ^ InputAdapter (9)
+               +- ^ ShuffleQueryStage (8), Statistics(X)
+                  +- ColumnarExchange (7)
+                     +- ^ FlushableHashAggregateExecTransformer (5)
+                        +- ^ InputIteratorTransformer (4)
+                           +- ^ InputAdapter (3)
+                              +- ^ RowToVeloxColumnar (2)
+                                 +- ^ LocalTableScan (1)
++- == Initial Plan ==
+   HashAggregate (34)
+   +- Exchange (33)
+      +- HashAggregate (32)
+         +- Project (31)
+            +- BroadcastHashJoin Inner BuildRight (30)
+               :- Project (22)
+               :  +- BroadcastHashJoin Inner BuildRight (21)
+               :     :- Filter (16)
+               :     :  +- Scan parquet (15)
+               :     +- BroadcastExchange (20)
+               :        +- Project (19)
+               :           +- Filter (18)
+               :              +- Scan parquet (17)
+               +- BroadcastExchange (29)
+                  +- Filter (28)
+                     +- HashAggregate (27)
+                        +- Exchange (26)
+                           +- HashAggregate (25)
+                              +- Filter (24)
+                                 +- Scan parquet (23)
+
+
+(1) LocalTableScan
+Output [1]: [l_extendedprice#X]
+Arguments: <empty>, [l_extendedprice#X]
+
+(2) RowToVeloxColumnar
+Input [1]: [l_extendedprice#X]
+
+(3) InputAdapter
+Input [1]: [l_extendedprice#X]
+
+(4) InputIteratorTransformer
+Input [1]: [l_extendedprice#X]
+
+(5) FlushableHashAggregateExecTransformer
+Input [1]: [l_extendedprice#X]
+Keys: []
+Functions [1]: [partial_sum(l_extendedprice#X)]
+Aggregate Attributes [2]: [sum#X, isEmpty#X]
+Results [2]: [sum#X, isEmpty#X]
+
+(6) WholeStageCodegenTransformer (X)
+Input [2]: [sum#X, isEmpty#X]
+Arguments: false
+
+(7) ColumnarExchange
+Input [2]: [sum#X, isEmpty#X]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+
+(8) ShuffleQueryStage
+Output [2]: [sum#X, isEmpty#X]
+Arguments: X
+
+(9) InputAdapter
+Input [2]: [sum#X, isEmpty#X]
+
+(10) InputIteratorTransformer
+Input [2]: [sum#X, isEmpty#X]
+
+(11) RegularHashAggregateExecTransformer
+Input [2]: [sum#X, isEmpty#X]
+Keys: []
+Functions [1]: [sum(l_extendedprice#X)]
+Aggregate Attributes [1]: [sum(l_extendedprice#X)#X]
+Results [1]: [sum(l_extendedprice#X)#X]
+
+(12) ProjectExecTransformer
+Output [1]: [CheckOverflow((promote_precision(sum(l_extendedprice#X)#X) / 7.00), DecimalType(27,6)) AS avg_yearly#X]
+Input [1]: [sum(l_extendedprice#X)#X]
+
+(13) WholeStageCodegenTransformer (X)
+Input [1]: [avg_yearly#X]
+Arguments: false
+
+(14) VeloxColumnarToRowExec
+Input [1]: [avg_yearly#X]
+
+(15) Scan parquet
+Output [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
+Batched: true
+Location: InMemoryFileIndex [*]
+PushedFilters: [IsNotNull(l_partkey), IsNotNull(l_quantity)]
+ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2),l_extendedprice:decimal(12,2)>
+
+(16) Filter
+Input [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
+Condition : (isnotnull(l_partkey#X) AND isnotnull(l_quantity#X))
+
+(17) Scan parquet
+Output [3]: [p_partkey#X, p_brand#X, p_container#X]
+Batched: true
+Location: InMemoryFileIndex [*]
+PushedFilters: [IsNotNull(p_brand), IsNotNull(p_container), EqualTo(p_brand,Brand#X), EqualTo(p_container,MED BOX), IsNotNull(p_partkey)]
+ReadSchema: struct<p_partkey:bigint,p_brand:string,p_container:string>
+
+(18) Filter
+Input [3]: [p_partkey#X, p_brand#X, p_container#X]
+Condition : ((((isnotnull(p_brand#X) AND isnotnull(p_container#X)) AND (p_brand#X = Brand#X)) AND (p_container#X = MED BOX)) AND isnotnull(p_partkey#X))
+
+(19) Project
+Output [1]: [p_partkey#X]
+Input [3]: [p_partkey#X, p_brand#X, p_container#X]
+
+(20) BroadcastExchange
+Input [1]: [p_partkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
+
+(21) BroadcastHashJoin
+Left keys [1]: [l_partkey#X]
+Right keys [1]: [p_partkey#X]
+Join condition: None
+
+(22) Project
+Output [3]: [l_quantity#X, l_extendedprice#X, p_partkey#X]
+Input [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, p_partkey#X]
+
+(23) Scan parquet
+Output [2]: [l_partkey#X, l_quantity#X]
+Batched: true
+Location: InMemoryFileIndex [*]
+PushedFilters: [IsNotNull(l_partkey)]
+ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2)>
+
+(24) Filter
+Input [2]: [l_partkey#X, l_quantity#X]
+Condition : isnotnull(l_partkey#X)
+
+(25) HashAggregate
+Input [2]: [l_partkey#X, l_quantity#X]
+Keys [1]: [l_partkey#X]
+Functions [1]: [partial_avg(l_quantity#X)]
+Aggregate Attributes [2]: [sum#X, count#X]
+Results [3]: [l_partkey#X, sum#X, count#X]
+
+(26) Exchange
+Input [3]: [l_partkey#X, sum#X, count#X]
+Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
+
+(27) HashAggregate
+Input [3]: [l_partkey#X, sum#X, count#X]
+Keys [1]: [l_partkey#X]
+Functions [1]: [avg(l_quantity#X)]
+Aggregate Attributes [1]: [avg(l_quantity#X)#X]
+Results [2]: [CheckOverflow((0.200000 * promote_precision(avg(l_quantity#X)#X)), DecimalType(18,7)) AS (0.2 * avg(l_quantity))#X, l_partkey#X]
+
+(28) Filter
+Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
+Condition : isnotnull((0.2 * avg(l_quantity))#X)
+
+(29) BroadcastExchange
+Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
+Arguments: HashedRelationBroadcastMode(List(input[1, bigint, true]),false), [plan_id=X]
+
+(30) BroadcastHashJoin
+Left keys [1]: [p_partkey#X]
+Right keys [1]: [l_partkey#X]
+Join condition: (cast(l_quantity#X as decimal(18,7)) < (0.2 * avg(l_quantity))#X)
+
+(31) Project
+Output [1]: [l_extendedprice#X]
+Input [5]: [l_quantity#X, l_extendedprice#X, p_partkey#X, (0.2 * avg(l_quantity))#X, l_partkey#X]
+
+(32) HashAggregate
+Input [1]: [l_extendedprice#X]
+Keys: []
+Functions [1]: [partial_sum(l_extendedprice#X)]
+Aggregate Attributes [2]: [sum#X, isEmpty#X]
+Results [2]: [sum#X, isEmpty#X]
+
+(33) Exchange
+Input [2]: [sum#X, isEmpty#X]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X]
+
+(34) HashAggregate
+Input [2]: [sum#X, isEmpty#X]
+Keys: []
+Functions [1]: [sum(l_extendedprice#X)]
+Aggregate Attributes [1]: [sum(l_extendedprice#X)#X]
+Results [1]: [CheckOverflow((promote_precision(sum(l_extendedprice#X)#X) / 7.00), DecimalType(27,6)) AS avg_yearly#X]
+
+(35) AdaptiveSparkPlan
+Output [1]: [avg_yearly#X]
+Arguments: isFinalPlan=true
