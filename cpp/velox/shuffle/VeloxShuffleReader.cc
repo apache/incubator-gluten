@@ -85,6 +85,16 @@ VectorPtr readFlatVector(
 }
 
 template <>
+VectorPtr readFlatVector<TypeKind::UNKNOWN>(
+    std::vector<BufferPtr>& buffers,
+    int32_t& bufferIdx,
+    uint32_t length,
+    std::shared_ptr<const Type> type,
+    memory::MemoryPool* pool) {
+  return BaseVector::createNullConstant(type, length, pool);
+}
+
+template <>
 VectorPtr readFlatVector<TypeKind::HUGEINT>(
     std::vector<BufferPtr>& buffers,
     int32_t& bufferIdx,
@@ -419,6 +429,8 @@ void VeloxColumnarBatchDeserializerFactory::initFromSchema() {
         isValidityBuffer_.push_back(true);
         isValidityBuffer_.push_back(true);
       } break;
+      case arrow::NullType::type_id:
+        break;
       default: {
         isValidityBuffer_.push_back(true);
         isValidityBuffer_.push_back(false);
