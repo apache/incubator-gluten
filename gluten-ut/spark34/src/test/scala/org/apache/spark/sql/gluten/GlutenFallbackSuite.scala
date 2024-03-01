@@ -148,7 +148,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
     spark.sparkContext.addSparkListener(listener)
     withSQLConf(GlutenConfig.EXPRESSION_BLACK_LIST.key -> "add") {
       try {
-        val df = spark.sql("select sum(id +1) from range(10)")
+        val df = spark.sql("select sum(id + 1) from range(10)")
         spark.sparkContext.listenerBus.waitUntilEmpty()
         df.collect()
         val project = find(df.queryExecution.executedPlan) {
