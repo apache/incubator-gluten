@@ -251,6 +251,9 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       val df = spark.sql(sqlStr)
       expected = df.collect()
     }
+    // By default we will fallabck complex type scan but here we should allow
+    // to test support of complex type
+    spark.conf.set("spark.gluten.sql.complexType.scan.fallback.enabled", "false");
     val df = spark.sql(sqlStr)
     if (cache) {
       df.cache()
@@ -275,6 +278,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       compareResult: Boolean = true,
       noFallBack: Boolean = true,
       cache: Boolean = false)(customCheck: DataFrame => Unit): DataFrame = {
+
     compareResultsAgainstVanillaSpark(sqlStr, compareResult, customCheck, noFallBack, cache)
   }
 

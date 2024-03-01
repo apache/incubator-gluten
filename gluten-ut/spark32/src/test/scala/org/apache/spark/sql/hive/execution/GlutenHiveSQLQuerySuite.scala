@@ -108,6 +108,7 @@ class GlutenHiveSQLQuerySuite extends GlutenSQLTestsTrait {
       .set("spark.default.parallelism", "1")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
+      .set("spark.gluten.sql.complexType.scan.fallback.enabled", "false")
   }
 
   testGluten("hive orc scan") {

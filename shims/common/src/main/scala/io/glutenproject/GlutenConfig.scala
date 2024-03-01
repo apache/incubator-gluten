@@ -97,6 +97,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxOrcScanEnabled: Boolean =
     conf.getConf(VELOX_ORC_SCAN_ENABLED)
 
+  def forceComplexTypeScanFallbackEnabled: Boolean =
+    conf.getConf(VELOX_FORCE_COMPLEX_TYPE_SCAN_FALLBACK)
+
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
     conf
@@ -1655,6 +1658,13 @@ object GlutenConfig {
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.orc.scan.enabled")
       .internal()
       .doc(" Enable velox orc scan. If disabled, vanilla spark orc scan will be used.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val VELOX_FORCE_COMPLEX_TYPE_SCAN_FALLBACK =
+    buildConf("spark.gluten.sql.complexType.scan.fallback.enabled")
+      .internal()
+      .doc("Force fallback for complex type scan, including struct, map, array.")
       .booleanConf
       .createWithDefault(true)
 }
