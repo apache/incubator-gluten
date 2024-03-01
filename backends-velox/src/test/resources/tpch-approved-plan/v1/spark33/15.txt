@@ -87,13 +87,13 @@ Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Arguments: (((isnotnull(l_shipdate#X) AND (l_shipdate#X >= 1996-01-01)) AND (l_shipdate#X < 1996-04-01)) AND isnotnull(l_suppkey#X))
 
 (11) ProjectExecTransformer
-Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) AS _pre_121#X]
+Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) AS _pre_X#X]
 Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 
 (12) FlushableHashAggregateExecTransformer
-Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, _pre_121#X]
+Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, _pre_X#X]
 Keys [1]: [l_suppkey#X]
-Functions [1]: [partial_sum(_pre_121#X)]
+Functions [1]: [partial_sum(_pre_X#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [3]: [l_suppkey#X, sum#X, isEmpty#X]
 
@@ -273,13 +273,13 @@ Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Arguments: ((isnotnull(l_shipdate#X) AND (l_shipdate#X >= 1996-01-01)) AND (l_shipdate#X < 1996-04-01))
 
 (45) ProjectExecTransformer
-Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) AS _pre_122#X]
+Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) AS _pre_X#X]
 Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 
 (46) FlushableHashAggregateExecTransformer
-Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, _pre_122#X]
+Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, _pre_X#X]
 Keys [1]: [l_suppkey#X]
-Functions [1]: [partial_sum(_pre_122#X)]
+Functions [1]: [partial_sum(_pre_X#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [3]: [l_suppkey#X, sum#X, isEmpty#X]
 

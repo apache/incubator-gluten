@@ -144,13 +144,13 @@ Right keys [1]: [n_nationkey#X]
 Join condition: None
 
 (21) ProjectExecTransformer
-Output [4]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X, CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)) AS _pre_131#X]
+Output [4]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X, CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)) AS _pre_X#X]
 Input [5]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X, n_nationkey#X]
 
 (22) FlushableHashAggregateExecTransformer
-Input [4]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X, _pre_131#X]
+Input [4]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X, _pre_X#X]
 Keys [1]: [ps_partkey#X]
-Functions [1]: [partial_sum(_pre_131#X)]
+Functions [1]: [partial_sum(_pre_X#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [3]: [ps_partkey#X, sum#X, isEmpty#X]
 
@@ -411,13 +411,13 @@ Right keys [1]: [n_nationkey#X]
 Join condition: None
 
 (72) ProjectExecTransformer
-Output [3]: [ps_availqty#X, ps_supplycost#X, CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)) AS _pre_132#X]
+Output [3]: [ps_availqty#X, ps_supplycost#X, CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)) AS _pre_X#X]
 Input [4]: [ps_availqty#X, ps_supplycost#X, s_nationkey#X, n_nationkey#X]
 
 (73) FlushableHashAggregateExecTransformer
-Input [3]: [ps_availqty#X, ps_supplycost#X, _pre_132#X]
+Input [3]: [ps_availqty#X, ps_supplycost#X, _pre_X#X]
 Keys: []
-Functions [1]: [partial_sum(_pre_132#X)]
+Functions [1]: [partial_sum(_pre_X#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [2]: [sum#X, isEmpty#X]
 
