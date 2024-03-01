@@ -73,8 +73,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       // for file_format.`file_path`
       ("default", "file_format")
     }
-    val engine = fileIndex.metadata.configuration.get("engine").get
-    // TODO: remove `substring`
+    val engine = "MergeTree"
     val relativeTablePath = fileIndex.deltaLog.dataPath.toUri.getPath.substring(1)
     val absoluteTablePath = fileIndex.deltaLog.dataPath.toUri.toString
 

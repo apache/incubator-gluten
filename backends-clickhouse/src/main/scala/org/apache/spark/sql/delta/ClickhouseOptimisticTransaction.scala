@@ -20,7 +20,6 @@ import io.glutenproject.execution.ColumnarToRowExecBase
 
 import org.apache.spark.SparkException
 import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.catalyst.expressions.{And, Expression, Literal}
 import org.apache.spark.sql.delta.actions._
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.constraints.{Constraint, Constraints}
@@ -185,17 +184,4 @@ class ClickhouseOptimisticTransaction(
 
     committer.addedStatuses.toSeq ++ committer.changeFiles
   }
-
-  override def filterFiles(
-      filters: Seq[Expression],
-      keepNumRecords: Boolean = false): Seq[AddFile] = {
-    val scan = snapshot.filesForScan(filters, keepNumRecords)
-    val partitionFilters = filters.filter {
-      f => DeltaTableUtils.isPredicatePartitionColumnsOnly(f, metadata.partitionColumns, spark)
-    }
-    readPredicates += partitionFilters.reduceLeftOption(And).getOrElse(Literal.TrueLiteral)
-    readFiles ++= scan.files
-    scan.files
-  }
-
 }

@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.delta
 
 import org.apache.spark.sql._
@@ -23,6 +23,7 @@ import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable}
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Cast, Expression, Literal}
 import org.apache.spark.sql.catalyst.plans.logical.AnalysisHelper
 import org.apache.spark.sql.delta.actions._
+import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.commands.WriteIntoDelta
 import org.apache.spark.sql.delta.commands.cdc.CDCReader
 import org.apache.spark.sql.delta.files.{TahoeBatchFileIndex, TahoeLogFileIndex}
@@ -54,6 +55,13 @@ import scala.util.control.NonFatal
 
 // This class is copied from Delta 2.0.1 because it has a private constructor,
 // which makes it impossible to extend
+
+/**
+ * Gluten overwrite Delta:
+ *
+ * This file is copied from Delta 2.0.1 It is modified to overcome the following issues:
+ *   1. return ClickhouseOptimisticTransaction 2. return DeltaMergeTreeFileFormat
+ */
 
 /**
  * Used to query the current state of the log as well as modify it by adding new atomic collections
@@ -467,6 +475,9 @@ class DeltaLog private (
       }
     }
   }
+
+  override def fileFormat(metadata: Metadata = metadata): FileFormat =
+    ClickHouseTableV2.deltaLog2Table(this).getFileFormat(metadata)
 
 }
 
