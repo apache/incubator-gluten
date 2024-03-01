@@ -1145,4 +1145,16 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
         |""".stripMargin
     )(df => checkFallbackOperators(df, 0))
   }
+
+  test("Support StructType in HashAggregate") {
+    runQueryAndCompare(
+      """
+        |select s, count(1) from (
+        |   select named_struct('id', cast(id as int),
+        |   'id_str', cast(id as string)) as s from range(100)
+        |) group by s
+        |""".stripMargin) {
+      checkOperatorMatch[HashAggregateExecTransformer]
+    }
+  }
 }
