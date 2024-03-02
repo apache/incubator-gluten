@@ -128,4 +128,17 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
           "Escape character must be followed by '%', '_' or the escape character itself"))
     }
   }
+
+  testGluten("StreamingQueryProgress.numInputRows should be correct") {
+    withTempDir { dir =>
+      val path = dir.toURI.getPath
+      val df = spark.range(0, 20, 1, 20)
+      df.write.mode("overwrite").format("parquet").save(path)
+      val q = spark.readStream.format("parquet").schema(df.schema).load(path)
+        .writeStream.format("memory").queryName("test").start()
+      q.processAllAvailable
+      val inputOutputPairs = q.recentProgress.map(p => (p.numInputRows, p.sink.numOutputRows))
+      assert(inputOutputPairs.forall(x => x._1 == x._2))
+    }
+  }
 }
