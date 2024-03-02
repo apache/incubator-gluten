@@ -395,9 +395,9 @@ ArrayVectorPtr SubstraitVeloxExprConverter::literalsToArrayVector(const ::substr
   if (childSize == 0) {
     return makeEmptyArrayVector(pool_, UNKNOWN());
   }
-  auto childTypeCase = literal.list().values(0).literal_type_case();
+  auto childLiteral = literal.list().values(0);
   auto elementAtFunc = [&](vector_size_t idx) { return literal.list().values(idx); };
-  auto childVector = literalsToVector(childTypeCase, childSize, literal, elementAtFunc);
+  auto childVector = literalsToVector(childLiteral, childSize, literal, elementAtFunc);
   return makeArrayVector(childVector);
 }
 
@@ -406,20 +406,21 @@ MapVectorPtr SubstraitVeloxExprConverter::literalsToMapVector(const ::substrait:
   if (childSize == 0) {
     return makeEmptyMapVector(pool_, UNKNOWN(), UNKNOWN());
   }
-  auto keyTypeCase = literal.map().key_values(0).key().literal_type_case();
-  auto valueTypeCase = literal.map().key_values(0).value().literal_type_case();
+  auto& keyLiteral = literal.map().key_values(0).key();
+  auto& valueLiteral = literal.map().key_values(0).value();
   auto keyAtFunc = [&](vector_size_t idx) { return literal.map().key_values(idx).key(); };
   auto valueAtFunc = [&](vector_size_t idx) { return literal.map().key_values(idx).value(); };
-  auto keyVector = literalsToVector(keyTypeCase, childSize, literal, keyAtFunc);
-  auto valueVector = literalsToVector(valueTypeCase, childSize, literal, valueAtFunc);
+  auto keyVector = literalsToVector(keyLiteral, childSize, literal, keyAtFunc);
+  auto valueVector = literalsToVector(valueLiteral, childSize, literal, valueAtFunc);
   return makeMapVector(keyVector, valueVector);
 }
 
 VectorPtr SubstraitVeloxExprConverter::literalsToVector(
-    ::substrait::Expression_Literal::LiteralTypeCase childTypeCase,
+    const ::substrait::Expression::Literal& childLiteral,
     vector_size_t childSize,
     const ::substrait::Expression::Literal& literal,
     std::function<::substrait::Expression::Literal(vector_size_t /* idx */)> elementAtFunc) {
+  auto childTypeCase = childLiteral.literal_type_case();
   switch (childTypeCase) {
     case ::substrait::Expression_Literal::LiteralTypeCase::kNull: {
       auto veloxType = SubstraitParser::parseType(literal.null());
@@ -466,6 +467,15 @@ VectorPtr SubstraitVeloxExprConverter::literalsToVector(
         }
       }
       return rowVector;
+    }
+    case ::substrait::Expression_Literal::LiteralTypeCase::kEmptyList: {
+      auto elementType = SubstraitParser::parseType(childLiteral.empty_list().type());
+      return BaseVector::wrapInConstant(1, 0, makeEmptyArrayVector(pool_, elementType));
+    }
+    case ::substrait::Expression_Literal::LiteralTypeCase::kEmptyMap: {
+      auto keyType = SubstraitParser::parseType(childLiteral.empty_map().key());
+      auto valueType = SubstraitParser::parseType(childLiteral.empty_map().value());
+      return BaseVector::wrapInConstant(1, 0, makeEmptyMapVector(pool_, keyType, valueType));
     }
     default:
       auto veloxType = getScalarType(elementAtFunc(0));
