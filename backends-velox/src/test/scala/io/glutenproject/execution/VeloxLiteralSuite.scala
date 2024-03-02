@@ -73,6 +73,7 @@ class VeloxLiteralSuite extends VeloxWholeStageTransformerSuite {
   }
 
   test("Array Literal") {
+    validateOffloadResult("SELECT array()")
     validateOffloadResult("SELECT array('Spark', '5')")
     validateOffloadResult("SELECT array(5, 1, -1)")
     validateOffloadResult("SELECT array(5S, 1S, -1S)")
@@ -93,6 +94,7 @@ class VeloxLiteralSuite extends VeloxWholeStageTransformerSuite {
   }
 
   test("Map Literal") {
+    validateOffloadResult("SELECT map()")
     validateOffloadResult("SELECT map('b', 'a', 'e', 'e')")
     validateOffloadResult("SELECT map(1D, 'a', 2D, 'e')")
     validateOffloadResult("SELECT map(1.0, map(1, 2, 3, 4))")
@@ -134,10 +136,5 @@ class VeloxLiteralSuite extends VeloxWholeStageTransformerSuite {
     validateFallbackResult("SELECT array(cast(null as int))")
     validateFallbackResult("SELECT map(1, null)")
     validateFallbackResult("SELECT struct(cast(null as struct<a: string>))")
-  }
-
-  test("Literal Offload") {
-    validateOffloadResult("SELECT array()")
-    validateOffloadResult("SELECT map()")
   }
 }
