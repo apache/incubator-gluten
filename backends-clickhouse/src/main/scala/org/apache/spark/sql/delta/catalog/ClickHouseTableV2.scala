@@ -40,8 +40,6 @@ import org.apache.hadoop.fs.Path
 
 import java.{util => ju}
 
-import scala.collection.mutable
-
 class ClickHouseTableV2(
     override val spark: SparkSession,
     override val path: Path,
@@ -89,7 +87,6 @@ class ClickHouseTableV2(
   }
 
   override def newWriteBuilder(info: LogicalWriteInfo): WriteBuilder = {
-    deltaLog2Table.put(deltaLog, this) // TODO: assume there won't be too many tables
     new WriteIntoDeltaBuilder(deltaLog, info.options)
   }
 
@@ -237,7 +234,7 @@ class ClickHouseTableV2(
   }
 
   def getFileFormat(meta: Metadata): DeltaMergeTreeFileFormat = {
-    val fileFormat = new DeltaMergeTreeFileFormat(
+    new DeltaMergeTreeFileFormat(
       meta,
       dataBaseName,
       tableName,
@@ -246,12 +243,13 @@ class ClickHouseTableV2(
       primaryKeyOption,
       clickhouseTableConfigs,
       partitionColumns)
-    fileFormat
   }
+
+  deltaLog2Table.put(deltaLog, this)
 }
 
 object ClickHouseTableV2 extends Logging {
-  val deltaLog2Table = mutable.HashMap[DeltaLog, ClickHouseTableV2]()
+  val deltaLog2Table = new scala.collection.concurrent.TrieMap[DeltaLog, ClickHouseTableV2]()
 
   def partsPartitions(
       deltaLog: DeltaLog,
