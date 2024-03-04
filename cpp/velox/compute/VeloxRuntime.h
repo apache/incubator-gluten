@@ -83,7 +83,7 @@ class VeloxRuntime final : public Runtime {
   std::shared_ptr<RowToColumnarConverter> createRow2ColumnarConverter(
       MemoryManager* memoryManager,
       struct ArrowSchema* cSchema) override;
-  
+
   std::shared_ptr<ColumnarToColumnarConverter> createColumnar2ColumnarConverter(
       MemoryManager* memoryManager,
       struct ArrowSchema* cSchema) override;

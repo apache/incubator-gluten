@@ -37,7 +37,6 @@ class VeloxColumnarToColumnarConverter final : public ColumnarToColumnarConverte
  protected:
   struct ArrowSchema* cSchema_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
-
 };
 
 } // namespace gluten

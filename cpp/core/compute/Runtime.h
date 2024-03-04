@@ -24,8 +24,8 @@
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
 #include "memory/MemoryManager.h"
-#include "operators/c2r/ColumnarToRow.h"
 #include "operators/c2c/ColumnarToColumnar.h"
+#include "operators/c2r/ColumnarToRow.h"
 #include "operators/r2c/RowToColumnar.h"
 #include "operators/serializer/ColumnarBatchSerializer.h"
 #include "operators/writer/Datasource.h"
@@ -107,7 +107,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
 
   /// This function is used to create certain converter from Spark ColumnarBatch
   /// to the format used by the backend ColumnarBatch
-  virtual std::shared_ptr<ColumnarToColumnarConverter>createColumnar2ColumnarConverter(
+  virtual std::shared_ptr<ColumnarToColumnarConverter> createColumnar2ColumnarConverter(
       MemoryManager* memoryManager,
       struct ArrowSchema* cSchema) = 0;
 

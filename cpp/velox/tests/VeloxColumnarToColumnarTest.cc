@@ -35,7 +35,7 @@ class VeloxColumnarToColumnarTest : public ::testing::Test, public test::VectorT
   void testRowVectorEqual(ArrowSchema cSchema, ArrowArray arrowArray, velox::RowVectorPtr vector) {
     auto columnarToColumnarConverter = std::make_shared<VeloxColumnarToColumnarConverter>(&cSchema, pool_);
 
-    auto cb = columnarToColumnarConverter->convert(&cSchema, &arrowArray);
+    auto cb = columnarToColumnarConverter->convert(&arrowArray);
     auto vp = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb)->getRowVector();
     velox::test::assertEqualVectors(vector, vp);
   }
@@ -78,6 +78,16 @@ TEST_F(VeloxColumnarToColumnarTest, allTypes) {
       makeNullableFlatVector<velox::StringView>(
           {"alice", "bob", std::nullopt, std::nullopt, "Alice", "Bob", std::nullopt, "alicE", std::nullopt, "boB"}),
   });
+
+  ArrowSchema cSchema;
+  ArrowArray arrowArray;
+  exportToArrow(vector, cSchema, ArrowUtils::getBridgeOptions());
+  exportToArrow(vector, arrowArray, pool(), ArrowUtils::getBridgeOptions());
+  testRowVectorEqual(cSchema, arrowArray, vector);
+}
+
+TEST_F(VeloxColumnarToColumnarTest, decimal) {
+  auto vector = makeRowVector({makeNullableFlatVector<int64_t>({1.00, 2.00, 3.00}, DECIMAL(5, 2))});
 
   ArrowSchema cSchema;
   ArrowArray arrowArray;

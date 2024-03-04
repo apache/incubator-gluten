@@ -26,7 +26,7 @@ namespace gluten {
 VeloxColumnarToColumnarConverter::VeloxColumnarToColumnarConverter(
     struct ArrowSchema* cSchema,
     std::shared_ptr<memory::MemoryPool> memoryPool)
-    : ColumnarToColumnarConverter(), cSchema_(cSchema), pool_(memoryPool){}
+    : ColumnarToColumnarConverter(), cSchema_(cSchema), pool_(memoryPool) {}
 
 VeloxColumnarToColumnarConverter::~VeloxColumnarToColumnarConverter() {
   if (cSchema_) {
@@ -34,8 +34,7 @@ VeloxColumnarToColumnarConverter::~VeloxColumnarToColumnarConverter() {
   }
 }
 
-std::shared_ptr<ColumnarBatch>
-VeloxColumnarToColumnarConverter::convert(ArrowArray* cArray) {
+std::shared_ptr<ColumnarBatch> VeloxColumnarToColumnarConverter::convert(ArrowArray* cArray) {
   auto vp = importFromArrowAsViewer(*cSchema_, *cArray, ArrowUtils::getBridgeOptions(), pool_.get());
   return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<RowVector>(vp));
 }

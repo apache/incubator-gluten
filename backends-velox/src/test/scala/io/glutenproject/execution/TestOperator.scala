@@ -72,6 +72,19 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     checkLengthAndPlan(df, 1)
   }
 
+  test("c2c") {
+    withSQLConf(
+      "spark.gluten.sql.columnar.columnarToColumnar" -> "true",
+      "spark.gluten.sql.columnar.filescan" -> "false") {
+      withTable("c2c") {
+        spark.sql("create table c2c(id int, name string) using parquet")
+        spark.sql("insert into c2c values(1, 'a'), (2, 'b'), (3, 'c')")
+        val df = runQueryAndCompare("select id, name from c2c where id = 1") { _ => }
+        assert(getExecutedPlan(df).exists(plan => plan.isInstanceOf[ColumnarToColumnarExecBase]))
+      }
+    }
+  }
+
   test("where") {
     val df = runQueryAndCompare("select * from lineitem where l_shipdate < '1998-09-02'") { _ => }
     checkLengthAndPlan(df, 59288)

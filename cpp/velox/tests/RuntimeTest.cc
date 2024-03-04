@@ -56,7 +56,7 @@ class DummyRuntime final : public Runtime {
       struct ArrowSchema* cSchema) override {
     throw GlutenException("Not yet implemented");
   }
-  std::shared_ptr<ColumnarToColumnarConverter>createColumnar2ColumnarConverter(
+  std::shared_ptr<ColumnarToColumnarConverter> createColumnar2ColumnarConverter(
       MemoryManager* memoryManager,
       struct ArrowSchema* cSchema) override {
     throw GlutenException("Not yet implemented");
