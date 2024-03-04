@@ -81,6 +81,14 @@ void emplaceReadRange(local_engine::ReadRanges & read_ranges, const int64_t offs
     }
     return {col_start, col_length};
 }
+
+std::string lower_column_name_if_need(const std::string & column_name, const DB::FormatSettings & settings)
+{
+    std::string result = column_name;
+    if (settings.parquet.case_insensitive_column_matching)
+        boost::to_lower(result);
+    return result;
+}
 }
 
 namespace local_engine
@@ -203,7 +211,8 @@ bool VectorizedParquetRecordReader::initialize(
     }
 
     assert(!row_groups.empty());
-    parquetFileReader_ = std::make_unique<ParquetFileReaderExt>(arrow_file, std::move(file_reader), column_index_filter, field_indices);
+    parquetFileReader_
+        = std::make_unique<ParquetFileReaderExt>(arrow_file, std::move(file_reader), column_index_filter, field_indices, format_settings_);
     columnVectors_.reserve(field_indices.size());
 
     for (auto const & column_index : field_indices)
@@ -230,10 +239,7 @@ DB::Chunk VectorizedParquetRecordReader::nextBatch()
     {
         const std::shared_ptr<arrow::ChunkedArray> arrow_column
             = vectorized_column_reader.readBatch(format_settings_.parquet.max_block_size);
-        std::string column_name = vectorized_column_reader.col_name();
-        if (format_settings_.parquet.case_insensitive_column_matching)
-            boost::to_lower(column_name);
-        name_to_column_ptr[column_name] = arrow_column;
+        name_to_column_ptr[lower_column_name_if_need(vectorized_column_reader.col_name(), format_settings_)] = arrow_column;
     }
 
     if (const size_t num_rows = name_to_column_ptr.begin()->second->length(); num_rows > 0)
@@ -249,10 +255,12 @@ ParquetFileReaderExt::ParquetFileReaderExt(
     const std::shared_ptr<arrow::io::RandomAccessFile> & source,
     std::unique_ptr<parquet::ParquetFileReader> parquetFileReader,
     const std::shared_ptr<ColumnIndexFilter> & column_index_filter,
-    const std::vector<int32_t> & column_indices)
+    const std::vector<int32_t> & column_indices,
+    const DB::FormatSettings & format_settings)
     : source_(source)
     , fileReader_(std::move(parquetFileReader))
     , column_index_filter_(column_index_filter)
+    , format_settings_(format_settings)
     , column_indices_(column_indices.begin(), column_indices.end())
 {
     THROW_ARROW_NOT_OK_OR_ASSIGN(const int64_t source_size, source_->GetSize());
@@ -306,7 +314,8 @@ const ColumnIndexStore & ParquetFileReaderExt::getColumnIndexStore(const int32_t
             const auto * col_desc = rowGroup->schema()->Column(column_index);
             const auto col_index = rowGroupIndex->GetColumnIndex(column_index);
             const auto offset_index = rowGroupIndex->GetOffsetIndex(column_index);
-            column_index_store[col_desc->name()] = ColumnIndex::Make(col_desc, col_index, offset_index);
+            column_index_store[lower_column_name_if_need(col_desc->name(), format_settings_)]
+                = ColumnIndex::Make(col_desc, col_index, offset_index);
         }
         row_group_column_index_stores_[row_group] = std::move(result);
     }

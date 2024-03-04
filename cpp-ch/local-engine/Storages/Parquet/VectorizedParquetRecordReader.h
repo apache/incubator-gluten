@@ -124,6 +124,7 @@ class ParquetFileReaderExt
     std::shared_ptr<ColumnIndexFilter> column_index_filter_;
     std::unordered_map<int32_t, std::unique_ptr<RowRanges>> row_group_row_ranges_;
     std::unordered_map<int32_t, std::unique_ptr<ColumnIndexStore>> row_group_column_index_stores_;
+    const DB::FormatSettings & format_settings_;
 
 protected:
     std::unordered_set<int32_t> column_indices_;
@@ -155,7 +156,8 @@ public:
         const std::shared_ptr<::arrow::io::RandomAccessFile> & source,
         std::unique_ptr<parquet::ParquetFileReader> parquetFileReader,
         const std::shared_ptr<ColumnIndexFilter> & column_index_filter,
-        const std::vector<int32_t> & column_indices);
+        const std::vector<int32_t> & column_indices,
+        const DB::FormatSettings & format_settings);
 };
 
 class PageIterator final : public parquet::arrow::FileColumnIterator

@@ -17,6 +17,7 @@
 #include "ColumnIndexFilter.h"
 
 #if USE_PARQUET
+#include <ranges>
 #include <Interpreters/misc.h>
 #include <Storages/MergeTree/KeyCondition.h>
 #include <Storages/MergeTree/RPNBuilder.h>
@@ -907,12 +908,25 @@ RowRanges ColumnIndexFilter::calculateRowRanges(const ColumnIndexStore & index_s
 
     auto CALL_OPERATOR = [&rpn_stack, &index_store, rowgroup_count](const RPNElement & element, const OPERATOR & callback)
     {
-        const ColumnIndex & index = *(index_store.find(element.columnName)->second);
-        const RowRangesBuilder rgbuilder(rowgroup_count, index.GetOffsetIndex().page_locations());
-        if (index.hasParquetColumnIndex())
+        const auto it = index_store.find(element.columnName);
+        if (it != index_store.end() && it->second->hasParquetColumnIndex())
+        {
+            const ColumnIndex & index = *it->second;
+            const RowRangesBuilder rgbuilder(rowgroup_count, index.GetOffsetIndex().page_locations());
             rpn_stack.emplace_back(rgbuilder.toRowRanges(callback(index, element)));
+        }
         else
-            rpn_stack.emplace_back(rgbuilder.all());
+        {
+            rpn_stack.emplace_back(RowRanges::createSingle(rowgroup_count));
+            if (it == index_store.end())
+            {
+                LOG_WARNING(
+                    &Poco::Logger::get("ColumnIndexFilter"),
+                    "Column {} not found in ColumnIndexStore with Column name[{}], return all row ranges",
+                    element.columnName,
+                    fmt::join(index_store | std::ranges::views::transform([](const auto & kv) { return kv.first; }), ", "));
+            }
+        }
     };
 
     for (const auto & element : rpn_)

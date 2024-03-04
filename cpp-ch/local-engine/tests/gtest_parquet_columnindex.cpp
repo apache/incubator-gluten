@@ -376,6 +376,7 @@ void testCondition(const std::string & exp, const std::vector<size_t> & expected
     const local_engine::ColumnIndexFilter filter(parseFilter(exp, name_and_types), local_engine::SerializedPlanParser::global_context);
     assertRows(filter.calculateRowRanges(column_index_store, TOTALSIZE), expectedRows);
 }
+
 void testCondition(const std::string & exp, size_t rowCount)
 {
     testCondition(exp, std::vector(boost::counting_iterator<size_t>(0), boost::counting_iterator(rowCount)));
@@ -481,6 +482,29 @@ TEST(ColumnIndex, FilteringWithAllNullPages)
     // testCondition("column5 == 1234567", TOTALSIZE);
     // testCondition("column5 >= 1234567", TOTALSIZE);
 }
+TEST(ColumnIndex, FilteringWithNotFoundColumnName)
+{
+    using namespace test_utils;
+    const local_engine::ColumnIndexStore column_index_store = buildTestColumnIndexStore();
+
+    {
+        // COLUMN5 is not found in the column_index_store,
+        const AnotherRowType upper_name_and_types{{"COLUMN5", BIGINT()}};
+        const local_engine::ColumnIndexFilter filter_upper(
+            parseFilter("COLUMN5 in (7, 20)", upper_name_and_types), local_engine::SerializedPlanParser::global_context);
+        assertRows(
+            filter_upper.calculateRowRanges(column_index_store, TOTALSIZE),
+            std::vector(boost::counting_iterator<size_t>(0), boost::counting_iterator<size_t>(TOTALSIZE)));
+    }
+
+    {
+        const AnotherRowType lower_name_and_types{{"column5", BIGINT()}};
+        const local_engine::ColumnIndexFilter filter_lower(
+            parseFilter("column5 in (7, 20)", lower_name_and_types), local_engine::SerializedPlanParser::global_context);
+        assertRows(filter_lower.calculateRowRanges(column_index_store, TOTALSIZE), {});
+    }
+}
+
 using ParquetValue = std::variant<
     parquet::BooleanType::c_type,
     parquet::Int32Type::c_type,
