@@ -312,6 +312,40 @@ jobs:
         if: ${{ always() }}
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/clean.sh
+  
+  ubuntu2004-test-spark35:
+    runs-on: velox-self-hosted
+    env:
+      OS_IMAGE_NAME: ubuntu
+      OS_IMAGE_TAG: 20.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup docker container
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
+      - name: Build Gluten velox third party
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
+          cd /opt/gluten/ep/build-velox/src && \
+          ./get_velox.sh && \
+          ./build_velox.sh --run_setup_script=ON --enable_ep_cache=OFF'
+      - name: Build Gluten CPP library
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
+          cd /opt/gluten/cpp && \
+          ./compile.sh --build_velox_backend=ON '
+      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.5
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten/tools/gluten-it && \
+          mvn clean install -Pspark-3.5 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1'
+      - name: Exit docker container
+        if: ${{ always() }}
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/clean.sh
 
   ubuntu2204-test-spark33-spark34:
     runs-on: velox-self-hosted

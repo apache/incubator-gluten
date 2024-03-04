@@ -96,8 +96,15 @@ trait UnaryTransformSupport extends TransformSupport with UnaryExecNode {
 
 case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = false)(
     val transformStageId: Int
-) extends UnaryTransformSupport {
+) extends GenerateTreeStringShim
+  with UnaryTransformSupport {
   assert(child.isInstanceOf[TransformSupport])
+
+  def stageId: Int = transformStageId
+
+  def substraitPlanJsonValue: String = substraitPlanJson
+
+  def wholeStageTransformerContextDefined: Boolean = wholeStageTransformerContext.isDefined
 
   // For WholeStageCodegen-like operator, only pipeline time will be handled in graph plotting.
   // See SparkPlanGraph.scala:205 for reference.
@@ -157,34 +164,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
   override def otherCopyArgs: Seq[AnyRef] = Seq(transformStageId.asInstanceOf[Integer])
-
-  override def generateTreeString(
-      depth: Int,
-      lastChildren: Seq[Boolean],
-      append: String => Unit,
-      verbose: Boolean,
-      prefix: String = "",
-      addSuffix: Boolean = false,
-      maxFields: Int,
-      printNodeId: Boolean,
-      indent: Int = 0): Unit = {
-    val prefix = if (printNodeId) "^ " else s"^($transformStageId) "
-    child.generateTreeString(
-      depth,
-      lastChildren,
-      append,
-      verbose,
-      prefix,
-      addSuffix = false,
-      maxFields,
-      printNodeId = printNodeId,
-      indent)
-    if (verbose && wholeStageTransformerContext.isDefined) {
-      append(prefix + "Substrait plan:\n")
-      append(substraitPlanJson)
-      append("\n")
-    }
-  }
 
   // It's misleading with "Codegen" used. But we have to keep "WholeStageCodegen" prefixed to
   // make whole stage transformer clearly plotted in UI, like spark's whole stage codegen.

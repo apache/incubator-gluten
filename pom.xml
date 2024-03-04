@@ -139,6 +139,16 @@
       </properties>
     </profile>
     <profile>
+      <id>spark-3.5</id>
+      <properties>
+        <sparkbundle.version>3.5</sparkbundle.version>
+        <sparkshim.artifactId>spark-sql-columnar-shims-spark35</sparkshim.artifactId>
+        <spark.version>3.5.1</spark.version>
+        <delta.version>2.4.0</delta.version>
+        <delta.binary.version>24</delta.binary.version>
+      </properties>
+    </profile>
+    <profile>
       <id>hadoop-2.7.4</id>
       <properties>
         <hadoop.version>2.7.4</hadoop.version>

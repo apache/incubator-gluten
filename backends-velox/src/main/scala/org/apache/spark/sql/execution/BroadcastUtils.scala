@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution
 
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.nmm.NativeMemoryManagers
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.vectorized.{ColumnarBatchSerializeResult, ColumnarBatchSerializerJniWrapper}
 
 import org.apache.spark.SparkContext
@@ -104,7 +105,9 @@ object BroadcastUtils {
             case result: ColumnarBatchSerializeResult =>
               Array(result.getSerialized)
           }
-          ColumnarBuildSideRelation(schema.toAttributes, serialized)
+          ColumnarBuildSideRelation(
+            SparkShimLoader.getSparkShims.attributesFromStruct(schema),
+            serialized)
         }
         // Rebroadcast Velox relation.
         context.broadcast(toRelation).asInstanceOf[Broadcast[T]]
@@ -120,7 +123,9 @@ object BroadcastUtils {
             case result: ColumnarBatchSerializeResult =>
               Array(result.getSerialized)
           }
-          ColumnarBuildSideRelation(schema.toAttributes, serialized)
+          ColumnarBuildSideRelation(
+            SparkShimLoader.getSparkShims.attributesFromStruct(schema),
+            serialized)
         }
         // Rebroadcast Velox relation.
         context.broadcast(toRelation).asInstanceOf[Broadcast[T]]

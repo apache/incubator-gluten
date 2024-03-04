@@ -39,9 +39,11 @@ import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
+
+import org.apache.hadoop.fs.{FileStatus, Path}
 
 class Spark34Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
@@ -217,4 +219,32 @@ class Spark34Shims extends SparkShims {
   }
 
   override def supportDuplicateReadingTracking: Boolean = true
+
+  def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] = partition.files
+
+  def splitFiles(
+      sparkSession: SparkSession,
+      file: FileStatus,
+      filePath: Path,
+      isSplitable: Boolean,
+      maxSplitBytes: Long,
+      partitionValues: InternalRow): Seq[PartitionedFile] = {
+    PartitionedFileUtil.splitFiles(
+      sparkSession,
+      file,
+      filePath,
+      isSplitable,
+      maxSplitBytes,
+      partitionValues)
+  }
+
+  def structFromAttributes(attrs: Seq[Attribute]): StructType = {
+    StructType(attrs.map(a => StructField(a.name, a.dataType, a.nullable, a.metadata)))
+  }
+
+  def attributesFromStruct(structType: StructType): Seq[Attribute] = {
+    structType.fields.map {
+      field => AttributeReference(field.name, field.dataType, field.nullable, field.metadata)()
+    }
+  }
 }

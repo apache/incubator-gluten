@@ -25,7 +25,7 @@ import org.apache.spark.shuffle.{ShuffleHandle, ShuffleReader, ShuffleReadMetric
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.Distribution
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
@@ -37,6 +37,8 @@ import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
+
+import org.apache.hadoop.fs.{FileStatus, Path}
 
 sealed abstract class ShimDescriptor
 
@@ -126,4 +128,18 @@ trait SparkShims {
 
   // Because above, this feature is only supported after spark 3.3
   def supportDuplicateReadingTracking: Boolean
+
+  def getFileStatus(partition: PartitionDirectory): Seq[FileStatus]
+
+  def splitFiles(
+      sparkSession: SparkSession,
+      file: FileStatus,
+      filePath: Path,
+      isSplitable: Boolean,
+      maxSplitBytes: Long,
+      partitionValues: InternalRow): Seq[PartitionedFile]
+
+  def structFromAttributes(attrs: Seq[Attribute]): StructType
+
+  def attributesFromStruct(structType: StructType): Seq[Attribute]
 }
