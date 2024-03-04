@@ -17,26 +17,13 @@
 package org.apache.spark.sql.execution.datasources.parquet
 
 import org.apache.spark.sql._
-import org.apache.spark.sql.internal.SQLConf
 
 /** A test suite that tests basic Parquet I/O. */
 class GlutenParquetIOSuite extends ParquetIOSuite with GlutenSQLTestsBaseTrait {
-  override protected val vectorizedReaderEnabledKey: String =
-    SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key + "_DISABLED"
-  override protected val vectorizedReaderNestedEnabledKey: String =
-    SQLConf.PARQUET_VECTORIZED_READER_NESTED_COLUMN_ENABLED.key + "_DISABLED"
-
   override protected def testFile(fileName: String): String = {
     getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + fileName
   }
-  override def withAllParquetReaders(code: => Unit): Unit = {
-    // test the row-based reader
-    withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "false") {
-      withClue("Parquet-mr reader") {
-        code
-      }
-    }
-  }
+
   override protected def readResourceParquetFile(name: String): DataFrame = {
     spark.read.parquet(testFile(name))
   }

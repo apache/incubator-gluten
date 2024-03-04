@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_02_29
+VELOX_BRANCH=2024_03_01
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
@@ -146,6 +146,8 @@ function process_setup_centos8 {
   sed -i "s/yum -y install/sudo yum -y install/" ${VELOX_HOME}/scripts/setup-adapters.sh
   if [ $ENABLE_S3 == "ON" ]; then
     sed -i '/^  run_and_time install_fbthrift/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh aws' scripts/setup-centos8.sh
+    # Maybe already installed.
+    sed -i 's/rpm -i minio-20220526054841.0.0.x86_64.rpm/rpm -i --replacepkgs minio-20220526054841.0.0.x86_64.rpm/g' scripts/setup-adapters.sh
   fi
   if [ $ENABLE_GCS == "ON" ]; then
     sed -i '/^  run_and_time install_fbthrift/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos8.sh
@@ -184,6 +186,8 @@ function process_setup_centos7 {
   sed -i "s/yum -y install/sudo yum -y install/" ${VELOX_HOME}/scripts/setup-adapters.sh
   if [ $ENABLE_S3 == "ON" ]; then
     sed -i '/^  run_and_time install_folly/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh aws' scripts/setup-centos7.sh
+    # Maybe already installed.
+    sed -i 's/rpm -i minio-20220526054841.0.0.x86_64.rpm/rpm -i --replacepkgs minio-20220526054841.0.0.x86_64.rpm/g' scripts/setup-adapters.sh
   fi
   if [ $ENABLE_GCS == "ON" ]; then
     sed -i '/^  run_and_time install_folly/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos7.sh
