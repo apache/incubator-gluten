@@ -29,6 +29,7 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.types.{ArrayType, StructType}
 
 import java.util.{ArrayList => JArrayList, List => JList}
 
@@ -120,7 +121,9 @@ case class GenerateExecTransformer(
           .asJava
         projectExpressions.addAll(childOutputNodes)
         val projectExprNode = ExpressionConverter
-          .replaceWithExpressionTransformer(generator.asInstanceOf[Explode].child, child.output)
+          .replaceWithExpressionTransformer(
+            generator.asInstanceOf[UnaryExpression].child,
+            child.output)
           .doTransform(args)
 
         projectExpressions.add(projectExprNode)
@@ -144,7 +147,28 @@ case class GenerateExecTransformer(
       requiredChildOutputNodes,
       validation = false)
 
-    TransformContext(child.output, output, relNode)
+    val newRel = generator.dataType match {
+      case ArrayType(_: StructType, _) =>
+        RelBuilder.makeProjectRel(
+          relNode,
+          generatorOutput.zipWithIndex.map {
+            case (attr, i) =>
+              ExpressionConverter
+                .replaceWithExpressionTransformer(
+                  GetStructField(generator.asInstanceOf[UnaryExpression].child, i, Some(attr.name)),
+                  child.output
+                )
+                .doTransform(args)
+          }.asJava,
+          context,
+          operatorId,
+          1
+        )
+      case _ =>
+        relNode
+    }
+
+    TransformContext(child.output, output, newRel)
   }
 
   def getRelNode(

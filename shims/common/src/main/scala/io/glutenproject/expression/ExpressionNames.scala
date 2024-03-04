@@ -255,6 +255,7 @@ object ExpressionNames {
   final val AGGREGATE = "aggregate"
   final val LAMBDAFUNCTION = "lambdafunction"
   final val EXPLODE = "explode"
+  final val INLINE = "inline"
   final val POSEXPLODE = "posexplode"
   final val CHECK_OVERFLOW = "check_overflow"
   final val MAKE_DECIMAL = "make_decimal"
