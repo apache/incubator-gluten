@@ -118,12 +118,6 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "scan time"),
       "inputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for data"),
       "outputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for output"),
-      "numFiles" -> SQLMetrics.createMetric(sparkContext, "number of files read"),
-      "metadataTime" -> SQLMetrics.createTimingMetric(sparkContext, "metadata time"),
-      "filesSize" -> SQLMetrics.createSizeMetric(sparkContext, "size of files read"),
-      "numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions read"),
-      "pruningTime" ->
-        SQLMetrics.createTimingMetric(sparkContext, "dynamic partition pruning time"),
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time")
     )

@@ -69,6 +69,8 @@ class FileSourceScanExecShim(
 
   def isMetadataColumn(attr: Attribute): Boolean = metadataColumns.contains(attr)
 
+  protected lazy val driverMetricsAlias = driverMetrics
+
   def hasFieldIds: Boolean = ParquetUtils.hasFieldIds(requiredSchema)
 
   private def isDynamicPruningFilter(e: Expression): Boolean =

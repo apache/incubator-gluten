@@ -100,12 +100,6 @@ class MetricsApiImpl extends MetricsApi with Logging {
         "totaltime of scan and filter"),
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-      "numFiles" -> SQLMetrics.createMetric(sparkContext, "number of files read"),
-      "metadataTime" -> SQLMetrics.createTimingMetric(sparkContext, "metadata time"),
-      "filesSize" -> SQLMetrics.createSizeMetric(sparkContext, "size of files read"),
-      "numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions read"),
-      "pruningTime" ->
-        SQLMetrics.createTimingMetric(sparkContext, "dynamic partition pruning time"),
       "numMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
         "number of memory allocations"),
