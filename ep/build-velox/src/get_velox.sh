@@ -107,7 +107,7 @@ function process_setup_ubuntu {
   if [ $ENABLE_S3 == "ON" ]; then
     sed -i '/^  run_and_time install_folly/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh aws' scripts/setup-ubuntu.sh
     # it's used for velox CI
-    sed -i 's/rpm -i minio-20220526054841.0.0.x86_64.rpm/#rpm -i minio-20220526054841.0.0.x86_64.rpm/g' scripts/setup-adapters.sh
+    sed -i 's/rpm -i minio-20220526054841.0.0.x86_64.rpm/#rpm -i --replacepkgs minio-20220526054841.0.0.x86_64.rpm/g' scripts/setup-adapters.sh
   fi
   if [ $ENABLE_GCS == "ON" ]; then
     sed -i '/^  run_and_time install_folly/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-ubuntu.sh
