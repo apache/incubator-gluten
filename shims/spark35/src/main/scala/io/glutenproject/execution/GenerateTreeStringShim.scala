@@ -26,7 +26,6 @@ import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
  */
 
 trait GenerateTreeStringShim extends UnaryExecNode {
-  def childPlan: SparkPlan
 
   def stageId: Int
 
@@ -45,7 +44,7 @@ trait GenerateTreeStringShim extends UnaryExecNode {
       printNodeId: Boolean,
       indent: Int = 0): Unit = {
     val prefix = if (printNodeId) "^ " else s"^($stageId) "
-    childPlan.generateTreeString(
+    child.generateTreeString(
       depth,
       lastChildren,
       append,

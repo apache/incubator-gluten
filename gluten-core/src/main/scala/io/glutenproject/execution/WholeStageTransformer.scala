@@ -100,8 +100,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   with UnaryTransformSupport {
   assert(child.isInstanceOf[TransformSupport])
 
-  def childPlan: SparkPlan = child
-
   def stageId: Int = transformStageId
 
   def substraitPlanJsonValue: String = substraitPlanJson
