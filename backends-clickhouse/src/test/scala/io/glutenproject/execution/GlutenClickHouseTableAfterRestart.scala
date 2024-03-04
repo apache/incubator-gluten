@@ -19,6 +19,7 @@ package io.glutenproject.execution
 import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.SparkSession.{getActiveSession, getDefaultSession}
+import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaLog}
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
@@ -86,6 +87,28 @@ class GlutenClickHouseTableAfterRestart
     }
   }
 
+  override protected def afterAll(): Unit = {
+    DeltaLog.clearCache()
+
+    try {
+      super.afterAll()
+    } finally {
+      try {
+        if (_hiveSpark != null) {
+          try {
+            _hiveSpark.sessionState.catalog.reset()
+          } finally {
+            _hiveSpark.stop()
+            _hiveSpark = null
+          }
+        }
+      } finally {
+        SparkSession.clearActiveSession()
+        SparkSession.clearDefaultSession()
+      }
+    }
+  }
+
   test("test mergetree after restart") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree;
@@ -145,8 +168,8 @@ class GlutenClickHouseTableAfterRestart
          |    l_linestatus;
          |
          |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr)(_ => {})
 
+    // now restart
     ClickHouseTableV2.deltaLog2Table.clear()
 
     val session = getActiveSession.orElse(getDefaultSession)
@@ -171,6 +194,13 @@ class GlutenClickHouseTableAfterRestart
       .getOrCreate()
 
     runTPCHQueryBySQL(1, sqlStr)(_ => {})
+
+    // after restart, additionally check stats of delta scan cache
+    val stats1 = ClickhouseSnapshot.deltaScanCache.stats()
+    assert(stats1.missCount() == 1)
+    val stats2 = ClickhouseSnapshot.addFileToAddMTPCache.stats()
+    assert(stats2.missCount() == 6)
+
   }
 
 }

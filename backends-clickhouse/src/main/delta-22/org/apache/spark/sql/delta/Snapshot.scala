@@ -381,7 +381,11 @@ class Snapshot(
       s"logSegment=$logSegment, checksumOpt=$checksumOpt)"
 
   override def filesForScan(filters: Seq[Expression], keepNumRecords: Boolean): DeltaScan = {
-    val deltaScan = super.filesForScan(filters, keepNumRecords)
+    val deltaScan = ClickhouseSnapshot.deltaScanCache.get(
+      FilterExprsAsKey(path, version, filters),
+      () => {
+        super.filesForScan(filters, keepNumRecords)
+      })
 
     DeltaScan.apply(
       deltaScan.version,
@@ -389,7 +393,11 @@ class Snapshot(
         .map(
           addFile => {
             val addFileAsKey = AddFileAsKey(addFile)
-            ClickhouseSnapshot.fileStatusCache.get(addFileAsKey)
+
+            val ret = ClickhouseSnapshot.addFileToAddMTPCache.get(addFileAsKey)
+            // this is for later use
+            ClickhouseSnapshot.pathToAddMTPCache.put(ret.fullPartPath(), ret)
+            ret
           }),
       deltaScan.total,
       deltaScan.partition,

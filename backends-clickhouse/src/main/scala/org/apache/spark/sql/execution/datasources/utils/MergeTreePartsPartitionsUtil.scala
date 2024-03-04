@@ -24,11 +24,10 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.ClickhouseSnapshot
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddFileTags.addFileToAddMergeTreeParts
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.util.collection.BitSet
@@ -55,16 +54,6 @@ object MergeTreePartsPartitionsUtil extends Logging {
       throw new IllegalStateException()
     }
     val fileIndex = relation.location.asInstanceOf[TahoeFileIndex]
-
-    // TODO leverage matchingFiles's partition filter and data filter
-    val partsFiles =
-      fileIndex
-        .matchingFiles(Nil, Nil)
-        .map {
-          case parts: AddMergeTreeParts => parts
-          case file: AddFile => addFileToAddMergeTreeParts(file)
-          case _ => throw new IllegalStateException()
-        }
 
     val partitions = new ArrayBuffer[InputPartition]
     val (database, tableName) = if (table.catalogTable.isDefined) {
@@ -93,7 +82,6 @@ object MergeTreePartsPartitionsUtil extends Logging {
         table.bucketOption.get,
         optionalBucketSet,
         optionalNumCoalescedBuckets,
-        partsFiles,
         selectedPartitions,
         tableSchemaJson,
         partitions,
@@ -110,7 +98,6 @@ object MergeTreePartsPartitionsUtil extends Logging {
         relativeTablePath,
         absoluteTablePath,
         optionalBucketSet,
-        partsFiles,
         selectedPartitions,
         tableSchemaJson,
         partitions,
@@ -130,7 +117,6 @@ object MergeTreePartsPartitionsUtil extends Logging {
       relativeTablePath: String,
       absoluteTablePath: String,
       optionalBucketSet: Option[BitSet],
-      partsFiles: Seq[AddMergeTreeParts],
       selectedPartitions: Array[PartitionDirectory],
       tableSchemaJson: String,
       partitions: ArrayBuffer[InputPartition],
@@ -138,19 +124,24 @@ object MergeTreePartsPartitionsUtil extends Logging {
       primaryKey: String,
       clickhouseTableConfigs: Map[String, String],
       sparkSession: SparkSession): Unit = {
-    val selectedPartitionMap = selectedPartitions
+
+    val selectPartsFiles = selectedPartitions
       .flatMap(
-        p => {
-          p.files.map(
-            f => {
-              (f.getPath.toUri.getPath, f)
-            })
-        })
-      .toMap
-
-    val selectPartsFiles =
-      partsFiles.filter(part => selectedPartitionMap.contains(part.fullPartPath()))
-
+        partition =>
+          partition.files.map(
+            fs => {
+              val path = fs.getPath.toUri.getPath
+              val ret = ClickhouseSnapshot.pathToAddMTPCache.getIfPresent(path)
+              if (ret == null) {
+                throw new IllegalStateException(
+                  "Can't find AddMergeTreeParts from cache pathToAddMTPCache for key: " +
+                    path + ". This happens when too many new entries are added to " +
+                    "pathToAddMTPCache during current query. " +
+                    "Try rerun current query.")
+              }
+              ret
+            }))
+      .toSeq
     if (selectPartsFiles.isEmpty) {
       return
     }
@@ -244,7 +235,6 @@ object MergeTreePartsPartitionsUtil extends Logging {
       bucketSpec: BucketSpec,
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
-      partsFiles: Seq[AddMergeTreeParts],
       selectedPartitions: Array[PartitionDirectory],
       tableSchemaJson: String,
       partitions: ArrayBuffer[InputPartition],
@@ -253,18 +243,23 @@ object MergeTreePartsPartitionsUtil extends Logging {
       clickhouseTableConfigs: Map[String, String],
       sparkSession: SparkSession): Unit = {
 
-    val selectedPartitionMap = selectedPartitions
+    val selectPartsFiles = selectedPartitions
       .flatMap(
-        p => {
-          p.files.map(
-            f => {
-              (f.getPath.toUri.getPath, f)
-            })
-        })
-      .toMap
-
-    val selectPartsFiles =
-      partsFiles.filter(part => selectedPartitionMap.contains(part.fullPartPath()))
+        partition =>
+          partition.files.map(
+            fs => {
+              val path = fs.getPath.toUri.getPath
+              val ret = ClickhouseSnapshot.pathToAddMTPCache.getIfPresent(path)
+              if (ret == null) {
+                throw new IllegalStateException(
+                  "Can't find AddMergeTreeParts from cache pathToAddMTPCache for key: " +
+                    path + ". This happens when too many new entries are added to " +
+                    "pathToAddMTPCache during current query. " +
+                    "Try rerun current query.")
+              }
+              ret
+            }))
+      .toSeq
 
     if (selectPartsFiles.isEmpty) {
       return
@@ -285,7 +280,8 @@ object MergeTreePartsPartitionsUtil extends Logging {
     }
     Seq.tabulate(bucketSpec.numBuckets) {
       bucketId =>
-        val currBucketParts = prunedFilesGroupedToBuckets.getOrElse(bucketId, Seq.empty)
+        val currBucketParts: Seq[AddMergeTreeParts] =
+          prunedFilesGroupedToBuckets.getOrElse(bucketId, Seq.empty)
         if (!currBucketParts.isEmpty) {
           val currentFiles = currBucketParts.map {
             part =>

@@ -408,7 +408,11 @@ class Snapshot(
       projection: Seq[Attribute],
       filters: Seq[Expression],
       keepNumRecords: Boolean): DeltaScan = {
-    val deltaScan = super.filesForScan(projection, filters, keepNumRecords)
+    val deltaScan = ClickhouseSnapshot.deltaScanCache.get(
+      FilterExprsAsKey(path, version, filters),
+      () => {
+        super.filesForScan(projection, filters, keepNumRecords)
+      })
 
     DeltaScan.apply(
       deltaScan.version,
@@ -416,7 +420,11 @@ class Snapshot(
         .map(
           addFile => {
             val addFileAsKey = AddFileAsKey(addFile)
-            ClickhouseSnapshot.fileStatusCache.get(addFileAsKey)
+
+            val ret = ClickhouseSnapshot.addFileToAddMTPCache.get(addFileAsKey)
+            // this is for later use
+            ClickhouseSnapshot.pathToAddMTPCache.put(ret.fullPartPath(), ret)
+            ret
           }),
       deltaScan.total,
       deltaScan.partition,

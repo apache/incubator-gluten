@@ -16,10 +16,14 @@
  */
 package org.apache.spark.sql.delta
 
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, BindReferences, Expression, Predicate}
 import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.stats.DeltaScan
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.{AddFileTags, AddMergeTreeParts}
 
-import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
+import com.google.common.base.Objects
+import com.google.common.cache.{Cache, CacheBuilder, CacheLoader, LoadingCache}
+import org.apache.hadoop.fs.Path
 
 import java.util.concurrent.TimeUnit
 case class AddFileAsKey(addFile: AddFile) {
@@ -35,8 +39,53 @@ case class AddFileAsKey(addFile: AddFile) {
   }
 }
 
+case class FilterExprsAsKey(path: Path, version: Long, filters: Seq[Expression]) {
+
+  // to transform l_shipdate_912 to l_shiptate_0 so that Attribute reference
+  // of same column in different queries can be compared
+  private val semanticFilters = filters.map(
+    e => {
+      Predicate.createInterpreted(
+        BindReferences.bindReference(
+          e.transform {
+            case a: AttributeReference =>
+              AttributeReference(a.name, a.dataType, a.nullable, a.metadata)(
+                a.exprId.copy(id = 0),
+                a.qualifier
+              )
+          },
+          Nil,
+          allowFailures = true
+        )
+      )
+    })
+  override def hashCode(): Int = {
+    val a: Int = path.hashCode()
+    val b: Int = version.hashCode()
+    val c: Int = semanticFilters.hashCode()
+    Objects.hashCode(path, version.asInstanceOf[AnyRef], semanticFilters)
+  }
+
+  override def equals(o: Any): Boolean = {
+    o match {
+      case that: FilterExprsAsKey =>
+        that.path == this.path &&
+        that.version == this.version &&
+        that.semanticFilters == this.semanticFilters
+      case _ => false
+    }
+  }
+
+}
+
 object ClickhouseSnapshot {
-  val fileStatusCache: LoadingCache[AddFileAsKey, AddMergeTreeParts] = CacheBuilder.newBuilder
+  val deltaScanCache: Cache[FilterExprsAsKey, DeltaScan] = CacheBuilder.newBuilder
+    .maximumSize(100)
+    .expireAfterAccess(3600L, TimeUnit.SECONDS)
+    .recordStats()
+    .build()
+
+  val addFileToAddMTPCache: LoadingCache[AddFileAsKey, AddMergeTreeParts] = CacheBuilder.newBuilder
     .maximumSize(100000)
     .expireAfterAccess(3600L, TimeUnit.SECONDS)
     .recordStats
@@ -46,5 +95,16 @@ object ClickhouseSnapshot {
         AddFileTags.addFileToAddMergeTreeParts(key.addFile)
       }
     })
-  def clearAllFileStatusCache: Unit = fileStatusCache.invalidateAll()
+
+  val pathToAddMTPCache: Cache[String, AddMergeTreeParts] = CacheBuilder.newBuilder
+    .maximumSize(100000)
+    .expireAfterAccess(3600L, TimeUnit.SECONDS)
+    .recordStats()
+    .build()
+
+  def clearAllFileStatusCache(): Unit = {
+    addFileToAddMTPCache.invalidateAll()
+    pathToAddMTPCache.invalidateAll()
+    deltaScanCache.invalidateAll()
+  }
 }
