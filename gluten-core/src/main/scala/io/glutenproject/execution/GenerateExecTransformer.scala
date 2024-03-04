@@ -29,7 +29,6 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.types.{ArrayType, StructType}
 
 import java.util.{ArrayList => JArrayList, List => JList}
 
@@ -147,28 +146,7 @@ case class GenerateExecTransformer(
       requiredChildOutputNodes,
       validation = false)
 
-    val newRel = generator.dataType match {
-      case ArrayType(_: StructType, _) =>
-        RelBuilder.makeProjectRel(
-          relNode,
-          generatorOutput.zipWithIndex.map {
-            case (attr, i) =>
-              ExpressionConverter
-                .replaceWithExpressionTransformer(
-                  GetStructField(generator.asInstanceOf[UnaryExpression].child, i, Some(attr.name)),
-                  child.output
-                )
-                .doTransform(args)
-          }.asJava,
-          context,
-          operatorId,
-          1
-        )
-      case _ =>
-        relNode
-    }
-
-    TransformContext(child.output, output, newRel)
+    TransformContext(child.output, output, relNode)
   }
 
   def getRelNode(
@@ -176,11 +154,11 @@ case class GenerateExecTransformer(
       operatorId: Long,
       inputAttributes: Seq[Attribute],
       input: RelNode,
-      generator: ExpressionNode,
+      generatorNode: ExpressionNode,
       childOutput: JList[ExpressionNode],
       validation: Boolean): RelNode = {
-    if (!validation) {
-      RelBuilder.makeGenerateRel(input, generator, childOutput, context, operatorId)
+    val generateRel = if (!validation) {
+      RelBuilder.makeGenerateRel(input, generatorNode, childOutput, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList =
@@ -188,7 +166,33 @@ case class GenerateExecTransformer(
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         BackendsApiManager.getTransformerApiInstance.packPBMessage(
           TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeGenerateRel(input, generator, childOutput, extensionNode, context, operatorId)
+      RelBuilder.makeGenerateRel(
+        input,
+        generatorNode,
+        childOutput,
+        extensionNode,
+        context,
+        operatorId)
+    }
+    generator match {
+      case Inline(_) if !validation =>
+        // No need to validate the project rel as it only flattens the generator's output.
+        RelBuilder.makeProjectRel(
+          generateRel,
+          generatorOutput.zipWithIndex.map {
+            case (attr, i) =>
+              ExpressionConverter
+                .replaceWithExpressionTransformer(
+                  GetStructField(generator.asInstanceOf[UnaryExpression].child, i, Some(attr.name)),
+                  child.output
+                )
+                .doTransform(context.registeredFunction)
+          }.asJava,
+          context,
+          operatorId,
+          1
+        )
+      case _ => generateRel
     }
   }
 
