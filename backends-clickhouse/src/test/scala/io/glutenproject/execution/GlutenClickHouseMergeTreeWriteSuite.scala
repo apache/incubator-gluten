@@ -198,7 +198,110 @@ class GlutenClickHouseMergeTreeWriteSuite
       // total rows should remain unchanged
       spark.sql(sql2).collect().apply(0).get(0) == 300001
     )
+  }
 
+  test("test mergetree insert overwrite partitioned table with small table, static") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_insertoverwrite2;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_insertoverwrite2
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |PARTITIONED BY (l_shipdate)
+                 |LOCATION '$basePath/lineitem_mergetree_insertoverwrite2'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_insertoverwrite2
+                 | select * from lineitem
+                 |""".stripMargin)
+
+    spark.sql(
+      s"""
+         | insert overwrite table lineitem_mergetree_insertoverwrite2
+         | select * from lineitem where l_shipdate BETWEEN date'1993-02-01' AND date'1993-02-10'
+         |""".stripMargin)
+    val sql2 =
+      s"""
+         | select count(*) from lineitem_mergetree_insertoverwrite2
+         |
+         |""".stripMargin
+    assert(
+      // total rows should remain unchanged
+      spark.sql(sql2).collect().apply(0).get(0) == 2418
+    )
+  }
+
+  test("test mergetree insert overwrite partitioned table with small table, dynamic") {
+    withSQLConf(("spark.sql.sources.partitionOverwriteMode", "dynamic")) {
+      spark.sql(s"""
+                   |DROP TABLE IF EXISTS lineitem_mergetree_insertoverwrite3 PURGE;
+                   |""".stripMargin)
+
+      spark.sql(s"""
+                   |CREATE TABLE IF NOT EXISTS lineitem_mergetree_insertoverwrite3
+                   |(
+                   | l_orderkey      bigint,
+                   | l_partkey       bigint,
+                   | l_suppkey       bigint,
+                   | l_linenumber    bigint,
+                   | l_quantity      double,
+                   | l_extendedprice double,
+                   | l_discount      double,
+                   | l_tax           double,
+                   | l_returnflag    string,
+                   | l_linestatus    string,
+                   | l_shipdate      date,
+                   | l_commitdate    date,
+                   | l_receiptdate   date,
+                   | l_shipinstruct  string,
+                   | l_shipmode      string,
+                   | l_comment       string
+                   |)
+                   |USING clickhouse
+                   |PARTITIONED BY (l_shipdate)
+                   |LOCATION '$basePath/lineitem_mergetree_insertoverwrite3'
+                   |""".stripMargin)
+
+      spark.sql(s"""
+                   | insert into table lineitem_mergetree_insertoverwrite3
+                   | select * from lineitem
+                   |""".stripMargin)
+
+      spark.sql(
+        s"""
+           | insert overwrite table lineitem_mergetree_insertoverwrite3
+           | select * from lineitem where l_shipdate BETWEEN date'1993-02-01' AND date'1993-02-10'
+           |""".stripMargin)
+      val sql2 =
+        s"""
+           | select count(*) from lineitem_mergetree_insertoverwrite3
+           |
+           |""".stripMargin
+      assert(
+        // total rows should remain unchanged
+        spark.sql(sql2).collect().apply(0).get(0) == 600572
+      )
+    }
   }
 
   test("test mergetree table update") {
@@ -663,7 +766,6 @@ class GlutenClickHouseMergeTreeWriteSuite
                  |  l_comment from lineitem
                  |  where l_shipdate BETWEEN date'1993-02-01' AND date'1993-02-10'
                  |""".stripMargin)
-
     val sqlStr =
       s"""
          |SELECT
