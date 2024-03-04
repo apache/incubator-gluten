@@ -392,9 +392,7 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
 
 ArrayVectorPtr SubstraitVeloxExprConverter::literalsToArrayVector(const ::substrait::Expression::Literal& literal) {
   auto childSize = literal.list().values().size();
-  if (childSize == 0) {
-    return makeEmptyArrayVector(pool_, UNKNOWN());
-  }
+  VELOX_CHECK_GT(childSize, 0, "there should be at least 1 value in list literal.");
   auto childLiteral = literal.list().values(0);
   auto elementAtFunc = [&](vector_size_t idx) { return literal.list().values(idx); };
   auto childVector = literalsToVector(childLiteral, childSize, literal, elementAtFunc);
@@ -403,9 +401,7 @@ ArrayVectorPtr SubstraitVeloxExprConverter::literalsToArrayVector(const ::substr
 
 MapVectorPtr SubstraitVeloxExprConverter::literalsToMapVector(const ::substrait::Expression::Literal& literal) {
   auto childSize = literal.map().key_values().size();
-  if (childSize == 0) {
-    return makeEmptyMapVector(pool_, UNKNOWN(), UNKNOWN());
-  }
+  VELOX_CHECK_GT(childSize, 0, "there should be at least 1 value in map literal.");
   auto& keyLiteral = literal.map().key_values(0).key();
   auto& valueLiteral = literal.map().key_values(0).value();
   auto keyAtFunc = [&](vector_size_t idx) { return literal.map().key_values(idx).key(); };
