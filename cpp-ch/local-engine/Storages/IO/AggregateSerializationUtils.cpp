@@ -62,7 +62,7 @@ DB::ColumnWithTypeAndName convertAggregateStateToFixedString(const DB::ColumnWit
     auto res_type = std::make_shared<DataTypeFixedString>(state_size);
     auto res_col = res_type->createColumn();
     PaddedPODArray<UInt8> & column_chars_t = assert_cast<ColumnFixedString &>(*res_col).getChars();
-    column_chars_t.reserve(aggregate_col->size() * state_size);
+    column_chars_t.reserve_exact(aggregate_col->size() * state_size);
     for (const auto & item : aggregate_col->getData())
     {
         column_chars_t.insert_assume_reserved(item, item + state_size);
@@ -82,7 +82,7 @@ DB::ColumnWithTypeAndName convertAggregateStateToString(const DB::ColumnWithType
     PaddedPODArray<UInt8> & column_chars = assert_cast<ColumnString &>(*res_col).getChars();
     IColumn::Offsets & column_offsets = assert_cast<ColumnString &>(*res_col).getOffsets();
     auto value_writer = WriteBufferFromVector<PaddedPODArray<UInt8>>(column_chars);
-    column_offsets.reserve(aggregate_col->size());
+    column_offsets.reserve_exact(aggregate_col->size());
     for (const auto & item : aggregate_col->getData())
     {
         aggregate_col->getAggregateFunction()->serialize(item, value_writer);
@@ -100,7 +100,7 @@ DB::ColumnWithTypeAndName convertFixedStringToAggregateState(const DB::ColumnWit
     ColumnAggregateFunction & real_column = typeid_cast<ColumnAggregateFunction &>(*res_col);
     auto & arena = real_column.createOrGetArena();
     ColumnAggregateFunction::Container & vec = real_column.getData();
-    vec.reserve(col.column->size());
+    vec.reserve_exact(col.column->size());
     auto agg_function = agg_type->getFunction();
     size_t size_of_state = agg_function->sizeOfData();
     size_t align_of_state = agg_function->alignOfData();

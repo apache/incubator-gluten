@@ -394,9 +394,9 @@ DB::ContextMutablePtr global_context;
         PaddedPODArray<Int32> arr;
         PaddedPODArray<UInt8> condition;
         PaddedPODArray<Int32> res_data;
-        arr.reserve(n);
-        condition.reserve(n);
-        res_data.reserve(n);
+        arr.reserve_exact(n);
+        condition.reserve_exact(n);
+        res_data.reserve_exact(n);
         for (int i = 0; i < n; i++)
         {
             arr.push_back(i);
@@ -447,9 +447,9 @@ DB::ContextMutablePtr global_context;
         PaddedPODArray<Int32> arr;
         PaddedPODArray<UInt8> condition;
         PaddedPODArray<Int32> res_data;
-        arr.reserve(n);
-        condition.reserve(n);
-        res_data.reserve(n);
+        arr.reserve_exact(n);
+        condition.reserve_exact(n);
+        res_data.reserve_exact(n);
         for (int i = 0; i < n; i++)
         {
             arr.push_back(i);

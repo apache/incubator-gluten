@@ -69,7 +69,7 @@ void CompressedWriteBuffer::nextImpl()
     }
     else
     {
-        compressed_buffer.resize(compressed_reserve_size);
+        compressed_buffer.resize_exact(compressed_reserve_size);
         UInt32 compressed_size = codec->compress(working_buffer.begin(), decompressed_size, compressed_buffer.data());
         compress_time += compress_time_watch.elapsedNanoseconds();
         CityHash_v1_0_2::uint128 checksum_(0,0);

@@ -135,10 +135,10 @@ namespace
             ColumnString::Offsets & res_offsets,
             const String & trim_str) const
         {
-            res_data.reserve(data.size());
+            res_data.reserve_exact(data.size());
 
             size_t rows = offsets.size();
-            res_offsets.resize(rows);
+            res_offsets.resize_exact(rows);
 
             size_t prev_offset = 0;
             size_t res_offset = 0;
@@ -149,7 +149,7 @@ namespace
             for (size_t i = 0; i < rows; ++i)
             {
                 trim(reinterpret_cast<const UInt8 *>(&data[prev_offset]), offsets[i] - prev_offset - 1, start, length, trim_set);
-                res_data.resize(res_data.size() + length + 1);
+                res_data.resize_exact(res_data.size() + length + 1);
                 memcpySmallAllowReadWriteOverflow15(&res_data[res_offset], start, length);
                 res_offset += length + 1;
                 res_data[res_offset - 1] = '\0';
