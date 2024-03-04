@@ -218,7 +218,8 @@ class ClickHouseSparkCatalog
             new Path(v1.catalogTable.location),
             catalogTable = Some(v1.catalogTable),
             tableIdentifier = Some(ident.toString))
-        case o => o
+        case o =>
+          o
       }
     } catch {
       case _: NoSuchDatabaseException | _: NoSuchNamespaceException | _: NoSuchTableException

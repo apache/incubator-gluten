@@ -148,6 +148,7 @@ class GlutenClickHouseMergeTreeWriteSuite
           addFiles.map(_.rows).sum
             == 600572)
     }
+
   }
 
   test("test mergetree insert overwrite") {

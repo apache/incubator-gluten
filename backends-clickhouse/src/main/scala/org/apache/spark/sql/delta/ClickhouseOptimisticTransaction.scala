@@ -120,7 +120,7 @@ class ClickhouseOptimisticTransaction(
       }
 
       try {
-        val tableV2 = ClickHouseTableV2.deltaLog2Table.get(deltaLog).get
+        val tableV2 = ClickHouseTableV2.deltaLog2Table(deltaLog)
         MergeTreeFileFormatWriter.write(
           sparkSession = spark,
           plan = newQueryPlan,
