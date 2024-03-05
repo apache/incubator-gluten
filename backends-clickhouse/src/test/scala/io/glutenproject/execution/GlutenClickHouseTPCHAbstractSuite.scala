@@ -37,6 +37,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
 
   override protected val backend: String = "ch"
   override protected val resourcePath: String = "non-existing-path"
+  protected val needCopyParquetToTablePath = false
   override protected val fileFormat: String = "parquet"
 
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -61,10 +62,12 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     FileUtils.forceMkdir(basePathDir)
     FileUtils.forceMkdir(new File(warehouse))
     FileUtils.forceMkdir(new File(metaStorePathAbsolute))
-    val sourcePath = new File(rootPath + resourcePath)
-    if (sourcePath.exists()) {
+
+    if (needCopyParquetToTablePath) {
+      val sourcePath = new File(rootPath + "../../../../gluten-core/src/test/resources/tpch-data")
       FileUtils.copyDirectory(sourcePath, new File(tablesPath))
     }
+
     super.beforeAll()
     spark.sparkContext.setLogLevel(logLevel)
     if (createNullableTables) {
