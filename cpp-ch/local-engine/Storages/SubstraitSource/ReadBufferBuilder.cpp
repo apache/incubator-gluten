@@ -399,7 +399,7 @@ public:
     {
         Poco::URI file_uri(file_info.uri_file());
         // file uri looks like: s3a://my-dev-bucket/tpch100/part/0001.parquet
-        std::string bucket = file_uri.getHost();
+        const std::string& bucket = file_uri.getHost();
         const auto client = getClient(bucket);
         std::string key = file_uri.getPath().substr(1);
         DB::S3::ObjectInfo object_info =  DB::S3::getObjectInfo(*client, bucket, key, "");
@@ -426,7 +426,7 @@ public:
         }
 
         auto read_buffer_creator
-            = [bucket, client, this](const std::string & path, size_t read_until_position) -> std::unique_ptr<DB::ReadBufferFromFileBase>
+            = [bucket, client, this](bool restricted_seek, const std::string & path) -> std::unique_ptr<DB::ReadBufferFromFileBase>
         {
             return std::make_unique<DB::ReadBufferFromS3>(
                 client,
@@ -437,13 +437,13 @@ public:
                 new_settings,
                 /* use_external_buffer */ true,
                 /* offset */ 0,
-                read_until_position,
-                /* restricted_seek */ true);
+                /* read_until_position */0,
+                restricted_seek);
         };
 
         DB::StoredObjects stored_objects{DB::StoredObject{key, "", object_size}};
         auto s3_impl = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
-            std::move(read_buffer_creator), stored_objects, new_settings, /* cache_log */ nullptr, /* use_external_buffer */ true);
+            std::move(read_buffer_creator), stored_objects, "s3:" + bucket + "/", new_settings, /* cache_log */ nullptr, /* use_external_buffer */ true);
 
         auto & pool_reader = context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER);
         auto async_reader
