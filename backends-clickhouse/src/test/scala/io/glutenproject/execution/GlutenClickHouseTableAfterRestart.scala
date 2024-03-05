@@ -169,8 +169,26 @@ class GlutenClickHouseTableAfterRestart
          |
          |""".stripMargin
 
+    // before restart, check if cache works
+    {
+      runTPCHQueryBySQL(1, sqlStr)(_ => {})
+      val oldMissingCount1 = ClickhouseSnapshot.deltaScanCache.stats().missCount()
+      val oldMissingCount2 = ClickhouseSnapshot.addFileToAddMTPCache.stats().missCount()
+
+      // for this run, missing count should not increase
+      runTPCHQueryBySQL(1, sqlStr)(_ => {})
+      val stats1 = ClickhouseSnapshot.deltaScanCache.stats()
+      assert(stats1.missCount() - oldMissingCount1 == 0)
+      val stats2 = ClickhouseSnapshot.addFileToAddMTPCache.stats()
+      assert(stats2.missCount() - oldMissingCount2 == 0)
+    }
+
     // now restart
     ClickHouseTableV2.deltaLog2Table.clear()
+    ClickhouseSnapshot.clearAllFileStatusCache()
+
+    val oldMissingCount1 = ClickhouseSnapshot.deltaScanCache.stats().missCount()
+    val oldMissingCount2 = ClickhouseSnapshot.addFileToAddMTPCache.stats().missCount()
 
     val session = getActiveSession.orElse(getDefaultSession)
     if (session.isDefined) {
@@ -197,9 +215,9 @@ class GlutenClickHouseTableAfterRestart
 
     // after restart, additionally check stats of delta scan cache
     val stats1 = ClickhouseSnapshot.deltaScanCache.stats()
-    assert(stats1.missCount() == 1)
+    assert(stats1.missCount() - oldMissingCount1 == 1)
     val stats2 = ClickhouseSnapshot.addFileToAddMTPCache.stats()
-    assert(stats2.missCount() == 6)
+    assert(stats2.missCount() - oldMissingCount2 == 6)
 
   }
 
