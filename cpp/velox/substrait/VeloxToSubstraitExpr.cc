@@ -582,7 +582,7 @@ const ::substrait::Expression_Literal& VeloxToSubstraitExprConvertor::toSubstrai
       auto size = arrayVector->sizeAt(row);
       if (size == 0) {
         substraitField->mutable_empty_list()->MergeFrom(
-          toSubstraitLiteralEmptyList(arena, arrayVector->elements()->type()));
+            toSubstraitLiteralEmptyList(arena, arrayVector->elements()->type()));
       } else {
         substraitField->mutable_list()->MergeFrom(toSubstraitLiteralList(arena, arrayVector, row));
       }
@@ -613,8 +613,7 @@ const ::substrait::Expression_Literal& VeloxToSubstraitExprConvertor::toSubstrai
 const ::substrait::Type_List& VeloxToSubstraitExprConvertor::toSubstraitLiteralEmptyList(
     google::protobuf::Arena& arena,
     const velox::TypePtr& type) {
-  ::substrait::Type_List* emptyListLiteral =
-      google::protobuf::Arena::CreateMessage<::substrait::Type_List>(&arena);
+  ::substrait::Type_List* emptyListLiteral = google::protobuf::Arena::CreateMessage<::substrait::Type_List>(&arena);
   emptyListLiteral->mutable_type()->MergeFrom(typeConvertor_->toSubstraitType(arena, type));
   return *emptyListLiteral;
 }
