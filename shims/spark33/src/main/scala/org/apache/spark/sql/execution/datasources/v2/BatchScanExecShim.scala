@@ -35,6 +35,7 @@ abstract class BatchScanExecShim(
     override val output: Seq[AttributeReference],
     @transient override val scan: Scan,
     override val runtimeFilters: Seq[Expression],
+    val keyGroupedPartitioning: Option[Seq[Expression]] = None,
     val ordering: Option[Seq[SortOrder]] = None,
     @transient val table: Table,
     val commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None,

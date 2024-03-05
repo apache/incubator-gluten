@@ -35,6 +35,8 @@ abstract class BatchScanExecShim(
     output: Seq[AttributeReference],
     @transient scan: Scan,
     runtimeFilters: Seq[Expression],
+    keyGroupedPartitioning: Option[Seq[Expression]] = None,
+    ordering: Option[Seq[SortOrder]] = None,
     @transient val table: Table,
     val commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None,
     val applyPartialClustering: Boolean = false,
