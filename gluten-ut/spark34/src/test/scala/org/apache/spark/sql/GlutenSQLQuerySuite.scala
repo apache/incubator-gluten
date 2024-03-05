@@ -133,7 +133,8 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
     withTempDir {
       dir =>
         val path = dir.toURI.getPath
-        val df = spark.range(0, 20, 1, 20)
+        val numRows = 20
+        val df = spark.range(0, numRows)
         df.write.mode("overwrite").format("parquet").save(path)
         val q = spark.readStream
           .format("parquet")
@@ -145,8 +146,12 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
           .start()
         q.processAllAvailable
         val inputOutputPairs = q.recentProgress.map(p => (p.numInputRows, p.sink.numOutputRows))
+
+        // numInputRows and sink.numOutputRows must be the same
         assert(inputOutputPairs.forall(x => x._1 == x._2))
-        assert(inputOutputPairs.map(_._1).sum == 20)
+
+        // Sum of numInputRows must match the total number of rows of the input
+        assert(inputOutputPairs.map(_._1).sum == numRows)
     }
   }
 }
