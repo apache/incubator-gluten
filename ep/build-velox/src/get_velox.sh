@@ -94,6 +94,8 @@ function process_setup_ubuntu {
   sed -i '/ccache/a\  uuid-dev \\' scripts/setup-ubuntu.sh
   sed -i '/libre2-dev/d' scripts/setup-ubuntu.sh
   sed -i '/libgmock-dev/d' scripts/setup-ubuntu.sh # resolved by ep/build-velox/build/velox_ep/CMake/resolve_dependency_modules/gtest.cmake
+  sed -i 's/.\/bootstrap.sh --prefix=\/usr\/local/sudo .\/bootstrap.sh --prefix=\/usr\/local/' scripts/setup-ubuntu.sh
+
   if [ $ENABLE_HDFS == "ON" ]; then
     sed -i '/^function install_folly.*/i function install_libhdfs3 {\n  github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-ubuntu.sh
     sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_libhdfs3' scripts/setup-ubuntu.sh
@@ -133,6 +135,7 @@ function process_setup_centos8 {
   sed -i '/^dnf_install autoconf/a\dnf_install libxml2-devel libgsasl-devel libuuid-devel' scripts/setup-centos8.sh
   sed -i '/^function install_gflags.*/i function install_openssl {\n  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz openssl \n cd openssl \n ./config no-shared && make depend && make && sudo make install \n cd ..\n}\n'     scripts/setup-centos8.sh
   sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_openssl' scripts/setup-centos8.sh
+  sed -i 's/.\/bootstrap.sh --prefix=\/usr\/local/sudo .\/bootstrap.sh --prefix=\/usr\/local/' scripts/setup-centos8.sh
 
   if [ $ENABLE_HDFS == "ON" ]; then
     sed -i '/^function install_gflags.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master\n cd ..\n cmake_install libhdfs3\n}\n' scripts/setup-centos8.sh
