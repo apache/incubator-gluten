@@ -190,6 +190,14 @@ trait HashJoinLikeExecTransformer
       }
   }
 
+  override def outputOrdering: Seq[SortOrder] = if (
+    BackendsApiManager.getSettings.hashJoinPreservesOrdering
+  ) {
+    super.outputOrdering
+  } else {
+    Nil
+  }
+
   // https://issues.apache.org/jira/browse/SPARK-31869
   private def expandPartitioning(partitioning: Partitioning): Partitioning = {
     val expandLimit = conf.broadcastHashJoinOutputPartitioningExpandLimit

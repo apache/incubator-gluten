@@ -480,4 +480,7 @@ object BackendSettings extends BackendSettingsApi {
     // vanilla Spark, we need to rewrite the aggregate to get the correct data type.
     true
   }
+
+  // The output ordering of hash join can't be guaranteed when spill occured
+  override def hashJoinPreservesOrdering(): Boolean = false
 }
