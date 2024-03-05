@@ -175,23 +175,33 @@ case class GenerateExecTransformer(
         operatorId)
     }
     generator match {
-      case Inline(_) if !validation =>
-        // No need to validate the project rel as it only flattens the generator's output.
-        RelBuilder.makeProjectRel(
+      case Inline(_) =>
+        val requiredOutput = (0 until childOutput.size()).map {
+          ExpressionBuilder.makeSelection(_)
+        }
+        val projectOutput = requiredOutput ++ generatorOutput.zipWithIndex.map {
+          case (attr, i) =>
+            ExpressionConverter
+              .replaceWithExpressionTransformer(
+                GetStructField(generator.asInstanceOf[UnaryExpression].child, i, Some(attr.name)),
+                child.output
+              )
+              .doTransform(context.registeredFunction)
+        }
+        val postProjectRel = RelBuilder.makeProjectRel(
           generateRel,
-          generatorOutput.zipWithIndex.map {
-            case (attr, i) =>
-              ExpressionConverter
-                .replaceWithExpressionTransformer(
-                  GetStructField(generator.asInstanceOf[UnaryExpression].child, i, Some(attr.name)),
-                  child.output
-                )
-                .doTransform(context.registeredFunction)
-          }.asJava,
+          projectOutput.asJava,
           context,
           operatorId,
-          1
+          1 + requiredOutput.size
         )
+        if (validation) {
+          // No need to validate the project rel on the native side as
+          // it only flattens the generator's output.
+          generateRel
+        } else {
+          postProjectRel
+        }
       case _ => generateRel
     }
   }
