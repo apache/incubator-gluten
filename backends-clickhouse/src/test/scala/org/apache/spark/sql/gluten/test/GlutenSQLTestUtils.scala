@@ -30,8 +30,6 @@ import org.apache.commons.io.FileUtils
 import java.io.File
 
 trait GlutenSQLTestUtils extends SparkFunSuite with SharedSparkSession {
-  val backend: String = "ch"
-
   protected val rootPath: String = getClass.getResource("/").getPath
   protected val basePath: String = rootPath + "unit-tests-working-home"
   protected val tablesPath: String = basePath + "/unit-tests-data"

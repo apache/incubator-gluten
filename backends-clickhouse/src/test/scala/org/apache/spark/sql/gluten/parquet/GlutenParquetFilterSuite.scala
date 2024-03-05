@@ -17,11 +17,9 @@
 package org.apache.spark.sql.gluten.parquet
 
 import io.glutenproject.execution.{FileSourceScanExecTransformer, GlutenClickHouseWholeStageTransformerSuite}
-
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.dsl.expressions._
-import org.apache.spark.sql.catalyst.dsl.expressions.{DslExpression, DslSymbol}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.gluten.test.{GlutenSQLTestUtils, GlutenTPCHBase}
 import org.apache.spark.sql.internal.SQLConf
@@ -35,8 +33,12 @@ class GlutenParquetFilterSuite
   with GlutenTPCHBase
   with Logging {
 
-  override protected val fileFormat: String = "parquet"
-  override protected val resourcePath: String = "--- path to tpch-data ---"
+  override protected val rootPath = this.getClass.getResource("/").getPath
+  override protected val basePath = rootPath + "tests-working-home"
+  override protected val warehouse = basePath + "/spark-warehouse"
+  override protected val metaStorePathAbsolute = basePath + "/meta"
+  override protected val hiveMetaStoreDB = metaStorePathAbsolute + "/metastore_db"
+
   private val tpchQueriesResourceFolder: String =
     rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
 

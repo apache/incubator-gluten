@@ -16,7 +16,7 @@
  */
 package io.glutenproject.execution
 
-abstract class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSuite {
+class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSuite {
 
   val DBL_EPSILON = 2.2204460492503131e-16
   val DBL_RELAX_EPSILON: Double = Math.pow(10, -11)
@@ -32,4 +32,14 @@ abstract class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTran
               |""".stripMargin)
     }
   }
+
+  protected val rootPath = this.getClass.getResource("/").getPath
+  protected val basePath = rootPath + "tests-working-home"
+  protected val warehouse = basePath + "/spark-warehouse"
+  protected val metaStorePathAbsolute = basePath + "/meta"
+  protected val hiveMetaStoreDB = metaStorePathAbsolute + "/metastore_db"
+
+  override protected val backend: String = "ch"
+  override protected val resourcePath: String = ""
+  override protected val fileFormat: String = "parquet"
 }

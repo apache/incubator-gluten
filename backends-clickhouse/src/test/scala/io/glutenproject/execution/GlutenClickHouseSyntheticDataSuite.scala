@@ -33,15 +33,7 @@ class GlutenClickHouseSyntheticDataSuite
   extends GlutenClickHouseWholeStageTransformerSuite
   with Logging {
 
-  override protected val backend: String = "ch"
-  override protected val fileFormat: String = "parquet"
-
-  protected val rootPath: String = getClass.getResource("/").getPath
-  protected val basePath: String = rootPath + "unit-tests-working-home"
-  protected val tablesPath: String = basePath + "/synthetic-data"
-
-  protected val warehouse: String = basePath + "/spark-warehouse"
-  protected val metaStorePathAbsolute: String = basePath + "/meta"
+//  protected val tablesPath: String = basePath + "/synthetic-data"
 
   override def beforeAll(): Unit = {
     // prepare working paths
@@ -254,5 +246,4 @@ class GlutenClickHouseSyntheticDataSuite
     checkAnswer(df, expected)
   }
 
-  override protected val resourcePath: String = ""
 }

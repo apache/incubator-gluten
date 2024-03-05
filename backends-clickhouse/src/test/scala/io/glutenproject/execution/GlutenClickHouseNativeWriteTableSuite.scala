@@ -147,7 +147,6 @@ class GlutenClickHouseNativeWriteTableSuite
     FileUtils.forceMkdir(basePathDir)
     FileUtils.forceMkdir(new File(warehouse))
     FileUtils.forceMkdir(new File(metaStorePathAbsolute))
-    FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
     super.beforeAll()
   }
 

@@ -31,13 +31,6 @@ import java.sql.Date
 import scala.reflect.ClassTag
 
 class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerSuite {
-  override protected val resourcePath: String = {
-    "../../../../gluten-core/src/test/resources/tpch-data"
-  }
-  override protected val backend: String = "ch"
-  override protected val fileFormat: String = "parquet"
-  protected val rootPath: String = getClass.getResource("/").getPath
-  protected val basePath: String = rootPath + "unit-tests-working-home"
 
   protected lazy val sparkVersion: String = {
     val version = SPARK_VERSION_SHORT.split("\\.")
@@ -48,8 +41,6 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
   protected val tpchQueries: String =
     rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
   protected val queriesResults: String = rootPath + "queries-output"
-  protected val warehouse: String = basePath + "/spark-warehouse"
-  protected val metaStorePathAbsolute: String = basePath + "/meta"
 
   private var parquetPath: String = _
 

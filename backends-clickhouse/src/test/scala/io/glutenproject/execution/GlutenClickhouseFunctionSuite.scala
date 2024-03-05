@@ -27,18 +27,7 @@ import org.apache.commons.io.FileUtils
 
 import java.io.File
 
-class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
-
-  override protected val needCopyParquetToTablePath = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
-  override protected val queriesResults: String = rootPath + "queries-output"
-
-  override protected def createTPCHNullableTables(): Unit = {}
-
-  override protected def createTPCHNotNullTables(): Unit = {}
+class GlutenClickhouseFunctionSuite extends GlutenClickHouseWholeStageTransformerSuite {
 
   private var _hiveSpark: SparkSession = _
   override protected def spark: SparkSession = _hiveSpark
@@ -66,7 +55,6 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
       .set("spark.gluten.sql.enable.native.validation", "false")
       // TODO: support default ANSI policy
       .set("spark.sql.storeAssignmentPolicy", "legacy")
-      .set("spark.sql.warehouse.dir", warehouse)
       .setMaster("local[1]")
   }
 
@@ -93,7 +81,6 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     FileUtils.forceMkdir(basePathDir)
     FileUtils.forceMkdir(new File(warehouse))
     FileUtils.forceMkdir(new File(metaStorePathAbsolute))
-    FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
     super.beforeAll()
   }
 
