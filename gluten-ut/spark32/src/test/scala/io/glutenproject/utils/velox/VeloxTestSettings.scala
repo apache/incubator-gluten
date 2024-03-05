@@ -305,6 +305,7 @@ class VeloxTestSettings extends BackendTestSettings {
       "pivot with null and aggregate type not supported by PivotFirst returns correct result")
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
   enableSuite[GlutenSameResultSuite]
+  enableSuite[GlutenSQLAggregateFunctionSuite]
   // spill not supported yet.
   enableSuite[GlutenSQLWindowFunctionSuite].exclude("test with low buffer spill threshold")
   enableSuite[GlutenSortSuite]
