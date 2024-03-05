@@ -18,17 +18,13 @@ package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.test.SharedSparkSession
-
-import org.apache.commons.io.FileUtils
 import org.scalatest.BeforeAndAfterAll
 
-import java.io.File
 import java.sql.{Date, Timestamp}
 
 class GlutenClickHouseNativeWriteTableSuite
@@ -138,18 +134,6 @@ class GlutenClickHouseNativeWriteTableSuite
     spark.sql("insert into %s select * from tmp_t".format(table_name))
   }
 
-  override def beforeAll(): Unit = {
-    // prepare working paths
-    val basePathDir = new File(basePath)
-    if (basePathDir.exists()) {
-      FileUtils.forceDelete(basePathDir)
-    }
-    FileUtils.forceMkdir(basePathDir)
-    FileUtils.forceMkdir(new File(warehouse))
-    FileUtils.forceMkdir(new File(metaStorePathAbsolute))
-    super.beforeAll()
-  }
-
   override protected def afterAll(): Unit = {
     DeltaLog.clearCache()
 
@@ -175,9 +159,8 @@ class GlutenClickHouseNativeWriteTableSuite
   def getColumnName(s: String): String = {
     s.replaceAll("\\(", "_").replaceAll("\\)", "_")
   }
-  import collection.immutable.ListMap
-
   import java.io.File
+ import collection.immutable.ListMap
 
   def writeIntoNewTableWithSql(table_name: String, table_create_sql: String)(
       fields: Seq[String]): Unit = {

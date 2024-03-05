@@ -45,21 +45,14 @@ abstract class GlutenClickHouseTPCHAbstractSuite
   protected val queriesResults: String
 
   override def beforeAll(): Unit = {
-    // prepare working paths
-    val basePathDir = new File(basePath)
-    if (basePathDir.exists()) {
-      FileUtils.forceDelete(basePathDir)
-    }
-    FileUtils.forceMkdir(basePathDir)
-    FileUtils.forceMkdir(new File(warehouse))
-    FileUtils.forceMkdir(new File(metaStorePathAbsolute))
+
+    super.beforeAll()
 
     if (needCopyParquetToTablePath) {
       val sourcePath = new File(rootPath + parquetTableDataPath)
       FileUtils.copyDirectory(sourcePath, new File(tablesPath))
     }
 
-    super.beforeAll()
     spark.sparkContext.setLogLevel(logLevel)
     if (createNullableTables) {
       createTPCHNullableTables()

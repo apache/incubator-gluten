@@ -23,10 +23,6 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 
-import org.apache.commons.io.FileUtils
-
-import java.io.File
-
 class GlutenClickhouseFunctionSuite extends GlutenClickHouseWholeStageTransformerSuite {
 
   private var _hiveSpark: SparkSession = _
@@ -73,14 +69,6 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseWholeStageTransforme
   }
 
   override def beforeAll(): Unit = {
-    // prepare working paths
-    val basePathDir = new File(basePath)
-    if (basePathDir.exists()) {
-      FileUtils.forceDelete(basePathDir)
-    }
-    FileUtils.forceMkdir(basePathDir)
-    FileUtils.forceMkdir(new File(warehouse))
-    FileUtils.forceMkdir(new File(metaStorePathAbsolute))
     super.beforeAll()
   }
 

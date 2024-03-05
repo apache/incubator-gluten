@@ -103,14 +103,6 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
   }
 
   override def beforeAll(): Unit = {
-    // prepare working paths
-    val basePathDir = new File(basePath)
-    if (basePathDir.exists()) {
-      FileUtils.forceDelete(basePathDir)
-    }
-    FileUtils.forceMkdir(basePathDir)
-    FileUtils.forceMkdir(new File(warehouse))
-    FileUtils.forceMkdir(new File(metaStorePathAbsolute))
     super.beforeAll()
     spark.sparkContext.setLogLevel("WARN")
     createTPCDSTables()

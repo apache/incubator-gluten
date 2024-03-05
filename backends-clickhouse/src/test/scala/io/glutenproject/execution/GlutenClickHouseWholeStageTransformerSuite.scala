@@ -16,6 +16,10 @@
  */
 package io.glutenproject.execution
 
+import org.apache.commons.io.FileUtils
+
+import java.io.File
+
 class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSuite {
 
   val DBL_EPSILON = 2.2204460492503131e-16
@@ -31,6 +35,18 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
               | abs(expected-expected) ~ epsilon = $diff ~ $epsilon
               |""".stripMargin)
     }
+  }
+
+  override def beforeAll(): Unit = {
+    // prepare working paths
+    val basePathDir = new File(basePath)
+    if (basePathDir.exists()) {
+      FileUtils.forceDelete(basePathDir)
+    }
+    FileUtils.forceMkdir(basePathDir)
+    FileUtils.forceMkdir(new File(warehouse))
+    FileUtils.forceMkdir(new File(metaStorePathAbsolute))
+    super.beforeAll()
   }
 
   protected val rootPath = this.getClass.getResource("/").getPath
