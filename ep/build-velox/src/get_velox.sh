@@ -94,7 +94,7 @@ function process_setup_ubuntu {
   sed -i '/ccache/a\  uuid-dev \\' scripts/setup-ubuntu.sh
   sed -i '/libre2-dev/d' scripts/setup-ubuntu.sh
   sed -i '/libgmock-dev/d' scripts/setup-ubuntu.sh # resolved by ep/build-velox/build/velox_ep/CMake/resolve_dependency_modules/gtest.cmake
-  sed -i 's/.\/bootstrap.sh --prefix=\/usr\/local/sudo .\/bootstrap.sh --prefix=\/usr\/local/' scripts/setup-ubuntu.sh
+  # To allow installing boost into /usr/local.
   sed -i 's/.\/b2 "-j$(nproc)" -d0 install threading=multi/sudo .\/b2 "-j$(nproc)" -d0 install threading=multi/' scripts/setup-ubuntu.sh
 
   if [ $ENABLE_HDFS == "ON" ]; then
@@ -135,7 +135,7 @@ function process_setup_centos8 {
   sed -i '/^dnf_install autoconf/a\dnf_install libxml2-devel libgsasl-devel libuuid-devel' scripts/setup-centos8.sh
   sed -i '/^function install_gflags.*/i function install_openssl {\n  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz openssl \n cd openssl \n ./config no-shared && make depend && make && sudo make install \n cd ..\n}\n'     scripts/setup-centos8.sh
   sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_openssl' scripts/setup-centos8.sh
-  sed -i 's/.\/bootstrap.sh --prefix=\/usr\/local/sudo .\/bootstrap.sh --prefix=\/usr\/local/' scripts/setup-centos8.sh
+  # To allow installing boost into /usr/local.
   sed -i 's/.\/b2 "-j$(nproc)" -d0 install threading=multi/sudo .\/b2 "-j$(nproc)" -d0 install threading=multi/' scripts/setup-centos8.sh
 
   if [ $ENABLE_HDFS == "ON" ]; then
