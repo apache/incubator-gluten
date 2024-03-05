@@ -184,7 +184,7 @@ class GlutenClickHouseTableAfterRestart
     }
 
     // now restart
-    ClickHouseTableV2.deltaLog2Table.clear()
+    ClickHouseTableV2.clearCache()
     ClickhouseSnapshot.clearAllFileStatusCache()
 
     val oldMissingCount1 = ClickhouseSnapshot.deltaScanCache.stats().missCount()

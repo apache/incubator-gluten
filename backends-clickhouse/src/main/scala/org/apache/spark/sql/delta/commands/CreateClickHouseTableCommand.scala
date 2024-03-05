@@ -14,8 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.v2.clickhouse.commands
+package org.apache.spark.sql.delta.commands
 
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.analysis.CannotReplaceMissingTableException
 import org.apache.spark.sql.catalyst.catalog.{CatalogTable, CatalogTableType}
@@ -24,15 +25,12 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.delta._
 import org.apache.spark.sql.delta.actions._
-import org.apache.spark.sql.delta.commands.TableCreationModes
 import org.apache.spark.sql.delta.metering.DeltaLogging
 import org.apache.spark.sql.delta.schema.SchemaUtils
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
-import org.apache.spark.sql.execution.command.LeafRunnableCommand
+import org.apache.spark.sql.execution.command.{LeafRunnableCommand, RunnableCommand}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.DeltaLogAdapter
 import org.apache.spark.sql.types.StructType
-
-import org.apache.hadoop.fs.{FileSystem, Path}
 
 /**
  * Single entry point for all write or declaration operations for Delta tables accessed through the
@@ -54,12 +52,45 @@ case class CreateClickHouseTableCommand(
     table: CatalogTable,
     existingTableOpt: Option[CatalogTable],
     mode: SaveMode,
-    query: Option[LogicalPlan] = None,
+    query: Option[LogicalPlan],
     operation: TableCreationModes.CreationMode = TableCreationModes.Create,
     tableByPath: Boolean = false,
     override val output: Seq[Attribute] = Nil)
   extends LeafRunnableCommand
   with DeltaLogging {
+
+  private def isV1Writer: Boolean = {
+    Thread
+      .currentThread()
+      .getStackTrace
+      .exists(_.toString.contains(classOf[DataFrameWriter[_]].getCanonicalName + "."))
+  }
+
+  /**
+   * With DataFrameWriterV2, methods like `replace()` or `createOrReplace()` mean that the metadata
+   * of the table should be replaced. If overwriteSchema=false is provided with these methods, then
+   * we will verify that the metadata match exactly.
+   */
+  private def replaceMetadataIfNecessary(
+      txn: OptimisticTransaction,
+      tableDesc: CatalogTable,
+      options: DeltaOptions,
+      schema: StructType): Unit = {
+    val isReplace = (operation == TableCreationModes.CreateOrReplace ||
+      operation == TableCreationModes.Replace)
+    // If a user explicitly specifies not to overwrite the schema, during a replace, we should
+    // tell them that it's not supported
+    val dontOverwriteSchema = options.options.contains(DeltaOptions.OVERWRITE_SCHEMA_OPTION) &&
+      !options.canOverwriteSchema
+    if (isReplace && dontOverwriteSchema) {
+      throw DeltaErrors.illegalUsageException(DeltaOptions.OVERWRITE_SCHEMA_OPTION, "replacing")
+    }
+    if (txn.readVersion > -1L && isReplace && !dontOverwriteSchema) {
+      // When a table already exists, and we're using the DataFrameWriterV2 API to replace
+      // or createOrReplace a table, we blindly overwrite the metadata.
+      txn.updateMetadataForNewTable(getProvidedMetadata(table, schema.json))
+    }
+  }
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
     assert(table.tableType != CatalogTableType.VIEW)
@@ -107,8 +138,58 @@ case class CreateClickHouseTableCommand(
     recordDeltaOperation(deltaLog, "delta.ddl.createTable") {
       val txn = deltaLog.startTransaction()
       if (query.isDefined) {
-        // TODO: implement writing clickhouse data
-        Seq.empty[Row]
+        // If the mode is Ignore or ErrorIfExists, the table must not exist, or we would return
+        // earlier. And the data should not exist either, to match the behavior of
+        // Ignore/ErrorIfExists mode. This means the table path should not exist or is empty.
+        if (mode == SaveMode.Ignore || mode == SaveMode.ErrorIfExists) {
+          assert(!tableExists)
+          // We may have failed a previous write. The retry should still succeed even if we have
+          // garbage data
+          if (txn.readVersion > -1 || !fs.exists(deltaLog.logPath)) {
+            assertPathEmpty(sparkSession, tableWithLocation)
+          }
+        }
+        // We are either appending/overwriting with saveAsTable or creating a new table with CTAS or
+        // we are creating a table as part of a RunnableCommand
+        query.get match {
+          case writer: WriteIntoDelta =>
+            // In the V2 Writer, methods like "replace" and "createOrReplace" implicitly mean that
+            // the metadata should be changed. This wasn't the behavior for DataFrameWriterV1.
+            if (!isV1Writer) {
+              replaceMetadataIfNecessary(
+                txn,
+                tableWithLocation,
+                options,
+                writer.data.schema.asNullable)
+            }
+            val actions = writer.write(txn, sparkSession)
+            val op = getOperation(txn.metadata, isManagedTable, Some(options))
+            txn.commit(actions, op)
+          case cmd: RunnableCommand =>
+            result = cmd.run(sparkSession)
+          case other =>
+            // When using V1 APIs, the `other` plan is not yet optimized, therefore, it is safe
+            // to once again go through analysis
+            val data = Dataset.ofRows(sparkSession, other)
+
+            // In the V2 Writer, methods like "replace" and "createOrReplace" implicitly mean that
+            // the metadata should be changed. This wasn't the behavior for DataFrameWriterV1.
+            if (!isV1Writer) {
+              replaceMetadataIfNecessary(txn, tableWithLocation, options, other.schema.asNullable)
+            }
+
+            val actions = WriteIntoDelta(
+              deltaLog = deltaLog,
+              mode = mode,
+              options,
+              partitionColumns = table.partitionColumnNames,
+              configuration = tableWithLocation.properties + ("comment" -> table.comment.orNull),
+              data = data
+            ).write(txn, sparkSession)
+
+            val op = getOperation(txn.metadata, isManagedTable, Some(options))
+            txn.commit(actions, op)
+        }
       } else {
         def createTransactionLogOrVerify(): Unit = {
           if (isManagedTable) {

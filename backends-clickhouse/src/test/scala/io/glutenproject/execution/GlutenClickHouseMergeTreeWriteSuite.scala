@@ -137,11 +137,11 @@ class GlutenClickHouseMergeTreeWriteSuite
         assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
-        assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
-        assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).bucketOption.isEmpty)
-        assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).orderByKeyOption.isEmpty)
-        assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).primaryKeyOption.isEmpty)
-        assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).partitionColumns.isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKeyOption.isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
         assert(addFiles.size == 6)
         assert(
@@ -364,11 +364,11 @@ class GlutenClickHouseMergeTreeWriteSuite
       assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
 
       val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
-      assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
-      assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).bucketOption.isEmpty)
-      assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).orderByKeyOption.isEmpty)
-      assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).primaryKeyOption.isEmpty)
-      assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).partitionColumns.isEmpty)
+      assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
+      assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
+      assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKeyOption.isEmpty)
+      assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.isEmpty)
+      assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
       val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
       assert(
         addFiles.map(_.rows).sum
@@ -642,23 +642,23 @@ class GlutenClickHouseMergeTreeWriteSuite
         assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
-        assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
-        assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).bucketOption.isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
         assert(
           ClickHouseTableV2
-            .deltaLog2Table(fileIndex.deltaLog)
+            .getTable(fileIndex.deltaLog)
             .orderByKeyOption
             .get
             .mkString(",")
             .equals("l_shipdate,l_orderkey"))
         assert(
           ClickHouseTableV2
-            .deltaLog2Table(fileIndex.deltaLog)
+            .getTable(fileIndex.deltaLog)
             .primaryKeyOption
             .get
             .mkString(",")
             .equals("l_shipdate"))
-        assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).partitionColumns.isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
 
         assert(addFiles.size == 6)
@@ -813,31 +813,31 @@ class GlutenClickHouseMergeTreeWriteSuite
         assert(mergetreeScan.metrics("numFiles").value == 3745)
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
-        assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
-        assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).bucketOption.isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
         assert(
           ClickHouseTableV2
-            .deltaLog2Table(fileIndex.deltaLog)
+            .getTable(fileIndex.deltaLog)
             .orderByKeyOption
             .get
             .mkString(",")
             .equals("l_orderkey"))
         assert(
           ClickHouseTableV2
-            .deltaLog2Table(fileIndex.deltaLog)
+            .getTable(fileIndex.deltaLog)
             .primaryKeyOption
             .get
             .mkString(",")
             .equals("l_orderkey"))
-        assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).partitionColumns.size == 2)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size == 2)
         assert(
           ClickHouseTableV2
-            .deltaLog2Table(fileIndex.deltaLog)
+            .getTable(fileIndex.deltaLog)
             .partitionColumns(0)
             .equals("l_shipdate"))
         assert(
           ClickHouseTableV2
-            .deltaLog2Table(fileIndex.deltaLog)
+            .getTable(fileIndex.deltaLog)
             .partitionColumns(1)
             .equals("l_returnflag"))
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
@@ -927,24 +927,24 @@ class GlutenClickHouseMergeTreeWriteSuite
         assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
-        assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
-        assert(!ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).bucketOption.isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
+        assert(!ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
         if (sparkVersion.equals("3.2")) {
-          assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).orderByKeyOption.isEmpty)
+          assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKeyOption.isEmpty)
         } else {
           assert(
             ClickHouseTableV2
-              .deltaLog2Table(fileIndex.deltaLog)
+              .getTable(fileIndex.deltaLog)
               .orderByKeyOption
               .get
               .mkString(",")
               .equals("l_orderkey,l_returnflag"))
         }
-        assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).primaryKeyOption.isEmpty)
-        assert(ClickHouseTableV2.deltaLog2Table(fileIndex.deltaLog).partitionColumns.size == 1)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size == 1)
         assert(
           ClickHouseTableV2
-            .deltaLog2Table(fileIndex.deltaLog)
+            .getTable(fileIndex.deltaLog)
             .partitionColumns(0)
             .equals("l_shipdate"))
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
@@ -1084,6 +1084,8 @@ class GlutenClickHouseMergeTreeWriteSuite
     createAndDropTable(tableName, tableLocation, true)
     checkTableExists(tableName, tableLocation, true)
 
+
+
     tableName = "lineitem_mergetree_location_purge"
     tableLocation = basePath + "/" + tableName
     createAndDropTable(tableName, tableLocation, purgeTable = true)
@@ -1094,5 +1096,68 @@ class GlutenClickHouseMergeTreeWriteSuite
     createAndDropTable(tableName, tableLocation, true, true)
     checkTableExists(tableName, tableLocation, false)
   }
+
+
+  test("test mergetree CTAS simple") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_ctas1;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE lineitem_mergetree_ctas1
+                 |USING clickhouse
+                 |LOCATION '$basePath/lineitem_mergetree_ctas1'
+                 | as select * from lineitem
+                 |""".stripMargin)
+
+    val sqlStr =
+      s"""
+         |SELECT
+         |    l_returnflag,
+         |    l_linestatus,
+         |    sum(l_quantity) AS sum_qty,
+         |    sum(l_extendedprice) AS sum_base_price,
+         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
+         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
+         |    avg(l_quantity) AS avg_qty,
+         |    avg(l_extendedprice) AS avg_price,
+         |    avg(l_discount) AS avg_disc,
+         |    count(*) AS count_order
+         |FROM
+         |    lineitem_mergetree_ctas1
+         |WHERE
+         |    l_shipdate <= date'1998-09-02' - interval 1 day
+         |GROUP BY
+         |    l_returnflag,
+         |    l_linestatus
+         |ORDER BY
+         |    l_returnflag,
+         |    l_linestatus;
+         |
+         |""".stripMargin
+    runTPCHQueryBySQL(1, sqlStr) {
+      df =>
+        val scanExec = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer => f
+        }
+        assert(scanExec.size == 1)
+
+        val mergetreeScan = scanExec(0)
+        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+
+        val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKeyOption.isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
+        val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
+        assert(addFiles.size == 6)
+        assert(
+          addFiles.map(_.rows).sum
+            == 600572)
+    }
+  }
+
 }
 // scalastyle:off line.size.limit
