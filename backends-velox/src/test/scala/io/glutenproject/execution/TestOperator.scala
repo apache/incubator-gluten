@@ -895,7 +895,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
 
       runQueryAndCompare(
         """
-          |select * from t1 cross join t2 on 2*t1.c1 > 3*t2.c1;
+          |select * from t1 cross join t2 on t1.c1 > t2.c1;
           |""".stripMargin
       ) {
         checkOperatorMatch[CartesianProductExecTransformer]
@@ -904,7 +904,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "1MB") {
         runQueryAndCompare(
           """
-            |select * from t1 left outer join t2;
+            |select * from t1 cross join t2 on 2*t1.c1 > 3*t2.c1;
             |""".stripMargin
         ) {
           checkOperatorMatch[BroadcastNestedLoopJoinExecTransformer]
