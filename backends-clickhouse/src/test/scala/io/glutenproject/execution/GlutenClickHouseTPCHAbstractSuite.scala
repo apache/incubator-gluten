@@ -37,7 +37,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
 
   protected val needCopyParquetToTablePath = false
 
-  private val parquetTableDataPath: String =
+  protected val parquetTableDataPath: String =
     "../../../../gluten-core/src/test/resources/tpch-data"
 
   protected val tablesPath: String

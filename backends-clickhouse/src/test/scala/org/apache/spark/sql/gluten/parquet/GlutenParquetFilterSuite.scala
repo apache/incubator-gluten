@@ -17,6 +17,7 @@
 package org.apache.spark.sql.gluten.parquet
 
 import io.glutenproject.execution.{FileSourceScanExecTransformer, GlutenClickHouseWholeStageTransformerSuite}
+
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.dsl.expressions._
