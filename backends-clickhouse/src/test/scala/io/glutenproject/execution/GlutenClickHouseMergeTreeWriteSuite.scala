@@ -1084,8 +1084,6 @@ class GlutenClickHouseMergeTreeWriteSuite
     createAndDropTable(tableName, tableLocation, true)
     checkTableExists(tableName, tableLocation, true)
 
-
-
     tableName = "lineitem_mergetree_location_purge"
     tableLocation = basePath + "/" + tableName
     createAndDropTable(tableName, tableLocation, purgeTable = true)
@@ -1096,7 +1094,6 @@ class GlutenClickHouseMergeTreeWriteSuite
     createAndDropTable(tableName, tableLocation, true, true)
     checkTableExists(tableName, tableLocation, false)
   }
-
 
   test("test mergetree CTAS simple") {
     spark.sql(s"""
@@ -1157,6 +1154,51 @@ class GlutenClickHouseMergeTreeWriteSuite
           addFiles.map(_.rows).sum
             == 600572)
     }
+  }
+
+  test("test mergetree CTAS complex") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_ctas2;
+                 |""".stripMargin)
+
+    spark.sql(
+      s"""
+         |CREATE TABLE IF NOT EXISTS lineitem_mergetree_ctas2
+         |USING clickhouse
+         |PARTITIONED BY (l_shipdate)
+         |CLUSTERED BY (l_orderkey)
+         |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_orderkey, l_returnflag)"} INTO 4 BUCKETS
+         |LOCATION '$basePath/lineitem_mergetree_ctas2'
+         | as select * from lineitem
+         |""".stripMargin)
+
+    val sqlStr =
+      s"""
+         |SELECT
+         |    l_returnflag,
+         |    l_linestatus,
+         |    sum(l_quantity) AS sum_qty,
+         |    sum(l_extendedprice) AS sum_base_price,
+         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
+         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
+         |    avg(l_quantity) AS avg_qty,
+         |    avg(l_extendedprice) AS avg_price,
+         |    avg(l_discount) AS avg_disc,
+         |    count(*) AS count_order
+         |FROM
+         |    lineitem_mergetree_ctas2
+         |WHERE
+         |    l_shipdate <= date'1998-09-02' - interval 1 day
+         |GROUP BY
+         |    l_returnflag,
+         |    l_linestatus
+         |ORDER BY
+         |    l_returnflag,
+         |    l_linestatus;
+         |
+         |""".stripMargin
+    runTPCHQueryBySQL(1, sqlStr) { _ => {} }
+
   }
 
 }

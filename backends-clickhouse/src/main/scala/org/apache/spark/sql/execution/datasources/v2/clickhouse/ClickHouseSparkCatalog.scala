@@ -29,7 +29,7 @@ import org.apache.spark.sql.connector.write.{LogicalWriteInfo, V1Write, WriteBui
 import org.apache.spark.sql.delta.{DeltaErrors, DeltaLog, DeltaOptions}
 import org.apache.spark.sql.delta.DeltaTableIdentifier.gluePermissionError
 import org.apache.spark.sql.delta.catalog.{ClickHouseTableV2, TempClickHouseTableV2}
-import org.apache.spark.sql.delta.commands.{CreateClickHouseTableCommand, TableCreationModes, WriteIntoDelta}
+import org.apache.spark.sql.delta.commands.{CreateDeltaTableCommand, TableCreationModes, WriteIntoDelta}
 import org.apache.spark.sql.delta.metering.DeltaLogging
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.execution.datasources.{DataSource, PartitioningUtils}
@@ -154,7 +154,7 @@ class ClickHouseSparkCatalog
       ClickHouseTableV2.temporalThreadLocalCHTable.set(
         new TempClickHouseTableV2(spark, Some(withDb)))
 
-      CreateClickHouseTableCommand(
+      CreateDeltaTableCommand(
         withDb,
         getExistingTableIfExists(tableDesc),
         operation.mode,
