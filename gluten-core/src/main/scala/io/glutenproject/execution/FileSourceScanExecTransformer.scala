@@ -57,7 +57,8 @@ class FileSourceScanExecTransformer(
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance
-      .genFileSourceScanTransformerMetrics(sparkContext) ++ driverMetricsAlias
+      .genFileSourceScanTransformerMetrics(sparkContext)
+      .filter(m => !driverMetricsAlias.contains(m._1)) ++ driverMetricsAlias
 
   override def filterExprs(): Seq[Expression] = dataFilters
 

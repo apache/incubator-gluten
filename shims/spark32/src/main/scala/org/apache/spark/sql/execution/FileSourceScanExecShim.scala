@@ -73,21 +73,7 @@ class FileSourceScanExecShim(
   // all of them are private.
   protected lazy val driverMetrics: mutable.HashMap[String, Long] = mutable.HashMap.empty
 
-  protected lazy val driverMetricsAlias = Map(
-    "numFiles" -> SQLMetrics.createMetric(sparkContext, "number of files read"),
-    "metadataTime" -> SQLMetrics.createTimingMetric(sparkContext, "metadata time"),
-    "filesSize" -> SQLMetrics.createSizeMetric(sparkContext, "size of files read")
-  ) ++ {
-    if (relation.partitionSchema.nonEmpty) {
-      Map(
-        "numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions read"),
-        "pruningTime" ->
-          SQLMetrics.createTimingMetric(sparkContext, "dynamic partition pruning time")
-      )
-    } else {
-      Map.empty[String, SQLMetric]
-    }
-  } ++ {
+  protected lazy val driverMetricsAlias = {
     if (partitionFilters.exists(isDynamicPruningFilter)) {
       Map(
         "staticFilesNum" -> SQLMetrics.createMetric(sparkContext, "static number of files read"),
