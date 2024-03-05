@@ -27,7 +27,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, PlanExp
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.FileSourceScanExecShim
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.collection.BitSet
@@ -57,18 +57,8 @@ class FileSourceScanExecTransformer(
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance
-      .genFileSourceScanTransformerMetrics(sparkContext) ++ staticMetricsAlias
-
-  /** SQL metrics generated only for scans using dynamic partition pruning. */
-  private lazy val staticMetricsAlias =
-    if (partitionFilters.exists(FileSourceScanExecTransformer.isDynamicPruningFilter)) {
-      Map(
-        "staticFilesNum" -> SQLMetrics.createMetric(sparkContext, "static number of files read"),
-        "staticFilesSize" -> SQLMetrics.createSizeMetric(sparkContext, "static size of files read")
-      )
-    } else {
-      Map.empty[String, SQLMetric]
-    }
+      .genFileSourceScanTransformerMetrics(sparkContext)
+      .filter(m => !driverMetricsAlias.contains(m._1)) ++ driverMetricsAlias
 
   override def filterExprs(): Seq[Expression] = dataFilters
 

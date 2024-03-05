@@ -55,6 +55,8 @@ class FileSourceScanExecShim(
     case FileSourceGeneratedMetadataAttribute(attr) => attr
   }
 
+  protected lazy val driverMetricsAlias = driverMetrics
+
   override def equals(other: Any): Boolean = other match {
     case that: FileSourceScanExecShim =>
       (that.canEqual(this)) && super.equals(that)

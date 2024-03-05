@@ -74,6 +74,17 @@ class FileSourceScanExecShim(
   // all of them are private.
   protected lazy val driverMetrics: mutable.HashMap[String, Long] = mutable.HashMap.empty
 
+  protected lazy val driverMetricsAlias = {
+    if (partitionFilters.exists(isDynamicPruningFilter)) {
+      Map(
+        "staticFilesNum" -> SQLMetrics.createMetric(sparkContext, "static number of files read"),
+        "staticFilesSize" -> SQLMetrics.createSizeMetric(sparkContext, "static size of files read")
+      )
+    } else {
+      Map.empty[String, SQLMetric]
+    }
+  }
+
   /**
    * Send the driver-side metrics. Before calling this function, selectedPartitions has been
    * initialized. See SPARK-26327 for more details.
@@ -115,7 +126,7 @@ class FileSourceScanExecShim(
   }.toArray
 
   private def isDynamicPruningFilter(e: Expression): Boolean =
-    e.find(_.isInstanceOf[PlanExpression[_]]).isDefined
+    e.exists(_.isInstanceOf[PlanExpression[_]])
 
   // We can only determine the actual partitions at runtime when a dynamic partition filter is
   // present. This is because such a filter relies on information that is only available at run
