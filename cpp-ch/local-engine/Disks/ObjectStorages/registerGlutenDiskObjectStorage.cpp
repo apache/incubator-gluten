@@ -22,6 +22,10 @@
 #include <Disks/ObjectStorages/S3/DiskS3Utils.h>
 #endif
 
+#if USE_HDFS
+#include <Disks/ObjectStorages/GlutenHDFSObjectStorage.h>
+#endif
+
 #include <Interpreters/Context.h>
 #include <Common/Macros.h>
 
@@ -102,5 +106,32 @@ void registerGlutenS3ObjectStorage(ObjectStorageFactory & factory)
         });
 }
 
+#endif
+
+#if USE_HDFS
+void registerGlutenHDFSObjectStorage(ObjectStorageFactory & factory)
+{
+    factory.registerObjectStorageType(
+        "hdfs_gluten",
+        [](
+            const std::string & /* name */,
+            const Poco::Util::AbstractConfiguration & config,
+            const std::string & config_prefix,
+            const ContextPtr & context,
+            bool /* skip_access_check */) -> ObjectStoragePtr
+        {
+            auto uri = context->getMacros()->expand(config.getString(config_prefix + ".endpoint"));
+            checkHDFSURL(uri);
+            if (uri.back() != '/')
+                throw Exception(ErrorCodes::BAD_ARGUMENTS, "HDFS path must ends with '/', but '{}' doesn't.", uri);
+
+            std::unique_ptr<HDFSObjectStorageSettings> settings = std::make_unique<HDFSObjectStorageSettings>(
+                config.getUInt64(config_prefix + ".min_bytes_for_seek", 1024 * 1024),
+                config.getInt(config_prefix + ".objects_chunk_size_to_delete", 1000),
+                context->getSettingsRef().hdfs_replication
+            );
+            return std::make_unique<GlutenHDFSObjectStorage>(uri, std::move(settings), config);
+        });
+}
 #endif
 }
