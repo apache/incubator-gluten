@@ -559,6 +559,7 @@ object ColumnarOverrideRules {
 
   def rewriteSparkPlanRule(): Rule[SparkPlan] = {
     val rewriteRules = Seq(
+      RewriteIn,
       RewriteMultiChildrenCount,
       RewriteTypedImperativeAggregate,
       PullOutPreProject,

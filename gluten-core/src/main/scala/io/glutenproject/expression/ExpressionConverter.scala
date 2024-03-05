@@ -275,6 +275,10 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           cw
         )
       case i: In =>
+        if (i.list.exists(!_.foldable)) {
+          throw new UnsupportedOperationException(
+            s"In list option does not support non-foldable expression, ${i.list.map(_.sql)}")
+        }
         InTransformer(
           replaceWithExpressionTransformerInternal(i.value, attributeSeq, expressionsMap),
           i.list,

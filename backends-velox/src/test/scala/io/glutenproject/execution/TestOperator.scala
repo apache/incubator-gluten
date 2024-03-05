@@ -51,7 +51,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       .set("spark.memory.offHeap.size", "2g")
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
-      .set("spark.sql.sources.useV1SourceList", "avro")
+      .set("spark.sql.sources.useV1SourceList", "avro,parquet")
   }
 
   test("simple_select") {
@@ -459,7 +459,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
           .parquet(path.getCanonicalPath)
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
         runQueryAndCompare("SELECT a from view") {
-          checkOperatorMatch[BatchScanExecTransformer]
+          checkOperatorMatch[FileSourceScanExecTransformer]
         }
     }
   }
@@ -930,7 +930,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
 
     spark.read.format("parquet").load(path).createOrReplaceTempView("test")
     runQueryAndCompare("select * from test") {
-      checkOperatorMatch[BatchScanExecTransformer]
+      checkOperatorMatch[FileSourceScanExecTransformer]
     }
   }
 
@@ -949,9 +949,11 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     // Decrease one VeloxColumnarToRowExec for the top level node
     assert(
       collect(df.queryExecution.executedPlan) {
-        case p if p.isInstanceOf[VeloxColumnarToRowExec] => p
+        case p if p.isInstanceOf[ColumnarToRowExecBase] => p
+        case p if p.isInstanceOf[RowToColumnarExecBase] => p
       }.size - 1 == num,
-      df.queryExecution)
+      df.queryExecution
+    )
   }
 
   test("Columnar cartesian product with other join") {
@@ -1050,7 +1052,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
 
       sql("CREATE TABLE t2(id INT, l ARRAY<STRUCT<k: INT, v: INT>>) USING PARQUET")
       sql("INSERT INTO t2 VALUES(1, ARRAY(STRUCT(1, 100))), (2, ARRAY(STRUCT(2, 200)))")
-      runQueryAndCompare("SELECT first(l) FROM t2")(df => checkFallbackOperators(df, 0))
+      runQueryAndCompare("SELECT first(l) FROM t2")(df => checkFallbackOperators(df, 1))
     }
   }
 
@@ -1110,5 +1112,49 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
           }
       }
     }
+  }
+
+  test("Support In list option contains non-foldable expression") {
+    runQueryAndCompare(
+      """
+        |SELECT * FROM lineitem
+        |WHERE l_orderkey in (1, 2, l_partkey, l_suppkey, l_linenumber)
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+
+    runQueryAndCompare(
+      """
+        |SELECT * FROM lineitem
+        |WHERE l_orderkey in (1, 2, l_partkey - 1, l_suppkey, l_linenumber)
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+
+    runQueryAndCompare(
+      """
+        |SELECT * FROM lineitem
+        |WHERE l_orderkey not in (1, 2, l_partkey, l_suppkey, l_linenumber)
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+
+    runQueryAndCompare(
+      """
+        |SELECT * FROM lineitem
+        |WHERE l_orderkey in (l_partkey, l_suppkey, l_linenumber)
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+
+    runQueryAndCompare(
+      """
+        |SELECT * FROM lineitem
+        |WHERE l_orderkey in (l_partkey + 1, l_suppkey, l_linenumber)
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+
+    runQueryAndCompare(
+      """
+        |SELECT * FROM lineitem
+        |WHERE l_orderkey not in (l_partkey, l_suppkey, l_linenumber)
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
   }
 }
