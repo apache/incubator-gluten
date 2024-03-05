@@ -1,5 +1,0 @@
-columns format version: 1
-3 columns:
-`r_regionkey` Nullable(Int64)
-`r_name` Nullable(String)
-`r_comment` Nullable(String)

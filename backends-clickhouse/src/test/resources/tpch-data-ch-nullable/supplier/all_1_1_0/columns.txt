@@ -1,9 +1,0 @@
-columns format version: 1
-7 columns:
-`s_suppkey` Nullable(Int64)
-`s_name` Nullable(String)
-`s_address` Nullable(String)
-`s_nationkey` Nullable(Int64)
-`s_phone` Nullable(String)
-`s_acctbal` Nullable(Float64)
-`s_comment` Nullable(String)

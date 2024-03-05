@@ -24,16 +24,11 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.delta.DeltaLog
 
-import org.apache.commons.io.FileUtils
-
-import java.io.File
 import java.time.LocalDate
 
 class GlutenClickHouseSyntheticDataSuite
   extends GlutenClickHouseWholeStageTransformerSuite
   with Logging {
-
-//  protected val tablesPath: String = basePath + "/synthetic-data"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
