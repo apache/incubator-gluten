@@ -36,7 +36,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
   protected val createNullableTables = false
 
   override protected val backend: String = "ch"
-  override protected val resourcePath: String = "tpch-data-ch-write"
+  override protected val resourcePath: String = "non-existing-path"
   override protected val fileFormat: String = "parquet"
 
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -74,7 +74,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     }
   }
 
-  override protected def createTPCHNotNullTables(): Unit = {
+  protected def createTPCHNotNullTables(): Unit = {
     // create parquet data source table
     val parquetSourceDB = "parquet_source"
     spark.sql(s"""
@@ -85,7 +85,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     val parquetTablePath = basePath + "/tpch-data"
     FileUtils.copyDirectory(new File(rootPath + parquetTableDataPath), new File(parquetTablePath))
 
-    createTPCHParquetTables(parquetTablePath)
+    createNotNullTPCHTablesInParquet(parquetTablePath)
 
     // create mergetree tables
     spark.sql(s"use default")
@@ -253,7 +253,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     val parquetTablePath = basePath + "/tpch-data"
     FileUtils.copyDirectory(new File(rootPath + parquetTableDataPath), new File(parquetTablePath))
 
-    createTPCHParquetTables(parquetTablePath)
+    createNotNullTPCHTablesInParquet(parquetTablePath)
 
     // create mergetree tables
     spark.sql(s"""
@@ -438,7 +438,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
                  |""".stripMargin)
   }
 
-  protected def createTPCHParquetTables(parquetTablePath: String): Unit = {
+  protected def createNotNullTPCHTablesInParquet(parquetTablePath: String): Unit = {
     val customerData = parquetTablePath + "/customer"
     spark.sql(s"DROP TABLE IF EXISTS customer")
     spark.sql(s"""

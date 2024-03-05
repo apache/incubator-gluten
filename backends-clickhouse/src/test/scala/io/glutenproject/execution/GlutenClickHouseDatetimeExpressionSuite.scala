@@ -45,7 +45,7 @@ class GlutenClickHouseDatetimeExpressionSuite
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
-    createTPCHParquetTables(tablesPath)
+    createNotNullTPCHTablesInParquet(tablesPath)
   }
 
   test("test date_trunc function") {

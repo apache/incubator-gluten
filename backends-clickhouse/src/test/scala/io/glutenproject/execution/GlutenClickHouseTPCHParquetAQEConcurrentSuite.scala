@@ -70,7 +70,7 @@ class GlutenClickHouseTPCHParquetAQEConcurrentSuite
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
-    createTPCHParquetTables(tablesPath)
+    createNotNullTPCHTablesInParquet(tablesPath)
   }
 
   test("fix race condition at the global variable of ColumnarOverrideRules::isAdaptiveContext") {

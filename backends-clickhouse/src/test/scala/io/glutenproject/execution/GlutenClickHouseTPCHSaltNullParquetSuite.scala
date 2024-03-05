@@ -30,7 +30,7 @@ import java.io.File
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
 
-class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite {
+class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstractSuite {
 
   override protected val resourcePath: String =
     "../../../../gluten-core/src/test/resources/tpch-data"

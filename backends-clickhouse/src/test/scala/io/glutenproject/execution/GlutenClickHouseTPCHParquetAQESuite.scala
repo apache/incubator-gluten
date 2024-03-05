@@ -49,7 +49,7 @@ class GlutenClickHouseTPCHParquetAQESuite
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
-    createTPCHParquetTables(tablesPath)
+    createNotNullTPCHTablesInParquet(tablesPath)
   }
 
   test("TPCH Q1") {

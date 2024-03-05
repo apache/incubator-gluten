@@ -66,7 +66,7 @@ class GlutenClickHouseTableAfterRestart
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
-    createTPCHParquetTables(tablesPath)
+    createNotNullTPCHTablesInParquet(tablesPath)
   }
 
   private var _hiveSpark: SparkSession = _

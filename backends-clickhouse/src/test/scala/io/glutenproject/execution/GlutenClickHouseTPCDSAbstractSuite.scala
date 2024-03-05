@@ -135,7 +135,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
     }
   }
 
-  override protected def createTPCHNotNullTables(): Unit = {}
+//  override protected def createTPCHNotNullTables(): Unit = {}
 
   protected def createTPCDSTables(): Unit = {
     val parquetTables =
