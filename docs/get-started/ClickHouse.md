@@ -678,7 +678,7 @@ spark.shuffle.manager=org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleMa
 
 quickly start a celeborn cluster
 ```shell
-wget https://dlcdn.apache.org/incubator/celeborn/celeborn-0.3.0-incubating/apache-celeborn-0.3.0-incubating-bin.tgz && \
+wget https://archive.apache.org/dist/incubator/celeborn/celeborn-0.3.0-incubating/apache-celeborn-0.3.0-incubating-bin.tgz && \
 tar -zxvf apache-celeborn-0.3.0-incubating-bin.tgz && \
 mv apache-celeborn-0.3.0-incubating-bin/conf/celeborn-defaults.conf.template apache-celeborn-0.3.0-incubating-bin/conf/celeborn-defaults.conf && \
 mv apache-celeborn-0.3.0-incubating-bin/conf/log4j2.xml.template apache-celeborn-0.3.0-incubating-bin/conf/log4j2.xml && \
