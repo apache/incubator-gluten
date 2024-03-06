@@ -36,12 +36,12 @@ import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FlushableHas
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, Generator, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, Literal, Murmur3Hash, NamedExpression, NaNvl, PosExplode, Round, StringSplit, StringTrim}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, Generator, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, Literal, Murmur3Hash, NamedExpression, NaNvl, PosExplode, Round, SortOrder, StringSplit, StringTrim}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, HashPartitioning, Partitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, HashPartitioning, Partitioning, RoundRobinPartitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{BroadcastUtils, ColumnarBuildSideRelation, ColumnarShuffleExchangeExec, SparkPlan, VeloxColumnarWriteFilesExec}
 import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
@@ -232,7 +232,22 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
           TransformHints.tagNotTransformable(shuffle, validationResult)
           shuffle.withNewChildren(newChild :: Nil)
         }
-
+      case RoundRobinPartitioning(num) if SQLConf.get.sortBeforeRepartition && num > 1 =>
+        val hashExpr = new Murmur3Hash(newChild.output)
+        val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ newChild.output
+        val projectTransformer = ProjectExecTransformer(projectList, newChild)
+        val sortOrder = SortOrder(projectTransformer.output.head, Ascending)
+        val sortByHashCode = SortExecTransformer(Seq(sortOrder), global = false, projectTransformer)
+        val projectValidationResult = projectTransformer.doValidate()
+        val sortValidationResult = sortByHashCode.doValidate()
+        if (projectValidationResult.isValid && sortValidationResult.isValid) {
+          ColumnarShuffleExchangeExec(shuffle, sortByHashCode, sortByHashCode.output.drop(1))
+        } else {
+          TransformHints.tagNotTransformable(
+            shuffle,
+            if (projectValidationResult.isValid) sortValidationResult else projectValidationResult)
+          shuffle.withNewChildren(newChild :: Nil)
+        }
       case _ =>
         ColumnarShuffleExchangeExec(shuffle, newChild, null)
     }
