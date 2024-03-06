@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
-import io.glutenproject.execution.HashAggregateExecTransformer
+import io.glutenproject.execution.HashAggregateExecBaseTransformer
 
 import org.apache.spark.sql.{GlutenSQLTestsTrait, Row}
 
@@ -31,6 +31,6 @@ class GlutenSQLAggregateFunctionSuite extends GlutenSQLTestsTrait {
         |""".stripMargin
     val df = sql(query)
     checkAnswer(df, Seq(Row(3, 5)))
-    assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecTransformer]) == 4)
+    assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecBaseTransformer]) == 4)
   }
 }
