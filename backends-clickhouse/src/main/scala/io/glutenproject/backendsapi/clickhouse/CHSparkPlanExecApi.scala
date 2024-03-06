@@ -21,8 +21,9 @@ import io.glutenproject.backendsapi.{BackendsApiManager, SparkPlanExecApi}
 import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.extension.{FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage, TransformPreOverrides}
+import io.glutenproject.extension.{FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage}
 import io.glutenproject.extension.columnar.AddTransformHintRule
+import io.glutenproject.extension.columnar.MiscColumnarRules.TransformPreOverrides
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import io.glutenproject.utils.CHJoinValidateUtil
 import io.glutenproject.vectorized.CHColumnarBatchSerializer
@@ -54,9 +55,7 @@ import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleEx
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.{CHExecUtil, PushDownUtil}
-import org.apache.spark.sql.extension.ClickHouseAnalysis
-import org.apache.spark.sql.extension.CommonSubexpressionEliminateRule
-import org.apache.spark.sql.extension.RewriteDateTimestampComparisonRule
+import org.apache.spark.sql.extension.{ClickHouseAnalysis, CommonSubexpressionEliminateRule, RewriteDateTimestampComparisonRule}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 

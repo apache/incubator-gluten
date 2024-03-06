@@ -14,11 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.extension
+package io.glutenproject.extension.columnar
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.BroadcastHashJoinExecTransformer
-import io.glutenproject.extension.columnar.{TRANSFORM_UNSUPPORTED, TransformHints}
+import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.extension.columnar.MiscColumnarRules.TransformPostOverrides
 import io.glutenproject.utils.PlanUtil
 
 import org.apache.spark.rdd.RDD
@@ -33,36 +34,24 @@ import org.apache.spark.sql.execution.exchange.Exchange
 
 // spotless:off
 /**
- * Note, this rule should only fallback to row-based plan if there is no harm.
- * The follow case should be handled carefully
+ * Note, this rule should only fallback to row-based plan if there is no harm. The follow case
+ * should be handled carefully
  *
- * 1. A BHJ and the previous broadcast exchange is columnar
- *    We should still make the BHJ columnar, otherwise it will fail if
- *    the vanilla BHJ accept a columnar broadcast exchange, e.g.,
+ *   1. A BHJ and the previous broadcast exchange is columnar We should still make the BHJ columnar,
+ *      otherwise it will fail if the vanilla BHJ accept a columnar broadcast exchange, e.g.,
  *
- *    Scan                Scan
- *      \                  |
- *        \     Columnar Broadcast Exchange
- *          \       /
- *             BHJ
- *              |
- *       VeloxColumnarToRow
- *              |
- *           Project (unsupport columnar)
+ * Scan Scan \ | \ Columnar Broadcast Exchange \ / BHJ \| VeloxColumnarToRow \| Project (unsupport
+ * columnar)
  *
- * 2. The previous shuffle exchange stage is a columnar shuffle exchange
- *    We should use VeloxColumnarToRow rather than vanilla Spark ColumnarToRowExec, e.g.,
+ * 2. The previous shuffle exchange stage is a columnar shuffle exchange We should use
+ * VeloxColumnarToRow rather than vanilla Spark ColumnarToRowExec, e.g.,
  *
- *             Scan
- *              |
- *    Columnar Shuffle Exchange
- *              |
- *       VeloxColumnarToRow
- *              |
- *           Project (unsupport columnar)
+ * Scan \| Columnar Shuffle Exchange \| VeloxColumnarToRow \| Project (unsupport columnar)
  *
- * @param isAdaptiveContext If is inside AQE
- * @param originalPlan The vanilla SparkPlan without apply gluten transform rules
+ * @param isAdaptiveContext
+ *   If is inside AQE
+ * @param originalPlan
+ *   The vanilla SparkPlan without apply gluten transform rules
  */
 // spotless:on
 case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkPlan)
@@ -105,39 +94,40 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
     transitionCost
   }
 
+  // spotless:off
   /**
-   * When making a stage fall back, it's possible that we need a ColumnarToRow to adapt to last
-   * stage's columnar output. So we need to evaluate the cost, i.e., the number of required
-   * ColumnarToRow between entirely fallback stage and last stage(s). Thus, we can avoid possible
-   * performance degradation caused by fallback policy.
+   * Note, this rule should only fallback to row-based plan if there is no harm.
+   * The follow case should be handled carefully
    *
-   * spotless:off
+   * 1. A BHJ and the previous broadcast exchange is columnar
+   *    We should still make the BHJ columnar, otherwise it will fail if
+   *    the vanilla BHJ accept a columnar broadcast exchange, e.g.,
    *
-   * Spark plan before applying fallback policy:
-   *
-   *        ColumnarExchange
-   *  ----------- | --------------- last stage
-   *    HashAggregateTransformer
+   *    Scan                Scan
+   *      \                  |
+   *        \     Columnar Broadcast Exchange
+   *          \       /
+   *             BHJ
    *              |
-   *        ColumnarToRow
+   *       VeloxColumnarToRow
    *              |
-   *           Project
+   *           Project (unsupport columnar)
    *
-   * To illustrate the effect if cost is not taken into account, here is spark plan
-   * after applying whole stage fallback policy (threshold = 1):
+   * 2. The previous shuffle exchange stage is a columnar shuffle exchange
+   *    We should use VeloxColumnarToRow rather than vanilla Spark ColumnarToRowExec, e.g.,
    *
-   *        ColumnarExchange
-   *  -----------  | --------------- last stage
-   *         ColumnarToRow
-   *               |
-   *         HashAggregate
-   *               |
-   *            Project
+   *             Scan
+   *              |
+   *    Columnar Shuffle Exchange
+   *              |
+   *       VeloxColumnarToRow
+   *              |
+   *           Project (unsupport columnar)
    *
-   *  So by considering the cost, the fallback policy will not be applied.
-   *
-   * spotless:on
+   * @param isAdaptiveContext If is inside AQE
+   * @param originalPlan The vanilla SparkPlan without apply gluten transform rules
    */
+  // spotless:on
   private def countStageFallbackTransitionCost(plan: SparkPlan): Int = {
     var stageFallbackTransitionCost = 0
 

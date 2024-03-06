@@ -14,11 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.extension
+package io.glutenproject.extension.columnar
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.{ProjectExecTransformer, SortExecTransformer, WriteFilesExecTransformer}
-import io.glutenproject.extension.columnar.TransformHints
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Ascending, Attribute, AttributeMap, AttributeSet, NamedExpression, SortOrder}

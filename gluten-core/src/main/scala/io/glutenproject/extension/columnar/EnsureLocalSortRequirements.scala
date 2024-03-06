@@ -14,11 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.extension
+package io.glutenproject.extension.columnar
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.SortExecTransformer
-import io.glutenproject.extension.columnar.TransformHints
 
 import org.apache.spark.sql.catalyst.expressions.SortOrder
 import org.apache.spark.sql.catalyst.rules.Rule
