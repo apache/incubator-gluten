@@ -29,11 +29,12 @@
 #include <parquet/arrow/reader.h>
 #include <substrait/plan.pb.h>
 #include <tests/gluten_test_util.h>
+#include <Common/DebugUtils.h>
 
 namespace
 {
 
-void BM_ParquetReadAllLocal(benchmark::State & state)
+void BM_ColumnIndexRead_NoFilter(benchmark::State & state)
 {
     using namespace DB;
 
@@ -55,7 +56,7 @@ void BM_ParquetReadAllLocal(benchmark::State & state)
     }
 }
 
-void BM_ParquetReadAllOld(benchmark::State & state)
+void BM_ColumnIndexRead_Old(benchmark::State & state)
 {
     using namespace DB;
 
@@ -163,10 +164,87 @@ void BM_OptimizedParquetReadDate32(benchmark::State & state)
         }
     }
 }
+
+substrait::ReadRel::LocalFiles createLocalFiles(const std::string & filename, const bool use_local_format)
+{
+    substrait::ReadRel::LocalFiles files;
+    substrait::ReadRel::LocalFiles::FileOrFiles * file_item = files.add_items();
+    file_item->set_uri_file("file://" + filename);
+    file_item->set_start(0);
+    file_item->set_length(std::filesystem::file_size(filename));
+    const substrait::ReadRel::LocalFiles::FileOrFiles::ParquetReadOptions parquet_format;
+    file_item->mutable_parquet()->CopyFrom(parquet_format);
+
+    auto config = Poco::AutoPtr(new Poco::Util::MapConfiguration());
+    config->setBool("use_local_format", use_local_format);
+    local_engine::SerializedPlanParser::global_context->setConfig(config);
+
+    return files;
 }
 
-BENCHMARK(BM_ParquetReadAllOld)->Unit(benchmark::kMillisecond)->Iterations(50);
-BENCHMARK(BM_ParquetReadAllLocal)->Unit(benchmark::kMillisecond)->Iterations(50);
+void doRead(const substrait::ReadRel::LocalFiles & files, const DB::ActionsDAGPtr & pushDown, const DB::Block & header)
+{
+    const auto builder = std::make_unique<DB::QueryPipelineBuilder>();
+    const auto source
+        = std::make_shared<local_engine::SubstraitFileSource>(local_engine::SerializedPlanParser::global_context, header, files);
+    source->setKeyCondition(pushDown, local_engine::SerializedPlanParser::global_context);
+    builder->init(DB::Pipe(source));
+    auto pipeline = DB::QueryPipelineBuilder::getPipeline(std::move(*builder));
+    auto reader = DB::PullingPipelineExecutor(pipeline);
+    auto result = header.cloneEmpty();
+    size_t total_rows = 0;
+    while (reader.pull(result))
+    {
+#ifndef NDEBUG
+        debug::headBlock(result);
+#endif
+        total_rows += result.rows();
+    }
+#ifndef NDEBUG
+    std::cerr << "rows:" << total_rows << std::endl;
+#endif
+}
+
+void BM_ColumnIndexRead_Filter_ReturnAllResult(benchmark::State & state)
+{
+    using namespace DB;
+
+    const std::string filename = local_engine::test::data_file(
+        "benchmark/column_index/lineitem/part-00000-9395e12a-3620-4085-9677-c63b920353f4-c000.snappy.parquet");
+    const std::string filter1 = "l_shipdate is not null AND l_shipdate <= toDate32('1998-09-01')";
+    const substrait::ReadRel::LocalFiles files = createLocalFiles(filename, true);
+    const AnotherRowType schema = local_engine::test::readParquetSchema(filename);
+    const ActionsDAGPtr pushDown = local_engine::test::parseFilter(filter1, schema);
+    const Block header = {toBlockRowType(schema)};
+
+    for (auto _ : state)
+        doRead(files, pushDown, header);
+    local_engine::SerializedPlanParser::global_context->setConfig(Poco::AutoPtr(new Poco::Util::MapConfiguration()));
+}
+
+void BM_ColumnIndexRead_Filter_ReturnHalfResult(benchmark::State & state)
+{
+    using namespace DB;
+
+    const std::string filename = local_engine::test::data_file(
+        "benchmark/column_index/lineitem/part-00000-9395e12a-3620-4085-9677-c63b920353f4-c000.snappy.parquet");
+    const std::string filter1 = "l_orderkey is not null AND l_orderkey > 300977829";
+    const substrait::ReadRel::LocalFiles files = createLocalFiles(filename, true);
+    const AnotherRowType schema = local_engine::test::readParquetSchema(filename);
+    const ActionsDAGPtr pushDown = local_engine::test::parseFilter(filter1, schema);
+    const Block header = {toBlockRowType(schema)};
+
+    for (auto _ : state)
+        doRead(files, pushDown, header);
+    local_engine::SerializedPlanParser::global_context->setConfig(Poco::AutoPtr(new Poco::Util::MapConfiguration()));
+}
+
+}
+
+BENCHMARK(BM_ColumnIndexRead_Old)->Unit(benchmark::kMillisecond)->Iterations(20);
+BENCHMARK(BM_ColumnIndexRead_NoFilter)->Unit(benchmark::kMillisecond)->Iterations(20);
+BENCHMARK(BM_ColumnIndexRead_Filter_ReturnAllResult)->Unit(benchmark::kMillisecond)->Iterations(20);
+BENCHMARK(BM_ColumnIndexRead_Filter_ReturnHalfResult)->Unit(benchmark::kMillisecond)->Iterations(20);
 BENCHMARK(BM_ParquetReadDate32)->Unit(benchmark::kMillisecond)->Iterations(10);
 BENCHMARK(BM_OptimizedParquetReadString)->Unit(benchmark::kMillisecond)->Iterations(10);
 BENCHMARK(BM_OptimizedParquetReadDate32)->Unit(benchmark::kMillisecond)->Iterations(200);

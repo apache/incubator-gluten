@@ -21,6 +21,11 @@
 #include <Formats/FormatSettings.h>
 #include <IO/ReadBuffer.h>
 #include <IO/ReadBufferFromFile.h>
+
+#include <Interpreters/ActionsVisitor.h>
+#include <Parser/SerializedPlanParser.h>
+#include <Parsers/ExpressionListParsers.h>
+#include <Parsers/parseQuery.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <Common/Exception.h>
@@ -34,6 +39,39 @@ extern const int LOGICAL_ERROR;
 
 namespace local_engine::test
 {
+using namespace DB;
+ActionsDAGPtr parseFilter(const std::string & filter, const AnotherRowType & name_and_types)
+{
+    using namespace DB;
+
+    std::unordered_map<std::string, ColumnWithTypeAndName> node_name_to_input_column;
+    std::ranges::transform(
+        name_and_types,
+        std::inserter(node_name_to_input_column, node_name_to_input_column.end()),
+        [](const auto & name_and_type) { return std::make_pair(name_and_type.name, toBlockFieldType(name_and_type)); });
+
+    NamesAndTypesList aggregation_keys;
+    ColumnNumbersList aggregation_keys_indexes_list;
+    const AggregationKeysInfo info(aggregation_keys, aggregation_keys_indexes_list, GroupByKind::NONE);
+    constexpr SizeLimits size_limits_for_set;
+    ParserExpression parser2;
+    const ASTPtr ast_exp = parseQuery(parser2, filter.data(), filter.data() + filter.size(), "", 0, 0);
+    const auto prepared_sets = std::make_shared<PreparedSets>();
+    ActionsMatcher::Data visitor_data(
+        SerializedPlanParser::global_context,
+        size_limits_for_set,
+        static_cast<size_t>(0),
+        name_and_types,
+        std::make_shared<ActionsDAG>(name_and_types),
+        prepared_sets /* prepared_sets */,
+        false /* no_subqueries */,
+        false /* no_makeset */,
+        false /* only_consts */,
+        info);
+    ActionsVisitor(visitor_data).visit(ast_exp);
+    return ActionsDAG::buildFilterActionsDAG({visitor_data.getActions()->getOutputs().back()}, node_name_to_input_column);
+}
+
 const char * get_data_dir()
 {
     const auto * const result = std::getenv("PARQUET_TEST_DATA");

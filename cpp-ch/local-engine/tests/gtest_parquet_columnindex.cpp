@@ -21,12 +21,11 @@
 #include <string>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypesNumber.h>
-#include <Interpreters/ActionsDAG.h>
 #include <Interpreters/ActionsVisitor.h>
 #include <Interpreters/ExpressionActions.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parsers/ExpressionListParsers.h>
-#include <Parsers/parseQuery.h>
+
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Storages/Parquet/ArrowUtils.h>
 #include <Storages/Parquet/ColumnIndexFilter.h>
@@ -55,38 +54,6 @@ using namespace DB;
 
 namespace test_utils
 {
-ActionsDAGPtr parseFilter(const std::string & filter, const AnotherRowType & name_and_types)
-{
-    using namespace DB;
-
-    std::unordered_map<std::string, ColumnWithTypeAndName> node_name_to_input_column;
-    std::ranges::transform(
-        name_and_types,
-        std::inserter(node_name_to_input_column, node_name_to_input_column.end()),
-        [](const auto & name_and_type) { return std::make_pair(name_and_type.name, toBlockFieldType(name_and_type)); });
-
-    NamesAndTypesList aggregation_keys;
-    ColumnNumbersList aggregation_keys_indexes_list;
-    const AggregationKeysInfo info(aggregation_keys, aggregation_keys_indexes_list, GroupByKind::NONE);
-    constexpr SizeLimits size_limits_for_set;
-    ParserExpression parser2;
-    const ASTPtr ast_exp = parseQuery(parser2, filter.data(), filter.data() + filter.size(), "", 0, 0);
-    const auto prepared_sets = std::make_shared<PreparedSets>();
-    ActionsMatcher::Data visitor_data(
-        local_engine::SerializedPlanParser::global_context,
-        size_limits_for_set,
-        static_cast<size_t>(0),
-        name_and_types,
-        std::make_shared<ActionsDAG>(name_and_types),
-        prepared_sets /* prepared_sets */,
-        false /* no_subqueries */,
-        false /* no_makeset */,
-        false /* only_consts */,
-        info);
-    ActionsVisitor(visitor_data).visit(ast_exp);
-    return ActionsDAG::buildFilterActionsDAG({visitor_data.getActions()->getOutputs().back()}, node_name_to_input_column);
-}
-
 class PrimitiveNodeBuilder
 {
     parquet::Repetition::type repetition_ = parquet::Repetition::UNDEFINED;
@@ -373,7 +340,8 @@ void testCondition(const std::string & exp, const std::vector<size_t> & expected
 {
     static const AnotherRowType name_and_types = buildTestRowType();
     static const local_engine::ColumnIndexStore column_index_store = buildTestColumnIndexStore();
-    const local_engine::ColumnIndexFilter filter(parseFilter(exp, name_and_types), local_engine::SerializedPlanParser::global_context);
+    const local_engine::ColumnIndexFilter filter(
+        local_engine::test::parseFilter(exp, name_and_types), local_engine::SerializedPlanParser::global_context);
     assertRows(filter.calculateRowRanges(column_index_store, TOTALSIZE), expectedRows);
 }
 
@@ -491,7 +459,8 @@ TEST(ColumnIndex, FilteringWithNotFoundColumnName)
         // COLUMN5 is not found in the column_index_store,
         const AnotherRowType upper_name_and_types{{"COLUMN5", BIGINT()}};
         const local_engine::ColumnIndexFilter filter_upper(
-            parseFilter("COLUMN5 in (7, 20)", upper_name_and_types), local_engine::SerializedPlanParser::global_context);
+            local_engine::test::parseFilter("COLUMN5 in (7, 20)", upper_name_and_types),
+            local_engine::SerializedPlanParser::global_context);
         assertRows(
             filter_upper.calculateRowRanges(column_index_store, TOTALSIZE),
             std::vector(boost::counting_iterator<size_t>(0), boost::counting_iterator<size_t>(TOTALSIZE)));
@@ -500,7 +469,8 @@ TEST(ColumnIndex, FilteringWithNotFoundColumnName)
     {
         const AnotherRowType lower_name_and_types{{"column5", BIGINT()}};
         const local_engine::ColumnIndexFilter filter_lower(
-            parseFilter("column5 in (7, 20)", lower_name_and_types), local_engine::SerializedPlanParser::global_context);
+            local_engine::test::parseFilter("column5 in (7, 20)", lower_name_and_types),
+            local_engine::SerializedPlanParser::global_context);
         assertRows(filter_lower.calculateRowRanges(column_index_store, TOTALSIZE), {});
     }
 }
@@ -1004,7 +974,7 @@ TEST(ColumnIndex, VectorizedParquetRecordReader)
     auto arrow_file = local_engine::test::asArrowFileForParquet(in, format_settings);
 
     static const AnotherRowType name_and_types{{"11", BIGINT()}};
-    const auto filterAction = parseFilter("`11` = 10 or `11` = 50", name_and_types);
+    const auto filterAction = local_engine::test::parseFilter("`11` = 10 or `11` = 50", name_and_types);
     auto column_index_filter
         = std::make_shared<local_engine::ColumnIndexFilter>(filterAction, local_engine::SerializedPlanParser::global_context);
 

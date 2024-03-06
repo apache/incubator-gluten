@@ -20,8 +20,10 @@
 #include <string>
 #include <Core/ColumnsWithTypeAndName.h>
 #include <Core/NamesAndTypes.h>
+#include <DataTypes/DataTypeDate32.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypesNumber.h>
+#include <Interpreters/ActionsDAG.h>
 #include <parquet/schema.h>
 
 using BlockRowType = DB::ColumnsWithTypeAndName;
@@ -55,6 +57,8 @@ std::shared_ptr<arrow::io::RandomAccessFile> asArrowFileForParquet(DB::ReadBuffe
 DB::DataTypePtr toDataType(const parquet::ColumnDescriptor & type);
 
 AnotherRowType readParquetSchema(const std::string & file);
+
+DB::ActionsDAGPtr parseFilter(const std::string & filter, const AnotherRowType & name_and_types);
 
 }
 
@@ -101,6 +105,11 @@ inline DB::DataTypePtr STRING()
     return std::make_shared<DB::DataTypeString>();
 }
 
+inline DB::DataTypePtr DATE()
+{
+    return std::make_shared<DB::DataTypeDate32>();
+}
+
 inline BlockFieldType toBlockFieldType(const AnotherFieldType & type)
 {
     return BlockFieldType(type.type, type.name);
@@ -116,15 +125,11 @@ inline BlockRowType toBlockRowType(const AnotherRowType & type, const bool rever
     BlockRowType result;
     result.reserve(type.size());
     if (reverse)
-    {
         for (auto it = type.rbegin(); it != type.rend(); ++it)
             result.emplace_back(toBlockFieldType(*it));
-    }
     else
-    {
         for (const auto & field : type)
             result.emplace_back(toBlockFieldType(field));
-    }
     return result;
 }
 

@@ -67,7 +67,9 @@ if (ENABLE_TESTS)
     target_compile_options(unit_tests_local_engine PRIVATE -Wno-unreachable-code)
     target_link_libraries(unit_tests_local_engine PRIVATE gluten_clickhouse_backend_libs clickhouse_parsers loggers ch_contrib::gmock_all ch_contrib::gtest)
     target_link_libraries(unit_tests_local_engine PRIVATE ch_parquet)
-else()
+endif()
+
+if (ENABLE_BENCHMARKS)
     include_directories(benchmark_local_engine SYSTEM PUBLIC
         ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine
     )
