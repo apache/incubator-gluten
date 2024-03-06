@@ -568,11 +568,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar Shuffle is not enabled in ShuffleExchangeExec")
           } else {
-            val transformer = ColumnarShuffleExchangeExec(
-              plan.outputPartitioning,
-              plan.child,
-              plan.shuffleOrigin,
-              plan.child.output)
+            val transformer = ColumnarShuffleExchangeExec(plan, plan.child, plan.child.output)
             transformer.doValidate().tagOnFallback(plan)
           }
         case plan: ShuffledHashJoinExec =>
