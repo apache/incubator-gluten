@@ -21,6 +21,7 @@ import io.glutenproject.substrait.type.TypeNode;
 
 import io.substrait.proto.Expression;
 import io.substrait.proto.Expression.Literal.Builder;
+import io.substrait.proto.Type;
 import org.apache.spark.sql.catalyst.util.ArrayData;
 
 public class ListLiteralNode extends LiteralNodeWithValue<ArrayData> {
@@ -33,13 +34,18 @@ public class ListLiteralNode extends LiteralNodeWithValue<ArrayData> {
     Object[] elements = array.array();
     TypeNode elementType = ((ListNode) getTypeNode()).getNestedType();
 
-    Expression.Literal.List.Builder listBuilder = Expression.Literal.List.newBuilder();
-    for (Object element : elements) {
-      LiteralNode elementNode = ExpressionBuilder.makeLiteral(element, elementType);
-      Expression.Literal elementExpr = elementNode.getLiteral();
-      listBuilder.addValues(elementExpr);
+    if (elements.length > 0) {
+      Expression.Literal.List.Builder listBuilder = Expression.Literal.List.newBuilder();
+      for (Object element : elements) {
+        LiteralNode elementNode = ExpressionBuilder.makeLiteral(element, elementType);
+        Expression.Literal elementExpr = elementNode.getLiteral();
+        listBuilder.addValues(elementExpr);
+      }
+      literalBuilder.setList(listBuilder.build());
+    } else {
+      Type.List.Builder listTypeBuilder = Type.List.newBuilder();
+      listTypeBuilder.setType(elementType.toProtobuf());
+      literalBuilder.setEmptyList(listTypeBuilder.build());
     }
-
-    literalBuilder.setList(listBuilder.build());
   }
 }

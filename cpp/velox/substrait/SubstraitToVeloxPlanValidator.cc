@@ -243,27 +243,17 @@ bool SubstraitToVeloxPlanValidator::validateLiteral(
     const ::substrait::Expression_Literal& literal,
     const RowTypePtr& inputType) {
   if (literal.has_list()) {
-    if (literal.list().values_size() == 0) {
-      LOG_VALIDATION_MSG("Literal is a list but has no value.");
-      return false;
-    } else {
-      for (auto child : literal.list().values()) {
-        if (!validateLiteral(child, inputType)) {
-          // the error msg has been set, so do not need to set it again.
-          return false;
-        }
+    for (auto child : literal.list().values()) {
+      if (!validateLiteral(child, inputType)) {
+        // the error msg has been set, so do not need to set it again.
+        return false;
       }
     }
   } else if (literal.has_map()) {
-    if (literal.map().key_values().empty()) {
-      LOG_VALIDATION_MSG("Literal is a map but has no value.");
-      return false;
-    } else {
-      for (auto child : literal.map().key_values()) {
-        if (!validateLiteral(child.key(), inputType) || !validateLiteral(child.value(), inputType)) {
-          // the error msg has been set, so do not need to set it again.
-          return false;
-        }
+    for (auto child : literal.map().key_values()) {
+      if (!validateLiteral(child.key(), inputType) || !validateLiteral(child.value(), inputType)) {
+        // the error msg has been set, so do not need to set it again.
+        return false;
       }
     }
   }

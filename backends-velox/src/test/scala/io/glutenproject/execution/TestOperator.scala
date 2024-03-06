@@ -1086,4 +1086,29 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
+  test("test array literal") {
+    withTable("array_table") {
+      sql("create table array_table(a array<bigint>) using parquet")
+      sql("insert into table array_table select array(1)")
+      runQueryAndCompare("select size(coalesce(a, array())) from array_table") {
+        df =>
+          {
+            assert(getExecutedPlan(df).count(_.isInstanceOf[ProjectExecTransformer]) == 1)
+          }
+      }
+    }
+  }
+
+  test("test map literal") {
+    withTable("map_table") {
+      sql("create table map_table(a map<bigint, string>) using parquet")
+      sql("insert into table map_table select map(1, 'hello')")
+      runQueryAndCompare("select size(coalesce(a, map())) from map_table") {
+        df =>
+          {
+            assert(getExecutedPlan(df).count(_.isInstanceOf[ProjectExecTransformer]) == 1)
+          }
+      }
+    }
+  }
 }

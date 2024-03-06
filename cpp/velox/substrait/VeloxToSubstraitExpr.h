@@ -92,6 +92,9 @@ class VeloxToSubstraitExprConvertor {
   const ::substrait::Expression_Literal_List&
   toSubstraitLiteralList(google::protobuf::Arena& arena, const ArrayVector* arrayVector, vector_size_t row);
 
+  /// Convert an empty Velox array vector to Substrait Literal Empty List.
+  const ::substrait::Type_List& toSubstraitLiteralEmptyList(google::protobuf::Arena& arena, const velox::TypePtr& type);
+
   /// Convert values in Velox complex vector to Substrait Literal.
   const ::substrait::Expression_Literal& toSubstraitLiteralComplex(
       google::protobuf::Arena& arena,

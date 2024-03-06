@@ -1463,6 +1463,11 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::parseLiteral(const substrait
             field = std::move(array);
             break;
         }
+        case substrait::Expression_Literal::kEmptyList: {
+            type = std::make_shared<DataTypeArray>(std::make_shared<DataTypeNothing>());
+            field = Array();
+            break;
+        }
         case substrait::Expression_Literal::kMap: {
             const auto & key_values = literal.map().key_values();
             if (key_values.empty())
@@ -1506,6 +1511,11 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::parseLiteral(const substrait
 
             type = std::make_shared<DataTypeMap>(common_key_type, common_value_type);
             field = std::move(map);
+            break;
+        }
+        case substrait::Expression_Literal::kEmptyMap: {
+            type = std::make_shared<DataTypeMap>(std::make_shared<DataTypeNothing>(), std::make_shared<DataTypeNothing>());
+            field = Map();
             break;
         }
         case substrait::Expression_Literal::kStruct: {
