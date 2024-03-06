@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.extension.ValidationResult
+import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
@@ -176,7 +177,9 @@ object ColumnarShuffleExchangeExec extends Logging {
       plan.outputPartitioning,
       child,
       plan.shuffleOrigin,
-      shuffleOutputAttributes)
+      shuffleOutputAttributes,
+      advisoryPartitionSize = SparkShimLoader.getSparkShims.getShuffleAdvisoryPartitionSize(plan)
+    )
   }
 
   // scalastyle:off argcount
