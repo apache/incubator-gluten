@@ -20,17 +20,14 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 
 import org.apache.commons.io.FileUtils
 
 import java.io.File
 
-class GlutenClickhouseFunctionSuite
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
+class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
 
   override protected val resourcePath: String =
     "../../../../gluten-core/src/test/resources/tpch-data"
@@ -139,17 +136,6 @@ class GlutenClickhouseFunctionSuite
       val diffCount = df.exceptAll(df2).count()
       assert(diffCount == 0)
     }
-  }
-
-  private def checkFallbackOperators(df: DataFrame, num: Int): Unit = {
-    // Decrease one VeloxColumnarToRowExec for the top level node
-    assert(
-      collect(df.queryExecution.executedPlan) {
-        case p if p.isInstanceOf[ColumnarToRowExecBase] => p
-        case p if p.isInstanceOf[RowToColumnarExecBase] => p
-      }.size - 1 == num,
-      df.queryExecution
-    )
   }
 
   test("Support In list option contains non-foldable expression") {

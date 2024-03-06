@@ -22,14 +22,13 @@ import io.glutenproject.sql.shims.SparkShimLoader
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
 import org.apache.spark.sql.execution.{FilterExec, GenerateExec, ProjectExec, RDDScanExec}
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.functions.{avg, col, lit, udf}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DecimalType, StringType, StructField, StructType}
 
 import scala.collection.JavaConverters
 
-class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
+class TestOperator extends VeloxWholeStageTransformerSuite {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
@@ -943,17 +942,6 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
           "SELECT x FROM view WHERE cast(x as timestamp) " +
             "IN ('1970-01-01 08:00:00.001','1970-01-01 08:00:00.2')")(_)
     }
-  }
-
-  private def checkFallbackOperators(df: DataFrame, num: Int): Unit = {
-    // Decrease one VeloxColumnarToRowExec for the top level node
-    assert(
-      collect(df.queryExecution.executedPlan) {
-        case p if p.isInstanceOf[ColumnarToRowExecBase] => p
-        case p if p.isInstanceOf[RowToColumnarExecBase] => p
-      }.size - 1 == num,
-      df.queryExecution
-    )
   }
 
   test("Columnar cartesian product with other join") {
