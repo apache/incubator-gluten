@@ -22,7 +22,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, ShuffleQueryStageExec}
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.DoubleType
 
@@ -34,7 +34,10 @@ import scala.reflect.ClassTag
 
 case class Table(name: String, partitionColumns: Seq[String])
 
-abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSparkSession {
+abstract class WholeStageTransformerSuite
+  extends GlutenQueryTest
+  with SharedSparkSession
+  with AdaptiveSparkPlanHelper {
 
   protected val backend: String
   protected val resourcePath: String
@@ -95,6 +98,17 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       .set("spark.memory.offHeap.size", "1024MB")
       .set("spark.ui.enabled", "false")
       .set("spark.gluten.ui.enabled", "false")
+  }
+
+  protected def checkFallbackOperators(df: DataFrame, num: Int): Unit = {
+    // Decrease one VeloxColumnarToRowExec for the top level node
+    assert(
+      collect(df.queryExecution.executedPlan) {
+        case p if p.isInstanceOf[ColumnarToRowExecBase] => p
+        case p if p.isInstanceOf[RowToColumnarExecBase] => p
+      }.size - 1 == num,
+      df.queryExecution
+    )
   }
 
   protected def compareResultStr(sqlNum: String, result: Seq[Row], queriesResults: String): Unit = {

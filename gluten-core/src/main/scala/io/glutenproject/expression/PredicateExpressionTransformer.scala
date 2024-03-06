@@ -34,8 +34,9 @@ case class InTransformer(
     original: Expression)
   extends ExpressionTransformer {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
+    assert(list.forall(_.foldable))
     // Stores the values in a List Literal.
-    val values: Set[Any] = list.map(_.asInstanceOf[Literal].value).toSet
+    val values: Set[Any] = list.map(_.eval()).toSet
     InExpressionTransformer.toTransformer(value.doTransform(args), values, valueType)
   }
 }
