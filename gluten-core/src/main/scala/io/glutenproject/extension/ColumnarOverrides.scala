@@ -234,6 +234,7 @@ case class ColumnarOverrideRules(session: SparkSession)
         (_: SparkSession) => AddTransformHintRule(),
         (_: SparkSession) => FallbackBloomFilterAggIfNeeded(),
         (_: SparkSession) => TransformPreOverrides(),
+        (_: SparkSession) => InsertTransitions(outputsColumnar),
         (_: SparkSession) => RemoveNativeWriteFilesSortAndProject(),
         (spark: SparkSession) => RewriteTransformer(spark),
         (_: SparkSession) => EnsureLocalSortRequirements,
