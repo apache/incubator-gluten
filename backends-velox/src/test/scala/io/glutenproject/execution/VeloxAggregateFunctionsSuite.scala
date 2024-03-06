@@ -777,6 +777,21 @@ class VeloxAggregateFunctionsFlushSuite extends VeloxAggregateFunctionsSuite {
       }
     }
   }
+
+  test("flushable aggregate decimal sum") {
+    withSQLConf(
+      SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false",
+      SQLConf.FILES_MAX_PARTITION_BYTES.key -> "1k") {
+      runQueryAndCompare("select sum(l_quantity) from lineitem") {
+        df =>
+          val executedPlan = getExecutedPlan(df)
+          assert(
+            executedPlan.exists(plan => plan.isInstanceOf[RegularHashAggregateExecTransformer]))
+          assert(
+            executedPlan.exists(plan => plan.isInstanceOf[FlushableHashAggregateExecTransformer]))
+      }
+    }
+  }
 }
 
 object VeloxAggregateFunctionsSuite {
