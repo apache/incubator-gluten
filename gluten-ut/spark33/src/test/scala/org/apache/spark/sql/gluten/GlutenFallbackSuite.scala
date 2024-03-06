@@ -104,7 +104,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
         assert(execution.get.numFallbackNodes == 1)
         assert(
           execution.get.fallbackNodeToReason.head._2
-            .contains("full-outer join is not supported with broadcast nested-loop Join"))
+            .contains("FullOuter join is not supported with BroadcastNestedLoopJoin"))
       } else {
         assert(execution.get.numFallbackNodes == 2)
       }

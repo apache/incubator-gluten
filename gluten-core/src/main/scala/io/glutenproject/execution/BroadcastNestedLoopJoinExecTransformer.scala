@@ -167,7 +167,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
     }
     if (substraitJoinType == CrossRel.JoinType.UNRECOGNIZED) {
       return ValidationResult.notOk(
-        s"$joinType join is not supported with Broadcast Nested Loop Join")
+        s"$joinType join is not supported with BroadcastNestedLoopJoin")
     }
     (joinType, buildSide) match {
       case (LeftOuter, BuildLeft) | (RightOuter, BuildRight) =>
