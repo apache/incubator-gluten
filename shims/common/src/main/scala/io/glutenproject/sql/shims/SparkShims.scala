@@ -21,11 +21,12 @@ import io.glutenproject.expression.Sig
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.scheduler.TaskInfo
-import org.apache.spark.shuffle.ShuffleHandle
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.shuffle.{ShuffleHandle, ShuffleReader}
+import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.Distribution
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
@@ -146,4 +147,7 @@ trait SparkShims {
   def structFromAttributes(attrs: Seq[Attribute]): StructType
 
   def attributesFromStruct(structType: StructType): Seq[Attribute]
+
+  // For compatibility with Spark-3.5.
+  def getAnalysisExceptionPlan(ae: AnalysisException): Option[LogicalPlan]
 }
