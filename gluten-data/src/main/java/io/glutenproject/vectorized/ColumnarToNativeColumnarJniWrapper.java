@@ -20,15 +20,16 @@ import io.glutenproject.exec.Runtime;
 import io.glutenproject.exec.RuntimeAware;
 import io.glutenproject.exec.Runtimes;
 
-public class VanillaColumnarToNativeColumnarJniWrapper implements RuntimeAware {
+/** JniWrapper used to convert spark vanilla columnar data to native columnar data. */
+public class ColumnarToNativeColumnarJniWrapper implements RuntimeAware {
   private final Runtime runtime;
 
-  private VanillaColumnarToNativeColumnarJniWrapper(Runtime runtime) {
+  private ColumnarToNativeColumnarJniWrapper(Runtime runtime) {
     this.runtime = runtime;
   }
 
-  public static VanillaColumnarToNativeColumnarJniWrapper create() {
-    return new VanillaColumnarToNativeColumnarJniWrapper(Runtimes.contextInstance());
+  public static ColumnarToNativeColumnarJniWrapper create() {
+    return new ColumnarToNativeColumnarJniWrapper(Runtimes.contextInstance());
   }
 
   @Override
@@ -38,7 +39,7 @@ public class VanillaColumnarToNativeColumnarJniWrapper implements RuntimeAware {
 
   public native long init(long cSchema, long memoryManagerHandle);
 
-  public native long nativeConvertVanillaColumnarToColumnar(long c2cHandle, long memoryAddress);
+  public native long nativeConvertColumnarToColumnar(long c2cHandle, long memoryAddress);
 
   public native void close(long c2cHandle);
 }

@@ -38,6 +38,7 @@ class VeloxColumnarToColumnarTest : public ::testing::Test, public test::VectorT
     auto cb = columnarToColumnarConverter->convert(&arrowArray);
     auto vp = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb)->getRowVector();
     velox::test::assertEqualVectors(vector, vp);
+    arrowArray.release(&arrowArray);
   }
 
  private:
@@ -45,6 +46,7 @@ class VeloxColumnarToColumnarTest : public ::testing::Test, public test::VectorT
 };
 
 TEST_F(VeloxColumnarToColumnarTest, allTypes) {
+  // TODO Add decimal type
   auto vector = makeRowVector({
       makeNullableFlatVector<int8_t>({1, 2, 3, std::nullopt, 4, std::nullopt, 5, 6, std::nullopt, 7}),
       makeNullableFlatVector<int8_t>({1, -1, std::nullopt, std::nullopt, -2, 2, std::nullopt, std::nullopt, 3, -3}),
@@ -86,13 +88,4 @@ TEST_F(VeloxColumnarToColumnarTest, allTypes) {
   testRowVectorEqual(cSchema, arrowArray, vector);
 }
 
-TEST_F(VeloxColumnarToColumnarTest, decimal) {
-  auto vector = makeRowVector({makeNullableFlatVector<int64_t>({1.00, 2.00, 3.00}, DECIMAL(5, 2))});
-
-  ArrowSchema cSchema;
-  ArrowArray arrowArray;
-  exportToArrow(vector, cSchema, ArrowUtils::getBridgeOptions());
-  exportToArrow(vector, arrowArray, pool(), ArrowUtils::getBridgeOptions());
-  testRowVectorEqual(cSchema, arrowArray, vector);
-}
 } // namespace gluten

@@ -75,12 +75,14 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
   test("c2c") {
     withSQLConf(
       "spark.gluten.sql.columnar.columnarToColumnar" -> "true",
-      "spark.gluten.sql.columnar.filescan" -> "false") {
-      withTable("c2c") {
-        spark.sql("create table c2c(id int, name string) using parquet")
-        spark.sql("insert into c2c values(1, 'a'), (2, 'b'), (3, 'c')")
-        val df = runQueryAndCompare("select id, name from c2c where id = 1") { _ => }
-        assert(getExecutedPlan(df).exists(plan => plan.isInstanceOf[ColumnarToColumnarExecBase]))
+      "spark.gluten.sql.columnar.batchscan" -> "false") {
+      // TODO Include decimal types as well
+      runQueryAndCompare(
+        "select l_orderkey, l_partkey, l_suppkey, l_linenumber, l_returnflag," +
+          "l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode," +
+          "l_comment from lineitem where l_shipdate < '1998-09-02'") {
+        df =>
+          assert(getExecutedPlan(df).exists(plan => plan.isInstanceOf[ColumnarToColumnarExecBase]))
       }
     }
   }

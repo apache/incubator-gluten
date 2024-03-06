@@ -16,13 +16,14 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.backendsapi.velox.ValidatorApiImpl
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.exec.Runtimes
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.{ArrowAbiUtil, Iterators}
-import io.glutenproject.vectorized.VanillaColumnarToNativeColumnarJniWrapper
+import io.glutenproject.vectorized.ColumnarToNativeColumnarJniWrapper
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.SparkPlan
@@ -38,20 +39,23 @@ import org.apache.arrow.c.{ArrowArray, ArrowSchema, Data}
 
 case class ColumnarToVeloxColumnarExec(child: SparkPlan) extends ColumnarToColumnarExecBase(child) {
 
-  override def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
-    new ValidatorApiImpl().doSchemaValidate(schema).foreach {
-      reason =>
-        throw new UnsupportedOperationException(
-          s"Input schema contains unsupported type when performing columnar" +
-            s" to columnar for $schema " + s"due to $reason")
+  override protected def doValidateInternal(): ValidationResult = {
+    BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema) match {
+      case Some(reason) =>
+        ValidationResult(
+          isValid = false,
+          Some(
+            s"Input schema contains unsupported type when performing columnar" +
+              s" to columnar for $schema " + s"due to $reason"))
+      case None =>
+        ValidationResult(isValid = true, None)
     }
+  }
 
+  override def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     val numInputBatches = longMetric("numInputBatches")
     val numOutputBatches = longMetric("numOutputBatches")
     val convertTime = longMetric("convertTime")
-    // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
-    // combine with some of the Arrow conversion tools we will need to unify some of the configs.
-    val numRows = conf.columnBatchSize
     // This avoids calling `schema` in the RDD closure, so that we don't need to include the entire
     // plan (this) in the closure.
     val localSchema = schema
@@ -85,7 +89,7 @@ object ColumnarToVeloxColumnarExec {
 
     val arrowSchema =
       SparkArrowUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
-    val jniWrapper = VanillaColumnarToNativeColumnarJniWrapper.create()
+    val jniWrapper = ColumnarToNativeColumnarJniWrapper.create()
     val allocator = ArrowBufferAllocators.contextInstance()
     val cSchema = ArrowSchema.allocateNew(allocator)
     ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
@@ -131,7 +135,7 @@ object ColumnarToVeloxColumnarExec {
         converter.finish()
         Data.exportVectorSchemaRoot(allocator, converter.root, null, arrowArray)
         val handle = jniWrapper
-          .nativeConvertVanillaColumnarToColumnar(c2cHandle, arrowArray.memoryAddress())
+          .nativeConvertColumnarToColumnar(c2cHandle, arrowArray.memoryAddress())
         ColumnarBatches.create(Runtimes.contextInstance(), handle)
       }
 
