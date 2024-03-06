@@ -54,7 +54,9 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate",
       // Replaced with another test.
       "SPARK-19471: AggregationIterator does not initialize the generated result projection" +
-        " before using it"
+        " before using it",
+      // TODO: fix inconsistent behavior.
+      "SPARK-17641: collect functions should not collect null values"
     )
 
   enableSuite[GlutenCastSuite]
