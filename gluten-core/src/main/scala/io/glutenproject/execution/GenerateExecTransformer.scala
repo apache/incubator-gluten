@@ -174,26 +174,36 @@ case class GenerateExecTransformer(
         context,
         operatorId)
     }
+    applyPostProjectOnGenerator(generateRel, context, operatorId, childOutput, validation)
+  }
+
+  private def applyPostProjectOnGenerator(
+      generateRel: RelNode,
+      context: SubstraitContext,
+      operatorId: Long,
+      childOutput: JList[ExpressionNode],
+      validation: Boolean): RelNode = {
     generator match {
-      case Inline(_) =>
-        val requiredOutput = (0 until childOutput.size()).map {
+      case Inline(inlineChild) =>
+        inlineChild match {
+          case _: AttributeReference =>
+          case _ =>
+            throw new UnsupportedOperationException("Child of Inline is not AttributeReference.")
+        }
+        val requiredOutput = (0 until childOutput.size).map {
           ExpressionBuilder.makeSelection(_)
         }
-        val projectOutput = requiredOutput ++ generatorOutput.zipWithIndex.map {
-          case (attr, i) =>
-            ExpressionConverter
-              .replaceWithExpressionTransformer(
-                GetStructField(generator.asInstanceOf[UnaryExpression].child, i, Some(attr.name)),
-                child.output
-              )
-              .doTransform(context.registeredFunction)
+        val flattenStruct: Seq[ExpressionNode] = generatorOutput.indices.map {
+          i =>
+            val selectionNode = ExpressionBuilder.makeSelection(requiredOutput.size)
+            selectionNode.addNestedChildIdx(i)
         }
         val postProjectRel = RelBuilder.makeProjectRel(
           generateRel,
-          projectOutput.asJava,
+          (requiredOutput ++ flattenStruct).asJava,
           context,
           operatorId,
-          1 + requiredOutput.size
+          1 + requiredOutput.size // 1 stands for the inner struct field from array.
         )
         if (validation) {
           // No need to validate the project rel on the native side as
