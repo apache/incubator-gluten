@@ -561,6 +561,7 @@ object ColumnarOverrideRules {
     val rewriteRules = Seq(
       RewriteIn,
       RewriteMultiChildrenCount,
+      RewriteCollect,
       RewriteTypedImperativeAggregate,
       PullOutPreProject,
       PullOutPostProject)
