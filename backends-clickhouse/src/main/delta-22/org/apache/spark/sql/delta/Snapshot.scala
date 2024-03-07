@@ -382,11 +382,35 @@ class Snapshot(
 
   override def filesForScan(filters: Seq[Expression], keepNumRecords: Boolean): DeltaScan = {
     val deltaScan = ClickhouseSnapshot.deltaScanCache.get(
-      FilterExprsAsKey(path, version, filters),
+      FilterExprsAsKey(path, version, filters, None),
       () => {
         super.filesForScan(filters, keepNumRecords)
       })
 
+    replaceWithAddMergeTreeParts(deltaScan)
+  }
+
+  override def filesForScan(limit: Long): DeltaScan = {
+    val deltaScan = ClickhouseSnapshot.deltaScanCache.get(
+      FilterExprsAsKey(path, version, Seq.empty, Some(limit)),
+      () => {
+        super.filesForScan(limit)
+      })
+
+    replaceWithAddMergeTreeParts(deltaScan)
+  }
+
+  override def filesForScan(limit: Long, partitionFilters: Seq[Expression]): DeltaScan = {
+    val deltaScan = ClickhouseSnapshot.deltaScanCache.get(
+      FilterExprsAsKey(path, version, partitionFilters, Some(limit)),
+      () => {
+        super.filesForScan(limit, partitionFilters)
+      })
+
+    replaceWithAddMergeTreeParts(deltaScan)
+  }
+
+  private def replaceWithAddMergeTreeParts(deltaScan: DeltaScan) = {
     DeltaScan.apply(
       deltaScan.version,
       deltaScan.files

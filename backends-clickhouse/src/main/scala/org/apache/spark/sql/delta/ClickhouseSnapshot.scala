@@ -39,7 +39,11 @@ case class AddFileAsKey(addFile: AddFile) {
   }
 }
 
-case class FilterExprsAsKey(path: Path, version: Long, filters: Seq[Expression]) {
+case class FilterExprsAsKey(
+    path: Path,
+    version: Long,
+    filters: Seq[Expression],
+    limit: Option[Long]) {
 
   // to transform l_shipdate_912 to l_shiptate_0 so that Attribute reference
   // of same column in different queries can be compared
@@ -60,10 +64,7 @@ case class FilterExprsAsKey(path: Path, version: Long, filters: Seq[Expression])
       )
     })
   override def hashCode(): Int = {
-    val a: Int = path.hashCode()
-    val b: Int = version.hashCode()
-    val c: Int = semanticFilters.hashCode()
-    Objects.hashCode(path, version.asInstanceOf[AnyRef], semanticFilters)
+    Objects.hashCode(path, version.asInstanceOf[AnyRef], semanticFilters, limit)
   }
 
   override def equals(o: Any): Boolean = {
@@ -71,7 +72,8 @@ case class FilterExprsAsKey(path: Path, version: Long, filters: Seq[Expression])
       case that: FilterExprsAsKey =>
         that.path == this.path &&
         that.version == this.version &&
-        that.semanticFilters == this.semanticFilters
+        that.semanticFilters == this.semanticFilters &&
+        that.limit == this.limit
       case _ => false
     }
   }

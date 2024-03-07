@@ -409,11 +409,15 @@ class Snapshot(
       filters: Seq[Expression],
       keepNumRecords: Boolean): DeltaScan = {
     val deltaScan = ClickhouseSnapshot.deltaScanCache.get(
-      FilterExprsAsKey(path, version, filters),
+      FilterExprsAsKey(path, version, filters, None),
       () => {
         super.filesForScan(projection, filters, keepNumRecords)
       })
 
+    replaceWithAddMergeTreeParts(deltaScan)
+  }
+
+  private def replaceWithAddMergeTreeParts(deltaScan: DeltaScan) = {
     DeltaScan.apply(
       deltaScan.version,
       deltaScan.files
@@ -439,10 +443,10 @@ class Snapshot(
       deltaScan.dataSkippingType
     )
   }
+
   logInfo(s"Created snapshot $this")
   init()
 }
-
 object Snapshot extends DeltaLogging {
 
   // Used by [[loadActions]] and [[stateReconstruction]]
