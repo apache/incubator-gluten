@@ -18,7 +18,8 @@ package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.exception.GlutenException
-import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionNames}
+import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.TypeBuilder
@@ -29,7 +30,9 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.types.{ArrayType, LongType, MapType}
 
+import com.google.common.collect.Lists
 import com.google.protobuf.StringValue
 
 import java.util.{ArrayList => JArrayList, List => JList}
@@ -233,27 +236,33 @@ case class GenerateExecTransformer(
         } else {
           postProjectRel
         }
-      case p: PosExplode =>
-//        val subFunctionName = ConverterUtils.makeFuncName(
-//          ExpressionNames.SUBTRACT,
-//          Seq(LongType, LongType),
-//          FunctionConfig.OPT)
-//        val functionMap = context.registeredFunction
-//        val addFunctionId = ExpressionBuilder.newScalarFunction(functionMap, subFunctionName)
-//        val literalNode = ExpressionBuilder.makeLiteral(1, LongType, false)
-//        val ordinalNode = ExpressionBuilder.makeScalarFunction(
-//          addFunctionId,
-//          Lists.newArrayList(ExpressionBuilder.makeSelection(childOutput.size() + 1), literalNode),
-//          ConverterUtils.getTypeNode(p.elementSchema.head.dataType, p.elementSchema.head.nullable)
-//        )
-//        val generatorOutput: Seq[ExpressionNode] =
-//          ordinalNode +: (0 to childOutput.size).map {
-//            ExpressionBuilder.makeSelection(_)
-//          }
+      case PosExplode(posExplodeChild) =>
+        val unnestedSize = posExplodeChild.dataType match {
+          case _: MapType => 2
+          case _: ArrayType => 1
+        }
+        val subFunctionName = ConverterUtils.makeFuncName(
+          ExpressionNames.SUBTRACT,
+          Seq(LongType, LongType),
+          FunctionConfig.OPT)
+        val functionMap = context.registeredFunction
+        val addFunctionId = ExpressionBuilder.newScalarFunction(functionMap, subFunctionName)
+        val literalNode = ExpressionBuilder.makeLiteral(1L, LongType, false)
+        val ordinalNode = ExpressionBuilder.makeScalarFunction(
+          addFunctionId,
+          Lists.newArrayList(
+            ExpressionBuilder.makeSelection(childOutput.size() + unnestedSize),
+            literalNode),
+          ConverterUtils.getTypeNode(LongType, generator.elementSchema.head.nullable)
+        )
         val generatorOutput: Seq[ExpressionNode] =
-          ExpressionBuilder.makeSelection(childOutput.size() + 1) +: (0 to childOutput.size).map {
+          ordinalNode +: (0 until childOutput.size + unnestedSize).map {
             ExpressionBuilder.makeSelection(_)
           }
+//        val generatorOutput: Seq[ExpressionNode] =
+//          ExpressionBuilder.makeSelection(childOutput.size() + 1) +: (0 to childOutput.size).map {
+//            ExpressionBuilder.makeSelection(_)
+//          }
         val postProjectRel = RelBuilder.makeProjectRel(
           generateRel,
           generatorOutput.asJava,
