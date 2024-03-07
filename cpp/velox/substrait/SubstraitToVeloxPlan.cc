@@ -724,8 +724,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   replicated.reserve(requiredChildOutput.size());
   for (const auto& output : requiredChildOutput) {
     auto expression = exprConverter_->toVeloxExpr(output, inputType);
-    auto expr_field = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
-    VELOX_CHECK(expr_field != nullptr, " the output in Generate Operator only support field")
+    auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
+    VELOX_CHECK(exprField != nullptr, " the output in Generate Operator only support field")
 
     replicated.emplace_back(std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression));
   }

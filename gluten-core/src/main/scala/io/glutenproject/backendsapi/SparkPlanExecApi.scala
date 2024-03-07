@@ -207,6 +207,14 @@ trait SparkPlanExecApi {
     throw new UnsupportedOperationException("map_entries is not supported")
   }
 
+  /** Transform inline to Substrait. */
+  def genInlineTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: Expression): ExpressionTransformer = {
+    throw new UnsupportedOperationException("map_entries is not supported")
+  }
+
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
    *

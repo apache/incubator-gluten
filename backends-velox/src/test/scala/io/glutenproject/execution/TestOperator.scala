@@ -732,6 +732,30 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     }
   }
 
+  test("test inline function") {
+
+    withTempView("t1") {
+      sql("""select * from values
+            |  array(
+            |    named_struct('c1', 0, 'c2', 1),
+            |    null,
+            |    named_struct('c1', 2, 'c2', 3)
+            |  ),
+            |  array(
+            |    null,
+            |    named_struct('c1', 0, 'c2', 1),
+            |    named_struct('c1', 2, 'c2', 3)
+            |  )
+            |as tbl(a)
+         """.stripMargin).createOrReplaceTempView("t1")
+      runQueryAndCompare("""
+                           |SELECT inline(a) from t1;
+                           |""".stripMargin) {
+        checkOperatorMatch[GenerateExecTransformer]
+      }
+    }
+  }
+
   test("test array functions") {
     withTable("t") {
       sql("CREATE TABLE t (c1 ARRAY<INT>, c2 ARRAY<INT>, c3 STRING) using parquet")
