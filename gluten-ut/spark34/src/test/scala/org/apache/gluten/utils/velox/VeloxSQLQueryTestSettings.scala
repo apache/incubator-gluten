@@ -93,7 +93,8 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "pred-pushdown.sql",
     "predicate-functions.sql",
     "query_regex_column.sql",
-    "random.sql",
+    // Depends on implementation.
+    // "random.sql",
     "regexp-functions.sql",
     "show-create-table.sql",
     "show-tables.sql",

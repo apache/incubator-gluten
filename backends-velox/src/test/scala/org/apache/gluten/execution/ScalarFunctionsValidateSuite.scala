@@ -821,4 +821,12 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("rand with seed") {
+    // The result for rand() is nondeterministic. And with user-specified seed, result depends
+    // on implementation. So we don't compare result with vanilla Spark.
+    runQueryAndCompare("SELECT rand(1) FROM lineitem limit 10", compareResult = false) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
 }

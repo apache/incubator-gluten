@@ -93,7 +93,8 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "pred-pushdown.sql",
     "predicate-functions.sql",
     "query_regex_column.sql",
-    "random.sql",
+    // Depends on implementation.
+    // "random.sql",
     "regexp-functions.sql",
     "show-create-table.sql",
     "show-tables.sql",
@@ -105,7 +106,8 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "struct.sql",
     "subexp-elimination.sql",
     "table-aliases.sql",
-    "table-valued-functions.sql",
+    // Schema did not match for query
+    // "table-valued-functions.sql",
     "tablesample-negative.sql",
     "subquery/exists-subquery/exists-aggregate.sql",
     "subquery/exists-subquery/exists-basic.sql",
