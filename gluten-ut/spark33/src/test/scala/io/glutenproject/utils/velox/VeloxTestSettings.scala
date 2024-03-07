@@ -673,11 +673,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-40128 read DELTA_LENGTH_BYTE_ARRAY encoded strings")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]
-    // Timezone is not supported yet.
-    .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
-    // rewrite
-    .exclude("Various partition value types")
-    .exclude(("Various inferred partition value types"))
   enableSuite[GlutenParquetProtobufCompatibilitySuite]
   enableSuite[GlutenParquetV1QuerySuite]
     // Unsupport spark.sql.files.ignoreCorruptFiles.
