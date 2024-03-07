@@ -22,7 +22,7 @@ import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.validate.NativePlanValidationInfo
 import io.glutenproject.vectorized.NativePlanEvaluator
 
-import org.apache.spark.sql.catalyst.expressions.{CreateMap, Explode, Expression, Generator, JsonTuple, PosExplode}
+import org.apache.spark.sql.catalyst.expressions.{CreateMap, ExplodeBase, Expression, Generator, JsonTuple}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
@@ -88,11 +88,8 @@ class ValidatorApiImpl extends ValidatorApi {
     generator match {
       case _: JsonTuple =>
         ValidationResult.notOk(s"Velox backend does not support this json_tuple")
-      case _: PosExplode =>
-        // TODO(yuan): support posexplode and remove this check
-        ValidationResult.notOk(s"Velox backend does not support this posexplode")
-      case explode: Explode =>
-        explode.child match {
+      case e: ExplodeBase =>
+        e.child match {
           case _: CreateMap =>
             // explode(MAP(col1, col2))
             ValidationResult.notOk(s"Velox backend does not support MAP datatype")

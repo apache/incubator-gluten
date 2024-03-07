@@ -708,6 +708,30 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     }
   }
 
+  test("test posexplode function") {
+    runQueryAndCompare("""
+                         |SELECT posexplode(array(1, 2, 3));
+                         |""".stripMargin) {
+      checkOperatorMatch[GenerateExecTransformer]
+    }
+    runQueryAndCompare("""
+                         |SELECT posexplode(map(1, 'a', 2, 'b'));
+                         |""".stripMargin) {
+      checkOperatorMatch[GenerateExecTransformer]
+    }
+    runQueryAndCompare(
+      """
+        |SELECT posexplode(array(map(1, 'a', 2, 'b'), map(3, 'c', 4, 'd'), map(5, 'e', 6, 'f')));
+        |""".stripMargin) {
+      checkOperatorMatch[GenerateExecTransformer]
+    }
+    runQueryAndCompare("""
+                         |SELECT posexplode(map(1, array(1, 2), 2, array(3, 4)));
+                         |""".stripMargin) {
+      checkOperatorMatch[GenerateExecTransformer]
+    }
+  }
+
   test("test explode function") {
     runQueryAndCompare("""
                          |SELECT explode(array(1, 2, 3));
@@ -733,7 +757,6 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
   }
 
   test("test inline function") {
-
     withTempView("t1") {
       sql("""select * from values
             |  array(

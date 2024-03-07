@@ -30,6 +30,8 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
 
+import com.google.protobuf.StringValue
+
 import java.util.{ArrayList => JArrayList, List => JList}
 
 import scala.collection.JavaConverters._
@@ -157,23 +159,40 @@ case class GenerateExecTransformer(
       generatorNode: ExpressionNode,
       childOutput: JList[ExpressionNode],
       validation: Boolean): RelNode = {
-    val generateRel = if (!validation) {
-      RelBuilder.makeGenerateRel(input, generatorNode, childOutput, context, operatorId)
+    val extensionNode = if (!validation) {
+      // Start with "GenerateParameters:"
+      val parametersStr = new StringBuffer("GenerateParameters:")
+      // isPosExplode: 1 for PosExplode, 0 for others.
+      val isPosExplode = if (generator.isInstanceOf[PosExplode]) {
+        "1"
+      } else {
+        "0"
+      }
+      parametersStr
+        .append("isPosExplode=")
+        .append(isPosExplode)
+        .append("\n")
+      val message = StringValue
+        .newBuilder()
+        .setValue(parametersStr.toString)
+        .build()
+      val optimization = BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
+      ExtensionBuilder.makeAdvancedExtension(optimization, null)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList =
         inputAttributes.map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable)).asJava
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+      ExtensionBuilder.makeAdvancedExtension(
         BackendsApiManager.getTransformerApiInstance.packPBMessage(
           TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeGenerateRel(
-        input,
-        generatorNode,
-        childOutput,
-        extensionNode,
-        context,
-        operatorId)
     }
+    val generateRel = RelBuilder.makeGenerateRel(
+      input,
+      generatorNode,
+      childOutput,
+      extensionNode,
+      context,
+      operatorId)
     applyPostProjectOnGenerator(generateRel, context, operatorId, childOutput, validation)
   }
 
@@ -206,6 +225,41 @@ case class GenerateExecTransformer(
           context,
           operatorId,
           1 + requiredOutput.size // 1 stands for the inner struct field from array.
+        )
+        if (validation) {
+          // No need to validate the project rel on the native side as
+          // it only flattens the generator's output.
+          generateRel
+        } else {
+          postProjectRel
+        }
+      case p: PosExplode =>
+//        val subFunctionName = ConverterUtils.makeFuncName(
+//          ExpressionNames.SUBTRACT,
+//          Seq(LongType, LongType),
+//          FunctionConfig.OPT)
+//        val functionMap = context.registeredFunction
+//        val addFunctionId = ExpressionBuilder.newScalarFunction(functionMap, subFunctionName)
+//        val literalNode = ExpressionBuilder.makeLiteral(1, LongType, false)
+//        val ordinalNode = ExpressionBuilder.makeScalarFunction(
+//          addFunctionId,
+//          Lists.newArrayList(ExpressionBuilder.makeSelection(childOutput.size() + 1), literalNode),
+//          ConverterUtils.getTypeNode(p.elementSchema.head.dataType, p.elementSchema.head.nullable)
+//        )
+//        val generatorOutput: Seq[ExpressionNode] =
+//          ordinalNode +: (0 to childOutput.size).map {
+//            ExpressionBuilder.makeSelection(_)
+//          }
+        val generatorOutput: Seq[ExpressionNode] =
+          ExpressionBuilder.makeSelection(childOutput.size() + 1) +: (0 to childOutput.size).map {
+            ExpressionBuilder.makeSelection(_)
+          }
+        val postProjectRel = RelBuilder.makeProjectRel(
+          generateRel,
+          generatorOutput.asJava,
+          context,
+          operatorId,
+          generatorOutput.size
         )
         if (validation) {
           // No need to validate the project rel on the native side as
