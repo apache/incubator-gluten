@@ -177,6 +177,8 @@ case class GenerateExecTransformer(
     applyPostProjectOnGenerator(generateRel, context, operatorId, childOutput, validation)
   }
 
+  // There are 3 types of CollectionGenerator in spark: Explode, PosExplode and Inline.
+  // Only Inline needs the post projection.
   private def applyPostProjectOnGenerator(
       generateRel: RelNode,
       context: SubstraitContext,
