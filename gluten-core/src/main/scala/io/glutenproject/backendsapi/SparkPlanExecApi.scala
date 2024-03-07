@@ -650,4 +650,12 @@ trait SparkPlanExecApi {
           s"${sparkExecNode.getClass.toString} is not supported.")
     }
   }
+
+  def genGenerateTransformer(
+      generator: Generator,
+      requiredChildOutput: Seq[Attribute],
+      outer: Boolean,
+      generatorOutput: Seq[Attribute],
+      child: SparkPlan
+  ): GenerateExecTransformerBase
 }

@@ -356,21 +356,6 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
     throw new UnsupportedOperationException(
       s"NestedLoopJoinTransformer metrics update is not supported in CH backend")
   }
-  override def genGenerateTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
-    Map(
-      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-      "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
-      "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
-      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
-      "inputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for data"),
-      "outputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for output"),
-      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time")
-    )
-
-  override def genGenerateTransformerMetricsUpdater(
-      metrics: Map[String, SQLMetric]): MetricsUpdater = new GenerateMetricsUpdater(metrics)
 
   def genWriteFilesTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] = {
     throw new UnsupportedOperationException(
@@ -381,5 +366,4 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
     throw new UnsupportedOperationException(
       s"WriteFilesTransformer metrics update is not supported in CH backend")
   }
-
 }

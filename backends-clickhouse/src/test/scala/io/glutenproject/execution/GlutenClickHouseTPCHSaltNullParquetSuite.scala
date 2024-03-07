@@ -1278,14 +1278,14 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     val sql = """
                 | select id from test_1767 lateral view
                 | posexplode(split(data['k'], ',')) tx as a, b""".stripMargin
-    runQueryAndCompare(sql)(checkOperatorMatch[GenerateExecTransformer])
+    runQueryAndCompare(sql)(checkOperatorMatch[CHGenerateExecTransformer])
 
     spark.sql("drop table test_1767")
   }
 
   test("test posexplode issue: https://github.com/oap-project/gluten/issues/2492") {
     val sql = "select posexplode(split(n_comment, ' ')) from nation where n_comment is null"
-    runQueryAndCompare(sql)(checkOperatorMatch[GenerateExecTransformer])
+    runQueryAndCompare(sql)(checkOperatorMatch[CHGenerateExecTransformer])
   }
 
   test("test posexplode issue: https://github.com/oap-project/gluten/issues/2454") {
@@ -1297,7 +1297,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     )
 
     for (sql <- sqls) {
-      runQueryAndCompare(sql)(checkOperatorMatch[GenerateExecTransformer])
+      runQueryAndCompare(sql)(checkOperatorMatch[CHGenerateExecTransformer])
     }
   }
 
@@ -1306,7 +1306,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     spark.sql("insert into test_3124  values (31, null, 'm'), (32, 'a,b,c', 'f')")
 
     val sql = "select id, flag from test_3124 lateral view explode(split(name, ',')) as flag"
-    runQueryAndCompare(sql)(checkOperatorMatch[GenerateExecTransformer])
+    runQueryAndCompare(sql)(checkOperatorMatch[CHGenerateExecTransformer])
 
     spark.sql("drop table test_3124")
   }

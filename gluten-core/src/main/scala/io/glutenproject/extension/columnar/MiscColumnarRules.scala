@@ -366,7 +366,7 @@ object MiscColumnarRules {
         case plan: GenerateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           val child = replaceWithTransformerPlan(plan.child)
-          GenerateExecTransformer(
+          BackendsApiManager.getSparkPlanExecApiInstance.genGenerateTransformer(
             plan.generator,
             plan.requiredChildOutput,
             plan.outer,
