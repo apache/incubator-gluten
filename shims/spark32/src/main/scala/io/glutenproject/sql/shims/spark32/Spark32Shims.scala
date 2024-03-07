@@ -23,10 +23,11 @@ import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 import org.apache.spark.{ShuffleUtils, TaskContext, TaskContextUtils}
 import org.apache.spark.scheduler.TaskInfo
 import org.apache.spark.shuffle.ShuffleHandle
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{Distribution, HashClusteredDistribution}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
@@ -166,4 +167,9 @@ class Spark32Shims extends SparkShims {
       field => AttributeReference(field.name, field.dataType, field.nullable, field.metadata)()
     }
   }
+
+  def getAnalysisExceptionPlan(ae: AnalysisException): Option[LogicalPlan] = {
+    ae.plan
+  }
+
 }

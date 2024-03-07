@@ -25,11 +25,12 @@ import org.apache.spark.{ShuffleDependency, ShuffleUtils, SparkEnv, SparkExcepti
 import org.apache.spark.scheduler.TaskInfo
 import org.apache.spark.serializer.SerializerManager
 import org.apache.spark.shuffle.ShuffleHandle
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.BloomFilterAggregate
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
@@ -208,5 +209,9 @@ class Spark33Shims extends SparkShims {
     structType.fields.map {
       field => AttributeReference(field.name, field.dataType, field.nullable, field.metadata)()
     }
+  }
+
+  def getAnalysisExceptionPlan(ae: AnalysisException): Option[LogicalPlan] = {
+    ae.plan
   }
 }
