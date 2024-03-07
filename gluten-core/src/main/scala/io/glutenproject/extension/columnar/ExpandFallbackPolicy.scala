@@ -81,7 +81,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
         case ColumnarToRowExec(s: Exchange) if isAdaptiveContext =>
           countFallbackInternal(s)
         case u: UnaryExecNode
-          if !PlanUtil.isGlutenColumnarOp(u) && PlanUtil.isGlutenTableCache(u.child) =>
+            if !PlanUtil.isGlutenColumnarOp(u) && PlanUtil.isGlutenTableCache(u.child) =>
           // Vanilla Spark plan will call `InMemoryTableScanExec.convertCachedBatchToInternalRow`
           // which is a kind of `ColumnarToRowExec`.
           transitionCost = transitionCost + 1
@@ -166,9 +166,9 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
             .filter(_.isInstanceOf[QueryStageExec])
             .foreach {
               case stage: QueryStageExec
-                if PlanUtil.isGlutenColumnarOp(stage.plan) ||
-                  // For TableCacheQueryStageExec since spark 3.5.
-                  PlanUtil.isGlutenTableCache(stage) =>
+                  if PlanUtil.isGlutenColumnarOp(stage.plan) ||
+                    // For TableCacheQueryStageExec since spark 3.5.
+                    PlanUtil.isGlutenTableCache(stage) =>
                 stageFallbackTransitionCost = stageFallbackTransitionCost + 1
               case _ =>
             }
@@ -187,8 +187,8 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
 
     plan.find {
       case j: BroadcastHashJoinExecTransformer
-        if isColumnarBroadcastExchange(j.left) ||
-          isColumnarBroadcastExchange(j.right) =>
+          if isColumnarBroadcastExchange(j.left) ||
+            isColumnarBroadcastExchange(j.right) =>
         true
       case _ => false
     }.isDefined
@@ -264,7 +264,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
       val vanillaSparkTransitionCost = countTransitionCostForVanillaSparkPlan(vanillaSparkPlan)
       if (
         GlutenConfig.getConf.fallbackPreferColumnar &&
-          fallbackInfo.netTransitionCost <= vanillaSparkTransitionCost
+        fallbackInfo.netTransitionCost <= vanillaSparkTransitionCost
       ) {
         plan
       } else {
