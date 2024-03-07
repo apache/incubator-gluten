@@ -220,7 +220,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("from_unixtime")
   enableSuite[GlutenDecimalExpressionSuite]
   enableSuite[GlutenStringFunctionsSuite]
-    .exclude("SPARK-31993: concat_ws in agg function with plenty of string/array types columns")
   enableSuite[GlutenRegexpExpressionsSuite]
   enableSuite[GlutenNullExpressionsSuite]
   enableSuite[GlutenPredicateSuite]
