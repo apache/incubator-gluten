@@ -903,7 +903,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "1MB") {
         runQueryAndCompare(
           """
-            |select * from t1 cross join t2;
+            |select * from t1 cross join t2 on 2*t1.c1 > 3*t2.c1;
             |""".stripMargin
         ) {
           checkOperatorMatch[BroadcastNestedLoopJoinExecTransformer]
@@ -1144,5 +1144,16 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
         |WHERE l_orderkey not in (l_partkey, l_suppkey, l_linenumber)
         |""".stripMargin
     )(df => checkFallbackOperators(df, 0))
+  }
+
+  test("Support StructType in HashAggregate") {
+    runQueryAndCompare("""
+                         |select s, count(1) from (
+                         |   select named_struct('id', cast(id as int),
+                         |   'id_str', cast(id as string)) as s from range(100)
+                         |) group by s
+                         |""".stripMargin) {
+      checkOperatorMatch[HashAggregateExecTransformer]
+    }
   }
 }

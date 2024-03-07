@@ -837,6 +837,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeGlutenTest("replace partial hash aggregate with sort aggregate")
     .excludeGlutenTest("replace partial and final hash aggregate together with sort aggregate")
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
+  enableSuite[GlutenSQLAggregateFunctionSuite]
   enableSuite[GlutenSQLWindowFunctionSuite]
     .exclude("window function: partition and order expressions")
     .exclude("window function: expressions in arguments of a window functions")

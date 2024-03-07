@@ -392,7 +392,7 @@ abstract class BroadcastHashJoinExecTransformer(
     val broadcastRDD = {
       val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
       BackendsApiManager.getBroadcastApiInstance
-        .collectExecutionBroadcastHashTableId(executionId, buildHashTableId)
+        .collectExecutionBroadcastTableId(executionId, buildHashTableId)
       createBroadcastBuildSideRDD()
     }
     // FIXME: Do we have to make build side a RDD?

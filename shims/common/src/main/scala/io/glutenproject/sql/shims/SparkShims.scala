@@ -21,11 +21,12 @@ import io.glutenproject.expression.Sig
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.scheduler.TaskInfo
-import org.apache.spark.shuffle.{ShuffleHandle, ShuffleReader, ShuffleReadMetricsReporter}
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.shuffle.{ShuffleHandle, ShuffleReader}
+import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.Distribution
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
@@ -34,6 +35,7 @@ import org.apache.spark.sql.execution.{FileSourceScanExec, GlobalLimitExec, Spar
 import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex, WriteJobDescription, WriteTaskResult}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
+import org.apache.spark.sql.execution.exchange.ShuffleExchangeLike
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
@@ -125,6 +127,9 @@ trait SparkShims {
       endPartition: Int)
       : Tuple2[Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])], Boolean]
 
+  // Compatible with Spark-3.5 and later
+  def getShuffleAdvisoryPartitionSize(shuffle: ShuffleExchangeLike): Option[Long] = None
+
   // Partition id in TaskInfo is only available after spark 3.3.
   def getPartitionId(taskInfo: TaskInfo): Int
 
@@ -148,4 +153,7 @@ trait SparkShims {
   def generateMetadataColumns(
       file: PartitionedFile,
       metadataColumnNames: Seq[String] = Seq.empty): JMap[String, String]
+
+  // For compatibility with Spark-3.5.
+  def getAnalysisExceptionPlan(ae: AnalysisException): Option[LogicalPlan]
 }

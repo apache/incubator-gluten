@@ -25,11 +25,12 @@ import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.paths.SparkPath
 import org.apache.spark.scheduler.TaskInfo
 import org.apache.spark.shuffle.ShuffleHandle
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{AnalysisException, ExtendedAnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.BloomFilterAggregate
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.types.DataTypeUtils
@@ -40,6 +41,7 @@ import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
+import org.apache.spark.sql.execution.exchange.ShuffleExchangeLike
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
@@ -213,6 +215,9 @@ class Spark35Shims extends SparkShims {
     ShuffleUtils.getReaderParam(handle, startMapIndex, endMapIndex, startPartition, endPartition)
   }
 
+  override def getShuffleAdvisoryPartitionSize(shuffle: ShuffleExchangeLike): Option[Long] =
+    shuffle.advisoryPartitionSize
+
   override def getPartitionId(taskInfo: TaskInfo): Int = {
     taskInfo.partitionId
   }
@@ -243,5 +248,14 @@ class Spark35Shims extends SparkShims {
 
   def attributesFromStruct(structType: StructType): Seq[Attribute] = {
     DataTypeUtils.toAttributes(structType)
+  }
+
+  def getAnalysisExceptionPlan(ae: AnalysisException): Option[LogicalPlan] = {
+    ae match {
+      case eae: ExtendedAnalysisException =>
+        eae.plan
+      case _ =>
+        None
+    }
   }
 }

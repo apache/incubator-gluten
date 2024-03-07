@@ -14,19 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.backendsapi.velox
+package org.apache.spark.sql.execution
 
-import io.glutenproject.backendsapi.BroadcastApi
+import io.glutenproject.execution.HashAggregateExecBaseTransformer
 
-import java.util
+import org.apache.spark.sql.{GlutenSQLTestsTrait, Row}
 
-class BroadcastApiImpl extends BroadcastApi {
+class GlutenSQLAggregateFunctionSuite extends GlutenSQLTestsTrait {
 
-  override def collectExecutionBroadcastTableId(executionId: String, buildTableId: String): Unit =
-    super.collectExecutionBroadcastTableId(executionId, buildTableId)
-
-  override def cleanExecutionBroadcastTable(
-      executionId: String,
-      broadcastTableIds: util.Set[String]): Unit =
-    super.cleanExecutionBroadcastTable(executionId, broadcastTableIds)
+  testGluten("GLUTEN-4853: The result order is reversed for count and count distinct") {
+    val query =
+      """
+        |select count(distinct if(sex = 'x', id, null)) as uv, count(if(sex = 'x', id, null)) as pv
+        |from values (1, 'x'), (1, 'x'), (2, 'y'), (3, 'x'), (3, 'x'), (4, 'y'), (5, 'x')
+        |AS tab(id, sex)
+        |""".stripMargin
+    val df = sql(query)
+    checkAnswer(df, Seq(Row(3, 5)))
+    assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecBaseTransformer]) == 4)
+  }
 }

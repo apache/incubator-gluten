@@ -54,7 +54,9 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate",
       // Replaced with another test.
       "SPARK-19471: AggregationIterator does not initialize the generated result projection" +
-        " before using it"
+        " before using it",
+      // TODO: fix inconsistent behavior.
+      "SPARK-17641: collect functions should not collect null values"
     )
 
   enableSuite[GlutenCastSuite]
@@ -305,6 +307,7 @@ class VeloxTestSettings extends BackendTestSettings {
       "pivot with null and aggregate type not supported by PivotFirst returns correct result")
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
   enableSuite[GlutenSameResultSuite]
+  enableSuite[GlutenSQLAggregateFunctionSuite]
   // spill not supported yet.
   enableSuite[GlutenSQLWindowFunctionSuite].exclude("test with low buffer spill threshold")
   enableSuite[GlutenSortSuite]
@@ -848,11 +851,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]
   enableSuite[GlutenParquetProtobufCompatibilitySuite]
   enableSuite[GlutenParquetV1QuerySuite]
-    // Only for testing a type mismatch issue caused by hive (before hive 2.2).
-    // Only reproducible when spark.sql.parquet.enableVectorizedReader=true.
-    .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
+    // Unsupport spark.sql.files.ignoreCorruptFiles.
     .exclude("Enabling/disabling ignoreCorruptFiles")
-    .exclude("returning batch for wide table")
     // decimal failed ut
     .exclude("SPARK-34212 Parquet should read decimals correctly")
     // Timestamp is read as INT96.
@@ -863,11 +863,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "SPARK-26677: negated null-safe equality comparison should not filter matched row groups")
   enableSuite[GlutenParquetV2QuerySuite]
-    // Only for testing a type mismatch issue caused by hive (before hive 2.2).
-    // Only reproducible when spark.sql.parquet.enableVectorizedReader=true.
-    .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
+    // Unsupport spark.sql.files.ignoreCorruptFiles.
     .exclude("Enabling/disabling ignoreCorruptFiles")
-    .exclude("returning batch for wide table")
     // decimal failed ut
     .exclude("SPARK-34212 Parquet should read decimals correctly")
     // Timestamp is read as INT96.

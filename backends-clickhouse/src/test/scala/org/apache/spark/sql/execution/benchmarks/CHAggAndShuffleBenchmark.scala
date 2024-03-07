@@ -227,17 +227,18 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchma
     }
 
     // Get all `ColumnarShuffleExchangeExec` and run the second one.
-    val shuffleStage = executedPlan.collect {
+    val shuffleExchange = executedPlan.collect {
       case shuffle: ColumnarShuffleExchangeExec => shuffle
     }(1)
 
     chAllStagesBenchmark.addCase(s"Shuffle Split Stage", executedCnt) {
       _ =>
         val shuffleSplit = ColumnarShuffleExchangeExec(
-          shuffleStage.outputPartitioning,
-          shuffleStage.child,
+          shuffleExchange.outputPartitioning,
+          shuffleExchange.child,
           ENSURE_REQUIREMENTS,
-          shuffleStage.child.output)
+          shuffleExchange.child.output,
+          shuffleExchange.advisoryPartitionSize)
         val resultRDD = shuffleSplit.columnarShuffleDependency.rdd.mapPartitionsInternal {
           batches =>
             batches.foreach(batch => (batch._1, batch._2.numRows().toLong))
@@ -249,10 +250,11 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchma
     chAllStagesBenchmark.addCase(s"Shuffle Write Stage ( Fake output to file )", executedCnt) {
       _ =>
         val shuffleWrite = ColumnarShuffleExchangeExec(
-          shuffleStage.outputPartitioning,
-          shuffleStage.child,
+          shuffleExchange.outputPartitioning,
+          shuffleExchange.child,
           ENSURE_REQUIREMENTS,
-          shuffleStage.child.output)
+          shuffleExchange.child.output,
+          shuffleExchange.advisoryPartitionSize)
         val serializer = shuffleWrite.columnarShuffleDependency.serializer
         val resultRDD = shuffleWrite.columnarShuffleDependency.rdd.mapPartitionsInternal {
           batches =>
@@ -276,10 +278,11 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchma
     chAllStagesBenchmark.addCase(s"Shuffle Read Stage", executedCnt) {
       _ =>
         val shuffleRead = ColumnarShuffleExchangeExec(
-          shuffleStage.outputPartitioning,
-          shuffleStage.child,
+          shuffleExchange.outputPartitioning,
+          shuffleExchange.child,
           ENSURE_REQUIREMENTS,
-          shuffleStage.child.output)
+          shuffleExchange.child.output,
+          shuffleExchange.advisoryPartitionSize)
 
         val resultRDD: RDD[Long] = shuffleRead.executeColumnar().mapPartitionsInternal {
           batches =>
