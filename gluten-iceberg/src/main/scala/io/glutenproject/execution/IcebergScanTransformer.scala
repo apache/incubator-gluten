@@ -39,7 +39,7 @@ class IcebergScanTransformer(
     runtimeFilters = runtimeFilters,
     table = table) {
 
-  override def filterExprs(hasMetataColFilters: Boolean): Seq[Expression] = pushdownFilters.getOrElse(Seq.empty)
+  override def filterExprs(): Seq[Expression] = pushdownFilters.getOrElse(Seq.empty)
 
   override def getPartitionSchema: StructType = GlutenIcebergSourceUtil.getPartitionSchema(scan)
 

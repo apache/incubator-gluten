@@ -60,14 +60,7 @@ class FileSourceScanExecTransformer(
       .genFileSourceScanTransformerMetrics(sparkContext)
       .filter(m => !driverMetricsAlias.contains(m._1)) ++ driverMetricsAlias
 
-  override def filterExprs(hasMetadataColFilters: Boolean): Seq[Expression] = {
-    if (hasMetadataColFilters) {
-      dataFilters
-    } else {
-      dataFiltersWithoutMetadataAttr
-    }
-  }
-
+  override def filterExprs(): Seq[Expression] = dataFiltersInScan
   override def getMetadataColumns(): Seq[AttributeReference] = metadataColumns
 
   override def outputAttributes(): Seq[Attribute] = output

@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution
 import io.glutenproject.metrics.GlutenTimeMetric
 
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, FileSourceMetadataAttribute, MetadataAttribute, PlanExpression, Predicate}
+import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, FileSourceMetadataAttribute, PlanExpression, Predicate}
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
@@ -64,8 +64,8 @@ class FileSourceScanExecShim(
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[FileSourceScanExecShim]
 
-  def dataFiltersWithoutMetadataAttr: Seq[Expression] = dataFilters.filterNot(_.references.exists {
-    case FileSourceMetadataAttribute(_) => true
+  def dataFiltersInScan: Seq[Expression] = dataFilters.filterNot(_.references.exists {
+    case FileSourceMetadataAttribute(attr) if attr.name == "_metadata" => true
     case _ => false
   })
 

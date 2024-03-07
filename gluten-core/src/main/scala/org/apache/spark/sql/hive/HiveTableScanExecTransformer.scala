@@ -60,7 +60,7 @@ class HiveTableScanExecTransformer(
     hiveQlTable.getOutputFormatClass,
     hiveQlTable.getMetadata)
 
-  override def filterExprs(hasMetadataColFilters: Boolean): Seq[Expression] = Seq.empty
+  override def filterExprs(): Seq[Expression] = Seq.empty
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 

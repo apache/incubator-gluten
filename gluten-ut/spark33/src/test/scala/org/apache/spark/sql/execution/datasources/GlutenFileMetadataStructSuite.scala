@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution.datasources
 
 import io.glutenproject.execution.FilterExecTransformerBase
+import io.glutenproject.utils.BackendTestUtils
 
 import org.apache.spark.sql.{Column, DataFrame, Row}
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
@@ -105,7 +106,11 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
         case f: FileSourceScanExec => f
       }
       assert(fileScan.size == 1)
-      assert(fileScan(0).nodeNamePrefix == "NativeFile")
+      if (BackendTestUtils.isVeloxBackendLoaded()) {
+        assert(fileScan(0).nodeNamePrefix == "NativeFile")
+      } else {
+        assert(fileScan(0).nodeNamePrefix == "File")
+      }
 
       // would fallback
       dfWithMetadata = df.select(METADATA_FILE_PATH, "file_path")
@@ -133,7 +138,11 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
         case f: FileSourceScanExec => f
       }
       assert(fileScan.size == 1)
-      assert(fileScan(0).nodeNamePrefix == "NativeFile")
+      if (BackendTestUtils.isVeloxBackendLoaded()) {
+        assert(fileScan(0).nodeNamePrefix == "NativeFile")
+      } else {
+        assert(fileScan(0).nodeNamePrefix == "File")
+      }
       var filterExecs = filterDF.queryExecution.executedPlan.collect {
         case filter: FilterExecTransformerBase => filter
       }
@@ -149,7 +158,11 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
         )
       )
       fileScan = filterDF.queryExecution.executedPlan.collect { case f: FileSourceScanExec => f }
-      assert(fileScan(0).nodeNamePrefix == "NativeFile")
+      if (BackendTestUtils.isVeloxBackendLoaded()) {
+        assert(fileScan(0).nodeNamePrefix == "NativeFile")
+      } else {
+        assert(fileScan(0).nodeNamePrefix == "File")
+      }
       filterExecs = filterDF.queryExecution.executedPlan.collect {
         case filter: FilterExecTransformerBase => filter
       }

@@ -68,7 +68,7 @@ class BatchScanExecTransformer(
     pushdownFilters = Some(filters)
   }
 
-  override def filterExprs(hasMetataColFilters: Boolean): Seq[Expression] = scan match {
+  override def filterExprs(): Seq[Expression] = scan match {
     case fileScan: FileScan =>
       pushdownFilters.getOrElse(fileScan.dataFilters)
     case _ =>

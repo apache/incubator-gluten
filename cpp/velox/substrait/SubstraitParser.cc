@@ -133,7 +133,7 @@ void SubstraitParser::parsePartitionAndMetadataColumns(
       case ::substrait::NamedStruct::METADATA_COL:
         isPartitionColumns.emplace_back(false);
         isMetadataColumns.emplace_back(true);
-        break; 
+        break;
       default:
         VELOX_FAIL("Unspecified column type.");
     }

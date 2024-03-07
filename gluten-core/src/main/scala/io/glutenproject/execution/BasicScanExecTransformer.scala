@@ -40,7 +40,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   import org.apache.spark.sql.catalyst.util._
 
   /** Returns the filters that can be pushed down to native file scan */
-  def filterExprs(hasMetadataColFilters: Boolean = true): Seq[Expression]
+  def filterExprs(): Seq[Expression]
 
   def outputAttributes(): Seq[Attribute]
 
@@ -122,7 +122,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
         }
     }.asJava
     // Will put all filter expressions into an AND expression
-    val transformer = filterExprs(false)
+    val transformer = filterExprs()
       .map {
         case ar: AttributeReference if ar.dataType == BooleanType =>
           EqualNullSafe(ar, Literal.TrueLiteral)
