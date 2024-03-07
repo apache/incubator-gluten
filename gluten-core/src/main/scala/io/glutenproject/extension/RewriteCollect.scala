@@ -98,12 +98,11 @@ object RewriteCollect extends Rule[SparkPlan] with PullOutProjectHelper {
     val newAggregateAttributes = agg.aggregateAttributes.zipWithIndex.map {
       case (attr, index) =>
         if (rewriteAggExprIndices.contains(index)) {
+          rewriteAggAttributes.append(attr)
           // We should mark attribute as withNullability since the collect_set and collect_set
           // are not nullable but velox may return null. This is to avoid potential issue when
           // the post project fallback to vanilla Spark.
-          val newAttr = attr.withNullability(true)
-          rewriteAggAttributes.append(newAttr)
-          newAttr
+          attr.withNullability(true)
         } else {
           attr
         }
