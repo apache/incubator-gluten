@@ -61,7 +61,7 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
   override def receive: PartialFunction[Any, Unit] = {
     case GlutenCleanExecutionResource(executionId, hashIds) =>
       BackendsApiManager.getBroadcastApiInstance
-        .cleanExecutionBroadcastHashtable(executionId, hashIds)
+        .cleanExecutionBroadcastTable(executionId, hashIds)
 
     case e =>
       logError(s"Received unexpected message. $e")

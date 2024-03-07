@@ -19,6 +19,7 @@ package org.apache.spark.sql.gluten
 import io.glutenproject.{GlutenConfig, VERSION}
 import io.glutenproject.events.GlutenPlanFallbackEvent
 import io.glutenproject.execution.FileSourceScanExecTransformer
+import io.glutenproject.utils.BackendTestUtils
 
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.{GlutenSQLTestsTrait, Row}
@@ -92,6 +93,22 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
         val fallbackReason = execution.get.fallbackNodeToReason.head
         assert(fallbackReason._1.contains("Scan parquet spark_catalog.default.t"))
         assert(fallbackReason._2.contains("columnar FileScan is not enabled in FileSourceScanExec"))
+      }
+    }
+
+    withTable("t1", "t2") {
+      spark.range(10).write.format("parquet").saveAsTable("t1")
+      spark.range(10).write.format("parquet").saveAsTable("t2")
+
+      val id = runExecution("SELECT * FROM t1 FULL OUTER JOIN t2")
+      val execution = glutenStore.execution(id)
+      if (BackendTestUtils.isVeloxBackendLoaded()) {
+        assert(execution.get.numFallbackNodes == 1)
+        assert(
+          execution.get.fallbackNodeToReason.head._2
+            .contains("FullOuter join is not supported with BroadcastNestedLoopJoin"))
+      } else {
+        assert(execution.get.numFallbackNodes == 2)
       }
     }
   }

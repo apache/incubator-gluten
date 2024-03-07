@@ -71,7 +71,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
     val broadcastRDD = {
       val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
       BackendsApiManager.getBroadcastApiInstance
-        .collectExecutionBroadcastHashTableId(executionId, buildTableId)
+        .collectExecutionBroadcastTableId(executionId, buildTableId)
       createBroadcastBuildSideRDD()
     }
     // FIXME: Do we have to make build side a RDD?
@@ -166,7 +166,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
       return ValidationResult.notOk("Broadcast Nested Loop join is not supported in this backend")
     }
     if (substraitJoinType == CrossRel.JoinType.UNRECOGNIZED) {
-      return ValidationResult.notOk(s"$joinType is not supported with Broadcast Nested Loop Join")
+      return ValidationResult.notOk(s"$joinType join is not supported with BroadcastNestedLoopJoin")
     }
     (joinType, buildSide) match {
       case (LeftOuter, BuildLeft) | (RightOuter, BuildRight) =>
