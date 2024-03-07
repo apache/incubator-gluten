@@ -194,7 +194,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "try_arithmetic.sql",
     "try_cast.sql",
     "udaf.sql",
-    // "union.sql",
+    "union.sql",
     "using-join.sql",
     "window.sql",
     "udf-union.sql",
