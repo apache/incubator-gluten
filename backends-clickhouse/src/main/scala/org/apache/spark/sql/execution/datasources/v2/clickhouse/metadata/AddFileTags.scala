@@ -21,6 +21,7 @@ import org.apache.spark.sql.execution.datasources.clickhouse.WriteReturnedMetric
 
 import com.fasterxml.jackson.core.`type`.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.apache.hadoop.fs.Path
 
 import java.util.{List => JList}
 
@@ -180,7 +181,7 @@ object AddFileTags {
   def partsMetricsToAddFile(
       database: String,
       tableName: String,
-      originPath: String,
+      originPathStr: String,
       returnedMetrics: String,
       hostName: Seq[String]): ArrayBuffer[AddFile] = {
     val mapper: ObjectMapper = new ObjectMapper()
@@ -188,13 +189,14 @@ object AddFileTags {
       val values: JList[WriteReturnedMetric] =
         mapper.readValue(returnedMetrics, new TypeReference[JList[WriteReturnedMetric]]() {})
       var addFiles = new ArrayBuffer[AddFile]()
+      val path = new Path(originPathStr)
       addFiles.appendAll(values.asScala.map {
         value =>
           AddFileTags.partsInfoToAddFile(
             database,
             tableName,
             "MergeTree",
-            originPath,
+            path.toUri.getPath,
             hostName.map(_.trim).mkString(","),
             value.getPartName,
             "",
@@ -209,7 +211,7 @@ object AddFileTags {
             -1,
             -1L,
             value.getBucketId,
-            originPath,
+            path.toString,
             true,
             "",
             partitionValues = value.getPartitionValues.asScala.toMap,

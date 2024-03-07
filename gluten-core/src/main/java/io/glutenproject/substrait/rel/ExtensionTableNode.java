@@ -68,8 +68,8 @@ public class ExtensionTableNode implements SplitInfo {
     this.maxPartsNum = maxPartsNum;
     this.database = database;
     this.tableName = tableName;
-    if (relativePath.startsWith("/")) {
-      this.relativePath = relativePath.substring(1);
+    if (relativePath.contains(":/")) { // file:/tmp/xxx => tmp/xxx
+      this.relativePath = relativePath.substring(relativePath.indexOf(":/") + 2);
     } else {
       this.relativePath = relativePath;
     }

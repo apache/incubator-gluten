@@ -101,7 +101,7 @@ object MergeTreeFileFormatWriter extends Logging {
     job.setOutputValueClass(classOf[InternalRow])
 
     val outputPath = new Path(outputSpec.outputPath)
-    val outputPathNam = outputPath.toUri.getPath
+    val outputPathName = outputPath.toString
 
     FileOutputFormat.setOutputPath(job, outputPath)
 
@@ -147,7 +147,7 @@ object MergeTreeFileFormatWriter extends Logging {
       dataColumns = dataColumns,
       partitionColumns = partitionColumns,
       bucketSpec = writerBucketSpec,
-      path = outputPathNam,
+      path = outputPathName,
       customPartitionLocations = finalOutputSpec.customPartitionLocations,
       maxRecordsPerFile = caseInsensitiveOptions
         .get("maxRecordsPerFile")
