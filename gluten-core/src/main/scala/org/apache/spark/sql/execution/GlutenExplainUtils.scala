@@ -142,15 +142,17 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
     }
   }
 
+  // spotless:off
+  // scalastyle:off
   /**
    * Given a input physical plan, performs the following tasks.
-   *   1. Generates the explain output for the input plan excluding the subquery plans. 2. Generates
-   *      the explain output for each subquery referenced in the plan.
+   *   1. Generates the explain output for the input plan excluding the subquery plans.
+   *   2. Generates the explain output for each subquery referenced in the plan.
    */
   def processPlan[T <: QueryPlan[T]](
       plan: T,
       append: String => Unit,
-      collectFallbackFunc: Option[QueryPlan[_] => FallbackInfo] = None): FallbackInfo = {
+      collectFallbackFunc: Option[QueryPlan[_] => FallbackInfo] = None): FallbackInfo = synchronized {
     try {
       // Initialize a reference-unique set of Operators to avoid accdiental overwrites and to allow
       // intentional overwriting of IDs generated in previous AQE iteration
@@ -230,6 +232,8 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
       removeTags(plan)
     }
   }
+  // scalastyle:on
+  // spotless:on
 
   /**
    * Traverses the supplied input plan in a bottom-up fashion and records the operator id via
