@@ -382,8 +382,9 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       s"WriteFilesTransformer metrics update is not supported in CH backend")
   }
 
-  override def genColumnarToColumnarMetrics(sparkContext: SparkContext): Map[String, SQLMetric] = {
+  override def genVanillaColumnarToNativeColumnarMetrics(
+      sparkContext: SparkContext): Map[String, SQLMetric] = {
     throw new UnsupportedOperationException(
-      s"ColumnarToColumnar metrics update is not supported in CH backend")
+      s"VanillaColumnarToNativeColumnar metrics update is not supported in CH backend")
   }
 }

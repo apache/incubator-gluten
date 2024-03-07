@@ -547,14 +547,15 @@ case class InsertColumnarToColumnarTransitions(session: SparkSession) extends Ru
       })
   }
 
-  private def replaceWithVanillaColumnarToColumnar(plan: SparkPlan): SparkPlan = {
+  private def replaceWithVanillaColumnarToNativeColumnar(plan: SparkPlan): SparkPlan = {
     plan match {
       case p: RowToColumnarExecBase if p.child.isInstanceOf[ColumnarToRowExec] =>
-        val replacedChild = replaceWithVanillaColumnarToColumnar(
+        val replacedChild = replaceWithVanillaColumnarToNativeColumnar(
           p.child.asInstanceOf[ColumnarToRowExec].child)
-        BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToColumnarExec(replacedChild)
+        BackendsApiManager.getSparkPlanExecApiInstance.genVanillaColumnarToNativeColumnarExec(
+          replacedChild)
       case _ =>
-        plan.withNewChildren(plan.children.map(replaceWithVanillaColumnarToColumnar))
+        plan.withNewChildren(plan.children.map(replaceWithVanillaColumnarToNativeColumnar))
     }
   }
 
@@ -562,10 +563,10 @@ case class InsertColumnarToColumnarTransitions(session: SparkSession) extends Ru
     val transformedPlan = replaceWithVanillaRowToColumnar(replaceWithVanillaColumnarToRow(plan))
     val newPlan =
       if (
-        GlutenConfig.getConf.enableNativeColumnarToColumnar && BackendsApiManager.getSettings
-          .supportColumnarToColumnarExec()
+        GlutenConfig.getConf.enableVanillaColumnarToNativeColumnar && BackendsApiManager.getSettings
+          .supportVanillaColumnarToNativeColumnarExec()
       ) {
-        replaceWithVanillaColumnarToColumnar(transformedPlan)
+        replaceWithVanillaColumnarToNativeColumnar(transformedPlan)
       } else {
         transformedPlan
       }

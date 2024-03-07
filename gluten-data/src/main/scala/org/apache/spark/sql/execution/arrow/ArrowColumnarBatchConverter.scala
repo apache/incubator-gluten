@@ -19,12 +19,9 @@ package org.apache.spark.sql.execution.arrow
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.SpecializedGetters
 import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
-import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.sql.vectorized.ColumnVector
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
 
 import org.apache.arrow.memory.BufferAllocator
@@ -79,10 +76,9 @@ object ArrowColumnarBatchConverter {
         }
         new StructWriter(vector, children.toArray)
       case (NullType, vector: NullVector) => new NullWriter(vector)
-      case (_: YearMonthIntervalType, vector: IntervalYearVector) => new IntervalYearWriter(vector)
-      case (_: DayTimeIntervalType, vector: IntervalDayVector) => new IntervalDayWriter(vector)
+      // TODO support YearMonthIntervalType, DayTimeIntervalType
       case (dt, _) =>
-        throw QueryExecutionErrors.unsupportedDataTypeError(dt.catalogString)
+        throw new UnsupportedOperationException("Unsupported data type: " + dt)
     }
   }
 }

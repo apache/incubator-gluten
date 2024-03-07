@@ -23,7 +23,7 @@ import io.glutenproject.extension.ValidationResult
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.{ArrowAbiUtil, Iterators}
-import io.glutenproject.vectorized.ColumnarToNativeColumnarJniWrapper
+import io.glutenproject.vectorized.VanillaColumnarToNativeColumnarJniWrapper
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.SparkPlan
@@ -37,7 +37,8 @@ import org.apache.spark.util.TaskResources
 
 import org.apache.arrow.c.{ArrowArray, ArrowSchema, Data}
 
-case class ColumnarToVeloxColumnarExec(child: SparkPlan) extends ColumnarToColumnarExecBase(child) {
+case class VanillaColumnarToVeloxColumnarExec(child: SparkPlan)
+  extends VanillaColumnarToNativeColumnarExecBase(child) {
 
   override protected def doValidateInternal(): ValidationResult = {
     BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema) match {
@@ -61,7 +62,7 @@ case class ColumnarToVeloxColumnarExec(child: SparkPlan) extends ColumnarToColum
     val localSchema = schema
     child.executeColumnar().mapPartitions {
       rowIterator =>
-        ColumnarToVeloxColumnarExec.toColumnarBatchIterator(
+        VanillaColumnarToVeloxColumnarExec.toColumnarBatchIterator(
           rowIterator,
           localSchema,
           numInputBatches,
@@ -75,7 +76,7 @@ case class ColumnarToVeloxColumnarExec(child: SparkPlan) extends ColumnarToColum
   }
 }
 
-object ColumnarToVeloxColumnarExec {
+object VanillaColumnarToVeloxColumnarExec {
 
   def toColumnarBatchIterator(
       it: Iterator[ColumnarBatch],
@@ -89,53 +90,37 @@ object ColumnarToVeloxColumnarExec {
 
     val arrowSchema =
       SparkArrowUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
-    val jniWrapper = ColumnarToNativeColumnarJniWrapper.create()
+    val jniWrapper = VanillaColumnarToNativeColumnarJniWrapper.create()
     val allocator = ArrowBufferAllocators.contextInstance()
     val cSchema = ArrowSchema.allocateNew(allocator)
     ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
     val c2cHandle = jniWrapper.init(
       cSchema.memoryAddress(),
       NativeMemoryManagers
-        .contextInstance("ColumnarToColumnar")
+        .contextInstance("VanillaColumnarToNativeColumnar")
         .getNativeInstanceHandle)
 
-    val converter = ArrowColumnarBatchConverter.create(arrowSchema, allocator)
-
-    TaskResources.addRecycler("ColumnarToColumnar_resourceClean", 100) {
-      jniWrapper.close(c2cHandle)
-      converter.close()
-      cSchema.close()
-    }
+    val arrowConverter = ArrowColumnarBatchConverter.create(arrowSchema, allocator)
 
     val res: Iterator[ColumnarBatch] = new Iterator[ColumnarBatch] {
 
       var arrowArray: ArrowArray = null
-      TaskResources.addRecycler("ColumnarToColumnar_arrowArray", 100) {
-        if (arrowArray != null) {
-          arrowArray.release()
-          arrowArray.close()
-          converter.reset()
-        }
+      TaskResources.addRecycler("VanillaColumnarToNativeColumnar_arrowArray", 100) {
+        releaseArrowBuf()
       }
 
       override def hasNext: Boolean = {
-        if (arrowArray != null) {
-          arrowArray.release()
-          arrowArray.close()
-          converter.reset()
-          arrowArray = null
-        }
+        releaseArrowBuf()
         it.hasNext
       }
 
       def nativeConvert(cb: ColumnarBatch): ColumnarBatch = {
         numInputBatches += 1
         arrowArray = ArrowArray.allocateNew(allocator)
-        converter.write(cb)
-        converter.finish()
-        Data.exportVectorSchemaRoot(allocator, converter.root, null, arrowArray)
-        val handle = jniWrapper
-          .nativeConvertColumnarToColumnar(c2cHandle, arrowArray.memoryAddress())
+        arrowConverter.write(cb)
+        arrowConverter.finish()
+        Data.exportVectorSchemaRoot(allocator, arrowConverter.root, null, arrowArray)
+        val handle = jniWrapper.nativeConvert(c2cHandle, arrowArray.memoryAddress())
         ColumnarBatches.create(Runtimes.contextInstance(), handle)
       }
 
@@ -147,13 +132,22 @@ object ColumnarToVeloxColumnarExec {
         convertTime += System.currentTimeMillis() - start
         cb
       }
+
+      private def releaseArrowBuf(): Unit = {
+        if (arrowArray != null) {
+          arrowArray.release()
+          arrowArray.close()
+          arrowConverter.reset()
+          arrowArray = null
+        }
+      }
     }
 
     Iterators
       .wrap(res)
       .recycleIterator {
         jniWrapper.close(c2cHandle)
-        converter.close()
+        arrowConverter.close()
         cSchema.close()
       }
       .recyclePayload(_.close())

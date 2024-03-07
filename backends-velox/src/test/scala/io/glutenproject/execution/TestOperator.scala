@@ -74,15 +74,17 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
 
   test("c2c") {
     withSQLConf(
-      "spark.gluten.sql.columnar.columnarToColumnar" -> "true",
-      "spark.gluten.sql.columnar.batchscan" -> "false") {
+      "spark.gluten.sql.columnar.vanillaColumnarToNativeColumnar" -> "true",
+      "spark.gluten.sql.columnar.filescan" -> "false") {
       // TODO Include decimal types as well
       runQueryAndCompare(
         "select l_orderkey, l_partkey, l_suppkey, l_linenumber, l_returnflag," +
           "l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode," +
           "l_comment from lineitem where l_shipdate < '1998-09-02'") {
         df =>
-          assert(getExecutedPlan(df).exists(plan => plan.isInstanceOf[ColumnarToColumnarExecBase]))
+          assert(
+            getExecutedPlan(df).exists(
+              plan => plan.isInstanceOf[VanillaColumnarToNativeColumnarExecBase]))
       }
     }
   }

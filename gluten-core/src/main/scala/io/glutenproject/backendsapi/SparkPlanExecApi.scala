@@ -75,7 +75,8 @@ trait SparkPlanExecApi {
    * @param child
    * @return
    */
-  def genColumnarToColumnarExec(child: SparkPlan): ColumnarToColumnarExecBase
+  def genVanillaColumnarToNativeColumnarExec(
+      child: SparkPlan): VanillaColumnarToNativeColumnarExecBase
 
   /**
    * Generate FilterExecTransformer.

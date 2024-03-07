@@ -133,5 +133,5 @@ trait BackendSettingsApi {
 
   def shouldRewriteTypedImperativeAggregate(): Boolean = false
 
-  def supportColumnarToColumnarExec(): Boolean = false
+  def supportVanillaColumnarToNativeColumnarExec(): Boolean = false
 }

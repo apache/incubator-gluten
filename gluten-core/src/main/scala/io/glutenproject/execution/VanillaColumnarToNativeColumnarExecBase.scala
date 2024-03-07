@@ -30,11 +30,13 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * Provides a common executor to translate an [[RDD]] of Vanilla [[ColumnarBatch]] into an [[RDD]]
  * of native [[ColumnarBatch]].
  */
-abstract class ColumnarToColumnarExecBase(child: SparkPlan) extends GlutenPlan with UnaryExecNode {
+abstract class VanillaColumnarToNativeColumnarExecBase(child: SparkPlan)
+  extends GlutenPlan
+  with UnaryExecNode {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
-    BackendsApiManager.getMetricsApiInstance.genColumnarToColumnarMetrics(sparkContext)
+    BackendsApiManager.getMetricsApiInstance.genVanillaColumnarToNativeColumnarMetrics(sparkContext)
 
   override def supportsColumnar: Boolean = true
 

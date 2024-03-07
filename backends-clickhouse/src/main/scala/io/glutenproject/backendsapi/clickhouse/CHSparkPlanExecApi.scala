@@ -736,8 +736,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     }
   }
 
-  override def genColumnarToColumnarExec(child: SparkPlan): ColumnarToColumnarExecBase = {
+  override def genVanillaColumnarToNativeColumnarExec(
+      child: SparkPlan): VanillaColumnarToNativeColumnarExecBase = {
     throw new UnsupportedOperationException(
-      "ColumnarToColumnarExec is not supported in ch backend.")
+      "VanillaColumnarToNativeColumnarExec is not supported in ch backend.")
   }
 }

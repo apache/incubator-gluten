@@ -83,7 +83,7 @@ trait MetricsApi extends Serializable {
 
   def genRowToColumnarMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 
-  def genColumnarToColumnarMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
+  def genVanillaColumnarToNativeColumnarMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 
   def genLimitTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 

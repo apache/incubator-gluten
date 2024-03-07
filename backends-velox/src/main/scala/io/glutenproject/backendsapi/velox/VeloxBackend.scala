@@ -481,5 +481,5 @@ object BackendSettings extends BackendSettingsApi {
     true
   }
 
-  override def supportColumnarToColumnarExec(): Boolean = true
+  override def supportVanillaColumnarToNativeColumnarExec(): Boolean = true
 }

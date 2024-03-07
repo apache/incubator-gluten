@@ -70,7 +70,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableNativeColumnarToRow: Boolean = conf.getConf(COLUMNAR_COLUMNAR_TO_ROW_ENABLED)
 
-  def enableNativeColumnarToColumnar: Boolean = conf.getConf(COLUMNAR_COLUMNAR_TO_COLUMNAR_ENABLED)
+  def enableVanillaColumnarToNativeColumnar: Boolean =
+    conf.getConf(VANILLA_COLUMNAR_TO_NATIVE_COLUMNAR_ENABLED)
 
   def forceShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED)
 
@@ -779,10 +780,10 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val COLUMNAR_COLUMNAR_TO_COLUMNAR_ENABLED =
-    buildConf("spark.gluten.sql.columnar.columnarToColumnar")
+  val VANILLA_COLUMNAR_TO_NATIVE_COLUMNAR_ENABLED =
+    buildConf("spark.gluten.sql.columnar.vanillaColumnarToNativeColumnar")
       .internal()
-      .doc("Enable or disable columnar columnarToColumnar.")
+      .doc("Enable or disable native VanillaColumnarToNativeColumnar.")
       .booleanConf
       .createWithDefault(false)
 

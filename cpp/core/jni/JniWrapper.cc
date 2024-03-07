@@ -663,7 +663,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_NativeRowToColumnarJniWr
   JNI_METHOD_END()
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarToNativeColumnarJniWrapper_init( // NOLINT
+JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_VanillaColumnarToNativeColumnarJniWrapper_init( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong cSchema,
@@ -678,7 +678,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarToNativeColumna
 }
 
 JNIEXPORT jlong JNICALL
-Java_io_glutenproject_vectorized_ColumnarToNativeColumnarJniWrapper_nativeConvertColumnarToColumnar( // NOLINT
+Java_io_glutenproject_vectorized_VanillaColumnarToNativeColumnarJniWrapper_nativeConvert( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong c2cHandle,
@@ -694,7 +694,7 @@ Java_io_glutenproject_vectorized_ColumnarToNativeColumnarJniWrapper_nativeConver
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ColumnarToNativeColumnarJniWrapper_close( // NOLINT
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_VanillaColumnarToNativeColumnarJniWrapper_close( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong c2cHandle) {
