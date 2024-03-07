@@ -118,8 +118,7 @@ std::shared_ptr<VeloxColumnarBatch> VeloxColumnarBatch::from(
     auto compositeVeloxVector = makeRowVector(childNames, childVectors, cb->numRows(), pool);
     return std::make_shared<VeloxColumnarBatch>(compositeVeloxVector);
   }
-  auto vp = velox::importFromArrowAsOwner(
-      *cb->exportArrowSchema(), *cb->exportArrowArray(), ArrowUtils::getBridgeOptions(), pool);
+  auto vp = velox::importFromArrowAsOwner(*cb->exportArrowSchema(), *cb->exportArrowArray(), pool);
   return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<velox::RowVector>(vp));
 }
 
