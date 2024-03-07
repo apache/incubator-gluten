@@ -131,13 +131,20 @@ object MergeTreePartsPartitionsUtil extends Logging {
           partition.files.map(
             fs => {
               val path = fs.getPath.toString
+
               val ret = ClickhouseSnapshot.pathToAddMTPCache.getIfPresent(path)
               if (ret == null) {
+                val keys = ClickhouseSnapshot.pathToAddMTPCache.asMap().keySet()
+                val keySample = keys.isEmpty() match {
+                  case true => "<empty>"
+                  case false => keys.iterator().next()
+                }
                 throw new IllegalStateException(
                   "Can't find AddMergeTreeParts from cache pathToAddMTPCache for key: " +
                     path + ". This happens when too many new entries are added to " +
                     "pathToAddMTPCache during current query. " +
-                    "Try rerun current query.")
+                    "Try rerun current query. KeySample: " + keySample
+                )
               }
               ret
             }))
@@ -251,11 +258,16 @@ object MergeTreePartsPartitionsUtil extends Logging {
               val path = fs.getPath.toUri.getPath
               val ret = ClickhouseSnapshot.pathToAddMTPCache.getIfPresent(path)
               if (ret == null) {
+                val keys = ClickhouseSnapshot.pathToAddMTPCache.asMap().keySet()
+                val keySample = keys.isEmpty() match {
+                  case true => "<empty>"
+                  case false => keys.iterator().next()
+                }
                 throw new IllegalStateException(
                   "Can't find AddMergeTreeParts from cache pathToAddMTPCache for key: " +
                     path + ". This happens when too many new entries are added to " +
                     "pathToAddMTPCache during current query. " +
-                    "Try rerun current query.")
+                    "Try rerun current query. KeySample: " + keySample)
               }
               ret
             }))
