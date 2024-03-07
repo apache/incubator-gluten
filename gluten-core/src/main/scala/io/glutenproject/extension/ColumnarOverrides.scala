@@ -233,8 +233,13 @@ case class ColumnarOverrideRules(session: SparkSession)
         (_: SparkSession) => rewriteSparkPlanRule(),
         (_: SparkSession) => AddTransformHintRule(),
         (_: SparkSession) => FallbackBloomFilterAggIfNeeded(),
+        // We are planning to merge rule "TransformPreOverrides" and "InsertTransitions"
+        // together. So temporarily have both `InsertTransitions` and `RemoveTransitions`
+        // set in there to make sure the rule list (after insert transitions) is compatible
+        // with input plans that have C2Rs/R2Cs inserted.
         (_: SparkSession) => TransformPreOverrides(),
         (_: SparkSession) => InsertTransitions(outputsColumnar),
+        (_: SparkSession) => RemoveTransitions,
         (_: SparkSession) => RemoveNativeWriteFilesSortAndProject(),
         (spark: SparkSession) => RewriteTransformer(spark),
         (_: SparkSession) => EnsureLocalSortRequirements,
