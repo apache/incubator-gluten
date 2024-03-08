@@ -123,7 +123,6 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
         GlutenTextWriterInjects.getInstance().nativeConf(options, compressionCodec)
       }
 
-
       new OutputWriterFactory {
         private val jobConf = new SerializableJobConf(new JobConf(conf))
         @transient private lazy val outputFormat =
