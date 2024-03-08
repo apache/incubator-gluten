@@ -16,17 +16,14 @@
  */
 package io.glutenproject.integration.tpc.ds
 
-import io.glutenproject.integration.tpc.{DataGen, NoopModifier, TypeModifier}
-
+import io.glutenproject.integration.tpc.{DataGen, ShimUtils, TypeModifier}
 import org.apache.spark.sql.{Column, Row, SaveMode, SparkSession}
-import org.apache.spark.sql.catalyst.encoders.RowEncoder
+
 import org.apache.spark.sql.types._
 
 import io.trino.tpcds._
 
 import java.io.File
-import java.nio.file.{Files, Paths, StandardCopyOption}
-
 import scala.collection.JavaConverters._
 
 class TpcdsDataGen(
@@ -119,7 +116,7 @@ class TpcdsDataGen(
               val array: Array[String] = parentAndChildRow.get(0).asScala.toArray
               Row(array: _*)
           }
-      }(RowEncoder(stringSchema))
+      }(ShimUtils.getExpressionEncoder(stringSchema))
       .select(columns: _*)
       .write
       .mode(SaveMode.Overwrite)
