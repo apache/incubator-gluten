@@ -237,11 +237,6 @@ case class GenerateExecTransformer(
           postProjectRel
         }
       case PosExplode(posExplodeChild) =>
-        posExplodeChild match {
-          case _: AttributeReference =>
-          case _ =>
-            throw new UnsupportedOperationException("Child of Inline is not AttributeReference.")
-        }
         val unnestedSize = posExplodeChild.dataType match {
           case _: MapType => 2
           case _: ArrayType => 1
@@ -270,10 +265,6 @@ case class GenerateExecTransformer(
           } :+ ordinalNode) ++ (childOutput.size until childOutput.size + unnestedSize).map {
             ExpressionBuilder.makeSelection(_)
           }
-//        val generatorOutput: Seq[ExpressionNode] =
-//          ExpressionBuilder.makeSelection(childOutput.size() + 1) +: (0 to childOutput.size).map {
-//            ExpressionBuilder.makeSelection(_)
-//          }
         val postProjectRel = RelBuilder.makeProjectRel(
           generateRel,
           generatorOutput.asJava,
