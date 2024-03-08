@@ -14,6 +14,7 @@ $GLUTEN_DIR/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --en
 mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -DskipTests
 mvn clean package -Pbackends-velox -Prss -Pspark-3.3 -DskipTests
 mvn clean package -Pbackends-velox -Prss -Pspark-3.4 -DskipTests
+mvn clean package -Pbackends-velox -Prss -Pspark-3.5 -DskipTests
 
 mkdir -p $THIRDPARTY_LIB
 function process_setup_ubuntu_2004 {
