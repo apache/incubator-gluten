@@ -111,7 +111,7 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFailu
 
   // A query context used for function validation.
   std::unordered_map<std::string, std::string> configs{{velox::core::QueryConfig::kSparkPartitionId, "0"}};
-  velox::core::QueryCtx queryCtx(nullptr, core::QueryConfig(configs));
+  velox::core::QueryCtx queryCtx(nullptr, velox::core::QueryConfig(configs));
   auto pool = gluten::defaultLeafVeloxMemoryPool().get();
   // An execution context used for function validation.
   velox::core::ExecCtx execCtx(pool, &queryCtx);

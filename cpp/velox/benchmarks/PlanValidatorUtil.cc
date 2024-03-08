@@ -22,6 +22,7 @@
 #include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlanValidator.h"
 
+using namespace facebook::velox;
 using namespace gluten;
 
 /// Set spark.gluten.sql.debug=true to get validation plan and dump it into a json file,
@@ -43,8 +44,8 @@ int main(int argc, char** argv) {
   std::unordered_map<std::string, std::string> conf;
   conf.insert({kDebugModeEnabled, "true"});
   initVeloxBackend(conf);
-  std::unordered_map<std::string, std::string> configs{{velox::core::QueryConfig::kSparkPartitionId, "0"}};
-  velox::core::QueryCtx queryCtx(nullptr, core::QueryConfig(configs));
+  std::unordered_map<std::string, std::string> configs{{core::QueryConfig::kSparkPartitionId, "0"}};
+  core::QueryCtx queryCtx(nullptr, core::QueryConfig(configs));
   auto pool = defaultLeafVeloxMemoryPool().get();
   core::ExecCtx execCtx(pool, &queryCtx);
 
