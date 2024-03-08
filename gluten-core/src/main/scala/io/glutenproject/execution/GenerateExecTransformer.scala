@@ -237,6 +237,11 @@ case class GenerateExecTransformer(
           postProjectRel
         }
       case PosExplode(posExplodeChild) =>
+        posExplodeChild match {
+          case _: AttributeReference =>
+          case _ =>
+            throw new UnsupportedOperationException("Child of Inline is not AttributeReference.")
+        }
         val unnestedSize = posExplodeChild.dataType match {
           case _: MapType => 2
           case _: ArrayType => 1
@@ -248,15 +253,21 @@ case class GenerateExecTransformer(
         val functionMap = context.registeredFunction
         val addFunctionId = ExpressionBuilder.newScalarFunction(functionMap, subFunctionName)
         val literalNode = ExpressionBuilder.makeLiteral(1L, LongType, false)
-        val ordinalNode = ExpressionBuilder.makeScalarFunction(
-          addFunctionId,
-          Lists.newArrayList(
-            ExpressionBuilder.makeSelection(childOutput.size() + unnestedSize),
-            literalNode),
-          ConverterUtils.getTypeNode(LongType, generator.elementSchema.head.nullable)
+        val ordinalNode = ExpressionBuilder.makeCast(
+          TypeBuilder.makeI32(false),
+          ExpressionBuilder.makeScalarFunction(
+            addFunctionId,
+            Lists.newArrayList(
+              ExpressionBuilder.makeSelection(childOutput.size() + unnestedSize),
+              literalNode),
+            ConverterUtils.getTypeNode(LongType, generator.elementSchema.head.nullable)
+          ),
+          true // Generated ordinal should never be null.
         )
         val generatorOutput: Seq[ExpressionNode] =
-          ordinalNode +: (0 until childOutput.size + unnestedSize).map {
+          ((0 until childOutput.size).map {
+            ExpressionBuilder.makeSelection(_)
+          } :+ ordinalNode) ++ (childOutput.size until childOutput.size + unnestedSize).map {
             ExpressionBuilder.makeSelection(_)
           }
 //        val generatorOutput: Seq[ExpressionNode] =
