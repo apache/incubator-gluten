@@ -217,18 +217,9 @@ abstract class HashAggregateExecTransformer(
 
     def generateMergeCompanionNode(): Unit = {
       aggregateMode match {
-        case Partial =>
-          val partialNode = ExpressionBuilder.makeAggregateFunction(
-            VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
-            childrenNodeList,
-            modeKeyWord,
-            VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
-          )
-          aggregateNodeList.add(partialNode)
-        case PartialMerge =>
+        case Partial | PartialMerge =>
           val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-            VeloxAggregateFunctionsBuilder
-              .create(args, aggregateFunction, aggregateMode),
+            VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
             childrenNodeList,
             modeKeyWord,
             VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
