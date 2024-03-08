@@ -359,8 +359,7 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
 
-        runQueryAndCompare(
-          "select array_sort(i) as v from array_tbl;") {
+        runQueryAndCompare("select array_sort(i) as v from array_tbl;") {
           checkOperatorMatch[ProjectExecTransformer]
         }
     }
