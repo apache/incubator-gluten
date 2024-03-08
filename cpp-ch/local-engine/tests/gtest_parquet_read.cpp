@@ -379,7 +379,7 @@ TEST(ParquetRead, LowLevelRead)
     const parquet::SchemaDescriptor & schema = *(file_metadata->schema());
     const parquet::ColumnDescriptor & column_a_descr = *(schema.Column(col_a));
     EXPECT_EQ(column_a_descr.name(), "a");
-    const parquet::internal::LevelInfo level_info = local_engine::ComputeLevelInfo(&column_a_descr);
+    const parquet::internal::LevelInfo level_info = local_engine::computeLevelInfo(&column_a_descr);
     const auto reader = parquet::internal::RecordReader::Make(&column_a_descr, level_info);
 
     // Iterate over all the RowGroups in the file

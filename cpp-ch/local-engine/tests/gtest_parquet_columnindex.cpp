@@ -282,11 +282,11 @@ static const parquet::ColumnDescriptor d5 = c5.descr();
 local_engine::ColumnIndexStore buildTestColumnIndexStore()
 {
     local_engine::ColumnIndexStore result;
-    result[d1.name()] = std::move(local_engine::ColumnIndex::Make(&d1, c1.build(), o1.build()));
-    result[d2.name()] = std::move(local_engine::ColumnIndex::Make(&d2, c2.build(), o2.build()));
-    result[d3.name()] = std::move(local_engine::ColumnIndex::Make(&d3, c3.build(), o3.build()));
-    result[d4.name()] = std::move(local_engine::ColumnIndex::Make(&d4, nullptr, o3.build()));
-    result[d5.name()] = std::move(local_engine::ColumnIndex::Make(&d5, c5.build(), o5.build()));
+    result[d1.name()] = std::move(local_engine::ColumnIndex::create(&d1, c1.build(), o1.build()));
+    result[d2.name()] = std::move(local_engine::ColumnIndex::create(&d2, c2.build(), o2.build()));
+    result[d3.name()] = std::move(local_engine::ColumnIndex::create(&d3, c3.build(), o3.build()));
+    result[d4.name()] = std::move(local_engine::ColumnIndex::create(&d4, nullptr, o3.build()));
+    result[d5.name()] = std::move(local_engine::ColumnIndex::create(&d5, c5.build(), o5.build()));
     return result;
 }
 

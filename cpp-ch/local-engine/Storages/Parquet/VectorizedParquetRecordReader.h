@@ -131,18 +131,18 @@ protected:
     const RowRanges & getRowRanges(int32_t row_group);
     const ColumnIndexStore & getColumnIndexStore(int32_t row_group);
 
-    bool canPruningPage(const int32_t row_group) const { return column_index_filter_ && RowGroupPageIndexReader(row_group) != nullptr; }
+    bool canPruningPage(const int32_t row_group) const { return column_index_filter_ && rowGroupPageIndexReader(row_group) != nullptr; }
     std::unique_ptr<RowRanges> calculateRowRanges(const ColumnIndexStore & index_store, const size_t rowgroup_count) const
     {
         return std::make_unique<RowRanges>(column_index_filter_->calculateRowRanges(index_store, rowgroup_count));
     }
-    std::unique_ptr<parquet::RowGroupMetaData> RowGroup(const int32_t row_group) const
+    std::unique_ptr<parquet::RowGroupMetaData> rowGroup(const int32_t row_group) const
     {
         const auto file_metadata = fileReader_->metadata();
         return file_metadata->RowGroup(row_group);
     }
 
-    std::shared_ptr<parquet::RowGroupPageIndexReader> RowGroupPageIndexReader(const int32_t row_group) const
+    std::shared_ptr<parquet::RowGroupPageIndexReader> rowGroupPageIndexReader(const int32_t row_group) const
     {
         const auto pageIndex = fileReader_->GetPageIndexReader();
         return pageIndex == nullptr ? nullptr : pageIndex->RowGroup(row_group);
@@ -172,7 +172,7 @@ public:
 
     ~PageIterator() override = default;
 
-    std::optional<ColumnChunkPageRead> NextChunkWithRowRange();
+    std::optional<ColumnChunkPageRead> nextChunkWithRowRange();
 };
 
 class VectorizedColumnReader
@@ -182,8 +182,8 @@ class VectorizedColumnReader
     std::shared_ptr<parquet::internal::RecordReader> record_reader_;
     std::unique_ptr<ParquetReadState> read_state_;
 
-    void NextRowGroup();
-    void SetPageReader(std::unique_ptr<parquet::PageReader> reader, const ReadSequence & read_sequence);
+    void nextRowGroup();
+    void setPageReader(std::unique_ptr<parquet::PageReader> reader, const ReadSequence & read_sequence);
 
 public:
     VectorizedColumnReader(

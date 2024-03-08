@@ -91,11 +91,7 @@ struct RowRangesBuilder
         if (pages.size() == 1 && pages[0] == PageIndexsBuilder::ALL_PAGES)
             return all();
         RowRanges row_ranges;
-        std::ranges::for_each(
-            pages,
-            [&](const size_t pageIndex) {
-                row_ranges.add(Range{firstRowIndex(pageIndex), lastRowIndex(pageIndex)});
-            });
+        std::ranges::for_each(pages, [&](size_t pageIndex) { row_ranges.add(Range{firstRowIndex(pageIndex), lastRowIndex(pageIndex)}); });
         return row_ranges;
     }
 };
@@ -111,38 +107,38 @@ class ColumnIndex
 public:
     virtual ~ColumnIndex() = default;
 
-    virtual const parquet::OffsetIndex & GetOffsetIndex() const = 0;
+    virtual const parquet::OffsetIndex & offsetIndex() const = 0;
 
     virtual bool hasParquetColumnIndex() const = 0;
 
     /// \brief Returns the row ranges where the column value is not equal to the given value.
     /// column != literal => (min, max) = literal =>
     /// min != literal || literal != max
-    virtual PageIndexs NotEq(const DB::Field & value) const = 0;
+    virtual PageIndexs notEq(const DB::Field & value) const = 0;
 
     /// \brief Returns the row ranges where the column value is equal to the given value.
     /// column == literal => literal not in (min, max) =>
     ///  min <= literal && literal <= max
-    virtual PageIndexs Eq(const DB::Field & value) const = 0;
+    virtual PageIndexs eq(const DB::Field & value) const = 0;
 
     /// \brief Returns the row ranges where the column value is greater than the given value.
     /// column > literal
-    virtual PageIndexs Gt(const DB::Field & value) const = 0;
+    virtual PageIndexs gt(const DB::Field & value) const = 0;
 
     /// column >= literal
-    virtual PageIndexs GtEg(const DB::Field & value) const = 0;
+    virtual PageIndexs gtEg(const DB::Field & value) const = 0;
 
     /// \brief Returns the row ranges where the column value is less than the given value.
     /// column < literal
-    virtual PageIndexs Lt(const DB::Field & value) const = 0;
+    virtual PageIndexs lt(const DB::Field & value) const = 0;
 
     /// column <= literal
-    virtual PageIndexs LtEg(const DB::Field & value) const = 0;
+    virtual PageIndexs ltEg(const DB::Field & value) const = 0;
 
-    virtual PageIndexs In(const DB::ColumnPtr & column) const = 0;
+    virtual PageIndexs in(const DB::ColumnPtr & column) const = 0;
 
     //TODO: parameters
-    static ColumnIndexPtr Make(
+    static ColumnIndexPtr create(
         const parquet::ColumnDescriptor * descr,
         const std::shared_ptr<parquet::ColumnIndex> & column_index,
         const std::shared_ptr<parquet::OffsetIndex> & offset_index);

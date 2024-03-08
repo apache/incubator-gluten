@@ -52,7 +52,7 @@ T throw_or_return_result(::arrow::Result<T> && result)
             throw DB::Exception::createRuntime(DB::ErrorCodes::BAD_ARGUMENTS, _s.ToString()); \
     } while (false)
 
-parquet::internal::LevelInfo ComputeLevelInfo(const parquet::ColumnDescriptor * descr);
+parquet::internal::LevelInfo computeLevelInfo(const parquet::ColumnDescriptor * descr);
 
 /// \brief Get Arrow default memory pool.
 inline arrow::MemoryPool * default_arrow_pool()

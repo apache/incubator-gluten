@@ -18,7 +18,7 @@
 
 namespace local_engine
 {
-parquet::internal::LevelInfo ComputeLevelInfo(const parquet::ColumnDescriptor * descr)
+parquet::internal::LevelInfo computeLevelInfo(const parquet::ColumnDescriptor * descr)
 {
     parquet::internal::LevelInfo level_info;
     level_info.def_level = descr->max_definition_level();

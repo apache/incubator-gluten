@@ -98,22 +98,22 @@ VectorizedColumnReader::VectorizedColumnReader(
     : arrowField_(field.field)
     , input_(field.column_index, reader, row_groups)
     , record_reader_(parquet::internal::RecordReader::Make(
-          input_.descr(), ComputeLevelInfo(input_.descr()), default_arrow_pool(), arrowField_->type()->id() == ::arrow::Type::DICTIONARY))
+          input_.descr(), computeLevelInfo(input_.descr()), default_arrow_pool(), arrowField_->type()->id() == ::arrow::Type::DICTIONARY))
 {
-    NextRowGroup();
+    nextRowGroup();
 }
 
-void VectorizedColumnReader::NextRowGroup()
+void VectorizedColumnReader::nextRowGroup()
 {
-    input_.NextChunkWithRowRange().and_then(
+    input_.nextChunkWithRowRange().and_then(
         [&](ColumnChunkPageRead && read) -> std::optional<int64_t>
         {
-            SetPageReader(std::move(read.first), read.second);
+            setPageReader(std::move(read.first), read.second);
             return std::nullopt;
         });
 }
 
-void VectorizedColumnReader::SetPageReader(std::unique_ptr<parquet::PageReader> reader, const ReadSequence & read_sequence)
+void VectorizedColumnReader::setPageReader(std::unique_ptr<parquet::PageReader> reader, const ReadSequence & read_sequence)
 {
     if (read_state_)
     {
@@ -152,7 +152,7 @@ std::shared_ptr<arrow::ChunkedArray> VectorizedColumnReader::readBatch(int64_t b
             batch_size -= records_read;
             read_state_->read(records_read);
             if (!read_state_->hasMoreRead())
-                NextRowGroup();
+                nextRowGroup();
         }
     }
 
@@ -266,12 +266,12 @@ ParquetFileReaderExt::ParquetFileReaderExt(
     THROW_ARROW_NOT_OK_OR_ASSIGN(const int64_t source_size, source_->GetSize());
     source_size_ = source_size;
 }
-std::optional<ColumnChunkPageRead> PageIterator::NextChunkWithRowRange()
+std::optional<ColumnChunkPageRead> PageIterator::nextChunkWithRowRange()
 {
     while (!row_groups_.empty())
     {
         const int32_t row_group_index = row_groups_.front();
-        const auto rg = reader_ext_->RowGroup(row_group_index);
+        const auto rg = reader_ext_->rowGroup(row_group_index);
         const auto rg_count = rg->num_rows();
 
         if (rg_count == 0)
@@ -294,7 +294,7 @@ std::optional<ColumnChunkPageRead> PageIterator::NextChunkWithRowRange()
             const ColumnIndexStore & column_index_store = reader_ext_->getColumnIndexStore(row_group_index);
             const ColumnIndex & index
                 = *(column_index_store.find(lower_column_name_if_need(descr()->name(), reader_ext_->format_settings_))->second);
-            return buildRead(rg_count, col_range, index.GetOffsetIndex().page_locations(), row_ranges);
+            return buildRead(rg_count, col_range, index.offsetIndex().page_locations(), row_ranges);
         };
         const BuildRead readAll = [&](const arrow::io::ReadRange & col_range) { return buildAllRead(rg_count, col_range); };
 
@@ -330,9 +330,9 @@ const RowRanges & ParquetFileReaderExt::getRowRanges(const int32_t row_group)
 {
     if (!row_group_row_ranges_.contains(row_group))
     {
-        const auto rowGroup = RowGroup(row_group);
+        const auto rowGroupMeta = rowGroup(row_group);
         const ColumnIndexStore & column_index_store = getColumnIndexStore(row_group);
-        row_group_row_ranges_[row_group] = calculateRowRanges(column_index_store, rowGroup->num_rows());
+        row_group_row_ranges_[row_group] = calculateRowRanges(column_index_store, rowGroupMeta->num_rows());
     }
     return *(row_group_row_ranges_[row_group]);
 }
@@ -341,8 +341,8 @@ const ColumnIndexStore & ParquetFileReaderExt::getColumnIndexStore(const int32_t
 {
     if (!row_group_column_index_stores_.contains(row_group))
     {
-        const auto rowGroup = RowGroup(row_group);
-        const auto rowGroupIndex = RowGroupPageIndexReader(row_group);
+        const auto rowGroupMeta = rowGroup(row_group);
+        const auto rowGroupIndex = rowGroupPageIndexReader(row_group);
 
         auto result = std::make_unique<ColumnIndexStore>();
         ColumnIndexStore & column_index_store = *result;
@@ -350,11 +350,11 @@ const ColumnIndexStore & ParquetFileReaderExt::getColumnIndexStore(const int32_t
 
         for (auto const column_index : column_indices_)
         {
-            const auto * col_desc = rowGroup->schema()->Column(column_index);
+            const auto * col_desc = rowGroupMeta->schema()->Column(column_index);
             const auto col_index = rowGroupIndex->GetColumnIndex(column_index);
             const auto offset_index = rowGroupIndex->GetOffsetIndex(column_index);
             column_index_store[lower_column_name_if_need(col_desc->name(), format_settings_)]
-                = ColumnIndex::Make(col_desc, col_index, offset_index);
+                = ColumnIndex::create(col_desc, col_index, offset_index);
         }
         row_group_column_index_stores_[row_group] = std::move(result);
     }

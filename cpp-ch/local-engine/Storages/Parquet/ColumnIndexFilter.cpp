@@ -70,16 +70,16 @@ struct NoneNullPageIndexsBuilder
 class EmptyColumnIndex final : public ColumnIndex
 {
 public:
-    const parquet::OffsetIndex & GetOffsetIndex() const override { return *offset_index_; }
+    const parquet::OffsetIndex & offsetIndex() const override { return *offset_index_; }
     bool hasParquetColumnIndex() const override { return false; }
 
-    PageIndexs NotEq(const DB::Field &) const override { abort(); }
-    PageIndexs Eq(const DB::Field &) const override { abort(); }
-    PageIndexs Gt(const DB::Field &) const override { abort(); }
-    PageIndexs GtEg(const DB::Field &) const override { abort(); }
-    PageIndexs Lt(const DB::Field &) const override { abort(); }
-    PageIndexs LtEg(const DB::Field &) const override { abort(); }
-    PageIndexs In(const DB::ColumnPtr &) const override { abort(); }
+    PageIndexs notEq(const DB::Field &) const override { abort(); }
+    PageIndexs eq(const DB::Field &) const override { abort(); }
+    PageIndexs gt(const DB::Field &) const override { abort(); }
+    PageIndexs gtEg(const DB::Field &) const override { abort(); }
+    PageIndexs lt(const DB::Field &) const override { abort(); }
+    PageIndexs ltEg(const DB::Field &) const override { abort(); }
+    PageIndexs in(const DB::ColumnPtr &) const override { abort(); }
 
     explicit EmptyColumnIndex(const std::shared_ptr<parquet::OffsetIndex> & offset_index) : offset_index_(offset_index) { }
 
@@ -108,15 +108,15 @@ public:
         : descr_(descr), column_index_(column_index), offset_index_(offset_index), comparator_(parquet::MakeComparator<DType>(descr))
     {
     }
-    PageIndexs NotEq(const DB::Field & value) const override;
-    PageIndexs Eq(const DB::Field & value) const override;
-    PageIndexs Gt(const DB::Field & value) const override;
-    PageIndexs GtEg(const DB::Field & value) const override;
-    PageIndexs Lt(const DB::Field & value) const override;
-    PageIndexs LtEg(const DB::Field & value) const override;
-    PageIndexs In(const DB::ColumnPtr & column) const override;
+    PageIndexs notEq(const DB::Field & value) const override;
+    PageIndexs eq(const DB::Field & value) const override;
+    PageIndexs gt(const DB::Field & value) const override;
+    PageIndexs gtEg(const DB::Field & value) const override;
+    PageIndexs lt(const DB::Field & value) const override;
+    PageIndexs ltEg(const DB::Field & value) const override;
+    PageIndexs in(const DB::ColumnPtr & column) const override;
 
-    const parquet::OffsetIndex & GetOffsetIndex() const override { return *offset_index_; }
+    const parquet::OffsetIndex & offsetIndex() const override { return *offset_index_; }
     bool hasParquetColumnIndex() const override { return true; }
 };
 
@@ -534,7 +534,7 @@ struct DESCENDING : BoundaryOrder
 
 /// TODO: bencnmark
 template <typename DType, Derived<BoundaryOrder> ORDER>
-PageIndexs TypedColumnIndexImpl<DType, ORDER>::NotEq(const DB::Field & value) const
+PageIndexs TypedColumnIndexImpl<DType, ORDER>::notEq(const DB::Field & value) const
 {
     if (value.isNull())
     {
@@ -559,7 +559,7 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::NotEq(const DB::Field & value) co
 }
 
 template <typename DType, Derived<BoundaryOrder> ORDER>
-PageIndexs TypedColumnIndexImpl<DType, ORDER>::Eq(const DB::Field & value) const
+PageIndexs TypedColumnIndexImpl<DType, ORDER>::eq(const DB::Field & value) const
 {
     if (value.isNull())
     {
@@ -580,7 +580,7 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::Eq(const DB::Field & value) const
 }
 
 template <typename DType, Derived<BoundaryOrder> ORDER>
-PageIndexs TypedColumnIndexImpl<DType, ORDER>::Gt(const DB::Field & value) const
+PageIndexs TypedColumnIndexImpl<DType, ORDER>::gt(const DB::Field & value) const
 {
     auto real_value{parquet_cast<DType>(value)};
     TypedComparator<DType> typed_comparator{real_value, *column_index_, *comparator_};
@@ -588,7 +588,7 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::Gt(const DB::Field & value) const
 }
 
 template <typename DType, Derived<BoundaryOrder> ORDER>
-PageIndexs TypedColumnIndexImpl<DType, ORDER>::GtEg(const DB::Field & value) const
+PageIndexs TypedColumnIndexImpl<DType, ORDER>::gtEg(const DB::Field & value) const
 {
     auto real_value{parquet_cast<DType>(value)};
     TypedComparator<DType> typed_comparator{real_value, *column_index_, *comparator_};
@@ -596,7 +596,7 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::GtEg(const DB::Field & value) con
 }
 
 template <typename DType, Derived<BoundaryOrder> ORDER>
-PageIndexs TypedColumnIndexImpl<DType, ORDER>::Lt(const DB::Field & value) const
+PageIndexs TypedColumnIndexImpl<DType, ORDER>::lt(const DB::Field & value) const
 {
     auto real_value{parquet_cast<DType>(value)};
     TypedComparator<DType> typed_comparator{real_value, *column_index_, *comparator_};
@@ -604,7 +604,7 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::Lt(const DB::Field & value) const
 }
 
 template <typename DType, Derived<BoundaryOrder> ORDER>
-PageIndexs TypedColumnIndexImpl<DType, ORDER>::LtEg(const DB::Field & value) const
+PageIndexs TypedColumnIndexImpl<DType, ORDER>::ltEg(const DB::Field & value) const
 {
     auto real_value{parquet_cast<DType>(value)};
     TypedComparator<DType> typed_comparator{real_value, *column_index_, *comparator_};
@@ -612,7 +612,7 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::LtEg(const DB::Field & value) con
 }
 
 template <typename DType, Derived<BoundaryOrder> ORDER>
-PageIndexs TypedColumnIndexImpl<DType, ORDER>::In(const DB::ColumnPtr & column) const
+PageIndexs TypedColumnIndexImpl<DType, ORDER>::in(const DB::ColumnPtr & column) const
 {
     /// TDDO: handle null
     ///
@@ -686,7 +686,7 @@ ColumnIndexPtr internalMakeColumnIndex(
     throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unsupported physical type {}", physical_type);
 }
 
-ColumnIndexPtr ColumnIndex::Make(
+ColumnIndexPtr ColumnIndex::create(
     const parquet::ColumnDescriptor * descr,
     const std::shared_ptr<parquet::ColumnIndex> & column_index,
     const std::shared_ptr<parquet::OffsetIndex> & offset_index)
@@ -908,7 +908,7 @@ RowRanges ColumnIndexFilter::calculateRowRanges(const ColumnIndexStore & index_s
         if (it != index_store.end() && it->second->hasParquetColumnIndex())
         {
             const ColumnIndex & index = *it->second;
-            const RowRangesBuilder rgbuilder(rowgroup_count, index.GetOffsetIndex().page_locations());
+            const RowRangesBuilder rgbuilder(rowgroup_count, index.offsetIndex().page_locations());
             rpn_stack.emplace_back(rgbuilder.toRowRanges(callback(index, element)));
         }
         else
@@ -930,25 +930,25 @@ RowRanges ColumnIndexFilter::calculateRowRanges(const ColumnIndexStore & index_s
         switch (element.function)
         {
             case RPNElement::FUNCTION_EQUALS:
-                CALL_OPERATOR(element, [](const ColumnIndex & index, const RPNElement & e) { return index.Eq(e.value); });
+                CALL_OPERATOR(element, [](const ColumnIndex & index, const RPNElement & e) { return index.eq(e.value); });
                 break;
             case RPNElement::FUNCTION_NOT_EQUALS:
-                CALL_OPERATOR(element, [](const ColumnIndex & index, const RPNElement & e) { return index.NotEq(e.value); });
+                CALL_OPERATOR(element, [](const ColumnIndex & index, const RPNElement & e) { return index.notEq(e.value); });
                 break;
             case RPNElement::FUNCTION_LESS:
-                CALL_OPERATOR(element, [](const ColumnIndex & index, const RPNElement & e) { return index.Lt(e.value); });
+                CALL_OPERATOR(element, [](const ColumnIndex & index, const RPNElement & e) { return index.lt(e.value); });
                 break;
             case RPNElement::FUNCTION_GREATER:
-                CALL_OPERATOR(element, [](const ColumnIndex & index, const RPNElement & e) { return index.Gt(e.value); });
+                CALL_OPERATOR(element, [](const ColumnIndex & index, const RPNElement & e) { return index.gt(e.value); });
                 break;
             case RPNElement::FUNCTION_LESS_OR_EQUALS:
-                CALL_OPERATOR(element, [](const ColumnIndex & index, const RPNElement & e) { return index.LtEg(e.value); });
+                CALL_OPERATOR(element, [](const ColumnIndex & index, const RPNElement & e) { return index.ltEg(e.value); });
                 break;
             case RPNElement::FUNCTION_GREATER_OR_EQUALS:
-                CALL_OPERATOR(element, [](const ColumnIndex & index, const RPNElement & e) { return index.GtEg(e.value); });
+                CALL_OPERATOR(element, [](const ColumnIndex & index, const RPNElement & e) { return index.gtEg(e.value); });
                 break;
             case RPNElement::FUNCTION_IN:
-                CALL_OPERATOR(element, [](const ColumnIndex & index, const RPNElement & e) { return index.In(e.column); });
+                CALL_OPERATOR(element, [](const ColumnIndex & index, const RPNElement & e) { return index.in(e.column); });
                 break;
             case RPNElement::FUNCTION_NOT_IN:
                 break;
