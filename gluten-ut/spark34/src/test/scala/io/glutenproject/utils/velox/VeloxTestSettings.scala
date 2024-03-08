@@ -58,6 +58,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("ordering and partitioning reporting")
   enableSuite[GlutenDeleteFromTableSuite]
   enableSuite[GlutenFileDataSourceV2FallBackSuite]
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("Fallback Parquet V2 to V1")
   enableSuite[GlutenKeyGroupedPartitioningSuite]
     // NEW SUITE: disable as they check vanilla spark plan
     .exclude("partitioned join: number of buckets mismatch should trigger shuffle")
@@ -871,6 +873,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-32767 Bucket join should work if SHUFFLE_PARTITIONS larger than bucket number")
     .exclude("bucket coalescing eliminates shuffle")
     .exclude("bucket coalescing is not satisfied")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("disable bucketing when the output doesn't contain all bucketing columns")
     .excludeByPrefix("bucket coalescing is applied when join expressions match")
   enableSuite[GlutenBucketedWriteWithoutHiveSupportSuite]
   enableSuite[GlutenCreateTableAsSelectSuite]
@@ -879,6 +883,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("create a table, drop it and create another one with the same name")
   enableSuite[GlutenDDLSourceLoadSuite]
   enableSuite[GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuite]
+    .disable(
+      "DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type")
   enableSuite[GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuiteAE]
   enableSuite[GlutenExternalCommandRunnerSuite]
   enableSuite[GlutenFilteredScanSuite]
@@ -1056,6 +1062,12 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-37585: test input metrics for DSV2 with output limits")
     // TODO(yuan): fix the input bytes on ORC code path
     .exclude("SPARK-30362: test input metrics for DSV2")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("File source v2: support passing data filters to FileScan without partitionFilters")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("File source v2: support partition pruning")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("SPARK-41017: filter pushdown with nondeterministic predicates")
   enableSuite[GlutenFileScanSuite]
   enableSuite[GlutenGeneratorFunctionSuite]
   enableSuite[GlutenInjectRuntimeFilterSuite]

@@ -37,7 +37,7 @@ object ScanTransformerFactory {
   def createFileSourceScanTransformer(
       scanExec: FileSourceScanExec,
       allPushDownFilters: Option[Seq[Expression]] = None,
-      validation: Boolean = false): FileSourceScanExecTransformer = {
+      validation: Boolean = false): FileSourceScanExecTransformerBase = {
     // transform BroadcastExchangeExec to ColumnarBroadcastExchangeExec in partitionFilters
     val newPartitionFilters = if (validation) {
       scanExec.partitionFilters
@@ -69,7 +69,7 @@ object ScanTransformerFactory {
 
   private def lookupBatchScanTransformer(
       batchScanExec: BatchScanExec,
-      newPartitionFilters: Seq[Expression]): BatchScanExecTransformer = {
+      newPartitionFilters: Seq[Expression]): BatchScanExecTransformerBase = {
     val scan = batchScanExec.scan
     lookupDataSourceScanTransformer(scan.getClass.getName) match {
       case Some(clz) =>

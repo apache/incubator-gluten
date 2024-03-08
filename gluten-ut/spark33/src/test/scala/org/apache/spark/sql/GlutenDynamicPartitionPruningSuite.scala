@@ -443,7 +443,12 @@ abstract class GlutenDynamicPartitionPruningV1Suite extends GlutenDynamicPartiti
             find(plan) {
               case s: FileSourceScanExec =>
                 s.output.exists(_.find(_.argString(maxFields = 100).contains("fid")).isDefined)
+              case s: FileSourceScanExecTransformer =>
+                s.output.exists(_.find(_.argString(maxFields = 100).contains("fid")).isDefined)
               case s: BatchScanExec =>
+                // we use f1 col for v2 tables due to schema pruning
+                s.output.exists(_.find(_.argString(maxFields = 100).contains("f1")).isDefined)
+              case s: BatchScanExecTransformer =>
                 // we use f1 col for v2 tables due to schema pruning
                 s.output.exists(_.find(_.argString(maxFields = 100).contains("f1")).isDefined)
               case _ => false

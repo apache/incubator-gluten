@@ -14,27 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2
 
 import org.apache.spark.SparkException
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.physical.{KeyGroupedPartitioning, SinglePartition}
-import org.apache.spark.sql.catalyst.util.InternalRowSet
-import org.apache.spark.sql.catalyst.util.truncatedString
-import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, PartitionReaderFactory, Scan, SupportsRuntimeFiltering}
+import org.apache.spark.sql.catalyst.util.{truncatedString, InternalRowSet}
+import org.apache.spark.sql.connector.read._
 import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 
 import com.google.common.base.Objects
 
 /** Physical plan node for scanning a batch of data from a data source v2. */
-case class AbstractBatchScanExec(
+abstract class AbstractBatchScanExec(
     output: Seq[AttributeReference],
     @transient scan: Scan,
-    runtimeFilters: Seq[Expression],
+    val runtimeFilters: Seq[Expression],
     keyGroupedPartitioning: Option[Seq[Expression]] = None)
   extends DataSourceV2ScanExecBase {
 
@@ -121,15 +118,6 @@ case class AbstractBatchScanExec(
         supportsColumnar,
         customMetrics)
     }
-  }
-
-  override def doCanonicalize(): AbstractBatchScanExec = {
-    this.copy(
-      output = output.map(QueryPlan.normalizeExpressions(_, output)),
-      runtimeFilters = QueryPlan.normalizePredicates(
-        runtimeFilters.filterNot(_ == DynamicPruningExpression(Literal.TrueLiteral)),
-        output)
-    )
   }
 
   override def simpleString(maxFields: Int): String = {

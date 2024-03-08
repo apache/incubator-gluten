@@ -409,7 +409,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               val transformer =
                 ScanTransformerFactory
                   .createBatchScanTransformer(plan, validation = true)
-                  .asInstanceOf[BatchScanExecTransformer]
+                  .asInstanceOf[BasicScanExecTransformer]
               transformer.doValidate().tagOnFallback(plan)
             }
           }

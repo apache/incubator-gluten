@@ -89,8 +89,6 @@ abstract class HashAggregateExecBaseTransformer(
     }
   }
 
-  // override def canEqual(that: Any): Boolean = false
-
   override def simpleString(maxFields: Int): String = toString(verbose = false, maxFields)
 
   protected def checkType(dataType: DataType): Boolean = {

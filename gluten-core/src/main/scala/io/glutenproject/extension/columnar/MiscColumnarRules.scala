@@ -413,7 +413,7 @@ object MiscColumnarRules {
           transformer
         } else {
           logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-          val newSource = plan.copy(partitionFilters = transformer.partitionFilters)
+          val newSource = plan.copy(partitionFilters = transformer.getPartitionFilters())
           TransformHints.tagNotTransformable(newSource, validationResult.reason.get)
           newSource
         }
