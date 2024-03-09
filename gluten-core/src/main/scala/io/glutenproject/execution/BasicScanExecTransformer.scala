@@ -28,7 +28,8 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types.BooleanType
+import org.apache.spark.sql.hive.HiveTableScanExecTransformer
+import org.apache.spark.sql.types.{BooleanType, StringType, StructField, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
@@ -91,12 +92,20 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   }
 
   override protected def doValidateInternal(): ValidationResult = {
+    var fields = schema.fields
+
+    this match {
+      case transformer: FileSourceScanExecTransformer =>
+        fields = appendStringFields(transformer.relation.schema, fields)
+      case transformer: HiveTableScanExecTransformer =>
+        fields = appendStringFields(transformer.getDataSchema, fields)
+      case transformer: BatchScanExecTransformer =>
+        fields = appendStringFields(transformer.getDataSchema, fields)
+      case _ =>
+    }
+
     val validationResult = BackendsApiManager.getSettings
-      .supportFileFormatRead(
-        fileFormat,
-        schema.fields,
-        getPartitionSchema.nonEmpty,
-        getInputFilePaths)
+      .supportFileFormatRead(fileFormat, fields, getPartitionSchema.nonEmpty, getInputFilePaths)
     if (!validationResult.isValid) {
       return validationResult
     }
@@ -105,6 +114,17 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     val relNode = doTransform(substraitContext).root
 
     doNativeValidation(substraitContext, relNode)
+  }
+
+  def appendStringFields(
+      schema: StructType,
+      existingFields: Array[StructField]): Array[StructField] = {
+    val stringFields = schema.fields.filter(_.dataType.isInstanceOf[StringType])
+    if (stringFields.nonEmpty) {
+      (existingFields ++ stringFields).distinct
+    } else {
+      existingFields
+    }
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
