@@ -18,12 +18,12 @@ package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression._
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.rel.RelNode
-
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.util.truncatedString
@@ -128,7 +128,7 @@ abstract class HashAggregateExecBaseTransformer(
     aggregateExpressions.foreach {
       expr =>
         if (!checkAggFuncModeSupport(expr.aggregateFunction, expr.mode)) {
-          throw new UnsupportedOperationException(
+          throw new GlutenNotSupportException(
             s"Unsupported aggregate mode: ${expr.mode} for ${expr.aggregateFunction.prettyName}")
         }
     }
@@ -159,7 +159,7 @@ abstract class HashAggregateExecBaseTransformer(
       case Complete => "COMPLETE"
       case Final => "FINAL"
       case other =>
-        throw new UnsupportedOperationException(s"not currently supported: $other.")
+        throw new GlutenNotSupportException(s"not currently supported: $other.")
     }
   }
 

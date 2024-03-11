@@ -21,11 +21,10 @@ import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.ListNode
 import io.glutenproject.substrait.`type`.MapNode
 import io.glutenproject.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode, IntLiteralNode}
-
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
-
 import com.google.common.collect.Lists
+import io.glutenproject.exception.GlutenNotSupportException
 
 case class ChildTransformer(child: ExpressionTransformer) extends ExpressionTransformer {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
@@ -68,7 +67,7 @@ case class ExplodeTransformer(
       case m: MapNode =>
         ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, m.getNestedType)
       case _ =>
-        throw new UnsupportedOperationException(s"explode($childTypeNode) not supported yet.")
+        throw new GlutenNotSupportException(s"explode($childTypeNode) not supported yet.")
     }
   }
 }
@@ -105,7 +104,7 @@ case class PosExplodeTransformer(
     val (valType, valContainsNull) = original.child.dataType match {
       case a: ArrayType => (a.elementType, a.containsNull)
       case _ =>
-        throw new UnsupportedOperationException(
+        throw new GlutenNotSupportException(
           s"posexplode(${original.child.dataType}) not supported yet.")
     }
     val outputType = MapType(keyType, valType, valContainsNull)
@@ -143,7 +142,7 @@ case class PosExplodeTransformer(
           Lists.newArrayList(mapFromArraysExprNode),
           ConverterUtils.getTypeNode(structType, false))
       case _ =>
-        throw new UnsupportedOperationException(s"posexplode($childType) not supported yet.")
+        throw new GlutenNotSupportException(s"posexplode($childType) not supported yet.")
     }
   }
 }
@@ -204,7 +203,7 @@ case class RandTransformer(
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     if (!original.hideSeed) {
       // TODO: for user-specified seed, we need to pass partition index to native engine.
-      throw new UnsupportedOperationException("User-specified seed is not supported.")
+      throw new GlutenNotSupportException("User-specified seed is not supported.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(

@@ -17,11 +17,11 @@
 package io.glutenproject.execution
 
 import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.Iterators
 import io.glutenproject.vectorized.NativeColumnarToRowJniWrapper
-
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -59,7 +59,7 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
         case _: StructType =>
         case _: NullType =>
         case _ =>
-          throw new UnsupportedOperationException(
+          throw new GlutenNotSupportException(
             s"${field.dataType} is unsupported in " +
               s"VeloxColumnarToRowExec.")
       }

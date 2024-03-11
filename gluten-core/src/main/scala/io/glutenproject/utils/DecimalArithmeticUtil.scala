@@ -17,8 +17,8 @@
 package io.glutenproject.utils
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.{CheckOverflowTransformer, ChildTransformer, DecimalArithmeticExpressionTransformer, ExpressionTransformer}
-
 import org.apache.spark.sql.catalyst.analysis.DecimalPrecision
 import org.apache.spark.sql.catalyst.expressions.{Add, BinaryArithmetic, Cast, Divide, Expression, Literal, Multiply, Pmod, PromotePrecision, Remainder, Subtract}
 import org.apache.spark.sql.types.{ByteType, Decimal, DecimalType, IntegerType, LongType, ShortType}
@@ -60,7 +60,7 @@ object DecimalArithmeticUtil {
         resultPrecision =
           Math.min(type1.precision - type1.scale, type2.precision - type2.scale + resultScale)
       case other =>
-        throw new UnsupportedOperationException(s"$other is not supported.")
+        throw new GlutenNotSupportException(s"$other is not supported.")
     }
     adjustScaleIfNeeded(resultPrecision, resultScale)
   }
@@ -101,7 +101,7 @@ object DecimalArithmeticUtil {
       case _: Multiply => OperationType.MULTIPLY
       case _: Divide => OperationType.DIVIDE
       case other =>
-        throw new UnsupportedOperationException(s"$other is not supported.")
+        throw new GlutenNotSupportException(s"$other is not supported.")
     }
   }
 

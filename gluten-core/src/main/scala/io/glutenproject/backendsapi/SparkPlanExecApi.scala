@@ -16,10 +16,10 @@
  */
 package io.glutenproject.backendsapi
 
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
-
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -48,7 +48,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.lang.{Long => JLong}
 import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
-
 import scala.collection.JavaConverters._
 
 trait SparkPlanExecApi {
@@ -196,7 +195,7 @@ trait SparkPlanExecApi {
       left: ExpressionTransformer,
       right: ExpressionTransformer,
       original: NaNvl): ExpressionTransformer = {
-    throw new UnsupportedOperationException("NaNvl is not supported")
+    throw new GlutenNotSupportException("NaNvl is not supported")
   }
 
   /** Transform map_entries to Substrait. */
@@ -204,7 +203,7 @@ trait SparkPlanExecApi {
       substraitExprName: String,
       child: ExpressionTransformer,
       expr: Expression): ExpressionTransformer = {
-    throw new UnsupportedOperationException("map_entries is not supported")
+    throw new GlutenNotSupportException("map_entries is not supported")
   }
 
   /** Transform inline to Substrait. */
@@ -212,7 +211,7 @@ trait SparkPlanExecApi {
       substraitExprName: String,
       child: ExpressionTransformer,
       expr: Expression): ExpressionTransformer = {
-    throw new UnsupportedOperationException("map_entries is not supported")
+    throw new GlutenNotSupportException("map_entries is not supported")
   }
 
   /**
@@ -488,7 +487,7 @@ trait SparkPlanExecApi {
             val aggregateFunc = aggExpression.aggregateFunction
             val substraitAggFuncName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
             if (substraitAggFuncName.isEmpty) {
-              throw new UnsupportedOperationException(s"Not currently supported: $aggregateFunc.")
+              throw new GlutenNotSupportException(s"Not currently supported: $aggregateFunc.")
             }
 
             val childrenNodeList = aggregateFunc.children
@@ -605,7 +604,7 @@ trait SparkPlanExecApi {
             )
             windowExpressionNodes.add(windowFunctionNode)
           case _ =>
-            throw new UnsupportedOperationException(
+            throw new GlutenNotSupportException(
               "unsupported window function type: " +
                 wExpression.windowFunction)
         }
@@ -646,7 +645,7 @@ trait SparkPlanExecApi {
             extraFilters
         }
       case _ =>
-        throw new UnsupportedOperationException(
+        throw new GlutenNotSupportException(
           s"${sparkExecNode.getClass.toString} is not supported.")
     }
   }

@@ -17,20 +17,18 @@
 package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.substrait.`type`._
 import io.glutenproject.utils.SubstraitPlanPrinterUtil
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import io.substrait.proto.{NamedStruct, Type}
 
-import java.util.{ArrayList => JArrayList, List => JList, Locale}
-
+import java.util.{Locale, ArrayList => JArrayList, List => JList}
 import scala.collection.JavaConverters._
 
 object ConverterUtils extends Logging {
@@ -208,7 +206,7 @@ object ConverterUtils extends Logging {
       case Type.KindCase.NOTHING =>
         (NullType, true)
       case unsupported =>
-        throw new UnsupportedOperationException(s"Type $unsupported not supported.")
+        throw new GlutenNotSupportException(s"Type $unsupported not supported.")
     }
   }
 
@@ -259,7 +257,7 @@ object ConverterUtils extends Logging {
       case _: NullType =>
         TypeBuilder.makeNothing()
       case unknown =>
-        throw new UnsupportedOperationException(s"Type $unknown not supported.")
+        throw new GlutenNotSupportException(s"Type $unknown not supported.")
     }
   }
 
@@ -385,7 +383,7 @@ object ConverterUtils extends Logging {
       case NullType =>
         "nothing"
       case other =>
-        throw new UnsupportedOperationException(s"Type $other not supported.")
+        throw new GlutenNotSupportException(s"Type $other not supported.")
     }
   }
 
@@ -405,7 +403,7 @@ object ConverterUtils extends Logging {
       case FunctionConfig.NON =>
         funcName.concat(":")
       case other =>
-        throw new UnsupportedOperationException(s"$other is not supported.")
+        throw new GlutenNotSupportException(s"$other is not supported.")
     }
 
     for (idx <- datatypes.indices) {
@@ -431,7 +429,7 @@ object ConverterUtils extends Logging {
       case LeftAnti =>
         "Anti"
       case other =>
-        throw new UnsupportedOperationException(s"Unsupported join type: $other")
+        throw new GlutenNotSupportException(s"Unsupported join type: $other")
     }
   }
 

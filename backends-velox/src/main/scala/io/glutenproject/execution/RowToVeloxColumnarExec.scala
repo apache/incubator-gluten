@@ -18,12 +18,12 @@ package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.exception.GlutenException
 import io.glutenproject.exec.Runtimes
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.{ArrowAbiUtil, Iterators}
 import io.glutenproject.vectorized._
-
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -36,7 +36,6 @@ import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.Platform
 import org.apache.spark.util.TaskResources
-
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.ArrowBuf
 
@@ -47,7 +46,7 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
   override def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema).foreach {
       reason =>
-        throw new UnsupportedOperationException(
+        throw new GlutenException(
           s"Input schema contains unsupported type when convert row to columnar for $schema " +
             s"due to $reason")
     }

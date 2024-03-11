@@ -18,10 +18,9 @@ package io.glutenproject.expression
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression._
-
 import org.apache.spark.sql.catalyst.expressions._
-
 import com.google.common.collect.Lists
+import io.glutenproject.exception.GlutenNotSupportException
 
 case class String2TrimExpressionTransformer(
     substraitExprName: String,
@@ -65,7 +64,7 @@ case class RegExpReplaceTransformer(
       !posNode.isInstanceOf[IntLiteralNode] ||
       posNode.asInstanceOf[IntLiteralNode].getValue != 1
     ) {
-      throw new UnsupportedOperationException(s"$original not supported yet.")
+      throw new GlutenNotSupportException(s"$original not supported yet.")
     }
 
     GenericExpressionTransformer(substraitExprName, Seq(subject, regexp, rep), original)

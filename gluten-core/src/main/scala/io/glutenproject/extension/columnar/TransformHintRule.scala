@@ -18,12 +18,12 @@ package io.glutenproject.extension.columnar
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionUtils.getExpressionTreeDepth
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.extension.columnar.TransformHints.EncodeTransformableTagImplicits
 import io.glutenproject.sql.shims.SparkShimLoader
-
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
@@ -42,7 +42,6 @@ import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.StringType
-
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 sealed trait TransformHint {
@@ -108,7 +107,7 @@ object TransformHints {
             case TRANSFORM_UNSUPPORTED(None, _) =>
               originalHint
             case _ =>
-              throw new UnsupportedOperationException(
+              throw new GlutenNotSupportException(
                 "Plan was already tagged as non-transformable, " +
                   s"cannot mark it as transformable after that:\n${plan.toString()}")
           }
@@ -737,11 +736,14 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
         // Currently we assume a plan to be transformable by default.
       }
     } catch {
-      case e: UnsupportedOperationException =>
+      case e: GlutenNotSupportException | UnsupportedOperationException =>
         TransformHints.tagNotTransformable(
           plan,
           s"${e.getMessage}, original Spark plan is " +
             s"${plan.getClass}(${plan.children.toList.map(_.getClass)})")
+        if (!e.isInstanceOf[GlutenNotSupportException]) {
+          logDebug("This exception may need to be fixed: " +  e.getMessage)
+        }
     }
   }
 }

@@ -16,8 +16,8 @@
  */
 package io.glutenproject.extension
 
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.{ExpressionTransformer, Sig}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction, AggregateMode}
@@ -57,7 +57,7 @@ trait ExpressionExtensionTrait {
   /** Get the custom agg function substrait name and the input types of the child */
   def buildCustomAggregateFunction(
       aggregateFunc: AggregateFunction): (Option[String], Seq[DataType]) = {
-    throw new UnsupportedOperationException(
+    throw new GlutenNotSupportException(
       s"Aggregate function ${aggregateFunc.getClass} is not supported.")
   }
 }

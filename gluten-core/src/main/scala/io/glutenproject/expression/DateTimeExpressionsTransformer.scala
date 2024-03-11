@@ -19,15 +19,13 @@ package io.glutenproject.expression
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
-
 import com.google.common.collect.Lists
+import io.glutenproject.exception.GlutenNotSupportException
 
 import java.lang.{Long => JLong}
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap}
-
 import scala.collection.JavaConverters._
 
 /** The extract trait for 'GetDateField' from Date */
@@ -49,7 +47,7 @@ case class ExtractDateTransformer(
     val dateFieldName =
       DateTimeExpressionsTransformer.EXTRACT_DATE_FIELD_MAPPING.get(original.getClass)
     if (dateFieldName.isEmpty) {
-      throw new UnsupportedOperationException(s"$original not supported yet.")
+      throw new GlutenNotSupportException(s"$original not supported yet.")
     }
     val fieldNode = ExpressionBuilder.makeStringLiteral(dateFieldName.get)
     val expressNodes = Lists.newArrayList(fieldNode, childNode)

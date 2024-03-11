@@ -17,6 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.metrics.MetricsUpdater
@@ -24,7 +25,6 @@ import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -373,7 +373,7 @@ object FilterHandler extends PredicateHelper {
           case scan: FileScan =>
             scan.dataFilters
           case _ =>
-            throw new UnsupportedOperationException(
+            throw new GlutenNotSupportException(
               s"${batchScan.scan.getClass.toString} is not supported")
         }
       case _ =>
@@ -415,6 +415,6 @@ object FilterHandler extends PredicateHelper {
           batchScan,
           allPushDownFilters = Some(pushDownFilters))
       case other =>
-        throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
+        throw new GlutenNotSupportException(s"${other.getClass.toString} is not supported.")
     }
 }

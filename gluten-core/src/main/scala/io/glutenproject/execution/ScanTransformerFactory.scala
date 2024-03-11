@@ -16,10 +16,10 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.sql.shims.SparkShimLoader
-
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
@@ -27,7 +27,6 @@ import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 
 import java.util.ServiceLoader
 import java.util.concurrent.ConcurrentHashMap
-
 import scala.collection.JavaConverters._
 
 object ScanTransformerFactory {
@@ -88,7 +87,7 @@ object ScanTransformerFactory {
               table = SparkShimLoader.getSparkShims.getBatchScanExecTable(batchScanExec)
             )
           case _ =>
-            throw new UnsupportedOperationException(s"Unsupported scan $scan")
+            throw new GlutenNotSupportException(s"Unsupported scan $scan")
         }
     }
   }
@@ -122,7 +121,7 @@ object ScanTransformerFactory {
       }
     } else {
       if (validation) {
-        throw new UnsupportedOperationException(s"Unsupported scan ${batchScan.scan}")
+        throw new GlutenNotSupportException(s"Unsupported scan ${batchScan.scan}")
       }
       // If filter expressions aren't empty, we need to transform the inner operators,
       // and fallback the BatchScanExec itself.

@@ -24,8 +24,7 @@ import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode}
-import io.glutenproject.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializeResult}
-
+import io.glutenproject.vectorized.{ColumnarBatchSerializeResult, ColumnarBatchSerializer}
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -53,15 +52,13 @@ import org.apache.spark.sql.expression.{UDFExpression, UDFResolver}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import com.google.common.collect.Lists
+import io.glutenproject.exception.GlutenNotSupportException
 import org.apache.commons.lang3.ClassUtils
 
 import javax.ws.rs.core.UriBuilder
-
 import java.lang.{Long => JLong}
 import java.util.{Map => JMap}
-
 import scala.collection.mutable.ListBuffer
 
 class SparkPlanExecApiImpl extends SparkPlanExecApi {
@@ -81,7 +78,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       val decimalType = original.dataType.asInstanceOf[DecimalType]
       val precision = decimalType.precision
       if (precision > 18) {
-        throw new UnsupportedOperationException(
+        throw new GlutenNotSupportException(
           "GetArrayItem not support decimal precision more than 18")
       }
     }
@@ -482,7 +479,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
         != SQLConf.MapKeyDedupPolicy.EXCEPTION.toString
     ) {
-      throw new UnsupportedOperationException("Only EXCEPTION policy is supported!")
+      throw new GlutenNotSupportException("Only EXCEPTION policy is supported!")
     }
     GenericExpressionTransformer(substraitExprName, children, expr)
   }
