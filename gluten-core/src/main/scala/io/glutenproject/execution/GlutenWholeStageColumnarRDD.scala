@@ -95,6 +95,7 @@ class GlutenWholeStageColumnarRDD(
           pipelineTime,
           updateInputMetrics,
           updateNativeMetrics,
+          split.index,
           inputIterators
         )
     }

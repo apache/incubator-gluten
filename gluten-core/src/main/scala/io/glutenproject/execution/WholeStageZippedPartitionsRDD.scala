@@ -55,6 +55,7 @@ class WholeStageZippedPartitionsRDD(
             resCtx.root,
             pipelineTime,
             updateNativeMetrics,
+            split.index,
             materializeInput
           )
     }

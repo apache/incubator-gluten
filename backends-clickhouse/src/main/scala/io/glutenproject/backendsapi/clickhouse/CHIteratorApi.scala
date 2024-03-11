@@ -178,6 +178,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       pipelineTime: SQLMetric,
       updateInputMetrics: InputMetricsWrapper => Unit,
       updateNativeMetrics: IMetrics => Unit,
+      partitionIndex: Int,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()
   ): Iterator[ColumnarBatch] = {
 
@@ -246,6 +247,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
+      partitionIndex: Int,
       materializeInput: Boolean): Iterator[ColumnarBatch] = {
     // scalastyle:on argcount
     GlutenConfig.getConf
