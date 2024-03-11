@@ -202,25 +202,25 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPart(
     new_data_part->minmax_idx = std::move(minmax_idx);
 
     SyncGuardPtr sync_guard;
-    // if (new_data_part->isStoredOnDisk())
-    // {
-    /// The name could be non-unique in case of stale files from previous runs.
-    String full_path = new_data_part->getDataPartStorage().getFullPath();
-
-    if (new_data_part->getDataPartStorage().exists())
+    if (new_data_part->isStoredOnDisk())
     {
-        // LOG_WARNING(log, "Removing old temporary directory {}", full_path);
-        data_part_storage->removeRecursive();
-    }
+        /// The name could be non-unique in case of stale files from previous runs.
+        String full_path = new_data_part->getDataPartStorage().getFullPath();
 
-    data_part_storage->createDirectories();
+        if (new_data_part->getDataPartStorage().exists())
+        {
+            // LOG_WARNING(log, "Removing old temporary directory {}", full_path);
+            data_part_storage->removeRecursive();
+        }
 
-    if (storage.getSettings()->fsync_part_directory)
-    {
-        const auto disk = data_part_volume->getDisk();
-        sync_guard = disk->getDirectorySyncGuard(full_path);
+        data_part_storage->createDirectories();
+
+        if (storage.getSettings()->fsync_part_directory)
+        {
+            const auto disk = data_part_volume->getDisk();
+            sync_guard = disk->getDirectorySyncGuard(full_path);
+        }
     }
-    // }
 
     /// This effectively chooses minimal compression method:
     ///  either default lz4 or compression method with zero thresholds on absolute and relative part size.
