@@ -25,31 +25,17 @@ import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.test.SharedSparkSession
 
-import org.apache.commons.io.FileUtils
 import org.scalatest.BeforeAndAfterAll
 
-import java.io.File
 import java.sql.{Date, Timestamp}
 
 class GlutenClickHouseNativeWriteTableSuite
-  extends GlutenClickHouseTPCHAbstractSuite
+  extends GlutenClickHouseWholeStageTransformerSuite
   with AdaptiveSparkPlanHelper
   with SharedSparkSession
   with BeforeAndAfterAll {
 
   private var _hiveSpark: SparkSession = _
-
-  override protected val resourcePath: String =
-    "../../../../gluten-core/src/test/resources/tpch-data"
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
-  override protected val queriesResults: String = rootPath + "queries-output"
-
-  override protected def createTPCHNullableTables(): Unit = {}
-
-  override protected def createTPCHNotNullTables(): Unit = {}
 
   override protected def sparkConf: SparkConf = {
     new SparkConf()
@@ -137,19 +123,6 @@ class GlutenClickHouseNativeWriteTableSuite
     spark.sql(s"drop table IF EXISTS $table_name")
     spark.sql(table_create_sql)
     spark.sql("insert into %s select * from tmp_t".format(table_name))
-  }
-
-  override def beforeAll(): Unit = {
-    // prepare working paths
-    val basePathDir = new File(basePath)
-    if (basePathDir.exists()) {
-      FileUtils.forceDelete(basePathDir)
-    }
-    FileUtils.forceMkdir(basePathDir)
-    FileUtils.forceMkdir(new File(warehouse))
-    FileUtils.forceMkdir(new File(metaStorePathAbsolute))
-    FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
-    super.beforeAll()
   }
 
   override protected def afterAll(): Unit = {

@@ -76,19 +76,19 @@ abstract class WholeStageTransformerSuite
     super.afterAll()
   }
 
-  protected def createTPCHNotNullTables(): Unit = {
-    TPCHTableDataFrames = TPCHTables
-      .map(_.name)
-      .map {
-        table =>
-          val tableDir = getClass.getResource(resourcePath).getFile
-          val tablePath = new File(tableDir, table).getAbsolutePath
-          val tableDF = spark.read.format(fileFormat).load(tablePath)
-          tableDF.createOrReplaceTempView(table)
-          (table, tableDF)
-      }
-      .toMap
-  }
+//  protected def createTPCHNotNullTables(): Unit = {
+//    TPCHTableDataFrames = TPCHTables
+//      .map(_.name)
+//      .map {
+//        table =>
+//          val tableDir = getClass.getResource(resourcePath).getFile
+//          val tablePath = new File(tableDir, table).getAbsolutePath
+//          val tableDF = spark.read.format(fileFormat).load(tablePath)
+//          tableDF.createOrReplaceTempView(table)
+//          (table, tableDF)
+//      }
+//      .toMap
+//  }
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
