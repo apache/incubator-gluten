@@ -461,7 +461,8 @@ object ParquetFileFormat extends Logging {
     val converter = new ParquetToSparkSchemaConverter(
       sparkSession.sessionState.conf.isParquetBinaryAsString,
       sparkSession.sessionState.conf.isParquetINT96AsTimestamp,
-      nanosAsLong = sparkSession.sessionState.conf.legacyParquetNanosAsLong)
+      nanosAsLong = sparkSession.sessionState.conf.legacyParquetNanosAsLong
+    )
 
     val seen = mutable.HashSet[String]()
     val finalSchemas: Seq[StructType] = footers.flatMap {
