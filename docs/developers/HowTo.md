@@ -115,7 +115,7 @@ gdb gluten_home/cpp/build/releases/libgluten.so 'core-Executor task l-2000883-16
 Now, both Parquet and DWRF format files are supported, related scripts and files are under the directory of `gluten_home/backends-velox/workload/tpch`.
 The file `README.md` under `gluten_home/backends-velox/workload/tpch` offers some useful help but it's still not enough and exact.
 
-One way of run TPC-H test is to run velox-be by workflow, you can refer to [velox_be.yml](https://github.com/oap-project/gluten/blob/main/.github/workflows/velox_be.yml#L90)
+One way of run TPC-H test is to run velox-be by workflow, you can refer to [velox_be.yml](https://github.com/apache/incubator-gluten/blob/main/.github/workflows/velox_be.yml#L90)
 
 Here will explain how to run TPC-H on Velox backend with the Parquet file format.
 1. First step, prepare the datasets, you have two choices.

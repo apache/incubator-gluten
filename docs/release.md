@@ -4,7 +4,7 @@ title: Gluten Release
 nav_order: 11
 ---
 
-[Gluten](https://github.com/oap-project/gluten) is a plugin for Apache Spark to double SparkSQL's performance.
+[Gluten](https://github.com/apache/incubator-gluten) is a plugin for Apache Spark to double SparkSQL's performance.
 
 ## Latest release for velox backend
 * [Gluten-1.1.1](https://github.com/apache/incubator-gluten/releases/tag/v1.1.1) (Mar. 2 2024)

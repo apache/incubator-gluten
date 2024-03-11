@@ -135,7 +135,8 @@ object ColumnarOverrideRules {
       case ColumnarToRowExec(DummyColumnarOutputExec(_)) => false
       case _ =>
         throw new IllegalStateException(
-          "This should not happen. Please leave a issue at https://github.com/oap-project/gluten.")
+          "This should not happen. Please leave a issue at" +
+            " https://github.com/apache/incubator-gluten.")
     }
 
     def unwrap(plan: SparkPlan): SparkPlan = plan match {
@@ -145,7 +146,8 @@ object ColumnarOverrideRules {
       case ColumnarToRowExec(DummyColumnarOutputExec(child)) => child
       case _ =>
         throw new IllegalStateException(
-          "This should not happen. Please leave a issue at https://github.com/oap-project/gluten.")
+          "This should not happen. Please leave a issue at" +
+            " https://github.com/apache/incubator-gluten.")
     }
   }
 }
