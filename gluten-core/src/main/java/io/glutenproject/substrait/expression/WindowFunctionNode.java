@@ -20,6 +20,7 @@ import io.glutenproject.substrait.type.TypeNode;
 
 import io.substrait.proto.Expression;
 import io.substrait.proto.FunctionArgument;
+import io.substrait.proto.FunctionOption;
 import io.substrait.proto.WindowType;
 
 import java.io.Serializable;
@@ -39,6 +40,8 @@ public class WindowFunctionNode implements Serializable {
 
   private final String frameType;
 
+  private final boolean ignoreNulls;
+
   WindowFunctionNode(
       Integer functionId,
       List<ExpressionNode> expressionNodes,
@@ -46,7 +49,8 @@ public class WindowFunctionNode implements Serializable {
       TypeNode outputTypeNode,
       String upperBound,
       String lowerBound,
-      String frameType) {
+      String frameType,
+      boolean ignoreNulls) {
     this.functionId = functionId;
     this.expressionNodes.addAll(expressionNodes);
     this.columnName = columnName;
@@ -54,6 +58,7 @@ public class WindowFunctionNode implements Serializable {
     this.upperBound = upperBound;
     this.lowerBound = lowerBound;
     this.frameType = frameType;
+    this.ignoreNulls = ignoreNulls;
   }
 
   private Expression.WindowFunction.Bound.Builder setBound(
@@ -114,7 +119,10 @@ public class WindowFunctionNode implements Serializable {
   public Expression.WindowFunction toProtobuf() {
     Expression.WindowFunction.Builder windowBuilder = Expression.WindowFunction.newBuilder();
     windowBuilder.setFunctionReference(functionId);
-
+    if (ignoreNulls) {
+      FunctionOption option = FunctionOption.newBuilder().setName("ignoreNulls").build();
+      windowBuilder.addOptions(option);
+    }
     for (ExpressionNode expressionNode : expressionNodes) {
       FunctionArgument.Builder functionArgument = FunctionArgument.newBuilder();
       functionArgument.setValue(expressionNode.toProtobuf());
