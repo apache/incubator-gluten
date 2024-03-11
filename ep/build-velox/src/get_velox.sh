@@ -144,8 +144,7 @@ function process_setup_centos8 {
     sed -i '/^dnf_install ninja-build/a\ \ yasm \\' scripts/setup-centos8.sh
   fi
   if [[ $BUILD_PROTOBUF == "ON" ]] || [[ $ENABLE_HDFS == "ON" ]]; then
-    sed -i '/^function install_gflags.*/i function install_protobuf {\n  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz\n  tar -xzf protobuf-all-21.4.tar.gz\n  cd protobuf-21.4\n  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n  make "-j$(nproc)"\n  sudo make install\n  sudo ldconfig\n}\n' scripts/setup-centos8.sh
-    sed -i '/^  run_and_time install_fbthrift/a \\  run_and_time install_protobuf' scripts/setup-centos8.sh
+    sed -i '/cd protobuf/{n;s/\.\/configure --prefix=\/usr/\.\/configure CXXFLAGS="-fPIC" --prefix=\/usr\/local/;}' scripts/setup-centos8.sh
   fi
   sed -i "s/yum -y install/sudo yum -y install/" ${VELOX_HOME}/scripts/setup-adapters.sh
   if [ $ENABLE_S3 == "ON" ]; then
