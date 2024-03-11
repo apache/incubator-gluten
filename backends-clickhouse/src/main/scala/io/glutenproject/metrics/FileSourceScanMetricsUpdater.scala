@@ -27,10 +27,10 @@ class FileSourceScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric
   extends MetricsUpdater {
 
   val scanTime: SQLMetric = metrics("scanTime")
-  val outputRows: SQLMetric = metrics("outputRows")
+  val outputRows: SQLMetric = metrics("numOutputRows")
   val outputVectors: SQLMetric = metrics("outputVectors")
   val outputBytes: SQLMetric = metrics("outputBytes")
-  val inputRows: SQLMetric = metrics("inputRows")
+  val inputRows: SQLMetric = metrics("numInputRows")
   val inputBytes: SQLMetric = metrics("inputBytes")
   val extraTime: SQLMetric = metrics("extraTime")
   val inputWaitTime: SQLMetric = metrics("inputWaitTime")
@@ -38,7 +38,7 @@ class FileSourceScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric
 
   override def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {
     // inputMetrics.bridgeIncBytesRead(metrics("inputBytes").value)
-    // inputMetrics.bridgeIncRecordsRead(metrics("inputRows").value)
+    // inputMetrics.bridgeIncRecordsRead(metrics("numInputRows").value)
   }
 
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {

@@ -98,7 +98,7 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
       .take(readFileCnt)
       .map(_.asInstanceOf[FilePartition])
 
-    val numOutputRows = chFileScan.longMetric("outputRows")
+    val numOutputRows = chFileScan.longMetric("numOutputRows")
     val numOutputVectors = chFileScan.longMetric("outputVectors")
     val scanTime = chFileScan.longMetric("scanTime")
     // Generate Substrait plan

@@ -33,8 +33,8 @@ case class InputIteratorMetricsUpdater(metrics: Map[String, SQLMetric]) extends 
               InputIteratorMetricsUpdater.CH_PLAN_NODE_NAME
                 .exists(processor.name.startsWith(_))
             ) {
-              metrics("inputRows") += processor.inputRows
-              metrics("outputRows") += processor.outputRows
+              metrics("numInputRows") += processor.inputRows
+              metrics("numOutputRows") += processor.outputRows
             }
             if (processor.name.equalsIgnoreCase("FillingRightJoinSide")) {
               metrics("fillingRightJoinSideTime") += (processor.time / 1000L).toLong
