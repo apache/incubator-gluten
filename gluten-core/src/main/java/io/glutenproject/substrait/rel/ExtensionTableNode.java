@@ -33,6 +33,7 @@ public class ExtensionTableNode implements SplitInfo {
   private String database;
   private String tableName;
   private String relativePath;
+  private String absolutePath;
   private String tableSchemaJson;
   private StringBuffer extensionTableStr = new StringBuffer(MERGE_TREE);
   private StringBuffer partPathList = new StringBuffer("");
@@ -54,6 +55,7 @@ public class ExtensionTableNode implements SplitInfo {
       String database,
       String tableName,
       String relativePath,
+      String absolutePath,
       String orderByKey,
       String primaryKey,
       List<String> partList,
@@ -66,11 +68,12 @@ public class ExtensionTableNode implements SplitInfo {
     this.maxPartsNum = maxPartsNum;
     this.database = database;
     this.tableName = tableName;
-    if (relativePath.startsWith("/")) {
-      this.relativePath = relativePath.substring(1);
+    if (relativePath.contains(":/")) { // file:/tmp/xxx => tmp/xxx
+      this.relativePath = relativePath.substring(relativePath.indexOf(":/") + 2);
     } else {
       this.relativePath = relativePath;
     }
+    this.absolutePath = absolutePath;
     this.tableSchemaJson = tableSchemaJson;
     this.orderByKey = orderByKey;
     this.primaryKey = primaryKey;
@@ -108,6 +111,7 @@ public class ExtensionTableNode implements SplitInfo {
       extensionTableStr.append(this.primaryKey).append("\n");
     }
     extensionTableStr.append(this.relativePath).append("\n");
+    extensionTableStr.append(this.absolutePath).append("\n");
 
     if (this.clickhouseTableConfigs != null && !this.clickhouseTableConfigs.isEmpty()) {
       ObjectMapper objectMapper = new ObjectMapper();
@@ -155,5 +159,17 @@ public class ExtensionTableNode implements SplitInfo {
     extensionTableBuilder.setDetail(
         BackendsApiManager.getTransformerApiInstance().packPBMessage(extensionTable));
     return extensionTableBuilder.build();
+  }
+
+  public String getRelativePath() {
+    return relativePath;
+  }
+
+  public String getAbsolutePath() {
+    return absolutePath;
+  }
+
+  public List<String> getPartList() {
+    return partList;
   }
 }

@@ -20,13 +20,13 @@ import io.glutenproject.substrait.plan.PlanBuilder
 
 case class MergeTreePartSplit(
     name: String,
-    path: String,
+    dirName: String,
     targetNode: String,
     start: Long,
     length: Long,
     bytesOnDisk: Long) {
   override def toString: String = {
-    s"pat name: $name, range: $start-${start + length}"
+    s"part name: $name, range: $start-${start + length}"
   }
 }
 
@@ -35,7 +35,8 @@ case class GlutenMergeTreePartition(
     engine: String,
     database: String,
     table: String,
-    tablePath: String,
+    relativeTablePath: String,
+    absoluteTablePath: String,
     orderByKey: String,
     primaryKey: String,
     partList: Array[MergeTreePartSplit],

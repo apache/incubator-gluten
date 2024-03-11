@@ -23,8 +23,7 @@ import io.glutenproject.utils.UTSystemParameters
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
+import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaLog}
 import org.apache.spark.sql.types.{StructField, StructType}
 
 import org.apache.commons.io.FileUtils
@@ -183,8 +182,8 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
   }
 
   override protected def afterAll(): Unit = {
-    ClickHouseTableV2.clearAllFileStatusCache
-    ClickHouseLog.clearCache()
+    ClickhouseSnapshot.clearAllFileStatusCache
+    DeltaLog.clearCache()
 
     try {
       super.afterAll()

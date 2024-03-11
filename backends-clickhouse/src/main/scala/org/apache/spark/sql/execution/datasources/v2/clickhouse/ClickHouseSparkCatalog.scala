@@ -27,11 +27,11 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.delta.DeltaTableIdentifier.gluePermissionError
+import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.commands.TableCreationModes
 import org.apache.spark.sql.execution.datasources.{DataSource, PartitioningUtils}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.commands.CreateClickHouseTableCommand
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.{CHDataSourceUtils, ScanMergeTreePartsUtils}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.CHDataSourceUtils
 import org.apache.spark.sql.types.StructType
 
 import org.apache.hadoop.fs.Path
@@ -155,24 +155,6 @@ class ClickHouseSparkCatalog
     loadedNewTable
   }
 
-  def scanMergeTreePartsToAddFile(clickHouseTableV2: ClickHouseTableV2): Unit = {
-    val (pathFilter, isPartition, isBucketTable) = if (clickHouseTableV2.bucketOption.isDefined) {
-      ("/[0-9]*/*_[0-9]*_[0-9]*_[0-9]*", false, true)
-    } else if (clickHouseTableV2.partitioning().nonEmpty) {
-      // TODO: support to list all children paths
-      ("/*/all_[0-9]*_[0-9]*_[0-9]*", true, false)
-    } else {
-      ("/all_[0-9]*_[0-9]*_[0-9]*", false, false)
-    }
-    ScanMergeTreePartsUtils.scanMergeTreePartsToAddFile(
-      spark.sessionState.newHadoopConf(),
-      clickHouseTableV2,
-      pathFilter,
-      isPartition,
-      isBucketTable)
-    clickHouseTableV2.refresh()
-  }
-
   /** Performs checks on the parameters provided for table creation for a ClickHouse table. */
   private def verifyTableAndSolidify(
       tableDesc: CatalogTable,
@@ -227,29 +209,17 @@ class ClickHouseSparkCatalog
     Option(properties.get("provider")).getOrElse(ClickHouseConfig.NAME)
   }
 
-  override def invalidateTable(ident: Identifier): Unit = {
-    try {
-      loadTable(ident) match {
-        case v: ClickHouseTableV2 =>
-          scanMergeTreePartsToAddFile(v)
-      }
-      super.invalidateTable(ident)
-    } catch {
-      case ignored: NoSuchTableException =>
-      // ignore if the table doesn't exist, it is not cached
-    }
-  }
-
   override def loadTable(ident: Identifier): Table = {
     try {
       super.loadTable(ident) match {
         case v1: V1Table if CHDataSourceUtils.isDeltaTable(v1.catalogTable) =>
-          ClickHouseTableV2(
+          new ClickHouseTableV2(
             spark,
             new Path(v1.catalogTable.location),
             catalogTable = Some(v1.catalogTable),
             tableIdentifier = Some(ident.toString))
-        case o => o
+        case o =>
+          o
       }
     } catch {
       case _: NoSuchDatabaseException | _: NoSuchNamespaceException | _: NoSuchTableException
@@ -265,24 +235,7 @@ class ClickHouseSparkCatalog
   }
 
   private def newDeltaPathTable(ident: Identifier): ClickHouseTableV2 = {
-    ClickHouseTableV2(spark, new Path(ident.name()))
-  }
-
-  /** override `dropTable`` method, calling `clearFileStatusCacheByPath` after dropping */
-  override def dropTable(ident: Identifier): Boolean = {
-    try {
-      loadTable(ident) match {
-        case t: ClickHouseTableV2 =>
-          val tablePath = t.rootPath
-          val deletedTable = super.dropTable(ident)
-          if (deletedTable) ClickHouseTableV2.clearFileStatusCacheByPath(tablePath)
-          deletedTable
-        case _ => super.dropTable(ident)
-      }
-    } catch {
-      case _: Exception =>
-        false
-    }
+    new ClickHouseTableV2(spark, new Path(ident.name()))
   }
 
   /** support to delete mergetree data from the external table */
@@ -300,7 +253,6 @@ class ClickHouseSparkCatalog
             val fs = tablePath.getFileSystem(spark.sessionState.newHadoopConf())
             // delete all data if there is a external table
             fs.delete(tablePath, true)
-            ClickHouseTableV2.clearFileStatusCacheByPath(tablePath)
           }
           true
         case _ => super.purgeTable(ident)

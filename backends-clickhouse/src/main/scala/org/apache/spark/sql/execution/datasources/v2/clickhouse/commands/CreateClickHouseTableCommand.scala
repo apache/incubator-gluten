@@ -29,7 +29,7 @@ import org.apache.spark.sql.delta.metering.DeltaLogging
 import org.apache.spark.sql.delta.schema.SchemaUtils
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.{ClickHouseLog, DeltaLogAdapter}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.DeltaLogAdapter
 import org.apache.spark.sql.types.StructType
 
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -100,7 +100,7 @@ case class CreateClickHouseTableCommand(
     val isManagedTable = tableWithLocation.tableType == CatalogTableType.MANAGED
     val tableLocation = new Path(tableWithLocation.location)
     val fs = tableLocation.getFileSystem(sparkSession.sessionState.newHadoopConf())
-    val deltaLog = ClickHouseLog.forTable(sparkSession, tableLocation)
+    val deltaLog = DeltaLog.forTable(sparkSession, tableLocation)
     val options = new DeltaOptions(table.storage.properties, sparkSession.sessionState.conf)
     var result: Seq[Row] = Nil
 

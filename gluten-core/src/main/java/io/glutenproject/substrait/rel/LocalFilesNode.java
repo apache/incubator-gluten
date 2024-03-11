@@ -77,6 +77,10 @@ public class LocalFilesNode implements SplitInfo {
     this.iterAsInput = true;
   }
 
+  public List<String> getPaths() {
+    return paths;
+  }
+
   public void setFileSchema(StructType schema) {
     this.fileSchema = schema;
   }

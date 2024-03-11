@@ -21,8 +21,10 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.InputIteratorTransformer
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.aggregate.SortAggregateExec
+import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition}
 
 import org.apache.commons.io.FileUtils
+import org.apache.hadoop.fs.Path
 
 import java.io.File
 
@@ -622,6 +624,21 @@ class GlutenClickHouseTPCHParquetBucketSuite
         }
       )
     }
+  }
+
+  test("check bucket pruning on filter") {
+    runQueryAndCompare(" select * from lineitem where l_orderkey = 12647")(
+      df => {
+        val scanExec = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer => f
+        }
+        val touchedBuckets = scanExec.head.getPartitions
+          .flatMap(partition => partition.asInstanceOf[FilePartition].files)
+          .flatMap(f => BucketingUtils.getBucketId(new Path(f.filePath).getName))
+          .distinct
+        // two files from part0-0,part0-1,part1-0,part1-1
+        assert(touchedBuckets.size == 1)
+      })
   }
 
   test("GLUTEN-3922: Fix incorrect shuffle hash id value when executing modulo") {
