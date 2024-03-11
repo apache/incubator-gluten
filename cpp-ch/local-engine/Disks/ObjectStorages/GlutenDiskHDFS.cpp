@@ -17,6 +17,7 @@
 
 #include "GlutenDiskHDFS.h"
 #include <ranges>
+#include <Parser/SerializedPlanParser.h>
 #if USE_HDFS
 
 namespace local_engine
@@ -55,6 +56,18 @@ void GlutenDiskHDFS::removeDirectory(const String & path)
 {
     DiskObjectStorage::removeDirectory(path);
     hdfsDelete(hdfs_object_storage->getHDFSFS(), path.c_str(), 1);
+}
+
+DiskObjectStoragePtr GlutenDiskHDFS::createDiskObjectStorage()
+{
+    const auto config_prefix = "storage_configuration.disks." + name;
+    return std::make_shared<GlutenDiskHDFS>(
+        getName(),
+        object_key_prefix,
+        getMetadataStorage(),
+        getObjectStorage(),
+        SerializedPlanParser::global_context->getConfigRef(),
+        config_prefix);
 }
 
 

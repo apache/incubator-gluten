@@ -22,9 +22,11 @@
 #include <Disks/ObjectStorages/DiskObjectStorage.h>
 #if USE_HDFS
 #include <Disks/ObjectStorages/GlutenHDFSObjectStorage.h>
+#endif
 
 namespace local_engine
 {
+#if USE_HDFS
 class GlutenDiskHDFS : public DB::DiskObjectStorage
 {
 public:
@@ -35,9 +37,10 @@ public:
         DB::ObjectStoragePtr object_storage_,
         const Poco::Util::AbstractConfiguration & config,
         const String & config_prefix)
-        : DB::DiskObjectStorage(name_, object_key_prefix_, metadata_storage_, object_storage_, config, config_prefix)
+        : DiskObjectStorage(name_, object_key_prefix_, metadata_storage_, object_storage_, config, config_prefix)
     {
         chassert(dynamic_cast<local_engine::GlutenHDFSObjectStorage *>(object_storage_.get()) != nullptr);
+        object_key_prefix = object_key_prefix_;
         hdfs_object_storage = dynamic_cast<local_engine::GlutenHDFSObjectStorage *>(object_storage_.get());
         hdfsSetWorkingDirectory(hdfs_object_storage->getHDFSFS(), "/");
     }
@@ -48,10 +51,12 @@ public:
 
     void removeDirectory(const String & path) override;
 
+    DB::DiskObjectStoragePtr createDiskObjectStorage() override;
 private:
     String path2AbsPath(const String & path);
 
-    local_engine::GlutenHDFSObjectStorage * hdfs_object_storage;
+    GlutenHDFSObjectStorage * hdfs_object_storage;
+    String object_key_prefix;
 };
 #endif
 }
