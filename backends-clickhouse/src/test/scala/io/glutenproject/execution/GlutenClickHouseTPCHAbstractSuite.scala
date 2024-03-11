@@ -61,7 +61,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     }
   }
 
-  protected def createTPCHNotNullTables(): Unit = {
+  override protected def createTPCHNotNullTables(): Unit = {
     // create parquet data source table
     val parquetSourceDB = "parquet_source"
     spark.sql(s"""
