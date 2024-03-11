@@ -49,8 +49,8 @@ public:
         const substrait::Expression_ScalarFunction & substrait_func,
         DB::ActionsDAGPtr & actions_dag) const;
 
-protected:
     virtual String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const;
+protected:
 
     virtual DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
         const substrait::Expression_ScalarFunction & substrait_func,

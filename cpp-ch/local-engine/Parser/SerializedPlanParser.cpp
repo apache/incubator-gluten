@@ -1870,7 +1870,12 @@ ASTPtr ASTParser::parseToAST(const Names & names, const substrait::Expression & 
 
     const auto & scalar_function = rel.scalar_function();
     auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
-    auto function_name = SerializedPlanParser::getFunctionName(function_signature, scalar_function);
+
+    auto substrait_name = function_signature.substr(0, function_signature.find(':'));
+    auto func_parser = FunctionParserFactory::instance().tryGet(substrait_name, plan_parser);
+    String function_name = func_parser ? func_parser->getCHFunctionName(scalar_function)
+                                       : SerializedPlanParser::getFunctionName(function_signature, scalar_function);
+
     ASTs ast_args;
     parseFunctionArgumentsToAST(names, scalar_function, ast_args);
 
