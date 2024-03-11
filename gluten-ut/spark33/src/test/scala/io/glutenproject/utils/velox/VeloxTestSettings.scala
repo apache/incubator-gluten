@@ -983,6 +983,16 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeGlutenTest("describe")
   enableSuite[GlutenDataFrameTimeWindowingSuite]
   enableSuite[GlutenDataFrameTungstenSuite]
+  enableSuite[GlutenDataFrameWindowFunctionsSuite]
+    // does not support `spark.sql.legacy.statisticalAggregate=true` (null -> NAN)
+    .exclude("corr, covar_pop, stddev_pop functions in specific window")
+    .exclude("covar_samp, var_samp (variance), stddev_samp (stddev) functions in specific window")
+    // does not support spill
+    .exclude("Window spill with more than the inMemoryThreshold and spillThreshold")
+    .exclude("SPARK-21258: complex object in combination with spilling")
+    // rewrite `WindowExec -> WindowExecTransformer`
+    .exclude(
+      "SPARK-38237: require all cluster keys for child required distribution for window query")
   enableSuite[GlutenDataFrameWindowFramesSuite]
     // Local window fixes are not added.
     .exclude("range between should accept int/long values as boundary")

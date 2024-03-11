@@ -26,9 +26,6 @@
 namespace gluten {
 class ResultIterator;
 
-// Holds names of Spark OffsetWindowFunctions.
-static const std::unordered_set<std::string> kOffsetWindowFunctions = {"nth_value", "lag"};
-
 struct SplitInfo {
   /// Whether the split comes from arrow array stream node.
   bool isStream = false;
