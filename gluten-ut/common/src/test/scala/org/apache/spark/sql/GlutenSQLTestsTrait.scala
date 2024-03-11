@@ -17,6 +17,7 @@
 package org.apache.spark.sql
 
 import org.apache.spark.sql.catalyst.plans.logical
+import org.apache.spark.sql.catalyst.plans.physical.RoundRobinPartitioning
 import org.apache.spark.sql.catalyst.util.{sideBySide, stackTraceToString}
 import org.apache.spark.sql.execution.SQLExecution
 
@@ -112,7 +113,8 @@ object GlutenQueryTest extends Assertions {
       df: DataFrame,
       expectedAnswer: Seq[Row],
       checkToRDD: Boolean = true): Option[String] = {
-    val isSorted = df.logicalPlan.collect { case s: logical.Sort => s }.nonEmpty
+    val isSorted = df.logicalPlan.collect { case s: logical.Sort => s }.nonEmpty &&
+      df.logicalPlan.collect { case rr: logical.Repartition => rr }.isEmpty
     if (checkToRDD) {
       SQLExecution.withSQLConfPropagated(df.sparkSession) {
         df.rdd.count() // Also attempt to deserialize as an RDD [SPARK-15791]
