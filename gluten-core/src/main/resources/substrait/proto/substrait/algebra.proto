@@ -158,11 +158,11 @@ message ReadRel {
         message DeleteFile {
           FileContent fileContent = 1;
           string filePath = 2;
-          uint64 fileSize = 5;
-          uint64 recordCount = 6;
+          uint64 fileSize = 3;
+          uint64 recordCount = 4;
           oneof file_format {
-            ParquetReadOptions parquet = 7;
-            OrcReadOptions orc = 8;
+            ParquetReadOptions parquet = 5;
+            OrcReadOptions orc = 6;
           }
         }
         oneof file_format {
