@@ -255,7 +255,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
         partition =>
           partition.files.map(
             fs => {
-              val path = fs.getPath.toUri.getPath
+              val path = fs.getPath.toString
               val ret = ClickhouseSnapshot.pathToAddMTPCache.getIfPresent(path)
               if (ret == null) {
                 val keys = ClickhouseSnapshot.pathToAddMTPCache.asMap().keySet()
