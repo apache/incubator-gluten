@@ -6,13 +6,13 @@ The project makes it easy to test Gluten build locally.
 
 Gluten is a native Spark SQL implementation as a standard Spark plug-in.
 
-https://github.com/oap-project/gluten
+https://github.com/apache/incubator-gluten
 
 ## Getting Started
 
 ### 1. Install Gluten in your local machine
 
-See official Gluten build guidance https://github.com/oap-project/gluten#how-to-use-gluten
+See official Gluten build guidance https://github.com/apache/incubator-gluten#how-to-use-gluten
 
 ### 2. Install and run gluten-it with Spark version
 
