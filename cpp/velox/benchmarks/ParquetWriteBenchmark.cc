@@ -102,8 +102,7 @@ class GoogleBenchmarkParquetWrite {
     ArrowArray arrowArray;
     ArrowSchema arrowSchema;
     ASSERT_NOT_OK(arrow::ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-    auto vp = velox::importFromArrowAsOwner(
-        arrowSchema, arrowArray, gluten::ArrowUtils::getBridgeOptions(), gluten::defaultLeafVeloxMemoryPool().get());
+    auto vp = velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::defaultLeafVeloxMemoryPool().get());
     return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<velox::RowVector>(vp));
   }
 

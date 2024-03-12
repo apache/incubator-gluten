@@ -95,7 +95,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
             -1L,
             p.database,
             p.table,
-            p.tablePath,
+            p.relativeTablePath,
+            p.absoluteTablePath,
             p.orderByKey,
             p.primaryKey,
             partLists,
@@ -148,14 +149,18 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     val planByteArray = wsCtx.root.toProtobuf.toByteArray
     splitInfos.zipWithIndex.map {
       case (splits, index) =>
+        val files = ArrayBuffer[String]()
         val splitInfosByteArray = splits.zipWithIndex.map {
           case (split, i) =>
             split match {
               case filesNode: LocalFilesNode =>
                 setFileSchemaForLocalFiles(filesNode, scans(i))
                 filesNode.setFileReadProperties(mapAsJavaMap(scans(i).getProperties))
+                filesNode.getPaths.forEach(f => files += f)
                 filesNode.toProtobuf.toByteArray
               case extensionTableNode: ExtensionTableNode =>
+                extensionTableNode.getPartList.forEach(
+                  name => files += extensionTableNode.getAbsolutePath + "/" + name)
                 extensionTableNode.toProtobuf.toByteArray
             }
         }
@@ -164,7 +169,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           index,
           planByteArray,
           splitInfosByteArray.toArray,
-          locations = splits.flatMap(_.preferredLocations().asScala).toArray
+          locations = splits.flatMap(_.preferredLocations().asScala).toArray,
+          files.toArray
         )
     }
   }
@@ -180,6 +186,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       pipelineTime: SQLMetric,
       updateInputMetrics: InputMetricsWrapper => Unit,
       updateNativeMetrics: IMetrics => Unit,
+      partitionIndex: Int,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()
   ): Iterator[ColumnarBatch] = {
 
@@ -248,6 +255,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
+      partitionIndex: Int,
       materializeInput: Boolean): Iterator[ColumnarBatch] = {
     // scalastyle:on argcount
     GlutenConfig.getConf

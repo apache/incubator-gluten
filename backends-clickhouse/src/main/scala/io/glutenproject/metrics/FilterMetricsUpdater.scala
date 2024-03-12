@@ -33,9 +33,9 @@ class FilterMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsU
         MetricsUtil.updateExtraTimeMetric(
           metricsData,
           metrics("extraTime"),
-          metrics("outputRows"),
+          metrics("numOutputRows"),
           metrics("outputBytes"),
-          metrics("inputRows"),
+          metrics("numInputRows"),
           metrics("inputBytes"),
           FilterMetricsUpdater.INCLUDING_PROCESSORS,
           FilterMetricsUpdater.INCLUDING_PROCESSORS

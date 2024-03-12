@@ -522,10 +522,10 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kMaxSplitPreloadPerDriver] =
         std::to_string(veloxCfg_->get<int32_t>(kVeloxSplitPreloadPerDriver, 2));
 
-    configs[velox::core::QueryConfig::kArrowBridgeTimestampUnit] = "6";
-
     // Disable driver cpu time slicing.
     configs[velox::core::QueryConfig::kDriverCpuTimeSliceLimitMs] = "0";
+
+    configs[velox::core::QueryConfig::kSparkPartitionId] = std::to_string(taskInfo_.partitionId);
 
   } catch (const std::invalid_argument& err) {
     std::string errDetails = err.what();

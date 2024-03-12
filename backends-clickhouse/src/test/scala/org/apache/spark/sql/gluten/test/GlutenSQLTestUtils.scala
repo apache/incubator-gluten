@@ -20,7 +20,8 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
 
 import org.apache.spark.{SparkConf, SparkFunSuite}
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.{ClickHouseConfig, ClickHouseLog}
+import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.internal.StaticSQLConf
 import org.apache.spark.sql.test.SharedSparkSession
 
@@ -29,8 +30,6 @@ import org.apache.commons.io.FileUtils
 import java.io.File
 
 trait GlutenSQLTestUtils extends SparkFunSuite with SharedSparkSession {
-  val backend: String = "ch"
-
   protected val rootPath: String = getClass.getResource("/").getPath
   protected val basePath: String = rootPath + "unit-tests-working-home"
   protected val tablesPath: String = basePath + "/unit-tests-data"
@@ -60,7 +59,7 @@ trait GlutenSQLTestUtils extends SparkFunSuite with SharedSparkSession {
   }
 
   override protected def afterAll(): Unit = {
-    ClickHouseLog.clearCache()
+    DeltaLog.clearCache()
     super.afterAll()
     // init GlutenConfig in the next beforeAll
     GlutenConfig.ins = null

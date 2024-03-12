@@ -70,7 +70,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   }
 
   def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
-    val numOutputRows = longMetric("outputRows")
+    val numOutputRows = longMetric("numOutputRows")
     val numOutputVectors = longMetric("outputVectors")
     val scanTime = longMetric("scanTime")
     val substraitContext = new SubstraitContext

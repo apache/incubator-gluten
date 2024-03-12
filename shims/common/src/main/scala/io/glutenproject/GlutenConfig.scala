@@ -1602,28 +1602,28 @@ object GlutenConfig {
   val DIRECTORY_SIZE_GUESS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.directorySizeGuess")
       .internal()
-      .doc(" Set the directory size guess for velox file scan")
+      .doc("Set the directory size guess for velox file scan")
       .intConf
       .createOptional
 
   val FILE_PRELOAD_THRESHOLD =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.filePreloadThreshold")
       .internal()
-      .doc(" Set the file preload threshold for velox file scan")
+      .doc("Set the file preload threshold for velox file scan")
       .intConf
       .createOptional
 
   val PREFETCH_ROW_GROUPS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.prefetchRowGroups")
       .internal()
-      .doc(" Set the prefetch row groups for velox file scan")
+      .doc("Set the prefetch row groups for velox file scan")
       .intConf
       .createOptional
 
   val LOAD_QUANTUM =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.loadQuantum")
       .internal()
-      .doc(" Set the load quantum for velox file scan")
+      .doc("Set the load quantum for velox file scan")
       .intConf
       .createOptional
 
@@ -1637,14 +1637,14 @@ object GlutenConfig {
   val MAX_COALESCED_BYTES =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.maxCoalescedBytes")
       .internal()
-      .doc(" Set the max coalesced bytes for velox file scan")
+      .doc("Set the max coalesced bytes for velox file scan")
       .intConf
       .createOptional
 
   val CACHE_PREFETCH_MINPCT =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct")
       .internal()
-      .doc(" Set prefetch cache min pct for velox file scan")
+      .doc("Set prefetch cache min pct for velox file scan")
       .intConf
       .createOptional
 
@@ -1658,7 +1658,7 @@ object GlutenConfig {
   val VELOX_ORC_SCAN_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.orc.scan.enabled")
       .internal()
-      .doc(" Enable velox orc scan. If disabled, vanilla spark orc scan will be used.")
+      .doc("Enable velox orc scan. If disabled, vanilla spark orc scan will be used.")
       .booleanConf
       .createWithDefault(true)
 

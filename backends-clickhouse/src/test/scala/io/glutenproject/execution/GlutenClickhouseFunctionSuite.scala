@@ -21,16 +21,14 @@ import io.glutenproject.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
+import org.apache.spark.sql.delta.DeltaLog
 
 import org.apache.commons.io.FileUtils
 
 import java.io.File
 
 class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
-
-  override protected val resourcePath: String =
-    "../../../../gluten-core/src/test/resources/tpch-data"
+  override protected val needCopyParquetToTablePath = true
 
   override protected val tablesPath: String = basePath + "/tpch-data"
   override protected val tpchQueries: String =
@@ -38,7 +36,7 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
   override protected val queriesResults: String = rootPath + "queries-output"
 
   override protected def createTPCHNotNullTables(): Unit = {
-    createTPCHParquetTables(tablesPath)
+    createNotNullTPCHTablesInParquet(tablesPath)
   }
 
   private var _hiveSpark: SparkSession = _
@@ -99,7 +97,7 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
   }
 
   override protected def afterAll(): Unit = {
-    ClickHouseLog.clearCache()
+    DeltaLog.clearCache()
 
     try {
       super.afterAll()

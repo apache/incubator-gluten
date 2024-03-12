@@ -50,8 +50,7 @@ arrow::Result<std::shared_ptr<ColumnarBatch>> recordBatch2VeloxColumnarBatch(con
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
   RETURN_NOT_OK(arrow::ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-  auto vp = velox::importFromArrowAsOwner(
-      arrowSchema, arrowArray, ArrowUtils::getBridgeOptions(), gluten::defaultLeafVeloxMemoryPool().get());
+  auto vp = velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::defaultLeafVeloxMemoryPool().get());
   return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<velox::RowVector>(vp));
 }
 

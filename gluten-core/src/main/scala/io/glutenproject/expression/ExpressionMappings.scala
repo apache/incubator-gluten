@@ -196,6 +196,7 @@ object ExpressionMappings {
     Sig[Sequence](SEQUENCE),
     Sig[CreateArray](CREATE_ARRAY),
     Sig[Explode](EXPLODE),
+    Sig[Inline](INLINE),
     Sig[ArrayAggregate](AGGREGATE),
     Sig[LambdaFunction](LAMBDAFUNCTION),
     Sig[NamedLambdaVariable](NAMED_LAMBDA_VARIABLE),

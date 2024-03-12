@@ -1,5 +1,7 @@
-# Gluten: Plugin to Double SparkSQL's Performance
+# Apache Gluten (Incubating): A Middle Layer for Offloading JVM-based SQL Engines' Execution to Native Engines
+
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/8452/badge)](https://www.bestpractices.dev/projects/8452)
+
 *<b>This project is still under active development now, and doesn't have a stable release. Welcome to evaluate it.</b>*
 
 # 1 Introduction
@@ -30,7 +32,7 @@ The basic rule of Gluten's design is that we would reuse spark's whole control f
 ## 1.3 Target User
 
 Gluten's target user is anyone who wants to accelerate SparkSQL fundamentally. As a plugin to Spark, Gluten doesn't require any change for dataframe API or SQL query, but only requires user to make correct configuration.
-See Gluten configuration properties [here](https://github.com/oap-project/gluten/blob/main/docs/Configuration.md).
+See Gluten configuration properties [here](https://github.com/apache/incubator-gluten/blob/main/docs/Configuration.md).
 
 ## 1.4 References
 
@@ -72,7 +74,7 @@ spark-shell \
  --conf spark.memory.offHeap.enabled=true \
  --conf spark.memory.offHeap.size=20g \
  --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
- --jars https://github.com/oap-project/gluten/releases/download/v1.0.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04_x86_64-1.0.0.jar
+ --jars https://github.com/apache/incubator-gluten/releases/download/v1.0.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04_x86_64-1.0.0.jar
 ```
 
 # 3.2 Custom Build
@@ -118,7 +120,7 @@ Please feel free to create Github issue for reporting bug or proposing enhanceme
 
 ## 4.3 Documentation
 
-Currently, all gluten documents are held at [docs](https://github.com/oap-project/gluten/tree/main/docs). The documents may not reflect the latest designs. Please feel free to contact us for getting design details or sharing your design ideas.
+Currently, all gluten documents are held at [docs](https://github.com/apache/incubator-gluten/tree/main/docs). The documents may not reflect the latest designs. Please feel free to contact us for getting design details or sharing your design ideas.
 
 # 5 Performance
 

@@ -22,6 +22,7 @@
 #include <Functions/FunctionFactory.h>
 #include <IO/ReadBufferFromMemory.h>
 #include <IO/ReadHelpers.h>
+#include <IO/parseDateTimeBestEffort.h>
 
 namespace DB
 {
@@ -50,7 +51,9 @@ public:
             for (size_t i = start; i < start + length; ++i)
             {
                 if (!isNumericASCII(*(rb.position() + i)))
+                {
                     return false;
+                }
             }
             return true;
         };
@@ -63,7 +66,7 @@ public:
         };
         if (!checkNumbericASCII(buf, 0, 4) 
             || !checkDelimiter(buf, 4) 
-            || !checkNumbericASCII(buf, 5, 2) 
+            || !checkNumbericASCII(buf, 5, 2)
             || !checkDelimiter(buf, 7) 
             || !checkNumbericASCII(buf, 8, 2))
             return false;
@@ -112,19 +115,19 @@ public:
             throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s return type must be date32.", name);
         
         using ColVecTo = DB::DataTypeDate32::ColumnType;
-        typename ColVecTo::MutablePtr result_column = ColVecTo::create(size);
+        typename ColVecTo::MutablePtr result_column = ColVecTo::create(size, 0);
         typename ColVecTo::Container & result_container = result_column->getData();
-        DB::ColumnUInt8::MutablePtr null_map = DB::ColumnUInt8::create(size);
+        DB::ColumnUInt8::MutablePtr null_map = DB::ColumnUInt8::create(size, 0);
         typename DB::ColumnUInt8::Container & null_container = null_map->getData();
-        const DateLUTImpl * time_zone = &DateLUT::instance();
+        const DateLUTImpl * local_time_zone = &DateLUT::instance();
+        const DateLUTImpl * utc_time_zone = &DateLUT::instance("UTC");
 
         for (size_t i = 0; i < size; ++i)
         {
             auto str = src_col->getDataAt(i);
-            if (str.size < 10)
+            if (str.size < 4)
             {
                 null_container[i] = true;
-                result_container[i] = 0;
                 continue;
             }
             else
@@ -134,20 +137,17 @@ public:
                 {
                     buf.position() ++;
                 }
-                if(buf.buffer().end() - buf.position() < 10)
+                if(buf.buffer().end() - buf.position() < 4)
                 {
                     null_container[i] = true;
-                    result_container[i] = 0;
                     continue;
                 }
-                if (!checkAndGetDate32(buf, result_container[i], *time_zone))
+                if (!checkAndGetDate32(buf, result_container[i], *local_time_zone))
                 {
-                    null_container[i] = true;
-                    result_container[i] = 0;
-                }
-                else
-                {
-                    null_container[i] = false;
+                    time_t tmp = 0;
+                    bool parsed = tryParseDateTimeBestEffort(tmp, buf, *local_time_zone, *utc_time_zone);
+                    result_container[i] = local_time_zone->toDayNum<time_t>(tmp);
+                    null_container[i] = !parsed;
                 }
             }
         }

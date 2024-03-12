@@ -173,6 +173,11 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(p.child, attributeSeq, expressionsMap),
           p,
           attributeSeq)
+      case i: Inline =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genInlineTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(i.child, attributeSeq, expressionsMap),
+          i)
       case a: Alias =>
         BackendsApiManager.getSparkPlanExecApiInstance.genAliasTransformer(
           substraitExprName,

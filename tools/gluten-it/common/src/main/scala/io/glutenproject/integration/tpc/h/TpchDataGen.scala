@@ -16,10 +16,9 @@
  */
 package io.glutenproject.integration.tpc.h
 
-import io.glutenproject.integration.tpc.{DataGen, NoopModifier, TypeModifier}
+import io.glutenproject.integration.tpc.{DataGen, ShimUtils, TypeModifier}
 
 import org.apache.spark.sql.{Row, SaveMode, SparkSession}
-import org.apache.spark.sql.catalyst.encoders.RowEncoder
 import org.apache.spark.sql.types._
 
 import io.trino.tpch._
@@ -350,7 +349,7 @@ class TpchDataGen(
               modifiedRow
           }
           rows
-      }(RowEncoder(modifiedSchema))
+      }(ShimUtils.getExpressionEncoder(modifiedSchema))
       .write
       .mode(SaveMode.Overwrite)
       .parquet(dir + File.separator + tableName)

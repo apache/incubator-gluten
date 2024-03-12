@@ -43,7 +43,7 @@ import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
-import org.apache.spark.sql.types.{BooleanType, LongType, NullType, StructType}
+import org.apache.spark.sql.types.{LongType, NullType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.lang.{Long => JLong}
@@ -201,6 +201,14 @@ trait SparkPlanExecApi {
 
   /** Transform map_entries to Substrait. */
   def genMapEntriesTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: Expression): ExpressionTransformer = {
+    throw new UnsupportedOperationException("map_entries is not supported")
+  }
+
+  /** Transform inline to Substrait. */
+  def genInlineTransformer(
       substraitExprName: String,
       child: ExpressionTransformer,
       expr: Expression): ExpressionTransformer = {
@@ -500,7 +508,7 @@ trait SparkPlanExecApi {
               frame.frameType.sql
             )
             windowExpressionNodes.add(windowFunctionNode)
-          case wf @ (Lead(_, _, _, _) | Lag(_, _, _, _)) =>
+          case wf @ (_: Lead | _: Lag) =>
             val offsetWf = wf.asInstanceOf[FrameLessOffsetWindowFunction]
             val frame = offsetWf.frame.asInstanceOf[SpecifiedWindowFrame]
             val childrenNodeList = new JArrayList[ExpressionNode]()
@@ -511,11 +519,26 @@ trait SparkPlanExecApi {
                   attributeSeq = originalInputAttributes)
                 .doTransform(args))
             // Spark only accepts foldable offset. Converts it to LongType literal.
-            val offsetNode = ExpressionBuilder.makeLiteral(
-              // Velox always expects positive offset.
-              Math.abs(offsetWf.offset.eval(EmptyRow).asInstanceOf[Int].toLong),
-              LongType,
-              false)
+            var offset = offsetWf.offset.eval(EmptyRow).asInstanceOf[Int]
+            if (wf.isInstanceOf[Lead]) {
+              if (offset < 0) {
+                // Velox always expects non-negative offset.
+                throw new UnsupportedOperationException(
+                  s"${wf.nodeName} does not support negative offset: $offset")
+              }
+            } else {
+              // For Lag
+              // Spark would use `-inputOffset` as offset, so here we forbid positive offset.
+              // Which means the inputOffset is negative.
+              if (offset > 0) {
+                // Velox always expects non-negative offset.
+                throw new UnsupportedOperationException(
+                  s"${wf.nodeName} does not support negative offset: $offset")
+              }
+              // Revert the Spark change and use the original input offset
+              offset = -offset
+            }
+            val offsetNode = ExpressionBuilder.makeLiteral(offset.toLong, LongType, false)
             childrenNodeList.add(offsetNode)
             // NullType means Null is the default value. Don't pass it to native.
             if (offsetWf.default.dataType != NullType) {
@@ -526,9 +549,16 @@ trait SparkPlanExecApi {
                     attributeSeq = originalInputAttributes)
                   .doTransform(args))
             }
-            // Always adds ignoreNulls at the end.
-            childrenNodeList.add(
-              ExpressionBuilder.makeLiteral(offsetWf.ignoreNulls, BooleanType, false))
+            val ignoreNulls = if (offset == 0) {
+              // This is a workaround for Velox backend, because velox has bug if the
+              // ignoreNulls is true and offset is 0.
+              // Logically, if offset is 0 the ignoreNulls is always meaningless, so
+              // this workaround is safe.
+              // TODO, remove this once Velox has fixed it
+              false
+            } else {
+              offsetWf.ignoreNulls
+            }
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
               WindowFunctionsBuilder.create(args, offsetWf).toInt,
               childrenNodeList,
@@ -536,7 +566,8 @@ trait SparkPlanExecApi {
               ConverterUtils.getTypeNode(offsetWf.dataType, offsetWf.nullable),
               WindowExecTransformer.getFrameBound(frame.upper),
               WindowExecTransformer.getFrameBound(frame.lower),
-              frame.frameType.sql
+              frame.frameType.sql,
+              ignoreNulls
             )
             windowExpressionNodes.add(windowFunctionNode)
           case wf @ NthValue(input, offset: Literal, ignoreNulls: Boolean) =>
@@ -547,8 +578,6 @@ trait SparkPlanExecApi {
                 .replaceWithExpressionTransformer(input, attributeSeq = originalInputAttributes)
                 .doTransform(args))
             childrenNodeList.add(LiteralTransformer(offset).doTransform(args))
-            // Always adds ignoreNulls at the end.
-            childrenNodeList.add(ExpressionBuilder.makeLiteral(ignoreNulls, BooleanType, false))
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
               WindowFunctionsBuilder.create(args, wf).toInt,
               childrenNodeList,
@@ -556,7 +585,8 @@ trait SparkPlanExecApi {
               ConverterUtils.getTypeNode(wf.dataType, wf.nullable),
               frame.upper.sql,
               frame.lower.sql,
-              frame.frameType.sql
+              frame.frameType.sql,
+              ignoreNulls
             )
             windowExpressionNodes.add(windowFunctionNode)
           case wf @ NTile(buckets: Expression) =>

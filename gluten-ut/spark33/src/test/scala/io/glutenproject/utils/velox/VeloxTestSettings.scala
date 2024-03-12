@@ -45,7 +45,6 @@ import org.apache.spark.sql.sources.{GlutenBucketedReadWithoutHiveSupportSuite, 
 
 class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenStringFunctionsSuite]
-    .exclude("SPARK-31993: concat_ws in agg function with plenty of string/array types columns")
   enableSuite[GlutenBloomFilterAggregateQuerySuite]
   enableSuite[GlutenDataSourceV2DataFrameSessionCatalogSuite]
   enableSuite[GlutenDataSourceV2DataFrameSuite]
@@ -673,11 +672,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-40128 read DELTA_LENGTH_BYTE_ARRAY encoded strings")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]
-    // Timezone is not supported yet.
-    .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
-    // rewrite
-    .exclude("Various partition value types")
-    .exclude(("Various inferred partition value types"))
   enableSuite[GlutenParquetProtobufCompatibilitySuite]
   enableSuite[GlutenParquetV1QuerySuite]
     // Unsupport spark.sql.files.ignoreCorruptFiles.
@@ -930,9 +924,7 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate",
       // Replaced with another test.
       "SPARK-19471: AggregationIterator does not initialize the generated result projection" +
-        " before using it",
-      // TODO: fix inconsistent behavior.
-      "SPARK-17641: collect functions should not collect null values"
+        " before using it"
     )
   enableSuite[GlutenDataFrameAsOfJoinSuite]
   enableSuite[GlutenDataFrameComplexTypeSuite]
@@ -991,6 +983,16 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeGlutenTest("describe")
   enableSuite[GlutenDataFrameTimeWindowingSuite]
   enableSuite[GlutenDataFrameTungstenSuite]
+  enableSuite[GlutenDataFrameWindowFunctionsSuite]
+    // does not support `spark.sql.legacy.statisticalAggregate=true` (null -> NAN)
+    .exclude("corr, covar_pop, stddev_pop functions in specific window")
+    .exclude("covar_samp, var_samp (variance), stddev_samp (stddev) functions in specific window")
+    // does not support spill
+    .exclude("Window spill with more than the inMemoryThreshold and spillThreshold")
+    .exclude("SPARK-21258: complex object in combination with spilling")
+    // rewrite `WindowExec -> WindowExecTransformer`
+    .exclude(
+      "SPARK-38237: require all cluster keys for child required distribution for window query")
   enableSuite[GlutenDataFrameWindowFramesSuite]
     // Local window fixes are not added.
     .exclude("range between should accept int/long values as boundary")

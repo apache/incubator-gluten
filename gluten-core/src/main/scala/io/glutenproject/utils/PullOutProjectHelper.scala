@@ -83,24 +83,28 @@ trait PullOutProjectHelper {
   protected def copyBaseAggregateExec(agg: BaseAggregateExec)(
       newGroupingExpressions: Seq[NamedExpression] = agg.groupingExpressions,
       newAggregateExpressions: Seq[AggregateExpression] = agg.aggregateExpressions,
+      newAggregateAttributes: Seq[Attribute] = agg.aggregateAttributes,
       newResultExpressions: Seq[NamedExpression] = agg.resultExpressions
   ): BaseAggregateExec = agg match {
     case hash: HashAggregateExec =>
       hash.copy(
         groupingExpressions = newGroupingExpressions,
         aggregateExpressions = newAggregateExpressions,
+        aggregateAttributes = newAggregateAttributes,
         resultExpressions = newResultExpressions
       )
     case sort: SortAggregateExec =>
       sort.copy(
         groupingExpressions = newGroupingExpressions,
         aggregateExpressions = newAggregateExpressions,
+        aggregateAttributes = newAggregateAttributes,
         resultExpressions = newResultExpressions
       )
     case objectHash: ObjectHashAggregateExec =>
       objectHash.copy(
         groupingExpressions = newGroupingExpressions,
         aggregateExpressions = newAggregateExpressions,
+        aggregateAttributes = newAggregateAttributes,
         resultExpressions = newResultExpressions
       )
     case _ =>

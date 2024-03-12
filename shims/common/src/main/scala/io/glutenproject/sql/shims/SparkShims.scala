@@ -18,7 +18,7 @@ package io.glutenproject.sql.shims
 
 import io.glutenproject.expression.Sig
 
-import org.apache.spark.TaskContext
+import org.apache.spark.{SparkContext, TaskContext}
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.scheduler.TaskInfo
 import org.apache.spark.shuffle.{ShuffleHandle, ShuffleReader}
@@ -35,7 +35,7 @@ import org.apache.spark.sql.execution.{FileSourceScanExec, GlobalLimitExec, Spar
 import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex, WriteJobDescription, WriteTaskResult}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
-import org.apache.spark.sql.execution.exchange.ShuffleExchangeLike
+import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
@@ -118,6 +118,15 @@ trait SparkShims {
   def enableNativeWriteFilesByDefault(): Boolean = false
 
   def createTestTaskContext(): TaskContext
+
+  // To be compatible with Spark-3.5 and later
+  // See https://github.com/apache/spark/pull/41440
+  def setJobDescriptionOrTagForBroadcastExchange(
+      sc: SparkContext,
+      broadcastExchange: BroadcastExchangeLike): Unit
+  def cancelJobGroupForBroadcastExchange(
+      sc: SparkContext,
+      broadcastExchange: BroadcastExchangeLike): Unit
 
   def getShuffleReaderParam[K, C](
       handle: ShuffleHandle,
