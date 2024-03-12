@@ -130,8 +130,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenMathExpressionsSuite]
     // Spark round UT for round(3.1415,3) is not correct.
     .exclude("round/bround/floor/ceil")
-    // Need to align with Spark-3.4 for odd size input.
-    .exclude("unhex")
   enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
     .exclude("MonotonicallyIncreasingID")
