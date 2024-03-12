@@ -53,9 +53,8 @@ void VeloxRuntime::parsePlan(
   taskInfo_ = taskInfo;
   if (debugModeEnabled_) {
     try {
-      auto jsonPlan = substraitFromPbToJson("Plan", data, size, dumpFile);
-      LOG(INFO) << std::string(50, '#') << " received substrait::Plan:";
-      LOG(INFO) << taskInfo_ << std::endl << jsonPlan;
+      auto planJson = substraitFromPbToJson("Plan", data, size, dumpFile);
+      LOG(INFO) << std::string(50, '#') << " received substrait::Plan: " << taskInfo_ << std::endl << planJson;
     } catch (const std::exception& e) {
       LOG(WARNING) << "Error converting Substrait plan to JSON: " << e.what();
     }
@@ -67,9 +66,9 @@ void VeloxRuntime::parsePlan(
 void VeloxRuntime::parseSplitInfo(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) {
   if (debugModeEnabled_) {
     try {
-      auto jsonPlan = substraitFromPbToJson("ReadRel.LocalFiles", data, size, dumpFile);
-      LOG(INFO) << std::string(50, '#') << " received substrait::ReadRel.LocalFiles:";
-      LOG(INFO) << std::endl << jsonPlan;
+      auto splitJson = substraitFromPbToJson("ReadRel.LocalFiles", data, size, dumpFile);
+      LOG(INFO) << std::string(50, '#') << " received substrait::ReadRel.LocalFiles: " << taskInfo_ << std::endl
+                << splitJson;
     } catch (const std::exception& e) {
       LOG(WARNING) << "Error converting Substrait plan to JSON: " << e.what();
     }
