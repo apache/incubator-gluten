@@ -25,6 +25,8 @@ import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMerg
 
 import java.io.File
 
+import scala.io.Source
+
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
 
@@ -1198,6 +1200,94 @@ class GlutenClickHouseMergeTreeWriteSuite
          |""".stripMargin
     runTPCHQueryBySQL(1, sqlStr) { _ => {} }
 
+  }
+
+  test("test mergetree table with low cardinality column") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_lowcard;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_lowcard
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |LOCATION '$basePath/lineitem_mergetree_lowcard'
+                 |TBLPROPERTIES('lowCardKey'='l_returnflag,L_LINESTATUS')
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_lowcard
+                 | select * from lineitem
+                 |""".stripMargin)
+
+    val sqlStr =
+      s"""
+         |SELECT
+         |    l_returnflag,
+         |    l_linestatus,
+         |    sum(l_quantity) AS sum_qty,
+         |    sum(l_extendedprice) AS sum_base_price,
+         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
+         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
+         |    avg(l_quantity) AS avg_qty,
+         |    avg(l_extendedprice) AS avg_price,
+         |    avg(l_discount) AS avg_disc,
+         |    count(*) AS count_order
+         |FROM
+         |    lineitem_mergetree_lowcard
+         |WHERE
+         |    l_shipdate <= date'1998-09-02' - interval 1 day
+         |GROUP BY
+         |    l_returnflag,
+         |    l_linestatus
+         |ORDER BY
+         |    l_returnflag,
+         |    l_linestatus;
+         |
+         |""".stripMargin
+    runTPCHQueryBySQL(1, sqlStr) { _ => {} }
+    val directory = new File(s"$basePath/lineitem_mergetree_lowcard")
+    // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
+    val partDir = directory.listFiles().filter(f => f.getName.length > 20).head
+    val columnsFile = new File(partDir, "columns.txt")
+    val columns = Source.fromFile(columnsFile).getLines().mkString
+    assert(columns.contains("`l_returnflag` LowCardinality(Nullable(String))"))
+    assert(columns.contains("`l_linestatus` LowCardinality(Nullable(String))"))
+
+    // test low card column in measure
+    val sqlStr2 =
+      s"""
+         |SELECT
+         |  max(l_returnflag)
+         |FROM
+         |    lineitem_mergetree_lowcard
+         |GROUP BY
+         |    l_linestatus
+         |  order by l_linestatus
+         |
+         |""".stripMargin
+
+    assert(
+      // total rows should remain unchanged
+      spark.sql(sqlStr2).collect().apply(0).get(0) == "R"
+    )
   }
 
 }

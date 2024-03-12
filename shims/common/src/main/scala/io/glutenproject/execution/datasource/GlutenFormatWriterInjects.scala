@@ -42,6 +42,7 @@ trait GlutenFormatWriterInjects {
       database: String,
       tableName: String,
       orderByKeyOption: Option[Seq[String]],
+      lowCardKeyOption: Option[Seq[String]],
       primaryKeyOption: Option[Seq[String]],
       partitionColumns: Seq[String],
       tableSchema: StructType,

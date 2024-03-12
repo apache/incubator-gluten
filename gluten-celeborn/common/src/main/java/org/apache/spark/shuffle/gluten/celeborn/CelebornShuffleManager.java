@@ -242,7 +242,11 @@ public class CelebornShuffleManager implements ShuffleManager {
   @Override
   public boolean unregisterShuffle(int shuffleId) {
     if (columnarShuffleIds.contains(shuffleId)) {
-      return columnarShuffleManager().unregisterShuffle(shuffleId);
+      if (columnarShuffleManager().unregisterShuffle(shuffleId)) {
+        return columnarShuffleIds.remove(shuffleId);
+      } else {
+        return false;
+      }
     }
     if (appUniqueId == null) {
       return true;

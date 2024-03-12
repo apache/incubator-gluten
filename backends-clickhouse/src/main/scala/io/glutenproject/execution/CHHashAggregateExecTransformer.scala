@@ -358,6 +358,12 @@ case class CHHashAggregateExecTransformer(
               (makeStructType(fields), attr.nullable)
             case expr if "bloom_filter_agg".equals(expr.prettyName) =>
               (makeStructTypeSingleOne(expr.children.head.dataType, attr.nullable), attr.nullable)
+            case cd: CountDistinct =>
+              var fields = Seq[(DataType, Boolean)]()
+              for (child <- cd.children) {
+                fields = fields :+ (child.dataType, child.nullable)
+              }
+              (makeStructType(fields), false)
             case _ =>
               (makeStructTypeSingleOne(attr.dataType, attr.nullable), attr.nullable)
           }

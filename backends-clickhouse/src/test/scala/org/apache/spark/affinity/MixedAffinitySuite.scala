@@ -58,6 +58,7 @@ class MixedAffinitySuite extends QueryTest with SharedSparkSession {
         "fakePath2",
         "",
         "",
+        "",
         Array(file),
         "",
         Map.empty)

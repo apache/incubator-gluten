@@ -17,6 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.execution.AllDataTypesWithComplexType.genTestData
 import io.glutenproject.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
@@ -26,8 +27,6 @@ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.test.SharedSparkSession
 
 import org.scalatest.BeforeAndAfterAll
-
-import java.sql.{Date, Timestamp}
 
 class GlutenClickHouseNativeWriteTableSuite
   extends GlutenClickHouseWholeStageTransformerSuite
@@ -89,41 +88,6 @@ class GlutenClickHouseNativeWriteTableSuite
   private val table_name_template = "hive_%s_test"
   private val table_name_vanilla_template = "hive_%s_test_written_by_vanilla"
   private val formats = Array("orc", "parquet")
-
-  def genTestData(): Seq[AllDataTypesWithComplextType] = {
-    (0 to 199).map {
-      i =>
-        if (i % 100 == 1) {
-          AllDataTypesWithComplextType()
-        } else {
-          AllDataTypesWithComplextType(
-            s"$i",
-            i,
-            i.toLong,
-            i.toFloat,
-            i.toDouble,
-            i.toShort,
-            i.toByte,
-            i % 2 == 0,
-            new java.math.BigDecimal(i + ".56"),
-            Date.valueOf(new Date(System.currentTimeMillis()).toLocalDate.plusDays(i % 10)),
-            Timestamp.valueOf(
-              new Timestamp(System.currentTimeMillis()).toLocalDateTime.plusDays(i % 10)),
-            Seq.apply(i + 1, i + 2, i + 3),
-            Seq.apply(Option.apply(i + 1), Option.empty, Option.apply(i + 3)),
-            Map.apply((i + 1, i + 2), (i + 3, i + 4)),
-            Map.empty
-          )
-        }
-    }
-  }
-
-  protected def initializeTable(table_name: String, table_create_sql: String): Unit = {
-    spark.createDataFrame(genTestData()).createOrReplaceTempView("tmp_t")
-    spark.sql(s"drop table IF EXISTS $table_name")
-    spark.sql(table_create_sql)
-    spark.sql("insert into %s select * from tmp_t".format(table_name))
-  }
 
   override protected def afterAll(): Unit = {
     DeltaLog.clearCache()

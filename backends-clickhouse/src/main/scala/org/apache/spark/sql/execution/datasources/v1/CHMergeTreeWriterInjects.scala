@@ -67,6 +67,7 @@ class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
       database: String,
       tableName: String,
       orderByKeyOption: Option[Seq[String]],
+      lowCardKeyOption: Option[Seq[String]],
       primaryKeyOption: Option[Seq[String]],
       partitionColumns: Seq[String],
       tableSchema: StructType,
@@ -81,6 +82,7 @@ class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
       database,
       tableName,
       orderByKeyOption,
+      lowCardKeyOption,
       primaryKeyOption,
       partitionColumns,
       ConverterUtils.convertNamedStructJson(tableSchema),
@@ -122,6 +124,7 @@ object CHMergeTreeWriterInjects {
       database: String,
       tableName: String,
       orderByKeyOption: Option[Seq[String]],
+      lowCardKeyOption: Option[Seq[String]],
       primaryKeyOption: Option[Seq[String]],
       partitionColumns: Seq[String],
       tableSchemaJson: String,
@@ -143,6 +146,11 @@ object CHMergeTreeWriterInjects {
       primaryKeyOption
     )
 
+    val lowCardKey = lowCardKeyOption match {
+      case Some(keys) => keys.mkString(",")
+      case None => ""
+    }
+
     val substraitContext = new SubstraitContext
     val extensionTableNode = ExtensionTableBuilder.makeExtensionTable(
       -1,
@@ -152,6 +160,7 @@ object CHMergeTreeWriterInjects {
       path,
       "",
       orderByKey,
+      lowCardKey,
       primaryKey,
       new JList[String](),
       new JList[JLong](),
