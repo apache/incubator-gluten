@@ -69,6 +69,11 @@ object MergeTreePartsPartitionsUtil extends Logging {
     val (orderByKey, primaryKey) =
       MergeTreeDeltaUtil.genOrderByAndPrimaryKeyStr(table.orderByKeyOption, table.primaryKeyOption)
 
+    val lowCardKey = table.lowCardKeyOption match {
+      case Some(keys) => keys.mkString(",")
+      case None => ""
+    }
+
     val tableSchemaJson = ConverterUtils.convertNamedStructJson(table.schema())
 
     // bucket table
@@ -86,6 +91,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
         tableSchemaJson,
         partitions,
         orderByKey,
+        lowCardKey,
         primaryKey,
         table.clickhouseTableConfigs,
         sparkSession
@@ -102,6 +108,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
         tableSchemaJson,
         partitions,
         orderByKey,
+        lowCardKey,
         primaryKey,
         table.clickhouseTableConfigs,
         sparkSession
@@ -121,6 +128,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       tableSchemaJson: String,
       partitions: ArrayBuffer[InputPartition],
       orderByKey: String,
+      lowCardKey: String,
       primaryKey: String,
       clickhouseTableConfigs: Map[String, String],
       sparkSession: SparkSession): Unit = {
@@ -205,6 +213,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
           relativeTablePath,
           absoluteTablePath,
           orderByKey,
+          lowCardKey,
           primaryKey,
           currentFiles.toArray,
           tableSchemaJson,
@@ -246,6 +255,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       tableSchemaJson: String,
       partitions: ArrayBuffer[InputPartition],
       orderByKey: String,
+      lowCardKey: String,
       primaryKey: String,
       clickhouseTableConfigs: Map[String, String],
       sparkSession: SparkSession): Unit = {
@@ -307,6 +317,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
             relativeTablePath,
             absoluteTablePath,
             orderByKey,
+            lowCardKey,
             primaryKey,
             currentFiles.toArray,
             tableSchemaJson,

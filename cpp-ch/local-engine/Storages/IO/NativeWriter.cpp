@@ -23,6 +23,7 @@
 #include <Storages/IO/AggregateSerializationUtils.h>
 #include <Functions/FunctionHelpers.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
+#include <DataTypes/DataTypeLowCardinality.h>
 
 
 using namespace DB;
@@ -72,6 +73,7 @@ size_t NativeWriter::write(const DB::Block & block)
         auto column = block.safeGetByPosition(i);
         /// agg state will convert to fixedString, need write actual agg state type
         auto original_type = header.safeGetByPosition(i).type;
+        original_type = recursiveRemoveLowCardinality(original_type);
         /// Type
         String type_name = original_type->getName();
         bool is_agg_opt = WhichDataType(original_type).isAggregateFunction()
@@ -85,8 +87,9 @@ size_t NativeWriter::write(const DB::Block & block)
             writeStringBinary(type_name, ostr);
         }
 
-        SerializationPtr serialization = column.type->getDefaultSerialization();
         column.column = recursiveRemoveSparse(column.column);
+        column.column = recursiveRemoveLowCardinality(column.column);
+        SerializationPtr serialization = recursiveRemoveLowCardinality(column.type)->getDefaultSerialization();
         /// Data
         if (rows)    /// Zero items of data is always represented as zero number of bytes.
         {

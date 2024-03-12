@@ -50,6 +50,7 @@ struct MergeTreeTable
     std::string table;
     substrait::NamedStruct schema;
     std::string order_by_key;
+    std::string low_card_key;
     std::string primary_key = "";
     std::string relative_path;
     std::string absolute_path;

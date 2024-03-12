@@ -42,7 +42,8 @@ public:
         return parseType(substrait_type, nullptr);
     }
 
-    static DB::Block buildBlockFromNamedStruct(const substrait::NamedStruct & struct_);
+    // low_card_cols is in format of "cola,colb". Currently does not nested column to be LowCardinality.
+    static DB::Block buildBlockFromNamedStruct(const substrait::NamedStruct & struct_,  const std::string& low_card_cols = "");
 
     /// Build block from substrait NamedStruct without DFS rules, different from buildBlockFromNamedStruct
     static DB::Block buildBlockFromNamedStructWithoutDFS(const substrait::NamedStruct & struct_);
