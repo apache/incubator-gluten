@@ -111,6 +111,8 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
       } else if (isOrcFormat) {
         val orcOptions = new OrcOptions(options, sparkSession.sessionState.conf)
         orcOptions.compressionCodec
+      } else {
+        null
       }
       val nativeConf = if (isParquetFormat) {
         logInfo("Use Gluten parquet write for hive")
