@@ -207,7 +207,9 @@ Currently there are several ways to asscess S3 in Spark. Please refer [Velox S3]
 
 ## Celeborn support
 
-Gluten with velox backend supports [Celeborn](https://github.com/apache/incubator-celeborn) as remote shuffle service. Below introduction is used to enable this feature
+Gluten with velox backend supports [Celeborn](https://github.com/apache/incubator-celeborn) as remote shuffle service. Currently, the supported Celeborn versions are `0.3.x` and `0.4.0`.
+
+Below introduction is used to enable this feature
 
 First refer to this URL(https://github.com/apache/incubator-celeborn) to setup a celeborn cluster.
 

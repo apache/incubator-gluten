@@ -29,12 +29,14 @@ class CHCelebornHashBasedColumnarShuffleWriterFactory extends CelebornShuffleWri
   override def backendName(): String = CHBackend.BACKEND_NAME
 
   override def createShuffleWriterInstance[K, V](
+      shuffleId: Int,
       handle: CelebornShuffleHandle[K, V, V],
       context: TaskContext,
       celebornConf: CelebornConf,
       client: ShuffleClient,
       writeMetrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
     new CHCelebornHashBasedColumnarShuffleWriter[K, V](
+      shuffleId,
       handle,
       context,
       celebornConf,

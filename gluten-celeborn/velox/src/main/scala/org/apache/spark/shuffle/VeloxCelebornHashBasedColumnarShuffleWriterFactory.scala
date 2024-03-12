@@ -29,12 +29,14 @@ class VeloxCelebornHashBasedColumnarShuffleWriterFactory extends CelebornShuffle
   override def backendName(): String = VeloxBackend.BACKEND_NAME
 
   override def createShuffleWriterInstance[K, V](
+      shuffleId: Int,
       handle: CelebornShuffleHandle[K, V, V],
       context: TaskContext,
       celebornConf: CelebornConf,
       client: ShuffleClient,
       writeMetrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
     new VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
+      shuffleId,
       handle,
       context,
       celebornConf,
