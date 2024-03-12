@@ -714,51 +714,75 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  test("test posexplode function") {
-    runQueryAndCompare("""
-                         |SELECT posexplode(array(1, 2, 3));
-                         |""".stripMargin) {
-      checkOperatorMatch[GenerateExecTransformer]
-    }
-    runQueryAndCompare("""
-                         |SELECT posexplode(map(1, 'a', 2, 'b'));
-                         |""".stripMargin) {
-      checkOperatorMatch[GenerateExecTransformer]
-    }
-    runQueryAndCompare(
-      """
-        |SELECT posexplode(array(map(1, 'a', 2, 'b'), map(3, 'c', 4, 'd'), map(5, 'e', 6, 'f')));
-        |""".stripMargin) {
-      checkOperatorMatch[GenerateExecTransformer]
-    }
-    runQueryAndCompare("""
-                         |SELECT posexplode(map(1, array(1, 2), 2, array(3, 4)));
-                         |""".stripMargin) {
-      checkOperatorMatch[GenerateExecTransformer]
-    }
-  }
+  test("test explode/posexplode function") {
+    Seq("explode", "posexplode").foreach {
+      func =>
+        // Literal: func(literal)
+        runQueryAndCompare(s"""
+                              |SELECT $func(array(1, 2, 3));
+                              |""".stripMargin) {
+          checkOperatorMatch[GenerateExecTransformer]
+        }
+        runQueryAndCompare(s"""
+                              |SELECT $func(map(1, 'a', 2, 'b'));
+                              |""".stripMargin) {
+          checkOperatorMatch[GenerateExecTransformer]
+        }
+        runQueryAndCompare(
+          s"""
+             |SELECT $func(array(map(1, 'a', 2, 'b'), map(3, 'c', 4, 'd'), map(5, 'e', 6, 'f')));
+             |""".stripMargin) {
+          checkOperatorMatch[GenerateExecTransformer]
+        }
+        runQueryAndCompare(s"""
+                              |SELECT $func(map(1, array(1, 2), 2, array(3, 4)));
+                              |""".stripMargin) {
+          checkOperatorMatch[GenerateExecTransformer]
+        }
 
-  test("test explode function") {
-    runQueryAndCompare("""
-                         |SELECT explode(array(1, 2, 3));
-                         |""".stripMargin) {
-      checkOperatorMatch[GenerateExecTransformer]
-    }
-    runQueryAndCompare("""
-                         |SELECT explode(map(1, 'a', 2, 'b'));
-                         |""".stripMargin) {
-      checkOperatorMatch[GenerateExecTransformer]
-    }
-    runQueryAndCompare(
-      """
-        |SELECT explode(array(map(1, 'a', 2, 'b'), map(3, 'c', 4, 'd'), map(5, 'e', 6, 'f')));
-        |""".stripMargin) {
-      checkOperatorMatch[GenerateExecTransformer]
-    }
-    runQueryAndCompare("""
-                         |SELECT explode(map(1, array(1, 2), 2, array(3, 4)));
-                         |""".stripMargin) {
-      checkOperatorMatch[GenerateExecTransformer]
+        // CreateArray/CreateMap: func(array(col)), func(map(k, v))
+        withTempView("t1") {
+          sql("""select * from values (1), (2), (3), (4)
+                |as tbl(a)
+         """.stripMargin).createOrReplaceTempView("t1")
+          runQueryAndCompare(s"""
+                                |SELECT $func(array(a)) from t1;
+                                |""".stripMargin) {
+            checkOperatorMatch[GenerateExecTransformer]
+          }
+          sql("""select * from values (1, 'a'), (2, 'b'), (3, null), (4, null)
+                |as tbl(a, b)
+         """.stripMargin).createOrReplaceTempView("t1")
+          runQueryAndCompare(s"""
+                                |SELECT $func(map(a, b)) from t1;
+                                |""".stripMargin) {
+            checkOperatorMatch[GenerateExecTransformer]
+          }
+        }
+
+        // AttributeReference: func(col)
+        withTempView("t2") {
+          sql("""select * from values
+                |  array(1, 2, 3),
+                |  array(4, null)
+                |as tbl(a)
+         """.stripMargin).createOrReplaceTempView("t2")
+          runQueryAndCompare(s"""
+                                |SELECT $func(a) from t2;
+                                |""".stripMargin) {
+            checkOperatorMatch[GenerateExecTransformer]
+          }
+          sql("""select * from values
+                |  map(1, 'a', 2, 'b', 3, null),
+                |  map(4, null)
+                |as tbl(a)
+         """.stripMargin).createOrReplaceTempView("t2")
+          runQueryAndCompare(s"""
+                                |SELECT $func(a) from t2;
+                                |""".stripMargin) {
+            checkOperatorMatch[GenerateExecTransformer]
+          }
+        }
     }
   }
 

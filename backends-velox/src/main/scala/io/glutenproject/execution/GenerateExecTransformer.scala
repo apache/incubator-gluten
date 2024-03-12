@@ -68,22 +68,14 @@ case class GenerateExecTransformer(
     generator match {
       case _: JsonTuple =>
         ValidationResult.notOk(s"Velox backend does not support this json_tuple")
-      case e: ExplodeBase =>
-        e.child match {
-          case _: CreateMap =>
-            // explode(MAP(col1, col2))
-            ValidationResult.notOk(
-              s"Velox backend does not support explode/posexplode with CreateMap")
-          case _ =>
-            // AttributeReference / Literal
-            ValidationResult.ok
-        }
+      case _: ExplodeBase =>
+        ValidationResult.ok
       case Inline(child) =>
         child match {
           case AttributeReference(_, ArrayType(_: StructType, _), _, _) =>
             ValidationResult.ok
           case _ =>
-            // TODO: Support Literal.
+            // TODO: Support Literal/CreateArray.
             ValidationResult.notOk(
               s"Velox backend does not support inline with expression " +
                 s"${child.getClass.getSimpleName}.")
