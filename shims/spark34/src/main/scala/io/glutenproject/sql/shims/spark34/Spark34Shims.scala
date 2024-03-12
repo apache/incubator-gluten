@@ -180,7 +180,7 @@ class Spark34Shims extends SparkShims {
       }
     }
 
-    // TODO row_index metadata support
+    // TODO: row_index metadata support
     metadataColumn
   }
 

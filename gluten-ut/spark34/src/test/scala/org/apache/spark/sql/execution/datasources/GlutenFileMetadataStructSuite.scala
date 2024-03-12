@@ -16,9 +16,8 @@
  */
 package org.apache.spark.sql.execution.datasources
 
-import io.glutenproject.execution.FilterExecTransformerBase
+import io.glutenproject.execution.{FileSourceScanExecTransformer, FilterExecTransformer}
 import io.glutenproject.utils.BackendTestUtils
-
 import org.apache.spark.sql.{Column, DataFrame, Row}
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
@@ -27,6 +26,7 @@ import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructFiel
 
 import java.io.File
 import java.sql.Timestamp
+import scala.reflect.ClassTag
 
 class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenSQLTestsBaseTrait {
 
@@ -91,6 +91,11 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
     }
   }
 
+  def checkOperatorMatch[T](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
+    val executedPlan = getExecutedPlan(df)
+    assert(executedPlan.exists(plan => plan.getClass == tag.runtimeClass))
+  }
+
   metadataColumnsNativeTest(
     "plan check with metadata and user data select",
     schemaWithFilePathField) {
@@ -102,14 +107,10 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
         METADATA_FILE_MODIFICATION_TIME,
         "age")
       dfWithMetadata.collect
-      var fileScan = dfWithMetadata.queryExecution.executedPlan.collect {
-        case f: FileSourceScanExec => f
-      }
-      assert(fileScan.size == 1)
       if (BackendTestUtils.isVeloxBackendLoaded()) {
-        assert(fileScan(0).nodeNamePrefix == "NativeFile")
+        checkOperatorMatch[FileSourceScanExecTransformer](dfWithMetadata)
       } else {
-        assert(fileScan(0).nodeNamePrefix == "File")
+        checkOperatorMatch[FileSourceScanExec](dfWithMetadata)
       }
 
       // would fallback
@@ -121,10 +122,7 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
           Row(f1(METADATA_FILE_PATH), "lily")
         )
       )
-      fileScan = dfWithMetadata.queryExecution.executedPlan.collect {
-        case f: FileSourceScanExec => f
-      }
-      assert(fileScan(0).nodeNamePrefix == "File")
+      checkOperatorMatch[FileSourceScanExec](dfWithMetadata)
   }
 
   metadataColumnsNativeTest("plan check with metadata filter", schemaWithFilePathField) {
@@ -134,19 +132,12 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
         .where(Column(METADATA_FILE_NAME) === f0((METADATA_FILE_NAME)))
       val ret = filterDF.collect
       assert(ret.size == 1)
-      var fileScan = filterDF.queryExecution.executedPlan.collect {
-        case f: FileSourceScanExec => f
-      }
-      assert(fileScan.size == 1)
       if (BackendTestUtils.isVeloxBackendLoaded()) {
-        assert(fileScan(0).nodeNamePrefix == "NativeFile")
+        checkOperatorMatch[FileSourceScanExecTransformer](filterDF)
       } else {
-        assert(fileScan(0).nodeNamePrefix == "File")
+        checkOperatorMatch[FileSourceScanExec](filterDF)
       }
-      var filterExecs = filterDF.queryExecution.executedPlan.collect {
-        case filter: FilterExecTransformerBase => filter
-      }
-      assert(filterExecs.size == 1)
+      checkOperatorMatch[FilterExecTransformer](filterDF)
 
       // case to check if file_path is URI string
       filterDF =
@@ -157,11 +148,11 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
           Row(f1(METADATA_FILE_PATH))
         )
       )
-      fileScan = filterDF.queryExecution.executedPlan.collect { case f: FileSourceScanExec => f }
-      assert(fileScan(0).nodeNamePrefix == "NativeFile")
-      filterExecs = filterDF.queryExecution.executedPlan.collect {
-        case filter: FilterExecTransformerBase => filter
+      if (BackendTestUtils.isVeloxBackendLoaded()) {
+        checkOperatorMatch[FileSourceScanExecTransformer](filterDF)
+      } else {
+        checkOperatorMatch[FileSourceScanExec](filterDF)
       }
-      assert(filterExecs.size == 1)
+      checkOperatorMatch[FilterExecTransformer](filterDF)
   }
 }
