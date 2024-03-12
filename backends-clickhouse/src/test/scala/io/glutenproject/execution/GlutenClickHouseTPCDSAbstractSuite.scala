@@ -39,17 +39,8 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
   private var _spark: SparkSession = _
 
   override protected def spark: SparkSession = _spark
-  override protected val backend: String = "ch"
-  override protected val resourcePath: String = UTSystemParameters.getTpcdsDataPath() + "/"
-  override protected val fileFormat: String = "parquet"
 
-  protected val rootPath: String = getClass.getResource("/").getPath
-  protected val basePath: String = rootPath + "unit-tests-working-home"
-
-  protected val warehouse: String = basePath + "/spark-warehouse"
-  protected val metaStorePathAbsolute: String = basePath + "/meta"
-
-  protected val tablesPath: String = resourcePath
+  protected val tablesPath: String = UTSystemParameters.getTpcdsDataPath() + "/"
   protected val tpcdsQueries: String
   protected val queriesResults: String
 
@@ -112,14 +103,6 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
   }
 
   override def beforeAll(): Unit = {
-    // prepare working paths
-    val basePathDir = new File(basePath)
-    if (basePathDir.exists()) {
-      FileUtils.forceDelete(basePathDir)
-    }
-    FileUtils.forceMkdir(basePathDir)
-    FileUtils.forceMkdir(new File(warehouse))
-    FileUtils.forceMkdir(new File(metaStorePathAbsolute))
     super.beforeAll()
     spark.sparkContext.setLogLevel("WARN")
     createTPCDSTables()
@@ -135,11 +118,11 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
     }
   }
 
-  override protected def createTPCHNotNullTables(): Unit = {}
+//  override protected def createTPCHNotNullTables(): Unit = {}
 
   protected def createTPCDSTables(): Unit = {
     val parquetTables =
-      GenTPCDSTableScripts.genTPCDSParquetTables("tpcdsdb", resourcePath, "", "")
+      GenTPCDSTableScripts.genTPCDSParquetTables("tpcdsdb", tablesPath, "", "")
 
     for (sql <- parquetTables) {
       spark.sql(sql)

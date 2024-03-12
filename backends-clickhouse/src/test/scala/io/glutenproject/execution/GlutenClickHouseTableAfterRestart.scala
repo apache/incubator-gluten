@@ -34,8 +34,7 @@ class GlutenClickHouseTableAfterRestart
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
 
-  override protected val resourcePath: String =
-    "../../../../gluten-core/src/test/resources/tpch-data"
+  override protected val needCopyParquetToTablePath = true
 
   override protected val tablesPath: String = basePath + "/tpch-data"
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
@@ -66,7 +65,7 @@ class GlutenClickHouseTableAfterRestart
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
-    createTPCHParquetTables(tablesPath)
+    createNotNullTPCHTablesInParquet(tablesPath)
   }
 
   private var _hiveSpark: SparkSession = _
@@ -184,7 +183,7 @@ class GlutenClickHouseTableAfterRestart
     }
 
     // now restart
-    ClickHouseTableV2.deltaLog2Table.clear()
+    ClickHouseTableV2.clearCache()
     ClickhouseSnapshot.clearAllFileStatusCache()
 
     val oldMissingCount1 = ClickhouseSnapshot.deltaScanCache.stats().missCount()

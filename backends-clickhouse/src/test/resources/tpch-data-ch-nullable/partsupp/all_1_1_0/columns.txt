@@ -1,7 +1,0 @@
-columns format version: 1
-5 columns:
-`ps_partkey` Nullable(Int64)
-`ps_suppkey` Nullable(Int64)
-`ps_availqty` Nullable(Int64)
-`ps_supplycost` Float32
-`ps_comment` Nullable(String)

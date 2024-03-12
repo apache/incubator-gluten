@@ -244,12 +244,43 @@ class ClickHouseTableV2(
       clickhouseTableConfigs,
       partitionColumns)
   }
+  def cacheThis(): Unit = {
+    deltaLog2Table.put(deltaLog, this)
+  }
 
-  deltaLog2Table.put(deltaLog, this)
+  cacheThis()
+}
+
+class TempClickHouseTableV2(
+    override val spark: SparkSession,
+    override val catalogTable: Option[CatalogTable] = None)
+  extends ClickHouseTableV2(spark, null, catalogTable) {
+  import collection.JavaConverters._
+  override def properties(): ju.Map[String, String] = catalogTable.get.properties.asJava
+  override lazy val partitionColumns: Seq[String] = catalogTable.get.partitionColumnNames
+  override def cacheThis(): Unit = {}
 }
 
 object ClickHouseTableV2 extends Logging {
-  val deltaLog2Table = new scala.collection.concurrent.TrieMap[DeltaLog, ClickHouseTableV2]()
+  private val deltaLog2Table =
+    new scala.collection.concurrent.TrieMap[DeltaLog, ClickHouseTableV2]()
+  // for CTAS use
+  val temporalThreadLocalCHTable = new ThreadLocal[ClickHouseTableV2]()
+
+  def getTable(deltaLog: DeltaLog): ClickHouseTableV2 = {
+    if (deltaLog2Table.contains(deltaLog)) {
+      deltaLog2Table(deltaLog)
+    } else if (temporalThreadLocalCHTable.get() != null) {
+      temporalThreadLocalCHTable.get()
+    } else {
+      throw new IllegalStateException("Can not find ClickHouseTableV2")
+    }
+  }
+
+  def clearCache(): Unit = {
+    deltaLog2Table.clear()
+    temporalThreadLocalCHTable.remove()
+  }
 
   def partsPartitions(
       deltaLog: DeltaLog,
@@ -260,7 +291,7 @@ object ClickHouseTableV2 extends Logging {
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
       disableBucketedScan: Boolean): Seq[InputPartition] = {
-    val tableV2 = ClickHouseTableV2.deltaLog2Table(deltaLog)
+    val tableV2 = ClickHouseTableV2.getTable(deltaLog)
 
     MergeTreePartsPartitionsUtil.getMergeTreePartsPartitions(
       relation,

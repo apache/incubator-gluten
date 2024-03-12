@@ -24,10 +24,6 @@ import org.apache.spark.SparkConf
 
 class GlutenClickHouseNativeExceptionSuite extends GlutenClickHouseWholeStageTransformerSuite {
 
-  override protected val backend: String = "ch"
-  override protected val fileFormat: String = "parquet"
-  override protected val resourcePath: String = ""
-
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())

@@ -28,9 +28,7 @@ import org.apache.commons.io.FileUtils
 import java.io.File
 
 class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
-
-  override protected val resourcePath: String =
-    "../../../../gluten-core/src/test/resources/tpch-data"
+  override protected val needCopyParquetToTablePath = true
 
   override protected val tablesPath: String = basePath + "/tpch-data"
   override protected val tpchQueries: String =
@@ -38,7 +36,7 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
   override protected val queriesResults: String = rootPath + "queries-output"
 
   override protected def createTPCHNotNullTables(): Unit = {
-    createTPCHParquetTables(tablesPath)
+    createNotNullTPCHTablesInParquet(tablesPath)
   }
 
   private var _hiveSpark: SparkSession = _

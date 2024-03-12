@@ -69,7 +69,7 @@ class GlutenClickHouseTPCHBucketSuite
       "../../../../gluten-core/src/test/resources/tpch-data"
     FileUtils.copyDirectory(new File(rootPath + parquetTableDataPath), new File(parquetTablePath))
 
-    createTPCHParquetTables(parquetTablePath)
+    createNotNullTPCHTablesInParquet(parquetTablePath)
 
     spark.sql(s"""
                  |CREATE DATABASE IF NOT EXISTS tpch_mergetree_bucket

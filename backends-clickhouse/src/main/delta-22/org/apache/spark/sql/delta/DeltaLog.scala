@@ -562,7 +562,7 @@ class DeltaLog private (
   }
 
   override def fileFormat(metadata: Metadata = metadata): FileFormat =
-    ClickHouseTableV2.deltaLog2Table(this).getFileFormat(metadata)
+    ClickHouseTableV2.getTable(this).getFileFormat(metadata)
 }
 
 object DeltaLog extends DeltaLogging {
