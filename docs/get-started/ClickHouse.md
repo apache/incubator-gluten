@@ -106,7 +106,7 @@ In case you don't want a develop environment, you can use the following command 
 
 ```
 git clone https://github.com/apache/incubator-gluten.git
-cd gluten
+cd incubator-gluten
 bash ./ep/build-clickhouse/src/build_clickhouse.sh
 ```
 
@@ -123,7 +123,7 @@ The prerequisites are the same as the one mentioned above. Compile Gluten with C
 
 ```
     git clone https://github.com/apache/incubator-gluten.git
-    cd gluten/
+    cd incubator-gluten/
     export MAVEN_OPTS="-Xmx8g -XX:ReservedCodeCacheSize=2g"
     mvn clean install -Pbackends-clickhouse -Phadoop-2.7.4 -Pspark-3.2 -Dhadoop.version=2.8.5 -DskipTests -Dcheckstyle.skip
     ls -al backends-clickhouse/target/gluten-XXXXX-spark-3.2-jar-with-dependencies.jar
@@ -133,7 +133,7 @@ The prerequisites are the same as the one mentioned above. Compile Gluten with C
 
 ```
     git clone https://github.com/apache/incubator-gluten.git
-    cd gluten/
+    cd incubator-gluten/
     export MAVEN_OPTS="-Xmx8g -XX:ReservedCodeCacheSize=2g"
     mvn clean install -Pbackends-clickhouse -Phadoop-2.7.4 -Pspark-3.3 -Dhadoop.version=2.8.5 -DskipTests -Dcheckstyle.skip
     ls -al backends-clickhouse/target/gluten-XXXXX-spark-3.3-jar-with-dependencies.jar

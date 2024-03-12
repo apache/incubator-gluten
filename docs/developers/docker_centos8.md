@@ -42,7 +42,7 @@ export MAVEN_HOME=/usr/lib/maven
 export PATH=${PATH}:${MAVEN_HOME}/bin
 
 git clone https://github.com/apache/incubator-gluten.git
-cd gluten
+cd incubator-gluten
 
 # To access HDFS or S3, you need to add the parameters `--enable_hdfs=ON` and `--enable_s3=ON`
 ./dev/buildbundle-veloxbe.sh
