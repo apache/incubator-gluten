@@ -43,6 +43,8 @@ public class ExtensionTableNode implements SplitInfo {
 
   private String primaryKey;
 
+  private String lowCardKey;
+
   private List<String> partList;
   private List<Long> starts;
   private List<Long> lengths;
@@ -57,6 +59,7 @@ public class ExtensionTableNode implements SplitInfo {
       String relativePath,
       String absolutePath,
       String orderByKey,
+      String lowCardKey,
       String primaryKey,
       List<String> partList,
       List<Long> starts,
@@ -76,6 +79,7 @@ public class ExtensionTableNode implements SplitInfo {
     this.absolutePath = absolutePath;
     this.tableSchemaJson = tableSchemaJson;
     this.orderByKey = orderByKey;
+    this.lowCardKey = lowCardKey;
     this.primaryKey = primaryKey;
     this.partList = partList;
     this.starts = starts;
@@ -110,6 +114,7 @@ public class ExtensionTableNode implements SplitInfo {
     if (!this.orderByKey.isEmpty() && !this.orderByKey.equals("tuple()")) {
       extensionTableStr.append(this.primaryKey).append("\n");
     }
+    extensionTableStr.append(this.lowCardKey).append("\n");
     extensionTableStr.append(this.relativePath).append("\n");
     extensionTableStr.append(this.absolutePath).append("\n");
 

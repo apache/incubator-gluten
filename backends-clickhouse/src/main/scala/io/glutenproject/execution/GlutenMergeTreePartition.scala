@@ -38,6 +38,7 @@ case class GlutenMergeTreePartition(
     relativeTablePath: String,
     absoluteTablePath: String,
     orderByKey: String,
+    lowCardKey: String,
     primaryKey: String,
     partList: Array[MergeTreePartSplit],
     tableSchemaJson: String,

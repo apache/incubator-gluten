@@ -97,6 +97,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
             p.relativeTablePath,
             p.absoluteTablePath,
             p.orderByKey,
+            p.lowCardKey,
             p.primaryKey,
             partLists,
             starts,

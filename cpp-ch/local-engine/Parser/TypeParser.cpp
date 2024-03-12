@@ -43,8 +43,8 @@ namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int UNKNOWN_TYPE;
-    extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
+extern const int UNKNOWN_TYPE;
+extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
 }
 }
 
@@ -238,8 +238,13 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
 }
 
 
-DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & struct_)
+DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & struct_, const std::string & low_card_cols)
 {
+    std::unordered_set<std::string> low_card_columns;
+    Poco::StringTokenizer tokenizer(low_card_cols, ",");
+    for (const auto & token : tokenizer)
+        low_card_columns.insert(token);
+
     DB::ColumnsWithTypeAndName internal_cols;
     internal_cols.reserve(struct_.names_size());
     std::list<std::string> field_names;
@@ -251,6 +256,11 @@ DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & s
         auto name = field_names.front();
         const auto & substrait_type = struct_.struct_().types(i);
         auto ch_type = parseType(substrait_type, &field_names);
+
+        if (low_card_columns.contains(name))
+        {
+            ch_type = std::make_shared<DB::DataTypeLowCardinality>(ch_type);
+        }
 
         // This is a partial aggregate data column.
         // It's type is special, must be a struct type contains all arguments types.
@@ -271,8 +281,8 @@ DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & s
             auto agg_function_name = function_parser->getCHFunctionName(args_types);
             auto action = NullsAction::EMPTY;
             ch_type = AggregateFunctionFactory::instance()
-                            .get(agg_function_name, action, args_types, function_parser->getDefaultFunctionParameters(), properties)
-                            ->getStateType();
+                      .get(agg_function_name, action, args_types, function_parser->getDefaultFunctionParameters(), properties)
+                      ->getStateType();
         }
 
         internal_cols.push_back(ColumnWithTypeAndName(ch_type, name));
@@ -295,7 +305,7 @@ DB::Block TypeParser::buildBlockFromNamedStructWithoutDFS(const substrait::Named
     for (int i = 0; i < size; ++i)
     {
         const auto & name = names[i];
-        const auto & type =  types[i];
+        const auto & type = types[i];
         auto ch_type = parseType(type);
         columns.emplace_back(ColumnWithTypeAndName(ch_type, name));
     }

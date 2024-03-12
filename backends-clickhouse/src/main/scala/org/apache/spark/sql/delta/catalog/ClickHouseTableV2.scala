@@ -113,6 +113,27 @@ class ClickHouseTableV2(
     }
   }
 
+  lazy val lowCardKeyOption: Option[Seq[String]] = {
+    val tableProperties = properties()
+    if (tableProperties.containsKey("lowCardKey")) {
+      if (tableProperties.get("lowCardKey").nonEmpty) {
+        val lowCardKeys = tableProperties.get("lowCardKey").split(",").map(_.trim).toSeq
+        lowCardKeys.foreach(
+          s => {
+            if (s.contains(".")) {
+              throw new IllegalStateException(
+                s"lowCardKey $s can not contain '.' (not support nested column yet)")
+            }
+          })
+        Some(lowCardKeys.map(s => s.toLowerCase()))
+      } else {
+        None
+      }
+    } else {
+      None
+    }
+  }
+
   lazy val orderByKeyOption: Option[Seq[String]] = {
     if (bucketOption.isDefined && bucketOption.get.sortColumnNames.nonEmpty) {
       val orderByKes = bucketOption.get.sortColumnNames
@@ -240,6 +261,7 @@ class ClickHouseTableV2(
       tableName,
       Seq.empty[Attribute],
       orderByKeyOption,
+      lowCardKeyOption,
       primaryKeyOption,
       clickhouseTableConfigs,
       partitionColumns)
