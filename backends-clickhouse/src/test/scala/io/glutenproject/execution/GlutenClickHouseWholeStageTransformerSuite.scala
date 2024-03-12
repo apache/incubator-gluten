@@ -16,6 +16,12 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.GlutenConfig
+import io.glutenproject.utils.UTSystemParameters
+
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
+
 import org.apache.commons.io.FileUtils
 
 import java.io.File
@@ -37,6 +43,15 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
     }
   }
 
+  override protected def sparkConf: SparkConf =
+    super.sparkConf
+      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
+      .set(
+        "spark.gluten.sql.columnar.backend.ch.use.v2",
+        ClickHouseConfig.DEFAULT_USE_DATASOURCE_V2)
+      .set("spark.gluten.sql.enable.native.validation", "false")
+      .set("spark.sql.warehouse.dir", warehouse)
+
   override def beforeAll(): Unit = {
     // prepare working paths
     val basePathDir = new File(basePath)
@@ -56,6 +71,6 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
   protected val hiveMetaStoreDB = metaStorePathAbsolute + "/metastore_db"
 
   override protected val backend: String = "ch"
-  override protected val resourcePath: String = ""
+  final override protected val resourcePath: String = "" // ch not need this
   override protected val fileFormat: String = "parquet"
 }

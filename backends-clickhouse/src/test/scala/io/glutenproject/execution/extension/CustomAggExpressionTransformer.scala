@@ -16,7 +16,7 @@
  */
 package io.glutenproject.execution.extension
 
-import io.glutenproject.expression._
+import io.glutenproject.expression.Sig
 import io.glutenproject.extension.ExpressionExtensionTrait
 
 import org.apache.spark.sql.catalyst.expressions._
