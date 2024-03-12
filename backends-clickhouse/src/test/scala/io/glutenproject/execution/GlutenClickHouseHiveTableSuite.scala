@@ -19,8 +19,10 @@ package io.glutenproject.execution
 import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
 
-import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.SPARK_VERSION_SHORT
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
@@ -29,11 +31,11 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.hadoop.fs.Path
 
 import java.io.{File, PrintWriter}
-import java.sql.Timestamp
+import java.sql.{Date, Timestamp}
 
 import scala.reflect.ClassTag
 
-case class AllDataTypesWithComplextType(
+case class AllDataTypesWithComplexType(
     string_field: String = null,
     int_field: java.lang.Integer = null,
     long_field: java.lang.Long = null,
@@ -50,6 +52,36 @@ case class AllDataTypesWithComplextType(
     map: Map[Int, Long] = null,
     mapValueContainsNull: Map[Int, Option[Long]] = null
 )
+
+object AllDataTypesWithComplexType {
+  def genTestData(): Seq[AllDataTypesWithComplexType] = {
+    (0 to 199).map {
+      i =>
+        if (i % 100 == 1) {
+          AllDataTypesWithComplexType()
+        } else {
+          AllDataTypesWithComplexType(
+            s"$i",
+            i,
+            i.toLong,
+            i.toFloat,
+            i.toDouble,
+            i.toShort,
+            i.toByte,
+            i % 2 == 0,
+            new java.math.BigDecimal(i + ".56"),
+            Date.valueOf(new Date(System.currentTimeMillis()).toLocalDate.plusDays(i % 10)),
+            Timestamp.valueOf(
+              new Timestamp(System.currentTimeMillis()).toLocalDateTime.plusDays(i % 10)),
+            Seq.apply(i + 1, i + 2, i + 3),
+            Seq.apply(Option.apply(i + 1), Option.empty, Option.apply(i + 3)),
+            Map.apply((i + 1, i + 2), (i + 3, i + 4)),
+            Map.empty
+          )
+        }
+    }
+  }
+}
 
 class GlutenClickHouseHiveTableSuite
   extends GlutenClickHouseWholeStageTransformerSuite
@@ -170,38 +202,13 @@ class GlutenClickHouseHiveTableSuite
       "map_field map<int, long>," +
       "map_field_with_null map<int, long>) stored as %s".format(fileFormat)
 
-  def genTestData(): Seq[AllDataTypesWithComplextType] = {
-    (0 to 199).map {
-      i =>
-        if (i % 100 == 1) {
-          AllDataTypesWithComplextType()
-        } else {
-          AllDataTypesWithComplextType(
-            s"$i",
-            i,
-            i.toLong,
-            i.toFloat,
-            i.toDouble,
-            i.toShort,
-            i.toByte,
-            i % 2 == 0,
-            new java.math.BigDecimal(i + ".56"),
-            new java.sql.Date(System.currentTimeMillis()),
-            new Timestamp(System.currentTimeMillis()),
-            Seq.apply(i + 1, i + 2, i + 3),
-            Seq.apply(Option.apply(i + 1), Option.empty, Option.apply(i + 3)),
-            Map.apply((i + 1, i + 2), (i + 3, i + 4)),
-            Map.empty
-          )
-        }
-    }
-  }
-
   protected def initializeTable(
       table_name: String,
       table_create_sql: String,
       partitions: Seq[String]): Unit = {
-    spark.createDataFrame(genTestData()).createOrReplaceTempView("tmp_t")
+    spark
+      .createDataFrame(AllDataTypesWithComplexType.genTestData())
+      .createOrReplaceTempView("tmp_t")
     val truncate_sql = "truncate table %s".format(table_name)
     val drop_sql = "drop table if exists %s".format(table_name)
     spark.sql(drop_sql)

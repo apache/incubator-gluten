@@ -22,6 +22,7 @@ object ExpressionNames {
   final val SUM = "sum"
   final val AVG = "avg"
   final val COUNT = "count"
+  final val COUNT_DISTINCT = "count_distinct"
   final val MIN = "min"
   final val MAX = "max"
   final val MAX_BY = "max_by"

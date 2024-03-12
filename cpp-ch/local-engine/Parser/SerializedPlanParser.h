@@ -447,10 +447,12 @@ private:
 class ASTParser
 {
 public:
-    explicit ASTParser(const ContextPtr & _context, std::unordered_map<std::string, std::string> & _function_mapping)
-        : context(_context), function_mapping(_function_mapping)
+    explicit ASTParser(
+        const ContextPtr & context_, std::unordered_map<std::string, std::string> & function_mapping_, SerializedPlanParser * plan_parser_)
+        : context(context_), function_mapping(function_mapping_), plan_parser(plan_parser_)
     {
     }
+
     ~ASTParser() = default;
 
     ASTPtr parseToAST(const Names & names, const substrait::Expression & rel);
@@ -459,6 +461,7 @@ public:
 private:
     ContextPtr context;
     std::unordered_map<std::string, std::string> function_mapping;
+    SerializedPlanParser * plan_parser;
 
     void parseFunctionArgumentsToAST(const Names & names, const substrait::Expression_ScalarFunction & scalar_function, ASTs & ast_args);
     ASTPtr parseArgumentToAST(const Names & names, const substrait::Expression & rel);
