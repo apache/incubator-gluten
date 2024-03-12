@@ -162,9 +162,9 @@ WholeStageResultIterator::WholeStageResultIterator(
           lengths[idx],
           partitionKeys,
           std::nullopt,
-          {},
-          {},
-          {},
+          std::unordered_map<std::string, std::string>(),
+          nullptr,
+          std::unordered_map<std::string, std::string>(),
           0,
           metadataColumn);
       connectorSplits.emplace_back(split);
