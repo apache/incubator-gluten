@@ -340,7 +340,7 @@ bool JoinRelParser::tryAddPushDownFilter(
 {
     try
     {
-        ASTParser astParser(context, function_mapping);
+        ASTParser astParser(context, function_mapping, getPlanParser());
         ASTs args;
 
         if (join.has_expression())
