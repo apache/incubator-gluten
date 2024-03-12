@@ -51,9 +51,6 @@ jobs:
       CONTAINER_NAME: test-$OS_IMAGE_NAME-$OS_IMAGE_TAG
     steps:
       - uses: actions/checkout@v4
-      - name: Setup docker container
-        run: |
-          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
       - name: Build Gluten velox third party
         run: |
           cd ./tools/gluten-te/ubuntu/ && bash build.sh
