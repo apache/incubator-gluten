@@ -155,6 +155,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
       pipelineTime: SQLMetric,
       updateInputMetrics: (InputMetricsWrapper) => Unit,
       updateNativeMetrics: IMetrics => Unit,
+      partitionIndex: Int,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
     assert(
       inputPartition.isInstanceOf[GlutenPartition],
@@ -174,7 +175,8 @@ class IteratorApiImpl extends IteratorApi with Logging {
       transKernel.createKernelWithBatchIterator(
         inputPartition.plan,
         splitInfoByteArray,
-        columnarNativeIterators)
+        columnarNativeIterators,
+        partitionIndex)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
 
     Iterators
@@ -202,6 +204,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
+      partitionIndex: Int,
       materializeInput: Boolean): Iterator[ColumnarBatch] = {
 
     ExecutorManager.tryTaskSet(numaBindingInfo)
@@ -216,7 +219,8 @@ class IteratorApiImpl extends IteratorApi with Logging {
         rootNode.toProtobuf.toByteArray,
         // Final iterator does not contain scan split, so pass empty split info to native here.
         new Array[Array[Byte]](0),
-        columnarNativeIterator
+        columnarNativeIterator,
+        partitionIndex
       )
 
     Iterators

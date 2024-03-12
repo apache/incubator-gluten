@@ -725,8 +725,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   replicated.reserve(requiredChildOutput.size());
   for (const auto& output : requiredChildOutput) {
     auto expression = exprConverter_->toVeloxExpr(output, inputType);
-    auto expr_field = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
-    VELOX_CHECK(expr_field != nullptr, " the output in Generate Operator only support field")
+    auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
+    VELOX_CHECK(exprField != nullptr, " the output in Generate Operator only support field")
 
     replicated.emplace_back(std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression));
   }
@@ -827,7 +827,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   // Parse measures and get the window expressions.
   // Each measure represents one window expression.
-  bool ignoreNulls = false;
   std::vector<core::WindowNode::Function> windowNodeFunctions;
   std::vector<std::string> windowColumnNames;
 
@@ -838,23 +837,15 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     std::vector<core::TypedExprPtr> windowParams;
     auto& argumentList = windowFunction.arguments();
     windowParams.reserve(argumentList.size());
+    const auto& options = windowFunction.options();
     // For functions in kOffsetWindowFunctions (see Spark OffsetWindowFunctions),
-    // we expect the last arg is passed for setting ignoreNulls.
-    if (kOffsetWindowFunctions.find(funcName) != kOffsetWindowFunctions.end()) {
-      int i = 0;
-      for (; i < argumentList.size() - 1; i++) {
-        windowParams.emplace_back(exprConverter_->toVeloxExpr(argumentList[i].value(), inputType));
-      }
-      auto constantTypedExpr = exprConverter_->toVeloxExpr(argumentList[i].value().literal());
-      auto variant = constantTypedExpr->value();
-      if (!variant.hasValue()) {
-        VELOX_FAIL("Value is expected in variant for setting ignoreNulls.");
-      }
-      ignoreNulls = variant.value<bool>();
-    } else {
-      for (const auto& arg : argumentList) {
-        windowParams.emplace_back(exprConverter_->toVeloxExpr(arg.value(), inputType));
-      }
+    // we expect the first option name is `ignoreNulls` if ignoreNulls is true.
+    bool ignoreNulls = false;
+    if (!options.empty() && options.at(0).name() == "ignoreNulls") {
+      ignoreNulls = true;
+    }
+    for (const auto& arg : argumentList) {
+      windowParams.emplace_back(exprConverter_->toVeloxExpr(arg.value(), inputType));
     }
     auto windowVeloxType = SubstraitParser::parseType(windowFunction.output_type());
     auto windowCall = std::make_shared<const core::CallTypedExpr>(windowVeloxType, std::move(windowParams), funcName);
@@ -865,7 +856,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     windowColumnNames.push_back(windowFunction.column_name());
 
     windowNodeFunctions.push_back(
-        {std::move(windowCall), createWindowFrame(lowerBound, upperBound, type), ignoreNulls});
+        {std::move(windowCall), std::move(createWindowFrame(lowerBound, upperBound, type)), ignoreNulls});
   }
 
   // Construct partitionKeys

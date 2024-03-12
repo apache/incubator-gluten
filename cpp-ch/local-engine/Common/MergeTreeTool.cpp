@@ -93,6 +93,8 @@ MergeTreeTable parseMergeTreeTableString(const std::string & info)
     }
     readString(table.relative_path, in);
     assertChar('\n', in);
+    readString(table.absolute_path, in);
+    assertChar('\n', in);
     readString(table.table_configs_json, in);
     assertChar('\n', in);
     while (!in.eof())
@@ -122,6 +124,7 @@ RangesInDataParts MergeTreeTable::extractRange(DataPartsVector parts_vector) con
     std::unordered_map<String, DataPartPtr> name_index;
     std::ranges::for_each(parts_vector, [&](const DataPartPtr & part) {name_index.emplace(part->name, part);});
     RangesInDataParts ranges_in_data_parts;
+
     std::ranges::transform(
         parts,
         std::inserter(ranges_in_data_parts, ranges_in_data_parts.end()),

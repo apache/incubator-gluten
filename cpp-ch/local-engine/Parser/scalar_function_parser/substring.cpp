@@ -51,15 +51,14 @@ public:
          /**
             parse substring(str, start_index, length) as
             if (start_index == 0)
-                substring(str, start_index+1, length)
+                substring(str, 1, length)
             else
                 substring(str, start_index, length)
         */
         auto * const_zero_node = addColumnToActionsDAG(actions_dag, start_index_data_type, Field(0));
         auto * const_one_node = addColumnToActionsDAG(actions_dag, start_index_data_type, Field(1));
         auto * equals_zero_node = toFunctionNode(actions_dag, "equals", {parsed_args[1], const_zero_node});
-        auto * index_plus_node = toFunctionNode(actions_dag, "plus", {parsed_args[1], const_one_node});
-        auto * if_node = toFunctionNode(actions_dag, "if", {equals_zero_node, index_plus_node, parsed_args[1]});
+        auto * if_node = toFunctionNode(actions_dag, "if", {equals_zero_node, const_one_node, parsed_args[1]});
         const DB::ActionsDAG::Node * substring_func_node;
         if (parsed_args.size() == 2)
             substring_func_node = toFunctionNode(actions_dag, "substringUTF8", {parsed_args[0], if_node});

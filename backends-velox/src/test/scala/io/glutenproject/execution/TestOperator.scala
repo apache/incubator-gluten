@@ -283,6 +283,12 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
             assertWindowOffloaded
           }
 
+          runQueryAndCompare(
+            "select lead(l_orderkey) over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+            assertWindowOffloaded
+          }
+
           // Test same partition/ordering keys.
           runQueryAndCompare(
             "select avg(l_partkey) over" +
@@ -729,6 +735,30 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
                          |SELECT explode(map(1, array(1, 2), 2, array(3, 4)));
                          |""".stripMargin) {
       checkOperatorMatch[GenerateExecTransformer]
+    }
+  }
+
+  test("test inline function") {
+
+    withTempView("t1") {
+      sql("""select * from values
+            |  array(
+            |    named_struct('c1', 0, 'c2', 1),
+            |    null,
+            |    named_struct('c1', 2, 'c2', 3)
+            |  ),
+            |  array(
+            |    null,
+            |    named_struct('c1', 0, 'c2', 1),
+            |    named_struct('c1', 2, 'c2', 3)
+            |  )
+            |as tbl(a)
+         """.stripMargin).createOrReplaceTempView("t1")
+      runQueryAndCompare("""
+                           |SELECT inline(a) from t1;
+                           |""".stripMargin) {
+        checkOperatorMatch[GenerateExecTransformer]
+      }
     }
   }
 

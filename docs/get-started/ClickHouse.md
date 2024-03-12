@@ -43,7 +43,7 @@ You need to install the following software manually:
 
 Then, get Gluten code:
 ```
-    git clone https://github.com/oap-project/gluten.git
+    git clone https://github.com/apache/incubator-gluten.git
 ```
 
 #### Setup ClickHouse backend development environment
@@ -105,7 +105,7 @@ Otherwise, do:
 In case you don't want a develop environment, you can use the following command to compile ClickHouse backend directly:
 
 ```
-git clone https://github.com/oap-project/gluten.git
+git clone https://github.com/apache/incubator-gluten.git
 cd gluten
 bash ./ep/build-clickhouse/src/build_clickhouse.sh
 ```
@@ -122,7 +122,7 @@ The prerequisites are the same as the one mentioned above. Compile Gluten with C
 - for Spark 3.2.2<span id="deploy-spark-322"></span>
 
 ```
-    git clone https://github.com/oap-project/gluten.git
+    git clone https://github.com/apache/incubator-gluten.git
     cd gluten/
     export MAVEN_OPTS="-Xmx8g -XX:ReservedCodeCacheSize=2g"
     mvn clean install -Pbackends-clickhouse -Phadoop-2.7.4 -Pspark-3.2 -Dhadoop.version=2.8.5 -DskipTests -Dcheckstyle.skip
@@ -132,7 +132,7 @@ The prerequisites are the same as the one mentioned above. Compile Gluten with C
 - for Spark 3.3.1
 
 ```
-    git clone https://github.com/oap-project/gluten.git
+    git clone https://github.com/apache/incubator-gluten.git
     cd gluten/
     export MAVEN_OPTS="-Xmx8g -XX:ReservedCodeCacheSize=2g"
     mvn clean install -Pbackends-clickhouse -Phadoop-2.7.4 -Pspark-3.3 -Dhadoop.version=2.8.5 -DskipTests -Dcheckstyle.skip

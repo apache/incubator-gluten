@@ -1,6 +1,0 @@
-columns format version: 1
-4 columns:
-`n_nationkey` Nullable(Int64)
-`n_name` Nullable(String)
-`n_regionkey` Nullable(Int64)
-`n_comment` Nullable(String)

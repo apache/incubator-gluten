@@ -33,9 +33,9 @@ class SortMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpd
         MetricsUtil.updateExtraTimeMetric(
           metricsData,
           metrics("extraTime"),
-          metrics("outputRows"),
+          metrics("numOutputRows"),
           metrics("outputBytes"),
-          metrics("inputRows"),
+          metrics("numInputRows"),
           metrics("inputBytes"),
           SortMetricsUpdater.INCLUDING_PROCESSORS,
           SortMetricsUpdater.CH_PLAN_NODE_NAME

@@ -20,7 +20,7 @@
   <packaging>pom</packaging>
 
   <name>Gluten Parent Pom</name>
-  <url>https://github.com/oap-project/gluten.git</url>
+  <url>https://github.com/apache/incubator-gluten.git</url>
 
   <licenses>
     <license>

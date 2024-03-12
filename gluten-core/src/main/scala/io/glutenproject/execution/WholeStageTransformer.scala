@@ -102,8 +102,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   def stageId: Int = transformStageId
 
-  def substraitPlanJsonValue: String = substraitPlanJson
-
   def wholeStageTransformerContextDefined: Boolean = wholeStageTransformerContext.isDefined
 
   // For WholeStageCodegen-like operator, only pipeline time will be handled in graph plotting.

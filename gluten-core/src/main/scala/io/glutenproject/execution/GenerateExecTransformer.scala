@@ -120,7 +120,9 @@ case class GenerateExecTransformer(
           .asJava
         projectExpressions.addAll(childOutputNodes)
         val projectExprNode = ExpressionConverter
-          .replaceWithExpressionTransformer(generator.asInstanceOf[Explode].child, child.output)
+          .replaceWithExpressionTransformer(
+            generator.asInstanceOf[UnaryExpression].child,
+            child.output)
           .doTransform(args)
 
         projectExpressions.add(projectExprNode)
@@ -152,11 +154,11 @@ case class GenerateExecTransformer(
       operatorId: Long,
       inputAttributes: Seq[Attribute],
       input: RelNode,
-      generator: ExpressionNode,
+      generatorNode: ExpressionNode,
       childOutput: JList[ExpressionNode],
       validation: Boolean): RelNode = {
-    if (!validation) {
-      RelBuilder.makeGenerateRel(input, generator, childOutput, context, operatorId)
+    val generateRel = if (!validation) {
+      RelBuilder.makeGenerateRel(input, generatorNode, childOutput, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList =
@@ -164,7 +166,55 @@ case class GenerateExecTransformer(
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         BackendsApiManager.getTransformerApiInstance.packPBMessage(
           TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeGenerateRel(input, generator, childOutput, extensionNode, context, operatorId)
+      RelBuilder.makeGenerateRel(
+        input,
+        generatorNode,
+        childOutput,
+        extensionNode,
+        context,
+        operatorId)
+    }
+    applyPostProjectOnGenerator(generateRel, context, operatorId, childOutput, validation)
+  }
+
+  // There are 3 types of CollectionGenerator in spark: Explode, PosExplode and Inline.
+  // Only Inline needs the post projection.
+  private def applyPostProjectOnGenerator(
+      generateRel: RelNode,
+      context: SubstraitContext,
+      operatorId: Long,
+      childOutput: JList[ExpressionNode],
+      validation: Boolean): RelNode = {
+    generator match {
+      case Inline(inlineChild) =>
+        inlineChild match {
+          case _: AttributeReference =>
+          case _ =>
+            throw new UnsupportedOperationException("Child of Inline is not AttributeReference.")
+        }
+        val requiredOutput = (0 until childOutput.size).map {
+          ExpressionBuilder.makeSelection(_)
+        }
+        val flattenStruct: Seq[ExpressionNode] = generatorOutput.indices.map {
+          i =>
+            val selectionNode = ExpressionBuilder.makeSelection(requiredOutput.size)
+            selectionNode.addNestedChildIdx(i)
+        }
+        val postProjectRel = RelBuilder.makeProjectRel(
+          generateRel,
+          (requiredOutput ++ flattenStruct).asJava,
+          context,
+          operatorId,
+          1 + requiredOutput.size // 1 stands for the inner struct field from array.
+        )
+        if (validation) {
+          // No need to validate the project rel on the native side as
+          // it only flattens the generator's output.
+          generateRel
+        } else {
+          postProjectRel
+        }
+      case _ => generateRel
     }
   }
 

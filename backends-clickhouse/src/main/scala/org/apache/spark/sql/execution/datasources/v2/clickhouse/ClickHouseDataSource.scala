@@ -20,7 +20,7 @@ import org.apache.spark.sql._
 import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.delta._
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
+import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -45,6 +45,6 @@ class ClickHouseDataSource extends DataSourceRegister with TableProvider {
     val options = new CaseInsensitiveStringMap(properties)
     val path = options.get("path")
     if (path == null) throw DeltaErrors.pathNotSpecifiedException
-    ClickHouseTableV2(SparkSession.active, new Path(path))
+    new ClickHouseTableV2(SparkSession.active, new Path(path))
   }
 }

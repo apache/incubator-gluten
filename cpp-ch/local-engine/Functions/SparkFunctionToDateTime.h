@@ -163,8 +163,8 @@ public:
             }
             else
             {
-                parseDateTime64BestEffort(dst_data[i], scale, buf, *local_time_zone, *utc_time_zone);
-                null_map_data[i] = 0;
+                bool parsed = tryParseDateTime64BestEffort(dst_data[i], scale, buf, *local_time_zone, *utc_time_zone);
+                null_map_data[i] = !parsed;
             }
         }
     }

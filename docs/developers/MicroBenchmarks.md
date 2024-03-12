@@ -58,9 +58,9 @@ Run micro benchmark with the generated files as input. You need to specify the *
 ```shell
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
---plan /home/sparkuser/github/oap-project/gluten/backends-velox/generated-native-benchmark/example.json \
---data /home/sparkuser/github/oap-project/gluten/backends-velox/generated-native-benchmark/example_orders/part-00000-1e66fb98-4dd6-47a6-8679-8625dbc437ee-c000.snappy.parquet,\
-/home/sparkuser/github/oap-project/gluten/backends-velox/generated-native-benchmark/example_lineitem/part-00000-3ec19189-d20e-4240-85ae-88631d46b612-c000.snappy.parquet \
+--plan /home/sparkuser/github/apache/incubator-gluten/backends-velox/generated-native-benchmark/example.json \
+--data /home/sparkuser/github/apache/incubator-gluten/backends-velox/generated-native-benchmark/example_orders/part-00000-1e66fb98-4dd6-47a6-8679-8625dbc437ee-c000.snappy.parquet,\
+/home/sparkuser/github/apache/incubator-gluten/backends-velox/generated-native-benchmark/example_lineitem/part-00000-3ec19189-d20e-4240-85ae-88631d46b612-c000.snappy.parquet \
 --threads 1 --iterations 1 --noprint-result --benchmark_filter=InputFromBatchStream
 ```
 

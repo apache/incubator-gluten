@@ -29,7 +29,7 @@ trait GenerateTreeStringShim extends UnaryExecNode {
 
   def stageId: Int
 
-  def substraitPlanJsonValue: String
+  def substraitPlanJson: String
 
   def wholeStageTransformerContextDefined: Boolean
 
@@ -57,7 +57,7 @@ trait GenerateTreeStringShim extends UnaryExecNode {
 
     if (verbose && wholeStageTransformerContextDefined) {
       append(prefix + "Substrait plan:\n")
-      append(substraitPlanJsonValue)
+      append(substraitPlanJson)
       append("\n")
     }
   }

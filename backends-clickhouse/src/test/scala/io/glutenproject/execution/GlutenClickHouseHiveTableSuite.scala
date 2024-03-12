@@ -19,16 +19,13 @@ package io.glutenproject.execution
 import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
 
-import org.apache.spark.SPARK_VERSION_SHORT
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
+import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.internal.SQLConf
 
-import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.Path
 
 import java.io.{File, PrintWriter}
@@ -54,8 +51,8 @@ case class AllDataTypesWithComplextType(
     mapValueContainsNull: Map[Int, Option[Long]] = null
 )
 
-class GlutenClickHouseHiveTableSuite()
-  extends GlutenClickHouseTPCHAbstractSuite
+class GlutenClickHouseHiveTableSuite
+  extends GlutenClickHouseWholeStageTransformerSuite
   with AdaptiveSparkPlanHelper {
 
   private var _hiveSpark: SparkSession = _
@@ -64,17 +61,6 @@ class GlutenClickHouseHiveTableSuite()
     val version = SPARK_VERSION_SHORT.split("\\.")
     version(0) + "." + version(1)
   }
-
-  override protected val resourcePath: String =
-    "../../../../gluten-core/src/test/resources/tpch-data"
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
-  override protected val queriesResults: String = rootPath + "queries-output"
-  override protected def createTPCHNullableTables(): Unit = {}
-
-  override protected def createTPCHNotNullTables(): Unit = {}
 
   override protected def sparkConf: SparkConf = {
     new SparkConf()
@@ -232,15 +218,6 @@ class GlutenClickHouseHiveTableSuite()
   }
 
   override def beforeAll(): Unit = {
-    // prepare working paths
-    val basePathDir = new File(basePath)
-    if (basePathDir.exists()) {
-      FileUtils.forceDelete(basePathDir)
-    }
-    FileUtils.forceMkdir(basePathDir)
-    FileUtils.forceMkdir(new File(warehouse))
-    FileUtils.forceMkdir(new File(metaStorePathAbsolute))
-    FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
     super.beforeAll()
     initializeTable(txt_table_name, txt_table_create_sql, null)
     initializeTable(txt_user_define_input, txt_table_user_define_create_sql, null)
@@ -252,7 +229,7 @@ class GlutenClickHouseHiveTableSuite()
   }
 
   override protected def afterAll(): Unit = {
-    ClickHouseLog.clearCache()
+    DeltaLog.clearCache()
 
     try {
       super.afterAll()

@@ -83,9 +83,9 @@ class HashJoinMetricsUpdater(val metrics: Map[String, SQLMetric])
                   metrics("extraTime") += (processor.time / 1000L).toLong
                 }
                 if (HashJoinMetricsUpdater.CH_PLAN_NODE_NAME.contains(processor.name)) {
-                  metrics("outputRows") += processor.outputRows
+                  metrics("numOutputRows") += processor.outputRows
                   metrics("outputBytes") += processor.outputBytes
-                  metrics("inputRows") += processor.inputRows
+                  metrics("numInputRows") += processor.inputRows
                   metrics("inputBytes") += processor.inputBytes
                 }
               })

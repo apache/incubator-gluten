@@ -50,7 +50,7 @@ class VeloxColumnarBatch final : public ColumnarBatch {
   void ensureFlattened();
 
   facebook::velox::RowVectorPtr rowVector_ = nullptr;
-  facebook::velox::RowVectorPtr flattened_ = nullptr;
+  bool flattened_ = false;
 };
 
 } // namespace gluten

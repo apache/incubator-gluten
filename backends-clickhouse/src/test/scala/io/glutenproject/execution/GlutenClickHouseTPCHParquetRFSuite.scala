@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
 
-class GlutenClickHouseTPCHParquetRFSuite extends GlutenClickHouseTPCHParquetSuite {
+class GlutenClickHouseTPCHParquetRFSuite extends GlutenClickHouseTPCHSaltNullParquetSuite {
 
   protected lazy val sparkVersion: String = {
     val version = SPARK_VERSION_SHORT.split("\\.")

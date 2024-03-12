@@ -69,7 +69,7 @@ class GlutenClickHouseTPCHBucketSuite
       "../../../../gluten-core/src/test/resources/tpch-data"
     FileUtils.copyDirectory(new File(rootPath + parquetTableDataPath), new File(parquetTablePath))
 
-    createTPCHParquetTables(parquetTablePath)
+    createNotNullTPCHTablesInParquet(parquetTablePath)
 
     spark.sql(s"""
                  |CREATE DATABASE IF NOT EXISTS tpch_mergetree_bucket
@@ -242,7 +242,7 @@ class GlutenClickHouseTPCHBucketSuite
         assert(!(plans(0).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
         assert(plans(0).metrics("numFiles").value === 2)
         assert(plans(0).metrics("pruningTime").value === -1)
-        assert(plans(0).metrics("outputRows").value === 591673)
+        assert(plans(0).metrics("numOutputRows").value === 591673)
       })
   }
 
@@ -301,7 +301,7 @@ class GlutenClickHouseTPCHBucketSuite
           assert(plans(11).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         }
         assert(plans(11).metrics("numFiles").value === 1)
-        assert(plans(11).metrics("outputRows").value === 1000)
+        assert(plans(11).metrics("numOutputRows").value === 1000)
       })
   }
 
@@ -337,11 +337,11 @@ class GlutenClickHouseTPCHBucketSuite
           assert(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         }
         assert(plans(2).metrics("numFiles").value === 2)
-        assert(plans(2).metrics("outputRows").value === 3111)
+        assert(plans(2).metrics("numOutputRows").value === 3111)
 
         assert(!(plans(3).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
         assert(plans(3).metrics("numFiles").value === 2)
-        assert(plans(3).metrics("outputRows").value === 72678)
+        assert(plans(3).metrics("numOutputRows").value === 72678)
       })
 
     withSQLConf(
@@ -383,11 +383,11 @@ class GlutenClickHouseTPCHBucketSuite
 
         assert(plans(1).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans(1).metrics("numFiles").value === 2)
-        assert(plans(1).metrics("outputRows").value === 5552)
+        assert(plans(1).metrics("numOutputRows").value === 5552)
 
         assert(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans(2).metrics("numFiles").value === 2)
-        assert(plans(2).metrics("outputRows").value === 379809)
+        assert(plans(2).metrics("numOutputRows").value === 379809)
       })
 
     withSQLConf(
@@ -417,7 +417,7 @@ class GlutenClickHouseTPCHBucketSuite
         assert(!(plans(0).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
         assert(plans(0).metrics("numFiles").value === 2)
         assert(plans(0).metrics("pruningTime").value === -1)
-        assert(plans(0).metrics("outputRows").value === 11618)
+        assert(plans(0).metrics("numOutputRows").value === 11618)
       })
   }
 
@@ -442,11 +442,11 @@ class GlutenClickHouseTPCHBucketSuite
 
         assert(plans(1).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans(1).metrics("numFiles").value === 2)
-        assert(plans(1).metrics("outputRows").value === 150000)
+        assert(plans(1).metrics("numOutputRows").value === 150000)
 
         assert(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans(2).metrics("numFiles").value === 2)
-        assert(plans(2).metrics("outputRows").value === 3155)
+        assert(plans(2).metrics("numOutputRows").value === 3155)
       })
 
     withSQLConf(
@@ -562,6 +562,21 @@ class GlutenClickHouseTPCHBucketSuite
           }
         })
     }
+  }
+
+  test("check bucket pruning on filter") {
+    // TODO use comparewithvanilla
+    val df = spark.sql("select count(*) from lineitem where l_orderkey = 12647")
+    val result = df.collect()
+    val scanExec = collect(df.queryExecution.executedPlan) {
+      case f: FileSourceScanExecTransformer => f
+    }
+    val touchedParts = scanExec.head.getPartitions
+      .flatMap(partition => partition.asInstanceOf[GlutenMergeTreePartition].partList)
+      .map(_.name)
+      .distinct
+    assert(touchedParts.size == 1)
+    assert(result.apply(0).apply(0) == 1)
   }
 
   test("GLUTEN-4668: Merge two phase hash-based aggregate into one aggregate") {

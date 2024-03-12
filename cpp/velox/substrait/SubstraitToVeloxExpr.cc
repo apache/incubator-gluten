@@ -580,7 +580,6 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
 core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
     const ::substrait::Expression& substraitExpr,
     const RowTypePtr& inputType) {
-  core::TypedExprPtr veloxExpr;
   auto typeCase = substraitExpr.rex_type_case();
   switch (typeCase) {
     case ::substrait::Expression::RexTypeCase::kLiteral:

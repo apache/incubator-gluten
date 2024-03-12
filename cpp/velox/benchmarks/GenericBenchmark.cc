@@ -31,9 +31,11 @@
 #include "config/GlutenConfig.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
+#include "shuffle/rss/CelebornPartitionWriter.h"
 #include "utils/StringUtil.h"
 #include "utils/VeloxArrowUtils.h"
 #include "utils/exception.h"
+#include "utils/tests/LocalRssClient.h"
 #include "velox/exec/PlanNodeStats.h"
 
 using namespace gluten;
@@ -41,6 +43,7 @@ using namespace gluten;
 namespace {
 DEFINE_bool(with_shuffle, false, "Add shuffle split at end.");
 DEFINE_string(partitioning, "rr", "Short partitioning name. Valid options are rr, hash, range, single");
+DEFINE_bool(celeborn, false, "Mocking celeborn shuffle.");
 DEFINE_bool(zstd, false, "Use ZSTD as shuffle compression codec");
 DEFINE_bool(qat_gzip, false, "Use QAT GZIP as shuffle compression codec");
 DEFINE_bool(qat_zstd, false, "Use QAT ZSTD as shuffle compression codec");
@@ -83,12 +86,22 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
     partitionWriterOptions.compressionType = arrow::Compression::GZIP;
   }
 
-  std::unique_ptr<PartitionWriter> partitionWriter = std::make_unique<LocalPartitionWriter>(
-      FLAGS_shuffle_partitions,
-      std::move(partitionWriterOptions),
-      memoryManager->getArrowMemoryPool(),
-      dataFile,
-      localDirs);
+  std::unique_ptr<PartitionWriter> partitionWriter;
+  if (FLAGS_celeborn) {
+    auto rssClient = std::make_unique<LocalRssClient>(dataFile);
+    partitionWriter = std::make_unique<CelebornPartitionWriter>(
+        FLAGS_shuffle_partitions,
+        std::move(partitionWriterOptions),
+        memoryManager->getArrowMemoryPool(),
+        std::move(rssClient));
+  } else {
+    partitionWriter = std::make_unique<LocalPartitionWriter>(
+        FLAGS_shuffle_partitions,
+        std::move(partitionWriterOptions),
+        memoryManager->getArrowMemoryPool(),
+        dataFile,
+        localDirs);
+  }
 
   auto options = ShuffleWriterOptions{};
   options.partitioning = gluten::toPartitioning(FLAGS_partitioning);
@@ -203,6 +216,9 @@ auto BM_Generic = [](::benchmark::State& state,
         }
         if (FLAGS_print_result) {
           LOG(INFO) << maybeBatch.ValueOrDie()->ToString();
+        }
+        if (!FLAGS_write_file.empty()) {
+          GLUTEN_THROW_NOT_OK(writer.writeInBatches(maybeBatch.ValueOrDie()));
         }
       }
 

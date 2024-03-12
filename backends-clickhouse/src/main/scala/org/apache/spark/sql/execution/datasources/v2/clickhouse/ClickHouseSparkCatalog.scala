@@ -15,34 +15,40 @@
  * limitations under the License.
  */
 package org.apache.spark.sql.execution.datasources.v2.clickhouse
-
 import io.glutenproject.sql.shims.SparkShimLoader
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{NoSuchDatabaseException, NoSuchNamespaceException, NoSuchTableException}
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connector.catalog._
+import org.apache.spark.sql.connector.catalog.TableCapability.V1_BATCH_WRITE
 import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.sql.connector.write.{LogicalWriteInfo, V1Write, WriteBuilder}
+import org.apache.spark.sql.delta.{DeltaErrors, DeltaLog, DeltaOptions}
 import org.apache.spark.sql.delta.DeltaTableIdentifier.gluePermissionError
-import org.apache.spark.sql.delta.commands.TableCreationModes
+import org.apache.spark.sql.delta.catalog.{ClickHouseTableV2, TempClickHouseTableV2}
+import org.apache.spark.sql.delta.commands.{CreateDeltaTableCommand, TableCreationModes, WriteIntoDelta}
+import org.apache.spark.sql.delta.metering.DeltaLogging
+import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.execution.datasources.{DataSource, PartitioningUtils}
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.commands.CreateClickHouseTableCommand
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.{CHDataSourceUtils, ScanMergeTreePartsUtils}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.CHDataSourceUtils
+import org.apache.spark.sql.sources.InsertableRelation
 import org.apache.spark.sql.types.StructType
 
 import org.apache.hadoop.fs.Path
 
 import java.util
+import java.util.Locale
+
+import scala.collection.JavaConverters._
 
 class ClickHouseSparkCatalog
   extends DelegatingCatalogExtension
   with StagingTableCatalog
   with SupportsPathIdentifier
-  with Logging {
+  with DeltaLogging {
 
   val spark = SparkSession.active
 
@@ -132,45 +138,36 @@ class ClickHouseSparkCatalog
 
     val withDb = verifyTableAndSolidify(tableDesc, None)
 
-    // TODO: Generate WriteClickHouseTableCommand
-    // val writer = sourceQuery.map { df =>
-    // }
+    val writer = sourceQuery.map {
+      df =>
+        WriteIntoDelta(
+          DeltaLog.forTable(spark, loc),
+          operation.mode,
+          new DeltaOptions(withDb.storage.properties, spark.sessionState.conf),
+          withDb.partitionColumnNames,
+          withDb.properties ++ commentOpt.map("comment" -> _),
+          df,
+          schemaInCatalog = if (newSchema != schema) Some(newSchema) else None
+        )
+    }
+    try {
+      ClickHouseTableV2.temporalThreadLocalCHTable.set(
+        new TempClickHouseTableV2(spark, Some(withDb)))
 
-    CreateClickHouseTableCommand(
-      withDb,
-      getExistingTableIfExists(tableDesc),
-      operation.mode,
-      operation = operation,
-      tableByPath = isByPath).run(spark)
+      CreateDeltaTableCommand(
+        withDb,
+        getExistingTableIfExists(tableDesc),
+        operation.mode,
+        writer,
+        operation = operation,
+        tableByPath = isByPath).run(spark)
+    } finally {
+      ClickHouseTableV2.temporalThreadLocalCHTable.remove()
+    }
 
     logInfo(s"create table ${ident.toString} successfully.")
     val loadedNewTable = loadTable(ident)
-    /* logInfo(s"scanning table ${ident.toString} data ...")
-    loadedNewTable match {
-      case v: ClickHouseTableV2 =>
-        // TODO: remove this operation after implementing write mergetree into table
-        scanMergeTreePartsToAddFile(v)
-      case _ =>
-    } */
     loadedNewTable
-  }
-
-  def scanMergeTreePartsToAddFile(clickHouseTableV2: ClickHouseTableV2): Unit = {
-    val (pathFilter, isPartition, isBucketTable) = if (clickHouseTableV2.bucketOption.isDefined) {
-      ("/[0-9]*/*_[0-9]*_[0-9]*_[0-9]*", false, true)
-    } else if (clickHouseTableV2.partitioning().nonEmpty) {
-      // TODO: support to list all children paths
-      ("/*/all_[0-9]*_[0-9]*_[0-9]*", true, false)
-    } else {
-      ("/all_[0-9]*_[0-9]*_[0-9]*", false, false)
-    }
-    ScanMergeTreePartsUtils.scanMergeTreePartsToAddFile(
-      spark.sessionState.newHadoopConf(),
-      clickHouseTableV2,
-      pathFilter,
-      isPartition,
-      isBucketTable)
-    clickHouseTableV2.refresh()
   }
 
   /** Performs checks on the parameters provided for table creation for a ClickHouse table. */
@@ -227,29 +224,17 @@ class ClickHouseSparkCatalog
     Option(properties.get("provider")).getOrElse(ClickHouseConfig.NAME)
   }
 
-  override def invalidateTable(ident: Identifier): Unit = {
-    try {
-      loadTable(ident) match {
-        case v: ClickHouseTableV2 =>
-          scanMergeTreePartsToAddFile(v)
-      }
-      super.invalidateTable(ident)
-    } catch {
-      case ignored: NoSuchTableException =>
-      // ignore if the table doesn't exist, it is not cached
-    }
-  }
-
   override def loadTable(ident: Identifier): Table = {
     try {
       super.loadTable(ident) match {
         case v1: V1Table if CHDataSourceUtils.isDeltaTable(v1.catalogTable) =>
-          ClickHouseTableV2(
+          new ClickHouseTableV2(
             spark,
             new Path(v1.catalogTable.location),
             catalogTable = Some(v1.catalogTable),
             tableIdentifier = Some(ident.toString))
-        case o => o
+        case o =>
+          o
       }
     } catch {
       case _: NoSuchDatabaseException | _: NoSuchNamespaceException | _: NoSuchTableException
@@ -265,24 +250,7 @@ class ClickHouseSparkCatalog
   }
 
   private def newDeltaPathTable(ident: Identifier): ClickHouseTableV2 = {
-    ClickHouseTableV2(spark, new Path(ident.name()))
-  }
-
-  /** override `dropTable`` method, calling `clearFileStatusCacheByPath` after dropping */
-  override def dropTable(ident: Identifier): Boolean = {
-    try {
-      loadTable(ident) match {
-        case t: ClickHouseTableV2 =>
-          val tablePath = t.rootPath
-          val deletedTable = super.dropTable(ident)
-          if (deletedTable) ClickHouseTableV2.clearFileStatusCacheByPath(tablePath)
-          deletedTable
-        case _ => super.dropTable(ident)
-      }
-    } catch {
-      case _: Exception =>
-        false
-    }
+    new ClickHouseTableV2(spark, new Path(ident.name()))
   }
 
   /** support to delete mergetree data from the external table */
@@ -300,7 +268,6 @@ class ClickHouseSparkCatalog
             val fs = tablePath.getFileSystem(spark.sessionState.newHadoopConf())
             // delete all data if there is a external table
             fs.delete(tablePath, true)
-            ClickHouseTableV2.clearFileStatusCacheByPath(tablePath)
           }
           true
         case _ => super.purgeTable(ident)
@@ -311,28 +278,157 @@ class ClickHouseSparkCatalog
     }
   }
 
-  override def stageCreate(
-      ident: Identifier,
-      schema: StructType,
-      partitions: Array[Transform],
-      properties: util.Map[String, String]): StagedTable = {
-    throw new UnsupportedOperationException("Do not support stageCreate currently.")
-  }
-
   override def stageReplace(
       ident: Identifier,
       schema: StructType,
       partitions: Array[Transform],
-      properties: util.Map[String, String]): StagedTable = {
-    throw new UnsupportedOperationException("Do not support stageReplace currently.")
-  }
+      properties: util.Map[String, String]): StagedTable =
+    recordFrameProfile("DeltaCatalog", "stageReplace") {
+      if (CHDataSourceUtils.isClickHouseDataSourceName(getProvider(properties))) {
+        new StagedDeltaTableV2(ident, schema, partitions, properties, TableCreationModes.Replace)
+      } else {
+        super.dropTable(ident)
+        BestEffortStagedTable(ident, super.createTable(ident, schema, partitions, properties), this)
+      }
+    }
 
   override def stageCreateOrReplace(
       ident: Identifier,
       schema: StructType,
       partitions: Array[Transform],
-      properties: util.Map[String, String]): StagedTable = {
-    throw new UnsupportedOperationException("Do not support stageCreateOrReplace currently.")
+      properties: util.Map[String, String]): StagedTable =
+    recordFrameProfile("DeltaCatalog", "stageCreateOrReplace") {
+      if (CHDataSourceUtils.isClickHouseDataSourceName(getProvider(properties))) {
+        new StagedDeltaTableV2(
+          ident,
+          schema,
+          partitions,
+          properties,
+          TableCreationModes.CreateOrReplace)
+      } else {
+        try super.dropTable(ident)
+        catch {
+          case _: NoSuchDatabaseException => // this is fine
+          case _: NoSuchTableException => // this is fine
+        }
+        BestEffortStagedTable(ident, super.createTable(ident, schema, partitions, properties), this)
+      }
+    }
+
+  override def stageCreate(
+      ident: Identifier,
+      schema: StructType,
+      partitions: Array[Transform],
+      properties: util.Map[String, String]): StagedTable =
+    recordFrameProfile("DeltaCatalog", "stageCreate") {
+      if (CHDataSourceUtils.isClickHouseDataSourceName(getProvider(properties))) {
+        new StagedDeltaTableV2(ident, schema, partitions, properties, TableCreationModes.Create)
+      } else {
+        BestEffortStagedTable(ident, super.createTable(ident, schema, partitions, properties), this)
+      }
+    }
+
+  private class StagedDeltaTableV2(
+      ident: Identifier,
+      override val schema: StructType,
+      val partitions: Array[Transform],
+      override val properties: util.Map[String, String],
+      operation: TableCreationModes.CreationMode)
+    extends StagedTable
+    with SupportsWrite {
+
+    private var asSelectQuery: Option[DataFrame] = None
+    private var writeOptions: Map[String, String] = Map.empty
+
+    override def commitStagedChanges(): Unit =
+      recordFrameProfile("DeltaCatalog", "commitStagedChanges") {
+        val conf = spark.sessionState.conf
+        val props = new util.HashMap[String, String]()
+        // Options passed in through the SQL API will show up both with an "option." prefix and
+        // without in Spark 3.1, so we need to remove those from the properties
+        val optionsThroughProperties = properties.asScala.collect {
+          case (k, _) if k.startsWith("option.") => k.stripPrefix("option.")
+        }.toSet
+        val sqlWriteOptions = new util.HashMap[String, String]()
+        properties.asScala.foreach {
+          case (k, v) =>
+            if (!k.startsWith("option.") && !optionsThroughProperties.contains(k)) {
+              // Do not add to properties
+              props.put(k, v)
+            } else if (optionsThroughProperties.contains(k)) {
+              sqlWriteOptions.put(k, v)
+            }
+        }
+        if (writeOptions.isEmpty && !sqlWriteOptions.isEmpty) {
+          writeOptions = sqlWriteOptions.asScala.toMap
+        }
+        if (conf.getConf(DeltaSQLConf.DELTA_LEGACY_STORE_WRITER_OPTIONS_AS_PROPS)) {
+          // Legacy behavior
+          writeOptions.foreach { case (k, v) => props.put(k, v) }
+        } else {
+          writeOptions.foreach {
+            case (k, v) =>
+              // Continue putting in Delta prefixed options to avoid breaking workloads
+              if (k.toLowerCase(Locale.ROOT).startsWith("delta.")) {
+                props.put(k, v)
+              }
+          }
+        }
+        createClickHouseTable(
+          ident,
+          schema,
+          partitions,
+          props,
+          writeOptions,
+          asSelectQuery,
+          operation)
+      }
+
+    override def name(): String = ident.name()
+
+    override def abortStagedChanges(): Unit = {}
+
+    override def capabilities(): util.Set[TableCapability] = Set(V1_BATCH_WRITE).asJava
+
+    override def newWriteBuilder(info: LogicalWriteInfo): WriteBuilder = {
+      writeOptions = info.options.asCaseSensitiveMap().asScala.toMap
+      new DeltaV1WriteBuilder
+    }
+
+    /*
+     * WriteBuilder for creating a Delta table.
+     */
+    private class DeltaV1WriteBuilder extends WriteBuilder {
+      override def build(): V1Write = new V1Write {
+        override def toInsertableRelation(): InsertableRelation = {
+          new InsertableRelation {
+            override def insert(data: DataFrame, overwrite: Boolean): Unit = {
+              asSelectQuery = Option(data)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private case class BestEffortStagedTable(ident: Identifier, table: Table, catalog: TableCatalog)
+    extends StagedTable
+    with SupportsWrite {
+    override def abortStagedChanges(): Unit = catalog.dropTable(ident)
+
+    override def commitStagedChanges(): Unit = {}
+
+    // Pass through
+    override def name(): String = table.name()
+    override def schema(): StructType = table.schema()
+    override def partitioning(): Array[Transform] = table.partitioning()
+    override def capabilities(): util.Set[TableCapability] = table.capabilities()
+    override def properties(): util.Map[String, String] = table.properties()
+
+    override def newWriteBuilder(info: LogicalWriteInfo): WriteBuilder = table match {
+      case supportsWrite: SupportsWrite => supportsWrite.newWriteBuilder(info)
+      case _ => throw DeltaErrors.unsupportedWriteStagedTable(name)
+    }
   }
 }
 

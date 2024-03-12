@@ -19,10 +19,8 @@ package io.glutenproject.execution
 import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
 
-import org.apache.spark.SPARK_VERSION_SHORT
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.Row
+import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
+import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
@@ -30,17 +28,9 @@ import org.apache.spark.sql.types._
 import java.nio.file.Files
 import java.sql.Date
 
-import scala.collection.immutable.Seq
 import scala.reflect.ClassTag
 
 class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerSuite {
-  override protected val resourcePath: String = {
-    "../../../../gluten-core/src/test/resources/tpch-data"
-  }
-  override protected val backend: String = "ch"
-  override protected val fileFormat: String = "parquet"
-  protected val rootPath: String = getClass.getResource("/").getPath
-  protected val basePath: String = rootPath + "unit-tests-working-home"
 
   protected lazy val sparkVersion: String = {
     val version = SPARK_VERSION_SHORT.split("\\.")
@@ -51,8 +41,6 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
   protected val tpchQueries: String =
     rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
   protected val queriesResults: String = rootPath + "queries-output"
-  protected val warehouse: String = basePath + "/spark-warehouse"
-  protected val metaStorePathAbsolute: String = basePath + "/meta"
 
   private var parquetPath: String = _
 

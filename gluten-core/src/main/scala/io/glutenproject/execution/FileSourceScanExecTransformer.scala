@@ -65,7 +65,7 @@ class FileSourceScanExecTransformer(
 
   override def outputAttributes(): Seq[Attribute] = output
 
-  override def getPartitions: Seq[InputPartition] =
+  override def getPartitions: Seq[InputPartition] = {
     BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
       relation,
       dynamicallySelectedPartitions,
@@ -74,6 +74,7 @@ class FileSourceScanExecTransformer(
       optionalBucketSet,
       optionalNumCoalescedBuckets,
       disableBucketedScan)
+  }
 
   override def getPartitionSchema: StructType = relation.partitionSchema
 

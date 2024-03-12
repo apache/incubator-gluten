@@ -32,4 +32,4 @@ If you need any help or have questions on this product, please contact us:
 
 ## Issues and Discussions
 We use github to track bugs, feature requests, and answer questions. File an
-[issue](https://github.com/oap-project/gluten/issues) for a bug or feature request.
+[issue](https://github.com/apache/incubator-gluten/issues) for a bug or feature request.
