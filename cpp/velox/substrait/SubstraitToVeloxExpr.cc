@@ -49,15 +49,18 @@ MapVectorPtr makeMapVector(const VectorPtr& keyVector, const VectorPtr& valueVec
       valueVector);
 }
 
-RowVectorPtr makeRowVector(const std::vector<VectorPtr>& children) {
+RowVectorPtr makeRowVector(
+    const std::vector<VectorPtr>& children,
+    std::vector<std::string>&& names,
+    size_t length,
+    facebook::velox::memory::MemoryPool* pool) {
   std::vector<std::shared_ptr<const Type>> types;
   types.resize(children.size());
   for (int i = 0; i < children.size(); i++) {
     types[i] = children[i]->type();
   }
-  const size_t vectorSize = children.empty() ? 0 : children.front()->size();
-  auto rowType = ROW(std::move(types));
-  return std::make_shared<RowVector>(children[0]->pool(), rowType, BufferPtr(nullptr), vectorSize, children);
+  auto rowType = ROW(std::move(names), std::move(types));
+  return std::make_shared<RowVector>(pool, rowType, BufferPtr(nullptr), length, children);
 }
 
 ArrayVectorPtr makeEmptyArrayVector(memory::MemoryPool* pool, const TypePtr& elementType) {
@@ -73,7 +76,7 @@ MapVectorPtr makeEmptyMapVector(memory::MemoryPool* pool, const TypePtr& keyType
 }
 
 RowVectorPtr makeEmptyRowVector(memory::MemoryPool* pool) {
-  return makeRowVector({});
+  return makeRowVector({}, {}, 0, pool);
 }
 
 template <typename T>
@@ -485,13 +488,20 @@ VectorPtr SubstraitVeloxExprConverter::literalsToVector(
 }
 
 RowVectorPtr SubstraitVeloxExprConverter::literalsToRowVector(const ::substrait::Expression::Literal& structLiteral) {
-  auto childSize = structLiteral.struct_().fields().size();
-  if (childSize == 0) {
+  if (structLiteral.has_null()) {
+    VELOX_NYI("NULL for struct type is not supported.");
+  }
+  auto numFields = structLiteral.struct_().fields().size();
+  if (numFields == 0) {
     return makeEmptyRowVector(pool_);
   }
   std::vector<VectorPtr> vectors;
-  vectors.reserve(structLiteral.struct_().fields().size());
-  for (const auto& child : structLiteral.struct_().fields()) {
+  std::vector<std::string> names;
+  vectors.reserve(numFields);
+  names.reserve(numFields);
+  for (auto i = 0; i < numFields; ++i) {
+    names.push_back("col_" + std::to_string(i));
+    const auto& child = structLiteral.struct_().fields(i);
     auto typeCase = child.literal_type_case();
     switch (typeCase) {
       case ::substrait::Expression_Literal::LiteralTypeCase::kIntervalDayToSecond: {
@@ -530,7 +540,7 @@ RowVectorPtr SubstraitVeloxExprConverter::literalsToRowVector(const ::substrait:
         }
     }
   }
-  return makeRowVector(vectors);
+  return makeRowVector(vectors, std::move(names), 1, pool_);
 }
 
 core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(

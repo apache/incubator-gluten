@@ -37,7 +37,7 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{FileSourceScanExec, LeafExecNode, SparkPlan}
+import org.apache.spark.sql.execution.{FileSourceScanExec, GenerateExec, LeafExecNode, SparkPlan}
 import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
@@ -663,4 +663,8 @@ trait SparkPlanExecApi {
       generatorOutput: Seq[Attribute],
       child: SparkPlan
   ): GenerateExecTransformerBase
+
+  def genPreProjectForGenerate(generate: GenerateExec): SparkPlan
+
+  def genPostProjectForGenerate(generate: GenerateExec): SparkPlan
 }

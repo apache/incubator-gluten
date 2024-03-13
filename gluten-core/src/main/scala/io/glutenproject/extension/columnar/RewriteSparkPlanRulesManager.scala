@@ -54,6 +54,7 @@ class RewriteSparkPlanRulesManager(rewriteRules: Seq[Rule[SparkPlan]]) extends R
         case _: FilterExec => true
         case _: FileSourceScanExec => true
         case _: ExpandExec => true
+        case _: GenerateExec => true
         case _ => false
       }
     }
@@ -77,7 +78,7 @@ class RewriteSparkPlanRulesManager(rewriteRules: Seq[Rule[SparkPlan]]) extends R
           // Some rewrite rules may generate new parent plan node, we should use transform to
           // rewrite the original plan. For example, PullOutPreProject and PullOutPostProject
           // will generate post-project plan node.
-          plan.transform { case p => rule.apply(p) }
+          plan.transformUp { case p => rule.apply(p) }
       }
       (rewrittenPlan, None)
     } catch {

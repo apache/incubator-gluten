@@ -39,6 +39,7 @@ abstract class GenerateExecTransformerBase(
     generatorOutput: Seq[Attribute],
     child: SparkPlan)
   extends UnaryTransformSupport {
+
   protected def doGeneratorValidate(generator: Generator, outer: Boolean): ValidationResult
 
   protected def getRelNode(
