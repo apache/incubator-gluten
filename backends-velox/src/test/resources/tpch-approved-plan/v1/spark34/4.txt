@@ -13,7 +13,23 @@ AdaptiveSparkPlan (50)
                            +- ^ ShuffleQueryStage (23), Statistics(X)
                               +- ColumnarExchange (22)
                                  +- ^ ProjectExecTransformer (20)
-
+                                    +- ^ FlushableHashAggregateExecTransformer (19)
+                                       +- ^ ProjectExecTransformer (18)
+                                          +- ^ ShuffledHashJoinExecTransformer LeftSemi (17)
+                                             :- ^ InputIteratorTransformer (8)
+                                             :  +- ^ InputAdapter (7)
+                                             :     +- ^ ShuffleQueryStage (6), Statistics(X)
+                                             :        +- ColumnarExchange (5)
+                                             :           +- ^ ProjectExecTransformer (3)
+                                             :              +- ^ FilterExecTransformer (2)
+                                             :                 +- ^ Scan parquet (1)
+                                             +- ^ InputIteratorTransformer (16)
+                                                +- ^ InputAdapter (15)
+                                                   +- ^ ShuffleQueryStage (14), Statistics(X)
+                                                      +- ColumnarExchange (13)
+                                                         +- ^ ProjectExecTransformer (11)
+                                                            +- ^ FilterExecTransformer (10)
+                                                               +- ^ Scan parquet (9)
 +- == Initial Plan ==
    Sort (49)
    +- Exchange (48)
@@ -101,6 +117,7 @@ Input [1]: [l_orderkey#X]
 (17) ShuffledHashJoinExecTransformer
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
+Join type: LeftSemi
 Join condition: None
 
 (18) ProjectExecTransformer
@@ -213,6 +230,7 @@ Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 (43) ShuffledHashJoin
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
+Join type: LeftSemi
 Join condition: None
 
 (44) Project
