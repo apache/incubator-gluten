@@ -72,6 +72,7 @@ class GlutenReplaceHashWithSortAggSuite
                |   SORT BY key
                |)
                |GROUP BY key
+               |ORDER BY key
              """.stripMargin
           checkAggs(query, 2, 0, 2, 0)
       }
