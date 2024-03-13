@@ -26,12 +26,13 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
+import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer._
 import org.apache.spark.sql.hive.client.HiveClientImpl
-import org.apache.spark.sql.hive.execution.HiveTableScanExec
+import org.apache.spark.sql.hive.execution.{AbstractHiveTableScanExec, HiveTableScanExec}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
@@ -43,11 +44,11 @@ import org.apache.hadoop.mapred.TextInputFormat
 
 import java.net.URI
 
-class HiveTableScanExecTransformer(
+case class HiveTableScanExecTransformer(
     requestedAttributes: Seq[Attribute],
     relation: HiveTableRelation,
     partitionPruningPred: Seq[Expression])(session: SparkSession)
-  extends HiveTableScanExec(requestedAttributes, relation, partitionPruningPred)(session)
+  extends AbstractHiveTableScanExec(requestedAttributes, relation, partitionPruningPred)(session)
   with BasicScanExecTransformer {
 
   @transient override lazy val metrics: Map[String, SQLMetric] =
@@ -169,22 +170,13 @@ class HiveTableScanExecTransformer(
 
   override def nodeName: String = s"NativeScan hive ${relation.tableMeta.qualifiedName}"
 
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[HiveTableScanExecTransformer]
-
-  override def equals(other: Any): Boolean = other match {
-    case that: HiveTableScanExecTransformer =>
-      that.canEqual(this) && super.equals(that)
-    case _ => false
-  }
-
-  override def hashCode(): Int = super.hashCode()
-
   override def doCanonicalize(): HiveTableScanExecTransformer = {
-    val canonicalized = super.doCanonicalize()
-    new HiveTableScanExecTransformer(
-      canonicalized.requestedAttributes,
-      canonicalized.relation,
-      canonicalized.partitionPruningPred)(canonicalized.session)
+    val input: AttributeSeq = relation.output
+    HiveTableScanExecTransformer(
+      requestedAttributes.map(QueryPlan.normalizeExpressions(_, input)),
+      relation.canonicalized.asInstanceOf[HiveTableRelation],
+      QueryPlan.normalizePredicates(partitionPruningPred, input)
+    )(sparkSession)
   }
 }
 

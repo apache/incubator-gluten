@@ -85,7 +85,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
     runQueryAndCompare(sql) {
       df =>
         val plans = df.queryExecution.executedPlan.collect {
-          case generate: GenerateExecTransformer => generate
+          case generate: CHGenerateExecTransformer => generate
         }
         assert(plans.size == 1)
         assert(plans.head.metrics("numInputRows").value == 25)

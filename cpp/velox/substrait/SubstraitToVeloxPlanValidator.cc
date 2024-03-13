@@ -67,7 +67,6 @@ static const std::unordered_set<std::string> kBlackList = {
     "repeat",
     "trunc",
     "sequence",
-    "posexplode",
     "arrays_overlap",
     "approx_percentile",
     "get_array_struct_fields"};
@@ -650,8 +649,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
   try {
     for (const auto& expr : groupByExprs) {
       auto expression = exprConverter_->toVeloxExpr(expr, rowType);
-      auto expr_field = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
-      if (expr_field == nullptr) {
+      auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
+      if (exprField == nullptr) {
         LOG_VALIDATION_MSG("Only field is supported for partition key in Window Operator!");
         return false;
       } else {
@@ -683,8 +682,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
     if (sort.has_expr()) {
       try {
         auto expression = exprConverter_->toVeloxExpr(sort.expr(), rowType);
-        auto expr_field = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
-        if (!expr_field) {
+        auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
+        if (!exprField) {
           LOG_VALIDATION_MSG("in windowRel, the sorting key in Sort Operator only support field.");
           return false;
         }
@@ -741,8 +740,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::SortRel& sortRel
     if (sort.has_expr()) {
       try {
         auto expression = exprConverter_->toVeloxExpr(sort.expr(), rowType);
-        auto expr_field = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
-        if (!expr_field) {
+        auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
+        if (!exprField) {
           LOG_VALIDATION_MSG("in SortRel, the sorting key in Sort Operator only support field.");
           return false;
         }

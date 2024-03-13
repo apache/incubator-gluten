@@ -26,7 +26,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.collection.BitSet
 
-class FileSourceScanExecShim(
+abstract class FileSourceScanExecShim(
     @transient relation: HadoopFsRelation,
     output: Seq[Attribute],
     requiredSchema: StructType,
@@ -36,7 +36,7 @@ class FileSourceScanExecShim(
     dataFilters: Seq[Expression],
     tableIdentifier: Option[TableIdentifier],
     disableBucketedScan: Boolean = false)
-  extends FileSourceScanExec(
+  extends AbstractFileSourceScanExec(
     relation,
     output,
     requiredSchema,
@@ -56,16 +56,6 @@ class FileSourceScanExecShim(
   }
 
   protected lazy val driverMetricsAlias = driverMetrics
-
-  override def equals(other: Any): Boolean = other match {
-    case that: FileSourceScanExecShim =>
-      (that.canEqual(this)) && super.equals(that)
-    case _ => false
-  }
-
-  override def hashCode(): Int = super.hashCode()
-
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[FileSourceScanExecShim]
 
   def dataFiltersInScan: Seq[Expression] = dataFilters.filterNot(_.references.exists {
     case FileSourceMetadataAttribute(_) => true

@@ -24,6 +24,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, PlanExpression}
+import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.FileSourceScanExecShim
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
@@ -32,15 +33,53 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.collection.BitSet
 
-class FileSourceScanExecTransformer(
+case class FileSourceScanExecTransformer(
     @transient override val relation: HadoopFsRelation,
-    output: Seq[Attribute],
+    override val output: Seq[Attribute],
+    override val requiredSchema: StructType,
+    override val partitionFilters: Seq[Expression],
+    override val optionalBucketSet: Option[BitSet],
+    override val optionalNumCoalescedBuckets: Option[Int],
+    override val dataFilters: Seq[Expression],
+    override val tableIdentifier: Option[TableIdentifier],
+    override val disableBucketedScan: Boolean = false)
+  extends FileSourceScanExecTransformerBase(
+    relation,
+    output,
+    requiredSchema,
+    partitionFilters,
+    optionalBucketSet,
+    optionalNumCoalescedBuckets,
+    dataFilters,
+    tableIdentifier,
+    disableBucketedScan) {
+
+  override def doCanonicalize(): FileSourceScanExecTransformer = {
+    FileSourceScanExecTransformer(
+      relation,
+      output.map(QueryPlan.normalizeExpressions(_, output)),
+      requiredSchema,
+      QueryPlan.normalizePredicates(
+        filterUnusedDynamicPruningExpressions(partitionFilters),
+        output),
+      optionalBucketSet,
+      optionalNumCoalescedBuckets,
+      QueryPlan.normalizePredicates(dataFilters, output),
+      None,
+      disableBucketedScan
+    )
+  }
+}
+
+abstract class FileSourceScanExecTransformerBase(
+    @transient override val relation: HadoopFsRelation,
+    override val output: Seq[Attribute],
     requiredSchema: StructType,
     partitionFilters: Seq[Expression],
     optionalBucketSet: Option[BitSet],
     optionalNumCoalescedBuckets: Option[Int],
     dataFilters: Seq[Expression],
-    override val tableIdentifier: Option[TableIdentifier],
+    tableIdentifier: Option[TableIdentifier],
     disableBucketedScan: Boolean = false)
   extends FileSourceScanExecShim(
     relation,
@@ -61,7 +100,10 @@ class FileSourceScanExecTransformer(
       .filter(m => !driverMetricsAlias.contains(m._1)) ++ driverMetricsAlias
 
   override def filterExprs(): Seq[Expression] = dataFiltersInScan
-  override def getMetadataColumns(): Seq[AttributeReference] = metadataColumns
+
+  override def getMetadataColumns(): Seq[AttributeReference] = getMetadataColumns
+
+  def getPartitionFilters(): Seq[Expression] = partitionFilters
 
   override def outputAttributes(): Seq[Attribute] = output
 
@@ -83,16 +125,6 @@ class FileSourceScanExecTransformer(
   override def getInputFilePathsInternal: Seq[String] = {
     relation.location.inputFiles.toSeq
   }
-
-  override def equals(other: Any): Boolean = other match {
-    case that: FileSourceScanExecTransformer =>
-      that.canEqual(this) && super.equals(that)
-    case _ => false
-  }
-
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[FileSourceScanExecTransformer]
-
-  override def hashCode(): Int = super.hashCode()
 
   override protected def doValidateInternal(): ValidationResult = {
     if (
@@ -155,24 +187,9 @@ class FileSourceScanExecTransformer(
       case "CSVFileFormat" => ReadFileFormat.TextReadFormat
       case _ => ReadFileFormat.UnknownFormat
     }
-
-  override def doCanonicalize(): FileSourceScanExecTransformer = {
-    val canonicalized = super.doCanonicalize()
-    new FileSourceScanExecTransformer(
-      canonicalized.relation,
-      canonicalized.output,
-      canonicalized.requiredSchema,
-      canonicalized.partitionFilters,
-      canonicalized.optionalBucketSet,
-      canonicalized.optionalNumCoalescedBuckets,
-      canonicalized.dataFilters,
-      canonicalized.tableIdentifier,
-      canonicalized.disableBucketedScan
-    )
-  }
 }
 
-object FileSourceScanExecTransformer {
+object FileSourceScanExecTransformerBase {
   private def isDynamicPruningFilter(e: Expression): Boolean =
     e.find(_.isInstanceOf[PlanExpression[_]]).isDefined
 }

@@ -46,7 +46,7 @@ dpkg --configure -a
 
 #clone gluten
 git clone https://github.com/apache/incubator-gluten.git
-cd gluten/
+cd incubator-gluten/
 
 #config maven proxy
 #mkdir ~/.m2/

@@ -16,11 +16,10 @@
  */
 package io.glutenproject.backendsapi
 
-import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.validate.NativePlanValidationInfo
 
-import org.apache.spark.sql.catalyst.expressions.{Expression, Generator}
+import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.DataType
@@ -64,8 +63,4 @@ trait ValidatorApi {
   def doColumnarShuffleExchangeExecValidate(
       outputPartitioning: Partitioning,
       child: SparkPlan): Option[String]
-
-  /** Validate against Generator expression. */
-  def doGeneratorValidate(generator: Generator, outer: Boolean): ValidationResult =
-    ValidationResult.ok
 }

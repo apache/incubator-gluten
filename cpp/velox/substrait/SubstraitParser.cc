@@ -161,8 +161,8 @@ std::vector<std::string> SubstraitParser::makeNames(const std::string& prefix, i
   return names;
 }
 
-std::string SubstraitParser::makeNodeName(int node_id, int col_idx) {
-  return fmt::format("n{}_{}", node_id, col_idx);
+std::string SubstraitParser::makeNodeName(int nodeId, int colIdx) {
+  return fmt::format("n{}_{}", nodeId, colIdx);
 }
 
 int SubstraitParser::getIdxFromNodeName(const std::string& nodeName) {

@@ -660,7 +660,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
               makeLocationHandle(writePath),
               dwio::common::FileFormat::PARQUET, // Currently only support parquet format.
               compressionCodec)),
-      (partitionedKey.size() > 0) ? true : false,
+      (!partitionedKey.empty()),
       exec::TableWriteTraits::outputType(nullptr),
       connector::CommitStrategy::kNoCommit,
       childNode);
@@ -767,10 +767,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     }
   }
 
-  auto node = std::make_shared<core::UnnestNode>(
-      nextPlanNodeId(), replicated, unnest, std::move(unnestNames), std::nullopt, childNode);
+  std::optional<std::string> ordinalityName = std::nullopt;
+  if (generateRel.has_advanced_extension() &&
+      SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isPosExplode=")) {
+    ordinalityName = std::make_optional<std::string>("pos");
+  }
 
-  return node;
+  return std::make_shared<core::UnnestNode>(
+      nextPlanNodeId(), replicated, unnest, std::move(unnestNames), ordinalityName, childNode);
 }
 
 const core::WindowNode::Frame createWindowFrame(
@@ -2012,13 +2016,13 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
     // Not equal.
     if (filterInfo.notValue_) {
       filters[common::Subfield(inputName)] =
-          std::move(std::make_unique<common::BoolValue>(!filterInfo.notValue_.value().value<bool>(), nullAllowed));
+          std::make_unique<common::BoolValue>(!filterInfo.notValue_.value().value<bool>(), nullAllowed);
     } else if (rangeSize == 0) {
       // IsNull/IsNotNull.
       if (!nullAllowed) {
-        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNotNull>());
+        filters[common::Subfield(inputName)] = std::make_unique<common::IsNotNull>();
       } else if (isNull) {
-        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNull>());
+        filters[common::Subfield(inputName)] = std::make_unique<common::IsNull>();
       } else {
         VELOX_NYI("Only IsNotNull and IsNull are supported in constructSubfieldFilters when no other filter ranges.");
       }
@@ -2027,15 +2031,15 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
       // Equal.
       auto value = filterInfo.lowerBounds_[0].value().value<bool>();
       VELOX_CHECK(value == filterInfo.upperBounds_[0].value().value<bool>(), "invalid state of bool equal");
-      filters[common::Subfield(inputName)] = std::move(std::make_unique<common::BoolValue>(value, nullAllowed));
+      filters[common::Subfield(inputName)] = std::make_unique<common::BoolValue>(value, nullAllowed);
     }
   } else if constexpr (KIND == facebook::velox::TypeKind::ARRAY || KIND == facebook::velox::TypeKind::MAP) {
     // Only IsNotNull and IsNull are supported for array and map types.
     if (rangeSize == 0) {
       if (!nullAllowed) {
-        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNotNull>());
+        filters[common::Subfield(inputName)] = std::make_unique<common::IsNotNull>();
       } else if (isNull) {
-        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNull>());
+        filters[common::Subfield(inputName)] = std::make_unique<common::IsNull>();
       } else {
         VELOX_NYI(
             "Only IsNotNull and IsNull are supported in constructSubfieldFilters for input type '{}'.",
@@ -2089,9 +2093,9 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
     // Handle null filtering.
     if (rangeSize == 0) {
       if (!nullAllowed) {
-        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNotNull>());
+        filters[common::Subfield(inputName)] = std::make_unique<common::IsNotNull>();
       } else if (isNull) {
-        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNull>());
+        filters[common::Subfield(inputName)] = std::make_unique<common::IsNull>();
       } else {
         VELOX_NYI("Only IsNotNull and IsNull are supported in constructSubfieldFilters when no other filter ranges.");
       }

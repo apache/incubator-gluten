@@ -534,11 +534,4 @@ class MetricsApiImpl extends MetricsApi with Logging {
 
   override def genNestedLoopJoinTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new NestedLoopJoinMetricsUpdater(metrics)
-
-  override def genGenerateTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] = {
-    Map("numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
-  }
-
-  override def genGenerateTransformerMetricsUpdater(
-      metrics: Map[String, SQLMetric]): MetricsUpdater = new GenerateMetricsUpdater(metrics)
 }

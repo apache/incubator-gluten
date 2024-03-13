@@ -110,7 +110,7 @@ void parseLocalFileNodes(
     const auto& localFile = localFiles[i];
     const auto& fileList = localFile.items();
 
-    splitInfos.push_back(std::move(parseScanSplitInfo(fileList)));
+    splitInfos.push_back(parseScanSplitInfo(fileList));
   }
 
   planConverter->setSplitInfos(std::move(splitInfos));

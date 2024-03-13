@@ -111,10 +111,6 @@ trait MetricsApi extends Serializable {
 
   def genNestedLoopJoinTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
 
-  def genGenerateTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
-
-  def genGenerateTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
-
   def genColumnarInMemoryTableMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map("numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
 }

@@ -45,14 +45,14 @@ trait DataSourceScanTransformerRegister {
 
   def createDataSourceTransformer(
       batchScan: FileSourceScanExec,
-      newPartitionFilters: Seq[Expression]): FileSourceScanExecTransformer = {
+      newPartitionFilters: Seq[Expression]): FileSourceScanExecTransformerBase = {
     throw new UnsupportedOperationException(
       "This should not be called, please implement this method in child class.");
   }
 
   def createDataSourceV2Transformer(
       batchScan: BatchScanExec,
-      newPartitionFilters: Seq[Expression]): BatchScanExecTransformer = {
+      newPartitionFilters: Seq[Expression]): BatchScanExecTransformerBase = {
     throw new UnsupportedOperationException(
       "This should not be called, please implement this method in child class.");
   }

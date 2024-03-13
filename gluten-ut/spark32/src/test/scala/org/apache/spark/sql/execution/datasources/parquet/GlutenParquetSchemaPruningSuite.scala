@@ -15,8 +15,14 @@
  * limitations under the License.
  */
 package org.apache.spark.sql.execution.datasources.parquet
+import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer}
+
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.GlutenSQLTestsBaseTrait
+import org.apache.spark.sql.{DataFrame, GlutenSQLTestsBaseTrait}
+import org.apache.spark.sql.catalyst.parser.CatalystSqlParser
+import org.apache.spark.sql.execution.FileSourceScanExec
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 import org.apache.spark.tags.ExtendedSQLTest
 
 @ExtendedSQLTest
@@ -26,6 +32,25 @@ class GlutenParquetV1SchemaPruningSuite
   override def sparkConf: SparkConf = {
     super.sparkConf.set("spark.memory.offHeap.size", "3g")
   }
+
+  override def checkScanSchemata(df: DataFrame, expectedSchemaCatalogStrings: String*): Unit = {
+    val fileSourceScanSchemata =
+      collect(df.queryExecution.executedPlan) {
+        case scan: FileSourceScanExec => scan.requiredSchema
+        case scan: FileSourceScanExecTransformer => scan.requiredSchema
+      }
+    assert(
+      fileSourceScanSchemata.size === expectedSchemaCatalogStrings.size,
+      s"Found ${fileSourceScanSchemata.size} file sources in dataframe, " +
+        s"but expected $expectedSchemaCatalogStrings"
+    )
+    fileSourceScanSchemata.zip(expectedSchemaCatalogStrings).foreach {
+      case (scanSchema, expectedScanSchemaCatalogString) =>
+        val expectedScanSchema = CatalystSqlParser.parseDataType(expectedScanSchemaCatalogString)
+        implicit val equality = schemaEquality
+        assert(scanSchema === expectedScanSchema)
+    }
+  }
 }
 
 @ExtendedSQLTest
@@ -34,5 +59,24 @@ class GlutenParquetV2SchemaPruningSuite
   with GlutenSQLTestsBaseTrait {
   override def sparkConf: SparkConf = {
     super.sparkConf.set("spark.memory.offHeap.size", "3g")
+  }
+
+  override def checkScanSchemata(df: DataFrame, expectedSchemaCatalogStrings: String*): Unit = {
+    val fileSourceScanSchemata =
+      collect(df.queryExecution.executedPlan) {
+        case scan: BatchScanExec => scan.scan.asInstanceOf[ParquetScan].readDataSchema
+        case scan: BatchScanExecTransformer => scan.scan.asInstanceOf[ParquetScan].readDataSchema
+      }
+    assert(
+      fileSourceScanSchemata.size === expectedSchemaCatalogStrings.size,
+      s"Found ${fileSourceScanSchemata.size} file sources in dataframe, " +
+        s"but expected $expectedSchemaCatalogStrings"
+    )
+    fileSourceScanSchemata.zip(expectedSchemaCatalogStrings).foreach {
+      case (scanSchema, expectedScanSchemaCatalogString) =>
+        val expectedScanSchema = CatalystSqlParser.parseDataType(expectedScanSchemaCatalogString)
+        implicit val equality = schemaEquality
+        assert(scanSchema === expectedScanSchema)
+    }
   }
 }

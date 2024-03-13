@@ -20,7 +20,8 @@ import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.SplitInfo
 
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression}
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, DynamicPruningExpression, Expression, Literal}
+import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
@@ -28,12 +29,12 @@ import org.apache.spark.sql.types.StructType
 
 import org.apache.iceberg.spark.source.GlutenIcebergSourceUtil
 
-class IcebergScanTransformer(
-    output: Seq[AttributeReference],
-    @transient scan: Scan,
-    runtimeFilters: Seq[Expression],
-    @transient table: Table)
-  extends BatchScanExecTransformer(
+case class IcebergScanTransformer(
+    override val output: Seq[AttributeReference],
+    @transient override val scan: Scan,
+    override val runtimeFilters: Seq[Expression],
+    @transient override val table: Table)
+  extends BatchScanExecTransformerBase(
     output = output,
     scan = scan,
     runtimeFilters = runtimeFilters,
@@ -53,6 +54,15 @@ class IcebergScanTransformer(
     getPartitions.zipWithIndex.map {
       case (p, index) => GlutenIcebergSourceUtil.genSplitInfo(p, index)
     }
+  }
+
+  override def doCanonicalize(): IcebergScanTransformer = {
+    this.copy(
+      output = output.map(QueryPlan.normalizeExpressions(_, output)),
+      runtimeFilters = QueryPlan.normalizePredicates(
+        runtimeFilters.filterNot(_ == DynamicPruningExpression(Literal.TrueLiteral)),
+        output)
+    )
   }
 }
 

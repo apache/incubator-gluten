@@ -17,7 +17,7 @@
 package org.apache.spark.sql.extension
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.FileSourceScanExecTransformer
+import io.glutenproject.execution.FileSourceScanExecTransformerBase
 
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
@@ -27,17 +27,17 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.collection.BitSet
 
 /** Test for customer column rules */
-class TestFileSourceScanExecTransformer(
-    @transient relation: HadoopFsRelation,
-    output: Seq[Attribute],
-    requiredSchema: StructType,
-    partitionFilters: Seq[Expression],
-    optionalBucketSet: Option[BitSet],
-    optionalNumCoalescedBuckets: Option[Int],
-    dataFilters: Seq[Expression],
-    tableIdentifier: Option[TableIdentifier],
-    disableBucketedScan: Boolean = false)
-  extends FileSourceScanExecTransformer(
+case class TestFileSourceScanExecTransformer(
+    @transient override val relation: HadoopFsRelation,
+    override val output: Seq[Attribute],
+    override val requiredSchema: StructType,
+    override val partitionFilters: Seq[Expression],
+    override val optionalBucketSet: Option[BitSet],
+    override val optionalNumCoalescedBuckets: Option[Int],
+    override val dataFilters: Seq[Expression],
+    override val tableIdentifier: Option[TableIdentifier],
+    override val disableBucketedScan: Boolean = false)
+  extends FileSourceScanExecTransformerBase(
     relation,
     output,
     requiredSchema,
