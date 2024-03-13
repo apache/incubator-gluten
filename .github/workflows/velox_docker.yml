@@ -156,7 +156,7 @@ jobs:
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
-      - name: Build and run TPCH/DS
+      - name: Build gluten-it
         run: |
           cd $GITHUB_WORKSPACE/
           export MAVEN_HOME=/usr/lib/maven
@@ -168,12 +168,34 @@ jobs:
           fi
           echo "JAVA_HOME: $JAVA_HOME"
           mvn clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
-          cd $GITHUB_WORKSPACE/tools/gluten-it 
-          mvn clean install -P${{ matrix.spark }} -P${{ matrix.java }} \
+      - name: Run TPC-H / TPC-DS
+        run: |
+          if [ "${{ matrix.java }}" = "java-17" ]; then
+            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+          else
+            export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
+          fi
+          echo "JAVA_HOME: $JAVA_HOME"
+          cd $GITHUB_WORKSPACE/tools/gluten-it
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
+      - name: Run TPC-H / TPC-DS with ACBO
+        run: |
+          if [ "${{ matrix.java }}" = "java-17" ]; then
+            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+          else
+            export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
+          fi
+          echo "JAVA_HOME: $JAVA_HOME"
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+            --extra-conf=spark.gluten.sql.advanced.cbo.enabled=true \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+            --extra-conf=spark.gluten.sql.advanced.cbo.enabled=true 
 
   # run-tpc-test-centos8-oom-randomkill:
   #   needs: build-native-lib

@@ -309,4 +309,6 @@ class Spark35Shims extends SparkShims {
 
   override def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] =
     null
+
+  override def supportsRowBased(plan: SparkPlan): Boolean = plan.supportsRowBased
 }

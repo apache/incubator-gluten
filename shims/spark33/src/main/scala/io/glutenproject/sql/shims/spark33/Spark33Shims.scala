@@ -272,4 +272,6 @@ class Spark33Shims extends SparkShims {
       case _ => Option.empty
     }
   }
+
+  override def supportsRowBased(plan: SparkPlan): Boolean = plan.supportsRowBased
 }
