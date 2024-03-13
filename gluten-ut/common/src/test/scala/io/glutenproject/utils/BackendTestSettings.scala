@@ -127,7 +127,7 @@ abstract class BackendTestSettings {
       this
     }
 
-    def disableByReason(reason: String): SuiteSettings = {
+    def disable(reason: String): SuiteSettings = {
       disableReason = disableReason match {
         case Some(r) => throw new IllegalArgumentException("Disable reason already set: " + r)
         case None => Some(reason)

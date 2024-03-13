@@ -379,6 +379,10 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Return correct results when data columns overlap with partition " +
       "columns (nested data)")
     .exclude("SPARK-31116: Select nested schema with case insensitive mode")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("File source v2: support passing data filters to FileScan without partitionFilters")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("File source v2: support partition pruning")
   enableSuite[GlutenEnsureRequirementsSuite]
     // Rewrite to change the shuffle partitions for optimizing repartition
     .excludeByPrefix("SPARK-35675")
@@ -982,6 +986,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataSourceV2SQLSessionCatalogSuite]
   enableSuite[GlutenDataSourceV2SQLSuite]
   enableSuite[GlutenFileDataSourceV2FallBackSuite]
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("Fallback Parquet V2 to V1")
   enableSuite[GlutenLocalScanSuite]
   enableSuite[GlutenSupportsCatalogOptionsSuite]
   enableSuite[GlutenTableCapabilityCheckSuite]
@@ -1008,6 +1014,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-32767 Bucket join should work if SHUFFLE_PARTITIONS larger than bucket number")
     .exclude("bucket coalescing eliminates shuffle")
     .exclude("bucket coalescing is not satisfied")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("disable bucketing when the output doesn't contain all bucketing columns")
     .excludeByPrefix("bucket coalescing is applied when join expressions match")
   enableSuite[GlutenBucketedWriteWithoutHiveSupportSuite]
   enableSuite[GlutenCreateTableAsSelectSuite]
@@ -1016,6 +1024,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("create a table, drop it and create another one with the same name")
   enableSuite[GlutenDDLSourceLoadSuite]
   enableSuite[GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuite]
+    .disable(
+      "DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type")
   enableSuite[GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuiteAE]
   enableSuite[GlutenExternalCommandRunnerSuite]
   enableSuite[GlutenFilteredScanSuite]

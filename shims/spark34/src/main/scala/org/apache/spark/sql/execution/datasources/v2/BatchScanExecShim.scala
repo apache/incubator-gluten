@@ -30,12 +30,12 @@ import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-class BatchScanExecShim(
+abstract class BatchScanExecShim(
     output: Seq[AttributeReference],
     @transient scan: Scan,
     runtimeFilters: Seq[Expression],
-    @transient table: Table)
-  extends BatchScanExec(output, scan, runtimeFilters, table = table) {
+    @transient val table: Table)
+  extends AbstractBatchScanExec(output, scan, runtimeFilters, table = table) {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] = Map()
@@ -43,16 +43,6 @@ class BatchScanExecShim(
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException("Need to implement this method")
   }
-
-  override def equals(other: Any): Boolean = other match {
-    case that: BatchScanExecShim =>
-      (that.canEqual(this)) && super.equals(that)
-    case _ => false
-  }
-
-  override def hashCode(): Int = super.hashCode()
-
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[BatchScanExecShim]
 
   @transient protected lazy val filteredPartitions: Seq[Seq[InputPartition]] = {
     val dataSourceFilters = runtimeFilters.flatMap {

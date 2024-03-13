@@ -326,6 +326,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("UDF input_file_name()")
     .exclude("SPARK-31116: Select nested schema with case insensitive mode")
     .exclude("SPARK-35669: special char in CSV header with filter pushdown")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("File source v2: support passing data filters to FileScan without partitionFilters")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("File source v2: support partition pruning")
     .excludeGlutenTest("Spark native readers should respect spark.sql.caseSensitive - parquet")
     .excludeGlutenTest("SPARK-25237 compute correct input metrics in FileScanRDD")
   enableSuite[GlutenFileScanSuite]
@@ -975,6 +979,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("partitioning reporting")
     .exclude("SPARK-33267: push down with condition 'in (..., null)' should not throw NPE")
   enableSuite[GlutenFileDataSourceV2FallBackSuite]
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("Fallback Parquet V2 to V1")
   enableSuite[GlutenLocalScanSuite]
   enableSuite[GlutenSupportsCatalogOptionsSuite]
   enableSuite[GlutenTableCapabilityCheckSuite]
@@ -1465,6 +1471,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Enabling/disabling ignoreCorruptFiles")
     .exclude("SPARK-27160 Predicate pushdown correctness on DecimalType for ORC")
     .exclude("SPARK-20728 Make ORCFileFormat configurable between sql/hive and sql/core")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude(
+      "SPARK-37728: Reading nested columns with ORC vectorized reader should not cause ArrayIndexOutOfBoundsException")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
   enableSuite[GlutenOrcSourceSuite]
     .exclude("SPARK-24322 Fix incorrect workaround for bug in java.sql.Timestamp")
     .exclude("SPARK-31238: compatibility with Spark 2.4 in reading dates")
@@ -1472,6 +1483,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-31284: compatibility with Spark 2.4 in reading timestamps")
     .exclude("SPARK-31284, SPARK-31423: rebasing timestamps in write")
     .exclude("SPARK-36594: ORC vectorized reader should properly check maximal number of fields")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
     .excludeGlutenTest("SPARK-31238: compatibility with Spark 2.4 in reading dates")
     .excludeGlutenTest("SPARK-31238, SPARK-31423: rebasing dates in write")
     .excludeGlutenTest("SPARK-31284: compatibility with Spark 2.4 in reading timestamps")
@@ -1483,6 +1496,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Enabling/disabling ignoreCorruptFiles")
     .exclude("SPARK-27160 Predicate pushdown correctness on DecimalType for ORC")
     .exclude("SPARK-20728 Make ORCFileFormat configurable between sql/hive and sql/core")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude(
+      "SPARK-37728: Reading nested columns with ORC vectorized reader should not cause ArrayIndexOutOfBoundsException")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
   enableSuite[GlutenOrcV1SchemaPruningSuite]
     .exclude(
       "Spark vectorized reader - without partition data column - select only top-level fields")
@@ -1668,6 +1686,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Enabling/disabling ignoreCorruptFiles")
     .exclude("SPARK-27160 Predicate pushdown correctness on DecimalType for ORC")
     .exclude("SPARK-20728 Make ORCFileFormat configurable between sql/hive and sql/core")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude(
+      "SPARK-37728: Reading nested columns with ORC vectorized reader should not cause ArrayIndexOutOfBoundsException")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
   enableSuite[GlutenOrcV2SchemaPruningSuite]
     .exclude("Spark vectorized reader - without partition data column - select a single complex field from a map entry and its parent map entry")
     .exclude("Spark vectorized reader - with partition data column - select a single complex field from a map entry and its parent map entry")
@@ -2120,6 +2143,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-32767 Bucket join should work if SHUFFLE_PARTITIONS larger than bucket number")
     .exclude("bucket coalescing eliminates shuffle")
     .exclude("bucket coalescing is not satisfied")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("disable bucketing when the output doesn't contain all bucketing columns")
     .exclude(
       "bucket coalescing is applied when join expressions match with partitioning expressions")
   enableSuite[GlutenBucketedWriteWithoutHiveSupportSuite]
@@ -2128,6 +2153,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("create a table, drop it and create another one with the same name")
   enableSuite[GlutenDDLSourceLoadSuite]
   enableSuite[GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuite]
+    .disable(
+      "DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type")
   enableSuite[GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuiteAE]
   enableSuite[GlutenExternalCommandRunnerSuite]
   enableSuite[GlutenFilteredScanSuite]

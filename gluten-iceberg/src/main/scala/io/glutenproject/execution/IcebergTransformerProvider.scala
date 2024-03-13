@@ -25,7 +25,7 @@ class IcebergTransformerProvider extends DataSourceScanTransformerRegister {
 
   override def createDataSourceV2Transformer(
       batchScan: BatchScanExec,
-      newPartitionFilters: Seq[Expression]): BatchScanExecTransformer = {
+      newPartitionFilters: Seq[Expression]): BatchScanExecTransformerBase = {
     IcebergScanTransformer(batchScan, newPartitionFilters)
   }
 }

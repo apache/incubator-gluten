@@ -14,35 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2
-
-import com.google.common.base.Objects
 
 import org.apache.spark.SparkException
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.physical.{KeyGroupedPartitioning, Partitioning, SinglePartition}
 import org.apache.spark.sql.catalyst.util.{truncatedString, InternalRowComparableWrapper}
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read._
 import org.apache.spark.sql.internal.SQLConf
 
-/**
- * Physical plan node for scanning a batch of data from a data source v2.
- */
-case class AbstractBatchScanExec(
-                          output: Seq[AttributeReference],
-                          @transient scan: Scan,
-                          runtimeFilters: Seq[Expression],
-                          keyGroupedPartitioning: Option[Seq[Expression]] = None,
-                          ordering: Option[Seq[SortOrder]] = None,
-                          @transient table: Table,
-                          commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None,
-                          applyPartialClustering: Boolean = false,
-                          replicatePartitions: Boolean = false) extends DataSourceV2ScanExecBase {
+import com.google.common.base.Objects
+
+/** Physical plan node for scanning a batch of data from a data source v2. */
+abstract class AbstractBatchScanExec(
+    output: Seq[AttributeReference],
+    @transient scan: Scan,
+    val runtimeFilters: Seq[Expression],
+    keyGroupedPartitioning: Option[Seq[Expression]] = None,
+    ordering: Option[Seq[SortOrder]] = None,
+    @transient table: Table,
+    val commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None,
+    val applyPartialClustering: Boolean = false,
+    val replicatePartitions: Boolean = false)
+  extends DataSourceV2ScanExecBase {
 
   @transient lazy val batch = if (scan == null) null else scan.toBatch
 
@@ -50,10 +47,10 @@ case class AbstractBatchScanExec(
   override def equals(other: Any): Boolean = other match {
     case other: AbstractBatchScanExec =>
       this.batch != null && this.batch == other.batch &&
-        this.runtimeFilters == other.runtimeFilters &&
-        this.commonPartitionValues == other.commonPartitionValues &&
-        this.replicatePartitions == other.replicatePartitions &&
-        this.applyPartialClustering == other.applyPartialClustering
+      this.runtimeFilters == other.runtimeFilters &&
+      this.commonPartitionValues == other.commonPartitionValues &&
+      this.replicatePartitions == other.replicatePartitions &&
+      this.applyPartialClustering == other.applyPartialClustering
     case _ =>
       false
   }
@@ -81,28 +78,36 @@ case class AbstractBatchScanExec(
       originalPartitioning match {
         case p: KeyGroupedPartitioning =>
           if (newPartitions.exists(!_.isInstanceOf[HasPartitionKey])) {
-            throw new SparkException("Data source must have preserved the original partitioning " +
-              "during runtime filtering: not all partitions implement HasPartitionKey after " +
-              "filtering")
+            throw new SparkException(
+              "Data source must have preserved the original partitioning " +
+                "during runtime filtering: not all partitions implement HasPartitionKey after " +
+                "filtering")
           }
-          val newPartitionValues = newPartitions.map(partition =>
-            InternalRowComparableWrapper(partition.asInstanceOf[HasPartitionKey], p.expressions))
+          val newPartitionValues = newPartitions
+            .map(
+              partition =>
+                InternalRowComparableWrapper(
+                  partition.asInstanceOf[HasPartitionKey],
+                  p.expressions))
             .toSet
           val oldPartitionValues = p.partitionValues
-            .map(partition => InternalRowComparableWrapper(partition, p.expressions)).toSet
+            .map(partition => InternalRowComparableWrapper(partition, p.expressions))
+            .toSet
           // We require the new number of partition values to be equal or less than the old number
           // of partition values here. In the case of less than, empty partitions will be added for
           // those missing values that are not present in the new input partitions.
           if (oldPartitionValues.size < newPartitionValues.size) {
-            throw new SparkException("During runtime filtering, data source must either report " +
-              "the same number of partition values, or a subset of partition values from the " +
-              s"original. Before: ${oldPartitionValues.size} partition values. " +
-              s"After: ${newPartitionValues.size} partition values")
+            throw new SparkException(
+              "During runtime filtering, data source must either report " +
+                "the same number of partition values, or a subset of partition values from the " +
+                s"original. Before: ${oldPartitionValues.size} partition values. " +
+                s"After: ${newPartitionValues.size} partition values")
           }
 
           if (!newPartitionValues.forall(oldPartitionValues.contains)) {
-            throw new SparkException("During runtime filtering, data source must not report new " +
-              "partition values that are not present in the original partitioning.")
+            throw new SparkException(
+              "During runtime filtering, data source must not report new " +
+                "partition values that are not present in the original partitioning.")
           }
 
           groupPartitions(newPartitions).getOrElse(Seq.empty).map(_._2)
@@ -122,8 +127,9 @@ case class AbstractBatchScanExec(
       case k: KeyGroupedPartitioning if commonPartitionValues.isDefined =>
         // We allow duplicated partition values if
         // `spark.sql.sources.v2.bucketing.partiallyClusteredDistribution.enabled` is true
-        val newPartValues = commonPartitionValues.get.flatMap { case (partValue, numSplits) =>
-          Seq.fill(numSplits)(partValue)
+        val newPartValues = commonPartitionValues.get.flatMap {
+          case (partValue, numSplits) =>
+            Seq.fill(numSplits)(partValue)
         }
         k.copy(numPartitions = newPartValues.length, partitionValues = newPartValues)
       case p => p
@@ -141,12 +147,16 @@ case class AbstractBatchScanExec(
 
       outputPartitioning match {
         case p: KeyGroupedPartitioning =>
-          if (conf.v2BucketingPushPartValuesEnabled &&
-            conf.v2BucketingPartiallyClusteredDistributionEnabled) {
-            assert(filteredPartitions.forall(_.size == 1),
+          if (
+            conf.v2BucketingPushPartValuesEnabled &&
+            conf.v2BucketingPartiallyClusteredDistributionEnabled
+          ) {
+            assert(
+              filteredPartitions.forall(_.size == 1),
               "Expect partitions to be not grouped when " +
                 s"${SQLConf.V2_BUCKETING_PARTIALLY_CLUSTERED_DISTRIBUTION_ENABLED.key} " +
-                "is enabled")
+                "is enabled"
+            )
 
             val groupedPartitions = groupPartitions(finalPartitions.map(_.head), true)
               .getOrElse(Seq.empty)
@@ -157,8 +167,7 @@ case class AbstractBatchScanExec(
             if (commonPartitionValues.isDefined && applyPartialClustering) {
               // A mapping from the common partition values to how many splits the partition
               // should contain. Note this no longer maintain the partition key ordering.
-              val commonPartValuesMap = commonPartitionValues
-                .get
+              val commonPartValuesMap = commonPartitionValues.get
                 .map(t => (InternalRowComparableWrapper(t._1, p.expressions), t._2))
                 .toMap
               val nestGroupedPartitions = groupedPartitions.map {
@@ -166,8 +175,10 @@ case class AbstractBatchScanExec(
                   // `commonPartValuesMap` should contain the part value since it's the super set.
                   val numSplits = commonPartValuesMap
                     .get(InternalRowComparableWrapper(partValue, p.expressions))
-                  assert(numSplits.isDefined, s"Partition value $partValue does not exist in " +
-                    "common partition values from Spark plan")
+                  assert(
+                    numSplits.isDefined,
+                    s"Partition value $partValue does not exist in " +
+                      "common partition values from Spark plan")
 
                   val newSplits = if (replicatePartitions) {
                     // We need to also replicate partitions according to the other side of join
@@ -185,38 +196,45 @@ case class AbstractBatchScanExec(
 
               // Now fill missing partition keys with empty partitions
               val partitionMapping = nestGroupedPartitions.toMap
-              finalPartitions = commonPartitionValues.get.flatMap { case (partValue, numSplits) =>
-                // Use empty partition for those partition values that are not present.
-                partitionMapping.getOrElse(
-                  InternalRowComparableWrapper(partValue, p.expressions),
-                  Seq.fill(numSplits)(Seq.empty))
+              finalPartitions = commonPartitionValues.get.flatMap {
+                case (partValue, numSplits) =>
+                  // Use empty partition for those partition values that are not present.
+                  partitionMapping.getOrElse(
+                    InternalRowComparableWrapper(partValue, p.expressions),
+                    Seq.fill(numSplits)(Seq.empty))
               }
             } else {
               // either `commonPartitionValues` is not defined, or it is defined but
               // `applyPartialClustering` is false.
-              val partitionMapping = groupedPartitions.map { case (row, parts) =>
-                InternalRowComparableWrapper(row, p.expressions) -> parts
+              val partitionMapping = groupedPartitions.map {
+                case (row, parts) =>
+                  InternalRowComparableWrapper(row, p.expressions) -> parts
               }.toMap
 
               // In case `commonPartitionValues` is not defined (e.g., SPJ is not used), there
               // could exist duplicated partition values, as partition grouping is not done
               // at the beginning and postponed to this method. It is important to use unique
               // partition values here so that grouped partitions won't get duplicated.
-              finalPartitions = p.uniquePartitionValues.map { partValue =>
-                // Use empty partition for those partition values that are not present
-                partitionMapping.getOrElse(
-                  InternalRowComparableWrapper(partValue, p.expressions), Seq.empty)
+              finalPartitions = p.uniquePartitionValues.map {
+                partValue =>
+                  // Use empty partition for those partition values that are not present
+                  partitionMapping.getOrElse(
+                    InternalRowComparableWrapper(partValue, p.expressions),
+                    Seq.empty)
               }
             }
           } else {
-            val partitionMapping = finalPartitions.map { parts =>
-              val row = parts.head.asInstanceOf[HasPartitionKey].partitionKey()
-              InternalRowComparableWrapper(row, p.expressions) -> parts
+            val partitionMapping = finalPartitions.map {
+              parts =>
+                val row = parts.head.asInstanceOf[HasPartitionKey].partitionKey()
+                InternalRowComparableWrapper(row, p.expressions) -> parts
             }.toMap
-            finalPartitions = p.partitionValues.map { partValue =>
-              // Use empty partition for those partition values that are not present
-              partitionMapping.getOrElse(
-                InternalRowComparableWrapper(partValue, p.expressions), Seq.empty)
+            finalPartitions = p.partitionValues.map {
+              partValue =>
+                // Use empty partition for those partition values that are not present
+                partitionMapping.getOrElse(
+                  InternalRowComparableWrapper(partValue, p.expressions),
+                  Seq.empty)
             }
           }
 
@@ -224,18 +242,14 @@ case class AbstractBatchScanExec(
       }
 
       new DataSourceRDD(
-        sparkContext, finalPartitions, readerFactory, supportsColumnar, customMetrics)
+        sparkContext,
+        finalPartitions,
+        readerFactory,
+        supportsColumnar,
+        customMetrics)
     }
     postDriverMetrics()
     rdd
-  }
-
-  override def doCanonicalize(): AbstractBatchScanExec = {
-    this.copy(
-      output = output.map(QueryPlan.normalizeExpressions(_, output)),
-      runtimeFilters = QueryPlan.normalizePredicates(
-        runtimeFilters.filterNot(_ == DynamicPruningExpression(Literal.TrueLiteral)),
-        output))
   }
 
   override def simpleString(maxFields: Int): String = {

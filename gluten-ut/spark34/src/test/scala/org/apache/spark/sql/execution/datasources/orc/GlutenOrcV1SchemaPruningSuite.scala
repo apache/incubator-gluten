@@ -16,7 +16,11 @@
  */
 package org.apache.spark.sql.execution.datasources.orc
 
-import org.apache.spark.sql.GlutenSQLTestsBaseTrait
+import io.glutenproject.execution.FileSourceScanExecTransformer
+
+import org.apache.spark.sql.{DataFrame, GlutenSQLTestsBaseTrait}
+import org.apache.spark.sql.catalyst.parser.CatalystSqlParser
+import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.tags.ExtendedSQLTest
 
@@ -25,4 +29,23 @@ class GlutenOrcV1SchemaPruningSuite extends OrcV1SchemaPruningSuite with GlutenS
   // disable column reader for nested type
   override protected val vectorizedReaderNestedEnabledKey: String =
     SQLConf.PARQUET_VECTORIZED_READER_NESTED_COLUMN_ENABLED.key + "_DISABLED"
+
+  override def checkScanSchemata(df: DataFrame, expectedSchemaCatalogStrings: String*): Unit = {
+    val fileSourceScanSchemata =
+      collect(df.queryExecution.executedPlan) {
+        case scan: FileSourceScanExec => scan.requiredSchema
+        case scan: FileSourceScanExecTransformer => scan.requiredSchema
+      }
+    assert(
+      fileSourceScanSchemata.size === expectedSchemaCatalogStrings.size,
+      s"Found ${fileSourceScanSchemata.size} file sources in dataframe, " +
+        s"but expected $expectedSchemaCatalogStrings"
+    )
+    fileSourceScanSchemata.zip(expectedSchemaCatalogStrings).foreach {
+      case (scanSchema, expectedScanSchemaCatalogString) =>
+        val expectedScanSchema = CatalystSqlParser.parseDataType(expectedScanSchemaCatalogString)
+        implicit val equality = schemaEquality
+        assert(scanSchema === expectedScanSchema)
+    }
+  }
 }

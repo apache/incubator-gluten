@@ -117,7 +117,7 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
                    |""".stripMargin)
       val df1 = runQueryAndCompare("select * from delta_pf where name = 'v1'") { _ => }
       val deltaScanTransformer = df1.queryExecution.executedPlan.collect {
-        case f: FileSourceScanExecTransformer => f
+        case f: DeltaScanTransformer => f
       }.head
       // No data filters as only partition filters exist
       assert(deltaScanTransformer.filterExprs().size == 0)

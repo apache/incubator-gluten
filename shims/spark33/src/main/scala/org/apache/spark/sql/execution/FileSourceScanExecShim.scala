@@ -30,17 +30,17 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
 
 import scala.collection.mutable
 
-class FileSourceScanExecShim(
-    @transient relation: HadoopFsRelation,
-    output: Seq[Attribute],
-    requiredSchema: StructType,
-    partitionFilters: Seq[Expression],
-    optionalBucketSet: Option[BitSet],
-    optionalNumCoalescedBuckets: Option[Int],
-    dataFilters: Seq[Expression],
-    tableIdentifier: Option[TableIdentifier],
-    disableBucketedScan: Boolean = false)
-  extends FileSourceScanExec(
+abstract class FileSourceScanExecShim(
+    @transient override val relation: HadoopFsRelation,
+    override val output: Seq[Attribute],
+    val requiredSchema: StructType,
+    val partitionFilters: Seq[Expression],
+    val optionalBucketSet: Option[BitSet],
+    val optionalNumCoalescedBuckets: Option[Int],
+    val dataFilters: Seq[Expression],
+    override val tableIdentifier: Option[TableIdentifier],
+    val disableBucketedScan: Boolean = false)
+  extends AbstractFileSourceScanExec(
     relation,
     output,
     requiredSchema,
@@ -53,16 +53,6 @@ class FileSourceScanExecShim(
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] = Map()
-
-  override def equals(other: Any): Boolean = other match {
-    case that: FileSourceScanExecShim =>
-      (that.canEqual(this)) && super.equals(that)
-    case _ => false
-  }
-
-  override def hashCode(): Int = super.hashCode()
-
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[FileSourceScanExecShim]
 
   def hasMetadataColumns: Boolean = metadataColumns.nonEmpty
 
