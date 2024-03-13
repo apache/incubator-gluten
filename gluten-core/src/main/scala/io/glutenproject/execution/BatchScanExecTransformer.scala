@@ -32,13 +32,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-/**
- * Columnar Based BatchScanExec. Although keyGroupedPartitioning is not used, it cannot be deleted,
- * it can make BatchScanExecTransformer contain a constructor with the same parameters as
- * Spark-3.3's BatchScanExec. Otherwise, the corresponding constructor will not be found when
- * calling TreeNode.makeCopy and will fail to copy this node during transformation.
- */
-
+/** Columnar Based BatchScanExec. */
 case class BatchScanExecTransformer(
     override val output: Seq[AttributeReference],
     @transient override val scan: Scan,
@@ -80,7 +74,16 @@ abstract class BatchScanExecTransformerBase(
     override val commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None,
     override val applyPartialClustering: Boolean = false,
     override val replicatePartitions: Boolean = false)
-  extends BatchScanExecShim(output, scan, runtimeFilters, table = table)
+  extends BatchScanExecShim(
+    output,
+    scan,
+    runtimeFilters,
+    keyGroupedPartitioning,
+    ordering,
+    table,
+    commonPartitionValues,
+    applyPartialClustering,
+    replicatePartitions)
   with BasicScanExecTransformer {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
