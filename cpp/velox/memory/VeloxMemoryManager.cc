@@ -63,8 +63,11 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     return true;
   }
 
-  uint64_t shrinkCapacity(const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& pools, uint64_t targetBytes)
-      override {
+  uint64_t shrinkCapacity(
+      const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& pools,
+      uint64_t targetBytes,
+      bool allowSpill = true,
+      bool allowAbort = false) override {
     facebook::velox::exec::MemoryReclaimer::Stats status;
     GLUTEN_CHECK(pools.size() == 1, "Should shrink a single pool at a time");
     std::lock_guard<std::recursive_mutex> l(mutex_); // FIXME: Do we have recursive locking for this mutex?
