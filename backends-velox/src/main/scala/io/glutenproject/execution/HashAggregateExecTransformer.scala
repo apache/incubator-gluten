@@ -392,9 +392,8 @@ abstract class HashAggregateExecTransformer(
                     // calculations, it is sufficient to pass a default DataType value.
                     val extraAttr = AttributeReference(veloxOrders(idx), veloxType)()
                     newInputAttributes += extraAttr
-                    childNodes.add(
-                      ExpressionBuilder
-                        .makeLiteral(ConverterUtils.getDefaultValue(veloxType), veloxType, false))
+                    val lt = Literal.default(veloxType)
+                    childNodes.add(ExpressionBuilder.makeLiteral(lt.value, lt.dataType, false))
                   } else {
                     val sparkType = sparkTypes(adjustedIdx)
                     val attr = rewrittenInputAttributes(adjustedIdx)

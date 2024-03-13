@@ -263,24 +263,6 @@ object ConverterUtils extends Logging {
     }
   }
 
-  def getDefaultValue(datatype: DataType): Any = datatype match {
-    case BooleanType => false
-    case FloatType => 0.0f
-    case DoubleType => 0.0
-    case LongType => 0L
-    case IntegerType => 0
-    case ShortType => 0: Short
-    case ByteType => 0: Byte
-    case StringType => ""
-    case BinaryType => new Array[Byte](0)
-    case DateType => 0
-    case DecimalType() => Decimal(0)
-    case TimestampType => 0L
-    case unknown =>
-      throw new UnsupportedOperationException(
-        s"Only supported AtomicType. Type $unknown not supported.")
-  }
-
   def printBatch(cb: ColumnarBatch): Unit = {
     var batch = ""
     for (rowId <- 0 until cb.numRows()) {
