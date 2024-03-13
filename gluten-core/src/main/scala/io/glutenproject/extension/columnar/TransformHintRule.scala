@@ -704,7 +704,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar generate is not enabled in GenerateExec")
           } else {
-            val transformer = GenerateExecTransformer(
+            val transformer = BackendsApiManager.getSparkPlanExecApiInstance.genGenerateTransformer(
               plan.generator,
               plan.requiredChildOutput,
               plan.outer,

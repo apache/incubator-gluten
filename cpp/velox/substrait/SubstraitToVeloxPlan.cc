@@ -766,10 +766,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     }
   }
 
-  auto node = std::make_shared<core::UnnestNode>(
-      nextPlanNodeId(), replicated, unnest, std::move(unnestNames), std::nullopt, childNode);
+  std::optional<std::string> ordinalityName = std::nullopt;
+  if (generateRel.has_advanced_extension() &&
+      SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isPosExplode=")) {
+    ordinalityName = std::make_optional<std::string>("pos");
+  }
 
-  return node;
+  return std::make_shared<core::UnnestNode>(
+      nextPlanNodeId(), replicated, unnest, std::move(unnestNames), ordinalityName, childNode);
 }
 
 const core::WindowNode::Frame createWindowFrame(

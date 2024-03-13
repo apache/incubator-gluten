@@ -36,7 +36,7 @@ import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FlushableHas
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, Literal, Murmur3Hash, NamedExpression, NaNvl, Round, StringSplit, StringTrim}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, Generator, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, Literal, Murmur3Hash, NamedExpression, NaNvl, PosExplode, Round, StringSplit, StringTrim}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -134,6 +134,15 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       child: ExpressionTransformer,
       expr: Expression): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, Seq(child), expr)
+  }
+
+  /** Transform inline to Substrait. */
+  override def genPosExplodeTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: PosExplode,
+      attrSeq: Seq[Attribute]): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(child), attrSeq.head)
   }
 
   /** Transform inline to Substrait. */
@@ -622,5 +631,15 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       case other =>
         throw new IllegalStateException(s"Unsupported fs: $other")
     }
+  }
+
+  override def genGenerateTransformer(
+      generator: Generator,
+      requiredChildOutput: Seq[Attribute],
+      outer: Boolean,
+      generatorOutput: Seq[Attribute],
+      child: SparkPlan
+  ): GenerateExecTransformerBase = {
+    GenerateExecTransformer(generator, requiredChildOutput, outer, generatorOutput, child)
   }
 }

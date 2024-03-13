@@ -735,4 +735,14 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       case _ => super.postProcessPushDownFilter(extraFilters, sparkExecNode)
     }
   }
+
+  override def genGenerateTransformer(
+      generator: Generator,
+      requiredChildOutput: Seq[Attribute],
+      outer: Boolean,
+      generatorOutput: Seq[Attribute],
+      child: SparkPlan
+  ): GenerateExecTransformerBase = {
+    CHGenerateExecTransformer(generator, requiredChildOutput, outer, generatorOutput, child)
+  }
 }
