@@ -72,7 +72,10 @@ std::shared_ptr<IcebergSplitInfo> IcebergPlanConverter::parseIcebergSplitInfo(
       deletes.emplace_back(IcebergDeleteFile(
           fileContent, deleteFile.filepath(), format, deleteFile.recordcount(), deleteFile.filesize()));
     }
-    icebergSplitInfo->deleteFilesMap[file.uri_file()] = std::move(deletes);
+    icebergSplitInfo->deleteFilesVec.emplace_back(deletes);
+  } else {
+    // Add an empty delete files vector to indicate that this data file has no delete file.
+    icebergSplitInfo->deleteFilesVec.emplace_back(std::vector<IcebergDeleteFile>{});
   }
 
   return icebergSplitInfo;

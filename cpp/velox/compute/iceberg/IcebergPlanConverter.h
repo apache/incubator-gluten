@@ -24,9 +24,12 @@ using namespace facebook::velox::connector::hive::iceberg;
 
 namespace gluten {
 struct IcebergSplitInfo : SplitInfo {
-  std::unordered_map<std::string, std::vector<IcebergDeleteFile>> deleteFilesMap;
+  std::vector<std::vector<IcebergDeleteFile>> deleteFilesVec;
 
-  IcebergSplitInfo(const SplitInfo& splitInfo) : SplitInfo(splitInfo) {}
+  IcebergSplitInfo(const SplitInfo& splitInfo) : SplitInfo(splitInfo) {
+    // Reserve the actual size of the deleteFilesVec.
+    deleteFilesVec.reserve(splitInfo.paths.capacity());
+  }
 };
 
 class IcebergPlanConverter {
