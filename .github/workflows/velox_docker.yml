@@ -45,6 +45,7 @@ concurrency:
 jobs:
   build-docker:
     runs-on: ubuntu-latest
+    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     env:
       OS_IMAGE_NAME: ubuntu
       OS_IMAGE_TAG: 20.04
@@ -53,4 +54,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build Gluten velox third party
         run: |
-          cd ./tools/gluten-te/ubuntu/ && bash build.sh
+          yum install sudo patch -y && \
+          cd ep/build-velox/src && \
+          ./get_velox.sh && \
+          source /opt/rh/gcc-toolset-9/enable && \
+          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
