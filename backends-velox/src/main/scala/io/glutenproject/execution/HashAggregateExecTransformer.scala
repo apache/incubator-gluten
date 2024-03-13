@@ -388,8 +388,13 @@ abstract class HashAggregateExecTransformer(
                 case (veloxType, idx) =>
                   val adjustedIdx = adjustedOrders(idx)
                   if (adjustedIdx == -1) {
-                    // The column not found in Spark, and this column is not useful in actual
-                    // calculations, it is sufficient to pass a default DataType value.
+                    // The Velox aggregate intermediate buffer column not found in Spark.
+                    // For example, skewness and kurtosis share the same aggregate buffer in Velox,
+                    // and Kurtosis additionally requires the buffer column of m4, which is
+                    // always 0 for skewness. In Spark, the aggregate buffer of skewness does not
+                    // have the column of m4, thus a placeholder m4 with a value of 0 must be passed
+                    // to Velox, and this value cannot be omitted. Velox will always read m4 column
+                    // when accessing the intermediate data.
                     val extraAttr = AttributeReference(veloxOrders(idx), veloxType)()
                     newInputAttributes += extraAttr
                     val lt = Literal.default(veloxType)
