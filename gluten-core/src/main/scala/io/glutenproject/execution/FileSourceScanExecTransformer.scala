@@ -101,7 +101,7 @@ abstract class FileSourceScanExecTransformerBase(
 
   override def filterExprs(): Seq[Expression] = dataFiltersInScan
 
-  override def getMetadataColumns(): Seq[AttributeReference] = getMetadataColumns
+  override def getMetadataColumns(): Seq[AttributeReference] = metadataColumns
 
   def getPartitionFilters(): Seq[Expression] = partitionFilters
 
