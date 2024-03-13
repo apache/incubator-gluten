@@ -102,6 +102,9 @@ jobs:
           name: golden-files-spark32
           path: |
             /tmp/${{ github.run_id }}/spark32/tpch-approved-plan/**
+      - name: Clean temp golden files
+        run: |
+          rm -rf /tmp/$GITHUB_RUN_ID/spark32
       - name: Exit docker container
         if: ${{ always() }}
         run: |
@@ -231,6 +234,9 @@ jobs:
           name: golden-files-spark33
           path: |
             /tmp/${{ github.run_id }}/spark33/tpch-approved-plan/**
+      - name: Clean temp golden files
+        run: |
+          rm -rf /tmp/$GITHUB_RUN_ID/spark33
       - name: Exit docker container
         if: ${{ always() }}
         run: |
@@ -311,6 +317,9 @@ jobs:
           name: golden-files-spark34
           path: |
             /tmp/${{ github.run_id }}/spark34/tpch-approved-plan/**
+      - name: Clean temp golden files
+        run: |
+          rm -rf /tmp/$GITHUB_RUN_ID/spark34
       - name: Exit docker container
         if: ${{ always() }}
         run: |
@@ -673,12 +682,3 @@ jobs:
         if: ${{ always() }}
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/clean.sh
-
-  clean-up-tmp:
-    runs-on: velox-self-hosted
-    needs: [ubuntu2004-test-spark32, ubuntu2004-test-spark33, ubuntu2004-test-spark34]
-    if: ${{ failure() }}
-    steps:
-      - name: Clean temp golden files
-        run: |
-          rm -rf /tmp/$GITHUB_RUN_ID
