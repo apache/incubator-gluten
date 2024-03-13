@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution.datasources
 
 import io.glutenproject.execution.{FileSourceScanExecTransformer, FilterExecTransformer}
 import io.glutenproject.utils.BackendTestUtils
+
 import org.apache.spark.sql.{Column, DataFrame, Row}
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
@@ -26,6 +27,7 @@ import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructFiel
 
 import java.io.File
 import java.sql.Timestamp
+
 import scala.reflect.ClassTag
 
 class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenSQLTestsBaseTrait {
