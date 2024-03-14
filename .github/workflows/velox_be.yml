@@ -103,9 +103,8 @@ jobs:
           path: |
             /tmp/${{ github.run_id }}/spark32/tpch-approved-plan/**
       - name: Clean temp golden files
-        if: failure()
         run: |
-          rm -rf /tmp/$GITHUB_RUN_ID/spark32/tpch-approved-plan
+          rm -rf /tmp/$GITHUB_RUN_ID/spark32
       - name: Exit docker container
         if: ${{ always() }}
         run: |
@@ -236,9 +235,8 @@ jobs:
           path: |
             /tmp/${{ github.run_id }}/spark33/tpch-approved-plan/**
       - name: Clean temp golden files
-        if: failure()
         run: |
-          rm -rf /tmp/$GITHUB_RUN_ID/spark33/tpch-approved-plan
+          rm -rf /tmp/$GITHUB_RUN_ID/spark33
       - name: Exit docker container
         if: ${{ always() }}
         run: |
@@ -308,6 +306,20 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten && \
           mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark342" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
           mvn test -Pspark-3.4 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest'
+      - name: Copy golden files from container to host
+        if: failure()
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/cp.sh /tmp/tpch-approved-plan/ /tmp/$GITHUB_RUN_ID/spark34/tpch-approved-plan
+      - name: Upload golden files
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-files-spark34
+          path: |
+            /tmp/${{ github.run_id }}/spark34/tpch-approved-plan/**
+      - name: Clean temp golden files
+        run: |
+          rm -rf /tmp/$GITHUB_RUN_ID/spark34
       - name: Exit docker container
         if: ${{ always() }}
         run: |

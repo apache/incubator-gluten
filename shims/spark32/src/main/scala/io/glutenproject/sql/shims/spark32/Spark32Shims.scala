@@ -196,4 +196,8 @@ class Spark32Shims extends SparkShims {
     ae.plan
   }
 
+  override def getKeyGroupedPartitioning(batchScan: BatchScanExec): Option[Seq[Expression]] = null
+
+  override def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] =
+    null
 }

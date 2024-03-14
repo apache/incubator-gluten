@@ -20,6 +20,7 @@ import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.SplitInfo
 
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, DynamicPruningExpression, Expression, Literal}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.catalog.Table
@@ -33,12 +34,17 @@ case class IcebergScanTransformer(
     override val output: Seq[AttributeReference],
     @transient override val scan: Scan,
     override val runtimeFilters: Seq[Expression],
-    @transient override val table: Table)
+    @transient override val table: Table,
+    override val keyGroupedPartitioning: Option[Seq[Expression]] = None,
+    override val commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None)
   extends BatchScanExecTransformerBase(
     output = output,
     scan = scan,
     runtimeFilters = runtimeFilters,
-    table = table) {
+    table = table,
+    keyGroupedPartitioning = keyGroupedPartitioning,
+    commonPartitionValues = commonPartitionValues
+  ) {
 
   override def filterExprs(): Seq[Expression] = pushdownFilters.getOrElse(Seq.empty)
 
@@ -51,7 +57,12 @@ case class IcebergScanTransformer(
   override lazy val fileFormat: ReadFileFormat = GlutenIcebergSourceUtil.getFileFormat(scan)
 
   override def getSplitInfos: Seq[SplitInfo] = {
-    getPartitions.zipWithIndex.map {
+    val groupedPartitions = SparkShimLoader.getSparkShims.orderPartitions(
+      scan,
+      keyGroupedPartitioning,
+      filteredPartitions,
+      outputPartitioning)
+    groupedPartitions.zipWithIndex.map {
       case (p, index) => GlutenIcebergSourceUtil.genSplitInfo(p, index)
     }
   }
@@ -64,6 +75,8 @@ case class IcebergScanTransformer(
         output)
     )
   }
+  // Needed for tests
+  private[execution] def getKeyGroupPartitioning: Option[Seq[Expression]] = keyGroupedPartitioning
 }
 
 object IcebergScanTransformer {
@@ -74,6 +87,9 @@ object IcebergScanTransformer {
       batchScan.output,
       batchScan.scan,
       newPartitionFilters,
-      table = SparkShimLoader.getSparkShims.getBatchScanExecTable(batchScan))
+      table = SparkShimLoader.getSparkShims.getBatchScanExecTable(batchScan),
+      keyGroupedPartitioning = SparkShimLoader.getSparkShims.getKeyGroupedPartitioning(batchScan),
+      commonPartitionValues = SparkShimLoader.getSparkShims.getCommonPartitionValues(batchScan)
+    )
   }
 }
