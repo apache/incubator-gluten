@@ -38,7 +38,15 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
       ReadFileFormat fileFormat,
       List<String> preferredLocations,
       Map<String, List<DeleteFile>> deleteFilesMap) {
-    super(index, paths, starts, lengths, partitionColumns, new ArrayList<>(), fileFormat, preferredLocations);
+    super(
+        index,
+        paths,
+        starts,
+        lengths,
+        partitionColumns,
+        new ArrayList<>(),
+        fileFormat,
+        preferredLocations);
     this.deleteFilesMap = deleteFilesMap;
   }
 
