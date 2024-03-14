@@ -267,8 +267,8 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       condition: Option[Expression],
       left: SparkPlan,
       right: SparkPlan,
-      isNullAwareAntiJoin: Boolean = false): BroadcastHashJoinExecTransformer =
-    GlutenBroadcastHashJoinExecTransformer(
+      isNullAwareAntiJoin: Boolean = false): BroadcastHashJoinExecTransformerBase =
+    BroadcastHashJoinExecTransformer(
       leftKeys,
       rightKeys,
       joinType,

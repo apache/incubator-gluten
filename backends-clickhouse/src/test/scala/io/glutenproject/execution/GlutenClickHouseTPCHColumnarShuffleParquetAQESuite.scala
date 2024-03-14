@@ -162,7 +162,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
           val bhjRes = collect(df.queryExecution.executedPlan) {
-            case bhj: BroadcastHashJoinExecTransformer => bhj
+            case bhj: BroadcastHashJoinExecTransformerBase => bhj
           }
           assert(bhjRes.isEmpty)
       }

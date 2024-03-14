@@ -153,7 +153,7 @@ case class ShuffledHashJoinExecTransformer(
     copy(left = newLeft, right = newRight)
 }
 
-case class GlutenBroadcastHashJoinExecTransformer(
+case class BroadcastHashJoinExecTransformer(
     leftKeys: Seq[Expression],
     rightKeys: Seq[Expression],
     joinType: JoinType,
@@ -162,7 +162,7 @@ case class GlutenBroadcastHashJoinExecTransformer(
     left: SparkPlan,
     right: SparkPlan,
     isNullAwareAntiJoin: Boolean)
-  extends BroadcastHashJoinExecTransformer(
+  extends BroadcastHashJoinExecTransformerBase(
     leftKeys,
     rightKeys,
     joinType,
@@ -193,7 +193,7 @@ case class GlutenBroadcastHashJoinExecTransformer(
 
   override protected def withNewChildrenInternal(
       newLeft: SparkPlan,
-      newRight: SparkPlan): GlutenBroadcastHashJoinExecTransformer =
+      newRight: SparkPlan): BroadcastHashJoinExecTransformer =
     copy(left = newLeft, right = newRight)
 
   override protected def createBroadcastBuildSideRDD(): BroadcastBuildSideRDD = {

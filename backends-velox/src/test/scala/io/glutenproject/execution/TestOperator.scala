@@ -947,7 +947,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
             |select * from t1 cross join t2 on t1.c1 = t2.c1;
             |""".stripMargin
         ) {
-          checkOperatorMatch[GlutenBroadcastHashJoinExecTransformer]
+          checkOperatorMatch[BroadcastHashJoinExecTransformer]
         }
       }
 

@@ -32,7 +32,7 @@ import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.{ExpandOutputPartitioningShim, SparkPlan, SQLExecution}
-import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashJoin}
+import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashedRelationBroadcastMode, HashJoin}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -93,10 +93,7 @@ trait ColumnarShuffledJoin extends BaseJoinExec {
 }
 
 /** Performs a hash join of two child relations by first shuffling the data using the join keys. */
-trait HashJoinLikeExecTransformer
-  extends BaseJoinExec
-  with TransformSupport
-  with ColumnarShuffledJoin {
+trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
 
   def joinBuildSide: BuildSide
   def hashJoinType: JoinType
@@ -252,7 +249,7 @@ trait HashJoinLikeExecTransformer
       joinParams.isWithCondition = true
     }
 
-    if (this.isInstanceOf[BroadcastHashJoinExecTransformer]) {
+    if (this.isInstanceOf[BroadcastHashJoinExecTransformerBase]) {
       joinParams.isBHJ = true
     }
 
@@ -355,7 +352,8 @@ abstract class ShuffledHashJoinExecTransformerBase(
     left: SparkPlan,
     right: SparkPlan,
     isSkewJoin: Boolean)
-  extends HashJoinLikeExecTransformer {
+  extends HashJoinLikeExecTransformer
+  with ColumnarShuffledJoin {
 
   override def joinBuildSide: BuildSide = buildSide
   override def hashJoinType: JoinType = joinType
@@ -365,7 +363,7 @@ abstract class ShuffledHashJoinExecTransformerBase(
   }
 }
 
-abstract class BroadcastHashJoinExecTransformer(
+abstract class BroadcastHashJoinExecTransformerBase(
     leftKeys: Seq[Expression],
     rightKeys: Seq[Expression],
     joinType: JoinType,
@@ -376,9 +374,37 @@ abstract class BroadcastHashJoinExecTransformer(
     isNullAwareAntiJoin: Boolean)
   extends HashJoinLikeExecTransformer {
 
+  override def output: Seq[Attribute] = {
+    joinType match {
+      case _: InnerLike =>
+        left.output ++ right.output
+      case LeftOuter =>
+        left.output ++ right.output.map(_.withNullability(true))
+      case RightOuter =>
+        left.output.map(_.withNullability(true)) ++ right.output
+      case FullOuter =>
+        (left.output ++ right.output).map(_.withNullability(true))
+      case j: ExistenceJoin =>
+        left.output :+ j.exists
+      case LeftExistence(_) =>
+        left.output
+      case x =>
+        throw new IllegalArgumentException(s"${getClass.getSimpleName} not take $x as the JoinType")
+    }
+  }
+
+  override def requiredChildDistribution: Seq[Distribution] = {
+    val mode = HashedRelationBroadcastMode(buildKeyExprs, isNullAwareAntiJoin)
+    buildSide match {
+      case BuildLeft =>
+        BroadcastDistribution(mode) :: UnspecifiedDistribution :: Nil
+      case BuildRight =>
+        UnspecifiedDistribution :: BroadcastDistribution(mode) :: Nil
+    }
+  }
+
   override def joinBuildSide: BuildSide = buildSide
   override def hashJoinType: JoinType = joinType
-  override def isSkewJoin: Boolean = false
 
   // Unique ID for builded hash table
   lazy val buildHashTableId: String = "BuiltHashTable-" + buildPlan.id
@@ -400,5 +426,4 @@ abstract class BroadcastHashJoinExecTransformer(
   }
 
   protected def createBroadcastBuildSideRDD(): BroadcastBuildSideRDD
-
 }

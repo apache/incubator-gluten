@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.adaptive.velox
 
-import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ShuffledHashJoinExecTransformerBase, SortExecTransformer, SortMergeJoinExecTransformer}
+import io.glutenproject.execution.{BroadcastHashJoinExecTransformerBase, ShuffledHashJoinExecTransformerBase, SortExecTransformer, SortMergeJoinExecTransformer}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
@@ -89,8 +89,8 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
   }
 
   private def findTopLevelBroadcastHashJoinTransform(
-      plan: SparkPlan): Seq[BroadcastHashJoinExecTransformer] = {
-    collect(plan) { case j: BroadcastHashJoinExecTransformer => j }
+      plan: SparkPlan): Seq[BroadcastHashJoinExecTransformerBase] = {
+    collect(plan) { case j: BroadcastHashJoinExecTransformerBase => j }
   }
 
   private def findTopLevelBroadcastHashJoin(plan: SparkPlan): Seq[BroadcastHashJoinExec] = {
@@ -271,7 +271,7 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
           .count()
         checkAnswer(testDf, Seq())
         val plan = testDf.queryExecution.executedPlan
-        assert(find(plan)(_.isInstanceOf[BroadcastHashJoinExecTransformer]).isDefined)
+        assert(find(plan)(_.isInstanceOf[BroadcastHashJoinExecTransformerBase]).isDefined)
         val coalescedReads = collect(plan) { case r: AQEShuffleReadExec => r }
         assert(coalescedReads.length == 3, s"$plan")
         coalescedReads.foreach(r => assert(r.isLocalRead || r.partitionSpecs.length == 1))
@@ -752,7 +752,7 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
       withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
         val (_, adaptivePlan) = runAdaptiveAndVerifyResult(
           "SELECT * FROM testData join testData2 ON key = a where value = '1'")
-        val join = collect(adaptivePlan) { case j: BroadcastHashJoinExecTransformer => j }.head
+        val join = collect(adaptivePlan) { case j: BroadcastHashJoinExecTransformerBase => j }.head
         assert(join.joinBuildSide == BuildLeft)
 
         val reads = collect(join.right) { case r: AQEShuffleReadExec => r }

@@ -122,7 +122,7 @@ trait SparkPlanExecApi {
       condition: Option[Expression],
       left: SparkPlan,
       right: SparkPlan,
-      isNullAwareAntiJoin: Boolean = false): BroadcastHashJoinExecTransformer
+      isNullAwareAntiJoin: Boolean = false): BroadcastHashJoinExecTransformerBase
 
   /** Generate CartesianProductExecTransformer. */
   def genCartesianProductExecTransformer(
