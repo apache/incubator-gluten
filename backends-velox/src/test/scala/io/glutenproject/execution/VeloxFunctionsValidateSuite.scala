@@ -449,4 +449,10 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
       checkOperatorMatch[ProjectExecTransformer]
     }
   }
+
+  test("Test unhex function") {
+    runQueryAndCompare("SELECT unhex(hex(l_shipmode)) FROM lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
 }
