@@ -25,6 +25,7 @@
 #include <Processors/QueryPlan/IQueryPlanStep.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Storages/IStorage.h>
 #include <Core/NamesAndTypes.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeTuple.h>
