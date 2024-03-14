@@ -86,7 +86,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
         df =>
           val plan = df.queryExecution.executedPlan
           val bhj = find(plan) {
-            case _: BroadcastHashJoinExecTransformer => true
+            case _: BroadcastHashJoinExecTransformerBase => true
             case _ => false
           }
           assert(bhj.isDefined)

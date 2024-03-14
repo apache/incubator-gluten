@@ -15,7 +15,7 @@ AdaptiveSparkPlan (42)
                                  +- ^ ProjectExecTransformer (14)
                                     +- ^ FlushableHashAggregateExecTransformer (13)
                                        +- ^ ProjectExecTransformer (12)
-                                          +- ^ GlutenBroadcastHashJoinExecTransformer Inner (11)
+                                          +- ^ BroadcastHashJoinExecTransformer Inner (11)
                                              :- ^ InputIteratorTransformer (7)
                                              :  +- ^ InputAdapter (6)
                                              :     +- ^ BroadcastQueryStage (5)
@@ -85,7 +85,7 @@ Arguments: ((((((((isnotnull(l_commitdate#X) AND isnotnull(l_receiptdate#X)) AND
 Output [2]: [l_orderkey#X, l_shipmode#X]
 Input [5]: [l_orderkey#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipmode#X]
 
-(11) GlutenBroadcastHashJoinExecTransformer
+(11) BroadcastHashJoinExecTransformer
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
 Join condition: None
