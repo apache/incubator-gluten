@@ -51,10 +51,11 @@ void VeloxRuntime::parsePlan(
     SparkTaskInfo taskInfo,
     std::optional<std::string> dumpFile) {
   taskInfo_ = taskInfo;
-  if (debugModeEnabled_) {
+  if (debugModeEnabled_ || dumpFile.has_value()) {
     try {
       auto planJson = substraitFromPbToJson("Plan", data, size, dumpFile);
-      LOG(INFO) << std::string(50, '#') << " received substrait::Plan: " << taskInfo_ << std::endl << planJson;
+      LOG_IF(INFO, debugModeEnabled_) << std::string(50, '#') << " received substrait::Plan: " << taskInfo_ << std::endl
+                                      << planJson;
     } catch (const std::exception& e) {
       LOG(WARNING) << "Error converting Substrait plan to JSON: " << e.what();
     }
@@ -64,11 +65,12 @@ void VeloxRuntime::parsePlan(
 }
 
 void VeloxRuntime::parseSplitInfo(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) {
-  if (debugModeEnabled_) {
+  if (debugModeEnabled_ || dumpFile.has_value()) {
     try {
       auto splitJson = substraitFromPbToJson("ReadRel.LocalFiles", data, size, dumpFile);
-      LOG(INFO) << std::string(50, '#') << " received substrait::ReadRel.LocalFiles: " << taskInfo_ << std::endl
-                << splitJson;
+      LOG_IF(INFO, debugModeEnabled_) << std::string(50, '#')
+                                      << " received substrait::ReadRel.LocalFiles: " << taskInfo_ << std::endl
+                                      << splitJson;
     } catch (const std::exception& e) {
       LOG(WARNING) << "Error converting Substrait plan to JSON: " << e.what();
     }
@@ -116,9 +118,7 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
     const std::string& spillDir,
     const std::vector<std::shared_ptr<ResultIterator>>& inputs,
     const std::unordered_map<std::string, std::string>& sessionConf) {
-  if (debugModeEnabled_) {
-    LOG(INFO) << "VeloxRuntime session config:" << printConfig(confMap_);
-  }
+  LOG_IF(INFO, debugModeEnabled_) << "VeloxRuntime session config:" << printConfig(confMap_);
 
   VeloxPlanConverter veloxPlanConverter(
       inputs, getLeafVeloxPool(memoryManager).get(), sessionConf, writeFilesTempPath_);

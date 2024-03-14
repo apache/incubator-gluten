@@ -36,8 +36,6 @@
 #include "utils/exception.h"
 #include "velox/common/memory/Memory.h"
 
-DECLARE_bool(print_result);
-DECLARE_string(write_file);
 DECLARE_int64(batch_size);
 DECLARE_int32(cpu);
 DECLARE_int32(threads);
