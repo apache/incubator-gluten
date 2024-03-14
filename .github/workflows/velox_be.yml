@@ -80,6 +80,14 @@ jobs:
           cmake -DBUILD_TESTS=ON -DENABLE_HBM=ON .. && \
           cmake --build . --target hbw_allocator_test -- -j && \
           ctest -V -R TestHbw'
+      - name: Prepare spark.test.home for Spark 3.2.2 (other tests)
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten && \
+          wget https://archive.apache.org/dist/spark/spark-3.2.2/spark-3.2.2-bin-hadoop3.tgz && \
+          tar --strip-components=1 -xf spark-3.2.2-bin-hadoop3.tgz spark-3.2.2-bin-hadoop3/jars/ && \
+          rm -rf spark-3.2.2-bin-hadoop3.tgz && \
+          mkdir -p /opt/gluten/shims/spark32/spark_home/assembly/target/scala-2.12 && \
+          mv jars /opt/gluten/shims/spark32/spark_home/assembly/target/scala-2.12 '
       - name: Build and run unit test for Spark 3.2.2 (other tests)
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -131,6 +139,14 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/cpp && \
           ./compile.sh --build_velox_backend=ON'
+      - name: Prepare spark.test.home for Spark 3.2.2 (slow tests)
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
+          cd /opt/gluten/ && \
+          wget https://github.com/apache/spark/archive/refs/tags/v3.2.2.tar.gz && \
+          tar --strip-components=1 -xf v3.2.2.tar.gz spark-3.2.2/sql/core/src/test/resources/  && \
+          mkdir -p shims/spark32/spark_home/ && \
+          mv sql shims/spark32/spark_home/ '
       - name: Build and run unit test for Spark 3.2.2 (slow tests)
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -170,6 +186,14 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/cpp && \
           ./compile.sh --build_velox_backend=ON'
+      - name: Prepare spark.test.home for Spark 3.3.1 (slow tests)
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
+          cd /opt/gluten/ && \
+          wget https://github.com/apache/spark/archive/refs/tags/v3.3.1.tar.gz && \
+          tar --strip-components=1 -xf v3.3.1.tar.gz spark-3.3.1/sql/core/src/test/resources/  && \
+          mkdir -p shims/spark33/spark_home/ && \
+          mv sql shims/spark33/spark_home/ '
       - name: Build and Run unit test for Spark 3.3.1 (slow tests)
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten && \
@@ -218,6 +242,14 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/cpp && \
           ./compile.sh --build_velox_backend=ON --build_examples=ON'
+      - name: Prepare spark.test.home for Spark 3.3.1 (other tests)
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten && \
+          wget https://archive.apache.org/dist/spark/spark-3.3.1/spark-3.3.1-bin-hadoop3.tgz && \
+          tar --strip-components=1 -xf spark-3.3.1-bin-hadoop3.tgz spark-3.3.1-bin-hadoop3/jars/ && \
+          rm -rf spark-3.3.1-bin-hadoop3.tgz && \
+          mkdir -p /opt/gluten/shims/spark33/spark_home/assembly/target/scala-2.12 && \
+          mv jars /opt/gluten/shims/spark33/spark_home/assembly/target/scala-2.12 '
       - name: Build and Run unit test for Spark 3.3.1 (other tests)
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten && \
@@ -263,10 +295,18 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/cpp && \
           ./compile.sh --build_velox_backend=ON '
+      - name: Prepare spark.test.home for Spark 3.4.2 (slow tests)
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
+          cd /opt/gluten/ && \
+          wget https://github.com/apache/spark/archive/refs/tags/v3.4.2.tar.gz && \
+          tar --strip-components=1 -xf v3.4.2.tar.gz spark-3.4.2/sql/core/src/test/resources/  && \
+          mkdir -p shims/spark34/spark_home/ && \
+          mv sql shims/spark34/spark_home/ '
       - name: Build and Run unit test for Spark 3.4.2 (slow tests)
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten && \
-          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark342" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest'
+          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=/opt/gluten/shims/spark34/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest'
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.4
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten/tools/gluten-it && \
@@ -301,10 +341,19 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/cpp && \
           ./compile.sh --build_velox_backend=ON --build_examples=ON'
+      - name: Prepare spark.test.home for Spark 3.4.2 (other tests)
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten && \
+          wget https://archive.apache.org/dist/spark/spark-3.4.2/spark-3.4.2-bin-hadoop3.tgz && \
+          tar --strip-components=1 -xf spark-3.4.2-bin-hadoop3.tgz spark-3.4.2-bin-hadoop3/jars/ && \
+          rm -rf spark-3.4.2-bin-hadoop3.tgz && \
+          mkdir -p /opt/gluten/shims/spark34/spark_home/assembly/target/scala-2.12 && \
+          mv jars /opt/gluten/shims/spark34/spark_home/assembly/target/scala-2.12 '
       - name: Build and Run unit test for Spark 3.4.2 (other tests)
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten && \
-          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark342" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
+          export SPARK_SCALA_VERSION=2.12 && \
+          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=/opt/gluten/shims/spark34/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
           mvn test -Pspark-3.4 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest'
       - name: Copy golden files from container to host
         if: failure()
