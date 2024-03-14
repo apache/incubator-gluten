@@ -23,7 +23,7 @@ AdaptiveSparkPlan (52)
                                                          +- ^ ProjectExecTransformer (13)
                                                             +- ^ FlushableHashAggregateExecTransformer (12)
                                                                +- ^ ProjectExecTransformer (11)
-                                                                  +- ^ GlutenBroadcastHashJoinExecTransformer LeftOuter (10)
+                                                                  +- ^ BroadcastHashJoinExecTransformer LeftOuter (10)
                                                                      :- ^ Scan parquet (1)
                                                                      +- ^ InputIteratorTransformer (9)
                                                                         +- ^ InputAdapter (8)
@@ -89,7 +89,7 @@ Input [2]: [o_orderkey#X, o_custkey#X]
 (9) InputIteratorTransformer
 Input [2]: [o_orderkey#X, o_custkey#X]
 
-(10) GlutenBroadcastHashJoinExecTransformer
+(10) BroadcastHashJoinExecTransformer
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
 Join type: LeftOuter

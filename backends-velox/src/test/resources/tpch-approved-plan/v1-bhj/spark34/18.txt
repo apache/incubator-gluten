@@ -11,16 +11,16 @@ AdaptiveSparkPlan (86)
                      +- ^ ProjectExecTransformer (44)
                         +- ^ FlushableHashAggregateExecTransformer (43)
                            +- ^ ProjectExecTransformer (42)
-                              +- ^ GlutenBroadcastHashJoinExecTransformer Inner (41)
+                              +- ^ BroadcastHashJoinExecTransformer Inner (41)
                                  :- ^ ProjectExecTransformer (28)
-                                 :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (27)
+                                 :  +- ^ BroadcastHashJoinExecTransformer Inner (27)
                                  :     :- ^ InputIteratorTransformer (7)
                                  :     :  +- ^ InputAdapter (6)
                                  :     :     +- ^ BroadcastQueryStage (5), Statistics(X)
                                  :     :        +- ColumnarBroadcastExchange (4)
                                  :     :           +- ^ FilterExecTransformer (2)
                                  :     :              +- ^ Scan parquet (1)
-                                 :     +- ^ GlutenBroadcastHashJoinExecTransformer LeftSemi (26)
+                                 :     +- ^ BroadcastHashJoinExecTransformer LeftSemi (26)
                                  :        :- ^ FilterExecTransformer (9)
                                  :        :  +- ^ Scan parquet (8)
                                  :        +- ^ InputIteratorTransformer (25)
@@ -41,7 +41,7 @@ AdaptiveSparkPlan (86)
                                     +- ^ InputAdapter (39)
                                        +- ^ BroadcastQueryStage (38), Statistics(X)
                                           +- ColumnarBroadcastExchange (37)
-                                             +- ^ GlutenBroadcastHashJoinExecTransformer LeftSemi (35)
+                                             +- ^ BroadcastHashJoinExecTransformer LeftSemi (35)
                                                 :- ^ FilterExecTransformer (30)
                                                 :  +- ^ Scan parquet (29)
                                                 +- ^ InputIteratorTransformer (34)
@@ -191,13 +191,13 @@ Input [1]: [l_orderkey#X]
 (25) InputIteratorTransformer
 Input [1]: [l_orderkey#X]
 
-(26) GlutenBroadcastHashJoinExecTransformer
+(26) BroadcastHashJoinExecTransformer
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
 Join type: LeftSemi
 Join condition: None
 
-(27) GlutenBroadcastHashJoinExecTransformer
+(27) BroadcastHashJoinExecTransformer
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
 Join type: Inner
@@ -231,7 +231,7 @@ Input [1]: [l_orderkey#X]
 (34) InputIteratorTransformer
 Input [1]: [l_orderkey#X]
 
-(35) GlutenBroadcastHashJoinExecTransformer
+(35) BroadcastHashJoinExecTransformer
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [l_orderkey#X]
 Join type: LeftSemi
@@ -255,7 +255,7 @@ Input [2]: [l_orderkey#X, l_quantity#X]
 (40) InputIteratorTransformer
 Input [2]: [l_orderkey#X, l_quantity#X]
 
-(41) GlutenBroadcastHashJoinExecTransformer
+(41) BroadcastHashJoinExecTransformer
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
 Join type: Inner

@@ -6,7 +6,7 @@ AdaptiveSparkPlan (41)
       +- ShuffleQueryStage (24), Statistics(X)
          +- ColumnarExchange (23)
             +- ^ ProjectExecTransformer (21)
-               +- ^ GlutenBroadcastHashJoinExecTransformer Inner (20)
+               +- ^ BroadcastHashJoinExecTransformer Inner (20)
                   :- ^ InputIteratorTransformer (7)
                   :  +- ^ InputAdapter (6)
                   :     +- ^ BroadcastQueryStage (5), Statistics(X)
@@ -125,7 +125,7 @@ Results [2]: [l_suppkey#X AS supplier_no#X, sum((l_extendedprice#X * (1 - l_disc
 Input [2]: [supplier_no#X, total_revenue#X]
 Arguments: (isnotnull(total_revenue#X) AND (total_revenue#X = Subquery subquery#X, [id=#X]))
 
-(20) GlutenBroadcastHashJoinExecTransformer
+(20) BroadcastHashJoinExecTransformer
 Left keys [1]: [s_suppkey#X]
 Right keys [1]: [supplier_no#X]
 Join type: Inner

@@ -39,9 +39,8 @@ case class SortMergeJoinExecTransformer(
     left: SparkPlan,
     right: SparkPlan,
     isSkewJoin: Boolean = false)
-  extends BinaryExecNode
-  with TransformSupport
-  with ColumnarShuffledJoin {
+  extends ColumnarShuffledJoin
+  with TransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -52,8 +51,6 @@ case class SortMergeJoinExecTransformer(
 
   val (bufferedKeys, streamedKeys, bufferedPlan, streamedPlan) =
     (rightKeys, leftKeys, right, left)
-
-  override def stringArgs: Iterator[scala.Any] = super.stringArgs.toSeq.dropRight(1).iterator
 
   override def simpleStringWithNodeId(): String = {
     val opId = ExplainUtils.getOpId(this)
