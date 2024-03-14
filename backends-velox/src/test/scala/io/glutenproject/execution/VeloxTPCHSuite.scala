@@ -87,7 +87,7 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
       formatSparkVersion match {
         case "32" => true
         case "33" => true
-        case "34" => false
+        case "34" => true
         case _ => false
       }
     )
