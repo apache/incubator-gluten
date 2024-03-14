@@ -169,6 +169,12 @@ message ReadRel {
 
       /// File schema
       NamedStruct schema = 17;
+
+      message metadataColumn {
+        string key = 1;
+        string value = 2;
+      }
+      repeated metadataColumn metadata_columns = 18;
     }
   }
 }

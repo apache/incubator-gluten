@@ -34,11 +34,12 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution, KeyGroupedPartitioning, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.util.InternalRowComparableWrapper
+import org.apache.spark.sql.catalyst.util.TimestampFormatter
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Scan}
 import org.apache.spark.sql.execution.{FileSourceScanExec, GlobalLimitExec, GlutenFileFormatWriter, PartitionedFileUtil, SparkPlan, TakeOrderedAndProjectExec}
-import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex, WriteJobDescription, WriteTaskResult}
+import org.apache.spark.sql.execution.datasources.{BucketingUtils, FileFormat, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex, WriteJobDescription, WriteTaskResult}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
@@ -48,6 +49,9 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
 import org.apache.hadoop.fs.{FileStatus, Path}
+
+import java.time.ZoneOffset
+import java.util.{HashMap => JHashMap, Map => JMap}
 
 class Spark34Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
@@ -153,6 +157,34 @@ class Spark34Shims extends SparkShims {
         Some(sub.plan)
       case _ => None
     }
+  }
+
+  override def generateMetadataColumns(
+      file: PartitionedFile,
+      metadataColumnNames: Seq[String]): JMap[String, String] = {
+    val metadataColumn = new JHashMap[String, String]()
+    val path = new Path(file.filePath.toString)
+    for (columnName <- metadataColumnNames) {
+      columnName match {
+        case FileFormat.FILE_PATH => metadataColumn.put(FileFormat.FILE_PATH, path.toString)
+        case FileFormat.FILE_NAME => metadataColumn.put(FileFormat.FILE_NAME, path.getName)
+        case FileFormat.FILE_SIZE =>
+          metadataColumn.put(FileFormat.FILE_SIZE, file.fileSize.toString)
+        case FileFormat.FILE_MODIFICATION_TIME =>
+          val fileModifyTime = TimestampFormatter
+            .getFractionFormatter(ZoneOffset.UTC)
+            .format(file.modificationTime * 1000L)
+          metadataColumn.put(FileFormat.FILE_MODIFICATION_TIME, fileModifyTime)
+        case FileFormat.FILE_BLOCK_START =>
+          metadataColumn.put(FileFormat.FILE_BLOCK_START, file.start.toString)
+        case FileFormat.FILE_BLOCK_LENGTH =>
+          metadataColumn.put(FileFormat.FILE_BLOCK_LENGTH, file.length.toString)
+        case _ =>
+      }
+    }
+
+    // TODO: row_index metadata support
+    metadataColumn
   }
 
   // https://issues.apache.org/jira/browse/SPARK-40400

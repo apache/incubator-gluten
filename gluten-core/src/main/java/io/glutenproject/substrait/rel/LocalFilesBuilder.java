@@ -28,10 +28,18 @@ public class LocalFilesBuilder {
       List<Long> starts,
       List<Long> lengths,
       List<Map<String, String>> partitionColumns,
+      List<Map<String, String>> metadataColumns,
       LocalFilesNode.ReadFileFormat fileFormat,
       List<String> preferredLocations) {
     return new LocalFilesNode(
-        index, paths, starts, lengths, partitionColumns, fileFormat, preferredLocations);
+        index,
+        paths,
+        starts,
+        lengths,
+        partitionColumns,
+        metadataColumns,
+        fileFormat,
+        preferredLocations);
   }
 
   public static LocalFilesNode makeLocalFiles(String iterPath) {
