@@ -94,7 +94,7 @@ public:
             throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} must have 2 arugments.", name);
         
         ColumnPtr res_col = nullptr;
-        MutableColumnPtr null_map_col = nullptr;
+        MutableColumnPtr null_map_col = ColumnUInt8::create(input_rows, 0);
         auto getNonNullableColumn = [&](const ColumnPtr & col) -> const ColumnPtr
         {
             if (col->isNullable())
@@ -118,25 +118,20 @@ public:
             {
                 using R = typename std::decay_t<decltype(right_)>::FieldType;
                 const ColumnDecimal<R> * const_col_right = checkAndGetColumnConstData<ColumnDecimal<R>>(new_arg1.column.get());
-                if (const_col_right)
+                if (const_col_right && const_col_right->getElement(0).value == 0)
                 {
-                    R right_const_val = const_col_right->getElement(0);
-                    if (right_const_val.value == 0)
-                    {
-                        null_map_col = ColumnUInt8::create(input_rows, 1);
-                        res_col = ColumnDecimal<Decimal256>::create(input_rows, 0);
-                    }
-                    else
-                        res_col = FunctionsDecimalArithmetics<Transform>::executeImpl(new_args, removeNullable(result_type), input_rows);
+                    null_map_col = ColumnUInt8::create(input_rows, 1);
+                    res_col = ColumnDecimal<Decimal256>::create(input_rows, 0);
                 }
                 else
-                {
                     res_col = FunctionsDecimalArithmetics<Transform>::executeImpl(new_args, removeNullable(result_type), input_rows);
-                    null_map_col = ColumnUInt8::create(input_rows, 0);
-                    const ColumnDecimal<R> * col_right = assert_cast<const ColumnDecimal<R> *>(arguments[1].column.get());
+                
+                if (!const_col_right)
+                {
+                    const ColumnDecimal<R> * col_right = assert_cast<const ColumnDecimal<R> *>(new_arg1.column.get());
                     PaddedPODArray<UInt8> & null_map = assert_cast<ColumnVector<UInt8>*>(null_map_col.get())->getData();
                     for (size_t i = 0; i < col_right->size(); ++i)
-                        null_map[i] = (col_right->getElement(i).value == 0 || col_right->isNullAt(i));
+                        null_map[i] = (col_right->getElement(i).value == 0 || arguments[1].column->isNullAt(i));
                 }
                 return true;
             });
@@ -150,25 +145,20 @@ public:
             {
                 using R = typename std::decay_t<decltype(right_)>::FieldType;
                 const ColumnVector<R> * const_col_right = checkAndGetColumnConstData<ColumnVector<R>>(new_arg1.column.get());
-                if (const_col_right)
+                if (const_col_right && const_col_right->getElement(0) == 0)
                 {
-                    R right_const_val = const_col_right->getElement(0);
-                    if (right_const_val == 0)
-                    {
-                        null_map_col = ColumnUInt8::create(input_rows, 1);
-                        res_col = ColumnDecimal<Decimal256>::create(input_rows, 0);
-                    }
-                    else
-                        res_col = FunctionsDecimalArithmetics<Transform>::executeImpl(new_args, removeNullable(result_type), input_rows);
+                    null_map_col = ColumnUInt8::create(input_rows, 1);
+                    res_col = ColumnDecimal<Decimal256>::create(input_rows, 0);
                 }
                 else
-                {
                     res_col = FunctionsDecimalArithmetics<Transform>::executeImpl(new_args, removeNullable(result_type), input_rows);
-                    null_map_col = ColumnUInt8::create(input_rows, 0);
+                
+                if (!const_col_right)
+                {
+                    const ColumnVector<R> * col_right = assert_cast<const ColumnVector<R> *>(new_arg1.column.get());
                     PaddedPODArray<UInt8> & null_map = assert_cast<ColumnVector<UInt8>*>(null_map_col.get())->getData();
-                    const ColumnVector<R> * col_right = assert_cast<const ColumnVector<R> *>(arguments[1].column.get());
                     for (size_t i = 0; i < col_right->size(); ++i)
-                        null_map[i] = (col_right->getElement(i) == 0 || col_right->isNullAt(i));
+                        null_map[i] = (col_right->getElement(i) == 0 || arguments[1].column->isNullAt(i));
                 }
                 return true;
             });
