@@ -30,6 +30,7 @@ import org.apache.celeborn.common.CelebornConf
 import java.io.IOException
 
 abstract class CelebornHashBasedColumnarShuffleWriter[K, V](
+    shuffleId: Int,
     handle: CelebornShuffleHandle[K, V, V],
     context: TaskContext,
     celebornConf: CelebornConf,
@@ -37,8 +38,6 @@ abstract class CelebornHashBasedColumnarShuffleWriter[K, V](
     writeMetrics: ShuffleWriteMetricsReporter)
   extends ShuffleWriter[K, V]
   with Logging {
-
-  protected val shuffleId: Int = handle.dependency.shuffleId
 
   protected val numMappers: Int = handle.numMappers
 

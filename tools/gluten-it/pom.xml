@@ -192,5 +192,11 @@
         </dependency>
       </dependencies>
     </profile>
+    <profile>
+      <id>celeborn-0.4</id>
+      <properties>
+        <celeborn.version>0.4.0-incubating</celeborn.version>
+      </properties>
+    </profile>
   </profiles>
 </project>
