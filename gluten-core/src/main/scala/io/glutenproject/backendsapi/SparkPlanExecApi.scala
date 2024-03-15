@@ -183,14 +183,6 @@ trait SparkPlanExecApi {
       rightNode: ExpressionNode,
       original: GetArrayItem): ExpressionNode
 
-  def genPosExplodeTransformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: PosExplode,
-      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
-    PosExplodeTransformer(substraitExprName, child, original, attributeSeq)
-  }
-
   /** Transform NaNvl to Substrait. */
   def genNaNvlTransformer(
       substraitExprName: String,
@@ -213,7 +205,24 @@ trait SparkPlanExecApi {
       substraitExprName: String,
       child: ExpressionTransformer,
       expr: Expression): ExpressionTransformer = {
-    throw new GlutenNotSupportException("map_entries is not supported")
+    throw new GlutenNotSupportException("inline is not supported")
+  }
+
+  /** Transform posexplode to Substrait. */
+  def genPosExplodeTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: PosExplode,
+      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+    PosExplodeTransformer(substraitExprName, child, original, attributeSeq)
+  }
+
+  /** Transform make_timestamp to Substrait. */
+  def genMakeTimestampTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: Expression): ExpressionTransformer = {
+    throw new GlutenNotSupportException("make_timestamp is not supported")
   }
 
   /**
