@@ -50,7 +50,7 @@ public class LocalFilesNode implements SplitInfo {
     UnknownFormat()
   }
 
-  private ReadFileFormat fileFormat = ReadFileFormat.UnknownFormat;
+  protected ReadFileFormat fileFormat = ReadFileFormat.UnknownFormat;
   private Boolean iterAsInput = false;
   private StructType fileSchema;
   private Map<String, String> fileReadProperties;
@@ -111,6 +111,13 @@ public class LocalFilesNode implements SplitInfo {
   public List<String> preferredLocations() {
     return this.preferredLocations;
   }
+
+  /**
+   * Data Lake formats require some additional processing to be done on the FileBuilder, such as
+   * inserting delete files information. Different lake formats should override this method to
+   * implement their corresponding logic.
+   */
+  protected void processFileBuilder(ReadRel.LocalFiles.FileOrFiles.Builder fileBuilder) {}
 
   public ReadRel.LocalFiles toProtobuf() {
     ReadRel.LocalFiles.Builder localFilesBuilder = ReadRel.LocalFiles.newBuilder();
@@ -210,6 +217,7 @@ public class LocalFilesNode implements SplitInfo {
         default:
           break;
       }
+      processFileBuilder(fileBuilder);
       localFilesBuilder.addItems(fileBuilder.build());
     }
     return localFilesBuilder.build();
