@@ -170,6 +170,14 @@ MergeTreeRelParser::parseReadRel(
         context,
         context->getSettingsRef().max_block_size,
         1);
+
+    auto * source_step_with_filter = static_cast<SourceStepWithFilter *>(read_step.get());
+    const auto & storage_prewhere_info = query_info->prewhere_info;
+    if (storage_prewhere_info)
+    {
+        source_step_with_filter->addFilter(storage_prewhere_info->prewhere_actions, storage_prewhere_info->prewhere_column_name);
+        source_step_with_filter->applyFilters();
+    }
     query_context.custom_storage_merge_tree->wrapRangesInDataParts(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
     steps.emplace_back(read_step.get());
     query_plan->addStep(std::move(read_step));
