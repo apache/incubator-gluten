@@ -43,7 +43,7 @@ class SharedLibraryLoaderCentos8 extends SharedLibraryLoader {
       .loadAndCreateLink("libprotobuf.so.32", "libprotobuf.so", false)
       .loadAndCreateLink("libhdfs3.so.1", "libhdfs3.so", false)
       .loadAndCreateLink("libre2.so.0", "libre2.so", false)
-      .loadAndCreateLink("libsodium.so", "libsodium.so", false)
+      .loadAndCreateLink("libsodium.so.23", "libsodium.so", false)
       .commit()
   }
 }
