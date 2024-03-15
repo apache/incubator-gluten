@@ -56,7 +56,7 @@ DEFINE_string(
     split,
     "",
     "Path to input json file of the splits. Only valid for simulating the first stage. Use comma-separated list for multiple splits.");
-DEFINE_string(data, "", "Path to input data files in parquet format. Only valid for simulating the middle stage.");
+DEFINE_string(data, "", "Path to input data files in parquet format, used for shuffle read.");
 DEFINE_string(conf, "", "Path to the configuration file.");
 DEFINE_string(write_path, "/tmp", "Path for simulate write task.");
 
@@ -346,14 +346,13 @@ int main(int argc, char** argv) {
       errorMsg = "File path does not exist: " + substraitJsonFile;
     } else if (FLAGS_split.empty() && FLAGS_data.empty()) {
       errorMsg = "Missing '--split' or '--data' option.";
-    } else if (!FLAGS_split.empty() && !FLAGS_data.empty()) {
-      errorMsg = "Duplicated option '--split' and '--data'.";
     }
 
     try {
       if (!FLAGS_data.empty()) {
         dataFiles = gluten::splitPaths(FLAGS_data, true);
-      } else {
+      }
+      if (!FLAGS_split.empty()) {
         splitFiles = gluten::splitPaths(FLAGS_split, true);
       }
     } catch (const std::exception& e) {
@@ -365,7 +364,8 @@ int main(int argc, char** argv) {
                  << "If simulating a first stage, the usage is:" << std::endl
                  << "./generic_benchmark "
                  << "--plan /absolute-path/to/substrait_json_file "
-                 << "--split /absolute-path/to/split_json_file_1,/abosolute-path/to/split_json_file_2,..." << std::endl
+                 << "--split /absolute-path/to/split_json_file_1,/abosolute-path/to/split_json_file_2,..."
+                 << "--data /absolute-path/to/data_file_1,/absolute-path/to/data_file_2,..." << std::endl
                  << "If simulating a middle stage, the usage is:" << std::endl
                  << "./generic_benchmark "
                  << "--plan /absolute-path/to/substrait_json_file "
@@ -383,7 +383,8 @@ int main(int argc, char** argv) {
     for (const auto& splitFile : splitFiles) {
       LOG(INFO) << splitFile;
     }
-  } else {
+  }
+  if (!dataFiles.empty()) {
     LOG(INFO) << "Using " << dataFiles.size() << " input data file(s): ";
     for (const auto& dataFile : dataFiles) {
       LOG(INFO) << dataFile;
