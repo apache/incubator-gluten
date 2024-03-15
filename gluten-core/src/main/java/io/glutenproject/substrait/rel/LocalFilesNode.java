@@ -22,7 +22,6 @@ import io.glutenproject.expression.ConverterUtils;
 import io.substrait.proto.NamedStruct;
 import io.substrait.proto.ReadRel;
 import io.substrait.proto.Type;
-
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
@@ -118,8 +117,8 @@ public class LocalFilesNode implements SplitInfo {
    * inserting delete files information. Different lake formats should override this method to
    * implement their corresponding logic.
    */
-  protected void processFileBuilder(ReadRel.LocalFiles.FileOrFiles.Builder fileBuilder, int index) {
-  }
+  protected void processFileBuilder(
+      ReadRel.LocalFiles.FileOrFiles.Builder fileBuilder, int index) {}
 
   public ReadRel.LocalFiles toProtobuf() {
     ReadRel.LocalFiles.Builder localFilesBuilder = ReadRel.LocalFiles.newBuilder();
