@@ -64,13 +64,20 @@ jobs:
           cd $GITHUB_WORKSPACE/cpp && \
           source /opt/rh/gcc-toolset-9/enable && \
           ./compile.sh --build_velox_backend=ON --build_protobuf=ON
-      - name: Build and run unit test for Spark 3.2.2 (slow tests)
+      - name: Build for Spark 3.2.2
         run: |
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
+          tar -xvf apache-maven-3.8.8-bin.tar.gz && \
+          mv apache-maven-3.8.8 /usr/lib/maven && \
+          export MAVEN_HOME=/usr/lib/maven && \
+          export PATH=${PATH}:${MAVEN_HOME}/bin && \
           cd $GITHUB_WORKSPACE/ && \
           mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests
       - name: Build and run TPCH/DS 3.2.2
         run: |
           cd $GITHUB_WORKSPACE/tools/gluten-it && \
+          export MAVEN_HOME=/usr/lib/maven && \
+          export PATH=${PATH}:${MAVEN_HOME}/bin && \
           mvn clean install -Pspark-3.2 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
