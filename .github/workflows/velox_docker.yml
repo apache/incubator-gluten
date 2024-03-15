@@ -64,3 +64,15 @@ jobs:
           cd $GITHUB_WORKSPACE/cpp && \
           source /opt/rh/gcc-toolset-9/enable && \
           ./compile.sh --build_velox_backend=ON --build_protobuf=ON
+      - name: Build and run unit test for Spark 3.2.2 (slow tests)
+        run: |
+          cd $GITHUB_WORKSPACE/ && \
+          mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests
+      - name: Build and run unit test for Spark 3.2.2 (slow tests)
+        run: |
+          cd $GITHUB_WORKSPACE/tools/gluten-it && \
+          mvn clean install -Pspark-3.2 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
