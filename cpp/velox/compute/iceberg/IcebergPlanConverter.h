@@ -14,35 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.substrait.rel;
 
-import java.util.List;
-import java.util.Map;
+#pragma once
 
-public class LocalFilesBuilder {
-  private LocalFilesBuilder() {}
+#include "substrait/SubstraitToVeloxPlan.h"
+#include "velox/connectors/hive/iceberg/IcebergDeleteFile.h"
 
-  public static LocalFilesNode makeLocalFiles(
-      Integer index,
-      List<String> paths,
-      List<Long> starts,
-      List<Long> lengths,
-      List<Map<String, String>> partitionColumns,
-      List<Map<String, String>> metadataColumns,
-      LocalFilesNode.ReadFileFormat fileFormat,
-      List<String> preferredLocations) {
-    return new LocalFilesNode(
-        index,
-        paths,
-        starts,
-        lengths,
-        partitionColumns,
-        metadataColumns,
-        fileFormat,
-        preferredLocations);
+using namespace facebook::velox::connector::hive::iceberg;
+
+namespace gluten {
+struct IcebergSplitInfo : SplitInfo {
+  std::vector<std::vector<IcebergDeleteFile>> deleteFilesVec;
+
+  IcebergSplitInfo(const SplitInfo& splitInfo) : SplitInfo(splitInfo) {
+    // Reserve the actual size of the deleteFilesVec.
+    deleteFilesVec.reserve(splitInfo.paths.capacity());
   }
+};
 
-  public static LocalFilesNode makeLocalFiles(String iterPath) {
-    return new LocalFilesNode(iterPath);
-  }
-}
+class IcebergPlanConverter {
+ public:
+  static std::shared_ptr<IcebergSplitInfo> parseIcebergSplitInfo(
+      substrait::ReadRel_LocalFiles_FileOrFiles file,
+      std::shared_ptr<SplitInfo> splitInfo);
+};
+
+} // namespace gluten

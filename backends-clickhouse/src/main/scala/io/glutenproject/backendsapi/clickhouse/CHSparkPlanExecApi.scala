@@ -197,7 +197,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
         if (projectExpressions.isEmpty) {
           return (0, plan.outputPartitioning, plan.child)
         }
-        val project = TransformPreOverrides().replaceWithTransformerPlan(
+        // FIXME: The operation happens inside ReplaceSingleNode().
+        //  Caller may not know it adds project on top of the shuffle.
+        val project = TransformPreOverrides().apply(
           AddTransformHintRule().apply(
             ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
         var newExprs = Seq[Expression]()
@@ -220,7 +222,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
         if (projectExpressions.isEmpty) {
           return (0, plan.outputPartitioning, plan.child)
         }
-        val project = TransformPreOverrides().replaceWithTransformerPlan(
+        // FIXME: The operation happens inside ReplaceSingleNode().
+        //  Caller may not know it adds project on top of the shuffle.
+        val project = TransformPreOverrides().apply(
           AddTransformHintRule().apply(
             ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
         var newOrderings = Seq[SortOrder]()
@@ -301,7 +305,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       condition: Option[Expression],
       left: SparkPlan,
       right: SparkPlan,
-      isNullAwareAntiJoin: Boolean = false): BroadcastHashJoinExecTransformer =
+      isNullAwareAntiJoin: Boolean = false): BroadcastHashJoinExecTransformerBase =
     CHBroadcastHashJoinExecTransformer(
       leftKeys,
       rightKeys,

@@ -19,13 +19,11 @@ package io.glutenproject.execution
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
-import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.{JoinParams, SubstraitContext}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -40,9 +38,8 @@ case class SortMergeJoinExecTransformer(
     condition: Option[Expression],
     left: SparkPlan,
     right: SparkPlan,
-    isSkewJoin: Boolean = false,
-    projectList: Seq[NamedExpression] = null)
-  extends BinaryExecNode
+    isSkewJoin: Boolean = false)
+  extends ColumnarShuffledJoin
   with TransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
@@ -55,15 +52,9 @@ case class SortMergeJoinExecTransformer(
   val (bufferedKeys, streamedKeys, bufferedPlan, streamedPlan) =
     (rightKeys, leftKeys, right, left)
 
-  override def stringArgs: Iterator[scala.Any] = super.stringArgs.toSeq.dropRight(1).iterator
-
   override def simpleStringWithNodeId(): String = {
     val opId = ExplainUtils.getOpId(this)
     s"$nodeName $joinType ($opId)".trim
-  }
-
-  override def nodeName: String = {
-    if (isSkewJoin) super.nodeName + "(skew=true)" else super.nodeName
   }
 
   override def verboseStringWithOperatorId(): String = {
@@ -76,52 +67,6 @@ case class SortMergeJoinExecTransformer(
        |${ExplainUtils.generateFieldString("Right keys", rightKeys)}
        |${ExplainUtils.generateFieldString("Join condition", joinCondStr)}
     """.stripMargin
-  }
-
-  override def output: Seq[Attribute] = {
-    if (projectList != null && projectList.nonEmpty) {
-      return projectList.map(_.toAttribute)
-    }
-    joinType match {
-      case _: InnerLike =>
-        left.output ++ right.output
-      case LeftOuter =>
-        left.output ++ right.output.map(_.withNullability(true))
-      case RightOuter =>
-        left.output.map(_.withNullability(true)) ++ right.output
-      case FullOuter =>
-        (left.output ++ right.output).map(_.withNullability(true))
-      case j: ExistenceJoin =>
-        left.output :+ j.exists
-      case LeftExistence(_) =>
-        left.output
-      case x =>
-        throw new IllegalArgumentException(
-          s"${getClass.getSimpleName} should not take $x as the JoinType")
-    }
-  }
-
-  override def outputPartitioning: Partitioning = joinType match {
-    case _: InnerLike =>
-      PartitioningCollection(Seq(left.outputPartitioning, right.outputPartitioning))
-    // For left and right outer joins, the output is partitioned by the streamed input's join keys.
-    case LeftOuter => left.outputPartitioning
-    case RightOuter => right.outputPartitioning
-    case FullOuter => UnknownPartitioning(left.outputPartitioning.numPartitions)
-    case LeftExistence(_) => left.outputPartitioning
-    case x =>
-      throw new IllegalArgumentException(
-        s"${getClass.getSimpleName} should not take $x as the JoinType")
-  }
-
-  override def requiredChildDistribution: Seq[Distribution] = {
-    if (isSkewJoin) {
-      // We re-arrange the shuffle partitions to deal with skew join, and the new children
-      // partitioning doesn't satisfy `HashClusteredDistribution`.
-      UnspecifiedDistribution :: UnspecifiedDistribution :: Nil
-    } else {
-      SparkShimLoader.getSparkShims.getDistribution(leftKeys, rightKeys)
-    }
   }
 
   override def requiredChildOrdering: Seq[Seq[SortOrder]] =

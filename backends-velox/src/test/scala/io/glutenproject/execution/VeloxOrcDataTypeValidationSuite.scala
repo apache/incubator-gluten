@@ -280,7 +280,7 @@ class VeloxOrcDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
       runQueryAndCompare(
         "select type1.date from type1," +
           " type2 where type1.date = type2.date") {
-        checkOperatorMatch[GlutenBroadcastHashJoinExecTransformer]
+        checkOperatorMatch[BroadcastHashJoinExecTransformer]
       }
     }
 

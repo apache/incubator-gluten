@@ -386,23 +386,38 @@ abstract class HashAggregateExecTransformer(
               val adjustedOrders = veloxOrders.map(sparkOrders.indexOf(_))
               veloxTypes.zipWithIndex.foreach {
                 case (veloxType, idx) =>
-                  val sparkType = sparkTypes(adjustedOrders(idx))
-                  val attr = rewrittenInputAttributes(adjustedOrders(idx))
-                  val aggFuncInputAttrNode = ExpressionConverter
-                    .replaceWithExpressionTransformer(attr, originalInputAttributes)
-                    .doTransform(args)
-                  val expressionNode = if (sparkType != veloxType) {
-                    newInputAttributes +=
-                      attr.copy(dataType = veloxType)(attr.exprId, attr.qualifier)
-                    ExpressionBuilder.makeCast(
-                      ConverterUtils.getTypeNode(veloxType, attr.nullable),
-                      aggFuncInputAttrNode,
-                      SQLConf.get.ansiEnabled)
+                  val adjustedIdx = adjustedOrders(idx)
+                  if (adjustedIdx == -1) {
+                    // The Velox aggregate intermediate buffer column not found in Spark.
+                    // For example, skewness and kurtosis share the same aggregate buffer in Velox,
+                    // and Kurtosis additionally requires the buffer column of m4, which is
+                    // always 0 for skewness. In Spark, the aggregate buffer of skewness does not
+                    // have the column of m4, thus a placeholder m4 with a value of 0 must be passed
+                    // to Velox, and this value cannot be omitted. Velox will always read m4 column
+                    // when accessing the intermediate data.
+                    val extraAttr = AttributeReference(veloxOrders(idx), veloxType)()
+                    newInputAttributes += extraAttr
+                    val lt = Literal.default(veloxType)
+                    childNodes.add(ExpressionBuilder.makeLiteral(lt.value, lt.dataType, false))
                   } else {
-                    newInputAttributes += attr
-                    aggFuncInputAttrNode
+                    val sparkType = sparkTypes(adjustedIdx)
+                    val attr = rewrittenInputAttributes(adjustedIdx)
+                    val aggFuncInputAttrNode = ExpressionConverter
+                      .replaceWithExpressionTransformer(attr, originalInputAttributes)
+                      .doTransform(args)
+                    val expressionNode = if (sparkType != veloxType) {
+                      newInputAttributes +=
+                        attr.copy(dataType = veloxType)(attr.exprId, attr.qualifier)
+                      ExpressionBuilder.makeCast(
+                        ConverterUtils.getTypeNode(veloxType, attr.nullable),
+                        aggFuncInputAttrNode,
+                        SQLConf.get.ansiEnabled)
+                    } else {
+                      newInputAttributes += attr
+                      aggFuncInputAttrNode
+                    }
+                    childNodes.add(expressionNode)
                   }
-                  childNodes.add(expressionNode)
               }
               exprNodes.add(getRowConstructNode(args, childNodes, newInputAttributes, aggFunc))
             case other =>

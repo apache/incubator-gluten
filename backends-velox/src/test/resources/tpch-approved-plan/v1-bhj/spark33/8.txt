@@ -16,19 +16,19 @@ AdaptiveSparkPlan (129)
                                     +- ^ ProjectExecTransformer (69)
                                        +- ^ FlushableHashAggregateExecTransformer (68)
                                           +- ^ ProjectExecTransformer (67)
-                                             +- ^ GlutenBroadcastHashJoinExecTransformer Inner (66)
+                                             +- ^ BroadcastHashJoinExecTransformer Inner (66)
                                                 :- ^ ProjectExecTransformer (57)
-                                                :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (56)
+                                                :  +- ^ BroadcastHashJoinExecTransformer Inner (56)
                                                 :     :- ^ ProjectExecTransformer (48)
-                                                :     :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (47)
+                                                :     :  +- ^ BroadcastHashJoinExecTransformer Inner (47)
                                                 :     :     :- ^ ProjectExecTransformer (39)
-                                                :     :     :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (38)
+                                                :     :     :  +- ^ BroadcastHashJoinExecTransformer Inner (38)
                                                 :     :     :     :- ^ ProjectExecTransformer (30)
-                                                :     :     :     :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (29)
+                                                :     :     :     :  +- ^ BroadcastHashJoinExecTransformer Inner (29)
                                                 :     :     :     :     :- ^ ProjectExecTransformer (21)
-                                                :     :     :     :     :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (20)
+                                                :     :     :     :     :  +- ^ BroadcastHashJoinExecTransformer Inner (20)
                                                 :     :     :     :     :     :- ^ ProjectExecTransformer (12)
-                                                :     :     :     :     :     :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (11)
+                                                :     :     :     :     :     :  +- ^ BroadcastHashJoinExecTransformer Inner (11)
                                                 :     :     :     :     :     :     :- ^ InputIteratorTransformer (8)
                                                 :     :     :     :     :     :     :  +- ^ InputAdapter (7)
                                                 :     :     :     :     :     :     :     +- ^ BroadcastQueryStage (6), Statistics(X)
@@ -166,7 +166,7 @@ ReadSchema: struct<l_orderkey:bigint,l_partkey:bigint,l_suppkey:bigint,l_extende
 Input [5]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Arguments: ((isnotnull(l_partkey#X) AND isnotnull(l_suppkey#X)) AND isnotnull(l_orderkey#X))
 
-(11) GlutenBroadcastHashJoinExecTransformer
+(11) BroadcastHashJoinExecTransformer
 Left keys [1]: [p_partkey#X]
 Right keys [1]: [l_partkey#X]
 Join condition: None
@@ -204,7 +204,7 @@ Input [2]: [s_suppkey#X, s_nationkey#X]
 (19) InputIteratorTransformer
 Input [2]: [s_suppkey#X, s_nationkey#X]
 
-(20) GlutenBroadcastHashJoinExecTransformer
+(20) BroadcastHashJoinExecTransformer
 Left keys [1]: [l_suppkey#X]
 Right keys [1]: [s_suppkey#X]
 Join condition: None
@@ -242,7 +242,7 @@ Input [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
 (28) InputIteratorTransformer
 Input [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
 
-(29) GlutenBroadcastHashJoinExecTransformer
+(29) BroadcastHashJoinExecTransformer
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [o_orderkey#X]
 Join condition: None
@@ -280,7 +280,7 @@ Input [2]: [c_custkey#X, c_nationkey#X]
 (37) InputIteratorTransformer
 Input [2]: [c_custkey#X, c_nationkey#X]
 
-(38) GlutenBroadcastHashJoinExecTransformer
+(38) BroadcastHashJoinExecTransformer
 Left keys [1]: [o_custkey#X]
 Right keys [1]: [c_custkey#X]
 Join condition: None
@@ -318,7 +318,7 @@ Input [2]: [n_nationkey#X, n_regionkey#X]
 (46) InputIteratorTransformer
 Input [2]: [n_nationkey#X, n_regionkey#X]
 
-(47) GlutenBroadcastHashJoinExecTransformer
+(47) BroadcastHashJoinExecTransformer
 Left keys [1]: [c_nationkey#X]
 Right keys [1]: [n_nationkey#X]
 Join condition: None
@@ -356,7 +356,7 @@ Input [2]: [n_nationkey#X, n_name#X]
 (55) InputIteratorTransformer
 Input [2]: [n_nationkey#X, n_name#X]
 
-(56) GlutenBroadcastHashJoinExecTransformer
+(56) BroadcastHashJoinExecTransformer
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
 Join condition: None
@@ -398,7 +398,7 @@ Input [1]: [r_regionkey#X]
 (65) InputIteratorTransformer
 Input [1]: [r_regionkey#X]
 
-(66) GlutenBroadcastHashJoinExecTransformer
+(66) BroadcastHashJoinExecTransformer
 Left keys [1]: [n_regionkey#X]
 Right keys [1]: [r_regionkey#X]
 Join condition: None

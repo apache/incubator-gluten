@@ -12,9 +12,9 @@ AdaptiveSparkPlan (53)
                         +- ^ ProjectExecTransformer (24)
                            +- ^ FlushableHashAggregateExecTransformer (23)
                               +- ^ ProjectExecTransformer (22)
-                                 +- ^ GlutenBroadcastHashJoinExecTransformer Inner (21)
+                                 +- ^ BroadcastHashJoinExecTransformer Inner (21)
                                     :- ^ ProjectExecTransformer (12)
-                                    :  +- ^ GlutenBroadcastHashJoinExecTransformer Inner (11)
+                                    :  +- ^ BroadcastHashJoinExecTransformer Inner (11)
                                     :     :- ^ InputIteratorTransformer (8)
                                     :     :  +- ^ InputAdapter (7)
                                     :     :     +- ^ BroadcastQueryStage (6)
@@ -96,7 +96,7 @@ ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_orderdate:date,o_shippri
 Input [4]: [o_orderkey#X, o_custkey#X, o_orderdate#X, o_shippriority#X]
 Arguments: (((isnotnull(o_orderdate#X) AND (o_orderdate#X < 1995-03-15)) AND isnotnull(o_custkey#X)) AND isnotnull(o_orderkey#X))
 
-(11) GlutenBroadcastHashJoinExecTransformer
+(11) BroadcastHashJoinExecTransformer
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
 Join condition: None
@@ -138,7 +138,7 @@ Input [3]: [l_orderkey#X, l_extendedprice#X, l_discount#X]
 (20) InputIteratorTransformer
 Input [3]: [l_orderkey#X, l_extendedprice#X, l_discount#X]
 
-(21) GlutenBroadcastHashJoinExecTransformer
+(21) BroadcastHashJoinExecTransformer
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
 Join condition: None

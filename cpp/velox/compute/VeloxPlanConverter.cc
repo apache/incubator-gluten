@@ -20,6 +20,7 @@
 
 #include "compute/ResultIterator.h"
 #include "config/GlutenConfig.h"
+#include "iceberg/IcebergPlanConverter.h"
 #include "operators/plannodes/RowVectorStream.h"
 #include "velox/common/file/FileSystems.h"
 
@@ -60,6 +61,7 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
   splitInfo->starts.reserve(fileList.size());
   splitInfo->lengths.reserve(fileList.size());
   splitInfo->partitionColumns.reserve(fileList.size());
+  splitInfo->metadataColumns.reserve(fileList.size());
   for (const auto& file : fileList) {
     // Expect all Partitions share the same index.
     splitInfo->partitionIndex = file.partition_index();
@@ -69,6 +71,12 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
       partitionColumnMap[partitionColumn.key()] = partitionColumn.value();
     }
     splitInfo->partitionColumns.emplace_back(partitionColumnMap);
+
+    std::unordered_map<std::string, std::string> metadataColumnMap;
+    for (const auto& metadataColumn : file.metadata_columns()) {
+      metadataColumnMap[metadataColumn.key()] = metadataColumn.value();
+    }
+    splitInfo->metadataColumns.emplace_back(metadataColumnMap);
 
     splitInfo->paths.emplace_back(file.uri_file());
     splitInfo->starts.emplace_back(file.start());
@@ -85,6 +93,9 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
         break;
       case SubstraitFileFormatCase::kText:
         splitInfo->format = dwio::common::FileFormat::TEXT;
+        break;
+      case SubstraitFileFormatCase::kIceberg:
+        splitInfo = IcebergPlanConverter::parseIcebergSplitInfo(file, std::move(splitInfo));
         break;
       default:
         splitInfo->format = dwio::common::FileFormat::UNKNOWN;

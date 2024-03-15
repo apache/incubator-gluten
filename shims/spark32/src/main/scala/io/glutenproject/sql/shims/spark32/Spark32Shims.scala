@@ -45,6 +45,8 @@ import org.apache.spark.storage.{BlockId, BlockManagerId}
 
 import org.apache.hadoop.fs.{FileStatus, Path}
 
+import java.util.{HashMap => JHashMap, Map => JMap}
+
 class Spark32Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
 
@@ -184,6 +186,11 @@ class Spark32Shims extends SparkShims {
       field => AttributeReference(field.name, field.dataType, field.nullable, field.metadata)()
     }
   }
+
+  override def generateMetadataColumns(
+      file: PartitionedFile,
+      metadataColumnNames: Seq[String]): JMap[String, String] =
+    new JHashMap[String, String]()
 
   def getAnalysisExceptionPlan(ae: AnalysisException): Option[LogicalPlan] = {
     ae.plan

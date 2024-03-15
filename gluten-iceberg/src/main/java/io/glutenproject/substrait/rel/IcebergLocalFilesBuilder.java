@@ -16,13 +16,12 @@
  */
 package io.glutenproject.substrait.rel;
 
+import org.apache.iceberg.DeleteFile;
+
 import java.util.List;
 import java.util.Map;
 
 public class IcebergLocalFilesBuilder {
-
-  // TODO: Add makeIcebergLocalFiles for MOR iceberg table
-
   public static IcebergLocalFilesNode makeIcebergLocalFiles(
       Integer index,
       List<String> paths,
@@ -30,8 +29,16 @@ public class IcebergLocalFilesBuilder {
       List<Long> lengths,
       List<Map<String, String>> partitionColumns,
       LocalFilesNode.ReadFileFormat fileFormat,
-      List<String> preferredLocations) {
+      List<String> preferredLocations,
+      Map<String, List<DeleteFile>> deleteFilesMap) {
     return new IcebergLocalFilesNode(
-        index, paths, starts, lengths, partitionColumns, fileFormat, preferredLocations);
+        index,
+        paths,
+        starts,
+        lengths,
+        partitionColumns,
+        fileFormat,
+        preferredLocations,
+        deleteFilesMap);
   }
 }

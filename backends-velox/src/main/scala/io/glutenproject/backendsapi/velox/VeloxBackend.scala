@@ -248,6 +248,8 @@ object BackendSettings extends BackendSettingsApi {
     }
   }
 
+  override def supportNativeMetadataColumns(): Boolean = true
+
   override def supportExpandExec(): Boolean = true
 
   override def supportSortExec(): Boolean = true

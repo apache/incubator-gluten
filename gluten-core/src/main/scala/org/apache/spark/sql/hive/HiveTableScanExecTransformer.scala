@@ -25,7 +25,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSeq, Expression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, AttributeSeq, Expression}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
@@ -62,6 +62,8 @@ case class HiveTableScanExecTransformer(
     hiveQlTable.getMetadata)
 
   override def filterExprs(): Seq[Expression] = Seq.empty
+
+  override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 
   override def outputAttributes(): Seq[Attribute] = output
 

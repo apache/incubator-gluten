@@ -149,6 +149,28 @@ message ReadRel {
         uint64 max_block_size = 1;
         NamedStruct schema = 2 [deprecated=true];
       }
+      message IcebergReadOptions {
+        enum FileContent {
+          DATA = 0;
+          POSITION_DELETES = 1;
+          EQUALITY_DELETES = 2;
+        }
+        message DeleteFile {
+          FileContent fileContent = 1;
+          string filePath = 2;
+          uint64 fileSize = 3;
+          uint64 recordCount = 4;
+          oneof file_format {
+            ParquetReadOptions parquet = 5;
+            OrcReadOptions orc = 6;
+          }
+        }
+        oneof file_format {
+          ParquetReadOptions parquet = 1;
+          OrcReadOptions orc = 2;
+        }
+        repeated DeleteFile delete_files = 3;
+      }
 
       // File reading options
       oneof file_format {
@@ -159,16 +181,23 @@ message ReadRel {
         DwrfReadOptions dwrf = 13;
         TextReadOptions text = 14;
         JsonReadOptions json = 15;
+        IcebergReadOptions iceberg = 16;
       }
 
       message partitionColumn {
         string key = 1;
         string value = 2;
       }
-      repeated partitionColumn partition_columns = 16;
+      repeated partitionColumn partition_columns = 17;
 
       /// File schema
-      NamedStruct schema = 17;
+      NamedStruct schema = 18;
+
+      message metadataColumn {
+        string key = 1;
+        string value = 2;
+      }
+      repeated metadataColumn metadata_columns = 19;
     }
   }
 }

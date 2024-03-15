@@ -77,7 +77,7 @@ class GlutenClickHouseTPCHNullableSuite extends GlutenClickHouseTPCHAbstractSuit
       runTPCHQuery(5) {
         df =>
           val bhjRes = df.queryExecution.executedPlan.collect {
-            case bhj: BroadcastHashJoinExecTransformer => bhj
+            case bhj: BroadcastHashJoinExecTransformerBase => bhj
           }
           assert(bhjRes.isEmpty)
       }
