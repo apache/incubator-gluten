@@ -60,8 +60,8 @@ class GlutenReplaceHashWithSortAggSuite
 
       Seq("FIRST", "COLLECT_LIST").foreach {
         aggExpr =>
-          // Because repartition modification causing the result sort order not same and the result not same,
-          // so we add order by key before comparing the result
+          // Because repartition modification causing the result sort order not same and the
+          // result not same, so we add order by key before comparing the result.
           val query =
             s"""
                |SELECT key, $aggExpr(key)
