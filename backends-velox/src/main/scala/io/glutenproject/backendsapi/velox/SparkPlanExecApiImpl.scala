@@ -239,15 +239,14 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
         val sortOrder = SortOrder(projectTransformer.output.head, Ascending)
         val sortByHashCode = SortExecTransformer(Seq(sortOrder), global = false, projectTransformer)
         val dropSortColumnTransformer = ProjectExecTransformer(projectList.drop(1), sortByHashCode)
-        if (dropSortColumnTransformer.doValidate().isValid) {
+        val validationResult = dropSortColumnTransformer.doValidate()
+        if (validationResult.isValid) {
           ColumnarShuffleExchangeExec(
             shuffle,
             dropSortColumnTransformer,
             dropSortColumnTransformer.output)
         } else {
-          TransformHints.tagNotTransformable(
-            shuffle,
-            dropSortColumnTransformer.doValidate().reason.get)
+          TransformHints.tagNotTransformable(shuffle, validationResult)
           shuffle.withNewChildren(newChild :: Nil)
         }
       case _ =>
