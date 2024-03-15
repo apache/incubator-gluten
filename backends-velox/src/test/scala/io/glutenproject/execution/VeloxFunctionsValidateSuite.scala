@@ -444,6 +444,13 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
+  test("Test spark_partition_id function") {
+    runQueryAndCompare("""SELECT spark_partition_id(), l_orderkey
+                         | from lineitem limit 1""".stripMargin) {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("Test hex function") {
     runQueryAndCompare("SELECT hex(l_partkey), hex(l_shipmode) FROM lineitem limit 1") {
       checkOperatorMatch[ProjectExecTransformer]
