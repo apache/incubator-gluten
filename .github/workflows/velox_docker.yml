@@ -68,7 +68,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/ && \
           mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests
-      - name: Build and run unit test for Spark 3.2.2 (slow tests)
+      - name: Build and run TPCH/DS 3.2.2
         run: |
           cd $GITHUB_WORKSPACE/tools/gluten-it && \
           mvn clean install -Pspark-3.2 \
