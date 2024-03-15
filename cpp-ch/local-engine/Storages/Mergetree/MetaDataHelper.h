@@ -17,14 +17,13 @@
 
 #pragma once
 
-#include <Disks/ObjectStorages/MetadataStorageFromDisk.h>
 #include <Common/MergeTreeTool.h>
-
+#include <Storages/StorageMergeTreeFactory.h>
 
 namespace local_engine
 {
 
-void restoreMetaData(DB::DiskPtr data_disk, const MergeTreeTable & mergeTreeTable);
+void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable & mergeTreeTable, ContextPtr & context);
 
 }
 
