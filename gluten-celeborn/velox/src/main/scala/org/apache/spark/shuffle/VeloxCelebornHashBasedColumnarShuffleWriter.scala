@@ -38,12 +38,14 @@ import java.io.IOException
 import java.util
 
 class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
+    shuffleId: Int,
     handle: CelebornShuffleHandle[K, V, V],
     context: TaskContext,
     celebornConf: CelebornConf,
     client: ShuffleClient,
     writeMetrics: ShuffleWriteMetricsReporter)
   extends CelebornHashBasedColumnarShuffleWriter[K, V](
+    shuffleId,
     handle,
     context,
     celebornConf,
