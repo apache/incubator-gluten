@@ -541,6 +541,10 @@ arrow::Status LocalPartitionWriter::evict(
   return arrow::Status::OK();
 }
 
+arrow::Status LocalPartitionWriter::evict(uint32_t partitionId, int64_t rawSize, const char* data, int64_t length) {
+  return arrow::Status::OK();
+}
+
 arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actual) {
   // Finish last spiller.
   RETURN_NOT_OK(finishSpill());

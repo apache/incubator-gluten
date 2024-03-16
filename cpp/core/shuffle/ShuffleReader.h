@@ -24,6 +24,7 @@
 
 #include "Options.h"
 #include "compute/ResultIterator.h"
+#include "shuffle/JavaInputStreamWrapper.h"
 #include "utils/Compression.h"
 
 namespace gluten {
@@ -34,11 +35,15 @@ class DeserializerFactory {
 
   virtual std::unique_ptr<ColumnarBatchIterator> createDeserializer(std::shared_ptr<arrow::io::InputStream> in) = 0;
 
+  virtual std::unique_ptr<ColumnarBatchIterator> createDeserializer(std::shared_ptr<JavaInputStreamWrapper> in) = 0;
+
   virtual arrow::MemoryPool* getPool() = 0;
 
   virtual int64_t getDecompressTime() = 0;
 
   virtual int64_t getDeserializeTime() = 0;
+
+  virtual ShuffleWriterType getShuffleWriterType() = 0;
 };
 
 class ShuffleReader {
@@ -50,6 +55,8 @@ class ShuffleReader {
   // FIXME iterator should be unique_ptr or un-copyable singleton
   virtual std::shared_ptr<ResultIterator> readStream(std::shared_ptr<arrow::io::InputStream> in);
 
+  virtual std::shared_ptr<ResultIterator> readStream(std::shared_ptr<JavaInputStreamWrapper> in);
+
   arrow::Status close();
 
   int64_t getDecompressTime() const;
@@ -60,13 +67,15 @@ class ShuffleReader {
 
   arrow::MemoryPool* getPool() const;
 
+  ShuffleWriterType getShuffleWriterType() const;
+
  protected:
   arrow::MemoryPool* pool_;
   int64_t decompressTime_ = 0;
   int64_t ipcTime_ = 0;
   int64_t deserializeTime_ = 0;
 
-  ShuffleReaderOptions options_;
+  ShuffleWriterType shuffleWriterType_;
 
  private:
   std::shared_ptr<arrow::Schema> schema_;

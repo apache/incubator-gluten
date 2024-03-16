@@ -25,7 +25,8 @@
 namespace gluten {
 
 static constexpr int16_t kDefaultBatchSize = 4096;
-static constexpr int16_t kDefaultShuffleWriterBufferSize = 4096;
+static constexpr int32_t kDefaultShuffleWriterBufferSize = 4096;
+static constexpr int64_t kDefaultPushMemoryThreshold = 4096;
 static constexpr int32_t kDefaultNumSubDirs = 64;
 static constexpr int32_t kDefaultCompressionThreshold = 100;
 static constexpr int32_t kDefaultBufferAlignment = 64;
@@ -33,10 +34,13 @@ static constexpr double kDefaultBufferReallocThreshold = 0.25;
 static constexpr double kDefaultMergeBufferThreshold = 0.25;
 static constexpr bool kEnableBufferedWrite = true;
 
+enum ShuffleWriterType { kHashShuffle, kSortShuffle };
 enum PartitionWriterType { kLocal, kRss };
 
 struct ShuffleReaderOptions {
   arrow::Compression::type compressionType = arrow::Compression::type::LZ4_FRAME;
+  std::string compressionTypeStr = "lz4";
+  ShuffleWriterType shuffleWriterType = kHashShuffle;
   CodecBackend codecBackend = CodecBackend::NONE;
   int32_t batchSize = kDefaultBatchSize;
 };
@@ -44,10 +48,12 @@ struct ShuffleReaderOptions {
 struct ShuffleWriterOptions {
   int32_t bufferSize = kDefaultShuffleWriterBufferSize;
   double bufferReallocThreshold = kDefaultBufferReallocThreshold;
+  int64_t pushMemoryThreshold = kDefaultPushMemoryThreshold;
   Partitioning partitioning = Partitioning::kRoundRobin;
   int64_t taskAttemptId = -1;
   int32_t startPartitionId = 0;
   int64_t threadId = -1;
+  ShuffleWriterType shuffleWriterType = kHashShuffle;
 };
 
 struct PartitionWriterOptions {
@@ -56,6 +62,7 @@ struct PartitionWriterOptions {
 
   int32_t compressionThreshold = kDefaultCompressionThreshold;
   arrow::Compression::type compressionType = arrow::Compression::LZ4_FRAME;
+  std::string compressionTypeStr = "lz4";
   CodecBackend codecBackend = CodecBackend::NONE;
   int32_t compressionLevel = arrow::util::kUseDefaultCompressionLevel;
   CompressionMode compressionMode = CompressionMode::BUFFER;
@@ -64,7 +71,9 @@ struct PartitionWriterOptions {
 
   int32_t numSubDirs = kDefaultNumSubDirs;
 
-  int32_t pushBufferMaxSize = kDefaultShuffleWriterBufferSize;
+  int64_t pushBufferMaxSize = kDefaultShuffleWriterBufferSize;
+
+  int64_t sortBufferMaxSize = kDefaultShuffleWriterBufferSize;
 };
 
 struct ShuffleWriterMetrics {

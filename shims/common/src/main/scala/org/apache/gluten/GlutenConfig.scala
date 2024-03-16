@@ -134,6 +134,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
       .getConfString("spark.shuffle.manager", "sort")
       .contains("UniffleShuffleManager")
 
+  def isSortBasedCelebornShuffle: Boolean =
+    conf
+      .getConfString("spark.celeborn.client.spark.shuffle.writer", "hash")
+      .equals("sort")
+
   def enableColumnarShuffle: Boolean = conf.getConf(COLUMNAR_SHUFFLE_ENABLED)
 
   def enablePreferColumnar: Boolean = conf.getConf(COLUMNAR_PREFER_ENABLED)

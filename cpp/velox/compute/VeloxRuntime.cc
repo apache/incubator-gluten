@@ -243,8 +243,16 @@ std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
   auto codec = gluten::createArrowIpcCodec(options.compressionType, options.codecBackend);
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
   auto deserializerFactory = std::make_unique<gluten::VeloxColumnarBatchDeserializerFactory>(
-      schema, std::move(codec), rowType, options.batchSize, pool, ctxVeloxPool);
-  return std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
+      schema,
+      std::move(codec),
+      options.compressionTypeStr,
+      rowType,
+      options.batchSize,
+      pool,
+      ctxVeloxPool,
+      options.shuffleWriterType);
+  auto reader = std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
+  return reader;
 }
 
 std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerializer(

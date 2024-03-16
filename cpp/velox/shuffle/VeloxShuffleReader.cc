@@ -370,16 +370,20 @@ std::shared_ptr<ColumnarBatch> VeloxColumnarBatchDeserializer::next() {
 VeloxColumnarBatchDeserializerFactory::VeloxColumnarBatchDeserializerFactory(
     const std::shared_ptr<arrow::Schema>& schema,
     const std::shared_ptr<arrow::util::Codec>& codec,
+    const std::string compressionTypeStr,
     const RowTypePtr& rowType,
     int32_t batchSize,
     arrow::MemoryPool* memoryPool,
-    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool)
+    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
+    ShuffleWriterType shuffleWriterType)
     : schema_(schema),
       codec_(codec),
+      compressionTypeStr_(compressionTypeStr),
       rowType_(rowType),
       batchSize_(batchSize),
       memoryPool_(memoryPool),
-      veloxPool_(veloxPool) {
+      veloxPool_(veloxPool),
+      shuffleWriterType_(shuffleWriterType) {
   initFromSchema();
 }
 
@@ -399,8 +403,71 @@ std::unique_ptr<ColumnarBatchIterator> VeloxColumnarBatchDeserializerFactory::cr
       decompressTime_);
 }
 
+VeloxShuffleReaderOutStreamWrapper::VeloxShuffleReaderOutStreamWrapper(
+    const std::shared_ptr<facebook::velox::memory::MemoryPool>& veloxPool,
+    const RowTypePtr& rowType,
+    int32_t batchSize,
+    const std::string compressionTypeStr,
+    const std::function<void(int64_t)> decompressionTimeAccumulator,
+    const std::function<void(int64_t)> deserializeTimeAccumulator,
+    const std::shared_ptr<JavaInputStreamWrapper> in)
+    : veloxPool_(veloxPool),
+      rowType_(rowType),
+      batchSize_(batchSize),
+      compressionTypeStr_(compressionTypeStr),
+      decompressionTimeAccumulator_(decompressionTimeAccumulator),
+      deserializeTimeAccumulator_(deserializeTimeAccumulator) {
+  constexpr uint64_t kMaxReadBufferSize = (1 << 20) - AlignedBuffer::kPaddedSize;
+  auto buffer = AlignedBuffer::allocate<char>(kMaxReadBufferSize, veloxPool_.get());
+  in_ = std::make_unique<VeloxInputStream>(std::move(in), std::move(buffer));
+  serdeOptions_ = {false, facebook::velox::common::stringToCompressionKind(compressionTypeStr_)};
+  RowVectorPtr rowVector;
+}
+
+std::shared_ptr<ColumnarBatch> VeloxShuffleReaderOutStreamWrapper::next() {
+  if (!in_->hasNext()) {
+    return nullptr;
+  }
+
+  RowVectorPtr rowVector;
+  VectorStreamGroup::read(in_.get(), veloxPool_.get(), rowType_, &rowVector, &serdeOptions_);
+
+  if (rowVector->size() >= batchSize_) {
+    return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
+  }
+
+  while (rowVector->size() < batchSize_ && in_->hasNext()) {
+    RowVectorPtr rowVectorTemp;
+    VectorStreamGroup::read(in_.get(), veloxPool_.get(), rowType_, &rowVectorTemp, &serdeOptions_);
+    rowVector->append(rowVectorTemp.get());
+  }
+
+  int64_t decompressTime = 0LL;
+  int64_t deserializeTime = 0LL;
+
+  decompressionTimeAccumulator_(decompressTime);
+  deserializeTimeAccumulator_(deserializeTime);
+  return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
+}
+
+std::unique_ptr<ColumnarBatchIterator> VeloxColumnarBatchDeserializerFactory::createDeserializer(
+    std::shared_ptr<JavaInputStreamWrapper> in) {
+  return std::make_unique<VeloxShuffleReaderOutStreamWrapper>(
+      veloxPool_,
+      rowType_,
+      batchSize_,
+      compressionTypeStr_,
+      [this](int64_t decompressionTime) { this->decompressTime_ += decompressionTime; },
+      [this](int64_t deserializeTime) { this->deserializeTime_ += deserializeTime; },
+      in);
+}
+
 arrow::MemoryPool* VeloxColumnarBatchDeserializerFactory::getPool() {
   return memoryPool_;
+}
+
+ShuffleWriterType VeloxColumnarBatchDeserializerFactory::getShuffleWriterType() {
+  return shuffleWriterType_;
 }
 
 int64_t VeloxColumnarBatchDeserializerFactory::getDecompressTime() {
@@ -438,6 +505,32 @@ void VeloxColumnarBatchDeserializerFactory::initFromSchema() {
         isValidityBuffer_.push_back(false);
       } break;
     }
+  }
+}
+
+VeloxInputStream::VeloxInputStream(std::shared_ptr<JavaInputStreamWrapper> input, facebook::velox::BufferPtr buffer)
+    : input_(std::move(input)), buffer_(std::move(buffer)) {
+  next(true);
+}
+
+bool VeloxInputStream::hasNext() {
+  if (offset_ == 0) {
+    return false;
+  }
+  if (ranges()[0].position >= ranges()[0].size) {
+    next(true);
+    return offset_ != 0;
+  }
+  return true;
+}
+
+void VeloxInputStream::next(bool throwIfPastEnd) {
+  const uint32_t readBytes = buffer_->capacity();
+  offset_ = input_->read(readBytes, buffer_->asMutable<char>());
+  if (offset_ > 0) {
+    int32_t realBytes = offset_;
+    VELOX_CHECK_LT(0, realBytes, "Reading past end of spill file");
+    setRange({buffer_->asMutable<uint8_t>(), realBytes, 0});
   }
 }
 } // namespace gluten

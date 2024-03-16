@@ -46,7 +46,7 @@ class VeloxColumnarBatch final : public ColumnarBatch {
   facebook::velox::RowVectorPtr getRowVector() const;
   facebook::velox::RowVectorPtr getFlattenedRowVector();
 
- private:
+ public:
   void ensureFlattened();
 
   facebook::velox::RowVectorPtr rowVector_ = nullptr;

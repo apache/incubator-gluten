@@ -39,10 +39,18 @@ class ShuffleWriter : public Reclaimable {
 
   virtual arrow::Status split(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) = 0;
 
+  virtual arrow::Status sort(std::shared_ptr<ColumnarBatch> sort, int64_t memLimit) = 0;
+
+  virtual arrow::Status evictRowVector(uint32_t partitionId) = 0;
+
   virtual arrow::Status stop() = 0;
 
   int32_t numPartitions() const {
     return numPartitions_;
+  }
+
+  ShuffleWriterOptions& options() {
+    return options_;
   }
 
   int64_t partitionBufferSize() const {
@@ -107,6 +115,8 @@ class ShuffleWriter : public Reclaimable {
   std::unique_ptr<ShuffleMemoryPool> partitionBufferPool_;
 
   std::unique_ptr<PartitionWriter> partitionWriter_;
+
+  std::vector<int64_t> rowVectorLengths_;
 
   std::shared_ptr<arrow::Schema> schema_;
 

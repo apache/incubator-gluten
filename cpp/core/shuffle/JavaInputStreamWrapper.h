@@ -17,31 +17,13 @@
 
 #pragma once
 
-#include "shuffle/Partitioner.h"
-
-namespace gluten {
-
-class RoundRobinPartitioner final : public Partitioner {
+class JavaInputStreamWrapper {
  public:
-  RoundRobinPartitioner(int32_t numPartitions, int32_t startPartitionId)
-      : Partitioner(numPartitions, false), pidSelection_(startPartitionId % numPartitions) {}
+  virtual ~JavaInputStreamWrapper() = default;
 
-  arrow::Status compute(
-      const int32_t* pidArr,
-      const int64_t numRows,
-      std::vector<uint32_t>& row2Partition,
-      std::vector<uint32_t>& partition2RowCount) override;
+  virtual arrow::Status close() = 0;
 
-  arrow::Status compute(
-      const int32_t* pidArr,
-      const int64_t numRows,
-      const int32_t vectorIndex,
-      std::unordered_map<int32_t, std::vector<int64_t>>& rowVectorIndexMap) override;
+  virtual int64_t tell() = 0;
 
- private:
-  friend class RoundRobinPartitionerTest;
-
-  int32_t pidSelection_ = 0;
+  virtual int64_t read(int64_t nbytes, void* out) = 0;
 };
-
-} // namespace gluten
