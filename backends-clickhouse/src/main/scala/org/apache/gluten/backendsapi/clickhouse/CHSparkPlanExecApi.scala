@@ -39,7 +39,7 @@ import org.apache.spark.shuffle.utils.CHShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.{CHAggregateFunctionRewriteRule, EqualToRewrite}
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, CollectList, CollectSet}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile, CollectList, CollectSet}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -623,7 +623,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   override def extraExpressionMappings: Seq[Sig] = {
     List(
       Sig[CollectList](ExpressionNames.COLLECT_LIST),
-      Sig[CollectSet](ExpressionNames.COLLECT_SET)
+      Sig[CollectSet](ExpressionNames.COLLECT_SET),
+      Sig[ApproximatePercentile](ExpressionNames.APPROX_PERCENTILE)
     ) ++
       SparkShimLoader.getSparkShims.bloomFilterExpressionMappings()
   }
