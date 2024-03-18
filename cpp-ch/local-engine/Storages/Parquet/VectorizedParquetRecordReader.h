@@ -172,44 +172,7 @@ public:
 
     ~PageIterator() override = default;
 
-    std::optional<ColumnChunkPageRead> NextChunkWithRowRange()
-    {
-        while (!row_groups_.empty())
-        {
-            const int32_t row_group_index = row_groups_.front();
-            const auto rg = reader_ext_->RowGroup(row_group_index);
-            const auto rg_count = rg->num_rows();
-
-            if (rg_count == 0)
-            {
-                row_groups_.pop_front();
-                continue;
-            }
-
-            const RowRanges row_ranges = reader_ext_->canPruningPage(row_group_index) ? reader_ext_->getRowRanges(row_group_index)
-                                                                                      : RowRanges::createSingle(rg_count);
-
-            if (row_ranges.rowCount() == 0)
-            {
-                row_groups_.pop_front();
-                continue;
-            }
-
-            const BuildRead readWithRowRange = [&](const arrow::io::ReadRange & col_range)
-            {
-                const ColumnIndexStore & column_index_store = reader_ext_->getColumnIndexStore(row_group_index);
-                const ColumnIndex & index = *(column_index_store.find(descr()->name())->second);
-                return buildRead(rg_count, col_range, index.GetOffsetIndex().page_locations(), row_ranges);
-            };
-            const BuildRead readAll = [&](const arrow::io::ReadRange & col_range) { return buildAllRead(rg_count, col_range); };
-
-            const auto read = row_ranges.rowCount() == rg_count ? readAll : readWithRowRange;
-            auto result = reader_ext_->readColumnChunkPageBase(*rg, column_index_, read);
-            row_groups_.pop_front();
-            return result;
-        }
-        return {};
-    }
+    std::optional<ColumnChunkPageRead> NextChunkWithRowRange();
 };
 
 class VectorizedColumnReader

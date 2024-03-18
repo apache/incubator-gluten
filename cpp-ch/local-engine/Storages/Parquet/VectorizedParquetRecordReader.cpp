@@ -266,6 +266,45 @@ ParquetFileReaderExt::ParquetFileReaderExt(
     THROW_ARROW_NOT_OK_OR_ASSIGN(const int64_t source_size, source_->GetSize());
     source_size_ = source_size;
 }
+std::optional<ColumnChunkPageRead> PageIterator::NextChunkWithRowRange()
+{
+    while (!row_groups_.empty())
+    {
+        const int32_t row_group_index = row_groups_.front();
+        const auto rg = reader_ext_->RowGroup(row_group_index);
+        const auto rg_count = rg->num_rows();
+
+        if (rg_count == 0)
+        {
+            row_groups_.pop_front();
+            continue;
+        }
+
+        const RowRanges row_ranges
+            = reader_ext_->canPruningPage(row_group_index) ? reader_ext_->getRowRanges(row_group_index) : RowRanges::createSingle(rg_count);
+
+        if (row_ranges.rowCount() == 0)
+        {
+            row_groups_.pop_front();
+            continue;
+        }
+
+        const BuildRead readWithRowRange = [&](const arrow::io::ReadRange & col_range)
+        {
+            const ColumnIndexStore & column_index_store = reader_ext_->getColumnIndexStore(row_group_index);
+            const ColumnIndex & index
+                = *(column_index_store.find(lower_column_name_if_need(descr()->name(), reader_ext_->format_settings_))->second);
+            return buildRead(rg_count, col_range, index.GetOffsetIndex().page_locations(), row_ranges);
+        };
+        const BuildRead readAll = [&](const arrow::io::ReadRange & col_range) { return buildAllRead(rg_count, col_range); };
+
+        const auto read = row_ranges.rowCount() == rg_count ? readAll : readWithRowRange;
+        auto result = reader_ext_->readColumnChunkPageBase(*rg, column_index_, read);
+        row_groups_.pop_front();
+        return result;
+    }
+    return {};
+}
 
 ColumnChunkPageRead ParquetFileReaderExt::readColumnChunkPageBase(
     const parquet::RowGroupMetaData & rg, const int32_t column_index, const BuildRead & build_read) const

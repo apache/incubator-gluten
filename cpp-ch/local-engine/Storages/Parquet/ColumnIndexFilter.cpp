@@ -269,8 +269,7 @@ struct ASCENDING : BoundaryOrder
         const NoneNullPageIndexsBuilder builder(comparator.non_null_page_indices_);
         return findBounds(comparator)
             .transform([&](const Bounds & b) { return builder.range(b.lower, b.upper + 1); })
-            .or_else([&]() { return std::optional{PageIndexs{}}; })
-            .value();
+            .value_or(PageIndexs{});
     }
 
     template <typename DType>
@@ -373,11 +372,10 @@ struct ASCENDING : BoundaryOrder
                     return builder.filter(
                         [&](const int32_t i) {
                             return i < b.lower || i > b.upper || comparator.compareValueToMin(i) != 0
-                                || comparator.compareValueToMin(i) != 0;
+                                || comparator.compareValueToMax(i) != 0;
                         });
                 })
-            .or_else([&]() { return std::optional{builder.all()}; })
-            .value();
+            .value_or(builder.all());
     }
 };
 
@@ -427,8 +425,7 @@ struct DESCENDING : BoundaryOrder
         const NoneNullPageIndexsBuilder builder{comparator.non_null_page_indices_};
         return findBounds(comparator)
             .transform([&](const Bounds & b) { return builder.range(b.lower, b.upper + 1); })
-            .or_else([&]() { return std::optional{PageIndexs{}}; })
-            .value();
+            .value_or(PageIndexs{});
     }
     template <typename DType>
     static PageIndexs gt(const TypedComparator<DType> & comparator)
@@ -531,8 +528,7 @@ struct DESCENDING : BoundaryOrder
                                 || comparator.compareValueToMin(i) != 0;
                         });
                 })
-            .or_else([&]() { return std::optional{builder.all()}; })
-            .value();
+            .value_or(builder.all());
     }
 };
 
