@@ -33,8 +33,12 @@ public:
     explicit FileReaderWrapper(const FormatFilePtr & file_) : file(file_) { }
     virtual ~FileReaderWrapper() = default;
     virtual bool pull(DB::Chunk & chunk) = 0;
+
+    /// Apply key condition to the reader, if use_local_format is true, column_index_filter will be used
+    /// otherwise it will be ignored
     virtual void
-    applyKeyCondition(const std::shared_ptr<const DB::KeyCondition> & /*key_condition*/, const std::shared_ptr<ColumnIndexFilter> &)
+    applyKeyCondition(const std::shared_ptr<const DB::KeyCondition> & /*key_condition*/,
+        const std::shared_ptr<ColumnIndexFilter> & /*column_index_filter*/)
     {
     }
 
