@@ -38,7 +38,6 @@
 #include <DataTypes/NestedUtils.h>
 #include <Disks/registerDisks.h>
 #include <Functions/FunctionFactory.h>
-#include <Functions/FunctionsConversion.h>
 #include <Functions/registerFunctions.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/SharedThreadPools.h>
