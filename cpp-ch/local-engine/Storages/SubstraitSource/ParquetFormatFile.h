@@ -45,7 +45,7 @@ public:
         const DB::ContextPtr & context_,
         const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_,
         const ReadBufferBuilderPtr & read_buffer_builder_,
-        bool useLocalFormat);
+        bool use_local_format_);
     ~ParquetFormatFile() override = default;
 
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;

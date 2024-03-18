@@ -55,36 +55,36 @@ struct PageIndexsBuilder
 
 struct RowRangesBuilder
 {
-    const int64_t rowGroupRowCount; // the total number of rows in the row-group
-    const std::vector<parquet::PageLocation> & pageLocations;
+    const int64_t rg_count_; // the total number of rows in the row-group
+    const std::vector<parquet::PageLocation> & page_locations_;
 
     RowRangesBuilder(int64_t row_group_row_count, const std::vector<parquet::PageLocation> & page_locations)
-        : rowGroupRowCount(row_group_row_count), pageLocations(page_locations)
+        : rg_count_(row_group_row_count), page_locations_(page_locations)
     {
     }
 
     /**
-     * @param pageIndex
+     * @param page_index
      *           the index of the page
      * @return the index of the first row in the page
      */
-    size_t firstRowIndex(int pageIndex) const { return pageLocations[pageIndex].first_row_index; }
+    size_t firstRowIndex(int page_index) const { return page_locations_[page_index].first_row_index; }
 
     /**
-     * @param pageIndex
+     * @param page_index
      *          the index of the page
      * @return the calculated index of the last row of the given page
      */
-    size_t lastRowIndex(size_t pageIndex) const
+    size_t lastRowIndex(size_t page_index) const
     {
-        const size_t nextPageIndex = pageIndex + 1;
-        const size_t pageCount = std::ssize(pageLocations);
+        const size_t nextPageIndex = page_index + 1;
+        const size_t pageCount = std::ssize(page_locations_);
 
-        const size_t lastRowIndex = (nextPageIndex >= pageCount ? rowGroupRowCount : pageLocations[nextPageIndex].first_row_index) - 1;
+        const size_t lastRowIndex = (nextPageIndex >= pageCount ? rg_count_ : page_locations_[nextPageIndex].first_row_index) - 1;
         return lastRowIndex;
     }
 
-    RowRanges all() const { return RowRanges::createSingle(rowGroupRowCount); }
+    RowRanges all() const { return RowRanges::createSingle(rg_count_); }
 
     RowRanges toRowRanges(const PageIndexs & pages) const
     {

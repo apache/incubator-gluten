@@ -95,10 +95,10 @@ namespace local_engine
 {
 VectorizedColumnReader::VectorizedColumnReader(
     const parquet::arrow::SchemaField & field, ParquetFileReaderExt * reader, const std::vector<int32_t> & row_groups)
-    : arrowField_(field.field)
+    : arrow_field_(field.field)
     , input_(field.column_index, reader, row_groups)
     , record_reader_(parquet::internal::RecordReader::Make(
-          input_.descr(), computeLevelInfo(input_.descr()), default_arrow_pool(), arrowField_->type()->id() == ::arrow::Type::DICTIONARY))
+          input_.descr(), computeLevelInfo(input_.descr()), default_arrow_pool(), arrow_field_->type()->id() == ::arrow::Type::DICTIONARY))
 {
     nextRowGroup();
 }
@@ -157,14 +157,14 @@ std::shared_ptr<arrow::ChunkedArray> VectorizedColumnReader::readBatch(int64_t b
     }
 
     std::shared_ptr<arrow::ChunkedArray> result;
-    THROW_ARROW_NOT_OK(
-        parquet::arrow::TransferColumnData(record_reader_.get(), arrowField_, input_.descr(), local_engine::default_arrow_pool(), &result));
+    THROW_ARROW_NOT_OK(parquet::arrow::TransferColumnData(
+        record_reader_.get(), arrow_field_, input_.descr(), local_engine::default_arrow_pool(), &result));
     return result;
 }
 
 VectorizedParquetRecordReader::VectorizedParquetRecordReader(const DB::Block & header, const DB::FormatSettings & format_settings)
     : format_settings_(format_settings)
-    , arrowColumnToCHColumn_(
+    , arrow_column_to_ch_column_(
           header,
           "Parquet",
           format_settings.parquet.allow_missing_columns,
@@ -211,19 +211,19 @@ bool VectorizedParquetRecordReader::initialize(
     }
 
     assert(!row_groups.empty());
-    parquetFileReader_
+    file_reader_
         = std::make_unique<ParquetFileReaderExt>(arrow_file, std::move(file_reader), column_index_filter, field_indices, format_settings_);
-    columnVectors_.reserve(field_indices.size());
+    column_readers_.reserve(field_indices.size());
 
     for (auto const & column_index : field_indices)
     {
         auto const & field = manifest.schema_fields[column_index];
         assert(field.column_index >= 0);
         assert(column_index == field.column_index);
-        columnVectors_.emplace_back(field, parquetFileReader_.get(), row_groups);
-        if (!columnVectors_.back().hasMoreRead())
+        column_readers_.emplace_back(field, file_reader_.get(), row_groups);
+        if (!column_readers_.back().hasMoreRead())
         {
-            assert(columnVectors_.size() == 1);
+            assert(column_readers_.size() == 1);
             return false;
         }
     }
@@ -233,9 +233,9 @@ bool VectorizedParquetRecordReader::initialize(
 DB::Chunk VectorizedParquetRecordReader::nextBatch()
 {
     assert(initialized());
-    ::arrow::ChunkedArrayVector columns(columnVectors_.size());
+    ::arrow::ChunkedArrayVector columns(column_readers_.size());
     DB::ArrowColumnToCHColumn::NameToColumnPtr name_to_column_ptr;
-    for (auto & vectorized_column_reader : columnVectors_)
+    for (auto & vectorized_column_reader : column_readers_)
     {
         const std::shared_ptr<arrow::ChunkedArray> arrow_column
             = vectorized_column_reader.readBatch(format_settings_.parquet.max_block_size);
@@ -245,7 +245,7 @@ DB::Chunk VectorizedParquetRecordReader::nextBatch()
     if (const size_t num_rows = name_to_column_ptr.begin()->second->length(); num_rows > 0)
     {
         DB::Chunk result;
-        arrowColumnToCHColumn_.arrowColumnsToCHChunk(result, name_to_column_ptr, num_rows, nullptr);
+        arrow_column_to_ch_column_.arrowColumnsToCHChunk(result, name_to_column_ptr, num_rows, nullptr);
         return result;
     }
     return {};
@@ -258,7 +258,7 @@ ParquetFileReaderExt::ParquetFileReaderExt(
     const std::vector<int32_t> & column_indices,
     const DB::FormatSettings & format_settings)
     : source_(source)
-    , fileReader_(std::move(parquetFileReader))
+    , file_reader_(std::move(parquetFileReader))
     , column_index_filter_(column_index_filter)
     , format_settings_(format_settings)
     , column_indices_(column_indices.begin(), column_indices.end())
@@ -309,7 +309,7 @@ std::optional<ColumnChunkPageRead> PageIterator::nextChunkWithRowRange()
 ColumnChunkPageRead ParquetFileReaderExt::readColumnChunkPageBase(
     const parquet::RowGroupMetaData & rg, const int32_t column_index, const BuildRead & build_read) const
 {
-    const auto file_metadata = fileReader_->metadata();
+    const auto file_metadata = file_reader_->metadata();
 
     // Prior to Arrow 3.0.0, is_compressed was always set to false in column headers,
     // even if compression was used. See ARROW-17100.
@@ -364,14 +364,14 @@ const ColumnIndexStore & ParquetFileReaderExt::getColumnIndexStore(const int32_t
 /// input format
 VectorizedParquetBlockInputFormat::VectorizedParquetBlockInputFormat(
     DB::ReadBuffer & in_, const DB::Block & header_, const DB::FormatSettings & format_settings)
-    : DB::IInputFormat(header_, &in_), recordReader_(getPort().getHeader(), format_settings)
+    : DB::IInputFormat(header_, &in_), record_reader_(getPort().getHeader(), format_settings)
 {
 }
 
 void VectorizedParquetBlockInputFormat::resetParser()
 {
     IInputFormat::resetParser();
-    recordReader_.reset();
+    record_reader_.reset();
     block_missing_values.clear();
 }
 
@@ -387,15 +387,15 @@ DB::Chunk VectorizedParquetBlockInputFormat::read()
     if (is_stopped != 0)
         return {};
 
-    if (!recordReader_.initialized())
+    if (!record_reader_.initialized())
     {
-        const auto arrow_file = DB::asArrowFile(*in, recordReader_.format_settings_, is_stopped, "Parquet", PARQUET_MAGIC_BYTES);
+        const auto arrow_file = DB::asArrowFile(*in, record_reader_.format_settings_, is_stopped, "Parquet", PARQUET_MAGIC_BYTES);
         if (is_stopped != 0)
             return {};
-        if (!recordReader_.initialize(getPort().getHeader(), arrow_file, column_index_filter_))
+        if (!record_reader_.initialize(getPort().getHeader(), arrow_file, column_index_filter_))
             return {};
     }
-    return recordReader_.nextBatch();
+    return record_reader_.nextBatch();
 }
 ColumnReadState buildAllRead(const int64_t rg_count, const arrow::io::ReadRange & chunk_range)
 {
