@@ -123,11 +123,12 @@ And then re-run the query with below configurations to dump the inputs to micro 
 | spark.gluten.saveDir                        | Directory to save the inputs to micro benchmark, should exist and be empty.                                    | /path/to/saveDir  |
 
 
-Check the files in `spark.gluten.saveDir`. If the simulated stage is a first stage, you will get 3 types of dumped file: 
+Check the files in `spark.gluten.saveDir`. If the simulated stage is a first stage, which means mixed of scan operator and optional shuffle read, you will get 4 types of dumped file: 
 
 - Configuration file: INI formatted, file name `conf_[stageId]_[partitionId].ini`. Contains the configurations to init Velox backend and runtime session.
 - Plan file: JSON formatted, file name `plan_[stageId]_[partitionId].json`. Contains the substrait plan to the stage, without input file splits.
-- Split file: JSON formatted, file name `split_[stageId]_[partitionId]_[splitIndex].json`. There can be more than one split file in a first stage task. Contains the substrait plan piece to the input file splits.
+- Split file: JSON formatted, file name `split_[stageId]_[partitionId]_[splitIndex].json`. There can be more than one split file used for scan operator, contains the substrait plan piece to the input file splits.
+- Data file(optional): Parquet formatted, file name `data_[stageId]_[partitionId]_[iteratorIndex].json`. There can be more than one input data file used for shuffle read. The input data files of a middle stage will be loaded as iterators to serve as the inputs for the pipeline:
 
 Run benchmark. By default, the result will be printed to stdout. You can use `--noprint-result` to suppress this output.
 
@@ -142,11 +143,11 @@ cd /path/to/gluten/cpp/build/velox/benchmarks
 --threads 1 --noprint-result
 ```
 
-If the simulated stage is a middle stage, you will get 3 types of dumped file:
+If the simulated stage is a middle stage, which means pure shuffle stage, you will get 3 types of dumped file:
 
 - Configuration file: INI formatted, file name `conf_[stageId]_[partitionId].ini`. Contains the configurations to init Velox backend and runtime session.
 - Plan file: JSON formatted, file name `plan_[stageId]_[partitionId].json`. Contains the substrait plan to the stage.
-- Data file: Parquet formatted, file name `data_[stageId]_[partitionId]_[iteratorIndex].json`. There can be more than one input data file in a middle stage task. The input data files of a middle stage will be loaded as iterators to serve as the inputs for the pipeline:
+- Data file: Parquet formatted, file name `data_[stageId]_[partitionId]_[iteratorIndex].json`. There can be more than one input data file used for shuffle read. The input data files of a middle stage will be loaded as iterators to serve as the inputs for the pipeline:
 
 ```json
 "localFiles": {
