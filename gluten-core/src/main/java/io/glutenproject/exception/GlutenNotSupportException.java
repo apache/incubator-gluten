@@ -17,7 +17,23 @@
 package io.glutenproject.exception;
 
 /**
- * Generally, this exception should be thrown if an operation is not supported by Gluten but
- * supported by Spark. We expect a fallback behavior to handle such exception.
+ * Generally, this exception should be thrown if Gluten doesn't support an operation, but vanilla
+ * Spark supports it. We expect Gluten makes such operation or its relevant operations fall back to
+ * vanilla Spark when handling this exception.
  */
-public class GlutenNotSupportException extends GlutenException {}
+public class GlutenNotSupportException extends GlutenException {
+
+  public GlutenNotSupportException() {}
+
+  public GlutenNotSupportException(String message) {
+    super(message);
+  }
+
+  public GlutenNotSupportException(Throwable t) {
+    super(t);
+  }
+
+  public GlutenNotSupportException(String message, Throwable t) {
+    super(message, t);
+  }
+}

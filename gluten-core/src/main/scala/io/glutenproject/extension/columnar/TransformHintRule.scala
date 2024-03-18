@@ -738,7 +738,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
         // Currently we assume a plan to be transformable by default.
       }
     } catch {
-      case e: GlutenNotSupportException | UnsupportedOperationException =>
+      case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
         TransformHints.tagNotTransformable(
           plan,
           s"${e.getMessage}, original Spark plan is " +

@@ -297,7 +297,8 @@ object MergeTreePartsPartitionsUtil extends Logging {
     }
 
     if (optionalNumCoalescedBuckets.isDefined) {
-      throw new GlutenNotSupportException("Currently CH backend can't support coalesced buckets.")
+      throw new UnsupportedOperationException(
+        "Currently CH backend can't support coalesced buckets.")
     }
     Seq.tabulate(bucketSpec.numBuckets) {
       bucketId =>
