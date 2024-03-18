@@ -22,8 +22,8 @@
 #include <Formats/FormatSettings.h>
 #include <Processors/Formats/IInputFormat.h>
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
-#include <Storages/Parquet/ArrowUtils.h>
 #include <Storages/Parquet/ColumnIndexFilter.h>
+#include <absl/container/flat_hash_map.h>
 #include <parquet/arrow/reader_internal.h>
 #include <parquet/arrow/schema.h>
 
@@ -115,13 +115,15 @@ class PageIterator;
 
 class ParquetFileReaderExt
 {
+    using RowRangesMap = absl::flat_hash_map<Int32, std::unique_ptr<RowRanges>>;
+    using ColumnIndexStoreMap = absl::flat_hash_map<Int32, std::unique_ptr<ColumnIndexStore>>;
     friend class PageIterator;
     std::shared_ptr<::arrow::io::RandomAccessFile> source_;
     int64_t source_size_;
     std::unique_ptr<parquet::ParquetFileReader> file_reader_;
     ColumnIndexFilterPtr column_index_filter_;
-    std::unordered_map<Int32, std::unique_ptr<RowRanges>> row_group_row_ranges_;
-    std::unordered_map<Int32, std::unique_ptr<ColumnIndexStore>> row_group_column_index_stores_;
+    RowRangesMap row_group_row_ranges_;
+    ColumnIndexStoreMap row_group_column_index_stores_;
     const DB::FormatSettings & format_settings_;
 
 protected:

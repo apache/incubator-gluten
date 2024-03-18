@@ -33,7 +33,7 @@ namespace local_engine
 /// into the variable defined by `lhs` (or throwing a Status on error).
 
 template <typename T>
-T throw_or_return_result(::arrow::Result<T> && result)
+T throwORReturnResult(::arrow::Result<T> && result)
 {
     if (result.ok())
         return std::move(result).ValueUnsafe();
@@ -42,7 +42,7 @@ T throw_or_return_result(::arrow::Result<T> && result)
 #define THROW_ARROW_NOT_OK_OR_ASSIGN(lhs, rexpr) \
     lhs \
     { \
-        local_engine::throw_or_return_result((rexpr)) \
+        local_engine::throwORReturnResult((rexpr)) \
     }
 
 #define THROW_ARROW_NOT_OK(status) \
@@ -55,7 +55,7 @@ T throw_or_return_result(::arrow::Result<T> && result)
 parquet::internal::LevelInfo computeLevelInfo(const parquet::ColumnDescriptor * descr);
 
 /// \brief Get Arrow default memory pool.
-inline arrow::MemoryPool * default_arrow_pool()
+inline arrow::MemoryPool * defaultArrowPool()
 {
     return arrow::default_memory_pool();
 }

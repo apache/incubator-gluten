@@ -98,7 +98,7 @@ VectorizedColumnReader::VectorizedColumnReader(
     : arrow_field_(field.field)
     , input_(field.column_index, reader, row_groups)
     , record_reader_(parquet::internal::RecordReader::Make(
-          input_.descr(), computeLevelInfo(input_.descr()), default_arrow_pool(), arrow_field_->type()->id() == ::arrow::Type::DICTIONARY))
+          input_.descr(), computeLevelInfo(input_.descr()), defaultArrowPool(), arrow_field_->type()->id() == ::arrow::Type::DICTIONARY))
 {
     nextRowGroup();
 }
@@ -157,8 +157,8 @@ std::shared_ptr<arrow::ChunkedArray> VectorizedColumnReader::readBatch(int64_t b
     }
 
     std::shared_ptr<arrow::ChunkedArray> result;
-    THROW_ARROW_NOT_OK(parquet::arrow::TransferColumnData(
-        record_reader_.get(), arrow_field_, input_.descr(), local_engine::default_arrow_pool(), &result));
+    THROW_ARROW_NOT_OK(
+        parquet::arrow::TransferColumnData(record_reader_.get(), arrow_field_, input_.descr(), local_engine::defaultArrowPool(), &result));
     return result;
 }
 
