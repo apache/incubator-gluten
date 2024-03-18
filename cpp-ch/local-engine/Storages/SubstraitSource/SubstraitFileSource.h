@@ -36,9 +36,8 @@ public:
 
     /// Apply key condition to the reader, if use_local_format is true, column_index_filter will be used
     /// otherwise it will be ignored
-    virtual void
-    applyKeyCondition(const std::shared_ptr<const DB::KeyCondition> & /*key_condition*/,
-        const std::shared_ptr<ColumnIndexFilter> & /*column_index_filter*/)
+    virtual void applyKeyCondition(
+        const std::shared_ptr<const DB::KeyCondition> & /*key_condition*/, const ColumnIndexFilterPtr & /*column_index_filter*/)
     {
     }
 
@@ -60,8 +59,7 @@ public:
     bool pull(DB::Chunk & chunk) override;
 
     void applyKeyCondition(
-        const std::shared_ptr<const DB::KeyCondition> & key_condition,
-        const std::shared_ptr<ColumnIndexFilter> & column_index_filter) override
+        const std::shared_ptr<const DB::KeyCondition> & key_condition, const ColumnIndexFilterPtr & column_index_filter) override
     {
         if (auto * const vectorized = dynamic_cast<VectorizedParquetBlockInputFormat *>(input_format->input.get()))
             vectorized->setColumnIndexFilter(column_index_filter);
@@ -123,7 +121,7 @@ private:
     std::unique_ptr<FileReaderWrapper> file_reader;
     ReadBufferBuilderPtr read_buffer_builder;
 
-    std::shared_ptr<ColumnIndexFilter> column_index_filter;
+    ColumnIndexFilterPtr column_index_filter;
 
     bool tryPrepareReader();
 };

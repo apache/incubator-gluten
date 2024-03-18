@@ -177,7 +177,7 @@ VectorizedParquetRecordReader::VectorizedParquetRecordReader(const DB::Block & h
 bool VectorizedParquetRecordReader::initialize(
     const DB::Block & header,
     const std::shared_ptr<arrow::io::RandomAccessFile> & arrow_file,
-    const std::shared_ptr<ColumnIndexFilter> & column_index_filter,
+    const ColumnIndexFilterPtr & column_index_filter,
     const std::shared_ptr<parquet::FileMetaData> & metadata)
 {
     auto file_reader = parquet::ParquetFileReader::Open(arrow_file, parquet::default_reader_properties(), metadata);
@@ -252,7 +252,7 @@ DB::Chunk VectorizedParquetRecordReader::nextBatch()
 ParquetFileReaderExt::ParquetFileReaderExt(
     const std::shared_ptr<arrow::io::RandomAccessFile> & source,
     std::unique_ptr<parquet::ParquetFileReader> parquetFileReader,
-    const std::shared_ptr<ColumnIndexFilter> & column_index_filter,
+    const ColumnIndexFilterPtr & column_index_filter,
     const std::vector<Int32> & column_indices,
     const DB::FormatSettings & format_settings)
     : source_(source)

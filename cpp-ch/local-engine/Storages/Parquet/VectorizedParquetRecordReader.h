@@ -47,8 +47,6 @@ using ReadRanges = std::vector<arrow::io::ReadRange>;
 using ReadSequence = std::vector<int64_t>;
 using ColumnReadState = std::pair<ReadRanges, ReadSequence>;
 using ColumnChunkPageRead = std::pair<std::unique_ptr<parquet::PageReader>, ReadSequence>;
-using ColumnChunkPageReadStore = std::unordered_map<Int32, ColumnChunkPageRead>;
-using ColumnChunkPageReadStorePtr = std::unique_ptr<ColumnChunkPageReadStore>;
 
 class ColumnIndexFilter;
 class VectorizedParquetBlockInputFormat;
@@ -121,7 +119,7 @@ class ParquetFileReaderExt
     std::shared_ptr<::arrow::io::RandomAccessFile> source_;
     int64_t source_size_;
     std::unique_ptr<parquet::ParquetFileReader> file_reader_;
-    std::shared_ptr<ColumnIndexFilter> column_index_filter_;
+    ColumnIndexFilterPtr column_index_filter_;
     std::unordered_map<Int32, std::unique_ptr<RowRanges>> row_group_row_ranges_;
     std::unordered_map<Int32, std::unique_ptr<ColumnIndexStore>> row_group_column_index_stores_;
     const DB::FormatSettings & format_settings_;
@@ -155,7 +153,7 @@ public:
     ParquetFileReaderExt(
         const std::shared_ptr<::arrow::io::RandomAccessFile> & source,
         std::unique_ptr<parquet::ParquetFileReader> parquetFileReader,
-        const std::shared_ptr<ColumnIndexFilter> & column_index_filter,
+        const ColumnIndexFilterPtr & column_index_filter,
         const std::vector<Int32> & column_indices,
         const DB::FormatSettings & format_settings);
 };
@@ -211,7 +209,7 @@ public:
     bool initialize(
         const DB::Block & header,
         const std::shared_ptr<arrow::io::RandomAccessFile> & arrow_file,
-        const std::shared_ptr<ColumnIndexFilter> & column_index_filter,
+        const ColumnIndexFilterPtr & column_index_filter,
         const std::shared_ptr<parquet::FileMetaData> & metadata = nullptr);
     DB::Chunk nextBatch();
 
@@ -231,17 +229,14 @@ class VectorizedParquetBlockInputFormat final : public DB::IInputFormat
     std::atomic<int> is_stopped{0};
     DB::BlockMissingValues block_missing_values;
     VectorizedParquetRecordReader record_reader_;
-    std::shared_ptr<ColumnIndexFilter> column_index_filter_;
+    ColumnIndexFilterPtr column_index_filter_;
 
 protected:
     void onCancel() override { is_stopped = 1; }
 
 public:
     VectorizedParquetBlockInputFormat(DB::ReadBuffer & in_, const DB::Block & header_, const DB::FormatSettings & format_settings);
-    void setColumnIndexFilter(const std::shared_ptr<ColumnIndexFilter> & column_index_filter)
-    {
-        column_index_filter_ = column_index_filter;
-    }
+    void setColumnIndexFilter(const ColumnIndexFilterPtr & column_index_filter) { column_index_filter_ = column_index_filter; }
     String getName() const override { return "VectorizedParquetBlockInputFormat"; }
     void resetParser() override;
     const DB::BlockMissingValues & getMissingValues() const override;

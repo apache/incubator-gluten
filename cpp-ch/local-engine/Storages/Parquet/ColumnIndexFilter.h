@@ -34,10 +34,12 @@ using ContextPtr = std::shared_ptr<const Context>;
 
 namespace local_engine
 {
+class ColumnIndexFilter;
 class ColumnIndex;
 using ColumnIndexPtr = std::unique_ptr<ColumnIndex>;
 using PageIndexs = std::vector<Int32>;
 using ColumnIndexStore = std::unordered_map<std::string, ColumnIndexPtr>;
+using ColumnIndexFilterPtr = std::shared_ptr<ColumnIndexFilter>;
 
 struct PageIndexsBuilder
 {
