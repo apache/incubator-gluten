@@ -18,9 +18,12 @@
 #include <Common/DateLUT.h>
 #include <Common/DateLUTImpl.h>
 #include <Columns/ColumnsDateTime.h>
+#include <Columns/ColumnNullable.h>
+#include <Columns/ColumnsNumber.h>
 #include <DataTypes/DataTypeDateTime64.h>
-#include <Functions/FunctionsConversion.h>
 #include <Functions/FunctionFactory.h>
+#include <Functions/FunctionHelpers.h>
+#include <Functions/extractTimeZoneFromFunctionArguments.h>
 #include <IO/ReadBufferFromMemory.h>
 #include <IO/parseDateTimeBestEffort.h>
 #include <IO/ReadHelpers.h>
@@ -40,13 +43,17 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-class SparkFunctionConvertToDateTime : public DB::FunctionToDateTime64OrNull
+class SparkFunctionConvertToDateTime : public IFunction
 {
 public:
     static constexpr auto name = "sparkToDateTime";
     static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionConvertToDateTime>(); }
     SparkFunctionConvertToDateTime() = default;
     ~SparkFunctionConvertToDateTime() override = default;
+    bool isSuitableForShortCircuitArgumentsExecution(const DataTypesWithConstInfo &) const override { return true; }
+    size_t getNumberOfArguments() const override { return 0; }
+    bool isVariadic() const override { return true; }
+    bool useDefaultImplementationForConstants() const override { return true; }
     String getName() const override { return name; }
 
     bool checkDateTimeFormat(DB::ReadBuffer & buf, size_t buf_size, UInt8 & can_be_parsed) const
@@ -109,11 +116,26 @@ public:
         return true;
     }
 
+    inline UInt32 extractDecimalScale(const ColumnWithTypeAndName & named_column) const
+    {
+        const auto * arg_type = named_column.type.get();
+        bool ok = checkAndGetDataType<DataTypeUInt64>(arg_type)
+            || checkAndGetDataType<DataTypeUInt32>(arg_type)
+            || checkAndGetDataType<DataTypeUInt16>(arg_type)
+            || checkAndGetDataType<DataTypeUInt8>(arg_type);
+        if (!ok)
+            throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Illegal type of toDecimal() scale {}", named_column.type->getName());
+
+        Field field;
+        named_column.column->get(0, field);
+        return static_cast<UInt32>(field.get<UInt32>());
+    }
+
     DB::DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName & arguments) const override
     {
         UInt32 scale = 6;
         if (arguments.size() > 1)
-            scale = extractToDecimalScale(arguments[1]);
+            scale = extractDecimalScale(arguments[1]);
         const auto timezone = extractTimeZoneNameFromFunctionArguments(arguments, 2, 0, false);
         return makeNullable(std::make_shared<DataTypeDateTime64>(scale, timezone));
     }

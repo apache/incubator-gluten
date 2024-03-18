@@ -67,7 +67,7 @@ public:
         if (isString(expr_type))
             result_node = toFunctionNode(actions_dag, "parseDateTimeInJodaSyntaxOrNull", {expr_arg, fmt_arg, time_zone_node});
         else if (isDateOrDate32(expr_type))
-            result_node = toFunctionNode(actions_dag, "sparkToUnixTimestamp", {expr_arg, time_zone_node});
+            result_node = toFunctionNode(actions_dag, "sparkDateToUnixTimestamp", {expr_arg, time_zone_node});
         else if (isDateTime(expr_type) || isDateTime64(expr_type))
             result_node = toFunctionNode(actions_dag, "toUnixTimestamp", {expr_arg, time_zone_node});
         else

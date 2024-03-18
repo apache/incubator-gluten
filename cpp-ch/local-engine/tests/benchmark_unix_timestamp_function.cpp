@@ -21,7 +21,7 @@
 #include <DataTypes/DataTypeFactory.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionsRound.h>
-#include <Functions/SparkFunctionUnixTimestamp.h>
+#include <Functions/SparkFunctionDateToUnixTimestamp.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/FunctionParser.h>
 #include <benchmark/benchmark.h>
@@ -74,7 +74,7 @@ static void BM_SparkUnixTimestamp_For_Date32(benchmark::State & state)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
-    auto function = factory.get("sparkToUnixTimestamp", local_engine::SerializedPlanParser::global_context);
+    auto function = factory.get("sparkDateToUnixTimestamp", local_engine::SerializedPlanParser::global_context);
     Block block = createDataBlock("Date32", 30000000);
     auto executable = function->build(block.getColumnsWithTypeAndName());
     for (auto _ : state)[[maybe_unused]]
@@ -85,7 +85,7 @@ static void BM_SparkUnixTimestamp_For_Date(benchmark::State & state)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
-    auto function = factory.get("sparkToUnixTimestamp", local_engine::SerializedPlanParser::global_context);
+    auto function = factory.get("sparkDateToUnixTimestamp", local_engine::SerializedPlanParser::global_context);
     Block block = createDataBlock("Date", 30000000);
     auto executable = function->build(block.getColumnsWithTypeAndName());
     for (auto _ : state)[[maybe_unused]]

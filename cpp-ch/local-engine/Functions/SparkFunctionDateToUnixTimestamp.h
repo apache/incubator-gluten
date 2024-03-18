@@ -15,8 +15,13 @@
  * limitations under the License.
  */
 
+#include <Common/DateLUT.h>
 #include <Common/DateLUTImpl.h>
-#include <Functions/FunctionsConversion.h>
+#include <Common/LocalDateTime.h>
+#include <Columns/ColumnVector.h>
+#include <DataTypes/IDataType.h>
+#include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypesNumber.h>
 #include <Functions/FunctionFactory.h>
 
 namespace DB
@@ -32,12 +37,12 @@ using namespace DB;
 namespace local_eingine
 {
 
-class SparkFunctionUnixTimestamp : public FunctionToUnixTimestamp
+class SparkFunctionDateToUnixTimestamp : public IFunction
 {
 public:
-    static constexpr auto name = "sparkToUnixTimestamp";
-    static FunctionPtr create(ContextPtr) { return std::make_shared<SparkFunctionUnixTimestamp>(); }
-    SparkFunctionUnixTimestamp()
+    static constexpr auto name = "sparkDateToUnixTimestamp";
+    static FunctionPtr create(ContextPtr) { return std::make_shared<SparkFunctionDateToUnixTimestamp>(); }
+    SparkFunctionDateToUnixTimestamp()
     {
         const DateLUTImpl * date_lut = &DateLUT::instance("UTC");
         UInt32 utc_timestamp = static_cast<UInt32>(0);
@@ -45,21 +50,24 @@ public:
         UInt32 unix_timestamp = date_time.to_time_t();
         delta_timestamp_from_utc = unix_timestamp - utc_timestamp;
     }
-    ~SparkFunctionUnixTimestamp() override = default;
+    ~SparkFunctionDateToUnixTimestamp() override = default;
     String getName() const override { return name; }
+    bool isSuitableForShortCircuitArgumentsExecution(const DB::DataTypesWithConstInfo &) const override { return true; }
+    size_t getNumberOfArguments() const override { return 0; }
+    bool isVariadic() const override { return true; }
+    bool useDefaultImplementationForConstants() const override { return true; }
+    DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName &) const override
+    {
+        return std::make_shared<DataTypeUInt32>();
+    }
 
     ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DataTypePtr & result_type, size_t input_rows) const override
     {
-        if (arguments.size() != 1 && arguments.size() != 2)
+       if (arguments.size() != 1 && arguments.size() != 2)
             throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} argument size must be 1 or 2", name);
         
-        ColumnWithTypeAndName first_arg = arguments[0];
-        
-        if (!isDateOrDate32(first_arg.type))
-        {
-            return FunctionToUnixTimestamp::executeImpl(arguments, result_type, input_rows);
-        }
-        else if (isDate(first_arg.type))
+       ColumnWithTypeAndName first_arg = arguments[0];
+       if (isDate(first_arg.type))
             return executeInternal<UInt16>(first_arg.column, input_rows);
         else
             return executeInternal<Int32>(first_arg.column, input_rows);

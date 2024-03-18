@@ -17,8 +17,13 @@
 #include <Common/LocalDate.h>
 #include <Common/DateLUT.h>
 #include <Common/DateLUTImpl.h>
+#include <Columns/ColumnString.h>
+#include <Columns/ColumnVector.h>
+#include <Columns/ColumnsNumber.h>
+#include <Columns/ColumnNullable.h>
+#include <DataTypes/IDataType.h>
 #include <DataTypes/DataTypeDate32.h>
-#include <Functions/FunctionsConversion.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <Functions/FunctionFactory.h>
 #include <IO/ReadBufferFromMemory.h>
 #include <IO/ReadHelpers.h>
@@ -35,14 +40,18 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-class SparkFunctionConvertToDate : public DB::FunctionToDate32OrNull
+class SparkFunctionConvertToDate : public DB::IFunction
 {
 public:
     static constexpr auto name = "sparkToDate";
     static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionConvertToDate>(); }
     SparkFunctionConvertToDate() = default;
     ~SparkFunctionConvertToDate() override = default;
+    bool isSuitableForShortCircuitArgumentsExecution(const DB::DataTypesWithConstInfo &) const override { return true; }
+    size_t getNumberOfArguments() const override { return 0; }
     String getName() const override { return name; }
+    bool isVariadic() const override { return true; }
+    bool useDefaultImplementationForConstants() const override { return true; }
 
     bool checkAndGetDate32(DB::ReadBuffer & buf, DB::DataTypeDate32::FieldType &x, const DateLUTImpl & date_lut) const
     {
@@ -97,6 +106,12 @@ public:
                 }
             }
         }
+    }
+
+    DB::DataTypePtr getReturnTypeImpl(const DB::ColumnsWithTypeAndName &) const override
+    {
+        DB::DataTypePtr date32_type = std::make_shared<DB::DataTypeDate32>();
+        return makeNullable(date32_type);
     }
 
     DB::ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr & result_type, size_t) const override
