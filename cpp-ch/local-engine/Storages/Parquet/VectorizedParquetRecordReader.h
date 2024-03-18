@@ -47,7 +47,7 @@ using ReadRanges = std::vector<arrow::io::ReadRange>;
 using ReadSequence = std::vector<int64_t>;
 using ColumnReadState = std::pair<ReadRanges, ReadSequence>;
 using ColumnChunkPageRead = std::pair<std::unique_ptr<parquet::PageReader>, ReadSequence>;
-using ColumnChunkPageReadStore = std::unordered_map<int32_t, ColumnChunkPageRead>;
+using ColumnChunkPageReadStore = std::unordered_map<Int32, ColumnChunkPageRead>;
 using ColumnChunkPageReadStorePtr = std::unique_ptr<ColumnChunkPageReadStore>;
 
 class ColumnIndexFilter;
@@ -122,41 +122,41 @@ class ParquetFileReaderExt
     int64_t source_size_;
     std::unique_ptr<parquet::ParquetFileReader> file_reader_;
     std::shared_ptr<ColumnIndexFilter> column_index_filter_;
-    std::unordered_map<int32_t, std::unique_ptr<RowRanges>> row_group_row_ranges_;
-    std::unordered_map<int32_t, std::unique_ptr<ColumnIndexStore>> row_group_column_index_stores_;
+    std::unordered_map<Int32, std::unique_ptr<RowRanges>> row_group_row_ranges_;
+    std::unordered_map<Int32, std::unique_ptr<ColumnIndexStore>> row_group_column_index_stores_;
     const DB::FormatSettings & format_settings_;
 
 protected:
-    std::unordered_set<int32_t> column_indices_;
-    const RowRanges & getRowRanges(int32_t row_group);
-    const ColumnIndexStore & getColumnIndexStore(int32_t row_group);
+    std::unordered_set<Int32> column_indices_;
+    const RowRanges & getRowRanges(Int32 row_group);
+    const ColumnIndexStore & getColumnIndexStore(Int32 row_group);
 
-    bool canPruningPage(const int32_t row_group) const { return column_index_filter_ && rowGroupPageIndexReader(row_group) != nullptr; }
+    bool canPruningPage(const Int32 row_group) const { return column_index_filter_ && rowGroupPageIndexReader(row_group) != nullptr; }
     std::unique_ptr<RowRanges> calculateRowRanges(const ColumnIndexStore & index_store, const size_t rowgroup_count) const
     {
         return std::make_unique<RowRanges>(column_index_filter_->calculateRowRanges(index_store, rowgroup_count));
     }
-    std::unique_ptr<parquet::RowGroupMetaData> rowGroup(const int32_t row_group) const
+    std::unique_ptr<parquet::RowGroupMetaData> rowGroup(const Int32 row_group) const
     {
         const auto file_metadata = file_reader_->metadata();
         return file_metadata->RowGroup(row_group);
     }
 
-    std::shared_ptr<parquet::RowGroupPageIndexReader> rowGroupPageIndexReader(const int32_t row_group) const
+    std::shared_ptr<parquet::RowGroupPageIndexReader> rowGroupPageIndexReader(const Int32 row_group) const
     {
         const auto pageIndex = file_reader_->GetPageIndexReader();
         return pageIndex == nullptr ? nullptr : pageIndex->RowGroup(row_group);
     }
 
     ColumnChunkPageRead
-    readColumnChunkPageBase(const parquet::RowGroupMetaData & rg, int32_t column_index, const BuildRead & build_read) const;
+    readColumnChunkPageBase(const parquet::RowGroupMetaData & rg, Int32 column_index, const BuildRead & build_read) const;
 
 public:
     ParquetFileReaderExt(
         const std::shared_ptr<::arrow::io::RandomAccessFile> & source,
         std::unique_ptr<parquet::ParquetFileReader> parquetFileReader,
         const std::shared_ptr<ColumnIndexFilter> & column_index_filter,
-        const std::vector<int32_t> & column_indices,
+        const std::vector<Int32> & column_indices,
         const DB::FormatSettings & format_settings);
 };
 
@@ -165,7 +165,7 @@ class PageIterator final : public parquet::arrow::FileColumnIterator
     ParquetFileReaderExt * reader_ext_;
 
 public:
-    PageIterator(const int column_index, ParquetFileReaderExt * reader_ext, const std::vector<int32_t> & row_groups)
+    PageIterator(const int column_index, ParquetFileReaderExt * reader_ext, const std::vector<Int32> & row_groups)
         : FileColumnIterator(column_index, reader_ext->file_reader_.get(), row_groups), reader_ext_(reader_ext)
     {
     }
@@ -186,8 +186,7 @@ class VectorizedColumnReader
     void setPageReader(std::unique_ptr<parquet::PageReader> reader, const ReadSequence & read_sequence);
 
 public:
-    VectorizedColumnReader(
-        const parquet::arrow::SchemaField & field, ParquetFileReaderExt * reader, const std::vector<int32_t> & row_groups);
+    VectorizedColumnReader(const parquet::arrow::SchemaField & field, ParquetFileReaderExt * reader, const std::vector<Int32> & row_groups);
     const std::string & col_name() const { return arrow_field_->name(); }
     bool hasMoreRead() const { return read_state_ && read_state_->hasMoreRead(); }
     std::shared_ptr<arrow::ChunkedArray> readBatch(int64_t batch_size);

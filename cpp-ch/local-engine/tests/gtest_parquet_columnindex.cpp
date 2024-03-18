@@ -120,10 +120,10 @@ public:
         return *this;
     }
 
-    CIBuilder & addPage(int64_t nullCount, int32_t min, int32_t max)
+    CIBuilder & addPage(int64_t nullCount, Int32 min, Int32 max)
     {
         assert(primitive_node_ && primitive_node_->physical_type() == parquet::Type::INT32);
-        auto encode = [=](int32_t value) { return std::string(reinterpret_cast<const char *>(&value), sizeof(int32_t)); };
+        auto encode = [=](Int32 value) { return std::string(reinterpret_cast<const char *>(&value), sizeof(Int32)); };
         addPage(nullCount, encode(min), encode(max));
         return *this;
     }
@@ -237,13 +237,13 @@ public:
 constexpr int64_t TOTALSIZE = 30;
 using PNB = PrimitiveNodeBuilder;
 static const CIBuilder c1 = CIBuilder(PNB::optional(parquet::Type::INT32).named("column1"))
-                                .addPage(0, int32_t{1}, 1)
-                                .addPage(1, int32_t{2}, 6)
-                                .addPage(0, int32_t{7}, 7)
-                                .addPage(1, int32_t{7}, 10)
-                                .addPage(0, int32_t{11}, 17)
-                                .addPage(0, int32_t{18}, 23)
-                                .addPage(0, int32_t{24}, 26);
+                                .addPage(0, Int32{1}, 1)
+                                .addPage(1, Int32{2}, 6)
+                                .addPage(0, Int32{7}, 7)
+                                .addPage(1, Int32{7}, 10)
+                                .addPage(0, Int32{11}, 17)
+                                .addPage(0, Int32{18}, 23)
+                                .addPage(0, Int32{24}, 26);
 static const OIBuilder o1 = OIBuilder().addPage(1).addPage(6).addPage(2).addPage(5).addPage(7).addPage(6).addPage(3);
 static const parquet::ColumnDescriptor d1 = c1.descr();
 
@@ -301,7 +301,7 @@ AnotherRowType buildTestRowType()
     return result;
 }
 
-local_engine::RowRanges buildTestRowRanges(const std::vector<int32_t> & rowIndexes)
+local_engine::RowRanges buildTestRowRanges(const std::vector<Int32> & rowIndexes)
 {
     if (rowIndexes.empty())
         return {};
@@ -311,7 +311,7 @@ local_engine::RowRanges buildTestRowRanges(const std::vector<int32_t> & rowIndex
     const parquet::OffsetIndexBuilderPtr builder = parquet::OffsetIndexBuilder::Make();
 
     local_engine::PageIndexs pageIndexs;
-    for (int32_t i = 0, n = rowIndexes.size(); i < n; i += 2)
+    for (Int32 i = 0, n = rowIndexes.size(); i < n; i += 2)
     {
         const int64_t from = rowIndexes[i];
         const int64_t to = rowIndexes[i + 1];
@@ -323,7 +323,7 @@ local_engine::RowRanges buildTestRowRanges(const std::vector<int32_t> & rowIndex
     builder->Finish(final_position);
     const auto offset_index = builder->Build();
 
-    const int32_t rgCount = rowIndexes.back() - 1;
+    const Int32 rgCount = rowIndexes.back() - 1;
     return local_engine::RowRangesBuilder(rgCount, offset_index->page_locations()).toRowRanges(pageIndexs);
 }
 

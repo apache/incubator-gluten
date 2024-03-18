@@ -94,7 +94,7 @@ std::string lower_column_name_if_need(const std::string & column_name, const DB:
 namespace local_engine
 {
 VectorizedColumnReader::VectorizedColumnReader(
-    const parquet::arrow::SchemaField & field, ParquetFileReaderExt * reader, const std::vector<int32_t> & row_groups)
+    const parquet::arrow::SchemaField & field, ParquetFileReaderExt * reader, const std::vector<Int32> & row_groups)
     : arrow_field_(field.field)
     , input_(field.column_index, reader, row_groups)
     , record_reader_(parquet::internal::RecordReader::Make(
@@ -196,17 +196,15 @@ bool VectorizedParquetRecordReader::initialize(
     /// column pruning
     DB::ArrowFieldIndexUtil field_util(
         format_settings_.parquet.case_insensitive_column_matching, format_settings_.parquet.allow_missing_columns);
-    const std::vector<int32_t> column_indices = field_util.findRequiredIndices(header, schema);
+    const std::vector<Int32> column_indices = field_util.findRequiredIndices(header, schema);
     THROW_ARROW_NOT_OK_OR_ASSIGN(std::vector<int> field_indices, manifest.GetFieldIndices(column_indices));
 
     /// row groups pruning
-    std::vector<int32_t> row_groups(
-        boost::counting_iterator<int32_t>(0), boost::counting_iterator<int32_t>(file_metadata.num_row_groups()));
+    std::vector<Int32> row_groups(boost::counting_iterator<Int32>(0), boost::counting_iterator<Int32>(file_metadata.num_row_groups()));
     if (!format_settings_.parquet.skip_row_groups.empty())
     {
         row_groups.erase(
-            std::ranges::remove_if(row_groups, [&](const int32_t i) { return format_settings_.parquet.skip_row_groups.contains(i); })
-                .begin(),
+            std::ranges::remove_if(row_groups, [&](const Int32 i) { return format_settings_.parquet.skip_row_groups.contains(i); }).begin(),
             row_groups.end());
     }
 
@@ -255,7 +253,7 @@ ParquetFileReaderExt::ParquetFileReaderExt(
     const std::shared_ptr<arrow::io::RandomAccessFile> & source,
     std::unique_ptr<parquet::ParquetFileReader> parquetFileReader,
     const std::shared_ptr<ColumnIndexFilter> & column_index_filter,
-    const std::vector<int32_t> & column_indices,
+    const std::vector<Int32> & column_indices,
     const DB::FormatSettings & format_settings)
     : source_(source)
     , file_reader_(std::move(parquetFileReader))
@@ -270,7 +268,7 @@ std::optional<ColumnChunkPageRead> PageIterator::nextChunkWithRowRange()
 {
     while (!row_groups_.empty())
     {
-        const int32_t row_group_index = row_groups_.front();
+        const Int32 row_group_index = row_groups_.front();
         const auto rg = reader_ext_->rowGroup(row_group_index);
         const auto rg_count = rg->num_rows();
 
@@ -307,7 +305,7 @@ std::optional<ColumnChunkPageRead> PageIterator::nextChunkWithRowRange()
 }
 
 ColumnChunkPageRead ParquetFileReaderExt::readColumnChunkPageBase(
-    const parquet::RowGroupMetaData & rg, const int32_t column_index, const BuildRead & build_read) const
+    const parquet::RowGroupMetaData & rg, const Int32 column_index, const BuildRead & build_read) const
 {
     const auto file_metadata = file_reader_->metadata();
 
@@ -326,7 +324,7 @@ ColumnChunkPageRead ParquetFileReaderExt::readColumnChunkPageBase(
         read_sequence);
 }
 
-const RowRanges & ParquetFileReaderExt::getRowRanges(const int32_t row_group)
+const RowRanges & ParquetFileReaderExt::getRowRanges(const Int32 row_group)
 {
     if (!row_group_row_ranges_.contains(row_group))
     {
@@ -337,7 +335,7 @@ const RowRanges & ParquetFileReaderExt::getRowRanges(const int32_t row_group)
     return *(row_group_row_ranges_[row_group]);
 }
 
-const ColumnIndexStore & ParquetFileReaderExt::getColumnIndexStore(const int32_t row_group)
+const ColumnIndexStore & ParquetFileReaderExt::getColumnIndexStore(const Int32 row_group)
 {
     if (!row_group_column_index_stores_.contains(row_group))
     {

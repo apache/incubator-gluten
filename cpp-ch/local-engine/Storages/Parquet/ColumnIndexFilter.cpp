@@ -37,13 +37,11 @@ class TypedComparator;
 
 struct NoneNullPageIndexsBuilder
 {
-    explicit NoneNullPageIndexsBuilder(const std::vector<int32_t> & non_null_page_indices) : non_null_page_indices_(non_null_page_indices)
-    {
-    }
-    const std::vector<int32_t> & non_null_page_indices_;
+    explicit NoneNullPageIndexsBuilder(const std::vector<Int32> & non_null_page_indices) : non_null_page_indices_(non_null_page_indices) { }
+    const std::vector<Int32> & non_null_page_indices_;
 
     PageIndexs all() const { return non_null_page_indices_; }
-    PageIndexs range(const int32_t from, const int32_t to) const
+    PageIndexs range(const Int32 from, const Int32 to) const
     {
         const auto begin = non_null_page_indices_.begin() + from;
         const auto end = non_null_page_indices_.begin() + to;
@@ -51,7 +49,7 @@ struct NoneNullPageIndexsBuilder
     }
 
     template <typename Predict>
-    PageIndexs filter(int32_t from, const int32_t to, Predict predict) const
+    PageIndexs filter(Int32 from, const Int32 to, Predict predict) const
     {
         PageIndexs pages;
         for (; from != to; ++from)
@@ -131,7 +129,7 @@ class TypedComparator
     const T & value_;
     const std::vector<T> & min_;
     const std::vector<T> & max_;
-    const std::vector<int32_t> & non_null_page_indices_;
+    const std::vector<Int32> & non_null_page_indices_;
     parquet::TypedComparator<DType> & comparator_;
     friend UNORDERED;
     friend ASCENDING;
@@ -147,12 +145,12 @@ public:
     {
     }
     size_t size() const { return non_null_page_indices_.size(); }
-    int32_t compareValueToMin(size_t non_null_page_index) const
+    Int32 compareValueToMin(size_t non_null_page_index) const
     {
         const T & min = min_[non_null_page_indices_[non_null_page_index]];
         return comparator_.Compare(value_, min) ? -1 : comparator_.Compare(min, value_) ? 1 : 0;
     }
-    int32_t compareValueToMax(size_t non_null_page_index) const
+    Int32 compareValueToMax(size_t non_null_page_index) const
     {
         const T & max = max_[non_null_page_indices_[non_null_page_index]];
         return comparator_.Compare(value_, max) ? -1 : comparator_.Compare(max, value_) ? 1 : 0;
@@ -161,19 +159,19 @@ public:
 
 struct Bounds
 {
-    const int32_t lower;
-    const int32_t upper;
+    const Int32 lower;
+    const Int32 upper;
 
-    Bounds(const int32_t l, const int32_t u) : lower(l), upper(u) { }
+    Bounds(const Int32 l, const Int32 u) : lower(l), upper(u) { }
 };
 
 struct BoundaryOrder
 {
     /// Avoid the possible overflow might happen in case of (left + right) / 2
-    static int32_t floorMid(const int32_t lower, const int32_t upper) { return lower + (upper - lower) / 2; }
+    static Int32 floorMid(const Int32 lower, const Int32 upper) { return lower + (upper - lower) / 2; }
 
     /// Avoid the possible overflow might happen in case of (left + right + 1) / 2
-    static int32_t ceilingMid(const int32_t lower, const int32_t upper) { return lower + (upper - lower + 1) / 2; }
+    static Int32 ceilingMid(const Int32 lower, const Int32 upper) { return lower + (upper - lower + 1) / 2; }
 };
 
 struct UNORDERED : BoundaryOrder
@@ -182,34 +180,34 @@ struct UNORDERED : BoundaryOrder
     static PageIndexs eq(const TypedComparator<DType> & comparator)
     {
         return NoneNullPageIndexsBuilder{comparator.non_null_page_indices_}.filter(
-            [&](const int32_t i) { return comparator.compareValueToMin(i) >= 0 && comparator.compareValueToMax(i) <= 0; });
+            [&](const Int32 i) { return comparator.compareValueToMin(i) >= 0 && comparator.compareValueToMax(i) <= 0; });
     }
 
     template <typename DType>
     static PageIndexs gt(const TypedComparator<DType> & comparator)
     {
-        return NoneNullPageIndexsBuilder{comparator.non_null_page_indices_}.filter([&](const int32_t i)
+        return NoneNullPageIndexsBuilder{comparator.non_null_page_indices_}.filter([&](const Int32 i)
                                                                                    { return comparator.compareValueToMax(i) < 0; });
     }
 
     template <typename DType>
     static PageIndexs gtEq(const TypedComparator<DType> & comparator)
     {
-        return NoneNullPageIndexsBuilder{comparator.non_null_page_indices_}.filter([&](const int32_t i)
+        return NoneNullPageIndexsBuilder{comparator.non_null_page_indices_}.filter([&](const Int32 i)
                                                                                    { return comparator.compareValueToMax(i) <= 0; });
     }
 
     template <typename DType>
     static PageIndexs lt(const TypedComparator<DType> & comparator)
     {
-        return NoneNullPageIndexsBuilder{comparator.non_null_page_indices_}.filter([&](const int32_t i)
+        return NoneNullPageIndexsBuilder{comparator.non_null_page_indices_}.filter([&](const Int32 i)
                                                                                    { return comparator.compareValueToMin(i) > 0; });
     }
 
     template <typename DType>
     static PageIndexs ltEq(const TypedComparator<DType> & comparator)
     {
-        return NoneNullPageIndexsBuilder{comparator.non_null_page_indices_}.filter([&](const int32_t i)
+        return NoneNullPageIndexsBuilder{comparator.non_null_page_indices_}.filter([&](const Int32 i)
                                                                                    { return comparator.compareValueToMin(i) >= 0; });
     }
 
@@ -217,7 +215,7 @@ struct UNORDERED : BoundaryOrder
     static PageIndexs notEq(const TypedComparator<DType> & comparator)
     {
         return NoneNullPageIndexsBuilder{comparator.non_null_page_indices_}.filter(
-            [&](const int32_t i) { return comparator.compareValueToMin(i) != 0 || comparator.compareValueToMax(i) != 0; });
+            [&](const Int32 i) { return comparator.compareValueToMin(i) != 0 || comparator.compareValueToMax(i) != 0; });
     }
 };
 
@@ -226,18 +224,18 @@ struct ASCENDING : BoundaryOrder
     template <typename DType>
     static std::optional<Bounds> findBounds(const TypedComparator<DType> & comparator)
     {
-        const int32_t length = comparator.size();
-        int32_t lowerLeft = 0;
-        int32_t upperLeft = 0;
-        int32_t lowerRight = length - 1;
-        int32_t upperRight = length - 1;
+        const Int32 length = comparator.size();
+        Int32 lowerLeft = 0;
+        Int32 upperLeft = 0;
+        Int32 lowerRight = length - 1;
+        Int32 upperRight = length - 1;
 
         do
         {
             if (lowerLeft > lowerRight)
                 return std::nullopt;
 
-            const int32_t i = floorMid(lowerLeft, lowerRight);
+            const Int32 i = floorMid(lowerLeft, lowerRight);
             if (comparator.compareValueToMin(i) < 0)
                 lowerRight = upperRight = i - 1;
             else if (comparator.compareValueToMax(i) > 0)
@@ -251,7 +249,7 @@ struct ASCENDING : BoundaryOrder
             if (upperLeft > upperRight)
                 return std::nullopt;
 
-            const int32_t i = ceilingMid(upperLeft, upperRight);
+            const Int32 i = ceilingMid(upperLeft, upperRight);
             if (comparator.compareValueToMin(i) < 0)
                 upperRight = i - 1;
             else if (comparator.compareValueToMax(i) > 0)
@@ -275,17 +273,17 @@ struct ASCENDING : BoundaryOrder
     template <typename DType>
     static PageIndexs gt(const TypedComparator<DType> & comparator)
     {
-        const int32_t length = comparator.size();
+        const Int32 length = comparator.size();
         if (length == 0)
         {
             // No matching rows if the column index contains null pages only
             return {};
         }
-        int32_t left = 0;
-        int32_t right = length;
+        Int32 left = 0;
+        Int32 right = length;
         do
         {
-            int32_t i = floorMid(left, right);
+            Int32 i = floorMid(left, right);
             if (comparator.compareValueToMax(i) >= 0)
                 left = i + 1;
             else
@@ -297,17 +295,17 @@ struct ASCENDING : BoundaryOrder
     template <typename DType>
     static PageIndexs gtEq(const TypedComparator<DType> & comparator)
     {
-        const int32_t length = comparator.size();
+        const Int32 length = comparator.size();
         if (length == 0)
         {
             // No matching rows if the column index contains null pages only
             return {};
         }
-        int32_t left = 0;
-        int32_t right = length;
+        Int32 left = 0;
+        Int32 right = length;
         do
         {
-            int32_t i = floorMid(left, right);
+            Int32 i = floorMid(left, right);
             if (comparator.compareValueToMax(i) > 0)
                 left = i + 1;
             else
@@ -319,17 +317,17 @@ struct ASCENDING : BoundaryOrder
     template <typename DType>
     static PageIndexs lt(const TypedComparator<DType> & comparator)
     {
-        const int32_t length = comparator.size();
+        const Int32 length = comparator.size();
         if (length == 0)
         {
             // No matching rows if the column index contains null pages only
             return {};
         }
-        int32_t left = -1;
-        int32_t right = length - 1;
+        Int32 left = -1;
+        Int32 right = length - 1;
         do
         {
-            int32_t i = ceilingMid(left, right);
+            Int32 i = ceilingMid(left, right);
             if (comparator.compareValueToMin(i) <= 0)
                 right = i - 1;
             else
@@ -342,17 +340,17 @@ struct ASCENDING : BoundaryOrder
     template <typename DType>
     static PageIndexs ltEq(const TypedComparator<DType> & comparator)
     {
-        const int32_t length = comparator.size();
+        const Int32 length = comparator.size();
         if (length == 0)
         {
             // No matching rows if the column index contains null pages only
             return {};
         }
-        int32_t left = -1;
-        int32_t right = length - 1;
+        Int32 left = -1;
+        Int32 right = length - 1;
         do
         {
-            int32_t i = ceilingMid(left, right);
+            Int32 i = ceilingMid(left, right);
             if (comparator.compareValueToMin(i) < 0)
                 right = i - 1;
             else
@@ -370,7 +368,7 @@ struct ASCENDING : BoundaryOrder
                 [&](const Bounds & b)
                 {
                     return builder.filter(
-                        [&](const int32_t i) {
+                        [&](const Int32 i) {
                             return i < b.lower || i > b.upper || comparator.compareValueToMin(i) != 0
                                 || comparator.compareValueToMax(i) != 0;
                         });
@@ -384,17 +382,17 @@ struct DESCENDING : BoundaryOrder
     template <typename DType>
     static std::optional<Bounds> findBounds(const TypedComparator<DType> & comparator)
     {
-        const int32_t length = comparator.size();
-        int32_t lowerLeft = 0;
-        int32_t upperLeft = 0;
-        int32_t lowerRight = length - 1;
-        int32_t upperRight = length - 1;
+        const Int32 length = comparator.size();
+        Int32 lowerLeft = 0;
+        Int32 upperLeft = 0;
+        Int32 lowerRight = length - 1;
+        Int32 upperRight = length - 1;
 
         do
         {
             if (lowerLeft > lowerRight)
                 return std::nullopt;
-            int32_t i = std::floor((lowerLeft + lowerRight) / 2);
+            Int32 i = std::floor((lowerLeft + lowerRight) / 2);
             if (comparator.compareValueToMax(i) > 0)
                 lowerRight = upperRight = i - 1;
             else if (comparator.compareValueToMin(i) < 0)
@@ -407,7 +405,7 @@ struct DESCENDING : BoundaryOrder
         {
             if (upperLeft > upperRight)
                 return std::nullopt;
-            int32_t i = std::ceil((upperLeft + upperRight) / 2);
+            Int32 i = std::ceil((upperLeft + upperRight) / 2);
             if (comparator.compareValueToMax(i) > 0)
                 upperRight = i - 1;
             else if (comparator.compareValueToMin(i) < 0)
@@ -430,17 +428,17 @@ struct DESCENDING : BoundaryOrder
     template <typename DType>
     static PageIndexs gt(const TypedComparator<DType> & comparator)
     {
-        const int32_t length = comparator.size();
+        const Int32 length = comparator.size();
         if (length == 0)
         {
             // No matching rows if the column index contains null pages only
             return {};
         }
-        int32_t left = -1;
-        int32_t right = length - 1;
+        Int32 left = -1;
+        Int32 right = length - 1;
         do
         {
-            int32_t i = ceilingMid(left, right);
+            Int32 i = ceilingMid(left, right);
             if (comparator.compareValueToMax(i) >= 0)
                 right = i - 1;
             else
@@ -452,17 +450,17 @@ struct DESCENDING : BoundaryOrder
     template <typename DType>
     static PageIndexs gtEq(const TypedComparator<DType> & comparator)
     {
-        const int32_t length = comparator.size();
+        const Int32 length = comparator.size();
         if (length == 0)
         {
             // No matching rows if the column index contains null pages only
             return {};
         }
-        int32_t left = -1;
-        int32_t right = length - 1;
+        Int32 left = -1;
+        Int32 right = length - 1;
         do
         {
-            int32_t i = ceilingMid(left, right);
+            Int32 i = ceilingMid(left, right);
             if (comparator.compareValueToMax(i) > 0)
                 right = i - 1;
             else
@@ -474,17 +472,17 @@ struct DESCENDING : BoundaryOrder
     template <typename DType>
     static PageIndexs lt(const TypedComparator<DType> & comparator)
     {
-        const int32_t length = comparator.size();
+        const Int32 length = comparator.size();
         if (length == 0)
         {
             // No matching rows if the column index contains null pages only
             return PageIndexs{};
         }
-        int32_t left = 0;
-        int32_t right = length;
+        Int32 left = 0;
+        Int32 right = length;
         do
         {
-            int32_t i = floorMid(left, right);
+            Int32 i = floorMid(left, right);
             if (comparator.compareValueToMin(i) <= 0)
                 left = i + 1;
             else
@@ -496,17 +494,17 @@ struct DESCENDING : BoundaryOrder
     template <typename DType>
     static PageIndexs ltEq(const TypedComparator<DType> & comparator)
     {
-        const int32_t length = comparator.size();
+        const Int32 length = comparator.size();
         if (length == 0)
         {
             // No matching rows if the column index contains null pages only
             return PageIndexs{};
         }
-        int32_t left = 0;
-        int32_t right = length;
+        Int32 left = 0;
+        Int32 right = length;
         do
         {
-            int32_t i = floorMid(left, right);
+            Int32 i = floorMid(left, right);
             if (comparator.compareValueToMin(i) < 0)
                 left = i + 1;
             else
@@ -523,7 +521,7 @@ struct DESCENDING : BoundaryOrder
                 [&](const Bounds & b)
                 {
                     return builder.filter(
-                        [&](const int32_t i) {
+                        [&](const Int32 i) {
                             return i < b.lower || i > b.upper || comparator.compareValueToMin(i) != 0
                                 || comparator.compareValueToMin(i) != 0;
                         });
@@ -539,7 +537,7 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::notEq(const DB::Field & value) co
     if (value.isNull())
     {
         return PageIndexsBuilder::filter(
-            column_index_->null_pages().size(), [&](const int32_t i) { return !column_index_->null_pages()[i]; });
+            column_index_->null_pages().size(), [&](const Int32 i) { return !column_index_->null_pages()[i]; });
     }
     if (!column_index_->has_null_counts())
     {
@@ -555,7 +553,7 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::notEq(const DB::Field & value) co
 
     return PageIndexsBuilder::filter(
         column_index_->null_counts().size(),
-        [&](const int32_t i) { return column_index_->null_counts()[i] > 0 || matchingIndexes.contains(i); });
+        [&](const Int32 i) { return column_index_->null_counts()[i] > 0 || matchingIndexes.contains(i); });
 }
 
 template <typename DType, Derived<BoundaryOrder> ORDER>
@@ -566,7 +564,7 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::eq(const DB::Field & value) const
         if (column_index_->has_null_counts())
         {
             return PageIndexsBuilder::filter(
-                column_index_->null_counts().size(), [&](const int32_t i) { return column_index_->null_counts()[i] > 0; });
+                column_index_->null_counts().size(), [&](const Int32 i) { return column_index_->null_counts()[i] > 0; });
         }
         else
         {
@@ -633,7 +631,7 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::in(const DB::ColumnPtr & column) 
     std::set<size_t> matchingIndex;
     std::ranges::set_intersection(min_page_indexs, max_page_indexs, std::inserter(matchingIndex, matchingIndex.begin()));
 
-    return PageIndexsBuilder::filter(column_index_->null_counts().size(), [&](const int32_t i) { return matchingIndex.contains(i); });
+    return PageIndexsBuilder::filter(column_index_->null_counts().size(), [&](const Int32 i) { return matchingIndex.contains(i); });
 }
 
 template <typename T, typename S>

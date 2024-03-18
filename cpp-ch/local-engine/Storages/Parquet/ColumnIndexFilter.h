@@ -36,17 +36,17 @@ namespace local_engine
 {
 class ColumnIndex;
 using ColumnIndexPtr = std::unique_ptr<ColumnIndex>;
-using PageIndexs = std::vector<int32_t>;
+using PageIndexs = std::vector<Int32>;
 using ColumnIndexStore = std::unordered_map<std::string, ColumnIndexPtr>;
 
 struct PageIndexsBuilder
 {
-    static constexpr int32_t ALL_PAGES = -1;
+    static constexpr Int32 ALL_PAGES = -1;
     template <typename Predict>
     static PageIndexs filter(const size_t size, Predict predict)
     {
         PageIndexs pages;
-        for (int32_t from = 0; from != size; ++from)
+        for (Int32 from = 0; from != size; ++from)
             if (predict(from))
                 pages.emplace_back(from);
         return pages;
