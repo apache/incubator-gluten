@@ -531,6 +531,13 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           m.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
           m)
+      case timestampAdd: TimestampAdd =>
+        TimestampAddTransform(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(timestampAdd.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(timestampAdd.right, attributeSeq, expressionsMap),
+          timestampAdd
+        )
       case e: Transformable =>
         val childrenTransformers =
           e.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap))
