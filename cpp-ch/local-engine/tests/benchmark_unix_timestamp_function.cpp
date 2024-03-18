@@ -21,7 +21,7 @@
 #include <DataTypes/DataTypeFactory.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionsRound.h>
-#include <Functions/SparkFunctionUnixTimestamp.h>
+#include <Functions/SparkFunctionDateToUnixTimestamp.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/FunctionParser.h>
 #include <benchmark/benchmark.h>

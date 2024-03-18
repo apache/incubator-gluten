@@ -20,7 +20,6 @@
 #include <DataTypes/IDataType.h>
 #include <DataTypes/DataTypeFactory.h>
 #include <Functions/FunctionFactory.h>
-#include <Functions/FunctionsConversion.h>
 #include <Functions/SparkFunctionToDateTime.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/FunctionParser.h>
