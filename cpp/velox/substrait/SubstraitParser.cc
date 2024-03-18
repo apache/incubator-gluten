@@ -85,14 +85,6 @@ TypePtr SubstraitParser::parseType(const ::substrait::Type& substraitType, bool 
     }
     case ::substrait::Type::KindCase::kNothing:
       return UNKNOWN();
-    case ::substrait::Type::KindCase::kFixedChar:
-      VELOX_NYI("Parsing for Substrait type not supported: fixed char");
-    case ::substrait::Type::KindCase::kVarchar:
-      VELOX_NYI("Parsing for Substrait type not supported: varchar");
-    case ::substrait::Type::KindCase::kFixedBinary:
-      VELOX_NYI("Parsing for Substrait type not supported: fixed binary");
-    case ::substrait::Type::KindCase::KIND_NOT_SET:
-      VELOX_NYI("Parsing for Substrait type not supported: KIND_NOT_SET");
     default:
       VELOX_NYI("Parsing for Substrait type not supported: {}", substraitType.DebugString());
   }
