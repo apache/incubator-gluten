@@ -9,6 +9,9 @@
 # cache files
 *.cache
 
+# MacOS dir files
+.DS_Store
+
 # IDEA config files
 .idea/
 *.iml

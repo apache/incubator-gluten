@@ -105,6 +105,16 @@
           <artifactId>celeborn-client-spark-${spark.major.version}-shaded_${scala.binary.version}</artifactId>
           <version>${celeborn.version}</version>
           <scope>runtime</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.celeborn</groupId>
+              <artifactId>celeborn-client-spark-${spark.major.version}_${scala.binary.version}</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.celeborn</groupId>
+              <artifactId>celeborn-spark-${spark.major.version}-columnar-shuffle_${scala.binary.version}</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
       </dependencies>
     </profile>

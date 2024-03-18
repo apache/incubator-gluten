@@ -19,7 +19,7 @@ package io.glutenproject.extension.columnar
 import io.glutenproject.utils.PullOutProjectHelper
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Partial}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete, Partial}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan, TakeOrderedAndProjectExec}
 import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, TypedAggregateExpression}
@@ -53,7 +53,7 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
             } else {
               expr.filter.exists(isNotAttribute) ||
               (expr.mode match {
-                case Partial =>
+                case Partial | Complete =>
                   expr.aggregateFunction.children.exists(isNotAttributeAndLiteral)
                 case _ => false
               })

@@ -20,6 +20,7 @@ import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.backendsapi.IteratorApi
 import io.glutenproject.execution._
 import io.glutenproject.metrics.IMetrics
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, LocalFilesNode, SplitInfo}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -53,11 +54,12 @@ class IteratorApiImpl extends IteratorApi with Logging {
   override def genSplitInfo(
       partition: InputPartition,
       partitionSchema: StructType,
-      fileFormat: ReadFileFormat): SplitInfo = {
+      fileFormat: ReadFileFormat,
+      metadataColumnNames: Seq[String]): SplitInfo = {
     partition match {
       case f: FilePartition =>
-        val (paths, starts, lengths, partitionColumns) =
-          constructSplitInfo(partitionSchema, f.files)
+        val (paths, starts, lengths, partitionColumns, metadataColumns) =
+          constructSplitInfo(partitionSchema, f.files, metadataColumnNames)
         val preferredLocations =
           SoftAffinity.getFilePartitionLocations(f)
         LocalFilesBuilder.makeLocalFiles(
@@ -66,6 +68,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
           starts,
           lengths,
           partitionColumns,
+          metadataColumns,
           fileFormat,
           preferredLocations.toList.asJava)
       case _ =>
@@ -92,11 +95,15 @@ class IteratorApiImpl extends IteratorApi with Logging {
     }
   }
 
-  private def constructSplitInfo(schema: StructType, files: Array[PartitionedFile]) = {
+  private def constructSplitInfo(
+      schema: StructType,
+      files: Array[PartitionedFile],
+      metadataColumnNames: Seq[String]) = {
     val paths = new JArrayList[String]()
     val starts = new JArrayList[JLong]
     val lengths = new JArrayList[JLong]()
     val partitionColumns = new JArrayList[JMap[String, String]]
+    var metadataColumns = new JArrayList[JMap[String, String]]
     files.foreach {
       file =>
         // The "file.filePath" in PartitionedFile is not the original encoded path, so the decoded
@@ -106,7 +113,9 @@ class IteratorApiImpl extends IteratorApi with Logging {
             .decode(file.filePath.toString, StandardCharsets.UTF_8.name()))
         starts.add(JLong.valueOf(file.start))
         lengths.add(JLong.valueOf(file.length))
-
+        val metadataColumn =
+          SparkShimLoader.getSparkShims.generateMetadataColumns(file, metadataColumnNames)
+        metadataColumns.add(metadataColumn)
         val partitionColumn = new JHashMap[String, String]()
         for (i <- 0 until file.partitionValues.numFields) {
           val partitionColumnValue = if (file.partitionValues.isNullAt(i)) {
@@ -131,7 +140,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
         }
         partitionColumns.add(partitionColumn)
     }
-    (paths, starts, lengths, partitionColumns)
+    (paths, starts, lengths, partitionColumns, metadataColumns)
   }
 
   override def injectWriteFilesTempPath(path: String): Unit = {

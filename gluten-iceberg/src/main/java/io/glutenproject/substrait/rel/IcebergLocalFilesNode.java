@@ -16,39 +16,18 @@
  */
 package io.glutenproject.substrait.rel;
 
+import io.glutenproject.GlutenConfig;
+
+import io.substrait.proto.ReadRel;
+import org.apache.iceberg.DeleteFile;
+
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 public class IcebergLocalFilesNode extends LocalFilesNode {
-
-  class DeleteFile {
-    private final String path;
-    private final Integer fileContent;
-    private final ReadFileFormat fileFormat;
-    private final Long fileSize;
-    private final Long recordCount;
-    private final Map<Integer, String> lowerBounds;
-    private final Map<Integer, String> upperBounds;
-
-    DeleteFile(
-        String path,
-        Integer fileContent,
-        ReadFileFormat fileFormat,
-        Long fileSize,
-        Long recordCount,
-        Map<Integer, String> lowerBounds,
-        Map<Integer, String> upperBounds) {
-      this.path = path;
-      this.fileContent = fileContent;
-      this.fileFormat = fileFormat;
-      this.fileSize = fileSize;
-      this.recordCount = recordCount;
-      this.lowerBounds = lowerBounds;
-      this.upperBounds = upperBounds;
-    }
-  }
-
-  // TODO: Add delete file support for MOR iceberg table
+  private final Map<String, List<DeleteFile>> deleteFilesMap;
 
   IcebergLocalFilesNode(
       Integer index,
@@ -57,7 +36,87 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
       List<Long> lengths,
       List<Map<String, String>> partitionColumns,
       ReadFileFormat fileFormat,
-      List<String> preferredLocations) {
-    super(index, paths, starts, lengths, partitionColumns, fileFormat, preferredLocations);
+      List<String> preferredLocations,
+      Map<String, List<DeleteFile>> deleteFilesMap) {
+    super(
+        index,
+        paths,
+        starts,
+        lengths,
+        partitionColumns,
+        new ArrayList<>(),
+        fileFormat,
+        preferredLocations);
+    this.deleteFilesMap = deleteFilesMap;
+  }
+
+  @Override
+  protected void processFileBuilder(ReadRel.LocalFiles.FileOrFiles.Builder fileBuilder) {
+    List<DeleteFile> deleteFiles =
+        deleteFilesMap.getOrDefault(fileBuilder.getUriFile(), Collections.emptyList());
+    ReadRel.LocalFiles.FileOrFiles.IcebergReadOptions.Builder icebergBuilder =
+        ReadRel.LocalFiles.FileOrFiles.IcebergReadOptions.newBuilder();
+
+    switch (fileFormat) {
+      case ParquetReadFormat:
+        ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =
+            ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder()
+                .setEnableRowGroupMaxminIndex(
+                    GlutenConfig.getConf().enableParquetRowGroupMaxMinIndex())
+                .build();
+        icebergBuilder.setParquet(parquetReadOptions);
+        break;
+      case OrcReadFormat:
+        ReadRel.LocalFiles.FileOrFiles.OrcReadOptions orcReadOptions =
+            ReadRel.LocalFiles.FileOrFiles.OrcReadOptions.newBuilder().build();
+        icebergBuilder.setOrc(orcReadOptions);
+        break;
+      default:
+        throw new UnsupportedOperationException(
+            "Unsupported file format " + fileFormat.name() + " for iceberg data file.");
+    }
+
+    for (DeleteFile delete : deleteFiles) {
+      ReadRel.LocalFiles.FileOrFiles.IcebergReadOptions.DeleteFile.Builder deleteFileBuilder =
+          ReadRel.LocalFiles.FileOrFiles.IcebergReadOptions.DeleteFile.newBuilder();
+      ReadRel.LocalFiles.FileOrFiles.IcebergReadOptions.FileContent fileContent;
+      switch (delete.content()) {
+        case EQUALITY_DELETES:
+          fileContent =
+              ReadRel.LocalFiles.FileOrFiles.IcebergReadOptions.FileContent.EQUALITY_DELETES;
+          break;
+        case POSITION_DELETES:
+          fileContent =
+              ReadRel.LocalFiles.FileOrFiles.IcebergReadOptions.FileContent.POSITION_DELETES;
+          break;
+        default:
+          throw new UnsupportedOperationException(
+              "Unsupported FileCount " + delete.content().name() + " for delete file.");
+      }
+      deleteFileBuilder.setFileContent(fileContent);
+      deleteFileBuilder.setFilePath(delete.path().toString());
+      deleteFileBuilder.setFileSize(delete.fileSizeInBytes());
+      deleteFileBuilder.setRecordCount(delete.recordCount());
+      switch (delete.format()) {
+        case PARQUET:
+          ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =
+              ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder()
+                  .setEnableRowGroupMaxminIndex(
+                      GlutenConfig.getConf().enableParquetRowGroupMaxMinIndex())
+                  .build();
+          deleteFileBuilder.setParquet(parquetReadOptions);
+          break;
+        case ORC:
+          ReadRel.LocalFiles.FileOrFiles.OrcReadOptions orcReadOptions =
+              ReadRel.LocalFiles.FileOrFiles.OrcReadOptions.newBuilder().build();
+          deleteFileBuilder.setOrc(orcReadOptions);
+          break;
+        default:
+          throw new UnsupportedOperationException(
+              "Unsupported format " + delete.format().name() + " for delete file.");
+      }
+      icebergBuilder.addDeleteFiles(deleteFileBuilder);
+    }
+    fileBuilder.setIceberg(icebergBuilder);
   }
 }

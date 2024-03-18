@@ -19,8 +19,8 @@ package org.apache.spark.sql.execution
 import io.glutenproject.metrics.GlutenTimeMetric
 
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, FileSourceConstantMetadataAttribute, FileSourceGeneratedMetadataAttribute, PlanExpression, Predicate}
-import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, Expression, FileSourceConstantMetadataAttribute, FileSourceGeneratedMetadataAttribute, FileSourceMetadataAttribute, PlanExpression, Predicate}
+import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
@@ -55,7 +55,18 @@ abstract class FileSourceScanExecShim(
     case FileSourceGeneratedMetadataAttribute(attr) => attr
   }
 
-  def hasMetadataColumns: Boolean = metadataColumns.nonEmpty
+  def dataFiltersInScan: Seq[Expression] = dataFilters
+
+  def hasUnsupportedColumns: Boolean = {
+    val metadataColumnsNames = metadataColumns.map(_.name)
+    // row_index metadata is not support yet
+    metadataColumnsNames.contains(FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME) ||
+    output
+      .filterNot(metadataColumns.toSet)
+      .exists(v => metadataColumnsNames.contains(v.name)) ||
+    // Below name has special meaning in Velox.
+    output.exists(a => a.name == "$path" || a.name == "$bucket")
+  }
 
   def isMetadataColumn(attr: Attribute): Boolean = metadataColumns.contains(attr)
 

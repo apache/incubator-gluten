@@ -53,7 +53,14 @@ abstract class FileSourceScanExecShim(
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] = Map()
 
-  def hasMetadataColumns: Boolean = false
+  def dataFiltersInScan: Seq[Expression] = dataFilters
+
+  def metadataColumns: Seq[AttributeReference] = Seq.empty
+
+  def hasUnsupportedColumns: Boolean = {
+    // Below name has special meaning in Velox.
+    output.exists(a => a.name == "$path" || a.name == "$bucket")
+  }
 
   def isMetadataColumn(attr: Attribute): Boolean = false
 

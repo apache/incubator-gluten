@@ -947,7 +947,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
             |select * from t1 cross join t2 on t1.c1 = t2.c1;
             |""".stripMargin
         ) {
-          checkOperatorMatch[GlutenBroadcastHashJoinExecTransformer]
+          checkOperatorMatch[BroadcastHashJoinExecTransformer]
         }
       }
 
@@ -1231,6 +1231,31 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
                          |) group by s
                          |""".stripMargin) {
       checkOperatorMatch[HashAggregateExecTransformer]
+    }
+  }
+
+  test("test roundrobine with sort") {
+    // scalastyle:off
+    runQueryAndCompare("SELECT /*+ REPARTITION(3) */ l_orderkey, l_partkey FROM lineitem") {
+      /*
+        ColumnarExchange RoundRobinPartitioning(3), REPARTITION_BY_NUM, [l_orderkey#16L, l_partkey#17L)
+        +- ^(2) ProjectExecTransformer [l_orderkey#16L, l_partkey#17L]
+          +- ^(2) SortExecTransformer [hash_partition_key#302 ASC NULLS FIRST], false, 0
+            +- ^(2) ProjectExecTransformer [hash(l_orderkey#16L, l_partkey#17L) AS hash_partition_key#302, l_orderkey#16L, l_partkey#17L]
+                +- ^(2) BatchScanExecTransformer[l_orderkey#16L, l_partkey#17L] ParquetScan DataFilters: [], Format: parquet, Location: InMemoryFileIndex(1 paths)[..., PartitionFilters: [], PushedFilters: [], ReadSchema: struct<l_orderkey:bigint,l_partkey:bigint>, PushedFilters: [] RuntimeFilters: []
+       */
+      checkOperatorMatch[SortExecTransformer]
+    }
+    // scalastyle:on
+
+    withSQLConf("spark.sql.execution.sortBeforeRepartition" -> "false") {
+      runQueryAndCompare("""SELECT /*+ REPARTITION(3) */
+                           | l_orderkey, l_partkey FROM lineitem""".stripMargin) {
+        df =>
+          {
+            assert(getExecutedPlan(df).count(_.isInstanceOf[SortExecTransformer]) == 0)
+          }
+      }
     }
   }
 }

@@ -88,7 +88,7 @@ case class CHBroadcastHashJoinExecTransformer(
     left: SparkPlan,
     right: SparkPlan,
     isNullAwareAntiJoin: Boolean)
-  extends BroadcastHashJoinExecTransformer(
+  extends BroadcastHashJoinExecTransformerBase(
     leftKeys,
     rightKeys,
     joinType,

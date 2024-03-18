@@ -596,11 +596,12 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   std::vector<std::string> tableColumnNames;
   std::vector<std::string> partitionedKey;
   std::vector<bool> isPartitionColumns;
+  std::vector<bool> isMetadataColumns;
   tableColumnNames.reserve(writeRel.table_schema().names_size());
 
   VELOX_CHECK(writeRel.has_table_schema(), "WriteRel should have the table schema to store the column information");
   const auto& tableSchema = writeRel.table_schema();
-  isPartitionColumns = SubstraitParser::parsePartitionColumns(tableSchema);
+  SubstraitParser::parsePartitionAndMetadataColumns(tableSchema, isPartitionColumns, isMetadataColumns);
 
   for (const auto& name : tableSchema.names()) {
     tableColumnNames.emplace_back(name);
@@ -1040,6 +1041,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   std::vector<std::string> colNameList;
   std::vector<TypePtr> veloxTypeList;
   std::vector<bool> isPartitionColumns;
+  std::vector<bool> isMetadataColumns;
   // Convert field names into lower case when not case-sensitive.
   std::shared_ptr<const facebook::velox::Config> veloxCfg =
       std::make_shared<const facebook::velox::core::MemConfigMutable>(confMap_);
@@ -1055,7 +1057,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       colNameList.emplace_back(fieldName);
     }
     veloxTypeList = SubstraitParser::parseNamedStruct(baseSchema, asLowerCase);
-    isPartitionColumns = SubstraitParser::parsePartitionColumns(baseSchema);
+    SubstraitParser::parsePartitionAndMetadataColumns(baseSchema, isPartitionColumns, isMetadataColumns);
   }
 
   // Do not hard-code connector ID and allow for connectors other than Hive.
@@ -1110,8 +1112,13 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   std::unordered_map<std::string, std::shared_ptr<connector::ColumnHandle>> assignments;
   for (int idx = 0; idx < colNameList.size(); idx++) {
     auto outName = SubstraitParser::makeNodeName(planNodeId_, idx);
-    auto columnType = isPartitionColumns[idx] ? connector::hive::HiveColumnHandle::ColumnType::kPartitionKey
-                                              : connector::hive::HiveColumnHandle::ColumnType::kRegular;
+    auto columnType = connector::hive::HiveColumnHandle::ColumnType::kRegular;
+    if (isPartitionColumns[idx]) {
+      columnType = connector::hive::HiveColumnHandle::ColumnType::kPartitionKey;
+    }
+    if (isMetadataColumns[idx]) {
+      columnType = connector::hive::HiveColumnHandle::ColumnType::kSynthesized;
+    }
     assignments[outName] = std::make_shared<connector::hive::HiveColumnHandle>(
         colNameList[idx], columnType, veloxTypeList[idx], veloxTypeList[idx]);
     outNames.emplace_back(outName);

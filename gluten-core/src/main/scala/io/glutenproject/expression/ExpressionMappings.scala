@@ -242,6 +242,7 @@ object ExpressionMappings {
     Sig[CheckOverflow](CHECK_OVERFLOW),
     Sig[MakeDecimal](MAKE_DECIMAL),
     Sig[PromotePrecision](PROMOTE_PRECISION),
+    Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID),
     // Decimal
     Sig[UnscaledValue](UNSCALED_VALUE)
   ) ++ SparkShimLoader.getSparkShims.expressionMappings
@@ -269,7 +270,8 @@ object ExpressionMappings {
     Sig[CovPopulation](COVAR_POP),
     Sig[CovSample](COVAR_SAMP),
     Sig[Last](LAST),
-    Sig[First](FIRST)
+    Sig[First](FIRST),
+    Sig[Skewness](SKEWNESS)
   )
 
   /** Mapping Spark window expression to Substrait function name */

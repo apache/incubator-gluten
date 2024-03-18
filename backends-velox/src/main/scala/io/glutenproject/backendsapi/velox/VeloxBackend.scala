@@ -102,9 +102,7 @@ object BackendSettings extends BackendSettingsApi {
       case StructField(_, structType: StructType, _, _) =>
         structType.simpleString + " is forced to fallback."
       case StructField(_, stringType: StringType, _, metadata)
-          if CharVarcharUtils
-            .getRawTypeString(metadata)
-            .getOrElse(stringType.catalogString) != stringType.catalogString =>
+          if isCharType(stringType, metadata) =>
         CharVarcharUtils.getRawTypeString(metadata) + " not support"
       case StructField(_, TimestampType, _, _) => "TimestampType not support"
     }
@@ -151,9 +149,7 @@ object BackendSettings extends BackendSettingsApi {
                 if mapType.valueType.isInstanceOf[ArrayType] =>
               "ArrayType as Value in MapType"
             case StructField(_, stringType: StringType, _, metadata)
-                if CharVarcharUtils
-                  .getRawTypeString(metadata)
-                  .getOrElse(stringType.catalogString) != stringType.catalogString =>
+                if isCharType(stringType, metadata) =>
               CharVarcharUtils.getRawTypeString(metadata) + " not support"
             case StructField(_, TimestampType, _, _) => "TimestampType not support"
           }
@@ -165,6 +161,16 @@ object BackendSettings extends BackendSettingsApi {
         }
       case _ => ValidationResult.notOk(s"Unsupported file format for $format.")
     }
+  }
+
+  def isCharType(stringType: StringType, metadata: Metadata): Boolean = {
+    val charTypePattern = "char\\((\\d+)\\)".r
+    GlutenConfig.getConf.forceOrcCharTypeScanFallbackEnabled && charTypePattern
+      .findFirstIn(
+        CharVarcharUtils
+          .getRawTypeString(metadata)
+          .getOrElse(stringType.catalogString))
+      .isDefined
   }
 
   override def supportWriteFilesExec(
@@ -247,6 +253,8 @@ object BackendSettings extends BackendSettingsApi {
       case _ => ValidationResult.ok
     }
   }
+
+  override def supportNativeMetadataColumns(): Boolean = true
 
   override def supportExpandExec(): Boolean = true
 

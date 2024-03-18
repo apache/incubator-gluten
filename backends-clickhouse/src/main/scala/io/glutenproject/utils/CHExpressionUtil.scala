@@ -174,6 +174,8 @@ object CHExpressionUtil {
     ENCODE -> EncodeDecodeValidator(),
     ARRAY_EXCEPT -> DefaultValidator(),
     ARRAY_REPEAT -> DefaultValidator(),
-    DATE_FROM_UNIX_DATE -> DefaultValidator()
+    DATE_FROM_UNIX_DATE -> DefaultValidator(),
+    MONOTONICALLY_INCREASING_ID -> DefaultValidator(),
+    SKEWNESS -> DefaultValidator()
   )
 }

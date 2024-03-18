@@ -17,7 +17,7 @@
 package io.glutenproject.extension.columnar
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.BroadcastHashJoinExecTransformer
+import io.glutenproject.execution.BroadcastHashJoinExecTransformerBase
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.extension.columnar.MiscColumnarRules.TransformPostOverrides
 import io.glutenproject.utils.PlanUtil
@@ -186,7 +186,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
     }
 
     plan.find {
-      case j: BroadcastHashJoinExecTransformer
+      case j: BroadcastHashJoinExecTransformerBase
           if isColumnarBroadcastExchange(j.left) ||
             isColumnarBroadcastExchange(j.right) =>
         true

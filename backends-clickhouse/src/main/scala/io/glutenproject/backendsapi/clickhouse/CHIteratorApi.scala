@@ -75,7 +75,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
   override def genSplitInfo(
       partition: InputPartition,
       partitionSchema: StructType,
-      fileFormat: ReadFileFormat): SplitInfo = {
+      fileFormat: ReadFileFormat,
+      metadataColumnNames: Seq[String]): SplitInfo = {
     partition match {
       case p: GlutenMergeTreePartition =>
         val partLists = new JArrayList[String]()
@@ -128,6 +129,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           starts,
           lengths,
           partitionColumns,
+          new JArrayList[JMap[String, String]](),
           fileFormat,
           preferredLocations.toList.asJava)
       case _ =>

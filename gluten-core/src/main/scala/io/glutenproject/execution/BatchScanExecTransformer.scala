@@ -108,6 +108,8 @@ abstract class BatchScanExecTransformerBase(
       throw new UnsupportedOperationException(s"${scan.getClass.toString} is not supported")
   }
 
+  override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
+
   override def outputAttributes(): Seq[Attribute] = output
 
   override def getPartitions: Seq[InputPartition] = filteredFlattenPartitions

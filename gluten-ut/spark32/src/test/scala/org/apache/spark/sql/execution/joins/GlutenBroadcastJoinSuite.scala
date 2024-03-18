@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution.joins
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, BroadcastNestedLoopJoinExecTransformer, ColumnarToRowExecBase, WholeStageTransformer}
+import io.glutenproject.execution.{BroadcastHashJoinExecTransformerBase, BroadcastNestedLoopJoinExecTransformer, ColumnarToRowExecBase, WholeStageTransformer}
 import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.sql.{GlutenTestsCommonTrait, SparkSession}
@@ -226,7 +226,7 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
         df2.cache()
         val df3 = df1.join(broadcast(df2), Seq("key"), "inner")
         val numBroadCastHashJoin = collect(df3.queryExecution.executedPlan) {
-          case b: BroadcastHashJoinExecTransformer => b
+          case b: BroadcastHashJoinExecTransformerBase => b
         }.size
         assert(numBroadCastHashJoin === 1)
       } finally {
@@ -258,7 +258,7 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
         c2r.child match {
           case w: WholeStageTransformer =>
             w.child match {
-              case b: BroadcastHashJoinExecTransformer =>
+              case b: BroadcastHashJoinExecTransformerBase =>
                 assert(b.getClass.getSimpleName.endsWith(joinMethod))
                 assert(b.joinBuildSide == buildSide)
               case b: BroadcastNestedLoopJoinExecTransformer =>

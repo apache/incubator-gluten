@@ -27,6 +27,7 @@ public interface CelebornShuffleWriterFactory {
   String backendName();
 
   <K, V> ShuffleWriter<K, V> createShuffleWriterInstance(
+      int shuffleId,
       CelebornShuffleHandle<K, V, V> handle,
       TaskContext context,
       CelebornConf celebornConf,

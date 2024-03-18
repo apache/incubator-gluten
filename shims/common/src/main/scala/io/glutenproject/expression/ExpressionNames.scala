@@ -45,6 +45,7 @@ object ExpressionNames {
   final val FIRST = "first"
   final val FIRST_IGNORE_NULL = "first_ignore_null"
   final val APPROX_DISTINCT = "approx_distinct"
+  final val SKEWNESS = "skewness"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -262,6 +263,7 @@ object ExpressionNames {
   final val MAKE_DECIMAL = "make_decimal"
   final val PROMOTE_PRECISION = "promote_precision"
   final val SPARK_PARTITION_ID = "spark_partition_id"
+  final val MONOTONICALLY_INCREASING_ID = "monotonically_increasing_id"
 
   // Directly use child expression transformer
   final val KNOWN_FLOATING_POINT_NORMALIZED = "known_floating_point_normalized"

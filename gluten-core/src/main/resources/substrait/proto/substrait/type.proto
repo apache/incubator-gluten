@@ -237,5 +237,6 @@ message NamedStruct {
   enum ColumnType {
     NORMAL_COL = 0;
     PARTITION_COL = 1;
+    METADATA_COL = 2;
   }
 }

@@ -366,7 +366,9 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WriteRel& writeR
   // Validate partition key type.
   if (writeRel.has_table_schema()) {
     const auto& tableSchema = writeRel.table_schema();
-    auto isPartitionColumns = SubstraitParser::parsePartitionColumns(tableSchema);
+    std::vector<bool> isMetadataColumns;
+    std::vector<bool> isPartitionColumns;
+    SubstraitParser::parsePartitionAndMetadataColumns(tableSchema, isPartitionColumns, isMetadataColumns);
     for (auto i = 0; i < types.size(); i++) {
       if (isPartitionColumns[i]) {
         switch (types[i]->kind()) {
@@ -1138,7 +1140,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
       "corr",
       "covar_pop",
       "covar_samp",
-      "approx_distinct"};
+      "approx_distinct",
+      "skewness"};
 
   for (const auto& funcSpec : funcSpecs) {
     auto funcName = SubstraitParser::getNameBeforeDelimiter(funcSpec);

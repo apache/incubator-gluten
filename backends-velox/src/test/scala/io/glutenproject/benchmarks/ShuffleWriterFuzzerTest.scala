@@ -59,8 +59,6 @@ class ShuffleWriterFuzzerTest extends VeloxWholeStageTransformerSuite {
       .set("spark.memory.offHeap.size", "512MB")
       .set("spark.driver.memory", "4g")
       .set("spark.driver.maxResultSize", "4g")
-      .set("spark.gluten.sql.debug", "true")
-      .set("spark.gluten.sql.columnar.backend.velox.glogSeverityLevel", "0")
   }
 
   def getRootCause(e: Throwable): Throwable = {

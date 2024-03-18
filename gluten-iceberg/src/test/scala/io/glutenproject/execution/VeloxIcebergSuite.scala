@@ -59,15 +59,17 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
   }
 
   test("iceberg transformer exists") {
-    spark.sql("""
-                |create table iceberg_tb using iceberg as
-                |(select 1 as col1, 2 as col2, 3 as col3)
-                |""".stripMargin)
+    withTable("iceberg_tb") {
+      spark.sql("""
+                  |create table iceberg_tb using iceberg as
+                  |(select 1 as col1, 2 as col2, 3 as col3)
+                  |""".stripMargin)
 
-    runQueryAndCompare("""
-                         |select * from iceberg_tb;
-                         |""".stripMargin) {
-      checkOperatorMatch[IcebergScanTransformer]
+      runQueryAndCompare("""
+                           |select * from iceberg_tb;
+                           |""".stripMargin) {
+        checkOperatorMatch[IcebergScanTransformer]
+      }
     }
   }
 
@@ -311,6 +313,128 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
               checkLengthAndPlan(df, 5)
             }
         }
+      }
+    }
+  }
+
+  test("iceberg read mor table - delete and update") {
+    withTable("iceberg_mor_tb") {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLE_KEY -> "false") {
+        spark.sql("""
+                    |create table iceberg_mor_tb (
+                    |  id int,
+                    |  name string,
+                    |  p string
+                    |) using iceberg
+                    |tblproperties (
+                    |  'format-version' = '2',
+                    |  'write.delete.mode' = 'merge-on-read',
+                    |  'write.update.mode' = 'merge-on-read',
+                    |  'write.merge.mode' = 'merge-on-read'
+                    |)
+                    |partitioned by (p);
+                    |""".stripMargin)
+
+        // Insert some test rows.
+        spark.sql("""
+                    |insert into table iceberg_mor_tb
+                    |values (1, 'a1', 'p1'), (2, 'a2', 'p1'), (3, 'a3', 'p2'),
+                    |       (4, 'a4', 'p1'), (5, 'a5', 'p2'), (6, 'a6', 'p1');
+                    |""".stripMargin)
+
+        // Delete row.
+        spark.sql(
+          """
+            |delete from iceberg_mor_tb where name = 'a1';
+            |""".stripMargin
+        )
+        // Update row.
+        spark.sql(
+          """
+            |update iceberg_mor_tb set name = 'new_a2' where id = 'a2';
+            |""".stripMargin
+        )
+        // Delete row again.
+        spark.sql(
+          """
+            |delete from iceberg_mor_tb where id = 6;
+            |""".stripMargin
+        )
+      }
+      runQueryAndCompare("""
+                           |select * from iceberg_mor_tb;
+                           |""".stripMargin) {
+        checkOperatorMatch[IcebergScanTransformer]
+      }
+    }
+  }
+
+  test("iceberg read mor table - merge into") {
+    withTable("iceberg_mor_tb", "merge_into_source_tb") {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLE_KEY -> "false") {
+        spark.sql("""
+                    |create table iceberg_mor_tb (
+                    |  id int,
+                    |  name string,
+                    |  p string
+                    |) using iceberg
+                    |tblproperties (
+                    |  'format-version' = '2',
+                    |  'write.delete.mode' = 'merge-on-read',
+                    |  'write.update.mode' = 'merge-on-read',
+                    |  'write.merge.mode' = 'merge-on-read'
+                    |)
+                    |partitioned by (p);
+                    |""".stripMargin)
+        spark.sql("""
+                    |create table merge_into_source_tb (
+                    |  id int,
+                    |  name string,
+                    |  p string
+                    |) using iceberg;
+                    |""".stripMargin)
+
+        // Insert some test rows.
+        spark.sql("""
+                    |insert into table iceberg_mor_tb
+                    |values (1, 'a1', 'p1'), (2, 'a2', 'p1'), (3, 'a3', 'p2');
+                    |""".stripMargin)
+        spark.sql("""
+                    |insert into table merge_into_source_tb
+                    |values (1, 'a1_1', 'p2'), (2, 'a2_1', 'p2'), (3, 'a3_1', 'p1'),
+                    |       (4, 'a4', 'p2'), (5, 'a5', 'p1'), (6, 'a6', 'p2');
+                    |""".stripMargin)
+
+        // Delete row.
+        spark.sql(
+          """
+            |delete from iceberg_mor_tb where name = 'a1';
+            |""".stripMargin
+        )
+        // Update row.
+        spark.sql(
+          """
+            |update iceberg_mor_tb set name = 'new_a2' where id = 'a2';
+            |""".stripMargin
+        )
+
+        // Merge into.
+        spark.sql(
+          """
+            |merge into iceberg_mor_tb t
+            |using (select * from merge_into_source_tb) s
+            |on t.id = s.id
+            |when matched then
+            | update set t.name = s.name, t.p = s.p
+            |when not matched then
+            | insert (id, name, p) values (s.id, s.name, s.p);
+            |""".stripMargin
+        )
+      }
+      runQueryAndCompare("""
+                           |select * from iceberg_mor_tb;
+                           |""".stripMargin) {
+        checkOperatorMatch[IcebergScanTransformer]
       }
     }
   }

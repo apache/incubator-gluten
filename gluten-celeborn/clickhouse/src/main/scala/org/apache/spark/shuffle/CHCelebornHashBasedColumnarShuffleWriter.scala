@@ -37,12 +37,14 @@ import java.util
 import java.util.Locale
 
 class CHCelebornHashBasedColumnarShuffleWriter[K, V](
+    shuffleId: Int,
     handle: CelebornShuffleHandle[K, V, V],
     context: TaskContext,
     celebornConf: CelebornConf,
     client: ShuffleClient,
     writeMetrics: ShuffleWriteMetricsReporter)
   extends CelebornHashBasedColumnarShuffleWriter[K, V](
+    shuffleId: Int,
     handle,
     context,
     celebornConf,
@@ -90,7 +92,7 @@ class CHCelebornHashBasedColumnarShuffleWriter[K, V](
                   "allocations from make() to split()")
             }
             logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
-            val spilled = jniWrapper.evict(nativeShuffleWriter);
+            val spilled = jniWrapper.evict(nativeShuffleWriter)
             logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
             spilled
           }

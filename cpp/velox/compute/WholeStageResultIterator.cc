@@ -145,15 +145,46 @@ WholeStageResultIterator::WholeStageResultIterator(
     const auto& lengths = scanInfo->lengths;
     const auto& format = scanInfo->format;
     const auto& partitionColumns = scanInfo->partitionColumns;
+    const auto& metadataColumns = scanInfo->metadataColumns;
 
     std::vector<std::shared_ptr<velox::connector::ConnectorSplit>> connectorSplits;
     connectorSplits.reserve(paths.size());
     for (int idx = 0; idx < paths.size(); idx++) {
       auto partitionColumn = partitionColumns[idx];
+      auto metadataColumn = metadataColumns[idx];
       std::unordered_map<std::string, std::optional<std::string>> partitionKeys;
       constructPartitionColumns(partitionKeys, partitionColumn);
-      auto split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
-          kHiveConnectorId, paths[idx], format, starts[idx], lengths[idx], partitionKeys);
+      std::shared_ptr<velox::connector::ConnectorSplit> split;
+      if (auto icebergSplitInfo = std::dynamic_pointer_cast<IcebergSplitInfo>(scanInfo)) {
+        // Set Iceberg split.
+        std::unordered_map<std::string, std::string> customSplitInfo{{"table_format", "hive-iceberg"}};
+        auto deleteFiles = icebergSplitInfo->deleteFilesVec[idx];
+        split = std::make_shared<velox::connector::hive::iceberg::HiveIcebergSplit>(
+            kHiveConnectorId,
+            paths[idx],
+            format,
+            starts[idx],
+            lengths[idx],
+            partitionKeys,
+            std::nullopt,
+            customSplitInfo,
+            nullptr,
+            deleteFiles);
+      } else {
+        split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
+            kHiveConnectorId,
+            paths[idx],
+            format,
+            starts[idx],
+            lengths[idx],
+            partitionKeys,
+            std::nullopt,
+            std::unordered_map<std::string, std::string>(),
+            nullptr,
+            std::unordered_map<std::string, std::string>(),
+            0,
+            metadataColumn);
+      }
       connectorSplits.emplace_back(split);
     }
 

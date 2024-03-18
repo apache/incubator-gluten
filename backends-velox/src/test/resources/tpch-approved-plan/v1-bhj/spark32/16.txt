@@ -22,7 +22,7 @@ AdaptiveSparkPlan (56)
                                                       +- ^ ProjectExecTransformer (13)
                                                          +- ^ FlushableHashAggregateExecTransformer (12)
                                                             +- ^ ProjectExecTransformer (11)
-                                                               +- ^ GlutenBroadcastHashJoinExecTransformer Inner (10)
+                                                               +- ^ BroadcastHashJoinExecTransformer Inner (10)
                                                                   :- ^ FilterExecTransformer (2)
                                                                   :  +- ^ Scan parquet (1)
                                                                   +- ^ InputIteratorTransformer (9)
@@ -94,7 +94,7 @@ Input [4]: [p_partkey#X, p_brand#X, p_type#X, p_size#X]
 (9) InputIteratorTransformer
 Input [4]: [p_partkey#X, p_brand#X, p_type#X, p_size#X]
 
-(10) GlutenBroadcastHashJoinExecTransformer
+(10) BroadcastHashJoinExecTransformer
 Left keys [1]: [ps_partkey#X]
 Right keys [1]: [p_partkey#X]
 Join condition: None
