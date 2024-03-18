@@ -45,7 +45,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
 
   val S3_METADATA_PATH = "/tmp/metadata/s3"
   val S3_CACHE_PATH = "/tmp/s3_cache"
-  val S3_URL = "s3://localhost:8020/"
+  val S3_URL = "s3://localhost:9000/"
   val MINIO_ENDPOINT = S3_URL.replace("s3", "http")
   val S3A_URL = S3_URL.replace("s3", "s3a")
   val BUCKET_NAME = "test"
