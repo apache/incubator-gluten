@@ -17,9 +17,7 @@
 package io.glutenproject.exception;
 
 /**
- * Generally, this exception should be thrown if an operation is not supported
- * by Gluten but supported by Spark. We expect a fallback behavior to handle
- * such exception.
+ * Generally, this exception should be thrown if an operation is not supported by Gluten but
+ * supported by Spark. We expect a fallback behavior to handle such exception.
  */
-public class GlutenNotSupportException extends GlutenException {
-}
+public class GlutenNotSupportException extends GlutenException {}

@@ -17,11 +17,13 @@
 package io.glutenproject.utils
 
 import io.glutenproject.exception.GlutenNotSupportException
+
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
 import org.apache.spark.sql.execution.aggregate._
 
 import java.util.concurrent.atomic.AtomicInteger
+
 import scala.collection.mutable
 
 trait PullOutProjectHelper {

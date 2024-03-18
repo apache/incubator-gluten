@@ -22,6 +22,7 @@ import io.glutenproject.extension.ValidationResult
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.Iterators
 import io.glutenproject.vectorized.NativeColumnarToRowJniWrapper
+
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow

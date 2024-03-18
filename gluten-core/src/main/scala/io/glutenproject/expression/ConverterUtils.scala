@@ -20,15 +20,18 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.substrait.`type`._
 import io.glutenproject.utils.SubstraitPlanPrinterUtil
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
 import io.substrait.proto.{NamedStruct, Type}
 
-import java.util.{Locale, ArrayList => JArrayList, List => JList}
+import java.util.{ArrayList => JArrayList, List => JList, Locale}
+
 import scala.collection.JavaConverters._
 
 object ConverterUtils extends Logging {

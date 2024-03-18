@@ -24,6 +24,7 @@ import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.rel.RelNode
+
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.util.truncatedString

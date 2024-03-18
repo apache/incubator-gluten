@@ -56,8 +56,7 @@ case class CHTruncTimestampTransformer(
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // The format must be constant string in the function date_trunc of ch.
     if (!original.format.foldable) {
-      throw new GlutenNotSupportException(
-        s"The format ${original.format} must be constant string.")
+      throw new GlutenNotSupportException(s"The format ${original.format} must be constant string.")
     }
 
     val formatStr = original.format.eval().asInstanceOf[UTF8String]

@@ -17,14 +17,16 @@
 package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.ListNode
 import io.glutenproject.substrait.`type`.MapNode
 import io.glutenproject.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode, IntLiteralNode}
+
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
+
 import com.google.common.collect.Lists
-import io.glutenproject.exception.GlutenNotSupportException
 
 case class ChildTransformer(child: ExpressionTransformer) extends ExpressionTransformer {
   override def doTransform(args: java.lang.Object): ExpressionNode = {

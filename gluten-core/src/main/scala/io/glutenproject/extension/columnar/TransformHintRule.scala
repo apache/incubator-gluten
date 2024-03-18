@@ -24,6 +24,7 @@ import io.glutenproject.expression.ExpressionUtils.getExpressionTreeDepth
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.extension.columnar.TransformHints.EncodeTransformableTagImplicits
 import io.glutenproject.sql.shims.SparkShimLoader
+
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
@@ -42,6 +43,7 @@ import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.StringType
+
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 sealed trait TransformHint {
@@ -742,7 +744,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           s"${e.getMessage}, original Spark plan is " +
             s"${plan.getClass}(${plan.children.toList.map(_.getClass)})")
         if (!e.isInstanceOf[GlutenNotSupportException]) {
-          logDebug("This exception may need to be fixed: " +  e.getMessage)
+          logDebug("This exception may need to be fixed: " + e.getMessage)
         }
     }
   }

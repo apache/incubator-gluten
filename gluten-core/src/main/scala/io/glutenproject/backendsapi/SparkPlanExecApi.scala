@@ -20,6 +20,7 @@ import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
+
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -48,6 +49,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.lang.{Long => JLong}
 import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
+
 import scala.collection.JavaConverters._
 
 trait SparkPlanExecApi {
@@ -645,8 +647,7 @@ trait SparkPlanExecApi {
             extraFilters
         }
       case _ =>
-        throw new GlutenNotSupportException(
-          s"${sparkExecNode.getClass.toString} is not supported.")
+        throw new GlutenNotSupportException(s"${sparkExecNode.getClass.toString} is not supported.")
     }
   }
 

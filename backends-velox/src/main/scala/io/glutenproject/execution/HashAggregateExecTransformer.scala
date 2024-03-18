@@ -17,6 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.{GlutenException, GlutenNotSupportException}
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.extension.columnar.RewriteTypedImperativeAggregate
@@ -26,16 +27,18 @@ import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionB
 import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.VeloxIntermediateData
+
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
+
 import com.google.protobuf.StringValue
-import io.glutenproject.exception.{GlutenException, GlutenNotSupportException}
 
 import java.lang.{Long => JLong}
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 

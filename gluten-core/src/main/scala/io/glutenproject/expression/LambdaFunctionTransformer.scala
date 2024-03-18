@@ -18,6 +18,7 @@ package io.glutenproject.expression
 
 import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
 import org.apache.spark.sql.catalyst.expressions.LambdaFunction
 
 case class LambdaFunctionTransformer(

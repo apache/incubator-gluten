@@ -17,8 +17,8 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.CHHashAggregateExecTransformer.getAggregateResultAttributes
 import io.glutenproject.exception.GlutenNotSupportException
+import io.glutenproject.execution.CHHashAggregateExecTransformer.getAggregateResultAttributes
 import io.glutenproject.expression._
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}

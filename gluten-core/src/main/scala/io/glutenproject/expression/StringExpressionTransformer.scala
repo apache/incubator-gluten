@@ -16,11 +16,13 @@
  */
 package io.glutenproject.expression
 
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression._
+
 import org.apache.spark.sql.catalyst.expressions._
+
 import com.google.common.collect.Lists
-import io.glutenproject.exception.GlutenNotSupportException
 
 case class String2TrimExpressionTransformer(
     substraitExprName: String,

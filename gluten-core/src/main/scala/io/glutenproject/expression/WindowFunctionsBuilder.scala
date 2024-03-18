@@ -19,6 +19,7 @@ package io.glutenproject.expression
 import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.ExpressionBuilder
+
 import org.apache.spark.sql.catalyst.expressions.{Expression, WindowExpression, WindowFunction}
 
 import scala.util.control.Breaks.{break, breakable}

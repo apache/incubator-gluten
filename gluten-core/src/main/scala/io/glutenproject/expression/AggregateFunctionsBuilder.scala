@@ -20,6 +20,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.ExpressionBuilder
+
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.types.DataType
 

@@ -25,6 +25,7 @@ import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._

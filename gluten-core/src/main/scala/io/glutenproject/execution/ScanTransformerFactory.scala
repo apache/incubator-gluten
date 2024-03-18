@@ -20,6 +20,7 @@ import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.sql.shims.SparkShimLoader
+
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
@@ -27,6 +28,7 @@ import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 
 import java.util.ServiceLoader
 import java.util.concurrent.ConcurrentHashMap
+
 import scala.collection.JavaConverters._
 
 object ScanTransformerFactory {

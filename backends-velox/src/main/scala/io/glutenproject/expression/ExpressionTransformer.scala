@@ -16,16 +16,19 @@
  */
 package io.glutenproject.expression
 
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.expression.ExpressionConverter.replaceWithExpressionTransformer
 import io.glutenproject.substrait.expression._
+
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types.{IntegerType, LongType}
+
 import com.google.common.collect.Lists
-import io.glutenproject.exception.GlutenNotSupportException
 
 import java.lang.{Integer => JInteger, Long => JLong}
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap}
+
 import scala.language.existentials
 
 case class VeloxAliasTransformer(

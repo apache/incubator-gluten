@@ -16,9 +16,11 @@
  */
 package io.glutenproject.substrait
 
-import org.apache.spark.sql.types.{BinaryType, BooleanType, ByteType, DataType, DoubleType, FloatType, IntegerType, LongType, ShortType, StringType, TimestampType}
-import com.google.protobuf.CodedInputStream
 import io.glutenproject.exception.GlutenNotSupportException
+
+import org.apache.spark.sql.types.{BinaryType, BooleanType, ByteType, DataType, DoubleType, FloatType, IntegerType, LongType, ShortType, StringType, TimestampType}
+
+import com.google.protobuf.CodedInputStream
 import io.substrait.proto.Type.KindCase._
 
 case class ExpressionType(dataType: DataType, nullable: Boolean) {}

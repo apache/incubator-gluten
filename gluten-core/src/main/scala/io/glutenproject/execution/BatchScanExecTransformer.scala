@@ -21,6 +21,7 @@ import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._

@@ -25,6 +25,7 @@ import io.glutenproject.extension.ValidationResult
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
+
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Lag, Lead, Literal, NamedExpression, NthValue, NTile, PercentRank, Rand, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Sum}
@@ -301,11 +302,9 @@ object BackendSettings extends BackendSettingsApi {
                       })
                   val rawValue = e.eval().toString.toLong
                   if (isUpperBound && rawValue < 0) {
-                    throw new GlutenNotSupportException(
-                      "Negative upper bound is not supported!")
+                    throw new GlutenNotSupportException("Negative upper bound is not supported!")
                   } else if (!isUpperBound && rawValue > 0) {
-                    throw new GlutenNotSupportException(
-                      "Positive lower bound is not supported!")
+                    throw new GlutenNotSupportException("Positive lower bound is not supported!")
                   }
                 case _ =>
               }
