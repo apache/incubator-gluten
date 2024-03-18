@@ -267,7 +267,8 @@ private:
                 const char * query_end = required_fields.back().c_str() + required_fields.back().size();
                 DB::Tokens tokens(query_begin, query_end);
                 UInt32 max_parser_depth = static_cast<UInt32>(context->getSettingsRef().max_parser_depth);
-                DB::IParser::Pos token_iterator(tokens, max_parser_depth);
+                UInt32 max_parser_backtracks = static_cast<UInt32>(context->getSettingsRef().max_parser_backtracks);
+                DB::IParser::Pos token_iterator(tokens, max_parser_depth, max_parser_backtracks);
                 DB::ASTPtr json_path_ast;
                 DB::ParserJSONPath path_parser;
                 DB::Expected expected;
