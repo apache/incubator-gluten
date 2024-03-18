@@ -70,13 +70,13 @@ void registerGlutenS3ObjectStorage(ObjectStorageFactory & factory)
         const Poco::Util::AbstractConfiguration & config,
         const std::string & config_prefix,
         const ContextPtr & context,
-        bool skip_access_check) -> ObjectStoragePtr
+        bool /*skip_access_check*/) -> ObjectStoragePtr
         {
             auto uri = getS3URI(config, config_prefix, context);
             auto s3_capabilities = getCapabilitiesFromConfig(config, config_prefix);
             auto settings = getSettings(config, config_prefix, context);
             auto client = getClient(config, config_prefix, context, *settings);
-            auto key_generator = getKeyGenerator("s3_plain", uri, config, config_prefix);
+            auto key_generator = createObjectStorageKeysGeneratorAsIsWithPrefix(uri.key);
 
             auto object_storage = std::make_shared<S3ObjectStorage>(
                 std::move(client),
@@ -85,23 +85,6 @@ void registerGlutenS3ObjectStorage(ObjectStorageFactory & factory)
                 s3_capabilities,
                 key_generator,
                 name);
-
-            /// NOTE: should we still perform this check for clickhouse-disks?
-            if (!skip_access_check)
-            {
-                /// If `support_batch_delete` is turned on (default), check and possibly switch it off.
-                if (s3_capabilities.support_batch_delete && !checkBatchRemove(*object_storage, uri.key))
-                {
-                    LOG_WARNING(
-                        &Poco::Logger::get("GlutenS3ObjectStorage"),
-                        "Storage for disk {} does not support batch delete operations, "
-                        "so `s3_capabilities.support_batch_delete` was automatically turned off during the access check. "
-                        "To remove this message set `s3_capabilities.support_batch_delete` for the disk to `false`.",
-                        name
-                        );
-                    object_storage->setCapabilitiesSupportBatchDelete(false);
-                }
-            }
             return object_storage;
         });
 }
