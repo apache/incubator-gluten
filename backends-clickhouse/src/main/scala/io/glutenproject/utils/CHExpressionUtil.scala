@@ -176,6 +176,7 @@ object CHExpressionUtil {
     ARRAY_REPEAT -> DefaultValidator(),
     DATE_FROM_UNIX_DATE -> DefaultValidator(),
     MONOTONICALLY_INCREASING_ID -> DefaultValidator(),
+    SPARK_PARTITION_ID -> DefaultValidator(),
     SKEWNESS -> DefaultValidator()
   )
 }

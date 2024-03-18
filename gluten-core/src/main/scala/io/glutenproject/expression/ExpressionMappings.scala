@@ -243,6 +243,7 @@ object ExpressionMappings {
     Sig[MakeDecimal](MAKE_DECIMAL),
     Sig[PromotePrecision](PROMOTE_PRECISION),
     Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID),
+    Sig[SparkPartitionID](SPARK_PARTITION_ID),
     // Decimal
     Sig[UnscaledValue](UNSCALED_VALUE)
   ) ++ SparkShimLoader.getSparkShims.expressionMappings
