@@ -119,10 +119,10 @@ class GlutenImplicitsTest extends GlutenSQLTestsBaseTrait {
   testGluten("fallbackSummary with cached data and shuffle") {
     withAQEEnabledAndDisabled {
       val df = spark.sql("select * from t1").filter(_.getLong(0) > 0).cache.repartition()
-      assert(df.fallbackSummary().numGlutenNodes == 3, df.fallbackSummary())
+      assert(df.fallbackSummary().numGlutenNodes == 6, df.fallbackSummary())
       assert(df.fallbackSummary().numFallbackNodes == 1, df.fallbackSummary())
       df.collect()
-      assert(df.fallbackSummary().numGlutenNodes == 3, df.fallbackSummary())
+      assert(df.fallbackSummary().numGlutenNodes == 6, df.fallbackSummary())
       assert(df.fallbackSummary().numFallbackNodes == 1, df.fallbackSummary())
     }
   }
