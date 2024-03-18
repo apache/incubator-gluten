@@ -17,7 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.exception.{GlutenException, GlutenNotSupportException}
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.extension.columnar.RewriteTypedImperativeAggregate
@@ -370,7 +370,7 @@ abstract class HashAggregateExecTransformer(
           exprNodes.addAll(childNodes)
 
         case _: HyperLogLogPlusPlus if aggFunc.aggBufferAttributes.size != 1 =>
-          throw new GlutenException("Only one input attribute is expected.")
+          throw new GlutenNotSupportException("Only one input attribute is expected.")
 
         case _ @VeloxIntermediateData.Type(veloxTypes: Seq[DataType]) =>
           val rewrittenInputAttributes =
