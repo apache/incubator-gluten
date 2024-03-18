@@ -58,10 +58,7 @@ trait CHSqlBasedBenchmark extends SqlBasedBenchmark {
 
   override def afterAll(): Unit = {
     DeltaLog.clearCache()
-    val libPath = spark.conf.get(
-      GlutenConfig.GLUTEN_LIB_PATH,
-      UTSystemParameters
-        .clickHouseLibPath)
+    val libPath = spark.conf.get(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
     JniLibLoader.unloadFromPath(libPath)
     // Wait for Ctrl+C, convenient for seeing Spark UI
     // Thread.sleep(600000)
