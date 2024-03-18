@@ -546,7 +546,7 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::notEq(const DB::Field & value) co
     }
 
     // Merging value filtering with pages containing nulls
-    auto real_value{parquet_cast<DType>(value)};
+    auto real_value{parquetCast<DType>(value)};
     TypedComparator<DType> typed_comparator{real_value, *column_index_, *comparator_};
     auto pages = ORDER::notEq(typed_comparator);
     const std::set<size_t> matchingIndexes(pages.begin(), pages.end());
@@ -572,7 +572,7 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::eq(const DB::Field & value) const
             return {PageIndexsBuilder::ALL_PAGES};
         }
     }
-    auto real_value = parquet_cast<DType>(value);
+    auto real_value = parquetCast<DType>(value);
     TypedComparator<DType> typed_comparator{real_value, *column_index_, *comparator_};
     return ORDER::eq(typed_comparator);
 }
@@ -580,7 +580,7 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::eq(const DB::Field & value) const
 template <typename DType, Derived<BoundaryOrder> ORDER>
 PageIndexs TypedColumnIndexImpl<DType, ORDER>::gt(const DB::Field & value) const
 {
-    auto real_value{parquet_cast<DType>(value)};
+    auto real_value{parquetCast<DType>(value)};
     TypedComparator<DType> typed_comparator{real_value, *column_index_, *comparator_};
     return ORDER::gt(typed_comparator);
 }
@@ -588,7 +588,7 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::gt(const DB::Field & value) const
 template <typename DType, Derived<BoundaryOrder> ORDER>
 PageIndexs TypedColumnIndexImpl<DType, ORDER>::gtEg(const DB::Field & value) const
 {
-    auto real_value{parquet_cast<DType>(value)};
+    auto real_value{parquetCast<DType>(value)};
     TypedComparator<DType> typed_comparator{real_value, *column_index_, *comparator_};
     return ORDER::gtEq(typed_comparator);
 }
@@ -596,7 +596,7 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::gtEg(const DB::Field & value) con
 template <typename DType, Derived<BoundaryOrder> ORDER>
 PageIndexs TypedColumnIndexImpl<DType, ORDER>::lt(const DB::Field & value) const
 {
-    auto real_value{parquet_cast<DType>(value)};
+    auto real_value{parquetCast<DType>(value)};
     TypedComparator<DType> typed_comparator{real_value, *column_index_, *comparator_};
     return ORDER::lt(typed_comparator);
 }
@@ -604,7 +604,7 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::lt(const DB::Field & value) const
 template <typename DType, Derived<BoundaryOrder> ORDER>
 PageIndexs TypedColumnIndexImpl<DType, ORDER>::ltEg(const DB::Field & value) const
 {
-    auto real_value{parquet_cast<DType>(value)};
+    auto real_value{parquetCast<DType>(value)};
     TypedComparator<DType> typed_comparator{real_value, *column_index_, *comparator_};
     return ORDER::ltEq(typed_comparator);
 }

@@ -23,7 +23,7 @@
 namespace local_engine
 {
 template <typename PhysicalType>
-auto parquet_cast(const DB::Field & value) -> typename PhysicalType::c_type
+auto parquetCast(const DB::Field & value) -> typename PhysicalType::c_type
 {
     using T = typename PhysicalType::c_type;
     if constexpr (std::is_same_v<PhysicalType, parquet::Int32Type>)

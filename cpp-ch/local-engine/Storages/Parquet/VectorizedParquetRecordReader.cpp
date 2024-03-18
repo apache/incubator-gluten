@@ -49,7 +49,7 @@ void emplaceReadRange(local_engine::ReadRanges & read_ranges, const int64_t offs
 
 /// Compute the section of the file that should be read for the given
 /// row group and column chunk.
-::arrow::io::ReadRange ComputeColumnChunkRange(
+::arrow::io::ReadRange computeColumnChunkRange(
     const parquet::FileMetaData & file_metadata, const parquet::ColumnChunkMetaData & column_metadata, const int64_t source_size)
 {
     // For PARQUET-816
@@ -82,7 +82,7 @@ void emplaceReadRange(local_engine::ReadRanges & read_ranges, const int64_t offs
     return {col_start, col_length};
 }
 
-std::string lower_column_name_if_need(const std::string & column_name, const DB::FormatSettings & settings)
+std::string lowerColumnNameIfNeed(const std::string & column_name, const DB::FormatSettings & settings)
 {
     std::string result = column_name;
     if (settings.parquet.case_insensitive_column_matching)
@@ -237,7 +237,7 @@ DB::Chunk VectorizedParquetRecordReader::nextBatch()
     {
         const std::shared_ptr<arrow::ChunkedArray> arrow_column
             = vectorized_column_reader.readBatch(format_settings_.parquet.max_block_size);
-        name_to_column_ptr[lower_column_name_if_need(vectorized_column_reader.col_name(), format_settings_)] = arrow_column;
+        name_to_column_ptr[lowerColumnNameIfNeed(vectorized_column_reader.columnName(), format_settings_)] = arrow_column;
     }
 
     if (const size_t num_rows = name_to_column_ptr.begin()->second->length(); num_rows > 0)
@@ -291,7 +291,7 @@ std::optional<ColumnChunkPageRead> PageIterator::nextChunkWithRowRange()
         {
             const ColumnIndexStore & column_index_store = reader_ext_->getColumnIndexStore(row_group_index);
             const ColumnIndex & index
-                = *(column_index_store.find(lower_column_name_if_need(descr()->name(), reader_ext_->format_settings_))->second);
+                = *(column_index_store.find(lowerColumnNameIfNeed(descr()->name(), reader_ext_->format_settings_))->second);
             return buildRead(rg_count, col_range, index.offsetIndex().page_locations(), row_ranges);
         };
         const BuildRead readAll = [&](const arrow::io::ReadRange & col_range) { return buildAllRead(rg_count, col_range); };
@@ -314,7 +314,7 @@ ColumnChunkPageRead ParquetFileReaderExt::readColumnChunkPageBase(
     const bool always_compressed
         = file_metadata->writer_version().VersionLt(parquet::ApplicationVersion::PARQUET_CPP_10353_FIXED_VERSION());
     const auto column_metadata = rg.ColumnChunk(column_index);
-    const auto col_range = ComputeColumnChunkRange(*file_metadata, *column_metadata, source_size_);
+    const auto col_range = computeColumnChunkRange(*file_metadata, *column_metadata, source_size_);
     const parquet::ReaderProperties properties;
     auto [read_ranges, read_sequence] = build_read(col_range);
     const auto input_stream = getStream(*source_, read_ranges);
@@ -351,7 +351,7 @@ const ColumnIndexStore & ParquetFileReaderExt::getColumnIndexStore(const Int32 r
             const auto * col_desc = rowGroupMeta->schema()->Column(column_index);
             const auto col_index = rowGroupIndex->GetColumnIndex(column_index);
             const auto offset_index = rowGroupIndex->GetOffsetIndex(column_index);
-            column_index_store[lower_column_name_if_need(col_desc->name(), format_settings_)]
+            column_index_store[lowerColumnNameIfNeed(col_desc->name(), format_settings_)]
                 = ColumnIndex::create(col_desc, col_index, offset_index);
         }
         row_group_column_index_stores_[row_group] = std::move(result);

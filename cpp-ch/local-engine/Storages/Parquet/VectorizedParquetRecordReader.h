@@ -187,7 +187,7 @@ class VectorizedColumnReader
 
 public:
     VectorizedColumnReader(const parquet::arrow::SchemaField & field, ParquetFileReaderExt * reader, const std::vector<Int32> & row_groups);
-    const std::string & col_name() const { return arrow_field_->name(); }
+    const std::string & columnName() const { return arrow_field_->name(); }
     bool hasMoreRead() const { return read_state_ && read_state_->hasMoreRead(); }
     std::shared_ptr<arrow::ChunkedArray> readBatch(int64_t batch_size);
 };

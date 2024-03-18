@@ -500,7 +500,7 @@ ParquetValue to(const DB::Field & value, const parquet::ColumnDescriptor & desc)
                 case parquet::ConvertedType::INT_16:
                 case parquet::ConvertedType::INT_32:
                 case parquet::ConvertedType::NONE:
-                    return {parquet_cast<parquet::Int32Type>(value)};
+                    return {parquetCast<parquet::Int32Type>(value)};
                 default:
                     break;
             }
@@ -512,7 +512,7 @@ ParquetValue to(const DB::Field & value, const parquet::ColumnDescriptor & desc)
                 case parquet::ConvertedType::INT_64:
                 case parquet::ConvertedType::UINT_64:
                 case parquet::ConvertedType::NONE:
-                    return {parquet_cast<parquet::Int64Type>(value)};
+                    return {parquetCast<parquet::Int64Type>(value)};
                 default:
                     break;
             }
@@ -528,7 +528,7 @@ ParquetValue to(const DB::Field & value, const parquet::ColumnDescriptor & desc)
             switch (desc.converted_type())
             {
                 case parquet::ConvertedType::UTF8:
-                    return parquet_cast<parquet::ByteArrayType>(value);
+                    return parquetCast<parquet::ByteArrayType>(value);
                 default:
                     break;
             }
