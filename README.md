@@ -118,7 +118,7 @@ For any technical questions, please email to dev@gluten.apache.org
 
 
 ### Wechat group
-We also have a Wechat group (Chinese) which maybe more firendly for PRC customers. As there's a limitation of wechat group of 200 peoples, please contat with Kyligence assistent to be invited to the group. 
+We also have a Wechat group (Chinese) which maybe more firendly for PRC customers. As there's a limitation of wechat group of 200 peoples, please contat with weitingchen at apache.org or zhangzc at apache.org to be invited to the group. 
 
 ### Slack channel
 There's also a Spark channel in Velox Slack group (English) for community communication. Please check Velox document here: https://github.com/facebookincubator/velox?tab=readme-ov-file#community
