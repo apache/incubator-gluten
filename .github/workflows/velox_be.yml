@@ -83,15 +83,16 @@ jobs:
       - name: Prepare spark.test.home for Spark 3.2.2 (other tests)
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten && \
-          wget https://archive.apache.org/dist/spark/spark-3.2.2/spark-3.2.2-bin-hadoop3.tgz && \
-          tar --strip-components=1 -xf spark-3.2.2-bin-hadoop3.tgz spark-3.2.2-bin-hadoop3/jars/ && \
-          rm -rf spark-3.2.2-bin-hadoop3.tgz && \
+          wget https://archive.apache.org/dist/spark/spark-3.2.2/spark-3.2.2-bin-hadoop3.2.tgz && \
+          tar --strip-components=1 -xf spark-3.2.2-bin-hadoop3.2.tgz spark-3.2.2-bin-hadoop3.2/jars/ && \
+          rm -rf spark-3.2.2-bin-hadoop3.2.tgz && \
           mkdir -p /opt/gluten/shims/spark32/spark_home/assembly/target/scala-2.12 && \
           mv jars /opt/gluten/shims/spark32/spark_home/assembly/target/scala-2.12 '
       - name: Build and run unit test for Spark 3.2.2 (other tests)
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten && \
+          export SPARK_SCALA_VERSION=2.12 && \
           mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -DargLine="-Dspark.test.home=/opt/gluten/shims/spark32/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
           mvn test -Pspark-3.2 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest'
       # Cpp micro benchmarks will use generated files from unit test in backends-velox module.
@@ -253,6 +254,7 @@ jobs:
       - name: Build and Run unit test for Spark 3.3.1 (other tests)
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten && \
+          export SPARK_SCALA_VERSION=2.12 && \
           mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=/opt/gluten/shims/spark33/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
           mvn test -Pspark-3.3 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest'
       - name: Copy golden files from container to host
