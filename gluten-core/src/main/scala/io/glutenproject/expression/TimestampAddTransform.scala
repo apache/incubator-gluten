@@ -19,15 +19,18 @@ package io.glutenproject.expression
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
-import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.types.DataType
 
 import com.google.common.collect.Lists
 
 case class TimestampAddTransform(
     substraitExprName: String,
+    unit: String,
     left: ExpressionTransformer,
     right: ExpressionTransformer,
-    original: TimestampAdd)
+    timeZoneId: String,
+    dataType: DataType,
+    nullable: Boolean)
   extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
@@ -36,18 +39,15 @@ case class TimestampAddTransform(
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(
       functionMap,
-      ConverterUtils.makeFuncName(
-        substraitExprName,
-        original.children.map(_.dataType),
-        FunctionConfig.REQ)
+      ConverterUtils.makeFuncName(substraitExprName, Seq(), FunctionConfig.REQ)
     )
 
     val expressionNodes = Lists.newArrayList(
-      ExpressionBuilder.makeStringLiteral(original.unit),
+      ExpressionBuilder.makeStringLiteral(unit),
       leftNode,
       rightNode,
-      ExpressionBuilder.makeStringLiteral(original.timeZoneId.getOrElse("")))
-    val outputType = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+      ExpressionBuilder.makeStringLiteral(timeZoneId))
+    val outputType = ConverterUtils.getTypeNode(dataType, nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, outputType)
   }
 }

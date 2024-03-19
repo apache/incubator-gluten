@@ -61,7 +61,7 @@ public:
                 "Unsupported timezone_field argument, should be a string literal, but: {}",
                 timezone_field.DebugString());
 
-        const auto & unit = unit_field.value().literal().string();
+        const auto & unit = Poco::toUpper(unit_field.value().literal().string());
         auto timezone = timezone_field.value().literal().string();
 
         std::string ch_function_name;

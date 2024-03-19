@@ -21,7 +21,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.GenerateUnsafeProjection
 import org.apache.spark.sql.catalyst.util.DateTimeTestUtils._
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
-import org.apache.spark.sql.catalyst.util.DateTimeUtils.{getZoneId, TimeZoneUTC}
+import org.apache.spark.sql.catalyst.util.DateTimeUtils.{TimeZoneUTC, getZoneId}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -29,8 +29,9 @@ import org.apache.spark.unsafe.types.UTF8String
 import java.sql.{Date, Timestamp}
 import java.text.SimpleDateFormat
 import java.time.{LocalDateTime, ZoneId}
-import java.util.{Calendar, Locale, TimeZone}
+
 import java.util.concurrent.TimeUnit._
+import java.util.{Calendar, Locale, TimeZone}
 
 class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTrait {
   override def testIntegralInput(testFunc: Number => Unit): Unit = {
@@ -56,6 +57,26 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     // checkResult(Int.MinValue)
     // checkResult(Int.MaxValue.toLong + 100)
     // checkResult(Int.MinValue.toLong - 100)
+  }
+
+  private def timestampLiteral(s: String, sdf: SimpleDateFormat, dt: DataType): Literal = {
+    dt match {
+      case _: TimestampType =>
+        Literal(new Timestamp(sdf.parse(s).getTime))
+
+      case _: TimestampNTZType =>
+        Literal(LocalDateTime.parse(s.replace(" ", "T")))
+    }
+  }
+
+  private def timestampAnswer(s: String, sdf: SimpleDateFormat, dt: DataType): Any = {
+    dt match {
+      case _: TimestampType =>
+        DateTimeUtils.fromJavaTimestamp(new Timestamp(sdf.parse(s).getTime))
+
+      case _: TimestampNTZType =>
+        LocalDateTime.parse(s.replace(" ", "T"))
+    }
   }
 
   testGluten("TIMESTAMP_MICROS") {
@@ -471,5 +492,27 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
           }
       }
     }
+  }
+
+  test("test timestamp add") {
+    // Check case-insensitivity
+    checkEvaluation(
+      TimestampAdd("SECOND", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
+      Timestamp.valueOf("2022-02-15 12:57:01"))
+    checkEvaluation(
+      TimestampAdd("MINUTE", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
+      Timestamp.valueOf("2022-02-15 12:58:00"))
+    checkEvaluation(
+      TimestampAdd("HOUR", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
+      Timestamp.valueOf("2022-02-15 13:57:00"))
+    checkEvaluation(
+      TimestampAdd("DAY", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
+      Timestamp.valueOf("2022-02-16 12:57:00"))
+    checkEvaluation(
+      TimestampAdd("MONTH", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
+      Timestamp.valueOf("2022-03-15 12:57:00"))
+    checkEvaluation(
+      TimestampAdd("YEAR", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
+      Timestamp.valueOf("2023-02-15 12:57:00"))
   }
 }

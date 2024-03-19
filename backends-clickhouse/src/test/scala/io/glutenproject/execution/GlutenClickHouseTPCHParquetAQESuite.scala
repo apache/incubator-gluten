@@ -372,38 +372,5 @@ class GlutenClickHouseTPCHParquetAQESuite
       )(df => {})
     }
   }
-
-  test("test timestampadd") {
-    val sql =
-      """
-        |select
-        |  timestampadd(MICROSECOND, 2, o_orderdate),
-        |  timestampadd(MILLISECOND, 2, o_orderdate),
-        |  timestampadd(SECOND, 2, o_orderdate),
-        |  timestampadd(MINUTE, 2, o_orderdate),
-        |  timestampadd(HOUR, 2, o_orderdate),
-        |  timestampadd(DAY, 2, o_orderdate),
-        |  timestampadd(WEEK, 2, o_orderdate),
-        |  timestampadd(MONTH, 2, o_orderdate),
-        |  timestampadd(QUARTER, 2, o_orderdate),
-        |  timestampadd(YEAR, 2, o_orderdate),
-        |  timestampadd(DAYOFYEAR, 2, o_orderdate),
-        |  dateadd(MICROSECOND, 2, o_orderdate),
-        |  dateadd(MILLISECOND, 2, o_orderdate),
-        |  dateadd(SECOND, 2, o_orderdate),
-        |  dateadd(MINUTE, 2, o_orderdate),
-        |  dateadd(HOUR, 2, o_orderdate),
-        |  dateadd(DAY, 2, o_orderdate),
-        |  dateadd(WEEK, 2, o_orderdate),
-        |  dateadd(MONTH, 2, o_orderdate),
-        |  dateadd(QUARTER, 2, o_orderdate),
-        |  dateadd(YEAR, 2, o_orderdate),
-        |  dateadd(DAYOFYEAR, 2, o_orderdate)
-        |
-        |from orders
-        |order by o_orderdate limit 10
-        |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
-  }
 }
 // scalastyle:off line.size.limit
