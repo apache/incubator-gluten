@@ -208,7 +208,9 @@ bool VectorizedParquetRecordReader::initialize(
             row_groups.end());
     }
 
-    assert(!row_groups.empty());
+    if (row_groups.empty())
+        return false;
+
     file_reader_
         = std::make_unique<ParquetFileReaderExt>(arrow_file, std::move(file_reader), column_index_filter, field_indices, format_settings_);
     column_readers_.reserve(field_indices.size());
