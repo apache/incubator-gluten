@@ -137,7 +137,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(child), expr)
   }
 
-  /** Transform inline to Substrait. */
+  /** Transform posexplode to Substrait. */
   override def genPosExplodeTransformer(
       substraitExprName: String,
       child: ExpressionTransformer,
@@ -152,6 +152,14 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       child: ExpressionTransformer,
       expr: Expression): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, Seq(child), expr)
+  }
+
+  /** Transform make_timestamp to Substrait. */
+  override def genMakeTimestampTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: Expression): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, children, expr)
   }
 
   /**

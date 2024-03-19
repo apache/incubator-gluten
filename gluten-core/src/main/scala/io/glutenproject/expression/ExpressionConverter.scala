@@ -523,6 +523,11 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(n.right, attributeSeq, expressionsMap),
           n
         )
+      case m: MakeTimestamp =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genMakeTimestampTransformer(
+          substraitExprName,
+          m.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
+          m)
       case e: Transformable =>
         val childrenTransformers =
           e.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap))
