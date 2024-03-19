@@ -55,7 +55,7 @@ ActionsDAGPtr parseFilter(const std::string & filter, const AnotherRowType & nam
     const AggregationKeysInfo info(aggregation_keys, aggregation_keys_indexes_list, GroupByKind::NONE);
     constexpr SizeLimits size_limits_for_set;
     ParserExpression parser2;
-    const ASTPtr ast_exp = parseQuery(parser2, filter.data(), filter.data() + filter.size(), "", 0, 0);
+    const ASTPtr ast_exp = parseQuery(parser2, filter.data(), filter.data() + filter.size(), "", 0, 0, 0);
     const auto prepared_sets = std::make_shared<PreparedSets>();
     ActionsMatcher::Data visitor_data(
         SerializedPlanParser::global_context,
