@@ -59,16 +59,6 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     // checkResult(Int.MinValue.toLong - 100)
   }
 
-  private def timestampAnswer(s: String, sdf: SimpleDateFormat, dt: DataType): Any = {
-    dt match {
-      case _: TimestampType =>
-        DateTimeUtils.fromJavaTimestamp(new Timestamp(sdf.parse(s).getTime))
-
-      case _: TimestampNTZType =>
-        LocalDateTime.parse(s.replace(" ", "T"))
-    }
-  }
-
   testGluten("TIMESTAMP_MICROS") {
     def testIntegralFunc(value: Number): Unit = {
       checkEvaluation(MicrosToTimestamp(Literal(value)), value.longValue())
