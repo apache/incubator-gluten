@@ -47,32 +47,26 @@ void SparkMergeTreeWriter::write(DB::Block & block)
         ExpressionActions do_convert = ExpressionActions(converter);
         do_convert.execute(new_block);
     }
-    auto res = squashing_transform->add(new_block);
-    if (res)
+
+    auto blocks_with_partition = MergeTreeDataWriter::splitBlockIntoParts(squashing_transform->add(new_block), 10, metadata_snapshot, context);
+    for (auto & item : blocks_with_partition)
     {
-        auto blocks_with_partition = MergeTreeDataWriter::splitBlockIntoParts(res, 10, metadata_snapshot, context);
-        for (auto & item : blocks_with_partition)
-        {
-            auto temp_part = writeTempPart(item, metadata_snapshot, context);
-            temp_part.finalize();
-            new_parts.emplace_back(temp_part.part);
-            part_num++;
-        }
+        auto temp_part = writeTempPart(item, metadata_snapshot, context);
+        temp_part.finalize();
+        new_parts.emplace_back(temp_part.part);
+        part_num++;
     }
 }
 
 void SparkMergeTreeWriter::finalize()
 {
-    auto block = squashing_transform->add({});
-    if (block.rows())
+
+    auto blocks_with_partition = MergeTreeDataWriter::splitBlockIntoParts(squashing_transform->add({}), 10, metadata_snapshot, context);
+    for (auto & item : blocks_with_partition)
     {
-        auto blocks_with_partition = MergeTreeDataWriter::splitBlockIntoParts(block, 10, metadata_snapshot, context);
-        for (auto & item : blocks_with_partition)
-        {
-            auto temp_part = writeTempPart(item, metadata_snapshot, context);
-            temp_part.finalize();
-            new_parts.emplace_back(temp_part.part);
-        }
+        auto temp_part = writeTempPart(item, metadata_snapshot, context);
+        temp_part.finalize();
+        new_parts.emplace_back(temp_part.part);
     }
 }
 
