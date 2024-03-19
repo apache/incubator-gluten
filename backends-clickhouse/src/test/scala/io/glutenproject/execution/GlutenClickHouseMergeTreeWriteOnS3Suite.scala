@@ -151,11 +151,11 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
 
   test("test mergetree table write") {
     spark.sql(s"""
-                 |DROP TABLE IF EXISTS lineitem_mergetree;
+                 |DROP TABLE IF EXISTS lineitem_mergetree_s3;
                  |""".stripMargin)
 
     spark.sql(s"""
-                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_s3
                  |(
                  | l_orderkey      bigint,
                  | l_partkey       bigint,
@@ -175,12 +175,12 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  | l_comment       string
                  |)
                  |USING clickhouse
-                 |LOCATION 's3a://$BUCKET_NAME/lineitem_mergetree'
+                 |LOCATION 's3a://$BUCKET_NAME/lineitem_mergetree_s3'
                  |TBLPROPERTIES (storage_policy='s3_main')
                  |""".stripMargin)
 
     spark.sql(s"""
-                 | insert into table lineitem_mergetree
+                 | insert into table lineitem_mergetree_s3
                  | select * from lineitem
                  |""".stripMargin)
     FileUtils.deleteDirectory(new File(S3_METADATA_PATH))
@@ -198,7 +198,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
          |    avg(l_discount) AS avg_disc,
          |    count(*) AS count_order
          |FROM
-         |    lineitem_mergetree
+         |    lineitem_mergetree_s3
          |WHERE
          |    l_shipdate <= date'1998-09-02' - interval 1 day
          |GROUP BY
@@ -233,11 +233,11 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
 
   test("test mergetree write with orderby keys / primary keys") {
     spark.sql(s"""
-                 |DROP TABLE IF EXISTS lineitem_mergetree_orderbykey;
+                 |DROP TABLE IF EXISTS lineitem_mergetree_orderbykey_s3;
                  |""".stripMargin)
 
     spark.sql(s"""
-                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_orderbykey
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_orderbykey_s3
                  |(
                  | l_orderkey      bigint,
                  | l_partkey       bigint,
@@ -260,11 +260,11 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  |TBLPROPERTIES (storage_policy='s3_main',
                  |               orderByKey='l_shipdate,l_orderkey',
                  |               primaryKey='l_shipdate')
-                 |LOCATION 's3a://$BUCKET_NAME/lineitem_mergetree_orderbykey'
+                 |LOCATION 's3a://$BUCKET_NAME/lineitem_mergetree_orderbykey_s3'
                  |""".stripMargin)
 
     spark.sql(s"""
-                 | insert into table lineitem_mergetree_orderbykey
+                 | insert into table lineitem_mergetree_orderbykey_s3
                  | select * from lineitem
                  |""".stripMargin)
 
@@ -282,7 +282,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
          |    avg(l_discount) AS avg_disc,
          |    count(*) AS count_order
          |FROM
-         |    lineitem_mergetree_orderbykey
+         |    lineitem_mergetree_orderbykey_s3
          |WHERE
          |    l_shipdate <= date'1998-09-02' - interval 1 day
          |GROUP BY
@@ -329,11 +329,11 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
 
   test("test mergetree write with partition") {
     spark.sql(s"""
-                 |DROP TABLE IF EXISTS lineitem_mergetree_partition;
+                 |DROP TABLE IF EXISTS lineitem_mergetree_partition_s3;
                  |""".stripMargin)
 
     spark.sql(s"""
-                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_partition
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_partition_s3
                  |(
                  | l_orderkey      bigint,
                  | l_partkey       bigint,
@@ -357,12 +357,12 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  |TBLPROPERTIES (storage_policy='s3_main',
                  |               orderByKey='l_orderkey',
                  |               primaryKey='l_orderkey')
-                 |LOCATION 's3a://$BUCKET_NAME/lineitem_mergetree_partition'
+                 |LOCATION 's3a://$BUCKET_NAME/lineitem_mergetree_partition_s3'
                  |""".stripMargin)
 
     // dynamic partitions
     spark.sql(s"""
-                 | insert into table lineitem_mergetree_partition
+                 | insert into table lineitem_mergetree_partition_s3
                  | select * from lineitem
                  |""".stripMargin)
 
@@ -392,11 +392,11 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
     source.write
       .format("clickhouse")
       .mode(SaveMode.Append)
-      .insertInto("lineitem_mergetree_partition")
+      .insertInto("lineitem_mergetree_partition_s3")
 
     // static partition
     spark.sql(s"""
-                 | insert into lineitem_mergetree_partition PARTITION (l_returnflag = 'A')
+                 | insert into lineitem_mergetree_partition_s3 PARTITION (l_returnflag = 'A')
                  | (l_shipdate,
                  |  l_orderkey,
                  |  l_partkey,
@@ -445,7 +445,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
          |    avg(l_discount) AS avg_disc,
          |    count(*) AS count_order
          |FROM
-         |    lineitem_mergetree_partition
+         |    lineitem_mergetree_partition_s3
          |WHERE
          |    l_shipdate <= date'1998-09-02' - interval 1 day
          |GROUP BY
@@ -509,11 +509,11 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
 
   test("test mergetree write with bucket table") {
     spark.sql(s"""
-                 |DROP TABLE IF EXISTS lineitem_mergetree_bucket;
+                 |DROP TABLE IF EXISTS lineitem_mergetree_bucket_s3;
                  |""".stripMargin)
 
     spark.sql(s"""
-                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_bucket
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_bucket_s3
                  |(
                  | l_orderkey      bigint,
                  | l_partkey       bigint,
@@ -536,12 +536,12 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  |PARTITIONED BY (l_returnflag)
                  |CLUSTERED BY (l_orderkey)
                  |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_orderkey)"} INTO 4 BUCKETS
-                 |LOCATION 's3a://$BUCKET_NAME/lineitem_mergetree_bucket'
+                 |LOCATION 's3a://$BUCKET_NAME/lineitem_mergetree_bucket_s3'
                  |TBLPROPERTIES (storage_policy='s3_main')
                  |""".stripMargin)
 
     spark.sql(s"""
-                 | insert into table lineitem_mergetree_bucket
+                 | insert into table lineitem_mergetree_bucket_s3
                  | select * from lineitem
                  |""".stripMargin)
 
@@ -559,7 +559,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
          |    avg(l_discount) AS avg_disc,
          |    count(*) AS count_order
          |FROM
-         |    lineitem_mergetree_bucket
+         |    lineitem_mergetree_bucket_s3
          |WHERE
          |    l_shipdate <= date'1998-09-02' - interval 1 day
          |GROUP BY

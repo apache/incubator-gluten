@@ -117,11 +117,11 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
 
   test("test mergetree table write") {
     spark.sql(s"""
-                 |DROP TABLE IF EXISTS lineitem_mergetree;
+                 |DROP TABLE IF EXISTS lineitem_mergetree_hdfs;
                  |""".stripMargin)
 
     spark.sql(s"""
-                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_hdfs
                  |(
                  | l_orderkey      bigint,
                  | l_partkey       bigint,
@@ -141,12 +141,12 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  | l_comment       string
                  |)
                  |USING clickhouse
-                 |LOCATION '$HDFS_URL/test/lineitem_mergetree'
+                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_hdfs'
                  |TBLPROPERTIES (storage_policy='hdfs_main')
                  |""".stripMargin)
 
     spark.sql(s"""
-                 | insert into table lineitem_mergetree
+                 | insert into table lineitem_mergetree_hdfs
                  | select * from lineitem
                  |""".stripMargin)
     FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
@@ -164,7 +164,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
          |    avg(l_discount) AS avg_disc,
          |    count(*) AS count_order
          |FROM
-         |    lineitem_mergetree
+         |    lineitem_mergetree_hdfs
          |WHERE
          |    l_shipdate <= date'1998-09-02' - interval 1 day
          |GROUP BY
@@ -199,11 +199,11 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
 
   test("test mergetree write with orderby keys / primary keys") {
     spark.sql(s"""
-                 |DROP TABLE IF EXISTS lineitem_mergetree_orderbykey;
+                 |DROP TABLE IF EXISTS lineitem_mergetree_orderbykey_hdfs;
                  |""".stripMargin)
 
     spark.sql(s"""
-                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_orderbykey
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_orderbykey_hdfs
                  |(
                  | l_orderkey      bigint,
                  | l_partkey       bigint,
@@ -226,11 +226,11 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  |TBLPROPERTIES (storage_policy='hdfs_main',
                  |               orderByKey='l_shipdate,l_orderkey',
                  |               primaryKey='l_shipdate')
-                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_orderbykey'
+                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_orderbykey_hdfs'
                  |""".stripMargin)
 
     spark.sql(s"""
-                 | insert into table lineitem_mergetree_orderbykey
+                 | insert into table lineitem_mergetree_orderbykey_hdfs
                  | select * from lineitem
                  |""".stripMargin)
 
@@ -248,7 +248,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
          |    avg(l_discount) AS avg_disc,
          |    count(*) AS count_order
          |FROM
-         |    lineitem_mergetree_orderbykey
+         |    lineitem_mergetree_orderbykey_hdfs
          |WHERE
          |    l_shipdate <= date'1998-09-02' - interval 1 day
          |GROUP BY
@@ -295,11 +295,11 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
 
   test("test mergetree write with partition") {
     spark.sql(s"""
-                 |DROP TABLE IF EXISTS lineitem_mergetree_partition;
+                 |DROP TABLE IF EXISTS lineitem_mergetree_partition_hdfs;
                  |""".stripMargin)
 
     spark.sql(s"""
-                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_partition
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_partition_hdfs
                  |(
                  | l_orderkey      bigint,
                  | l_partkey       bigint,
@@ -323,12 +323,12 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  |TBLPROPERTIES (storage_policy='hdfs_main',
                  |               orderByKey='l_orderkey',
                  |               primaryKey='l_orderkey')
-                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_partition'
+                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_partition_hdfs'
                  |""".stripMargin)
 
     // dynamic partitions
     spark.sql(s"""
-                 | insert into table lineitem_mergetree_partition
+                 | insert into table lineitem_mergetree_partition_hdfs
                  | select * from lineitem
                  |""".stripMargin)
 
@@ -358,11 +358,11 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
     source.write
       .format("clickhouse")
       .mode(SaveMode.Append)
-      .insertInto("lineitem_mergetree_partition")
+      .insertInto("lineitem_mergetree_partition_hdfs")
 
     // static partition
     spark.sql(s"""
-                 | insert into lineitem_mergetree_partition PARTITION (l_returnflag = 'A')
+                 | insert into lineitem_mergetree_partition_hdfs PARTITION (l_returnflag = 'A')
                  | (l_shipdate,
                  |  l_orderkey,
                  |  l_partkey,
@@ -411,7 +411,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
          |    avg(l_discount) AS avg_disc,
          |    count(*) AS count_order
          |FROM
-         |    lineitem_mergetree_partition
+         |    lineitem_mergetree_partition_hdfs
          |WHERE
          |    l_shipdate <= date'1998-09-02' - interval 1 day
          |GROUP BY
@@ -475,11 +475,11 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
 
   test("test mergetree write with bucket table") {
     spark.sql(s"""
-                 |DROP TABLE IF EXISTS lineitem_mergetree_bucket;
+                 |DROP TABLE IF EXISTS lineitem_mergetree_bucket_hdfs;
                  |""".stripMargin)
 
     spark.sql(s"""
-                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_bucket
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_bucket_hdfs
                  |(
                  | l_orderkey      bigint,
                  | l_partkey       bigint,
@@ -502,12 +502,12 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  |PARTITIONED BY (l_returnflag)
                  |CLUSTERED BY (l_orderkey)
                  |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_orderkey)"} INTO 4 BUCKETS
-                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_bucket'
+                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_bucket_hdfs'
                  |TBLPROPERTIES (storage_policy='hdfs_main')
                  |""".stripMargin)
 
     spark.sql(s"""
-                 | insert into table lineitem_mergetree_bucket
+                 | insert into table lineitem_mergetree_bucket_hdfs
                  | select * from lineitem
                  |""".stripMargin)
 
@@ -525,7 +525,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
          |    avg(l_discount) AS avg_disc,
          |    count(*) AS count_order
          |FROM
-         |    lineitem_mergetree_bucket
+         |    lineitem_mergetree_bucket_hdfs
          |WHERE
          |    l_shipdate <= date'1998-09-02' - interval 1 day
          |GROUP BY
