@@ -262,6 +262,7 @@ object ExpressionNames {
   final val CHECK_OVERFLOW = "check_overflow"
   final val MAKE_DECIMAL = "make_decimal"
   final val PROMOTE_PRECISION = "promote_precision"
+  final val SPARK_PARTITION_ID = "spark_partition_id"
   final val MONOTONICALLY_INCREASING_ID = "monotonically_increasing_id"
 
   // Directly use child expression transformer
