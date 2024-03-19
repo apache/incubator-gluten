@@ -20,7 +20,6 @@
 #include <DataTypes/IDataType.h>
 #include <DataTypes/DataTypeFactory.h>
 #include <Functions/FunctionFactory.h>
-#include <Functions/FunctionsConversion.h>
 #include <Functions/SparkFunctionCastFloatToInt.h>
 #include <Parser/SerializedPlanParser.h>
 #include <benchmark/benchmark.h>
