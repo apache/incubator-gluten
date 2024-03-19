@@ -33,6 +33,9 @@ class DeltaMergeTreeFileFormat(metadata: Metadata) extends DeltaParquetFileForma
   protected var dataSchemas = Seq.empty[Attribute]
   protected var orderByKeyOption: Option[Seq[String]] = None
   protected var lowCardKeyOption: Option[Seq[String]] = None
+  protected var minmaxIndexKeyOption: Option[Seq[String]] = None
+  protected var bfIndexKeyOption: Option[Seq[String]] = None
+  protected var setIndexKeyOption: Option[Seq[String]] = None
   protected var primaryKeyOption: Option[Seq[String]] = None
   protected var partitionColumns: Seq[String] = Seq.empty[String]
   protected var clickhouseTableConfigs: Map[String, String] = Map.empty
@@ -44,6 +47,9 @@ class DeltaMergeTreeFileFormat(metadata: Metadata) extends DeltaParquetFileForma
       schemas: Seq[Attribute],
       orderByKeyOption: Option[Seq[String]],
       lowCardKeyOption: Option[Seq[String]],
+      minmaxIndexKeyOption: Option[Seq[String]],
+      bfIndexKeyOption: Option[Seq[String]],
+      setIndexKeyOption: Option[Seq[String]],
       primaryKeyOption: Option[Seq[String]],
       clickhouseTableConfigs: Map[String, String],
       partitionColumns: Seq[String]) {
@@ -53,6 +59,9 @@ class DeltaMergeTreeFileFormat(metadata: Metadata) extends DeltaParquetFileForma
     this.dataSchemas = schemas
     this.orderByKeyOption = orderByKeyOption
     this.lowCardKeyOption = lowCardKeyOption
+    this.minmaxIndexKeyOption = minmaxIndexKeyOption
+    this.bfIndexKeyOption = bfIndexKeyOption
+    this.setIndexKeyOption = setIndexKeyOption
     this.primaryKeyOption = primaryKeyOption
     this.clickhouseTableConfigs = clickhouseTableConfigs
     this.partitionColumns = partitionColumns
@@ -101,6 +110,9 @@ class DeltaMergeTreeFileFormat(metadata: Metadata) extends DeltaParquetFileForma
             tableName,
             orderByKeyOption,
             lowCardKeyOption,
+            minmaxIndexKeyOption,
+            bfIndexKeyOption,
+            setIndexKeyOption,
             primaryKeyOption,
             partitionColumns,
             metadata.schema,

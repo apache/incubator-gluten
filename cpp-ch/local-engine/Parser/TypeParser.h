@@ -24,36 +24,38 @@
 
 namespace local_engine
 {
-class TypeParser
-{
-public:
-    TypeParser() = default;
-    ~TypeParser() = default;
-
-    static String getCHTypeName(const String & spark_type_name);
-
-    static DB::DataTypePtr getCHTypeByName(const String & spark_type_name);
-
-    /// When parsing named structure, we need the field names.
-    static DB::DataTypePtr parseType(const substrait::Type & substrait_type, std::list<String> * field_names);
-
-    inline static DB::DataTypePtr parseType(const substrait::Type & substrait_type)
+    class TypeParser
     {
-        return parseType(substrait_type, nullptr);
-    }
+    public:
+        TypeParser() = default;
+        ~TypeParser() = default;
 
-    // low_card_cols is in format of "cola,colb". Currently does not nested column to be LowCardinality.
-    static DB::Block buildBlockFromNamedStruct(const substrait::NamedStruct & struct_,  const std::string& low_card_cols = "");
+        static String getCHTypeName(const String& spark_type_name);
 
-    /// Build block from substrait NamedStruct without DFS rules, different from buildBlockFromNamedStruct
-    static DB::Block buildBlockFromNamedStructWithoutDFS(const substrait::NamedStruct & struct_);
+        static DB::DataTypePtr getCHTypeByName(const String& spark_type_name);
 
-    static bool isTypeMatched(const substrait::Type & substrait_type, const DB::DataTypePtr & ch_type);
-    static bool isTypeMatchedWithNullability(const substrait::Type & substrait_type, const DB::DataTypePtr & ch_type);
-private:
-    /// Mapping spark type names to CH type names.
-    static std::unordered_map<String, String> type_names_mapping;
+        /// When parsing named structure, we need the field names.
+        static DB::DataTypePtr parseType(const substrait::Type& substrait_type, std::list<String>* field_names);
 
-    static DB::DataTypePtr tryWrapNullable(substrait::Type_Nullability nullable, DB::DataTypePtr nested_type);
-};
+        inline static DB::DataTypePtr parseType(const substrait::Type& substrait_type)
+        {
+            return parseType(substrait_type, nullptr);
+        }
+
+        // low_card_cols is in format of "cola,colb". Currently does not nested column to be LowCardinality.
+        static DB::Block buildBlockFromNamedStruct(const substrait::NamedStruct& struct_,
+                                                   const std::string& low_card_cols = "");
+
+        /// Build block from substrait NamedStruct without DFS rules, different from buildBlockFromNamedStruct
+        static DB::Block buildBlockFromNamedStructWithoutDFS(const substrait::NamedStruct& struct_);
+
+        static bool isTypeMatched(const substrait::Type& substrait_type, const DB::DataTypePtr& ch_type);
+        static bool isTypeMatchedWithNullability(const substrait::Type& substrait_type, const DB::DataTypePtr& ch_type);
+
+    private:
+        /// Mapping spark type names to CH type names.
+        static std::unordered_map<String, String> type_names_mapping;
+
+        static DB::DataTypePtr tryWrapNullable(substrait::Type_Nullability nullable, DB::DataTypePtr nested_type);
+    };
 }
