@@ -470,6 +470,7 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
+<<<<<<< HEAD
   test("Test make_timestamp function") {
     withTempPath {
       path =>
@@ -510,6 +511,11 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
                              |""".stripMargin) {
           checkOperatorMatch[ProjectExecTransformer]
         }
+=======
+  test("Test uuid function") {
+    runQueryAndCompare("""SELECT uuid() from lineitem limit 100""".stripMargin, false) {
+      checkOperatorMatch[ProjectExecTransformer]
+>>>>>>> 4968b83b1 ([VL] support uuid function)
     }
   }
 
