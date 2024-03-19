@@ -581,6 +581,13 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHPosExplodeTransformer(substraitExprName, child, original, attributeSeq)
   }
 
+  override def genRegexpReplaceTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: RegExpReplace): ExpressionTransformer = {
+    CHRegExpReplaceTransformer(substraitExprName, children, expr)
+  }
+
   override def createColumnarWriteFilesExec(
       child: SparkPlan,
       fileFormat: FileFormat,

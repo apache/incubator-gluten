@@ -197,3 +197,28 @@ case class CHPosExplodeTransformer(
     }
   }
 }
+
+case class CHRegExpReplaceTransformer(
+    substraitExprName: String,
+    children: Seq[ExpressionTransformer],
+    original: RegExpReplace)
+  extends ExpressionTransformer {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    // In CH: replaceRegexpAll(subject, regexp, rep), which is equivalent
+    // In Spark: regexp_replace(subject, regexp, rep, pos=1)
+    val posNode = children(3).doTransform(args)
+    if (
+      !posNode.isInstanceOf[IntLiteralNode] ||
+      posNode.asInstanceOf[IntLiteralNode].getValue != 1
+    ) {
+      throw new UnsupportedOperationException(s"$original not supported yet.")
+    }
+
+    GenericExpressionTransformer(
+      substraitExprName,
+      Seq(children(0), children(1), children(2)),
+      original)
+      .doTransform(args)
+  }
+}
