@@ -16,10 +16,12 @@
  */
 package io.glutenproject.expression
 
-import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
 import org.apache.spark.sql.catalyst.expressions._
+
+import com.google.common.collect.Lists
 
 case class TimestampAddTransform(
     substraitExprName: String,

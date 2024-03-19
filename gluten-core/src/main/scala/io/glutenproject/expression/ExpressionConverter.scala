@@ -535,7 +535,10 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         TimestampAddTransform(
           substraitExprName,
           replaceWithExpressionTransformerInternal(timestampAdd.left, attributeSeq, expressionsMap),
-          replaceWithExpressionTransformerInternal(timestampAdd.right, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(
+            timestampAdd.right,
+            attributeSeq,
+            expressionsMap),
           timestampAdd
         )
       case e: Transformable =>
