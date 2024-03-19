@@ -49,9 +49,8 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
 
   private val HDFS_METADATA_PATH = "/tmp/metadata/hdfs"
   private val HDFS_CACHE_PATH = "/tmp/hdfs_cache"
-  private val HDFS_URL = "hdfs://localhost:8020"
+  private val HDFS_URL = "hdfs://127.0.0.1:8020"
 
-  /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")

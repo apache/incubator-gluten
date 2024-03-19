@@ -64,7 +64,7 @@ void SparkMergeTreeWriter::finalize()
     auto block = squashing_transform->add({});
     if (block.rows())
     {
-        auto blocks_with_partition = MergeTreeDataWriter::splitBlockIntoParts(block, 10, metadata_snapshot, context);
+        auto blocks_with_partition = MergeTreeDataWriter::splitBlockIntoParts(std::move(block), 10, metadata_snapshot, context);
         for (auto & item : blocks_with_partition)
             new_parts.emplace_back(writeTempPartAndFinalize(item, metadata_snapshot).part);
     }
