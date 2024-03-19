@@ -59,16 +59,6 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     // checkResult(Int.MinValue.toLong - 100)
   }
 
-  private def timestampLiteral(s: String, sdf: SimpleDateFormat, dt: DataType): Literal = {
-    dt match {
-      case _: TimestampType =>
-        Literal(new Timestamp(sdf.parse(s).getTime))
-
-      case _: TimestampNTZType =>
-        Literal(LocalDateTime.parse(s.replace(" ", "T")))
-    }
-  }
-
   private def timestampAnswer(s: String, sdf: SimpleDateFormat, dt: DataType): Any = {
     dt match {
       case _: TimestampType =>
