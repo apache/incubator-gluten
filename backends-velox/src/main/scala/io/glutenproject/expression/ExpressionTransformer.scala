@@ -16,6 +16,7 @@
  */
 package io.glutenproject.expression
 
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.expression.ExpressionConverter.replaceWithExpressionTransformer
 import io.glutenproject.substrait.expression._
@@ -76,7 +77,7 @@ case class VeloxGetStructFieldTransformer(
         // Append the nested index to selection node.
         node.addNestedChildIdx(JInteger.valueOf(ordinal))
       case other =>
-        throw new UnsupportedOperationException(s"$other is not supported.")
+        throw new GlutenNotSupportException(s"$other is not supported.")
     }
   }
 }
@@ -127,14 +128,14 @@ case class VeloxStringSplitTransformer(
       !regexExpr.isInstanceOf[LiteralTransformer] ||
       !limitExpr.isInstanceOf[LiteralTransformer]
     ) {
-      throw new UnsupportedOperationException(
+      throw new GlutenNotSupportException(
         "Gluten only supports literal input as limit/regex for split function.")
     }
 
     val limit = limitExpr.doTransform(args).asInstanceOf[IntLiteralNode].getValue
     val regex = regexExpr.doTransform(args).asInstanceOf[StringLiteralNode].getValue
     if (limit > 0 || regex.length > 1) {
-      throw new UnsupportedOperationException(
+      throw new GlutenNotSupportException(
         s"$original supported single-length regex and negative limit, but given $limit and $regex")
     }
 

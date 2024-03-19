@@ -16,6 +16,7 @@
  */
 package io.glutenproject.expression
 
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression._
 
@@ -65,7 +66,7 @@ case class RegExpReplaceTransformer(
       !posNode.isInstanceOf[IntLiteralNode] ||
       posNode.asInstanceOf[IntLiteralNode].getValue != 1
     ) {
-      throw new UnsupportedOperationException(s"$original not supported yet.")
+      throw new GlutenNotSupportException(s"$original not supported yet.")
     }
 
     GenericExpressionTransformer(substraitExprName, Seq(subject, regexp, rep), original)

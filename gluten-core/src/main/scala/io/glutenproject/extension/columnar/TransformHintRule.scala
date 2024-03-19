@@ -18,6 +18,7 @@ package io.glutenproject.extension.columnar
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionUtils.getExpressionTreeDepth
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
@@ -108,7 +109,7 @@ object TransformHints {
             case TRANSFORM_UNSUPPORTED(None, _) =>
               originalHint
             case _ =>
-              throw new UnsupportedOperationException(
+              throw new GlutenNotSupportException(
                 "Plan was already tagged as non-transformable, " +
                   s"cannot mark it as transformable after that:\n${plan.toString()}")
           }
@@ -737,11 +738,14 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
         // Currently we assume a plan to be transformable by default.
       }
     } catch {
-      case e: UnsupportedOperationException =>
+      case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
         TransformHints.tagNotTransformable(
           plan,
           s"${e.getMessage}, original Spark plan is " +
             s"${plan.getClass}(${plan.children.toList.map(_.getClass)})")
+        if (!e.isInstanceOf[GlutenNotSupportException]) {
+          logDebug("This exception may need to be fixed: " + e.getMessage)
+        }
     }
   }
 }

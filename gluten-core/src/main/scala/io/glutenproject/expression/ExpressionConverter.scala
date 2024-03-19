@@ -18,13 +18,14 @@ package io.glutenproject.expression
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.execution.{ColumnarToRowExecBase, WholeStageTransformer}
 import io.glutenproject.test.TestStats
 import io.glutenproject.utils.{DecimalArithmeticUtil, PlanUtil}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.{InternalRow, SQLConfHelper}
-import org.apache.spark.sql.catalyst.expressions.{BinaryArithmetic, _}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution.{ScalarSubquery, _}
@@ -74,7 +75,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
           udf)
       case _ =>
-        throw new UnsupportedOperationException(s"Not supported python udf: $udf.")
+        throw new GlutenNotSupportException(s"Not supported python udf: $udf.")
     }
   }
 
@@ -91,7 +92,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
           udf)
       case _ =>
-        throw new UnsupportedOperationException(s"Not supported scala udf: $udf.")
+        throw new GlutenNotSupportException(s"Not supported scala udf: $udf.")
     }
   }
 
@@ -117,7 +118,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     // Check whether Gluten supports this expression
     val substraitExprNameOpt = expressionsMap.get(expr.getClass)
     if (substraitExprNameOpt.isEmpty) {
-      throw new UnsupportedOperationException(
+      throw new GlutenNotSupportException(
         s"Not supported to map spark function name" +
           s" to substrait function name: $expr, class name: ${expr.getClass.getSimpleName}.")
     }
@@ -125,7 +126,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
 
     // Check whether each backend supports this expression
     if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(substraitExprName, expr)) {
-      throw new UnsupportedOperationException(s"Not supported: $expr.")
+      throw new GlutenNotSupportException(s"Not supported: $expr.")
     }
     expr match {
       case extendedExpr
@@ -281,7 +282,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         )
       case i: In =>
         if (i.list.exists(!_.foldable)) {
-          throw new UnsupportedOperationException(
+          throw new GlutenNotSupportException(
             s"In list option does not support non-foldable expression, ${i.list.map(_.sql)}")
         }
         InTransformer(
@@ -484,7 +485,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         // PrecisionLoss=false: velox not support / ch support
         // TODO ch support PrecisionLoss=true
         if (!BackendsApiManager.getSettings.allowDecimalArithmetic) {
-          throw new UnsupportedOperationException(
+          throw new GlutenNotSupportException(
             s"Not support ${SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key} " +
               s"${conf.decimalOperationsAllowPrecisionLoss} mode")
         }

@@ -17,6 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -105,7 +106,7 @@ abstract class BatchScanExecTransformerBase(
     case fileScan: FileScan =>
       pushdownFilters.getOrElse(fileScan.dataFilters)
     case _ =>
-      throw new UnsupportedOperationException(s"${scan.getClass.toString} is not supported")
+      throw new GlutenNotSupportException(s"${scan.getClass.toString} is not supported")
   }
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty

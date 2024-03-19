@@ -17,6 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.execution.CHHashAggregateExecTransformer.getAggregateResultAttributes
 import io.glutenproject.expression._
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
@@ -224,7 +225,7 @@ case class CHHashAggregateExecTransformer(
             // so far, it only happens in a three-stage count distinct case
             // e.g. select sum(a), count(distinct b) from f
             if (!child.isInstanceOf[BaseAggregateExec]) {
-              throw new UnsupportedOperationException(
+              throw new GlutenNotSupportException(
                 "PartialMerge's child not being HashAggregateExecBaseTransformer" +
                   " is unsupported yet")
             }
@@ -242,7 +243,7 @@ case class CHHashAggregateExecTransformer(
                 .replaceWithExpressionTransformer(aggExpr.resultAttribute, originalInputAttributes)
                 .doTransform(args))
           case other =>
-            throw new UnsupportedOperationException(s"$other not supported.")
+            throw new GlutenNotSupportException(s"$other not supported.")
         }
         for (node <- childrenNodes) {
           childrenNodeList.add(node)
@@ -457,7 +458,7 @@ case class CHHashAggregateExecPullOutHelper(
           resIndex += 1
           resIndex
         case other =>
-          throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
+          throw new GlutenNotSupportException(s"Unsupported aggregate mode: $other.")
       }
     }
   }
