@@ -45,7 +45,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
 
   val S3_METADATA_PATH = "/tmp/metadata/s3"
   val S3_CACHE_PATH = "/tmp/s3_cache"
-  val S3_URL = "s3://localhost:9000/"
+  val S3_URL = "s3://127.0.0.1:9000/"
   val MINIO_ENDPOINT = S3_URL.replace("s3", "http")
   val S3A_URL = S3_URL.replace("s3", "s3a")
   val BUCKET_NAME = "test"
@@ -59,7 +59,6 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
     version(0) + "." + version(1)
   }
 
-  /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
