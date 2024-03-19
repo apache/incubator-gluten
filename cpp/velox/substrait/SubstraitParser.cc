@@ -295,6 +295,11 @@ T SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& /* li
 }
 
 template <>
+std::shared_ptr<void> gluten::SubstraitParser::getLiteralValue(const substrait::Expression_Literal& literal) {
+  return nullptr;
+}
+
+template <>
 facebook::velox::UnknownValue gluten::SubstraitParser::getLiteralValue(const substrait::Expression_Literal& literal) {
   return UnknownValue();
 }

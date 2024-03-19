@@ -93,7 +93,6 @@ class SubstraitVeloxExprConverter {
   VectorPtr literalsToVector(
       const ::substrait::Expression::Literal& childLiteral,
       vector_size_t childSize,
-      const ::substrait::Expression::Literal& literal,
       std::function<::substrait::Expression::Literal(vector_size_t /* idx */)> elementAtFunc);
   RowVectorPtr literalsToRowVector(const ::substrait::Expression::Literal& structLiteral);
 
