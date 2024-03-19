@@ -183,7 +183,7 @@ case class WindowExecTransformer(
     val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
     if (windowExpression == null || windowExpression.isEmpty) {
-      // The computing for this project is not needed.
+      // The computing for this operator is not needed.
       context.registerEmptyRelToOperator(operatorId)
       return childCtx
     }
