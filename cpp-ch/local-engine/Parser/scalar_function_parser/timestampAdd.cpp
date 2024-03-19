@@ -39,7 +39,7 @@ public:
     explicit FunctionParserTimestampAdd(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
     ~FunctionParserTimestampAdd() override = default;
 
-    static constexpr auto name = "timestampadd";
+    static constexpr auto name = "timestamp_add";
 
     String getName() const override { return name; }
 
@@ -61,29 +61,29 @@ public:
                 "Unsupported timezone_field argument, should be a string literal, but: {}",
                 timezone_field.DebugString());
 
-        const auto & unit = Poco::toLower(unit_field.value().literal().string());
+        const auto & unit = unit_field.value().literal().string();
         auto timezone = timezone_field.value().literal().string();
 
         std::string ch_function_name;
-        if (unit == "microsecond")
+        if (unit == "MICROSECOND")
             ch_function_name = "addMicroseconds";
-        else if (unit == "millisecond")
+        else if (unit == "MILLISECOND")
             ch_function_name = "addMilliseconds";
-        else if (unit == "second")
+        else if (unit == "SECOND")
             ch_function_name = "addSeconds";
-        else if (unit == "minute")
+        else if (unit == "MINUTE")
             ch_function_name = "addMinutes";
-        else if (unit == "hour")
+        else if (unit == "HOUR")
             ch_function_name = "addHours";
-        else if (unit == "day")
+        else if (unit == "DAY" || unit == "DAYOFYEAR")
             ch_function_name = "addDays";
-        else if (unit == "week")
+        else if (unit == "WEEK")
             ch_function_name = "addWeeks";
-        else if (unit == "month")
+        else if (unit == "MONTH")
             ch_function_name = "addMonths";
-        else if (unit == "quarter")
+        else if (unit == "QUARTER")
             ch_function_name = "addQuarters";
-        else if (unit == "year")
+        else if (unit == "YEAR")
             ch_function_name = "addYears";
         else
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "Unsupported unit argument: {}", unit);
