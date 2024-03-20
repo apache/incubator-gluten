@@ -533,6 +533,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           m.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
           m)
       case timestampAdd if timestampAdd.getClass.getSimpleName.equals("TimestampAdd") =>
+        // for spark3.3
         val extract = SparkShimLoader.getSparkShims.extractExpressionTimestampAddUnit(timestampAdd)
         if (extract.isEmpty) {
           throw new UnsupportedOperationException(s"Not support expression TimestampAdd.")
