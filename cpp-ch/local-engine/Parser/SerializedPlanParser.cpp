@@ -1670,7 +1670,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             }
             else
             {
-                if (isString(non_nullable_input_type) || isInt(non_nullable_output_type))
+                if (isString(non_nullable_input_type) && isInt(non_nullable_output_type))
                 {
                     /// Spark cast(x as INT) if x is String -> CH cast(trim(x) as INT)
                     /// Refer to https://github.com/apache/incubator-gluten/issues/4956
