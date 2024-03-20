@@ -536,26 +536,11 @@ trait SparkPlanExecApi {
                   attributeSeq = originalInputAttributes)
                 .doTransform(args))
             // Spark only accepts foldable offset. Converts it to LongType literal.
-            var offset = offsetWf.offset.eval(EmptyRow).asInstanceOf[Int]
-            if (wf.isInstanceOf[Lead]) {
-              if (offset < 0) {
-                // Velox always expects non-negative offset.
-                throw new UnsupportedOperationException(
-                  s"${wf.nodeName} does not support negative offset: $offset")
-              }
-            } else {
-              // For Lag
-              // Spark would use `-inputOffset` as offset, so here we forbid positive offset.
-              // Which means the inputOffset is negative.
-              if (offset > 0) {
-                // Velox always expects non-negative offset.
-                throw new UnsupportedOperationException(
-                  s"${wf.nodeName} does not support negative offset: $offset")
-              }
-              // Revert the Spark change and use the original input offset
-              offset = -offset
-            }
-            val offsetNode = ExpressionBuilder.makeLiteral(offset.toLong, LongType, false)
+            val offset = offsetWf.offset.eval(EmptyRow).asInstanceOf[Int]
+            // Velox only allows negative offset. WindowFunctionsBuilder#create converts
+            // lag/lead with negative offset to the function with positive offset. So just
+            // makes offsetNode store positive value.
+            val offsetNode = ExpressionBuilder.makeLiteral(Math.abs(offset.toLong), LongType, false)
             childrenNodeList.add(offsetNode)
             // NullType means Null is the default value. Don't pass it to native.
             if (offsetWf.default.dataType != NullType) {
