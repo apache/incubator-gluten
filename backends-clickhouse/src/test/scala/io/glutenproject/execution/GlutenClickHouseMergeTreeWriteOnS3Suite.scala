@@ -21,10 +21,9 @@ import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 
 import _root_.org.apache.commons.io.FileUtils
-import _root_.org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
 import _root_.org.apache.spark.sql.SaveMode
 import _root_.org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import io.minio._
+import io.minio.{BucketExistsArgs, ListObjectsArgs, MakeBucketArgs, MinioClient, RemoveBucketArgs, RemoveObjectsArgs}
 import io.minio.messages.DeleteObject
 
 import java.io.File
@@ -34,7 +33,7 @@ import java.util
 // scalastyle:off line.size.limit
 
 class GlutenClickHouseMergeTreeWriteOnS3Suite
-  extends GlutenClickHouseTPCHAbstractSuite
+  extends GlutenClickHouseMergeTreeWriteOnObjectStorageAbstractSuite
   with AdaptiveSparkPlanHelper {
 
   override protected val needCopyParquetToTablePath = true
@@ -43,79 +42,6 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "mergetree-queries-output"
 
-  val S3_METADATA_PATH = "/tmp/metadata/s3"
-  val S3_CACHE_PATH = "/tmp/s3_cache"
-  val S3_URL = "s3://127.0.0.1:9000/"
-  val MINIO_ENDPOINT = S3_URL.replace("s3", "http")
-  val S3A_URL = S3_URL.replace("s3", "s3a")
-  val BUCKET_NAME = "test"
-  val WHOLE_PATH: String = MINIO_ENDPOINT + BUCKET_NAME + "/"
-
-  val S3_ACCESS_KEY = "BypTYzcXOlfr03FFIvt4"
-  val S3_SECRET_KEY = "K9MDaGItPSaphorZM8t4hXf30gHF9dBWi6L2dK5E"
-
-  protected lazy val sparkVersion: String = {
-    val version = SPARK_VERSION_SHORT.split("\\.")
-    version(0) + "." + version(1)
-  }
-
-  override protected def sparkConf: SparkConf = {
-    super.sparkConf
-      .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-      .set("spark.io.compression.codec", "LZ4")
-      .set("spark.sql.shuffle.partitions", "5")
-      .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format", "false")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.user_defined_path",
-        "/tmp/user_defined")
-      .set("spark.hadoop.fs.s3a.access.key", S3_ACCESS_KEY)
-      .set("spark.hadoop.fs.s3a.secret.key", S3_SECRET_KEY)
-      .set("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-      .set("spark.hadoop.fs.s3a.endpoint", MINIO_ENDPOINT)
-      .set("spark.hadoop.fs.s3a.path.style.access", "true")
-      .set("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.s3.type",
-        "s3_gluten")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.s3.endpoint",
-        WHOLE_PATH)
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.s3.access_key_id",
-        S3_ACCESS_KEY)
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.s3.secret_access_key",
-        S3_SECRET_KEY)
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.s3.metadata_path",
-        S3_METADATA_PATH)
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.s3_cache.type",
-        "cache")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.s3_cache.disk",
-        "s3")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.s3_cache.path",
-        S3_CACHE_PATH)
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.s3_cache.max_size",
-        "10Gi")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.s3_main.volumes",
-        "main")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.s3_main.volumes.main.disk",
-        "s3_cache")
-      .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
-  }
-
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
-  }
   override protected def beforeEach(): Unit = {
     super.beforeEach()
     val client = MinioClient
@@ -133,7 +59,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
         })
       val removeResults = client.removeObjects(
         RemoveObjectsArgs.builder().bucket(BUCKET_NAME).objects(objects).build())
-      removeResults.forEach(result => result.get())
+      removeResults.forEach(result => result.get().message())
       client.removeBucket(RemoveBucketArgs.builder().bucket(BUCKET_NAME).build())
     }
     client.makeBucket(MakeBucketArgs.builder().bucket(BUCKET_NAME).build())
@@ -176,7 +102,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  |)
                  |USING clickhouse
                  |LOCATION 's3a://$BUCKET_NAME/lineitem_mergetree_s3'
-                 |TBLPROPERTIES (storage_policy='s3_main')
+                 |TBLPROPERTIES (storage_policy='__s3_main')
                  |""".stripMargin)
 
     spark.sql(s"""
@@ -257,7 +183,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  | l_comment       string
                  |)
                  |USING clickhouse
-                 |TBLPROPERTIES (storage_policy='s3_main',
+                 |TBLPROPERTIES (storage_policy='__s3_main',
                  |               orderByKey='l_shipdate,l_orderkey',
                  |               primaryKey='l_shipdate')
                  |LOCATION 's3a://$BUCKET_NAME/lineitem_mergetree_orderbykey_s3'
@@ -354,7 +280,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  |)
                  |USING clickhouse
                  |PARTITIONED BY (l_returnflag)
-                 |TBLPROPERTIES (storage_policy='s3_main',
+                 |TBLPROPERTIES (storage_policy='__s3_main',
                  |               orderByKey='l_orderkey',
                  |               primaryKey='l_orderkey')
                  |LOCATION 's3a://$BUCKET_NAME/lineitem_mergetree_partition_s3'
@@ -537,7 +463,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  |CLUSTERED BY (l_orderkey)
                  |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_orderkey)"} INTO 4 BUCKETS
                  |LOCATION 's3a://$BUCKET_NAME/lineitem_mergetree_bucket_s3'
-                 |TBLPROPERTIES (storage_policy='s3_main')
+                 |TBLPROPERTIES (storage_policy='__s3_main')
                  |""".stripMargin)
 
     spark.sql(s"""

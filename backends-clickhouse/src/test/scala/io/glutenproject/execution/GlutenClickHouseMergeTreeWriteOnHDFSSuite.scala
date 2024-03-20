@@ -16,7 +16,6 @@
  */
 package io.glutenproject.execution
 
-import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
@@ -33,7 +32,7 @@ import java.io.File
 // scalastyle:off line.size.limit
 
 class GlutenClickHouseMergeTreeWriteOnHDFSSuite
-  extends GlutenClickHouseTPCHAbstractSuite
+  extends GlutenClickHouseMergeTreeWriteOnObjectStorageAbstractSuite
   with AdaptiveSparkPlanHelper {
 
   override protected val needCopyParquetToTablePath = true
@@ -41,61 +40,6 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
   override protected val tablesPath: String = basePath + "/tpch-data"
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "mergetree-queries-output"
-
-  protected lazy val sparkVersion: String = {
-    val version = SPARK_VERSION_SHORT.split("\\.")
-    version(0) + "." + version(1)
-  }
-
-  private val HDFS_METADATA_PATH = "/tmp/metadata/hdfs"
-  private val HDFS_CACHE_PATH = "/tmp/hdfs_cache"
-  private val HDFS_URL = "hdfs://127.0.0.1:8020"
-
-  override protected def sparkConf: SparkConf = {
-    super.sparkConf
-      .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-      .set("spark.io.compression.codec", "LZ4")
-      .set("spark.sql.shuffle.partitions", "5")
-      .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format", "false")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.user_defined_path",
-        "/tmp/user_defined")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.type",
-        "hdfs_gluten")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.endpoint",
-        HDFS_URL + "/")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.metadata_path",
-        HDFS_METADATA_PATH)
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.type",
-        "cache")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.disk",
-        "hdfs")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.path",
-        HDFS_CACHE_PATH)
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.max_size",
-        "10Gi")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.hdfs_main.volumes",
-        "main")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.hdfs_main.volumes.main.disk",
-        "hdfs_cache")
-      .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
-  }
-
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
-  }
 
   override protected def beforeEach(): Unit = {
     super.beforeEach()
@@ -142,7 +86,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  |)
                  |USING clickhouse
                  |LOCATION '$HDFS_URL/test/lineitem_mergetree_hdfs'
-                 |TBLPROPERTIES (storage_policy='hdfs_main')
+                 |TBLPROPERTIES (storage_policy='__hdfs_main')
                  |""".stripMargin)
 
     spark.sql(s"""
@@ -223,7 +167,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  | l_comment       string
                  |)
                  |USING clickhouse
-                 |TBLPROPERTIES (storage_policy='hdfs_main',
+                 |TBLPROPERTIES (storage_policy='__hdfs_main',
                  |               orderByKey='l_shipdate,l_orderkey',
                  |               primaryKey='l_shipdate')
                  |LOCATION '$HDFS_URL/test/lineitem_mergetree_orderbykey_hdfs'
@@ -320,7 +264,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  |)
                  |USING clickhouse
                  |PARTITIONED BY (l_returnflag)
-                 |TBLPROPERTIES (storage_policy='hdfs_main',
+                 |TBLPROPERTIES (storage_policy='__hdfs_main',
                  |               orderByKey='l_orderkey',
                  |               primaryKey='l_orderkey')
                  |LOCATION '$HDFS_URL/test/lineitem_mergetree_partition_hdfs'
@@ -503,7 +447,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  |CLUSTERED BY (l_orderkey)
                  |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_orderkey)"} INTO 4 BUCKETS
                  |LOCATION '$HDFS_URL/test/lineitem_mergetree_bucket_hdfs'
-                 |TBLPROPERTIES (storage_policy='hdfs_main')
+                 |TBLPROPERTIES (storage_policy='__hdfs_main')
                  |""".stripMargin)
 
     spark.sql(s"""
