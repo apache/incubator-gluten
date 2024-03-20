@@ -185,16 +185,19 @@ TypePtr VeloxSubstraitSignature::fromSubstraitSignature(const std::string& signa
     if (types.size() != 2) {
       VELOX_UNSUPPORTED("Substrait type signature conversion to Velox type not supported for {}.", signature);
     }
-    return MAP(types[0], types[1]);
+    return MAP(std::move(types)[0], std::move(types)[1]);
   }
 
   if (startWith(signature, "list")) {
-     // List type name is in the format of list<T>.
-    auto types = parseNestedTypeSignature(signature);
-    if (types.size() != 1) {
-      VELOX_UNSUPPORTED("Substrait type signature conversion to Velox type not supported for {}.", signature);
-    }
-    auto elementType = types[0];
+    auto listStart = signature.find_first_of('<');
+    auto listEnd = signature.find_last_of('>');
+    VELOX_CHECK(
+        listEnd - listStart > 1,
+        "Native validation failed due to: more information is needed to create ListType: {}",
+        signature);
+
+    auto elementTypeStr = signature.substr(listStart + 1, listEnd - listStart - 1);
+    auto elementType = fromSubstraitSignature(elementTypeStr);
     return ARRAY(elementType);
   }
 
