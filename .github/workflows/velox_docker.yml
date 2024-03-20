@@ -44,25 +44,23 @@ concurrency:
 
 jobs:
   build-docker:
-    runs-on: ubuntu-latest
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
-    env:
-      OS_IMAGE_NAME: ubuntu
-      OS_IMAGE_TAG: 20.04
-      CONTAINER_NAME: test-$OS_IMAGE_NAME-$OS_IMAGE_TAG
+    runs-on: ubuntu-20.04
+    container: inteldpo/gluten-centos-packaging:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v2
       - name: Build Gluten velox third party
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel -y && \
           cd $GITHUB_WORKSPACE/ep/build-velox/src && \
           ./get_velox.sh && \
-          source /opt/rh/gcc-toolset-9/enable && \
-          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
+          source /opt/rh/devtoolset-9/enable && \
+          source /opt/gluten/dev/vcpkg/env.sh && \
+          cd $GITHUB_WORKSPACE/ && \
+          ./dev/buildbundle-veloxbe.sh --build_tests=ON --build_benchmarks=ON --enable_s3=ON  --enable_hdfs=ON
       - name: Build Gluten CPP library
         run: |
           cd $GITHUB_WORKSPACE/cpp && \
-          source /opt/rh/gcc-toolset-9/enable && \
+          source /opt/rh/devtoolset-9/enable && \
           ./compile.sh --build_velox_backend=ON --build_protobuf=ON
       - name: Build for Spark 3.2.2
         run: |
