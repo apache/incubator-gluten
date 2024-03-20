@@ -19,6 +19,8 @@ package io.glutenproject.execution
 import _root_.org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
 import _root_.org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
+import java.util.UUID
+
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
 
@@ -32,16 +34,16 @@ class GlutenClickHouseMergeTreeWriteOnObjectStorageAbstractSuite
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "mergetree-queries-output"
 
-  val S3_METADATA_PATH = "/tmp/metadata/s3"
-  val S3_CACHE_PATH = "/tmp/s3_cache"
+  val S3_METADATA_PATH = s"/tmp/metadata/s3/${UUID.randomUUID().toString}/"
+  val S3_CACHE_PATH = s"/tmp/s3_cache/${UUID.randomUUID().toString}/"
   val S3_URL = "s3://127.0.0.1:9000/"
   val MINIO_ENDPOINT: String = S3_URL.replace("s3", "http")
   val S3A_URL: String = S3_URL.replace("s3", "s3a")
   val BUCKET_NAME = "test"
   val WHOLE_PATH: String = MINIO_ENDPOINT + BUCKET_NAME + "/"
 
-  val HDFS_METADATA_PATH = "/tmp/metadata/hdfs"
-  val HDFS_CACHE_PATH = "/tmp/hdfs_cache"
+  val HDFS_METADATA_PATH = s"/tmp/metadata/hdfs/${UUID.randomUUID().toString}/"
+  val HDFS_CACHE_PATH = s"/tmp/hdfs_cache/${UUID.randomUUID().toString}/"
   val HDFS_URL = "hdfs://127.0.0.1:8020"
 
   val S3_ACCESS_KEY = "BypTYzcXOlfr03FFIvt4"
