@@ -32,7 +32,6 @@ import java.time.{LocalDateTime, ZoneId}
 import java.util.{Calendar, Locale, TimeZone}
 import java.util.concurrent.TimeUnit._
 
-
 class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTrait {
   override def testIntegralInput(testFunc: Number => Unit): Unit = {
     def checkResult(input: Long): Unit = {
