@@ -1292,7 +1292,7 @@ class GlutenClickHouseMergeTreeWriteSuite
 
   test("test mergetree with primary keys filter") {
     spark.sql(s"""
-                 |DROP TABLE IF EXISTS lineitem_mergetree_orderbykey;
+                 |DROP TABLE IF EXISTS lineitem_mergetree_orderbykey2;
                  |""".stripMargin)
 
     spark.sql(s"""
@@ -1318,7 +1318,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  |USING clickhouse
                  |TBLPROPERTIES (orderByKey='l_shipdate,l_orderkey',
                  |               primaryKey='l_shipdate')
-                 |LOCATION '$basePath/lineitem_mergetree_orderbykey'
+                 |LOCATION '$basePath/lineitem_mergetree_orderbykey2'
                  |""".stripMargin)
 
     spark.sql(s"""
