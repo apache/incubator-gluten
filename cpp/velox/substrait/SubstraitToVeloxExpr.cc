@@ -420,7 +420,8 @@ VectorPtr SubstraitVeloxExprConverter::literalsToVector(
     case ::substrait::Expression_Literal::LiteralTypeCase::kNull: {
       auto veloxType = SubstraitParser::parseType(childLiteral.null());
       auto kind = veloxType->kind();
-      return VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH_ALL(constructFlatVector, kind, elementAtFunc, childSize, veloxType, pool_);
+      return VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH_ALL(
+          constructFlatVector, kind, elementAtFunc, childSize, veloxType, pool_);
     }
     case ::substrait::Expression_Literal::LiteralTypeCase::kIntervalDayToSecond:
       return constructFlatVector<TypeKind::BIGINT>(elementAtFunc, childSize, INTERVAL_DAY_TIME(), pool_);
