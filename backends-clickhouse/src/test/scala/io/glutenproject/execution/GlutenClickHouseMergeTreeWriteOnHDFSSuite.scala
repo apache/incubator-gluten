@@ -139,6 +139,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
         assert(addFiles.size == 1)
         assert(addFiles.head.rows == 600572)
     }
+    spark.sql("drop table lineitem_mergetree_hdfs")
   }
 
   test("test mergetree write with orderby keys / primary keys") {
@@ -235,6 +236,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
         assert(addFiles.size == 1)
         assert(addFiles.head.rows == 600572)
     }
+    spark.sql("drop table lineitem_mergetree_orderbykey_hdfs")
   }
 
   test("test mergetree write with partition") {
@@ -415,6 +417,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
         assert(addFiles.size == 6)
         assert(addFiles.map(_.rows).sum == 750735)
     }
+    spark.sql("drop table lineitem_mergetree_partition_hdfs")
   }
 
   test("test mergetree write with bucket table") {
@@ -516,6 +519,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
         assert(addFiles.size == 12)
         assert(addFiles.map(_.rows).sum == 600572)
     }
+    spark.sql("drop table lineitem_mergetree_bucket_hdfs")
   }
 
 }
