@@ -1296,7 +1296,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  |""".stripMargin)
 
     spark.sql(s"""
-                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_orderbykey
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_orderbykey2
                  |(
                  | l_orderkey      bigint,
                  | l_partkey       bigint,
@@ -1322,7 +1322,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  |""".stripMargin)
 
     spark.sql(s"""
-                 | insert into table lineitem_mergetree_orderbykey
+                 | insert into table lineitem_mergetree_orderbykey2
                  | select * from lineitem
                  |""".stripMargin)
 
@@ -1331,7 +1331,7 @@ class GlutenClickHouseMergeTreeWriteSuite
          |SELECT
          |    sum(l_extendedprice * l_discount) AS revenue
          |FROM
-         |    lineitem_mergetree_orderbykey
+         |    lineitem_mergetree_orderbykey2
          |WHERE
          |    l_shipdate >= date'1994-01-01'
          |    AND l_shipdate < date'1994-01-01' + interval 1 year
