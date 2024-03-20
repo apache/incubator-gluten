@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.hive
 
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.{ExpressionConverter, ExpressionTransformer, GenericExpressionTransformer, UDFMappings}
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -39,7 +40,7 @@ object HiveUDFTransformer {
       case g: HiveGenericUDF =>
         g.name.stripPrefix("default.")
       case _ =>
-        throw new UnsupportedOperationException(
+        throw new GlutenNotSupportException(
           s"Expression $expr is not a HiveSimpleUDF or HiveGenericUDF")
     }
 
@@ -50,7 +51,7 @@ object HiveUDFTransformer {
           ExpressionConverter.replaceWithExpressionTransformer(expr.children, attributeSeq),
           expr)
       case _ =>
-        throw new UnsupportedOperationException(
+        throw new GlutenNotSupportException(
           s"Not supported hive udf:$expr"
             + s" name:$udfName hiveUDFMap:${UDFMappings.hiveUDFMap}")
     }
