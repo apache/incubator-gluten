@@ -117,7 +117,8 @@ public class LocalFilesNode implements SplitInfo {
    * inserting delete files information. Different lake formats should override this method to
    * implement their corresponding logic.
    */
-  protected void processFileBuilder(ReadRel.LocalFiles.FileOrFiles.Builder fileBuilder) {}
+  protected void processFileBuilder(
+      ReadRel.LocalFiles.FileOrFiles.Builder fileBuilder, int index) {}
 
   public ReadRel.LocalFiles toProtobuf() {
     ReadRel.LocalFiles.Builder localFilesBuilder = ReadRel.LocalFiles.newBuilder();
@@ -217,7 +218,7 @@ public class LocalFilesNode implements SplitInfo {
         default:
           break;
       }
-      processFileBuilder(fileBuilder);
+      processFileBuilder(fileBuilder, i);
       localFilesBuilder.addItems(fileBuilder.build());
     }
     return localFilesBuilder.build();
