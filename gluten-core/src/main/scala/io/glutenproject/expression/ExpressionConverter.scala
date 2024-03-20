@@ -375,12 +375,14 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           s
         )
       case r: RegExpReplace =>
-        RegExpReplaceTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genRegexpReplaceTransformer(
           substraitExprName,
-          replaceWithExpressionTransformerInternal(r.subject, attributeSeq, expressionsMap),
-          replaceWithExpressionTransformerInternal(r.regexp, attributeSeq, expressionsMap),
-          replaceWithExpressionTransformerInternal(r.rep, attributeSeq, expressionsMap),
-          replaceWithExpressionTransformerInternal(r.pos, attributeSeq, expressionsMap),
+          Seq(
+            replaceWithExpressionTransformerInternal(r.subject, attributeSeq, expressionsMap),
+            replaceWithExpressionTransformerInternal(r.regexp, attributeSeq, expressionsMap),
+            replaceWithExpressionTransformerInternal(r.rep, attributeSeq, expressionsMap),
+            replaceWithExpressionTransformerInternal(r.pos, attributeSeq, expressionsMap)
+          ),
           r
         )
       case equal: EqualNullSafe =>

@@ -225,6 +225,13 @@ trait SparkPlanExecApi {
     throw new GlutenNotSupportException("make_timestamp is not supported")
   }
 
+  def genRegexpReplaceTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: RegExpReplace): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, children, expr)
+  }
+
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
    *
