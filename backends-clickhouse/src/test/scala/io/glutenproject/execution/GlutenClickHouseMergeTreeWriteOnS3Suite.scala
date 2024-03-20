@@ -155,6 +155,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
         assert(addFiles.size == 1)
         assert(addFiles.head.rows == 600572)
     }
+    spark.sql("drop table lineitem_mergetree_s3") // clean up
   }
 
   test("test mergetree write with orderby keys / primary keys") {
@@ -251,6 +252,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
         assert(addFiles.size == 1)
         assert(addFiles.head.rows == 600572)
     }
+    spark.sql("drop table lineitem_mergetree_orderbykey_s3")
   }
 
   test("test mergetree write with partition") {
@@ -431,6 +433,8 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
         assert(addFiles.size == 6)
         assert(addFiles.map(_.rows).sum == 750735)
     }
+    spark.sql("drop table lineitem_mergetree_partition_s3")
+
   }
 
   test("test mergetree write with bucket table") {
@@ -532,6 +536,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
         assert(addFiles.size == 12)
         assert(addFiles.map(_.rows).sum == 600572)
     }
+    spark.sql("drop table lineitem_mergetree_bucket_s3")
   }
 
 }
