@@ -96,6 +96,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
     maxRowGroupRows_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockRows)->second));
   }
   velox::parquet::WriterOptions writeOption;
+  writeOption.parquetWriteTimestampUnit = 6 /*micro*/;
   auto compressionCodec = CompressionKind::CompressionKind_SNAPPY;
   if (sparkConfs.find(kParquetCompressionCodec) != sparkConfs.end()) {
     auto compressionCodecStr = sparkConfs.find(kParquetCompressionCodec)->second;
