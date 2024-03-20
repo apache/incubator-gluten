@@ -16,6 +16,8 @@
  */
 package io.glutenproject.metrics;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 
 public class MetricsStep {
@@ -23,6 +25,12 @@ public class MetricsStep {
   protected String name;
   protected String description;
   protected List<MetricsProcessor> processors;
+
+  @JsonProperty("total_marks_pk")
+  protected long totalMarksPk;
+
+  @JsonProperty("selected_marks_pk")
+  protected long selectedMarksPk;
 
   public String getName() {
     return name;
@@ -46,5 +54,21 @@ public class MetricsStep {
 
   public void setProcessors(List<MetricsProcessor> processors) {
     this.processors = processors;
+  }
+
+  public void setTotalMarksPk(long totalMarksPk) {
+    this.totalMarksPk = totalMarksPk;
+  }
+
+  public void setSelectedMarksPk(long selectedMarksPk) {
+    this.selectedMarksPk = selectedMarksPk;
+  }
+
+  public long getTotalMarksPk() {
+    return totalMarksPk;
+  }
+
+  public long getSelectedMarksPk() {
+    return selectedMarksPk;
   }
 }
