@@ -87,7 +87,12 @@ jobs:
           tar --strip-components=1 -xf spark-3.2.2-bin-hadoop3.2.tgz spark-3.2.2-bin-hadoop3.2/jars/ && \
           rm -rf spark-3.2.2-bin-hadoop3.2.tgz && \
           mkdir -p /opt/gluten/shims/spark32/spark_home/assembly/target/scala-2.12 && \
-          mv jars /opt/gluten/shims/spark32/spark_home/assembly/target/scala-2.12 '
+          mv jars /opt/gluten/shims/spark32/spark_home/assembly/target/scala-2.12 && \
+          cd /opt/gluten/ && \
+          wget https://github.com/apache/spark/archive/refs/tags/v3.2.2.tar.gz && \
+          tar --strip-components=1 -xf v3.2.2.tar.gz spark-3.2.2/sql/core/src/test/resources/  && \
+          mkdir -p shims/spark32/spark_home/ && \
+          mv sql shims/spark32/spark_home/ '
       - name: Build and run unit test for Spark 3.2.2 (other tests)
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -250,7 +255,12 @@ jobs:
           tar --strip-components=1 -xf spark-3.3.1-bin-hadoop3.tgz spark-3.3.1-bin-hadoop3/jars/ && \
           rm -rf spark-3.3.1-bin-hadoop3.tgz && \
           mkdir -p /opt/gluten/shims/spark33/spark_home/assembly/target/scala-2.12 && \
-          mv jars /opt/gluten/shims/spark33/spark_home/assembly/target/scala-2.12 '
+          mv jars /opt/gluten/shims/spark33/spark_home/assembly/target/scala-2.12 && \
+          cd /opt/gluten/ && \
+          wget https://github.com/apache/spark/archive/refs/tags/v3.3.1.tar.gz && \
+          tar --strip-components=1 -xf v3.3.1.tar.gz spark-3.3.1/sql/core/src/test/resources/  && \
+          mkdir -p shims/spark33/spark_home/ && \
+          mv sql shims/spark33/spark_home/ '
       - name: Build and Run unit test for Spark 3.3.1 (other tests)
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten && \
@@ -350,7 +360,12 @@ jobs:
           tar --strip-components=1 -xf spark-3.4.2-bin-hadoop3.tgz spark-3.4.2-bin-hadoop3/jars/ && \
           rm -rf spark-3.4.2-bin-hadoop3.tgz && \
           mkdir -p /opt/gluten/shims/spark34/spark_home/assembly/target/scala-2.12 && \
-          mv jars /opt/gluten/shims/spark34/spark_home/assembly/target/scala-2.12 '
+          mv jars /opt/gluten/shims/spark34/spark_home/assembly/target/scala-2.12 && \
+          cd /opt/gluten/ && \
+          wget https://github.com/apache/spark/archive/refs/tags/v3.4.2.tar.gz && \
+          tar --strip-components=1 -xf v3.4.2.tar.gz spark-3.4.2/sql/core/src/test/resources/  && \
+          mkdir -p shims/spark34/spark_home/ && \
+          mv sql shims/spark34/spark_home/ '
       - name: Build and Run unit test for Spark 3.4.2 (other tests)
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten && \
