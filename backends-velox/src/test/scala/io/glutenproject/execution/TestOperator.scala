@@ -197,36 +197,25 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
   }
 
   test("window expression") {
-    def assertWindowOffloaded: DataFrame => Unit = {
-      df =>
-        {
-          assert(
-            getExecutedPlan(df).count(
-              plan => {
-                plan.isInstanceOf[WindowExecTransformer]
-              }) > 0)
-        }
-    }
-
     Seq("sort", "streaming").foreach {
       windowType =>
         withSQLConf("spark.gluten.sql.columnar.backend.velox.window.type" -> windowType) {
           runQueryAndCompare(
             "select ntile(4) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select row_number() over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select rank() over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
@@ -244,63 +233,63 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           runQueryAndCompare(
             "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) IGNORE NULLS over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select sum(l_partkey + 1) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select min(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select avg(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select lag(l_orderkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select lead(l_orderkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           // Test same partition/ordering keys.
           runQueryAndCompare(
             "select avg(l_partkey) over" +
               " (partition by l_suppkey order by l_suppkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           // Test overlapping partition/ordering keys.
           runQueryAndCompare(
             "select avg(l_partkey) over" +
               " (partition by l_suppkey order by l_suppkey, l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
         }
     }
