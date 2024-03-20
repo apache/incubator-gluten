@@ -16,16 +16,17 @@
  */
 package org.apache.spark.sql.hive
 
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.{ExpressionConverter, ExpressionTransformer, GenericExpressionTransformer, UDFMappings}
 
 import org.apache.spark.sql.catalyst.expressions._
 
 import java.util.Locale
 
-object HiveSimpleUDFTransformer {
-  def isHiveSimpleUDF(expr: Expression): Boolean = {
+object HiveUDFTransformer {
+  def isHiveUDF(expr: Expression): Boolean = {
     expr match {
-      case _: HiveSimpleUDF => true
+      case _: HiveSimpleUDF | _: HiveGenericUDF => true
       case _ => false
     }
   }
@@ -33,23 +34,26 @@ object HiveSimpleUDFTransformer {
   def replaceWithExpressionTransformer(
       expr: Expression,
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
-    if (!isHiveSimpleUDF(expr)) {
-      throw new UnsupportedOperationException(s"Expression $expr is not a HiveSimpleUDF")
+    val udfName = expr match {
+      case s: HiveSimpleUDF =>
+        s.name.stripPrefix("default.")
+      case g: HiveGenericUDF =>
+        g.name.stripPrefix("default.")
+      case _ =>
+        throw new GlutenNotSupportException(
+          s"Expression $expr is not a HiveSimpleUDF or HiveGenericUDF")
     }
 
-    val udf = expr.asInstanceOf[HiveSimpleUDF]
-    val substraitExprName =
-      UDFMappings.hiveUDFMap.get(udf.name.stripPrefix("default.").toLowerCase(Locale.ROOT))
-    substraitExprName match {
+    UDFMappings.hiveUDFMap.get(udfName.toLowerCase(Locale.ROOT)) match {
       case Some(name) =>
         GenericExpressionTransformer(
           name,
-          ExpressionConverter.replaceWithExpressionTransformer(udf.children, attributeSeq),
-          udf)
+          ExpressionConverter.replaceWithExpressionTransformer(expr.children, attributeSeq),
+          expr)
       case _ =>
-        throw new UnsupportedOperationException(
-          s"Not supported hive simple udf:$udf"
-            + s" name:${udf.name} hiveUDFMap:${UDFMappings.hiveUDFMap}")
+        throw new GlutenNotSupportException(
+          s"Not supported hive udf:$expr"
+            + s" name:$udfName hiveUDFMap:${UDFMappings.hiveUDFMap}")
     }
   }
 }
