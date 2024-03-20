@@ -27,6 +27,7 @@ namespace DB
 namespace ErrorCodes
 {
     extern const int LOGICAL_ERROR;
+    extern const int UNKNOWN_AGGREGATED_DATA_VARIANT;
 }
 
 template <typename Method>

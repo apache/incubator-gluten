@@ -70,6 +70,8 @@ namespace ErrorCodes
 }
 }
 
+namespace fs = std::filesystem;
+
 namespace local_engine
 {
 template <class key_type, class value_type>
