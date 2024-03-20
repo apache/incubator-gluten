@@ -220,11 +220,11 @@ std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerial
 void VeloxRuntime::dumpConf(const std::string& path) {
   auto backendConf = VeloxBackend::get()->getBackendConf();
   auto allConf = backendConf;
-  
+
   for (const auto& pair : confMap_) {
     allConf.insert_or_assign(pair.first, pair.second);
   }
-  
+
   // Open file "velox.conf" for writing, automatically creating it if it doesn't exist,
   // or overwriting it if it does.
   std::ofstream outFile(path);
