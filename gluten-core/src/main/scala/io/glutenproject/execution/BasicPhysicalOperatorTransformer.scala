@@ -327,10 +327,7 @@ case class ColumnarUnionExec(children: Seq[SparkPlan]) extends SparkPlan with Gl
     if (children.isEmpty) {
       throw new IllegalArgumentException(s"Empty children")
     }
-    children
-      .map(c => Seq(c.executeColumnar()))
-      .reduce((a, b) => a ++ b)
-      .reduce((a, b) => a.union(b))
+    sparkContext.union(children.map(c => c.executeColumnar()))
   }
 
   override protected def doExecute()
