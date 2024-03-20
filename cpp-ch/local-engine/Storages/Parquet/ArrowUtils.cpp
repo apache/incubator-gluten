@@ -14,29 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.execution
+#include "ArrowUtils.h"
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.memory.alloc.{CHNativeMemoryAllocator, CHReservationListener}
-import io.glutenproject.utils.UTSystemParameters
+namespace local_engine
+{
+parquet::internal::LevelInfo computeLevelInfo(const parquet::ColumnDescriptor * descr)
+{
+    parquet::internal::LevelInfo level_info;
+    level_info.def_level = descr->max_definition_level();
+    level_info.rep_level = descr->max_repetition_level();
 
-import org.apache.spark.SparkConf
-
-class GlutenClickHouseNativeExceptionSuite extends GlutenClickHouseWholeStageTransformerSuite {
-
-  override protected def sparkConf: SparkConf = {
-    super.sparkConf
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
-  }
-
-  test("native exception caught by jvm") {
-    try {
-      val x = new CHNativeMemoryAllocator(100, CHReservationListener.NOOP)
-      x.close() // this will incur a native exception
-      assert(false)
-    } catch {
-      case e: Exception =>
-        assert(e.getMessage.contains("allocator 100 not found"))
+    int16_t min_spaced_def_level = descr->max_definition_level();
+    const ::parquet::schema::Node * node = descr->schema_node().get();
+    while (node != nullptr && !node->is_repeated())
+    {
+        if (node->is_optional())
+            min_spaced_def_level--;
+        node = node->parent();
     }
-  }
+    level_info.repeated_ancestor_def_level = min_spaced_def_level;
+    return level_info;
+}
 }

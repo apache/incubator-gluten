@@ -23,17 +23,16 @@
 #include <Core/Block.h>
 #include <IO/ReadBuffer.h>
 #include <Interpreters/Context.h>
+#include <Parser/TypeParser.h>
 #include <Processors/Formats/IInputFormat.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
-#include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
 #include <substrait/plan.pb.h>
-#include <Parser/TypeParser.h>
 
 namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int NOT_IMPLEMENTED;
+extern const int NOT_IMPLEMENTED;
 }
 }
 
@@ -44,14 +43,15 @@ class FormatFile
 public:
     struct InputFormat
     {
-    public:
         std::unique_ptr<DB::ReadBuffer> read_buffer;
         DB::InputFormatPtr input;
     };
     using InputFormatPtr = std::shared_ptr<InputFormat>;
 
     FormatFile(
-        DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_);
+        DB::ContextPtr context_,
+        const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_,
+        const ReadBufferBuilderPtr & read_buffer_builder_);
     virtual ~FormatFile() = default;
 
     /// Create a new input format for reading this file

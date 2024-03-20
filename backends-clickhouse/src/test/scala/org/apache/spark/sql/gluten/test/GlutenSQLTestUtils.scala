@@ -17,47 +17,12 @@
 package org.apache.spark.sql.gluten.test
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.utils.UTSystemParameters
 
-import org.apache.spark.{SparkConf, SparkFunSuite}
+import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
-import org.apache.spark.sql.internal.StaticSQLConf
 import org.apache.spark.sql.test.SharedSparkSession
 
-import org.apache.commons.io.FileUtils
-
-import java.io.File
-
 trait GlutenSQLTestUtils extends SparkFunSuite with SharedSparkSession {
-  protected val rootPath: String = getClass.getResource("/").getPath
-  protected val basePath: String = rootPath + "unit-tests-working-home"
-  protected val tablesPath: String = basePath + "/unit-tests-data"
-
-  protected val warehouse: String = basePath + "/spark-warehouse"
-  protected val metaStorePathAbsolute: String = basePath + "/meta"
-
-  override protected def sparkConf: SparkConf =
-    super.sparkConf
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.use.v2",
-        ClickHouseConfig.DEFAULT_USE_DATASOURCE_V2)
-      .set(GlutenConfig.NATIVE_VALIDATION_ENABLED, false)
-      .set(StaticSQLConf.WAREHOUSE_PATH, warehouse)
-
-  override def beforeAll(): Unit = {
-    // prepare working paths
-    val basePathDir = new File(basePath)
-    if (basePathDir.exists()) {
-      FileUtils.forceDelete(basePathDir)
-    }
-    FileUtils.forceMkdir(basePathDir)
-    FileUtils.forceMkdir(new File(warehouse))
-    FileUtils.forceMkdir(new File(metaStorePathAbsolute))
-    super.beforeAll()
-  }
-
   override protected def afterAll(): Unit = {
     DeltaLog.clearCache()
     super.afterAll()

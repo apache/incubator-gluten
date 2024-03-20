@@ -512,11 +512,10 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(std
         }
     } while (false);
 
-    if (!ch_backend_conf.count(CH_RUNTIME_CONFIG_FILE))
+    if (!ch_backend_conf.contains(CH_RUNTIME_CONFIG_FILE))
     {
         /// Try to get config path from environment variable
-        const char * config_path = std::getenv("CLICKHOUSE_BACKEND_CONFIG"); /// NOLINT
-        if (config_path)
+        if (const char * config_path = std::getenv("CLICKHOUSE_BACKEND_CONFIG"))
             ch_backend_conf[CH_RUNTIME_CONFIG_FILE] = config_path;
     }
     return ch_backend_conf;
@@ -527,14 +526,14 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::map<std::s
     DB::Context::ConfigurationPtr config;
 
     /// Parse input substrait plan, and get native conf map from it.
-    if (backend_conf_map.count(CH_RUNTIME_CONFIG_FILE))
+    if (backend_conf_map.contains(CH_RUNTIME_CONFIG_FILE))
     {
-        auto config_file = backend_conf_map[CH_RUNTIME_CONFIG_FILE];
+        const auto & config_file = backend_conf_map[CH_RUNTIME_CONFIG_FILE];
         if (fs::exists(config_file) && fs::is_regular_file(config_file))
         {
             ConfigProcessor config_processor(config_file, false, true);
             config_processor.setConfigPath(fs::path(config_file).parent_path());
-            auto loaded_config = config_processor.loadConfig(false);
+            const auto loaded_config = config_processor.loadConfig(false);
             config = loaded_config.configuration;
         }
         else
@@ -543,12 +542,8 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::map<std::s
     else
         config = Poco::AutoPtr(new Poco::Util::MapConfiguration());
 
-    for (const auto & kv : backend_conf_map)
+    for (const auto & [key, value] : backend_conf_map)
     {
-        const auto & key = kv.first;
-        const auto & value = kv.second;
-        // std::cout << "set config key:" << key << ", value:" << value << std::endl;
-
         if (key.starts_with(CH_RUNTIME_CONFIG_PREFIX) && key != CH_RUNTIME_CONFIG_FILE)
         {
             // Apply spark.gluten.sql.columnar.backend.ch.runtime_config.* to config
@@ -575,7 +570,7 @@ void BackendInitializerUtil::initEnvs(DB::Context::ConfigurationPtr config)
     /// Set environment variable TZ if possible
     if (config->has("timezone"))
     {
-        String timezone_name = config->getString("timezone");
+        const String timezone_name = config->getString("timezone");
         if (0 != setenv("TZ", timezone_name.data(), 1)) /// NOLINT
             throw Poco::Exception("Cannot setenv TZ variable");
 
@@ -594,8 +589,7 @@ void BackendInitializerUtil::initEnvs(DB::Context::ConfigurationPtr config)
     setenv("HDFS_ENABLE_LOGGING", "true", true); /// NOLINT
 
     /// Get environment varaible SPARK_USER if possible
-    const char * spark_user_c_str = std::getenv("SPARK_USER");
-    if (spark_user_c_str)
+    if (const char * spark_user_c_str = std::getenv("SPARK_USER"))
         spark_user = spark_user_c_str;
 }
 
@@ -604,20 +598,20 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     /// Initialize default setting.
     settings.set("date_time_input_format", "best_effort");
 
-    for (const auto & pair : backend_conf_map)
+    for (const auto & [key, value] : backend_conf_map)
     {
         // Firstly apply spark.gluten.sql.columnar.backend.ch.runtime_config.local_engine.settings.* to settings
-        if (pair.first.starts_with(CH_RUNTIME_CONFIG_PREFIX + SETTINGS_PATH + "."))
+        if (key.starts_with(CH_RUNTIME_CONFIG_PREFIX + SETTINGS_PATH + "."))
         {
-            settings.set(pair.first.substr((CH_RUNTIME_CONFIG_PREFIX + SETTINGS_PATH + ".").size()), pair.second);
-            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings from config key:{} value:{}", pair.first, pair.second);
+            settings.set(key.substr((CH_RUNTIME_CONFIG_PREFIX + SETTINGS_PATH + ".").size()), value);
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings from config key:{} value:{}", key, value);
         }
-        else if (pair.first.starts_with(CH_RUNTIME_SETTINGS_PREFIX))
+        else if (key.starts_with(CH_RUNTIME_SETTINGS_PREFIX))
         {
-            settings.set(pair.first.substr(CH_RUNTIME_SETTINGS_PREFIX.size()), pair.second);
-            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", pair.first, pair.second);
+            settings.set(key.substr(CH_RUNTIME_SETTINGS_PREFIX.size()), value);
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
         }
-        else if (pair.first.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX))
+        else if (key.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX))
         {
             // Apply general S3 configs, e.g. spark.hadoop.fs.s3a.access.key -> set in fs.s3a.access.key
             // deal with per bucket S3 configs, e.g. fs.s3a.bucket.bucket_name.assumed.role.arn
@@ -627,7 +621,7 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
             // 2. fs.s3a.bucket.bucket_name.assumed.role.session.name
             // 3. fs.s3a.bucket.bucket_name.endpoint
             // 4. fs.s3a.bucket.bucket_name.assumed.role.externalId (non hadoop official)
-            settings.set(pair.first.substr(SPARK_HADOOP_PREFIX.length()), pair.second);
+            settings.set(key.substr(SPARK_HADOOP_PREFIX.length()), value);
         }
     }
 
@@ -673,7 +667,7 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
 
         auto getDefaultPath = [config] -> auto
         {
-            bool use_current_directory_as_tmp = config->getBool("use_current_directory_as_tmp", false);
+            const bool use_current_directory_as_tmp = config->getBool("use_current_directory_as_tmp", false);
             char buffer[PATH_MAX];
             if (use_current_directory_as_tmp && getcwd(buffer, sizeof(buffer)) != nullptr)
                 return std::string(buffer) + "/tmp/libch";
@@ -693,7 +687,7 @@ void BackendInitializerUtil::applyGlobalConfigAndSettings(DB::Context::Configura
     global_context->setSettings(settings);
 }
 
-void BackendInitializerUtil::updateNewSettings(DB::ContextMutablePtr context, DB::Settings & settings)
+void BackendInitializerUtil::updateNewSettings(const DB::ContextMutablePtr & context, const DB::Settings & settings)
 {
     context->setSettings(settings);
 }
@@ -800,16 +794,16 @@ void BackendInitializerUtil::init(std::string * plan)
         });
 }
 
-void BackendInitializerUtil::updateConfig(DB::ContextMutablePtr context, std::string * plan)
+void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context, std::string * plan)
 {
     std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);
 
     // configs cannot be updated per query
     // settings can be updated per query
 
-    auto ctx = context->getSettings(); // make a copy
-    initSettings(backend_conf_map, ctx);
-    updateNewSettings(context, ctx);
+    auto settings = context->getSettings(); // make a copy
+    initSettings(backend_conf_map, settings);
+    updateNewSettings(context, settings);
 }
 
 void BackendFinalizerUtil::finalizeGlobally()

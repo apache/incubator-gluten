@@ -15,28 +15,20 @@
  * limitations under the License.
  */
 
-#include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
-#include <Storages/SubstraitSource/SubstraitFileSource.h>
-#include <Storages/SelectQueryInfo.h>
-#include <Storages/MergeTree/KeyCondition.h>
-#include <Functions/IFunction.h>
 #include <Interpreters/Context_fwd.h>
-#include <Processors/QueryPlan/ISourceStep.h>
 #include <Processors/QueryPlan/IQueryPlanStep.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Storages/IStorage.h>
-#include <Core/NamesAndTypes.h>
-#include <DataTypes/DataTypeNullable.h>
-#include <DataTypes/DataTypeTuple.h>
-#include <DataTypes/DataTypeMap.h>
-#include <DataTypes/DataTypeArray.h>
+#include <Storages/MergeTree/KeyCondition.h>
+#include <Storages/SubstraitSource/SubstraitFileSource.h>
+#include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
 
 namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int TYPE_MISMATCH;
+extern const int TYPE_MISMATCH;
 }
 }
 
@@ -78,9 +70,7 @@ void SubstraitFileSourceStep::applyFilters(const DB::ActionDAGNodes added_filter
 {
     filter_actions_dag = DB::ActionsDAG::buildFilterActionsDAG(added_filter_nodes.nodes);
     for (const auto & processor : pipe.getProcessors())
-    {
         if (auto * source = dynamic_cast<DB::SourceWithKeyCondition *>(processor.get()))
             source->setKeyCondition(filter_actions_dag, context);
-    }
 }
 }

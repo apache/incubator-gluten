@@ -14,92 +14,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include "config.h"
 
 #if USE_PARQUET
 
 #include <ranges>
+#include <Core/Range.h>
 #include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeDate.h>
 #include <DataTypes/DataTypeDate32.h>
 #include <DataTypes/DataTypeDateTime.h>
-#include <DataTypes/DataTypeDateTime64.h>
 #include <DataTypes/DataTypeFactory.h>
-#include <DataTypes/DataTypeMap.h>
-#include <DataTypes/DataTypeNullable.h>
-#include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesDecimal.h>
-#include <DataTypes/DataTypesNumber.h>
 #include <IO/ReadBufferFromFile.h>
+#include <Interpreters/ActionsDAG.h>
+#include <Interpreters/ActionsVisitor.h>
+#include <Interpreters/ExpressionActions.h>
+#include <Parser/SerializedPlanParser.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>
-#include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <QueryPipeline/QueryPipeline.h>
+#include <Storages/Parquet/ArrowUtils.h>
+#include <Storages/Parquet/VectorizedParquetRecordReader.h>
 #include <gtest/gtest.h>
 #include <parquet/arrow/reader.h>
-#include <parquet/column_reader.h>
 #include <parquet/level_conversion.h>
-#include <Common/DebugUtils.h>
+#include <tests/gluten_test_util.h>
 
-namespace DB
-{
-
-namespace ErrorCodes
-{
-extern const int LOGICAL_ERROR;
-}
-}
-
-namespace test
-{
-const char * get_data_dir()
-{
-    const auto result = std::getenv("PARQUET_TEST_DATA");
-    if (!result || !result[0])
-    {
-        throw DB::Exception(
-            DB::ErrorCodes::LOGICAL_ERROR, "Please point the PARQUET_TEST_DATA environment variable to the test data directory");
-    }
-    return result;
-}
-
-std::string data_file(const char * file)
-{
-    std::string dir_string(test::get_data_dir());
-    std::stringstream ss;
-    ss << dir_string << "/" << file;
-    return ss.str();
-}
-
-parquet::internal::LevelInfo ComputeLevelInfo(const parquet::ColumnDescriptor * descr)
-{
-    parquet::internal::LevelInfo level_info;
-    level_info.def_level = descr->max_definition_level();
-    level_info.rep_level = descr->max_repetition_level();
-
-    int16_t min_spaced_def_level = descr->max_definition_level();
-    const ::parquet::schema::Node * node = descr->schema_node().get();
-    while (node != nullptr && !node->is_repeated())
-    {
-        if (node->is_optional())
-            min_spaced_def_level--;
-        node = node->parent();
-    }
-    level_info.repeated_ancestor_def_level = min_spaced_def_level;
-    return level_info;
-}
-}
 using namespace DB;
 
-template <class SchemaReader>
-static void readSchema(const String & path)
+void readSchema(const String & path)
 {
-    FormatSettings settings;
-    auto in = std::make_shared<ReadBufferFromFile>(test::data_file(path.c_str()));
-    SchemaReader schema_reader(*in, settings);
-    auto name_and_types = schema_reader.readSchema();
+    auto name_and_types = local_engine::test::readParquetSchema(local_engine::test::data_file(path.c_str()));
     auto & factory = DataTypeFactory::instance();
 
     auto check_type = [&name_and_types, &factory](const String & column, const String & expect_str_type)
@@ -142,29 +90,19 @@ static void readSchema(const String & path)
 }
 
 
-template <class SchemaReader>
-static ColumnsWithTypeAndName
-createColumn(const String & full_path, const FormatSettings & settings, const std::map<String, Field> & fields)
+BlockRowType createColumn(const String & full_path, const std::map<String, Field> & fields)
 {
-    ReadBufferFromFile in(full_path);
-    SchemaReader schema_reader(in, settings);
-    auto name_and_types = schema_reader.readSchema();
-
-    ColumnsWithTypeAndName columns;
-    columns.reserve(name_and_types.size());
+    const auto name_and_types = local_engine::test::readParquetSchema(full_path);
     auto is_selected = [&fields](const auto & name_and_type) { return fields.contains(name_and_type.name); };
-    auto column_type_name = [](const auto & name_and_type) { return ColumnWithTypeAndName(name_and_type.type, name_and_type.name); };
-    auto view = name_and_types | std::views::filter(is_selected) | std::views::transform(column_type_name);
-    std::ranges::copy(view, std::back_inserter(columns));
-    return columns;
+    return toBlockRowType(name_and_types, is_selected);
 }
 
-template <class SchemaReader, class InputFormat>
-static void readData(const String & path, const std::map<String, Field> & fields)
+template <class InputFormat>
+void readData(const String & path, const std::map<String, Field> & fields)
 {
-    String full_path = test::data_file(path.c_str());
+    String full_path = local_engine::test::data_file(path.c_str());
     FormatSettings settings;
-    ColumnsWithTypeAndName columns = createColumn<SchemaReader>(full_path, settings, fields);
+    ColumnsWithTypeAndName columns = createColumn(full_path, fields);
     Block header(columns);
     ReadBufferFromFile in(full_path);
 
@@ -179,7 +117,7 @@ static void readData(const String & path, const std::map<String, Field> & fields
 
     Block block;
     EXPECT_TRUE(reader.pull(block));
-    EXPECT_TRUE(block.rows() == 1);
+    EXPECT_EQ(block.rows(), 1);
 
     for (const auto & column_header : columns)
     {
@@ -197,8 +135,8 @@ static void readData(const String & path, const std::map<String, Field> & fields
 
 TEST(ParquetRead, ReadSchema)
 {
-    readSchema<ParquetSchemaReader>("alltypes/alltypes_notnull.parquet");
-    readSchema<ParquetSchemaReader>("alltypes/alltypes_null.parquet");
+    readSchema("alltypes/alltypes_notnull.parquet");
+    readSchema("alltypes/alltypes_null.parquet");
 }
 
 TEST(ParquetRead, ReadDataNotNull)
@@ -339,7 +277,21 @@ TEST(ParquetRead, ReadDataNotNull)
         },
     };
 
-    readData<ParquetSchemaReader, ParquetBlockInputFormat>("alltypes/alltypes_notnull.parquet", fields);
+    const std::map<String, Field> primitive_fields{
+        {"f_bool", UInt8(1)},
+        {"f_byte", Int8(1)},
+        {"f_short", Int16(2)},
+        {"f_int", Int32(3)},
+        {"f_long", Int64(4)},
+        {"f_float", Float32(5.5)},
+        {"f_double", Float64(6.6)},
+        {"f_string", "hello world"},
+        {"f_binary", "hello world"},
+        {"f_decimal", DecimalField<Decimal64>(777, 2)},
+        {"f_date", Int32(18262)},
+        {"f_timestamp", DecimalField<DateTime64>(1666162060000000L, 6)}};
+
+    readData<ParquetBlockInputFormat>("alltypes/alltypes_notnull.parquet", fields);
 }
 
 
@@ -356,6 +308,115 @@ TEST(ParquetRead, ReadDataNull)
         {"f_struct_map", Null{}},
     };
 
-    readData<ParquetSchemaReader, ParquetBlockInputFormat>("alltypes/alltypes_null.parquet", fields);
+    readData<ParquetBlockInputFormat>("alltypes/alltypes_null.parquet", fields);
+}
+
+TEST(ParquetRead, ArrowRead)
+{
+    // sample.parquet holds two columns (a: BIGINT, b: DOUBLE) and
+    // 20 rows (10 rows per group). Group offsets are 153 and 614.
+    // Data is in plain uncompressed format:
+    //   a: [1..20]
+    //   b: [1.0..20.0]
+
+    const std::string sample(local_engine::test::data_file("sample.parquet"));
+    ReadBufferFromFile in(sample);
+    const FormatSettings format_settings{};
+    auto arrow_file = local_engine::test::asArrowFileForParquet(in, format_settings);
+
+    // std::shared_ptr<parquet::FileMetaData> metadata = parquet::ReadMetaData(arrow_file);
+    std::unique_ptr<parquet::arrow::FileReader> reader;
+    PARQUET_THROW_NOT_OK(parquet::arrow::OpenFile(arrow_file, arrow::default_memory_pool(), &reader));
+    std::shared_ptr<arrow::Table> table;
+    PARQUET_THROW_NOT_OK(reader->ReadTable(&table));
+
+    EXPECT_EQ(table->num_rows(), 20);
+    EXPECT_EQ(table->num_columns(), 2);
+
+    auto columns = toBlockRowType(local_engine::test::readParquetSchema(sample));
+
+    Block header(columns);
+    ArrowColumnToCHColumn converter(
+        header,
+        "Parquet",
+        format_settings.parquet.allow_missing_columns,
+        format_settings.null_as_default,
+        format_settings.date_time_overflow_behavior,
+        format_settings.parquet.case_insensitive_column_matching);
+
+    Chunk chunk;
+    converter.arrowTableToCHChunk(chunk, table, table->num_rows());
+    Block res = header.cloneWithColumns(chunk.detachColumns());
+    EXPECT_EQ(res.rows(), 20);
+
+    ASSERT_TRUE(res.getByName("a").column != nullptr);
+    const auto & col_a = checkAndGetColumn<ColumnNullable>(res.getByName("a").column.get())->getNestedColumn();
+    for (size_t i = 0; i < res.rows(); i++)
+        EXPECT_EQ(col_a.get64(i), i + 1);
+
+    ASSERT_TRUE(res.getByName("b").column != nullptr);
+    const auto & col_b = checkAndGetColumn<ColumnNullable>(res.getByName("b").column.get())->getNestedColumn();
+    for (size_t i = 0; i < res.rows(); i++)
+        EXPECT_EQ(col_b.getFloat64(i), i + 1);
+}
+
+TEST(ParquetRead, LowLevelRead)
+{
+    const std::string sample(local_engine::test::data_file("sample.parquet"));
+    // Create a ParquetReader instance
+    const std::unique_ptr<parquet::ParquetFileReader> parquet_reader = parquet::ParquetFileReader::OpenFile(sample, false);
+
+    // Get the File MetaData
+    const std::shared_ptr<parquet::FileMetaData> file_metadata = parquet_reader->metadata();
+    // Get the number of RowGroups
+    const int num_row_groups = file_metadata->num_row_groups();
+    EXPECT_EQ(num_row_groups, 2);
+    // Get the number of Columns
+    const int num_columns = file_metadata->num_columns();
+    EXPECT_EQ(num_columns, 2);
+
+    constexpr int col_a = 0;
+    const parquet::SchemaDescriptor & schema = *(file_metadata->schema());
+    const parquet::ColumnDescriptor & column_a_descr = *(schema.Column(col_a));
+    EXPECT_EQ(column_a_descr.name(), "a");
+    const parquet::internal::LevelInfo level_info = local_engine::computeLevelInfo(&column_a_descr);
+    const auto reader = parquet::internal::RecordReader::Make(&column_a_descr, level_info);
+
+    // Iterate over all the RowGroups in the file
+    for (int r = 0; r < num_row_groups; ++r)
+    {
+        // Get the RowGroup Reader
+        std::shared_ptr<parquet::RowGroupReader> row_group_reader = parquet_reader->RowGroup(r);
+        reader->SetPageReader(row_group_reader->GetColumnPageReader(col_a));
+        int64_t records_read = reader->ReadRecords(10);
+        EXPECT_EQ(records_read, 10);
+        const auto read_values = reinterpret_cast<const Int64 *>(reader->values());
+        ASSERT_TRUE(read_values != nullptr);
+    }
+}
+
+TEST(ParquetRead, VectorizedColumnReader)
+{
+    const std::string sample(local_engine::test::data_file("sample.parquet"));
+    Block blockHeader({{DOUBLE(), "b"}, {BIGINT(), "a"}});
+    ReadBufferFromFile in(sample);
+    const FormatSettings format_settings{};
+    auto arrow_file = local_engine::test::asArrowFileForParquet(in, format_settings);
+    local_engine::VectorizedParquetRecordReader recordReader(blockHeader, format_settings);
+    recordReader.initialize(blockHeader, arrow_file, nullptr);
+    auto chunk{recordReader.nextBatch()};
+    ASSERT_EQ(chunk.getNumColumns(), 2);
+    ASSERT_EQ(chunk.getNumRows(), 20);
+
+    // const auto & col_a = checkAndGetColumn<ColumnNullable>(*(chunk.getColumns()[1]))->getNestedColumn();
+
+    /// TODO: nullable
+    const auto & col_a = *(chunk.getColumns()[1]);
+    for (size_t i = 0; i < chunk.getNumRows(); i++)
+        EXPECT_EQ(col_a.get64(i), i + 1);
+
+    const auto & col_b = *(chunk.getColumns()[0]);
+    for (size_t i = 0; i < chunk.getNumRows(); i++)
+        EXPECT_EQ(col_b.getFloat64(i), i + 1);
 }
 #endif

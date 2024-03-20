@@ -21,7 +21,6 @@
 #include <DataTypes/DataTypeFactory.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionsRound.h>
-#include <Functions/SparkFunctionDateToUnixTimestamp.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/FunctionParser.h>
 #include <benchmark/benchmark.h>
@@ -92,7 +91,7 @@ static void BM_SparkUnixTimestamp_For_Date(benchmark::State & state)
          auto result = executable->execute(block.getColumnsWithTypeAndName(), executable->getResultType(), block.rows());
 }
 
-BENCHMARK(BM_CHUnixTimestamp_For_Date32)->Unit(benchmark::kMillisecond)->Iterations(10);
-BENCHMARK(BM_CHUnixTimestamp_For_Date)->Unit(benchmark::kMillisecond)->Iterations(10);
-BENCHMARK(BM_SparkUnixTimestamp_For_Date32)->Unit(benchmark::kMillisecond)->Iterations(10);
-BENCHMARK(BM_SparkUnixTimestamp_For_Date)->Unit(benchmark::kMillisecond)->Iterations(10);
+BENCHMARK(BM_CHUnixTimestamp_For_Date32)->Unit(benchmark::kMillisecond)->Iterations(100);
+BENCHMARK(BM_CHUnixTimestamp_For_Date)->Unit(benchmark::kMillisecond)->Iterations(100);
+BENCHMARK(BM_SparkUnixTimestamp_For_Date32)->Unit(benchmark::kMillisecond)->Iterations(100);
+BENCHMARK(BM_SparkUnixTimestamp_For_Date)->Unit(benchmark::kMillisecond)->Iterations(100);

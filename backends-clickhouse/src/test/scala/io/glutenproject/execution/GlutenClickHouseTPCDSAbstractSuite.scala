@@ -40,7 +40,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
 
   override protected def spark: SparkSession = _spark
 
-  protected val tablesPath: String = UTSystemParameters.getTpcdsDataPath() + "/"
+  protected val tablesPath: String = UTSystemParameters.tpcdsDataPath + "/"
   protected val tpcdsQueries: String
   protected val queriesResults: String
 
@@ -153,7 +153,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
       .set("spark.databricks.delta.stalenessLimit", "3600000")
       .set("spark.gluten.sql.columnar.columnarToRow", "true")
       .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
+      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
