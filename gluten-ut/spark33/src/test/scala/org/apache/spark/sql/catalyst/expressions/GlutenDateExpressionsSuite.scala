@@ -472,4 +472,26 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
       }
     }
   }
+
+  test("test timestamp add") {
+    // Check case-insensitivity
+    checkEvaluation(
+      TimestampAdd("SECOND", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
+      Timestamp.valueOf("2022-02-15 12:57:01"))
+    checkEvaluation(
+      TimestampAdd("MINUTE", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
+      Timestamp.valueOf("2022-02-15 12:58:00"))
+    checkEvaluation(
+      TimestampAdd("HOUR", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
+      Timestamp.valueOf("2022-02-15 13:57:00"))
+    checkEvaluation(
+      TimestampAdd("DAY", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
+      Timestamp.valueOf("2022-02-16 12:57:00"))
+    checkEvaluation(
+      TimestampAdd("MONTH", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
+      Timestamp.valueOf("2022-03-15 12:57:00"))
+    checkEvaluation(
+      TimestampAdd("YEAR", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
+      Timestamp.valueOf("2023-02-15 12:57:00"))
+  }
 }

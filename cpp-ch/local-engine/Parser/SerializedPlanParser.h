@@ -64,6 +64,8 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"to_unix_timestamp", "parseDateTimeInJodaSyntaxOrNull"},
        //    {"unix_timestamp", "toUnixTimestamp"},
        {"date_format", "formatDateTimeInJodaSyntax"},
+       {"timestamp_add", "timestamp_add"},
+
 
        /// arithmetic functions
        {"subtract", "minus"},
