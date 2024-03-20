@@ -21,8 +21,8 @@
 
 namespace gluten {
 
-Spill::Spill(Spill::SpillType type, uint32_t numPartitions, const std::string& spillFile)
-    : type_(type), numPartitions_(numPartitions), spillFile_(spillFile) {}
+Spill::Spill(Spill::SpillType type, uint32_t /* numPartitions */, const std::string& spillFile)
+    : type_(type), spillFile_(spillFile) {}
 
 Spill::~Spill() {
   if (is_) {

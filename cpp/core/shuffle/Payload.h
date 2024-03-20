@@ -180,6 +180,5 @@ class CompressedDiskBlockPayload : public Payload {
  private:
   arrow::io::InputStream*& inputStream_;
   uint64_t rawSize_;
-  arrow::MemoryPool* pool_;
 };
 } // namespace gluten

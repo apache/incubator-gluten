@@ -57,7 +57,6 @@ class Spill final {
   };
 
   SpillType type_;
-  uint32_t numPartitions_;
   std::shared_ptr<arrow::io::MemoryMappedFile> is_;
   std::list<PartitionPayload> partitionPayloads_{};
   std::shared_ptr<arrow::io::MemoryMappedFile> inputStream_{};

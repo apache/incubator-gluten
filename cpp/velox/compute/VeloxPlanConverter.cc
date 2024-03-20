@@ -35,8 +35,7 @@ VeloxPlanConverter::VeloxPlanConverter(
     const std::optional<std::string> writeFilesTempPath,
     bool validationMode)
     : validationMode_(validationMode),
-      substraitVeloxPlanConverter_(veloxPool, confMap, writeFilesTempPath, validationMode),
-      pool_(veloxPool) {
+      substraitVeloxPlanConverter_(veloxPool, confMap, writeFilesTempPath, validationMode) {
   // avoid include RowVectorStream.h in SubstraitToVeloxPlan.cpp, it may cause redefinition of array abi.h.
   auto factory = [inputIters = std::move(inputIters), validationMode = validationMode](
                      std::string nodeId, memory::MemoryPool* pool, int32_t streamIdx, RowTypePtr outputType) {
