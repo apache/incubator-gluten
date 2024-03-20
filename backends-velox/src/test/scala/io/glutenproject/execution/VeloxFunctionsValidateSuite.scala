@@ -512,4 +512,16 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
         }
     }
   }
+
+  test("regexp_replace") {
+    runQueryAndCompare(
+      "SELECT regexp_replace(l_partkey, '\\w', 'something') FROM lineitem limit 100") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare(
+      "SELECT regexp_replace(l_partkey, '\\w', 'something', 3) FROM lineitem limit 100") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
 }
