@@ -240,18 +240,3 @@ case class GetArrayStructFieldsTransformer(
     ExpressionBuilder.makeScalarFunction(functionId, inputNodes, typeNode)
   }
 }
-
-case class UuidTransformer(substraitExprName: String, original: Uuid)
-  extends ExpressionTransformer {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName(substraitExprName, Seq(LongType)))
-    val seed = Literal(original.randomSeed.get)
-    val inputNodes = Lists.newArrayList[ExpressionNode](LiteralTransformer(seed).doTransform(args))
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, inputNodes, typeNode)
-  }
-}

@@ -133,7 +133,10 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
   override def genUuidTransformer(
       substraitExprName: String,
       original: Uuid): ExpressionTransformer = {
-    UuidTransformer(substraitExprName, original)
+    GenericExpressionTransformer(
+      substraitExprName,
+      Seq(LiteralTransformer(Literal(original.randomSeed.get))),
+      original)
   }
 
   /** Transform map_entries to Substrait. */
