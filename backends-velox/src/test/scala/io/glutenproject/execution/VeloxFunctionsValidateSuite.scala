@@ -515,11 +515,11 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
 
   test("regexp_replace") {
     runQueryAndCompare(
-      "SELECT regexp_replace(l_partkey, '\\w', 'something') FROM lineitem limit 100") {
+      "SELECT regexp_replace(c_comment, '\\w', 'something') FROM customer limit 50") {
       checkOperatorMatch[ProjectExecTransformer]
     }
     runQueryAndCompare(
-      "SELECT regexp_replace(l_partkey, '\\w', 'something', 3) FROM lineitem limit 100") {
+      "SELECT regexp_replace(c_comment, '\\w', 'something', 3) FROM customer limit 50") {
       checkOperatorMatch[ProjectExecTransformer]
     }
   }
@@ -540,8 +540,9 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
 
   test("bit_length") {
     runQueryAndCompare(
-      "select bit_length(l_orderkey), bit_length(cast(l_orderkey as binary)) from lineitem") {
-      checkOperatorMatch[WindowExecTransformer]
+      "select bit_length(c_comment), bit_length(cast(c_comment as binary))" +
+        " from customer limit 50") {
+      checkOperatorMatch[ProjectExecTransformer]
     }
   }
 
