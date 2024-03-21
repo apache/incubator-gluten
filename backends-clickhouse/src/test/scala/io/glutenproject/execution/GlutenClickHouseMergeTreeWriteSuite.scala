@@ -1379,5 +1379,68 @@ class GlutenClickHouseMergeTreeWriteSuite
         assert(plans(0).metrics("totalMarksPk").value === 74)
     }
   }
+
+  test(
+    "GLUTEN-5061: Fix assert error when writing mergetree data with select * from table limit n") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_5061;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_5061
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |LOCATION '$basePath/lineitem_mergetree_5061'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_5061
+                 | select * from lineitem limit 10
+                 |""".stripMargin)
+
+    val sqlStr =
+      s"""
+         |SELECT
+         |    count(1)
+         |FROM
+         |    lineitem_mergetree_5061
+         |""".stripMargin
+    runSql(sqlStr)(
+      df => {
+        val result = df.collect()
+        assert(result.size == 1)
+        assert(result(0).getLong(0) == 10)
+
+        val scanExec = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer => f
+        }
+        assert(scanExec.size == 1)
+
+        val mergetreeScan = scanExec(0)
+        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+
+        val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
+        val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
+        assert(addFiles.size == 1)
+        assert(addFiles(0).rows == 10)
+      })
+  }
 }
 // scalastyle:off line.size.limit

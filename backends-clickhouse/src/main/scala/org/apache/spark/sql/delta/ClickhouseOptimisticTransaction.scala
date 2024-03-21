@@ -94,7 +94,7 @@ class ClickhouseOptimisticTransaction(
               aqe.isSubquery,
               supportsColumnar = true
             ))
-        case other => queryPlan.withNewChildren(Array(FakeRowAdaptor(other)))
+        case other => FakeRowAdaptor(other)
       }
 
       val statsTrackers: ListBuffer[WriteJobStatsTracker] = ListBuffer()
