@@ -48,15 +48,15 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
     val fs = FileSystem.get(conf)
     fs.delete(new org.apache.hadoop.fs.Path("/test"), true)
     FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
-    FileUtils.deleteDirectory(new File(HDFS_CACHE_PATH))
+//    FileUtils.deleteDirectory(new File(HDFS_CACHE_PATH))
     FileUtils.forceMkdir(new File(HDFS_METADATA_PATH))
-    FileUtils.forceMkdir(new File(HDFS_CACHE_PATH))
+//    FileUtils.forceMkdir(new File(HDFS_CACHE_PATH))
   }
 
   override protected def afterEach(): Unit = {
     super.afterEach()
     FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
-    FileUtils.deleteDirectory(new File(HDFS_CACHE_PATH))
+//    FileUtils.deleteDirectory(new File(HDFS_CACHE_PATH))
   }
 
   test("test mergetree table write") {

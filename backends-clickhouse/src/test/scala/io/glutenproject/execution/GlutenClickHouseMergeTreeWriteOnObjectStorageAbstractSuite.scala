@@ -133,6 +133,12 @@ class GlutenClickHouseMergeTreeWriteOnObjectStorageAbstractSuite
         "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__hdfs_main.volumes.main.disk",
         "hdfs_cache")
       .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
+      .set(
+        "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.dfs_client_read_shortcircuit",
+        "false")
+      .set(
+        "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.dfs_default_replica",
+        "1")
   }
   override protected def createTPCHNotNullTables(): Unit = {
     createNotNullTPCHTablesInParquet(tablesPath)
