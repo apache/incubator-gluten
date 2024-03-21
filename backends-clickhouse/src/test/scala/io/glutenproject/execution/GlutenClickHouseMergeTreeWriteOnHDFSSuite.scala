@@ -46,7 +46,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
     val conf = new Configuration
     conf.set("fs.defaultFS", HDFS_URL)
     val fs = FileSystem.get(conf)
-    fs.delete(new org.apache.hadoop.fs.Path("/test"), true)
+    fs.delete(new org.apache.hadoop.fs.Path(HDFS_URL), true)
     FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
 //    FileUtils.deleteDirectory(new File(HDFS_CACHE_PATH))
     FileUtils.forceMkdir(new File(HDFS_METADATA_PATH))

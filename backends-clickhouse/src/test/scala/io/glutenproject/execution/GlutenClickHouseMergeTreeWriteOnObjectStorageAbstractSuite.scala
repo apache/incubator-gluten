@@ -19,8 +19,6 @@ package io.glutenproject.execution
 import _root_.org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
 import _root_.org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
-import java.util.UUID
-
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
 
@@ -34,25 +32,25 @@ class GlutenClickHouseMergeTreeWriteOnObjectStorageAbstractSuite
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "mergetree-queries-output"
 
-  val S3_METADATA_PATH = s"/tmp/metadata/s3/${UUID.randomUUID().toString}/"
-  val S3_CACHE_PATH = s"/tmp/s3_cache/${UUID.randomUUID().toString}/"
-  val S3_URL = "s3://127.0.0.1:9000/"
-  val MINIO_ENDPOINT: String = S3_URL.replace("s3", "http")
-  val S3A_URL: String = S3_URL.replace("s3", "s3a")
-  val BUCKET_NAME = "test"
-  val WHOLE_PATH: String = MINIO_ENDPOINT + BUCKET_NAME + "/"
-
-  val HDFS_METADATA_PATH = s"/tmp/metadata/hdfs/${UUID.randomUUID().toString}/"
-  val HDFS_CACHE_PATH = s"/tmp/hdfs_cache/${UUID.randomUUID().toString}/"
-  val HDFS_URL = "hdfs://127.0.0.1:8020"
-
-  val S3_ACCESS_KEY = "BypTYzcXOlfr03FFIvt4"
-  val S3_SECRET_KEY = "K9MDaGItPSaphorZM8t4hXf30gHF9dBWi6L2dK5E"
-
-  protected lazy val sparkVersion: String = {
+  protected val sparkVersion: String = {
     val version = SPARK_VERSION_SHORT.split("\\.")
     version(0) + "." + version(1)
   }
+
+  val S3_METADATA_PATH = s"/tmp/metadata/s3/$sparkVersion/"
+  val S3_CACHE_PATH = s"/tmp/s3_cache/$sparkVersion/"
+  val S3_ENDPOINT = "s3://127.0.0.1:9000/"
+  val MINIO_ENDPOINT: String = S3_ENDPOINT.replace("s3", "http")
+  val BUCKET_NAME: String = sparkVersion
+  val WHOLE_PATH: String = MINIO_ENDPOINT + BUCKET_NAME + "/"
+
+  val HDFS_METADATA_PATH = s"/tmp/metadata/hdfs/$sparkVersion/"
+  val HDFS_CACHE_PATH = s"/tmp/hdfs_cache/$sparkVersion/"
+  val HDFS_URL_ENDPOINT = s"hdfs://127.0.0.1:8020"
+  val HDFS_URL = s"$HDFS_URL_ENDPOINT/$sparkVersion"
+
+  val S3_ACCESS_KEY = "BypTYzcXOlfr03FFIvt4"
+  val S3_SECRET_KEY = "K9MDaGItPSaphorZM8t4hXf30gHF9dBWi6L2dK5E"
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -110,7 +108,7 @@ class GlutenClickHouseMergeTreeWriteOnObjectStorageAbstractSuite
         "hdfs_gluten")
       .set(
         "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.endpoint",
-        HDFS_URL + "/")
+        HDFS_URL_ENDPOINT + "/")
       .set(
         "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.metadata_path",
         HDFS_METADATA_PATH)
