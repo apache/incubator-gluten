@@ -16,19 +16,31 @@
  */
 package io.glutenproject.expression
 
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
+import io.glutenproject.expression.ExpressionNames.{LAG, LEAD}
 import io.glutenproject.substrait.expression.ExpressionBuilder
 
-import org.apache.spark.sql.catalyst.expressions.{Expression, WindowExpression, WindowFunction}
+import org.apache.spark.sql.catalyst.expressions.{EmptyRow, Expression, Lag, Lead, WindowExpression, WindowFunction}
 
 import scala.util.control.Breaks.{break, breakable}
 
 object WindowFunctionsBuilder {
   def create(args: java.lang.Object, windowFunc: WindowFunction): Long = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val substraitFunc = ExpressionMappings.expressionsMap.get(windowFunc.getClass)
+    val substraitFunc = windowFunc match {
+      // Handle lag with negative inputOffset, e.g., converts lag(c1, -1) to lead(c1, 1).
+      // Spark uses `-inputOffset` as `offset` for Lag function.
+      case lag: Lag if lag.offset.eval(EmptyRow).asInstanceOf[Int] > 0 =>
+        Some(LEAD)
+      // Handle lead with negative offset, e.g., converts lead(c1, -1) to lag(c1, 1).
+      case lead: Lead if lead.offset.eval(EmptyRow).asInstanceOf[Int] < 0 =>
+        Some(LAG)
+      case _ =>
+        ExpressionMappings.expressionsMap.get(windowFunc.getClass)
+    }
     if (substraitFunc.isEmpty) {
-      throw new UnsupportedOperationException(
+      throw new GlutenNotSupportException(
         s"not currently supported: ${windowFunc.getClass.getName}.")
     }
 

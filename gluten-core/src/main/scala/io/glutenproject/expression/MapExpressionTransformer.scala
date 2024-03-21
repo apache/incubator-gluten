@@ -17,6 +17,7 @@
 package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
@@ -36,7 +37,7 @@ case class CreateMapTransformer(
     // transformation is only supported when useStringTypeWhenEmpty is false
     // because ClickHouse and Velox currently doesn't support this config.
     if (children.isEmpty && useStringTypeWhenEmpty) {
-      throw new UnsupportedOperationException(s"$original not supported yet.")
+      throw new GlutenNotSupportException(s"$original not supported yet.")
     }
 
     val childNodes = new java.util.ArrayList[ExpressionNode]()
@@ -67,11 +68,11 @@ case class GetMapValueTransformer(
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     if (BackendsApiManager.getSettings.alwaysFailOnMapExpression()) {
-      throw new UnsupportedOperationException(s"$original not supported yet.")
+      throw new GlutenNotSupportException(s"$original not supported yet.")
     }
 
     if (failOnError) {
-      throw new UnsupportedOperationException(s"$original not supported yet.")
+      throw new GlutenNotSupportException(s"$original not supported yet.")
     }
 
     val childNode = child.doTransform(args)

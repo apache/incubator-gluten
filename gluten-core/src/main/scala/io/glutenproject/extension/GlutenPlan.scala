@@ -18,6 +18,7 @@ package io.glutenproject.extension
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.TransformerState
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
@@ -69,7 +70,10 @@ trait GlutenPlan extends SparkPlan with LogLevelUtil {
       }
       res
     } catch {
-      case e: Exception =>
+      case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
+        if (!e.isInstanceOf[GlutenNotSupportException]) {
+          logDebug(s"This exception may need to be fixed: ${e.getMessage}")
+        }
         // FIXME: Use a validation-specific method to catch validation failures
         TestStats.addFallBackClassName(this.getClass.toString)
         logValidationMessage(s"Validation failed with exception for plan: $nodeName, due to:", e)

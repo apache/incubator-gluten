@@ -177,4 +177,7 @@ trait SparkShims {
       keyGroupedPartitioning: Option[Seq[Expression]],
       filteredPartitions: Seq[Seq[InputPartition]],
       outputPartitioning: Partitioning): Seq[InputPartition] = filteredPartitions.flatten
+
+  def extractExpressionTimestampAddUnit(timestampAdd: Expression): Option[Seq[String]] =
+    Option.empty
 }

@@ -395,7 +395,7 @@ ArrayVectorPtr SubstraitVeloxExprConverter::literalsToArrayVector(const ::substr
   VELOX_CHECK_GT(childSize, 0, "there should be at least 1 value in list literal.");
   auto childLiteral = literal.list().values(0);
   auto elementAtFunc = [&](vector_size_t idx) { return literal.list().values(idx); };
-  auto childVector = literalsToVector(childLiteral, childSize, literal, elementAtFunc);
+  auto childVector = literalsToVector(childLiteral, childSize, elementAtFunc);
   return makeArrayVector(childVector);
 }
 
@@ -406,22 +406,22 @@ MapVectorPtr SubstraitVeloxExprConverter::literalsToMapVector(const ::substrait:
   auto& valueLiteral = literal.map().key_values(0).value();
   auto keyAtFunc = [&](vector_size_t idx) { return literal.map().key_values(idx).key(); };
   auto valueAtFunc = [&](vector_size_t idx) { return literal.map().key_values(idx).value(); };
-  auto keyVector = literalsToVector(keyLiteral, childSize, literal, keyAtFunc);
-  auto valueVector = literalsToVector(valueLiteral, childSize, literal, valueAtFunc);
+  auto keyVector = literalsToVector(keyLiteral, childSize, keyAtFunc);
+  auto valueVector = literalsToVector(valueLiteral, childSize, valueAtFunc);
   return makeMapVector(keyVector, valueVector);
 }
 
 VectorPtr SubstraitVeloxExprConverter::literalsToVector(
     const ::substrait::Expression::Literal& childLiteral,
     vector_size_t childSize,
-    const ::substrait::Expression::Literal& literal,
     std::function<::substrait::Expression::Literal(vector_size_t /* idx */)> elementAtFunc) {
   auto childTypeCase = childLiteral.literal_type_case();
   switch (childTypeCase) {
     case ::substrait::Expression_Literal::LiteralTypeCase::kNull: {
-      auto veloxType = SubstraitParser::parseType(literal.null());
+      auto veloxType = SubstraitParser::parseType(childLiteral.null());
       auto kind = veloxType->kind();
-      return VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVector, kind, elementAtFunc, childSize, veloxType, pool_);
+      return VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH_ALL(
+          constructFlatVector, kind, elementAtFunc, childSize, veloxType, pool_);
     }
     case ::substrait::Expression_Literal::LiteralTypeCase::kIntervalDayToSecond:
       return constructFlatVector<TypeKind::BIGINT>(elementAtFunc, childSize, INTERVAL_DAY_TIME(), pool_);

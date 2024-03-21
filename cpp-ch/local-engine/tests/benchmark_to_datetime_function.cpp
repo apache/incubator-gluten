@@ -20,7 +20,6 @@
 #include <DataTypes/IDataType.h>
 #include <DataTypes/DataTypeFactory.h>
 #include <Functions/FunctionFactory.h>
-#include <Functions/SparkFunctionToDateTime.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/FunctionParser.h>
 #include <benchmark/benchmark.h>
@@ -63,5 +62,5 @@ static void BM_SparkParseDateTime64(benchmark::State & state)
          auto result = executable->execute(block.getColumnsWithTypeAndName(), executable->getResultType(), block.rows());
 }
 
-BENCHMARK(BM_CHParseDateTime64)->Unit(benchmark::kMillisecond)->Iterations(10);
-BENCHMARK(BM_SparkParseDateTime64)->Unit(benchmark::kMillisecond)->Iterations(10);
+BENCHMARK(BM_CHParseDateTime64)->Unit(benchmark::kMillisecond)->Iterations(50);
+BENCHMARK(BM_SparkParseDateTime64)->Unit(benchmark::kMillisecond)->Iterations(50);

@@ -16,6 +16,7 @@
  */
 package io.glutenproject.expression
 
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
@@ -52,7 +53,7 @@ case class DecimalRoundTransformer(
         DecimalType(math.min(integralLeastNumDigits + newScale, 38), newScale)
       }
     case _ =>
-      throw new UnsupportedOperationException(
+      throw new GlutenNotSupportException(
         s"Decimal type is expected but received ${original.child.dataType.typeName}.")
   }
 

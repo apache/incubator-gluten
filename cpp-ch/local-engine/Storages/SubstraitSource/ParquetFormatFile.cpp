@@ -29,6 +29,7 @@
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
+#include <Storages/Parquet/VectorizedParquetRecordReader.h>
 #include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/metadata.h>
@@ -46,9 +47,9 @@ extern const int UNKNOWN_TYPE;
 namespace local_engine
 {
 ParquetFormatFile::ParquetFormatFile(
-    DB::ContextPtr context_,
+    const DB::ContextPtr & context_,
     const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_,
-    ReadBufferBuilderPtr read_buffer_builder_,
+    const ReadBufferBuilderPtr & read_buffer_builder_,
     bool use_local_format_)
     : FormatFile(context_, file_info_, read_buffer_builder_), use_local_format(use_local_format_)
 {
@@ -59,7 +60,7 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
     auto res = std::make_shared<FormatFile::InputFormat>();
     res->read_buffer = read_buffer_builder->build(file_info);
 
-    std::vector<RowGroupInfomation> required_row_groups;
+    std::vector<RowGroupInformation> required_row_groups;
     int total_row_groups = 0;
     if (auto * seekable_in = dynamic_cast<DB::SeekableReadBuffer *>(res->read_buffer.get()))
     {
@@ -73,35 +74,21 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
 
     auto format_settings = DB::getFormatSettings(context);
 
+    std::vector<int> total_row_group_indices(total_row_groups);
+    std::iota(total_row_group_indices.begin(), total_row_group_indices.end(), 0);
+
+    std::vector<int> required_row_group_indices(required_row_groups.size());
+    for (size_t i = 0; i < required_row_groups.size(); ++i)
+        required_row_group_indices[i] = required_row_groups[i].index;
+
+    std::vector<int> skip_row_group_indices;
+    std::ranges::set_difference(total_row_group_indices, required_row_group_indices, std::back_inserter(skip_row_group_indices));
+
+    format_settings.parquet.skip_row_groups = std::unordered_set<int>(skip_row_group_indices.begin(), skip_row_group_indices.end());
     if (use_local_format)
-    {
-        std::vector<int> row_group_indices;
-        row_group_indices.reserve(required_row_groups.size());
-        for (const auto & row_group : required_row_groups)
-            row_group_indices.emplace_back(row_group.index);
-        //TODO: use_local_format
-        assert(false);
-    }
+        res->input = std::make_shared<VectorizedParquetBlockInputFormat>(*(res->read_buffer), header, format_settings);
     else
-    {
-        std::vector<int> total_row_group_indices(total_row_groups);
-        std::iota(total_row_group_indices.begin(), total_row_group_indices.end(), 0);
-
-        std::vector<int> required_row_group_indices(required_row_groups.size());
-        for (size_t i = 0; i < required_row_groups.size(); ++i)
-            required_row_group_indices[i] = required_row_groups[i].index;
-
-        std::vector<int> skip_row_group_indices;
-        std::set_difference(
-            total_row_group_indices.begin(),
-            total_row_group_indices.end(),
-            required_row_group_indices.begin(),
-            required_row_group_indices.end(),
-            std::back_inserter(skip_row_group_indices));
-
-        format_settings.parquet.skip_row_groups = std::unordered_set<int>(skip_row_group_indices.begin(), skip_row_group_indices.end());
         res->input = std::make_shared<DB::ParquetBlockInputFormat>(*(res->read_buffer), header, format_settings, 1, 8192);
-    }
     return res;
 }
 
@@ -126,15 +113,15 @@ std::optional<size_t> ParquetFormatFile::getTotalRows()
     }
 }
 
-std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(int & total_row_groups)
+std::vector<RowGroupInformation> ParquetFormatFile::collectRequiredRowGroups(int & total_row_groups) const
 {
     auto in = read_buffer_builder->build(file_info);
     return collectRequiredRowGroups(in.get(), total_row_groups);
 }
 
-std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::ReadBuffer * read_buffer, int & total_row_groups)
+std::vector<RowGroupInformation> ParquetFormatFile::collectRequiredRowGroups(DB::ReadBuffer * read_buffer, int & total_row_groups) const
 {
-    DB::FormatSettings format_settings{
+    const DB::FormatSettings format_settings{
         .seekable_read = true,
     };
     std::atomic<int> is_stopped{0};
@@ -144,13 +131,13 @@ std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::
     if (!status.ok())
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Open file({}) failed. {}", file_info.uri_file(), status.ToString());
 
-    auto file_meta = reader->parquet_reader()->metadata();
+    const auto file_meta = reader->parquet_reader()->metadata();
     total_row_groups = file_meta->num_row_groups();
 
-    std::vector<RowGroupInfomation> row_group_metadatas;
+    std::vector<RowGroupInformation> row_group_metadatas;
     row_group_metadatas.reserve(total_row_groups);
 
-    auto get_column_start_offset = [&](parquet::ColumnChunkMetaData & metadata_)
+    auto get_column_start_offset = [&](const parquet::ColumnChunkMetaData & metadata_)
     {
         Int64 offset = metadata_.data_page_offset();
         if (metadata_.has_dictionary_page() && offset > metadata_.dictionary_page_offset())
@@ -160,7 +147,7 @@ std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::
 
     for (int i = 0; i < total_row_groups; ++i)
     {
-        auto row_group_meta = file_meta->RowGroup(i);
+        const auto row_group_meta = file_meta->RowGroup(i);
         Int64 start_offset = 0;
         Int64 total_bytes = 0;
         start_offset = get_column_start_offset(*row_group_meta->ColumnChunk(0));
@@ -169,11 +156,11 @@ std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::
             for (int j = 0; j < row_group_meta->num_columns(); ++j)
                 total_bytes += row_group_meta->ColumnChunk(j)->total_compressed_size();
 
-        UInt64 midpoint_offset = static_cast<UInt64>(start_offset + total_bytes / 2);
+        const UInt64 midpoint_offset = static_cast<UInt64>(start_offset + total_bytes / 2);
         /// Current row group has intersection with the required range.
         if (file_info.start() <= midpoint_offset && midpoint_offset < file_info.start() + file_info.length())
         {
-            RowGroupInfomation info;
+            RowGroupInformation info;
             info.index = i;
             info.num_rows = row_group_meta->num_rows();
             info.start = row_group_meta->file_offset();

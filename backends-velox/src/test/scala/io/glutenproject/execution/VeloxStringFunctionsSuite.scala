@@ -466,12 +466,9 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
     runQueryAndCompare(
       s"select l_orderkey, regexp_replace(l_comment, '([a-z])', '1', 1) " +
         s"from $LINEITEM_TABLE limit 5")(checkOperatorMatch[ProjectExecTransformer])
-    // todo incorrect results
     runQueryAndCompare(
       s"select l_orderkey, regexp_replace(l_comment, '([a-z])', '1', 10) " +
-        s"from $LINEITEM_TABLE limit 5",
-      true,
-      false)(_ => {})
+        s"from $LINEITEM_TABLE limit 5")(checkOperatorMatch[ProjectExecTransformer])
   }
 
   test("regex invalid") {

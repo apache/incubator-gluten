@@ -30,7 +30,7 @@
 
 namespace local_engine
 {
-struct RowGroupInfomation
+struct RowGroupInformation
 {
     UInt32 index = 0;
     UInt64 start = 0;
@@ -42,10 +42,10 @@ class ParquetFormatFile : public FormatFile
 {
 public:
     explicit ParquetFormatFile(
-        DB::ContextPtr context_,
+        const DB::ContextPtr & context_,
         const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_,
-        ReadBufferBuilderPtr read_buffer_builder_,
-        bool useLocalFormat);
+        const ReadBufferBuilderPtr & read_buffer_builder_,
+        bool use_local_format_);
     ~ParquetFormatFile() override = default;
 
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
@@ -60,8 +60,8 @@ private:
     std::mutex mutex;
     std::optional<size_t> total_rows;
 
-    std::vector<RowGroupInfomation> collectRequiredRowGroups(int & total_row_groups);
-    std::vector<RowGroupInfomation> collectRequiredRowGroups(DB::ReadBuffer * read_buffer, int & total_row_groups);
+    std::vector<RowGroupInformation> collectRequiredRowGroups(int & total_row_groups) const;
+    std::vector<RowGroupInformation> collectRequiredRowGroups(DB::ReadBuffer * read_buffer, int & total_row_groups) const;
 };
 
 }

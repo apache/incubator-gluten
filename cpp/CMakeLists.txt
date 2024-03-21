@@ -103,7 +103,7 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   add_compile_options(-Wno-nullability-completeness)
   add_compile_options(-Wno-mismatched-tags)
 else()
-  message("Unsupported compiler ID: ${CMAKE_CXX_COMPILER_ID}")
+  message(FATAL_ERROR "Unsupported compiler ID: ${CMAKE_CXX_COMPILER_ID}")
 endif()
 
 # see https://issues.apache.org/jira/browse/ARROW-4665

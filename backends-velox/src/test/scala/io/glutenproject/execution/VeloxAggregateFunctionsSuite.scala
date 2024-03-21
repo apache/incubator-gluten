@@ -99,6 +99,19 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
               }) == 4)
         }
     }
+    // Test the situation that precision + 4 of input decimal value exceeds 38.
+    runQueryAndCompare(
+      "select avg(cast (l_quantity as DECIMAL(36, 2))), " +
+        "count(distinct l_partkey) from lineitem") {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 4)
+        }
+    }
   }
 
   test("sum") {
@@ -132,6 +145,20 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     }
     runQueryAndCompare(
       "select sum(cast (l_quantity as DECIMAL(22, 2))), " +
+        "count(distinct l_partkey) from lineitem") {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 4)
+        }
+    }
+
+    // Test the situation that precision + 4 of input decimal value exceeds 38.
+    runQueryAndCompare(
+      "select sum(cast (l_quantity as DECIMAL(36, 2))), " +
         "count(distinct l_partkey) from lineitem") {
       df =>
         {

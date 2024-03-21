@@ -125,7 +125,9 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "pruningTime" ->
         SQLMetrics.createTimingMetric(sparkContext, "dynamic partition pruning time"),
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time")
+      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
+      "selectedMarksPk" -> SQLMetrics.createMetric(sparkContext, "selected marks primary"),
+      "totalMarksPk" -> SQLMetrics.createMetric(sparkContext, "total marks primary")
     )
 
   override def genFileSourceScanTransformerMetricsUpdater(

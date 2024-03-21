@@ -43,7 +43,7 @@ object CHStorageJoinBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
 
   override def getSparkSession: SparkSession = {
 
-    val conf = getSparkcConf
+    val conf = getSparkConf
       .set("spark.driver.maxResultSize", "0")
     SparkSession.builder.config(conf).getOrCreate()
   }

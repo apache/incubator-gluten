@@ -17,6 +17,7 @@
 package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.ExpressionBuilder
 
@@ -44,7 +45,7 @@ object AggregateFunctionsBuilder {
             substraitAggFuncName.get,
             aggregateFunc)
         ) {
-          throw new UnsupportedOperationException(
+          throw new GlutenNotSupportException(
             s"Aggregate function not supported for $aggregateFunc.")
         }
 

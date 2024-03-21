@@ -19,11 +19,11 @@ package io.glutenproject.sql.shims.spark33
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
 import io.glutenproject.expression.{ExpressionNames, Sig}
+import io.glutenproject.expression.ExpressionNames.TIMESTAMP_ADD
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
-import org.apache.spark.{ShuffleDependency, ShuffleUtils, SparkContext, SparkEnv, SparkException, TaskContext, TaskContextUtils}
+import org.apache.spark._
 import org.apache.spark.scheduler.TaskInfo
-import org.apache.spark.serializer.SerializerManager
 import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
@@ -37,7 +37,7 @@ import org.apache.spark.sql.catalyst.util.TimestampFormatter
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
-import org.apache.spark.sql.execution.datasources.{BucketingUtils, FileFormat, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.FileFormatWriter.Empty2Null
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
@@ -71,7 +71,9 @@ class Spark33Shims extends SparkShims {
       Sig[SplitPart](ExpressionNames.SPLIT_PART),
       Sig[Sec](ExpressionNames.SEC),
       Sig[Csc](ExpressionNames.CSC),
-      Sig[Empty2Null](ExpressionNames.EMPTY2NULL))
+      Sig[Empty2Null](ExpressionNames.EMPTY2NULL),
+      Sig[TimestampAdd](TIMESTAMP_ADD)
+    )
   }
 
   override def convertPartitionTransforms(
@@ -262,4 +264,12 @@ class Spark33Shims extends SparkShims {
   }
   override def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] =
     null
+
+  override def extractExpressionTimestampAddUnit(exp: Expression): Option[Seq[String]] = {
+    exp match {
+      case timestampAdd: TimestampAdd =>
+        Option.apply(Seq(timestampAdd.unit, timestampAdd.timeZoneId.getOrElse("")))
+      case _ => Option.empty
+    }
+  }
 }

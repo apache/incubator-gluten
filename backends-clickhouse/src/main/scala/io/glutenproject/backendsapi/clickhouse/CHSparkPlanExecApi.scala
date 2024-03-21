@@ -18,6 +18,7 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.{BackendsApiManager, SparkPlanExecApi}
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
@@ -321,7 +322,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       left: SparkPlan,
       right: SparkPlan,
       condition: Option[Expression]): CartesianProductExecTransformer =
-    throw new UnsupportedOperationException(
+    throw new GlutenNotSupportException(
       "CartesianProductExecTransformer is not supported in ch backend.")
 
   override def genBroadcastNestedLoopJoinExecTransformer(
@@ -330,7 +331,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       buildSide: BuildSide,
       joinType: JoinType,
       condition: Option[Expression]): BroadcastNestedLoopJoinExecTransformer =
-    throw new UnsupportedOperationException(
+    throw new GlutenNotSupportException(
       "BroadcastNestedLoopJoinExecTransformer is not supported in ch backend.")
 
   /** Generate an expression transformer to transform GetMapValue to Substrait. */
@@ -457,7 +458,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
           case union: ColumnarUnionExec =>
             wrapChild(union)
           case other =>
-            throw new UnsupportedOperationException(
+            throw new GlutenNotSupportException(
               s"Not supported operator ${other.nodeName} for BroadcastRelation")
         }
         (newChild, (child.output ++ appendedProjections).map(_.toAttribute), preProjectionBuildKeys)
@@ -580,6 +581,13 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHPosExplodeTransformer(substraitExprName, child, original, attributeSeq)
   }
 
+  override def genRegexpReplaceTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: RegExpReplace): ExpressionTransformer = {
+    CHRegExpReplaceTransformer(substraitExprName, children, expr)
+  }
+
   override def createColumnarWriteFilesExec(
       child: SparkPlan,
       fileFormat: FileFormat,
@@ -587,7 +595,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       bucketSpec: Option[BucketSpec],
       options: Map[String, String],
       staticPartitions: TablePartitionSpec): WriteFilesExec = {
-    throw new UnsupportedOperationException("ColumnarWriteFilesExec is not support in ch backend.")
+    throw new GlutenNotSupportException("ColumnarWriteFilesExec is not support in ch backend.")
   }
 
   /**
@@ -633,7 +641,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
             val aggregateFunc = aggExpression.aggregateFunction
             val substraitAggFuncName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
             if (substraitAggFuncName.isEmpty) {
-              throw new UnsupportedOperationException(s"Not currently supported: $aggregateFunc.")
+              throw new GlutenNotSupportException(s"Not currently supported: $aggregateFunc.")
             }
 
             val childrenNodeList = new JArrayList[ExpressionNode]()
@@ -704,7 +712,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
             )
             windowExpressionNodes.add(windowFunctionNode)
           case _ =>
-            throw new UnsupportedOperationException(
+            throw new GlutenNotSupportException(
               "unsupported window function type: " +
                 wExpression.windowFunction)
         }

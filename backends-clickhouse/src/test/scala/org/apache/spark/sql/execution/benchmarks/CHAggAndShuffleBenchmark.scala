@@ -65,7 +65,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchma
 
   override def getSparkSession: SparkSession = {
     beforeAll()
-    val conf = getSparkcConf
+    val conf = getSparkConf
       .set("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")
       .setIfMissing("spark.sql.shuffle.partitions", shufflePartition)
       .setIfMissing("spark.shuffle.manager", "sort")

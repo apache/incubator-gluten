@@ -45,7 +45,7 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
 
   override protected def sparkConf: SparkConf =
     super.sparkConf
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
+      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set(
         "spark.gluten.sql.columnar.backend.ch.use.v2",
         ClickHouseConfig.DEFAULT_USE_DATASOURCE_V2)

@@ -17,6 +17,7 @@
 package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression._
 
@@ -55,13 +56,12 @@ case class CHTruncTimestampTransformer(
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // The format must be constant string in the function date_trunc of ch.
     if (!original.format.foldable) {
-      throw new UnsupportedOperationException(
-        s"The format ${original.format} must be constant string.")
+      throw new GlutenNotSupportException(s"The format ${original.format} must be constant string.")
     }
 
     val formatStr = original.format.eval().asInstanceOf[UTF8String]
     if (formatStr == null) {
-      throw new UnsupportedOperationException("The format is null.")
+      throw new GlutenNotSupportException("The format is null.")
     }
 
     val (newFormatStr, timeZoneIgnore) = formatStr.toString.toLowerCase(Locale.ROOT) match {
@@ -76,7 +76,7 @@ case class CHTruncTimestampTransformer(
       // Can not support now.
       // case "microsecond" => "microsecond"
       // case "millisecond" => "millisecond"
-      case _ => throw new UnsupportedOperationException(s"The format $formatStr is invalidate.")
+      case _ => throw new GlutenNotSupportException(s"The format $formatStr is invalidate.")
     }
 
     // Currently, data_trunc function can not support to set the specified timezone,
@@ -88,7 +88,7 @@ case class CHTruncTimestampTransformer(
           s"${CHBackendSettings.getBackendConfigPrefix}.runtime_config.timezone")
       )
     ) {
-      throw new UnsupportedOperationException(
+      throw new GlutenNotSupportException(
         s"It doesn't support trunc the format $newFormatStr with the specified timezone " +
           s"${timeZoneId.get}.")
     }
@@ -136,13 +136,13 @@ case class CHStringTranslateTransformer(
       !matchingNode.isInstanceOf[StringLiteralNode] ||
       !replaceNode.isInstanceOf[StringLiteralNode]
     ) {
-      throw new UnsupportedOperationException(s"$original not supported yet.")
+      throw new GlutenNotSupportException(s"$original not supported yet.")
     }
 
     val matchingLiteral = matchingNode.asInstanceOf[StringLiteralNode].getValue
     val replaceLiteral = replaceNode.asInstanceOf[StringLiteralNode].getValue
     if (matchingLiteral.length() != replaceLiteral.length()) {
-      throw new UnsupportedOperationException(s"$original not supported yet.")
+      throw new GlutenNotSupportException(s"$original not supported yet.")
     }
 
     GenericExpressionTransformer(
@@ -193,7 +193,32 @@ case class CHPosExplodeTransformer(
           Lists.newArrayList(childNode),
           ConverterUtils.getTypeNode(structType, false))
       case _ =>
-        throw new UnsupportedOperationException(s"posexplode($childType) not supported yet.")
+        throw new GlutenNotSupportException(s"posexplode($childType) not supported yet.")
     }
+  }
+}
+
+case class CHRegExpReplaceTransformer(
+    substraitExprName: String,
+    children: Seq[ExpressionTransformer],
+    original: RegExpReplace)
+  extends ExpressionTransformer {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    // In CH: replaceRegexpAll(subject, regexp, rep), which is equivalent
+    // In Spark: regexp_replace(subject, regexp, rep, pos=1)
+    val posNode = children(3).doTransform(args)
+    if (
+      !posNode.isInstanceOf[IntLiteralNode] ||
+      posNode.asInstanceOf[IntLiteralNode].getValue != 1
+    ) {
+      throw new UnsupportedOperationException(s"$original not supported yet.")
+    }
+
+    GenericExpressionTransformer(
+      substraitExprName,
+      Seq(children(0), children(1), children(2)),
+      original)
+      .doTransform(args)
   }
 }

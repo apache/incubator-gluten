@@ -44,7 +44,6 @@
 #include <DataTypes/Serializations/ISerialization.h>
 #include <DataTypes/getLeastSupertype.h>
 #include <Functions/FunctionFactory.h>
-#include <Functions/FunctionsConversion.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/ActionsVisitor.h>
 #include <Interpreters/CollectJoinOnKeysVisitor.h>
@@ -929,106 +928,106 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
             ch_func_name = "fromUnixTimestampInJodaSyntax";
     }
 
-    const ActionsDAG::Node * result_node;
     if (ch_func_name == "alias")
     {
         result_name = args[0]->result_name;
         actions_dag->addOrReplaceInOutputs(*args[0]);
-        result_node = &actions_dag->addAlias(actions_dag->findInOutputs(result_name), result_name);
+        return &actions_dag->addAlias(actions_dag->findInOutputs(result_name), result_name);
     }
-    else
+
+    const ActionsDAG::Node * result_node;
+
+    if (ch_func_name == "splitByRegexp")
     {
-        if (ch_func_name == "splitByRegexp")
+        if (args.size() >= 2)
         {
-            if (args.size() >= 2)
-            {
-                /// In Spark: split(str, regex [, limit] )
-                /// In CH: splitByRegexp(regexp, str [, limit])
-                std::swap(args[0], args[1]);
-            }
+            /// In Spark: split(str, regex [, limit] )
+            /// In CH: splitByRegexp(regexp, str [, limit])
+            std::swap(args[0], args[1]);
         }
-
-        if (function_signature.find("check_overflow:", 0) != function_signature.npos)
-        {
-            if (scalar_function.arguments().size() < 2)
-                throw Exception(ErrorCodes::BAD_ARGUMENTS, "check_overflow function requires at least two args.");
-
-            ActionsDAG::NodeRawConstPtrs new_args;
-            new_args.reserve(3);
-            new_args.emplace_back(args[0]);
-
-            UInt32 precision = rel.scalar_function().output_type().decimal().precision();
-            UInt32 scale = rel.scalar_function().output_type().decimal().scale();
-            auto uint32_type = std::make_shared<DataTypeUInt32>();
-            new_args.emplace_back(
-                &actions_dag->addColumn(
-                    ColumnWithTypeAndName(uint32_type->createColumnConst(1, precision), uint32_type, getUniqueName(toString(precision)))));
-            new_args.emplace_back(
-                &actions_dag->addColumn(
-                    ColumnWithTypeAndName(uint32_type->createColumnConst(1, scale), uint32_type, getUniqueName(toString(scale)))));
-            args = std::move(new_args);
-        }
-        else if (startsWith(function_signature, "make_decimal:"))
-        {
-            if (scalar_function.arguments().size() < 2)
-                throw Exception(ErrorCodes::BAD_ARGUMENTS, "make_decimal function requires at least 2 args.");
-
-            ActionsDAG::NodeRawConstPtrs new_args;
-            new_args.reserve(3);
-            new_args.emplace_back(args[0]);
-
-            UInt32 precision = rel.scalar_function().output_type().decimal().precision();
-            UInt32 scale = rel.scalar_function().output_type().decimal().scale();
-            auto uint32_type = std::make_shared<DataTypeUInt32>();
-            new_args.emplace_back(
-                &actions_dag->addColumn(
-                    ColumnWithTypeAndName(uint32_type->createColumnConst(1, precision), uint32_type, getUniqueName(toString(precision)))));
-            new_args.emplace_back(
-                &actions_dag->addColumn(
-                    ColumnWithTypeAndName(uint32_type->createColumnConst(1, scale), uint32_type, getUniqueName(toString(scale)))));
-            args = std::move(new_args);
-        }
-
-        bool converted_decimal_args = convertBinaryArithmeticFunDecimalArgs(actions_dag, args, scalar_function);
-        auto function_builder = FunctionFactory::instance().get(ch_func_name, context);
-        std::string args_name = join(args, ',');
-        result_name = ch_func_name + "(" + args_name + ")";
-        const auto * function_node = &actions_dag->addFunction(function_builder, args, result_name);
-        result_node = function_node;
-        if (!TypeParser::isTypeMatched(rel.scalar_function().output_type(), function_node->result_type) && !converted_decimal_args)
-        {
-            auto result_type = TypeParser::parseType(rel.scalar_function().output_type());
-            if (isDecimalOrNullableDecimal(result_type))
-            {
-                result_node = ActionsDAGUtil::convertNodeType(
-                    actions_dag,
-                    function_node,
-                    // as stated in isTypeMatched， currently we don't change nullability of the result type
-                    function_node->result_type->isNullable()
-                    ? local_engine::wrapNullableType(true, result_type)->getName()
-                    : local_engine::removeNullable(result_type)->getName(),
-                    function_node->result_name,
-                    DB::CastType::accurateOrNull);
-            }
-            else
-            {
-                result_node = ActionsDAGUtil::convertNodeType(
-                    actions_dag,
-                    function_node,
-                    // as stated in isTypeMatched， currently we don't change nullability of the result type
-                    function_node->result_type->isNullable()
-                    ? local_engine::wrapNullableType(true, result_type)->getName()
-                    : local_engine::removeNullable(result_type)->getName(),
-                    function_node->result_name);
-            }
-        }
-
-        if (ch_func_name == "JSON_VALUE")
-            result_node->function->setResolver(function_builder);
-
-        if (keep_result)
-            actions_dag->addOrReplaceInOutputs(*result_node);
     }
+
+    if (function_signature.find("check_overflow:", 0) != function_signature.npos)
+    {
+        if (scalar_function.arguments().size() < 2)
+            throw Exception(ErrorCodes::BAD_ARGUMENTS, "check_overflow function requires at least two args.");
+
+        ActionsDAG::NodeRawConstPtrs new_args;
+        new_args.reserve(3);
+        new_args.emplace_back(args[0]);
+
+        UInt32 precision = rel.scalar_function().output_type().decimal().precision();
+        UInt32 scale = rel.scalar_function().output_type().decimal().scale();
+        auto uint32_type = std::make_shared<DataTypeUInt32>();
+        new_args.emplace_back(
+            &actions_dag->addColumn(
+                ColumnWithTypeAndName(uint32_type->createColumnConst(1, precision), uint32_type, getUniqueName(toString(precision)))));
+        new_args.emplace_back(
+            &actions_dag->addColumn(
+                ColumnWithTypeAndName(uint32_type->createColumnConst(1, scale), uint32_type, getUniqueName(toString(scale)))));
+        args = std::move(new_args);
+    }
+    else if (startsWith(function_signature, "make_decimal:"))
+    {
+        if (scalar_function.arguments().size() < 2)
+            throw Exception(ErrorCodes::BAD_ARGUMENTS, "make_decimal function requires at least 2 args.");
+
+        ActionsDAG::NodeRawConstPtrs new_args;
+        new_args.reserve(3);
+        new_args.emplace_back(args[0]);
+
+        UInt32 precision = rel.scalar_function().output_type().decimal().precision();
+        UInt32 scale = rel.scalar_function().output_type().decimal().scale();
+        auto uint32_type = std::make_shared<DataTypeUInt32>();
+        new_args.emplace_back(
+            &actions_dag->addColumn(
+                ColumnWithTypeAndName(uint32_type->createColumnConst(1, precision), uint32_type, getUniqueName(toString(precision)))));
+        new_args.emplace_back(
+            &actions_dag->addColumn(
+                ColumnWithTypeAndName(uint32_type->createColumnConst(1, scale), uint32_type, getUniqueName(toString(scale)))));
+        args = std::move(new_args);
+    }
+
+    bool converted_decimal_args = convertBinaryArithmeticFunDecimalArgs(actions_dag, args, scalar_function);
+    auto function_builder = FunctionFactory::instance().get(ch_func_name, context);
+    std::string args_name = join(args, ',');
+    result_name = ch_func_name + "(" + args_name + ")";
+    const auto * function_node = &actions_dag->addFunction(function_builder, args, result_name);
+    result_node = function_node;
+    if (!TypeParser::isTypeMatched(rel.scalar_function().output_type(), function_node->result_type) && !converted_decimal_args)
+    {
+        auto result_type = TypeParser::parseType(rel.scalar_function().output_type());
+        if (isDecimalOrNullableDecimal(result_type))
+        {
+            result_node = ActionsDAGUtil::convertNodeType(
+                actions_dag,
+                function_node,
+                // as stated in isTypeMatched， currently we don't change nullability of the result type
+                function_node->result_type->isNullable()
+                ? local_engine::wrapNullableType(true, result_type)->getName()
+                : local_engine::removeNullable(result_type)->getName(),
+                function_node->result_name,
+                DB::CastType::accurateOrNull);
+        }
+        else
+        {
+            result_node = ActionsDAGUtil::convertNodeType(
+                actions_dag,
+                function_node,
+                // as stated in isTypeMatched， currently we don't change nullability of the result type
+                function_node->result_type->isNullable()
+                ? local_engine::wrapNullableType(true, result_type)->getName()
+                : local_engine::removeNullable(result_type)->getName(),
+                function_node->result_name);
+        }
+    }
+
+    if (ch_func_name == "JSON_VALUE")
+        result_node->function->setResolver(function_builder);
+
+    if (keep_result)
+        actions_dag->addOrReplaceInOutputs(*result_node);
+
     return result_node;
 }
 
@@ -1769,13 +1768,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             elem_block.insert(ColumnWithTypeAndName(nullptr, elem_type, name));
             elem_block.setColumns(std::move(elem_columns));
 
-            SizeLimits limit;
-            auto elem_set = std::make_shared<Set>(limit, true, false);
-            elem_set->setHeader(elem_block.getColumnsWithTypeAndName());
-            elem_set->insertFromBlock(elem_block.getColumnsWithTypeAndName());
-            elem_set->finishInsert();
-
-            auto future_set = std::make_shared<FutureSetFromStorage>(std::move(elem_set));
+            auto future_set = std::make_shared<FutureSetFromTuple>(elem_block, context->getSettingsRef());
             auto arg = ColumnSet::create(1, std::move(future_set));
             args.emplace_back(&actions_dag->addColumn(ColumnWithTypeAndName(std::move(arg), std::make_shared<DataTypeSet>(), name)));
 

@@ -18,6 +18,7 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.{GlutenConfig, GlutenPlugin, VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME}
 import io.glutenproject.backendsapi._
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.execution.WriteFilesExecTransformer
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.extension.ValidationResult
@@ -271,7 +272,7 @@ object BackendSettings extends BackendSettingsApi {
         func => {
           val windowExpression = func match {
             case alias: Alias => WindowFunctionsBuilder.extractWindowExpression(alias.child)
-            case _ => throw new UnsupportedOperationException(s"$func is not supported.")
+            case _ => throw new GlutenNotSupportException(s"$func is not supported.")
           }
 
           // Block the offloading by checking Velox's current limitations
@@ -285,7 +286,7 @@ object BackendSettings extends BackendSettingsApi {
                     order =>
                       order.direction match {
                         case Descending =>
-                          throw new UnsupportedOperationException(
+                          throw new GlutenNotSupportException(
                             "DESC order is not supported when" +
                               " literal bound type is used!")
                         case _ =>
@@ -295,17 +296,15 @@ object BackendSettings extends BackendSettingsApi {
                       order.dataType match {
                         case ByteType | ShortType | IntegerType | LongType | DateType =>
                         case _ =>
-                          throw new UnsupportedOperationException(
+                          throw new GlutenNotSupportException(
                             "Only integral type & date type are" +
                               " supported for sort key when literal bound type is used!")
                       })
                   val rawValue = e.eval().toString.toLong
                   if (isUpperBound && rawValue < 0) {
-                    throw new UnsupportedOperationException(
-                      "Negative upper bound is not supported!")
+                    throw new GlutenNotSupportException("Negative upper bound is not supported!")
                   } else if (!isUpperBound && rawValue > 0) {
-                    throw new UnsupportedOperationException(
-                      "Positive lower bound is not supported!")
+                    throw new GlutenNotSupportException("Positive lower bound is not supported!")
                   }
                 case _ =>
               }

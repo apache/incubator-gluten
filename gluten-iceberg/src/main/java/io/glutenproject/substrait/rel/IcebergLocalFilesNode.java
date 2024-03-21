@@ -22,12 +22,11 @@ import io.substrait.proto.ReadRel;
 import org.apache.iceberg.DeleteFile;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 public class IcebergLocalFilesNode extends LocalFilesNode {
-  private final Map<String, List<DeleteFile>> deleteFilesMap;
+  private final List<List<DeleteFile>> deleteFilesList;
 
   IcebergLocalFilesNode(
       Integer index,
@@ -37,7 +36,7 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
       List<Map<String, String>> partitionColumns,
       ReadFileFormat fileFormat,
       List<String> preferredLocations,
-      Map<String, List<DeleteFile>> deleteFilesMap) {
+      List<List<DeleteFile>> deleteFilesList) {
     super(
         index,
         paths,
@@ -47,13 +46,12 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
         new ArrayList<>(),
         fileFormat,
         preferredLocations);
-    this.deleteFilesMap = deleteFilesMap;
+    this.deleteFilesList = deleteFilesList;
   }
 
   @Override
-  protected void processFileBuilder(ReadRel.LocalFiles.FileOrFiles.Builder fileBuilder) {
-    List<DeleteFile> deleteFiles =
-        deleteFilesMap.getOrDefault(fileBuilder.getUriFile(), Collections.emptyList());
+  protected void processFileBuilder(ReadRel.LocalFiles.FileOrFiles.Builder fileBuilder, int index) {
+    List<DeleteFile> deleteFiles = deleteFilesList.get(index);
     ReadRel.LocalFiles.FileOrFiles.IcebergReadOptions.Builder icebergBuilder =
         ReadRel.LocalFiles.FileOrFiles.IcebergReadOptions.newBuilder();
 

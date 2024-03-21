@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
 #include <Common/LocalDate.h>
 #include <Common/DateLUT.h>
 #include <Common/DateLUTImpl.h>
@@ -27,7 +28,6 @@
 #include <IO/ReadBufferFromMemory.h>
 #include <IO/parseDateTimeBestEffort.h>
 #include <IO/ReadHelpers.h>
-#include <ctime>
 
 using namespace DB;
 

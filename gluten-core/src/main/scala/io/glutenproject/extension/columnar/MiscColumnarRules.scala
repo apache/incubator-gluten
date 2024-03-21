@@ -18,6 +18,7 @@ package io.glutenproject.extension.columnar
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.{ColumnarToRowLike, GlutenPlan}
@@ -479,7 +480,7 @@ object MiscColumnarRules {
           TransformHints.tagNotTransformable(newSource, validateResult.reason.get)
           newSource
         case other =>
-          throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
+          throw new GlutenNotSupportException(s"${other.getClass.toString} is not supported.")
       }
     }
   }

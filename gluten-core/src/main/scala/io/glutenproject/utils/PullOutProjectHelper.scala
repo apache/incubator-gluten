@@ -16,6 +16,8 @@
  */
 package io.glutenproject.utils
 
+import io.glutenproject.exception.GlutenNotSupportException
+
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
 import org.apache.spark.sql.execution.aggregate._
@@ -108,7 +110,7 @@ trait PullOutProjectHelper {
         resultExpressions = newResultExpressions
       )
     case _ =>
-      throw new UnsupportedOperationException(s"Unsupported agg $agg")
+      throw new GlutenNotSupportException(s"Unsupported agg $agg")
   }
 
   protected def rewriteAggregateExpression(

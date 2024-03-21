@@ -17,6 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.extension.columnar.RewriteTypedImperativeAggregate
@@ -142,7 +143,7 @@ abstract class HashAggregateExecTransformer(
       expr.mode match {
         case Partial | PartialMerge =>
         case _ =>
-          throw new UnsupportedOperationException(s"${expr.mode} not supported.")
+          throw new GlutenNotSupportException(s"${expr.mode} not supported.")
       }
       val aggFunc = expr.aggregateFunction
       aggFunc match {
@@ -234,7 +235,7 @@ abstract class HashAggregateExecTransformer(
           )
           aggregateNodeList.add(aggFunctionNode)
         case other =>
-          throw new UnsupportedOperationException(s"$other is not supported.")
+          throw new GlutenNotSupportException(s"$other is not supported.")
       }
     }
 
@@ -262,7 +263,7 @@ abstract class HashAggregateExecTransformer(
             )
             aggregateNodeList.add(aggFunctionNode)
           case other =>
-            throw new UnsupportedOperationException(s"$other is not supported.")
+            throw new GlutenNotSupportException(s"$other is not supported.")
         }
       case _ if aggregateFunction.aggBufferAttributes.size > 1 =>
         generateMergeCompanionNode()
@@ -301,7 +302,7 @@ abstract class HashAggregateExecTransformer(
                   ConverterUtils
                     .getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
               case other =>
-                throw new UnsupportedOperationException(s"$other is not supported.")
+                throw new GlutenNotSupportException(s"$other is not supported.")
             }
           case _ =>
             typeNodeList.add(
@@ -369,7 +370,7 @@ abstract class HashAggregateExecTransformer(
           exprNodes.addAll(childNodes)
 
         case _: HyperLogLogPlusPlus if aggFunc.aggBufferAttributes.size != 1 =>
-          throw new UnsupportedOperationException("Only one input attribute is expected.")
+          throw new GlutenNotSupportException("Only one input attribute is expected.")
 
         case _ @VeloxIntermediateData.Type(veloxTypes: Seq[DataType]) =>
           val rewrittenInputAttributes =
@@ -421,7 +422,7 @@ abstract class HashAggregateExecTransformer(
               }
               exprNodes.add(getRowConstructNode(args, childNodes, newInputAttributes, aggFunc))
             case other =>
-              throw new UnsupportedOperationException(s"$other is not supported.")
+              throw new GlutenNotSupportException(s"$other is not supported.")
           }
 
         case _ =>
@@ -473,7 +474,7 @@ abstract class HashAggregateExecTransformer(
     aggregateExpressions.foreach(
       aggExpr => {
         if (aggExpr.filter.isDefined) {
-          throw new UnsupportedOperationException("Filter in final aggregation is not supported.")
+          throw new GlutenNotSupportException("Filter in final aggregation is not supported.")
         } else {
           // The number of filters should be aligned with that of aggregate functions.
           aggFilterList.add(null)
@@ -494,7 +495,7 @@ abstract class HashAggregateExecTransformer(
                 colIdx += 1
             }
           case _ =>
-            throw new UnsupportedOperationException(
+            throw new GlutenNotSupportException(
               s"$aggFunc of ${aggExpr.mode.toString} is not supported.")
         }
         addFunctionNode(args, aggFunc, childrenNodes, aggExpr.mode, aggregateFunctionList)
@@ -637,7 +638,7 @@ abstract class HashAggregateExecTransformer(
                   .doTransform(args)
             }
           case other =>
-            throw new UnsupportedOperationException(s"$other not supported.")
+            throw new GlutenNotSupportException(s"$other not supported.")
         }
         addFunctionNode(
           args,
@@ -706,7 +707,7 @@ object VeloxAggregateFunctionsBuilder {
 
     var sigName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
     if (sigName.isEmpty) {
-      throw new UnsupportedOperationException(s"not currently supported: $aggregateFunc.")
+      throw new GlutenNotSupportException(s"not currently supported: $aggregateFunc.")
     }
 
     aggregateFunc match {
@@ -814,7 +815,7 @@ case class HashAggregateExecPullOutHelper(
             case Final =>
               Seq(aggregateAttributes(index))
             case other =>
-              throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
+              throw new GlutenNotSupportException(s"Unsupported aggregate mode: $other.")
           })
     }.toList
   }

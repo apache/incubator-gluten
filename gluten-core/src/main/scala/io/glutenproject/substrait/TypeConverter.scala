@@ -16,6 +16,8 @@
  */
 package io.glutenproject.substrait
 
+import io.glutenproject.exception.GlutenNotSupportException
+
 import org.apache.spark.sql.types.{BinaryType, BooleanType, ByteType, DataType, DoubleType, FloatType, IntegerType, LongType, ShortType, StringType, TimestampType}
 
 import com.google.protobuf.CodedInputStream
@@ -50,7 +52,7 @@ object TypeConverter {
       case BINARY => ExpressionType(BinaryType, isNullable(t.getBinary.getNullability))
       case TIMESTAMP => ExpressionType(TimestampType, isNullable(t.getTimestamp.getNullability))
       case t =>
-        throw new UnsupportedOperationException(s"Conversion from substrait type not supported: $t")
+        throw new GlutenNotSupportException(s"Conversion from substrait type not supported: $t")
     }
   }
 }

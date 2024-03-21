@@ -18,6 +18,7 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.SparkPlanExecApi
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
@@ -81,7 +82,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       val decimalType = original.dataType.asInstanceOf[DecimalType]
       val precision = decimalType.precision
       if (precision > 18) {
-        throw new UnsupportedOperationException(
+        throw new GlutenNotSupportException(
           "GetArrayItem not support decimal precision more than 18")
       }
     }
@@ -136,7 +137,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(child), expr)
   }
 
-  /** Transform inline to Substrait. */
+  /** Transform posexplode to Substrait. */
   override def genPosExplodeTransformer(
       substraitExprName: String,
       child: ExpressionTransformer,
@@ -151,6 +152,14 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       child: ExpressionTransformer,
       expr: Expression): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, Seq(child), expr)
+  }
+
+  /** Transform make_timestamp to Substrait. */
+  override def genMakeTimestampTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: Expression): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, children, expr)
   }
 
   /**
@@ -482,7 +491,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
         != SQLConf.MapKeyDedupPolicy.EXCEPTION.toString
     ) {
-      throw new UnsupportedOperationException("Only EXCEPTION policy is supported!")
+      throw new GlutenNotSupportException("Only EXCEPTION policy is supported!")
     }
     GenericExpressionTransformer(substraitExprName, children, expr)
   }

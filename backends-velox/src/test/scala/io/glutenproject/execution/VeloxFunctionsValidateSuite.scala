@@ -492,4 +492,73 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
       checkOperatorMatch[ProjectExecTransformer]
     }
   }
+
+  test("Test make_timestamp function") {
+    withTempPath {
+      path =>
+        // w/o timezone.
+        Seq(
+          (2017, 7, 11, 6, 30, Decimal(45678000, 18, 6)),
+          (1, 1, 1, 1, 1, Decimal(1, 18, 6)),
+          (1, 1, 1, 1, 1, null)
+        )
+          .toDF("year", "month", "day", "hour", "min", "sec")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("make_timestamp_tbl1")
+
+        runQueryAndCompare(
+          "select make_timestamp(year, month, day, hour, min, sec) from make_timestamp_tbl1") {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
+    }
+    withTempPath {
+      path =>
+        // w/ timezone.
+        Seq(
+          (2017, 7, 11, 6, 30, Decimal(45678000, 18, 6), "CET"),
+          (1, 1, 1, 1, 1, Decimal(1, 18, 6), null),
+          (1, 1, 1, 1, 1, null, "CST")
+        )
+          .toDF("year", "month", "day", "hour", "min", "sec", "timezone")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("make_timestamp_tbl2")
+
+        runQueryAndCompare("""
+                             |select make_timestamp(year, month, day, hour, min, sec, timezone)
+                             |from make_timestamp_tbl2
+                             |""".stripMargin) {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("regexp_replace") {
+    runQueryAndCompare(
+      "SELECT regexp_replace(l_partkey, '\\w', 'something') FROM lineitem limit 100") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare(
+      "SELECT regexp_replace(l_partkey, '\\w', 'something', 3) FROM lineitem limit 100") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("lag/lead window function with negative input offset") {
+    runQueryAndCompare(
+      "select lag(l_orderkey, -2) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+      checkOperatorMatch[WindowExecTransformer]
+    }
+
+    runQueryAndCompare(
+      "select lead(l_orderkey, -2) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+      checkOperatorMatch[WindowExecTransformer]
+    }
+  }
+
 }

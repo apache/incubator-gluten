@@ -35,6 +35,8 @@ class FileSourceScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric
   val extraTime: SQLMetric = metrics("extraTime")
   val inputWaitTime: SQLMetric = metrics("inputWaitTime")
   val outputWaitTime: SQLMetric = metrics("outputWaitTime")
+  val selected_marks_pk: SQLMetric = metrics("selectedMarksPk")
+  val total_marks_pk: SQLMetric = metrics("totalMarksPk")
 
   override def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {
     // inputMetrics.bridgeIncBytesRead(metrics("inputBytes").value)
@@ -50,6 +52,12 @@ class FileSourceScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric
         inputWaitTime += (metricsData.inputWaitTime / 1000L).toLong
         outputWaitTime += (metricsData.outputWaitTime / 1000L).toLong
         outputVectors += metricsData.outputVectors
+
+        metricsData.getSteps.forEach(
+          step => {
+            selected_marks_pk += step.selectedMarksPk
+            total_marks_pk += step.totalMarksPk
+          })
 
         MetricsUtil.updateExtraTimeMetric(
           metricsData,
