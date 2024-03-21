@@ -513,6 +513,12 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
+  test("Test uuid function") {
+    runQueryAndCompare("""SELECT uuid() from lineitem limit 100""".stripMargin, false) {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("regexp_replace") {
     runQueryAndCompare(
       "SELECT regexp_replace(l_partkey, '\\w', 'something') FROM lineitem limit 100") {

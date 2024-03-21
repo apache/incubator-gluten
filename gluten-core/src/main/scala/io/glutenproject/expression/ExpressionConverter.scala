@@ -554,6 +554,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         val childrenTransformers =
           e.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap))
         e.getTransformer(childrenTransformers)
+      case u: Uuid =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genUuidTransformer(substraitExprName, u)
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,
