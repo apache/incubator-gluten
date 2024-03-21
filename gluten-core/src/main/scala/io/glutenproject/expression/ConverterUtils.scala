@@ -379,8 +379,13 @@ object ConverterUtils extends Logging {
           })
         sigName = sigName.concat(">")
         sigName
-      case MapType(_, _, _) =>
-        "map"
+      case MapType(keyType, valueType, _) =>
+        var sigName = "map<"
+        sigName = sigName.concat(getTypeSigName(keyType))
+        sigName = sigName.concat(",")
+        sigName = sigName.concat(getTypeSigName(valueType))
+        sigName = sigName.concat(">")
+        sigName
       case CharType(_) =>
         "fchar"
       case NullType =>
