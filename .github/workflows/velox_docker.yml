@@ -69,12 +69,12 @@ jobs:
 
 
   run-spark-test:
+    needs: build-native-lib
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-java@v4
         with:
-          distribution: 'oracle' # See 'Supported distributions' for available options
           java-version: '8'
       - name: Download All Artifacts
         uses: actions/download-artifact@v2
