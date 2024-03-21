@@ -61,11 +61,6 @@ jobs:
           --enable_gcs=ON --enable_hdfs=ON --enable_abfs=ON
       - name: Build for Spark 3.2.2
         run: |
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
-          tar -xvf apache-maven-3.8.8-bin.tar.gz && \
-          mv apache-maven-3.8.8 /usr/lib/maven && \
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
           cd $GITHUB_WORKSPACE/ && \
           mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests
       - name: Build and run TPCH/DS 3.2.2
