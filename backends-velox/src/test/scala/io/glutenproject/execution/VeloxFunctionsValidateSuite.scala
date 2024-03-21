@@ -527,13 +527,20 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
   test("lag/lead window function with negative input offset") {
     runQueryAndCompare(
       "select lag(l_orderkey, -2) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+        " (partition by l_suppkey order by l_orderkey) from lineitem") {
       checkOperatorMatch[WindowExecTransformer]
     }
 
     runQueryAndCompare(
       "select lead(l_orderkey, -2) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+        " (partition by l_suppkey order by l_orderkey) from lineitem") {
+      checkOperatorMatch[WindowExecTransformer]
+    }
+  }
+
+  test("bit_length") {
+    runQueryAndCompare(
+      "select bit_length(l_orderkey), bit_length(cast(l_orderkey as binary)) from lineitem") {
       checkOperatorMatch[WindowExecTransformer]
     }
   }
