@@ -43,27 +43,23 @@ public:
     ActionsDAGPtr & actions_dag) const override
     {
         auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
-        if (parsed_args.size() != 2 && parsed_args.size() != 3)
+        if (parsed_args.size() != 3)
             throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires two or three arguments", getName());
-        DB::DataTypePtr start_index_data_type = removeNullable(parsed_args[1]->result_type);
-        if (!isInteger(start_index_data_type))
-            throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Function {}'s second arguments must be int type", getName());
-         /**
-            parse substring(str, start_index, length) as
-            if (start_index == 0)
-                substring(str, 1, length)
-            else
-                substring(str, start_index, length)
+
+        /*
+            parse substring(str, index, length) as
+                substring(str, if(index = 0, 1, index), length)
         */
-        auto * const_zero_node = addColumnToActionsDAG(actions_dag, start_index_data_type, Field(0));
-        auto * const_one_node = addColumnToActionsDAG(actions_dag, start_index_data_type, Field(1));
-        auto * equals_zero_node = toFunctionNode(actions_dag, "equals", {parsed_args[1], const_zero_node});
-        auto * if_node = toFunctionNode(actions_dag, "if", {equals_zero_node, const_one_node, parsed_args[1]});
-        const DB::ActionsDAG::Node * substring_func_node;
-        if (parsed_args.size() == 2)
-            substring_func_node = toFunctionNode(actions_dag, "substringUTF8", {parsed_args[0], if_node});
-        else
-            substring_func_node = toFunctionNode(actions_dag, "substringUTF8", {parsed_args[0], if_node, parsed_args[2]});
+        const auto * str_arg = parsed_args[0];
+        const auto * index_arg = parsed_args[1];
+        const auto * length_arg = parsed_args[2];
+
+        auto index_type = std::make_shared<DB::DataTypeInt32>();
+        const auto * const_zero_node = addColumnToActionsDAG(actions_dag, index_type, 0);
+        const auto * const_one_node = addColumnToActionsDAG(actions_dag, index_type, 1);
+        const auto * equals_zero_node = toFunctionNode(actions_dag, "equals", {index_arg, const_zero_node});
+        const auto * if_node = toFunctionNode(actions_dag, "if", {equals_zero_node, const_one_node, index_arg});
+        const auto * substring_func_node = toFunctionNode(actions_dag, "substringUTF8", {str_arg, if_node, length_arg});
         return convertNodeTypeIfNeeded(substrait_func, substring_func_node, actions_dag);
     }
 protected:
