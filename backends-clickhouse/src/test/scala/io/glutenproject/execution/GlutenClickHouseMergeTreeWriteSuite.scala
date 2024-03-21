@@ -129,12 +129,13 @@ class GlutenClickHouseMergeTreeWriteSuite
          |""".stripMargin
     runTPCHQueryBySQL(1, sqlStr) {
       df =>
-        val scanExec = collect(df.queryExecution.executedPlan) {
+        val plans = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
+          case w: WholeStageTransformer => w
         }
-        assert(scanExec.size == 1)
+        assert(plans.size == 4)
 
-        val mergetreeScan = scanExec(0)
+        val mergetreeScan = plans(3).asInstanceOf[FileSourceScanExecTransformer]
         assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
@@ -148,6 +149,15 @@ class GlutenClickHouseMergeTreeWriteSuite
         assert(
           addFiles.map(_.rows).sum
             == 600572)
+
+        // GLUTEN-5060: check the unnecessary FilterExec
+        val wholeStageTransformer = plans(2).asInstanceOf[WholeStageTransformer]
+        val planNodeJson = wholeStageTransformer.substraitPlanJson
+        assert(
+          !planNodeJson
+            .replaceAll("\\\n", "")
+            .replaceAll(" ", "")
+            .contains("\"input\":{\"filter\":{"))
     }
 
   }
