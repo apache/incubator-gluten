@@ -36,7 +36,7 @@ cd /path/to/gluten/
 
 # Run test to generate input data files. If you are using spark 3.3, replace -Pspark-3.2 with -Pspark-3.3
 mvn test -Pspark-3.2 -Pbackends-velox -Prss -pl backends-velox -am \
--DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Darrow.version=11.0.0-gluten -Dexec.skip
+-DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Dexec.skip
 ```
 
 The generated example files are placed in gluten/backends-velox:
