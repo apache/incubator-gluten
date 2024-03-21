@@ -43,7 +43,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-docker:
+  build-native-lib:
     runs-on: ubuntu-20.04
     container: inteldpo/gluten-centos-packaging:latest
     steps:
@@ -59,6 +59,28 @@ jobs:
           sed -i '/^headers/d' ep/build-velox/build/velox_ep/CMakeLists.txt && \
           ./dev/builddeps-veloxbe.sh --build_tests=OFF  --build_benchmarks=OFF --enable_s3=ON \
           --enable_gcs=ON --enable_hdfs=ON --enable_abfs=ON
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./cpp/build/releases/
+          name: velox-native-lib-${{github.sha}}
+          compression-level: 9
+          iretention-days: 1
+
+
+  run-spark-test:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'oracle' # See 'Supported distributions' for available options
+          java-version: '8'
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-${{github.sha}}
+
       - name: Build for Spark 3.2.2
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -66,8 +88,6 @@ jobs:
       - name: Build and run TPCH/DS 3.2.2
         run: |
           cd $GITHUB_WORKSPACE/tools/gluten-it && \
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
           mvn clean install -Pspark-3.2 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
