@@ -100,7 +100,8 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
 case class FallbackBroadcastHashJoin(session: SparkSession) extends Rule[SparkPlan] {
 
   private val enableColumnarBroadcastJoin: Boolean =
-    GlutenConfig.getConf.enableColumnarBroadcastJoin && GlutenConfig.getConf.enableColumnarBroadcastExchange
+    GlutenConfig.getConf.enableColumnarBroadcastJoin &&
+      GlutenConfig.getConf.enableColumnarBroadcastExchange
 
   override def apply(plan: SparkPlan): SparkPlan = {
     plan.foreachUp {
