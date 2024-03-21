@@ -56,12 +56,9 @@ jobs:
           source /opt/rh/devtoolset-9/enable && \
           source /opt/gluten/dev/vcpkg/env.sh && \
           cd $GITHUB_WORKSPACE/ && \
-          ./dev/buildbundle-veloxbe.sh --build_tests=ON --build_benchmarks=ON --enable_s3=ON  --enable_hdfs=ON
-      - name: Build Gluten CPP library
-        run: |
-          cd $GITHUB_WORKSPACE/cpp && \
-          source /opt/rh/devtoolset-9/enable && \
-          ./compile.sh --build_velox_backend=ON --build_protobuf=ON
+          sed -i '/^headers/d' ep/build-velox/build/velox_ep/CMakeLists.txt && \
+          ./dev/builddeps-veloxbe.sh --build_tests=OFF  --build_benchmarks=OFF --enable_s3=ON \
+          --enable_gcs=ON --enable_hdfs=ON --enable_abfs=ON --build_type=Debug
       - name: Build for Spark 3.2.2
         run: |
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
