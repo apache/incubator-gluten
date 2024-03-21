@@ -633,4 +633,10 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       """.stripMargin
     runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
   }
+
+  test("test parse string with blank to integer") {
+    // issue https://github.com/apache/incubator-gluten/issues/4956
+    val sql = "select  cast(concat(' ', cast(id as string)) as bigint) from range(10)"
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
 }
