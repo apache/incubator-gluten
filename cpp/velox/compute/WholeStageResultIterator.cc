@@ -42,10 +42,6 @@ const std::string kSpillStrategyDefaultValue = "auto";
 const std::string kAggregationSpillEnabled = "spark.gluten.sql.columnar.backend.velox.aggregationSpillEnabled";
 const std::string kJoinSpillEnabled = "spark.gluten.sql.columnar.backend.velox.joinSpillEnabled";
 const std::string kOrderBySpillEnabled = "spark.gluten.sql.columnar.backend.velox.orderBySpillEnabled";
-const std::string kAggregationSpillMemoryThreshold =
-    "spark.gluten.sql.columnar.backend.velox.aggregationSpillMemoryThreshold";
-const std::string kJoinSpillMemoryThreshold = "spark.gluten.sql.columnar.backend.velox.joinSpillMemoryThreshold";
-const std::string kOrderBySpillMemoryThreshold = "spark.gluten.sql.columnar.backend.velox.orderBySpillMemoryThreshold";
 const std::string kMaxSpillLevel = "spark.gluten.sql.columnar.backend.velox.maxSpillLevel";
 const std::string kMaxSpillFileSize = "spark.gluten.sql.columnar.backend.velox.maxSpillFileSize";
 const std::string kMinSpillRunSize = "spark.gluten.sql.columnar.backend.velox.minSpillRunSize";
@@ -507,12 +503,6 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         std::to_string(veloxCfg_->get<bool>(kJoinSpillEnabled, true));
     configs[velox::core::QueryConfig::kOrderBySpillEnabled] =
         std::to_string(veloxCfg_->get<bool>(kOrderBySpillEnabled, true));
-    configs[velox::core::QueryConfig::kAggregationSpillMemoryThreshold] = std::to_string(
-        veloxCfg_->get<uint64_t>(kAggregationSpillMemoryThreshold, 0)); // spill only when input doesn't fit
-    configs[velox::core::QueryConfig::kJoinSpillMemoryThreshold] =
-        std::to_string(veloxCfg_->get<uint64_t>(kJoinSpillMemoryThreshold, 0)); // spill only when input doesn't fit
-    configs[velox::core::QueryConfig::kOrderBySpillMemoryThreshold] =
-        std::to_string(veloxCfg_->get<uint64_t>(kOrderBySpillMemoryThreshold, 0)); // spill only when input doesn't fit
     configs[velox::core::QueryConfig::kMaxSpillLevel] = std::to_string(veloxCfg_->get<int32_t>(kMaxSpillLevel, 4));
     configs[velox::core::QueryConfig::kMaxSpillFileSize] =
         std::to_string(veloxCfg_->get<uint64_t>(kMaxSpillFileSize, 20L * 1024 * 1024));
