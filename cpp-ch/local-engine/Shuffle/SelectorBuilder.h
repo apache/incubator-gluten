@@ -26,6 +26,7 @@
 #include <Processors/Chunk.h>
 #include <base/types.h>
 #include <substrait/plan.pb.h>
+#include <Poco/JSON/Array.h>
 #include <Common/BlockIterator.h>
 #include <Common/PODArray.h>
 
