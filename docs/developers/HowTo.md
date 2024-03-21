@@ -57,7 +57,7 @@ cd ${GLUTEN_HOME}
 mvn clean package -Pspark-3.2 -Pbackends-velox -Prss
 mvn test -Pspark-3.2 -Pbackends-velox -Prss -pl backends-velox \
 -am -DtagsToInclude="io.glutenproject.tags.GenerateExample" \
--Dtest=none -DfailIfNoTests=false -Darrow.version=11.0.0-gluten \
+-Dtest=none -DfailIfNoTests=false \
 -Dexec.skip
 ```
 
