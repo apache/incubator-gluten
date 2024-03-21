@@ -639,7 +639,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     val sql = "select  cast(concat(' ', cast(id as string)) as bigint) from range(10)"
     runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
   }
-  
+
   test("avg(bigint) overflow") {
     withSQLConf(
       "spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false",

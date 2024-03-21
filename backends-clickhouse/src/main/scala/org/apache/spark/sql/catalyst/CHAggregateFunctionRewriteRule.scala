@@ -39,7 +39,7 @@ case class CHAggregateFunctionRewriteRule(spark: SparkSession) extends Rule[Logi
               GlutenConfig.getConf.enableColumnarHashAgg &&
               !avgExpr.isDistinct && isDataTypeNeedConvert(avg.child.dataType) =>
           AggregateExpression(
-            Average(Cast(avg.child, DoubleType), avg.useAnsiAdd),
+            avg.copy(child = Cast(avg.child, DoubleType)),
             avgExpr.mode,
             avgExpr.isDistinct,
             avgExpr.filter,
