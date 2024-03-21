@@ -47,17 +47,14 @@ void gluten::finalizeVeloxJniUDF(JNIEnv* env) {
   env->DeleteGlobalRef(udfResolverClass);
 }
 
-void gluten::jniLoadUdf(JNIEnv* env, const std::string& libPaths) {
+void gluten::jniGetFunctionSignatures(JNIEnv* env) {
   auto udfLoader = gluten::UdfLoader::getInstance();
-  udfLoader->loadUdfLibraries(libPaths);
-
   const auto& udfMap = udfLoader->getUdfMap();
   for (const auto& udf : udfMap) {
     auto udfString = udf.second;
     jbyteArray returnType = env->NewByteArray(udf.second.length());
     env->SetByteArrayRegion(returnType, 0, udfString.length(), reinterpret_cast<const jbyte*>(udfString.c_str()));
     jstring name = env->NewStringUTF(udf.first.c_str());
-
     jobject instance = env->GetStaticObjectField(
         udfResolverClass, env->GetStaticFieldID(udfResolverClass, "MODULE$", kUdfResolverClassPath.c_str()));
     env->CallVoidMethod(instance, registerUDFMethod, name, returnType);

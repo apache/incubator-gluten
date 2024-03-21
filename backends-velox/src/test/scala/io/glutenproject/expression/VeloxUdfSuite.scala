@@ -82,7 +82,8 @@ class VeloxUdfSuiteLocal extends VeloxUdfSuite {
   override val master: String = "local[2]"
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.sql.columnar.backend.velox.udfLibraryPaths", udfLibPath)
+      .set("spark.files", udfLibPath)
+      .set("spark.gluten.sql.columnar.backend.velox.udfLibraryPaths", "libmyudf.so")
   }
 }
 
