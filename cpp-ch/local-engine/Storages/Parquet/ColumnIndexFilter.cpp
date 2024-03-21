@@ -24,6 +24,7 @@
 #include <Storages/Parquet/ParquetConverter.h>
 #include <parquet/schema.h>
 #include <parquet/statistics.h>
+#include <Common/logger_useful.h>
 
 namespace local_engine
 {
