@@ -96,3 +96,35 @@ jobs:
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
+
+
+  run-spark-test-centos:
+    needs: build-native-lib
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["centos:7", "centos:8"]
+    runs-on: ubuntu-20.04
+    container: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: setup java and maven
+        run: |
+          yum update && yum install -y java-1.8.0-openjdk-devel maven
+      - name: Build for Spark 3.2.2
+        run: |
+          cd $GITHUB_WORKSPACE/ && \
+          mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests
+      - name: Build and run TPCH/DS 3.2.2
+        run: |
+          cd $GITHUB_WORKSPACE/tools/gluten-it && \
+          mvn clean install -Pspark-3.2 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
