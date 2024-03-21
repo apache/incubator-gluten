@@ -21,7 +21,7 @@ import io.glutenproject.utils.PullOutProjectHelper
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete, Partial}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan, TakeOrderedAndProjectExec}
+import org.apache.spark.sql.execution.{ExpandExec, ProjectExec, SortExec, SparkPlan, TakeOrderedAndProjectExec}
 import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, TypedAggregateExpression}
 import org.apache.spark.sql.execution.window.WindowExec
 
@@ -74,6 +74,7 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
             }
           case _ => false
         }.isDefined)
+      case expand: ExpandExec => expand.projections.flatten.exists(isNotAttributeAndLiteral)
       case _ => false
     }
   }
@@ -179,6 +180,15 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
 
       ProjectExec(window.output, newWindow)
 
+    case expand: ExpandExec if needsPreProject(expand) =>
+      val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
+      val newProjections =
+        expand.projections.map(_.map(replaceExpressionWithAttribute(_, expressionMap)))
+      expand.copy(
+        projections = newProjections,
+        child = ProjectExec(
+          eliminateProjectList(expand.child.outputSet, expressionMap.values.toSeq),
+          expand.child))
     case _ => plan
   }
 }

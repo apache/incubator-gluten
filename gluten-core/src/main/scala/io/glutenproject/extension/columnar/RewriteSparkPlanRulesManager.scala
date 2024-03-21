@@ -53,6 +53,7 @@ class RewriteSparkPlanRulesManager(rewriteRules: Seq[Rule[SparkPlan]]) extends R
         case _: WindowExec => true
         case _: FilterExec => true
         case _: FileSourceScanExec => true
+        case _: ExpandExec => true
         case _ => false
       }
     }
