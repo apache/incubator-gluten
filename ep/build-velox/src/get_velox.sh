@@ -320,7 +320,7 @@ function setup_macos {
 
   sed -i '' $'/^  run_and_time install_double_conversion/a\\\n  run_and_time install_folly\\\n' scripts/setup-macos.sh
   # need set BUILD_SHARED_LIBS flag for thrift
-  sed -i  "/facebook\/fbthrift/{n;s/cmake_install -DBUILD_TESTS=OFF/cmake_install -DBUILD_TESTS=OFF -DBUILD_SHARED_LIBS=OFF/;}" scripts/setup-macos.sh
+  sed -i '' "/facebook\/fbthrift/{n;s/cmake_install -DBUILD_TESTS=OFF/cmake_install -DBUILD_TESTS=OFF -DBUILD_SHARED_LIBS=OFF/;}" scripts/setup-macos.sh
 }
 
 if [ $OS == 'Linux' ]; then
