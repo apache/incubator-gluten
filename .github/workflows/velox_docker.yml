@@ -121,8 +121,8 @@ jobs:
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
-          echo 'MAVEN_HOME=/usr/lib/maven' >> /etc/profile.d/maven.sh
-          echo 'PATH=${PATH}:${MAVEN_HOME}/bin' >> /etc/profile.d/maven.sh
+          echo 'MAVEN_HOME=/usr/lib/maven' >> ~/.bashrc
+          echo 'PATH=${PATH}:${MAVEN_HOME}/bin' >> ~/.bashrc
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -161,8 +161,8 @@ jobs:
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
-          echo 'MAVEN_HOME=/usr/lib/maven' >> /etc/profile.d/maven.sh
-          echo 'PATH=${PATH}:${MAVEN_HOME}/bin' >> /etc/profile.d/maven.sh
+          echo 'MAVEN_HOME=/usr/lib/maven' >> ~/.bashrc
+          echo 'PATH=${PATH}:${MAVEN_HOME}/bin' >> ~/.bashrc
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/ && \
