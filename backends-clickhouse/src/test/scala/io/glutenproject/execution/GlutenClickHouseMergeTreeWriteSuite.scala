@@ -1229,7 +1229,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  |)
                  |USING clickhouse
                  |LOCATION '$basePath/lineitem_mergetree_lowcard'
-                 |TBLPROPERTIES('lowCardKey'='l_returnflag,L_LINESTATUS')
+                 |TBLPROPERTIES('lowCardKey'='l_returnflag,L_LINESTATUS,l_quantity')
                  |""".stripMargin)
 
     spark.sql(s"""
@@ -1275,7 +1275,7 @@ class GlutenClickHouseMergeTreeWriteSuite
     val sqlStr2 =
       s"""
          |SELECT
-         |  max(l_returnflag)
+         |  max(l_returnflag), min(l_quantity)
          |FROM
          |    lineitem_mergetree_lowcard
          |GROUP BY
@@ -1288,6 +1288,17 @@ class GlutenClickHouseMergeTreeWriteSuite
       // total rows should remain unchanged
       spark.sql(sqlStr2).collect().apply(0).get(0) == "R"
     )
+
+    // test select *
+    val sqlStr3 =
+      s"""
+         |SELECT
+         |  *
+         |FROM
+         |    lineitem_mergetree_lowcard limit 1
+         |
+         |""".stripMargin
+    spark.sql(sqlStr3).collect()
   }
 
 }
