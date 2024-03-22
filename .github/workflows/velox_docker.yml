@@ -45,7 +45,7 @@ concurrency:
 jobs:
   build-native-lib:
     runs-on: ubuntu-20.04
-    container: inteldpo/gluten-centos-packaging:latest
+    container: inteldpo/gluten-centos-packaging:latest # centos7 with depedencies installed
     steps:
       - uses: actions/checkout@v2
       - name: Build Gluten velox third party
@@ -100,15 +100,14 @@ jobs:
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
 
 
-  run-tpc-test-centos:
+  run-tpc-test-centos7:
     needs: build-native-lib
     strategy:
       fail-fast: false
       matrix:
-        os: ["centos:7", "centos:8"]
         spark: ["spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5"]
     runs-on: ubuntu-20.04
-    container: ${{ matrix.os }}
+    container: centos:7
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -116,13 +115,9 @@ jobs:
         with:
           name: velox-native-lib-${{github.sha}}
           path: ./cpp/build/releases
-      - name: Update mirror list
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup java and maven
         run: |
-          yum update -y && yum install -y java-1.8.0-openjdk-devel
+          yum update -y && yum install -y java-1.8.0-openjdk-devel wget
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
@@ -141,6 +136,45 @@ jobs:
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
 
+  run-tpc-test-centos8:
+    needs: build-native-lib
+    strategy:
+      fail-fast: false
+      matrix:
+        spark: ["spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5"]
+    runs-on: ubuntu-20.04
+    container: centos:8
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+      - name: Setup java and maven
+        run: |
+          yum update -y && yum install -y java-1.8.0-openjdk-devel wget
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+          mv apache-maven-3.8.8 /usr/lib/maven
+          echo 'MAVEN_HOME=/usr/lib/maven' >> /etc/profile.d/maven.sh
+          echo 'PATH=${PATH}:${MAVEN_HOME}/bin' >> /etc/profile.d/maven.sh
+      - name: Build for Spark ${{ matrix.spark }}
+        run: |
+          cd $GITHUB_WORKSPACE/ && \
+          mvn clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
+      - name: Build and run TPCH/DS ${{ matrix.spark }}
+        run: |
+          cd $GITHUB_WORKSPACE/tools/gluten-it && \
+          mvn clean install -P${{ matrix.spark }} \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1            
 
   run-spark-test-spark32:
     needs: build-native-lib
@@ -187,6 +221,9 @@ jobs:
         with:
           name: velox-native-lib-${{github.sha}}
           path: ./cpp/build/releases
+      - name: Setup java and maven
+        run: |
+          apt update && apt install -y openjdk-8-jdk wget maven && apt remove openjdk-11* -y
       - name: Prepare spark.test.home for Spark 3.2.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE// && \
