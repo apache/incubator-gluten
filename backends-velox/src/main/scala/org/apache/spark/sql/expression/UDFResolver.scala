@@ -18,9 +18,8 @@ package org.apache.spark.sql.expression
 
 import io.glutenproject.backendsapi.velox.BackendSettings
 import io.glutenproject.exception.GlutenException
-import io.glutenproject.expression.{ConverterUtils, ExpressionTransformer, Transformable}
+import io.glutenproject.expression.{ConverterUtils, ExpressionTransformer, ExpressionType, Transformable}
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.substrait.{ExpressionType, TypeConverter}
 import io.glutenproject.substrait.expression.ExpressionBuilder
 import io.glutenproject.udf.UdfJniWrapper
 import io.glutenproject.vectorized.JniWorkspace
@@ -31,7 +30,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.FunctionIdentifier
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.expressions.{Expression, ExpressionInfo}
-import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.{DataType, StructType}
 import org.apache.spark.util.Utils
 
 import com.google.common.collect.Lists
@@ -78,23 +77,33 @@ case class UDFExpression(
 }
 
 object UDFResolver extends Logging {
-  // Cache the fetched library paths for driver.
-  var localLibraryPaths: String = _
+  private val UDFNames = mutable.HashSet[String]()
 
-  private val UDFMap: mutable.Map[String, ExpressionType] = mutable.Map()
+  private val UDFMap = mutable.HashMap[(String, Seq[DataType]), ExpressionType]()
 
   private val LIB_EXTENSION = ".so"
 
   private lazy val isDriver: Boolean =
     "driver".equals(SparkEnv.get.executorId)
 
-  def registerUDF(name: String, bytes: Array[Byte]): Unit = {
-    registerUDF(name, TypeConverter.from(bytes))
+  // Called by JNI.
+  def registerUDF(name: String, returnType: Array[Byte], argTypes: Array[Byte]): Unit = {
+    registerUDF(
+      name,
+      ConverterUtils.parseFromBytes(returnType),
+      ConverterUtils.parseFromBytes(argTypes))
   }
 
-  def registerUDF(name: String, t: ExpressionType): Unit = {
-    UDFMap.update(name, t)
-    logInfo(s"Registered UDF: $name -> $t")
+  private def registerUDF(
+      name: String,
+      returnType: ExpressionType,
+      argTypes: ExpressionType): Unit = {
+    assert(argTypes.dataType.isInstanceOf[StructType])
+    UDFMap.put(
+      (name, argTypes.dataType.asInstanceOf[StructType].fields.map(_.dataType)),
+      returnType)
+    UDFNames += name
+    logInfo(s"Registered UDF: $name -> $returnType")
   }
 
   def parseName(name: String): (String, String) = {
@@ -106,7 +115,9 @@ object UDFResolver extends Logging {
     }
   }
 
-  def getFilesWithExtension(directory: java.nio.file.Path, extension: String): Seq[String] = {
+  private def getFilesWithExtension(
+      directory: java.nio.file.Path,
+      extension: String): Seq[String] = {
     Files
       .walk(directory, FileVisitOption.FOLLOW_LINKS)
       .iterator()
@@ -134,7 +145,7 @@ object UDFResolver extends Logging {
   }
 
   // Try to unpack archive. Throws exception if failed.
-  def unpack(source: File, destDir: File): File = {
+  private def unpack(source: File, destDir: File): File = {
     val sourceName = source.getName
     val dest = new File(destDir, sourceName)
     logInfo(
@@ -162,7 +173,7 @@ object UDFResolver extends Logging {
 
   // Get the full paths of all libraries.
   // If it's a directory, get all files ends with ".so" recursively.
-  def getAllLibraries(files: String, sparkConf: SparkConf): String = {
+  private def getAllLibraries(files: String, sparkConf: SparkConf): String = {
     val hadoopConf = SparkHadoopUtil.newConfiguration(sparkConf)
     val master = sparkConf.getOption("spark.master")
     val isYarnCluster =
@@ -221,15 +232,22 @@ object UDFResolver extends Logging {
     udfLibPaths match {
       case None =>
         Seq.empty
-      case Some(paths) =>
+      case Some(_) =>
         new UdfJniWrapper().getFunctionSignatures()
-        UDFMap.map {
-          case (name, t) =>
+
+        UDFNames.map {
+          name =>
             (
               new FunctionIdentifier(name),
               new ExpressionInfo(classOf[UDFExpression].getName, name),
-              (e: Seq[Expression]) => UDFExpression(name, t.dataType, t.nullable, e))
+              (e: Seq[Expression]) => getUdfExpression(name)(e))
         }.toSeq
     }
+  }
+
+  private def getUdfExpression(name: String)(children: Seq[Expression]) = {
+    val expressionType =
+      UDFMap.getOrElse((name, children.map(_.dataType)), throw new IllegalStateException())
+    UDFExpression(name, expressionType.dataType, expressionType.nullable, children)
   }
 }

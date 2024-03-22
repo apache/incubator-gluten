@@ -28,11 +28,14 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import com.google.protobuf.CodedInputStream
 import io.substrait.proto.{NamedStruct, Type}
 
 import java.util.{ArrayList => JArrayList, List => JList, Locale}
 
 import scala.collection.JavaConverters._
+
+case class ExpressionType(dataType: DataType, nullable: Boolean) {}
 
 object ConverterUtils extends Logging {
 
@@ -262,6 +265,13 @@ object ConverterUtils extends Logging {
       case unknown =>
         throw new GlutenNotSupportException(s"Type $unknown not supported.")
     }
+  }
+
+  def parseFromBytes(bytes: Array[Byte]): ExpressionType = {
+    val input = CodedInputStream.newInstance(bytes)
+    val parsed = io.substrait.proto.Type.parseFrom(input)
+    val (dataType, nullable) = parseFromSubstraitType(parsed)
+    ExpressionType(dataType, nullable)
   }
 
   def printBatch(cb: ColumnarBatch): Unit = {
