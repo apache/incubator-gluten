@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_03_21
+VELOX_BRANCH=2024_03_22
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
@@ -83,6 +83,8 @@ function process_setup_ubuntu {
 
   # No need to re-install git.
   sed -i '/git \\/d' scripts/setup-ubuntu.sh
+  # need set BUILD_SHARED_LIBS flag for thrift
+  sed -i  "/facebook\/fbthrift/{n;s/cmake_install -DBUILD_TESTS=OFF/cmake_install -DBUILD_TESTS=OFF -DBUILD_SHARED_LIBS=OFF/;}" scripts/setup-ubuntu.sh
   # Do not install libunwind which can cause interruption when catching native exception.
   sed -i 's/sudo --preserve-env apt install -y libunwind-dev && //' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  *thrift* \\' scripts/setup-ubuntu.sh
@@ -128,6 +130,8 @@ function process_setup_centos8 {
   fi
   # make this function Reentrant
   git checkout scripts/setup-centos8.sh
+  # need set BUILD_SHARED_LIBS flag for thrift
+  sed -i "/cd fbthrift/{n;s/cmake_install -Denable_tests=OFF/cmake_install -Denable_tests=OFF -DBUILD_SHARED_LIBS=OFF/;}" scripts/setup-centos8.sh
   # No need to re-install git.
   sed -i 's/dnf_install ninja-build cmake curl ccache gcc-toolset-9 git/dnf_install ninja-build cmake curl ccache gcc-toolset-9/' scripts/setup-centos8.sh
   sed -i '/^function dnf_install/i\DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)}' scripts/setup-centos8.sh
@@ -315,6 +319,8 @@ function setup_macos {
   fi
 
   sed -i '' $'/^  run_and_time install_double_conversion/a\\\n  run_and_time install_folly\\\n' scripts/setup-macos.sh
+  # need set BUILD_SHARED_LIBS flag for thrift
+  sed -i  "/facebook\/fbthrift/{n;s/cmake_install -DBUILD_TESTS=OFF/cmake_install -DBUILD_TESTS=OFF -DBUILD_SHARED_LIBS=OFF/;}" scripts/setup-macos.sh
 }
 
 if [ $OS == 'Linux' ]; then
