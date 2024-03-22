@@ -1258,4 +1258,57 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       }
     }
   }
+
+  test("Support Map type signature") {
+    // test map<str,str>
+    withTempView("t1") {
+      Seq[(Int, Map[String, String])]((1, Map("byte1" -> "aaa")), (2, Map("byte2" -> "bbbb")))
+        .toDF("c1", "map_c2")
+        .createTempView("t1")
+      runQueryAndCompare("""
+                           |SELECT c1, collect_list(map_c2) FROM t1 group by c1;
+                           |""".stripMargin) {
+        checkOperatorMatch[HashAggregateExecTransformer]
+      }
+    }
+    // test map<str,map<str,str>>
+    withTempView("t2") {
+      Seq[(Int, Map[String, Map[String, String]])](
+        (1, Map("byte1" -> Map("test1" -> "aaaa"))),
+        (2, Map("byte2" -> Map("test1" -> "bbbb"))))
+        .toDF("c1", "map_c2")
+        .createTempView("t2")
+      runQueryAndCompare("""
+                           |SELECT c1, collect_list(map_c2) FROM t2 group by c1;
+                           |""".stripMargin) {
+        checkOperatorMatch[HashAggregateExecTransformer]
+      }
+    }
+    // test map<map<str,str>,map<str,str>>
+    withTempView("t3") {
+      Seq[(Int, Map[Map[String, String], Map[String, String]])](
+        (1, Map(Map("byte1" -> "aaaa") -> Map("test1" -> "aaaa"))),
+        (2, Map(Map("byte2" -> "bbbb") -> Map("test1" -> "bbbb"))))
+        .toDF("c1", "map_c2")
+        .createTempView("t3")
+      runQueryAndCompare("""
+                           |SELECT collect_list(map_c2) FROM t3 group by c1;
+                           |""".stripMargin) {
+        checkOperatorMatch[HashAggregateExecTransformer]
+      }
+    }
+    // test map<str,list<str>>
+    withTempView("t4") {
+      Seq[(Int, Map[String, Array[String]])](
+        (1, Map("test1" -> Array("test1", "test2"))),
+        (2, Map("test2" -> Array("test1", "test2"))))
+        .toDF("c1", "map_c2")
+        .createTempView("t4")
+      runQueryAndCompare("""
+                           |SELECT collect_list(map_c2) FROM t4 group by c1;
+                           |""".stripMargin) {
+        checkOperatorMatch[HashAggregateExecTransformer]
+      }
+    }
+  }
 }

@@ -22,8 +22,7 @@ import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.extension.{FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage}
-import io.glutenproject.extension.CountDistinctWithoutExpand
+import io.glutenproject.extension.{CountDistinctWithoutExpand, FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage}
 import io.glutenproject.extension.columnar.AddTransformHintRule
 import io.glutenproject.extension.columnar.MiscColumnarRules.TransformPreOverrides
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
@@ -48,7 +47,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
-import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
+import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, WriteFilesExec}
 import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules.NativeWritePostRule
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
@@ -121,10 +120,18 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   override def genFilterExecTransformer(
       condition: Expression,
       child: SparkPlan): FilterExecTransformerBase = {
+
+    def checkMergeTreeFileFormat(relation: HadoopFsRelation): Boolean = {
+      relation.location.isInstanceOf[TahoeFileIndex] &&
+      relation.fileFormat.isInstanceOf[DeltaMergeTreeFileFormat]
+    }
+
     child match {
-      case scan: FileSourceScanExec
-          if (scan.relation.location.isInstanceOf[TahoeFileIndex] &&
-            scan.relation.fileFormat.isInstanceOf[DeltaMergeTreeFileFormat]) =>
+      case scan: FileSourceScanExec if (checkMergeTreeFileFormat(scan.relation)) =>
+        // For the validation phase of the AddTransformHintRule
+        CHFilterExecTransformer(condition, child)
+      case scan: FileSourceScanExecTransformerBase if (checkMergeTreeFileFormat(scan.relation)) =>
+        // For the transform phase, the FileSourceScanExec is already transformed
         CHFilterExecTransformer(condition, child)
       case _ =>
         FilterExecTransformer(condition, child)

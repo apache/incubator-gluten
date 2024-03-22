@@ -26,7 +26,10 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+# Only set arch=native for non-AppleClang compilers.
+if (NOT CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+endif()
 
 set(BOOST_MIN_VERSION "1.42.0")
 find_package(Boost REQUIRED)

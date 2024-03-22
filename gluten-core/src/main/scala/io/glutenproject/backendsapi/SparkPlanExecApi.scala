@@ -192,6 +192,10 @@ trait SparkPlanExecApi {
     throw new GlutenNotSupportException("NaNvl is not supported")
   }
 
+  def genUuidTransformer(substraitExprName: String, original: Uuid): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(), original)
+  }
+
   /** Transform map_entries to Substrait. */
   def genMapEntriesTransformer(
       substraitExprName: String,

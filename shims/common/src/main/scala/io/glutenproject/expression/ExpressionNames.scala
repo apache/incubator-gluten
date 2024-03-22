@@ -113,6 +113,7 @@ object ExpressionNames {
   final val DECODE = "decode"
   final val ENCODE = "encode"
   final val UUID = "uuid"
+  final val BIT_LENGTH = "bit_length"
 
   // URL functions
   final val PARSE_URL = "parse_url"

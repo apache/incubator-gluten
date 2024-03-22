@@ -528,13 +528,19 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
+  test("Test uuid function") {
+    runQueryAndCompare("""SELECT uuid() from lineitem limit 100""".stripMargin, false) {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("regexp_replace") {
     runQueryAndCompare(
-      "SELECT regexp_replace(l_partkey, '\\w', 'something') FROM lineitem limit 100") {
+      "SELECT regexp_replace(c_comment, '\\w', 'something') FROM customer limit 50") {
       checkOperatorMatch[ProjectExecTransformer]
     }
     runQueryAndCompare(
-      "SELECT regexp_replace(l_partkey, '\\w', 'something', 3) FROM lineitem limit 100") {
+      "SELECT regexp_replace(c_comment, '\\w', 'something', 3) FROM customer limit 50") {
       checkOperatorMatch[ProjectExecTransformer]
     }
   }
@@ -542,14 +548,22 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
   test("lag/lead window function with negative input offset") {
     runQueryAndCompare(
       "select lag(l_orderkey, -2) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+        " (partition by l_suppkey order by l_orderkey) from lineitem") {
       checkOperatorMatch[WindowExecTransformer]
     }
 
     runQueryAndCompare(
       "select lead(l_orderkey, -2) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+        " (partition by l_suppkey order by l_orderkey) from lineitem") {
       checkOperatorMatch[WindowExecTransformer]
+    }
+  }
+
+  test("bit_length") {
+    runQueryAndCompare(
+      "select bit_length(c_comment), bit_length(cast(c_comment as binary))" +
+        " from customer limit 50") {
+      checkOperatorMatch[ProjectExecTransformer]
     }
   }
 

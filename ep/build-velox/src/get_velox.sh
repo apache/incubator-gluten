@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_03_20
+VELOX_BRANCH=2024_03_21
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
@@ -92,9 +92,10 @@ function process_setup_ubuntu {
   sed -i '/ccache /a\  libgsasl7-dev \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  libuuid1 \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  uuid-dev \\' scripts/setup-ubuntu.sh
+  sed -i '/ccache/a\  curl \\' scripts/setup-ubuntu.sh
   sed -i '/libre2-dev/d' scripts/setup-ubuntu.sh
   sed -i '/libgmock-dev/d' scripts/setup-ubuntu.sh # resolved by ep/build-velox/build/velox_ep/CMake/resolve_dependency_modules/gtest.cmake
-
+  sed -i 's/github_checkout boostorg\/boost \"\${BOOST_VERSION}\" --recursive/wget_and_untar https:\/\/github.com\/boostorg\/boost\/releases\/download\/boost-1.84.0\/boost-1.84.0.tar.gz boost \&\& cd boost/g' scripts/setup-ubuntu.sh
   if [ $ENABLE_HDFS == "ON" ]; then
     sed -i '/^function install_folly.*/i function install_libhdfs3 {\n  github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-ubuntu.sh
     sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_libhdfs3' scripts/setup-ubuntu.sh

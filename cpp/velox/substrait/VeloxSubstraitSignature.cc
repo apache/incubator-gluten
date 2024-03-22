@@ -121,6 +121,44 @@ TypePtr VeloxSubstraitSignature::fromSubstraitSignature(const std::string& signa
     return str.size() >= prefix.size() && str.substr(0, prefix.size()) == prefix;
   };
 
+  auto parseNestedTypeSignature = [&](const std::string& signature) -> std::vector<TypePtr> {
+    auto start = signature.find_first_of('<');
+    auto end = signature.find_last_of('>');
+    VELOX_CHECK(
+        end - start > 1,
+        "Native validation failed due to: more information is needed to create nested type for {}",
+        signature);
+
+    std::string childrenTypes = signature.substr(start + 1, end - start - 1);
+
+    // Split the types with delimiter.
+    std::string delimiter = ",";
+    std::size_t pos;
+    std::vector<TypePtr> types;
+    while ((pos = childrenTypes.find(delimiter)) != std::string::npos) {
+      auto typeStr = childrenTypes.substr(0, pos);
+      std::size_t endPos = pos;
+      if (startWith(typeStr, "dec") || startWith(typeStr, "struct") || startWith(typeStr, "map") ||
+          startWith(typeStr, "list")) {
+        endPos = childrenTypes.find(">") + 1;
+        if (endPos > pos) {
+          typeStr += childrenTypes.substr(pos, endPos - pos);
+        } else {
+          // For nested case, the end '>' could missing,
+          // so the last position is treated as end.
+          typeStr += childrenTypes.substr(pos);
+          endPos = childrenTypes.size();
+        }
+      }
+      types.emplace_back(fromSubstraitSignature(typeStr));
+      childrenTypes.erase(0, endPos + delimiter.length());
+    }
+    if (childrenTypes.size() > 0 && !startWith(childrenTypes, ">")) {
+      types.emplace_back(fromSubstraitSignature(childrenTypes));
+    }
+    return types;
+  };
+
   if (startWith(signature, "dec")) {
     // Decimal type name is in the format of dec<precision,scale>.
     auto precisionStart = signature.find_first_of('<');
@@ -133,40 +171,21 @@ TypePtr VeloxSubstraitSignature::fromSubstraitSignature(const std::string& signa
 
   if (startWith(signature, "struct")) {
     // Struct type name is in the format of struct<T1,T2,...,Tn>.
-    auto structStart = signature.find_first_of('<');
-    auto structEnd = signature.find_last_of('>');
-    VELOX_CHECK(
-        structEnd - structStart > 1, "Native validation failed due to: more information is needed to create RowType");
-    std::string childrenTypes = signature.substr(structStart + 1, structEnd - structStart - 1);
-
-    // Split the types with delimiter.
-    std::string delimiter = ",";
-    std::size_t pos;
-    std::vector<TypePtr> types;
-    std::vector<std::string> names;
-    while ((pos = childrenTypes.find(delimiter)) != std::string::npos) {
-      auto typeStr = childrenTypes.substr(0, pos);
-      std::size_t endPos = pos;
-      if (startWith(typeStr, "dec") || startWith(typeStr, "struct")) {
-        endPos = childrenTypes.find(">") + 1;
-        if (endPos > pos) {
-          typeStr += childrenTypes.substr(pos, endPos - pos);
-        } else {
-          // For nested case, the end '>' could missing,
-          // so the last position is treated as end.
-          typeStr += childrenTypes.substr(pos);
-          endPos = childrenTypes.size();
-        }
-      }
-      types.emplace_back(fromSubstraitSignature(typeStr));
-      names.emplace_back("");
-      childrenTypes.erase(0, endPos + delimiter.length());
-    }
-    if (childrenTypes.size() > 0 && !startWith(childrenTypes, ">")) {
-      types.emplace_back(fromSubstraitSignature(childrenTypes));
-      names.emplace_back("");
+    auto types = parseNestedTypeSignature(signature);
+    std::vector<std::string> names(types.size());
+    for (int i = 0; i < types.size(); i++) {
+      names[i] = "";
     }
     return std::make_shared<RowType>(std::move(names), std::move(types));
+  }
+
+  if (startWith(signature, "map")) {
+    // Map type name is in the format of map<T1,T2>.
+    auto types = parseNestedTypeSignature(signature);
+    if (types.size() != 2) {
+      VELOX_UNSUPPORTED("Substrait type signature conversion to Velox type not supported for {}.", signature);
+    }
+    return MAP(std::move(types)[0], std::move(types)[1]);
   }
 
   if (startWith(signature, "list")) {

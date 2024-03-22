@@ -17,7 +17,7 @@
 package io.glutenproject.execution
 
 import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
-import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.{DataFrame, SaveMode}
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
@@ -129,12 +129,13 @@ class GlutenClickHouseMergeTreeWriteSuite
          |""".stripMargin
     runTPCHQueryBySQL(1, sqlStr) {
       df =>
-        val scanExec = collect(df.queryExecution.executedPlan) {
+        val plans = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
+          case w: WholeStageTransformer => w
         }
-        assert(scanExec.size == 1)
+        assert(plans.size == 4)
 
-        val mergetreeScan = scanExec(0)
+        val mergetreeScan = plans(3).asInstanceOf[FileSourceScanExecTransformer]
         assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
@@ -148,6 +149,15 @@ class GlutenClickHouseMergeTreeWriteSuite
         assert(
           addFiles.map(_.rows).sum
             == 600572)
+
+        // GLUTEN-5060: check the unnecessary FilterExec
+        val wholeStageTransformer = plans(2).asInstanceOf[WholeStageTransformer]
+        val planNodeJson = wholeStageTransformer.substraitPlanJson
+        assert(
+          !planNodeJson
+            .replaceAll("\\\n", "")
+            .replaceAll(" ", "")
+            .contains("\"input\":{\"filter\":{"))
     }
 
   }
@@ -1378,6 +1388,158 @@ class GlutenClickHouseMergeTreeWriteSuite
         assert(plans(0).metrics("selectedMarksPk").value === 17)
         assert(plans(0).metrics("totalMarksPk").value === 74)
     }
+  }
+
+  test(
+    "GLUTEN-5061: Fix assert error when writing mergetree data with select * from table limit n") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_5061;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_5061
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |LOCATION '$basePath/lineitem_mergetree_5061'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_5061
+                 | select * from lineitem limit 10
+                 |""".stripMargin)
+
+    val sqlStr =
+      s"""
+         |SELECT
+         |    count(1)
+         |FROM
+         |    lineitem_mergetree_5061
+         |""".stripMargin
+    runSql(sqlStr)(
+      df => {
+        val result = df.collect()
+        assert(result.size == 1)
+        assert(result(0).getLong(0) == 10)
+
+        val scanExec = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer => f
+        }
+        assert(scanExec.size == 1)
+
+        val mergetreeScan = scanExec(0)
+        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+
+        val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
+        val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
+        assert(addFiles.size == 1)
+        assert(addFiles(0).rows == 10)
+      })
+  }
+
+  test("GLUTEN-5062: Add a UT to ensure that IN filtering can apply on CH primary key") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_5062;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_5062
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |TBLPROPERTIES (orderByKey='l_returnflag,l_shipdate',
+                 |               primaryKey='l_returnflag,l_shipdate')
+                 |LOCATION '$basePath/lineitem_mergetree_5062'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_5062
+                 | select * from lineitem
+                 |""".stripMargin)
+
+    def checkSelectedMarksCnt(df: DataFrame, exceptedCnt: Long): Unit = {
+      val scanExec = collect(df.queryExecution.executedPlan) {
+        case f: FileSourceScanExecTransformer => f
+      }
+      assert(scanExec.size == 1)
+
+      val mergetreeScan = scanExec(0)
+      assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+
+      val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
+      val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
+      assert(
+        (addFiles.map(_.marks).sum - addFiles.size) == mergetreeScan.metrics("totalMarksPk").value)
+      assert(mergetreeScan.metrics("selectedMarksPk").value == exceptedCnt)
+    }
+
+    val sqlStr1 =
+      s"""
+         |SELECT
+         |    sum(l_extendedprice)
+         |FROM
+         |    lineitem_mergetree_5062
+         |WHERE
+         |    l_shipdate in (date'1998-08-15', date'1993-12-05', date'1993-03-01')
+         |""".stripMargin
+    runSql(sqlStr1)(
+      df => {
+        val result = df.collect()
+        assert(result.size == 1)
+        assert(result(0).getDouble(0).toString.substring(0, 6).equals("2.6480"))
+
+        checkSelectedMarksCnt(df, 34)
+      })
+
+    val sqlStr2 =
+      s"""
+         |SELECT
+         |    sum(l_extendedprice)
+         |FROM
+         |    lineitem_mergetree_5062
+         |WHERE
+         |    l_returnflag not in ('N', 'A')
+         |""".stripMargin
+    runSql(sqlStr2)(
+      df => {
+        val result = df.collect()
+        assert(result.size == 1)
+        assert(result(0).getDouble(0).toString.substring(0, 6).equals("5.3379"))
+
+        checkSelectedMarksCnt(df, 29)
+      })
   }
 }
 // scalastyle:off line.size.limit
