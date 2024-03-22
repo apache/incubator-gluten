@@ -27,18 +27,25 @@ import scala.collection.JavaConverters._
 object VeloxIntermediateData {
   // Agg functions with inconsistent ordering of intermediate data between Velox and Spark.
   // Corr
-  val veloxCorrIntermediateDataOrder: Seq[String] = Seq("ck", "n", "xMk", "yMk", "xAvg", "yAvg")
+  private val veloxCorrIntermediateDataOrder: Seq[String] =
+    Seq("ck", "n", "xMk", "yMk", "xAvg", "yAvg")
   // CovPopulation, CovSample
-  val veloxCovarIntermediateDataOrder: Seq[String] = Seq("ck", "n", "xAvg", "yAvg")
+  private val veloxCovarIntermediateDataOrder: Seq[String] = Seq("ck", "n", "xAvg", "yAvg")
+  // Skewness
+  private val veloxSkewnessIntermediateDataOrder: Seq[String] = Seq("n", "avg", "m2", "m3", "m4")
 
   // Agg functions with inconsistent types of intermediate data between Velox and Spark.
   // StddevSamp, StddevPop, VarianceSamp, VariancePop
-  val veloxVarianceIntermediateTypes: Seq[DataType] = Seq(LongType, DoubleType, DoubleType)
+  private val veloxVarianceIntermediateTypes: Seq[DataType] = Seq(LongType, DoubleType, DoubleType)
   // CovPopulation, CovSample
-  val veloxCovarIntermediateTypes: Seq[DataType] = Seq(DoubleType, LongType, DoubleType, DoubleType)
+  private val veloxCovarIntermediateTypes: Seq[DataType] =
+    Seq(DoubleType, LongType, DoubleType, DoubleType)
   // Corr
-  val veloxCorrIntermediateTypes: Seq[DataType] =
+  private val veloxCorrIntermediateTypes: Seq[DataType] =
     Seq(DoubleType, LongType, DoubleType, DoubleType, DoubleType, DoubleType)
+  // Skewness
+  private val veloxSkewnessIntermediateTypes: Seq[DataType] =
+    Seq(LongType, DoubleType, DoubleType, DoubleType, DoubleType)
 
   /**
    * Return the intermediate columns order of Velox aggregation functions, with special matching
@@ -55,6 +62,8 @@ object VeloxIntermediateData {
         veloxCorrIntermediateDataOrder
       case _: CovPopulation | _: CovSample =>
         veloxCovarIntermediateDataOrder
+      case _: Skewness =>
+        veloxSkewnessIntermediateDataOrder
       case _ =>
         aggFunc.aggBufferAttributes.map(_.name)
     }
@@ -77,6 +86,9 @@ object VeloxIntermediateData {
     aggregateFunc match {
       case _ @Type(veloxDataTypes: Seq[DataType]) =>
         Seq(StructType(veloxDataTypes.map(StructField("", _)).toArray))
+      case _: CollectList | _: CollectSet =>
+        // CollectList and CollectSet should use data type of agg function.
+        Seq(aggregateFunc.dataType)
       case _ =>
         // Not use StructType for single column agg intermediate data
         aggregateFunc.aggBufferAttributes.map(_.dataType)
@@ -131,6 +143,8 @@ object VeloxIntermediateData {
           Some(veloxCovarIntermediateTypes)
         case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
           Some(veloxVarianceIntermediateTypes)
+        case _: Skewness =>
+          Some(veloxSkewnessIntermediateTypes)
         case _ if aggFunc.aggBufferAttributes.size > 1 =>
           Some(aggFunc.aggBufferAttributes.map(_.dataType))
         case _ => None

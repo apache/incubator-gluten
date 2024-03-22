@@ -18,9 +18,8 @@ package org.apache.spark.sql
 
 import io.glutenproject.execution.HashAggregateExecBaseTransformer
 
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.execution.WholeStageCodegenExec
-import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
+import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SQLTestData.DecimalData
@@ -33,7 +32,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
 
   // blackTestNameList is defined in ClickHouseNotSupport
 
-  test(GlutenTestConstants.GLUTEN_TEST + "count") {
+  testGluten("count") {
     // agg with no input col
     assert(testData2.count() === testData2.rdd.map(_ => 1).count())
 
@@ -42,7 +41,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
       Row(6, 6.0))
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST + "null count") {
+  testGluten("null count") {
     checkAnswer(testData3.groupBy($"a").agg(count($"b")), Seq(Row(1, 0), Row(2, 1)))
 
     checkAnswer(testData3.groupBy($"a").agg(count($"a" + $"b")), Seq(Row(1, 0), Row(2, 1)))
@@ -59,7 +58,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
 //    )
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST + "groupBy") {
+  testGluten("groupBy") {
     checkAnswer(testData2.groupBy("a").agg(sum($"b")), Seq(Row(1, 3), Row(2, 3), Row(3, 3)))
     checkAnswer(testData2.groupBy("a").agg(sum($"b").as("totB")).agg(sum($"totB")), Row(9))
     checkAnswer(testData2.groupBy("a").agg(count("*")), Row(1, 2) :: Row(2, 2) :: Row(3, 2) :: Nil)
@@ -101,7 +100,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
 //    )
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST + "average") {
+  testGluten("average") {
 
     checkAnswer(testData2.agg(avg($"a"), mean($"a")), Row(2.0, 2.0))
 
@@ -128,7 +127,9 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
 //      Row(new java.math.BigDecimal(2), new java.math.BigDecimal(6)) :: Nil)
   }
 
-  ignore("gluten SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate") {
+  ignore(
+    GlutenTestConstants.GLUTEN_TEST +
+      "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate") {
     withTempView("view") {
       Seq(
         ("mithunr", Float.NaN),
@@ -142,14 +143,14 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
     }
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST + "variance") {
+  testGluten("variance") {
     checkAnswer(
       testData2.agg(var_samp($"a"), var_pop($"a"), variance($"a")),
       Row(0.8, 2.0 / 3.0, 0.8))
     checkAnswer(testData2.agg(var_samp("a"), var_pop("a"), variance("a")), Row(0.8, 2.0 / 3.0, 0.8))
   }
 
-  test("aggregation with filter") {
+  testGluten("aggregation with filter") {
     Seq(
       ("mithunr", 12.3f, 5.0f, true, 9.4f),
       ("mithunr", 15.5f, 4.0f, false, 19.9f),
@@ -173,7 +174,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
     checkAnswer(df, Row(2) :: Nil)
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST + "extend with cast expression") {
+  testGluten("extend with cast expression") {
     checkAnswer(
       decimalData.agg(
         sum($"a".cast("double")),
@@ -184,9 +185,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
   }
 
   // This test is applicable to velox backend. For CH backend, the replacement is disabled.
-  test(
-    GlutenTestConstants.GLUTEN_TEST
-      + "use gluten hash agg to replace vanilla spark sort agg") {
+  testGluten("use gluten hash agg to replace vanilla spark sort agg") {
 
     withSQLConf(("spark.gluten.sql.columnar.force.hashagg", "false")) {
       Seq("A", "B", "C", "D").toDF("col1").createOrReplaceTempView("t1")
@@ -207,7 +206,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
     }
   }
 
-  test("gluten issues 3221") {
+  testGluten("gluten issues 3221") {
     val df = spark.sparkContext
       .parallelize(DecimalData(-32.82, 1)
         :: Nil)
@@ -217,7 +216,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
     checkAnswer(df.agg(sum($"a".cast("double"))), Row(-32.82))
   }
 
-  test("gluten 3213") {
+  testGluten("gluten 3213") {
     Seq(
       (
         "c1",
@@ -341,19 +340,16 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
         // test case for ObjectHashAggregate and SortAggregate
         val objHashAggOrSortAggDF = df.groupBy("x").agg(c, collect_list("y"))
         objHashAggOrSortAggDF.collect()
-        val objHashAggOrSortAggPlan =
-          stripAQEPlan(objHashAggOrSortAggDF.queryExecution.executedPlan)
-        if (useObjectHashAgg) {
-          assert(objHashAggOrSortAggPlan.isInstanceOf[ObjectHashAggregateExec])
-        } else {
-          assert(objHashAggOrSortAggPlan.isInstanceOf[SortAggregateExec])
-        }
+        assert(stripAQEPlan(objHashAggOrSortAggDF.queryExecution.executedPlan).find {
+          case _: HashAggregateExecBaseTransformer => true
+          case _ => false
+        }.isDefined)
       }
     }
   }
 
-  test(
-    GLUTEN_TEST + "SPARK-19471: AggregationIterator does not initialize the generated" +
+  testGluten(
+    "SPARK-19471: AggregationIterator does not initialize the generated" +
       " result projection before using it") {
     Seq(
       monotonically_increasing_id(),

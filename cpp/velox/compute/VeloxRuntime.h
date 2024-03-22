@@ -35,9 +35,10 @@ class VeloxRuntime final : public Runtime {
  public:
   explicit VeloxRuntime(const std::unordered_map<std::string, std::string>& confMap);
 
-  void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) override;
+  void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo, std::optional<std::string> dumpFile)
+      override;
 
-  void parseSplitInfo(const uint8_t* data, int32_t size) override;
+  void parseSplitInfo(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) override;
 
   static std::shared_ptr<facebook::velox::memory::MemoryPool> getAggregateVeloxPool(MemoryManager* memoryManager) {
     return toVeloxMemoryManager(memoryManager)->getAggregateMemoryPool();
@@ -113,8 +114,14 @@ class VeloxRuntime final : public Runtime {
 
   void injectWriteFilesTempPath(const std::string& path) override;
 
+  void dumpConf(const std::string& path) override;
+
   std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlan() {
     return veloxPlan_;
+  }
+
+  bool debugModeEnabled() const {
+    return debugModeEnabled_;
   }
 
   static void getInfoAndIds(
@@ -126,6 +133,8 @@ class VeloxRuntime final : public Runtime {
 
  private:
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
+  std::shared_ptr<const facebook::velox::Config> veloxCfg_;
+  bool debugModeEnabled_{false};
 
   std::unordered_map<int32_t, std::shared_ptr<ColumnarBatch>> emptySchemaBatchLoopUp_;
 };

@@ -40,8 +40,9 @@ abstract class ColumnarToRowExecBase(child: SparkPlan)
 
   final override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
-  final override def doExecuteBroadcast[T](): Broadcast[T] = {
-    child.executeBroadcast()
+  override def doExecuteBroadcast[T](): Broadcast[T] = {
+    // Require for explicit implementation, otherwise throw error.
+    super.doExecuteBroadcast[T]()
   }
 
   def doExecuteInternal(): RDD[InternalRow]

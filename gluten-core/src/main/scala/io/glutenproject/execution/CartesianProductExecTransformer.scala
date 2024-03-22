@@ -22,6 +22,7 @@ import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.RelBuilder
+import io.glutenproject.utils.SubstraitUtil
 
 import org.apache.spark.{Dependency, NarrowDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
@@ -32,6 +33,8 @@ import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.joins.BaseJoinExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import io.substrait.proto.CrossRel
 
 import java.io.{IOException, ObjectOutputStream}
 
@@ -63,12 +66,15 @@ case class CartesianProductExecTransformer(
 
   override def rightKeys: Seq[Expression] = Nil
 
+  protected lazy val substraitJoinType: CrossRel.JoinType =
+    SubstraitUtil.toCrossRelSubstrait(joinType)
+
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] =
-    BackendsApiManager.getMetricsApiInstance.genCartesianProductTransformerMetrics(sparkContext)
+    BackendsApiManager.getMetricsApiInstance.genNestedLoopJoinTransformerMetrics(sparkContext)
 
   override def metricsUpdater(): MetricsUpdater = {
-    BackendsApiManager.getMetricsApiInstance.genCartesianProductTransformerMetricsUpdater(metrics)
+    BackendsApiManager.getMetricsApiInstance.genNestedLoopJoinTransformerMetricsUpdater(metrics)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
@@ -95,6 +101,7 @@ case class CartesianProductExecTransformer(
     val currRel = RelBuilder.makeCrossRel(
       inputLeftRelNode,
       inputRightRelNode,
+      substraitJoinType,
       expressionNode.orNull,
       extensionNode,
       context,
@@ -120,6 +127,7 @@ case class CartesianProductExecTransformer(
     val currRel = RelBuilder.makeCrossRel(
       null,
       null,
+      substraitJoinType,
       expressionNode.orNull,
       extensionNode,
       substraitContext,

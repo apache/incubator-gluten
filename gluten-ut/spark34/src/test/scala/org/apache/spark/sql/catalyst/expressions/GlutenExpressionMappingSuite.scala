@@ -26,7 +26,7 @@ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
 class GlutenExpressionMappingSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelper {
 
-  test("test expression blacklist") {
+  testGluten("test expression blacklist") {
     val names = ExpressionMappings.expressionsMap.values.toSet
     assert(names.contains("regexp_replace"))
     assert(names.contains("regexp_extract"))

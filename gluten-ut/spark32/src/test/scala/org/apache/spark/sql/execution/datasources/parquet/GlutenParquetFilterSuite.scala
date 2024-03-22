@@ -68,7 +68,7 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
       getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + name)
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST + "filter pushdown - timestamp") {
+  testGluten("filter pushdown - timestamp") {
     Seq(true, false).foreach {
       java8Api =>
         Seq(CORRECTED, LEGACY).foreach {
@@ -106,9 +106,7 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "Filter applied on merged Parquet schema with new column should work") {
+  testGluten("Filter applied on merged Parquet schema with new column should work") {
     import testImplicits._
     withAllParquetReaders {
       withSQLConf(
@@ -156,9 +154,7 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-12218: 'Not' is included in Parquet filter pushdown") {
+  testGluten("SPARK-12218: 'Not' is included in Parquet filter pushdown") {
     import testImplicits._
 
     withSQLConf(SQLConf.PARQUET_FILTER_PUSHDOWN_ENABLED.key -> "true") {
@@ -180,9 +176,7 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-23852: Broken Parquet push-down for partially-written stats") {
+  testGluten("SPARK-23852: Broken Parquet push-down for partially-written stats") {
     withSQLConf(SQLConf.PARQUET_FILTER_PUSHDOWN_ENABLED.key -> "true") {
       // parquet-1217.parquet contains a single column with values -1, 0, 1, 2 and null.
       // The row-group statistics include null counts, but not min and max values, which
@@ -195,9 +189,7 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-17091: Convert IN predicate to Parquet filter push-down") {
+  testGluten("SPARK-17091: Convert IN predicate to Parquet filter push-down") {
     val schema = StructType(
       Seq(
         StructField("a", IntegerType, nullable = false)
@@ -266,9 +258,7 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-25207: exception when duplicate fields in case-insensitive mode") {
+  testGluten("SPARK-25207: exception when duplicate fields in case-insensitive mode") {
     withTempPath {
       dir =>
         val count = 10
@@ -297,7 +287,7 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
     }
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST + "Support Parquet column index") {
+  testGluten("Support Parquet column index") {
     // block 1:
     //                      null count  min                                       max
     // page-0                         0  0                                         99
@@ -537,7 +527,7 @@ class GlutenParquetV2FilterSuite extends GltuenParquetFilterSuite with GlutenSQL
     }
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST + "filter pushdown - date") {
+  testGluten("filter pushdown - date") {
     implicit class StringToDate(s: String) {
       def date: Date = Date.valueOf(s)
     }

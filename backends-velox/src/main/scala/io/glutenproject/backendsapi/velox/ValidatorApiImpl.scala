@@ -17,12 +17,11 @@
 package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.backendsapi.ValidatorApi
-import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.validate.NativePlanValidationInfo
 import io.glutenproject.vectorized.NativePlanEvaluator
 
-import org.apache.spark.sql.catalyst.expressions.{CreateMap, Explode, Expression, Generator, JsonTuple, PosExplode}
+import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
@@ -43,27 +42,17 @@ class ValidatorApiImpl extends ValidatorApi {
 
   override def doSparkPlanValidate(plan: SparkPlan): Boolean = true
 
-  private def primitiveTypeValidate(dataType: DataType): Boolean = {
+  private def isPrimitiveType(dataType: DataType): Boolean = {
     dataType match {
-      case _: BooleanType =>
-      case _: ByteType =>
-      case _: ShortType =>
-      case _: IntegerType =>
-      case _: LongType =>
-      case _: FloatType =>
-      case _: DoubleType =>
-      case _: StringType =>
-      case _: BinaryType =>
-      case _: DecimalType =>
-      case _: DateType =>
-      case _: TimestampType =>
-      case _ => return false
+      case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
+          StringType | BinaryType | _: DecimalType | DateType | TimestampType | NullType =>
+        true
+      case _ => false
     }
-    true
   }
 
   override def doSchemaValidate(schema: DataType): Option[String] = {
-    if (primitiveTypeValidate(schema)) {
+    if (isPrimitiveType(schema)) {
       return None
     }
     schema match {
@@ -81,7 +70,7 @@ class ValidatorApiImpl extends ValidatorApi {
       case array: ArrayType =>
         doSchemaValidate(array.elementType)
       case _ =>
-        Some(s"do not support data type: $schema")
+        Some(s"Schema / data type not supported: $schema")
     }
   }
 
@@ -89,28 +78,5 @@ class ValidatorApiImpl extends ValidatorApi {
       outputPartitioning: Partitioning,
       child: SparkPlan): Option[String] = {
     doSchemaValidate(child.schema)
-  }
-
-  override def doGeneratorValidate(generator: Generator, outer: Boolean): ValidationResult = {
-    if (outer) {
-      return ValidationResult.notOk(s"Velox backend does not support outer")
-    }
-    generator match {
-      case _: JsonTuple =>
-        ValidationResult.notOk(s"Velox backend does not support this json_tuple")
-      case _: PosExplode =>
-        // TODO(yuan): support posexplode and remove this check
-        ValidationResult.notOk(s"Velox backend does not support this posexplode")
-      case explode: Explode =>
-        explode.child match {
-          case _: CreateMap =>
-            // explode(MAP(col1, col2))
-            ValidationResult.notOk(s"Velox backend does not support MAP datatype")
-          case _ =>
-            ValidationResult.ok
-        }
-      case _ =>
-        ValidationResult.ok
-    }
   }
 }

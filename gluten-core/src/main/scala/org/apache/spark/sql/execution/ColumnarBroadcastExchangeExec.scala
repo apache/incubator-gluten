@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.metrics.GlutenTimeMetric
+import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.{broadcast, SparkException}
 import org.apache.spark.launcher.SparkLauncher
@@ -26,9 +27,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.Statistics
-import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, Partitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, IdentityBroadcastMode, Partitioning}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, BroadcastExchangeLike}
-import org.apache.spark.sql.execution.joins.HashedRelationBroadcastMode
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.SparkFatalException
@@ -60,11 +60,7 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
       session,
       BroadcastExchangeExec.executionContext) {
       try {
-        // Setup a job group here so later it may get cancelled by groupId if necessary.
-        sparkContext.setJobGroup(
-          runId.toString,
-          s"broadcast exchange (runId $runId)",
-          interruptOnCancel = true)
+        SparkShimLoader.getSparkShims.setJobDescriptionOrTagForBroadcastExchange(sparkContext, this)
         val relation = GlutenTimeMetric.millis(longMetric("collectTime")) {
           _ =>
             // this created relation ignore HashedRelationBroadcastMode isNullAware, because we
@@ -72,6 +68,8 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
             // compare the isNullAware, so gluten will not generate HashedRelationWithAllNullKeys
             // or EmptyHashedRelation, this difference will cause performance regression in some
             // cases.
+            // For the above reason, the same implementation can be used for both
+            // HashedRelationBroadcastMode as well as IdentityBroadcastMode.
             BackendsApiManager.getSparkPlanExecApiInstance.createBroadcastRelation(
               mode,
               child,
@@ -131,12 +129,24 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
     ColumnarBroadcastExchangeExec(mode.canonicalized, child.canonicalized)
   }
 
-  override protected def doValidateInternal(): ValidationResult = mode match {
-    case _: HashedRelationBroadcastMode =>
-      ValidationResult.ok
-    case _ =>
-      // TODO IdentityBroadcastMode not supported. Need to support BroadcastNestedLoopJoin first.
-      ValidationResult.notOk("Only support HashedRelationBroadcastMode for now.")
+  override protected def doValidateInternal(): ValidationResult = {
+    // CH backend does not support IdentityBroadcastMode used in BNLJ
+    if (
+      mode == IdentityBroadcastMode && !BackendsApiManager.getSettings
+        .supportBroadcastNestedLoopJoinExec()
+    ) {
+      return ValidationResult.notOk("This backend does not support IdentityBroadcastMode and BNLJ")
+    }
+    BackendsApiManager.getValidatorApiInstance
+      .doSchemaValidate(schema)
+      .map {
+        reason =>
+          {
+            ValidationResult.notOk(
+              s"Unsupported schema in broadcast exchange: $schema, reason: $reason")
+          }
+      }
+      .getOrElse(ValidationResult.ok)
   }
 
   override def doPrepare(): Unit = {
@@ -156,7 +166,7 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
       case ex: TimeoutException =>
         logError(s"Could not execute broadcast in $timeout secs.", ex)
         if (!relationFuture.isDone) {
-          sparkContext.cancelJobGroup(runId.toString)
+          SparkShimLoader.getSparkShims.cancelJobGroupForBroadcastExchange(sparkContext, this)
           relationFuture.cancel(true)
         }
         throw new SparkException(

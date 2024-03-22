@@ -35,7 +35,7 @@ import org.apache.commons.lang3.StringUtils
 import scala.sys.process._
 
 class ListenerApiImpl extends ListenerApi {
-  private val ARROW_VERSION = "1400"
+  private val ARROW_VERSION = "1500"
 
   override def onDriverStart(conf: SparkConf): Unit = {
     // sql table cache serializer
@@ -89,12 +89,14 @@ class ListenerApiImpl extends ListenerApi {
       new SharedLibraryLoaderCentos7
     } else if (systemName.contains("Debian") && systemVersion.startsWith("11")) {
       new SharedLibraryLoaderDebian11
+    } else if (systemName.contains("Debian") && systemVersion.startsWith("12")) {
+      new SharedLibraryLoaderDebian12
     } else {
       throw new GlutenException(
         "Found unsupported OS! Currently, Gluten's Velox backend" +
           " only supports Ubuntu 20.04/22.04, CentOS 7/8, " +
           "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 3.2, RedHat 7/8, " +
-          "Debian 11.")
+          "Debian 11/12.")
     }
     loader.loadLib(load)
   }
@@ -109,9 +111,9 @@ class ListenerApiImpl extends ListenerApi {
     }
     loader
       .newTransaction()
-      .loadAndCreateLink(s"libarrow.so.$ARROW_VERSION.1.0", s"libarrow.so.$ARROW_VERSION", false)
+      .loadAndCreateLink(s"libarrow.so.$ARROW_VERSION.0.0", s"libarrow.so.$ARROW_VERSION", false)
       .loadAndCreateLink(
-        s"libparquet.so.$ARROW_VERSION.1.0",
+        s"libparquet.so.$ARROW_VERSION.0.0",
         s"libparquet.so.$ARROW_VERSION",
         false)
       .commit()
@@ -121,19 +123,23 @@ class ListenerApiImpl extends ListenerApi {
     loader
       .newTransaction()
       .loadAndCreateLink(
-        s"libarrow.$ARROW_VERSION.1.0.dylib",
+        s"libarrow.$ARROW_VERSION.0.0.dylib",
         s"libarrow.$ARROW_VERSION.dylib",
         false)
       .loadAndCreateLink(
-        s"libparquet.$ARROW_VERSION.1.0.dylib",
+        s"libparquet.$ARROW_VERSION.0.0.dylib",
         s"libparquet.$ARROW_VERSION.dylib",
         false)
       .commit()
   }
 
   private def initialize(conf: SparkConf): Unit = {
-    val workspace = JniWorkspace.getDefault
-    val loader = workspace.libLoader
+    val debugJni = conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_MODE, defaultValue = false) &&
+      conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_KEEP_JNI_WORKSPACE, defaultValue = false)
+    if (debugJni) {
+      JniWorkspace.enableDebug()
+    }
+    val loader = JniWorkspace.getDefault.libLoader
 
     val osName = System.getProperty("os.name")
     if (osName.startsWith("Mac OS X") || osName.startsWith("macOS")) {

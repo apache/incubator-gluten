@@ -16,8 +16,6 @@
  */
 package org.apache.spark.sql.execution.joins
 
-import io.glutenproject.execution.BroadCastHashJoinContext
-
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -34,5 +32,5 @@ trait BuildSideRelation extends Serializable {
   def transform(key: Expression): Array[InternalRow]
 
   /** Returns a read-only copy of this, to be safely used in current thread. */
-  def asReadOnlyCopy(broadCastContext: BroadCastHashJoinContext): BuildSideRelation
+  def asReadOnlyCopy(): BuildSideRelation
 }

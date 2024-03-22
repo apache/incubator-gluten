@@ -541,9 +541,6 @@ const ::substrait::Expression_Literal_List& VeloxToSubstraitExprConvertor::toSub
   ::substrait::Expression_Literal_List* listLiteral =
       google::protobuf::Arena::CreateMessage<::substrait::Expression_Literal_List>(&arena);
   auto size = arrayVector->sizeAt(row);
-  if (size == 0) {
-    return *listLiteral;
-  }
   auto offset = arrayVector->offsetAt(row);
   if (arrayVector->elements()->isScalar()) {
     VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(
@@ -581,7 +578,14 @@ const ::substrait::Expression_Literal& VeloxToSubstraitExprConvertor::toSubstrai
     auto encoding = constantVector->valueVector()->encoding();
     if (encoding == VectorEncoding::Simple::ARRAY) {
       auto arrayVector = constantVector->valueVector()->as<ArrayVector>();
-      substraitField->mutable_list()->MergeFrom(toSubstraitLiteralList(arena, arrayVector, constantVector->index()));
+      auto row = constantVector->index();
+      auto size = arrayVector->sizeAt(row);
+      if (size == 0) {
+        substraitField->mutable_empty_list()->MergeFrom(
+            toSubstraitLiteralEmptyList(arena, arrayVector->elements()->type()));
+      } else {
+        substraitField->mutable_list()->MergeFrom(toSubstraitLiteralList(arena, arrayVector, row));
+      }
       return *substraitField;
     }
   }
@@ -604,6 +608,14 @@ const ::substrait::Expression_Literal& VeloxToSubstraitExprConvertor::toSubstrai
     return toSubstraitLiteralComplex(arena, constantVector);
   }
   return *substraitField;
+}
+
+const ::substrait::Type_List& VeloxToSubstraitExprConvertor::toSubstraitLiteralEmptyList(
+    google::protobuf::Arena& arena,
+    const velox::TypePtr& type) {
+  ::substrait::Type_List* emptyListLiteral = google::protobuf::Arena::CreateMessage<::substrait::Type_List>(&arena);
+  emptyListLiteral->mutable_type()->MergeFrom(typeConvertor_->toSubstraitType(arena, type));
+  return *emptyListLiteral;
 }
 
 } // namespace gluten

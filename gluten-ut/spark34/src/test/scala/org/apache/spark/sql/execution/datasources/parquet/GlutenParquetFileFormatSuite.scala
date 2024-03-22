@@ -17,24 +17,11 @@
 package org.apache.spark.sql.execution.datasources.parquet
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
-import org.apache.spark.sql.internal.SQLConf
 
-class GlutenParquetFileFormatV1Suite extends ParquetFileFormatV1Suite with GlutenSQLTestsBaseTrait {
-  override def withAllParquetReaders(code: => Unit): Unit = {
-    // test the row-based reader
-    withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "false")(code)
-    // Disabled: We don't yet support this case as of now
-    // test the vectorized reader
-    // withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "true")(code)
-  }
-}
+class GlutenParquetFileFormatV1Suite
+  extends ParquetFileFormatV1Suite
+  with GlutenSQLTestsBaseTrait {}
 
-class GlutenParquetFileFormatV2Suite extends ParquetFileFormatV2Suite with GlutenSQLTestsBaseTrait {
-  override def withAllParquetReaders(code: => Unit): Unit = {
-    // test the row-based reader
-    withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "false")(code)
-    // Disabled: We don't yet support this case as of now
-    // test the vectorized reader
-    // withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "true")(code)
-  }
-}
+class GlutenParquetFileFormatV2Suite
+  extends ParquetFileFormatV2Suite
+  with GlutenSQLTestsBaseTrait {}

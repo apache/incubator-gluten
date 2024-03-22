@@ -49,8 +49,9 @@ abstract class RowToColumnarExecBase(child: SparkPlan)
     child.execute()
   }
 
-  final override def doExecuteBroadcast[T](): broadcast.Broadcast[T] = {
-    child.executeBroadcast()
+  override def doExecuteBroadcast[T](): broadcast.Broadcast[T] = {
+    // Require for explicit implementation, otherwise throw error.
+    super.doExecuteBroadcast[T]()
   }
 
   final override def supportsColumnar: Boolean = true

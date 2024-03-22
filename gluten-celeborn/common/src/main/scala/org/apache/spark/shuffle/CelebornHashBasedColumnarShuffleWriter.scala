@@ -30,6 +30,7 @@ import org.apache.celeborn.common.CelebornConf
 import java.io.IOException
 
 abstract class CelebornHashBasedColumnarShuffleWriter[K, V](
+    shuffleId: Int,
     handle: CelebornShuffleHandle[K, V, V],
     context: TaskContext,
     celebornConf: CelebornConf,
@@ -37,8 +38,6 @@ abstract class CelebornHashBasedColumnarShuffleWriter[K, V](
     writeMetrics: ShuffleWriteMetricsReporter)
   extends ShuffleWriter[K, V]
   with Logging {
-
-  protected val shuffleId: Int = handle.dependency.shuffleId
 
   protected val numMappers: Int = handle.numMappers
 
@@ -66,6 +65,9 @@ abstract class CelebornHashBasedColumnarShuffleWriter[K, V](
 
   protected val customizedCompressionCodec: String = GlutenShuffleUtils.getCompressionCodec(conf)
 
+  protected val compressionLevel =
+    GlutenShuffleUtils.getCompressionLevel(conf, customizedCompressionCodec, null)
+
   protected val bufferCompressThreshold: Int =
     GlutenConfig.getConf.columnarShuffleCompressionThreshold
 
@@ -89,7 +91,7 @@ abstract class CelebornHashBasedColumnarShuffleWriter[K, V](
   final override def stop(success: Boolean): Option[MapStatus] = {
     try {
       if (stopping) {
-        None
+        return None
       }
       stopping = true
       if (success) {

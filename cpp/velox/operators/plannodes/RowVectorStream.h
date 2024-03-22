@@ -41,7 +41,7 @@ class RowVectorStream {
     auto vp = vb->getRowVector();
     VELOX_DCHECK(vp != nullptr);
     return std::make_shared<facebook::velox::RowVector>(
-        vp->pool(), outputType_, facebook::velox::BufferPtr(0), vp->size(), std::move(vp->children()));
+        vp->pool(), outputType_, facebook::velox::BufferPtr(0), vp->size(), vp->children());
   }
 
  private:

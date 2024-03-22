@@ -20,8 +20,6 @@
 #include <DataTypes/IDataType.h>
 #include <DataTypes/DataTypeFactory.h>
 #include <Functions/FunctionFactory.h>
-#include <Functions/FunctionsConversion.h>
-#include <Functions/SparkFunctionCastFloatToInt.h>
 #include <Parser/SerializedPlanParser.h>
 #include <benchmark/benchmark.h>
 
@@ -69,5 +67,5 @@ static void BM_SparkCastFloatToInt(benchmark::State & state)
          auto result = executable->execute(block.getColumnsWithTypeAndName(), executable->getResultType(), block.rows());
 }
 
-BENCHMARK(BM_CHCastFloatToInt)->Unit(benchmark::kMillisecond)->Iterations(10);
-BENCHMARK(BM_SparkCastFloatToInt)->Unit(benchmark::kMillisecond)->Iterations(10);
+BENCHMARK(BM_CHCastFloatToInt)->Unit(benchmark::kMillisecond)->Iterations(100);
+BENCHMARK(BM_SparkCastFloatToInt)->Unit(benchmark::kMillisecond)->Iterations(100);

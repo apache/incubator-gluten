@@ -16,12 +16,14 @@
  */
 package io.glutenproject.extension.columnar
 
-import io.glutenproject.utils.{PhysicalPlanSelector, PullOutProjectHelper}
+import io.glutenproject.utils.PullOutProjectHelper
 
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.{Expression, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete, Partial}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan, TakeOrderedAndProjectExec}
+import org.apache.spark.sql.execution.{ExpandExec, ProjectExec, SortExec, SparkPlan, TakeOrderedAndProjectExec}
+import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, TypedAggregateExpression}
+import org.apache.spark.sql.execution.window.WindowExec
 
 import scala.collection.mutable
 
@@ -32,22 +34,47 @@ import scala.collection.mutable
  * to transform the SparkPlan at the physical plan level, constructing a SparkPlan that supports
  * execution by the native engine.
  */
-case class PullOutPreProject(session: SparkSession)
-  extends Rule[SparkPlan]
-  with PullOutProjectHelper {
+object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
 
   private def needsPreProject(plan: SparkPlan): Boolean = {
-    if (notSupportTransform(plan)) {
-      // TagBeforeTransformHits may tag the plan as not transformable for some reason,
-      // for example, when ansi mode is enabled. In such cases, there is no need to
-      // pull out the project.
-      return false
-    }
     plan match {
       case sort: SortExec =>
         sort.sortOrder.exists(o => isNotAttribute(o.child))
       case take: TakeOrderedAndProjectExec =>
         take.sortOrder.exists(o => isNotAttribute(o.child))
+      case agg: BaseAggregateExec =>
+        agg.groupingExpressions.exists(isNotAttribute) ||
+        agg.aggregateExpressions.exists {
+          expr =>
+            if (expr.aggregateFunction.isInstanceOf[TypedAggregateExpression]) {
+              // We cannot pull out the children of TypedAggregateExpression to pre-project,
+              // and Gluten cannot support TypedAggregateExpression.
+              false
+            } else {
+              expr.filter.exists(isNotAttribute) ||
+              (expr.mode match {
+                case Partial | Complete =>
+                  expr.aggregateFunction.children.exists(isNotAttributeAndLiteral)
+                case _ => false
+              })
+            }
+        }
+      case window: WindowExec =>
+        window.orderSpec.exists(o => isNotAttribute(o.child)) ||
+        window.partitionSpec.exists(isNotAttribute) ||
+        window.windowExpression.exists(_.find {
+          case we: WindowExpression =>
+            we.windowFunction match {
+              case windowFunc: WindowFunction =>
+                windowFunc.children.exists(isNotAttributeAndLiteral)
+              case ae: AggregateExpression =>
+                ae.filter.exists(isNotAttribute) ||
+                ae.aggregateFunction.children.exists(isNotAttributeAndLiteral)
+              case _ => false
+            }
+          case _ => false
+        }.isDefined)
+      case expand: ExpandExec => expand.projections.flatten.exists(isNotAttributeAndLiteral)
       case _ => false
     }
   }
@@ -83,38 +110,85 @@ case class PullOutPreProject(session: SparkSession)
     }
   }
 
-  override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
-    plan.transform {
-      case sort: SortExec if needsPreProject(sort) =>
-        val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
-        val newSortOrder = getNewSortOrder(sort.sortOrder, expressionMap)
+  override def apply(plan: SparkPlan): SparkPlan = plan match {
+    case sort: SortExec if needsPreProject(sort) =>
+      val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
+      val newSortOrder = getNewSortOrder(sort.sortOrder, expressionMap)
+      // The output of the sort operator is the same as the output of the child, therefore it
+      // is necessary to retain the output columns of the child in the pre-projection, and
+      // then add the expressions that need to be evaluated in the sortOrder. Finally, in the
+      // post-projection, the additional columns need to be removed, leaving only the original
+      // output of the child.
+      val preProject = ProjectExec(
+        eliminateProjectList(sort.child.outputSet, expressionMap.values.toSeq),
+        sort.child)
+      val newSort = sort.copy(sortOrder = newSortOrder, child = preProject)
+      // The pre-project and post-project of SortExec always appear together, so it's more
+      // convenient to handle them together. Therefore, SortExec's post-project will no longer
+      // be pulled out separately.
+      ProjectExec(sort.child.output, newSort)
 
-        // The output of the sort operator is the same as the output of the child, therefore it
-        // is necessary to retain the output columns of the child in the pre-projection, and
-        // then add the expressions that need to be evaluated in the sortOrder. Finally, in the
-        // post-projection, the additional columns need to be removed, leaving only the original
-        // output of the child.
-        val preProject = ProjectExec(
-          eliminateProjectList(sort.child.outputSet, expressionMap.values.toSeq),
-          sort.child)
+    case topK: TakeOrderedAndProjectExec if needsPreProject(topK) =>
+      val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
+      val newSortOrder = getNewSortOrder(topK.sortOrder, expressionMap)
+      val preProject = ProjectExec(
+        eliminateProjectList(topK.child.outputSet, expressionMap.values.toSeq),
+        topK.child)
+      topK.copy(sortOrder = newSortOrder, child = preProject)
 
-        val newSort = sort.copy(sortOrder = newSortOrder, child = preProject)
-        newSort.copyTagsFrom(sort)
+    case agg: BaseAggregateExec if supportedAggregate(agg) && needsPreProject(agg) =>
+      val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
+      // Handle groupingExpressions.
+      val newGroupingExpressions =
+        agg.groupingExpressions.toIndexedSeq.map(
+          replaceExpressionWithAttribute(_, expressionMap).asInstanceOf[NamedExpression])
 
-        // The pre-project and post-project of SortExec always appear together, so it's more
-        // convenient to handle them together. Therefore, SortExec's post-project will no longer
-        // be pulled out separately.
-        ProjectExec(sort.child.output, newSort)
+      // Handle aggregateExpressions.
+      val newAggregateExpressions =
+        agg.aggregateExpressions.toIndexedSeq.map(rewriteAggregateExpression(_, expressionMap))
 
-      case topK: TakeOrderedAndProjectExec if needsPreProject(topK) =>
-        val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
-        val newSortOrder = getNewSortOrder(topK.sortOrder, expressionMap)
-        val preProject = ProjectExec(
-          eliminateProjectList(topK.child.outputSet, expressionMap.values.toSeq),
-          topK.child)
-        val newTopK = topK.copy(sortOrder = newSortOrder, child = preProject)
-        newTopK.copyTagsFrom(topK)
-        newTopK
-    }
+      val newAgg = copyBaseAggregateExec(agg)(
+        newGroupingExpressions = newGroupingExpressions,
+        newAggregateExpressions = newAggregateExpressions)
+      val preProject = ProjectExec(
+        eliminateProjectList(agg.child.outputSet, expressionMap.values.toSeq),
+        agg.child)
+      newAgg.withNewChildren(Seq(preProject))
+
+    case window: WindowExec if needsPreProject(window) =>
+      val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
+      // Handle orderSpec.
+      val newOrderSpec = getNewSortOrder(window.orderSpec, expressionMap)
+
+      // Handle partitionSpec.
+      val newPartitionSpec =
+        window.partitionSpec.map(replaceExpressionWithAttribute(_, expressionMap))
+
+      // Handle windowExpressions.
+      val newWindowExpressions = window.windowExpression.toIndexedSeq.map {
+        _.transform { case we: WindowExpression => rewriteWindowExpression(we, expressionMap) }
+      }
+
+      val newWindow = window.copy(
+        orderSpec = newOrderSpec,
+        partitionSpec = newPartitionSpec,
+        windowExpression = newWindowExpressions.asInstanceOf[Seq[NamedExpression]],
+        child = ProjectExec(
+          eliminateProjectList(window.child.outputSet, expressionMap.values.toSeq),
+          window.child)
+      )
+
+      ProjectExec(window.output, newWindow)
+
+    case expand: ExpandExec if needsPreProject(expand) =>
+      val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
+      val newProjections =
+        expand.projections.map(_.map(replaceExpressionWithAttribute(_, expressionMap)))
+      expand.copy(
+        projections = newProjections,
+        child = ProjectExec(
+          eliminateProjectList(expand.child.outputSet, expressionMap.values.toSeq),
+          expand.child))
+    case _ => plan
   }
 }

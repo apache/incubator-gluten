@@ -26,7 +26,7 @@ class GlutenCollapseProjectExecTransformerSuite extends GlutenSQLTestsTrait {
 
   import testImplicits._
 
-  test("Support ProjectExecTransformer collapse") {
+  testGluten("Support ProjectExecTransformer collapse") {
     val query =
       """
         |SELECT

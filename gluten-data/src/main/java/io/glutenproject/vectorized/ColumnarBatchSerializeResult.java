@@ -16,7 +16,11 @@
  */
 package io.glutenproject.vectorized;
 
-public class ColumnarBatchSerializeResult {
+import java.io.Serializable;
+
+public class ColumnarBatchSerializeResult implements Serializable {
+  public static final ColumnarBatchSerializeResult EMPTY =
+      new ColumnarBatchSerializeResult(0, new byte[0]);
 
   private long numRows;
 

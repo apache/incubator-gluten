@@ -18,6 +18,7 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.{GlutenConfig, GlutenPlugin, VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME}
 import io.glutenproject.backendsapi._
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.execution.WriteFilesExecTransformer
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.extension.ValidationResult
@@ -26,7 +27,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Literal, NamedExpression, NthValue, PercentRank, Rand, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Lag, Lead, Literal, NamedExpression, NthValue, NTile, PercentRank, Rand, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame, Uuid}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Sum}
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.util.CharVarcharUtils
@@ -85,6 +86,27 @@ object BackendSettings extends BackendSettingsApi {
       }
     }
 
+    val parquetTypeValidatorWithComplexTypeFallback: PartialFunction[StructField, String] = {
+      case StructField(_, arrayType: ArrayType, _, _) =>
+        arrayType.simpleString + " is forced to fallback."
+      case StructField(_, mapType: MapType, _, _) =>
+        mapType.simpleString + " is forced to fallback."
+      case StructField(_, structType: StructType, _, _) =>
+        structType.simpleString + " is forced to fallback."
+    }
+    val orcTypeValidatorWithComplexTypeFallback: PartialFunction[StructField, String] = {
+      case StructField(_, ByteType, _, _) => "ByteType not support"
+      case StructField(_, arrayType: ArrayType, _, _) =>
+        arrayType.simpleString + " is forced to fallback."
+      case StructField(_, mapType: MapType, _, _) =>
+        mapType.simpleString + " is forced to fallback."
+      case StructField(_, structType: StructType, _, _) =>
+        structType.simpleString + " is forced to fallback."
+      case StructField(_, stringType: StringType, _, metadata)
+          if isCharType(stringType, metadata) =>
+        CharVarcharUtils.getRawTypeString(metadata) + " not support"
+      case StructField(_, TimestampType, _, _) => "TimestampType not support"
+    }
     format match {
       case ParquetReadFormat =>
         val typeValidator: PartialFunction[StructField, String] = {
@@ -103,7 +125,11 @@ object BackendSettings extends BackendSettingsApi {
               if mapType.valueType.isInstanceOf[ArrayType] =>
             "ArrayType as Value in MapType"
         }
-        validateTypes(typeValidator)
+        if (!GlutenConfig.getConf.forceComplexTypeScanFallbackEnabled) {
+          validateTypes(typeValidator)
+        } else {
+          validateTypes(parquetTypeValidatorWithComplexTypeFallback)
+        }
       case DwrfReadFormat => ValidationResult.ok
       case OrcReadFormat =>
         if (!GlutenConfig.getConf.veloxOrcScanEnabled) {
@@ -124,30 +150,42 @@ object BackendSettings extends BackendSettingsApi {
                 if mapType.valueType.isInstanceOf[ArrayType] =>
               "ArrayType as Value in MapType"
             case StructField(_, stringType: StringType, _, metadata)
-                if CharVarcharUtils
-                  .getRawTypeString(metadata)
-                  .getOrElse(stringType.catalogString) != stringType.catalogString =>
+                if isCharType(stringType, metadata) =>
               CharVarcharUtils.getRawTypeString(metadata) + " not support"
             case StructField(_, TimestampType, _, _) => "TimestampType not support"
           }
-          validateTypes(typeValidator)
+          if (!GlutenConfig.getConf.forceComplexTypeScanFallbackEnabled) {
+            validateTypes(typeValidator)
+          } else {
+            validateTypes(orcTypeValidatorWithComplexTypeFallback)
+          }
         }
       case _ => ValidationResult.notOk(s"Unsupported file format for $format.")
     }
+  }
+
+  def isCharType(stringType: StringType, metadata: Metadata): Boolean = {
+    val charTypePattern = "char\\((\\d+)\\)".r
+    GlutenConfig.getConf.forceOrcCharTypeScanFallbackEnabled && charTypePattern
+      .findFirstIn(
+        CharVarcharUtils
+          .getRawTypeString(metadata)
+          .getOrElse(stringType.catalogString))
+      .isDefined
   }
 
   override def supportWriteFilesExec(
       format: FileFormat,
       fields: Array[StructField],
       bucketSpec: Option[BucketSpec],
-      options: Map[String, String]): Option[String] = {
+      options: Map[String, String]): ValidationResult = {
 
     def validateCompressionCodec(): Option[String] = {
       // Velox doesn't support brotli and lzo.
       val unSupportedCompressions = Set("brotli, lzo")
       val compressionCodec = WriteFilesExecTransformer.getCompressionCodec(options)
       if (unSupportedCompressions.contains(compressionCodec)) {
-        Some("brotli or lzo compression codec is not support in velox backend.")
+        Some("Brotli or lzo compression codec is unsupported in Velox backend.")
       } else {
         None
       }
@@ -155,7 +193,7 @@ object BackendSettings extends BackendSettingsApi {
 
     // Validate if all types are supported.
     def validateDateTypes(): Option[String] = {
-      fields.flatMap {
+      val unsupportedTypes = fields.flatMap {
         field =>
           field.dataType match {
             case _: TimestampType => Some("TimestampType")
@@ -164,19 +202,25 @@ object BackendSettings extends BackendSettingsApi {
             case _: MapType => Some("MapType")
             case _ => None
           }
-      }.headOption
+      }
+      if (unsupportedTypes.nonEmpty) {
+        Some(unsupportedTypes.mkString("Found unsupported type:", ",", ""))
+      } else {
+        None
+      }
     }
 
     def validateFieldMetadata(): Option[String] = {
-      if (fields.exists(!_.metadata.equals(Metadata.empty))) {
-        Some("StructField contain the metadata information.")
-      } else None
+      fields.find(_.metadata != Metadata.empty).map {
+        filed =>
+          s"StructField contain the metadata information: $filed, metadata: ${filed.metadata}"
+      }
     }
 
     def validateFileFormat(): Option[String] = {
       format match {
         case _: ParquetFileFormat => None
-        case _: FileFormat => Some("Only parquet fileformat is supported in native write.")
+        case _: FileFormat => Some("Only parquet fileformat is supported in Velox backend.")
       }
     }
 
@@ -205,8 +249,13 @@ object BackendSettings extends BackendSettingsApi {
       .orElse(validateFieldMetadata())
       .orElse(validateDateTypes())
       .orElse(validateWriteFilesOptions())
-      .orElse(validateBucketSpec())
+      .orElse(validateBucketSpec()) match {
+      case Some(reason) => ValidationResult.notOk(reason)
+      case _ => ValidationResult.ok
+    }
   }
+
+  override def supportNativeMetadataColumns(): Boolean = true
 
   override def supportExpandExec(): Boolean = true
 
@@ -223,7 +272,7 @@ object BackendSettings extends BackendSettingsApi {
         func => {
           val windowExpression = func match {
             case alias: Alias => WindowFunctionsBuilder.extractWindowExpression(alias.child)
-            case _ => throw new UnsupportedOperationException(s"$func is not supported.")
+            case _ => throw new GlutenNotSupportException(s"$func is not supported.")
           }
 
           // Block the offloading by checking Velox's current limitations
@@ -237,7 +286,7 @@ object BackendSettings extends BackendSettingsApi {
                     order =>
                       order.direction match {
                         case Descending =>
-                          throw new UnsupportedOperationException(
+                          throw new GlutenNotSupportException(
                             "DESC order is not supported when" +
                               " literal bound type is used!")
                         case _ =>
@@ -247,17 +296,15 @@ object BackendSettings extends BackendSettingsApi {
                       order.dataType match {
                         case ByteType | ShortType | IntegerType | LongType | DateType =>
                         case _ =>
-                          throw new UnsupportedOperationException(
+                          throw new GlutenNotSupportException(
                             "Only integral type & date type are" +
                               " supported for sort key when literal bound type is used!")
                       })
                   val rawValue = e.eval().toString.toLong
                   if (isUpperBound && rawValue < 0) {
-                    throw new UnsupportedOperationException(
-                      "Negative upper bound is not supported!")
+                    throw new GlutenNotSupportException("Negative upper bound is not supported!")
                   } else if (!isUpperBound && rawValue > 0) {
-                    throw new UnsupportedOperationException(
-                      "Positive lower bound is not supported!")
+                    throw new GlutenNotSupportException("Positive lower bound is not supported!")
                   }
                 case _ =>
               }
@@ -277,7 +324,7 @@ object BackendSettings extends BackendSettingsApi {
           }
           windowExpression.windowFunction match {
             case _: RowNumber | _: AggregateExpression | _: Rank | _: CumeDist | _: DenseRank |
-                _: PercentRank | _: NthValue =>
+                _: PercentRank | _: NthValue | _: NTile | _: Lag | _: Lead =>
             case _ =>
               allSupported = false
           }
@@ -341,6 +388,7 @@ object BackendSettings extends BackendSettingsApi {
         // Block directly falling back the below functions by FallbackEmptySchemaRelation.
         case alias: Alias => checkExpr(alias.child)
         case _: Rand => true
+        case _: Uuid => true
         case _ => false
       }
     }
@@ -373,7 +421,6 @@ object BackendSettings extends BackendSettingsApi {
   override def fallbackAggregateWithChild(): Boolean = true
 
   override def recreateJoinExecOnFallback(): Boolean = true
-  override def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = true
   override def rescaleDecimalLiteral(): Boolean = true
 
   /** Get the config prefix for each backend */
@@ -433,4 +480,14 @@ object BackendSettings extends BackendSettingsApi {
   }
 
   override def supportCartesianProductExec(): Boolean = true
+
+  override def supportBroadcastNestedLoopJoinExec(): Boolean = true
+
+  override def shouldRewriteTypedImperativeAggregate(): Boolean = {
+    // The intermediate type of collect_list, collect_set in Velox backend is not consistent with
+    // vanilla Spark, we need to rewrite the aggregate to get the correct data type.
+    true
+  }
+
+  override def shouldRewriteCollect(): Boolean = true
 }

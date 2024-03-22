@@ -67,7 +67,7 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
 
   override def getSparkSession: SparkSession = {
     beforeAll()
-    val conf = getSparkcConf
+    val conf = getSparkConf
       .setIfMissing("spark.sql.columnVector.offheap.enabled", "true")
       .set("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "true")
 
@@ -98,7 +98,7 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
       .take(readFileCnt)
       .map(_.asInstanceOf[FilePartition])
 
-    val numOutputRows = chFileScan.longMetric("outputRows")
+    val numOutputRows = chFileScan.longMetric("numOutputRows")
     val numOutputVectors = chFileScan.longMetric("outputVectors")
     val scanTime = chFileScan.longMetric("scanTime")
     // Generate Substrait plan

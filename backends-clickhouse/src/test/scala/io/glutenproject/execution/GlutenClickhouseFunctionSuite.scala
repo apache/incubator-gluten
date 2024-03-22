@@ -21,25 +21,23 @@ import io.glutenproject.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
+import org.apache.spark.sql.delta.DeltaLog
 
 import org.apache.commons.io.FileUtils
 
 import java.io.File
 
 class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
-
-  override protected val resourcePath: String =
-    "../../../../gluten-core/src/test/resources/tpch-data"
+  override protected val needCopyParquetToTablePath = true
 
   override protected val tablesPath: String = basePath + "/tpch-data"
   override protected val tpchQueries: String =
     rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"
 
-  override protected def createTPCHNullableTables(): Unit = {}
-
-  override protected def createTPCHNotNullTables(): Unit = {}
+  override protected def createTPCHNotNullTables(): Unit = {
+    createNotNullTPCHTablesInParquet(tablesPath)
+  }
 
   private var _hiveSpark: SparkSession = _
   override protected def spark: SparkSession = _hiveSpark
@@ -61,13 +59,12 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
       .set("spark.databricks.delta.stalenessLimit", "3600000")
       .set("spark.gluten.sql.columnar.columnartorow", "true")
       .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
+      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
       // TODO: support default ANSI policy
       .set("spark.sql.storeAssignmentPolicy", "legacy")
-      //       .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "debug")
       .set("spark.sql.warehouse.dir", warehouse)
       .setMaster("local[1]")
   }
@@ -100,7 +97,7 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
   }
 
   override protected def afterAll(): Unit = {
-    ClickHouseLog.clearCache()
+    DeltaLog.clearCache()
 
     try {
       super.afterAll()
@@ -137,5 +134,49 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
       val diffCount = df.exceptAll(df2).count()
       assert(diffCount == 0)
     }
+  }
+
+  test("Support In list option contains non-foldable expression") {
+    runQueryAndCompare(
+      """
+        |SELECT * FROM lineitem
+        |WHERE l_orderkey in (1, 2, l_partkey, l_suppkey, l_linenumber)
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+
+    runQueryAndCompare(
+      """
+        |SELECT * FROM lineitem
+        |WHERE l_orderkey in (1, 2, l_partkey - 1, l_suppkey, l_linenumber)
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+
+    runQueryAndCompare(
+      """
+        |SELECT * FROM lineitem
+        |WHERE l_orderkey not in (1, 2, l_partkey, l_suppkey, l_linenumber)
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+
+    runQueryAndCompare(
+      """
+        |SELECT * FROM lineitem
+        |WHERE l_orderkey in (l_partkey, l_suppkey, l_linenumber)
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+
+    runQueryAndCompare(
+      """
+        |SELECT * FROM lineitem
+        |WHERE l_orderkey in (l_partkey + 1, l_suppkey, l_linenumber)
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+
+    runQueryAndCompare(
+      """
+        |SELECT * FROM lineitem
+        |WHERE l_orderkey not in (l_partkey, l_suppkey, l_linenumber)
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
   }
 }

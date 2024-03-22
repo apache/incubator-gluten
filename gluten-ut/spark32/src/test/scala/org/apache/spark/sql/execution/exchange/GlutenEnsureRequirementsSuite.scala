@@ -17,14 +17,12 @@
 package org.apache.spark.sql.execution.exchange
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.internal.SQLConf
 
 class GlutenEnsureRequirementsSuite extends EnsureRequirementsSuite with GlutenSQLTestsBaseTrait {
 
-  test(
-    GLUTEN_TEST +
-      "SPARK-35675: EnsureRequirements remove shuffle should respect PartitioningCollection") {
+  testGluten(
+    "SPARK-35675: EnsureRequirements remove shuffle should respect PartitioningCollection") {
     import testImplicits._
     withSQLConf(
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1",

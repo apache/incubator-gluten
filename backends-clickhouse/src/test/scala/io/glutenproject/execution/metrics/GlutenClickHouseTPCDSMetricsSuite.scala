@@ -93,15 +93,15 @@ class GlutenClickHouseTPCDSMetricsSuite extends GlutenClickHouseTPCDSAbstractSui
           case g: GlutenPlan if !g.isInstanceOf[InputIteratorTransformer] => g
         }
 
-        assert(allGlutenPlans.size == 29)
+        assert(allGlutenPlans.size == 30)
 
         val windowPlan0 = allGlutenPlans(3)
         assert(windowPlan0.metrics("totalTime").value == 2)
         assert(windowPlan0.metrics("inputWaitTime").value == 12)
         assert(windowPlan0.metrics("outputWaitTime").value == 0)
-        assert(windowPlan0.metrics("outputRows").value == 10717)
+        assert(windowPlan0.metrics("numOutputRows").value == 10717)
         assert(windowPlan0.metrics("outputBytes").value == 1224479)
-        assert(windowPlan0.metrics("inputRows").value == 10717)
+        assert(windowPlan0.metrics("numInputRows").value == 10717)
         assert(windowPlan0.metrics("inputBytes").value == 1128026)
 
         val windowPlan1 = allGlutenPlans(5)
@@ -109,18 +109,18 @@ class GlutenClickHouseTPCDSMetricsSuite extends GlutenClickHouseTPCDSAbstractSui
         assert(windowPlan1.metrics("extraTime").value == 1)
         assert(windowPlan1.metrics("inputWaitTime").value == 23)
         assert(windowPlan1.metrics("outputWaitTime").value == 2)
-        assert(windowPlan1.metrics("outputRows").value == 12333)
+        assert(windowPlan1.metrics("numOutputRows").value == 12333)
         assert(windowPlan1.metrics("outputBytes").value == 1360484)
-        assert(windowPlan1.metrics("inputRows").value == 12333)
+        assert(windowPlan1.metrics("numInputRows").value == 12333)
         assert(windowPlan1.metrics("inputBytes").value == 1261820)
 
         val sortPlan = allGlutenPlans(6)
         assert(sortPlan.metrics("totalTime").value == 3)
         assert(sortPlan.metrics("inputWaitTime").value == 30)
         assert(sortPlan.metrics("outputWaitTime").value == 1)
-        assert(sortPlan.metrics("outputRows").value == 12333)
+        assert(sortPlan.metrics("numOutputRows").value == 12333)
         assert(sortPlan.metrics("outputBytes").value == 1261820)
-        assert(sortPlan.metrics("inputRows").value == 12333)
+        assert(sortPlan.metrics("numInputRows").value == 12333)
         assert(sortPlan.metrics("inputBytes").value == 1261820)
     }
   }

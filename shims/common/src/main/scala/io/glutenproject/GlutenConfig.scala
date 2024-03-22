@@ -94,8 +94,17 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableCommonSubexpressionEliminate: Boolean =
     conf.getConf(ENABLE_COMMON_SUBEXPRESSION_ELIMINATE)
 
+  def enableCountDistinctWithoutExpand: Boolean =
+    conf.getConf(ENABLE_COUNT_DISTINCT_WITHOUT_EXPAND)
+
   def veloxOrcScanEnabled: Boolean =
     conf.getConf(VELOX_ORC_SCAN_ENABLED)
+
+  def forceComplexTypeScanFallbackEnabled: Boolean =
+    conf.getConf(VELOX_FORCE_COMPLEX_TYPE_SCAN_FALLBACK)
+
+  def forceOrcCharTypeScanFallbackEnabled: Boolean =
+    conf.getConf(VELOX_FORCE_ORC_CHAR_TYPE_SCAN_FALLBACK)
 
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
@@ -185,6 +194,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def fallbackIgnoreRowToColumnar: Boolean = conf.getConf(COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR)
 
+  def fallbackExpressionsThreshold: Int = conf.getConf(COLUMNAR_FALLBACK_EXPRESSIONS_THRESHOLD)
+
   def fallbackPreferColumnar: Boolean = conf.getConf(COLUMNAR_FALLBACK_PREFER_COLUMNAR)
 
   def numaBindingInfo: GlutenNumaBindingInfo = {
@@ -260,6 +271,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def cartesianProductTransformerEnabled: Boolean =
     conf.getConf(CARTESIAN_PRODUCT_TRANSFORMER_ENABLED)
 
+  def broadcastNestedLoopJoinTransformerTransformerEnabled: Boolean =
+    conf.getConf(BROADCAST_NESTED_LOOP_JOIN_TRANSFORMER_ENABLED)
+
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
 
   def substraitPlanLogLevel: String = conf.getConf(SUBSTRAIT_PLAN_LOG_LEVEL)
@@ -269,7 +283,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def softAffinityLogLevel: String = conf.getConf(SOFT_AFFINITY_LOG_LEVEL)
 
   // A comma-separated list of classes for the extended columnar pre rules
-  def extendedColumnarPreRules: String = conf.getConf(EXTENDED_COLUMNAR_PRE_RULES)
+  def extendedColumnarTransformRules: String = conf.getConf(EXTENDED_COLUMNAR_TRANSFORM_RULES)
 
   // A comma-separated list of classes for the extended columnar post rules
   def extendedColumnarPostRules: String = conf.getConf(EXTENDED_COLUMNAR_POST_RULES)
@@ -296,7 +310,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def memoryUseHugePages: Boolean =
     conf.getConf(COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES)
 
-  def debug: Boolean = conf.getConf(DEBUG_LEVEL_ENABLED)
+  def debug: Boolean = conf.getConf(DEBUG_ENABLED)
+  def debugKeepJniWorkspace: Boolean =
+    conf.getConf(DEBUG_ENABLED) && conf.getConf(DEBUG_KEEP_JNI_WORKSPACE)
   def taskStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
   def taskPartitionId: Int = conf.getConf(BENCHMARK_TASK_PARTITIONID)
   def taskId: Long = conf.getConf(BENCHMARK_TASK_TASK_ID)
@@ -423,10 +439,20 @@ object GlutenConfig {
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS = "spark.gluten.soft-affinity.min.target-hosts"
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE = 1
 
+  // Enable Soft Affinity duplicate reading detection, defalut value is true
+  val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED =
+    "spark.gluten.soft-affinity.duplicateReadingDetect.enabled"
+  val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED_DEFAULT_VALUE = true
+  // Enable Soft Affinity duplicate reading detection, defalut value is 10000
+  val GLUTEN_SOFT_AFFINITY_MAX_DUPLICATE_READING_RECORDS =
+    "spark.gluten.soft-affinity.maxDuplicateReading.records"
+  val GLUTEN_SOFT_AFFINITY_MAX_DUPLICATE_READING_RECORDS_DEFAULT_VALUE = 10000
+
   // Pass through to native conf
   val GLUTEN_SAVE_DIR = "spark.gluten.saveDir"
 
   val GLUTEN_DEBUG_MODE = "spark.gluten.sql.debug"
+  val GLUTEN_DEBUG_KEEP_JNI_WORKSPACE = "spark.gluten.sql.debug.keepJniWorkspace"
 
   // Added back to Spark Conf during executor initialization
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
@@ -529,7 +555,8 @@ object GlutenConfig {
       })
 
     val keyWithDefault = ImmutableList.of(
-      (SQLConf.CASE_SENSITIVE.key, "false")
+      (SQLConf.CASE_SENSITIVE.key, "false"),
+      (SQLConf.IGNORE_MISSING_FILES.key, "false")
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
@@ -1015,6 +1042,14 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val COLUMNAR_FALLBACK_EXPRESSIONS_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.fallback.expressions.threshold")
+      .internal()
+      .doc("Fall back filter/project if number of nested expressions reaches this threshold," +
+        " considering Spark codegen can bring better performance for such case.")
+      .intConf
+      .createWithDefault(50)
+
   val COLUMNAR_FALLBACK_PREFER_COLUMNAR =
     buildConf("spark.gluten.sql.columnar.fallback.preferColumnar")
       .internal()
@@ -1169,14 +1204,14 @@ object GlutenConfig {
       .createWithDefault(2)
 
   val COLUMNAR_VELOX_GLOG_VERBOSE_LEVEL =
-    buildStaticConf("spark.gluten.sql.columnar.backend.velox.glogVerboseLevel")
+    buildConf("spark.gluten.sql.columnar.backend.velox.glogVerboseLevel")
       .internal()
       .doc("Set glog verbose level in Velox backend, same as FLAGS_v.")
       .intConf
       .createWithDefault(0)
 
   val COLUMNAR_VELOX_GLOG_SEVERITY_LEVEL =
-    buildStaticConf("spark.gluten.sql.columnar.backend.velox.glogSeverityLevel")
+    buildConf("spark.gluten.sql.columnar.backend.velox.glogSeverityLevel")
       .internal()
       .doc("Set glog severity level in Velox backend, same as FLAGS_minloglevel.")
       .intConf
@@ -1295,8 +1330,14 @@ object GlutenConfig {
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
       .createWithDefault("DEBUG")
 
-  val DEBUG_LEVEL_ENABLED =
+  val DEBUG_ENABLED =
     buildConf(GLUTEN_DEBUG_MODE)
+      .internal()
+      .booleanConf
+      .createWithDefault(false)
+
+  val DEBUG_KEEP_JNI_WORKSPACE =
+    buildConf(GLUTEN_DEBUG_KEEP_JNI_WORKSPACE)
       .internal()
       .booleanConf
       .createWithDefault(false)
@@ -1326,6 +1367,14 @@ object GlutenConfig {
       .booleanConf
       .createOptional
 
+  val NATIVE_WRITE_FILES_COLUMN_METADATA_EXCLUSION_LIST =
+    buildConf("spark.gluten.sql.native.writeColumnMetadataExclusionList")
+      .doc(
+        "Native write files does not support column metadata. Metadata in list would be " +
+          "removed to support native write files. Multiple values separated by commas.")
+      .stringConf
+      .createWithDefault("comment")
+
   val REMOVE_NATIVE_WRITE_FILES_SORT_AND_PROJECT =
     buildConf("spark.gluten.sql.removeNativeWriteFilesSortAndProject")
       .internal()
@@ -1340,9 +1389,10 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
-  val EXTENDED_COLUMNAR_PRE_RULES =
-    buildConf("spark.gluten.sql.columnar.extended.columnar.pre.rules")
-      .doc("A comma-separated list of classes for the extended columnar pre rules.")
+  val EXTENDED_COLUMNAR_TRANSFORM_RULES =
+    buildConf("spark.gluten.sql.columnar.extended.columnar.transform.rules")
+      .withAlternative("spark.gluten.sql.columnar.extended.columnar.pre.rules")
+      .doc("A comma-separated list of classes for the extended columnar transform rules.")
       .stringConf
       .createWithDefaultString("")
 
@@ -1493,6 +1543,16 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val ENABLE_COUNT_DISTINCT_WITHOUT_EXPAND =
+    buildConf("spark.gluten.sql.countDistinctWithoutExpand")
+      .internal()
+      .doc(
+        "Convert Count Distinct to a UDAF called count_distinct to " +
+          "prevent SparkPlanner converting it to Expand+Count. WARNING: " +
+          "When enabled, count distinct queries will fail to fallback!!!")
+      .booleanConf
+      .createWithDefault(false)
+
   val COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS =
     buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems")
       .internal()
@@ -1532,6 +1592,13 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val BROADCAST_NESTED_LOOP_JOIN_TRANSFORMER_ENABLED =
+    buildConf("spark.gluten.sql.broadcastNestedLoopJoinTransformerEnabled")
+      .internal()
+      .doc("Config to enable BroadcastNestedLoopJoinExecTransformer.")
+      .booleanConf
+      .createWithDefault(true)
+
   val CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT =
     buildConf("spark.gluten.sql.cacheWholeStageTransformerContext")
       .internal()
@@ -1551,28 +1618,28 @@ object GlutenConfig {
   val DIRECTORY_SIZE_GUESS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.directorySizeGuess")
       .internal()
-      .doc(" Set the directory size guess for velox file scan")
+      .doc("Set the directory size guess for velox file scan")
       .intConf
       .createOptional
 
   val FILE_PRELOAD_THRESHOLD =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.filePreloadThreshold")
       .internal()
-      .doc(" Set the file preload threshold for velox file scan")
+      .doc("Set the file preload threshold for velox file scan")
       .intConf
       .createOptional
 
   val PREFETCH_ROW_GROUPS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.prefetchRowGroups")
       .internal()
-      .doc(" Set the prefetch row groups for velox file scan")
+      .doc("Set the prefetch row groups for velox file scan")
       .intConf
       .createOptional
 
   val LOAD_QUANTUM =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.loadQuantum")
       .internal()
-      .doc(" Set the load quantum for velox file scan")
+      .doc("Set the load quantum for velox file scan")
       .intConf
       .createOptional
 
@@ -1586,14 +1653,14 @@ object GlutenConfig {
   val MAX_COALESCED_BYTES =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.maxCoalescedBytes")
       .internal()
-      .doc(" Set the max coalesced bytes for velox file scan")
+      .doc("Set the max coalesced bytes for velox file scan")
       .intConf
       .createOptional
 
   val CACHE_PREFETCH_MINPCT =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct")
       .internal()
-      .doc(" Set prefetch cache min pct for velox file scan")
+      .doc("Set prefetch cache min pct for velox file scan")
       .intConf
       .createOptional
 
@@ -1607,7 +1674,21 @@ object GlutenConfig {
   val VELOX_ORC_SCAN_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.orc.scan.enabled")
       .internal()
-      .doc(" Enable velox orc scan. If disabled, vanilla spark orc scan will be used.")
+      .doc("Enable velox orc scan. If disabled, vanilla spark orc scan will be used.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val VELOX_FORCE_COMPLEX_TYPE_SCAN_FALLBACK =
+    buildConf("spark.gluten.sql.complexType.scan.fallback.enabled")
+      .internal()
+      .doc("Force fallback for complex type scan, including struct, map, array.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val VELOX_FORCE_ORC_CHAR_TYPE_SCAN_FALLBACK =
+    buildConf("spark.gluten.sql.orc.charType.scan.fallback.enabled")
+      .internal()
+      .doc("Force fallback for orc char type scan.")
       .booleanConf
       .createWithDefault(true)
 }

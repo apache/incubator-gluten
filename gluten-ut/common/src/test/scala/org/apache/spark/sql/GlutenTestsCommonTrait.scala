@@ -19,6 +19,7 @@ package org.apache.spark.sql
 import io.glutenproject.test.TestStats
 
 import org.apache.spark.SparkFunSuite
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions._
 
 import org.scalactic.source.Position
@@ -48,10 +49,16 @@ trait GlutenTestsCommonTrait
     status
   }
 
+  protected def testGluten(testName: String, testTag: Tag*)(testFun: => Any)(implicit
+      pos: Position): Unit = {
+    test(GLUTEN_TEST + testName, testTag: _*)(testFun)
+  }
   override protected def test(testName: String, testTags: Tag*)(testFun: => Any)(implicit
       pos: Position): Unit = {
     if (shouldRun(testName)) {
       super.test(testName, testTags: _*)(testFun)
+    } else {
+      super.ignore(testName, testTags: _*)(testFun)
     }
   }
 }

@@ -92,7 +92,7 @@ class GlutenCustomerExpressionTransformerSuite extends GlutenSQLTestsTrait {
     )
   }
 
-  test("test custom expression transformer") {
+  testGluten("test custom expression transformer") {
     spark
       .createDataFrame(Seq((1, 1.1), (2, 2.2)))
       .createOrReplaceTempView("custom_table")

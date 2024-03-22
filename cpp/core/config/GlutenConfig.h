@@ -34,6 +34,8 @@ const std::string kLegacySize = "spark.sql.legacy.sizeOfNull";
 
 const std::string kSessionTimezone = "spark.sql.session.timeZone";
 
+const std::string kIgnoreMissingFiles = "spark.sql.files.ignoreMissingFiles";
+
 const std::string kDefaultSessionTimezone = "spark.gluten.sql.session.timeZone.default";
 
 const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.bytes";
@@ -59,7 +61,15 @@ const std::string kShuffleCompressionCodecBackend = "spark.gluten.sql.columnar.s
 const std::string kQatBackendName = "qat";
 const std::string kIaaBackendName = "iaa";
 
-std::unordered_map<std::string, std::string> parseConfMap(JNIEnv* env, jbyteArray configArray);
+// Velox conf
+const std::string kGlogVerboseLevel = "spark.gluten.sql.columnar.backend.velox.glogVerboseLevel";
+const uint32_t kGlogVerboseLevelDefault = 0;
+const uint32_t kGlogVerboseLevelMaximum = 99;
+const std::string kGlogSeverityLevel = "spark.gluten.sql.columnar.backend.velox.glogSeverityLevel";
+const uint32_t kGlogSeverityLevelDefault = 1;
+
+std::unordered_map<std::string, std::string>
+parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength);
 
 std::string printConfig(const std::unordered_map<std::string, std::string>& conf);
 } // namespace gluten

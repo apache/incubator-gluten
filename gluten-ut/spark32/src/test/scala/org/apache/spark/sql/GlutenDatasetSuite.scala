@@ -21,7 +21,7 @@ import org.apache.spark.sql.execution.ColumnarShuffleExchangeExec
 class GlutenDatasetSuite extends DatasetSuite with GlutenSQLTestsTrait {
   import testImplicits._
 
-  test("Gluten: dropDuplicates: columns with same column name") {
+  testGluten("dropDuplicates: columns with same column name") {
     val ds1 = Seq(("a", 1), ("a", 2), ("b", 1), ("a", 1)).toDS()
     val ds2 = Seq(("a", 1), ("a", 2), ("b", 1), ("a", 1)).toDS()
     // The dataset joined has two columns of the same name "_2".
@@ -30,7 +30,7 @@ class GlutenDatasetSuite extends DatasetSuite with GlutenSQLTestsTrait {
     checkDatasetUnorderly(joined.dropDuplicates(), (1, 2), (1, 1), (2, 1), (2, 2))
   }
 
-  test("Gluten: groupBy.as") {
+  testGluten("groupBy.as") {
     val df1 = Seq(DoubleData(1, "one"), DoubleData(2, "two"), DoubleData(3, "three"))
       .toDS()
       .repartition($"id")

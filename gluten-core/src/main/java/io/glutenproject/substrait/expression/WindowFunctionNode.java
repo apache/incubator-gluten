@@ -20,6 +20,7 @@ import io.glutenproject.substrait.type.TypeNode;
 
 import io.substrait.proto.Expression;
 import io.substrait.proto.FunctionArgument;
+import io.substrait.proto.FunctionOption;
 import io.substrait.proto.WindowType;
 
 import java.io.Serializable;
@@ -39,6 +40,8 @@ public class WindowFunctionNode implements Serializable {
 
   private final String frameType;
 
+  private final boolean ignoreNulls;
+
   WindowFunctionNode(
       Integer functionId,
       List<ExpressionNode> expressionNodes,
@@ -46,7 +49,8 @@ public class WindowFunctionNode implements Serializable {
       TypeNode outputTypeNode,
       String upperBound,
       String lowerBound,
-      String frameType) {
+      String frameType,
+      boolean ignoreNulls) {
     this.functionId = functionId;
     this.expressionNodes.addAll(expressionNodes);
     this.columnName = columnName;
@@ -54,10 +58,11 @@ public class WindowFunctionNode implements Serializable {
     this.upperBound = upperBound;
     this.lowerBound = lowerBound;
     this.frameType = frameType;
+    this.ignoreNulls = ignoreNulls;
   }
 
   private Expression.WindowFunction.Bound.Builder setBound(
-      Expression.WindowFunction.Bound.Builder builder, String boundType, boolean isLowerBound) {
+      Expression.WindowFunction.Bound.Builder builder, String boundType) {
     switch (boundType) {
       case ("CURRENT ROW"):
         Expression.WindowFunction.Bound.CurrentRow.Builder currentRowBuilder =
@@ -77,7 +82,7 @@ public class WindowFunctionNode implements Serializable {
       default:
         try {
           Long offset = Long.valueOf(boundType);
-          if (isLowerBound) {
+          if (offset < 0) {
             Expression.WindowFunction.Bound.Preceding.Builder offsetPrecedingBuilder =
                 Expression.WindowFunction.Bound.Preceding.newBuilder();
             offsetPrecedingBuilder.setOffset(0 - offset);
@@ -114,7 +119,10 @@ public class WindowFunctionNode implements Serializable {
   public Expression.WindowFunction toProtobuf() {
     Expression.WindowFunction.Builder windowBuilder = Expression.WindowFunction.newBuilder();
     windowBuilder.setFunctionReference(functionId);
-
+    if (ignoreNulls) {
+      FunctionOption option = FunctionOption.newBuilder().setName("ignoreNulls").build();
+      windowBuilder.addOptions(option);
+    }
     for (ExpressionNode expressionNode : expressionNodes) {
       FunctionArgument.Builder functionArgument = FunctionArgument.newBuilder();
       functionArgument.setValue(expressionNode.toProtobuf());
@@ -129,8 +137,8 @@ public class WindowFunctionNode implements Serializable {
 
     Expression.WindowFunction.Bound.Builder upperBoundBuilder =
         Expression.WindowFunction.Bound.newBuilder();
-    windowBuilder.setLowerBound(setBound(lowerBoundBuilder, lowerBound, true).build());
-    windowBuilder.setUpperBound(setBound(upperBoundBuilder, upperBound, false).build());
+    windowBuilder.setLowerBound(setBound(lowerBoundBuilder, lowerBound).build());
+    windowBuilder.setUpperBound(setBound(upperBoundBuilder, upperBound).build());
     windowBuilder.setWindowType(getWindowType(frameType));
     return windowBuilder.build();
   }

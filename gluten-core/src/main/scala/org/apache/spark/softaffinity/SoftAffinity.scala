@@ -21,6 +21,7 @@ import io.glutenproject.utils.LogLevelUtil
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.ExecutorCacheTaskLocation
+import org.apache.spark.sql.execution.datasources.FilePartition
 
 abstract class Affinity(val manager: AffinityManager) extends LogLevelUtil with Logging {
 
@@ -44,6 +45,25 @@ abstract class Affinity(val manager: AffinityManager) extends LogLevelUtil with 
     }
   }
 
+  def getFilePartitionLocations(filePartition: FilePartition): Array[String] = {
+    val filePaths = filePartition.files.map(_.filePath.toString)
+    val preferredLocations = filePartition.preferredLocations()
+    if (shouldUseSoftAffinity(filePaths, preferredLocations)) {
+      if (manager.detectDuplicateReading) {
+        val locations = manager.askExecutors(filePartition)
+        if (locations.nonEmpty) {
+          locations.map { case (executor, host) => getCacheTaskLocation(host, executor) }
+        } else {
+          Array.empty[String]
+        }
+      } else {
+        getFilePartitionLocations(filePaths, preferredLocations)
+      }
+    } else {
+      preferredLocations
+    }
+  }
+
   def getLocations(filePath: String)(toTaskLocation: (String, String) => String): Array[String] = {
     val locations = manager.askExecutors(filePath)
     if (locations.nonEmpty) {
@@ -58,6 +78,13 @@ abstract class Affinity(val manager: AffinityManager) extends LogLevelUtil with 
 
   def getCacheTaskLocation(host: String, executor: String): String = {
     if (host.isEmpty) executor else ExecutorCacheTaskLocation(host, executor).toString
+  }
+
+  /** Update the RDD id to SoftAffinityManager */
+  def updateFilePartitionLocations(filePartition: FilePartition, rddId: Int): Unit = {
+    if (SoftAffinityManager.usingSoftAffinity && SoftAffinityManager.detectDuplicateReading) {
+      SoftAffinityManager.updatePartitionMap(filePartition, rddId)
+    }
   }
 }
 

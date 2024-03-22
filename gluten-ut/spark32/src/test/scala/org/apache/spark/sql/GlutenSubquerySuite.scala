@@ -18,8 +18,6 @@ package org.apache.spark.sql
 
 import io.glutenproject.execution.{FileSourceScanExecTransformer, WholeStageTransformer}
 
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
-
 class GlutenSubquerySuite extends SubquerySuite with GlutenSQLTestsTrait {
 
   // Test Canceled: IntegratedUDFTestUtils.shouldTestPythonUDFs was false
@@ -36,9 +34,7 @@ class GlutenSubquerySuite extends SubquerySuite with GlutenSQLTestsTrait {
 
   // === Following cases override super class's cases ===
 
-  test(
-    GLUTEN_TEST +
-      "SPARK-26893 Allow pushdown of partition pruning subquery filters to file source") {
+  testGluten("SPARK-26893 Allow pushdown of partition pruning subquery filters to file source") {
     withTable("a", "b") {
       spark.range(4).selectExpr("id", "id % 2 AS p").write.partitionBy("p").saveAsTable("a")
       spark.range(2).write.saveAsTable("b")

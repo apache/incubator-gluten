@@ -17,6 +17,7 @@
 package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
@@ -49,7 +50,7 @@ case class ExtractDateTransformer(
     val dateFieldName =
       DateTimeExpressionsTransformer.EXTRACT_DATE_FIELD_MAPPING.get(original.getClass)
     if (dateFieldName.isEmpty) {
-      throw new UnsupportedOperationException(s"$original not supported yet.")
+      throw new GlutenNotSupportException(s"$original not supported yet.")
     }
     val fieldNode = ExpressionBuilder.makeStringLiteral(dateFieldName.get)
     val expressNodes = Lists.newArrayList(fieldNode, childNode)

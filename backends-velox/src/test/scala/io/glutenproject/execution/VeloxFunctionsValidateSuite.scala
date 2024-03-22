@@ -365,6 +365,66 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
+  test("test map_entries function") {
+    withTempPath {
+      path =>
+        Seq(
+          Map[Int, String](1 -> null, 2 -> "200"),
+          Map[Int, String](1 -> "100", 2 -> "200", 3 -> "300"),
+          null
+        )
+          .toDF("i")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
+
+        runQueryAndCompare("select map_entries(i) from map_tbl") {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("test map_keys function") {
+    withTempPath {
+      path =>
+        Seq(
+          Map[Int, String](1 -> null, 2 -> "200"),
+          Map[Int, String](1 -> "100", 2 -> "200", 3 -> "300"),
+          null
+        )
+          .toDF("i")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
+
+        runQueryAndCompare("select map_keys(i) from map_tbl") {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("test map_values function") {
+    withTempPath {
+      path =>
+        Seq(
+          Map[Int, String](1 -> null, 2 -> "200"),
+          Map[Int, String](1 -> "100", 2 -> "200", 3 -> "300"),
+          null
+        )
+          .toDF("i")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
+
+        runQueryAndCompare("select map_values(i) from map_tbl") {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("Test isnan function") {
     runQueryAndCompare(
       "SELECT isnan(l_orderkey), isnan(cast('NaN' as double)), isnan(0.0F/0.0F)" +
@@ -384,9 +444,112 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
+  test("Test monotonically_increasing_id function") {
+    runQueryAndCompare("""SELECT monotonically_increasing_id(), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("Test spark_partition_id function") {
+    runQueryAndCompare("""SELECT spark_partition_id(), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("Test hex function") {
     runQueryAndCompare("SELECT hex(l_partkey), hex(l_shipmode) FROM lineitem limit 1") {
       checkOperatorMatch[ProjectExecTransformer]
     }
   }
+
+  test("Test unhex function") {
+    runQueryAndCompare("SELECT unhex(hex(l_shipmode)) FROM lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("Test make_timestamp function") {
+    withTempPath {
+      path =>
+        // w/o timezone.
+        Seq(
+          (2017, 7, 11, 6, 30, Decimal(45678000, 18, 6)),
+          (1, 1, 1, 1, 1, Decimal(1, 18, 6)),
+          (1, 1, 1, 1, 1, null)
+        )
+          .toDF("year", "month", "day", "hour", "min", "sec")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("make_timestamp_tbl1")
+
+        runQueryAndCompare(
+          "select make_timestamp(year, month, day, hour, min, sec) from make_timestamp_tbl1") {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
+    }
+    withTempPath {
+      path =>
+        // w/ timezone.
+        Seq(
+          (2017, 7, 11, 6, 30, Decimal(45678000, 18, 6), "CET"),
+          (1, 1, 1, 1, 1, Decimal(1, 18, 6), null),
+          (1, 1, 1, 1, 1, null, "CST")
+        )
+          .toDF("year", "month", "day", "hour", "min", "sec", "timezone")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("make_timestamp_tbl2")
+
+        runQueryAndCompare("""
+                             |select make_timestamp(year, month, day, hour, min, sec, timezone)
+                             |from make_timestamp_tbl2
+                             |""".stripMargin) {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("Test uuid function") {
+    runQueryAndCompare("""SELECT uuid() from lineitem limit 100""".stripMargin, false) {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("regexp_replace") {
+    runQueryAndCompare(
+      "SELECT regexp_replace(c_comment, '\\w', 'something') FROM customer limit 50") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare(
+      "SELECT regexp_replace(c_comment, '\\w', 'something', 3) FROM customer limit 50") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("lag/lead window function with negative input offset") {
+    runQueryAndCompare(
+      "select lag(l_orderkey, -2) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem") {
+      checkOperatorMatch[WindowExecTransformer]
+    }
+
+    runQueryAndCompare(
+      "select lead(l_orderkey, -2) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem") {
+      checkOperatorMatch[WindowExecTransformer]
+    }
+  }
+
+  test("bit_length") {
+    runQueryAndCompare(
+      "select bit_length(c_comment), bit_length(cast(c_comment as binary))" +
+        " from customer limit 50") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
 }

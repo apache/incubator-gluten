@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.catalyst.expressions
 
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.GlutenTestsTrait
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.GenerateUnsafeProjection
@@ -25,7 +24,6 @@ import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.catalyst.util.DateTimeUtils.{getZoneId, TimeZoneUTC}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.unsafe.types.UTF8String
 
 import java.sql.{Date, Timestamp}
@@ -60,7 +58,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     // checkResult(Int.MinValue.toLong - 100)
   }
 
-  test(GLUTEN_TEST + "TIMESTAMP_MICROS") {
+  testGluten("TIMESTAMP_MICROS") {
     def testIntegralFunc(value: Number): Unit = {
       checkEvaluation(MicrosToTimestamp(Literal(value)), value.longValue())
     }
@@ -88,7 +86,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     "Europe/Brussels")
   val outstandingZoneIds: Seq[ZoneId] = outstandingTimezonesIds.map(getZoneId)
 
-  test(GLUTEN_TEST + "unix_timestamp") {
+  testGluten("unix_timestamp") {
     Seq("legacy", "corrected").foreach {
       legacyParserPolicy =>
         withDefaultTimeZone(UTC) {
@@ -189,7 +187,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
       UnixTimestamp(Literal("2015-07-24"), Literal("\""), UTC_OPT) :: Nil)
   }
 
-  test(GLUTEN_TEST + "to_unix_timestamp") {
+  testGluten("to_unix_timestamp") {
     withDefaultTimeZone(UTC) {
       for (zid <- outstandingZoneIds) {
         Seq("legacy", "corrected").foreach {
@@ -287,7 +285,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
   }
 
   // Modified based on vanilla spark to explicitly set timezone in config.
-  test(GLUTEN_TEST + "DateFormat") {
+  testGluten("DateFormat") {
     val PST_OPT = Option("America/Los_Angeles")
     val JST_OPT = Option("Asia/Tokyo")
 
@@ -344,7 +342,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     }
   }
 
-  test(GLUTEN_TEST + "from_unixtime") {
+  testGluten("from_unixtime") {
     val outstandingTimezonesIds: Seq[String] = Seq(
       // Velox doesn't support timezones like "UTC".
       // "UTC",
@@ -411,7 +409,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     GenerateUnsafeProjection.generate(FromUnixTime(Literal(0L), Literal("\""), UTC_OPT) :: Nil)
   }
 
-  test(GLUTEN_TEST + "Hour") {
+  testGluten("Hour") {
     val outstandingTimezonesIds: Seq[String] = Seq(
       // Velox doesn't support timezones like "UTC".
       // "UTC",
@@ -473,5 +471,27 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
           }
       }
     }
+  }
+
+  test("test timestamp add") {
+    // Check case-insensitivity
+    checkEvaluation(
+      TimestampAdd("SECOND", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
+      Timestamp.valueOf("2022-02-15 12:57:01"))
+    checkEvaluation(
+      TimestampAdd("MINUTE", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
+      Timestamp.valueOf("2022-02-15 12:58:00"))
+    checkEvaluation(
+      TimestampAdd("HOUR", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
+      Timestamp.valueOf("2022-02-15 13:57:00"))
+    checkEvaluation(
+      TimestampAdd("DAY", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
+      Timestamp.valueOf("2022-02-16 12:57:00"))
+    checkEvaluation(
+      TimestampAdd("MONTH", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
+      Timestamp.valueOf("2022-03-15 12:57:00"))
+    checkEvaluation(
+      TimestampAdd("YEAR", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
+      Timestamp.valueOf("2023-02-15 12:57:00"))
   }
 }

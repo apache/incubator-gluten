@@ -16,13 +16,17 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.backendsapi.clickhouse.CHIteratorApi
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.utils.CHJoinValidateUtil
 
+import org.apache.spark.{broadcast, SparkContext}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.joins.BuildSideRelation
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class CHShuffledHashJoinExecTransformer(
     leftKeys: Seq[Expression],
@@ -57,6 +61,24 @@ case class CHShuffledHashJoinExecTransformer(
   }
 }
 
+case class CHBroadcastBuildSideRDD(
+    @transient private val sc: SparkContext,
+    broadcasted: broadcast.Broadcast[BuildSideRelation],
+    broadcastContext: BroadCastHashJoinContext)
+  extends BroadcastBuildSideRDD(sc, broadcasted) {
+
+  override def genBroadcastBuildSideIterator(): Iterator[ColumnarBatch] = {
+    CHBroadcastBuildSideCache.getOrBuildBroadcastHashTable(broadcasted, broadcastContext)
+    CHIteratorApi.genCloseableColumnBatchIterator(Iterator.empty)
+  }
+}
+
+case class BroadCastHashJoinContext(
+    buildSideJoinKeys: Seq[Expression],
+    joinType: JoinType,
+    buildSideStructure: Seq[Attribute],
+    buildHashTableId: String)
+
 case class CHBroadcastHashJoinExecTransformer(
     leftKeys: Seq[Expression],
     rightKeys: Seq[Expression],
@@ -66,7 +88,7 @@ case class CHBroadcastHashJoinExecTransformer(
     left: SparkPlan,
     right: SparkPlan,
     isNullAwareAntiJoin: Boolean)
-  extends BroadcastHashJoinExecTransformer(
+  extends BroadcastHashJoinExecTransformerBase(
     leftKeys,
     rightKeys,
     joinType,
@@ -92,5 +114,12 @@ case class CHBroadcastHashJoinExecTransformer(
       return ValidationResult.notOk("ch does not support NAAJ")
     }
     super.doValidateInternal()
+  }
+
+  override protected def createBroadcastBuildSideRDD(): BroadcastBuildSideRDD = {
+    val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
+    val context =
+      BroadCastHashJoinContext(buildKeyExprs, joinType, buildPlan.output, buildHashTableId)
+    CHBroadcastBuildSideRDD(sparkContext, broadcast, context)
   }
 }

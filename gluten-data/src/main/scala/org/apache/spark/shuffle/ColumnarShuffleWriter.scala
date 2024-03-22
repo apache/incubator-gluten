@@ -88,6 +88,9 @@ class ColumnarShuffleWriter[K, V](
   private val compressionCodecBackend =
     GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
 
+  private val compressionLevel =
+    GlutenShuffleUtils.getCompressionLevel(conf, compressionCodec, compressionCodecBackend)
+
   private val bufferCompressThreshold =
     GlutenConfig.getConf.columnarShuffleCompressionThreshold
 
@@ -100,8 +103,6 @@ class ColumnarShuffleWriter[K, V](
   private var splitResult: GlutenSplitResult = _
 
   private var partitionLengths: Array[Long] = _
-
-  private var rawPartitionLengths: Array[Long] = _
 
   private val taskContext: TaskContext = TaskContext.get()
 
@@ -142,6 +143,7 @@ class ColumnarShuffleWriter[K, V](
             nativeMergeThreshold,
             compressionCodec,
             compressionCodecBackend,
+            compressionLevel,
             bufferCompressThreshold,
             GlutenConfig.getConf.columnarShuffleCompressionMode,
             dataTmp.getAbsolutePath,
@@ -178,7 +180,7 @@ class ColumnarShuffleWriter[K, V](
           )
         }
         val startTime = System.nanoTime()
-        val bytes = jniWrapper.split(nativeShuffleWriter, rows, handle, availableOffHeapPerTask())
+        jniWrapper.split(nativeShuffleWriter, rows, handle, availableOffHeapPerTask())
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(rows)
         dep.metrics("inputBatches").add(1)
@@ -189,10 +191,9 @@ class ColumnarShuffleWriter[K, V](
     }
 
     val startTime = System.nanoTime()
-    if (nativeShuffleWriter != -1L) {
-      splitResult = jniWrapper.stop(nativeShuffleWriter)
-      closeShuffleWriter
-    }
+    assert(nativeShuffleWriter != -1L)
+    splitResult = jniWrapper.stop(nativeShuffleWriter)
+    closeShuffleWriter()
 
     dep
       .metrics("splitTime")
@@ -204,13 +205,11 @@ class ColumnarShuffleWriter[K, V](
     dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
     dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
     dep.metrics("splitBufferSize").add(splitResult.getSplitBufferSize)
-    dep.metrics("uncompressedDataSize").add(splitResult.getRawPartitionLengths.sum)
     dep.metrics("dataSize").add(splitResult.getRawPartitionLengths.sum)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
 
     partitionLengths = splitResult.getPartitionLengths
-    rawPartitionLengths = splitResult.getRawPartitionLengths
     try {
       shuffleBlockResolver.writeMetadataFileAndCommit(
         dep.shuffleId,
@@ -237,14 +236,16 @@ class ColumnarShuffleWriter[K, V](
   }
 
   private def closeShuffleWriter(): Unit = {
-    jniWrapper.close(nativeShuffleWriter)
-    nativeShuffleWriter = -1L
+    if (nativeShuffleWriter != -1L) {
+      jniWrapper.close(nativeShuffleWriter)
+      nativeShuffleWriter = -1L
+    }
   }
 
   override def stop(success: Boolean): Option[MapStatus] = {
     try {
       if (stopping) {
-        None
+        return None
       }
       stopping = true
       if (success) {
@@ -253,10 +254,7 @@ class ColumnarShuffleWriter[K, V](
         None
       }
     } finally {
-      if (nativeShuffleWriter != -1L) {
-        closeShuffleWriter()
-        nativeShuffleWriter = -1L
-      }
+      closeShuffleWriter()
     }
   }
 

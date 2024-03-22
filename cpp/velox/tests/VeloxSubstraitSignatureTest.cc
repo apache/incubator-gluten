@@ -139,6 +139,22 @@ TEST_F(VeloxSubstraitSignatureTest, fromSubstraitSignature) {
   type = fromSubstraitSignature("struct<struct<struct<i8,dec<19,2>>>>");
   ASSERT_EQ(type->childAt(0)->childAt(0)->childAt(1)->kind(), TypeKind::HUGEINT);
   ASSERT_ANY_THROW(fromSubstraitSignature("other")->kind());
+
+  // Map type test.
+  type = fromSubstraitSignature("map<bool,list<map<str,i32>>>");
+  ASSERT_EQ(type->kind(), TypeKind::MAP);
+  ASSERT_EQ(type->childAt(0)->kind(), TypeKind::BOOLEAN);
+  ASSERT_EQ(type->childAt(1)->kind(), TypeKind::ARRAY);
+  ASSERT_EQ(type->childAt(1)->childAt(0)->kind(), TypeKind::MAP);
+  type = fromSubstraitSignature("struct<map<bool,i8>,list<map<str,i32>>>");
+  ASSERT_EQ(type->kind(), TypeKind::ROW);
+  ASSERT_EQ(type->childAt(0)->kind(), TypeKind::MAP);
+  ASSERT_EQ(type->childAt(0)->childAt(0)->kind(), TypeKind::BOOLEAN);
+  ASSERT_EQ(type->childAt(0)->childAt(1)->kind(), TypeKind::TINYINT);
+  ASSERT_EQ(type->childAt(1)->kind(), TypeKind::ARRAY);
+  ASSERT_EQ(type->childAt(1)->childAt(0)->kind(), TypeKind::MAP);
+  ASSERT_EQ(type->childAt(1)->childAt(0)->childAt(0)->kind(), TypeKind::VARCHAR);
+  ASSERT_EQ(type->childAt(1)->childAt(0)->childAt(1)->kind(), TypeKind::INTEGER);
 }
 
 } // namespace gluten

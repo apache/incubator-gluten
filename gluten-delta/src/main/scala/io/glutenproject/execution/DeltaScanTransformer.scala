@@ -16,26 +16,28 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.collection.BitSet
 
-class DeltaScanTransformer(
+case class DeltaScanTransformer(
     @transient override val relation: HadoopFsRelation,
-    output: Seq[Attribute],
-    requiredSchema: StructType,
-    partitionFilters: Seq[Expression],
-    optionalBucketSet: Option[BitSet],
-    optionalNumCoalescedBuckets: Option[Int],
-    dataFilters: Seq[Expression],
+    override val output: Seq[Attribute],
+    override val requiredSchema: StructType,
+    override val partitionFilters: Seq[Expression],
+    override val optionalBucketSet: Option[BitSet],
+    override val optionalNumCoalescedBuckets: Option[Int],
+    override val dataFilters: Seq[Expression],
     override val tableIdentifier: Option[TableIdentifier],
-    disableBucketedScan: Boolean = false)
-  extends FileSourceScanExecTransformer(
+    override val disableBucketedScan: Boolean = false)
+  extends FileSourceScanExecTransformerBase(
     relation,
     output,
     requiredSchema,
@@ -49,6 +51,29 @@ class DeltaScanTransformer(
 
   override lazy val fileFormat: ReadFileFormat = ReadFileFormat.ParquetReadFormat
 
+  override protected def doValidateInternal(): ValidationResult = {
+    if (requiredSchema.fields.exists(_.name == "__delta_internal_is_row_deleted")) {
+      return ValidationResult.notOk(s"Deletion vector is not supported in native.")
+    }
+
+    super.doValidateInternal()
+  }
+
+  override def doCanonicalize(): DeltaScanTransformer = {
+    DeltaScanTransformer(
+      relation,
+      output.map(QueryPlan.normalizeExpressions(_, output)),
+      requiredSchema,
+      QueryPlan.normalizePredicates(
+        filterUnusedDynamicPruningExpressions(partitionFilters),
+        output),
+      optionalBucketSet,
+      optionalNumCoalescedBuckets,
+      QueryPlan.normalizePredicates(dataFilters, output),
+      None,
+      disableBucketedScan
+    )
+  }
 }
 
 object DeltaScanTransformer {

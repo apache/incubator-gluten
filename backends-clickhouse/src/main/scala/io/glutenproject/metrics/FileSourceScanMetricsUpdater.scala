@@ -27,18 +27,20 @@ class FileSourceScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric
   extends MetricsUpdater {
 
   val scanTime: SQLMetric = metrics("scanTime")
-  val outputRows: SQLMetric = metrics("outputRows")
+  val outputRows: SQLMetric = metrics("numOutputRows")
   val outputVectors: SQLMetric = metrics("outputVectors")
   val outputBytes: SQLMetric = metrics("outputBytes")
-  val inputRows: SQLMetric = metrics("inputRows")
+  val inputRows: SQLMetric = metrics("numInputRows")
   val inputBytes: SQLMetric = metrics("inputBytes")
   val extraTime: SQLMetric = metrics("extraTime")
   val inputWaitTime: SQLMetric = metrics("inputWaitTime")
   val outputWaitTime: SQLMetric = metrics("outputWaitTime")
+  val selected_marks_pk: SQLMetric = metrics("selectedMarksPk")
+  val total_marks_pk: SQLMetric = metrics("totalMarksPk")
 
   override def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {
     // inputMetrics.bridgeIncBytesRead(metrics("inputBytes").value)
-    // inputMetrics.bridgeIncRecordsRead(metrics("inputRows").value)
+    // inputMetrics.bridgeIncRecordsRead(metrics("numInputRows").value)
   }
 
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
@@ -50,6 +52,12 @@ class FileSourceScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric
         inputWaitTime += (metricsData.inputWaitTime / 1000L).toLong
         outputWaitTime += (metricsData.outputWaitTime / 1000L).toLong
         outputVectors += metricsData.outputVectors
+
+        metricsData.getSteps.forEach(
+          step => {
+            selected_marks_pk += step.selectedMarksPk
+            total_marks_pk += step.totalMarksPk
+          })
 
         MetricsUtil.updateExtraTimeMetric(
           metricsData,

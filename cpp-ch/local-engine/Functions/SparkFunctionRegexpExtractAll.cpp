@@ -70,12 +70,12 @@ namespace
                     arguments.size());
 
             FunctionArgumentDescriptors args{
-                {"haystack", &isString<IDataType>, nullptr, "String"},
-                {"pattern", &isString<IDataType>, isColumnConst, "const String"},
+                {"haystack", static_cast<FunctionArgumentDescriptor::TypeValidator>(&isString), nullptr, "String"},
+                {"pattern", static_cast<FunctionArgumentDescriptor::TypeValidator>(&isString), isColumnConst, "const String"},
             };
 
             if (arguments.size() == 3)
-                args.emplace_back(FunctionArgumentDescriptor{"index", &isInteger<IDataType>, nullptr, "Integer"});
+                args.emplace_back(FunctionArgumentDescriptor{"index", static_cast<FunctionArgumentDescriptor::TypeValidator>(&isInteger), nullptr, "Integer"});
 
             validateFunctionArgumentTypes(*this, arguments, args);
 
@@ -169,12 +169,12 @@ namespace
                 const auto & match = matches[match_index];
                 if (match.offset != std::string::npos)
                 {
-                    res_strings_chars.resize(res_strings_offset + match.length + 1);
+                    res_strings_chars.resize_exact(res_strings_offset + match.length + 1);
                     memcpySmallAllowReadWriteOverflow15(&res_strings_chars[res_strings_offset], pos + match.offset, match.length);
                     res_strings_offset += match.length;
                 }
                 else
-                    res_strings_chars.resize(res_strings_offset + 1);
+                    res_strings_chars.resize_exact(res_strings_offset + 1);
 
                 /// Update offsets of Column:String
                 res_strings_chars[res_strings_offset] = 0;
@@ -211,9 +211,9 @@ namespace
             OptimizedRegularExpression::MatchVec matches;
             matches.reserve(index + 1);
 
-            res_offsets.reserve(offsets.size());
-            res_strings_chars.reserve(data.size() / 3);
-            res_strings_offsets.reserve(offsets.size() * 2);
+            res_offsets.reserve_exact(offsets.size());
+            res_strings_chars.reserve_exact(data.size() / 3);
+            res_strings_offsets.reserve_exact(offsets.size() * 2);
 
             size_t res_offset = 0;
             size_t res_strings_offset = 0;
@@ -253,9 +253,9 @@ namespace
             OptimizedRegularExpression::MatchVec matches;
             matches.reserve(capture + 1);
 
-            res_offsets.reserve(offsets.size());
-            res_strings_chars.reserve(data.size() / 3);
-            res_strings_offsets.reserve(offsets.size() * 2);
+            res_offsets.reserve_exact(offsets.size());
+            res_strings_chars.reserve_exact(data.size() / 3);
+            res_strings_offsets.reserve_exact(offsets.size() * 2);
 
             size_t res_offset = 0;
             size_t res_strings_offset = 0;
@@ -333,9 +333,9 @@ namespace
             }
 
             size_t rows = column_index->size();
-            res_offsets.reserve(rows);
-            res_strings_chars.reserve(rows * str.size() / 3);
-            res_strings_offsets.reserve(rows * 2);
+            res_offsets.reserve_exact(rows);
+            res_strings_chars.reserve_exact(rows * str.size() / 3);
+            res_strings_offsets.reserve_exact(rows * 2);
 
             size_t res_offset = 0;
             size_t res_strings_offset = 0;
@@ -356,12 +356,12 @@ namespace
                     /// Append matched segment into res_strings_chars
                     if (match.offset != std::string::npos)
                     {
-                        res_strings_chars.resize(res_strings_offset + match.length + 1);
+                        res_strings_chars.resize_exact(res_strings_offset + match.length + 1);
                         memcpySmallAllowReadWriteOverflow15(&res_strings_chars[res_strings_offset], start + match.offset, match.length);
                         res_strings_offset += match.length;
                     }
                     else
-                        res_strings_chars.resize(res_strings_offset + 1);
+                        res_strings_chars.resize_exact(res_strings_offset + 1);
 
                     /// Update offsets of Column:String
                     res_strings_chars[res_strings_offset] = 0;

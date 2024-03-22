@@ -49,8 +49,8 @@ DB::ActionsDAG::NodeRawConstPtrs AggregateFunctionParser::parseFunctionArguments
 
         // If the aggregate result is required to be nullable, make all inputs be nullable at the first stage.
         auto required_output_type = DB::WhichDataType(TypeParser::parseType(func_info.output_type));
-        if (required_output_type.isNullable() && func_info.phase == substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE
-            && !arg_node->result_type->isNullable())
+        if (required_output_type.isNullable() && (func_info.phase == substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE
+            || func_info.phase == substrait::AGGREGATION_PHASE_INITIAL_TO_RESULT) && !arg_node->result_type->isNullable())
         {
             DB::ActionsDAG::NodeRawConstPtrs args;
             args.emplace_back(arg_node);
@@ -88,7 +88,8 @@ std::pair<String, DB::DataTypes> AggregateFunctionParser::tryApplyCHCombinator(
     };
     String combinator_function_name = ch_func_name;
     DB::DataTypes combinator_arg_column_types = arg_column_types;
-    if (func_info.phase != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
+    if (func_info.phase != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE &&
+        func_info.phase != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_RESULT)
     {
         if (arg_column_types.size() != 1)
         {
@@ -146,10 +147,20 @@ std::pair<String, DB::DataTypes> AggregateFunctionParser::tryApplyCHCombinator(
 const DB::ActionsDAG::Node * AggregateFunctionParser::convertNodeTypeIfNeeded(
     const CommonFunctionInfo & func_info,
     const DB::ActionsDAG::Node * func_node,
-    DB::ActionsDAGPtr & actions_dag) const
+    DB::ActionsDAGPtr & actions_dag,
+    bool withNullability) const
 {
     const auto & output_type = func_info.output_type;
-    if (!TypeParser::isTypeMatched(output_type, func_node->result_type))
+    bool needToConvertNodeType = false;
+    if (withNullability)
+    {
+        needToConvertNodeType = !TypeParser::isTypeMatchedWithNullability(output_type, func_node->result_type);
+    }
+    else
+    {
+        needToConvertNodeType = !TypeParser::isTypeMatched(output_type, func_node->result_type);
+    }
+    if (needToConvertNodeType)
     {
         func_node = ActionsDAGUtil::convertNodeType(
             actions_dag, func_node, TypeParser::parseType(output_type)->getName(), func_node->result_name);

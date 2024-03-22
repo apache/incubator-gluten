@@ -16,18 +16,20 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.backendsapi.velox.ValidatorApiImpl
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.exception.GlutenException
 import io.glutenproject.exec.Runtimes
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.{ArrowAbiUtil, Iterators}
 import io.glutenproject.vectorized._
 
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{BroadcastUtils, SparkPlan}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
@@ -44,9 +46,9 @@ import scala.collection.mutable.ListBuffer
 case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBase(child = child) {
 
   override def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
-    new ValidatorApiImpl().doSchemaValidate(schema).foreach {
+    BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema).foreach {
       reason =>
-        throw new UnsupportedOperationException(
+        throw new GlutenException(
           s"Input schema contains unsupported type when convert row to columnar for $schema " +
             s"due to $reason")
     }
@@ -68,8 +70,35 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
           numInputRows,
           numOutputBatches,
           convertTime,
-          numRows)
+          numRows
+        )
     }
+  }
+
+  override def doExecuteBroadcast[T](): Broadcast[T] = {
+    val numInputRows = longMetric("numInputRows")
+    val numOutputBatches = longMetric("numOutputBatches")
+    val convertTime = longMetric("convertTime")
+    // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
+    // combine with some of the Arrow conversion tools we will need to unify some of the configs.
+    val numRows = conf.columnBatchSize
+    val mode = BroadcastUtils.getBroadcastMode(outputPartitioning)
+    val relation = child.executeBroadcast()
+    BroadcastUtils.sparkToVeloxUnsafe(
+      sparkContext,
+      mode,
+      schema,
+      relation,
+      itr =>
+        RowToVeloxColumnarExec.toColumnarBatchIterator(
+          itr,
+          schema,
+          numInputRows,
+          numOutputBatches,
+          convertTime,
+          numRows
+        )
+    )
   }
 
   // For spark 3.2.
@@ -92,16 +121,13 @@ object RowToVeloxColumnarExec {
     val arrowSchema =
       SparkArrowUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
     val jniWrapper = NativeRowToColumnarJniWrapper.create()
-    val allocator = ArrowBufferAllocators.contextInstance()
-    val cSchema = ArrowSchema.allocateNew(allocator)
+    val arrowAllocator = ArrowBufferAllocators.contextInstance()
+    val memoryManager = NativeMemoryManagers.contextInstance("RowToColumnar")
+    val cSchema = ArrowSchema.allocateNew(arrowAllocator)
     val r2cHandle =
       try {
-        ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-        jniWrapper.init(
-          cSchema.memoryAddress(),
-          NativeMemoryManagers
-            .contextInstance("RowToColumnar")
-            .getNativeInstanceHandle)
+        ArrowAbiUtil.exportSchema(arrowAllocator, arrowSchema, cSchema)
+        jniWrapper.init(cSchema.memoryAddress(), memoryManager.getNativeInstanceHandle)
       } finally {
         cSchema.close()
       }
@@ -136,7 +162,7 @@ object RowToVeloxColumnarExec {
         val estimatedBufSize = Math.max(
           Math.min(sizeInBytes.toDouble * columnBatchSize * 1.2, 31760L * columnBatchSize),
           sizeInBytes.toDouble * 10)
-        arrowBuf = allocator.buffer(estimatedBufSize.toLong)
+        arrowBuf = arrowAllocator.buffer(estimatedBufSize.toLong)
         Platform.copyMemory(
           row.getBaseObject,
           row.getBaseOffset,
@@ -156,7 +182,7 @@ object RowToVeloxColumnarExec {
             val unsafeRow = convertToUnsafeRow(row)
             val sizeInBytes = unsafeRow.getSizeInBytes
             if ((offset + sizeInBytes) > arrowBuf.capacity()) {
-              val tmpBuf = allocator.buffer(((offset + sizeInBytes) * 2).toLong)
+              val tmpBuf = arrowAllocator.buffer(((offset + sizeInBytes) * 2).toLong)
               tmpBuf.setBytes(0, arrowBuf, 0, offset)
               arrowBuf.close()
               arrowBuf = tmpBuf

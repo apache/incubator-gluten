@@ -19,6 +19,7 @@
 #include <IO/ReadHelpers.h>
 #include <IO/VarInt.h>
 #include <DataTypes/DataTypeFactory.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <Columns/ColumnAggregateFunction.h>
 #include <Common/Arena.h>
 #include <Storages/IO/NativeWriter.h>
@@ -87,7 +88,7 @@ static void readFixedSizeAggregateData(DB::ReadBuffer &in, DB::ColumnPtr & colum
     auto & arena = real_column.createOrGetArena();
     ColumnAggregateFunction::Container & vec = real_column.getData();
     size_t initial_size = vec.size();
-    vec.reserve(initial_size + rows);
+    vec.reserve_exact(initial_size + rows);
     for (size_t i = 0; i < rows; ++i)
     {
         AggregateDataPtr place = arena.alignedAlloc(column_parse_util.aggregate_state_size, column_parse_util.aggregate_state_align);
@@ -104,7 +105,7 @@ static void readVarSizeAggregateData(DB::ReadBuffer &in, DB::ColumnPtr & column,
     auto & arena = real_column.createOrGetArena();
     ColumnAggregateFunction::Container & vec = real_column.getData();
     size_t initial_size = vec.size();
-    vec.reserve(initial_size + rows);
+    vec.reserve_exact(initial_size + rows);
     for (size_t i = 0; i < rows; ++i)
     {
         AggregateDataPtr place = arena.alignedAlloc(column_parse_util.aggregate_state_size, column_parse_util.aggregate_state_align);
@@ -115,7 +116,7 @@ static void readVarSizeAggregateData(DB::ReadBuffer &in, DB::ColumnPtr & column,
     }
 }
 
-static void readNormalData(DB::ReadBuffer &in, DB::ColumnPtr & column, size_t rows, NativeReader::ColumnParseUtil & column_parse_util)
+static void readNormalSimpleData(DB::ReadBuffer &in, DB::ColumnPtr & column, size_t rows, NativeReader::ColumnParseUtil & column_parse_util)
 {
     ISerialization::DeserializeBinaryBulkSettings settings;
     settings.getter = [&](ISerialization::SubstreamPath) -> ReadBuffer * { return &in; };
@@ -127,6 +128,23 @@ static void readNormalData(DB::ReadBuffer &in, DB::ColumnPtr & column, size_t ro
 
     column_parse_util.serializer->deserializeBinaryBulkStatePrefix(settings, state);
     column_parse_util.serializer->deserializeBinaryBulkWithMultipleStreams(column, rows, settings, state, nullptr);
+}
+
+// May not efficient.
+static void readNormalComplexData(DB::ReadBuffer &in, DB::ColumnPtr & column, size_t rows, NativeReader::ColumnParseUtil & column_parse_util)
+{
+    ISerialization::DeserializeBinaryBulkSettings settings;
+    settings.getter = [&](ISerialization::SubstreamPath) -> ReadBuffer * { return &in; };
+    settings.avg_value_size_hint = column_parse_util.avg_value_size_hint;
+    settings.position_independent_encoding = false;
+    settings.native_format = true;
+
+    ISerialization::DeserializeBinaryBulkStatePtr state;
+
+    DB::ColumnPtr new_col = column->cloneResized(0);
+    column_parse_util.serializer->deserializeBinaryBulkStatePrefix(settings, state);
+    column_parse_util.serializer->deserializeBinaryBulkWithMultipleStreams(new_col, rows, settings, state, nullptr);
+    column->assumeMutable()->insertRangeFrom(*new_col, 0, new_col->size());
 }
 
 DB::Block NativeReader::prepareByFirstBlock()
@@ -167,6 +185,7 @@ DB::Block NativeReader::prepareByFirstBlock()
             real_type_name = type_name.substr(0, type_name.length() - NativeWriter::AGG_STATE_SUFFIX.length());
         }
         column.type = data_type_factory.get(real_type_name);
+        auto nested_type = DB::removeNullable(column.type);
         bool is_agg_state_type = WhichDataType(column.type).isAggregateFunction();
         SerializationPtr serialization = column.type->getDefaultSerialization();
 
@@ -200,10 +219,15 @@ DB::Block NativeReader::prepareByFirstBlock()
                     column_parse_util.parse = readVarSizeAggregateData;
                 }
             }
+            else if (DB::isNativeNumber(*nested_type) || DB::isStringOrFixedString(*nested_type))
+            {
+                readNormalSimpleData(istr, read_column, rows, column_parse_util);
+                column_parse_util.parse = readNormalSimpleData;
+            }
             else
             {
-                readNormalData(istr, read_column, rows, column_parse_util);
-                column_parse_util.parse = readNormalData;
+                readNormalComplexData(istr, read_column, rows, column_parse_util);
+                column_parse_util.parse = readNormalComplexData;
             }
         }
         column.column = std::move(read_column);
@@ -219,7 +243,6 @@ bool NativeReader::appendNextBlock(DB::Block & result_block)
 {
     if (istr.eof())
         return false;
-
     size_t columns = 0;
     size_t rows = 0;
     readVarUInt(columns, istr);

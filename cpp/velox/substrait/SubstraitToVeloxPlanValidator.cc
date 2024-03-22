@@ -67,7 +67,6 @@ static const std::unordered_set<std::string> kBlackList = {
     "repeat",
     "trunc",
     "sequence",
-    "posexplode",
     "arrays_overlap",
     "approx_percentile",
     "get_array_struct_fields"};
@@ -243,27 +242,17 @@ bool SubstraitToVeloxPlanValidator::validateLiteral(
     const ::substrait::Expression_Literal& literal,
     const RowTypePtr& inputType) {
   if (literal.has_list()) {
-    if (literal.list().values_size() == 0) {
-      LOG_VALIDATION_MSG("Literal is a list but has no value.");
-      return false;
-    } else {
-      for (auto child : literal.list().values()) {
-        if (!validateLiteral(child, inputType)) {
-          // the error msg has been set, so do not need to set it again.
-          return false;
-        }
+    for (auto child : literal.list().values()) {
+      if (!validateLiteral(child, inputType)) {
+        // the error msg has been set, so do not need to set it again.
+        return false;
       }
     }
   } else if (literal.has_map()) {
-    if (literal.map().key_values().empty()) {
-      LOG_VALIDATION_MSG("Literal is a map but has no value.");
-      return false;
-    } else {
-      for (auto child : literal.map().key_values()) {
-        if (!validateLiteral(child.key(), inputType) || !validateLiteral(child.value(), inputType)) {
-          // the error msg has been set, so do not need to set it again.
-          return false;
-        }
+    for (auto child : literal.map().key_values()) {
+      if (!validateLiteral(child.key(), inputType) || !validateLiteral(child.value(), inputType)) {
+        // the error msg has been set, so do not need to set it again.
+        return false;
       }
     }
   }
@@ -377,7 +366,9 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WriteRel& writeR
   // Validate partition key type.
   if (writeRel.has_table_schema()) {
     const auto& tableSchema = writeRel.table_schema();
-    auto isPartitionColumns = SubstraitParser::parsePartitionColumns(tableSchema);
+    std::vector<bool> isMetadataColumns;
+    std::vector<bool> isPartitionColumns;
+    SubstraitParser::parsePartitionAndMetadataColumns(tableSchema, isPartitionColumns, isMetadataColumns);
     for (auto i = 0; i < types.size(); i++) {
       if (isPartitionColumns[i]) {
         switch (types[i]->kind()) {
@@ -611,7 +602,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
           case ::substrait::Expression::RexTypeCase::kLiteral:
             break;
           default:
-            LOG_VALIDATION_MSG("Only field is supported in window functions.");
+            LOG_VALIDATION_MSG("Only field or constant is supported in window functions.");
             return false;
         }
       }
@@ -658,8 +649,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
   try {
     for (const auto& expr : groupByExprs) {
       auto expression = exprConverter_->toVeloxExpr(expr, rowType);
-      auto expr_field = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
-      if (expr_field == nullptr) {
+      auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
+      if (exprField == nullptr) {
         LOG_VALIDATION_MSG("Only field is supported for partition key in Window Operator!");
         return false;
       } else {
@@ -691,8 +682,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
     if (sort.has_expr()) {
       try {
         auto expression = exprConverter_->toVeloxExpr(sort.expr(), rowType);
-        auto expr_field = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
-        if (!expr_field) {
+        auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
+        if (!exprField) {
           LOG_VALIDATION_MSG("in windowRel, the sorting key in Sort Operator only support field.");
           return false;
         }
@@ -749,8 +740,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::SortRel& sortRel
     if (sort.has_expr()) {
       try {
         auto expression = exprConverter_->toVeloxExpr(sort.expr(), rowType);
-        auto expr_field = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
-        if (!expr_field) {
+        auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
+        if (!exprField) {
           LOG_VALIDATION_MSG("in SortRel, the sorting key in Sort Operator only support field.");
           return false;
         }
@@ -937,25 +928,34 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
 
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossRel) {
   if (crossRel.has_left() && !validate(crossRel.left())) {
-    logValidateMsg("native validation failed due to: validation fails for cross join left input. ");
+    logValidateMsg("Native validation failed due to: validation fails for cross join left input. ");
     return false;
   }
 
   if (crossRel.has_right() && !validate(crossRel.right())) {
-    logValidateMsg("native validation failed due to: validation fails for cross join right input. ");
+    logValidateMsg("Native validation failed due to: validation fails for cross join right input. ");
     return false;
   }
 
   // Validate input types.
   if (!crossRel.has_advanced_extension()) {
-    logValidateMsg("native validation failed due to: Input types are expected in CrossRel.");
+    logValidateMsg("Native validation failed due to: Input types are expected in CrossRel.");
     return false;
+  }
+
+  switch (crossRel.type()) {
+    case ::substrait::CrossRel_JoinType_JOIN_TYPE_INNER:
+    case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
+      break;
+    default:
+      LOG_VALIDATION_MSG("Unsupported Join type in CrossRel");
+      return false;
   }
 
   const auto& extension = crossRel.advanced_extension();
   std::vector<TypePtr> types;
   if (!validateInputTypes(extension, types)) {
-    logValidateMsg("native validation failed due to: Validation failed for input types in CrossRel");
+    logValidateMsg("Native validation failed due to: Validation failed for input types in CrossRel");
     return false;
   }
 
@@ -972,7 +972,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossR
       auto expression = exprConverter_->toVeloxExpr(crossRel.expression(), rowType);
       exec::ExprSet exprSet({std::move(expression)}, execCtx_);
     } catch (const VeloxException& err) {
-      logValidateMsg("native validation failed due to: crossRel expression validation fails, " + err.message());
+      logValidateMsg("Native validation failed due to: crossRel expression validation fails, " + err.message());
       return false;
     }
   }
@@ -1007,7 +1007,7 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
     auto funcName = planConverter_.toAggregationFunctionName(baseFuncName, funcStep);
     auto signaturesOpt = exec::getAggregateFunctionSignatures(funcName);
     if (!signaturesOpt) {
-      LOG_VALIDATION_MSG("can not find function signature for" + funcName + " in AggregateRel.");
+      LOG_VALIDATION_MSG("can not find function signature for " + funcName + " in AggregateRel.");
       return false;
     }
 
@@ -1118,6 +1118,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
   static const std::unordered_set<std::string> supportedAggFuncs = {
       "sum",
       "collect_set",
+      "collect_list",
       "count",
       "avg",
       "min",
@@ -1139,7 +1140,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
       "corr",
       "covar_pop",
       "covar_samp",
-      "approx_distinct"};
+      "approx_distinct",
+      "skewness"};
 
   for (const auto& funcSpec : funcSpecs) {
     auto funcName = SubstraitParser::getNameBeforeDelimiter(funcSpec);

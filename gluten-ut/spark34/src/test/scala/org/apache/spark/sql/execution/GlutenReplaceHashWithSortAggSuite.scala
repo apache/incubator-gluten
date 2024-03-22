@@ -19,7 +19,6 @@ package org.apache.spark.sql.execution
 import io.glutenproject.execution.HashAggregateExecBaseTransformer
 
 import org.apache.spark.sql.{DataFrame, GlutenSQLTestsBaseTrait}
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.execution.aggregate.{ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.internal.SQLConf
 
@@ -55,12 +54,14 @@ class GlutenReplaceHashWithSortAggSuite
 
   // === Following cases override super class's cases ===
 
-  test(GLUTEN_TEST + "replace partial hash aggregate with sort aggregate") {
+  testGluten("replace partial hash aggregate with sort aggregate") {
     withTempView("t") {
       spark.range(100).selectExpr("id as key").repartition(10).createOrReplaceTempView("t")
 
       Seq("FIRST", "COLLECT_LIST").foreach {
         aggExpr =>
+          // Because repartition modification causing the result sort order not same and the
+          // result not same, so we add order by key before comparing the result.
           val query =
             s"""
                |SELECT key, $aggExpr(key)
@@ -72,18 +73,14 @@ class GlutenReplaceHashWithSortAggSuite
                |   SORT BY key
                |)
                |GROUP BY key
+               |ORDER BY key
              """.stripMargin
-          aggExpr match {
-            case "FIRST" =>
-              checkAggs(query, 2, 0, 2, 0)
-            case _ =>
-              checkAggs(query, 1, 1, 2, 0)
-          }
+          checkAggs(query, 2, 0, 2, 0)
       }
     }
   }
 
-  test(GLUTEN_TEST + "replace partial and final hash aggregate together with sort aggregate") {
+  testGluten("replace partial and final hash aggregate together with sort aggregate") {
     withTempView("t1", "t2") {
       spark.range(100).selectExpr("id as key").createOrReplaceTempView("t1")
       spark.range(50).selectExpr("id as key").createOrReplaceTempView("t2")
@@ -106,7 +103,7 @@ class GlutenReplaceHashWithSortAggSuite
     }
   }
 
-  test(GLUTEN_TEST + "do not replace hash aggregate if child does not have sort order") {
+  testGluten("do not replace hash aggregate if child does not have sort order") {
     withTempView("t1", "t2") {
       spark.range(100).selectExpr("id as key").createOrReplaceTempView("t1")
       spark.range(50).selectExpr("id as key").createOrReplaceTempView("t2")
@@ -129,7 +126,7 @@ class GlutenReplaceHashWithSortAggSuite
     }
   }
 
-  test(GLUTEN_TEST + "do not replace hash aggregate if there is no group-by column") {
+  testGluten("do not replace hash aggregate if there is no group-by column") {
     withTempView("t1") {
       spark.range(100).selectExpr("id as key").createOrReplaceTempView("t1")
       Seq("COUNT", "COLLECT_LIST").foreach {

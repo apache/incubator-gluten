@@ -50,8 +50,10 @@ struct MergeTreeTable
     std::string table;
     substrait::NamedStruct schema;
     std::string order_by_key;
+    std::string low_card_key;
     std::string primary_key = "";
     std::string relative_path;
+    std::string absolute_path;
     std::string table_configs_json;
     std::vector<MergeTreePart> parts;
     std::unordered_set<String> getPartNames() const;

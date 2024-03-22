@@ -24,10 +24,10 @@ import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.types.StructType
 
-import org.apache.iceberg.{CombinedScanTask, FileFormat, FileScanTask, ScanTask}
+import org.apache.iceberg.{CombinedScanTask, DeleteFile, FileFormat, FileScanTask, ScanTask}
 
 import java.lang.{Long => JLong}
-import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap}
+import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList, Map => JMap}
 
 import scala.collection.JavaConverters._
 
@@ -39,22 +39,19 @@ object GlutenIcebergSourceUtil {
       val starts = new JArrayList[JLong]()
       val lengths = new JArrayList[JLong]()
       val partitionColumns = new JArrayList[JMap[String, String]]()
+      val deleteFilesList = new JArrayList[JList[DeleteFile]]()
       var fileFormat = ReadFileFormat.UnknownFormat
 
       val tasks = partition.taskGroup[ScanTask]().tasks().asScala
       asFileScanTask(tasks.toList).foreach {
         task =>
-          paths.add(task.file().path().toString)
+          val filePath = task.file().path().toString
+          paths.add(filePath)
           starts.add(task.start())
           lengths.add(task.length())
           partitionColumns.add(getPartitionColumns(task))
-          val currentFileFormat = task.file().format() match {
-            case FileFormat.PARQUET => ReadFileFormat.ParquetReadFormat
-            case FileFormat.ORC => ReadFileFormat.OrcReadFormat
-            case _ =>
-              throw new UnsupportedOperationException(
-                "Iceberg Only support parquet and orc file format.")
-          }
+          deleteFilesList.add(task.deletes());
+          val currentFileFormat = convertFileFormat(task.file().format())
           if (fileFormat == ReadFileFormat.UnknownFormat) {
             fileFormat = currentFileFormat
           } else if (fileFormat != currentFileFormat) {
@@ -73,7 +70,8 @@ object GlutenIcebergSourceUtil {
         lengths,
         partitionColumns,
         fileFormat,
-        preferredLoc.toList.asJava
+        preferredLoc.toList.asJava,
+        deleteFilesList
       )
     case _ =>
       throw new UnsupportedOperationException("Only support iceberg SparkInputPartition.")
@@ -152,4 +150,12 @@ object GlutenIcebergSourceUtil {
     }
     partitionColumns
   }
+
+  def convertFileFormat(icebergFileFormat: FileFormat): ReadFileFormat =
+    icebergFileFormat match {
+      case FileFormat.PARQUET => ReadFileFormat.ParquetReadFormat
+      case FileFormat.ORC => ReadFileFormat.OrcReadFormat
+      case _ =>
+        throw new UnsupportedOperationException("Iceberg Only support parquet and orc file format.")
+    }
 }

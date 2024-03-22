@@ -85,6 +85,16 @@ VectorPtr readFlatVector(
 }
 
 template <>
+VectorPtr readFlatVector<TypeKind::UNKNOWN>(
+    std::vector<BufferPtr>& buffers,
+    int32_t& bufferIdx,
+    uint32_t length,
+    std::shared_ptr<const Type> type,
+    memory::MemoryPool* pool) {
+  return BaseVector::createNullConstant(type, length, pool);
+}
+
+template <>
 VectorPtr readFlatVector<TypeKind::HUGEINT>(
     std::vector<BufferPtr>& buffers,
     int32_t& bufferIdx,
@@ -268,162 +278,6 @@ std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
   return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
 }
 
-std::shared_ptr<arrow::Buffer> readColumnBuffer(const arrow::RecordBatch& batch, int32_t fieldIdx) {
-  return std::dynamic_pointer_cast<arrow::LargeStringArray>(batch.column(fieldIdx))->value_data();
-}
-
-void getUncompressedBuffersOneByOne(
-    arrow::MemoryPool* arrowPool,
-    arrow::util::Codec* codec,
-    const int64_t* lengthPtr,
-    std::shared_ptr<arrow::Buffer> valueBuffer,
-    std::vector<BufferPtr>& buffers) {
-  int64_t valueOffset = 0;
-  auto valueBufferLength = lengthPtr[0];
-  for (int64_t i = 0, j = 1; i < valueBufferLength; i++, j = j + 2) {
-    int64_t uncompressLength = lengthPtr[j];
-    int64_t compressLength = lengthPtr[j + 1];
-    auto compressBuffer = arrow::SliceBuffer(valueBuffer, valueOffset, compressLength);
-    valueOffset += compressLength;
-    // Small buffer, not compressed
-    if (uncompressLength == -1) {
-      buffers.emplace_back(convertToVeloxBuffer(compressBuffer));
-    } else {
-      std::shared_ptr<arrow::Buffer> uncompressBuffer = std::make_shared<arrow::Buffer>(nullptr, 0);
-      if (uncompressLength != 0) {
-        GLUTEN_ASSIGN_OR_THROW(uncompressBuffer, arrow::AllocateBuffer(uncompressLength, arrowPool));
-        GLUTEN_ASSIGN_OR_THROW(
-            auto actualDecompressLength,
-            codec->Decompress(
-                compressLength, compressBuffer->data(), uncompressLength, uncompressBuffer->mutable_data()));
-        VELOX_DCHECK_EQ(actualDecompressLength, uncompressLength);
-        // Prevent unused variable warning in optimized build.
-        ((void)actualDecompressLength);
-      }
-      buffers.emplace_back(convertToVeloxBuffer(uncompressBuffer));
-    }
-  }
-}
-
-void getUncompressedBuffersStream(
-    arrow::MemoryPool* arrowPool,
-    arrow::util::Codec* codec,
-    const int64_t* lengthPtr,
-    std::shared_ptr<arrow::Buffer> compressBuffer,
-    std::vector<BufferPtr>& buffers) {
-  int64_t uncompressLength = lengthPtr[0];
-  int64_t compressLength = lengthPtr[1];
-  auto valueBufferLength = lengthPtr[2];
-  if (uncompressLength != -1) {
-    std::shared_ptr<arrow::Buffer> uncompressBuffer;
-    GLUTEN_ASSIGN_OR_THROW(uncompressBuffer, arrow::AllocateBuffer(uncompressLength, arrowPool));
-    GLUTEN_ASSIGN_OR_THROW(
-        auto actualDecompressLength,
-        codec->Decompress(compressLength, compressBuffer->data(), uncompressLength, uncompressBuffer->mutable_data()));
-    VELOX_DCHECK_EQ(actualDecompressLength, uncompressLength);
-    const std::shared_ptr<arrow::Buffer> kNullBuffer = std::make_shared<arrow::Buffer>(nullptr, 0);
-    int64_t bufferOffset = 0;
-    for (int64_t i = 3; i < valueBufferLength + 3; i++) {
-      if (lengthPtr[i] == 0) {
-        buffers.emplace_back(convertToVeloxBuffer(kNullBuffer));
-      } else {
-        auto uncompressBufferSlice = arrow::SliceBuffer(uncompressBuffer, bufferOffset, lengthPtr[i]);
-        buffers.emplace_back(convertToVeloxBuffer(uncompressBufferSlice));
-        bufferOffset += lengthPtr[i];
-      }
-    }
-  } else {
-    const std::shared_ptr<arrow::Buffer> kNullBuffer = std::make_shared<arrow::Buffer>(nullptr, 0);
-    int64_t bufferOffset = 0;
-    for (int64_t i = 3; i < valueBufferLength + 3; i++) {
-      if (lengthPtr[i] == 0) {
-        buffers.emplace_back(convertToVeloxBuffer(kNullBuffer));
-      } else {
-        auto uncompressBufferSlice = arrow::SliceBuffer(compressBuffer, bufferOffset, lengthPtr[i]);
-        buffers.emplace_back(convertToVeloxBuffer(uncompressBufferSlice));
-        bufferOffset += lengthPtr[i];
-      }
-    }
-  }
-}
-
-void getUncompressedBuffers(
-    const arrow::RecordBatch& batch,
-    arrow::MemoryPool* arrowPool,
-    arrow::util::Codec* codec,
-    std::vector<BufferPtr>& buffers) {
-  // Get compression mode from first byte.
-  auto lengthBuffer = readColumnBuffer(batch, 1);
-  auto lengthBufferPtr = reinterpret_cast<const int64_t*>(lengthBuffer->data());
-  auto compressionMode = (CompressionMode)(*lengthBufferPtr++);
-  auto valueBuffer = readColumnBuffer(batch, 2);
-  if (compressionMode == CompressionMode::BUFFER) {
-    getUncompressedBuffersOneByOne(arrowPool, codec, lengthBufferPtr, valueBuffer, buffers);
-  } else {
-    getUncompressedBuffersStream(arrowPool, codec, lengthBufferPtr, valueBuffer, buffers);
-  }
-}
-
-RowVectorPtr readRowVector(
-    const arrow::RecordBatch& batch,
-    RowTypePtr rowType,
-    CodecBackend codecBackend,
-    int64_t& decompressTime,
-    int64_t& deserializeTime,
-    arrow::MemoryPool* arrowPool,
-    memory::MemoryPool* pool) {
-  auto header = readColumnBuffer(batch, 0);
-  uint32_t length;
-  memcpy(&length, header->data(), sizeof(uint32_t));
-  int32_t compressTypeValue;
-  memcpy(&compressTypeValue, header->data() + sizeof(uint32_t), sizeof(int32_t));
-  arrow::Compression::type compressType = static_cast<arrow::Compression::type>(compressTypeValue);
-
-  std::vector<BufferPtr> buffers;
-  buffers.reserve(batch.num_columns() * 2);
-  if (compressType == arrow::Compression::type::UNCOMPRESSED) {
-    for (int32_t i = 0; i < batch.num_columns() - 1; i++) {
-      auto buffer = readColumnBuffer(batch, i + 1);
-      buffers.emplace_back(convertToVeloxBuffer(buffer));
-    }
-  } else {
-    TIME_NANO_START(decompressTime);
-    auto codec = createArrowIpcCodec(compressType, codecBackend);
-    getUncompressedBuffers(batch, arrowPool, codec.get(), buffers);
-    TIME_NANO_END(decompressTime);
-  }
-
-  TIME_NANO_START(deserializeTime);
-  auto rv = deserialize(rowType, length, buffers, pool);
-  TIME_NANO_END(deserializeTime);
-
-  return rv;
-}
-
-std::string getCodecBackend(CodecBackend type) {
-  if (type == CodecBackend::QAT) {
-    return "QAT";
-  } else if (type == CodecBackend::IAA) {
-    return "IAA";
-  } else {
-    return "NONE";
-  }
-}
-
-std::string getCompressionType(arrow::Compression::type type) {
-  if (type == arrow::Compression::UNCOMPRESSED) {
-    return "UNCOMPRESSED";
-  } else if (type == arrow::Compression::LZ4_FRAME) {
-    return "LZ4_FRAME";
-  } else if (type == arrow::Compression::ZSTD) {
-    return "ZSTD";
-  } else if (type == arrow::Compression::GZIP) {
-    return "GZIP";
-  } else {
-    return "UNKNOWN";
-  }
-}
-
 } // namespace
 
 VeloxShuffleReader::VeloxShuffleReader(std::unique_ptr<DeserializerFactory> factory)
@@ -575,6 +429,8 @@ void VeloxColumnarBatchDeserializerFactory::initFromSchema() {
         isValidityBuffer_.push_back(true);
         isValidityBuffer_.push_back(true);
       } break;
+      case arrow::NullType::type_id:
+        break;
       default: {
         isValidityBuffer_.push_back(true);
         isValidityBuffer_.push_back(false);

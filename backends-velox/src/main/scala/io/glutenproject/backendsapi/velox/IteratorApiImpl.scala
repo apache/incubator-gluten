@@ -20,6 +20,7 @@ import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.backendsapi.IteratorApi
 import io.glutenproject.execution._
 import io.glutenproject.metrics.IMetrics
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, LocalFilesNode, SplitInfo}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -27,7 +28,6 @@ import io.glutenproject.utils._
 import io.glutenproject.vectorized._
 
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
-import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.softaffinity.SoftAffinity
@@ -35,9 +35,8 @@ import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
-import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.types.{BinaryType, DateType, StructType, TimestampType}
+import org.apache.spark.sql.types.{BinaryType, DateType, Decimal, DecimalType, StructType, TimestampType}
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.ExecutorManager
@@ -55,19 +54,21 @@ class IteratorApiImpl extends IteratorApi with Logging {
   override def genSplitInfo(
       partition: InputPartition,
       partitionSchema: StructType,
-      fileFormat: ReadFileFormat): SplitInfo = {
+      fileFormat: ReadFileFormat,
+      metadataColumnNames: Seq[String]): SplitInfo = {
     partition match {
       case f: FilePartition =>
-        val (paths, starts, lengths, partitionColumns) =
-          constructSplitInfo(partitionSchema, f.files)
+        val (paths, starts, lengths, partitionColumns, metadataColumns) =
+          constructSplitInfo(partitionSchema, f.files, metadataColumnNames)
         val preferredLocations =
-          SoftAffinity.getFilePartitionLocations(paths.asScala.toArray, f.preferredLocations())
+          SoftAffinity.getFilePartitionLocations(f)
         LocalFilesBuilder.makeLocalFiles(
           f.index,
           paths,
           starts,
           lengths,
           partitionColumns,
+          metadataColumns,
           fileFormat,
           preferredLocations.toList.asJava)
       case _ =>
@@ -94,11 +95,15 @@ class IteratorApiImpl extends IteratorApi with Logging {
     }
   }
 
-  private def constructSplitInfo(schema: StructType, files: Array[PartitionedFile]) = {
+  private def constructSplitInfo(
+      schema: StructType,
+      files: Array[PartitionedFile],
+      metadataColumnNames: Seq[String]) = {
     val paths = new JArrayList[String]()
     val starts = new JArrayList[JLong]
     val lengths = new JArrayList[JLong]()
     val partitionColumns = new JArrayList[JMap[String, String]]
+    var metadataColumns = new JArrayList[JMap[String, String]]
     files.foreach {
       file =>
         // The "file.filePath" in PartitionedFile is not the original encoded path, so the decoded
@@ -108,7 +113,9 @@ class IteratorApiImpl extends IteratorApi with Logging {
             .decode(file.filePath.toString, StandardCharsets.UTF_8.name()))
         starts.add(JLong.valueOf(file.start))
         lengths.add(JLong.valueOf(file.length))
-
+        val metadataColumn =
+          SparkShimLoader.getSparkShims.generateMetadataColumns(file, metadataColumnNames)
+        metadataColumns.add(metadataColumn)
         val partitionColumn = new JHashMap[String, String]()
         for (i <- 0 until file.partitionValues.numFields) {
           val partitionColumnValue = if (file.partitionValues.isNullAt(i)) {
@@ -120,6 +127,8 @@ class IteratorApiImpl extends IteratorApi with Logging {
                 new String(pn.asInstanceOf[Array[Byte]], StandardCharsets.UTF_8)
               case _: DateType =>
                 DateFormatter.apply().format(pn.asInstanceOf[Integer])
+              case _: DecimalType =>
+                pn.asInstanceOf[Decimal].toJavaBigInteger.toString
               case _: TimestampType =>
                 TimestampFormatter
                   .getFractionFormatter(ZoneOffset.UTC)
@@ -131,7 +140,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
         }
         partitionColumns.add(partitionColumn)
     }
-    (paths, starts, lengths, partitionColumns)
+    (paths, starts, lengths, partitionColumns, metadataColumns)
   }
 
   override def injectWriteFilesTempPath(path: String): Unit = {
@@ -146,6 +155,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
       pipelineTime: SQLMetric,
       updateInputMetrics: (InputMetricsWrapper) => Unit,
       updateNativeMetrics: IMetrics => Unit,
+      partitionIndex: Int,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
     assert(
       inputPartition.isInstanceOf[GlutenPartition],
@@ -165,7 +175,8 @@ class IteratorApiImpl extends IteratorApi with Logging {
       transKernel.createKernelWithBatchIterator(
         inputPartition.plan,
         splitInfoByteArray,
-        columnarNativeIterators)
+        columnarNativeIterators,
+        partitionIndex)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
 
     Iterators
@@ -193,6 +204,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
+      partitionIndex: Int,
       materializeInput: Boolean): Iterator[ColumnarBatch] = {
 
     ExecutorManager.tryTaskSet(numaBindingInfo)
@@ -207,7 +219,8 @@ class IteratorApiImpl extends IteratorApi with Logging {
         rootNode.toProtobuf.toByteArray,
         // Final iterator does not contain scan split, so pass empty split info to native here.
         new Array[Array[Byte]](0),
-        columnarNativeIterator
+        columnarNativeIterator,
+        partitionIndex
       )
 
     Iterators
@@ -232,16 +245,5 @@ class IteratorApiImpl extends IteratorApi with Logging {
       numOutputBatches: SQLMetric,
       scanTime: SQLMetric): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException("Cannot support to generate Native FileScanRDD.")
-  }
-
-  /** Compute for BroadcastBuildSideRDD */
-  override def genBroadcastBuildSideIterator(
-      broadcasted: Broadcast[BuildSideRelation],
-      broadCastContext: BroadCastHashJoinContext): Iterator[ColumnarBatch] = {
-    val relation = broadcasted.value.asReadOnlyCopy(broadCastContext)
-    Iterators
-      .wrap(relation.deserialized)
-      .recyclePayload(batch => batch.close())
-      .create()
   }
 }

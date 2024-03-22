@@ -29,17 +29,17 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
 
 import scala.collection.mutable
 
-class FileSourceScanExecShim(
-    @transient relation: HadoopFsRelation,
-    output: Seq[Attribute],
-    requiredSchema: StructType,
-    partitionFilters: Seq[Expression],
-    optionalBucketSet: Option[BitSet],
-    optionalNumCoalescedBuckets: Option[Int],
-    dataFilters: Seq[Expression],
-    tableIdentifier: Option[TableIdentifier],
-    disableBucketedScan: Boolean = false)
-  extends FileSourceScanExec(
+abstract class FileSourceScanExecShim(
+    @transient val relation: HadoopFsRelation,
+    val output: Seq[Attribute],
+    val requiredSchema: StructType,
+    val partitionFilters: Seq[Expression],
+    val optionalBucketSet: Option[BitSet],
+    val optionalNumCoalescedBuckets: Option[Int],
+    val dataFilters: Seq[Expression],
+    val tableIdentifier: Option[TableIdentifier],
+    val disableBucketedScan: Boolean = false)
+  extends AbstractFileSourceScanExec(
     relation,
     output,
     requiredSchema,
@@ -53,17 +53,14 @@ class FileSourceScanExecShim(
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] = Map()
 
-  override def equals(other: Any): Boolean = other match {
-    case that: FileSourceScanExecShim =>
-      (that.canEqual(this)) && super.equals(that)
-    case _ => false
+  def dataFiltersInScan: Seq[Expression] = dataFilters
+
+  def metadataColumns: Seq[AttributeReference] = Seq.empty
+
+  def hasUnsupportedColumns: Boolean = {
+    // Below name has special meaning in Velox.
+    output.exists(a => a.name == "$path" || a.name == "$bucket")
   }
-
-  override def hashCode(): Int = super.hashCode()
-
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[FileSourceScanExecShim]
-
-  def hasMetadataColumns: Boolean = false
 
   def isMetadataColumn(attr: Attribute): Boolean = false
 
@@ -72,6 +69,17 @@ class FileSourceScanExecShim(
   // The codes below are copied from FileSourceScanExec in Spark,
   // all of them are private.
   protected lazy val driverMetrics: mutable.HashMap[String, Long] = mutable.HashMap.empty
+
+  protected lazy val driverMetricsAlias = {
+    if (partitionFilters.exists(isDynamicPruningFilter)) {
+      Map(
+        "staticFilesNum" -> SQLMetrics.createMetric(sparkContext, "static number of files read"),
+        "staticFilesSize" -> SQLMetrics.createSizeMetric(sparkContext, "static size of files read")
+      )
+    } else {
+      Map.empty[String, SQLMetric]
+    }
+  }
 
   /**
    * Send the driver-side metrics. Before calling this function, selectedPartitions has been

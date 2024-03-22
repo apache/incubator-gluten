@@ -18,6 +18,7 @@ package org.apache.spark.sql
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecTransformerBase}
+import io.glutenproject.utils.BackendTestUtils
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
@@ -81,7 +82,7 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
     }
   }
 
-  test(GLUTEN_TEST + "no partition pruning when the build side is a stream") {
+  testGluten("no partition pruning when the build side is a stream") {
     withTable("fact") {
       val input = MemoryStream[Int]
       val stream = input.toDF.select($"value".as("one"), ($"value" * 3).as("code"))
@@ -123,7 +124,7 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
     }
   }
 
-  test(GLUTEN_TEST + "Make sure dynamic pruning works on uncorrelated queries") {
+  testGluten("Make sure dynamic pruning works on uncorrelated queries") {
     withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "true") {
       val df = sql("""
                      |SELECT d.store_id,
@@ -155,8 +156,8 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
     }
   }
 
-  test(
-    GLUTEN_TEST + "SPARK-32509: Unused Dynamic Pruning filter shouldn't affect " +
+  testGluten(
+    "SPARK-32509: Unused Dynamic Pruning filter shouldn't affect " +
       "canonicalization and exchange reuse") {
     withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "true") {
       withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
@@ -181,7 +182,7 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
     }
   }
 
-  test(GLUTEN_TEST + "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type") {
+  testGluten("SPARK-32659: Fix the data issue when pruning DPP on non-atomic type") {
     Seq(NO_CODEGEN, CODEGEN_ONLY).foreach {
       mode =>
         Seq(true, false).foreach {
@@ -409,7 +410,7 @@ abstract class GlutenDynamicPartitionPruningV1Suite extends GlutenDynamicPartiti
   import testImplicits._
 
   /** Check the static scan metrics with and without DPP */
-  test("static scan metrics", DisableAdaptiveExecution("DPP in AQE must reuse broadcast")) {
+  testGluten("static scan metrics", DisableAdaptiveExecution("DPP in AQE must reuse broadcast")) {
     withSQLConf(
       SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
       SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "false",
@@ -442,7 +443,12 @@ abstract class GlutenDynamicPartitionPruningV1Suite extends GlutenDynamicPartiti
             find(plan) {
               case s: FileSourceScanExec =>
                 s.output.exists(_.find(_.argString(maxFields = 100).contains("fid")).isDefined)
+              case s: FileSourceScanExecTransformer =>
+                s.output.exists(_.find(_.argString(maxFields = 100).contains("fid")).isDefined)
               case s: BatchScanExec =>
+                // we use f1 col for v2 tables due to schema pruning
+                s.output.exists(_.find(_.argString(maxFields = 100).contains("f1")).isDefined)
+              case s: BatchScanExecTransformer =>
                 // we use f1 col for v2 tables due to schema pruning
                 s.output.exists(_.find(_.argString(maxFields = 100).contains("f1")).isDefined)
               case _ => false
@@ -500,8 +506,8 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff
 
   import testImplicits._
 
-  test(
-    GLUTEN_TEST + "static scan metrics",
+  testGluten(
+    "override static scan metrics",
     DisableAdaptiveExecution("DPP in AQE must reuse broadcast")) {
     withSQLConf(
       SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
@@ -592,8 +598,8 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff
     }
   }
 
-  test(
-    GLUTEN_TEST + "Subquery reuse across the whole plan",
+  testGluten(
+    "Subquery reuse across the whole plan",
     DisableAdaptiveExecution("DPP in AQE must reuse broadcast")) {
     withSQLConf(
       SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
@@ -640,8 +646,15 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff
         //
         // See also io.glutenproject.execution.FilterHandler#applyFilterPushdownToScan
         // See also DynamicPartitionPruningSuite.scala:1362
-        assert(subqueryIds.size == 3, "Whole plan subquery reusing not working correctly")
-        assert(reusedSubqueryIds.size == 2, "Whole plan subquery reusing not working correctly")
+        if (BackendTestUtils.isCHBackendLoaded()) {
+          assert(subqueryIds.size == 2, "Whole plan subquery reusing not working correctly")
+          assert(reusedSubqueryIds.size == 1, "Whole plan subquery reusing not working correctly")
+        } else if (BackendTestUtils.isVeloxBackendLoaded()) {
+          assert(subqueryIds.size == 3, "Whole plan subquery reusing not working correctly")
+          assert(reusedSubqueryIds.size == 2, "Whole plan subquery reusing not working correctly")
+        } else {
+          assert(false, "Unknown backend")
+        }
         assert(
           reusedSubqueryIds.forall(subqueryIds.contains(_)),
           "ReusedSubqueryExec should reuse an existing subquery")
@@ -654,7 +667,7 @@ class GlutenDynamicPartitionPruningV1SuiteAEOn
   extends GlutenDynamicPartitionPruningV1Suite
   with EnableAdaptiveExecutionSuite {
 
-  test("SPARK-39447: Avoid AssertionError in AdaptiveSparkPlanExec.doExecuteBroadcast") {
+  testGluten("SPARK-39447: Avoid AssertionError in AdaptiveSparkPlanExec.doExecuteBroadcast") {
     val df = sql("""
                    |WITH empty_result AS (
                    |  SELECT * FROM fact_stats WHERE product_id < 0
@@ -672,7 +685,7 @@ class GlutenDynamicPartitionPruningV1SuiteAEOn
     checkAnswer(df, Nil)
   }
 
-  test(
+  testGluten(
     "SPARK-37995: PlanAdaptiveDynamicPruningFilters should use prepareExecutedPlan " +
       "rather than createSparkPlan to re-plan subquery") {
     withSQLConf(

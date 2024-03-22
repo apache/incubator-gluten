@@ -43,7 +43,7 @@ You need to install the following software manually:
 
 Then, get Gluten code:
 ```
-    git clone https://github.com/oap-project/gluten.git
+    git clone https://github.com/apache/incubator-gluten.git
 ```
 
 #### Setup ClickHouse backend development environment
@@ -105,8 +105,8 @@ Otherwise, do:
 In case you don't want a develop environment, you can use the following command to compile ClickHouse backend directly:
 
 ```
-git clone https://github.com/oap-project/gluten.git
-cd gluten
+git clone https://github.com/apache/incubator-gluten.git
+cd incubator-gluten
 bash ./ep/build-clickhouse/src/build_clickhouse.sh
 ```
 
@@ -122,8 +122,8 @@ The prerequisites are the same as the one mentioned above. Compile Gluten with C
 - for Spark 3.2.2<span id="deploy-spark-322"></span>
 
 ```
-    git clone https://github.com/oap-project/gluten.git
-    cd gluten/
+    git clone https://github.com/apache/incubator-gluten.git
+    cd incubator-gluten/
     export MAVEN_OPTS="-Xmx8g -XX:ReservedCodeCacheSize=2g"
     mvn clean install -Pbackends-clickhouse -Phadoop-2.7.4 -Pspark-3.2 -Dhadoop.version=2.8.5 -DskipTests -Dcheckstyle.skip
     ls -al backends-clickhouse/target/gluten-XXXXX-spark-3.2-jar-with-dependencies.jar
@@ -132,8 +132,8 @@ The prerequisites are the same as the one mentioned above. Compile Gluten with C
 - for Spark 3.3.1
 
 ```
-    git clone https://github.com/oap-project/gluten.git
-    cd gluten/
+    git clone https://github.com/apache/incubator-gluten.git
+    cd incubator-gluten/
     export MAVEN_OPTS="-Xmx8g -XX:ReservedCodeCacheSize=2g"
     mvn clean install -Pbackends-clickhouse -Phadoop-2.7.4 -Pspark-3.3 -Dhadoop.version=2.8.5 -DskipTests -Dcheckstyle.skip
     ls -al backends-clickhouse/target/gluten-XXXXX-spark-3.3-jar-with-dependencies.jar
@@ -671,6 +671,7 @@ spark.dynamicAllocation.enabled false
 ```
 
 #### Celeborn Columnar Shuffle Support
+Currently, the supported Celeborn versions are `0.3.x` and `0.4.0`.
 The native Celeborn support can be enabled by the following configuration
 ```
 spark.shuffle.manager=org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager
@@ -678,7 +679,7 @@ spark.shuffle.manager=org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleMa
 
 quickly start a celeborn cluster
 ```shell
-wget https://dlcdn.apache.org/incubator/celeborn/celeborn-0.3.0-incubating/apache-celeborn-0.3.0-incubating-bin.tgz && \
+wget https://archive.apache.org/dist/incubator/celeborn/celeborn-0.3.0-incubating/apache-celeborn-0.3.0-incubating-bin.tgz && \
 tar -zxvf apache-celeborn-0.3.0-incubating-bin.tgz && \
 mv apache-celeborn-0.3.0-incubating-bin/conf/celeborn-defaults.conf.template apache-celeborn-0.3.0-incubating-bin/conf/celeborn-defaults.conf && \
 mv apache-celeborn-0.3.0-incubating-bin/conf/log4j2.xml.template apache-celeborn-0.3.0-incubating-bin/conf/log4j2.xml && \

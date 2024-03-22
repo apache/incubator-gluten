@@ -60,12 +60,6 @@ const std::string kEnableUserExceptionStacktrace =
     "spark.gluten.sql.columnar.backend.velox.enableUserExceptionStacktrace";
 const bool kEnableUserExceptionStacktraceDefault = true;
 
-const std::string kGlogVerboseLevel = "spark.gluten.sql.columnar.backend.velox.glogVerboseLevel";
-const uint32_t kGlogVerboseLevelDefault = 0;
-
-const std::string kGlogSeverityLevel = "spark.gluten.sql.columnar.backend.velox.glogSeverityLevel";
-const uint32_t kGlogSeverityLevelDefault = 1;
-
 const std::string kEnableSystemExceptionStacktrace =
     "spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace";
 const bool kEnableSystemExceptionStacktraceDefault = true;
@@ -134,10 +128,11 @@ gluten::Runtime* veloxRuntimeFactory(const std::unordered_map<std::string, std::
 } // namespace
 
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
+  backendConf_ = conf;
+
   // Register Velox runtime factory
   gluten::Runtime::registerFactory(gluten::kVeloxRuntimeKind, veloxRuntimeFactory);
 
-  // Init glog and log level.
   std::shared_ptr<const facebook::velox::Config> veloxcfg =
       std::make_shared<facebook::velox::core::MemConfigMutable>(conf);
 
@@ -145,13 +140,16 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
     LOG(INFO) << "VeloxBackend config:" << printConfig(veloxcfg->valuesCopy());
   }
 
+  // Init glog and log level.
   if (!veloxcfg->get<bool>(kDebugModeEnabled, false)) {
-    uint32_t vlogLevel = veloxcfg->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
-    FLAGS_v = vlogLevel;
-    uint32_t severityLogLevel = veloxcfg->get<uint32_t>(kGlogSeverityLevel, kGlogSeverityLevelDefault);
-    FLAGS_minloglevel = severityLogLevel;
+    FLAGS_v = veloxcfg->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
+    FLAGS_minloglevel = veloxcfg->get<uint32_t>(kGlogSeverityLevel, kGlogSeverityLevelDefault);
   } else {
-    FLAGS_v = 99;
+    if (veloxcfg->isValueExists(kGlogVerboseLevel)) {
+      FLAGS_v = veloxcfg->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
+    } else {
+      FLAGS_v = kGlogVerboseLevelMaximum;
+    }
   }
   FLAGS_logtostderr = true;
   google::InitGoogleLogging("gluten");
@@ -335,6 +333,10 @@ VeloxBackend* VeloxBackend::get() {
     throw GlutenException("VeloxBackend instance is null.");
   }
   return instance_.get();
+}
+
+const std::unordered_map<std::string, std::string>& VeloxBackend::getBackendConf() const {
+  return backendConf_;
 }
 
 } // namespace gluten

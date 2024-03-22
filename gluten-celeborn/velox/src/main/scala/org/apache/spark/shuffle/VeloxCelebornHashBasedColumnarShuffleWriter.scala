@@ -38,12 +38,14 @@ import java.io.IOException
 import java.util
 
 class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
+    shuffleId: Int,
     handle: CelebornShuffleHandle[K, V, V],
     context: TaskContext,
     celebornConf: CelebornConf,
     client: ShuffleClient,
     writeMetrics: ShuffleWriteMetricsReporter)
   extends CelebornHashBasedColumnarShuffleWriter[K, V](
+    shuffleId,
     handle,
     context,
     celebornConf,
@@ -91,6 +93,7 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
             dep.nativePartitioning,
             nativeBufferSize,
             customizedCompressionCodec,
+            compressionLevel,
             bufferCompressThreshold,
             GlutenConfig.getConf.columnarShuffleCompressionMode,
             clientPushBufferMaxSize,
@@ -128,9 +131,7 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
           )
         }
         val startTime = System.nanoTime()
-        val bytes =
-          jniWrapper.split(nativeShuffleWriter, cb.numRows, handle, availableOffHeapPerTask())
-        dep.metrics("dataSize").add(bytes)
+        jniWrapper.split(nativeShuffleWriter, cb.numRows, handle, availableOffHeapPerTask())
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(cb.numRows)
         dep.metrics("inputBatches").add(1)
@@ -140,9 +141,8 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
     }
 
     val startTime = System.nanoTime()
-    if (nativeShuffleWriter != -1L) {
-      splitResult = jniWrapper.stop(nativeShuffleWriter)
-    }
+    assert(nativeShuffleWriter != -1L)
+    splitResult = jniWrapper.stop(nativeShuffleWriter)
 
     dep
       .metrics("splitTime")
@@ -150,6 +150,7 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
         System.nanoTime() - startTime - splitResult.getTotalPushTime -
           splitResult.getTotalWriteTime -
           splitResult.getTotalCompressTime)
+    dep.metrics("dataSize").add(splitResult.getRawPartitionLengths.sum)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalPushTime)
 

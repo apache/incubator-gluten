@@ -22,6 +22,7 @@ object ExpressionNames {
   final val SUM = "sum"
   final val AVG = "avg"
   final val COUNT = "count"
+  final val COUNT_DISTINCT = "count_distinct"
   final val MIN = "min"
   final val MAX = "max"
   final val MAX_BY = "max_by"
@@ -44,6 +45,7 @@ object ExpressionNames {
   final val FIRST = "first"
   final val FIRST_IGNORE_NULL = "first_ignore_null"
   final val APPROX_DISTINCT = "approx_distinct"
+  final val SKEWNESS = "skewness"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -111,6 +113,7 @@ object ExpressionNames {
   final val DECODE = "decode"
   final val ENCODE = "encode"
   final val UUID = "uuid"
+  final val BIT_LENGTH = "bit_length"
 
   // URL functions
   final val PARSE_URL = "parse_url"
@@ -182,9 +185,12 @@ object ExpressionNames {
   final val TRUNC = "trunc"
   final val DATE_TRUNC = "date_trunc"
   final val GET_TIMESTAMP = "get_timestamp" // for function: to_date/to_timestamp
+  final val TIMESTAMP_ADD = "timestamp_add"
   final val NEXT_DAY = "next_day"
   final val LAST_DAY = "last_day"
   final val MONTHS_BETWEEN = "months_between"
+  final val DATE_FROM_UNIX_DATE = "date_from_unix_date"
+  final val MAKE_TIMESTAMP = "make_timestamp"
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
@@ -219,6 +225,8 @@ object ExpressionNames {
   final val ARRAY_UNION = "array_union"
   final val ARRAY_INTERSECT = "array_intersect"
   final val GET_ARRAY_STRUCT_FIELDS = "get_array_struct_fields"
+  final val ARRAY_EXCEPT = "array_except"
+  final val ARRAY_REPEAT = "array_repeat"
 
   // Map functions
   final val CREATE_MAP = "map"
@@ -226,6 +234,7 @@ object ExpressionNames {
   final val MAP_KEYS = "map_keys"
   final val MAP_VALUES = "map_values"
   final val MAP_FROM_ARRAYS = "map_from_arrays"
+  final val MAP_ENTRIES = "map_entries"
   final val STR_TO_MAP = "str_to_map"
 
   // struct functions
@@ -251,10 +260,13 @@ object ExpressionNames {
   final val AGGREGATE = "aggregate"
   final val LAMBDAFUNCTION = "lambdafunction"
   final val EXPLODE = "explode"
+  final val INLINE = "inline"
   final val POSEXPLODE = "posexplode"
   final val CHECK_OVERFLOW = "check_overflow"
   final val MAKE_DECIMAL = "make_decimal"
   final val PROMOTE_PRECISION = "promote_precision"
+  final val SPARK_PARTITION_ID = "spark_partition_id"
+  final val MONOTONICALLY_INCREASING_ID = "monotonically_increasing_id"
 
   // Directly use child expression transformer
   final val KNOWN_FLOATING_POINT_NORMALIZED = "known_floating_point_normalized"

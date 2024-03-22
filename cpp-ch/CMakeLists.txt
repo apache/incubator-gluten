@@ -31,7 +31,7 @@ if ("${CH_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/ClickHouse")
     if (NOT clickhouse_files)
         execute_process(COMMAND git clone -b ${CH_BRANCH} --depth 3 https://github.com/${CH_ORG}/ClickHouse.git ${CH_SOURCE_DIR} COMMAND_ERROR_IS_FATAL ANY)
         execute_process(COMMAND git reset --hard ${CH_COMMIT} WORKING_DIRECTORY ${CH_SOURCE_DIR} COMMAND_ERROR_IS_FATAL ANY)
-        execute_process(COMMAND git submodule update --init --recursive --force --depth 1 WORKING_DIRECTORY ${CH_SOURCE_DIR} COMMAND_ERROR_IS_FATAL ANY)
+        execute_process(COMMAND git submodule update --init --force --depth 1 WORKING_DIRECTORY ${CH_SOURCE_DIR} COMMAND_ERROR_IS_FATAL ANY)
     else()
         execute_process(COMMAND git fetch origin ${CH_BRANCH} --depth 3 WORKING_DIRECTORY ${CH_SOURCE_DIR} COMMAND_ERROR_IS_FATAL ANY)
         execute_process(COMMAND git checkout ${CH_BRANCH} WORKING_DIRECTORY ${CH_SOURCE_DIR} COMMAND_ERROR_IS_FATAL ANY)
@@ -112,7 +112,7 @@ add_custom_command(
         -DENABLE_CLICKHOUSE_ALL=OFF
         -DCOMPILER_FLAGS='-fvisibility=hidden -fvisibility-inlines-hidden'
         -S ${CH_SOURCE_DIR} -G Ninja -B ${CH_BINARY_DIR} &&
-        cmake --build ${CH_BINARY_DIR} --target ch\"
+        cmake --build ${CH_BINARY_DIR} --target libch\"
         OUTPUT _build_ch)
 endif()
 

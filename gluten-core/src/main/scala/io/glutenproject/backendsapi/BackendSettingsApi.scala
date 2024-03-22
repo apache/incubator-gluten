@@ -40,7 +40,8 @@ trait BackendSettingsApi {
       format: FileFormat,
       fields: Array[StructField],
       bucketSpec: Option[BucketSpec],
-      options: Map[String, String]): Option[String]
+      options: Map[String, String]): ValidationResult = ValidationResult.ok
+  def supportNativeMetadataColumns(): Boolean = false
   def supportExpandExec(): Boolean = false
   def supportSortExec(): Boolean = false
   def supportSortMergeJoinExec(): Boolean = true
@@ -71,7 +72,6 @@ trait BackendSettingsApi {
       GlutenConfig.VANILLA_VECTORIZED_READERS_ENABLED.defaultValue.get)
 
   def recreateJoinExecOnFallback(): Boolean = false
-  def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = false
 
   /**
    * A shuffle key may be an expression. We would add a projection for this expression shuffle key
@@ -81,8 +81,6 @@ trait BackendSettingsApi {
   def supportShuffleWithProject(outputPartitioning: Partitioning, child: SparkPlan): Boolean = false
   def utilizeShuffledHashJoinHint(): Boolean = false
   def excludeScanExecFromCollapsedStage(): Boolean = false
-  def avoidOverwritingFilterTransformer(): Boolean = false
-  def fallbackFilterWithoutConjunctiveScan(): Boolean = false
   def rescaleDecimalLiteral: Boolean = false
 
   /**
@@ -128,4 +126,13 @@ trait BackendSettingsApi {
   def shouldRewriteCount(): Boolean = false
 
   def supportCartesianProductExec(): Boolean = false
+
+  def supportBroadcastNestedLoopJoinExec(): Boolean = false
+
+  /** Merge two phases hash based aggregate if need */
+  def mergeTwoPhasesHashBaseAggregateIfNeed(): Boolean = false
+
+  def shouldRewriteTypedImperativeAggregate(): Boolean = false
+
+  def shouldRewriteCollect(): Boolean = false
 }

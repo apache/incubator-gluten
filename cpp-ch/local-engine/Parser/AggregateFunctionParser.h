@@ -29,7 +29,6 @@
 
 namespace local_engine
 {
-
 class AggregateFunctionParser
 {
 public:
@@ -78,7 +77,11 @@ public:
         }
     };
 
-    AggregateFunctionParser(SerializedPlanParser * plan_parser_) : plan_parser(plan_parser_) { }
+    AggregateFunctionParser(SerializedPlanParser * plan_parser_)
+        : plan_parser(plan_parser_)
+    {
+    }
+
     virtual ~AggregateFunctionParser() = default;
 
     virtual String getName() const = 0;
@@ -93,6 +96,7 @@ public:
     /// Do some preprojections for the function arguments, and return the necessary arguments for the CH function.
     virtual DB::ActionsDAG::NodeRawConstPtrs
     parseFunctionArguments(const CommonFunctionInfo & func_info, const String & ch_func_name, DB::ActionsDAGPtr & actions_dag) const;
+
     DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(const CommonFunctionInfo & func_info, DB::ActionsDAGPtr & actions_dag) const
     {
         return parseFunctionArguments(func_info, getCHFunctionName(func_info), actions_dag);
@@ -106,7 +110,9 @@ public:
 
     /// Make a postprojection for the function result.
     virtual const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
-        const CommonFunctionInfo & func_info, const DB::ActionsDAG::Node * func_node, DB::ActionsDAGPtr & actions_dag) const;
+        const CommonFunctionInfo & func_info,
+        const DB::ActionsDAG::Node * func_node,
+        DB::ActionsDAGPtr & actions_dag, bool withNullability) const;
 
     /// Parameters are only used in aggregate functions at present. e.g. percentiles(0.5)(x).
     /// 0.5 is the parameter of percentiles function.
@@ -159,6 +165,7 @@ protected:
     SerializedPlanParser * plan_parser;
     Poco::Logger * logger = &Poco::Logger::get("AggregateFunctionParserFactory");
 };
+
 using AggregateFunctionParserPtr = std::shared_ptr<AggregateFunctionParser>;
 using AggregateFunctionParserCreator = std::function<AggregateFunctionParserPtr(SerializedPlanParser *)>;
 
@@ -200,5 +207,4 @@ struct AggregateFunctionParserRegister
 {
     AggregateFunctionParserRegister() { AggregateFunctionParserFactory::instance().registerAggregateFunctionParser<Parser>(Parser::name); }
 };
-
 }

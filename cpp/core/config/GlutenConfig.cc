@@ -22,12 +22,11 @@
 #include "jni/JniError.h"
 
 namespace gluten {
-std::unordered_map<std::string, std::string> parseConfMap(JNIEnv* env, jbyteArray configArray) {
+std::unordered_map<std::string, std::string>
+parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength) {
   std::unordered_map<std::string, std::string> sparkConfs;
-  auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(configArray, 0));
-  auto planSize = env->GetArrayLength(configArray);
   ConfigMap pConfigMap;
-  gluten::parseProtobuf(planData, planSize, &pConfigMap);
+  gluten::parseProtobuf(planData, planDataLength, &pConfigMap);
   for (const auto& pair : pConfigMap.configs()) {
     sparkConfs.emplace(pair.first, pair.second);
   }

@@ -73,6 +73,9 @@ class VeloxLiteralSuite extends VeloxWholeStageTransformerSuite {
   }
 
   test("Array Literal") {
+    validateOffloadResult("SELECT array()")
+    validateOffloadResult("SELECT array(array())")
+    validateOffloadResult("SELECT array(map())")
     validateOffloadResult("SELECT array('Spark', '5')")
     validateOffloadResult("SELECT array(5, 1, -1)")
     validateOffloadResult("SELECT array(5S, 1S, -1S)")
@@ -93,6 +96,9 @@ class VeloxLiteralSuite extends VeloxWholeStageTransformerSuite {
   }
 
   test("Map Literal") {
+    validateOffloadResult("SELECT map()")
+    validateOffloadResult("SELECT map(1, array())")
+    validateOffloadResult("SELECT map(1, map())")
     validateOffloadResult("SELECT map('b', 'a', 'e', 'e')")
     validateOffloadResult("SELECT map(1D, 'a', 2D, 'e')")
     validateOffloadResult("SELECT map(1.0, map(1, 2, 3, 4))")
@@ -109,6 +115,9 @@ class VeloxLiteralSuite extends VeloxWholeStageTransformerSuite {
     validateOffloadResult("SELECT struct('Spark', cast(null as int))")
     validateOffloadResult("SELECT struct(cast(null as decimal))")
     validateOffloadResult("SELECT map('b', 'a', 'e', null)")
+    validateOffloadResult("SELECT array(null)")
+    validateOffloadResult("SELECT array(cast(null as int))")
+    validateOffloadResult("SELECT map(1, null)")
   }
 
   test("Scalar Type Literal") {
@@ -126,15 +135,6 @@ class VeloxLiteralSuite extends VeloxWholeStageTransformerSuite {
   }
 
   test("Literal Fallback") {
-    validateFallbackResult("SELECT array()")
-    validateFallbackResult("SELECT array(array())")
-    validateFallbackResult("SELECT array(map())")
-    validateFallbackResult("SELECT map()")
-    validateFallbackResult("SELECT map(1, array())")
-    validateFallbackResult("SELECT map(1, map())")
-    validateFallbackResult("SELECT array(null)")
-    validateFallbackResult("SELECT array(cast(null as int))")
-    validateFallbackResult("SELECT map(1, null)")
     validateFallbackResult("SELECT struct(cast(null as struct<a: string>))")
   }
 }

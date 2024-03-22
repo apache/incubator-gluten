@@ -99,6 +99,19 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
               }) == 4)
         }
     }
+    // Test the situation that precision + 4 of input decimal value exceeds 38.
+    runQueryAndCompare(
+      "select avg(cast (l_quantity as DECIMAL(36, 2))), " +
+        "count(distinct l_partkey) from lineitem") {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 4)
+        }
+    }
   }
 
   test("sum") {
@@ -132,6 +145,20 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     }
     runQueryAndCompare(
       "select sum(cast (l_quantity as DECIMAL(22, 2))), " +
+        "count(distinct l_partkey) from lineitem") {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 4)
+        }
+    }
+
+    // Test the situation that precision + 4 of input decimal value exceeds 38.
+    runQueryAndCompare(
+      "select sum(cast (l_quantity as DECIMAL(36, 2))), " +
         "count(distinct l_partkey) from lineitem") {
       df =>
         {
@@ -686,6 +713,143 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
               }) == 4)
         }
     }
+    runQueryAndCompare(
+      "SELECT collect_list(DISTINCT n_name), count(*), collect_list(n_name) FROM nation") {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 4)
+        }
+    }
+  }
+
+  test("test collect_set") {
+    runQueryAndCompare("SELECT array_sort(collect_set(l_partkey)) FROM lineitem") {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 2)
+        }
+    }
+
+    runQueryAndCompare(
+      """
+        |SELECT array_sort(collect_set(l_suppkey)), array_sort(collect_set(l_partkey))
+        |FROM lineitem
+        |""".stripMargin) {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 2)
+        }
+    }
+
+    runQueryAndCompare(
+      "SELECT count(distinct l_suppkey), array_sort(collect_set(l_partkey)) FROM lineitem") {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 4)
+        }
+    }
+  }
+
+  test("test collect_set/collect_list with null") {
+    import testImplicits._
+
+    withTempView("collect_tmp") {
+      Seq((1, null), (1, "a"), (2, null), (3, null), (3, null), (4, "b"))
+        .toDF("c1", "c2")
+        .createOrReplaceTempView("collect_tmp")
+
+      // basic test
+      runQueryAndCompare("SELECT collect_set(c2), collect_list(c2) FROM collect_tmp GROUP BY c1") {
+        df =>
+          {
+            assert(
+              getExecutedPlan(df).count(
+                plan => {
+                  plan.isInstanceOf[HashAggregateExecTransformer]
+                }) == 2)
+          }
+      }
+
+      // test pre project and post project
+      runQueryAndCompare("""
+                           |SELECT
+                           |size(collect_set(if(c2 = 'a', 'x', 'y'))) as x,
+                           |size(collect_list(if(c2 = 'a', 'x', 'y'))) as y
+                           |FROM collect_tmp GROUP BY c1
+                           |""".stripMargin) {
+        df =>
+          {
+            assert(
+              getExecutedPlan(df).count(
+                plan => {
+                  plan.isInstanceOf[HashAggregateExecTransformer]
+                }) == 2)
+          }
+      }
+
+      // test distinct
+      runQueryAndCompare(
+        "SELECT collect_set(c2), collect_list(distinct c2) FROM collect_tmp GROUP BY c1") {
+        df =>
+          {
+            assert(
+              getExecutedPlan(df).count(
+                plan => {
+                  plan.isInstanceOf[HashAggregateExecTransformer]
+                }) == 4)
+          }
+      }
+
+      // test distinct + pre project and post project
+      runQueryAndCompare("""
+                           |SELECT
+                           |size(collect_set(if(c2 = 'a', 'x', 'y'))),
+                           |size(collect_list(distinct if(c2 = 'a', 'x', 'y')))
+                           |FROM collect_tmp GROUP BY c1
+                           |""".stripMargin) {
+        df =>
+          {
+            assert(
+              getExecutedPlan(df).count(
+                plan => {
+                  plan.isInstanceOf[HashAggregateExecTransformer]
+                }) == 4)
+          }
+      }
+
+      // test cast array to string
+      runQueryAndCompare("""
+                           |SELECT
+                           |cast(collect_set(c2) as string),
+                           |cast(collect_list(c2) as string)
+                           |FROM collect_tmp GROUP BY c1
+                           |""".stripMargin) {
+        df =>
+          {
+            assert(
+              getExecutedPlan(df).count(
+                plan => {
+                  plan.isInstanceOf[HashAggregateExecTransformer]
+                }) == 2)
+          }
+      }
+    }
   }
 
   test("count(1)") {
@@ -697,6 +861,45 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
       df =>
         assert(
           getExecutedPlan(df).count(plan => plan.isInstanceOf[HashAggregateExecTransformer]) >= 2)
+    }
+  }
+
+  test("bind reference failed when subquery in agg expressions") {
+    runQueryAndCompare("""
+                         |select sum(if(c > (select sum(a) from values (1), (-1) AS tab(a)), 1, -1))
+                         |from values (5), (-10), (15) AS tab(c);
+                         |""".stripMargin)(
+      df => assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecTransformer]) == 2))
+
+    runQueryAndCompare("""
+                         |select sum(if(c > (select sum(a) from values (1), (-1) AS tab(a)), 1, -1))
+                         |from values (1L, 5), (1L, -10), (2L, 15) AS tab(sum, c) group by sum;
+                         |""".stripMargin)(
+      df => assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecTransformer]) == 2))
+  }
+
+  test("collect_list null inputs") {
+    runQueryAndCompare("""
+                         |select collect_list(a) from values (1), (-1), (null) AS tab(a)
+                         |""".stripMargin)(
+      df => assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecTransformer]) == 2))
+  }
+
+  test("skewness") {
+    runQueryAndCompare("""
+                         |select skewness(l_partkey) from lineitem;
+                         |""".stripMargin) {
+      checkOperatorMatch[HashAggregateExecTransformer]
+    }
+    runQueryAndCompare("select skewness(l_partkey), count(distinct l_orderkey) from lineitem") {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 4)
+        }
     }
   }
 }
@@ -736,6 +939,21 @@ class VeloxAggregateFunctionsFlushSuite extends VeloxAggregateFunctionsSuite {
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false",
       SQLConf.FILES_MAX_PARTITION_BYTES.key -> "1k") {
       runQueryAndCompare("select distinct l_partkey from lineitem") {
+        df =>
+          val executedPlan = getExecutedPlan(df)
+          assert(
+            executedPlan.exists(plan => plan.isInstanceOf[RegularHashAggregateExecTransformer]))
+          assert(
+            executedPlan.exists(plan => plan.isInstanceOf[FlushableHashAggregateExecTransformer]))
+      }
+    }
+  }
+
+  test("flushable aggregate decimal sum") {
+    withSQLConf(
+      SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false",
+      SQLConf.FILES_MAX_PARTITION_BYTES.key -> "1k") {
+      runQueryAndCompare("select sum(l_quantity) from lineitem") {
         df =>
           val executedPlan = getExecutedPlan(df)
           assert(

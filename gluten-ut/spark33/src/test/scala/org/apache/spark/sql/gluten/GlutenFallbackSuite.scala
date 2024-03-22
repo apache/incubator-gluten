@@ -19,6 +19,7 @@ package org.apache.spark.sql.gluten
 import io.glutenproject.{GlutenConfig, VERSION}
 import io.glutenproject.events.GlutenPlanFallbackEvent
 import io.glutenproject.execution.FileSourceScanExecTransformer
+import io.glutenproject.utils.BackendTestUtils
 
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.{GlutenSQLTestsTrait, Row}
@@ -30,7 +31,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelper {
 
-  test("test fallback logging") {
+  testGluten("test fallback logging") {
     val testAppender = new LogAppender("fallback reason")
     withLogAppender(testAppender) {
       withSQLConf(
@@ -47,7 +48,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
     }
   }
 
-  test("test fallback event") {
+  testGluten("test fallback event") {
     val kvStore = spark.sparkContext.statusStore.store.asInstanceOf[ElementTrackingStore]
     val glutenStore = new GlutenSQLAppStatusStore(kvStore)
     assert(glutenStore.buildInfo().info.find(_._1 == "Gluten Version").exists(_._2 == VERSION))
@@ -97,13 +98,16 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
       spark.range(10).write.format("parquet").saveAsTable("t1")
       spark.range(10).write.format("parquet").saveAsTable("t2")
 
-      val id = runExecution("SELECT * FROM t1 JOIN t2")
+      val id = runExecution("SELECT * FROM t1 FULL OUTER JOIN t2")
       val execution = glutenStore.execution(id)
-      // broadcast exchange and broadcast nested loop join
-      assert(execution.get.numFallbackNodes == 2)
-      assert(
-        execution.get.fallbackNodeToReason.head._2
-          .contains("Gluten does not touch it or does not support it"))
+      if (BackendTestUtils.isVeloxBackendLoaded()) {
+        assert(execution.get.numFallbackNodes == 1)
+        assert(
+          execution.get.fallbackNodeToReason.head._2
+            .contains("FullOuter join is not supported with BroadcastNestedLoopJoin"))
+      } else {
+        assert(execution.get.numFallbackNodes == 2)
+      }
     }
 
     // [GLUTEN-4119] Skip add ReusedExchange to fallback node
@@ -117,7 +121,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
     }
   }
 
-  test("Improve merge fallback reason") {
+  testGluten("Improve merge fallback reason") {
     spark.sql("create table t using parquet as select 1 as c1, timestamp '2023-01-01' as c2")
     withTable("t") {
       val events = new ArrayBuffer[GlutenPlanFallbackEvent]

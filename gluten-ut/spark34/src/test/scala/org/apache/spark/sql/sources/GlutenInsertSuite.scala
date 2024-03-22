@@ -25,15 +25,20 @@ import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.execution.{CommandResultExec, QueryExecution, VeloxColumnarWriteFilesExec}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.util.QueryExecutionListener
 
 import org.apache.hadoop.fs.{Path, RawLocalFileSystem}
 
 import java.io.{File, IOException}
 
-class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
+class GlutenInsertSuite
+  extends InsertSuite
+  with GlutenSQLTestsBaseTrait
+  with AdaptiveSparkPlanHelper {
 
   override def sparkConf: SparkConf = {
     super.sparkConf.set("spark.sql.leafNodeDefaultParallelism", "1")
@@ -55,17 +60,16 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
     super.afterAll()
   }
 
-  private def getWriteFiles(df: DataFrame): VeloxColumnarWriteFilesExec = {
-    val writeFiles = df.queryExecution.executedPlan
-      .asInstanceOf[CommandResultExec]
-      .commandPhysicalPlan
-      .children
-      .head
+  private def checkAndGetWriteFiles(df: DataFrame): VeloxColumnarWriteFilesExec = {
+    val writeFiles = stripAQEPlan(
+      df.queryExecution.executedPlan
+        .asInstanceOf[CommandResultExec]
+        .commandPhysicalPlan).children.head
     assert(writeFiles.isInstanceOf[VeloxColumnarWriteFilesExec])
     writeFiles.asInstanceOf[VeloxColumnarWriteFilesExec]
   }
 
-  test("Gluten: insert partition table") {
+  testGluten("insert partition table") {
     withTable("pt") {
       spark.sql("CREATE TABLE pt (c1 int, c2 string) USING PARQUET PARTITIONED BY (pt string)")
 
@@ -93,7 +97,7 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
         val df =
           spark.sql("INSERT INTO TABLE pt partition(pt='a') SELECT * FROM VALUES(1, 'a'),(2, 'b')")
         spark.sparkContext.listenerBus.waitUntilEmpty()
-        getWriteFiles(df)
+        checkAndGetWriteFiles(df)
 
         assert(taskMetrics.bytesWritten > 0)
         assert(taskMetrics.recordsWritten == 2)
@@ -110,7 +114,7 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
     }
   }
 
-  test("Gluten: Cleanup staging files if job is failed") {
+  testGluten("Cleanup staging files if job is failed") {
     withTable("t") {
       spark.sql("CREATE TABLE t (c1 int, c2 string) USING PARQUET")
       val table = spark.sessionState.catalog.getTableMetadata(TableIdentifier("t"))
@@ -131,7 +135,7 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
   private def validateDynamicPartitionWrite(
       df: DataFrame,
       expectedPartitionNames: Set[String]): Unit = {
-    val writeFiles = getWriteFiles(df)
+    val writeFiles = checkAndGetWriteFiles(df)
     assert(
       writeFiles
         .find(_.isInstanceOf[SortExecTransformer])
@@ -143,7 +147,7 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
     assert(parts == expectedPartitionNames)
   }
 
-  test("Gluten: remove v1writes sort and project") {
+  testGluten("remove v1writes sort and project") {
     // Only string type has empty2null expression
     withTable("pt") {
       spark.sql("CREATE TABLE pt (c1 int) USING PARQUET PARTITIONED BY(p string)")
@@ -163,7 +167,7 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
     }
   }
 
-  test("Gluten: remove v1writes sort") {
+  testGluten("remove v1writes sort") {
     // __HIVE_DEFAULT_PARTITION__ for other types are covered by other tests.
     Seq(
       ("p boolean", "coalesce(cast(c2 as boolean), false)", Set("p=false", "p=true")),
@@ -200,18 +204,18 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
       }
   }
 
-  test("Gluten: do not remove non-v1writes sort and project") {
+  testGluten("do not remove non-v1writes sort and project") {
     withTable("t") {
       spark.sql("CREATE TABLE t (c1 int, c2 string) USING PARQUET")
 
       val df = spark.sql("INSERT OVERWRITE TABLE t SELECT c1, c2 FROM source SORT BY c1")
-      val writeFiles = getWriteFiles(df)
+      val writeFiles = checkAndGetWriteFiles(df)
       assert(writeFiles.find(x => x.isInstanceOf[SortExecTransformer]).isDefined)
       checkAnswer(spark.sql("SELECT * FROM t"), spark.sql("SELECT * FROM source SORT BY c1"))
     }
   }
 
-  test("Gluten: SPARK-35106: Throw exception when rename custom partition paths returns false") {
+  testGluten("SPARK-35106: Throw exception when rename custom partition paths returns false") {
     withSQLConf(
       "fs.file.impl" -> classOf[
         GlutenRenameFromSparkStagingToFinalDirAlwaysTurnsFalseFilesystem].getName,
@@ -230,6 +234,350 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
               sql(s"insert into t partition(part1=1, part2=1) select 1")
             }
             assert(e.getMessage.contains("Failed to rename"))
+          }
+      }
+    }
+  }
+
+  testGluten("Do not fallback write files if output columns contain Spark internal metadata") {
+    withTable("t1", "t2") {
+      spark.sql("CREATE TABLE t1 USING PARQUET AS SELECT id as c1, id % 3 as c2 FROM range(10)")
+      spark.sql("CREATE TABLE t2 (c1 long, c2 long) USING PARQUET")
+      val df = spark.sql("INSERT INTO TABLE t2 SELECT c2, count(*) FROM t1 GROUP BY c2")
+      checkAndGetWriteFiles(df)
+    }
+  }
+
+  testGluten("Add metadata white list to allow native write files") {
+    withTable("t1", "t2") {
+      spark.sql("""
+                  |CREATE TABLE t1 (c1 long comment 'data column1', c2 long comment 'data column2')
+                  |USING PARQUET
+                  |""".stripMargin)
+      spark.sql("INSERT INTO TABLE t1 VALUES(1, 1),(2, 2)")
+      spark.sql("CREATE TABLE t2 (c1 long, c2 long) USING PARQUET")
+      val df = spark.sql("INSERT INTO TABLE t2 SELECT * FROM t1")
+      checkAndGetWriteFiles(df)
+    }
+  }
+
+  testGluten("INSERT rows, ALTER TABLE ADD COLUMNS with DEFAULTs, then SELECT them") {
+    import testImplicits._
+    case class Config(sqlConf: Option[(String, String)], useDataFrames: Boolean = false)
+    def runTest(dataSource: String, config: Config): Unit = {
+      def insertIntoT(): Unit = {
+        sql("insert into t(a, i) values('xyz', 42)")
+      }
+      def withTableT(f: => Unit): Unit = {
+        sql(s"create table t(a string, i int) using $dataSource")
+        withTable("t")(f)
+      }
+      // Positive tests:
+      // Adding a column with a valid default value into a table containing existing data
+      // returns null while it works successfully for newly added rows in Velox.
+      withTableT {
+        sql("alter table t add column (s string default concat('abc', 'def'))")
+        insertIntoT()
+        checkAnswer(spark.table("t"), Row("xyz", 42, "abcdef"))
+        checkAnswer(sql("select i, s from t"), Row(42, "abcdef"))
+        // Now alter the column to change the default value.
+        // This still returns the previous value, not the new value.
+        sql("alter table t alter column s set default concat('ghi', 'jkl')")
+        checkAnswer(sql("select i, s from t"), Row(42, "abcdef"))
+      }
+      // Adding a column with a default value and then inserting explicit NULL values works.
+      // Querying data back from the table differentiates between the explicit NULL values and
+      // default values.
+      withTableT {
+        sql("alter table t add column (s string default concat('abc', 'def'))")
+        insertIntoT()
+        if (config.useDataFrames) {
+          Seq((null, null, null)).toDF.write.insertInto("t")
+        } else {
+          sql("insert into t values(null, null, null)")
+        }
+
+        checkAnswer(spark.table("t"), Seq(Row("xyz", 42, "abcdef"), Row(null, null, null)))
+        checkAnswer(sql("select i, s from t"), Seq(Row(42, "abcdef"), Row(null, null)))
+      }
+      // Adding two columns where only the first has a valid default value works successfully.
+      // Querying data from the altered table returns the default value as well as NULL for the
+      // second column.+
+      withTableT {
+        sql("alter table t add column (s string default concat('abc', 'def'))")
+        insertIntoT()
+        sql("alter table t add column (x string)")
+        checkAnswer(spark.table("t"), Row("xyz", 42, "abcdef", null))
+        checkAnswer(sql("select i, s, x from t"), Row(42, "abcdef", null))
+      }
+      // Test other supported data types.
+      withTableT {
+        sql(
+          "alter table t add columns (" +
+            "s boolean default true, " +
+            "t byte default cast(null as byte), " +
+            "u short default cast(42 as short), " +
+            "v float default 0, " +
+            "w double default 0, " +
+            "x date default cast('2021-01-02' as date), " +
+            "y timestamp default cast('2021-01-02 01:01:01' as timestamp), " +
+            "z timestamp_ntz default cast('2021-01-02 01:01:01' as timestamp_ntz), " +
+            "a1 timestamp_ltz default cast('2021-01-02 01:01:01' as timestamp_ltz), " +
+            "a2 decimal(5, 2) default 123.45," +
+            "a3 bigint default 43," +
+            "a4 smallint default cast(5 as smallint)," +
+            "a5 tinyint default cast(6 as tinyint))")
+        insertIntoT()
+        // Manually inspect the result row values rather than using the 'checkAnswer' helper method
+        // in order to ensure the values' correctness while avoiding minor type incompatibilities.
+        val result: Array[Row] =
+          sql("select s, t, u, v, w, x, y, z, a1, a2, a3, a4, a5 from t").collect()
+        for (row <- result) {
+          assert(row.length == 13)
+          assert(row(0) == true)
+          assert(row(1) == null)
+          assert(row(2) == 42)
+          assert(row(3) == 0.0f)
+          assert(row(4) == 0.0d)
+          assert(row(5).toString == "2021-01-02")
+          assert(row(6).toString == "2021-01-02 01:01:01.0")
+          assert(row(7).toString.startsWith("2021-01-02"))
+          assert(row(8).toString == "2021-01-02 01:01:01.0")
+          assert(row(9).toString == "123.45")
+          assert(row(10) == 43L)
+          assert(row(11) == 5)
+          assert(row(12) == 6)
+        }
+      }
+    }
+
+    // This represents one test configuration over a data source.
+    case class TestCase(dataSource: String, configs: Seq[Config])
+    // Run the test several times using each configuration.
+    Seq(
+      TestCase(
+        dataSource = "csv",
+        Seq(Config(None), Config(Some(SQLConf.CSV_PARSER_COLUMN_PRUNING.key -> "false")))),
+      TestCase(
+        dataSource = "json",
+        Seq(Config(None), Config(Some(SQLConf.JSON_GENERATOR_IGNORE_NULL_FIELDS.key -> "false")))),
+      TestCase(
+        dataSource = "orc",
+        Seq(Config(None), Config(Some(SQLConf.ORC_VECTORIZED_READER_ENABLED.key -> "false")))),
+      TestCase(
+        dataSource = "parquet",
+        Seq(Config(None), Config(Some(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "false"))))
+    ).foreach {
+      testCase: TestCase =>
+        testCase.configs.foreach {
+          config: Config =>
+            // Run the test twice, once using SQL for the INSERT operations
+            // and again using DataFrames.
+            for (useDataFrames <- Seq(false, true)) {
+              config.sqlConf
+                .map {
+                  kv: (String, String) =>
+                    withSQLConf(kv) {
+                      // Run the test with the pair of custom SQLConf values.
+                      runTest(testCase.dataSource, config.copy(useDataFrames = useDataFrames))
+                    }
+                }
+                .getOrElse {
+                  // Run the test with default settings.
+                  runTest(testCase.dataSource, config.copy(useDataFrames = useDataFrames))
+                }
+            }
+        }
+    }
+  }
+
+  testGluten("SPARK-39557 INSERT INTO statements with tables with array defaults") {
+    withSQLConf("spark.gluten.sql.complexType.scan.fallback.enabled" -> "false") {
+      import testImplicits._
+      // Positive tests: array types are supported as default values.
+      case class Config(dataSource: String, useDataFrames: Boolean = false)
+      Seq(
+        Config("parquet"),
+        Config("parquet", useDataFrames = true),
+        Config("orc"),
+        Config("orc", useDataFrames = true)).foreach {
+        config =>
+          withTable("t") {
+            sql(s"create table t(i boolean) using ${config.dataSource}")
+            if (config.useDataFrames) {
+              Seq((false)).toDF.write.insertInto("t")
+            } else {
+              sql("insert into t select false")
+            }
+            sql("alter table t add column s array<int> default array(1, 2)")
+            checkAnswer(spark.table("t"), Row(false, null))
+            sql("insert into t(i) values (true)")
+            checkAnswer(spark.table("t"), Seq(Row(false, null), Row(true, Seq(1, 2))))
+          }
+      }
+      // Negative tests: provided array element types must match their corresponding DEFAULT
+      // declarations, if applicable.
+      val incompatibleDefault =
+        "Failed to execute ALTER TABLE ADD COLUMNS command because the destination " +
+          "table column s has a DEFAULT value with type"
+      Seq(Config("parquet"), Config("parquet", true)).foreach {
+        config =>
+          withTable("t") {
+            sql(s"create table t(i boolean) using ${config.dataSource}")
+            if (config.useDataFrames) {
+              Seq((false)).toDF.write.insertInto("t")
+            } else {
+              sql("insert into t select false")
+            }
+            assert(intercept[AnalysisException] {
+              sql("alter table t add column s array<int> default array('abc', 'def')")
+            }.getMessage.contains(incompatibleDefault))
+          }
+      }
+    }
+  }
+
+  testGluten("SPARK-39557 INSERT INTO statements with tables with struct defaults") {
+    withSQLConf("spark.gluten.sql.complexType.scan.fallback.enabled" -> "false") {
+
+      import testImplicits._
+      // Positive tests: struct types are supported as default values.
+      case class Config(dataSource: String, useDataFrames: Boolean = false)
+      Seq(
+        Config("parquet"),
+        Config("parquet", useDataFrames = true),
+        Config("orc"),
+        Config("orc", useDataFrames = true)).foreach {
+        config =>
+          withTable("t") {
+            sql(s"create table t(i boolean) using ${config.dataSource}")
+            if (config.useDataFrames) {
+              Seq((false)).toDF.write.insertInto("t")
+            } else {
+              sql("insert into t select false")
+            }
+            sql(
+              "alter table t add column s struct<x boolean, y string> default struct(true, 'abc')")
+            checkAnswer(spark.table("t"), Row(false, null))
+            sql("insert into t(i) values (true)")
+            checkAnswer(spark.table("t"), Seq(Row(false, null), Row(true, Row(true, "abc"))))
+          }
+      }
+
+      // Negative tests: provided map element types must match their corresponding DEFAULT
+      // declarations, if applicable.
+      val incompatibleDefault =
+        "Failed to execute ALTER TABLE ADD COLUMNS command because the destination " +
+          "table column s has a DEFAULT value with type"
+      Seq(Config("parquet"), Config("parquet", true)).foreach {
+        config =>
+          withTable("t") {
+            sql(s"create table t(i boolean) using ${config.dataSource}")
+            if (config.useDataFrames) {
+              Seq((false)).toDF.write.insertInto("t")
+            } else {
+              sql("insert into t select false")
+            }
+            assert(intercept[AnalysisException] {
+              sql("alter table t add column s struct<x boolean, y string> default struct(42, 56)")
+            }.getMessage.contains(incompatibleDefault))
+          }
+      }
+    }
+  }
+
+  testGluten("SPARK-39557 INSERT INTO statements with tables with map defaults") {
+    withSQLConf("spark.gluten.sql.complexType.scan.fallback.enabled" -> "false") {
+
+      import testImplicits._
+      // Positive tests: map types are supported as default values.
+      case class Config(dataSource: String, useDataFrames: Boolean = false)
+      Seq(
+        Config("parquet"),
+        Config("parquet", useDataFrames = true),
+        Config("orc"),
+        Config("orc", useDataFrames = true)).foreach {
+        config =>
+          withTable("t") {
+            sql(s"create table t(i boolean) using ${config.dataSource}")
+            if (config.useDataFrames) {
+              Seq((false)).toDF.write.insertInto("t")
+            } else {
+              sql("insert into t select false")
+            }
+            sql("alter table t add column s map<boolean, string> default map(true, 'abc')")
+            checkAnswer(spark.table("t"), Row(false, null))
+            sql("insert into t(i) select true")
+            checkAnswer(spark.table("t"), Seq(Row(false, null), Row(true, Map(true -> "abc"))))
+          }
+          withTable("t") {
+            sql(s"""
+            create table t(
+              i int,
+              s struct<
+                x array<
+                  struct<a int, b int>>,
+                y array<
+                  map<boolean, string>>>
+              default struct(
+                array(
+                  struct(1, 2)),
+                array(
+                  map(false, 'def', true, 'jkl'))))
+              using ${config.dataSource}""")
+            sql("insert into t select 1, default")
+            sql("alter table t alter column s drop default")
+            if (config.useDataFrames) {
+              Seq((2, null)).toDF.write.insertInto("t")
+            } else {
+              sql("insert into t select 2, default")
+            }
+            sql("""
+            alter table t alter column s
+            set default struct(
+              array(
+                struct(3, 4)),
+              array(
+                map(false, 'mno', true, 'pqr')))""")
+            sql("insert into t select 3, default")
+            sql("""
+            alter table t
+            add column t array<
+              map<boolean, string>>
+            default array(
+              map(true, 'xyz'))""")
+            sql("insert into t(i, s) select 4, default")
+            checkAnswer(
+              spark.table("t"),
+              Seq(
+                Row(1, Row(Seq(Row(1, 2)), Seq(Map(false -> "def", true -> "jkl"))), null),
+                Row(2, null, null),
+                Row(3, Row(Seq(Row(3, 4)), Seq(Map(false -> "mno", true -> "pqr"))), null),
+                Row(
+                  4,
+                  Row(Seq(Row(3, 4)), Seq(Map(false -> "mno", true -> "pqr"))),
+                  Seq(Map(true -> "xyz")))
+              )
+            )
+          }
+      }
+      // Negative tests: provided map element types must match their corresponding DEFAULT
+      // declarations, if applicable.
+      val incompatibleDefault =
+        "Failed to execute ALTER TABLE ADD COLUMNS command because the destination " +
+          "table column s has a DEFAULT value with type"
+      Seq(Config("parquet"), Config("parquet", true)).foreach {
+        config =>
+          withTable("t") {
+            sql(s"create table t(i boolean) using ${config.dataSource}")
+            if (config.useDataFrames) {
+              Seq((false)).toDF.write.insertInto("t")
+            } else {
+              sql("insert into t select false")
+            }
+            assert(intercept[AnalysisException] {
+              sql("alter table t add column s map<boolean, string> default map(42, 56)")
+            }.getMessage.contains(incompatibleDefault))
           }
       }
     }

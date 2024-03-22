@@ -53,6 +53,8 @@ class VeloxBackend {
 
   facebook::velox::cache::AsyncDataCache* getAsyncDataCache() const;
 
+  const std::unordered_map<std::string, std::string>& getBackendConf() const;
+
  private:
   explicit VeloxBackend(const std::unordered_map<std::string, std::string>& conf) {
     init(conf);
@@ -80,6 +82,8 @@ class VeloxBackend {
 
   std::string cachePathPrefix_;
   std::string cacheFilePrefix_;
+
+  std::unordered_map<std::string, std::string> backendConf_{};
 };
 
 } // namespace gluten

@@ -134,7 +134,7 @@ struct DispatcherRoundingHalfUp
         auto col_res = ColumnVector<T>::create();
 
         typename ColumnVector<T>::Container & vec_res = col_res->getData();
-        vec_res.resize(col->getData().size());
+        vec_res.resize_exact(col->getData().size());
 
         if (!vec_res.empty())
         {

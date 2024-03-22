@@ -23,9 +23,11 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.PartitionedFileUtil
-import org.apache.spark.sql.execution.datasources.{FilePartition, HadoopFsRelation, PartitionDirectory, PartitionedFile}
+import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.util.SparkResourceUtil
 import org.apache.spark.util.collection.BitSet
+
+import org.apache.hadoop.fs.Path
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -51,6 +53,16 @@ case class CHInputPartitionsUtil(
     val maxSplitBytes =
       FilePartition.maxSplitBytes(relation.sparkSession, selectedPartitions)
 
+    // Filter files with bucket pruning if possible
+    val bucketingEnabled = relation.sparkSession.sessionState.conf.bucketingEnabled
+    val shouldProcess: Path => Boolean = optionalBucketSet match {
+      case Some(bucketSet) if bucketingEnabled =>
+        // Do not prune the file if bucket file name is invalid
+        filePath => BucketingUtils.getBucketId(filePath.getName).forall(bucketSet.get)
+      case _ =>
+        _ => true
+    }
+
     val splitFiles = selectedPartitions
       .flatMap {
         partition =>
@@ -58,15 +70,20 @@ case class CHInputPartitionsUtil(
             file =>
               // getPath() is very expensive so we only want to call it once in this block:
               val filePath = file.getPath
-              val isSplitable =
-                relation.fileFormat.isSplitable(relation.sparkSession, relation.options, filePath)
-              PartitionedFileUtil.splitFiles(
-                sparkSession = relation.sparkSession,
-                file = file,
-                filePath = filePath,
-                isSplitable = isSplitable,
-                maxSplitBytes = maxSplitBytes,
-                partitionValues = partition.values)
+
+              if (shouldProcess(filePath)) {
+                val isSplitable =
+                  relation.fileFormat.isSplitable(relation.sparkSession, relation.options, filePath)
+                PartitionedFileUtil.splitFiles(
+                  sparkSession = relation.sparkSession,
+                  file = file,
+                  filePath = filePath,
+                  isSplitable = isSplitable,
+                  maxSplitBytes = maxSplitBytes,
+                  partitionValues = partition.values)
+              } else {
+                Seq.empty
+              }
           }
       }
       .sortBy(_.length)(implicitly[Ordering[Long]].reverse)

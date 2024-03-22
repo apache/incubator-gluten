@@ -17,15 +17,17 @@
 package io.glutenproject.execution
 
 import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.Iterators
 import io.glutenproject.vectorized.NativeColumnarToRowJniWrapper
 
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, UnsafeProjection, UnsafeRow}
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{BroadcastUtils, SparkPlan}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -56,8 +58,9 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
         case _: ArrayType =>
         case _: MapType =>
         case _: StructType =>
+        case _: NullType =>
         case _ =>
-          throw new UnsupportedOperationException(
+          throw new GlutenNotSupportException(
             s"${field.dataType} is unsupported in " +
               s"VeloxColumnarToRowExec.")
       }
@@ -79,6 +82,26 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
           convertTime
         )
     }
+  }
+
+  override def doExecuteBroadcast[T](): Broadcast[T] = {
+    val numOutputRows = longMetric("numOutputRows")
+    val numInputBatches = longMetric("numInputBatches")
+    val convertTime = longMetric("convertTime")
+
+    val mode = BroadcastUtils.getBroadcastMode(outputPartitioning)
+    val relation = child.executeBroadcast()
+    BroadcastUtils.veloxToSparkUnsafe(
+      sparkContext,
+      mode,
+      relation,
+      VeloxColumnarToRowExec.toRowIterator(
+        _,
+        output,
+        numOutputRows,
+        numInputBatches,
+        convertTime
+      ))
   }
 
   protected def withNewChildInternal(newChild: SparkPlan): VeloxColumnarToRowExec =

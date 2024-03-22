@@ -23,7 +23,7 @@ import org.apache.spark.sql.internal.SQLConf
 class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
   import testImplicits._
 
-  test(GlutenTestConstants.GLUTEN_TEST + "SPARK-28156: self-join should not miss cached view") {
+  testGluten("SPARK-28156: self-join should not miss cached view") {
     withTable("table1") {
       withView("table1_vw") {
         withTempView("cachedview") {
@@ -73,9 +73,7 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-33593: Vector reader got incorrect data with binary partition value") {
+  testGluten("SPARK-33593: Vector reader got incorrect data with binary partition value") {
     Seq("false").foreach(
       value => {
         withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> value) {
@@ -102,9 +100,8 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
       })
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-33677: LikeSimplification should be skipped if pattern contains any escapeChar") {
+  testGluten(
+    "SPARK-33677: LikeSimplification should be skipped if pattern contains any escapeChar") {
     withTempView("df") {
       Seq("m@ca").toDF("s").createOrReplaceTempView("df")
 
@@ -119,7 +116,7 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
     }
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST + "the escape character is not allowed to end with") {
+  testGluten("the escape character is not allowed to end with") {
     withTempView("df") {
       Seq("jialiuping").toDF("a").createOrReplaceTempView("df")
 
@@ -129,6 +126,32 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
       assert(
         e.getMessage.contains(
           "Escape character must be followed by '%', '_' or the escape character itself"))
+    }
+  }
+
+  testGluten("StreamingQueryProgress.numInputRows should be correct") {
+    withTempDir {
+      dir =>
+        val path = dir.toURI.getPath
+        val numRows = 20
+        val df = spark.range(0, numRows)
+        df.write.mode("overwrite").format("parquet").save(path)
+        val q = spark.readStream
+          .format("parquet")
+          .schema(df.schema)
+          .load(path)
+          .writeStream
+          .format("memory")
+          .queryName("test")
+          .start()
+        q.processAllAvailable
+        val inputOutputPairs = q.recentProgress.map(p => (p.numInputRows, p.sink.numOutputRows))
+
+        // numInputRows and sink.numOutputRows must be the same
+        assert(inputOutputPairs.forall(x => x._1 == x._2))
+
+        // Sum of numInputRows must match the total number of rows of the input
+        assert(inputOutputPairs.map(_._1).sum == numRows)
     }
   }
 }

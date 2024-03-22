@@ -20,6 +20,8 @@ package org.apache.spark.sql
  * Why we need a GlutenQueryTest when we already have QueryTest?
  *   1. We need to modify the way org.apache.spark.sql.CHQueryTest#compare compares double
  */
+import io.glutenproject.sql.shims.SparkShimLoader
+
 import org.apache.spark.SPARK_VERSION_SHORT
 import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -111,13 +113,16 @@ abstract class GlutenQueryTest extends PlanTest {
       try ds
       catch {
         case ae: AnalysisException =>
-          if (ae.plan.isDefined) {
+          val plan = SparkShimLoader.getSparkShims.getAnalysisExceptionPlan(ae)
+          if (plan.isDefined) {
             fail(s"""
                     |Failed to analyze query: $ae
-                    |${ae.plan.get}
+
+                    |${plan.get}
+
                     |
                     |${stackTraceToString(ae)}
-             """.stripMargin)
+          """.stripMargin)
           } else {
             throw ae
           }
@@ -152,10 +157,11 @@ abstract class GlutenQueryTest extends PlanTest {
       try df
       catch {
         case ae: AnalysisException =>
-          if (ae.plan.isDefined) {
+          val plan = SparkShimLoader.getSparkShims.getAnalysisExceptionPlan(ae)
+          if (plan.isDefined) {
             fail(s"""
                     |Failed to analyze query: $ae
-                    |${ae.plan.get}
+                    |${plan.get}
                     |
                     |${stackTraceToString(ae)}
                     |""".stripMargin)

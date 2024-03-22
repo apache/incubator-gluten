@@ -39,8 +39,6 @@ using namespace facebook::velox::test;
 namespace gluten {
 class FunctionTest : public ::testing::Test {
  protected:
-  std::shared_ptr<core::QueryCtx> queryCtx_ = std::make_shared<core::QueryCtx>();
-
   std::shared_ptr<memory::MemoryPool> pool_ = gluten::defaultLeafVeloxMemoryPool();
 
   std::shared_ptr<gluten::SubstraitToVeloxPlanConverter> planConverter_ =

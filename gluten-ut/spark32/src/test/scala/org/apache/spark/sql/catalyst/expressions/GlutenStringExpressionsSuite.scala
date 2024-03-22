@@ -16,14 +16,12 @@
  */
 package org.apache.spark.sql.catalyst.expressions
 
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.GlutenTestsTrait
-import org.apache.spark.sql.types._
 
 class GlutenStringExpressionsSuite extends StringExpressionsSuite with GlutenTestsTrait {
 
   // Ported from spark 3.3.1, applicable to spark 3.2.3 or higher.
-  test("SPARK-40213: ascii for Latin-1 Supplement characters") {
+  testGluten("SPARK-40213: ascii for Latin-1 Supplement characters") {
     // scalastyle:off
     checkEvaluation(Ascii(Literal("¥")), 165, create_row("¥"))
     checkEvaluation(Ascii(Literal("®")), 174, create_row("®"))
@@ -32,27 +30,5 @@ class GlutenStringExpressionsSuite extends StringExpressionsSuite with GlutenTes
     (128 until 256).foreach {
       c => checkEvaluation(Ascii(Chr(Literal(c.toLong))), c, create_row(c.toLong))
     }
-  }
-
-  test(GLUTEN_TEST + "concat") {
-    def testConcat(inputs: String*): Unit = {
-      val expected = if (inputs.contains(null)) null else inputs.mkString
-      checkEvaluation(Concat(inputs.map(Literal.create(_, StringType))), expected)
-    }
-
-    // testConcat() velox not supported
-    testConcat(null)
-    testConcat("")
-    testConcat("ab")
-    testConcat("a", "b")
-    testConcat("a", "b", "C")
-    testConcat("a", null, "C")
-    testConcat("a", null, null)
-    testConcat(null, null, null)
-
-    // scalastyle:off
-    // non ascii characters are not allowed in the code, so we disable the scalastyle here.
-    testConcat("数据", null, "砖头")
-    // scalastyle:on
   }
 }

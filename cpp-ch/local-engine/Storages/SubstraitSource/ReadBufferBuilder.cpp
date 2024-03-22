@@ -26,12 +26,12 @@
 #include <IO/S3Common.h>
 #include <IO/SeekableReadBuffer.h>
 #include <Interpreters/Context_fwd.h>
+#include <Storages/HDFS/AsynchronousReadBufferFromHDFS.h>
 #include <Storages/HDFS/HDFSCommon.h>
 #include <Storages/HDFS/ReadBufferFromHDFS.h>
 #include <Storages/StorageS3Settings.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
-#include <aws/core/client/DefaultRetryStrategy.h>
 
 #include <sys/stat.h>
 #include <Poco/URI.h>
@@ -48,9 +48,13 @@
 #include <Interpreters/Cache/FileCacheFactory.h>
 #include <Interpreters/Cache/FileCacheSettings.h>
 
+#if USE_AWS_S3
+#include <aws/core/client/DefaultRetryStrategy.h>
 #include <aws/s3/model/CopyObjectRequest.h>
 #include <aws/s3/model/DeleteObjectsRequest.h>
 #include <aws/s3/model/ListObjectsV2Request.h>
+#endif
+
 #include <Common/CHUtil.h>
 
 #include <shared_mutex>
@@ -68,6 +72,8 @@ namespace ErrorCodes
     extern const int CANNOT_READ_FROM_FILE_DESCRIPTOR;
 }
 }
+
+namespace fs = std::filesystem;
 
 namespace local_engine
 {
@@ -174,12 +180,7 @@ public:
 
         if (set_read_util_position)
         {
-            auto * work_around = read_buffer.get();
             read_buffer = std::make_unique<DB::BoundedReadBuffer>(std::move(read_buffer));
-            // workaround for https://github.com/ClickHouse/ClickHouse/pull/58886
-            // ReadBufferFromFileDecorator construtor will call swap, without wrap, BoundedReadBuffer can't work.
-            read_buffer->swap(*work_around);
-
             auto start_end_pos = adjustFileReadPosition(*read_buffer, file_info.start(), file_info.start() + file_info.length());
             LOG_DEBUG(
                 &Poco::Logger::get("ReadBufferBuilder"),
@@ -201,12 +202,13 @@ public:
 class HDFSFileReadBufferBuilder : public ReadBufferBuilder
 {
 public:
-    explicit HDFSFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
+    explicit HDFSFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_), context(context_) { }
     ~HDFSFileReadBufferBuilder() override = default;
 
     std::unique_ptr<DB::ReadBuffer>
     build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position) override
     {
+        bool enable_async_io = context->getConfigRef().getBool("hdfs.enable_async_io", true);
         Poco::URI file_uri(file_info.uri_file());
         std::string uri_path = "hdfs://" + file_uri.getHost();
         if (file_uri.getPort())
@@ -225,8 +227,16 @@ public:
                 file_info.start() + file_info.length(),
                 start_end_pos.first,
                 start_end_pos.second);
-            read_buffer = std::make_unique<DB::ReadBufferFromHDFS>(
-                uri_path, file_uri.getPath(), context->getConfigRef(), read_settings, start_end_pos.second);
+
+            auto read_buffer_impl = std::make_unique<DB::ReadBufferFromHDFS>(
+                uri_path, file_uri.getPath(), context->getConfigRef(), read_settings, start_end_pos.second, true);
+            if (enable_async_io)
+            {
+                auto & pool_reader = context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER);
+                read_buffer = std::make_unique<DB::AsynchronousReadBufferFromHDFS>(pool_reader, read_settings, std::move(read_buffer_impl));
+            }
+            else
+                read_buffer = std::move(read_buffer_impl);
 
             if (auto * seekable_in = dynamic_cast<DB::SeekableReadBuffer *>(read_buffer.get()))
                 if (start_end_pos.first)
@@ -234,7 +244,17 @@ public:
         }
         else
         {
-            read_buffer = std::make_unique<DB::ReadBufferFromHDFS>(uri_path, file_uri.getPath(), context->getConfigRef(), read_settings);
+            auto read_buffer_impl
+                = std::make_unique<DB::ReadBufferFromHDFS>(uri_path, file_uri.getPath(), context->getConfigRef(), read_settings, 0, true);
+            if (enable_async_io)
+            {
+                read_buffer = std::make_unique<DB::AsynchronousReadBufferFromHDFS>(
+                    context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER),
+                    read_settings,
+                    std::move(read_buffer_impl));
+            }
+            else
+                read_buffer = std::move(read_buffer_impl);
         }
         return read_buffer;
     }
@@ -343,6 +363,8 @@ public:
         result.second = get_next_line_pos(fs.get(), fin, read_end_pos, hdfs_file_size);
         return result;
     }
+private:
+    DB::ContextPtr context;
 };
 #endif
 
@@ -382,7 +404,7 @@ public:
     {
         Poco::URI file_uri(file_info.uri_file());
         // file uri looks like: s3a://my-dev-bucket/tpch100/part/0001.parquet
-        std::string bucket = file_uri.getHost();
+        const std::string& bucket = file_uri.getHost();
         const auto client = getClient(bucket);
         std::string key = file_uri.getPath().substr(1);
         DB::S3::ObjectInfo object_info =  DB::S3::getObjectInfo(*client, bucket, key, "");
@@ -409,7 +431,7 @@ public:
         }
 
         auto read_buffer_creator
-            = [bucket, client, this](const std::string & path, size_t read_until_position) -> std::unique_ptr<DB::ReadBufferFromFileBase>
+            = [bucket, client, this](bool restricted_seek, const std::string & path) -> std::unique_ptr<DB::ReadBufferFromFileBase>
         {
             return std::make_unique<DB::ReadBufferFromS3>(
                 client,
@@ -420,13 +442,13 @@ public:
                 new_settings,
                 /* use_external_buffer */ true,
                 /* offset */ 0,
-                read_until_position,
-                /* restricted_seek */ true);
+                /* read_until_position */0,
+                restricted_seek);
         };
 
         DB::StoredObjects stored_objects{DB::StoredObject{key, "", object_size}};
         auto s3_impl = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
-            std::move(read_buffer_creator), stored_objects, new_settings, /* cache_log */ nullptr, /* use_external_buffer */ true);
+            std::move(read_buffer_creator), stored_objects, "s3:" + bucket + "/", new_settings, /* cache_log */ nullptr, /* use_external_buffer */ true);
 
         auto & pool_reader = context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER);
         auto async_reader

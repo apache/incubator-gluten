@@ -17,11 +17,10 @@
 package org.apache.spark.sql.execution.joins
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ColumnarToRowExecBase, WholeStageTransformer}
+import io.glutenproject.execution.{BroadcastHashJoinExecTransformerBase, BroadcastNestedLoopJoinExecTransformer, ColumnarToRowExecBase, WholeStageTransformer}
 import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.sql.{GlutenTestsCommonTrait, SparkSession}
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.execution.exchange.EnsureRequirements
 import org.apache.spark.sql.functions.broadcast
@@ -44,10 +43,19 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
 
   private val EnsureRequirements = new EnsureRequirements()
 
+  private val isVeloxBackend = BackendTestUtils.isVeloxBackendLoaded()
+
   // BroadcastHashJoinExecTransformer is not case class, can't call toString method,
   // let's put constant string here.
   private val bh = "BroadcastHashJoinExecTransformer"
   private val bl = BroadcastNestedLoopJoinExec.toString
+
+  // BroadcastNestedLoopJoinExecTransformer is supported in velox backend for innerlike joins.
+  private val blt = if (isVeloxBackend) {
+    "BroadcastNestedLoopJoinExecTransformer"
+  } else {
+    BroadcastNestedLoopJoinExec.toString
+  }
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -96,7 +104,7 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
 
   // === Following cases override super class's cases ===
 
-  test(GLUTEN_TEST + "Shouldn't change broadcast join buildSide if user clearly specified") {
+  testGluten("Shouldn't change broadcast join buildSide if user clearly specified") {
     withTempView("t1", "t2") {
       Seq((1, "4"), (2, "2")).toDF("key", "value").createTempView("t1")
       Seq((1, "1"), (2, "12.3"), (2, "123")).toDF("key", "value").createTempView("t2")
@@ -137,21 +145,21 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
       /* ######## test cases for non-equal join ######### */
       withSQLConf(SQLConf.CROSS_JOINS_ENABLED.key -> "true") {
         // INNER JOIN && t1Size < t2Size => BuildLeft
-        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 JOIN t2", bl, BuildLeft)
+        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 JOIN t2", blt, BuildLeft)
         // FULL JOIN && t1Size < t2Size => BuildLeft
         assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 FULL JOIN t2", bl, BuildLeft)
         // FULL OUTER && t1Size < t2Size => BuildLeft
         assertJoinBuildSide("SELECT * FROM t1 FULL OUTER JOIN t2", bl, BuildLeft)
         // LEFT JOIN => BuildRight
-        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 LEFT JOIN t2", bl, BuildRight)
+        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 LEFT JOIN t2", blt, BuildRight)
         // RIGHT JOIN => BuildLeft
-        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 RIGHT JOIN t2", bl, BuildLeft)
+        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 RIGHT JOIN t2", blt, BuildLeft)
 
         /* #### test with broadcast hint #### */
         // INNER JOIN && broadcast(t1) => BuildLeft
-        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1) */ * FROM t1 JOIN t2", bl, BuildLeft)
+        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1) */ * FROM t1 JOIN t2", blt, BuildLeft)
         // INNER JOIN && broadcast(t2) => BuildRight
-        assertJoinBuildSide("SELECT /*+ MAPJOIN(t2) */ * FROM t1 JOIN t2", bl, BuildRight)
+        assertJoinBuildSide("SELECT /*+ MAPJOIN(t2) */ * FROM t1 JOIN t2", blt, BuildRight)
         // FULL OUTER && broadcast(t1) => BuildLeft
         assertJoinBuildSide("SELECT /*+ MAPJOIN(t1) */ * FROM t1 FULL OUTER JOIN t2", bl, BuildLeft)
         // FULL OUTER && broadcast(t2) => BuildRight
@@ -167,7 +175,7 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
     }
   }
 
-  test(GLUTEN_TEST + "Shouldn't bias towards build right if user didn't specify") {
+  testGluten("Shouldn't bias towards build right if user didn't specify") {
 
     withTempView("t1", "t2") {
       Seq((1, "4"), (2, "2")).toDF("key", "value").createTempView("t1")
@@ -195,22 +203,22 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
 
         // For inner join, prefer to broadcast the smaller side, if broadcast-able.
         withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> (t2Size + 1).toString()) {
-          assertJoinBuildSide("SELECT * FROM t1 JOIN t2", bl, BuildLeft)
-          assertJoinBuildSide("SELECT * FROM t2 JOIN t1", bl, BuildRight)
+          assertJoinBuildSide("SELECT * FROM t1 JOIN t2", blt, BuildLeft)
+          assertJoinBuildSide("SELECT * FROM t2 JOIN t1", blt, BuildRight)
         }
 
         // For left join, prefer to broadcast the right side.
-        assertJoinBuildSide("SELECT * FROM t1 LEFT JOIN t2", bl, BuildRight)
-        assertJoinBuildSide("SELECT * FROM t2 LEFT JOIN t1", bl, BuildRight)
+        assertJoinBuildSide("SELECT * FROM t1 LEFT JOIN t2", blt, BuildRight)
+        assertJoinBuildSide("SELECT * FROM t2 LEFT JOIN t1", blt, BuildRight)
 
         // For right join, prefer to broadcast the left side.
-        assertJoinBuildSide("SELECT * FROM t1 RIGHT JOIN t2", bl, BuildLeft)
-        assertJoinBuildSide("SELECT * FROM t2 RIGHT JOIN t1", bl, BuildLeft)
+        assertJoinBuildSide("SELECT * FROM t1 RIGHT JOIN t2", blt, BuildLeft)
+        assertJoinBuildSide("SELECT * FROM t2 RIGHT JOIN t1", blt, BuildLeft)
       }
     }
   }
 
-  test(GLUTEN_TEST + "SPARK-23192: broadcast hint should be retained after using the cached data") {
+  testGluten("SPARK-23192: broadcast hint should be retained after using the cached data") {
     withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
       try {
         val df1 = Seq((1, "4"), (2, "2")).toDF("key", "value")
@@ -218,7 +226,7 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
         df2.cache()
         val df3 = df1.join(broadcast(df2), Seq("key"), "inner")
         val numBroadCastHashJoin = collect(df3.queryExecution.executedPlan) {
-          case b: BroadcastHashJoinExecTransformer => b
+          case b: BroadcastHashJoinExecTransformerBase => b
         }.size
         assert(numBroadCastHashJoin === 1)
       } finally {
@@ -227,7 +235,7 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
     }
   }
 
-  test(GLUTEN_TEST + "broadcast hint isn't propagated after a join") {
+  testGluten("broadcast hint isn't propagated after a join") {
     withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
       val df1 = Seq((1, "4"), (2, "2")).toDF("key", "value")
       val df2 = Seq((1, "1"), (2, "2")).toDF("key", "value")
@@ -249,11 +257,14 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
       case c2r: ColumnarToRowExecBase =>
         c2r.child match {
           case w: WholeStageTransformer =>
-            val join = w.child match {
-              case b: BroadcastHashJoinExecTransformer => b
+            w.child match {
+              case b: BroadcastHashJoinExecTransformerBase =>
+                assert(b.getClass.getSimpleName.endsWith(joinMethod))
+                assert(b.joinBuildSide == buildSide)
+              case b: BroadcastNestedLoopJoinExecTransformer =>
+                assert(b.getClass.getSimpleName.endsWith(joinMethod))
+                assert(b.joinBuildSide == buildSide)
             }
-            assert(join.getClass.getSimpleName.endsWith(joinMethod))
-            assert(join.joinBuildSide == buildSide)
         }
       case b: BroadcastNestedLoopJoinExec =>
         assert(b.getClass.getSimpleName === joinMethod)

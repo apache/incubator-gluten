@@ -28,7 +28,8 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types.BooleanType
+import org.apache.spark.sql.hive.HiveTableScanExecTransformer
+import org.apache.spark.sql.types.{BooleanType, StringType, StructField, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
@@ -37,11 +38,14 @@ import com.google.protobuf.StringValue
 import scala.collection.JavaConverters._
 
 trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource {
+  import org.apache.spark.sql.catalyst.util._
 
   /** Returns the filters that can be pushed down to native file scan */
   def filterExprs(): Seq[Expression]
 
   def outputAttributes(): Seq[Attribute]
+
+  def getMetadataColumns(): Seq[AttributeReference]
 
   /** This can be used to report FileFormat for a file based scan operator. */
   val fileFormat: ReadFileFormat
@@ -63,11 +67,11 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   def getSplitInfos: Seq[SplitInfo] = {
     getPartitions.map(
       BackendsApiManager.getIteratorApiInstance
-        .genSplitInfo(_, getPartitionSchema, fileFormat))
+        .genSplitInfo(_, getPartitionSchema, fileFormat, getMetadataColumns.map(_.name)))
   }
 
   def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
-    val numOutputRows = longMetric("outputRows")
+    val numOutputRows = longMetric("numOutputRows")
     val numOutputVectors = longMetric("outputVectors")
     val scanTime = longMetric("scanTime")
     val substraitContext = new SubstraitContext
@@ -88,12 +92,20 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   }
 
   override protected def doValidateInternal(): ValidationResult = {
+    var fields = schema.fields
+
+    this match {
+      case transformer: FileSourceScanExecTransformer =>
+        fields = appendStringFields(transformer.relation.schema, fields)
+      case transformer: HiveTableScanExecTransformer =>
+        fields = appendStringFields(transformer.getDataSchema, fields)
+      case transformer: BatchScanExecTransformer =>
+        fields = appendStringFields(transformer.getDataSchema, fields)
+      case _ =>
+    }
+
     val validationResult = BackendsApiManager.getSettings
-      .supportFileFormatRead(
-        fileFormat,
-        schema.fields,
-        getPartitionSchema.nonEmpty,
-        getInputFilePaths)
+      .supportFileFormatRead(fileFormat, fields, getPartitionSchema.nonEmpty, getInputFilePaths)
     if (!validationResult.isValid) {
       return validationResult
     }
@@ -104,6 +116,17 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     doNativeValidation(substraitContext, relNode)
   }
 
+  def appendStringFields(
+      schema: StructType,
+      existingFields: Array[StructField]): Array[StructField] = {
+    val stringFields = schema.fields.filter(_.dataType.isInstanceOf[StringType])
+    if (stringFields.nonEmpty) {
+      (existingFields ++ stringFields).distinct
+    } else {
+      existingFields
+    }
+  }
+
   override def doTransform(context: SubstraitContext): TransformContext = {
     val output = outputAttributes()
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
@@ -112,6 +135,8 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       attr =>
         if (getPartitionSchema.exists(_.name.equals(attr.name))) {
           new ColumnTypeNode(1)
+        } else if (attr.isMetadataCol) {
+          new ColumnTypeNode(2)
         } else {
           new ColumnTypeNode(0)
         }

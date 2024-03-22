@@ -60,16 +60,16 @@ RowVectorPtr makeRowVector(const std::vector<VectorPtr>& children) {
   return std::make_shared<RowVector>(children[0]->pool(), rowType, BufferPtr(nullptr), vectorSize, children);
 }
 
-ArrayVectorPtr makeEmptyArrayVector(memory::MemoryPool* pool) {
+ArrayVectorPtr makeEmptyArrayVector(memory::MemoryPool* pool, const TypePtr& elementType) {
   BufferPtr offsets = allocateOffsets(1, pool);
   BufferPtr sizes = allocateOffsets(1, pool);
-  return std::make_shared<ArrayVector>(pool, ARRAY(UNKNOWN()), nullptr, 1, offsets, sizes, nullptr);
+  return std::make_shared<ArrayVector>(pool, ARRAY(elementType), nullptr, 1, offsets, sizes, nullptr);
 }
 
-MapVectorPtr makeEmptyMapVector(memory::MemoryPool* pool) {
+MapVectorPtr makeEmptyMapVector(memory::MemoryPool* pool, const TypePtr& keyType, const TypePtr& valueType) {
   BufferPtr offsets = allocateOffsets(1, pool);
   BufferPtr sizes = allocateOffsets(1, pool);
-  return std::make_shared<MapVector>(pool, MAP(UNKNOWN(), UNKNOWN()), nullptr, 1, offsets, sizes, nullptr, nullptr);
+  return std::make_shared<MapVector>(pool, MAP(keyType, valueType), nullptr, 1, offsets, sizes, nullptr, nullptr);
 }
 
 RowVectorPtr makeEmptyRowVector(memory::MemoryPool* pool) {
@@ -307,7 +307,7 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::lite
   std::vector<variant> variants;
   variants.reserve(literals.size());
   VELOX_CHECK_GE(literals.size(), 0, "List should have at least one item.");
-  std::optional<TypePtr> literalType = std::nullopt;
+  std::optional<TypePtr> literalType;
   for (const auto& literal : literals) {
     auto veloxVariant = toVeloxExpr(literal);
     if (!literalType.has_value()) {
@@ -351,8 +351,19 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
       auto constantVector = BaseVector::wrapInConstant(1, 0, literalsToArrayVector(substraitLit));
       return std::make_shared<const core::ConstantTypedExpr>(constantVector);
     }
+    case ::substrait::Expression_Literal::LiteralTypeCase::kEmptyList: {
+      auto elementType = SubstraitParser::parseType(substraitLit.empty_list().type());
+      auto constantVector = BaseVector::wrapInConstant(1, 0, makeEmptyArrayVector(pool_, elementType));
+      return std::make_shared<const core::ConstantTypedExpr>(constantVector);
+    }
     case ::substrait::Expression_Literal::LiteralTypeCase::kMap: {
       auto constantVector = BaseVector::wrapInConstant(1, 0, literalsToMapVector(substraitLit));
+      return std::make_shared<const core::ConstantTypedExpr>(constantVector);
+    }
+    case ::substrait::Expression_Literal::LiteralTypeCase::kEmptyMap: {
+      auto keyType = SubstraitParser::parseType(substraitLit.empty_map().key());
+      auto valueType = SubstraitParser::parseType(substraitLit.empty_map().value());
+      auto constantVector = BaseVector::wrapInConstant(1, 0, makeEmptyMapVector(pool_, keyType, valueType));
       return std::make_shared<const core::ConstantTypedExpr>(constantVector);
     }
     case ::substrait::Expression_Literal::LiteralTypeCase::kStruct: {
@@ -381,39 +392,36 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
 
 ArrayVectorPtr SubstraitVeloxExprConverter::literalsToArrayVector(const ::substrait::Expression::Literal& literal) {
   auto childSize = literal.list().values().size();
-  if (childSize == 0) {
-    return makeEmptyArrayVector(pool_);
-  }
-  auto childTypeCase = literal.list().values(0).literal_type_case();
+  VELOX_CHECK_GT(childSize, 0, "there should be at least 1 value in list literal.");
+  auto childLiteral = literal.list().values(0);
   auto elementAtFunc = [&](vector_size_t idx) { return literal.list().values(idx); };
-  auto childVector = literalsToVector(childTypeCase, childSize, literal, elementAtFunc);
+  auto childVector = literalsToVector(childLiteral, childSize, elementAtFunc);
   return makeArrayVector(childVector);
 }
 
 MapVectorPtr SubstraitVeloxExprConverter::literalsToMapVector(const ::substrait::Expression::Literal& literal) {
   auto childSize = literal.map().key_values().size();
-  if (childSize == 0) {
-    return makeEmptyMapVector(pool_);
-  }
-  auto keyTypeCase = literal.map().key_values(0).key().literal_type_case();
-  auto valueTypeCase = literal.map().key_values(0).value().literal_type_case();
+  VELOX_CHECK_GT(childSize, 0, "there should be at least 1 value in map literal.");
+  auto& keyLiteral = literal.map().key_values(0).key();
+  auto& valueLiteral = literal.map().key_values(0).value();
   auto keyAtFunc = [&](vector_size_t idx) { return literal.map().key_values(idx).key(); };
   auto valueAtFunc = [&](vector_size_t idx) { return literal.map().key_values(idx).value(); };
-  auto keyVector = literalsToVector(keyTypeCase, childSize, literal, keyAtFunc);
-  auto valueVector = literalsToVector(valueTypeCase, childSize, literal, valueAtFunc);
+  auto keyVector = literalsToVector(keyLiteral, childSize, keyAtFunc);
+  auto valueVector = literalsToVector(valueLiteral, childSize, valueAtFunc);
   return makeMapVector(keyVector, valueVector);
 }
 
 VectorPtr SubstraitVeloxExprConverter::literalsToVector(
-    ::substrait::Expression_Literal::LiteralTypeCase childTypeCase,
+    const ::substrait::Expression::Literal& childLiteral,
     vector_size_t childSize,
-    const ::substrait::Expression::Literal& literal,
     std::function<::substrait::Expression::Literal(vector_size_t /* idx */)> elementAtFunc) {
+  auto childTypeCase = childLiteral.literal_type_case();
   switch (childTypeCase) {
     case ::substrait::Expression_Literal::LiteralTypeCase::kNull: {
-      auto veloxType = SubstraitParser::parseType(literal.null());
+      auto veloxType = SubstraitParser::parseType(childLiteral.null());
       auto kind = veloxType->kind();
-      return VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVector, kind, elementAtFunc, childSize, veloxType, pool_);
+      return VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH_ALL(
+          constructFlatVector, kind, elementAtFunc, childSize, veloxType, pool_);
     }
     case ::substrait::Expression_Literal::LiteralTypeCase::kIntervalDayToSecond:
       return constructFlatVector<TypeKind::BIGINT>(elementAtFunc, childSize, INTERVAL_DAY_TIME(), pool_);
@@ -455,6 +463,15 @@ VectorPtr SubstraitVeloxExprConverter::literalsToVector(
         }
       }
       return rowVector;
+    }
+    case ::substrait::Expression_Literal::LiteralTypeCase::kEmptyList: {
+      auto elementType = SubstraitParser::parseType(childLiteral.empty_list().type());
+      return BaseVector::wrapInConstant(1, 0, makeEmptyArrayVector(pool_, elementType));
+    }
+    case ::substrait::Expression_Literal::LiteralTypeCase::kEmptyMap: {
+      auto keyType = SubstraitParser::parseType(childLiteral.empty_map().key());
+      auto valueType = SubstraitParser::parseType(childLiteral.empty_map().value());
+      return BaseVector::wrapInConstant(1, 0, makeEmptyMapVector(pool_, keyType, valueType));
     }
     default:
       auto veloxType = getScalarType(elementAtFunc(0));
@@ -563,7 +580,6 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
 core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
     const ::substrait::Expression& substraitExpr,
     const RowTypePtr& inputType) {
-  core::TypedExprPtr veloxExpr;
   auto typeCase = substraitExpr.rex_type_case();
   switch (typeCase) {
     case ::substrait::Expression::RexTypeCase::kLiteral:
@@ -590,6 +606,7 @@ std::unordered_map<std::string, std::string> SubstraitVeloxExprConverter::extrac
     {"HOUR", "hour"},
     {"DAY", "day"},
     {"DAY_OF_WEEK", "dayofweek"},
+    {"WEEK_DAY", "weekday"},
     {"DAY_OF_YEAR", "dayofyear"},
     {"MONTH", "month"},
     {"QUARTER", "quarter"},

@@ -23,20 +23,20 @@ trait BroadcastApi {
    *
    * @param executionId
    *   execution id
-   * @param buildHashTableId
-   *   build hashtable id
+   * @param buildTableId
+   *   build table id
    */
-  def collectExecutionBroadcastHashTableId(executionId: String, buildHashTableId: String): Unit = {}
+  def collectExecutionBroadcastTableId(executionId: String, buildTableId: String): Unit = {}
 
   /**
    * Should call by executor. On execution end. Clean executor broadcast build hashtable.
    *
    * @param executionId
    *   execution id
-   * @param broadcastHashIds
-   *   broadcast hashtable ids
+   * @param broadcastTableIds
+   *   broadcast table ids
    */
-  def cleanExecutionBroadcastHashtable(
+  def cleanExecutionBroadcastTable(
       executionId: String,
-      broadcastHashIds: java.util.Set[String]): Unit = {}
+      broadcastTableIds: java.util.Set[String]): Unit = {}
 }

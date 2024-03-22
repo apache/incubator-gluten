@@ -19,6 +19,7 @@ package io.glutenproject.execution
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.extension.ValidationResult
+import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.SubstraitContext
@@ -26,7 +27,7 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{SortExec, SparkPlan}
 
 import scala.collection.JavaConverters._
 
@@ -46,10 +47,16 @@ case class LimitTransformer(child: SparkPlan, offset: Long, count: Long)
     BackendsApiManager.getMetricsApiInstance.genLimitTransformerMetricsUpdater(metrics)
 
   override protected def doValidateInternal(): ValidationResult = {
+    child match {
+      case sort: SortExec if TransformHints.isTransformable(sort) && offset != 0 =>
+        return ValidationResult.notOk(s"Native TopK does not support offset: $offset")
+      case _ =>
+    }
+
     val context = new SubstraitContext
     val operatorId = context.nextOperatorId(this.nodeName)
     val input = child match {
-      // for sort + limit case
+      // For topK case
       case c: TransformSupport => c.doTransform(context).root
       case _ => null
     }

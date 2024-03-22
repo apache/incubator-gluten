@@ -42,10 +42,6 @@ const std::string kSpillStrategyDefaultValue = "auto";
 const std::string kAggregationSpillEnabled = "spark.gluten.sql.columnar.backend.velox.aggregationSpillEnabled";
 const std::string kJoinSpillEnabled = "spark.gluten.sql.columnar.backend.velox.joinSpillEnabled";
 const std::string kOrderBySpillEnabled = "spark.gluten.sql.columnar.backend.velox.orderBySpillEnabled";
-const std::string kAggregationSpillMemoryThreshold =
-    "spark.gluten.sql.columnar.backend.velox.aggregationSpillMemoryThreshold";
-const std::string kJoinSpillMemoryThreshold = "spark.gluten.sql.columnar.backend.velox.joinSpillMemoryThreshold";
-const std::string kOrderBySpillMemoryThreshold = "spark.gluten.sql.columnar.backend.velox.orderBySpillMemoryThreshold";
 const std::string kMaxSpillLevel = "spark.gluten.sql.columnar.backend.velox.maxSpillLevel";
 const std::string kMaxSpillFileSize = "spark.gluten.sql.columnar.backend.velox.maxSpillFileSize";
 const std::string kMinSpillRunSize = "spark.gluten.sql.columnar.backend.velox.minSpillRunSize";
@@ -145,15 +141,46 @@ WholeStageResultIterator::WholeStageResultIterator(
     const auto& lengths = scanInfo->lengths;
     const auto& format = scanInfo->format;
     const auto& partitionColumns = scanInfo->partitionColumns;
+    const auto& metadataColumns = scanInfo->metadataColumns;
 
     std::vector<std::shared_ptr<velox::connector::ConnectorSplit>> connectorSplits;
     connectorSplits.reserve(paths.size());
     for (int idx = 0; idx < paths.size(); idx++) {
       auto partitionColumn = partitionColumns[idx];
+      auto metadataColumn = metadataColumns[idx];
       std::unordered_map<std::string, std::optional<std::string>> partitionKeys;
       constructPartitionColumns(partitionKeys, partitionColumn);
-      auto split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
-          kHiveConnectorId, paths[idx], format, starts[idx], lengths[idx], partitionKeys);
+      std::shared_ptr<velox::connector::ConnectorSplit> split;
+      if (auto icebergSplitInfo = std::dynamic_pointer_cast<IcebergSplitInfo>(scanInfo)) {
+        // Set Iceberg split.
+        std::unordered_map<std::string, std::string> customSplitInfo{{"table_format", "hive-iceberg"}};
+        auto deleteFiles = icebergSplitInfo->deleteFilesVec[idx];
+        split = std::make_shared<velox::connector::hive::iceberg::HiveIcebergSplit>(
+            kHiveConnectorId,
+            paths[idx],
+            format,
+            starts[idx],
+            lengths[idx],
+            partitionKeys,
+            std::nullopt,
+            customSplitInfo,
+            nullptr,
+            deleteFiles);
+      } else {
+        split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
+            kHiveConnectorId,
+            paths[idx],
+            format,
+            starts[idx],
+            lengths[idx],
+            partitionKeys,
+            std::nullopt,
+            std::unordered_map<std::string, std::string>(),
+            nullptr,
+            std::unordered_map<std::string, std::string>(),
+            0,
+            metadataColumn);
+      }
       connectorSplits.emplace_back(split);
     }
 
@@ -461,6 +488,8 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
           std::to_string(veloxCfg_->get<int32_t>(kAbandonPartialAggregationMinPct, 90));
       configs[velox::core::QueryConfig::kAbandonPartialAggregationMinRows] =
           std::to_string(veloxCfg_->get<int32_t>(kAbandonPartialAggregationMinRows, 100000));
+      // Spark's collect_set ignore nulls.
+      configs[velox::core::QueryConfig::kPrestoArrayAggIgnoreNulls] = std::to_string(true);
     }
     // Spill configs
     if (spillStrategy_ == "none") {
@@ -474,12 +503,6 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         std::to_string(veloxCfg_->get<bool>(kJoinSpillEnabled, true));
     configs[velox::core::QueryConfig::kOrderBySpillEnabled] =
         std::to_string(veloxCfg_->get<bool>(kOrderBySpillEnabled, true));
-    configs[velox::core::QueryConfig::kAggregationSpillMemoryThreshold] = std::to_string(
-        veloxCfg_->get<uint64_t>(kAggregationSpillMemoryThreshold, 0)); // spill only when input doesn't fit
-    configs[velox::core::QueryConfig::kJoinSpillMemoryThreshold] =
-        std::to_string(veloxCfg_->get<uint64_t>(kJoinSpillMemoryThreshold, 0)); // spill only when input doesn't fit
-    configs[velox::core::QueryConfig::kOrderBySpillMemoryThreshold] =
-        std::to_string(veloxCfg_->get<uint64_t>(kOrderBySpillMemoryThreshold, 0)); // spill only when input doesn't fit
     configs[velox::core::QueryConfig::kMaxSpillLevel] = std::to_string(veloxCfg_->get<int32_t>(kMaxSpillLevel, 4));
     configs[velox::core::QueryConfig::kMaxSpillFileSize] =
         std::to_string(veloxCfg_->get<uint64_t>(kMaxSpillFileSize, 20L * 1024 * 1024));
@@ -504,10 +527,10 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kMaxSplitPreloadPerDriver] =
         std::to_string(veloxCfg_->get<int32_t>(kVeloxSplitPreloadPerDriver, 2));
 
-    configs[velox::core::QueryConfig::kArrowBridgeTimestampUnit] = "6";
-
     // Disable driver cpu time slicing.
     configs[velox::core::QueryConfig::kDriverCpuTimeSliceLimitMs] = "0";
+
+    configs[velox::core::QueryConfig::kSparkPartitionId] = std::to_string(taskInfo_.partitionId);
 
   } catch (const std::invalid_argument& err) {
     std::string errDetails = err.what();
@@ -520,13 +543,13 @@ std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig()
   std::unordered_map<std::string, std::string> configs = {};
   // The semantics of reading as lower case is opposite with case-sensitive.
   configs[velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCaseSession] =
-      veloxCfg_->get<bool>(kCaseSensitive, false) == false ? "true" : "false";
-  configs[velox::connector::hive::HiveConfig::kPartitionPathAsLowerCaseSession] =
-      veloxCfg_->get<bool>(kCaseSensitive, false) == false ? "true" : "false";
-  configs[velox::connector::hive::HiveConfig::kArrowBridgeTimestampUnit] = "6";
+      !veloxCfg_->get<bool>(kCaseSensitive, false) ? "true" : "false";
+  configs[velox::connector::hive::HiveConfig::kPartitionPathAsLowerCaseSession] = "false";
+  configs[velox::connector::hive::HiveConfig::kParquetWriteTimestampUnit] = "6";
   configs[velox::connector::hive::HiveConfig::kMaxPartitionsPerWritersSession] =
       std::to_string(veloxCfg_->get<int32_t>(kMaxPartitions, 10000));
-
+  configs[velox::connector::hive::HiveConfig::kIgnoreMissingFilesSession] =
+      std::to_string(veloxCfg_->get<bool>(kIgnoreMissingFiles, false));
   return std::make_shared<velox::core::MemConfig>(configs);
 }
 

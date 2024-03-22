@@ -54,24 +54,33 @@ if (ENABLE_TESTS)
     message("local engine udf sources: ${local_engine_udf_sources}")
     message("local engine function parser sources: ${local_engine_function_parser_sources}")
 
-    add_executable(unit_tests_local_engine ${local_engine_gtest_sources} ${local_engine_udf_sources} ${local_engine_function_parser_sources})
+    add_executable(unit_tests_local_engine
+        gluten_test_util.cpp
+        ${local_engine_gtest_sources}
+        ${local_engine_udf_sources}
+        ${local_engine_function_parser_sources})
     target_include_directories(unit_tests_local_engine PRIVATE
-        ${GTEST_INCLUDE_DIRS}/include
-        ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine)
+        ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    )
     # no-unreachable-code for GTEST_SKIP
     target_compile_options(unit_tests_local_engine PRIVATE -Wno-unreachable-code)
     target_link_libraries(unit_tests_local_engine PRIVATE gluten_clickhouse_backend_libs clickhouse_parsers loggers ch_contrib::gmock_all ch_contrib::gtest)
     target_link_libraries(unit_tests_local_engine PRIVATE ch_parquet)
-else()
+endif()
+
+if (ENABLE_BENCHMARKS)
     include_directories(benchmark_local_engine SYSTEM PUBLIC
         ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine
     )
     add_executable(benchmark_local_engine
+        gluten_test_util.cpp
         benchmark_local_engine.cpp
         benchmark_parquet_read.cpp
         benchmark_spark_row.cpp
         benchmark_unix_timestamp_function.cpp
         benchmark_spark_floor_function.cpp
-        benchmark_cast_float_function.cpp)
+        benchmark_cast_float_function.cpp
+        benchmark_to_datetime_function.cpp)
     target_link_libraries(benchmark_local_engine PRIVATE gluten_clickhouse_backend_libs ch_contrib::gbenchmark_all loggers ch_parquet)
 endif()

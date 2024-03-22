@@ -25,10 +25,12 @@ import io.glutenproject.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
+import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.types._
 import org.apache.spark.util.collection.BitSet
 
@@ -48,29 +50,34 @@ class CHTransformerApi extends TransformerApi with Logging {
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
       disableBucketedScan: Boolean): Seq[InputPartition] = {
-    if (relation.location.isInstanceOf[ClickHouseFileIndex]) {
-      // Generate NativeMergeTreePartition for MergeTree
-      relation.location
-        .asInstanceOf[ClickHouseFileIndex]
-        .partsPartitions(
+    relation.location match {
+      case index: TahoeFileIndex
+          if relation.fileFormat
+            .isInstanceOf[DeltaMergeTreeFileFormat] =>
+        // Generate NativeMergeTreePartition for MergeTree
+        ClickHouseTableV2
+          .partsPartitions(
+            index.deltaLog,
+            relation,
+            selectedPartitions,
+            output,
+            bucketedScan,
+            optionalBucketSet,
+            optionalNumCoalescedBuckets,
+            disableBucketedScan
+          )
+      case _: TahoeFileIndex =>
+        throw new UnsupportedOperationException("Does not support delta-parquet")
+      case _ =>
+        // Generate FilePartition for Parquet
+        CHInputPartitionsUtil(
           relation,
           selectedPartitions,
           output,
           bucketedScan,
           optionalBucketSet,
           optionalNumCoalescedBuckets,
-          disableBucketedScan
-        )
-    } else {
-      // Generate FilePartition for Parquet
-      CHInputPartitionsUtil(
-        relation,
-        selectedPartitions,
-        output,
-        bucketedScan,
-        optionalBucketSet,
-        optionalNumCoalescedBuckets,
-        disableBucketedScan).genInputPartitionSeq()
+          disableBucketedScan).genInputPartitionSeq()
     }
   }
 

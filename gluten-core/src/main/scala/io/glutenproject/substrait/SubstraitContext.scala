@@ -40,14 +40,11 @@ case class JoinParams() {
 }
 
 case class AggregationParams() {
-  // Whether preProjection is needed.
-  var preProjectionNeeded = false
+  // Whether rowConstruction is needed.
+  var rowConstructionNeeded = false
 
   // Whether extraction from intermediate struct is needed.
   var extractionNeeded = false
-
-  // Whether postProjection is needed.
-  var postProjectionNeeded = false
 }
 
 class SubstraitContext extends Serializable {

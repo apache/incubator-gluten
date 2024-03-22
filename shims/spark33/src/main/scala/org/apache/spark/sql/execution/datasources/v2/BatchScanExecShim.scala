@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution.datasources.v2
 
 import org.apache.spark.SparkException
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.KeyGroupedPartitioning
 import org.apache.spark.sql.catalyst.util.InternalRowSet
@@ -30,12 +31,17 @@ import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-class BatchScanExecShim(
-    output: Seq[AttributeReference],
-    @transient scan: Scan,
-    runtimeFilters: Seq[Expression],
-    @transient table: Table)
-  extends BatchScanExec(output, scan, runtimeFilters) {
+abstract class BatchScanExecShim(
+    override val output: Seq[AttributeReference],
+    @transient override val scan: Scan,
+    override val runtimeFilters: Seq[Expression],
+    val keyGroupedPartitioning: Option[Seq[Expression]] = None,
+    val ordering: Option[Seq[SortOrder]] = None,
+    @transient val table: Table,
+    val commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None,
+    val applyPartialClustering: Boolean = false,
+    val replicatePartitions: Boolean = false)
+  extends AbstractBatchScanExec(output, scan, runtimeFilters) {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] = Map()
@@ -43,18 +49,6 @@ class BatchScanExecShim(
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException("Need to implement this method")
   }
-
-  override val keyGroupedPartitioning: Option[Seq[Expression]] = Option.empty[Seq[Expression]]
-
-  override def equals(other: Any): Boolean = other match {
-    case that: BatchScanExecShim =>
-      (that.canEqual(this)) && super.equals(that)
-    case _ => false
-  }
-
-  override def hashCode(): Int = super.hashCode()
-
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[BatchScanExecShim]
 
   @transient protected lazy val filteredPartitions: Seq[Seq[InputPartition]] = {
     val dataSourceFilters = runtimeFilters.flatMap {
@@ -120,6 +114,12 @@ class BatchScanExecShim(
   }
 
   final override protected def otherCopyArgs: Seq[AnyRef] = {
-    output :: scan :: runtimeFilters :: Nil
+    Seq(
+      ordering,
+      table,
+      commonPartitionValues,
+      // Box boolean to match `AnyRef`
+      Boolean.box(applyPartialClustering),
+      Boolean.box(replicatePartitions))
   }
 }

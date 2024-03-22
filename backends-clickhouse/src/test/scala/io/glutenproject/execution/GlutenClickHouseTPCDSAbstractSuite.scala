@@ -23,8 +23,7 @@ import io.glutenproject.utils.UTSystemParameters
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
+import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaLog}
 import org.apache.spark.sql.types.{StructField, StructType}
 
 import org.apache.commons.io.FileUtils
@@ -40,17 +39,8 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
   private var _spark: SparkSession = _
 
   override protected def spark: SparkSession = _spark
-  override protected val backend: String = "ch"
-  override protected val resourcePath: String = UTSystemParameters.getTpcdsDataPath() + "/"
-  override protected val fileFormat: String = "parquet"
 
-  protected val rootPath: String = getClass.getResource("/").getPath
-  protected val basePath: String = rootPath + "unit-tests-working-home"
-
-  protected val warehouse: String = basePath + "/spark-warehouse"
-  protected val metaStorePathAbsolute: String = basePath + "/meta"
-
-  protected val tablesPath: String = resourcePath
+  protected val tablesPath: String = UTSystemParameters.tpcdsDataPath + "/"
   protected val tpcdsQueries: String
   protected val queriesResults: String
 
@@ -113,14 +103,6 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
   }
 
   override def beforeAll(): Unit = {
-    // prepare working paths
-    val basePathDir = new File(basePath)
-    if (basePathDir.exists()) {
-      FileUtils.forceDelete(basePathDir)
-    }
-    FileUtils.forceMkdir(basePathDir)
-    FileUtils.forceMkdir(new File(warehouse))
-    FileUtils.forceMkdir(new File(metaStorePathAbsolute))
     super.beforeAll()
     spark.sparkContext.setLogLevel("WARN")
     createTPCDSTables()
@@ -136,11 +118,11 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
     }
   }
 
-  override protected def createTPCHNotNullTables(): Unit = {}
+//  override protected def createTPCHNotNullTables(): Unit = {}
 
   protected def createTPCDSTables(): Unit = {
     val parquetTables =
-      GenTPCDSTableScripts.genTPCDSParquetTables("tpcdsdb", resourcePath, "", "")
+      GenTPCDSTableScripts.genTPCDSParquetTables("tpcdsdb", tablesPath, "", "")
 
     for (sql <- parquetTables) {
       spark.sql(sql)
@@ -171,7 +153,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
       .set("spark.databricks.delta.stalenessLimit", "3600000")
       .set("spark.gluten.sql.columnar.columnarToRow", "true")
       .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
+      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
@@ -183,8 +165,8 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
   }
 
   override protected def afterAll(): Unit = {
-    ClickHouseTableV2.clearAllFileStatusCache
-    ClickHouseLog.clearCache()
+    ClickhouseSnapshot.clearAllFileStatusCache
+    DeltaLog.clearCache()
 
     try {
       super.afterAll()

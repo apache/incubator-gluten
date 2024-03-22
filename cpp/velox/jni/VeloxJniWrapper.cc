@@ -23,6 +23,7 @@
 #include <exception>
 #include "JniUdf.h"
 #include "compute/VeloxBackend.h"
+#include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 #include "jni/JniError.h"
 #include "jni/JniFileSystem.h"
@@ -69,7 +70,8 @@ JNIEXPORT void JNICALL Java_io_glutenproject_init_NativeBackendInitializer_initi
     jclass,
     jbyteArray conf) {
   JNI_METHOD_START
-  auto sparkConf = gluten::parseConfMap(env, conf);
+  auto safeArray = gluten::getByteArrayElementsSafe(env, conf);
+  auto sparkConf = gluten::parseConfMap(env, safeArray.elems(), safeArray.length());
   gluten::VeloxBackend::create(sparkConf);
   JNI_METHOD_END()
 }
@@ -90,11 +92,13 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFailu
     jbyteArray planArray) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
-  auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
+  auto safeArray = gluten::getByteArrayElementsSafe(env, planArray);
+  auto planData = safeArray.elems();
   auto planSize = env->GetArrayLength(planArray);
-  if (gluten::debugModeEnabled(ctx->getConfMap())) {
+  auto runtime = dynamic_cast<gluten::VeloxRuntime*>(ctx);
+  if (runtime->debugModeEnabled()) {
     try {
-      auto jsonPlan = gluten::substraitFromPbToJson("Plan", planData, planSize);
+      auto jsonPlan = gluten::substraitFromPbToJson("Plan", planData, planSize, std::nullopt);
       LOG(INFO) << std::string(50, '#') << " received substrait::Plan: for validation";
       LOG(INFO) << jsonPlan;
     } catch (const std::exception& e) {
@@ -105,8 +109,10 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFailu
   ::substrait::Plan subPlan;
   gluten::parseProtobuf(planData, planSize, &subPlan);
 
-  // A query context used for function validation.
-  velox::core::QueryCtx queryCtx;
+  // A query context with dummy configs. Used for function validation.
+  std::unordered_map<std::string, std::string> configs{
+      {velox::core::QueryConfig::kSparkPartitionId, "0"}, {velox::core::QueryConfig::kSessionTimezone, "GMT"}};
+  velox::core::QueryCtx queryCtx(nullptr, velox::core::QueryConfig(configs));
   auto pool = gluten::defaultLeafVeloxMemoryPool().get();
   // An execution context used for function validation.
   velox::core::ExecCtx execCtx(pool, &queryCtx);

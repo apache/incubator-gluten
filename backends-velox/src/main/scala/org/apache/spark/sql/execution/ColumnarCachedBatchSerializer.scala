@@ -18,7 +18,6 @@ package org.apache.spark.sql.execution
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.backendsapi.velox.ValidatorApiImpl
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.exec.Runtimes
 import io.glutenproject.execution.{RowToVeloxColumnarExec, VeloxColumnarToRowExec}
@@ -91,7 +90,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
   }
 
   private def validateSchema(schema: StructType): Boolean = {
-    val reason = new ValidatorApiImpl().doSchemaValidate(schema)
+    val reason = BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema)
     if (reason.isDefined) {
       logInfo(s"Columnar cache does not support schema $schema, due to ${reason.get}")
       false

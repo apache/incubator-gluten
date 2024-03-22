@@ -22,9 +22,7 @@ import io.glutenproject.utils.UTSystemParameters
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
-import org.apache.spark.sql.types.DoubleType
+import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaLog}
 
 import org.apache.commons.io.FileUtils
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
@@ -37,15 +35,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
 
   protected val createNullableTables = false
 
-  override protected val backend: String = "ch"
-  override protected val resourcePath: String = "tpch-data-ch-write"
-  override protected val fileFormat: String = "parquet"
-
-  protected val rootPath: String = getClass.getResource("/").getPath
-  protected val basePath: String = rootPath + "unit-tests-working-home"
-
-  protected val warehouse: String = basePath + "/spark-warehouse"
-  protected val metaStorePathAbsolute: String = basePath + "/meta"
+  protected val needCopyParquetToTablePath = false
 
   protected val parquetTableDataPath: String =
     "../../../../gluten-core/src/test/resources/tpch-data"
@@ -55,19 +45,14 @@ abstract class GlutenClickHouseTPCHAbstractSuite
   protected val queriesResults: String
 
   override def beforeAll(): Unit = {
-    // prepare working paths
-    val basePathDir = new File(basePath)
-    if (basePathDir.exists()) {
-      FileUtils.forceDelete(basePathDir)
-    }
-    FileUtils.forceMkdir(basePathDir)
-    FileUtils.forceMkdir(new File(warehouse))
-    FileUtils.forceMkdir(new File(metaStorePathAbsolute))
-    val sourcePath = new File(rootPath + resourcePath)
-    if (sourcePath.exists()) {
+
+    super.beforeAll()
+
+    if (needCopyParquetToTablePath) {
+      val sourcePath = new File(rootPath + parquetTableDataPath)
       FileUtils.copyDirectory(sourcePath, new File(tablesPath))
     }
-    super.beforeAll()
+
     spark.sparkContext.setLogLevel(logLevel)
     if (createNullableTables) {
       createTPCHNullableTables()
@@ -87,7 +72,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     val parquetTablePath = basePath + "/tpch-data"
     FileUtils.copyDirectory(new File(rootPath + parquetTableDataPath), new File(parquetTablePath))
 
-    createTPCHParquetTables(parquetTablePath)
+    createNotNullTPCHTablesInParquet(parquetTablePath)
 
     // create mergetree tables
     spark.sql(s"use default")
@@ -255,7 +240,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     val parquetTablePath = basePath + "/tpch-data"
     FileUtils.copyDirectory(new File(rootPath + parquetTableDataPath), new File(parquetTablePath))
 
-    createTPCHParquetTables(parquetTablePath)
+    createNotNullTPCHTablesInParquet(parquetTablePath)
 
     // create mergetree tables
     spark.sql(s"""
@@ -440,7 +425,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
                  |""".stripMargin)
   }
 
-  protected def createTPCHParquetTables(parquetTablePath: String): Unit = {
+  protected def createNotNullTPCHTablesInParquet(parquetTablePath: String): Unit = {
     val customerData = parquetTablePath + "/customer"
     spark.sql(s"DROP TABLE IF EXISTS customer")
     spark.sql(s"""
@@ -580,9 +565,10 @@ abstract class GlutenClickHouseTPCHAbstractSuite
       .set("spark.databricks.delta.snapshotPartitions", "1")
       .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")
       .set("spark.databricks.delta.stalenessLimit", "3600000")
+      .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
       .set("spark.gluten.sql.columnar.columnarToRow", "true")
       .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
+      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
@@ -603,8 +589,8 @@ abstract class GlutenClickHouseTPCHAbstractSuite
       assert(CHBroadcastBuildSideCache.size() <= 10)
     }
 
-    ClickHouseTableV2.clearAllFileStatusCache
-    ClickHouseLog.clearCache()
+    ClickhouseSnapshot.clearAllFileStatusCache
+    DeltaLog.clearCache()
     super.afterAll()
     // init GlutenConfig in the next beforeAll
     GlutenConfig.ins = null
@@ -625,24 +611,14 @@ abstract class GlutenClickHouseTPCHAbstractSuite
       sqlStr: String,
       queriesResults: String = queriesResults,
       compareResult: Boolean = true,
-      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    val sqlNum = "q" + "%02d".format(queryNum)
-    val df = spark.sql(sqlStr)
-    val result = df.collect()
-    if (compareResult) {
-      val schema = df.schema
-      if (schema.exists(_.dataType == DoubleType)) {
-        compareDoubleResult(sqlNum, result, schema, queriesResults)
+      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = withDataFrame(sqlStr) {
+    df =>
+      if (compareResult) {
+        verifyTPCHResult(df, s"q${"%02d".format(queryNum)}", queriesResults)
       } else {
-        compareResultStr(sqlNum, result, queriesResults)
+        df.collect()
       }
-    } else {
-      df.collect()
-    }
-    if (!isFallbackCheckDisabled) {
-      WholeStageTransformerSuite.checkFallBack(df, noFallBack)
-    }
-    customCheck(df)
+      checkDataFrame(noFallBack, customCheck, df)
   }
 
 }

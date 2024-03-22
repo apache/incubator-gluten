@@ -22,36 +22,15 @@ import io.glutenproject.utils.UTSystemParameters
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
+import org.apache.spark.sql.delta.DeltaLog
 
-import org.apache.commons.io.FileUtils
-
-import java.io.File
 import java.time.LocalDate
 
 class GlutenClickHouseSyntheticDataSuite
   extends GlutenClickHouseWholeStageTransformerSuite
   with Logging {
 
-  override protected val backend: String = "ch"
-  override protected val fileFormat: String = "parquet"
-
-  protected val rootPath: String = getClass.getResource("/").getPath
-  protected val basePath: String = rootPath + "unit-tests-working-home"
-  protected val tablesPath: String = basePath + "/synthetic-data"
-
-  protected val warehouse: String = basePath + "/spark-warehouse"
-  protected val metaStorePathAbsolute: String = basePath + "/meta"
-
   override def beforeAll(): Unit = {
-    // prepare working paths
-    val basePathDir = new File(basePath)
-    if (basePathDir.exists()) {
-      FileUtils.forceDelete(basePathDir)
-    }
-    FileUtils.forceMkdir(basePathDir)
-    FileUtils.forceMkdir(new File(warehouse))
-    FileUtils.forceMkdir(new File(metaStorePathAbsolute))
     super.beforeAll()
     // spark.sparkContext.setLogLevel("WARN")
 
@@ -73,7 +52,7 @@ class GlutenClickHouseSyntheticDataSuite
       .set("spark.databricks.delta.stalenessLimit", "3600000")
       .set("spark.gluten.sql.columnar.columnarToRow", "true")
       .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
+      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
@@ -89,7 +68,7 @@ class GlutenClickHouseSyntheticDataSuite
   }
 
   override protected def afterAll(): Unit = {
-    ClickHouseLog.clearCache()
+    DeltaLog.clearCache()
     super.afterAll()
     // init GlutenConfig in the next beforeAll
     GlutenConfig.ins = null
@@ -254,5 +233,4 @@ class GlutenClickHouseSyntheticDataSuite
     checkAnswer(df, expected)
   }
 
-  override protected val resourcePath: String = ""
 }

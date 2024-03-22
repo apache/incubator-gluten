@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include <IO/PeekableReadBuffer.h>
 #include <IO/readFloatText.h>
 
 namespace DB

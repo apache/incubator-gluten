@@ -17,11 +17,17 @@
 #include <Common/LocalDate.h>
 #include <Common/DateLUT.h>
 #include <Common/DateLUTImpl.h>
+#include <Columns/ColumnString.h>
+#include <Columns/ColumnVector.h>
+#include <Columns/ColumnsNumber.h>
+#include <Columns/ColumnNullable.h>
+#include <DataTypes/IDataType.h>
 #include <DataTypes/DataTypeDate32.h>
-#include <Functions/FunctionsConversion.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <Functions/FunctionFactory.h>
 #include <IO/ReadBufferFromMemory.h>
 #include <IO/ReadHelpers.h>
+#include <IO/parseDateTimeBestEffort.h>
 
 namespace DB
 {
@@ -34,14 +40,18 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-class SparkFunctionConvertToDate : public DB::FunctionToDate32OrNull
+class SparkFunctionConvertToDate : public DB::IFunction
 {
 public:
-    static constexpr auto name = "spark_to_date";
+    static constexpr auto name = "sparkToDate";
     static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionConvertToDate>(); }
     SparkFunctionConvertToDate() = default;
     ~SparkFunctionConvertToDate() override = default;
+    bool isSuitableForShortCircuitArgumentsExecution(const DB::DataTypesWithConstInfo &) const override { return true; }
+    size_t getNumberOfArguments() const override { return 0; }
     String getName() const override { return name; }
+    bool isVariadic() const override { return true; }
+    bool useDefaultImplementationForConstants() const override { return true; }
 
     bool checkAndGetDate32(DB::ReadBuffer & buf, DB::DataTypeDate32::FieldType &x, const DateLUTImpl & date_lut) const
     {
@@ -50,7 +60,9 @@ public:
             for (size_t i = start; i < start + length; ++i)
             {
                 if (!isNumericASCII(*(rb.position() + i)))
+                {
                     return false;
+                }
             }
             return true;
         };
@@ -63,7 +75,7 @@ public:
         };
         if (!checkNumbericASCII(buf, 0, 4) 
             || !checkDelimiter(buf, 4) 
-            || !checkNumbericASCII(buf, 5, 2) 
+            || !checkNumbericASCII(buf, 5, 2)
             || !checkDelimiter(buf, 7) 
             || !checkNumbericASCII(buf, 8, 2))
             return false;
@@ -96,6 +108,12 @@ public:
         }
     }
 
+    DB::DataTypePtr getReturnTypeImpl(const DB::ColumnsWithTypeAndName &) const override
+    {
+        DB::DataTypePtr date32_type = std::make_shared<DB::DataTypeDate32>();
+        return makeNullable(date32_type);
+    }
+
     DB::ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr & result_type, size_t) const override
     {
         if (arguments.size() != 1)
@@ -112,19 +130,19 @@ public:
             throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s return type must be date32.", name);
         
         using ColVecTo = DB::DataTypeDate32::ColumnType;
-        typename ColVecTo::MutablePtr result_column = ColVecTo::create(size);
+        typename ColVecTo::MutablePtr result_column = ColVecTo::create(size, 0);
         typename ColVecTo::Container & result_container = result_column->getData();
-        DB::ColumnUInt8::MutablePtr null_map = DB::ColumnUInt8::create(size);
+        DB::ColumnUInt8::MutablePtr null_map = DB::ColumnUInt8::create(size, 0);
         typename DB::ColumnUInt8::Container & null_container = null_map->getData();
-        const DateLUTImpl * time_zone = &DateLUT::instance();
+        const DateLUTImpl * local_time_zone = &DateLUT::instance();
+        const DateLUTImpl * utc_time_zone = &DateLUT::instance("UTC");
 
         for (size_t i = 0; i < size; ++i)
         {
             auto str = src_col->getDataAt(i);
-            if (str.size < 10)
+            if (str.size < 4)
             {
                 null_container[i] = true;
-                result_container[i] = 0;
                 continue;
             }
             else
@@ -134,20 +152,17 @@ public:
                 {
                     buf.position() ++;
                 }
-                if(buf.buffer().end() - buf.position() < 10)
+                if(buf.buffer().end() - buf.position() < 4)
                 {
                     null_container[i] = true;
-                    result_container[i] = 0;
                     continue;
                 }
-                if (!checkAndGetDate32(buf, result_container[i], *time_zone))
+                if (!checkAndGetDate32(buf, result_container[i], *local_time_zone))
                 {
-                    null_container[i] = true;
-                    result_container[i] = 0;
-                }
-                else
-                {
-                    null_container[i] = false;
+                    time_t tmp = 0;
+                    bool parsed = tryParseDateTimeBestEffort(tmp, buf, *local_time_zone, *utc_time_zone);
+                    result_container[i] = local_time_zone->toDayNum<time_t>(tmp);
+                    null_container[i] = !parsed;
                 }
             }
         }

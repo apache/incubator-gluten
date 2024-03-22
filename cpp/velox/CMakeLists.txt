@@ -149,6 +149,7 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(row "${VELOX_COMPONENTS_PATH}/row/libvelox_row_fast.a")
   add_velox_dependency(connector "${VELOX_COMPONENTS_PATH}/connectors/libvelox_connector.a")
   add_velox_dependency(connector::hive_parition "${VELOX_COMPONENTS_PATH}/connectors/hive/libvelox_hive_partition_function.a")
+  add_velox_dependency(connector::hive::iceberg::IcebergSplitReader "${VELOX_COMPONENTS_PATH}/connectors/hive/iceberg/libvelox_hive_iceberg_splitreader.a")
   if(ENABLE_HDFS)
     add_velox_dependency(connector::hive::hdfs "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/hdfs/libvelox_hdfs.a")
   endif()
@@ -286,6 +287,7 @@ macro(find_azure)
   find_package(LibXml2 REQUIRED)
   set (CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(azure-storage-blobs-cpp CONFIG REQUIRED)
+  find_package(azure-storage-files-datalake-cpp CONFIG REQUIRED)
 endmacro()
 
 # Build Velox backend.
@@ -294,6 +296,7 @@ set(VELOX_SRCS
     compute/VeloxRuntime.cc
     compute/WholeStageResultIterator.cc
     compute/VeloxPlanConverter.cc
+    compute/iceberg/IcebergPlanConverter.cc
     jni/VeloxJniWrapper.cc
     jni/JniFileSystem.cc
     jni/JniUdf.cc
@@ -425,4 +428,10 @@ if(ENABLE_ABFS)
   add_definitions(-DENABLE_ABFS)
   find_azure()
   target_link_libraries(velox PUBLIC Azure::azure-storage-blobs)
+  target_link_libraries(velox PUBLIC Azure::azure-storage-files-datalake)
 endif()
+
+add_custom_command(TARGET velox POST_BUILD COMMAND ld $<TARGET_FILE:velox> || true
+        COMMENT "Checking ld result of libvelox.so")
+add_custom_command(TARGET velox POST_BUILD COMMAND ldd $<TARGET_FILE:velox> || true
+        COMMENT "Checking ldd result of libvelox.so")

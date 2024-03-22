@@ -18,30 +18,34 @@ package io.glutenproject.sql.shims.spark32
 
 import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
 import io.glutenproject.expression.{ExpressionNames, Sig}
-import io.glutenproject.sql.shims.{ShimDescriptor, SparkShimLoader, SparkShims}
+import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
-import org.apache.spark.{SparkConf, TaskContext, TaskContextImpl, TaskContextUtils}
-import org.apache.spark.memory.{TaskMemoryManager, UnifiedMemoryManager}
-import org.apache.spark.metrics.MetricsSystem
-import org.apache.spark.network.util.ByteUnit
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.{ShuffleUtils, SparkContext, TaskContext, TaskContextUtils}
+import org.apache.spark.scheduler.TaskInfo
+import org.apache.spark.shuffle.ShuffleHandle
+import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{Distribution, HashClusteredDistribution}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
-import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.FileFormatWriter.Empty2Null
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
+import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+import org.apache.spark.storage.{BlockId, BlockManagerId}
 
-import java.util.Properties
+import org.apache.hadoop.fs.{FileStatus, Path}
+
+import java.util.{HashMap => JHashMap, Map => JMap}
 
 class Spark32Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
@@ -122,4 +126,78 @@ class Spark32Shims extends SparkShims {
   override def createTestTaskContext(): TaskContext = {
     TaskContextUtils.createTestTaskContext()
   }
+
+  def setJobDescriptionOrTagForBroadcastExchange(
+      sc: SparkContext,
+      broadcastExchange: BroadcastExchangeLike): Unit = {
+    // Setup a job group here so later it may get cancelled by groupId if necessary.
+    sc.setJobGroup(
+      broadcastExchange.runId.toString,
+      s"broadcast exchange (runId ${broadcastExchange.runId})",
+      interruptOnCancel = true)
+  }
+
+  def cancelJobGroupForBroadcastExchange(
+      sc: SparkContext,
+      broadcastExchange: BroadcastExchangeLike): Unit = {
+    sc.cancelJobGroup(broadcastExchange.runId.toString)
+  }
+
+  override def getShuffleReaderParam[K, C](
+      handle: ShuffleHandle,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      startPartition: Int,
+      endPartition: Int)
+      : Tuple2[Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])], Boolean] = {
+    ShuffleUtils.getReaderParam(handle, startMapIndex, endMapIndex, startPartition, endPartition)
+  }
+
+  override def getPartitionId(taskInfo: TaskInfo): Int = {
+    throw new IllegalStateException("This is not supported.")
+  }
+
+  override def supportDuplicateReadingTracking: Boolean = false
+
+  def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] = partition.files
+
+  def splitFiles(
+      sparkSession: SparkSession,
+      file: FileStatus,
+      filePath: Path,
+      isSplitable: Boolean,
+      maxSplitBytes: Long,
+      partitionValues: InternalRow): Seq[PartitionedFile] = {
+    PartitionedFileUtil.splitFiles(
+      sparkSession,
+      file,
+      filePath,
+      isSplitable,
+      maxSplitBytes,
+      partitionValues)
+  }
+
+  def structFromAttributes(attrs: Seq[Attribute]): StructType = {
+    StructType(attrs.map(a => StructField(a.name, a.dataType, a.nullable, a.metadata)))
+  }
+
+  def attributesFromStruct(structType: StructType): Seq[Attribute] = {
+    structType.fields.map {
+      field => AttributeReference(field.name, field.dataType, field.nullable, field.metadata)()
+    }
+  }
+
+  override def generateMetadataColumns(
+      file: PartitionedFile,
+      metadataColumnNames: Seq[String]): JMap[String, String] =
+    new JHashMap[String, String]()
+
+  def getAnalysisExceptionPlan(ae: AnalysisException): Option[LogicalPlan] = {
+    ae.plan
+  }
+
+  override def getKeyGroupedPartitioning(batchScan: BatchScanExec): Option[Seq[Expression]] = null
+
+  override def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] =
+    null
 }

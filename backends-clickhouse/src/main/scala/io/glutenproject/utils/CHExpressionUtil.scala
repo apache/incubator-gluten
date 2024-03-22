@@ -171,6 +171,13 @@ object CHExpressionUtil {
     RPAD -> StringRPadValidator(),
     DATE_FORMAT -> DateFormatClassValidator(),
     DECODE -> EncodeDecodeValidator(),
-    ENCODE -> EncodeDecodeValidator()
+    ENCODE -> EncodeDecodeValidator(),
+    ARRAY_EXCEPT -> DefaultValidator(),
+    ARRAY_REPEAT -> DefaultValidator(),
+    DATE_FROM_UNIX_DATE -> DefaultValidator(),
+    MONOTONICALLY_INCREASING_ID -> DefaultValidator(),
+    SPARK_PARTITION_ID -> DefaultValidator(),
+    SKEWNESS -> DefaultValidator(),
+    BIT_LENGTH -> DefaultValidator()
   )
 }

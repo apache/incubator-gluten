@@ -41,11 +41,8 @@ class HashAggregateMetricsUpdaterImpl(val metrics: Map[String, SQLMetric])
   val aggSpilledFiles: SQLMetric = metrics("aggSpilledFiles")
   val flushRowCount: SQLMetric = metrics("flushRowCount")
 
-  val preProjectionCpuCount: SQLMetric = metrics("preProjectionCpuCount")
-  val preProjectionWallNanos: SQLMetric = metrics("preProjectionWallNanos")
-
-  val postProjectionCpuCount: SQLMetric = metrics("postProjectionCpuCount")
-  val postProjectionWallNanos: SQLMetric = metrics("postProjectionWallNanos")
+  val rowConstructionCpuCount: SQLMetric = metrics("rowConstructionCpuCount")
+  val rowConstructionWallNanos: SQLMetric = metrics("rowConstructionWallNanos")
 
   val extractionCpuCount: SQLMetric = metrics("extractionCpuCount")
   val extractionWallNanos: SQLMetric = metrics("extractionWallNanos")
@@ -57,11 +54,6 @@ class HashAggregateMetricsUpdaterImpl(val metrics: Map[String, SQLMetric])
       aggregationMetrics: java.util.ArrayList[OperatorMetrics],
       aggParams: AggregationParams): Unit = {
     var idx = 0
-    if (aggParams.postProjectionNeeded) {
-      postProjectionCpuCount += aggregationMetrics.get(idx).cpuCount
-      postProjectionWallNanos += aggregationMetrics.get(idx).wallNanos
-      idx += 1
-    }
 
     if (aggParams.extractionNeeded) {
       extractionCpuCount += aggregationMetrics.get(idx).cpuCount
@@ -84,9 +76,9 @@ class HashAggregateMetricsUpdaterImpl(val metrics: Map[String, SQLMetric])
     flushRowCount += aggMetrics.flushRowCount
     idx += 1
 
-    if (aggParams.preProjectionNeeded) {
-      preProjectionCpuCount += aggregationMetrics.get(idx).cpuCount
-      preProjectionWallNanos += aggregationMetrics.get(idx).wallNanos
+    if (aggParams.rowConstructionNeeded) {
+      rowConstructionCpuCount += aggregationMetrics.get(idx).cpuCount
+      rowConstructionWallNanos += aggregationMetrics.get(idx).wallNanos
       idx += 1
     }
   }

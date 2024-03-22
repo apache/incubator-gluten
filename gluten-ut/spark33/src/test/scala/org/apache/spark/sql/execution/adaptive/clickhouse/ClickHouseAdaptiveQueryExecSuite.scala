@@ -16,11 +16,12 @@
  */
 package org.apache.spark.sql.execution.adaptive.clickhouse
 
-import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ShuffledHashJoinExecTransformerBase, SortExecTransformer, SortMergeJoinExecTransformer}
+import io.glutenproject.execution.{BroadcastHashJoinExecTransformerBase, ShuffledHashJoinExecTransformerBase, SortExecTransformer, SortMergeJoinExecTransformer}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.{Dataset, GlutenSQLTestsTrait, Row}
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
@@ -88,8 +89,8 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
   }
 
   private def findTopLevelBroadcastHashJoinTransform(
-      plan: SparkPlan): Seq[BroadcastHashJoinExecTransformer] = {
-    collect(plan) { case j: BroadcastHashJoinExecTransformer => j }
+      plan: SparkPlan): Seq[BroadcastHashJoinExecTransformerBase] = {
+    collect(plan) { case j: BroadcastHashJoinExecTransformerBase => j }
   }
 
   private def findTopLevelBroadcastHashJoin(plan: SparkPlan): Seq[BroadcastHashJoinExec] = {
@@ -159,7 +160,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     assert(numShuffles === (numLocalReads.length + numShufflesWithoutLocalRead))
   }
 
-  test("gluten Change merge join to broadcast join") {
+  testGluten("Change merge join to broadcast join") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300"
@@ -174,7 +175,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten Change broadcast join to merge join") {
+  testGluten("Change broadcast join to merge join") {
     withTable("t1", "t2") {
       withSQLConf(
         SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "10000",
@@ -196,7 +197,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten Reuse the parallelism of coalesced shuffle in local shuffle read") {
+  testGluten("Reuse the parallelism of coalesced shuffle in local shuffle read") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300",
@@ -213,7 +214,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten Reuse the default parallelism in local shuffle read") {
+  testGluten("Reuse the default parallelism in local shuffle read") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300",
@@ -243,7 +244,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten Empty stage coalesced to 1-partition RDD") {
+  testGluten("Empty stage coalesced to 1-partition RDD") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.COALESCE_PARTITIONS_ENABLED.key -> "true",
@@ -270,7 +271,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
           .count()
         checkAnswer(testDf, Seq())
         val plan = testDf.queryExecution.executedPlan
-        assert(find(plan)(_.isInstanceOf[BroadcastHashJoinExecTransformer]).isDefined)
+        assert(find(plan)(_.isInstanceOf[BroadcastHashJoinExecTransformerBase]).isDefined)
         val coalescedReads = collect(plan) { case r: AQEShuffleReadExec => r }
         assert(coalescedReads.length == 3, s"$plan")
         coalescedReads.foreach(r => assert(r.isLocalRead || r.partitionSpecs.length == 1))
@@ -278,7 +279,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten Scalar subquery") {
+  testGluten("Scalar subquery") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
@@ -291,7 +292,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten Scalar subquery in later stages") {
+  testGluten("Scalar subquery in later stages") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
@@ -305,7 +306,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten multiple joins") {
+  testGluten("multiple joins") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
@@ -348,7 +349,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten multiple joins with aggregate") {
+  testGluten("multiple joins with aggregate") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
@@ -391,7 +392,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten multiple joins with aggregate 2") {
+  testGluten("multiple joins with aggregate 2") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "500") {
@@ -435,7 +436,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten Exchange reuse") {
+  testGluten("Exchange reuse") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       // magic threshold, ch backend has two bhj when threshold is 100
@@ -457,7 +458,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten Exchange reuse with subqueries") {
+  testGluten("Exchange reuse with subqueries") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
@@ -478,7 +479,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten Exchange reuse across subqueries") {
+  testGluten("Exchange reuse across subqueries") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300",
@@ -498,7 +499,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten Subquery reuse") {
+  testGluten("Subquery reuse") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
@@ -517,7 +518,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten Broadcast exchange reuse across subqueries") {
+  testGluten("Broadcast exchange reuse across subqueries") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "20000000",
@@ -542,9 +543,9 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
 
   // Cost is equal, not test cost is greater, need new test, but other test may contain cost change,
   // so it maybe not essential
-  test("gluten Avoid plan change if cost is greater") {}
+  testGluten("Avoid plan change if cost is greater") {}
 
-  test("gluten Change merge join to broadcast join without local shuffle read") {
+  testGluten("Change merge join to broadcast join without local shuffle read") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.LOCAL_SHUFFLE_READER_ENABLED.key -> "true",
@@ -564,8 +565,8 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test(
-    "gluten Avoid changing merge join to broadcast join if too many empty partitions " +
+  testGluten(
+    "Avoid changing merge join to broadcast join if too many empty partitions " +
       "on build plan") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
@@ -595,7 +596,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten SPARK-30524: Do not optimize skew join if introduce additional shuffle") {
+  testGluten("SPARK-30524: Do not optimize skew join if introduce additional shuffle") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1",
@@ -628,7 +629,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten SPARK-29544: adaptive skew join with different join types") {
+  testGluten("SPARK-29544: adaptive skew join with different join types") {
     Seq("SHUFFLE_MERGE", "SHUFFLE_HASH").foreach {
       joinHint =>
         def getJoinNode(plan: SparkPlan): Seq[BinaryExecNode] = if (joinHint == "SHUFFLE_MERGE") {
@@ -717,7 +718,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten SPARK-34682: AQEShuffleReadExec operating on canonicalized plan") {
+  testGluten("SPARK-34682: AQEShuffleReadExec operating on canonicalized plan") {
     withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true") {
       val (_, adaptivePlan) = runAdaptiveAndVerifyResult("SELECT key FROM testData GROUP BY key")
       val reads = collect(adaptivePlan) { case r: AQEShuffleReadExec => r }
@@ -733,7 +734,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten metrics of the shuffle read") {
+  testGluten("metrics of the shuffle read") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.SHUFFLE_PARTITIONS.key -> "5") {
@@ -756,7 +757,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
       withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
         val (_, adaptivePlan) = runAdaptiveAndVerifyResult(
           "SELECT * FROM testData join testData2 ON key = a where value = '1'")
-        val join = collect(adaptivePlan) { case j: BroadcastHashJoinExecTransformer => j }.head
+        val join = collect(adaptivePlan) { case j: BroadcastHashJoinExecTransformerBase => j }.head
         assert(join.joinBuildSide == BuildLeft)
 
         val reads = collect(join.right) { case r: AQEShuffleReadExec => r }
@@ -800,14 +801,15 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
 
   // because gluten use columnar format, which cannot execute to get rowIterator, then get the key
   // null status
-  ignore("gluten SPARK-32573: Eliminate NAAJ when BuildSide is HashedRelationWithAllNullKeys") {}
+  ignore(
+    GLUTEN_TEST + "SPARK-32573: Eliminate NAAJ when BuildSide is HashedRelationWithAllNullKeys") {}
 
   // EmptyRelation case
   ignore(
-    "gluten SPARK-35455: Unify empty relation optimization between normal and AQE optimizer " +
-      "- single join") {}
+    GLUTEN_TEST + "SPARK-35455: Unify empty relation optimization " +
+      "between normal and AQE optimizer - single join") {}
 
-  test("gluten SPARK-32753: Only copy tags to node with no tags") {
+  testGluten("SPARK-32753: Only copy tags to node with no tags") {
     withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true") {
       withTempView("v1") {
         spark.range(10).union(spark.range(10)).createOrReplaceTempView("v1")
@@ -819,7 +821,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten Logging plan changes for AQE") {
+  testGluten("Logging plan changes for AQE") {
     val testAppender = new LogAppender("plan changes")
     withLogAppender(testAppender) {
       withSQLConf(
@@ -846,7 +848,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten SPARK-33551: Do not use AQE shuffle read for repartition") {
+  testGluten("SPARK-33551: Do not use AQE shuffle read for repartition") {
     def hasRepartitionShuffle(plan: SparkPlan): Boolean = {
       find(plan) {
         case s: ShuffleExchangeLike =>
@@ -1003,7 +1005,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten SPARK-34091: Batch shuffle fetch in AQE partition coalescing") {
+  testGluten("SPARK-34091: Batch shuffle fetch in AQE partition coalescing") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.SHUFFLE_PARTITIONS.key -> "10",
@@ -1031,7 +1033,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten SPARK-34899: Use origin plan if we can not coalesce shuffle partition") {
+  testGluten("SPARK-34899: Use origin plan if we can not coalesce shuffle partition") {
     def checkNoCoalescePartitions(ds: Dataset[Row], origin: ShuffleOrigin): Unit = {
       assert(collect(ds.queryExecution.executedPlan) {
         case s: ShuffleExchangeExec if s.shuffleOrigin == origin && s.numPartitions == 2 => s
@@ -1063,7 +1065,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten SPARK-35239: Coalesce shuffle partition should handle empty input RDD") {
+  testGluten("SPARK-35239: Coalesce shuffle partition should handle empty input RDD") {
     withTable("t") {
       withSQLConf(
         SQLConf.COALESCE_PARTITIONS_MIN_PARTITION_NUM.key -> "1",
@@ -1083,7 +1085,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten SPARK-35264: Support AQE side broadcastJoin threshold") {
+  testGluten("SPARK-35264: Support AQE side broadcastJoin threshold") {
     withTempView("t1", "t2") {
       def checkJoinStrategy(shouldBroadcast: Boolean): Unit = {
         withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
@@ -1121,7 +1123,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
   }
 
   // table partition size is different with spark
-  test("gluten SPARK-35264: Support AQE side shuffled hash join formula") {
+  testGluten("SPARK-35264: Support AQE side shuffled hash join formula") {
     withTempView("t1", "t2") {
       def checkJoinStrategy(shouldShuffleHashJoin: Boolean): Unit = {
         Seq("100", "100000").foreach {
@@ -1182,7 +1184,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten SPARK-35650: Coalesce number of partitions by AEQ") {
+  testGluten("SPARK-35650: Coalesce number of partitions by AEQ") {
     withSQLConf(SQLConf.COALESCE_PARTITIONS_MIN_PARTITION_NUM.key -> "1") {
       Seq("REPARTITION", "REBALANCE(key)")
         .foreach {
@@ -1200,7 +1202,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten SPARK-35650: Use local shuffle read if can not coalesce number of partitions") {
+  testGluten("SPARK-35650: Use local shuffle read if can not coalesce number of partitions") {
     withSQLConf(SQLConf.COALESCE_PARTITIONS_ENABLED.key -> "false") {
       val query = "SELECT /*+ REPARTITION */ * FROM testData"
       val (_, adaptivePlan) = runAdaptiveAndVerifyResult(query)
@@ -1214,7 +1216,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten SPARK-35725: Support optimize skewed partitions in RebalancePartitions") {
+  testGluten("SPARK-35725: Support optimize skewed partitions in RebalancePartitions") {
     withTempView("v") {
       withSQLConf(
         SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
@@ -1260,7 +1262,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten SPARK-35888: join with a 0-partition table") {
+  testGluten("SPARK-35888: join with a 0-partition table") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.COALESCE_PARTITIONS_MIN_PARTITION_NUM.key -> "1",
@@ -1286,7 +1288,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten SPARK-35968: AQE coalescing should not produce too small partitions by default") {
+  testGluten("SPARK-35968: AQE coalescing should not produce too small partitions by default") {
     withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true") {
       val (_, adaptive) =
         runAdaptiveAndVerifyResult("SELECT sum(id) FROM RANGE(10) GROUP BY id % 3")
@@ -1299,7 +1301,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten SPARK-35794: Allow custom plugin for cost evaluator") {
+  testGluten("SPARK-35794: Allow custom plugin for cost evaluator") {
     CostEvaluator.instantiate(
       classOf[SimpleShuffleSortCostEvaluator].getCanonicalName,
       spark.sparkContext.getConf)
@@ -1335,7 +1337,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten SPARK-36020: Check logical link in remove redundant projects") {
+  testGluten("SPARK-36020: Check logical link in remove redundant projects") {
     withTempView("t") {
       spark
         .range(10)
@@ -1365,9 +1367,8 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test(
-    "gluten " +
-      "SPARK-36032: Use inputPlan instead of currentPhysicalPlan to initialize logical link") {
+  testGluten(
+    "SPARK-36032: Use inputPlan instead of currentPhysicalPlan to initialize logical link") {
     withTempView("v") {
       spark.sparkContext
         .parallelize((1 to 10).map(i => TestData(i, i.toString)), 2)
@@ -1403,7 +1404,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten SPARK-37742: AQE reads invalid InMemoryRelation stats and mistakenly plans BHJ") {
+  testGluten("SPARK-37742: AQE reads invalid InMemoryRelation stats and mistakenly plans BHJ") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "1048584",
@@ -1462,7 +1463,7 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  test("gluten test log level") {
+  testGluten("test log level") {
     def verifyLog(expectedLevel: Level): Unit = {
       val logAppender = new LogAppender("adaptive execution")
       logAppender.setThreshold(expectedLevel)

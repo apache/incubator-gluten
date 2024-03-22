@@ -51,7 +51,7 @@ class GlutenParquetRebaseDatetimeV1Suite
 
   // gluten does not consider file metadata which indicates needs rebase or not
   // it only supports write the parquet file as CORRECTED
-  test("gluten SPARK-31159: rebasing dates in write") {
+  testGluten("SPARK-31159: rebasing dates in write") {
     val N = 8
     Seq(false, true).foreach {
       dictionaryEncoding =>

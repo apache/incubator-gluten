@@ -100,10 +100,31 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
     expr.children.forall(isValidCommonExpr(_))
   }
 
+  private def addToEquivalentExpressions(
+      expr: Expression,
+      equivalentExpressions: EquivalentExpressions): Unit = {
+    logTrace(s"addToEquivalentExpressions $expr class ${expr.getClass.toString}")
+    if (expr.isInstanceOf[AggregateExpression]) {
+      equivalentExpressions.addExprTree(expr)
+    } else {
+      expr.children.foreach(addToEquivalentExpressions(_, equivalentExpressions))
+    }
+  }
+
   private def rewrite(inputCtx: RewriteContext): RewriteContext = {
     logTrace(s"Start rewrite with input exprs:${inputCtx.exprs} input child:${inputCtx.child}")
     val equivalentExpressions = new EquivalentExpressions
-    inputCtx.exprs.foreach(equivalentExpressions.addExprTree(_))
+    inputCtx.exprs.foreach(
+      expr => {
+        // For input exprs that contains AggregateExpression, add the AggregateExpression directly
+        // to equivalentExpressions. Otherwise add the whole expression.
+        // This fix issue: https://github.com/oap-project/gluten/issues/4642
+        if (expr.find(_.isInstanceOf[AggregateExpression]).isDefined) {
+          addToEquivalentExpressions(expr, equivalentExpressions)
+        } else {
+          equivalentExpressions.addExprTree(expr)
+        }
+      })
 
     // Get all the expressions that appear at least twice
     val newChild = visitPlan(inputCtx.child)
@@ -173,6 +194,9 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
     logTrace(
       s"aggregate groupingExpressions: ${aggregate.groupingExpressions} " +
         s"aggregateExpressions: ${aggregate.aggregateExpressions}")
+    // Only extract common subexpressions from aggregateExpressions
+    // that contains AggregateExpression.
+    // Fix issue: https://github.com/oap-project/gluten/issues/4642
     val exprsWithIndex = aggregate.aggregateExpressions.zipWithIndex
       .filter(_._1.find(_.isInstanceOf[AggregateExpression]).isDefined)
     val inputCtx = RewriteContext(exprsWithIndex.map(_._1), aggregate.child)

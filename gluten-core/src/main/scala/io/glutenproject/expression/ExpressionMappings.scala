@@ -96,6 +96,7 @@ object ExpressionMappings {
     Sig[StringDecode](DECODE),
     Sig[Encode](ENCODE),
     Sig[Uuid](UUID),
+    Sig[BitLength](BIT_LENGTH),
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),
@@ -176,6 +177,8 @@ object ExpressionMappings {
     Sig[NextDay](NEXT_DAY),
     Sig[LastDay](LAST_DAY),
     Sig[MonthsBetween](MONTHS_BETWEEN),
+    Sig[DateFromUnixDate](DATE_FROM_UNIX_DATE),
+    Sig[MakeTimestamp](MAKE_TIMESTAMP),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
@@ -195,6 +198,7 @@ object ExpressionMappings {
     Sig[Sequence](SEQUENCE),
     Sig[CreateArray](CREATE_ARRAY),
     Sig[Explode](EXPLODE),
+    Sig[Inline](INLINE),
     Sig[ArrayAggregate](AGGREGATE),
     Sig[LambdaFunction](LAMBDAFUNCTION),
     Sig[NamedLambdaVariable](NAMED_LAMBDA_VARIABLE),
@@ -212,12 +216,15 @@ object ExpressionMappings {
     Sig[ArrayUnion](ARRAY_UNION),
     Sig[ArrayIntersect](ARRAY_INTERSECT),
     Sig[GetArrayStructFields](GET_ARRAY_STRUCT_FIELDS),
+    Sig[ArrayExcept](ARRAY_EXCEPT),
+    Sig[ArrayRepeat](ARRAY_REPEAT),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
     Sig[MapKeys](MAP_KEYS),
     Sig[MapValues](MAP_VALUES),
     Sig[MapFromArrays](MAP_FROM_ARRAYS),
+    Sig[MapEntries](MAP_ENTRIES),
     Sig[StringToMap](STR_TO_MAP),
     // Struct functions
     Sig[GetStructField](GET_STRUCT_FIELD),
@@ -237,6 +244,8 @@ object ExpressionMappings {
     Sig[CheckOverflow](CHECK_OVERFLOW),
     Sig[MakeDecimal](MAKE_DECIMAL),
     Sig[PromotePrecision](PROMOTE_PRECISION),
+    Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID),
+    Sig[SparkPartitionID](SPARK_PARTITION_ID),
     // Decimal
     Sig[UnscaledValue](UNSCALED_VALUE)
   ) ++ SparkShimLoader.getSparkShims.expressionMappings
@@ -246,6 +255,7 @@ object ExpressionMappings {
     Sig[Sum](SUM),
     Sig[Average](AVG),
     Sig[Count](COUNT),
+    Sig[CountDistinct](COUNT_DISTINCT),
     Sig[Min](MIN),
     Sig[Max](MAX),
     Sig[MaxBy](MAX_BY),
@@ -263,7 +273,8 @@ object ExpressionMappings {
     Sig[CovPopulation](COVAR_POP),
     Sig[CovSample](COVAR_SAMP),
     Sig[Last](LAST),
-    Sig[First](FIRST)
+    Sig[First](FIRST),
+    Sig[Skewness](SKEWNESS)
   )
 
   /** Mapping Spark window expression to Substrait function name */

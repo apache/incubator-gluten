@@ -51,19 +51,16 @@ void updateHdfsTokens(const facebook::velox::Config* veloxCfg) {
 
   Credential newCredential{newUserName.value(), newAllTokens.value()};
 
-  if (!activeCredential.has_value()) {
-    hdfsSetDefautUserName(newCredential.userName.c_str());
-    std::vector<folly::StringPiece> tokens;
-    folly::split('\0', newCredential.allTokens, tokens);
-    for (auto& token : tokens)
-      hdfsSetTokenForDefaultUser(token.data());
-    activeCredential.emplace(newCredential);
+  if (activeCredential.has_value() && activeCredential.value() == newCredential) {
+    // Do nothing if the credential is the same with before.
     return;
   }
 
-  // active credential already set
-  GLUTEN_CHECK(
-      activeCredential.value() == newCredential,
-      "Gluten currently doesn't allow resetting HDFS activeCredential in session");
+  hdfsSetDefautUserName(newCredential.userName.c_str());
+  std::vector<folly::StringPiece> tokens;
+  folly::split('\0', newCredential.allTokens, tokens);
+  for (auto& token : tokens)
+    hdfsSetTokenForDefaultUser(token.data());
+  activeCredential.emplace(newCredential);
 }
 } // namespace gluten

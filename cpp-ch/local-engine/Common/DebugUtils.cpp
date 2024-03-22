@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include "DebugUtils.h"
+#include <iostream>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnString.h>
 #include <DataTypes/DataTypeDate.h>

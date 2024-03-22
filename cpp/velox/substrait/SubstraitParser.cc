@@ -83,6 +83,8 @@ TypePtr SubstraitParser::parseType(const ::substrait::Type& substraitType, bool 
       auto scale = substraitType.decimal().scale();
       return DECIMAL(precision, scale);
     }
+    case ::substrait::Type::KindCase::kNothing:
+      return UNKNOWN();
     default:
       VELOX_NYI("Parsing for Substrait type not supported: {}", substraitType.DebugString());
   }
@@ -102,31 +104,41 @@ std::vector<TypePtr> SubstraitParser::parseNamedStruct(const ::substrait::NamedS
   return typeList;
 }
 
-std::vector<bool> SubstraitParser::parsePartitionColumns(const ::substrait::NamedStruct& namedStruct) {
+void SubstraitParser::parsePartitionAndMetadataColumns(
+    const ::substrait::NamedStruct& namedStruct,
+    std::vector<bool>& isPartitionColumns,
+    std::vector<bool>& isMetadataColumns) {
   const auto& columnsTypes = namedStruct.column_types();
-  std::vector<bool> isPartitionColumns;
   if (columnsTypes.size() == 0) {
-    // Regard all columns as non-partitioned columns.
+    // Regard all columns as regular columns.
     isPartitionColumns.resize(namedStruct.names().size(), false);
-    return isPartitionColumns;
+    isMetadataColumns.resize(namedStruct.names().size(), false);
+    return;
   } else {
     VELOX_CHECK_EQ(columnsTypes.size(), namedStruct.names().size(), "Wrong size for column types and column names.");
   }
 
   isPartitionColumns.reserve(columnsTypes.size());
+  isMetadataColumns.reserve(columnsTypes.size());
   for (const auto& columnType : columnsTypes) {
     switch (columnType) {
       case ::substrait::NamedStruct::NORMAL_COL:
         isPartitionColumns.emplace_back(false);
+        isMetadataColumns.emplace_back(false);
         break;
       case ::substrait::NamedStruct::PARTITION_COL:
         isPartitionColumns.emplace_back(true);
+        isMetadataColumns.emplace_back(false);
+        break;
+      case ::substrait::NamedStruct::METADATA_COL:
+        isPartitionColumns.emplace_back(false);
+        isMetadataColumns.emplace_back(true);
         break;
       default:
         VELOX_FAIL("Unspecified column type.");
     }
   }
-  return isPartitionColumns;
+  return;
 }
 
 int32_t SubstraitParser::parseReferenceSegment(const ::substrait::Expression::ReferenceSegment& refSegment) {
@@ -149,8 +161,8 @@ std::vector<std::string> SubstraitParser::makeNames(const std::string& prefix, i
   return names;
 }
 
-std::string SubstraitParser::makeNodeName(int node_id, int col_idx) {
-  return fmt::format("n{}_{}", node_id, col_idx);
+std::string SubstraitParser::makeNodeName(int nodeId, int colIdx) {
+  return fmt::format("n{}_{}", nodeId, colIdx);
 }
 
 int SubstraitParser::getIdxFromNodeName(const std::string& nodeName) {
@@ -283,6 +295,16 @@ T SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& /* li
 }
 
 template <>
+std::shared_ptr<void> gluten::SubstraitParser::getLiteralValue(const substrait::Expression_Literal& literal) {
+  return nullptr;
+}
+
+template <>
+facebook::velox::UnknownValue gluten::SubstraitParser::getLiteralValue(const substrait::Expression_Literal& literal) {
+  return UnknownValue();
+}
+
+template <>
 int8_t SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& literal) {
   return static_cast<int8_t>(literal.i8());
 }
@@ -368,14 +390,12 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"starts_with", "startswith"},
     {"named_struct", "row_constructor"},
     {"bit_or", "bitwise_or_agg"},
-    {"bit_or_partial", "bitwise_or_agg_partial"},
-    {"bit_or_merge", "bitwise_or_agg_merge"},
     {"bit_and", "bitwise_and_agg"},
-    {"bit_and_partial", "bitwise_and_agg_partial"},
-    {"bit_and_merge", "bitwise_and_agg_merge"},
     {"murmur3hash", "hash_with_seed"},
     {"modulus", "remainder"},
-    {"date_format", "format_datetime"}};
+    {"date_format", "format_datetime"},
+    {"collect_set", "set_agg"},
+    {"collect_list", "array_agg"}};
 
 const std::unordered_map<std::string, std::string> SubstraitParser::typeMap_ = {
     {"bool", "BOOLEAN"},

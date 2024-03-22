@@ -21,6 +21,7 @@ import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
+import org.apache.spark.sql.execution.joins.BuildSideRelation
 
 import io.substrait.proto.JoinRel
 
@@ -152,7 +153,7 @@ case class ShuffledHashJoinExecTransformer(
     copy(left = newLeft, right = newRight)
 }
 
-case class GlutenBroadcastHashJoinExecTransformer(
+case class BroadcastHashJoinExecTransformer(
     leftKeys: Seq[Expression],
     rightKeys: Seq[Expression],
     joinType: JoinType,
@@ -161,7 +162,7 @@ case class GlutenBroadcastHashJoinExecTransformer(
     left: SparkPlan,
     right: SparkPlan,
     isNullAwareAntiJoin: Boolean)
-  extends BroadcastHashJoinExecTransformer(
+  extends BroadcastHashJoinExecTransformerBase(
     leftKeys,
     rightKeys,
     joinType,
@@ -192,6 +193,11 @@ case class GlutenBroadcastHashJoinExecTransformer(
 
   override protected def withNewChildrenInternal(
       newLeft: SparkPlan,
-      newRight: SparkPlan): GlutenBroadcastHashJoinExecTransformer =
+      newRight: SparkPlan): BroadcastHashJoinExecTransformer =
     copy(left = newLeft, right = newRight)
+
+  override protected def createBroadcastBuildSideRDD(): BroadcastBuildSideRDD = {
+    val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
+    VeloxBroadcastBuildSideRDD(sparkContext, broadcast)
+  }
 }

@@ -696,6 +696,12 @@ int64_t VariableLengthDataWriter::writeArray(size_t row_idx, const DB::Array & a
                     writer.unsafeWrite(
                         reinterpret_cast<const char *>(&v), buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
                 }
+                else if (writer.getWhichDataType().isFloat64())
+                {
+                    // Fix 'Invalid Field get from type Float64 to type Int64' in debug build.
+                    auto v = elem.get<Float64>();
+                    writer.unsafeWrite(reinterpret_cast<const char *>(&v), buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
+                }
                 else
                     writer.unsafeWrite(
                         reinterpret_cast<const char *>(&elem.get<char>()),
@@ -806,6 +812,12 @@ int64_t VariableLengthDataWriter::writeStruct(size_t row_idx, const DB::Tuple & 
                 // We can not use get<char>() directly here to process Float32 field,
                 // because it will get 8 byte data, but Float32 is 4 byte, which will cause error conversion.
                 auto v = static_cast<Float32>(field_value.get<Float32>());
+                writer.unsafeWrite(reinterpret_cast<const char *>(&v), buffer_address + offset + start + len_null_bitmap + i * 8);
+            }
+            else if (writer.getWhichDataType().isFloat64())
+            {
+                // Fix 'Invalid Field get from type Float64 to type Int64' in debug build.
+                auto v = field_value.get<Float64>();
                 writer.unsafeWrite(reinterpret_cast<const char *>(&v), buffer_address + offset + start + len_null_bitmap + i * 8);
             }
             else

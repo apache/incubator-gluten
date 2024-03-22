@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.catalyst.expressions
 
-import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
+import org.apache.spark.sql.GlutenTestsTrait
 import org.apache.spark.sql.types.IntegerType
 
 class GlutenPredicateSuite extends PredicateSuite with GlutenTestsTrait {
@@ -25,7 +25,7 @@ class GlutenPredicateSuite extends PredicateSuite with GlutenTestsTrait {
   private val rightValues = Seq(null, 2, null, 3, 6).map(Literal(_))
   private val expected = Seq(false, false, true, true, false)
 
-  test(GlutenTestConstants.GLUTEN_TEST + "EqualNullSafe") {
+  testGluten("EqualNullSafe") {
     for (i <- leftValues.indices) {
       checkEvaluation(
         EqualNullSafe(Cast(leftValues(i), IntegerType), Cast(rightValues(i), IntegerType)),

@@ -19,6 +19,7 @@ package io.glutenproject.benchmarks
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.{VeloxWholeStageTransformerSuite, WholeStageTransformer}
 
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.internal.SQLConf
 
@@ -98,6 +99,7 @@ class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
       SQLConf.SHUFFLE_PARTITIONS.key -> "2",
       GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT.key -> "true"
     ) {
+      logWarning(s"Generating inputs for micro benchmark to $generatedPlanDir")
       val q4_lineitem = spark
         .sql(s"""
                 |select l_orderkey from lineitem where l_commitdate < l_receiptdate
@@ -128,27 +130,29 @@ class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
         spark.sql("""
                     |select * from q4_orders left semi join q4_lineitem on l_orderkey = o_orderkey
                     |""".stripMargin)
-
-      val executedPlan = df.queryExecution.executedPlan
-      executedPlan.execute()
-
-      val finalPlan =
-        executedPlan match {
-          case aqe: AdaptiveSparkPlanExec =>
-            aqe.executedPlan match {
-              case s: ShuffleQueryStageExec => s.shuffle.child
-              case other => other
-            }
-          case plan => plan
-        }
-      val lastStageTransformer = finalPlan.find(_.isInstanceOf[WholeStageTransformer])
-      assert(lastStageTransformer.nonEmpty)
-      val plan =
-        lastStageTransformer.get.asInstanceOf[WholeStageTransformer].substraitPlanJson.split('\n')
-
-      val exampleJsonFile = Paths.get(generatedPlanDir, "example.json")
-      Files.write(exampleJsonFile, plan.toList.asJava, StandardCharsets.UTF_8)
+      generateSubstraitJson(df, "example.json")
     }
     spark.sparkContext.setLogLevel(logLevel)
+  }
+
+  def generateSubstraitJson(df: DataFrame, file: String): Unit = {
+    val executedPlan = df.queryExecution.executedPlan
+    executedPlan.execute()
+    val finalPlan =
+      executedPlan match {
+        case aqe: AdaptiveSparkPlanExec =>
+          aqe.executedPlan match {
+            case s: ShuffleQueryStageExec => s.shuffle.child
+            case other => other
+          }
+        case plan => plan
+      }
+    val lastStageTransformer = finalPlan.find(_.isInstanceOf[WholeStageTransformer])
+    assert(lastStageTransformer.nonEmpty)
+    val plan =
+      lastStageTransformer.get.asInstanceOf[WholeStageTransformer].substraitPlanJson.split('\n')
+
+    val exampleJsonFile = Paths.get(generatedPlanDir, file)
+    Files.write(exampleJsonFile, plan.toList.asJava, StandardCharsets.UTF_8)
   }
 }

@@ -18,6 +18,7 @@
 #pragma once
 
 #include <google/protobuf/message.h>
+#include <optional>
 #include <string>
 
 namespace gluten {
@@ -26,6 +27,10 @@ bool parseProtobuf(const uint8_t* buf, int bufLen, google::protobuf::Message* ms
 
 std::string substraitFromJsonToPb(std::string_view typeName, std::string_view json);
 
-std::string substraitFromPbToJson(std::string_view typeName, const uint8_t* data, int32_t size);
+std::string substraitFromPbToJson(
+    std::string_view typeName,
+    const uint8_t* data,
+    int32_t size,
+    std::optional<std::string> dumpFile);
 
 } // namespace gluten

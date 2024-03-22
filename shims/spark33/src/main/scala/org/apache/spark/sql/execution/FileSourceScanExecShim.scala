@@ -19,8 +19,8 @@ package org.apache.spark.sql.execution
 import io.glutenproject.metrics.GlutenTimeMetric
 
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, PlanExpression, Predicate}
-import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, FileSourceMetadataAttribute, PlanExpression, Predicate}
+import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
@@ -30,17 +30,17 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
 
 import scala.collection.mutable
 
-class FileSourceScanExecShim(
-    @transient relation: HadoopFsRelation,
-    output: Seq[Attribute],
-    requiredSchema: StructType,
-    partitionFilters: Seq[Expression],
-    optionalBucketSet: Option[BitSet],
-    optionalNumCoalescedBuckets: Option[Int],
-    dataFilters: Seq[Expression],
-    tableIdentifier: Option[TableIdentifier],
-    disableBucketedScan: Boolean = false)
-  extends FileSourceScanExec(
+abstract class FileSourceScanExecShim(
+    @transient override val relation: HadoopFsRelation,
+    override val output: Seq[Attribute],
+    val requiredSchema: StructType,
+    val partitionFilters: Seq[Expression],
+    val optionalBucketSet: Option[BitSet],
+    val optionalNumCoalescedBuckets: Option[Int],
+    val dataFilters: Seq[Expression],
+    override val tableIdentifier: Option[TableIdentifier],
+    val disableBucketedScan: Boolean = false)
+  extends AbstractFileSourceScanExec(
     relation,
     output,
     requiredSchema,
@@ -54,17 +54,20 @@ class FileSourceScanExecShim(
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] = Map()
 
-  override def equals(other: Any): Boolean = other match {
-    case that: FileSourceScanExecShim =>
-      (that.canEqual(this)) && super.equals(that)
+  def dataFiltersInScan: Seq[Expression] = dataFilters.filterNot(_.references.exists {
+    case FileSourceMetadataAttribute(attr) if attr.name == "_metadata" => true
     case _ => false
+  })
+
+  def hasUnsupportedColumns: Boolean = {
+    // TODO, fallback if user define same name column due to we can't right now
+    // detect which column is metadata column which is user defined column.
+    val metadataColumnsNames = metadataColumns.map(_.name)
+    output
+      .filterNot(metadataColumns.toSet)
+      .exists(v => metadataColumnsNames.contains(v.name)) ||
+    output.exists(a => a.name == "$path" || a.name == "$bucket")
   }
-
-  override def hashCode(): Int = super.hashCode()
-
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[FileSourceScanExecShim]
-
-  def hasMetadataColumns: Boolean = metadataColumns.nonEmpty
 
   def isMetadataColumn(attr: Attribute): Boolean = metadataColumns.contains(attr)
 
@@ -73,6 +76,17 @@ class FileSourceScanExecShim(
   // The codes below are copied from FileSourceScanExec in Spark,
   // all of them are private.
   protected lazy val driverMetrics: mutable.HashMap[String, Long] = mutable.HashMap.empty
+
+  protected lazy val driverMetricsAlias = {
+    if (partitionFilters.exists(isDynamicPruningFilter)) {
+      Map(
+        "staticFilesNum" -> SQLMetrics.createMetric(sparkContext, "static number of files read"),
+        "staticFilesSize" -> SQLMetrics.createSizeMetric(sparkContext, "static size of files read")
+      )
+    } else {
+      Map.empty[String, SQLMetric]
+    }
+  }
 
   /**
    * Send the driver-side metrics. Before calling this function, selectedPartitions has been
@@ -115,7 +129,7 @@ class FileSourceScanExecShim(
   }.toArray
 
   private def isDynamicPruningFilter(e: Expression): Boolean =
-    e.find(_.isInstanceOf[PlanExpression[_]]).isDefined
+    e.exists(_.isInstanceOf[PlanExpression[_]])
 
   // We can only determine the actual partitions at runtime when a dynamic partition filter is
   // present. This is because such a filter relies on information that is only available at run

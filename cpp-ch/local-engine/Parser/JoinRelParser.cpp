@@ -313,8 +313,17 @@ void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left,
 void JoinRelParser::addPostFilter(DB::QueryPlan & query_plan, const substrait::JoinRel & join)
 {
     std::string filter_name;
-    auto actions_dag
-        = getPlanParser()->parseFunctionOrExpression(query_plan.getCurrentDataStream().header, join.post_join_filter(), filter_name, nullptr, true);
+    auto actions_dag = std::make_shared<ActionsDAG>(query_plan.getCurrentDataStream().header.getColumnsWithTypeAndName());
+    if (!join.post_join_filter().has_scalar_function())
+    {
+	// It may be singular_or_list
+        auto * in_node = getPlanParser()->parseExpression(actions_dag, join.post_join_filter());
+        filter_name = in_node->result_name;
+    }
+    else
+    {
+        getPlanParser()->parseFunction(query_plan.getCurrentDataStream().header, join.post_join_filter(), filter_name, actions_dag, true);
+    }
     auto filter_step = std::make_unique<FilterStep>(query_plan.getCurrentDataStream(), actions_dag, filter_name, true);
     filter_step->setStepDescription("Post Join Filter");
     steps.emplace_back(filter_step.get());
@@ -331,7 +340,7 @@ bool JoinRelParser::tryAddPushDownFilter(
 {
     try
     {
-        ASTParser astParser(context, function_mapping);
+        ASTParser astParser(context, function_mapping, getPlanParser());
         ASTs args;
 
         if (join.has_expression())

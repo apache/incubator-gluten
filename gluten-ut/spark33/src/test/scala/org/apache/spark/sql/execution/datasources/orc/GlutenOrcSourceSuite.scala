@@ -16,10 +16,10 @@
  */
 package org.apache.spark.sql.execution.datasources.orc
 
-import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, GlutenTestConstants, Row}
+import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, Row}
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DayTimeIntervalType, IntegerType, StructField, StructType, YearMonthIntervalType}
+import org.apache.spark.sql.types._
 
 import java.sql.Date
 import java.time.{Duration, Period}
@@ -32,9 +32,7 @@ class GlutenOrcSourceSuite extends OrcSourceSuite with GlutenSQLTestsBaseTrait {
     withSQLConf(SQLConf.ORC_VECTORIZED_READER_ENABLED.key -> "false")(code)
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-31238: compatibility with Spark 2.4 in reading dates") {
+  testGluten("SPARK-31238: compatibility with Spark 2.4 in reading dates") {
     Seq(false).foreach {
       vectorized =>
         withSQLConf(SQLConf.ORC_VECTORIZED_READER_ENABLED.key -> vectorized.toString) {
@@ -45,9 +43,7 @@ class GlutenOrcSourceSuite extends OrcSourceSuite with GlutenSQLTestsBaseTrait {
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-31238, SPARK-31423: rebasing dates in write") {
+  testGluten("SPARK-31238, SPARK-31423: rebasing dates in write") {
     withTempPath {
       dir =>
         val path = dir.getAbsolutePath
@@ -68,9 +64,7 @@ class GlutenOrcSourceSuite extends OrcSourceSuite with GlutenSQLTestsBaseTrait {
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-31284: compatibility with Spark 2.4 in reading timestamps") {
+  testGluten("SPARK-31284: compatibility with Spark 2.4 in reading timestamps") {
     Seq(false).foreach {
       vectorized =>
         withSQLConf(SQLConf.ORC_VECTORIZED_READER_ENABLED.key -> vectorized.toString) {
@@ -81,9 +75,7 @@ class GlutenOrcSourceSuite extends OrcSourceSuite with GlutenSQLTestsBaseTrait {
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-31284, SPARK-31423: rebasing timestamps in write") {
+  testGluten("SPARK-31284, SPARK-31423: rebasing timestamps in write") {
     withTempPath {
       dir =>
         val path = dir.getAbsolutePath
@@ -106,9 +98,7 @@ class GlutenOrcSourceSuite extends OrcSourceSuite with GlutenSQLTestsBaseTrait {
     }
   }
 
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-34862: Support ORC vectorized reader for nested column") {
+  testGluten("SPARK-34862: Support ORC vectorized reader for nested column") {
     withTempPath {
       dir =>
         val path = dir.getCanonicalPath
@@ -144,9 +134,8 @@ class GlutenOrcSourceSuite extends OrcSourceSuite with GlutenSQLTestsBaseTrait {
     Seq(false).foreach {
       vecReaderNestedColEnabled =>
         val vecReaderEnabled = SQLConf.get.orcVectorizedReaderEnabled
-        test(
-          GlutenTestConstants.GLUTEN_TEST +
-            "SPARK-36931: Support reading and writing ANSI intervals (" +
+        testGluten(
+          "SPARK-36931: Support reading and writing ANSI intervals (" +
             s"${SQLConf.ORC_VECTORIZED_READER_ENABLED.key}=$vecReaderEnabled, " +
             s"${SQLConf.ORC_VECTORIZED_READER_NESTED_COLUMN_ENABLED.key}" +
             s"=$vecReaderNestedColEnabled)") {

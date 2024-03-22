@@ -19,28 +19,38 @@ package io.glutenproject.sql.shims.spark33
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
 import io.glutenproject.expression.{ExpressionNames, Sig}
+import io.glutenproject.expression.ExpressionNames.TIMESTAMP_ADD
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
-import org.apache.spark.{SparkException, TaskContext, TaskContextUtils}
-import org.apache.spark.sql.SparkSession
+import org.apache.spark._
+import org.apache.spark.scheduler.TaskInfo
+import org.apache.spark.shuffle.ShuffleHandle
+import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.BloomFilterAggregate
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.catalyst.util.TimestampFormatter
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
-import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.FileFormatWriter.Empty2Null
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
+import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+import org.apache.spark.storage.{BlockId, BlockManagerId}
 
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileStatus, Path}
+
+import java.time.ZoneOffset
+import java.util.{HashMap => JHashMap, Map => JMap}
 
 class Spark33Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
@@ -61,7 +71,9 @@ class Spark33Shims extends SparkShims {
       Sig[SplitPart](ExpressionNames.SPLIT_PART),
       Sig[Sec](ExpressionNames.SEC),
       Sig[Csc](ExpressionNames.CSC),
-      Sig[Empty2Null](ExpressionNames.EMPTY2NULL))
+      Sig[Empty2Null](ExpressionNames.EMPTY2NULL),
+      Sig[TimestampAdd](TIMESTAMP_ADD)
+    )
   }
 
   override def convertPartitionTransforms(
@@ -146,6 +158,27 @@ class Spark33Shims extends SparkShims {
       case _ => None
     }
   }
+  override def generateMetadataColumns(
+      file: PartitionedFile,
+      metadataColumnNames: Seq[String]): JMap[String, String] = {
+    val metadataColumn = new JHashMap[String, String]()
+    val path = new Path(file.filePath.toString)
+    for (columnName <- metadataColumnNames) {
+      columnName match {
+        case FileFormat.FILE_PATH => metadataColumn.put(FileFormat.FILE_PATH, path.toString)
+        case FileFormat.FILE_NAME => metadataColumn.put(FileFormat.FILE_NAME, path.getName)
+        case FileFormat.FILE_SIZE =>
+          metadataColumn.put(FileFormat.FILE_SIZE, file.fileSize.toString)
+        case FileFormat.FILE_MODIFICATION_TIME =>
+          val fileModifyTime = TimestampFormatter
+            .getFractionFormatter(ZoneOffset.UTC)
+            .format(file.modificationTime * 1000L)
+          metadataColumn.put(FileFormat.FILE_MODIFICATION_TIME, fileModifyTime)
+        case _ =>
+      }
+    }
+    metadataColumn
+  }
 
   private def invalidBucketFile(path: String): Throwable = {
     new SparkException(
@@ -160,5 +193,83 @@ class Spark33Shims extends SparkShims {
 
   override def createTestTaskContext(): TaskContext = {
     TaskContextUtils.createTestTaskContext()
+  }
+
+  def setJobDescriptionOrTagForBroadcastExchange(
+      sc: SparkContext,
+      broadcastExchange: BroadcastExchangeLike): Unit = {
+    // Setup a job group here so later it may get cancelled by groupId if necessary.
+    sc.setJobGroup(
+      broadcastExchange.runId.toString,
+      s"broadcast exchange (runId ${broadcastExchange.runId})",
+      interruptOnCancel = true)
+  }
+
+  def cancelJobGroupForBroadcastExchange(
+      sc: SparkContext,
+      broadcastExchange: BroadcastExchangeLike): Unit = {
+    sc.cancelJobGroup(broadcastExchange.runId.toString)
+  }
+
+  override def getShuffleReaderParam[K, C](
+      handle: ShuffleHandle,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      startPartition: Int,
+      endPartition: Int)
+      : Tuple2[Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])], Boolean] = {
+    ShuffleUtils.getReaderParam(handle, startMapIndex, endMapIndex, startPartition, endPartition)
+  }
+
+  override def getPartitionId(taskInfo: TaskInfo): Int = {
+    taskInfo.partitionId
+  }
+
+  override def supportDuplicateReadingTracking: Boolean = true
+
+  def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] = partition.files
+
+  def splitFiles(
+      sparkSession: SparkSession,
+      file: FileStatus,
+      filePath: Path,
+      isSplitable: Boolean,
+      maxSplitBytes: Long,
+      partitionValues: InternalRow): Seq[PartitionedFile] = {
+    PartitionedFileUtil.splitFiles(
+      sparkSession,
+      file,
+      filePath,
+      isSplitable,
+      maxSplitBytes,
+      partitionValues)
+  }
+
+  def structFromAttributes(attrs: Seq[Attribute]): StructType = {
+    StructType(attrs.map(a => StructField(a.name, a.dataType, a.nullable, a.metadata)))
+  }
+
+  def attributesFromStruct(structType: StructType): Seq[Attribute] = {
+    structType.fields.map {
+      field => AttributeReference(field.name, field.dataType, field.nullable, field.metadata)()
+    }
+  }
+
+  def getAnalysisExceptionPlan(ae: AnalysisException): Option[LogicalPlan] = {
+    ae.plan
+  }
+
+  override def getKeyGroupedPartitioning(batchScan: BatchScanExec): Option[Seq[Expression]] = {
+    batchScan.keyGroupedPartitioning
+  }
+  override def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] =
+    null
+
+  override def extractExpressionTimestampAddUnit(exp: Expression): Option[Seq[String]] = {
+    exp match {
+      case timestampAdd: TimestampAdd =>
+        Option.apply(Seq(timestampAdd.unit, timestampAdd.timeZoneId.getOrElse("")))
+      case _ => Option.empty
+    }
   }
 }

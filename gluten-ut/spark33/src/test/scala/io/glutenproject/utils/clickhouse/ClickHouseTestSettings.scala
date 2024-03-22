@@ -86,7 +86,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   private val dfCoreDumpCases: Seq[String] = Seq(
     "repartitionByRange",
-    "Gluten - repartitionByRange"
+    GLUTEN_TEST + "repartitionByRange"
   )
 
   private val dsSlowCases: Seq[String] = Seq(
@@ -109,14 +109,14 @@ class ClickHouseTestSettings extends BackendTestSettings {
     "SPARK-32908: maximum target error in percentile_approx")
   enableSuite[GlutenBloomFilterAggregateQuerySuite]
     .exclude("Test bloom_filter_agg and might_contain")
-    .exclude("Test bloom_filter_agg with big RUNTIME_BLOOM_FILTER_MAX_NUM_ITEMS")
+    .excludeGlutenTest("Test bloom_filter_agg with big RUNTIME_BLOOM_FILTER_MAX_NUM_ITEMS")
   enableSuite[GlutenCTEHintSuite]
   enableSuite[GlutenCTEInlineSuiteAEOff]
   enableSuite[GlutenCTEInlineSuiteAEOn]
   enableSuite[GlutenCachedTableSuite]
     .exclude("SPARK-37369: Avoid redundant ColumnarToRow transition on InMemoryTableScan")
     .exclude("analyzes column statistics in cached query")
-    .exclude("GLUTEN - InMemoryRelation statistics")
+    .excludeGlutenTest("InMemoryRelation statistics")
   enableSuite[GlutenColumnExpressionSuite]
     .exclude("input_file_name, input_file_block_start, input_file_block_length - FileScanRDD")
     .exclude("withField should add field with no name")
@@ -155,7 +155,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("collect functions should be able to cast to array type with no null values")
     .exclude("SPARK-17616: distinct aggregate combined with a non-partial aggregate")
     .exclude("SPARK-19471: AggregationIterator does not initialize the generated result projection before using it")
-    .exclude(GLUTEN_TEST + "SPARK-19471: AggregationIterator does not initialize the generated" +
+    .excludeGlutenTest("SPARK-19471: AggregationIterator does not initialize the generated" +
       " result projection before using it")
     .exclude("SPARK-26021: NaN and -0.0 in grouping expressions")
     .exclude("SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate")
@@ -165,7 +165,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-34837: Support ANSI SQL intervals by the aggregate function `avg`")
     .exclude("SPARK-35412: groupBy of year-month/day-time intervals should work")
     .exclude("SPARK-36926: decimal average mistakenly overflow")
-    .exclude("Gluten - use gluten hash agg to replace vanilla spark sort agg")
+    .excludeGlutenTest("use gluten hash agg to replace vanilla spark sort agg")
   enableSuite[GlutenDataFrameAsOfJoinSuite]
   enableSuite[GlutenDataFrameComplexTypeSuite]
   enableSuite[GlutenDataFrameFunctionsSuite]
@@ -252,9 +252,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-22520: support code generation for large CaseWhen")
     .exclude("SPARK-24165: CaseWhen/If - nullability of nested types")
     .exclude("SPARK-27671: Fix analysis exception when casting null in nested field in struct")
-    .exclude("Gluten - distributeBy and localSort")
-    .exclude("Gluten - describe")
-    .exclude("Gluten - Allow leading/trailing whitespace in string before casting")
+    .excludeGlutenTest("distributeBy and localSort")
+    .excludeGlutenTest("describe")
+    .excludeGlutenTest("Allow leading/trailing whitespace in string before casting")
   enableSuite[GlutenDataFrameTimeWindowingSuite]
     .exclude("simple tumbling window with record at window start")
     .exclude("SPARK-21590: tumbling window using negative start time")
@@ -266,7 +266,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("time window joins")
     .exclude("negative timestamps")
     .exclude("millisecond precision sliding windows")
-  enableSuite[GlutenDataFrameTungstenSuite].exclude("Map type with struct type as key")
+  enableSuite[GlutenDataFrameTungstenSuite].excludeGlutenTest("Map type with struct type as key")
   enableSuite[GlutenDataFrameWindowFramesSuite]
     .exclude("rows between should accept int/long values as boundary")
     .exclude("range between should accept int/long values as boundary")
@@ -282,7 +282,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-21258: complex object in combination with spilling")
     .exclude(
       "SPARK-38237: require all cluster keys for child required distribution for window query")
-    .exclude("Gluten - corr, covar_pop, stddev_pop functions in specific window")
+    .excludeGlutenTest("corr, covar_pop, stddev_pop functions in specific window")
   enableSuite[GlutenDatasetAggregatorSuite]
   enableSuite[GlutenDatasetCacheSuite]
   enableSuite[GlutenDatasetOptimizationSuite]
@@ -308,27 +308,28 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("unix_timestamp")
     .exclude("to_unix_timestamp")
     .exclude("to_timestamp")
-    .exclude(GLUTEN_TEST + "to_timestamp")
+    .excludeGlutenTest("to_timestamp")
     .exclude("to_timestamp with microseconds precision")
     .exclude("SPARK-30668: use legacy timestamp parser in to_timestamp")
     .exclude("SPARK-30766: date_trunc of old timestamps to hours and days")
     .exclude("SPARK-30793: truncate timestamps before the epoch to seconds and minutes")
-    .exclude("Gluten - unix_timestamp")
-    .exclude("Gluten - to_unix_timestamp")
+    .excludeGlutenTest("unix_timestamp")
+    .excludeGlutenTest("to_unix_timestamp")
   enableSuite[GlutenDeprecatedAPISuite]
-  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].exclude(
-    "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
-  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn].exclude(
-    "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
-  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff].exclude(
-    "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
-  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn].exclude(
-    "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].excludeGlutenTest(
+    "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn].excludeGlutenTest(
+    "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff].excludeGlutenTest(
+    "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn].excludeGlutenTest(
+    "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
   enableSuite[GlutenExpressionsSchemaSuite]
   enableSuite[GlutenExtraStrategiesSuite]
   enableSuite[GlutenFileBasedDataSourceSuite]
     .exclude("SPARK-23072 Write and read back unicode column names - csv")
     .excludeByPrefix("Enabling/disabling ignoreMissingFiles using")
+    .excludeGlutenTestsByPrefix("Enabling/disabling ignoreMissingFiles using")
     .exclude("Spark native readers should respect spark.sql.caseSensitive - parquet")
     .exclude("Spark native readers should respect spark.sql.caseSensitive - orc")
     .exclude("SPARK-25237 compute correct input metrics in FileScanRDD")
@@ -338,9 +339,13 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Option recursiveFileLookup: disable partition inferring")
     .exclude("SPARK-31116: Select nested schema with case insensitive mode")
     .exclude("SPARK-35669: special char in CSV header with filter pushdown")
-    .exclude("gluten Spark native readers should respect spark.sql.caseSensitive - parquet")
-    .exclude("gluten SPARK-25237 compute correct input metrics in FileScanRDD")
-    .exclude("gluten Option recursiveFileLookup: disable partition inferring")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("File source v2: support passing data filters to FileScan without partitionFilters")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("File source v2: support partition pruning")
+    .excludeGlutenTest("Spark native readers should respect spark.sql.caseSensitive - parquet")
+    .excludeGlutenTest("SPARK-25237 compute correct input metrics in FileScanRDD")
+    .excludeGlutenTest("Option recursiveFileLookup: disable partition inferring")
   enableSuite[GlutenFileScanSuite]
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
     .exclude("char type values should be padded or trimmed: partitioned columns")
@@ -425,8 +430,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-38548: try_sum should return null if overflow happens before merging")
     .exclude("SPARK-38589: try_avg should return null if overflow happens before merging")
     .exclude("SPARK-39548: CreateView will make queries go into inline CTE code path thustrigger a mis-clarified `window definition not found` issue")
-    .exclude("Gluten - SPARK-33593: Vector reader got incorrect data with binary partition value")
-    .exclude("Gluten - SPARK-33677: LikeSimplification should be skipped if pattern contains any escapeChar")
+    .excludeGlutenTest("SPARK-33593: Vector reader got incorrect data with binary partition value")
+    .excludeGlutenTest(
+      "SPARK-33677: LikeSimplification should be skipped if pattern contains any escapeChar")
   enableSuite[GlutenSQLQueryTestSuite]
   enableSuite[GlutenScalaReflectionRelationSuite]
   enableSuite[GlutenSerializationSuite]
@@ -731,7 +737,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("WeekDay")
     .exclude("WeekOfYear")
     .exclude("DateFormat")
-    .exclude("Gluten - DateFormat")
+    .excludeGlutenTest("DateFormat")
     .exclude("Hour")
     .exclude("Minute")
     .exclude("date add interval")
@@ -745,7 +751,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("TruncTimestamp")
     .exclude("unsupported fmt fields for trunc/date_trunc results null")
     .exclude("from_unixtime")
-    .exclude(GLUTEN_TEST + "from_unixtime")
+    .excludeGlutenTest("from_unixtime")
     .exclude("unix_timestamp")
     .exclude("to_unix_timestamp")
     .exclude("to_utc_timestamp")
@@ -774,10 +780,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-37552: convert a timestamp_ntz to another time zone")
     .exclude("SPARK-38195: add a quantity of interval units to a timestamp")
     .exclude("SPARK-38284: difference between two timestamps in units")
-    .exclude("Gluten - TIMESTAMP_MICROS")
-    .exclude("Gluten - unix_timestamp")
-    .exclude("Gluten - to_unix_timestamp")
-    .exclude(GLUTEN_TEST + "Hour")
+    .excludeGlutenTest("TIMESTAMP_MICROS")
+    .excludeGlutenTest("unix_timestamp")
+    .excludeGlutenTest("to_unix_timestamp")
+    .excludeGlutenTest("Hour")
   enableSuite[GlutenDecimalExpressionSuite]
   enableSuite[GlutenHashExpressionsSuite]
     .exclude("sha2")
@@ -844,7 +850,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("atan2")
     .exclude("binary log")
     .exclude("round/bround/floor/ceil")
-    .exclude("Gluten - round/bround/floor/ceil")
+    .excludeGlutenTest("round/bround/floor/ceil")
     .exclude("SPARK-36922: Support ANSI intervals for SIGN/SIGNUM")
     .exclude("SPARK-35926: Support YearMonthIntervalType in width-bucket function")
     .exclude("SPARK-35925: Support DayTimeIntervalType in width-bucket function")
@@ -893,7 +899,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("RegexExtract")
     .exclude("RegexExtractAll")
     .exclude("SPLIT")
-    .exclude(" SPARK -34814: LikeSimplification should handleNULL")
+    .exclude("SPARK - 34814: LikeSimplification should handleNULL")
   enableSuite[GlutenSortOrderExpressionsSuite].exclude("SortPrefix")
   enableSuite[GlutenStringExpressionsSuite]
     .exclude("concat")
@@ -983,7 +989,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("ANSI mode: cast string to date with parse error")
     .exclude("SPARK-26218: Fix the corner case of codegen when casting float to Integer")
     .exclude("SPARK-35720: cast invalid string input to timestamp without time zone")
-    .exclude("Gluten - SPARK-35698: cast timestamp without time zone to string")
+    .excludeGlutenTest("SPARK-35698: cast timestamp without time zone to string")
   enableSuite[GlutenDataSourceV2DataFrameSessionCatalogSuite]
   enableSuite[GlutenDataSourceV2SQLSessionCatalogSuite]
   enableSuite[GlutenDataSourceV2SQLSuite]
@@ -992,6 +998,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-33267: push down with condition 'in (..., null)' should not throw NPE")
   enableSuite[GlutenDeleteFromTableSuite]
   enableSuite[GlutenFileDataSourceV2FallBackSuite]
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("Fallback Parquet V2 to V1")
   enableSuite[GlutenKeyGroupedPartitioningSuite]
     .exclude("partitioned join: number of buckets mismatch should trigger shuffle")
     .exclude("partitioned join: only one side reports partitioning")
@@ -1027,22 +1035,24 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Do not reduce the number of shuffle partition for repartition")
     .exclude("Union two datasets with different pre-shuffle partition number")
     .exclude("SPARK-34790: enable IO encryption in AQE partition coalescing")
-    .exclude(
-      "Gluten - SPARK-24705 adaptive query execution works correctly when exchange reuse enabled")
-    .exclude("Gluten - SPARK-34790: enable IO encryption in AQE partition coalescing")
-    .exclude("Gluten - determining the number of reducers: aggregate operator(minNumPostShufflePartitions: 5)")
-    .exclude(
-      "Gluten - determining the number of reducers: join operator(minNumPostShufflePartitions: 5)")
-    .exclude(
-      "Gluten - determining the number of reducers: complex query 1(minNumPostShufflePartitions: 5)")
-    .exclude(
-      "Gluten - determining the number of reducers: complex query 2(minNumPostShufflePartitions: 5)")
-    .exclude("Gluten - determining the number of reducers: plan already partitioned(minNumPostShufflePartitions: 5)")
-    .exclude("Gluten - determining the number of reducers: aggregate operator")
-    .exclude("Gluten - determining the number of reducers: join operator")
-    .exclude("Gluten - determining the number of reducers: complex query 1")
-    .exclude("Gluten - determining the number of reducers: complex query 2")
-    .exclude("Gluten - determining the number of reducers: plan already partitioned")
+    .excludeGlutenTest(
+      "SPARK-24705 adaptive query execution works correctly when exchange reuse enabled")
+    .excludeGlutenTest("SPARK-34790: enable IO encryption in AQE partition coalescing")
+    .excludeGlutenTest(
+      "determining the number of reducers: aggregate operator(minNumPostShufflePartitions: 5)")
+    .excludeGlutenTest(
+      "determining the number of reducers: join operator(minNumPostShufflePartitions: 5)")
+    .excludeGlutenTest(
+      "determining the number of reducers: complex query 1(minNumPostShufflePartitions: 5)")
+    .excludeGlutenTest(
+      "determining the number of reducers: complex query 2(minNumPostShufflePartitions: 5)")
+    .excludeGlutenTest(
+      "determining the number of reducers: plan already partitioned(minNumPostShufflePartitions: 5)")
+    .excludeGlutenTest("determining the number of reducers: aggregate operator")
+    .excludeGlutenTest("determining the number of reducers: join operator")
+    .excludeGlutenTest("determining the number of reducers: complex query 1")
+    .excludeGlutenTest("determining the number of reducers: complex query 2")
+    .excludeGlutenTest("determining the number of reducers: plan already partitioned")
   enableSuite[GlutenExchangeSuite]
     .exclude("shuffling UnsafeRows in exchange")
     .exclude("SPARK-23207: Make repartition() generate consistent output")
@@ -1052,8 +1062,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("replace partial and final hash aggregate together with sort aggregate")
     .exclude("do not replace hash aggregate if child does not have sort order")
     .exclude("do not replace hash aggregate if there is no group-by column")
-    .exclude("Gluten - replace partial hash aggregate with sort aggregate")
+    .excludeGlutenTest("replace partial hash aggregate with sort aggregate")
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
+  enableSuite[GlutenSQLAggregateFunctionSuite]
   enableSuite[GlutenSQLWindowFunctionSuite]
     .exclude("window function: partition and order expressions")
     .exclude("window function: expressions in arguments of a window functions")
@@ -1216,18 +1227,20 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-37742: AQE reads invalid InMemoryRelation stats and mistakenly plans BHJ")
     .exclude("SPARK-37328: skew join with 3 tables")
     .exclude("SPARK-39915: Dataset.repartition(N) may not create N partitions")
-    .exclude("gluten Change broadcast join to merge join")
-    .exclude("gluten Empty stage coalesced to 1-partition RDD")
-    .exclude("gluten Avoid changing merge join to broadcast join if too many empty partitions on build plan")
-    .exclude("gluten SPARK-30524: Do not optimize skew join if introduce additional shuffle")
-    .exclude("gluten SPARK-33551: Do not use AQE shuffle read for repartition")
-    .exclude("gluten SPARK-35264: Support AQE side broadcastJoin threshold")
-    .exclude("gluten SPARK-35264: Support AQE side shuffled hash join formula")
-    .exclude("gluten SPARK-35725: Support optimize skewed partitions in RebalancePartitions")
-    .exclude(
-      "gluten SPARK-35968: AQE coalescing should not produce too small partitions by default")
-    .exclude(
-      "gluten SPARK-37742: AQE reads invalid InMemoryRelation stats and mistakenly plans BHJ")
+    .excludeGlutenTest("Change broadcast join to merge join")
+    .excludeGlutenTest("Change broadcast join to merge join")
+    .excludeGlutenTest("Empty stage coalesced to 1-partition RDD")
+    .excludeGlutenTest(
+      "Avoid changing merge join to broadcast join if too many empty partitions on build plan")
+    .excludeGlutenTest("SPARK-30524: Do not optimize skew join if introduce additional shuffle")
+    .excludeGlutenTest("SPARK-33551: Do not use AQE shuffle read for repartition")
+    .excludeGlutenTest("SPARK-35264: Support AQE side broadcastJoin threshold")
+    .excludeGlutenTest("SPARK-35264: Support AQE side shuffled hash join formula")
+    .excludeGlutenTest("SPARK-35725: Support optimize skewed partitions in RebalancePartitions")
+    .excludeGlutenTest(
+      "SPARK-35968: AQE coalescing should not produce too small partitions by default")
+    .excludeGlutenTest(
+      "SPARK-37742: AQE reads invalid InMemoryRelation stats and mistakenly plans BHJ")
   enableSuite[GlutenBucketingUtilsSuite]
   enableSuite[GlutenCSVReadSchemaSuite]
   enableSuite[GlutenDataSourceStrategySuite]
@@ -1315,6 +1328,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-27160 Predicate pushdown correctness on DecimalType for ORC")
     .exclude("SPARK-20728 Make ORCFileFormat configurable between sql/hive and sql/core")
     .exclude("SPARK-36594: ORC vectorized reader should properly check maximal number of fields")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude(
+      "SPARK-37728: Reading nested columns with ORC vectorized reader should not cause ArrayIndexOutOfBoundsException")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
   enableSuite[GlutenOrcSourceSuite]
     .exclude("SPARK-24322 Fix incorrect workaround for bug in java.sql.Timestamp")
     .exclude("SPARK-31238: compatibility with Spark 2.4 in reading dates")
@@ -1323,11 +1341,13 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-31284, SPARK-31423: rebasing timestamps in write")
     .exclude("SPARK-36663: OrcUtils.toCatalystSchema should correctly handle a column name which consists of only numbers")
     .exclude("SPARK-37812: Reuse result row when deserializing a struct")
-    .exclude("Gluten - SPARK-31238: compatibility with Spark 2.4 in reading dates")
-    .exclude("Gluten - SPARK-31238, SPARK-31423: rebasing dates in write")
-    .exclude("Gluten - SPARK-31284: compatibility with Spark 2.4 in reading timestamps")
-    .exclude("Gluten - SPARK-31284, SPARK-31423: rebasing timestamps in write")
-    .exclude("Gluten - SPARK-34862: Support ORC vectorized reader for nested column")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
+    .excludeGlutenTest("SPARK-31238: compatibility with Spark 2.4 in reading dates")
+    .excludeGlutenTest("SPARK-31238, SPARK-31423: rebasing dates in write")
+    .excludeGlutenTest("SPARK-31284: compatibility with Spark 2.4 in reading timestamps")
+    .excludeGlutenTest("SPARK-31284, SPARK-31423: rebasing timestamps in write")
+    .excludeGlutenTest("SPARK-34862: Support ORC vectorized reader for nested column")
   enableSuite[GlutenOrcV1FilterSuite].exclude("SPARK-32622: case sensitivity in predicate pushdown")
   enableSuite[GlutenOrcV1PartitionDiscoverySuite]
   enableSuite[GlutenOrcV1QuerySuite]
@@ -1335,6 +1355,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-27160 Predicate pushdown correctness on DecimalType for ORC")
     .exclude("SPARK-20728 Make ORCFileFormat configurable between sql/hive and sql/core")
     .exclude("SPARK-36594: ORC vectorized reader should properly check maximal number of fields")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude(
+      "SPARK-37728: Reading nested columns with ORC vectorized reader should not cause ArrayIndexOutOfBoundsException")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
   enableSuite[GlutenOrcV1SchemaPruningSuite]
     .exclude(
       "Spark vectorized reader - without partition data column - select only top-level fields")
@@ -1521,6 +1546,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-27160 Predicate pushdown correctness on DecimalType for ORC")
     .exclude("SPARK-20728 Make ORCFileFormat configurable between sql/hive and sql/core")
     .exclude("SPARK-36594: ORC vectorized reader should properly check maximal number of fields")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude(
+      "SPARK-37728: Reading nested columns with ORC vectorized reader should not cause ArrayIndexOutOfBoundsException")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
   enableSuite[GlutenOrcV2SchemaPruningSuite]
     .exclude("Spark vectorized reader - without partition data column - select a single complex field from a map entry and its parent map entry")
     .exclude("Spark vectorized reader - with partition data column - select a single complex field from a map entry and its parent map entry")
@@ -1582,7 +1612,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-31159, SPARK-37705: rebasing timestamps in write")
     .exclude("SPARK-31159: rebasing dates in write")
     .exclude("SPARK-35427: datetime rebasing in the EXCEPTION mode")
-    .exclude("gluten SPARK-31159: rebasing dates in write")
+    .excludeGlutenTest("SPARK-31159: rebasing dates in write")
   enableSuite[GlutenParquetRebaseDatetimeV2Suite]
     .exclude(
       "SPARK-31159, SPARK-37705: compatibility with Spark 2.4/3.2 in reading dates/timestamps")
@@ -1608,7 +1638,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Support Parquet column index")
     .exclude("SPARK-34562: Bloom filter push down")
     .exclude("SPARK-38825: in and notIn filters")
-    .exclude("Gluten - SPARK-25207: exception when duplicate fields in case-insensitive mode")
+    .excludeGlutenTest("SPARK-25207: exception when duplicate fields in case-insensitive mode")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     .exclude("SPARK-7847: Dynamic partition directory path escaping and unescaping")
     .exclude("Various partition value types")
@@ -1814,8 +1844,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Support Parquet column index")
     .exclude("SPARK-34562: Bloom filter push down")
     .exclude("SPARK-38825: in and notIn filters")
-    .exclude("Gluten - SPARK-25207: exception when duplicate fields in case-insensitive mode")
-    .exclude("Gluten - filter pushdown - date")
+    .excludeGlutenTest("SPARK-25207: exception when duplicate fields in case-insensitive mode")
+    .excludeGlutenTest("filter pushdown - date")
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]
     .exclude("SPARK-7847: Dynamic partition directory path escaping and unescaping")
     .exclude("Various partition value types")
@@ -2018,6 +2048,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-32767 Bucket join should work if SHUFFLE_PARTITIONS larger than bucket number")
     .exclude("bucket coalescing eliminates shuffle")
     .exclude("bucket coalescing is not satisfied")
+    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    .exclude("disable bucketing when the output doesn't contain all bucketing columns")
     .exclude(
       "bucket coalescing is applied when join expressions match with partitioning expressions")
   enableSuite[GlutenBucketedWriteWithoutHiveSupportSuite]
@@ -2026,6 +2058,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("create a table, drop it and create another one with the same name")
   enableSuite[GlutenDDLSourceLoadSuite]
   enableSuite[GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuite]
+    .disable(
+      "DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type")
   enableSuite[GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuiteAE]
   enableSuite[GlutenExternalCommandRunnerSuite]
   enableSuite[GlutenFilteredScanSuite]
@@ -2047,9 +2081,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SELECT structFieldComplex.Value.`value_(2)` FROM tableWithSchema")
   enableSuite[SparkFunctionStatistics]
   enableSuite[GlutenImplicitsTest]
-    .exclude("fallbackSummary with shuffle")
-    .exclude("fallbackSummary with cache")
-    .exclude("fallbackSummary with cached data and shuffle")
+    .excludeGlutenTest("fallbackSummary with shuffle")
+    .excludeGlutenTest("fallbackSummary with cache")
+    .excludeGlutenTest("fallbackSummary with cached data and shuffle")
   enableSuite[GlutenSparkSessionExtensionSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = ClickHouseSQLQueryTestSettings

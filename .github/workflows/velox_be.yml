@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Velox backend
+name: Velox backend 
 
 on:
   pull_request:
@@ -25,6 +25,7 @@ on:
       - 'gluten-core/**'
       - 'gluten-data/**'
       - 'gluten-delta/**'
+      - 'gluten-iceberg/**'
       - 'gluten-ut/**'
       - 'shims/**'
       - 'tools/gluten-it/**'
@@ -35,7 +36,6 @@ on:
       - 'cpp/velox/**'
       - 'cpp/core/**'
       - 'dev/**'
-      - 'substrait/substrait-spark/**'
 
 env:
   HTTP_PROXY_HOST: proxy-shz.intel.com
@@ -63,13 +63,13 @@ jobs:
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --run_setup_script=OFF --velox_home=/opt/velox --enable_ep_cache=ON --build_test_utils=ON'
+          ./get_velox.sh && \
+          ./build_velox.sh --run_setup_script=ON --enable_ep_cache=OFF --build_test_utils=ON'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --build_tests=ON --build_examples=ON --build_benchmarks=ON'
+          ./compile.sh --build_velox_backend=ON --build_tests=ON --build_examples=ON --build_benchmarks=ON'
       - name: Run CPP unit test
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten/cpp/build && \
@@ -90,7 +90,21 @@ jobs:
       - name: Run micro benchmarks
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten/cpp/build/velox/benchmarks && \
-          ./generic_benchmark --with-shuffle --threads 1 --iterations 1'
+          ./generic_benchmark --run-example --with-shuffle --threads 1 --iterations 1'
+      - name: Copy golden files from container to host
+        if: failure()
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/cp.sh /tmp/tpch-approved-plan/ /tmp/$GITHUB_RUN_ID/spark32/tpch-approved-plan
+      - name: Upload golden files
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-files-spark32
+          path: |
+            /tmp/${{ github.run_id }}/spark32/tpch-approved-plan/**
+      - name: Clean temp golden files
+        run: |
+          rm -rf /tmp/$GITHUB_RUN_ID/spark32
       - name: Exit docker container
         if: ${{ always() }}
         run: |
@@ -110,13 +124,13 @@ jobs:
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --run_setup_script=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
+          ./get_velox.sh && \
+          ./build_velox.sh --run_setup_script=ON --enable_ep_cache=OFF'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox'
+          ./compile.sh --build_velox_backend=ON'
       - name: Build and run unit test for Spark 3.2.2 (slow tests)
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -149,13 +163,13 @@ jobs:
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --run_setup_script=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
+          ./get_velox.sh && \
+          ./build_velox.sh --run_setup_script=ON --enable_ep_cache=OFF'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox'
+          ./compile.sh --build_velox_backend=ON'
       - name: Build and Run unit test for Spark 3.3.1 (slow tests)
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten && \
@@ -197,18 +211,32 @@ jobs:
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --run_setup_script=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
+          ./get_velox.sh && \
+          ./build_velox.sh --run_setup_script=ON --enable_ep_cache=OFF'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --build_examples=ON'
+          ./compile.sh --build_velox_backend=ON --build_examples=ON'
       - name: Build and Run unit test for Spark 3.3.1 (other tests)
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten && \
           mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark331" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
           mvn test -Pspark-3.3 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest'
+      - name: Copy golden files from container to host
+        if: failure()
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/cp.sh /tmp/tpch-approved-plan/ /tmp/$GITHUB_RUN_ID/spark33/tpch-approved-plan
+      - name: Upload golden files
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-files-spark33
+          path: |
+            /tmp/${{ github.run_id }}/spark33/tpch-approved-plan/**
+      - name: Clean temp golden files
+        run: |
+          rm -rf /tmp/$GITHUB_RUN_ID/spark33
       - name: Exit docker container
         if: ${{ always() }}
         run: |
@@ -228,13 +256,13 @@ jobs:
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --run_setup_script=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
+          ./get_velox.sh && \
+          ./build_velox.sh --run_setup_script=ON --enable_ep_cache=OFF'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox '
+          ./compile.sh --build_velox_backend=ON '
       - name: Build and Run unit test for Spark 3.4.2 (slow tests)
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten && \
@@ -266,18 +294,71 @@ jobs:
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --run_setup_script=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
+          ./get_velox.sh && \
+          ./build_velox.sh --run_setup_script=ON --enable_ep_cache=OFF'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --build_examples=ON'
+          ./compile.sh --build_velox_backend=ON --build_examples=ON'
       - name: Build and Run unit test for Spark 3.4.2 (other tests)
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten && \
           mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark342" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
           mvn test -Pspark-3.4 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest'
+      - name: Copy golden files from container to host
+        if: failure()
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/cp.sh /tmp/tpch-approved-plan/ /tmp/$GITHUB_RUN_ID/spark34/tpch-approved-plan
+      - name: Upload golden files
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-files-spark34
+          path: |
+            /tmp/${{ github.run_id }}/spark34/tpch-approved-plan/**
+      - name: Clean temp golden files
+        run: |
+          rm -rf /tmp/$GITHUB_RUN_ID/spark34
+      - name: Exit docker container
+        if: ${{ always() }}
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/clean.sh
+  
+  ubuntu2004-test-spark35:
+    runs-on: velox-self-hosted
+    env:
+      OS_IMAGE_NAME: ubuntu
+      OS_IMAGE_TAG: 20.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup docker container
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
+      - name: Build Gluten velox third party
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
+          cd /opt/gluten/ep/build-velox/src && \
+          ./get_velox.sh && \
+          ./build_velox.sh --run_setup_script=ON --enable_ep_cache=OFF'
+      - name: Build Gluten CPP library
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
+          cd /opt/gluten/cpp && \
+          ./compile.sh --build_velox_backend=ON '
+      - name: Build for Spark 3.5
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
+          cd /opt/gluten && \
+          mvn clean install -Pspark-3.5 -Pbackends-velox -Prss -DskipTests'
+      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.5
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten/tools/gluten-it && \
+          mvn clean install -Pspark-3.5 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1'
       - name: Exit docker container
         if: ${{ always() }}
         run: |
@@ -297,13 +378,13 @@ jobs:
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON && \
-          ./build_velox.sh --run_setup_script=OFF --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
+          ./get_velox.sh --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON && \
+          ./build_velox.sh --run_setup_script=ON --enable_ep_cache=OFF --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
+          ./compile.sh --build_velox_backend=ON --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
       - name: Build for Spark 3.3.1
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -349,13 +430,13 @@ jobs:
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON && \
-          ./build_velox.sh --run_setup_script=OFF --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
+          ./get_velox.sh --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON && \
+          ./build_velox.sh --run_setup_script=ON --enable_ep_cache=OFF --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
+          ./compile.sh --build_velox_backend=ON --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
       - name: Build for Spark 3.2.2
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -369,11 +450,27 @@ jobs:
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx20G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=40g -s=10.0 --threads=32 --iterations=1'
-      - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.2 with Celeborn
+      - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.2 with Celeborn 0.4.0
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh \
-          'wget https://dlcdn.apache.org/incubator/celeborn/celeborn-0.3.0-incubating/apache-celeborn-0.3.0-incubating-bin.tgz && \
-          tar xzf apache-celeborn-0.3.0-incubating-bin.tgz && cd apache-celeborn-0.3.0-incubating-bin && \
+          'wget https://archive.apache.org/dist/incubator/celeborn/celeborn-0.4.0-incubating/apache-celeborn-0.4.0-incubating-bin.tgz && \
+          tar xzf apache-celeborn-0.4.0-incubating-bin.tgz -C /opt/ && mv /opt/apache-celeborn-0.4.0-incubating-bin /opt/celeborn && cd /opt/celeborn && \
+          mv ./conf/celeborn-env.sh.template ./conf/celeborn-env.sh && \
+          echo -e "CELEBORN_MASTER_MEMORY=4g\nCELEBORN_WORKER_MEMORY=4g\nCELEBORN_WORKER_OFFHEAP_MEMORY=8g" > ./conf/celeborn-env.sh && \
+          echo -e "celeborn.worker.commitFiles.threads 128\nceleborn.worker.sortPartition.threads 64" > ./conf/celeborn-defaults.conf \
+          && bash ./sbin/start-master.sh && bash ./sbin/start-worker.sh && \
+          cd /opt/gluten/tools/gluten-it && mvn clean install -Pspark-3.2,rss,celeborn-0.4 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox-with-celeborn --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox-with-celeborn --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 && \
+          bash /opt/celeborn/sbin/stop-worker.sh \
+          && bash /opt/celeborn/sbin/stop-master.sh && rm -rf /opt/celeborn'
+      - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.2 with Celeborn 0.3.2
+        run: |
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh \
+          'wget https://archive.apache.org/dist/incubator/celeborn/celeborn-0.3.2-incubating/apache-celeborn-0.3.2-incubating-bin.tgz && \
+          tar xzf apache-celeborn-0.3.2-incubating-bin.tgz -C /opt/ && mv /opt/apache-celeborn-0.3.2-incubating-bin /opt/celeborn && cd /opt/celeborn && \
           mv ./conf/celeborn-env.sh.template ./conf/celeborn-env.sh && \
           echo -e "CELEBORN_MASTER_MEMORY=4g\nCELEBORN_WORKER_MEMORY=4g\nCELEBORN_WORKER_OFFHEAP_MEMORY=8g" > ./conf/celeborn-env.sh && \
           echo -e "celeborn.worker.commitFiles.threads 128\nceleborn.worker.sortPartition.threads 64" > ./conf/celeborn-defaults.conf \
@@ -383,8 +480,8 @@ jobs:
             --local --preset=velox-with-celeborn --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-celeborn --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 && \
-          bash /opt/apache-celeborn-0.3.0-incubating-bin/sbin/stop-worker.sh \
-          && bash /opt/apache-celeborn-0.3.0-incubating-bin/sbin/stop-master.sh'
+          bash /opt/celeborn/sbin/stop-worker.sh \
+          && bash /opt/celeborn/sbin/stop-master.sh'
       - name: Exit docker container
         if: ${{ always() }}
         run: |
@@ -406,14 +503,14 @@ jobs:
           source /env.sh && \
           sudo yum -y install patch && \
           cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON && \
-          ./build_velox.sh --run_setup_script=OFF --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
+          ./get_velox.sh --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON && \
+          ./build_velox.sh --run_setup_script=ON --enable_ep_cache=OFF --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           source /env.sh && \
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
+          ./compile.sh --build_velox_backend=ON --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
       - name: Build for Spark 3.2.2
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -456,14 +553,14 @@ jobs:
           yum -y install epel-release centos-release-scl patch sudo && \
           cd /opt/gluten/ep/build-velox/src && \
           source /opt/rh/devtoolset-9/enable && \
-          ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON && \
-          ./build_velox.sh --run_setup_script=ON --velox_home=/opt/velox --enable_ep_cache=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON --enable_hdfs=ON'
+          ./get_velox.sh --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON && \
+          ./build_velox.sh --run_setup_script=ON --enable_ep_cache=OFF --enable_s3=ON --enable_gcs=ON --enable_abfs=ON --enable_hdfs=ON'
       - name: Build Gluten CPP library
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           cd /opt/gluten/cpp && \
           source /opt/rh/devtoolset-9/enable && \
-          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
+          ./compile.sh --build_velox_backend=ON --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON'
       - name: Build for Spark 3.2.2
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
@@ -546,7 +643,8 @@ jobs:
           cd /opt/gluten && \
           sudo -E ./dev/vcpkg/setup-build-depends.sh && \
           source ./dev/vcpkg/env.sh && \
-          ./dev/builddeps-veloxbe.sh --enable_vcpkg=ON --build_tests=OFF  --build_benchmarks=OFF --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON --enable_abfs=ON'
+          ./dev/builddeps-veloxbe.sh --enable_vcpkg=ON --build_tests=OFF  --build_benchmarks=OFF --enable_s3=ON \
+          --enable_gcs=ON --enable_hdfs=ON --enable_abfs=ON --build_type=Debug'
       - name: Build for Spark 3.2.2
         run: |
           docker exec static-build-test-$GITHUB_RUN_ID bash -c '

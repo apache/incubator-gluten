@@ -20,7 +20,6 @@ import io.glutenproject.exception.GlutenException
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, Row}
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DateType, IntegerType, StructType, TimestampType}
 
@@ -55,7 +54,7 @@ class GlutenCSVv2Suite extends GlutenCSVSuite {
     "SPARK-39731: Correctly parse dates and timestamps with yyyyMMdd pattern"
   )
 
-  test(GLUTEN_TEST + "test for FAILFAST parsing mode") {
+  testGluten("test for FAILFAST parsing mode") {
     Seq(false, true).foreach {
       multiLine =>
         val exception = intercept[SparkException] {
@@ -75,7 +74,7 @@ class GlutenCSVv2Suite extends GlutenCSVSuite {
     }
   }
 
-  test(GLUTEN_TEST + "SPARK-39731: Correctly parse dates and timestamps with yyyyMMdd pattern") {
+  testGluten("SPARK-39731: Correctly parse dates and timestamps with yyyyMMdd pattern") {
     withTempPath {
       path =>
         Seq("1,2020011,2020011", "2,20201203,20201203")

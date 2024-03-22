@@ -134,7 +134,7 @@
         <dependency>
           <groupId>com.h2database</groupId>
           <artifactId>h2</artifactId>
-          <version>2.1.214</version>
+          <version>2.2.220</version>
           <scope>test</scope>
         </dependency>
       </dependencies>
@@ -177,6 +177,9 @@
       <plugin>
         <groupId>org.scalatest</groupId>
         <artifactId>scalatest-maven-plugin</artifactId>
+        <configuration>
+          <junitxml>.</junitxml>
+        </configuration>
         <executions>
           <execution>
             <id>test</id>

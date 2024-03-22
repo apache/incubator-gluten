@@ -515,11 +515,8 @@ CompressedDiskBlockPayload::CompressedDiskBlockPayload(
     const std::vector<bool>* isValidityBuffer,
     arrow::io::InputStream*& inputStream,
     uint64_t rawSize,
-    arrow::MemoryPool* pool)
-    : Payload(Type::kCompressed, numRows, isValidityBuffer),
-      inputStream_(inputStream),
-      rawSize_(rawSize),
-      pool_(pool) {}
+    arrow::MemoryPool* /* pool */)
+    : Payload(Type::kCompressed, numRows, isValidityBuffer), inputStream_(inputStream), rawSize_(rawSize) {}
 
 arrow::Status CompressedDiskBlockPayload::serialize(arrow::io::OutputStream* outputStream) {
   ARROW_ASSIGN_OR_RAISE(auto block, inputStream_->Read(rawSize_));

@@ -20,7 +20,7 @@
   <packaging>pom</packaging>
 
   <name>Gluten Parent Pom</name>
-  <url>https://github.com/oap-project/gluten.git</url>
+  <url>https://github.com/apache/incubator-gluten.git</url>
 
   <licenses>
     <license>
@@ -34,13 +34,11 @@
     <module>gluten-ui</module>
     <module>package</module>
     <module>shims</module>
-    <module>substrait/substrait-spark</module>
   </modules>
 
   <properties>
     <caffeine.version.java8>2.9.3</caffeine.version.java8>
     <delta.version>2.0.1</delta.version>
-    <iceberg.version>1.3.1</iceberg.version>
     <delta.binary.version>20</delta.binary.version>
     <scala.binary.version>2.12</scala.binary.version>
     <scala.version>2.12.15</scala.version>
@@ -48,7 +46,7 @@
     <sparkbundle.version>3.2</sparkbundle.version>
     <spark.version>3.4.2</spark.version>
     <sparkshim.artifactId>spark-sql-columnar-shims-spark32</sparkshim.artifactId>
-    <celeborn.version>0.3.0-incubating</celeborn.version>
+    <celeborn.version>0.3.2-incubating</celeborn.version>
     <arrow.version>14.0.1</arrow.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
     <hadoop.version>2.7.4</hadoop.version>
@@ -68,7 +66,6 @@
     <!-- Package name to use when relocating shaded classes -->
     <gluten.shade.packageName>io.glutenproject.shaded</gluten.shade.packageName>
 
-    <substrait.version>0.24.0</substrait.version>
     <!-- The original protobuf version -->
     <protobuf.version>3.23.4</protobuf.version>
     <!-- The custom protobuf version (based on 3.23.4) with recursion limit enlarged. -->
@@ -115,7 +112,8 @@
       <properties>
         <sparkbundle.version>3.2</sparkbundle.version>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark32</sparkshim.artifactId>
-        <spark.version>3.2.2</spark.version>
+	<spark.version>3.2.2</spark.version>
+	<iceberg.version>1.3.1</iceberg.version>
         <delta.version>2.0.1</delta.version>
         <delta.binary.version>20</delta.binary.version>
       </properties>
@@ -125,8 +123,10 @@
       <properties>
         <sparkbundle.version>3.3</sparkbundle.version>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark33</sparkshim.artifactId>
-        <spark.version>3.3.1</spark.version>
-        <delta.version>2.2.0</delta.version>
+	<spark.version>3.3.1</spark.version>
+	<!-- keep using iceberg v1.3.1 for parquet compatibilty. -->
+	<iceberg.version>1.3.1</iceberg.version>
+	<delta.version>2.2.0</delta.version>
         <delta.binary.version>22</delta.binary.version>
       </properties>
     </profile>
@@ -135,7 +135,19 @@
       <properties>
         <sparkbundle.version>3.4</sparkbundle.version>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark34</sparkshim.artifactId>
-        <spark.version>3.4.2</spark.version>
+	<spark.version>3.4.2</spark.version>
+	<iceberg.version>1.4.3</iceberg.version>
+	<delta.version>2.4.0</delta.version>
+        <delta.binary.version>24</delta.binary.version>
+      </properties>
+    </profile>
+    <profile>
+      <id>spark-3.5</id>
+      <properties>
+        <sparkbundle.version>3.5</sparkbundle.version>
+        <sparkshim.artifactId>spark-sql-columnar-shims-spark35</sparkshim.artifactId>
+	<spark.version>3.5.1</spark.version>
+	<iceberg.version>1.4.3</iceberg.version>
         <delta.version>2.4.0</delta.version>
         <delta.binary.version>24</delta.binary.version>
       </properties>
@@ -341,21 +353,6 @@
         <artifactId>spark-yarn_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
         <scope>provided</scope>
-      </dependency>
-      <dependency>
-        <groupId>io.substrait</groupId>
-        <artifactId>core</artifactId>
-        <version>${substrait.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-jdk14</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
       <!-- test dependencies -->
       <dependency>
