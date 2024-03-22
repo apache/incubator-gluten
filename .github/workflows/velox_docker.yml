@@ -54,7 +54,7 @@ jobs:
           cd $GITHUB_WORKSPACE/ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/devtoolset-9/enable && \
-          source /opt/gluten/dev/vcpkg/env.sh && \
+          source $GITHUB_WORKSPACE//dev/vcpkg/env.sh && \
           cd $GITHUB_WORKSPACE/ && \
           sed -i '/^headers/d' ep/build-velox/build/velox_ep/CMakeLists.txt && \
           ./dev/builddeps-veloxbe.sh --build_tests=OFF  --build_benchmarks=OFF --enable_s3=ON \
@@ -65,12 +65,13 @@ jobs:
           path: ./cpp/build/releases/
           name: velox-native-lib-${{github.sha}}
 
-  run-spark-test-ubuntu:
+  run-tpc-test-ubuntu:
     needs: build-native-lib
     strategy:
       fail-fast: false
       matrix:
         os: ["ubuntu:20.04", "ubuntu:22.04"]
+        spark: ["spark3.2", "spark3.3", "spark3.4", "spark3.5"]
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
@@ -84,26 +85,27 @@ jobs:
         run: |
           apt-get update && \
           apt-get install -y openjdk-8-jdk maven
-      - name: Build for Spark 3.2.2
+      - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/ && \
-          mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests
-      - name: Build and run TPCH/DS 3.2.2
+          mvn clean install -P-P${{ matrix.spark }} -Pbackends-velox -DskipTests
+      - name: Build and run TPCH/DS ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/tools/gluten-it && \
-          mvn clean install -Pspark-3.2 \
+          mvn clean install -P-P${{ matrix.spark }} \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
 
 
-  run-spark-test-centos:
+  run-tpc-test-centos:
     needs: build-native-lib
     strategy:
       fail-fast: false
       matrix:
         os: ["centos:7", "centos:8"]
+        spark: ["spark3.2", "spark3.3", "spark3.4", "spark3.5"]
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
@@ -116,15 +118,134 @@ jobs:
       - name: setup java and maven
         run: |
           yum update && yum install -y java-1.8.0-openjdk-devel maven
-      - name: Build for Spark 3.2.2
+      - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/ && \
-          mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests
-      - name: Build and run TPCH/DS 3.2.2
+          mvn clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
+      - name: Build and run TPCH/DS ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/tools/gluten-it && \
-          mvn clean install -Pspark-3.2 \
+          mvn clean install -P-P${{ matrix.spark }} \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
+
+  run-spark-test-spark33:
+    needs: build-native-lib
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: setup java and maven
+        run: |
+          apt update && apt install -y openjdk-8-jdk maven
+      - name: Prepare spark.test.home for Spark 3.3.1 (other tests)
+        run: |
+          cd $GITHUB_WORKSPACE/ && \
+          wget https://archive.apache.org/dist/spark/spark-3.3.1/spark-3.3.1-bin-hadoop3.tgz && \
+          tar --strip-components=1 -xf spark-3.3.1-bin-hadoop3.tgz spark-3.3.1-bin-hadoop3/jars/ && \
+          rm -rf spark-3.3.1-bin-hadoop3.tgz && \
+          mkdir -p $GITHUB_WORKSPACE//shims/spark33/spark_home/assembly/target/scala-2.12 && \
+          mv jars $GITHUB_WORKSPACE//shims/spark33/spark_home/assembly/target/scala-2.12 && \
+          cd $GITHUB_WORKSPACE// && \
+          wget https://github.com/apache/spark/archive/refs/tags/v3.3.1.tar.gz && \
+          tar --strip-components=1 -xf v3.3.1.tar.gz spark-3.3.1/sql/core/src/test/resources/  && \
+          mkdir -p shims/spark33/spark_home/ && \
+          mv sql shims/spark33/spark_home/ 
+      - name: Build and Run unit test for Spark 3.3.1 (other tests)
+        run: |
+          cd $GITHUB_WORKSPACE/ && \
+          export SPARK_SCALA_VERSION=2.12 && \
+          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark33/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
+          mvn test -Pspark-3.3 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest
+
+  run-spark-test-spark33-slow:
+    needs: build-native-lib
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: setup java and maven
+        run: |
+          apt update && apt install -y openjdk-8-jdk maven
+      - name: Prepare spark.test.home for Spark 3.3.1 (slow tests)
+        run: |
+          cd $GITHUB_WORKSPACE// && \
+          wget https://github.com/apache/spark/archive/refs/tags/v3.3.1.tar.gz && \
+          tar --strip-components=1 -xf v3.3.1.tar.gz spark-3.3.1/sql/core/src/test/resources/  && \
+          mkdir -p shims/spark33/spark_home/ && \
+          mv sql shims/spark33/spark_home/ 
+      - name: Build and Run unit test for Spark 3.3.1 (slow tests)
+        run: |
+          cd $GITHUB_WORKSPACE/ && \
+          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark33/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+
+
+
+
+  run-spark-test-spark34:
+    needs: build-native-lib
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: setup java and maven
+        run: |
+          apt update && apt install -y openjdk-8-jdk maven
+      - name: Prepare spark.test.home for Spark 3.4.2 (other tests)
+        run: |
+          cd $GITHUB_WORKSPACE/ && \
+          wget https://archive.apache.org/dist/spark/spark-3.4.2/spark-3.4.2-bin-hadoop3.tgz && \
+          tar --strip-components=1 -xf spark-3.4.2-bin-hadoop3.tgz spark-3.4.2-bin-hadoop3/jars/ && \
+          rm -rf spark-3.4.2-bin-hadoop3.tgz && \
+          mkdir -p $GITHUB_WORKSPACE//shims/spark34/spark_home/assembly/target/scala-2.12 && \
+          mv jars $GITHUB_WORKSPACE//shims/spark34/spark_home/assembly/target/scala-2.12 && \
+          cd $GITHUB_WORKSPACE// && \
+          wget https://github.com/apache/spark/archive/refs/tags/v3.4.2.tar.gz && \
+          tar --strip-components=1 -xf v3.4.2.tar.gz spark-3.4.2/sql/core/src/test/resources/  && \
+          mkdir -p shims/spark34/spark_home/ && \
+          mv sql shims/spark34/spark_home/ 
+      - name: Build and Run unit test for Spark 3.4.2 (other tests)
+        run: |
+          cd $GITHUB_WORKSPACE/ && \
+          export SPARK_SCALA_VERSION=2.12 && \
+          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark34/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
+          mvn test -Pspark-3.4 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest
+
+  run-spark-test-spark34-slow:
+    needs: build-native-lib
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: setup java and maven
+        run: |
+          apt update && apt install -y openjdk-8-jdk maven
+      - name: Prepare spark.test.home for Spark 3.4.2 (slow tests)
+        run: |
+          cd $GITHUB_WORKSPACE// && \
+          wget https://github.com/apache/spark/archive/refs/tags/v3.4.2.tar.gz && \
+          tar --strip-components=1 -xf v3.4.2.tar.gz spark-3.4.2/sql/core/src/test/resources/  && \
+          mkdir -p shims/spark34/spark_home/ && \
+          mv sql shims/spark34/spark_home/ 
+      - name: Build and Run unit test for Spark 3.4.2 (slow tests)
+        run: |
+          cd $GITHUB_WORKSPACE/ && \
+          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark34/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
