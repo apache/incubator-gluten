@@ -132,6 +132,62 @@ jobs:
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
 
+
+  run-spark-test-spark32:
+    needs: build-native-lib
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Setup java and maven
+        run: |
+          apt update && apt install -y openjdk-8-jdk maven && apt remove openjdk-11* -y
+      - name: Prepare spark.test.home for Spark 3.2.2 (other tests)
+        run: |
+          cd /opt/gluten && \
+          wget https://archive.apache.org/dist/spark/spark-3.2.2/spark-3.2.2-bin-hadoop3.2.tgz && \
+          tar --strip-components=1 -xf spark-3.2.2-bin-hadoop3.2.tgz spark-3.2.2-bin-hadoop3.2/jars/ && \
+          rm -rf spark-3.2.2-bin-hadoop3.2.tgz && \
+          mkdir -p /opt/gluten/shims/spark32/spark_home/assembly/target/scala-2.12 && \
+          mv jars /opt/gluten/shims/spark32/spark_home/assembly/target/scala-2.12 && \
+          cd /opt/gluten/ && \
+          wget https://github.com/apache/spark/archive/refs/tags/v3.2.2.tar.gz && \
+          tar --strip-components=1 -xf v3.2.2.tar.gz spark-3.2.2/sql/core/src/test/resources/  && \
+          mkdir -p shims/spark32/spark_home/ && \
+          mv sql shims/spark32/spark_home/ 
+      - name: Build and run unit test for Spark 3.2.2 (other tests)
+        run: |
+          cd /opt/gluten && \
+          export SPARK_SCALA_VERSION=2.12 && \
+          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -DargLine="-Dspark.test.home=/opt/gluten/shims/spark32/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
+          mvn test -Pspark-3.2 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest
+
+  run-spark-test-spark32-slow:
+    needs: build-native-lib
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Prepare spark.test.home for Spark 3.2.2 (slow tests)
+        run: |
+          cd /opt/gluten/ && \
+          wget https://github.com/apache/spark/archive/refs/tags/v3.2.2.tar.gz && \
+          tar --strip-components=1 -xf v3.2.2.tar.gz spark-3.2.2/sql/core/src/test/resources/  && \
+          mkdir -p shims/spark32/spark_home/ && \
+          mv sql shims/spark32/spark_home/ 
+      - name: Build and run unit test for Spark 3.2.2 (slow tests)
+        run: |
+          cd /opt/gluten && \
+          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -Piceberg -Pdelta -DargLine="-Dspark.test.home=/opt/gluten/shims/spark32/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+
   run-spark-test-spark33:
     needs: build-native-lib
     runs-on: ubuntu-20.04
