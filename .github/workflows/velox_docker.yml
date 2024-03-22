@@ -121,16 +121,18 @@ jobs:
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
-          echo 'MAVEN_HOME=/usr/lib/maven' >> ~/.bashrc
-          echo 'PATH=${PATH}:${MAVEN_HOME}/bin' >> ~/.bashrc
       - name: Build for Spark ${{ matrix.spark }}
         run: |
-          cd $GITHUB_WORKSPACE/ && \
+          cd $GITHUB_WORKSPACE/
+          export MAVEN_HOME=/usr/lib/maven
+          export PATH=${PATH}:${MAVEN_HOME}/bin
           mvn clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
       - name: Build and run TPCH/DS ${{ matrix.spark }}
         run: |
-          cd $GITHUB_WORKSPACE/tools/gluten-it && \
-          mvn clean install -P${{ matrix.spark }} \
+          cd $GITHUB_WORKSPACE/tools/gluten-it 
+          export MAVEN_HOME=/usr/lib/maven
+          export PATH=${PATH}:${MAVEN_HOME}/bin
+          mvn clean install -P${{ matrix.spark }} 
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
@@ -161,15 +163,17 @@ jobs:
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
-          echo 'MAVEN_HOME=/usr/lib/maven' >> ~/.bashrc
-          echo 'PATH=${PATH}:${MAVEN_HOME}/bin' >> ~/.bashrc
       - name: Build for Spark ${{ matrix.spark }}
         run: |
-          cd $GITHUB_WORKSPACE/ && \
+          cd $GITHUB_WORKSPACE/ 
+          export MAVEN_HOME=/usr/lib/maven
+          export PATH=${PATH}:${MAVEN_HOME}/bin
           mvn clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
       - name: Build and run TPCH/DS ${{ matrix.spark }}
         run: |
-          cd $GITHUB_WORKSPACE/tools/gluten-it && \
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          export MAVEN_HOME=/usr/lib/maven
+          export PATH=${PATH}:${MAVEN_HOME}/bin
           mvn clean install -P${{ matrix.spark }} \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
