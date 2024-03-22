@@ -71,7 +71,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu:20.04", "ubuntu:22.04"]
-        spark: ["spark3.2", "spark3.3", "spark3.4", "spark3.5"]
+        spark: ["spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5"]
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
@@ -106,7 +106,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ["centos:7", "centos:8"]
-        spark: ["spark3.2", "spark3.3", "spark3.4", "spark3.5"]
+        spark: ["spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5"]
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
@@ -149,22 +149,22 @@ jobs:
           apt update && apt install -y openjdk-8-jdk maven && apt remove openjdk-11* -y
       - name: Prepare spark.test.home for Spark 3.2.2 (other tests)
         run: |
-          cd /opt/gluten && \
+          cd $GITHUB_WORKSPACE/ && \
           wget https://archive.apache.org/dist/spark/spark-3.2.2/spark-3.2.2-bin-hadoop3.2.tgz && \
           tar --strip-components=1 -xf spark-3.2.2-bin-hadoop3.2.tgz spark-3.2.2-bin-hadoop3.2/jars/ && \
           rm -rf spark-3.2.2-bin-hadoop3.2.tgz && \
-          mkdir -p /opt/gluten/shims/spark32/spark_home/assembly/target/scala-2.12 && \
-          mv jars /opt/gluten/shims/spark32/spark_home/assembly/target/scala-2.12 && \
-          cd /opt/gluten/ && \
+          mkdir -p $GITHUB_WORKSPACE//shims/spark32/spark_home/assembly/target/scala-2.12 && \
+          mv jars $GITHUB_WORKSPACE//shims/spark32/spark_home/assembly/target/scala-2.12 && \
+          cd $GITHUB_WORKSPACE// && \
           wget https://github.com/apache/spark/archive/refs/tags/v3.2.2.tar.gz && \
           tar --strip-components=1 -xf v3.2.2.tar.gz spark-3.2.2/sql/core/src/test/resources/  && \
           mkdir -p shims/spark32/spark_home/ && \
           mv sql shims/spark32/spark_home/ 
       - name: Build and run unit test for Spark 3.2.2 (other tests)
         run: |
-          cd /opt/gluten && \
+          cd $GITHUB_WORKSPACE/ && \
           export SPARK_SCALA_VERSION=2.12 && \
-          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -DargLine="-Dspark.test.home=/opt/gluten/shims/spark32/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
+          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark32/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
           mvn test -Pspark-3.2 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest
 
   run-spark-test-spark32-slow:
@@ -180,15 +180,15 @@ jobs:
           path: ./cpp/build/releases
       - name: Prepare spark.test.home for Spark 3.2.2 (slow tests)
         run: |
-          cd /opt/gluten/ && \
+          cd $GITHUB_WORKSPACE// && \
           wget https://github.com/apache/spark/archive/refs/tags/v3.2.2.tar.gz && \
           tar --strip-components=1 -xf v3.2.2.tar.gz spark-3.2.2/sql/core/src/test/resources/  && \
           mkdir -p shims/spark32/spark_home/ && \
           mv sql shims/spark32/spark_home/ 
       - name: Build and run unit test for Spark 3.2.2 (slow tests)
         run: |
-          cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -Piceberg -Pdelta -DargLine="-Dspark.test.home=/opt/gluten/shims/spark32/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+          cd $GITHUB_WORKSPACE/ && \
+          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -Piceberg -Pdelta -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark32/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
 
   run-spark-test-spark33:
     needs: build-native-lib
