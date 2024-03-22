@@ -117,14 +117,17 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case _ if HiveUDFTransformer.isHiveUDF(expr) =>
         return HiveUDFTransformer.replaceWithExpressionTransformer(expr, attributeSeq)
       case i: StaticInvoke =>
-        i.functionName match {
-          case "decode" =>
-            val child = i.arguments(0)
-            return GenericExpressionTransformer(
-              ExpressionNames.URL_DECODE,
-              child.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
-              i)
-          case _ =>
+        val objectName = i.staticObject.getName.stripSuffix("$")
+        if (objectName.endsWith("UrlCodec")) {
+          val child = i.arguments(0)
+          i.functionName match {
+            case "decode" =>
+              return GenericExpressionTransformer(
+                ExpressionNames.URL_DECODE,
+                child.map(
+                  replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
+                i)
+          }
         }
       case _ =>
     }
