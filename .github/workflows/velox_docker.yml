@@ -116,9 +116,18 @@ jobs:
         with:
           name: velox-native-lib-${{github.sha}}
           path: ./cpp/build/releases
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup java and maven
         run: |
-          yum update -y && yum install -y java-1.8.0-openjdk-devel maven
+          yum update -y && yum install -y java-1.8.0-openjdk-devel
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+          mv apache-maven-3.8.8 /usr/lib/maven
+          echo 'MAVEN_HOME=/usr/lib/maven' >> /etc/profile.d/maven.sh
+          echo 'PATH=${PATH}:${MAVEN_HOME}/bin' >> /etc/profile.d/maven.sh
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/ && \
