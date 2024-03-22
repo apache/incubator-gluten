@@ -81,10 +81,11 @@ jobs:
         with:
           name: velox-native-lib-${{github.sha}}
           path: ./cpp/build/releases
-      - name: setup java and maven
+      - name: Setup java and maven
         run: |
           apt-get update && \
-          apt-get install -y openjdk-8-jdk maven
+          apt-get install -y openjdk-8-jdk maven && \
+          apt remove openjdk-11* -y
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -115,9 +116,9 @@ jobs:
         with:
           name: velox-native-lib-${{github.sha}}
           path: ./cpp/build/releases
-      - name: setup java and maven
+      - name: Setup java and maven
         run: |
-          yum update && yum install -y java-1.8.0-openjdk-devel maven
+          yum update -y && yum install -y java-1.8.0-openjdk-devel maven
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -141,9 +142,9 @@ jobs:
         with:
           name: velox-native-lib-${{github.sha}}
           path: ./cpp/build/releases
-      - name: setup java and maven
+      - name: Setup java and maven
         run: |
-          apt update && apt install -y openjdk-8-jdk maven
+          apt update && apt install -y openjdk-8-jdk maven && apt remove openjdk-11* -y
       - name: Prepare spark.test.home for Spark 3.3.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -174,9 +175,9 @@ jobs:
         with:
           name: velox-native-lib-${{github.sha}}
           path: ./cpp/build/releases
-      - name: setup java and maven
+      - name: Setup java and maven
         run: |
-          apt update && apt install -y openjdk-8-jdk maven
+          apt update && apt install -y openjdk-8-jdk maven && apt remove openjdk-11* -y
       - name: Prepare spark.test.home for Spark 3.3.1 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE// && \
@@ -202,9 +203,9 @@ jobs:
         with:
           name: velox-native-lib-${{github.sha}}
           path: ./cpp/build/releases
-      - name: setup java and maven
+      - name: Setup java and maven
         run: |
-          apt update && apt install -y openjdk-8-jdk maven
+          apt update && apt install -y openjdk-8-jdk maven && apt remove openjdk-11* -y
       - name: Prepare spark.test.home for Spark 3.4.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -235,9 +236,9 @@ jobs:
         with:
           name: velox-native-lib-${{github.sha}}
           path: ./cpp/build/releases
-      - name: setup java and maven
+      - name: Setup java and maven
         run: |
-          apt update && apt install -y openjdk-8-jdk maven
+          apt update && apt install -y openjdk-8-jdk maven && apt remove openjdk-11* -y
       - name: Prepare spark.test.home for Spark 3.4.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE// && \
