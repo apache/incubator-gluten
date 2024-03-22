@@ -89,11 +89,11 @@ jobs:
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/ && \
-          mvn clean install -P-P${{ matrix.spark }} -Pbackends-velox -DskipTests
+          mvn clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
       - name: Build and run TPCH/DS ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/tools/gluten-it && \
-          mvn clean install -P-P${{ matrix.spark }} \
+          mvn clean install -P${{ matrix.spark }} \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
@@ -126,7 +126,7 @@ jobs:
       - name: Build and run TPCH/DS ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/tools/gluten-it && \
-          mvn clean install -P-P${{ matrix.spark }} \
+          mvn clean install -P${{ matrix.spark }} \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
@@ -136,6 +136,7 @@ jobs:
   run-spark-test-spark32:
     needs: build-native-lib
     runs-on: ubuntu-20.04
+    container: ubuntu:20.04
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -169,6 +170,7 @@ jobs:
   run-spark-test-spark32-slow:
     needs: build-native-lib
     runs-on: ubuntu-20.04
+    container: ubuntu:20.04
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -191,6 +193,7 @@ jobs:
   run-spark-test-spark33:
     needs: build-native-lib
     runs-on: ubuntu-20.04
+    container: ubuntu:20.04
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -224,6 +227,7 @@ jobs:
   run-spark-test-spark33-slow:
     needs: build-native-lib
     runs-on: ubuntu-20.04
+    container: ubuntu:20.04
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -252,6 +256,7 @@ jobs:
   run-spark-test-spark34:
     needs: build-native-lib
     runs-on: ubuntu-20.04
+    container: ubuntu:20.04
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -285,6 +290,7 @@ jobs:
   run-spark-test-spark34-slow:
     needs: build-native-lib
     runs-on: ubuntu-20.04
+    container: ubuntu:20.04
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
