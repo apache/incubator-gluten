@@ -131,6 +131,9 @@ object UDFResolver extends Logging {
         conf.put(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS, getAllLibraries(paths, sparkConf))
       case None =>
     }
+
+    logInfo(s"after resolve path " +
+      s"is:${sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)}")
   }
 
   // Try to unpack archive. Throws exception if failed.
@@ -177,15 +180,18 @@ object UDFResolver extends Logging {
           val file = new File(f)
           // Relative paths should be uploaded via --files or --archives
           if (isRelativePath(f)) {
-            if (isYarnClient) {
+            logInfo(s"resolve relative path: $f")
+            if (isDriver && isYarnClient) {
               throw new IllegalArgumentException(
                 "On yarn-client mode, driver only accepts absolute paths, but got " + f)
-            } else if (isYarnCluster) {
+            }
+            if (isYarnCluster || isYarnClient) {
               file
             } else {
               new File(SparkFiles.get(f))
             }
           } else {
+            logInfo(s"resolve absolute URI path: $f")
             // Download or copy absolute paths to JniWorkspace.
             val uri = Utils.resolveURI(f)
             val name = file.getName
