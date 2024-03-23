@@ -132,8 +132,9 @@ object UDFResolver extends Logging {
       case None =>
     }
 
-    logInfo(s"after resolve path " +
-      s"is:${sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)}")
+    logInfo(
+      s"after resolve path " +
+        s"is:${sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)}")
   }
 
   // Try to unpack archive. Throws exception if failed.
