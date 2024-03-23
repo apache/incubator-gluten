@@ -368,17 +368,22 @@ jobs:
 
   run-spark-test-spark34-slow-fb-image:
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:amd64-ubuntu-22.04-avx
+    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
       - name: Build Gluten velox third party
         run: |
+          yum install sudo patch -y && \
           cd ep/build-velox/src && \
           ./get_velox.sh && \
+          source /opt/rh/gcc-toolset-9/enable && \
           ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
       - name: Setup java and maven
         run: |
-          apt update && apt install -y openjdk-8-jdk wget maven && apt remove openjdk-11* -y
+          yum update -y && yum install -y java-1.8.0-openjdk-devel wget
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+          mv apache-maven-3.8.8 /usr/lib/maven
       - name: Prepare spark.test.home for Spark 3.4.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE// && \
@@ -388,5 +393,7 @@ jobs:
           mv sql shims/spark34/spark_home/ 
       - name: Build and Run unit test for Spark 3.4.2 (slow tests)
         run: |
-          cd $GITHUB_WORKSPACE/ && \
+          cd $GITHUB_WORKSPACE/
+          export MAVEN_HOME=/usr/lib/maven
+          export PATH=${PATH}:${MAVEN_HOME}/bin
           mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark34/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
