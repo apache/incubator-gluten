@@ -57,6 +57,7 @@ jobs:
           source $GITHUB_WORKSPACE//dev/vcpkg/env.sh && \
           cd $GITHUB_WORKSPACE/ && \
           sed -i '/^headers/d' ep/build-velox/build/velox_ep/CMakeLists.txt && \
+          export NUM_THREADS = 4
           ./dev/builddeps-veloxbe.sh --build_tests=OFF  --build_benchmarks=OFF --enable_s3=ON \
           --enable_gcs=ON --enable_hdfs=ON --enable_abfs=ON
 
@@ -132,7 +133,7 @@ jobs:
           cd $GITHUB_WORKSPACE/tools/gluten-it 
           export MAVEN_HOME=/usr/lib/maven
           export PATH=${PATH}:${MAVEN_HOME}/bin
-          mvn clean install -P${{ matrix.spark }} 
+          mvn clean install -P${{ matrix.spark }} \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
