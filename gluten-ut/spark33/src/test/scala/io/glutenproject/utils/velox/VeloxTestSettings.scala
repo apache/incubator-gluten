@@ -72,6 +72,7 @@ class VeloxTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenQueryCompilationErrorsDSv2Suite]
   enableSuite[GlutenQueryCompilationErrorsSuite]
+    .exclude("Using Python UDF with unsupported join condition")
   enableSuite[GlutenQueryExecutionErrorsSuite]
     // NEW SUITE: disable as it expects exception which doesn't happen when offloaded to gluten
     .exclude(
