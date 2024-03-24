@@ -1,0 +1,42 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Velox backend Performance Tests On Comments
+
+on:
+  issue_comment:
+    types: [created, edited, deleted]
+
+env:
+  JENKINS_HOST: 10.0.0.68
+  JENKINS_PORT: 8080
+  JENKINS_USER: jenkins:11fd1b5a82bfd638bd9b3749c96b324ff2
+
+jobs:
+  velox-trigger-benchmark-on-comment:
+    # check the comment if it contains the keywords
+    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '/Benchmark Velox') }}
+    runs-on: velox-self-hosted
+    container: ubuntu:22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: apt-get update && apt-get install ca-certificates -y && update-ca-certificates
+      - run: sed -i 's/http\:\/\/archive.ubuntu.com/https\:\/\/mirrors.ustc.edu.cn/g' /etc/apt/sources.list
+      - run: apt-get update
+      - run: apt-get install -y curl
+      - name: trigger_tpch_bench
+        run: |
+          branchname=origin/pr/${{ github.event.issue.number }}/head
+          curl --noproxy $JENKINS_HOST -L -X POST http://$JENKINS_HOST:$JENKINS_PORT/job/Gluten_Perf_Github_Action_Check/build --user $JENKINS_USER --data-urlencode json='{"parameter": [{"name":"sha1", "value":"'$branchname'"}]}'
