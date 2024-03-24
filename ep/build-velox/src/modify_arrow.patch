@@ -1,16 +1,8 @@
 diff --git a/cpp/cmake_modules/ThirdpartyToolchain.cmake b/cpp/cmake_modules/ThirdpartyToolchain.cmake
-index a2627c190..0181dd633 100644
+index 94f926039..f7ebf9233 100644
 --- a/cpp/cmake_modules/ThirdpartyToolchain.cmake
 +++ b/cpp/cmake_modules/ThirdpartyToolchain.cmake
-@@ -809,6 +809,7 @@ if(DEFINED ENV{ARROW_THRIFT_URL})
-   set(THRIFT_SOURCE_URL "$ENV{ARROW_THRIFT_URL}")
- else()
-   set_urls(THRIFT_SOURCE_URL
-+           "https://archive.apache.org/dist/thrift/${ARROW_THRIFT_BUILD_VERSION}/thrift-${ARROW_THRIFT_BUILD_VERSION}.tar.gz"
-            "https://www.apache.org/dyn/closer.cgi?action=download&filename=/thrift/${ARROW_THRIFT_BUILD_VERSION}/thrift-${ARROW_THRIFT_BUILD_VERSION}.tar.gz"
-            "https://downloads.apache.org/thrift/${ARROW_THRIFT_BUILD_VERSION}/thrift-${ARROW_THRIFT_BUILD_VERSION}.tar.gz"
-            "https://apache.claz.org/thrift/${ARROW_THRIFT_BUILD_VERSION}/thrift-${ARROW_THRIFT_BUILD_VERSION}.tar.gz"
-@@ -2557,13 +2558,9 @@ if(ARROW_WITH_ZSTD)
+@@ -2501,13 +2501,9 @@ if(ARROW_WITH_ZSTD)
    if(ZSTD_VENDORED)
      set(ARROW_ZSTD_LIBZSTD zstd::libzstd_static)
    else()

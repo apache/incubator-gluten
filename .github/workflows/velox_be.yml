@@ -38,8 +38,8 @@ on:
       - 'dev/**'
 
 env:
-  HTTP_PROXY_HOST: child-prc.intel.com
-  HTTP_PROXY_PORT: 913
+  HTTP_PROXY_HOST: proxy-shz.intel.com
+  HTTP_PROXY_PORT: 911
   PATH_TO_GLUTEN_TE: ./tools/gluten-te
   DOCKER_PULL_REGISTRY: 10.1.0.25:5000
   MAVEN_OPTS: -Dmaven.wagon.http.retryHandler.count=3
@@ -500,8 +500,6 @@ jobs:
       - name: Build Gluten velox third party
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
-          export http_proxy=http://child-prc.intel.com:913 && \
-          export https_proxy=http://child-prc.intel.com:913 && \
           source /env.sh && \
           sudo yum -y install patch && \
           cd /opt/gluten/ep/build-velox/src && \
@@ -552,8 +550,6 @@ jobs:
       - name: Build Gluten velox third party
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
-          export http_proxy=http://child-prc.intel.com:913 && \
-          export https_proxy=http://child-prc.intel.com:913 && \
           yum -y install epel-release centos-release-scl patch sudo && \
           cd /opt/gluten/ep/build-velox/src && \
           source /opt/rh/devtoolset-9/enable && \
@@ -694,8 +690,6 @@ jobs:
       - name: Build Script Test
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
-          export http_proxy=http://child-prc.intel.com:913 && \
-          export https_proxy=http://child-prc.intel.com:913 && \
           source /env.sh && \
           sudo yum -y install patch && \
           cd /opt/gluten/ && \
