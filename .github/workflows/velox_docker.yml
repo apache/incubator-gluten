@@ -197,7 +197,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/cpp && \
           source /opt/rh/gcc-toolset-9/enable && \
-          ./compile.sh --build_velox_backend=ON --build_protobuf=ON
+          ./compile.sh --build_velox_backend=ON --build_protobuf=ON --build_tests=ON --build_examples=ON --build_benchmarks=ON
       - name: Setup java and maven
         run: |
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
