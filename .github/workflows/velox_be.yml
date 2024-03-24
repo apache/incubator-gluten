@@ -500,6 +500,7 @@ jobs:
       - name: Build Gluten velox third party
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
+          export ARROW_THRIFT_URL=file:///opt/thrift-0.16.0.tar.gz && \
           source /env.sh && \
           sudo yum -y install patch && \
           cd /opt/gluten/ep/build-velox/src && \
@@ -550,6 +551,7 @@ jobs:
       - name: Build Gluten velox third party
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
+          export ARROW_THRIFT_URL=file:///opt/thrift-0.16.0.tar.gz && \
           yum -y install epel-release centos-release-scl patch sudo && \
           cd /opt/gluten/ep/build-velox/src && \
           source /opt/rh/devtoolset-9/enable && \
@@ -690,6 +692,7 @@ jobs:
       - name: Build Script Test
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
+          export ARROW_THRIFT_URL=file:///opt/thrift-0.16.0.tar.gz && \
           source /env.sh && \
           sudo yum -y install patch && \
           cd /opt/gluten/ && \
