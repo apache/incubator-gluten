@@ -218,8 +218,10 @@ jobs:
           mv sql shims/spark32/spark_home/ 
       - name: Build and run unit test for Spark 3.2.2 (other tests)
         run: |
-          cd $GITHUB_WORKSPACE/ && \
-          export SPARK_SCALA_VERSION=2.12 && \
+          cd $GITHUB_WORKSPACE/
+          export SPARK_SCALA_VERSION=2.12
+          export MAVEN_HOME=/usr/lib/maven 
+          export PATH=${PATH}:${MAVEN_HOME}/bin
           mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark32/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
           mvn test -Pspark-3.2 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest
 
@@ -255,6 +257,8 @@ jobs:
       - name: Build and run unit test for Spark 3.2.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
+          export MAVEN_HOME=/usr/lib/maven 
+          export PATH=${PATH}:${MAVEN_HOME}/bin
           mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -Piceberg -Pdelta -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark32/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
 
   run-spark-test-spark33:
@@ -296,6 +300,8 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/ && \
           export SPARK_SCALA_VERSION=2.12 && \
+          export MAVEN_HOME=/usr/lib/maven 
+          export PATH=${PATH}:${MAVEN_HOME}/bin
           mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark33/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
           mvn test -Pspark-3.3 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest
 
@@ -331,6 +337,8 @@ jobs:
       - name: Build and Run unit test for Spark 3.3.1 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
+          export MAVEN_HOME=/usr/lib/maven 
+          export PATH=${PATH}:${MAVEN_HOME}/bin
           mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark33/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
 
 
@@ -374,6 +382,8 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/ && \
           export SPARK_SCALA_VERSION=2.12 && \
+          export MAVEN_HOME=/usr/lib/maven 
+          export PATH=${PATH}:${MAVEN_HOME}/bin
           mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark34/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
           mvn test -Pspark-3.4 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest
 
