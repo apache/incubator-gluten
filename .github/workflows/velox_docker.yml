@@ -182,19 +182,27 @@ jobs:
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1            
 
   run-spark-test-spark32:
-    needs: build-native-lib
     runs-on: ubuntu-20.04
-    container: ubuntu:20.04
+    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: velox-native-lib-${{github.sha}}
-          path: ./cpp/build/releases
+      - name: Build Gluten velox third party
+        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          cd ep/build-velox/src && \
+          ./get_velox.sh && \
+          source /opt/rh/gcc-toolset-9/enable && \
+          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
+      - name: Build Gluten CPP library
+        run: |
+          cd $GITHUB_WORKSPACE/cpp && \
+          source /opt/rh/gcc-toolset-9/enable && \
+          ./compile.sh --build_velox_backend=ON --build_protobuf=ON
       - name: Setup java and maven
         run: |
-          apt update && apt install -y openjdk-8-jdk wget maven && apt remove openjdk-11* -y
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+          mv apache-maven-3.8.8 /usr/lib/maven
       - name: Prepare spark.test.home for Spark 3.2.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -216,19 +224,27 @@ jobs:
           mvn test -Pspark-3.2 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest
 
   run-spark-test-spark32-slow:
-    needs: build-native-lib
     runs-on: ubuntu-20.04
-    container: ubuntu:20.04
+    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: velox-native-lib-${{github.sha}}
-          path: ./cpp/build/releases
+      - name: Build Gluten velox third party
+        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          cd ep/build-velox/src && \
+          ./get_velox.sh && \
+          source /opt/rh/gcc-toolset-9/enable && \
+          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
+      - name: Build Gluten CPP library
+        run: |
+          cd $GITHUB_WORKSPACE/cpp && \
+          source /opt/rh/gcc-toolset-9/enable && \
+          ./compile.sh --build_velox_backend=ON --build_protobuf=ON
       - name: Setup java and maven
         run: |
-          apt update && apt install -y openjdk-8-jdk wget maven && apt remove openjdk-11* -y
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+          mv apache-maven-3.8.8 /usr/lib/maven
       - name: Prepare spark.test.home for Spark 3.2.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE// && \
@@ -242,19 +258,27 @@ jobs:
           mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -Piceberg -Pdelta -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark32/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
 
   run-spark-test-spark33:
-    needs: build-native-lib
     runs-on: ubuntu-20.04
-    container: ubuntu:20.04
+    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: velox-native-lib-${{github.sha}}
-          path: ./cpp/build/releases
+      - name: Build Gluten velox third party
+        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          cd ep/build-velox/src && \
+          ./get_velox.sh && \
+          source /opt/rh/gcc-toolset-9/enable && \
+          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
+      - name: Build Gluten CPP library
+        run: |
+          cd $GITHUB_WORKSPACE/cpp && \
+          source /opt/rh/gcc-toolset-9/enable && \
+          ./compile.sh --build_velox_backend=ON --build_protobuf=ON
       - name: Setup java and maven
         run: |
-          apt update && apt install -y openjdk-8-jdk wget maven && apt remove openjdk-11* -y
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+          mv apache-maven-3.8.8 /usr/lib/maven
       - name: Prepare spark.test.home for Spark 3.3.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -276,19 +300,27 @@ jobs:
           mvn test -Pspark-3.3 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest
 
   run-spark-test-spark33-slow:
-    needs: build-native-lib
     runs-on: ubuntu-20.04
-    container: ubuntu:20.04
+    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: velox-native-lib-${{github.sha}}
-          path: ./cpp/build/releases
+      - name: Build Gluten velox third party
+        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          cd ep/build-velox/src && \
+          ./get_velox.sh && \
+          source /opt/rh/gcc-toolset-9/enable && \
+          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
+      - name: Build Gluten CPP library
+        run: |
+          cd $GITHUB_WORKSPACE/cpp && \
+          source /opt/rh/gcc-toolset-9/enable && \
+          ./compile.sh --build_velox_backend=ON --build_protobuf=ON
       - name: Setup java and maven
         run: |
-          apt update && apt install -y openjdk-8-jdk wget maven && apt remove openjdk-11* -y
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+          mv apache-maven-3.8.8 /usr/lib/maven
       - name: Prepare spark.test.home for Spark 3.3.1 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE// && \
@@ -303,21 +335,28 @@ jobs:
 
 
 
-
   run-spark-test-spark34:
-    needs: build-native-lib
     runs-on: ubuntu-20.04
-    container: ubuntu:20.04
+    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: velox-native-lib-${{github.sha}}
-          path: ./cpp/build/releases
+      - name: Build Gluten velox third party
+        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          cd ep/build-velox/src && \
+          ./get_velox.sh && \
+          source /opt/rh/gcc-toolset-9/enable && \
+          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
+      - name: Build Gluten CPP library
+        run: |
+          cd $GITHUB_WORKSPACE/cpp && \
+          source /opt/rh/gcc-toolset-9/enable && \
+          ./compile.sh --build_velox_backend=ON --build_protobuf=ON
       - name: Setup java and maven
         run: |
-          apt update && apt install -y openjdk-8-jdk wget maven && apt remove openjdk-11* -y
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+          mv apache-maven-3.8.8 /usr/lib/maven
       - name: Prepare spark.test.home for Spark 3.4.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -338,35 +377,8 @@ jobs:
           mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark34/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
           mvn test -Pspark-3.4 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest
 
+
   run-spark-test-spark34-slow:
-    needs: build-native-lib
-    runs-on: ubuntu-20.04
-    container: ubuntu:20.04
-    steps:
-      - uses: actions/checkout@v2
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: velox-native-lib-${{github.sha}}
-          path: ./cpp/build/releases
-      - name: Setup java and maven
-        run: |
-          apt update && apt install -y openjdk-8-jdk wget maven && apt remove openjdk-11* -y
-      - name: Prepare spark.test.home for Spark 3.4.2 (slow tests)
-        run: |
-          cd $GITHUB_WORKSPACE// && \
-          wget https://github.com/apache/spark/archive/refs/tags/v3.4.2.tar.gz && \
-          tar --strip-components=1 -xf v3.4.2.tar.gz spark-3.4.2/sql/core/src/test/resources/  && \
-          mkdir -p shims/spark34/spark_home/ && \
-          mv sql shims/spark34/spark_home/ 
-      - name: Build and Run unit test for Spark 3.4.2 (slow tests)
-        run: |
-          cd $GITHUB_WORKSPACE/ && \
-          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark34/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
-
-
-
-  run-spark-test-spark34-slow-fb-image:
     runs-on: ubuntu-20.04
     container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
