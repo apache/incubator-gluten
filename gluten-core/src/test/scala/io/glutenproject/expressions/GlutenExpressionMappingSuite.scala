@@ -20,13 +20,15 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.{ProjectExecTransformer, WholeStageTransformerSuite}
 import io.glutenproject.expression.ExpressionMappings
 
-import org.apache.spark.sql.Row
+import org.apache.spark.sql.{GlutenQueryTest, Row}
 import org.apache.spark.sql.execution.ProjectExec
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.test.SharedSparkSession
 
-class GlutenExpressionMappingSuite extends WholeStageTransformerSuite {
-  override protected val resourcePath: String = ""
-  override protected val fileFormat: String = ""
-  override protected val backend: String = ""
+class GlutenExpressionMappingSuite
+  extends GlutenQueryTest
+  with SharedSparkSession
+  with AdaptiveSparkPlanHelper {
 
   test("test expression blacklist") {
     val names = ExpressionMappings.expressionsMap.values.toSet
