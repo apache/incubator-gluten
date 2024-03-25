@@ -30,7 +30,6 @@ import scala.io.Source
 // Then set the `ignore` to `test`
 class VeloxTPCDSSuite extends VeloxWholeStageTransformerSuite {
 
-  override protected val backend: String = "velox"
   override protected val resourcePath: String =
     sys.env.getOrElse("SPARK_TPCDS_DATA", "/tmp/tpcds-generated")
   override protected val fileFormat: String = "parquet"

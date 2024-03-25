@@ -29,7 +29,6 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
 
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
-  override protected val backend: String = "velox"
 
   private var parquetPath: String = _
 
