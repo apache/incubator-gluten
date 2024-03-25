@@ -53,7 +53,7 @@ jobs:
           export NUM_THREADS=4
           ./dev/builddeps-veloxbe.sh --build_tests=OFF  --build_benchmarks=OFF --enable_s3=OFF \
           --enable_gcs=OFF --enable_hdfs=ON --enable_abfs=OFF
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v2
         with:
           path: ./cpp/build/releases/
           name: velox-native-lib-${{github.sha}}
