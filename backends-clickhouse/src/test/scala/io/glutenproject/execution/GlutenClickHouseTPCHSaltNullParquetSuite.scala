@@ -2468,7 +2468,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   test("GLUTEN-5096: Bug fix regexp_extract diff") {
     val tbl_create_sql = "create table test_tbl_5096(id bigint, data string) using parquet"
     val tbl_insert_sql = "insert into test_tbl_5096 values(1, 'abc'), (2, 'abc\n')"
-    val select_sql = "select id, regexp_extract(data, '(abc)', 1) from test_tbl_5096"
+    val select_sql = "select id, regexp_extract(data, '(abc)$', 1) from test_tbl_5096"
     spark.sql(tbl_create_sql)
     spark.sql(tbl_insert_sql)
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
