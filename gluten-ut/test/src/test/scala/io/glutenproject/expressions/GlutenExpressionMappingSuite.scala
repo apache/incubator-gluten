@@ -20,6 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.ProjectExecTransformer
 import io.glutenproject.expression.ExpressionMappings
 
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.{GlutenQueryTest, Row}
 import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
@@ -29,6 +30,16 @@ class GlutenExpressionMappingSuite
   extends GlutenQueryTest
   with SharedSparkSession
   with AdaptiveSparkPlanHelper {
+
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.plugins", "io.glutenproject.GlutenPlugin")
+      .set("spark.default.parallelism", "1")
+      .set("spark.memory.offHeap.enabled", "true")
+      .set("spark.memory.offHeap.size", "1024MB")
+      .set("spark.ui.enabled", "false")
+      .set("spark.gluten.ui.enabled", "false")
+  }
 
   test("test expression blacklist") {
     val names = ExpressionMappings.expressionsMap.values.toSet
