@@ -158,6 +158,14 @@
             <artifactId>guava</artifactId>
             <groupId>com.google.guava</groupId>
           </exclusion>
+          <exclusion>
+            <artifactId>hadoop-common</artifactId>
+            <groupId>org.apache.hadoop</groupId>
+          </exclusion>
+          <exclusion>
+            <artifactId>hadoop-hdfs</artifactId>
+            <groupId>org.apache.hadoop</groupId>
+          </exclusion>
         </exclusions>
     </dependency>
     <dependency>
