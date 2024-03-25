@@ -128,7 +128,6 @@ class ClickhouseOptimisticTransaction(
             metadata,
             tableV2.dataBaseName,
             tableV2.tableName,
-            output,
             tableV2.orderByKeyOption,
             tableV2.lowCardKeyOption,
             tableV2.minmaxIndexKeyOption,

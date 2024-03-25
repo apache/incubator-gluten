@@ -49,7 +49,6 @@ trait GlutenFormatWriterInjects {
       primaryKeyOption: Option[Seq[String]],
       partitionColumns: Seq[String],
       tableSchema: StructType,
-      dataSchema: Seq[Attribute],
       clickhouseTableConfigs: Map[String, String],
       context: TaskAttemptContext,
       nativeConf: java.util.Map[String, String]): OutputWriter = null

@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution.datasources.v2.clickhouse.source
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.delta.DeltaParquetFileFormat
 import org.apache.spark.sql.delta.actions.Metadata
 import org.apache.spark.sql.execution.datasources.{OutputWriter, OutputWriterFactory}
@@ -31,7 +30,6 @@ class DeltaMergeTreeFileFormat(metadata: Metadata)
 
   protected var database = ""
   protected var tableName = ""
-  protected var dataSchemas = Seq.empty[Attribute]
   protected var orderByKeyOption: Option[Seq[String]] = None
   protected var lowCardKeyOption: Option[Seq[String]] = None
   protected var minmaxIndexKeyOption: Option[Seq[String]] = None
@@ -45,7 +43,6 @@ class DeltaMergeTreeFileFormat(metadata: Metadata)
       metadata: Metadata,
       database: String,
       tableName: String,
-      schemas: Seq[Attribute],
       orderByKeyOption: Option[Seq[String]],
       lowCardKeyOption: Option[Seq[String]],
       minmaxIndexKeyOption: Option[Seq[String]],
@@ -57,7 +54,6 @@ class DeltaMergeTreeFileFormat(metadata: Metadata)
     this(metadata)
     this.database = database
     this.tableName = tableName
-    this.dataSchemas = schemas
     this.orderByKeyOption = orderByKeyOption
     this.lowCardKeyOption = lowCardKeyOption
     this.minmaxIndexKeyOption = minmaxIndexKeyOption
@@ -117,7 +113,6 @@ class DeltaMergeTreeFileFormat(metadata: Metadata)
             primaryKeyOption,
             partitionColumns,
             metadata.schema,
-            dataSchemas,
             clickhouseTableConfigs,
             context,
             nativeConf

@@ -275,7 +275,6 @@ class ClickHouseTableV2(
       meta,
       dataBaseName,
       tableName,
-      Seq.empty[Attribute],
       orderByKeyOption,
       lowCardKeyOption,
       minmaxIndexKeyOption,
