@@ -442,7 +442,7 @@ Note if running on Yarn client mode, the uploaded files are not reachable on dri
 --conf spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths=file:///path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
 ```
 
-- Use the `--archives` option to upload a archive and configure its relative path
+- Use the `--archives` option to upload an archive and configure its relative path
 ```shell
 --archives /path/to/udf_archives.zip#udf_archives
 --conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=udf_archives
