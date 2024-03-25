@@ -40,25 +40,9 @@ jobs:
     runs-on: ubuntu-20.04
     container: inteldpo/gluten-centos-packaging:latest
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
-          tool-cache: true
-          large-packages: true
-          swap-storage: true
       - uses: actions/checkout@v3
       - name: Build Gluten velox third party
         run: |
-          yum list installed
-          echo "Free space:"
-          df -h
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf "/usr/local/share/boost"
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          df -h
           yum install sudo patch java-1.8.0-openjdk-devel -y && \
           cd $GITHUB_WORKSPACE/ep/build-velox/src && \
           ./get_velox.sh && \
@@ -99,5 +83,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gluten-velox-bundle-package
-          path: package/target/
+          path: package/target/gluten-velox-bundle-*.jar
           retention-days: 7
