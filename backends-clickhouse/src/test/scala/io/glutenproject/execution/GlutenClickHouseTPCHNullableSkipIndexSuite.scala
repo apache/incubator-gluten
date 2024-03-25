@@ -73,12 +73,20 @@ class GlutenClickHouseTPCHNullableSkipIndexSuite extends GlutenClickHouseTPCHAbs
                  | select * from lineitem
                  |""".stripMargin)
 
-    val ret = spark
+    val df = spark
       .sql(s"""
               |select count(*) from lineitem_mergetree_minmax  where l_receiptdate = '1998-12-27'
               |""".stripMargin)
-      .collect()
+
+    val scanExec = collect(df.queryExecution.executedPlan) {
+      case f: FileSourceScanExecTransformer => f
+    }
+    assert(scanExec.size == 1)
+    val mergetreeScan = scanExec(0)
+    val ret = df.collect()
     assert(ret.apply(0).get(0) == 1)
+    val marks = mergetreeScan.metrics("selectedMarks").value
+    assert(marks == 1)
 
     val directory = new File(s"$basePath/lineitem_mergetree_minmax")
     // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
@@ -123,12 +131,20 @@ class GlutenClickHouseTPCHNullableSkipIndexSuite extends GlutenClickHouseTPCHAbs
                  | select * from lineitem
                  |""".stripMargin)
 
-    val ret = spark
+    val df = spark
       .sql(s"""
               |select count(*) from lineitem_mergetree_bf  where l_orderkey = '600000'
               |""".stripMargin)
-      .collect()
+
+    val scanExec = collect(df.queryExecution.executedPlan) {
+      case f: FileSourceScanExecTransformer => f
+    }
+    assert(scanExec.size == 1)
+    val mergetreeScan = scanExec(0)
+    val ret = df.collect()
     assert(ret.apply(0).get(0) == 2)
+    val marks = mergetreeScan.metrics("selectedMarks").value
+    assert(marks == 1)
 
     val directory = new File(s"$basePath/lineitem_mergetree_bf")
     // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
@@ -173,12 +189,20 @@ class GlutenClickHouseTPCHNullableSkipIndexSuite extends GlutenClickHouseTPCHAbs
                  | select * from lineitem
                  |""".stripMargin)
 
-    val ret = spark
+    val df = spark
       .sql(s"""
               |select count(*) from lineitem_mergetree_set  where l_orderkey = '600000'
               |""".stripMargin)
-      .collect()
+
+    val scanExec = collect(df.queryExecution.executedPlan) {
+      case f: FileSourceScanExecTransformer => f
+    }
+    assert(scanExec.size == 1)
+    val mergetreeScan = scanExec(0)
+    val ret = df.collect()
     assert(ret.apply(0).get(0) == 2)
+    val marks = mergetreeScan.metrics("selectedMarks").value
+    assert(marks == 1)
 
     val directory = new File(s"$basePath/lineitem_mergetree_set")
     // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
@@ -222,12 +246,20 @@ class GlutenClickHouseTPCHNullableSkipIndexSuite extends GlutenClickHouseTPCHAbs
                  | select * from lineitem
                  |""".stripMargin)
 
-    val ret = spark
+    val df = spark
       .sql(s"""
               |select count(*) from lineitem_mergetree_minmax2  where l_receiptdate = '1998-12-27'
               |""".stripMargin)
-      .collect()
+
+    val scanExec = collect(df.queryExecution.executedPlan) {
+      case f: FileSourceScanExecTransformer => f
+    }
+    assert(scanExec.size == 1)
+    val mergetreeScan = scanExec(0)
+    val ret = df.collect()
     assert(ret.apply(0).get(0) == 1)
+    val marks = mergetreeScan.metrics("selectedMarks").value
+    assert(marks == 1)
 
     val directory = new File(s"$basePath/lineitem_mergetree_minmax2")
     // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
