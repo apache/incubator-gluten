@@ -27,6 +27,6 @@ void initVeloxJniUDF(JNIEnv* env);
 
 void finalizeVeloxJniUDF(JNIEnv* env);
 
-void jniLoadUdf(JNIEnv* env, const std::string& libPaths);
+void jniGetFunctionSignatures(JNIEnv* env);
 
 } // namespace gluten

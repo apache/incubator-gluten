@@ -37,7 +37,8 @@ import org.apache.spark.util.Utils
 import com.google.common.collect.Lists
 
 import java.io.File
-import java.nio.file.{Files, Paths}
+import java.net.URI
+import java.nio.file.{Files, FileVisitOption, Paths}
 
 import scala.collection.JavaConverters.asScalaIteratorConverter
 import scala.collection.mutable
@@ -107,7 +108,7 @@ object UDFResolver extends Logging {
 
   def getFilesWithExtension(directory: java.nio.file.Path, extension: String): Seq[String] = {
     Files
-      .walk(directory)
+      .walk(directory, FileVisitOption.FOLLOW_LINKS)
       .iterator()
       .asScala
       .filter(p => Files.isRegularFile(p) && p.toString.endsWith(extension))
@@ -116,19 +117,19 @@ object UDFResolver extends Logging {
   }
 
   def resolveUdfConf(conf: java.util.Map[String, String]): Unit = {
-    if (isDriver) {
-      if (localLibraryPaths != null) {
-        conf.put(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS, localLibraryPaths)
-      }
+    val sparkConf = SparkEnv.get.conf
+    val udfLibPaths = if (isDriver) {
+      sparkConf
+        .getOption(BackendSettings.GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS)
+        .orElse(sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS))
     } else {
-      val sparkConf = SparkEnv.get.conf
-      Option(conf.get(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)) match {
-        case Some(libs) =>
-          conf.put(
-            BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS,
-            getAllLibraries(libs, sparkConf, canAccessSparkFiles = true))
-        case None =>
-      }
+      sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)
+    }
+
+    udfLibPaths match {
+      case Some(paths) =>
+        conf.put(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS, getAllLibraries(paths, sparkConf))
+      case None =>
     }
   }
 
@@ -150,24 +151,44 @@ object UDFResolver extends Logging {
     dest
   }
 
+  private def isRelativePath(path: String): Boolean = {
+    try {
+      val uri = new URI(path)
+      !uri.isAbsolute && uri.getPath == path
+    } catch {
+      case _: Exception => false
+    }
+  }
+
   // Get the full paths of all libraries.
   // If it's a directory, get all files ends with ".so" recursively.
-  def getAllLibraries(files: String, sparkConf: SparkConf, canAccessSparkFiles: Boolean): String = {
+  def getAllLibraries(files: String, sparkConf: SparkConf): String = {
     val hadoopConf = SparkHadoopUtil.newConfiguration(sparkConf)
+    val master = sparkConf.getOption("spark.master")
+    val isYarnCluster =
+      master.isDefined && master.get.equals("yarn") && !Utils.isClientMode(sparkConf)
+    val isYarnClient =
+      master.isDefined && master.get.equals("yarn") && Utils.isClientMode(sparkConf)
+
     files
       .split(",")
       .map {
         f =>
           val file = new File(f)
           // Relative paths should be uploaded via --files or --archives
-          // Use SparkFiles.get to download and unpack
-          if (!file.isAbsolute) {
-            if (!canAccessSparkFiles) {
+          if (isRelativePath(f)) {
+            logInfo(s"resolve relative path: $f")
+            if (isDriver && isYarnClient) {
               throw new IllegalArgumentException(
                 "On yarn-client mode, driver only accepts absolute paths, but got " + f)
             }
-            new File(SparkFiles.get(f))
+            if (isYarnCluster || isYarnClient) {
+              file
+            } else {
+              new File(SparkFiles.get(f))
+            }
           } else {
+            logInfo(s"resolve absolute URI path: $f")
             // Download or copy absolute paths to JniWorkspace.
             val uri = Utils.resolveURI(f)
             val name = file.getName
@@ -192,26 +213,16 @@ object UDFResolver extends Logging {
       .mkString(",")
   }
 
-  def loadAndGetFunctionDescriptions: Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
+  def getFunctionSignatures: Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
     val sparkContext = SparkContext.getActive.get
     val sparkConf = sparkContext.conf
-    val udfLibPaths = sparkConf
-      .getOption(BackendSettings.GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS)
-      .orElse(sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS))
+    val udfLibPaths = sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)
 
     udfLibPaths match {
       case None =>
         Seq.empty
       case Some(paths) =>
-        val master = sparkConf.getOption("spark.master")
-        val isYarnClient =
-          master.isDefined && master.get.equals("yarn") && Utils.isClientMode(sparkConf)
-        // For Yarn-client mode, driver cannot get uploaded files via SparkFiles.get.
-        localLibraryPaths = getAllLibraries(paths, sparkConf, canAccessSparkFiles = !isYarnClient)
-
-        logInfo(s"Loading UDF libraries from paths: $localLibraryPaths")
-        new UdfJniWrapper().nativeLoadUdfLibraries(localLibraryPaths)
-
+        new UdfJniWrapper().getFunctionSignatures()
         UDFMap.map {
           case (name, t) =>
             (

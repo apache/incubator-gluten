@@ -649,7 +649,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
 
   override def genInjectedFunctions()
       : Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
-    UDFResolver.loadAndGetFunctionDescriptions
+    UDFResolver.getFunctionSignatures
   }
 
   override def rewriteSpillPath(path: String): String = {

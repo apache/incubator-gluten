@@ -434,15 +434,15 @@ Gluten loads the UDF libraries at runtime. You can upload UDF libraries via `--f
 
 Note if running on Yarn client mode, the uploaded files are not reachable on driver side. Users should copy those files to somewhere reachable for driver and set `spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths`. This configuration is also useful when the `udfLibraryPaths` is different between driver side and executor side.
 
-- Use `--files`
+- Use the `--files` option to upload a library and configure its relative path
 ```shell
 --files /path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
 --conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=libmyudf.so
 # Needed for Yarn client mode
---conf spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths=file:///path/to/libmyudf.so
+--conf spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths=file:///path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
 ```
 
-- Use `--archives`
+- Use the `--archives` option to upload an archive and configure its relative path
 ```shell
 --archives /path/to/udf_archives.zip#udf_archives
 --conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=udf_archives
@@ -450,7 +450,7 @@ Note if running on Yarn client mode, the uploaded files are not reachable on dri
 --conf spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths=file:///path/to/udf_archives.zip
 ```
 
-- Specify URI
+- Only configure URI
 
 You can also specify the local or HDFS URIs to the UDF libraries or archives. Local URIs should exist on driver and every worker nodes.
 ```shell
@@ -462,10 +462,17 @@ You can also specify the local or HDFS URIs to the UDF libraries or archives. Lo
 We provided an Velox UDF example file [MyUDF.cpp](../../cpp/velox/udf/examples/MyUDF.cpp). After building gluten cpp, you can find the example library at /path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
 
 Start spark-shell or spark-sql with below configuration 
-```
+```shell
+# Use the `--files` option to upload a library and configure its relative path
 --files /path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
 --conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=libmyudf.so
 ```
+or
+```shell
+# Only configure URI
+--conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=file:///path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
+```
+
 Run query. The functions `myudf1` and `myudf2` increment the input value by a constant of 5
 ```
 select myudf1(1), myudf2(100L)

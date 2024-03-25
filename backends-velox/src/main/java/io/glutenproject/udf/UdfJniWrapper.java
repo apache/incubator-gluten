@@ -20,5 +20,5 @@ public class UdfJniWrapper {
 
   public UdfJniWrapper() {}
 
-  public native void nativeLoadUdfLibraries(String udfLibPaths);
+  public native void getFunctionSignatures();
 }

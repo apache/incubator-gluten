@@ -76,12 +76,11 @@ JNIEXPORT void JNICALL Java_io_glutenproject_init_NativeBackendInitializer_initi
   JNI_METHOD_END()
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_udf_UdfJniWrapper_nativeLoadUdfLibraries( // NOLINT
+JNIEXPORT void JNICALL Java_io_glutenproject_udf_UdfJniWrapper_getFunctionSignatures( // NOLINT
     JNIEnv* env,
-    jclass,
-    jstring libPaths) {
+    jclass) {
   JNI_METHOD_START
-  gluten::jniLoadUdf(env, jStringToCString(env, libPaths));
+  gluten::jniGetFunctionSignatures(env);
   JNI_METHOD_END()
 }
 
