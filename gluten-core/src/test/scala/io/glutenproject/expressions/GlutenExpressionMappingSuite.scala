@@ -17,7 +17,7 @@
 package io.glutenproject.expressions
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.{ProjectExecTransformer, WholeStageTransformerSuite}
+import io.glutenproject.execution.ProjectExecTransformer
 import io.glutenproject.expression.ExpressionMappings
 
 import org.apache.spark.sql.{GlutenQueryTest, Row}
