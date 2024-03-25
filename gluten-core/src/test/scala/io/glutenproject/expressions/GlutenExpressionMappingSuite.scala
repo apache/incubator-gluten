@@ -14,19 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.catalyst.expressions
+package io.glutenproject.expressions
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.ProjectExecTransformer
+import io.glutenproject.execution.{ProjectExecTransformer, WholeStageTransformerSuite}
 import io.glutenproject.expression.ExpressionMappings
 
-import org.apache.spark.sql.{GlutenSQLTestsTrait, Row}
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.ProjectExec
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
-class GlutenExpressionMappingSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelper {
+class GlutenExpressionMappingSuite extends WholeStageTransformerSuite {
+  override protected val resourcePath: String = ""
+  override protected val fileFormat: String = ""
+  override protected val backend: String = ""
 
-  testGluten("test expression blacklist") {
+  test("test expression blacklist") {
     val names = ExpressionMappings.expressionsMap.values.toSet
     assert(names.contains("regexp_replace"))
     assert(names.contains("regexp_extract"))
@@ -43,6 +45,32 @@ class GlutenExpressionMappingSuite extends GlutenSQLTestsTrait with AdaptiveSpar
         checkAnswer(df, Row(2))
         assert(find(df.queryExecution.executedPlan)(_.isInstanceOf[ProjectExecTransformer]).isEmpty)
         assert(find(df.queryExecution.executedPlan)(_.isInstanceOf[ProjectExec]).isDefined)
+      }
+    }
+  }
+
+  test("test blacklisting regexp expressions") {
+    val names = ExpressionMappings.expressionsMap.values.toSet
+    assert(names.contains("rlike"))
+    assert(names.contains("regexp_replace"))
+    assert(names.contains("regexp_extract"))
+    assert(names.contains("regexp_extract_all"))
+    assert(names.contains("split"))
+
+    withSQLConf(
+      GlutenConfig.EXPRESSION_BLACK_LIST.key -> "",
+      GlutenConfig.FALLBACK_REGEXP_EXPRESSIONS.key -> "true") {
+      val names = ExpressionMappings.expressionsMap.values.toSet
+      assert(!names.contains("rlike"))
+      assert(!names.contains("regexp_replace"))
+      assert(!names.contains("regexp_extract"))
+      assert(!names.contains("regexp_extract_all"))
+      assert(!names.contains("split"))
+
+      spark.sql("CREATE TABLE t USING PARQUET AS SELECT 'abc100' as c")
+      withTable("t") {
+        val df = spark.sql("SELECT regexp_replace(c, '(\\d+)', 'something')  FROM t")
+        assert(find(df.queryExecution.executedPlan)(_.isInstanceOf[ProjectExecTransformer]).isEmpty)
       }
     }
   }
