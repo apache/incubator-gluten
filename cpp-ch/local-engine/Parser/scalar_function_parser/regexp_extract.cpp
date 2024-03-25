@@ -55,7 +55,7 @@ public:
                 std::string expr_str = literal_expr.string();
                 size_t expr_size = expr_str.size();
                 if (expr_str.data()[expr_size - 1] == '$')
-                    expr_str.replace(expr_str.find_last_of("$"), 1, "(?:\n)$");
+                    expr_str.replace(expr_str.find_last_of("$"), 1, "(?:(\n)*)$");
                 
                 auto * regex_expr_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), expr_str);
                 auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
