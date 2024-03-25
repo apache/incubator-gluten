@@ -854,8 +854,6 @@ BENCHMARK_TEMPLATE(BM_insertManyFrom, type_array_nullable_string);
 
 /// Benchmark result: https://github.com/ClickHouse/ClickHouse/pull/60846
 
-
-
 template <const std::string & str_type>
 static void BM_replicate(benchmark::State & state)
 {
@@ -872,3 +870,406 @@ static void BM_replicate(benchmark::State & state)
 BENCHMARK_TEMPLATE(BM_replicate, type_string);
 BENCHMARK_TEMPLATE(BM_replicate, type_nullable_string);
 
+
+IColumn::Filter mockFilter(size_t rows)
+{
+    IColumn::Filter result(rows);
+    for (size_t i = 0; i < rows; ++i)
+        result[i] = rand() % 2 ? 0 : 1;
+    return std::move(result);
+}
+
+ColumnPtr mockIndexes(size_t rows)
+{
+    auto filter = mockFilter(rows);
+    auto result = ColumnUInt64::create();
+    auto & data = result->getData();
+    for (size_t i = 0; i < rows; ++i)
+    {
+        if (filter[i])
+            data.push_back(i);
+    }
+    return std::move(result);
+}
+
+template <const std::string & str_type>
+static void BM_filter(benchmark::State & state)
+{
+    auto type = DataTypeFactory::instance().get(str_type);
+    auto src = createColumn(type, ROWS);
+    auto filter = mockFilter(ROWS);
+    auto dst_size_hint = countBytesInFilter(filter);
+    for (auto _ : state)
+    {
+        auto dst = src->filter(filter, dst_size_hint);
+        benchmark::DoNotOptimize(dst);
+    }
+}
+
+template <const std::string & str_type>
+static void BM_index(benchmark::State & state)
+{
+    auto type = DataTypeFactory::instance().get(str_type);
+    auto src = createColumn(type, ROWS);
+    auto indexes = mockIndexes(ROWS);
+    for (auto _ : state)
+    {
+        auto dst = src->index(*indexes, 0);
+        benchmark::DoNotOptimize(dst);
+    }
+}
+
+
+template <const std::string & str_type>
+static void BM_filterInPlace(benchmark::State & state)
+{
+    auto type = DataTypeFactory::instance().get(str_type);
+    auto indexes_col = mockIndexes(ROWS);
+    const auto & indexes = assert_cast<const ColumnUInt64 &>(*indexes_col).getData();
+    for (auto _ : state)
+    {
+        state.PauseTiming();
+        auto src = createColumn(type, ROWS);
+        auto mutable_src = src->assumeMutable();
+        state.ResumeTiming();
+
+        mutable_src->filterInPlace(indexes, 0);
+        benchmark::DoNotOptimize(src);
+    }
+}
+
+
+/*
+10%
+---------------------------------------------------------------------------------
+Benchmark                                       Time             CPU   Iterations
+---------------------------------------------------------------------------------
+BM_filter<type_int64>                       28485 ns        28484 ns        24242
+BM_index<type_int64>                         7925 ns         7925 ns        88317
+BM_filterInPlace<type_int64>                 8553 ns         8520 ns        84726
+BM_filter<type_nullable_int64>              64513 ns        64512 ns        10885
+BM_index<type_nullable_int64>               14209 ns        14209 ns        49289
+BM_filterInPlace<type_nullable_int64>       17854 ns        17706 ns        41712
+BM_filter<type_string>                      82993 ns        82990 ns         8313
+BM_index<type_string>                       35828 ns        35827 ns        19943
+BM_filterInPlace<type_string>               28748 ns        28621 ns        23922
+BM_filter<type_nullable_string>            115106 ns       115099 ns         6057
+BM_index<type_nullable_string>              42771 ns        42767 ns        17238
+BM_filterInPlace<type_nullable_string>      35743 ns        35625 ns
+
+
+
+99%
+---------------------------------------------------------------------------------
+Benchmark                                       Time             CPU   Iterations
+---------------------------------------------------------------------------------
+BM_filter<type_int64>                       81142 ns        81139 ns         8908
+BM_index<type_int64>                        75867 ns        75865 ns         9197
+BM_filterInPlace<type_int64>                57672 ns        57635 ns        12098
+BM_filter<type_nullable_int64>             150746 ns       150740 ns         4716
+BM_index<type_nullable_int64>              129113 ns       129108 ns         5440
+BM_filterInPlace<type_nullable_int64>      111840 ns       111763 ns         6190
+BM_filter<type_string>                     367415 ns       367092 ns         1917
+BM_index<type_string>                      261185 ns       261174 ns         2682
+BM_filterInPlace<type_string>              215903 ns       215809 ns         3180
+BM_filter<type_nullable_string>            435441 ns       435426 ns         1577
+BM_index<type_nullable_string>             313108 ns       313097 ns         2229
+BM_filterInPlace<type_nullable_string>     271534 ns       271424 ns
+*/
+
+BENCHMARK_TEMPLATE(BM_filter, type_int64);
+BENCHMARK_TEMPLATE(BM_index, type_int64);
+BENCHMARK_TEMPLATE(BM_filterInPlace, type_int64);
+
+BENCHMARK_TEMPLATE(BM_filter, type_nullable_int64);
+BENCHMARK_TEMPLATE(BM_index, type_nullable_int64);
+BENCHMARK_TEMPLATE(BM_filterInPlace, type_nullable_int64);
+
+BENCHMARK_TEMPLATE(BM_filter, type_string);
+BENCHMARK_TEMPLATE(BM_index, type_string);
+BENCHMARK_TEMPLATE(BM_filterInPlace, type_string);
+
+BENCHMARK_TEMPLATE(BM_filter, type_nullable_string);
+BENCHMARK_TEMPLATE(BM_index, type_nullable_string);
+BENCHMARK_TEMPLATE(BM_filterInPlace, type_nullable_string);
+
+
+
+/// If mask is a number of this kind: [0]*[1]* function returns the length of the cluster of 1s.
+/// Otherwise it returns the special value: 0xFF.
+static inline uint8_t prefixToCopy(UInt64 mask)
+{
+    if (mask == 0)
+        return 0;
+    if (mask == static_cast<UInt64>(-1))
+        return 64;
+    /// Row with index 0 correspond to the least significant bit.
+    /// So the length of the prefix to copy is 64 - #(leading zeroes).
+    const UInt64 leading_zeroes = __builtin_clzll(mask);
+    if (mask == ((static_cast<UInt64>(-1) << leading_zeroes) >> leading_zeroes))
+        return 64 - leading_zeroes;
+    else
+        return 0xFF;
+}
+
+static inline uint8_t suffixToCopy(UInt64 mask)
+{
+    const auto prefix_to_copy = prefixToCopy(~mask);
+    return prefix_to_copy >= 64 ? prefix_to_copy : 64 - prefix_to_copy;
+}
+
+
+static inline UInt64 blsr(UInt64 mask)
+{
+#ifdef __BMI__
+    return _blsr_u64(mask);
+#else
+    return mask & (mask-1);
+#endif
+}
+
+DECLARE_DEFAULT_CODE(
+
+template <typename T>
+void myFilterToIndices(const UInt8 * filt, size_t start, size_t end, PaddedPODArray<T> & indices)
+{
+    size_t pos = 0;
+    for (; start + 64 <= end; start += 64)
+    {
+        UInt64 mask = bytes64MaskToBits64Mask(filt + start);
+        const uint8_t prefix_to_copy = prefixToCopy(mask);
+
+        if (0xFF != prefix_to_copy)
+        {
+            for (size_t i = 0; i < prefix_to_copy; ++i)
+                indices[pos++] = start + i;
+        }
+        else
+        {
+            const uint8_t suffix_to_copy = suffixToCopy(mask);
+            if (0xFF != suffix_to_copy)
+            {
+                for (size_t i = 64 - suffix_to_copy; i < 64; ++i)
+                    indices[pos++] = start + i;
+            }
+            else
+            {
+                while (mask)
+                {
+                    size_t index = std::countr_zero(mask);
+                    indices[pos++] = start + index;
+                    mask = blsr(mask);
+                }
+            }
+        }
+    }
+
+    for (; start != end; ++start)
+        if (filt[start])
+            indices[pos++] = start;
+}
+)
+
+DECLARE_AVX512F_SPECIFIC_CODE(
+
+template <typename T>
+void myFilterToIndices(const UInt8 * filt, size_t start, size_t end, PaddedPODArray<T> & indices)
+{
+    static constexpr size_t LOOPS_PER_MASK = sizeof(T);
+    static constexpr size_t MASK_BITS_PER_LOOP = 64 / LOOPS_PER_MASK;
+    static constexpr UInt64 MASK_IN_LOOP = (1ULL << MASK_BITS_PER_LOOP) - 1;
+
+    __m512i index_vec;
+    __m512i increment_vec;
+    if constexpr (std::is_same_v<T, UInt64>)
+    {
+        index_vec
+            = _mm512_set_epi64(start + 7, start + 6, start + 5, start + 4, start + 3, start + 2, start + 1, start); // Initial index vector
+        increment_vec = _mm512_set1_epi64(8); // Increment vector
+    }
+    else if constexpr (std::is_same_v<T, UInt32>)
+    {
+        index_vec = _mm512_set_epi32(
+            start + 15,
+            start + 14,
+            start + 13,
+            start + 12,
+            start + 11,
+            start + 10,
+            start + 9,
+            start + 8,
+            start + 7,
+            start + 6,
+            start + 5,
+            start + 4,
+            start + 3,
+            start + 2,
+            start + 1,
+            start); // Initial index vector
+        increment_vec = _mm512_set1_epi64(16); // Increment vector
+    }
+    /*
+    else if constexpr (std::is_same_v<T, UInt16>)
+    {
+        index_vec = _mm512_set_epi16(
+            start + 31,
+            start + 30,
+            start + 29,
+            start + 28,
+            start + 27,
+            start + 26,
+            start + 25,
+            start + 24,
+            start + 23,
+            start + 22,
+            start + 21,
+            start + 20,
+            start + 19,
+            start + 18,
+            start + 17,
+            start + 16,
+            start + 15,
+            start + 14,
+            start + 13,
+            start + 12,
+            start + 11,
+            start + 10,
+            start + 9,
+            start + 8,
+            start + 7,
+            start + 6,
+            start + 5,
+            start + 4,
+            start + 3,
+            start + 2,
+            start + 1,
+            start); // Initial index vector
+        increment_vec = _mm512_set1_epi64(32); // Increment vector
+    }
+    */
+
+    size_t pos = 0;
+    for (; start + 64 <= end; start += 64)
+    {
+        UInt64 mask64 = bytes64MaskToBits64Mask(filt + start);
+
+        for (size_t i = 0; i < LOOPS_PER_MASK; ++i)
+        {
+            auto offset = std::popcount(mask64 & MASK_IN_LOOP);
+            if (offset)
+            {
+                if constexpr (std::is_same_v<T, UInt64>)
+                {
+                    __m512i compressed_indices = _mm512_maskz_compress_epi64(mask64 & MASK_IN_LOOP, index_vec); // Compress indices
+                    _mm512_storeu_si512(&indices[pos], compressed_indices); // Store compressed indices
+                }
+                else if constexpr (std::is_same_v<T, UInt32>)
+                {
+                    __m512i compressed_indices = _mm512_maskz_compress_epi32(mask64 & MASK_IN_LOOP, index_vec); // Compress indices
+                    _mm512_storeu_si512(&indices[pos], compressed_indices); // Store compressed indices
+                }
+                /*
+                else if constexpr (std::is_same_v<T, UInt16>)
+                {
+                    __m512i compressed_indices = _mm512_maskz_compress_epi16(mask64 & MASK_IN_LOOP, index_vec); // Compress indices
+                    _mm512_storeu_si512(&indices[pos], compressed_indices); // Store compressed indices
+                }
+                */
+
+                pos += offset;
+            }
+
+
+            if constexpr (std::is_same_v<T, UInt64>)
+                index_vec = _mm512_add_epi64(index_vec, increment_vec); // Increment the index vector
+            else if constexpr (std::is_same_v<T, UInt32>)
+                index_vec = _mm512_add_epi32(index_vec, increment_vec); // Increment the index vector
+            /*
+            else if constexpr (std::is_same_v<T, UInt16>)
+                index_vec = _mm512_add_epi16(index_vec, increment_vec); // Increment the index vector
+            */
+
+            mask64 >>= MASK_BITS_PER_LOOP;
+        }
+    }
+
+    for (; start != end; ++start)
+    {
+        if (filt[start])
+            indices[pos++] = start;
+    }
+})
+
+template <typename T>
+static NO_INLINE size_t myFilterToIndicesAVX512(const IColumn::Filter & filt, PaddedPODArray<T> & indices)
+{
+    static constexpr size_t PADDING_BYTES = 64/sizeof(T) - 1;
+    if (filt.empty())
+        return 0;
+
+    size_t start = 0;
+    size_t end = filt.size();
+
+    size_t size = countBytesInFilter(filt.data(), start, end);
+    indices.resize_exact(size + PADDING_BYTES);
+    ::TargetSpecific::AVX512F::myFilterToIndices(filt.data(), start, end, indices);
+    indices.resize_exact(size);
+    return start;
+}
+
+template <typename T>
+static NO_INLINE size_t myFilterToIndicesDefault(const IColumn::Filter & filt, PaddedPODArray<T> & indices)
+{
+    if (filt.empty())
+        return 0;
+
+    size_t start = 0;
+    size_t end = filt.size();
+    size_t size = countBytesInFilter(filt.data(), start, end);
+    indices.resize_exact(size);
+    ::TargetSpecific::Default::myFilterToIndices(filt.data(), start, end, indices);
+    return start;
+}
+
+template <typename T>
+static void BM_myFilterToIndicesDefault(benchmark::State & state)
+{
+    for (auto _ : state)
+    {
+        state.PauseTiming();
+        auto filter = mockFilter(ROWS);
+        state.ResumeTiming();
+
+        PaddedPODArray<T> indices;
+        auto start = myFilterToIndicesDefault(filter, indices);
+        benchmark::DoNotOptimize(start);
+        benchmark::DoNotOptimize(indices);
+    }
+}
+
+template <typename T>
+static void BM_myFilterToIndicesAVX512(benchmark::State & state)
+{
+    for (auto _ : state)
+    {
+        state.PauseTiming();
+        auto filter = mockFilter(ROWS);
+        state.ResumeTiming();
+
+        PaddedPODArray<T> indices;
+        auto start = myFilterToIndicesAVX512(filter, indices);
+        benchmark::DoNotOptimize(start);
+        benchmark::DoNotOptimize(indices);
+    }
+}
+
+BENCHMARK_TEMPLATE(BM_myFilterToIndicesDefault, UInt16);
+
+/*
+BENCHMARK_TEMPLATE(BM_myFilterToIndicesDefault, UInt32);
+BENCHMARK_TEMPLATE(BM_myFilterToIndicesDefault, UInt64);
+
+// BENCHMARK_TEMPLATE(BM_myFilterToIndicesAVX512, UInt16);
+BENCHMARK_TEMPLATE(BM_myFilterToIndicesAVX512, UInt32);
+BENCHMARK_TEMPLATE(BM_myFilterToIndicesAVX512, UInt64);
+*/
