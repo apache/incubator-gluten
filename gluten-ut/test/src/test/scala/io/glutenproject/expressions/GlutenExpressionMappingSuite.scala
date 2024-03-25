@@ -19,6 +19,7 @@ package io.glutenproject.expressions
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.ProjectExecTransformer
 import io.glutenproject.expression.ExpressionMappings
+import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{GlutenQueryTest, Row}
@@ -32,13 +33,19 @@ class GlutenExpressionMappingSuite
   with AdaptiveSparkPlanHelper {
 
   override protected def sparkConf: SparkConf = {
-    super.sparkConf
+    val conf = super.sparkConf
       .set("spark.plugins", "io.glutenproject.GlutenPlugin")
       .set("spark.default.parallelism", "1")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
       .set("spark.ui.enabled", "false")
       .set("spark.gluten.ui.enabled", "false")
+    if (BackendTestUtils.isCHBackendLoaded()) {
+      conf
+        .set("spark.gluten.sql.enable.native.validation", "false")
+        .set(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
+    }
+    conf
   }
 
   test("test expression blacklist") {
