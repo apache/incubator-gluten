@@ -47,6 +47,9 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
             "/path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so")
     }
 
+  protected lazy val udfLibRelativePath: String =
+    udfLibPath.split(",").map(p => Paths.get(p).getFileName.toString).mkString(",")
+
   override protected def beforeAll(): Unit = {
     super.beforeAll()
     if (_spark == null) {
@@ -83,7 +86,7 @@ class VeloxUdfSuiteLocal extends VeloxUdfSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.files", udfLibPath)
-      .set("spark.gluten.sql.columnar.backend.velox.udfLibraryPaths", "libmyudf.so")
+      .set("spark.gluten.sql.columnar.backend.velox.udfLibraryPaths", udfLibRelativePath)
   }
 }
 
