@@ -16,12 +16,13 @@
  */
 package io.glutenproject.extension.columnar
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.utils.PullOutProjectHelper
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete, Partial}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ExpandExec, ProjectExec, SortExec, SparkPlan, TakeOrderedAndProjectExec}
+import org.apache.spark.sql.execution.{ExpandExec, GenerateExec, ProjectExec, SortExec, SparkPlan, TakeOrderedAndProjectExec}
 import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, TypedAggregateExpression}
 import org.apache.spark.sql.execution.window.WindowExec
 
@@ -189,6 +190,10 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
         child = ProjectExec(
           eliminateProjectList(expand.child.outputSet, expressionMap.values.toSeq),
           expand.child))
+
+    case generate: GenerateExec =>
+      BackendsApiManager.getSparkPlanExecApiInstance.genPreProjectForGenerate(generate)
+
     case _ => plan
   }
 }

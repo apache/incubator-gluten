@@ -44,7 +44,7 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, HashPartitioning, Partitioning, RoundRobinPartitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{BroadcastUtils, ColumnarBuildSideRelation, ColumnarShuffleExchangeExec, SparkPlan, VeloxColumnarWriteFilesExec}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
@@ -676,5 +676,13 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       child: SparkPlan
   ): GenerateExecTransformerBase = {
     GenerateExecTransformer(generator, requiredChildOutput, outer, generatorOutput, child)
+  }
+
+  override def genPreProjectForGenerate(generate: GenerateExec): SparkPlan = {
+    PullOutGenerateProjectHelper.pullOutPreProject(generate)
+  }
+
+  override def genPostProjectForGenerate(generate: GenerateExec): SparkPlan = {
+    PullOutGenerateProjectHelper.pullOutPostProject(generate)
   }
 }

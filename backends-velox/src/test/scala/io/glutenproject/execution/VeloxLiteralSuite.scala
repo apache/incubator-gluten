@@ -136,5 +136,6 @@ class VeloxLiteralSuite extends VeloxWholeStageTransformerSuite {
 
   test("Literal Fallback") {
     validateFallbackResult("SELECT struct(cast(null as struct<a: string>))")
+    validateFallbackResult("SELECT array(struct(1, 'a'), null)")
   }
 }

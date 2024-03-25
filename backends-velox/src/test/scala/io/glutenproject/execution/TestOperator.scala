@@ -787,8 +787,32 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
   }
 
   test("test inline function") {
+    // Literal: func(literal)
+    runQueryAndCompare(s"""
+                          |SELECT inline(array(
+                          |  named_struct('c1', 0, 'c2', 1),
+                          |  named_struct('c1', 2, 'c2', null)));
+                          |""".stripMargin) {
+      checkOperatorMatch[GenerateExecTransformer]
+    }
+
+    // CreateArray: func(array(col))
     withTempView("t1") {
-      sql("""select * from values
+      sql("""SELECT * from values
+            |  (named_struct('c1', 0, 'c2', 1)),
+            |  (named_struct('c1', 2, 'c2', null)),
+            |  (null)
+            |as tbl(a)
+         """.stripMargin).createOrReplaceTempView("t1")
+      runQueryAndCompare(s"""
+                            |SELECT inline(array(a)) from t1;
+                            |""".stripMargin) {
+        checkOperatorMatch[GenerateExecTransformer]
+      }
+    }
+
+    withTempView("t2") {
+      sql("""SELECT * from values
             |  array(
             |    named_struct('c1', 0, 'c2', 1),
             |    null,
@@ -800,13 +824,21 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
             |    named_struct('c1', 2, 'c2', 3)
             |  )
             |as tbl(a)
-         """.stripMargin).createOrReplaceTempView("t1")
+         """.stripMargin).createOrReplaceTempView("t2")
       runQueryAndCompare("""
-                           |SELECT inline(a) from t1;
+                           |SELECT inline(a) from t2;
                            |""".stripMargin) {
         checkOperatorMatch[GenerateExecTransformer]
       }
     }
+
+    // Fallback for array(struct(...), null) literal.
+    runQueryAndCompare(s"""
+                          |SELECT inline(array(
+                          |  named_struct('c1', 0, 'c2', 1),
+                          |  named_struct('c1', 2, 'c2', null),
+                          |  null));
+                          |""".stripMargin)(_)
   }
 
   test("test array functions") {
