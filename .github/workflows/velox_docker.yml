@@ -73,6 +73,17 @@ jobs:
       matrix:
         os: ["ubuntu:20.04", "ubuntu:22.04"]
         spark: ["spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5"]
+        java: [ "java-8", "java-17" ]
+        # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
+        exclude:
+          - spark: spark-3.2
+            java: java-17
+          - spark: spark-3.4
+            java: java-17
+          - spark: spark-3.5
+            java: java-17
+          - os: ubuntu:22.04
+            java: java-17
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
@@ -84,69 +95,49 @@ jobs:
           path: ./cpp/build/releases
       - name: Setup java and maven
         run: |
-          apt-get update && \
-          apt-get install -y openjdk-8-jdk maven && \
+          if [ "${{ matrix.java }}" = "java-17" ]; then
+            apt-get update && apt-get install -y openjdk-17-jdk maven
+          else
+            apt-get update && apt-get install -y openjdk-8-jdk maven
+          fi
           apt remove openjdk-11* -y
-      - name: Build for Spark ${{ matrix.spark }}
-        run: |
-          cd $GITHUB_WORKSPACE/ && \
-          mvn clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
-      - name: Build and run TPCH/DS ${{ matrix.spark }}
-        run: |
-          cd $GITHUB_WORKSPACE/tools/gluten-it && \
-          mvn clean install -P${{ matrix.spark }} \
-          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
-
-
-  run-tpc-test-centos7:
-    needs: build-native-lib
-    strategy:
-      fail-fast: false
-      matrix:
-        spark: ["spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5"]
-    runs-on: ubuntu-20.04
-    container: centos:7
-    steps:
-      - uses: actions/checkout@v2
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: velox-native-lib-${{github.sha}}
-          path: ./cpp/build/releases
-      - name: Setup java and maven
-        run: |
-          yum update -y && yum install -y java-1.8.0-openjdk-devel wget
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
-      - name: Build for Spark ${{ matrix.spark }}
+      - name: Build and run TPCH/DS
         run: |
           cd $GITHUB_WORKSPACE/
-          export MAVEN_HOME=/usr/lib/maven
-          export PATH=${PATH}:${MAVEN_HOME}/bin
-          mvn clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
-      - name: Build and run TPCH/DS ${{ matrix.spark }}
-        run: |
-          cd $GITHUB_WORKSPACE/tools/gluten-it 
-          export MAVEN_HOME=/usr/lib/maven
-          export PATH=${PATH}:${MAVEN_HOME}/bin
-          mvn clean install -P${{ matrix.spark }} \
+          if [ "${{ matrix.java }}" = "java-17" ]; then
+            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+          else
+            export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+          fi
+          echo "JAVA_HOME: $JAVA_HOME"
+          mvn clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          mvn clean install -P${{ matrix.spark }} -P${{ matrix.java }} \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
 
-  run-tpc-test-centos8:
+  run-tpc-test-centos:
     needs: build-native-lib
     strategy:
       fail-fast: false
       matrix:
+        os: ["centos:7", "centos:8"]
         spark: ["spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5"]
+        java: ["java-8", "java-17"]
+        # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
+        exclude:
+          - spark: spark-3.2
+            java: java-17
+          - spark: spark-3.4
+            java: java-17
+          - spark: spark-3.5
+            java: java-17
+          - os: centos:7
+            java: java-17
     runs-on: ubuntu-20.04
-    container: centos:8
+    container: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -155,32 +146,39 @@ jobs:
           name: velox-native-lib-${{github.sha}}
           path: ./cpp/build/releases
       - name: Update mirror list
+        if: matrix.os == 'centos:8'
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
           sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup java and maven
         run: |
-          yum update -y && yum install -y java-1.8.0-openjdk-devel wget
+          if [ "${{ matrix.java }}" = "java-17" ]; then
+            yum update -y && yum install -y java-17-openjdk-devel wget
+          else
+            yum update -y && yum install -y java-1.8.0-openjdk-devel wget
+          fi
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
-      - name: Build for Spark ${{ matrix.spark }}
+      - name: Build and run TPCH/DS
         run: |
-          cd $GITHUB_WORKSPACE/ 
+          cd $GITHUB_WORKSPACE/
           export MAVEN_HOME=/usr/lib/maven
           export PATH=${PATH}:${MAVEN_HOME}/bin
-          mvn clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
-      - name: Build and run TPCH/DS ${{ matrix.spark }}
-        run: |
-          cd $GITHUB_WORKSPACE/tools/gluten-it
-          export MAVEN_HOME=/usr/lib/maven
-          export PATH=${PATH}:${MAVEN_HOME}/bin
-          mvn clean install -P${{ matrix.spark }} \
+          if [ "${{ matrix.java }}" = "java-17" ]; then
+            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+          else
+            export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
+          fi
+          echo "JAVA_HOME: $JAVA_HOME"
+          mvn clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+          cd $GITHUB_WORKSPACE/tools/gluten-it 
+          mvn clean install -P${{ matrix.spark }} -P${{ matrix.java }} \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
-     
+
   # run-tpc-test-centos8-oom-randomkill:
   #   needs: build-native-lib
   #   strategy:

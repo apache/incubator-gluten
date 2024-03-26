@@ -37,6 +37,9 @@
   </modules>
 
   <properties>
+    <java.version>1.8</java.version>
+    <maven.compiler.source>${java.version}</maven.compiler.source>
+    <maven.compiler.target>${java.version}</maven.compiler.target>
     <caffeine.version.java8>2.9.3</caffeine.version.java8>
     <delta.version>2.0.1</delta.version>
     <delta.binary.version>20</delta.binary.version>
@@ -97,13 +100,31 @@
     <!-- plugin version-->
     <build-helper-maven-plugin.version>3.2.0</build-helper-maven-plugin.version>
     <scala.compiler.version>4.8.0</scala.compiler.version>
-    <maven.compiler.plugin>3.8.0</maven.compiler.plugin>
+    <maven.compiler.plugin>3.12.1</maven.compiler.plugin>
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
     <scalastyle.version>1.0.0</scalastyle.version>
     <scalatest-maven-plugin.version>2.2.0</scalatest-maven-plugin.version>
   </properties>
 
   <profiles>
+    <profile>
+      <id>java-8</id>
+      <activation>
+        <jdk>1.8</jdk>
+      </activation>
+      <properties>
+        <java.version>1.8</java.version>
+      </properties>
+    </profile>
+    <profile>
+      <id>java-17</id>
+      <activation>
+        <jdk>17</jdk>
+      </activation>
+      <properties>
+        <java.version>17</java.version>
+      </properties>
+    </profile>
     <profile>
       <id>spark-3.2</id>
       <activation>
@@ -545,8 +566,6 @@
           <artifactId>maven-compiler-plugin</artifactId>
           <version>${maven.compiler.plugin}</version>
           <configuration>
-            <source>1.8</source>
-            <target>1.8</target>
             <encoding>UTF-8</encoding>
             <maxmem>1024m</maxmem>
             <fork>true</fork>
