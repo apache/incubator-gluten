@@ -19,6 +19,7 @@ package io.glutenproject.execution
 import io.glutenproject.GlutenConfig
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.Row
 
 class VeloxIcebergSuite extends WholeStageTransformerSuite {
 
@@ -314,6 +315,43 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
             }
         }
       }
+    }
+  }
+
+  test("iceberg: time travel") {
+    withTable("iceberg_tm") {
+      spark.sql(s"""
+                   |create table iceberg_tm (id int, name string) using iceberg
+                   |""".stripMargin)
+      spark.sql(s"""
+                   |insert into iceberg_tm values (1, "v1"), (2, "v2")
+                   |""".stripMargin)
+      spark.sql(s"""
+                   |insert into iceberg_tm values (3, "v3"), (4, "v4")
+                   |""".stripMargin)
+
+      val df =
+        spark.sql("select snapshot_id from default.iceberg_tm.snapshots where parent_id is null")
+      val value = df.collectAsList().get(0).getAs[Long](0);
+      spark.sql(s"call system.set_current_snapshot('default.iceberg_tm',$value)");
+      val data = runQueryAndCompare("select * from iceberg_tm") { _ => }
+      checkLengthAndPlan(data, 2)
+      checkAnswer(data, Row(1, "v1") :: Row(2, "v2") :: Nil)
+    }
+  }
+
+  test("iceberg: partition filters") {
+    withTable("iceberg_pf") {
+      spark.sql(s"""
+                   |create table iceberg_pf (id int, name string)
+                   | using iceberg partitioned by (name)
+                   |""".stripMargin)
+      spark.sql(s"""
+                   |insert into iceberg_pf values (1, "v1"), (2, "v2"), (3, "v1"), (4, "v2")
+                   |""".stripMargin)
+      val df1 = runQueryAndCompare("select * from iceberg_pf where name = 'v1'") { _ => }
+      checkLengthAndPlan(df1, 2)
+      checkAnswer(df1, Row(1, "v1") :: Row(3, "v1") :: Nil)
     }
   }
 
