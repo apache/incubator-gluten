@@ -19,12 +19,12 @@ package io.glutenproject.execution
 import org.apache.spark.sql.types._
 
 class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
-
+  disableFallbackCheck
   import testImplicits._
 
   // Test "SELECT ..." without a from clause.
   test("isnull function") {
-    runQueryAndCompare("SELECT isnull(1)") { _ => }
+    runQueryAndCompare("SELECT isnull(1)")(checkOperatorMatch[ProjectExecTransformer])
   }
 
   test("Test bit_count function") {

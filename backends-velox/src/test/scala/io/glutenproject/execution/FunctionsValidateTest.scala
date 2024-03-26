@@ -28,7 +28,6 @@ import scala.collection.JavaConverters._
 class FunctionsValidateTest extends WholeStageTransformerSuite {
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
-
   private var parquetPath: String = _
 
   override protected def sparkConf: SparkConf = {
@@ -66,7 +65,7 @@ class FunctionsValidateTest extends WholeStageTransformerSuite {
       Row(1.045, 3, null)
     )
 
-    var dfParquet = spark.createDataFrame(rowData.asJava, schema)
+    val dfParquet = spark.createDataFrame(rowData.asJava, schema)
     dfParquet
       .coalesce(1)
       .write
