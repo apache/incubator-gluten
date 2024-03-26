@@ -18,24 +18,8 @@ package io.glutenproject.execution
 
 import org.apache.spark.sql.types._
 
-<<<<<<< HEAD:backends-velox/src/test/scala/io/glutenproject/execution/VeloxFunctionsValidateSuite.scala
-import java.nio.file.Files
-import java.sql.{Date, Timestamp}
-
-import scala.collection.JavaConverters._
-
-class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
-
-  override protected val resourcePath: String = "/tpch-data-parquet-velox"
-  override protected val fileFormat: String = "parquet"
-  override protected val backend: String = "velox"
-
-  private var parquetPath: String = _
-
-=======
 class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
   disableFallbackCheck
->>>>>>> adf0566a2056276612694bc980f4e6e9028eb7d1:backends-velox/src/test/scala/io/glutenproject/execution/ScalarFunctionsValidateSuite.scala
   import testImplicits._
 
   // Test "SELECT ..." without a from clause.
