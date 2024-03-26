@@ -40,7 +40,7 @@ void gluten::initVeloxJniUDF(JNIEnv* env) {
   udfResolverClass = createGlobalClassReferenceOrError(env, kUdfResolverClassPath.c_str());
 
   // methods
-  registerUDFMethod = getMethodIdOrError(env, udfResolverClass, "registerUDF", "(Ljava/lang/String;[B)V");
+  registerUDFMethod = getMethodIdOrError(env, udfResolverClass, "registerUDF", "(Ljava/lang/String;[B[B)V");
 }
 
 void gluten::finalizeVeloxJniUDF(JNIEnv* env) {
@@ -49,15 +49,19 @@ void gluten::finalizeVeloxJniUDF(JNIEnv* env) {
 
 void gluten::jniGetFunctionSignatures(JNIEnv* env) {
   auto udfLoader = gluten::UdfLoader::getInstance();
-  const auto& udfMap = udfLoader->getUdfMap();
-  for (const auto& udf : udfMap) {
-    auto udfString = udf.second;
-    jbyteArray returnType = env->NewByteArray(udf.second.length());
-    env->SetByteArrayRegion(returnType, 0, udfString.length(), reinterpret_cast<const jbyte*>(udfString.c_str()));
-    jstring name = env->NewStringUTF(udf.first.c_str());
+
+  const auto& signatures = udfLoader->getRegisteredUdfSignatures();
+  for (const auto& signature : signatures) {
+    jstring name = env->NewStringUTF(signature->name.c_str());
+    jbyteArray returnType = env->NewByteArray(signature->returnType.length());
+    env->SetByteArrayRegion(
+        returnType, 0, signature->returnType.length(), reinterpret_cast<const jbyte*>(signature->returnType.c_str()));
+    jbyteArray argTypes = env->NewByteArray(signature->argTypes.length());
+    env->SetByteArrayRegion(
+        argTypes, 0, signature->argTypes.length(), reinterpret_cast<const jbyte*>(signature->argTypes.c_str()));
     jobject instance = env->GetStaticObjectField(
         udfResolverClass, env->GetStaticFieldID(udfResolverClass, "MODULE$", kUdfResolverClassPath.c_str()));
-    env->CallVoidMethod(instance, registerUDFMethod, name, returnType);
+    env->CallVoidMethod(instance, registerUDFMethod, name, returnType, argTypes);
     checkException(env);
   }
 }

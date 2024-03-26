@@ -16,11 +16,18 @@
  */
 
 #include <velox/expression/VectorFunction.h>
+#include <velox/functions/Macros.h>
+#include <velox/functions/Registerer.h>
 #include <iostream>
 #include "udf/Udf.h"
 
 namespace {
+
 using namespace facebook::velox;
+
+static const char* kInteger = "int";
+static const char* kBigInt = "bigint";
+static const char* kDate = "date";
 
 template <TypeKind Kind>
 class PlusConstantFunction : public exec::VectorFunction {
@@ -62,9 +69,35 @@ class PlusConstantFunction : public exec::VectorFunction {
   const int32_t addition_;
 };
 
+template <typename T>
+struct MyDateSimpleFunction {
+  VELOX_DEFINE_FUNCTION_TYPES(T);
+
+  FOLLY_ALWAYS_INLINE void call(int32_t& result, const arg_type<Date>& date, const arg_type<int32_t> addition) {
+    result = date + addition;
+  }
+};
+
+std::shared_ptr<facebook::velox::exec::VectorFunction> makeMyUdf1(
+    const std::string& /*name*/,
+    const std::vector<exec::VectorFunctionArg>& inputArgs,
+    const core::QueryConfig& /*config*/) {
+  auto typeKind = inputArgs[0].type->kind();
+  switch (typeKind) {
+    case TypeKind::INTEGER:
+      return std::make_shared<PlusConstantFunction<TypeKind::INTEGER>>(5);
+    case TypeKind::BIGINT:
+      return std::make_shared<PlusConstantFunction<TypeKind::BIGINT>>(5);
+    default:
+      VELOX_UNREACHABLE();
+  }
+}
+
 static std::vector<std::shared_ptr<exec::FunctionSignature>> integerSignatures() {
-  // integer -> integer
-  return {exec::FunctionSignatureBuilder().returnType("integer").argumentType("integer").build()};
+  // integer -> integer, bigint ->bigint
+  return {
+      exec::FunctionSignatureBuilder().returnType("integer").argumentType("integer").build(),
+      exec::FunctionSignatureBuilder().returnType("bigint").argumentType("bigint").build()};
 }
 
 static std::vector<std::shared_ptr<exec::FunctionSignature>> bigintSignatures() {
@@ -74,23 +107,26 @@ static std::vector<std::shared_ptr<exec::FunctionSignature>> bigintSignatures() 
 
 } // namespace
 
-const int kNumMyUdf = 2;
-gluten::UdfEntry myUdf[kNumMyUdf] = {{"myudf1", "integer"}, {"myudf2", "bigint"}};
+const int kNumMyUdf = 4;
 
 DEFINE_GET_NUM_UDF {
   return kNumMyUdf;
 }
 
+const char* myUdf1Arg1[] = {kInteger};
+const char* myUdf1Arg2[] = {kBigInt};
+const char* myUdf2Arg1[] = {kBigInt};
+const char* myDateArg[] = {kDate, kInteger};
 DEFINE_GET_UDF_ENTRIES {
-  for (auto i = 0; i < kNumMyUdf; ++i) {
-    udfEntries[i] = myUdf[i];
-  }
+  udfEntries[0] = {"myudf1", kInteger, 1, myUdf1Arg1};
+  udfEntries[1] = {"myudf1", kBigInt, 1, myUdf1Arg2};
+  udfEntries[2] = {"myudf2", kBigInt, 1, myUdf2Arg1};
+  udfEntries[3] = {"mydate", kDate, 2, myDateArg};
 }
 
 DEFINE_REGISTER_UDF {
-  facebook::velox::exec::registerVectorFunction(
-      "myudf1", integerSignatures(), std::make_unique<PlusConstantFunction<facebook::velox::TypeKind::INTEGER>>(5));
+  facebook::velox::exec::registerStatefulVectorFunction("myudf1", integerSignatures(), makeMyUdf1);
   facebook::velox::exec::registerVectorFunction(
       "myudf2", bigintSignatures(), std::make_unique<PlusConstantFunction<facebook::velox::TypeKind::BIGINT>>(5));
-  LOG(INFO) << "registered myudf1, myudf2";
+  facebook::velox::registerFunction<MyDateSimpleFunction, Date, Date, int32_t>({"mydate"});
 }

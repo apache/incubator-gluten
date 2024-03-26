@@ -22,6 +22,9 @@ namespace gluten {
 struct UdfEntry {
   const char* name;
   const char* dataType;
+
+  size_t numArgs;
+  const char** argTypes;
 };
 
 #define GLUTEN_GET_NUM_UDF getNumUdf
