@@ -25,9 +25,15 @@ Velox BloomFilter's serialization format is different from Spark's. BloomFilter 
 #### Case Sensitive mode
 Gluten only supports spark default case-insensitive mode. If case-sensitive mode is enabled, user may get incorrect result.
 
-#### Lookaround pattern for regexp functions
-In velox, lookaround (lookahead/lookbehind) pattern is not supported in RE2-based implementations for Spark functions,
-such as `rlike`, `regexp_extract`, etc.
+#### Regexp functions
+In Velox, regexp functions (`rlike`, `regexp_extract`, etc.) are implemented based on RE2, while in Spark they are based on `java.util.regex`.
+* Lookaround (lookahead/lookbehind) pattern is not supported in RE2.
+* When matching white space with pattern "\\s", RE2 doesn't treat "\v" (or "\x0b") as white space, but `java.util.regex` does.
+
+There are a few unknown incompatible cases. If user cannot tolerate the incompatibility risk, please enable the below configuration property.
+```
+spark.gluten.sql.fallbackRegexpExpressions
+```
 
 #### FileSource format
 Currently, Gluten only fully supports parquet file format and partially support ORC. If other format is used, scan operator falls back to vanilla spark.
