@@ -84,6 +84,8 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: gluten-velox-bundle-package
+          path: package/target/gluten-velox-bundle-*.jar
+          retention-days: 7
 
   build-bundle-package-centos7:
     if: ${{ github.event.inputs.os == 'centos:7' }}
