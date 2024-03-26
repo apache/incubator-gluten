@@ -37,14 +37,20 @@ facebook::velox::exec::ExprPtr RowConstructorWithNullCallToSpecialForm::construc
     std::vector<facebook::velox::exec::ExprPtr>&& compiledChildren,
     bool trackCpuUsage,
     const facebook::velox::core::QueryConfig& config) {
-  auto rowConstructorVectorFunction =
-      facebook::velox::exec::vectorFunctionFactories().withRLock([&config, &name](auto& functionMap) {
+  auto [function, metadata] = facebook::velox::exec::vectorFunctionFactories().withRLock(
+      [&config, &name](auto& functionMap) -> std::pair<
+                                              std::shared_ptr<facebook::velox::exec::VectorFunction>,
+                                              facebook::velox::exec::VectorFunctionMetadata> {
         auto functionIterator = functionMap.find(name);
-        return functionIterator->second.factory(name, {}, config);
+        if (functionIterator != functionMap.end()) {
+          return {functionIterator->second.factory(name, {}, config), functionIterator->second.metadata};
+        } else {
+          VELOX_FAIL("Function {} is not registered.", name);
+        }
       });
 
   return std::make_shared<facebook::velox::exec::Expr>(
-      type, std::move(compiledChildren), rowConstructorVectorFunction, name, trackCpuUsage);
+      type, std::move(compiledChildren), function, metadata, name, trackCpuUsage);
 }
 
 facebook::velox::exec::ExprPtr RowConstructorWithNullCallToSpecialForm::constructSpecialForm(

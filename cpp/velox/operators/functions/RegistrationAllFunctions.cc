@@ -56,7 +56,8 @@ void registerFunctionOverwrite() {
   velox::exec::registerVectorFunction(
       "row_constructor_with_null",
       std::vector<std::shared_ptr<velox::exec::FunctionSignature>>{},
-      std::make_unique<RowFunctionWithNull>());
+      std::make_unique<RowFunctionWithNull>(),
+      RowFunctionWithNull::metadata());
   velox::exec::registerFunctionCallToSpecialForm(
       RowConstructorWithNullCallToSpecialForm::kRowConstructorWithNull,
       std::make_unique<RowConstructorWithNullCallToSpecialForm>());
