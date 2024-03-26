@@ -70,11 +70,18 @@ jobs:
         with:
           name: velox-native-lib-${{github.sha}}
           path: ./cpp/build/releases
-      - name: Setup java and maven
+      - name: Setup java and maven for Ubuntu
+        if: startsWith(github.event.inputs.os, 'ubuntu')
         run: |
           apt-get update && \
           apt-get install -y openjdk-8-jdk maven && \
           apt remove openjdk-11* -y
+      - name: Setup java and maven for CentOS
+        if: startsWith(github.event.inputs.os, 'centos')
+        run: |
+          yum update -y && \
+          yum install -y java-1.8.0-openjdk-devel maven && \
+          yum remove java-11* -y
       - name: Build for Spark ${{ github.event.inputs.spark }}
         run: |
           cd $GITHUB_WORKSPACE/ && \
