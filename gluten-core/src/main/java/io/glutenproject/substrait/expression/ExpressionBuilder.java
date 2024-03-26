@@ -266,7 +266,34 @@ public class ExpressionBuilder {
       String upperBound,
       String lowerBound,
       String frameType) {
+    return makeWindowFunction(
+        functionId,
+        expressionNodes,
+        columnName,
+        outputTypeNode,
+        upperBound,
+        lowerBound,
+        frameType,
+        false);
+  }
+
+  public static WindowFunctionNode makeWindowFunction(
+      Integer functionId,
+      List<ExpressionNode> expressionNodes,
+      String columnName,
+      TypeNode outputTypeNode,
+      String upperBound,
+      String lowerBound,
+      String frameType,
+      boolean ignoreNulls) {
     return new WindowFunctionNode(
-        functionId, expressionNodes, columnName, outputTypeNode, upperBound, lowerBound, frameType);
+        functionId,
+        expressionNodes,
+        columnName,
+        outputTypeNode,
+        upperBound,
+        lowerBound,
+        frameType,
+        ignoreNulls);
   }
 }

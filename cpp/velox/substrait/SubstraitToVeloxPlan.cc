@@ -596,11 +596,12 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   std::vector<std::string> tableColumnNames;
   std::vector<std::string> partitionedKey;
   std::vector<bool> isPartitionColumns;
+  std::vector<bool> isMetadataColumns;
   tableColumnNames.reserve(writeRel.table_schema().names_size());
 
   VELOX_CHECK(writeRel.has_table_schema(), "WriteRel should have the table schema to store the column information");
   const auto& tableSchema = writeRel.table_schema();
-  isPartitionColumns = SubstraitParser::parsePartitionColumns(tableSchema);
+  SubstraitParser::parsePartitionAndMetadataColumns(tableSchema, isPartitionColumns, isMetadataColumns);
 
   for (const auto& name : tableSchema.names()) {
     tableColumnNames.emplace_back(name);
@@ -659,7 +660,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
               makeLocationHandle(writePath),
               dwio::common::FileFormat::PARQUET, // Currently only support parquet format.
               compressionCodec)),
-      (partitionedKey.size() > 0) ? true : false,
+      (!partitionedKey.empty()),
       exec::TableWriteTraits::outputType(nullptr),
       connector::CommitStrategy::kNoCommit,
       childNode);
@@ -766,10 +767,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     }
   }
 
-  auto node = std::make_shared<core::UnnestNode>(
-      nextPlanNodeId(), replicated, unnest, std::move(unnestNames), std::nullopt, childNode);
+  std::optional<std::string> ordinalityName = std::nullopt;
+  if (generateRel.has_advanced_extension() &&
+      SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isPosExplode=")) {
+    ordinalityName = std::make_optional<std::string>("pos");
+  }
 
-  return node;
+  return std::make_shared<core::UnnestNode>(
+      nextPlanNodeId(), replicated, unnest, std::move(unnestNames), ordinalityName, childNode);
 }
 
 const core::WindowNode::Frame createWindowFrame(
@@ -826,7 +831,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   // Parse measures and get the window expressions.
   // Each measure represents one window expression.
-  bool ignoreNulls = false;
   std::vector<core::WindowNode::Function> windowNodeFunctions;
   std::vector<std::string> windowColumnNames;
 
@@ -837,23 +841,15 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     std::vector<core::TypedExprPtr> windowParams;
     auto& argumentList = windowFunction.arguments();
     windowParams.reserve(argumentList.size());
+    const auto& options = windowFunction.options();
     // For functions in kOffsetWindowFunctions (see Spark OffsetWindowFunctions),
-    // we expect the last arg is passed for setting ignoreNulls.
-    if (kOffsetWindowFunctions.find(funcName) != kOffsetWindowFunctions.end()) {
-      int i = 0;
-      for (; i < argumentList.size() - 1; i++) {
-        windowParams.emplace_back(exprConverter_->toVeloxExpr(argumentList[i].value(), inputType));
-      }
-      auto constantTypedExpr = exprConverter_->toVeloxExpr(argumentList[i].value().literal());
-      auto variant = constantTypedExpr->value();
-      if (!variant.hasValue()) {
-        VELOX_FAIL("Value is expected in variant for setting ignoreNulls.");
-      }
-      ignoreNulls = variant.value<bool>();
-    } else {
-      for (const auto& arg : argumentList) {
-        windowParams.emplace_back(exprConverter_->toVeloxExpr(arg.value(), inputType));
-      }
+    // we expect the first option name is `ignoreNulls` if ignoreNulls is true.
+    bool ignoreNulls = false;
+    if (!options.empty() && options.at(0).name() == "ignoreNulls") {
+      ignoreNulls = true;
+    }
+    for (const auto& arg : argumentList) {
+      windowParams.emplace_back(exprConverter_->toVeloxExpr(arg.value(), inputType));
     }
     auto windowVeloxType = SubstraitParser::parseType(windowFunction.output_type());
     auto windowCall = std::make_shared<const core::CallTypedExpr>(windowVeloxType, std::move(windowParams), funcName);
@@ -864,7 +860,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     windowColumnNames.push_back(windowFunction.column_name());
 
     windowNodeFunctions.push_back(
-        {std::move(windowCall), createWindowFrame(lowerBound, upperBound, type), ignoreNulls});
+        {std::move(windowCall), std::move(createWindowFrame(lowerBound, upperBound, type)), ignoreNulls});
   }
 
   // Construct partitionKeys
@@ -1045,6 +1041,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   std::vector<std::string> colNameList;
   std::vector<TypePtr> veloxTypeList;
   std::vector<bool> isPartitionColumns;
+  std::vector<bool> isMetadataColumns;
   // Convert field names into lower case when not case-sensitive.
   std::shared_ptr<const facebook::velox::Config> veloxCfg =
       std::make_shared<const facebook::velox::core::MemConfigMutable>(confMap_);
@@ -1060,7 +1057,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       colNameList.emplace_back(fieldName);
     }
     veloxTypeList = SubstraitParser::parseNamedStruct(baseSchema, asLowerCase);
-    isPartitionColumns = SubstraitParser::parsePartitionColumns(baseSchema);
+    SubstraitParser::parsePartitionAndMetadataColumns(baseSchema, isPartitionColumns, isMetadataColumns);
   }
 
   // Do not hard-code connector ID and allow for connectors other than Hive.
@@ -1115,8 +1112,13 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   std::unordered_map<std::string, std::shared_ptr<connector::ColumnHandle>> assignments;
   for (int idx = 0; idx < colNameList.size(); idx++) {
     auto outName = SubstraitParser::makeNodeName(planNodeId_, idx);
-    auto columnType = isPartitionColumns[idx] ? connector::hive::HiveColumnHandle::ColumnType::kPartitionKey
-                                              : connector::hive::HiveColumnHandle::ColumnType::kRegular;
+    auto columnType = connector::hive::HiveColumnHandle::ColumnType::kRegular;
+    if (isPartitionColumns[idx]) {
+      columnType = connector::hive::HiveColumnHandle::ColumnType::kPartitionKey;
+    }
+    if (isMetadataColumns[idx]) {
+      columnType = connector::hive::HiveColumnHandle::ColumnType::kSynthesized;
+    }
     assignments[outName] = std::make_shared<connector::hive::HiveColumnHandle>(
         colNameList[idx], columnType, veloxTypeList[idx], veloxTypeList[idx]);
     outNames.emplace_back(outName);
@@ -2014,13 +2016,13 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
     // Not equal.
     if (filterInfo.notValue_) {
       filters[common::Subfield(inputName)] =
-          std::move(std::make_unique<common::BoolValue>(!filterInfo.notValue_.value().value<bool>(), nullAllowed));
+          std::make_unique<common::BoolValue>(!filterInfo.notValue_.value().value<bool>(), nullAllowed);
     } else if (rangeSize == 0) {
       // IsNull/IsNotNull.
       if (!nullAllowed) {
-        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNotNull>());
+        filters[common::Subfield(inputName)] = std::make_unique<common::IsNotNull>();
       } else if (isNull) {
-        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNull>());
+        filters[common::Subfield(inputName)] = std::make_unique<common::IsNull>();
       } else {
         VELOX_NYI("Only IsNotNull and IsNull are supported in constructSubfieldFilters when no other filter ranges.");
       }
@@ -2029,15 +2031,15 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
       // Equal.
       auto value = filterInfo.lowerBounds_[0].value().value<bool>();
       VELOX_CHECK(value == filterInfo.upperBounds_[0].value().value<bool>(), "invalid state of bool equal");
-      filters[common::Subfield(inputName)] = std::move(std::make_unique<common::BoolValue>(value, nullAllowed));
+      filters[common::Subfield(inputName)] = std::make_unique<common::BoolValue>(value, nullAllowed);
     }
   } else if constexpr (KIND == facebook::velox::TypeKind::ARRAY || KIND == facebook::velox::TypeKind::MAP) {
     // Only IsNotNull and IsNull are supported for array and map types.
     if (rangeSize == 0) {
       if (!nullAllowed) {
-        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNotNull>());
+        filters[common::Subfield(inputName)] = std::make_unique<common::IsNotNull>();
       } else if (isNull) {
-        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNull>());
+        filters[common::Subfield(inputName)] = std::make_unique<common::IsNull>();
       } else {
         VELOX_NYI(
             "Only IsNotNull and IsNull are supported in constructSubfieldFilters for input type '{}'.",
@@ -2091,9 +2093,9 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
     // Handle null filtering.
     if (rangeSize == 0) {
       if (!nullAllowed) {
-        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNotNull>());
+        filters[common::Subfield(inputName)] = std::make_unique<common::IsNotNull>();
       } else if (isNull) {
-        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNull>());
+        filters[common::Subfield(inputName)] = std::make_unique<common::IsNull>();
       } else {
         VELOX_NYI("Only IsNotNull and IsNull are supported in constructSubfieldFilters when no other filter ranges.");
       }

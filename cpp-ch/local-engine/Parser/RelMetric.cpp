@@ -17,6 +17,7 @@
 #include "RelMetric.h"
 #include <Processors/IProcessor.h>
 #include <Processors/QueryPlan/AggregatingStep.h>
+#include <Processors/QueryPlan/ReadFromMergeTree.h>
 
 using namespace rapidjson;
 
@@ -115,6 +116,17 @@ void RelMetric::serialize(Writer<StringBuffer> & writer, bool) const
                 writer.EndObject();
             }
             writer.EndArray();
+
+            if (auto read_mergetree = dynamic_cast<DB::ReadFromMergeTree*>(step))
+            {
+                auto selected_marks_pk = read_mergetree->getAnalysisResult().selected_marks_pk;
+                auto total_marks_pk = read_mergetree->getAnalysisResult().total_marks_pk;
+                writer.Key("selected_marks_pk");
+                writer.Uint64(selected_marks_pk);
+                writer.Key("total_marks_pk");
+                writer.Uint64(total_marks_pk);
+            }
+
             writer.EndObject();
         }
         writer.EndArray();

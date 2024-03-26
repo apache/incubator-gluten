@@ -22,11 +22,11 @@ class SharedLibraryLoaderUbuntu2204 extends SharedLibraryLoader {
   override def loadLib(loader: JniLibLoader): Unit = {
     loader
       .newTransaction()
-      .loadAndCreateLink("libboost_context.so.1.74.0", "libboost_context.so", false)
+      .loadAndCreateLink("libboost_context.so.1.84.0", "libboost_context.so", false)
       .loadAndCreateLink("libicudata.so.70", "libicudata.so", false)
       .loadAndCreateLink("libicuuc.so.70", "libicuuc.so", false)
       .loadAndCreateLink("libicui18n.so.70", "libicui18n.so", false)
-      .loadAndCreateLink("libboost_regex.so.1.74.0", "libboost_regex.so", false)
+      .loadAndCreateLink("libboost_regex.so.1.84.0", "libboost_regex.so", false)
       .loadAndCreateLink("libnghttp2.so.14", "libnghttp2.so", false)
       .loadAndCreateLink("librtmp.so.1", "librtmp.so", false)
       .loadAndCreateLink("libssh.so.4", "libssh.so", false)

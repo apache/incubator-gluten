@@ -16,6 +16,7 @@
  */
 package io.glutenproject.backendsapi
 
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
@@ -36,14 +37,14 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{FileSourceScanExec, LeafExecNode, SparkPlan}
+import org.apache.spark.sql.execution.{FileSourceScanExec, GenerateExec, LeafExecNode, SparkPlan}
 import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
-import org.apache.spark.sql.types.{BooleanType, LongType, NullType, StructType}
+import org.apache.spark.sql.types.{LongType, NullType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.lang.{Long => JLong}
@@ -122,7 +123,7 @@ trait SparkPlanExecApi {
       condition: Option[Expression],
       left: SparkPlan,
       right: SparkPlan,
-      isNullAwareAntiJoin: Boolean = false): BroadcastHashJoinExecTransformer
+      isNullAwareAntiJoin: Boolean = false): BroadcastHashJoinExecTransformerBase
 
   /** Generate CartesianProductExecTransformer. */
   def genCartesianProductExecTransformer(
@@ -182,6 +183,36 @@ trait SparkPlanExecApi {
       rightNode: ExpressionNode,
       original: GetArrayItem): ExpressionNode
 
+  /** Transform NaNvl to Substrait. */
+  def genNaNvlTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: NaNvl): ExpressionTransformer = {
+    throw new GlutenNotSupportException("NaNvl is not supported")
+  }
+
+  def genUuidTransformer(substraitExprName: String, original: Uuid): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(), original)
+  }
+
+  /** Transform map_entries to Substrait. */
+  def genMapEntriesTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: Expression): ExpressionTransformer = {
+    throw new GlutenNotSupportException("map_entries is not supported")
+  }
+
+  /** Transform inline to Substrait. */
+  def genInlineTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: Expression): ExpressionTransformer = {
+    throw new GlutenNotSupportException("inline is not supported")
+  }
+
+  /** Transform posexplode to Substrait. */
   def genPosExplodeTransformer(
       substraitExprName: String,
       child: ExpressionTransformer,
@@ -190,29 +221,19 @@ trait SparkPlanExecApi {
     PosExplodeTransformer(substraitExprName, child, original, attributeSeq)
   }
 
-  /** Transform NaNvl to Substrait. */
-  def genNaNvlTransformer(
+  /** Transform make_timestamp to Substrait. */
+  def genMakeTimestampTransformer(
       substraitExprName: String,
-      left: ExpressionTransformer,
-      right: ExpressionTransformer,
-      original: NaNvl): ExpressionTransformer = {
-    throw new UnsupportedOperationException("NaNvl is not supported")
+      children: Seq[ExpressionTransformer],
+      expr: Expression): ExpressionTransformer = {
+    throw new GlutenNotSupportException("make_timestamp is not supported")
   }
 
-  /** Transform map_entries to Substrait. */
-  def genMapEntriesTransformer(
+  def genRegexpReplaceTransformer(
       substraitExprName: String,
-      child: ExpressionTransformer,
-      expr: Expression): ExpressionTransformer = {
-    throw new UnsupportedOperationException("map_entries is not supported")
-  }
-
-  /** Transform inline to Substrait. */
-  def genInlineTransformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      expr: Expression): ExpressionTransformer = {
-    throw new UnsupportedOperationException("map_entries is not supported")
+      children: Seq[ExpressionTransformer],
+      expr: RegExpReplace): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, children, expr)
   }
 
   /**
@@ -488,7 +509,7 @@ trait SparkPlanExecApi {
             val aggregateFunc = aggExpression.aggregateFunction
             val substraitAggFuncName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
             if (substraitAggFuncName.isEmpty) {
-              throw new UnsupportedOperationException(s"Not currently supported: $aggregateFunc.")
+              throw new GlutenNotSupportException(s"Not currently supported: $aggregateFunc.")
             }
 
             val childrenNodeList = aggregateFunc.children
@@ -508,7 +529,7 @@ trait SparkPlanExecApi {
               frame.frameType.sql
             )
             windowExpressionNodes.add(windowFunctionNode)
-          case wf @ (Lead(_, _, _, _) | Lag(_, _, _, _)) =>
+          case wf @ (_: Lead | _: Lag) =>
             val offsetWf = wf.asInstanceOf[FrameLessOffsetWindowFunction]
             val frame = offsetWf.frame.asInstanceOf[SpecifiedWindowFrame]
             val childrenNodeList = new JArrayList[ExpressionNode]()
@@ -519,11 +540,11 @@ trait SparkPlanExecApi {
                   attributeSeq = originalInputAttributes)
                 .doTransform(args))
             // Spark only accepts foldable offset. Converts it to LongType literal.
-            val offsetNode = ExpressionBuilder.makeLiteral(
-              // Velox always expects positive offset.
-              Math.abs(offsetWf.offset.eval(EmptyRow).asInstanceOf[Int].toLong),
-              LongType,
-              false)
+            val offset = offsetWf.offset.eval(EmptyRow).asInstanceOf[Int]
+            // Velox only allows negative offset. WindowFunctionsBuilder#create converts
+            // lag/lead with negative offset to the function with positive offset. So just
+            // makes offsetNode store positive value.
+            val offsetNode = ExpressionBuilder.makeLiteral(Math.abs(offset.toLong), LongType, false)
             childrenNodeList.add(offsetNode)
             // NullType means Null is the default value. Don't pass it to native.
             if (offsetWf.default.dataType != NullType) {
@@ -534,9 +555,6 @@ trait SparkPlanExecApi {
                     attributeSeq = originalInputAttributes)
                   .doTransform(args))
             }
-            // Always adds ignoreNulls at the end.
-            childrenNodeList.add(
-              ExpressionBuilder.makeLiteral(offsetWf.ignoreNulls, BooleanType, false))
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
               WindowFunctionsBuilder.create(args, offsetWf).toInt,
               childrenNodeList,
@@ -544,7 +562,8 @@ trait SparkPlanExecApi {
               ConverterUtils.getTypeNode(offsetWf.dataType, offsetWf.nullable),
               WindowExecTransformer.getFrameBound(frame.upper),
               WindowExecTransformer.getFrameBound(frame.lower),
-              frame.frameType.sql
+              frame.frameType.sql,
+              offsetWf.ignoreNulls
             )
             windowExpressionNodes.add(windowFunctionNode)
           case wf @ NthValue(input, offset: Literal, ignoreNulls: Boolean) =>
@@ -555,8 +574,6 @@ trait SparkPlanExecApi {
                 .replaceWithExpressionTransformer(input, attributeSeq = originalInputAttributes)
                 .doTransform(args))
             childrenNodeList.add(LiteralTransformer(offset).doTransform(args))
-            // Always adds ignoreNulls at the end.
-            childrenNodeList.add(ExpressionBuilder.makeLiteral(ignoreNulls, BooleanType, false))
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
               WindowFunctionsBuilder.create(args, wf).toInt,
               childrenNodeList,
@@ -564,7 +581,8 @@ trait SparkPlanExecApi {
               ConverterUtils.getTypeNode(wf.dataType, wf.nullable),
               frame.upper.sql,
               frame.lower.sql,
-              frame.frameType.sql
+              frame.frameType.sql,
+              ignoreNulls
             )
             windowExpressionNodes.add(windowFunctionNode)
           case wf @ NTile(buckets: Expression) =>
@@ -583,7 +601,7 @@ trait SparkPlanExecApi {
             )
             windowExpressionNodes.add(windowFunctionNode)
           case _ =>
-            throw new UnsupportedOperationException(
+            throw new GlutenNotSupportException(
               "unsupported window function type: " +
                 wExpression.windowFunction)
         }
@@ -624,8 +642,19 @@ trait SparkPlanExecApi {
             extraFilters
         }
       case _ =>
-        throw new UnsupportedOperationException(
-          s"${sparkExecNode.getClass.toString} is not supported.")
+        throw new GlutenNotSupportException(s"${sparkExecNode.getClass.toString} is not supported.")
     }
   }
+
+  def genGenerateTransformer(
+      generator: Generator,
+      requiredChildOutput: Seq[Attribute],
+      outer: Boolean,
+      generatorOutput: Seq[Attribute],
+      child: SparkPlan
+  ): GenerateExecTransformerBase
+
+  def genPreProjectForGenerate(generate: GenerateExec): SparkPlan
+
+  def genPostProjectForGenerate(generate: GenerateExec): SparkPlan
 }

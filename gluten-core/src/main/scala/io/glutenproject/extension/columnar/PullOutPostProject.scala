@@ -21,7 +21,7 @@ import io.glutenproject.utils.PullOutProjectHelper
 
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, NamedExpression, WindowExpression}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
+import org.apache.spark.sql.execution.{GenerateExec, ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.execution.window.WindowExec
 
@@ -103,6 +103,9 @@ object PullOutPostProject extends Rule[SparkPlan] with PullOutProjectHelper {
       val newWindow =
         window.copy(windowExpression = newWindowExpressions.asInstanceOf[Seq[NamedExpression]])
       ProjectExec(window.child.output ++ postWindowExpressions, newWindow)
+
+    case generate: GenerateExec =>
+      BackendsApiManager.getSparkPlanExecApiInstance.genPostProjectForGenerate(generate)
 
     case _ => plan
   }

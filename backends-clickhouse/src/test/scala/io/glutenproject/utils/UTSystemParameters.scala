@@ -18,21 +18,34 @@ package io.glutenproject.utils
 
 object UTSystemParameters {
 
-  val CLICKHOUSE_LIB_PATH_KEY = "clickhouse.lib.path"
-  val CLICKHOUSE_LIB_PATH_DEFAULT_VALUE = "/usr/local/clickhouse/lib/libch.so"
+  private val CLICKHOUSE_LIB_PATH_KEY = "clickhouse.lib.path"
+  private val CLICKHOUSE_LIB_PATH_DEFAULT_VALUE = "/usr/local/clickhouse/lib/libch.so"
 
-  val TPCDS_DATA_PATH_KEY = "tpcds.data.path"
-  val TPCDS_DATA_PATH_DEFAULT_VALUE = "/data/tpcds-data-sf1"
-
-  def getClickHouseLibPath(): String = {
+  def clickHouseLibPath: String = {
     System.getProperty(
       UTSystemParameters.CLICKHOUSE_LIB_PATH_KEY,
       UTSystemParameters.CLICKHOUSE_LIB_PATH_DEFAULT_VALUE)
   }
 
-  def getTpcdsDataPath(): String = {
+  private val TEST_DATA_PATH_KEY = "gluten.test.data.path"
+  private val TEST_DATA_PATH_DEFAULT_VALUE = "/data"
+
+  def testDataPath: String = {
     System.getProperty(
-      UTSystemParameters.TPCDS_DATA_PATH_KEY,
-      UTSystemParameters.TPCDS_DATA_PATH_DEFAULT_VALUE)
+      UTSystemParameters.TEST_DATA_PATH_KEY,
+      UTSystemParameters.TEST_DATA_PATH_DEFAULT_VALUE)
   }
+
+  private val TPCDS_DATA_PATH_KEY = "tpcds.data.path"
+  private val TPCDS_RELATIVE_DATA_PATH = "tpcds-data-sf1"
+
+  def tpcdsDataPath: String = {
+    val result = System.getProperty(UTSystemParameters.TPCDS_DATA_PATH_KEY, null)
+    if (result == null) {
+      s"$testDataPath/$TPCDS_RELATIVE_DATA_PATH"
+    } else {
+      result
+    }
+  }
+
 }

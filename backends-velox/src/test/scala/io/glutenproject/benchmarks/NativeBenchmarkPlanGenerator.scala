@@ -19,7 +19,6 @@ package io.glutenproject.benchmarks
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.{VeloxWholeStageTransformerSuite, WholeStageTransformer}
 
-import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.internal.SQLConf
@@ -50,12 +49,6 @@ class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
     }
     FileUtils.forceMkdir(dir)
     createTPCHNotNullTables()
-  }
-
-  override protected def sparkConf: SparkConf = {
-    super.sparkConf
-      .set("spark.gluten.sql.debug", "true")
-      .set("spark.gluten.sql.columnar.backend.velox.glogSeverityLevel", "0")
   }
 
   test("Test plan json non-empty - AQE off") {

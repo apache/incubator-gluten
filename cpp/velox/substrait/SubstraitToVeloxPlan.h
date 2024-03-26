@@ -26,9 +26,6 @@
 namespace gluten {
 class ResultIterator;
 
-// Holds names of Spark OffsetWindowFunctions.
-static const std::unordered_set<std::string> kOffsetWindowFunctions = {"nth_value", "lag"};
-
 struct SplitInfo {
   /// Whether the split comes from arrow array stream node.
   bool isStream = false;
@@ -38,6 +35,9 @@ struct SplitInfo {
 
   /// The partition columns associated with partitioned table.
   std::vector<std::unordered_map<std::string, std::string>> partitionColumns;
+
+  /// The metadata columns associated with partitioned table.
+  std::vector<std::unordered_map<std::string, std::string>> metadataColumns;
 
   /// The file paths to be scanned.
   std::vector<std::string> paths;
@@ -50,6 +50,9 @@ struct SplitInfo {
 
   /// The file format of the files to be scanned.
   dwio::common::FileFormat format;
+
+  /// Make SplitInfo polymorphic
+  virtual ~SplitInfo() = default;
 };
 
 /// This class is used to convert the Substrait plan into Velox plan.

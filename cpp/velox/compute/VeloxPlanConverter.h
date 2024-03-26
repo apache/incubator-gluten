@@ -52,8 +52,6 @@ class VeloxPlanConverter {
   bool validationMode_;
 
   SubstraitToVeloxPlanConverter substraitVeloxPlanConverter_;
-
-  facebook::velox::memory::MemoryPool* pool_;
 };
 
 } // namespace gluten

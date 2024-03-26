@@ -475,7 +475,12 @@ abstract class GlutenDynamicPartitionPruningV1Suite extends GlutenDynamicPartiti
             find(plan) {
               case s: FileSourceScanExec =>
                 s.output.exists(_.find(_.argString(maxFields = 100).contains("fid")).isDefined)
+              case s: FileSourceScanExecTransformer =>
+                s.output.exists(_.find(_.argString(maxFields = 100).contains("fid")).isDefined)
               case s: BatchScanExec =>
+                // we use f1 col for v2 tables due to schema pruning
+                s.output.exists(_.find(_.argString(maxFields = 100).contains("f1")).isDefined)
+              case s: BatchScanExecTransformer =>
                 // we use f1 col for v2 tables due to schema pruning
                 s.output.exists(_.find(_.argString(maxFields = 100).contains("f1")).isDefined)
               case _ => false
@@ -486,6 +491,7 @@ abstract class GlutenDynamicPartitionPruningV1Suite extends GlutenDynamicPartiti
 
         def getDriverMetrics(plan: SparkPlan, key: String): Option[SQLMetric] = plan match {
           case fs: FileSourceScanExec => fs.driverMetrics.get(key)
+          case fs: FileSourceScanExecTransformer => fs.driverMetrics.get(key)
           case _ => None
         }
 
@@ -609,6 +615,7 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff
 
         def getDriverMetrics(plan: SparkPlan, key: String): Option[SQLMetric] = plan match {
           case fs: FileSourceScanExec => fs.driverMetrics.get(key)
+          case fs: FileSourceScanExecTransformer => fs.driverMetrics.get(key)
           case _ => None
         }
 

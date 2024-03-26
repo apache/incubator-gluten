@@ -18,29 +18,33 @@ package io.glutenproject.sql.shims
 
 import io.glutenproject.expression.Sig
 
-import org.apache.spark.TaskContext
+import org.apache.spark.{SparkContext, TaskContext}
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.scheduler.TaskInfo
-import org.apache.spark.shuffle.{ShuffleHandle, ShuffleReader}
+import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.Distribution
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.{FileSourceScanExec, GlobalLimitExec, SparkPlan, TakeOrderedAndProjectExec}
 import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex, WriteJobDescription, WriteTaskResult}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
-import org.apache.spark.sql.execution.exchange.ShuffleExchangeLike
+import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
 import org.apache.hadoop.fs.{FileStatus, Path}
+
+import java.util.{ArrayList => JArrayList, Map => JMap}
 
 sealed abstract class ShimDescriptor
 
@@ -117,6 +121,15 @@ trait SparkShims {
 
   def createTestTaskContext(): TaskContext
 
+  // To be compatible with Spark-3.5 and later
+  // See https://github.com/apache/spark/pull/41440
+  def setJobDescriptionOrTagForBroadcastExchange(
+      sc: SparkContext,
+      broadcastExchange: BroadcastExchangeLike): Unit
+  def cancelJobGroupForBroadcastExchange(
+      sc: SparkContext,
+      broadcastExchange: BroadcastExchangeLike): Unit
+
   def getShuffleReaderParam[K, C](
       handle: ShuffleHandle,
       startMapIndex: Int,
@@ -148,6 +161,23 @@ trait SparkShims {
 
   def attributesFromStruct(structType: StructType): Seq[Attribute]
 
+  def generateMetadataColumns(
+      file: PartitionedFile,
+      metadataColumnNames: Seq[String] = Seq.empty): JMap[String, String]
+
   // For compatibility with Spark-3.5.
   def getAnalysisExceptionPlan(ae: AnalysisException): Option[LogicalPlan]
+
+  def getKeyGroupedPartitioning(batchScan: BatchScanExec): Option[Seq[Expression]]
+
+  def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]]
+
+  def orderPartitions(
+      scan: Scan,
+      keyGroupedPartitioning: Option[Seq[Expression]],
+      filteredPartitions: Seq[Seq[InputPartition]],
+      outputPartitioning: Partitioning): Seq[InputPartition] = filteredPartitions.flatten
+
+  def extractExpressionTimestampAddUnit(timestampAdd: Expression): Option[Seq[String]] =
+    Option.empty
 }

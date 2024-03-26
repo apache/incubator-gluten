@@ -41,6 +41,9 @@
 using namespace gluten;
 
 namespace {
+
+DEFINE_bool(print_result, true, "Print result for execution");
+DEFINE_string(save_output, "", "Path to parquet file for saving the task output iterator");
 DEFINE_bool(with_shuffle, false, "Add shuffle split at end.");
 DEFINE_string(partitioning, "rr", "Short partitioning name. Valid options are rr, hash, range, single");
 DEFINE_bool(celeborn, false, "Mocking celeborn shuffle.");
@@ -56,9 +59,9 @@ DEFINE_string(
     split,
     "",
     "Path to input json file of the splits. Only valid for simulating the first stage. Use comma-separated list for multiple splits.");
-DEFINE_string(data, "", "Path to input data files in parquet format. Only valid for simulating the middle stage.");
+DEFINE_string(data, "", "Path to input data files in parquet format, used for shuffle read.");
 DEFINE_string(conf, "", "Path to the configuration file.");
-DEFINE_string(write_path, "/tmp", "Path for simulate write task.");
+DEFINE_string(write_path, "/tmp", "Path to save the output from write tasks.");
 
 struct WriterMetrics {
   int64_t splitTime;
@@ -199,9 +202,9 @@ auto BM_Generic = [](::benchmark::State& state,
       ArrowSchema cSchema;
       toArrowSchema(veloxPlan->outputType(), memoryManager->getLeafMemoryPool().get(), &cSchema);
       GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&cSchema));
-      ArrowWriter writer{FLAGS_write_file};
+      ArrowWriter writer{FLAGS_save_output};
       state.PauseTiming();
-      if (!FLAGS_write_file.empty()) {
+      if (!FLAGS_save_output.empty()) {
         GLUTEN_THROW_NOT_OK(writer.initWriter(*(outputSchema.get())));
       }
       state.ResumeTiming();
@@ -217,13 +220,13 @@ auto BM_Generic = [](::benchmark::State& state,
         if (FLAGS_print_result) {
           LOG(INFO) << maybeBatch.ValueOrDie()->ToString();
         }
-        if (!FLAGS_write_file.empty()) {
+        if (!FLAGS_save_output.empty()) {
           GLUTEN_THROW_NOT_OK(writer.writeInBatches(maybeBatch.ValueOrDie()));
         }
       }
 
       state.PauseTiming();
-      if (!FLAGS_write_file.empty()) {
+      if (!FLAGS_save_output.empty()) {
         GLUTEN_THROW_NOT_OK(writer.closeWriter());
       }
       state.ResumeTiming();
@@ -346,14 +349,13 @@ int main(int argc, char** argv) {
       errorMsg = "File path does not exist: " + substraitJsonFile;
     } else if (FLAGS_split.empty() && FLAGS_data.empty()) {
       errorMsg = "Missing '--split' or '--data' option.";
-    } else if (!FLAGS_split.empty() && !FLAGS_data.empty()) {
-      errorMsg = "Duplicated option '--split' and '--data'.";
     }
 
     try {
       if (!FLAGS_data.empty()) {
         dataFiles = gluten::splitPaths(FLAGS_data, true);
-      } else {
+      }
+      if (!FLAGS_split.empty()) {
         splitFiles = gluten::splitPaths(FLAGS_split, true);
       }
     } catch (const std::exception& e) {
@@ -365,7 +367,8 @@ int main(int argc, char** argv) {
                  << "If simulating a first stage, the usage is:" << std::endl
                  << "./generic_benchmark "
                  << "--plan /absolute-path/to/substrait_json_file "
-                 << "--split /absolute-path/to/split_json_file_1,/abosolute-path/to/split_json_file_2,..." << std::endl
+                 << "--split /absolute-path/to/split_json_file_1,/abosolute-path/to/split_json_file_2,..."
+                 << "--data /absolute-path/to/data_file_1,/absolute-path/to/data_file_2,..." << std::endl
                  << "If simulating a middle stage, the usage is:" << std::endl
                  << "./generic_benchmark "
                  << "--plan /absolute-path/to/substrait_json_file "
@@ -383,7 +386,8 @@ int main(int argc, char** argv) {
     for (const auto& splitFile : splitFiles) {
       LOG(INFO) << splitFile;
     }
-  } else {
+  }
+  if (!dataFiles.empty()) {
     LOG(INFO) << "Using " << dataFiles.size() << " input data file(s): ";
     for (const auto& dataFile : dataFiles) {
       LOG(INFO) << dataFile;
@@ -411,7 +415,7 @@ int main(int argc, char** argv) {
   LOG(INFO) << "iterations: " << FLAGS_iterations;
   LOG(INFO) << "cpu: " << FLAGS_cpu;
   LOG(INFO) << "print_result: " << FLAGS_print_result;
-  LOG(INFO) << "write_file: " << FLAGS_write_file;
+  LOG(INFO) << "save_output: " << FLAGS_save_output;
   LOG(INFO) << "batch_size: " << FLAGS_batch_size;
   LOG(INFO) << "write_path: " << FLAGS_write_path;
 

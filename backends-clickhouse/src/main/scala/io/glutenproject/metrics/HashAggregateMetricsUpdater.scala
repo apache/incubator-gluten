@@ -44,9 +44,9 @@ class HashAggregateMetricsUpdater(val metrics: Map[String, SQLMetric])
           MetricsUtil.updateExtraTimeMetric(
             aggMetricsData,
             metrics("extraTime"),
-            metrics("outputRows"),
+            metrics("numOutputRows"),
             metrics("outputBytes"),
-            metrics("inputRows"),
+            metrics("numInputRows"),
             metrics("inputBytes"),
             HashAggregateMetricsUpdater.INCLUDING_PROCESSORS,
             HashAggregateMetricsUpdater.CH_PLAN_NODE_NAME

@@ -20,6 +20,7 @@ import io.glutenproject.GlutenConfig.GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.events.GlutenBuildInfoEvent
+import io.glutenproject.exception.GlutenException
 import io.glutenproject.expression.ExpressionMappings
 import io.glutenproject.extension.{ColumnarOverrides, OthersExtensionOverrides, QueryStagePrepOverrides, StrategyOverrides}
 import io.glutenproject.test.TestStats
@@ -144,7 +145,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
 
     // off-heap bytes
     if (!conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
-      throw new UnsupportedOperationException(s"${GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY} is not set")
+      throw new GlutenException(s"${GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY} is not set")
     }
     // Session's local time zone must be set. If not explicitly set by user, its default
     // value (detected for the platform) is used, consistent with spark.

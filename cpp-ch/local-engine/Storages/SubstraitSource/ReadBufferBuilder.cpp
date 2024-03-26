@@ -32,7 +32,6 @@
 #include <Storages/StorageS3Settings.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
-#include <aws/core/client/DefaultRetryStrategy.h>
 
 #include <sys/stat.h>
 #include <Poco/URI.h>
@@ -49,9 +48,13 @@
 #include <Interpreters/Cache/FileCacheFactory.h>
 #include <Interpreters/Cache/FileCacheSettings.h>
 
+#if USE_AWS_S3
+#include <aws/core/client/DefaultRetryStrategy.h>
 #include <aws/s3/model/CopyObjectRequest.h>
 #include <aws/s3/model/DeleteObjectsRequest.h>
 #include <aws/s3/model/ListObjectsV2Request.h>
+#endif
+
 #include <Common/CHUtil.h>
 
 #include <shared_mutex>
@@ -69,6 +72,8 @@ namespace ErrorCodes
     extern const int CANNOT_READ_FROM_FILE_DESCRIPTOR;
 }
 }
+
+namespace fs = std::filesystem;
 
 namespace local_engine
 {

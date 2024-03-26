@@ -18,6 +18,7 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.SparkPlanExecApi
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
@@ -36,14 +37,14 @@ import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FlushableHas
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, Literal, Murmur3Hash, NamedExpression, NaNvl, Round, StringSplit, StringTrim}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, Generator, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, Literal, Murmur3Hash, NamedExpression, NaNvl, PosExplode, Round, SortOrder, StringSplit, StringTrim, Uuid}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, HashPartitioning, Partitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, HashPartitioning, Partitioning, RoundRobinPartitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{BroadcastUtils, ColumnarBuildSideRelation, ColumnarShuffleExchangeExec, SparkPlan, VeloxColumnarWriteFilesExec}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
@@ -81,7 +82,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       val decimalType = original.dataType.asInstanceOf[DecimalType]
       val precision = decimalType.precision
       if (precision > 18) {
-        throw new UnsupportedOperationException(
+        throw new GlutenNotSupportException(
           "GetArrayItem not support decimal precision more than 18")
       }
     }
@@ -128,6 +129,16 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
     )
   }
 
+  /** Transform Uuid to Substrait. */
+  override def genUuidTransformer(
+      substraitExprName: String,
+      original: Uuid): ExpressionTransformer = {
+    GenericExpressionTransformer(
+      substraitExprName,
+      Seq(LiteralTransformer(Literal(original.randomSeed.get))),
+      original)
+  }
+
   /** Transform map_entries to Substrait. */
   override def genMapEntriesTransformer(
       substraitExprName: String,
@@ -136,12 +147,29 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(child), expr)
   }
 
+  /** Transform posexplode to Substrait. */
+  override def genPosExplodeTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: PosExplode,
+      attrSeq: Seq[Attribute]): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(child), attrSeq.head)
+  }
+
   /** Transform inline to Substrait. */
   override def genInlineTransformer(
       substraitExprName: String,
       child: ExpressionTransformer,
       expr: Expression): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, Seq(child), expr)
+  }
+
+  /** Transform make_timestamp to Substrait. */
+  override def genMakeTimestampTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: Expression): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, children, expr)
   }
 
   /**
@@ -223,7 +251,23 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
           TransformHints.tagNotTransformable(shuffle, validationResult)
           shuffle.withNewChildren(newChild :: Nil)
         }
-
+      case RoundRobinPartitioning(num) if SQLConf.get.sortBeforeRepartition && num > 1 =>
+        val hashExpr = new Murmur3Hash(newChild.output)
+        val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ newChild.output
+        val projectTransformer = ProjectExecTransformer(projectList, newChild)
+        val sortOrder = SortOrder(projectTransformer.output.head, Ascending)
+        val sortByHashCode = SortExecTransformer(Seq(sortOrder), global = false, projectTransformer)
+        val dropSortColumnTransformer = ProjectExecTransformer(projectList.drop(1), sortByHashCode)
+        val validationResult = dropSortColumnTransformer.doValidate()
+        if (validationResult.isValid) {
+          ColumnarShuffleExchangeExec(
+            shuffle,
+            dropSortColumnTransformer,
+            dropSortColumnTransformer.output)
+        } else {
+          TransformHints.tagNotTransformable(shuffle, validationResult)
+          shuffle.withNewChildren(newChild :: Nil)
+        }
       case _ =>
         ColumnarShuffleExchangeExec(shuffle, newChild, null)
     }
@@ -258,8 +302,8 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       condition: Option[Expression],
       left: SparkPlan,
       right: SparkPlan,
-      isNullAwareAntiJoin: Boolean = false): BroadcastHashJoinExecTransformer =
-    GlutenBroadcastHashJoinExecTransformer(
+      isNullAwareAntiJoin: Boolean = false): BroadcastHashJoinExecTransformerBase =
+    BroadcastHashJoinExecTransformer(
       leftKeys,
       rightKeys,
       joinType,
@@ -457,7 +501,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
         != SQLConf.MapKeyDedupPolicy.EXCEPTION.toString
     ) {
-      throw new UnsupportedOperationException("Only EXCEPTION policy is supported!")
+      throw new GlutenNotSupportException("Only EXCEPTION policy is supported!")
     }
     GenericExpressionTransformer(substraitExprName, children, expr)
   }
@@ -605,7 +649,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
 
   override def genInjectedFunctions()
       : Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
-    UDFResolver.loadAndGetFunctionDescriptions
+    UDFResolver.getFunctionSignatures
   }
 
   override def rewriteSpillPath(path: String): String = {
@@ -622,5 +666,23 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       case other =>
         throw new IllegalStateException(s"Unsupported fs: $other")
     }
+  }
+
+  override def genGenerateTransformer(
+      generator: Generator,
+      requiredChildOutput: Seq[Attribute],
+      outer: Boolean,
+      generatorOutput: Seq[Attribute],
+      child: SparkPlan
+  ): GenerateExecTransformerBase = {
+    GenerateExecTransformer(generator, requiredChildOutput, outer, generatorOutput, child)
+  }
+
+  override def genPreProjectForGenerate(generate: GenerateExec): SparkPlan = {
+    PullOutGenerateProjectHelper.pullOutPreProject(generate)
+  }
+
+  override def genPostProjectForGenerate(generate: GenerateExec): SparkPlan = {
+    PullOutGenerateProjectHelper.pullOutPostProject(generate)
   }
 }

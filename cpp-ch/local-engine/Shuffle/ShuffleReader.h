@@ -66,13 +66,20 @@ private:
 class ReadBufferFromByteArray final : public DB::BufferWithOwnMemory<DB::ReadBuffer>
 {
 public:
-    ReadBufferFromByteArray(const jbyteArray array, const size_t array_size) : array_(array), array_size_(array_size) { }
+    ReadBufferFromByteArray(const jbyteArray array_, size_t array_size_)
+        : DB::BufferWithOwnMemory<DB::ReadBuffer>(std::min<size_t>(DB::DBMS_DEFAULT_BUFFER_SIZE, array_size_))
+        , array(array_)
+        , array_size(array_size_)
+        , read_pos(0)
+    {
+    }
 
 private:
-    const jbyteArray array_;
-    const size_t array_size_;
-    size_t read_pos_ = 0;
     bool nextImpl() override;
+
+    const jbyteArray array;
+    const size_t array_size;
+    size_t read_pos;
 };
 
 }

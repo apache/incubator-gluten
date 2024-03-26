@@ -36,7 +36,8 @@ trait IteratorApi {
   def genSplitInfo(
       partition: InputPartition,
       partitionSchema: StructType,
-      fileFormat: ReadFileFormat): SplitInfo
+      fileFormat: ReadFileFormat,
+      metadataColumnNames: Seq[String]): SplitInfo
 
   /** Generate native row partition. */
   def genPartitions(
@@ -60,6 +61,7 @@ trait IteratorApi {
       pipelineTime: SQLMetric,
       updateInputMetrics: (InputMetricsWrapper) => Unit,
       updateNativeMetrics: IMetrics => Unit,
+      partitionIndex: Int,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()
   ): Iterator[ColumnarBatch]
 
@@ -76,6 +78,7 @@ trait IteratorApi {
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
+      partitionIndex: Int,
       materializeInput: Boolean = false): Iterator[ColumnarBatch]
   // scalastyle:on argcount
 

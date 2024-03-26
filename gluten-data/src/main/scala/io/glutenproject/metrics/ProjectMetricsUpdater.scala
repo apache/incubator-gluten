@@ -23,7 +23,7 @@ class ProjectMetricsUpdater(val metrics: Map[String, SQLMetric]) extends Metrics
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
     if (opMetrics != null) {
       val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
-      metrics("outputRows") += operatorMetrics.outputRows
+      metrics("numOutputRows") += operatorMetrics.outputRows
       metrics("outputVectors") += operatorMetrics.outputVectors
       metrics("outputBytes") += operatorMetrics.outputBytes
       metrics("cpuCount") += operatorMetrics.cpuCount

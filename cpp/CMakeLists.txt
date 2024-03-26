@@ -102,8 +102,13 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   add_compile_options(-Wno-implicit-int-float-conversion)
   add_compile_options(-Wno-nullability-completeness)
   add_compile_options(-Wno-mismatched-tags)
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+  # Experimental
+  add_compile_options(-Wno-implicit-int-float-conversion)
+  add_compile_options(-Wno-nullability-completeness)
+  add_compile_options(-Wno-mismatched-tags)
 else()
-  message("Unsupported compiler ID: ${CMAKE_CXX_COMPILER_ID}")
+  message(FATAL_ERROR "Unsupported compiler ID: ${CMAKE_CXX_COMPILER_ID}")
 endif()
 
 # see https://issues.apache.org/jira/browse/ARROW-4665
@@ -112,6 +117,9 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   add_compile_options(-Wno-nullability-completeness)
   add_compile_options(-Wno-pessimizing-move)
   add_compile_options(-Wno-mismatched-tags)
+  # Specific definition for an issue with boost/stacktrace when building on macOS.
+  # See https://github.com/boostorg/stacktrace/issues/88 and comments therein.
+  add_compile_definitions(_GNU_SOURCE)
 endif()
 
 #

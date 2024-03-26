@@ -21,8 +21,10 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.InputIteratorTransformer
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.aggregate.SortAggregateExec
+import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition}
 
 import org.apache.commons.io.FileUtils
+import org.apache.hadoop.fs.Path
 
 import java.io.File
 
@@ -33,10 +35,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
 
-  override protected val resourcePath: String =
-    "../../../../gluten-core/src/test/resources/tpch-data"
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
+  override protected val tablesPath: String = basePath + "/tpch-data-ch"
   override protected val tpchQueries: String =
     rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"
@@ -267,7 +266,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         assert(!(plans(0).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
         assert(plans(0).metrics("numFiles").value === 4)
         assert(plans(0).metrics("pruningTime").value === -1)
-        assert(plans(0).metrics("outputRows").value === 600572)
+        assert(plans(0).metrics("numOutputRows").value === 600572)
       }
     )
   }
@@ -329,7 +328,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
           assert(plans(11).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         }
         assert(plans(11).metrics("numFiles").value === 1)
-        assert(plans(11).metrics("outputRows").value === 1000)
+        assert(plans(11).metrics("numOutputRows").value === 1000)
       }
     )
   }
@@ -369,11 +368,11 @@ class GlutenClickHouseTPCHParquetBucketSuite
           assert(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         }
         assert(plans(2).metrics("numFiles").value === 4)
-        assert(plans(2).metrics("outputRows").value === 15000)
+        assert(plans(2).metrics("numOutputRows").value === 15000)
 
         assert(!(plans(3).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
         assert(plans(3).metrics("numFiles").value === 4)
-        assert(plans(3).metrics("outputRows").value === 150000)
+        assert(plans(3).metrics("numOutputRows").value === 150000)
       }
     )
 
@@ -421,11 +420,11 @@ class GlutenClickHouseTPCHParquetBucketSuite
 
         assert(plans(1).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans(1).metrics("numFiles").value === 4)
-        assert(plans(1).metrics("outputRows").value === 150000)
+        assert(plans(1).metrics("numOutputRows").value === 150000)
 
         assert(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans(2).metrics("numFiles").value === 4)
-        assert(plans(2).metrics("outputRows").value === 600572)
+        assert(plans(2).metrics("numOutputRows").value === 600572)
       }
     )
 
@@ -461,7 +460,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         assert(!(plans(0).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
         assert(plans(0).metrics("numFiles").value === 4)
         assert(plans(0).metrics("pruningTime").value === -1)
-        assert(plans(0).metrics("outputRows").value === 600572)
+        assert(plans(0).metrics("numOutputRows").value === 600572)
       }
     )
   }
@@ -489,11 +488,11 @@ class GlutenClickHouseTPCHParquetBucketSuite
 
         assert(plans(1).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans(1).metrics("numFiles").value === 4)
-        assert(plans(1).metrics("outputRows").value === 150000)
+        assert(plans(1).metrics("numOutputRows").value === 150000)
 
         assert(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans(2).metrics("numFiles").value === 4)
-        assert(plans(2).metrics("outputRows").value === 600572)
+        assert(plans(2).metrics("numOutputRows").value === 600572)
       }
     )
 
@@ -622,6 +621,21 @@ class GlutenClickHouseTPCHParquetBucketSuite
         }
       )
     }
+  }
+
+  test("check bucket pruning on filter") {
+    runQueryAndCompare(" select * from lineitem where l_orderkey = 12647")(
+      df => {
+        val scanExec = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer => f
+        }
+        val touchedBuckets = scanExec.head.getPartitions
+          .flatMap(partition => partition.asInstanceOf[FilePartition].files)
+          .flatMap(f => BucketingUtils.getBucketId(new Path(f.filePath).getName))
+          .distinct
+        // two files from part0-0,part0-1,part1-0,part1-1
+        assert(touchedBuckets.size == 1)
+      })
   }
 
   test("GLUTEN-3922: Fix incorrect shuffle hash id value when executing modulo") {

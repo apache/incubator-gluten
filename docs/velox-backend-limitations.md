@@ -9,9 +9,9 @@ must fall back to vanilla spark, etc.
 ### Override of Spark classes (For Spark3.2 and Spark3.3)
 Gluten avoids to modify Spark's existing code and use Spark APIs if possible. However, some APIs aren't exposed in Vanilla spark and we have to copy the Spark file and do the hardcode changes. The list of override classes can be found as ignoreClasses in package/pom.xml . If you use customized Spark, you may check if the files are modified in your spark, otherwise your changes will be overrided.
 
-So you need to ensure preferentially load the Gluten jar to overwrite the jar of vanilla spark. Refer to [How to prioritize loading Gluten jars in Spark](https://github.com/oap-project/gluten/blob/main/docs/velox-backend-troubleshooting.md#incompatible-class-error-when-using-native-writer).
+So you need to ensure preferentially load the Gluten jar to overwrite the jar of vanilla spark. Refer to [How to prioritize loading Gluten jars in Spark](https://github.com/apache/incubator-gluten/blob/main/docs/velox-backend-troubleshooting.md#incompatible-class-error-when-using-native-writer).
 
-If not officially supported spark3.2/3.3 version is used, NoSuchMethodError can be thrown at runtime. More details see [issue-4514](https://github.com/oap-project/gluten/issues/4514).
+If not officially supported spark3.2/3.3 version is used, NoSuchMethodError can be thrown at runtime. More details see [issue-4514](https://github.com/apache/incubator-gluten/issues/4514).
 
 ### Fallbacks
 Except the unsupported operators, functions, file formats, data sources listed in , there are some known cases also fall back to Vanilla Spark. 
@@ -25,9 +25,15 @@ Velox BloomFilter's serialization format is different from Spark's. BloomFilter 
 #### Case Sensitive mode
 Gluten only supports spark default case-insensitive mode. If case-sensitive mode is enabled, user may get incorrect result.
 
-#### Lookaround pattern for regexp functions
-In velox, lookaround (lookahead/lookbehind) pattern is not supported in RE2-based implementations for Spark functions,
-such as `rlike`, `regexp_extract`, etc.
+#### Regexp functions
+In Velox, regexp functions (`rlike`, `regexp_extract`, etc.) are implemented based on RE2, while in Spark they are based on `java.util.regex`.
+* Lookaround (lookahead/lookbehind) pattern is not supported in RE2.
+* When matching white space with pattern "\\s", RE2 doesn't treat "\v" (or "\x0b") as white space, but `java.util.regex` does.
+
+There are a few unknown incompatible cases. If user cannot tolerate the incompatibility risk, please enable the below configuration property.
+```
+spark.gluten.sql.fallbackRegexpExpressions
+```
 
 #### FileSource format
 Currently, Gluten only fully supports parquet file format and partially support ORC. If other format is used, scan operator falls back to vanilla spark.

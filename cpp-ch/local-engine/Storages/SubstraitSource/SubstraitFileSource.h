@@ -18,27 +18,28 @@
 
 #include <Columns/IColumn.h>
 #include <Core/Block.h>
-#include <Core/ColumnsWithTypeAndName.h>
 #include <Core/Field.h>
-#include <Interpreters/Context.h>
 #include <Processors/Chunk.h>
-#include <Processors/Executors/PullingPipelineExecutor.h>
-#include <Processors/ISource.h>
-#include <QueryPipeline/QueryPipeline.h>
+#include <Storages/Parquet/ColumnIndexFilter.h>
+#include <Storages/Parquet/VectorizedParquetRecordReader.h>
 #include <Storages/SubstraitSource/FormatFile.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
-#include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
 #include <base/types.h>
-
 namespace local_engine
 {
 class FileReaderWrapper
 {
 public:
-    explicit FileReaderWrapper(FormatFilePtr file_) : file(file_) { }
+    explicit FileReaderWrapper(const FormatFilePtr & file_) : file(file_) { }
     virtual ~FileReaderWrapper() = default;
     virtual bool pull(DB::Chunk & chunk) = 0;
-    virtual void applyKeyCondition(std::shared_ptr<const DB::KeyCondition> /*key_condition*/) { }
+
+    /// Apply key condition to the reader, if use_local_format is true, column_index_filter will be used
+    /// otherwise it will be ignored
+    virtual void applyKeyCondition(
+        const std::shared_ptr<const DB::KeyCondition> & /*key_condition*/, const ColumnIndexFilterPtr & /*column_index_filter*/)
+    {
+    }
 
 protected:
     FormatFilePtr file;
@@ -51,14 +52,19 @@ protected:
 class NormalFileReader : public FileReaderWrapper
 {
 public:
-    NormalFileReader(FormatFilePtr file_, DB::ContextPtr context_, const DB::Block & to_read_header_, const DB::Block & output_header_);
+    NormalFileReader(
+        const FormatFilePtr & file_, const DB::ContextPtr & context_, const DB::Block & to_read_header_, const DB::Block & output_header_);
     ~NormalFileReader() override = default;
 
     bool pull(DB::Chunk & chunk) override;
 
-    void applyKeyCondition(std::shared_ptr<const DB::KeyCondition> key_condition) override
+    void applyKeyCondition(
+        const std::shared_ptr<const DB::KeyCondition> & key_condition, const ColumnIndexFilterPtr & column_index_filter) override
     {
-        input_format->input->setKeyCondition(key_condition);
+        if (auto * const vectorized = dynamic_cast<VectorizedParquetBlockInputFormat *>(input_format->input.get()))
+            vectorized->setColumnIndexFilter(column_index_filter);
+        else
+            input_format->input->setKeyCondition(key_condition);
     }
 
 private:
@@ -95,7 +101,7 @@ private:
 class SubstraitFileSource : public DB::SourceWithKeyCondition
 {
 public:
-    SubstraitFileSource(DB::ContextPtr context_, const DB::Block & header_, const substrait::ReadRel::LocalFiles & file_infos);
+    SubstraitFileSource(const DB::ContextPtr & context_, const DB::Block & header_, const substrait::ReadRel::LocalFiles & file_infos);
     ~SubstraitFileSource() override = default;
 
     String getName() const override { return "SubstraitFileSource"; }
@@ -114,6 +120,8 @@ private:
     UInt32 current_file_index = 0;
     std::unique_ptr<FileReaderWrapper> file_reader;
     ReadBufferBuilderPtr read_buffer_builder;
+
+    ColumnIndexFilterPtr column_index_filter;
 
     bool tryPrepareReader();
 };

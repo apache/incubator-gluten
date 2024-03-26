@@ -18,6 +18,7 @@ package io.glutenproject.extension
 
 import io.glutenproject.execution.{DeltaScanTransformer, ProjectExecTransformer}
 import io.glutenproject.extension.DeltaRewriteTransformerRules.columnMappingRule
+import io.glutenproject.extension.columnar.RewriteTransformerRules
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference}

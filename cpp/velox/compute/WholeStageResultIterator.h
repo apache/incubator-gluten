@@ -17,11 +17,13 @@
 #pragma once
 
 #include "compute/Runtime.h"
+#include "iceberg/IcebergPlanConverter.h"
 #include "memory/ColumnarBatchIterator.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "substrait/plan.pb.h"
 #include "utils/metrics.h"
+#include "velox/connectors/hive/iceberg/IcebergSplit.h"
 #include "velox/core/Config.h"
 #include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"

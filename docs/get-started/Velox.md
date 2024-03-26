@@ -50,7 +50,7 @@ export PATH=$JAVA_HOME/bin:$PATH
 ## config maven, like proxy in ~/.m2/settings.xml
 
 ## fetch gluten code
-git clone https://github.com/oap-project/gluten.git
+git clone https://github.com/apache/incubator-gluten.git
 ```
 
 # Build Gluten with Velox Backend
@@ -152,7 +152,7 @@ cp /path/to/hdfs-client.xml hdfs-client.xml
 
 One typical deployment on Spark/HDFS cluster is to enable [short-circuit reading](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/ShortCircuitLocalReads.html). Short-circuit reads provide a substantial performance boost to many applications.
 
-By default libhdfs3 does not set the default hdfs domain socket path to support HDFS short-circuit read. If this feature is required in HDFS setup, users may need to setup the domain socket path correctly by patching the libhdfs3 source code or by setting the correct config environment. In Gluten the short-circuit domain socket path is set to "/var/lib/hadoop-hdfs/dn_socket" in [build_velox.sh](https://github.com/oap-project/gluten/blob/main/ep/build-velox/src/build_velox.sh) So we need to make sure the folder existed and user has write access as below script.
+By default libhdfs3 does not set the default hdfs domain socket path to support HDFS short-circuit read. If this feature is required in HDFS setup, users may need to setup the domain socket path correctly by patching the libhdfs3 source code or by setting the correct config environment. In Gluten the short-circuit domain socket path is set to "/var/lib/hadoop-hdfs/dn_socket" in [build_velox.sh](https://github.com/apache/incubator-gluten/blob/main/ep/build-velox/src/build_velox.sh) So we need to make sure the folder existed and user has write access as below script.
 
 ```
 sudo mkdir -p /var/lib/hadoop-hdfs/
@@ -207,7 +207,9 @@ Currently there are several ways to asscess S3 in Spark. Please refer [Velox S3]
 
 ## Celeborn support
 
-Gluten with velox backend supports [Celeborn](https://github.com/apache/incubator-celeborn) as remote shuffle service. Below introduction is used to enable this feature
+Gluten with velox backend supports [Celeborn](https://github.com/apache/incubator-celeborn) as remote shuffle service. Currently, the supported Celeborn versions are `0.3.x` and `0.4.0`.
+
+Below introduction is used to enable this feature
 
 First refer to this URL(https://github.com/apache/incubator-celeborn) to setup a celeborn cluster.
 
@@ -299,7 +301,7 @@ Spark3.3 has 387 functions in total. ~240 are commonly used. Velox's functions h
 To identify what can be offloaded in a query and detailed fallback reasons, user can follow below steps to retrieve corresponding logs.
 
 ```
-1) Enable Gluten by proper [configuration](https://github.com/oap-project/gluten/blob/main/docs/Configuration.md).
+1) Enable Gluten by proper [configuration](https://github.com/apache/incubator-gluten/blob/main/docs/Configuration.md).
 
 2) Disable Spark AQE to trigger plan validation in Gluten
 spark.sql.adaptive.enabled = false
@@ -343,16 +345,13 @@ Using the following configuration options to customize spilling:
 | spark.gluten.sql.columnar.backend.velox.aggregationSpillEnabled          | true          | Whether spill is enabled on aggregations                                                                                                                                          |
 | spark.gluten.sql.columnar.backend.velox.joinSpillEnabled                 | true          | Whether spill is enabled on joins                                                                                                                                                 |
 | spark.gluten.sql.columnar.backend.velox.orderBySpillEnabled              | true          | Whether spill is enabled on sorts                                                                                                                                                 |
-| spark.gluten.sql.columnar.backend.velox.aggregationSpillMemoryThreshold  | 0             | Memory limit before spilling to disk for aggregations, per Spark task. Unit: byte                                                                                                 |
-| spark.gluten.sql.columnar.backend.velox.joinSpillMemoryThreshold         | 0             | Memory limit before spilling to disk for joins, per Spark task. Unit: byte                                                                                                        |
-| spark.gluten.sql.columnar.backend.velox.orderBySpillMemoryThreshold      | 0             | Memory limit before spilling to disk for sorts, per Spark task. Unit: byte                                                                                                        |
 | spark.gluten.sql.columnar.backend.velox.maxSpillLevel                    | 4             | The max allowed spilling level with zero being the initial spilling level                                                                                                         |
 | spark.gluten.sql.columnar.backend.velox.maxSpillFileSize                 | 20MB          | The max allowed spill file size. If it is zero, then there is no limit                                                                                                            |
 | spark.gluten.sql.columnar.backend.velox.minSpillRunSize                  | 268435456     | The min spill run size limit used to select partitions for spilling                                                                                                               |
 | spark.gluten.sql.columnar.backend.velox.spillStartPartitionBit           | 29            | The start partition bit which is used with 'spillPartitionBits' together to calculate the spilling partition number                                                               |
 | spark.gluten.sql.columnar.backend.velox.spillPartitionBits               | 2             | The number of bits used to calculate the spilling partition number. The number of spilling partitions will be power of two                                                        |
 | spark.gluten.sql.columnar.backend.velox.spillableReservationGrowthPct    | 25            | The spillable memory reservation growth percentage of the previous memory reservation size                                                                                        |
-
+| spark.gluten.sql.columnar.backend.velox.spillThreadNum                   | 0             | (Experimental) The thread num of a dedicated thread pool to do spill
 # Velox User-Defined Functions (UDF)
 
 ## Introduction
@@ -435,15 +434,15 @@ Gluten loads the UDF libraries at runtime. You can upload UDF libraries via `--f
 
 Note if running on Yarn client mode, the uploaded files are not reachable on driver side. Users should copy those files to somewhere reachable for driver and set `spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths`. This configuration is also useful when the `udfLibraryPaths` is different between driver side and executor side.
 
-- Use `--files`
+- Use the `--files` option to upload a library and configure its relative path
 ```shell
 --files /path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
 --conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=libmyudf.so
 # Needed for Yarn client mode
---conf spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths=file:///path/to/libmyudf.so
+--conf spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths=file:///path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
 ```
 
-- Use `--archives`
+- Use the `--archives` option to upload an archive and configure its relative path
 ```shell
 --archives /path/to/udf_archives.zip#udf_archives
 --conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=udf_archives
@@ -451,7 +450,7 @@ Note if running on Yarn client mode, the uploaded files are not reachable on dri
 --conf spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths=file:///path/to/udf_archives.zip
 ```
 
-- Specify URI
+- Only configure URI
 
 You can also specify the local or HDFS URIs to the UDF libraries or archives. Local URIs should exist on driver and every worker nodes.
 ```shell
@@ -463,10 +462,17 @@ You can also specify the local or HDFS URIs to the UDF libraries or archives. Lo
 We provided an Velox UDF example file [MyUDF.cpp](../../cpp/velox/udf/examples/MyUDF.cpp). After building gluten cpp, you can find the example library at /path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
 
 Start spark-shell or spark-sql with below configuration 
-```
+```shell
+# Use the `--files` option to upload a library and configure its relative path
 --files /path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
 --conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=libmyudf.so
 ```
+or
+```shell
+# Only configure URI
+--conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=file:///path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
+```
+
 Run query. The functions `myudf1` and `myudf2` increment the input value by a constant of 5
 ```
 select myudf1(1), myudf2(100L)

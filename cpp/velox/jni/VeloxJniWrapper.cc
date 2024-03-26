@@ -76,12 +76,11 @@ JNIEXPORT void JNICALL Java_io_glutenproject_init_NativeBackendInitializer_initi
   JNI_METHOD_END()
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_udf_UdfJniWrapper_nativeLoadUdfLibraries( // NOLINT
+JNIEXPORT void JNICALL Java_io_glutenproject_udf_UdfJniWrapper_getFunctionSignatures( // NOLINT
     JNIEnv* env,
-    jclass,
-    jstring libPaths) {
+    jclass) {
   JNI_METHOD_START
-  gluten::jniLoadUdf(env, jStringToCString(env, libPaths));
+  gluten::jniGetFunctionSignatures(env);
   JNI_METHOD_END()
 }
 
@@ -109,8 +108,10 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFailu
   ::substrait::Plan subPlan;
   gluten::parseProtobuf(planData, planSize, &subPlan);
 
-  // A query context used for function validation.
-  velox::core::QueryCtx queryCtx;
+  // A query context with dummy configs. Used for function validation.
+  std::unordered_map<std::string, std::string> configs{
+      {velox::core::QueryConfig::kSparkPartitionId, "0"}, {velox::core::QueryConfig::kSessionTimezone, "GMT"}};
+  velox::core::QueryCtx queryCtx(nullptr, velox::core::QueryConfig(configs));
   auto pool = gluten::defaultLeafVeloxMemoryPool().get();
   // An execution context used for function validation.
   velox::core::ExecCtx execCtx(pool, &queryCtx);

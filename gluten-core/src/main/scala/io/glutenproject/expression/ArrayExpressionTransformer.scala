@@ -17,6 +17,7 @@
 package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
@@ -39,7 +40,7 @@ case class CreateArrayTransformer(
     // transformation is only supported when useStringTypeWhenEmpty is false
     // because ClickHouse and Velox currently doesn't support this config.
     if (useStringTypeWhenEmpty && children.isEmpty) {
-      throw new UnsupportedOperationException(s"$original not supported yet.")
+      throw new GlutenNotSupportException(s"$original not supported yet.")
     }
 
     val childNodes = children.map(_.doTransform(args)).asJava

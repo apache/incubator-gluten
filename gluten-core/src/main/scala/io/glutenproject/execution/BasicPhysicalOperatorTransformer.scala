@@ -17,6 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.metrics.MetricsUpdater
@@ -326,10 +327,7 @@ case class ColumnarUnionExec(children: Seq[SparkPlan]) extends SparkPlan with Gl
     if (children.isEmpty) {
       throw new IllegalArgumentException(s"Empty children")
     }
-    children
-      .map(c => Seq(c.executeColumnar()))
-      .reduce((a, b) => a ++ b)
-      .reduce((a, b) => a.union(b))
+    sparkContext.union(children.map(c => c.executeColumnar()))
   }
 
   override protected def doExecute()
@@ -373,7 +371,7 @@ object FilterHandler extends PredicateHelper {
           case scan: FileScan =>
             scan.dataFilters
           case _ =>
-            throw new UnsupportedOperationException(
+            throw new GlutenNotSupportException(
               s"${batchScan.scan.getClass.toString} is not supported")
         }
       case _ =>
@@ -415,6 +413,6 @@ object FilterHandler extends PredicateHelper {
           batchScan,
           allPushDownFilters = Some(pushDownFilters))
       case other =>
-        throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
+        throw new GlutenNotSupportException(s"${other.getClass.toString} is not supported.")
     }
 }

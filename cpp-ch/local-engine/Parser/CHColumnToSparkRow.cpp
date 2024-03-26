@@ -325,12 +325,12 @@ SparkRowInfo::SparkRowInfo(
     {
         const auto & col = cols[col_idx];
         /// No need to calculate backing data length for fixed length types
-        const auto type_without_nullable = removeNullable(col.type);
+        const auto type_without_nullable = removeLowCardinalityAndNullable(col.type);
         if (BackingDataLengthCalculator::isVariableLengthDataType(type_without_nullable))
         {
             if (BackingDataLengthCalculator::isDataTypeSupportRawData(type_without_nullable))
             {
-                auto column = col.column->convertToFullColumnIfConst();
+                auto column = col.column->convertToFullIfNeeded();
                 const auto * nullable_column = checkAndGetColumn<ColumnNullable>(*column);
                 if (nullable_column)
                 {
@@ -348,13 +348,13 @@ SparkRowInfo::SparkRowInfo(
                     for (size_t i = 0; i < num_rows; ++i)
                     {
                         size_t row_idx = masks == nullptr ? i : masks->at(i);
-                        lengths[i] += roundNumberOfBytesToNearestWord(col.column->getDataAt(row_idx).size);
+                        lengths[i] += roundNumberOfBytesToNearestWord(column->getDataAt(row_idx).size);
                     }
                 }
             }
             else
             {
-                BackingDataLengthCalculator calculator(col.type);
+                BackingDataLengthCalculator calculator(type_without_nullable);
                 for (size_t i = 0; i < num_rows; ++i)
                 {
                     size_t row_idx = masks == nullptr ? i : masks->at(i);
@@ -462,11 +462,12 @@ std::unique_ptr<SparkRowInfo> CHColumnToSparkRow::convertCHColumnToSparkRow(cons
         const auto & col = block.getByPosition(col_idx);
         int64_t field_offset = spark_row_info->getFieldOffset(col_idx);
 
-        ColumnWithTypeAndName col_not_const{col.column->convertToFullColumnIfConst(), col.type, col.name};
+        ColumnWithTypeAndName col_full{col.column->convertToFullIfNeeded(),
+            removeLowCardinality(col.type), col.name};
         writeValue(
             spark_row_info->getBufferAddress(),
             field_offset,
-            col_not_const,
+            col_full,
             col_idx,
             spark_row_info->getNumRows(),
             spark_row_info->getOffsets(),
@@ -696,6 +697,12 @@ int64_t VariableLengthDataWriter::writeArray(size_t row_idx, const DB::Array & a
                     writer.unsafeWrite(
                         reinterpret_cast<const char *>(&v), buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
                 }
+                else if (writer.getWhichDataType().isFloat64())
+                {
+                    // Fix 'Invalid Field get from type Float64 to type Int64' in debug build.
+                    auto v = elem.get<Float64>();
+                    writer.unsafeWrite(reinterpret_cast<const char *>(&v), buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
+                }
                 else
                     writer.unsafeWrite(
                         reinterpret_cast<const char *>(&elem.get<char>()),
@@ -806,6 +813,12 @@ int64_t VariableLengthDataWriter::writeStruct(size_t row_idx, const DB::Tuple & 
                 // We can not use get<char>() directly here to process Float32 field,
                 // because it will get 8 byte data, but Float32 is 4 byte, which will cause error conversion.
                 auto v = static_cast<Float32>(field_value.get<Float32>());
+                writer.unsafeWrite(reinterpret_cast<const char *>(&v), buffer_address + offset + start + len_null_bitmap + i * 8);
+            }
+            else if (writer.getWhichDataType().isFloat64())
+            {
+                // Fix 'Invalid Field get from type Float64 to type Int64' in debug build.
+                auto v = field_value.get<Float64>();
                 writer.unsafeWrite(reinterpret_cast<const char *>(&v), buffer_address + offset + start + len_null_bitmap + i * 8);
             }
             else

@@ -19,14 +19,14 @@ package org.apache.spark.sql.execution
 import io.glutenproject.metrics.GlutenTimeMetric
 
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, FileSourceConstantMetadataAttribute, FileSourceGeneratedMetadataAttribute, PlanExpression, Predicate}
-import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, FileSourceConstantMetadataAttribute, FileSourceGeneratedMetadataAttribute, FileSourceMetadataAttribute, PlanExpression, Predicate}
+import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.collection.BitSet
 
-class FileSourceScanExecShim(
+abstract class FileSourceScanExecShim(
     @transient relation: HadoopFsRelation,
     output: Seq[Attribute],
     requiredSchema: StructType,
@@ -36,7 +36,7 @@ class FileSourceScanExecShim(
     dataFilters: Seq[Expression],
     tableIdentifier: Option[TableIdentifier],
     disableBucketedScan: Boolean = false)
-  extends FileSourceScanExec(
+  extends AbstractFileSourceScanExec(
     relation,
     output,
     requiredSchema,
@@ -50,24 +50,27 @@ class FileSourceScanExecShim(
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] = Map()
 
-  lazy val metadataColumns = output.collect {
+  lazy val metadataColumns: Seq[AttributeReference] = output.collect {
     case FileSourceConstantMetadataAttribute(attr) => attr
-    case FileSourceGeneratedMetadataAttribute(attr) => attr
+    case FileSourceGeneratedMetadataAttribute(attr, _) => attr
   }
 
   protected lazy val driverMetricsAlias = driverMetrics
 
-  override def equals(other: Any): Boolean = other match {
-    case that: FileSourceScanExecShim =>
-      (that.canEqual(this)) && super.equals(that)
+  def dataFiltersInScan: Seq[Expression] = dataFilters.filterNot(_.references.exists {
+    case FileSourceMetadataAttribute(_) => true
     case _ => false
+  })
+
+  def hasUnsupportedColumns: Boolean = {
+    // TODO, fallback if user define same name column due to we can't right now
+    // detect which column is metadata column which is user defined column.
+    val metadataColumnsNames = metadataColumns.map(_.name)
+    output
+      .filterNot(metadataColumns.toSet)
+      .exists(v => metadataColumnsNames.contains(v.name)) ||
+    output.exists(a => a.name == "$path" || a.name == "$bucket")
   }
-
-  override def hashCode(): Int = super.hashCode()
-
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[FileSourceScanExecShim]
-
-  def hasMetadataColumns: Boolean = metadataColumns.nonEmpty
 
   def isMetadataColumn(attr: Attribute): Boolean = metadataColumns.contains(attr)
 

@@ -20,7 +20,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.{functions, DataFrame, Row}
 import org.apache.spark.sql.execution.LocalTableScanExec
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.types.{StructField, _}
+import org.apache.spark.sql.types._
 
 import java.sql.{Date, Timestamp}
 import java.util
@@ -49,8 +49,7 @@ class GlutenClickHouseFileFormatSuite
   with AdaptiveSparkPlanHelper {
   import testImplicits._
 
-  override protected val resourcePath: String =
-    "../../../../gluten-core/src/test/resources/tpch-data"
+  override protected val needCopyParquetToTablePath = true
 
   override protected val tablesPath: String = basePath + "/tpch-data"
   override protected val tpchQueries: String =

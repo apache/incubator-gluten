@@ -49,12 +49,13 @@ public:
         const String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters = {});
 
 protected:
-    inline SerializedPlanParser * getPlanParser() { return plan_parser; }
-    inline ContextPtr getContext() { return plan_parser->context; }
+    inline SerializedPlanParser * getPlanParser() const { return plan_parser; }
+    inline ContextPtr getContext() const { return plan_parser->context; }
 
     inline String getUniqueName(const std::string & name) { return plan_parser->getUniqueName(name); }
 
     inline const std::unordered_map<std::string, std::string> & getFunctionMapping() { return plan_parser->function_mapping; }
+
     // Get function signature name.
     std::optional<String> parseSignatureFunctionName(UInt32 function_ref);
     // Get coresponding function name in ClickHouse.

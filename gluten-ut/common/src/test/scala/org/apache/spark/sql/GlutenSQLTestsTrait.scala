@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql
 
+import io.glutenproject.sql.shims.SparkShimLoader
+
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.util.{sideBySide, stackTraceToString}
 import org.apache.spark.sql.execution.SQLExecution
@@ -59,10 +61,11 @@ trait GlutenSQLTestsTrait extends QueryTest with GlutenSQLTestsBaseTrait {
       try df
       catch {
         case ae: AnalysisException =>
-          if (ae.plan.isDefined) {
+          val plan = SparkShimLoader.getSparkShims.getAnalysisExceptionPlan(ae)
+          if (plan.isDefined) {
             fail(s"""
                     |Failed to analyze query: $ae
-                    |${ae.plan.get}
+                    |${plan.get}
                     |
                     |${stackTraceToString(ae)}
                     |""".stripMargin)
@@ -73,11 +76,11 @@ trait GlutenSQLTestsTrait extends QueryTest with GlutenSQLTestsBaseTrait {
 
     assertEmptyMissingInput(analyzedDF)
 
-    GlutenQueryTest.checkAnswer(analyzedDF, expectedAnswer)
+    GlutenQueryTestUtil.checkAnswer(analyzedDF, expectedAnswer)
   }
 }
 
-object GlutenQueryTest extends Assertions {
+object GlutenQueryTestUtil extends Assertions {
 
   /**
    * Runs the plan and makes sure the answer matches the expected result.

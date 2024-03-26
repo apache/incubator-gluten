@@ -1,5 +1,7 @@
-# Gluten: Plugin to Double SparkSQL's Performance
+# Apache Gluten (Incubating): A Middle Layer for Offloading JVM-based SQL Engines' Execution to Native Engines
+
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/8452/badge)](https://www.bestpractices.dev/projects/8452)
+
 *<b>This project is still under active development now, and doesn't have a stable release. Welcome to evaluate it.</b>*
 
 # 1 Introduction
@@ -30,7 +32,7 @@ The basic rule of Gluten's design is that we would reuse spark's whole control f
 ## 1.3 Target User
 
 Gluten's target user is anyone who wants to accelerate SparkSQL fundamentally. As a plugin to Spark, Gluten doesn't require any change for dataframe API or SQL query, but only requires user to make correct configuration.
-See Gluten configuration properties [here](https://github.com/oap-project/gluten/blob/main/docs/Configuration.md).
+See Gluten configuration properties [here](https://github.com/apache/incubator-gluten/blob/main/docs/Configuration.md).
 
 ## 1.4 References
 
@@ -72,7 +74,7 @@ spark-shell \
  --conf spark.memory.offHeap.enabled=true \
  --conf spark.memory.offHeap.size=20g \
  --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
- --jars https://github.com/oap-project/gluten/releases/download/v1.0.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04_x86_64-1.0.0.jar
+ --jars https://github.com/apache/incubator-gluten/releases/download/v1.0.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04_x86_64-1.0.0.jar
 ```
 
 # 3.2 Custom Build
@@ -110,7 +112,18 @@ Welcome to contribute to Gluten project! See [contributing guide](CONTRIBUTING.m
 
 ## 4.1 Community
 
-You can join a Wechat group (Chinese) or a Spark channel in Velox Slack group (English) for community communication. Contact us if you want.
+Glunten successfully joined Apache Incubator since March'24. We welcome developers and users who are interested in Gluten project. Here are several ways to contat us:
+### Gluten website
+https://gluten.apache.org/
+
+### Mailing lists
+For any technical questions, please subscribe/email to dev@gluten.apache.org
+
+### Wechat group
+We also have a Wechat group (in Chinese) which maybe more firendly for PRC developers/users. Due to the limitation of wechat group, please contat with weitingchen at apache.org or zhangzc at apache.org to be invited to the group. 
+
+### Slack channel
+There's also a Spark channel in Velox Slack group (in English) for community communication for Velox backend. Please check Velox document here: https://github.com/facebookincubator/velox?tab=readme-ov-file#community
 
 ## 4.2 Issue Report
 
@@ -118,7 +131,7 @@ Please feel free to create Github issue for reporting bug or proposing enhanceme
 
 ## 4.3 Documentation
 
-Currently, all gluten documents are held at [docs](https://github.com/oap-project/gluten/tree/main/docs). The documents may not reflect the latest designs. Please feel free to contact us for getting design details or sharing your design ideas.
+Currently, all gluten documents are held at [docs](https://github.com/apache/incubator-gluten/tree/main/docs). The documents may not reflect the latest designs. Please feel free to contact us for getting design details or sharing your design ideas.
 
 # 5 Performance
 

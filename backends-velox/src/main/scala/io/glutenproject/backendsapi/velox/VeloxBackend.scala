@@ -18,6 +18,7 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.{GlutenConfig, GlutenPlugin, VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME}
 import io.glutenproject.backendsapi._
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.execution.WriteFilesExecTransformer
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.extension.ValidationResult
@@ -26,7 +27,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Lag, Literal, NamedExpression, NthValue, NTile, PercentRank, Rand, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Lag, Lead, Literal, NamedExpression, NthValue, NTile, PercentRank, Rand, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame, Uuid}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Sum}
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.util.CharVarcharUtils
@@ -102,9 +103,7 @@ object BackendSettings extends BackendSettingsApi {
       case StructField(_, structType: StructType, _, _) =>
         structType.simpleString + " is forced to fallback."
       case StructField(_, stringType: StringType, _, metadata)
-          if CharVarcharUtils
-            .getRawTypeString(metadata)
-            .getOrElse(stringType.catalogString) != stringType.catalogString =>
+          if isCharType(stringType, metadata) =>
         CharVarcharUtils.getRawTypeString(metadata) + " not support"
       case StructField(_, TimestampType, _, _) => "TimestampType not support"
     }
@@ -151,9 +150,7 @@ object BackendSettings extends BackendSettingsApi {
                 if mapType.valueType.isInstanceOf[ArrayType] =>
               "ArrayType as Value in MapType"
             case StructField(_, stringType: StringType, _, metadata)
-                if CharVarcharUtils
-                  .getRawTypeString(metadata)
-                  .getOrElse(stringType.catalogString) != stringType.catalogString =>
+                if isCharType(stringType, metadata) =>
               CharVarcharUtils.getRawTypeString(metadata) + " not support"
             case StructField(_, TimestampType, _, _) => "TimestampType not support"
           }
@@ -165,6 +162,16 @@ object BackendSettings extends BackendSettingsApi {
         }
       case _ => ValidationResult.notOk(s"Unsupported file format for $format.")
     }
+  }
+
+  def isCharType(stringType: StringType, metadata: Metadata): Boolean = {
+    val charTypePattern = "char\\((\\d+)\\)".r
+    GlutenConfig.getConf.forceOrcCharTypeScanFallbackEnabled && charTypePattern
+      .findFirstIn(
+        CharVarcharUtils
+          .getRawTypeString(metadata)
+          .getOrElse(stringType.catalogString))
+      .isDefined
   }
 
   override def supportWriteFilesExec(
@@ -248,6 +255,8 @@ object BackendSettings extends BackendSettingsApi {
     }
   }
 
+  override def supportNativeMetadataColumns(): Boolean = true
+
   override def supportExpandExec(): Boolean = true
 
   override def supportSortExec(): Boolean = true
@@ -263,7 +272,7 @@ object BackendSettings extends BackendSettingsApi {
         func => {
           val windowExpression = func match {
             case alias: Alias => WindowFunctionsBuilder.extractWindowExpression(alias.child)
-            case _ => throw new UnsupportedOperationException(s"$func is not supported.")
+            case _ => throw new GlutenNotSupportException(s"$func is not supported.")
           }
 
           // Block the offloading by checking Velox's current limitations
@@ -277,7 +286,7 @@ object BackendSettings extends BackendSettingsApi {
                     order =>
                       order.direction match {
                         case Descending =>
-                          throw new UnsupportedOperationException(
+                          throw new GlutenNotSupportException(
                             "DESC order is not supported when" +
                               " literal bound type is used!")
                         case _ =>
@@ -287,17 +296,15 @@ object BackendSettings extends BackendSettingsApi {
                       order.dataType match {
                         case ByteType | ShortType | IntegerType | LongType | DateType =>
                         case _ =>
-                          throw new UnsupportedOperationException(
+                          throw new GlutenNotSupportException(
                             "Only integral type & date type are" +
                               " supported for sort key when literal bound type is used!")
                       })
                   val rawValue = e.eval().toString.toLong
                   if (isUpperBound && rawValue < 0) {
-                    throw new UnsupportedOperationException(
-                      "Negative upper bound is not supported!")
+                    throw new GlutenNotSupportException("Negative upper bound is not supported!")
                   } else if (!isUpperBound && rawValue > 0) {
-                    throw new UnsupportedOperationException(
-                      "Positive lower bound is not supported!")
+                    throw new GlutenNotSupportException("Positive lower bound is not supported!")
                   }
                 case _ =>
               }
@@ -317,7 +324,7 @@ object BackendSettings extends BackendSettingsApi {
           }
           windowExpression.windowFunction match {
             case _: RowNumber | _: AggregateExpression | _: Rank | _: CumeDist | _: DenseRank |
-                _: PercentRank | _: NthValue | _: NTile | _: Lag =>
+                _: PercentRank | _: NthValue | _: NTile | _: Lag | _: Lead =>
             case _ =>
               allSupported = false
           }
@@ -381,6 +388,7 @@ object BackendSettings extends BackendSettingsApi {
         // Block directly falling back the below functions by FallbackEmptySchemaRelation.
         case alias: Alias => checkExpr(alias.child)
         case _: Rand => true
+        case _: Uuid => true
         case _ => false
       }
     }

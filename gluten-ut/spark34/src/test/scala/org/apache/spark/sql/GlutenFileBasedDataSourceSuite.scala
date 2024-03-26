@@ -16,10 +16,16 @@
  */
 package org.apache.spark.sql
 
+import io.glutenproject.execution.BatchScanExecTransformer
+
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
+import org.apache.spark.sql.catalyst.expressions.{GreaterThan, Literal}
+import org.apache.spark.sql.execution.FileSourceScanLike
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, SortMergeJoinExec}
+import org.apache.spark.sql.functions.rand
 import org.apache.spark.sql.internal.SQLConf
 
 import org.apache.hadoop.fs.Path
@@ -174,6 +180,27 @@ class GlutenFileBasedDataSourceSuite extends FileBasedDataSourceSuite with Glute
             sparkContext.removeSparkListener(bytesReadListener)
           }
       }
+    }
+  }
+
+  testGluten("SPARK-41017: filter pushdown with nondeterministic predicates") {
+    withTempPath {
+      path =>
+        val pathStr = path.getCanonicalPath
+        spark.range(10).write.parquet(pathStr)
+        Seq("parquet", "").foreach {
+          useV1SourceList =>
+            withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> useV1SourceList) {
+              val scan = spark.read.parquet(pathStr)
+              val df = scan.where(rand() > 0.5 && $"id" > 5)
+              val filters = df.queryExecution.executedPlan.collect {
+                case f: FileSourceScanLike => f.dataFilters
+                case b: BatchScanExec => b.scan.asInstanceOf[FileScan].dataFilters
+                case b: BatchScanExecTransformer => b.scan.asInstanceOf[FileScan].dataFilters
+              }.flatten
+              assert(filters.contains(GreaterThan(scan.logicalPlan.output.head, Literal(5L))))
+            }
+        }
     }
   }
 

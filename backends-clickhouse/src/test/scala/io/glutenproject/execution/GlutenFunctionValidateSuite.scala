@@ -19,10 +19,8 @@ package io.glutenproject.execution
 import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
 
-import org.apache.spark.SPARK_VERSION_SHORT
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.Row
+import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
+import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
@@ -30,17 +28,9 @@ import org.apache.spark.sql.types._
 import java.nio.file.Files
 import java.sql.Date
 
-import scala.collection.immutable.Seq
 import scala.reflect.ClassTag
 
 class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerSuite {
-  override protected val resourcePath: String = {
-    "../../../../gluten-core/src/test/resources/tpch-data"
-  }
-  override protected val backend: String = "ch"
-  override protected val fileFormat: String = "parquet"
-  protected val rootPath: String = getClass.getResource("/").getPath
-  protected val basePath: String = rootPath + "unit-tests-working-home"
 
   protected lazy val sparkVersion: String = {
     val version = SPARK_VERSION_SHORT.split("\\.")
@@ -51,8 +41,6 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
   protected val tpchQueries: String =
     rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
   protected val queriesResults: String = rootPath + "queries-output"
-  protected val warehouse: String = basePath + "/spark-warehouse"
-  protected val metaStorePathAbsolute: String = basePath + "/meta"
 
   private var parquetPath: String = _
 
@@ -72,7 +60,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       .set("spark.databricks.delta.stalenessLimit", "3600000")
       .set("spark.gluten.sql.columnar.columnartorow", "true")
       .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
+      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
@@ -619,7 +607,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       runQueryAndCompare(
         "select id, if(id % 2 = 0, sum(id), max(id)) as s1, " +
           "if(id %2 = 0, sum(id+1), sum(id+2)) as s2 from range(10) group by id") {
-        df => checkOperatorCount[ProjectExecTransformer](1)(df)
+        df => checkOperatorCount[ProjectExecTransformer](2)(df)
       }
 
       // CSE in sort
@@ -645,4 +633,31 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       """.stripMargin
     runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
   }
+
+  test("test parse string with blank to integer") {
+    // issue https://github.com/apache/incubator-gluten/issues/4956
+    val sql = "select  cast(concat(' ', cast(id as string)) as bigint) from range(10)"
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("avg(bigint) overflow") {
+    withSQLConf(
+      "spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false",
+      "spark.sql.autoBroadcastJoinThreshold" -> "-1") {
+      withTable("myitem") {
+        sql("create table big_int(id bigint) using parquet")
+        sql("""
+              |insert into big_int values (9223372036854775807),
+              |(9223372036854775807),
+              |(9223372036854775807),
+              |(9223372036854775807)
+              |""".stripMargin)
+        val q = "select avg(id) from big_int"
+        runQueryAndCompare(q)(checkOperatorMatch[CHHashAggregateExecTransformer])
+        val disinctSQL = "select count(distinct id), avg(distinct id), avg(id) from big_int"
+        runQueryAndCompare(disinctSQL)(checkOperatorMatch[CHHashAggregateExecTransformer])
+      }
+    }
+  }
+
 }

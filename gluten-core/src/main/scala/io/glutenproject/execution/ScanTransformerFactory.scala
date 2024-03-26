@@ -16,6 +16,7 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.sql.shims.SparkShimLoader
@@ -37,7 +38,7 @@ object ScanTransformerFactory {
   def createFileSourceScanTransformer(
       scanExec: FileSourceScanExec,
       allPushDownFilters: Option[Seq[Expression]] = None,
-      validation: Boolean = false): FileSourceScanExecTransformer = {
+      validation: Boolean = false): FileSourceScanExecTransformerBase = {
     // transform BroadcastExchangeExec to ColumnarBroadcastExchangeExec in partitionFilters
     val newPartitionFilters = if (validation) {
       scanExec.partitionFilters
@@ -69,7 +70,7 @@ object ScanTransformerFactory {
 
   private def lookupBatchScanTransformer(
       batchScanExec: BatchScanExec,
-      newPartitionFilters: Seq[Expression]): BatchScanExecTransformer = {
+      newPartitionFilters: Seq[Expression]): BatchScanExecTransformerBase = {
     val scan = batchScanExec.scan
     lookupDataSourceScanTransformer(scan.getClass.getName) match {
       case Some(clz) =>
@@ -88,7 +89,7 @@ object ScanTransformerFactory {
               table = SparkShimLoader.getSparkShims.getBatchScanExecTable(batchScanExec)
             )
           case _ =>
-            throw new UnsupportedOperationException(s"Unsupported scan $scan")
+            throw new GlutenNotSupportException(s"Unsupported scan $scan")
         }
     }
   }
@@ -122,7 +123,7 @@ object ScanTransformerFactory {
       }
     } else {
       if (validation) {
-        throw new UnsupportedOperationException(s"Unsupported scan ${batchScan.scan}")
+        throw new GlutenNotSupportException(s"Unsupported scan ${batchScan.scan}")
       }
       // If filter expressions aren't empty, we need to transform the inner operators,
       // and fallback the BatchScanExec itself.

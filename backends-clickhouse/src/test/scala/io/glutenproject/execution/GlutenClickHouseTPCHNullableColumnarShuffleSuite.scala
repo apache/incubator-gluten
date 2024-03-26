@@ -23,7 +23,7 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
 
   override protected val createNullableTables = true
 
-  override protected val tablesPath: String = basePath + "/tpch-data-ch-nullable"
+  override protected val tablesPath: String = basePath + "/tpch-data-ch"
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "mergetree-queries-output"
 
@@ -77,7 +77,7 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
       runTPCHQuery(5) {
         df =>
           val bhjRes = df.queryExecution.executedPlan.collect {
-            case bhj: BroadcastHashJoinExecTransformer => bhj
+            case bhj: BroadcastHashJoinExecTransformerBase => bhj
           }
           assert(bhjRes.isEmpty)
       }

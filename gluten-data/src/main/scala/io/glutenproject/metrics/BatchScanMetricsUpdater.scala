@@ -29,12 +29,12 @@ class BatchScanMetricsUpdater(val metrics: Map[String, SQLMetric]) extends Metri
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
     if (opMetrics != null) {
       val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
-      metrics("inputRows") += operatorMetrics.inputRows
+      metrics("numInputRows") += operatorMetrics.inputRows
       metrics("inputVectors") += operatorMetrics.inputVectors
       metrics("inputBytes") += operatorMetrics.inputBytes
       metrics("rawInputRows") += operatorMetrics.rawInputRows
       metrics("rawInputBytes") += operatorMetrics.rawInputBytes
-      metrics("outputRows") += operatorMetrics.outputRows
+      metrics("numOutputRows") += operatorMetrics.outputRows
       metrics("outputVectors") += operatorMetrics.outputVectors
       metrics("outputBytes") += operatorMetrics.outputBytes
       metrics("cpuCount") += operatorMetrics.cpuCount

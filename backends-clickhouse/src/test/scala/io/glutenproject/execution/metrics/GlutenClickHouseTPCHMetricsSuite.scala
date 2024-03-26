@@ -16,7 +16,7 @@
  */
 package io.glutenproject.execution.metrics
 
-import io.glutenproject.execution.{BasicScanExecTransformer, ColumnarNativeIterator, FileSourceScanExecTransformer, FilterExecTransformerBase, GenerateExecTransformer, GlutenClickHouseTPCHAbstractSuite, HashAggregateExecBaseTransformer, ProjectExecTransformer, WholeStageTransformer}
+import io.glutenproject.execution._
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.vectorized.GeneralInIterator
 
@@ -28,8 +28,7 @@ import scala.collection.JavaConverters._
 
 class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite {
 
-  override protected val resourcePath: String =
-    "../../../../gluten-core/src/test/resources/tpch-data"
+  override protected val needCopyParquetToTablePath = true
 
   override protected val tablesPath: String = basePath + "/tpch-data"
   override protected val tpchQueries: String =
@@ -52,7 +51,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
-    createTPCHParquetTables(tablesPath)
+    createNotNullTPCHTablesInParquet(tablesPath)
   }
 
   test("TPCH Q1 scan metrics") {
@@ -68,11 +67,11 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         assert(plans(2).metrics("pruningTime").value === -1)
         assert(plans(2).metrics("filesSize").value === 19230111)
 
-        assert(plans(1).metrics("outputRows").value === 4)
+        assert(plans(1).metrics("numOutputRows").value === 4)
         assert(plans(1).metrics("outputVectors").value === 1)
 
         // Execute Sort operator, it will read the data twice.
-        assert(plans(0).metrics("outputRows").value === 4)
+        assert(plans(0).metrics("numOutputRows").value === 4)
         assert(plans(0).metrics("outputVectors").value === 1)
     }
   }
@@ -86,11 +85,11 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
     runQueryAndCompare(sql) {
       df =>
         val plans = df.queryExecution.executedPlan.collect {
-          case generate: GenerateExecTransformer => generate
+          case generate: CHGenerateExecTransformer => generate
         }
         assert(plans.size == 1)
-        assert(plans.head.metrics("inputRows").value == 25)
-        assert(plans.head.metrics("outputRows").value == 266)
+        assert(plans.head.metrics("numInputRows").value == 25)
+        assert(plans.head.metrics("numOutputRows").value == 266)
         assert(plans.head.metrics("outputVectors").value == 1)
     }
   }
@@ -109,11 +108,11 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
           assert(plans(2).metrics("pruningTime").value === -1)
           assert(plans(2).metrics("filesSize").value === 19230111)
 
-          assert(plans(1).metrics("outputRows").value === 4)
+          assert(plans(1).metrics("numOutputRows").value === 4)
           assert(plans(1).metrics("outputVectors").value === 1)
 
           // Execute Sort operator, it will read the data twice.
-          assert(plans(0).metrics("outputRows").value === 4)
+          assert(plans(0).metrics("numOutputRows").value === 4)
           assert(plans(0).metrics("outputVectors").value === 1)
       }
     }
@@ -193,24 +192,24 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
                 assert(s.metrics("scanTime").value == 2)
                 assert(s.metrics("inputWaitTime").value == 4)
                 assert(s.metrics("outputWaitTime").value == 2)
-                assert(s.metrics("outputRows").value == 20000)
+                assert(s.metrics("numOutputRows").value == 20000)
                 assert(s.metrics("outputBytes").value == 1451663)
               case f: FilterExecTransformerBase =>
                 assert(f.metrics("totalTime").value == 3)
                 assert(f.metrics("inputWaitTime").value == 14)
                 assert(f.metrics("outputWaitTime").value == 1)
-                assert(f.metrics("outputRows").value == 73)
+                assert(f.metrics("numOutputRows").value == 73)
                 assert(f.metrics("outputBytes").value == 5304)
-                assert(f.metrics("inputRows").value == 20000)
+                assert(f.metrics("numInputRows").value == 20000)
                 assert(f.metrics("inputBytes").value == 1451663)
                 assert(f.metrics("extraTime").value == 1)
               case p: ProjectExecTransformer =>
                 assert(p.metrics("totalTime").value == 0)
                 assert(p.metrics("inputWaitTime").value == 7)
                 assert(p.metrics("outputWaitTime").value == 0)
-                assert(p.metrics("outputRows").value == 73)
+                assert(p.metrics("numOutputRows").value == 73)
                 assert(p.metrics("outputBytes").value == 2336)
-                assert(p.metrics("inputRows").value == 73)
+                assert(p.metrics("numInputRows").value == 73)
                 assert(p.metrics("inputBytes").value == 5085)
             }
         }
@@ -230,25 +229,25 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
             assert(scanPlan.metrics("scanTime").value == 2)
             assert(scanPlan.metrics("inputWaitTime").value == 3)
             assert(scanPlan.metrics("outputWaitTime").value == 1)
-            assert(scanPlan.metrics("outputRows").value == 80000)
+            assert(scanPlan.metrics("numOutputRows").value == 80000)
             assert(scanPlan.metrics("outputBytes").value == 2160000)
 
             val filterPlan = allGlutenPlans(8)
             assert(filterPlan.metrics("totalTime").value == 1)
             assert(filterPlan.metrics("inputWaitTime").value == 13)
             assert(filterPlan.metrics("outputWaitTime").value == 1)
-            assert(filterPlan.metrics("outputRows").value == 80000)
+            assert(filterPlan.metrics("numOutputRows").value == 80000)
             assert(filterPlan.metrics("outputBytes").value == 2160000)
-            assert(filterPlan.metrics("inputRows").value == 80000)
+            assert(filterPlan.metrics("numInputRows").value == 80000)
             assert(filterPlan.metrics("inputBytes").value == 2160000)
 
             val joinPlan = allGlutenPlans(2)
             assert(joinPlan.metrics("totalTime").value == 1)
             assert(joinPlan.metrics("inputWaitTime").value == 6)
             assert(joinPlan.metrics("outputWaitTime").value == 0)
-            assert(joinPlan.metrics("outputRows").value == 292)
+            assert(joinPlan.metrics("numOutputRows").value == 292)
             assert(joinPlan.metrics("outputBytes").value == 16644)
-            assert(joinPlan.metrics("inputRows").value == 80000)
+            assert(joinPlan.metrics("numInputRows").value == 80000)
             assert(joinPlan.metrics("inputBytes").value == 1920000)
         }
 
@@ -269,9 +268,9 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
             assert(shjPlan.metrics("totalTime").value == 6)
             assert(shjPlan.metrics("inputWaitTime").value == 5)
             assert(shjPlan.metrics("outputWaitTime").value == 0)
-            assert(shjPlan.metrics("outputRows").value == 44)
+            assert(shjPlan.metrics("numOutputRows").value == 44)
             assert(shjPlan.metrics("outputBytes").value == 3740)
-            assert(shjPlan.metrics("inputRows").value == 11985)
+            assert(shjPlan.metrics("numInputRows").value == 11985)
             assert(shjPlan.metrics("inputBytes").value == 299625)
         }
     }

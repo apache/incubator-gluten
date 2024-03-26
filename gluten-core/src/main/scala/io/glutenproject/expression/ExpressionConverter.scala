@@ -18,19 +18,22 @@ package io.glutenproject.expression
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.execution.{ColumnarToRowExecBase, WholeStageTransformer}
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.test.TestStats
 import io.glutenproject.utils.{DecimalArithmeticUtil, PlanUtil}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.{InternalRow, SQLConfHelper}
-import org.apache.spark.sql.catalyst.expressions.{BinaryArithmetic, _}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
+import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution.{ScalarSubquery, _}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
-import org.apache.spark.sql.hive.HiveSimpleUDFTransformer
+import org.apache.spark.sql.hive.HiveUDFTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
@@ -74,7 +77,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
           udf)
       case _ =>
-        throw new UnsupportedOperationException(s"Not supported python udf: $udf.")
+        throw new GlutenNotSupportException(s"Not supported python udf: $udf.")
     }
   }
 
@@ -82,6 +85,9 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       udf: ScalaUDF,
       attributeSeq: Seq[Attribute],
       expressionsMap: Map[Class[_], String]): ExpressionTransformer = {
+    if (!udf.udfName.isDefined) {
+      throw new GlutenNotSupportException("UDF name is not found!")
+    }
     val substraitExprName = UDFMappings.scalaUDFMap.get(udf.udfName.get)
     substraitExprName match {
       case Some(name) =>
@@ -91,7 +97,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
           udf)
       case _ =>
-        throw new UnsupportedOperationException(s"Not supported scala udf: $udf.")
+        throw new GlutenNotSupportException(s"Not supported scala udf: $udf.")
     }
   }
 
@@ -108,8 +114,21 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         return replacePythonUDFWithExpressionTransformer(p, attributeSeq, expressionsMap)
       case s: ScalaUDF =>
         return replaceScalaUDFWithExpressionTransformer(s, attributeSeq, expressionsMap)
-      case _ if HiveSimpleUDFTransformer.isHiveSimpleUDF(expr) =>
-        return HiveSimpleUDFTransformer.replaceWithExpressionTransformer(expr, attributeSeq)
+      case _ if HiveUDFTransformer.isHiveUDF(expr) =>
+        return HiveUDFTransformer.replaceWithExpressionTransformer(expr, attributeSeq)
+      case i: StaticInvoke =>
+        val objectName = i.staticObject.getName.stripSuffix("$")
+        if (objectName.endsWith("UrlCodec")) {
+          val child = i.arguments(0)
+          i.functionName match {
+            case "decode" =>
+              return GenericExpressionTransformer(
+                ExpressionNames.URL_DECODE,
+                child.map(
+                  replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
+                i)
+          }
+        }
       case _ =>
     }
 
@@ -117,7 +136,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     // Check whether Gluten supports this expression
     val substraitExprNameOpt = expressionsMap.get(expr.getClass)
     if (substraitExprNameOpt.isEmpty) {
-      throw new UnsupportedOperationException(
+      throw new GlutenNotSupportException(
         s"Not supported to map spark function name" +
           s" to substrait function name: $expr, class name: ${expr.getClass.getSimpleName}.")
     }
@@ -125,7 +144,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
 
     // Check whether each backend supports this expression
     if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(substraitExprName, expr)) {
-      throw new UnsupportedOperationException(s"Not supported: $expr.")
+      throw new GlutenNotSupportException(s"Not supported: $expr.")
     }
     expr match {
       case extendedExpr
@@ -281,7 +300,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         )
       case i: In =>
         if (i.list.exists(!_.foldable)) {
-          throw new UnsupportedOperationException(
+          throw new GlutenNotSupportException(
             s"In list option does not support non-foldable expression, ${i.list.map(_.sql)}")
         }
         InTransformer(
@@ -371,12 +390,14 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           s
         )
       case r: RegExpReplace =>
-        RegExpReplaceTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genRegexpReplaceTransformer(
           substraitExprName,
-          replaceWithExpressionTransformerInternal(r.subject, attributeSeq, expressionsMap),
-          replaceWithExpressionTransformerInternal(r.regexp, attributeSeq, expressionsMap),
-          replaceWithExpressionTransformerInternal(r.rep, attributeSeq, expressionsMap),
-          replaceWithExpressionTransformerInternal(r.pos, attributeSeq, expressionsMap),
+          Seq(
+            replaceWithExpressionTransformerInternal(r.subject, attributeSeq, expressionsMap),
+            replaceWithExpressionTransformerInternal(r.regexp, attributeSeq, expressionsMap),
+            replaceWithExpressionTransformerInternal(r.rep, attributeSeq, expressionsMap),
+            replaceWithExpressionTransformerInternal(r.pos, attributeSeq, expressionsMap)
+          ),
           r
         )
       case equal: EqualNullSafe =>
@@ -484,7 +505,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         // PrecisionLoss=false: velox not support / ch support
         // TODO ch support PrecisionLoss=true
         if (!BackendsApiManager.getSettings.allowDecimalArithmetic) {
-          throw new UnsupportedOperationException(
+          throw new GlutenNotSupportException(
             s"Not support ${SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key} " +
               s"${conf.decimalOperationsAllowPrecisionLoss} mode")
         }
@@ -522,10 +543,33 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(n.right, attributeSeq, expressionsMap),
           n
         )
+      case m: MakeTimestamp =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genMakeTimestampTransformer(
+          substraitExprName,
+          m.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
+          m)
+      case timestampAdd if timestampAdd.getClass.getSimpleName.equals("TimestampAdd") =>
+        // for spark3.3
+        val extract = SparkShimLoader.getSparkShims.extractExpressionTimestampAddUnit(timestampAdd)
+        if (extract.isEmpty) {
+          throw new UnsupportedOperationException(s"Not support expression TimestampAdd.")
+        }
+        val add = timestampAdd.asInstanceOf[BinaryExpression]
+        TimestampAddTransform(
+          substraitExprName,
+          extract.get.head,
+          replaceWithExpressionTransformerInternal(add.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(add.right, attributeSeq, expressionsMap),
+          extract.get.last,
+          add.dataType,
+          add.nullable
+        )
       case e: Transformable =>
         val childrenTransformers =
           e.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap))
         e.getTransformer(childrenTransformers)
+      case u: Uuid =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genUuidTransformer(substraitExprName, u)
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,

@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.StringValue;
 import io.substrait.proto.ReadRel;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ public class ExtensionTableNode implements SplitInfo {
   private String database;
   private String tableName;
   private String relativePath;
+  private String absolutePath;
   private String tableSchemaJson;
   private StringBuffer extensionTableStr = new StringBuffer(MERGE_TREE);
   private StringBuffer partPathList = new StringBuffer("");
@@ -41,6 +43,8 @@ public class ExtensionTableNode implements SplitInfo {
   private String orderByKey;
 
   private String primaryKey;
+
+  private String lowCardKey;
 
   private List<String> partList;
   private List<Long> starts;
@@ -54,7 +58,9 @@ public class ExtensionTableNode implements SplitInfo {
       String database,
       String tableName,
       String relativePath,
+      String absolutePath,
       String orderByKey,
+      String lowCardKey,
       String primaryKey,
       List<String> partList,
       List<Long> starts,
@@ -66,13 +72,16 @@ public class ExtensionTableNode implements SplitInfo {
     this.maxPartsNum = maxPartsNum;
     this.database = database;
     this.tableName = tableName;
-    if (relativePath.startsWith("/")) {
-      this.relativePath = relativePath.substring(1);
+    URI table_uri = URI.create(relativePath);
+    if (table_uri.getPath().startsWith("/")) { // file:///tmp/xxx => tmp/xxx
+      this.relativePath = table_uri.getPath().substring(1);
     } else {
-      this.relativePath = relativePath;
+      this.relativePath = table_uri.getPath();
     }
+    this.absolutePath = absolutePath;
     this.tableSchemaJson = tableSchemaJson;
     this.orderByKey = orderByKey;
+    this.lowCardKey = lowCardKey;
     this.primaryKey = primaryKey;
     this.partList = partList;
     this.starts = starts;
@@ -107,7 +116,9 @@ public class ExtensionTableNode implements SplitInfo {
     if (!this.orderByKey.isEmpty() && !this.orderByKey.equals("tuple()")) {
       extensionTableStr.append(this.primaryKey).append("\n");
     }
+    extensionTableStr.append(this.lowCardKey).append("\n");
     extensionTableStr.append(this.relativePath).append("\n");
+    extensionTableStr.append(this.absolutePath).append("\n");
 
     if (this.clickhouseTableConfigs != null && !this.clickhouseTableConfigs.isEmpty()) {
       ObjectMapper objectMapper = new ObjectMapper();
@@ -155,5 +166,17 @@ public class ExtensionTableNode implements SplitInfo {
     extensionTableBuilder.setDetail(
         BackendsApiManager.getTransformerApiInstance().packPBMessage(extensionTable));
     return extensionTableBuilder.build();
+  }
+
+  public String getRelativePath() {
+    return relativePath;
+  }
+
+  public String getAbsolutePath() {
+    return absolutePath;
+  }
+
+  public List<String> getPartList() {
+    return partList;
   }
 }

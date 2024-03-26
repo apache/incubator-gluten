@@ -20,7 +20,7 @@ import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
 import io.glutenproject.expression.{ExpressionNames, Sig}
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
-import org.apache.spark.{ShuffleUtils, TaskContext, TaskContextUtils}
+import org.apache.spark.{ShuffleUtils, SparkContext, TaskContext, TaskContextUtils}
 import org.apache.spark.scheduler.TaskInfo
 import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.sql.{AnalysisException, SparkSession}
@@ -38,11 +38,14 @@ import org.apache.spark.sql.execution.datasources.FileFormatWriter.Empty2Null
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
+import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
 import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
 import org.apache.hadoop.fs.{FileStatus, Path}
+
+import java.util.{HashMap => JHashMap, Map => JMap}
 
 class Spark32Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
@@ -124,6 +127,22 @@ class Spark32Shims extends SparkShims {
     TaskContextUtils.createTestTaskContext()
   }
 
+  def setJobDescriptionOrTagForBroadcastExchange(
+      sc: SparkContext,
+      broadcastExchange: BroadcastExchangeLike): Unit = {
+    // Setup a job group here so later it may get cancelled by groupId if necessary.
+    sc.setJobGroup(
+      broadcastExchange.runId.toString,
+      s"broadcast exchange (runId ${broadcastExchange.runId})",
+      interruptOnCancel = true)
+  }
+
+  def cancelJobGroupForBroadcastExchange(
+      sc: SparkContext,
+      broadcastExchange: BroadcastExchangeLike): Unit = {
+    sc.cancelJobGroup(broadcastExchange.runId.toString)
+  }
+
   override def getShuffleReaderParam[K, C](
       handle: ShuffleHandle,
       startMapIndex: Int,
@@ -168,8 +187,17 @@ class Spark32Shims extends SparkShims {
     }
   }
 
+  override def generateMetadataColumns(
+      file: PartitionedFile,
+      metadataColumnNames: Seq[String]): JMap[String, String] =
+    new JHashMap[String, String]()
+
   def getAnalysisExceptionPlan(ae: AnalysisException): Option[LogicalPlan] = {
     ae.plan
   }
 
+  override def getKeyGroupedPartitioning(batchScan: BatchScanExec): Option[Seq[Expression]] = null
+
+  override def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] =
+    null
 }

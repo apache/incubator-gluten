@@ -43,8 +43,8 @@ ln -s /usr/bin/cmake3 /usr/local/bin/cmake
 export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
 export PATH=$JAVA_HOME/bin:$PATH
 
-git clone https://github.com/oap-project/gluten.git
-cd gluten
+git clone https://github.com/apache/incubator-gluten.git
+cd incubator-gluten
 
 # To access HDFS or S3, you need to add the parameters `--enable_hdfs=ON` and `--enable_s3=ON`
 # If you have the same error with issue-3283, you need to add the parameter `--compile_arrow_java=ON`

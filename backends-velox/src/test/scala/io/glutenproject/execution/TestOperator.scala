@@ -283,6 +283,12 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
             assertWindowOffloaded
           }
 
+          runQueryAndCompare(
+            "select lead(l_orderkey) over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+            assertWindowOffloaded
+          }
+
           // Test same partition/ordering keys.
           runQueryAndCompare(
             "select avg(l_partkey) over" +
@@ -708,34 +714,105 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  test("test explode function") {
-    runQueryAndCompare("""
-                         |SELECT explode(array(1, 2, 3));
-                         |""".stripMargin) {
-      checkOperatorMatch[GenerateExecTransformer]
-    }
-    runQueryAndCompare("""
-                         |SELECT explode(map(1, 'a', 2, 'b'));
-                         |""".stripMargin) {
-      checkOperatorMatch[GenerateExecTransformer]
-    }
-    runQueryAndCompare(
-      """
-        |SELECT explode(array(map(1, 'a', 2, 'b'), map(3, 'c', 4, 'd'), map(5, 'e', 6, 'f')));
-        |""".stripMargin) {
-      checkOperatorMatch[GenerateExecTransformer]
-    }
-    runQueryAndCompare("""
-                         |SELECT explode(map(1, array(1, 2), 2, array(3, 4)));
-                         |""".stripMargin) {
-      checkOperatorMatch[GenerateExecTransformer]
+  test("test explode/posexplode function") {
+    Seq("explode", "posexplode").foreach {
+      func =>
+        // Literal: func(literal)
+        runQueryAndCompare(s"""
+                              |SELECT $func(array(1, 2, 3));
+                              |""".stripMargin) {
+          checkOperatorMatch[GenerateExecTransformer]
+        }
+        runQueryAndCompare(s"""
+                              |SELECT $func(map(1, 'a', 2, 'b'));
+                              |""".stripMargin) {
+          checkOperatorMatch[GenerateExecTransformer]
+        }
+        runQueryAndCompare(
+          s"""
+             |SELECT $func(array(map(1, 'a', 2, 'b'), map(3, 'c', 4, 'd'), map(5, 'e', 6, 'f')));
+             |""".stripMargin) {
+          checkOperatorMatch[GenerateExecTransformer]
+        }
+        runQueryAndCompare(s"""
+                              |SELECT $func(map(1, array(1, 2), 2, array(3, 4)));
+                              |""".stripMargin) {
+          checkOperatorMatch[GenerateExecTransformer]
+        }
+
+        // CreateArray/CreateMap: func(array(col)), func(map(k, v))
+        withTempView("t1") {
+          sql("""select * from values (1), (2), (3), (4)
+                |as tbl(a)
+         """.stripMargin).createOrReplaceTempView("t1")
+          runQueryAndCompare(s"""
+                                |SELECT $func(array(a)) from t1;
+                                |""".stripMargin) {
+            checkOperatorMatch[GenerateExecTransformer]
+          }
+          sql("""select * from values (1, 'a'), (2, 'b'), (3, null), (4, null)
+                |as tbl(a, b)
+         """.stripMargin).createOrReplaceTempView("t1")
+          runQueryAndCompare(s"""
+                                |SELECT $func(map(a, b)) from t1;
+                                |""".stripMargin) {
+            checkOperatorMatch[GenerateExecTransformer]
+          }
+        }
+
+        // AttributeReference: func(col)
+        withTempView("t2") {
+          sql("""select * from values
+                |  array(1, 2, 3),
+                |  array(4, null)
+                |as tbl(a)
+         """.stripMargin).createOrReplaceTempView("t2")
+          runQueryAndCompare(s"""
+                                |SELECT $func(a) from t2;
+                                |""".stripMargin) {
+            checkOperatorMatch[GenerateExecTransformer]
+          }
+          sql("""select * from values
+                |  map(1, 'a', 2, 'b', 3, null),
+                |  map(4, null)
+                |as tbl(a)
+         """.stripMargin).createOrReplaceTempView("t2")
+          runQueryAndCompare(s"""
+                                |SELECT $func(a) from t2;
+                                |""".stripMargin) {
+            checkOperatorMatch[GenerateExecTransformer]
+          }
+        }
     }
   }
 
   test("test inline function") {
+    // Literal: func(literal)
+    runQueryAndCompare(s"""
+                          |SELECT inline(array(
+                          |  named_struct('c1', 0, 'c2', 1),
+                          |  named_struct('c1', 2, 'c2', null)));
+                          |""".stripMargin) {
+      checkOperatorMatch[GenerateExecTransformer]
+    }
 
+    // CreateArray: func(array(col))
     withTempView("t1") {
-      sql("""select * from values
+      sql("""SELECT * from values
+            |  (named_struct('c1', 0, 'c2', 1)),
+            |  (named_struct('c1', 2, 'c2', null)),
+            |  (null)
+            |as tbl(a)
+         """.stripMargin).createOrReplaceTempView("t1")
+      runQueryAndCompare(s"""
+                            |SELECT inline(array(a)) from t1;
+                            |""".stripMargin) {
+        checkOperatorMatch[GenerateExecTransformer]
+      }
+    }
+
+    withTempView("t2") {
+      sql("""SELECT * from values
             |  array(
             |    named_struct('c1', 0, 'c2', 1),
             |    null,
@@ -747,13 +824,21 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
             |    named_struct('c1', 2, 'c2', 3)
             |  )
             |as tbl(a)
-         """.stripMargin).createOrReplaceTempView("t1")
+         """.stripMargin).createOrReplaceTempView("t2")
       runQueryAndCompare("""
-                           |SELECT inline(a) from t1;
+                           |SELECT inline(a) from t2;
                            |""".stripMargin) {
         checkOperatorMatch[GenerateExecTransformer]
       }
     }
+
+    // Fallback for array(struct(...), null) literal.
+    runQueryAndCompare(s"""
+                          |SELECT inline(array(
+                          |  named_struct('c1', 0, 'c2', 1),
+                          |  named_struct('c1', 2, 'c2', null),
+                          |  null));
+                          |""".stripMargin)(_)
   }
 
   test("test array functions") {
@@ -894,7 +979,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
             |select * from t1 cross join t2 on t1.c1 = t2.c1;
             |""".stripMargin
         ) {
-          checkOperatorMatch[GlutenBroadcastHashJoinExecTransformer]
+          checkOperatorMatch[BroadcastHashJoinExecTransformer]
         }
       }
 
@@ -1178,6 +1263,84 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
                          |) group by s
                          |""".stripMargin) {
       checkOperatorMatch[HashAggregateExecTransformer]
+    }
+  }
+
+  test("test roundrobine with sort") {
+    // scalastyle:off
+    runQueryAndCompare("SELECT /*+ REPARTITION(3) */ l_orderkey, l_partkey FROM lineitem") {
+      /*
+        ColumnarExchange RoundRobinPartitioning(3), REPARTITION_BY_NUM, [l_orderkey#16L, l_partkey#17L)
+        +- ^(2) ProjectExecTransformer [l_orderkey#16L, l_partkey#17L]
+          +- ^(2) SortExecTransformer [hash_partition_key#302 ASC NULLS FIRST], false, 0
+            +- ^(2) ProjectExecTransformer [hash(l_orderkey#16L, l_partkey#17L) AS hash_partition_key#302, l_orderkey#16L, l_partkey#17L]
+                +- ^(2) BatchScanExecTransformer[l_orderkey#16L, l_partkey#17L] ParquetScan DataFilters: [], Format: parquet, Location: InMemoryFileIndex(1 paths)[..., PartitionFilters: [], PushedFilters: [], ReadSchema: struct<l_orderkey:bigint,l_partkey:bigint>, PushedFilters: [] RuntimeFilters: []
+       */
+      checkOperatorMatch[SortExecTransformer]
+    }
+    // scalastyle:on
+
+    withSQLConf("spark.sql.execution.sortBeforeRepartition" -> "false") {
+      runQueryAndCompare("""SELECT /*+ REPARTITION(3) */
+                           | l_orderkey, l_partkey FROM lineitem""".stripMargin) {
+        df =>
+          {
+            assert(getExecutedPlan(df).count(_.isInstanceOf[SortExecTransformer]) == 0)
+          }
+      }
+    }
+  }
+
+  test("Support Map type signature") {
+    // test map<str,str>
+    withTempView("t1") {
+      Seq[(Int, Map[String, String])]((1, Map("byte1" -> "aaa")), (2, Map("byte2" -> "bbbb")))
+        .toDF("c1", "map_c2")
+        .createTempView("t1")
+      runQueryAndCompare("""
+                           |SELECT c1, collect_list(map_c2) FROM t1 group by c1;
+                           |""".stripMargin) {
+        checkOperatorMatch[HashAggregateExecTransformer]
+      }
+    }
+    // test map<str,map<str,str>>
+    withTempView("t2") {
+      Seq[(Int, Map[String, Map[String, String]])](
+        (1, Map("byte1" -> Map("test1" -> "aaaa"))),
+        (2, Map("byte2" -> Map("test1" -> "bbbb"))))
+        .toDF("c1", "map_c2")
+        .createTempView("t2")
+      runQueryAndCompare("""
+                           |SELECT c1, collect_list(map_c2) FROM t2 group by c1;
+                           |""".stripMargin) {
+        checkOperatorMatch[HashAggregateExecTransformer]
+      }
+    }
+    // test map<map<str,str>,map<str,str>>
+    withTempView("t3") {
+      Seq[(Int, Map[Map[String, String], Map[String, String]])](
+        (1, Map(Map("byte1" -> "aaaa") -> Map("test1" -> "aaaa"))),
+        (2, Map(Map("byte2" -> "bbbb") -> Map("test1" -> "bbbb"))))
+        .toDF("c1", "map_c2")
+        .createTempView("t3")
+      runQueryAndCompare("""
+                           |SELECT collect_list(map_c2) FROM t3 group by c1;
+                           |""".stripMargin) {
+        checkOperatorMatch[HashAggregateExecTransformer]
+      }
+    }
+    // test map<str,list<str>>
+    withTempView("t4") {
+      Seq[(Int, Map[String, Array[String]])](
+        (1, Map("test1" -> Array("test1", "test2"))),
+        (2, Map("test2" -> Array("test1", "test2"))))
+        .toDF("c1", "map_c2")
+        .createTempView("t4")
+      runQueryAndCompare("""
+                           |SELECT collect_list(map_c2) FROM t4 group by c1;
+                           |""".stripMargin) {
+        checkOperatorMatch[HashAggregateExecTransformer]
+      }
     }
   }
 }

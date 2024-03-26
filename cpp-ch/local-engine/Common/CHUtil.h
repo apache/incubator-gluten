@@ -60,7 +60,6 @@ public:
         const std::unordered_set<size_t> & columns_to_skip_flatten = {});
 
     static DB::Block concatenateBlocksMemoryEfficiently(std::vector<DB::Block> && blocks);
-
 };
 
 class PODArrayUtil
@@ -125,6 +124,7 @@ public:
 };
 
 void registerAllFunctions();
+void registerGlutenDisks();
 
 class BackendFinalizerUtil;
 class JNIUtils;
@@ -136,7 +136,7 @@ public:
     /// 2. session level resources like settings/configs, they can be initialized multiple times following the lifetime of executor/driver
     static void init(std::string * plan);
     static void init_json(std::string * plan_json);
-    static void updateConfig(DB::ContextMutablePtr, std::string *);
+    static void updateConfig(const DB::ContextMutablePtr &, std::string *);
 
 
     // use excel text parser
@@ -185,7 +185,7 @@ private:
     static void initCompiledExpressionCache(DB::Context::ConfigurationPtr config);
     static void registerAllFactories();
     static void applyGlobalConfigAndSettings(DB::Context::ConfigurationPtr, DB::Settings &);
-    static void updateNewSettings(DB::ContextMutablePtr, DB::Settings &);
+    static void updateNewSettings(const DB::ContextMutablePtr &, const DB::Settings &);
 
 
     static std::map<std::string, std::string> getBackendConfMap(std::string * plan);

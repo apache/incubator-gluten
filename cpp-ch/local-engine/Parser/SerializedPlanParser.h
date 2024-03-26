@@ -64,6 +64,8 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"to_unix_timestamp", "parseDateTimeInJodaSyntaxOrNull"},
        //    {"unix_timestamp", "toUnixTimestamp"},
        {"date_format", "formatDateTimeInJodaSyntax"},
+       {"timestamp_add", "timestamp_add"},
+
 
        /// arithmetic functions
        {"subtract", "minus"},
@@ -382,7 +384,7 @@ private:
     const ActionsDAG::Node *
     toFunctionNode(ActionsDAGPtr actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args);
     // remove nullable after isNotNull
-    void removeNullable(const std::set<String> & require_columns, ActionsDAGPtr actions_dag);
+    void removeNullableForRequiredColumns(const std::set<String> & require_columns, ActionsDAGPtr actions_dag);
     std::string getUniqueName(const std::string & name) { return name + "_" + std::to_string(name_no++); }
     static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
     void wrapNullable(
@@ -447,10 +449,12 @@ private:
 class ASTParser
 {
 public:
-    explicit ASTParser(const ContextPtr & _context, std::unordered_map<std::string, std::string> & _function_mapping)
-        : context(_context), function_mapping(_function_mapping)
+    explicit ASTParser(
+        const ContextPtr & context_, std::unordered_map<std::string, std::string> & function_mapping_, SerializedPlanParser * plan_parser_)
+        : context(context_), function_mapping(function_mapping_), plan_parser(plan_parser_)
     {
     }
+
     ~ASTParser() = default;
 
     ASTPtr parseToAST(const Names & names, const substrait::Expression & rel);
@@ -459,6 +463,7 @@ public:
 private:
     ContextPtr context;
     std::unordered_map<std::string, std::string> function_mapping;
+    SerializedPlanParser * plan_parser;
 
     void parseFunctionArgumentsToAST(const Names & names, const substrait::Expression_ScalarFunction & scalar_function, ASTs & ast_args);
     ASTPtr parseArgumentToAST(const Names & names, const substrait::Expression & rel);

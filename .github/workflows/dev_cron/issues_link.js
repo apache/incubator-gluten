@@ -48,7 +48,7 @@ async function haveComment(github, context, pullRequestNumber, body) {
 }
 
 async function commentISSUESURL(github, context, pullRequestNumber, issuesID) {
-  const issuesURL = `https://github.com/oap-project/gluten/issues/${issuesID}`;
+  const issuesURL = `https://github.com/apache/incubator-gluten/issues/${issuesID}`;
   if (await haveComment(github, context, pullRequestNumber, issuesURL)) {
     return;
   }

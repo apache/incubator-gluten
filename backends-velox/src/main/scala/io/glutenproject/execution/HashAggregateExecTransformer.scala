@@ -17,9 +17,10 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.extension.RewriteTypedImperativeAggregate
+import io.glutenproject.extension.columnar.RewriteTypedImperativeAggregate
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode, ScalarFunctionNode}
@@ -142,7 +143,7 @@ abstract class HashAggregateExecTransformer(
       expr.mode match {
         case Partial | PartialMerge =>
         case _ =>
-          throw new UnsupportedOperationException(s"${expr.mode} not supported.")
+          throw new GlutenNotSupportException(s"${expr.mode} not supported.")
       }
       val aggFunc = expr.aggregateFunction
       aggFunc match {
@@ -217,18 +218,9 @@ abstract class HashAggregateExecTransformer(
 
     def generateMergeCompanionNode(): Unit = {
       aggregateMode match {
-        case Partial =>
-          val partialNode = ExpressionBuilder.makeAggregateFunction(
-            VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
-            childrenNodeList,
-            modeKeyWord,
-            VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
-          )
-          aggregateNodeList.add(partialNode)
-        case PartialMerge =>
+        case Partial | PartialMerge =>
           val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-            VeloxAggregateFunctionsBuilder
-              .create(args, aggregateFunction, aggregateMode),
+            VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
             childrenNodeList,
             modeKeyWord,
             VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
@@ -243,7 +235,7 @@ abstract class HashAggregateExecTransformer(
           )
           aggregateNodeList.add(aggFunctionNode)
         case other =>
-          throw new UnsupportedOperationException(s"$other is not supported.")
+          throw new GlutenNotSupportException(s"$other is not supported.")
       }
     }
 
@@ -271,7 +263,7 @@ abstract class HashAggregateExecTransformer(
             )
             aggregateNodeList.add(aggFunctionNode)
           case other =>
-            throw new UnsupportedOperationException(s"$other is not supported.")
+            throw new GlutenNotSupportException(s"$other is not supported.")
         }
       case _ if aggregateFunction.aggBufferAttributes.size > 1 =>
         generateMergeCompanionNode()
@@ -310,7 +302,7 @@ abstract class HashAggregateExecTransformer(
                   ConverterUtils
                     .getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
               case other =>
-                throw new UnsupportedOperationException(s"$other is not supported.")
+                throw new GlutenNotSupportException(s"$other is not supported.")
             }
           case _ =>
             typeNodeList.add(
@@ -378,7 +370,7 @@ abstract class HashAggregateExecTransformer(
           exprNodes.addAll(childNodes)
 
         case _: HyperLogLogPlusPlus if aggFunc.aggBufferAttributes.size != 1 =>
-          throw new UnsupportedOperationException("Only one input attribute is expected.")
+          throw new GlutenNotSupportException("Only one input attribute is expected.")
 
         case _ @VeloxIntermediateData.Type(veloxTypes: Seq[DataType]) =>
           val rewrittenInputAttributes =
@@ -395,27 +387,42 @@ abstract class HashAggregateExecTransformer(
               val adjustedOrders = veloxOrders.map(sparkOrders.indexOf(_))
               veloxTypes.zipWithIndex.foreach {
                 case (veloxType, idx) =>
-                  val sparkType = sparkTypes(adjustedOrders(idx))
-                  val attr = rewrittenInputAttributes(adjustedOrders(idx))
-                  val aggFuncInputAttrNode = ExpressionConverter
-                    .replaceWithExpressionTransformer(attr, originalInputAttributes)
-                    .doTransform(args)
-                  val expressionNode = if (sparkType != veloxType) {
-                    newInputAttributes +=
-                      attr.copy(dataType = veloxType)(attr.exprId, attr.qualifier)
-                    ExpressionBuilder.makeCast(
-                      ConverterUtils.getTypeNode(veloxType, attr.nullable),
-                      aggFuncInputAttrNode,
-                      SQLConf.get.ansiEnabled)
+                  val adjustedIdx = adjustedOrders(idx)
+                  if (adjustedIdx == -1) {
+                    // The Velox aggregate intermediate buffer column not found in Spark.
+                    // For example, skewness and kurtosis share the same aggregate buffer in Velox,
+                    // and Kurtosis additionally requires the buffer column of m4, which is
+                    // always 0 for skewness. In Spark, the aggregate buffer of skewness does not
+                    // have the column of m4, thus a placeholder m4 with a value of 0 must be passed
+                    // to Velox, and this value cannot be omitted. Velox will always read m4 column
+                    // when accessing the intermediate data.
+                    val extraAttr = AttributeReference(veloxOrders(idx), veloxType)()
+                    newInputAttributes += extraAttr
+                    val lt = Literal.default(veloxType)
+                    childNodes.add(ExpressionBuilder.makeLiteral(lt.value, lt.dataType, false))
                   } else {
-                    newInputAttributes += attr
-                    aggFuncInputAttrNode
+                    val sparkType = sparkTypes(adjustedIdx)
+                    val attr = rewrittenInputAttributes(adjustedIdx)
+                    val aggFuncInputAttrNode = ExpressionConverter
+                      .replaceWithExpressionTransformer(attr, originalInputAttributes)
+                      .doTransform(args)
+                    val expressionNode = if (sparkType != veloxType) {
+                      newInputAttributes +=
+                        attr.copy(dataType = veloxType)(attr.exprId, attr.qualifier)
+                      ExpressionBuilder.makeCast(
+                        ConverterUtils.getTypeNode(veloxType, attr.nullable),
+                        aggFuncInputAttrNode,
+                        SQLConf.get.ansiEnabled)
+                    } else {
+                      newInputAttributes += attr
+                      aggFuncInputAttrNode
+                    }
+                    childNodes.add(expressionNode)
                   }
-                  childNodes.add(expressionNode)
               }
               exprNodes.add(getRowConstructNode(args, childNodes, newInputAttributes, aggFunc))
             case other =>
-              throw new UnsupportedOperationException(s"$other is not supported.")
+              throw new GlutenNotSupportException(s"$other is not supported.")
           }
 
         case _ =>
@@ -467,7 +474,7 @@ abstract class HashAggregateExecTransformer(
     aggregateExpressions.foreach(
       aggExpr => {
         if (aggExpr.filter.isDefined) {
-          throw new UnsupportedOperationException("Filter in final aggregation is not supported.")
+          throw new GlutenNotSupportException("Filter in final aggregation is not supported.")
         } else {
           // The number of filters should be aligned with that of aggregate functions.
           aggFilterList.add(null)
@@ -488,7 +495,7 @@ abstract class HashAggregateExecTransformer(
                 colIdx += 1
             }
           case _ =>
-            throw new UnsupportedOperationException(
+            throw new GlutenNotSupportException(
               s"$aggFunc of ${aggExpr.mode.toString} is not supported.")
         }
         addFunctionNode(args, aggFunc, childrenNodes, aggExpr.mode, aggregateFunctionList)
@@ -631,7 +638,7 @@ abstract class HashAggregateExecTransformer(
                   .doTransform(args)
             }
           case other =>
-            throw new UnsupportedOperationException(s"$other not supported.")
+            throw new GlutenNotSupportException(s"$other not supported.")
         }
         addFunctionNode(
           args,
@@ -700,7 +707,7 @@ object VeloxAggregateFunctionsBuilder {
 
     var sigName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
     if (sigName.isEmpty) {
-      throw new UnsupportedOperationException(s"not currently supported: $aggregateFunc.")
+      throw new GlutenNotSupportException(s"not currently supported: $aggregateFunc.")
     }
 
     aggregateFunc match {
@@ -808,7 +815,7 @@ case class HashAggregateExecPullOutHelper(
             case Final =>
               Seq(aggregateAttributes(index))
             case other =>
-              throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
+              throw new GlutenNotSupportException(s"Unsupported aggregate mode: $other.")
           })
     }.toList
   }

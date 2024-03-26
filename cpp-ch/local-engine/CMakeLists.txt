@@ -57,6 +57,8 @@ add_headers_and_sources(shuffle Shuffle)
 add_headers_and_sources(operator Operator)
 add_headers_and_sources(jni jni)
 add_headers_and_sources(aggregate_functions AggregateFunctions)
+add_headers_and_sources(disks Disks)
+add_headers_and_sources(disks Disks/ObjectStorages)
 
 include_directories(
         ${JNI_INCLUDE_DIRS}
@@ -74,7 +76,7 @@ include_directories(
         ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/storage/azure-storage-common/inc
 )
 
-add_subdirectory(Storages/ch_parquet)
+add_subdirectory(Storages/Parquet)
 add_subdirectory(Storages/SubstraitSource)
 add_subdirectory(Functions)
 
@@ -89,7 +91,9 @@ add_library(gluten_clickhouse_backend_libs
         ${shuffle_sources}
         ${operator_sources}
         ${aggregate_functions_sources}
-        ${jni_sources})
+        ${jni_sources}
+        ${disks_sources}
+)
 
 target_link_libraries(gluten_clickhouse_backend_libs PUBLIC
         substrait_source
@@ -138,7 +142,7 @@ PRIVATE
         substrait
 )
 
-#TODO: target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC ch_parquet)
+target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC ch_parquet)
 
 if (ENABLE_JEMALLOC)
     target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE

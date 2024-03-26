@@ -28,8 +28,7 @@ class GlutenClickHouseTPCHParquetAQESuite
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
 
-  override protected val resourcePath: String =
-    "../../../../gluten-core/src/test/resources/tpch-data"
+  override protected val needCopyParquetToTablePath = true
 
   override protected val tablesPath: String = basePath + "/tpch-data"
   override protected val tpchQueries: String =
@@ -44,12 +43,12 @@ class GlutenClickHouseTPCHParquetAQESuite
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format", "false")
+      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format", "true")
       .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
-    createTPCHParquetTables(tablesPath)
+    createNotNullTPCHTablesInParquet(tablesPath)
   }
 
   test("TPCH Q1") {
@@ -97,7 +96,7 @@ class GlutenClickHouseTPCHParquetAQESuite
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
           val bhjRes = collect(df.queryExecution.executedPlan) {
-            case bhj: BroadcastHashJoinExecTransformer => bhj
+            case bhj: BroadcastHashJoinExecTransformerBase => bhj
           }
           assert(bhjRes.isEmpty)
       }

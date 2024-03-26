@@ -8,7 +8,7 @@ AdaptiveSparkPlan (44)
             +- ^ ShuffleQueryStage (24)
                +- ColumnarExchange (23)
                   +- ^ ProjectExecTransformer (21)
-                     +- ^ GlutenBroadcastHashJoinExecTransformer Inner (20)
+                     +- ^ BroadcastHashJoinExecTransformer Inner (20)
                         :- ^ InputIteratorTransformer (7)
                         :  +- ^ InputAdapter (6)
                         :     +- ^ BroadcastQueryStage (5)
@@ -127,7 +127,7 @@ Results [2]: [l_suppkey#X AS supplier_no#X, sum(CheckOverflow((promote_precision
 Input [2]: [supplier_no#X, total_revenue#X]
 Arguments: (isnotnull(total_revenue#X) AND (total_revenue#X = Subquery subquery#X, [id=#X]))
 
-(20) GlutenBroadcastHashJoinExecTransformer
+(20) BroadcastHashJoinExecTransformer
 Left keys [1]: [s_suppkey#X]
 Right keys [1]: [supplier_no#X]
 Join condition: None

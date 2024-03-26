@@ -51,11 +51,11 @@ void VeloxRuntime::parsePlan(
     SparkTaskInfo taskInfo,
     std::optional<std::string> dumpFile) {
   taskInfo_ = taskInfo;
-  if (debugModeEnabled_) {
+  if (debugModeEnabled_ || dumpFile.has_value()) {
     try {
-      auto jsonPlan = substraitFromPbToJson("Plan", data, size, dumpFile);
-      LOG(INFO) << std::string(50, '#') << " received substrait::Plan:";
-      LOG(INFO) << taskInfo_ << std::endl << jsonPlan;
+      auto planJson = substraitFromPbToJson("Plan", data, size, dumpFile);
+      LOG_IF(INFO, debugModeEnabled_) << std::string(50, '#') << " received substrait::Plan: " << taskInfo_ << std::endl
+                                      << planJson;
     } catch (const std::exception& e) {
       LOG(WARNING) << "Error converting Substrait plan to JSON: " << e.what();
     }
@@ -65,11 +65,12 @@ void VeloxRuntime::parsePlan(
 }
 
 void VeloxRuntime::parseSplitInfo(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) {
-  if (debugModeEnabled_) {
+  if (debugModeEnabled_ || dumpFile.has_value()) {
     try {
-      auto jsonPlan = substraitFromPbToJson("ReadRel.LocalFiles", data, size, dumpFile);
-      LOG(INFO) << std::string(50, '#') << " received substrait::ReadRel.LocalFiles:";
-      LOG(INFO) << std::endl << jsonPlan;
+      auto splitJson = substraitFromPbToJson("ReadRel.LocalFiles", data, size, dumpFile);
+      LOG_IF(INFO, debugModeEnabled_) << std::string(50, '#')
+                                      << " received substrait::ReadRel.LocalFiles: " << taskInfo_ << std::endl
+                                      << splitJson;
     } catch (const std::exception& e) {
       LOG(WARNING) << "Error converting Substrait plan to JSON: " << e.what();
     }
@@ -117,9 +118,7 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
     const std::string& spillDir,
     const std::vector<std::shared_ptr<ResultIterator>>& inputs,
     const std::unordered_map<std::string, std::string>& sessionConf) {
-  if (debugModeEnabled_) {
-    LOG(INFO) << "VeloxRuntime session config:" << printConfig(confMap_);
-  }
+  LOG_IF(INFO, debugModeEnabled_) << "VeloxRuntime session config:" << printConfig(confMap_);
 
   VeloxPlanConverter veloxPlanConverter(
       inputs, getLeafVeloxPool(memoryManager).get(), sessionConf, writeFilesTempPath_);
@@ -221,7 +220,10 @@ std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerial
 void VeloxRuntime::dumpConf(const std::string& path) {
   auto backendConf = VeloxBackend::get()->getBackendConf();
   auto allConf = backendConf;
-  allConf.merge(confMap_);
+
+  for (const auto& pair : confMap_) {
+    allConf.insert_or_assign(pair.first, pair.second);
+  }
 
   // Open file "velox.conf" for writing, automatically creating it if it doesn't exist,
   // or overwriting it if it does.

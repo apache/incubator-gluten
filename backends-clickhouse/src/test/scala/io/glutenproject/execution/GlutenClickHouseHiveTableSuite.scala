@@ -23,20 +23,19 @@ import org.apache.spark.SPARK_VERSION_SHORT
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.internal.SQLConf
 
-import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.Path
 
 import java.io.{File, PrintWriter}
-import java.sql.Timestamp
+import java.sql.{Date, Timestamp}
 
 import scala.reflect.ClassTag
 
-case class AllDataTypesWithComplextType(
+case class AllDataTypesWithComplexType(
     string_field: String = null,
     int_field: java.lang.Integer = null,
     long_field: java.lang.Long = null,
@@ -54,8 +53,38 @@ case class AllDataTypesWithComplextType(
     mapValueContainsNull: Map[Int, Option[Long]] = null
 )
 
-class GlutenClickHouseHiveTableSuite()
-  extends GlutenClickHouseTPCHAbstractSuite
+object AllDataTypesWithComplexType {
+  def genTestData(): Seq[AllDataTypesWithComplexType] = {
+    (0 to 199).map {
+      i =>
+        if (i % 100 == 1) {
+          AllDataTypesWithComplexType()
+        } else {
+          AllDataTypesWithComplexType(
+            s"$i",
+            i,
+            i.toLong,
+            i.toFloat,
+            i.toDouble,
+            i.toShort,
+            i.toByte,
+            i % 2 == 0,
+            new java.math.BigDecimal(i + ".56"),
+            Date.valueOf(new Date(System.currentTimeMillis()).toLocalDate.plusDays(i % 10)),
+            Timestamp.valueOf(
+              new Timestamp(System.currentTimeMillis()).toLocalDateTime.plusDays(i % 10)),
+            Seq.apply(i + 1, i + 2, i + 3),
+            Seq.apply(Option.apply(i + 1), Option.empty, Option.apply(i + 3)),
+            Map.apply((i + 1, i + 2), (i + 3, i + 4)),
+            Map.empty
+          )
+        }
+    }
+  }
+}
+
+class GlutenClickHouseHiveTableSuite
+  extends GlutenClickHouseWholeStageTransformerSuite
   with AdaptiveSparkPlanHelper {
 
   private var _hiveSpark: SparkSession = _
@@ -64,17 +93,6 @@ class GlutenClickHouseHiveTableSuite()
     val version = SPARK_VERSION_SHORT.split("\\.")
     version(0) + "." + version(1)
   }
-
-  override protected val resourcePath: String =
-    "../../../../gluten-core/src/test/resources/tpch-data"
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
-  override protected val queriesResults: String = rootPath + "queries-output"
-  override protected def createTPCHNullableTables(): Unit = {}
-
-  override protected def createTPCHNotNullTables(): Unit = {}
 
   override protected def sparkConf: SparkConf = {
     new SparkConf()
@@ -90,7 +108,7 @@ class GlutenClickHouseHiveTableSuite()
       .set("spark.sql.files.minPartitionNum", "1")
       .set("spark.gluten.sql.columnar.columnartorow", "true")
       .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
+      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
@@ -184,38 +202,13 @@ class GlutenClickHouseHiveTableSuite()
       "map_field map<int, long>," +
       "map_field_with_null map<int, long>) stored as %s".format(fileFormat)
 
-  def genTestData(): Seq[AllDataTypesWithComplextType] = {
-    (0 to 199).map {
-      i =>
-        if (i % 100 == 1) {
-          AllDataTypesWithComplextType()
-        } else {
-          AllDataTypesWithComplextType(
-            s"$i",
-            i,
-            i.toLong,
-            i.toFloat,
-            i.toDouble,
-            i.toShort,
-            i.toByte,
-            i % 2 == 0,
-            new java.math.BigDecimal(i + ".56"),
-            new java.sql.Date(System.currentTimeMillis()),
-            new Timestamp(System.currentTimeMillis()),
-            Seq.apply(i + 1, i + 2, i + 3),
-            Seq.apply(Option.apply(i + 1), Option.empty, Option.apply(i + 3)),
-            Map.apply((i + 1, i + 2), (i + 3, i + 4)),
-            Map.empty
-          )
-        }
-    }
-  }
-
   protected def initializeTable(
       table_name: String,
       table_create_sql: String,
       partitions: Seq[String]): Unit = {
-    spark.createDataFrame(genTestData()).createOrReplaceTempView("tmp_t")
+    spark
+      .createDataFrame(AllDataTypesWithComplexType.genTestData())
+      .createOrReplaceTempView("tmp_t")
     val truncate_sql = "truncate table %s".format(table_name)
     val drop_sql = "drop table if exists %s".format(table_name)
     spark.sql(drop_sql)
@@ -232,15 +225,6 @@ class GlutenClickHouseHiveTableSuite()
   }
 
   override def beforeAll(): Unit = {
-    // prepare working paths
-    val basePathDir = new File(basePath)
-    if (basePathDir.exists()) {
-      FileUtils.forceDelete(basePathDir)
-    }
-    FileUtils.forceMkdir(basePathDir)
-    FileUtils.forceMkdir(new File(warehouse))
-    FileUtils.forceMkdir(new File(metaStorePathAbsolute))
-    FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
     super.beforeAll()
     initializeTable(txt_table_name, txt_table_create_sql, null)
     initializeTable(txt_user_define_input, txt_table_user_define_create_sql, null)
@@ -252,7 +236,7 @@ class GlutenClickHouseHiveTableSuite()
   }
 
   override protected def afterAll(): Unit = {
-    ClickHouseLog.clearCache()
+    DeltaLog.clearCache()
 
     try {
       super.afterAll()
@@ -1251,6 +1235,21 @@ class GlutenClickHouseHiveTableSuite()
         withSQLConf("spark.sql.parquet.enableVectorizedReader" -> enabled) {
           compareResultsAgainstVanillaSpark(selectSql, compareResult = true, _ => {})
         }
+    }
+  }
+
+  test("GLUTEN-3452: Bug fix decimal divide") {
+    withSQLConf((SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key, "false")) {
+      val table_create_sql =
+        """
+          | create table test_tbl_3452(d1 decimal(12,2), d2 decimal(15,3)) stored as parquet;
+          |""".stripMargin
+      val data_insert_sql = "insert into test_tbl_3452 values(13.0, 0),(11, NULL), (12.3, 200)"
+      val select_sql = "select d1/d2, d1/0, d1/cast(0 as decimal) from test_tbl_3452"
+      spark.sql(table_create_sql);
+      spark.sql(data_insert_sql)
+      compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+      spark.sql("drop table test_tbl_3452")
     }
   }
 }

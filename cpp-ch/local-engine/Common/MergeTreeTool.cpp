@@ -22,6 +22,8 @@
 #include <IO/WriteHelpers.h>
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
 #include <google/protobuf/util/json_util.h>
+#include <rapidjson/rapidjson.h>
+#include <rapidjson/document.h>
 
 using namespace DB;
 
@@ -40,7 +42,10 @@ std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(const DB::NamesAndTyp
     metadata->sorting_key = KeyDescription::parse(table.order_by_key, metadata->getColumns(), context);
     if (table.primary_key.empty())
     {
-        metadata->primary_key.expression = std::make_shared<ExpressionActions>(std::make_shared<ActionsDAG>());
+         if (table.order_by_key != MergeTreeTable::TUPLE)
+             metadata->primary_key = KeyDescription::parse(table.order_by_key, metadata->getColumns(), context);
+         else
+            metadata->primary_key.expression = std::make_shared<ExpressionActions>(std::make_shared<ActionsDAG>());
     }
     else
     {
@@ -49,13 +54,12 @@ std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(const DB::NamesAndTyp
     return metadata;
 }
 
-std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings()
+std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings(const MergeTreeTableSettings & config)
 {
     auto settings = std::make_unique<DB::MergeTreeSettings>();
-//    settings->set("min_bytes_for_wide_part", Field(0));
-//    settings->set("min_rows_for_wide_part", Field(0));
     settings->set("allow_nullable_key", Field(1));
-    // settings->set("storage_policy", Field("s3_main"));
+    if (!config.storage_policy.empty())
+        settings->set("storage_policy", Field(config.storage_policy));
     return settings;
 }
 
@@ -69,6 +73,15 @@ std::unique_ptr<SelectQueryInfo> buildQueryInfo(NamesAndTypesList & names_and_ty
     return query_info;
 }
 
+
+void parseTableConfig(MergeTreeTableSettings & settings, String config_json)
+{
+    rapidjson::Document doc;
+    doc.Parse(config_json.c_str());
+    if (doc.HasMember("storage_policy"))
+        settings.storage_policy = doc["storage_policy"].GetString();
+
+}
 
 MergeTreeTable parseMergeTreeTableString(const std::string & info)
 {
@@ -91,9 +104,15 @@ MergeTreeTable parseMergeTreeTableString(const std::string & info)
         readString(table.primary_key, in);
         assertChar('\n', in);
     }
+    readString(table.low_card_key, in);
+    assertChar('\n', in);
     readString(table.relative_path, in);
     assertChar('\n', in);
-    readString(table.table_configs_json, in);
+    readString(table.absolute_path, in);
+    assertChar('\n', in);
+    String json;
+    readString(json, in);
+    parseTableConfig(table.table_configs, json);
     assertChar('\n', in);
     while (!in.eof())
     {
@@ -122,6 +141,7 @@ RangesInDataParts MergeTreeTable::extractRange(DataPartsVector parts_vector) con
     std::unordered_map<String, DataPartPtr> name_index;
     std::ranges::for_each(parts_vector, [&](const DataPartPtr & part) {name_index.emplace(part->name, part);});
     RangesInDataParts ranges_in_data_parts;
+
     std::ranges::transform(
         parts,
         std::inserter(ranges_in_data_parts, ranges_in_data_parts.end()),

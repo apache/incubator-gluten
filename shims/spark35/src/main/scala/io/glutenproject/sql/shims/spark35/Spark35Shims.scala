@@ -20,13 +20,13 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ExpressionNames, Sig}
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
-import org.apache.spark.{ShuffleUtils, SparkException, TaskContext, TaskContextUtils}
+import org.apache.spark.{ShuffleUtils, SparkContext, SparkException, TaskContext, TaskContextUtils}
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.paths.SparkPath
 import org.apache.spark.scheduler.TaskInfo
 import org.apache.spark.shuffle.ShuffleHandle
-import org.apache.spark.sql.{AnalysisException, ExtendedAnalysisException, SparkSession}
-import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.{AnalysisException, SparkSession}
+import org.apache.spark.sql.catalyst.{ExtendedAnalysisException, InternalRow}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.BloomFilterAggregate
@@ -34,19 +34,23 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.types.DataTypeUtils
+import org.apache.spark.sql.catalyst.util.TimestampFormatter
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanExec, GlobalLimitExec, GlutenFileFormatWriter, PartitionedFileUtil, SparkPlan, TakeOrderedAndProjectExec}
-import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, FileStatusWithMetadata, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex, WriteJobDescription, WriteTaskResult}
+import org.apache.spark.sql.execution.datasources.{BucketingUtils, FileFormat, FilePartition, FileScanRDD, FileStatusWithMetadata, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex, WriteJobDescription, WriteTaskResult}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
-import org.apache.spark.sql.execution.exchange.ShuffleExchangeLike
+import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
 import org.apache.hadoop.fs.{FileStatus, Path}
+
+import java.time.ZoneOffset
+import java.util.{HashMap => JHashMap, Map => JMap}
 
 class Spark35Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
@@ -152,6 +156,34 @@ class Spark35Shims extends SparkShims {
     }
   }
 
+  override def generateMetadataColumns(
+      file: PartitionedFile,
+      metadataColumnNames: Seq[String]): JMap[String, String] = {
+    val metadataColumn = new JHashMap[String, String]()
+    val path = new Path(file.filePath.toString)
+    for (columnName <- metadataColumnNames) {
+      columnName match {
+        case FileFormat.FILE_PATH => metadataColumn.put(FileFormat.FILE_PATH, path.toString)
+        case FileFormat.FILE_NAME => metadataColumn.put(FileFormat.FILE_NAME, path.getName)
+        case FileFormat.FILE_SIZE =>
+          metadataColumn.put(FileFormat.FILE_SIZE, file.fileSize.toString)
+        case FileFormat.FILE_MODIFICATION_TIME =>
+          val fileModifyTime = TimestampFormatter
+            .getFractionFormatter(ZoneOffset.UTC)
+            .format(file.modificationTime * 1000L)
+          metadataColumn.put(FileFormat.FILE_MODIFICATION_TIME, fileModifyTime)
+        case FileFormat.FILE_BLOCK_START =>
+          metadataColumn.put(FileFormat.FILE_BLOCK_START, file.start.toString)
+        case FileFormat.FILE_BLOCK_LENGTH =>
+          metadataColumn.put(FileFormat.FILE_BLOCK_LENGTH, file.length.toString)
+        case _ =>
+      }
+    }
+
+    // TODO row_index metadata support
+    metadataColumn
+  }
+
   // https://issues.apache.org/jira/browse/SPARK-40400
   private def invalidBucketFile(path: String): Throwable = {
     new SparkException(
@@ -203,6 +235,20 @@ class Spark35Shims extends SparkShims {
 
   override def createTestTaskContext(): TaskContext = {
     TaskContextUtils.createTestTaskContext()
+  }
+
+  override def setJobDescriptionOrTagForBroadcastExchange(
+      sc: SparkContext,
+      broadcastExchange: BroadcastExchangeLike): Unit = {
+    // Setup a job tag here so later it may get cancelled by tag if necessary.
+    sc.addJobTag(broadcastExchange.jobTag)
+    sc.setInterruptOnCancel(true)
+  }
+
+  override def cancelJobGroupForBroadcastExchange(
+      sc: SparkContext,
+      broadcastExchange: BroadcastExchangeLike): Unit = {
+    sc.cancelJobsWithTag(broadcastExchange.jobTag)
   }
 
   override def getShuffleReaderParam[K, C](
@@ -258,4 +304,9 @@ class Spark35Shims extends SparkShims {
         None
     }
   }
+
+  override def getKeyGroupedPartitioning(batchScan: BatchScanExec): Option[Seq[Expression]] = null
+
+  override def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] =
+    null
 }

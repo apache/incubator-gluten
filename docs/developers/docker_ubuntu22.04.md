@@ -45,8 +45,8 @@ dpkg --configure -a
 #export https_proxy=xxxx
 
 #clone gluten
-git clone https://github.com/oap-project/gluten.git
-cd gluten/
+git clone https://github.com/apache/incubator-gluten.git
+cd incubator-gluten/
 
 #config maven proxy
 #mkdir ~/.m2/

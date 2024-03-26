@@ -16,6 +16,8 @@
  */
 package io.glutenproject.utils
 
+import io.glutenproject.exception.GlutenNotSupportException
+
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
 import org.apache.spark.sql.execution.aggregate._
@@ -28,8 +30,8 @@ trait PullOutProjectHelper {
 
   private val generatedNameIndex = new AtomicInteger(0)
 
-  protected def generatePreAliasName = s"_pre_${generatedNameIndex.getAndIncrement()}"
-  protected def generatePostAliasName = s"_post_${generatedNameIndex.getAndIncrement()}"
+  protected def generatePreAliasName: String = s"_pre_${generatedNameIndex.getAndIncrement()}"
+  protected def generatePostAliasName: String = s"_post_${generatedNameIndex.getAndIncrement()}"
 
   /**
    * The majority of Expressions only support Attribute and BoundReference when converting them into
@@ -55,12 +57,13 @@ trait PullOutProjectHelper {
 
   protected def replaceExpressionWithAttribute(
       expr: Expression,
-      projectExprsMap: mutable.HashMap[Expression, NamedExpression]): Expression =
+      projectExprsMap: mutable.HashMap[Expression, NamedExpression],
+      replaceBoundReference: Boolean = false): Expression =
     expr match {
       case alias: Alias =>
         projectExprsMap.getOrElseUpdate(alias.child.canonicalized, alias).toAttribute
       case attr: Attribute => attr
-      case e: BoundReference => e
+      case e: BoundReference if !replaceBoundReference => e
       case other =>
         projectExprsMap
           .getOrElseUpdate(other.canonicalized, Alias(other, generatePreAliasName)())
@@ -108,7 +111,7 @@ trait PullOutProjectHelper {
         resultExpressions = newResultExpressions
       )
     case _ =>
-      throw new UnsupportedOperationException(s"Unsupported agg $agg")
+      throw new GlutenNotSupportException(s"Unsupported agg $agg")
   }
 
   protected def rewriteAggregateExpression(

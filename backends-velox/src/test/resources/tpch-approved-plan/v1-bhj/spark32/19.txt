@@ -9,7 +9,7 @@ AdaptiveSparkPlan (33)
                +- ColumnarExchange (15)
                   +- ^ FlushableHashAggregateExecTransformer (13)
                      +- ^ ProjectExecTransformer (12)
-                        +- ^ GlutenBroadcastHashJoinExecTransformer Inner (11)
+                        +- ^ BroadcastHashJoinExecTransformer Inner (11)
                            :- ^ ProjectExecTransformer (3)
                            :  +- ^ FilterExecTransformer (2)
                            :     +- ^ Scan parquet (1)
@@ -77,7 +77,7 @@ Input [4]: [p_partkey#X, p_brand#X, p_size#X, p_container#X]
 (10) InputIteratorTransformer
 Input [4]: [p_partkey#X, p_brand#X, p_size#X, p_container#X]
 
-(11) GlutenBroadcastHashJoinExecTransformer
+(11) BroadcastHashJoinExecTransformer
 Left keys [1]: [l_partkey#X]
 Right keys [1]: [p_partkey#X]
 Join condition: (((((((p_brand#X = Brand#X) AND p_container#X IN (SM CASE,SM BOX,SM PACK,SM PKG)) AND (l_quantity#X >= 1.00)) AND (l_quantity#X <= 11.00)) AND (p_size#X <= 5)) OR (((((p_brand#X = Brand#X) AND p_container#X IN (MED BAG,MED BOX,MED PKG,MED PACK)) AND (l_quantity#X >= 10.00)) AND (l_quantity#X <= 20.00)) AND (p_size#X <= 10))) OR (((((p_brand#X = Brand#X) AND p_container#X IN (LG CASE,LG BOX,LG PACK,LG PKG)) AND (l_quantity#X >= 20.00)) AND (l_quantity#X <= 30.00)) AND (p_size#X <= 15)))
