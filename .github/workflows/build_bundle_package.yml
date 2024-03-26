@@ -79,9 +79,14 @@ jobs:
       - name: Setup java and maven for CentOS
         if: startsWith(github.event.inputs.os, 'centos')
         run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* && \
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* && \
           yum update -y && \
-          yum install -y java-1.8.0-openjdk-devel maven && \
-          yum remove java-11* -y
+          yum install -y java-1.8.0-openjdk-devel && \
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
+          tar -xvf apache-maven-3.8.8-bin.tar.gz && \
+          mv apache-maven-3.8.8 /usr/lib/maven && \
+          rm -f apache-maven-3.8.8-bin.tar.gz
       - name: Build for Spark ${{ github.event.inputs.spark }}
         run: |
           cd $GITHUB_WORKSPACE/ && \
