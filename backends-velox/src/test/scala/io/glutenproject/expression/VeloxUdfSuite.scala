@@ -72,7 +72,7 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
   }
 
   test("test udf") {
-    val df = spark.sql("""select 
+    val df = spark.sql("""select
                          |  myudf1(1),
                          |  myudf1(1L),
                          |  myudf2(100L),
