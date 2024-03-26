@@ -59,7 +59,8 @@ jobs:
           name: velox-native-lib-${{github.sha}}
           retention-days: 1
 
-  build-pabkages:
+  build-bundle-package-ubuntu:
+    if: startsWith(github.event.inputs.os, 'ubuntu')
     needs: build-native-lib
     runs-on: ubuntu-20.04
     container: ${{ github.event.inputs.os }}
@@ -70,29 +71,78 @@ jobs:
         with:
           name: velox-native-lib-${{github.sha}}
           path: ./cpp/build/releases
-      - name: Setup java and maven for Ubuntu
-        if: startsWith(github.event.inputs.os, 'ubuntu')
+      - name: Setup java and maven
         run: |
           apt-get update && \
           apt-get install -y openjdk-8-jdk maven && \
           apt remove openjdk-11* -y
-      - name: Setup java and maven for CentOS
-        if: startsWith(github.event.inputs.os, 'centos')
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* && \
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* && \
-          yum update -y && \
-          yum install -y java-1.8.0-openjdk-devel wget && \
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
-          tar -xvf apache-maven-3.8.8-bin.tar.gz && \
-          mv apache-maven-3.8.8 /usr/lib/maven && \
-          rm -f apache-maven-3.8.8-bin.tar.gz && \
-          echo -e 'export M2_HOME=/usr/lib/maven\nexport PATH=${M2_HOME}/bin:${PATH}' > /etc/profile.d/maven.sh && \
-          chmod +x /etc/profile.d/maven.sh && \
-          source /etc/profile.d/maven.sh
       - name: Build for Spark ${{ github.event.inputs.spark }}
         run: |
           cd $GITHUB_WORKSPACE/ && \
+          mvn clean install -P${{ github.event.inputs.spark }} -Dhadoop.version=${{ github.event.inputs.hadoop }} -Pbackends-velox -Prss -DskipTests -Dmaven.source.skip
+      - name: Upload bundle package
+        uses: actions/upload-artifact@v4
+        with:
+          name: gluten-velox-bundle-package
+
+  build-bundle-package-centos7:
+    if: ${{ github.event.inputs.os == 'centos:7' }}
+    needs: build-native-lib
+    runs-on: ubuntu-20.04
+    container: ${{ github.event.inputs.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Setup java and maven
+        run: |
+          yum update -y && yum install -y java-1.8.0-openjdk-devel wget && \
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
+          tar -xvf apache-maven-3.8.8-bin.tar.gz && \
+          mv apache-maven-3.8.8 /usr/lib/maven
+      - name: Build for Spark ${{ github.event.inputs.spark }}
+        run: |
+          cd $GITHUB_WORKSPACE/ && \
+          export MAVEN_HOME=/usr/lib/maven && \
+          export PATH=${PATH}:${MAVEN_HOME}/bin && \
+          mvn clean install -P${{ github.event.inputs.spark }} -Dhadoop.version=${{ github.event.inputs.hadoop }} -Pbackends-velox -Prss -DskipTests -Dmaven.source.skip
+      - name: Upload bundle package
+        uses: actions/upload-artifact@v4
+        with:
+          name: gluten-velox-bundle-package
+          path: package/target/gluten-velox-bundle-*.jar
+          retention-days: 7
+
+  build-bundle-package-centos8:
+    if: ${{ github.event.inputs.os == 'centos:8' }}
+    needs: build-native-lib
+    runs-on: ubuntu-20.04
+    container: ${{ github.event.inputs.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true && \
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+      - name: Setup java and maven
+        run: |
+          yum update -y && yum install -y java-1.8.0-openjdk-devel wget && \
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
+          tar -xvf apache-maven-3.8.8-bin.tar.gz && \
+          mv apache-maven-3.8.8 /usr/lib/maven
+      - name: Build for Spark ${{ github.event.inputs.spark }}
+        run: |
+          cd $GITHUB_WORKSPACE/ && \
+          export MAVEN_HOME=/usr/lib/maven && \
+          export PATH=${PATH}:${MAVEN_HOME}/bin && \
           mvn clean install -P${{ github.event.inputs.spark }} -Dhadoop.version=${{ github.event.inputs.hadoop }} -Pbackends-velox -Prss -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
         uses: actions/upload-artifact@v4
