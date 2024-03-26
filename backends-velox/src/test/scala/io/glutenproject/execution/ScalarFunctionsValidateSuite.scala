@@ -18,6 +18,8 @@ package io.glutenproject.execution
 
 import org.apache.spark.sql.types._
 
+import java.sql.{Date, Timestamp}
+
 class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
   disableFallbackCheck
   import testImplicits._
