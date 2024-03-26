@@ -1,8 +1,8 @@
 diff --git a/CMake/folly-config.cmake.in b/CMake/folly-config.cmake.in
-index 1689f9a..e5d3e22 100644
+index 0b96f0a10..c90110287 100644
 --- a/CMake/folly-config.cmake.in
 +++ b/CMake/folly-config.cmake.in
-@@ -28,10 +28,35 @@ endif()
+@@ -29,10 +29,35 @@ endif()
  set(FOLLY_LIBRARIES Folly::folly)
  
  # Find folly's dependencies
@@ -41,7 +41,7 @@ index 1689f9a..e5d3e22 100644
      context
      filesystem
 diff --git a/CMake/folly-deps.cmake b/CMake/folly-deps.cmake
-index 4b78e9f..ac83c99 100644
+index 4b78e9f02..eb77e29c9 100644
 --- a/CMake/folly-deps.cmake
 +++ b/CMake/folly-deps.cmake
 @@ -35,7 +35,7 @@ else()
@@ -116,7 +116,7 @@ index 4b78e9f..ac83c99 100644
  endif()
  
  find_package(OpenSSL 1.1.1 MODULE REQUIRED)
-@@ -104,25 +105,29 @@ if (LIBLZMA_FOUND)
+@@ -104,25 +105,30 @@ if (LIBLZMA_FOUND)
    list(APPEND FOLLY_LINK_LIBRARIES ${LIBLZMA_LIBRARIES})
  endif()
  
@@ -128,6 +128,7 @@ index 4b78e9f..ac83c99 100644
 +if (NOT CMAKE_DISABLE_FIND_PACKAGE_LZ4)
 +  find_package(lz4 CONFIG)
 +  if(TARGET lz4::lz4)
++    set(FOLLY_HAVE_LIBLZ4 1)
 +    list(APPEND FOLLY_LINK_LIBRARIES lz4::lz4)
 +  endif()
  endif()
@@ -161,7 +162,7 @@ index 4b78e9f..ac83c99 100644
  endif()
  
  find_package(LibDwarf)
-@@ -137,13 +142,18 @@ find_package(LibAIO)
+@@ -137,13 +143,18 @@ find_package(LibAIO)
  list(APPEND FOLLY_LINK_LIBRARIES ${LIBAIO_LIBRARIES})
  list(APPEND FOLLY_INCLUDE_DIRECTORIES ${LIBAIO_INCLUDE_DIRS})
  
@@ -183,7 +184,7 @@ index 4b78e9f..ac83c99 100644
  
  list(APPEND FOLLY_LINK_LIBRARIES ${CMAKE_DL_LIBS})
  list(APPEND CMAKE_REQUIRED_LIBRARIES ${CMAKE_DL_LIBS})
-@@ -154,9 +164,9 @@ if (PYTHON_EXTENSIONS)
+@@ -154,9 +165,9 @@ if (PYTHON_EXTENSIONS)
  endif ()
  
  find_package(LibUnwind)
@@ -195,7 +196,7 @@ index 4b78e9f..ac83c99 100644
    set(FOLLY_HAVE_LIBUNWIND ON)
  endif()
  if (CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
-@@ -299,11 +309,7 @@ endif()
+@@ -299,11 +310,7 @@ endif()
  
  add_library(folly_deps INTERFACE)
  
