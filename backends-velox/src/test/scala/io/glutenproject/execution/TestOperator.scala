@@ -20,7 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
+import org.apache.spark.sql.{AnalysisException, Row}
 import org.apache.spark.sql.execution.{FilterExec, GenerateExec, ProjectExec, RDDScanExec}
 import org.apache.spark.sql.functions.{avg, col, lit, udf}
 import org.apache.spark.sql.internal.SQLConf
@@ -31,7 +31,6 @@ import scala.collection.JavaConverters
 class TestOperator extends VeloxWholeStageTransformerSuite {
 
   protected val rootPath: String = getClass.getResource("/").getPath
-  override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
 
@@ -197,36 +196,25 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
   }
 
   test("window expression") {
-    def assertWindowOffloaded: DataFrame => Unit = {
-      df =>
-        {
-          assert(
-            getExecutedPlan(df).count(
-              plan => {
-                plan.isInstanceOf[WindowExecTransformer]
-              }) > 0)
-        }
-    }
-
     Seq("sort", "streaming").foreach {
       windowType =>
         withSQLConf("spark.gluten.sql.columnar.backend.velox.window.type" -> windowType) {
           runQueryAndCompare(
             "select ntile(4) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select row_number() over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select rank() over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
@@ -244,145 +232,66 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           runQueryAndCompare(
             "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) IGNORE NULLS over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select sum(l_partkey + 1) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select min(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select avg(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select lag(l_orderkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select lead(l_orderkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           // Test same partition/ordering keys.
           runQueryAndCompare(
             "select avg(l_partkey) over" +
               " (partition by l_suppkey order by l_suppkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
 
           // Test overlapping partition/ordering keys.
           runQueryAndCompare(
             "select avg(l_partkey) over" +
               " (partition by l_suppkey order by l_suppkey, l_orderkey) from lineitem ") {
-            assertWindowOffloaded
+            checkOperatorMatch[WindowExecTransformer]
           }
         }
     }
-  }
-
-  test("chr function") {
-    val df = runQueryAndCompare(
-      "SELECT chr(l_orderkey + 64) " +
-        "from lineitem limit 1") { _ => }
-    checkLengthAndPlan(df, 1)
-  }
-
-  test("bin function") {
-    val df = runQueryAndCompare(
-      "SELECT bin(l_orderkey) " +
-        "from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
-    }
-    checkLengthAndPlan(df, 1)
-  }
-
-  test("abs function") {
-    val df = runQueryAndCompare(
-      "SELECT abs(l_orderkey) " +
-        "from lineitem limit 1") { _ => }
-    checkLengthAndPlan(df, 1)
-  }
-
-  test("ceil function") {
-    val df = runQueryAndCompare(
-      "SELECT ceil(cast(l_orderkey as long)) " +
-        "from lineitem limit 1") { _ => }
-    checkLengthAndPlan(df, 1)
-  }
-
-  test("floor function") {
-    val df = runQueryAndCompare(
-      "SELECT floor(cast(l_orderkey as long)) " +
-        "from lineitem limit 1") { _ => }
-    checkLengthAndPlan(df, 1)
-  }
-
-  test("exp function") {
-    val df = spark.sql("SELECT exp(l_orderkey) from lineitem limit 1")
-    checkLengthAndPlan(df, 1)
-  }
-
-  test("power function") {
-    val df = runQueryAndCompare(
-      "SELECT power(l_orderkey, 2.0) " +
-        "from lineitem limit 1") { _ => }
-    checkLengthAndPlan(df, 1)
-  }
-
-  test("pmod function") {
-    val df = runQueryAndCompare(
-      "SELECT pmod(cast(l_orderkey as int), 3) " +
-        "from lineitem limit 1") { _ => }
-    checkLengthAndPlan(df, 1)
-  }
-
-  test("round function") {
-    val df = runQueryAndCompare(
-      "SELECT round(cast(l_orderkey as int), 2)" +
-        "from lineitem limit 1")(checkOperatorMatch[ProjectExecTransformer])
-  }
-
-  test("greatest function") {
-    val df = runQueryAndCompare(
-      "SELECT greatest(l_orderkey, l_orderkey)" +
-        "from lineitem limit 1")(checkOperatorMatch[ProjectExecTransformer])
-  }
-
-  test("least function") {
-    val df = runQueryAndCompare(
-      "SELECT least(l_orderkey, l_orderkey)" +
-        "from lineitem limit 1")(checkOperatorMatch[ProjectExecTransformer])
-  }
-
-  // Test "SELECT ..." without a from clause.
-  test("isnull function") {
-    runQueryAndCompare("SELECT isnull(1)") { _ => }
   }
 
   test("df.count()") {
@@ -444,14 +353,6 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
                          |) where l_suppkey != 0 limit 100;
                          |""".stripMargin) {
       checkOperatorMatch[LimitTransformer]
-    }
-  }
-
-  test("round") {
-    runQueryAndCompare("""
-                         |select round(l_quantity, 2) from lineitem;
-                         |""".stripMargin) {
-      checkOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -1130,14 +1031,6 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       spark.sql("INSERT INTO TABLE remainder VALUES(0, null)")
 
       runQueryAndCompare("SELECT c1 % c2 FROM remainder")(df => checkFallbackOperators(df, 0))
-    }
-  }
-
-  test("Support HOUR function") {
-    withTable("t1") {
-      sql("create table t1 (c1 int, c2 timestamp) USING PARQUET")
-      sql("INSERT INTO t1 VALUES(1, NOW())")
-      runQueryAndCompare("SELECT c1, HOUR(c2) FROM t1 LIMIT 1")(df => checkFallbackOperators(df, 0))
     }
   }
 

@@ -27,7 +27,6 @@ import java.nio.charset.StandardCharsets
 
 abstract class VeloxTPCHTableSupport extends VeloxWholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
-  override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
 

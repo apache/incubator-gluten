@@ -39,7 +39,6 @@ abstract class WholeStageTransformerSuite
   with SharedSparkSession
   with AdaptiveSparkPlanHelper {
 
-  protected val backend: String
   protected val resourcePath: String
   protected val fileFormat: String
   protected val logLevel: String = "WARN"

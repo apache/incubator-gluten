@@ -22,7 +22,6 @@ import org.apache.spark.sql.execution.ProjectExec
 class VeloxLiteralSuite extends VeloxWholeStageTransformerSuite {
   override protected val resourcePath: String = "placeholder"
   override protected val fileFormat: String = "parquet"
-  override protected val backend: String = "velox"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
