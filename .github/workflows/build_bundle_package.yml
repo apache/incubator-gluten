@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: inteldpo/gluten-centos-packaging:latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v2
       - name: Build Gluten velox third party
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel -y && \
@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: ${{ github.event.inputs.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v2
       - name: Download All Artifacts
         uses: actions/download-artifact@v2
         with:
@@ -81,7 +81,7 @@ jobs:
           cd $GITHUB_WORKSPACE/ && \
           mvn clean install -P${{ github.event.inputs.spark }} -Dhadoop.version=${{ github.event.inputs.hadoop }} -Pbackends-velox -Prss -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v2
         with:
           name: gluten-velox-bundle-package
 
@@ -91,7 +91,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: ${{ github.event.inputs.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v2
       - name: Download All Artifacts
         uses: actions/download-artifact@v2
         with:
@@ -110,7 +110,7 @@ jobs:
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
           mvn clean install -P${{ github.event.inputs.spark }} -Dhadoop.version=${{ github.event.inputs.hadoop }} -Pbackends-velox -Prss -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v2
         with:
           name: gluten-velox-bundle-package
           path: package/target/gluten-velox-bundle-*.jar
@@ -122,7 +122,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: ${{ github.event.inputs.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v2
       - name: Download All Artifacts
         uses: actions/download-artifact@v2
         with:
@@ -145,7 +145,7 @@ jobs:
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
           mvn clean install -P${{ github.event.inputs.spark }} -Dhadoop.version=${{ github.event.inputs.hadoop }} -Pbackends-velox -Prss -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v2
         with:
           name: gluten-velox-bundle-package
           path: package/target/gluten-velox-bundle-*.jar
