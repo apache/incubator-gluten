@@ -22,7 +22,6 @@ import java.io.File
 
 class VeloxParquetDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
-  override protected val backend: String = "velox"
   override protected val resourcePath: String = "/data-type-validation-data"
   override protected val fileFormat: String = "parquet"
 

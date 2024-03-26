@@ -22,7 +22,6 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.InputIteratorTransformer
 
 class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
-  override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
 

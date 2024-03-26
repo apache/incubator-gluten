@@ -17,17 +17,18 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
+import org.apache.spark.sql.types._
 
-class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
+import java.nio.file.Files
 
-  protected val rootPath: String = getClass.getResource("/").getPath
+import scala.collection.JavaConverters._
+
+class FunctionsValidateTest extends WholeStageTransformerSuite {
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
-
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    createTPCHNotNullTables()
-  }
+  private var parquetPath: String = _
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -38,35 +39,40 @@ class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.sources.useV1SourceList", "avro")
+      .set(
+        "spark.sql.optimizer.excludedRules",
+        ConstantFolding.ruleName + "," +
+          NullPropagation.ruleName)
   }
 
-  test("window row frame with mix preceding and following") {
-    runQueryAndCompare(
-      "select max(l_suppkey) over" +
-        " (partition by l_suppkey order by l_orderkey " +
-        "rows between 2 preceding and 1 preceding) from lineitem ") {
-      checkOperatorMatch[WindowExecTransformer]
-    }
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    createTPCHNotNullTables()
 
-    runQueryAndCompare(
-      "select max(l_suppkey) over" +
-        " (partition by l_suppkey order by l_orderkey " +
-        "rows between 2 following and 3 following) from lineitem ") {
-      checkOperatorMatch[WindowExecTransformer]
-    }
+    val lfile = Files.createTempFile("", ".parquet").toFile
+    lfile.deleteOnExit()
+    parquetPath = lfile.getAbsolutePath
 
-    runQueryAndCompare(
-      "select max(l_suppkey) over" +
-        " (partition by l_suppkey order by l_orderkey " +
-        "rows between -3 following and -2 following) from lineitem ") {
-      checkOperatorMatch[WindowExecTransformer]
-    }
+    val schema = StructType(
+      Array(
+        StructField("double_field1", DoubleType, true),
+        StructField("int_field1", IntegerType, true),
+        StructField("string_field1", StringType, true)
+      ))
+    val rowData = Seq(
+      Row(1.025, 1, "{\"a\":\"b\"}"),
+      Row(1.035, 2, null),
+      Row(1.045, 3, null)
+    )
 
-    runQueryAndCompare(
-      "select max(l_suppkey) over" +
-        " (partition by l_suppkey order by l_orderkey " +
-        "rows between unbounded preceding and 3 following) from lineitem ") {
-      checkOperatorMatch[WindowExecTransformer]
-    }
+    val dfParquet = spark.createDataFrame(rowData.asJava, schema)
+    dfParquet
+      .coalesce(1)
+      .write
+      .format("parquet")
+      .mode("overwrite")
+      .parquet(parquetPath)
+
+    spark.catalog.createTable("datatab", parquetPath, fileFormat)
   }
 }

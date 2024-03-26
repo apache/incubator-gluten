@@ -70,7 +70,6 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
   protected val metaStorePathAbsolute = basePath + "/meta"
   protected val hiveMetaStoreDB = metaStorePathAbsolute + "/metastore_db"
 
-  override protected val backend: String = "ch"
   final override protected val resourcePath: String = "" // ch not need this
   override protected val fileFormat: String = "parquet"
 }

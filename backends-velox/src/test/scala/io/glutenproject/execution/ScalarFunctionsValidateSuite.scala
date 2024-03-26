@@ -16,69 +16,15 @@
  */
 package io.glutenproject.execution
 
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.types._
 
-import java.nio.file.Files
-
-import scala.collection.JavaConverters._
-
-class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
-
-  override protected val resourcePath: String = "/tpch-data-parquet-velox"
-  override protected val fileFormat: String = "parquet"
-  override protected val backend: String = "velox"
-
-  private var parquetPath: String = _
-
+class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
+  disableFallbackCheck
   import testImplicits._
 
-  override protected def sparkConf: SparkConf = {
-    super.sparkConf
-      .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-      .set("spark.sql.files.maxPartitionBytes", "1g")
-      .set("spark.sql.shuffle.partitions", "1")
-      .set("spark.memory.offHeap.size", "2g")
-      .set("spark.unsafe.exceptionOnMemoryLeak", "true")
-      .set("spark.sql.autoBroadcastJoinThreshold", "-1")
-      .set("spark.sql.sources.useV1SourceList", "avro")
-      .set(
-        "spark.sql.optimizer.excludedRules",
-        ConstantFolding.ruleName + "," +
-          NullPropagation.ruleName)
-  }
-
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    createTPCHNotNullTables()
-
-    val lfile = Files.createTempFile("", ".parquet").toFile
-    lfile.deleteOnExit()
-    parquetPath = lfile.getAbsolutePath
-
-    val schema = StructType(
-      Array(
-        StructField("double_field1", DoubleType, true),
-        StructField("int_field1", IntegerType, true),
-        StructField("string_field1", StringType, true)
-      ))
-    val rowData = Seq(
-      Row(1.025, 1, "{\"a\":\"b\"}"),
-      Row(1.035, 2, null),
-      Row(1.045, 3, null)
-    )
-
-    var dfParquet = spark.createDataFrame(rowData.asJava, schema)
-    dfParquet
-      .coalesce(1)
-      .write
-      .format("parquet")
-      .mode("overwrite")
-      .parquet(parquetPath)
-
-    spark.catalog.createTable("datatab", parquetPath, fileFormat)
+  // Test "SELECT ..." without a from clause.
+  test("isnull function") {
+    runQueryAndCompare("SELECT isnull(1)")(checkOperatorMatch[ProjectExecTransformer])
   }
 
   test("Test bit_count function") {
@@ -135,12 +81,86 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  ignore("Test round function") {
+  test("Test round function") {
     runQueryAndCompare(
       "SELECT round(cast(l_orderkey as int), 2)" +
         "from lineitem limit 1") {
       checkOperatorMatch[ProjectExecTransformer]
     }
+
+    runQueryAndCompare("""
+                         |select round(l_quantity, 2) from lineitem;
+                         |""".stripMargin) {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("chr function") {
+    val df = runQueryAndCompare(
+      "SELECT chr(l_orderkey + 64) " +
+        "from lineitem limit 1") { _ => }
+    checkLengthAndPlan(df, 1)
+  }
+
+  test("bin function") {
+    val df = runQueryAndCompare(
+      "SELECT bin(l_orderkey) " +
+        "from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    checkLengthAndPlan(df, 1)
+  }
+
+  test("abs function") {
+    val df = runQueryAndCompare(
+      "SELECT abs(l_orderkey) " +
+        "from lineitem limit 1") { _ => }
+    checkLengthAndPlan(df, 1)
+  }
+
+  test("ceil function") {
+    val df = runQueryAndCompare(
+      "SELECT ceil(cast(l_orderkey as long)) " +
+        "from lineitem limit 1") { _ => }
+    checkLengthAndPlan(df, 1)
+  }
+
+  test("floor function") {
+    val df = runQueryAndCompare(
+      "SELECT floor(cast(l_orderkey as long)) " +
+        "from lineitem limit 1") { _ => }
+    checkLengthAndPlan(df, 1)
+  }
+
+  test("exp function") {
+    val df = spark.sql("SELECT exp(l_orderkey) from lineitem limit 1")
+    checkLengthAndPlan(df, 1)
+  }
+
+  test("power function") {
+    val df = runQueryAndCompare(
+      "SELECT power(l_orderkey, 2.0) " +
+        "from lineitem limit 1") { _ => }
+    checkLengthAndPlan(df, 1)
+  }
+
+  test("pmod function") {
+    val df = runQueryAndCompare(
+      "SELECT pmod(cast(l_orderkey as int), 3) " +
+        "from lineitem limit 1") { _ => }
+    checkLengthAndPlan(df, 1)
+  }
+
+  test("greatest function") {
+    val df = runQueryAndCompare(
+      "SELECT greatest(l_orderkey, l_orderkey)" +
+        "from lineitem limit 1")(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("least function") {
+    val df = runQueryAndCompare(
+      "SELECT least(l_orderkey, l_orderkey)" +
+        "from lineitem limit 1")(checkOperatorMatch[ProjectExecTransformer])
   }
 
   test("Test greatest function") {
@@ -344,6 +364,14 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
+  test("Support HOUR function") {
+    withTable("t1") {
+      sql("create table t1 (c1 int, c2 timestamp) USING PARQUET")
+      sql("INSERT INTO t1 VALUES(1, NOW())")
+      runQueryAndCompare("SELECT c1, HOUR(c2) FROM t1 LIMIT 1")(df => checkFallbackOperators(df, 0))
+    }
+  }
+
   test("map extract - getmapvalue") {
     withTempPath {
       path =>
@@ -542,20 +570,6 @@ class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
     runQueryAndCompare(
       "SELECT regexp_replace(c_comment, '\\w', 'something', 3) FROM customer limit 50") {
       checkOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("lag/lead window function with negative input offset") {
-    runQueryAndCompare(
-      "select lag(l_orderkey, -2) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem") {
-      checkOperatorMatch[WindowExecTransformer]
-    }
-
-    runQueryAndCompare(
-      "select lead(l_orderkey, -2) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem") {
-      checkOperatorMatch[WindowExecTransformer]
     }
   }
 

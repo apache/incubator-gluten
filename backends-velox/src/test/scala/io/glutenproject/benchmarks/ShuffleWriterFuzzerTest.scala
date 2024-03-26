@@ -37,7 +37,6 @@ object ShuffleWriterFuzzerTest {
 @FuzzerTest
 @SkipTestTags
 class ShuffleWriterFuzzerTest extends VeloxWholeStageTransformerSuite {
-  override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
 
