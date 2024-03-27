@@ -44,6 +44,12 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.collection.parallel.immutable.ParVector
 
+/**
+ * Gluten overwrite Delta:
+ *
+ * This file is copied from Delta 2.0.1. It is modified in:
+ *   1. getDeltaLogClickhouse 2. runOptimizeBinJobClickhouse 3. groupFilesIntoBinsClickhouse
+ */
 /** Base class defining abstract optimize command */
 abstract class OptimizeTableCommandBase extends RunnableCommand with DeltaCommand {
 
