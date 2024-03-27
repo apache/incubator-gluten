@@ -310,7 +310,7 @@ void AggregateRelParser::addCompleteModeAggregatedStep()
             settings.group_by_overflow_mode,
             settings.group_by_two_level_threshold,
             settings.group_by_two_level_threshold_bytes,
-            settings.max_bytes_before_external_group_by,
+            0, /*settings.max_bytes_before_external_group_by*/
             settings.empty_result_for_aggregation_by_empty_set,
             getContext()->getTempDataOnDisk(),
             settings.max_threads,
