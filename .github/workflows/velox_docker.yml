@@ -159,7 +159,7 @@ jobs:
       - name: Set environment variables
         run: |
           echo "MAVEN_HOME=/usr/lib/maven" >> $GITHUB_ENV
-          echo "PATH=${PATH}:${MAVEN_HOME}/bin" >> $GITHUB_ENV
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
           if [ "${{ matrix.java }}" = "java-17" ]; then
             echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk" >> $GITHUB_ENV
           else
