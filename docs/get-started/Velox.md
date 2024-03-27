@@ -366,7 +366,7 @@ The following steps demonstrate how to set up a UDF library project:
 
   - `getNumUdf()`: This function should return the number of UDF in the library. This is used to allocating udfEntries array as the argument for the next function `getUdfEntries`.
 
-  - `getUdfEntries(gluten::UdfEntry* udfEntries)`: This function should populate the provided udfEntries array with the details of the UDF, including function names and return types.
+  - `getUdfEntries(gluten::UdfEntry* udfEntries)`: This function should populate the provided udfEntries array with the details of the UDF, including function names and signatures.
 
   - `registerUdf()`: This function is called to register the UDF to Velox function registry. This is where users should register functions by calling `facebook::velox::exec::registerVecotorFunction` or other Velox APIs.
 
@@ -378,9 +378,14 @@ The following steps demonstrate how to set up a UDF library project:
   #include <velox/expression/VectorFunction.h>
   #include <velox/udf/Udf.h>
 
+  namespace {
+  static const char* kInteger = "integer";
+  }
+  
   const int kNumMyUdf = 1;
 
-  gluten::UdfEntry myUdf[kNumMyUdf] = {{"myudf1", "integer"}};
+  const char* myUdfArgs[] = {kInteger}:
+  gluten::UdfEntry myUdfSig = {"myudf", kInteger, 1, myUdfArgs}; 
 
   class MyUdf : public facebook::velox::exec::VectorFunction {
     ... // Omit concrete implementation
@@ -389,14 +394,14 @@ The following steps demonstrate how to set up a UDF library project:
   static std::vector<std::shared_ptr<exec::FunctionSignature>>
   myUdfSignatures() {
     return {facebook::velox::exec::FunctionSignatureBuilder()
-                .returnType(myUdf[0].dataType)
-                .argumentType("integer")
+                .returnType(myUdfSig.dataType)
+                .argumentType(myUdfSig.argTypes[0])
                 .build()};
   }
 
   DEFINE_GET_NUM_UDF { return kNumMyUdf; }
 
-  DEFINE_GET_UDF_ENTRIES { udfEntries[0] = myUdf[0]; }
+  DEFINE_GET_UDF_ENTRIES { udfEntries[0] = myUdfSig; }
 
   DEFINE_REGISTER_UDF {
     facebook::velox::exec::registerVectorFunction(

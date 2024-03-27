@@ -171,6 +171,7 @@
         <iceberg.version>1.4.3</iceberg.version>
         <delta.version>2.4.0</delta.version>
         <delta.binary.version>24</delta.binary.version>
+        <hadoop.version>3.3.4</hadoop.version>
       </properties>
     </profile>
     <profile>
@@ -337,10 +338,6 @@
           <exclusion>
             <groupId>org.apache.arrow</groupId>
             <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.antlr</groupId>
-            <artifactId>antlr4-runtime</artifactId>
           </exclusion>
         </exclusions>
         <scope>provided</scope>

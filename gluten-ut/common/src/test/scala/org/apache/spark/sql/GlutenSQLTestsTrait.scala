@@ -76,11 +76,11 @@ trait GlutenSQLTestsTrait extends QueryTest with GlutenSQLTestsBaseTrait {
 
     assertEmptyMissingInput(analyzedDF)
 
-    GlutenQueryTest.checkAnswer(analyzedDF, expectedAnswer)
+    GlutenQueryTestUtil.checkAnswer(analyzedDF, expectedAnswer)
   }
 }
 
-object GlutenQueryTest extends Assertions {
+object GlutenQueryTestUtil extends Assertions {
 
   /**
    * Runs the plan and makes sure the answer matches the expected result.

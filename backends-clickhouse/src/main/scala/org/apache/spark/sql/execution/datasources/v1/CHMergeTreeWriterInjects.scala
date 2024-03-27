@@ -68,10 +68,12 @@ class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
       tableName: String,
       orderByKeyOption: Option[Seq[String]],
       lowCardKeyOption: Option[Seq[String]],
+      minmaxIndexKeyOption: Option[Seq[String]],
+      bfIndexKeyOption: Option[Seq[String]],
+      setIndexKeyOption: Option[Seq[String]],
       primaryKeyOption: Option[Seq[String]],
       partitionColumns: Seq[String],
       tableSchema: StructType,
-      dataSchema: Seq[Attribute],
       clickhouseTableConfigs: Map[String, String],
       context: TaskAttemptContext,
       nativeConf: JMap[String, String]): OutputWriter = {
@@ -83,11 +85,14 @@ class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
       tableName,
       orderByKeyOption,
       lowCardKeyOption,
+      minmaxIndexKeyOption,
+      bfIndexKeyOption,
+      setIndexKeyOption,
       primaryKeyOption,
       partitionColumns,
       ConverterUtils.convertNamedStructJson(tableSchema),
       clickhouseTableConfigs,
-      dataSchema
+      tableSchema.toAttributes // use table schema instead of data schema
     )
 
     val datasourceJniWrapper = new CHDatasourceJniWrapper()
@@ -119,17 +124,22 @@ class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
 
 object CHMergeTreeWriterInjects {
 
+  // scalastyle:off argcount
   def genMergeTreeWriteRel(
       path: String,
       database: String,
       tableName: String,
       orderByKeyOption: Option[Seq[String]],
       lowCardKeyOption: Option[Seq[String]],
+      minmaxIndexKeyOption: Option[Seq[String]],
+      bfIndexKeyOption: Option[Seq[String]],
+      setIndexKeyOption: Option[Seq[String]],
       primaryKeyOption: Option[Seq[String]],
       partitionColumns: Seq[String],
       tableSchemaJson: String,
       clickhouseTableConfigs: Map[String, String],
       output: Seq[Attribute]): PlanWithSplitInfo = {
+    // scalastyle:on argcount
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
     val columnTypeNodes = output.map {
@@ -150,6 +160,18 @@ object CHMergeTreeWriterInjects {
       case Some(keys) => keys.mkString(",")
       case None => ""
     }
+    val minmaxIndexKey = minmaxIndexKeyOption match {
+      case Some(keys) => keys.mkString(",")
+      case None => ""
+    }
+    val bfIndexKey = bfIndexKeyOption match {
+      case Some(keys) => keys.mkString(",")
+      case None => ""
+    }
+    val setIndexKey = setIndexKeyOption match {
+      case Some(keys) => keys.mkString(",")
+      case None => ""
+    }
 
     val substraitContext = new SubstraitContext
     val extensionTableNode = ExtensionTableBuilder.makeExtensionTable(
@@ -161,6 +183,9 @@ object CHMergeTreeWriterInjects {
       "",
       orderByKey,
       lowCardKey,
+      minmaxIndexKey,
+      bfIndexKey,
+      setIndexKey,
       primaryKey,
       new JList[String](),
       new JList[JLong](),

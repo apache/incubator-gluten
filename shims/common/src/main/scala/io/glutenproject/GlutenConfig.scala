@@ -292,10 +292,17 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def expressionBlacklist: Set[String] = {
     val blacklist = conf.getConf(EXPRESSION_BLACK_LIST)
-    if (blacklist.isDefined) {
+    val blacklistSet: Set[String] = if (blacklist.isDefined) {
       blacklist.get.toLowerCase(Locale.ROOT).trim.split(",").toSet
     } else {
       Set.empty
+    }
+
+    if (conf.getConf(FALLBACK_REGEXP_EXPRESSIONS)) {
+      val regexpList = "rlike,regexp_replace,regexp_extract,regexp_extract_all,split"
+      regexpList.trim.split(",").toSet ++ blacklistSet
+    } else {
+      blacklistSet
     }
   }
 
@@ -1415,6 +1422,15 @@ object GlutenConfig {
       .doc("A black list of expression to skip transform, multiple values separated by commas.")
       .stringConf
       .createOptional
+
+  val FALLBACK_REGEXP_EXPRESSIONS =
+    buildConf("spark.gluten.sql.fallbackRegexpExpressions")
+      .doc(
+        "If true, fall back all regexp expressions. There are a few incompatible cases" +
+          " between RE2 (used by native engine) and java.util.regex (used by Spark). User should" +
+          " enable this property if their incompatibility is intolerable.")
+      .booleanConf
+      .createWithDefault(false)
 
   val FALLBACK_REPORTER_ENABLED =
     buildConf("spark.gluten.sql.columnar.fallbackReporter")

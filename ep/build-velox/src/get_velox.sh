@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_03_25
+VELOX_BRANCH=2024_03_26
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
@@ -86,7 +86,7 @@ function process_setup_ubuntu {
   # need set BUILD_SHARED_LIBS flag for thrift
   sed -i  "/facebook\/fbthrift/{n;s/cmake_install -DBUILD_TESTS=OFF/cmake_install -DBUILD_TESTS=OFF -DBUILD_SHARED_LIBS=OFF/;}" scripts/setup-ubuntu.sh
   # Do not install libunwind which can cause interruption when catching native exception.
-  sed -i 's/sudo --preserve-env apt install -y libunwind-dev && //' scripts/setup-ubuntu.sh
+  sed -i 's/${SUDO} apt install -y libunwind-dev//' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  *thrift* \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  libiberty-dev \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  libxml2-dev \\' scripts/setup-ubuntu.sh

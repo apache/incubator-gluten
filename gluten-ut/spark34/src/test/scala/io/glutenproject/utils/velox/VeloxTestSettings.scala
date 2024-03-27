@@ -19,7 +19,7 @@ package io.glutenproject.utils.velox
 import io.glutenproject.utils.{BackendTestSettings, SQLQueryTestSettings}
 
 import org.apache.spark.sql._
-import org.apache.spark.sql.catalyst.expressions.{GlutenArithmeticExpressionSuite, GlutenBitwiseExpressionsSuite, GlutenCastSuite, GlutenCollectionExpressionsSuite, GlutenComplexTypeSuite, GlutenConditionalExpressionSuite, GlutenDateExpressionsSuite, GlutenDecimalExpressionSuite, GlutenExpressionMappingSuite, GlutenHashExpressionsSuite, GlutenIntervalExpressionsSuite, GlutenLiteralExpressionSuite, GlutenMathExpressionsSuite, GlutenMiscExpressionsSuite, GlutenNondeterministicSuite, GlutenNullExpressionsSuite, GlutenPredicateSuite, GlutenRandomSuite, GlutenRegexpExpressionsSuite, GlutenSortOrderExpressionsSuite, GlutenStringExpressionsSuite}
+import org.apache.spark.sql.catalyst.expressions.{GlutenArithmeticExpressionSuite, GlutenBitwiseExpressionsSuite, GlutenCastSuite, GlutenCollectionExpressionsSuite, GlutenComplexTypeSuite, GlutenConditionalExpressionSuite, GlutenDateExpressionsSuite, GlutenDecimalExpressionSuite, GlutenHashExpressionsSuite, GlutenIntervalExpressionsSuite, GlutenLiteralExpressionSuite, GlutenMathExpressionsSuite, GlutenMiscExpressionsSuite, GlutenNondeterministicSuite, GlutenNullExpressionsSuite, GlutenPredicateSuite, GlutenRandomSuite, GlutenRegexpExpressionsSuite, GlutenSortOrderExpressionsSuite, GlutenStringExpressionsSuite}
 import org.apache.spark.sql.connector.{GlutenDataSourceV2DataFrameSessionCatalogSuite, GlutenDataSourceV2DataFrameSuite, GlutenDataSourceV2FunctionSuite, GlutenDataSourceV2SQLSessionCatalogSuite, GlutenDataSourceV2SQLSuiteV1Filter, GlutenDataSourceV2SQLSuiteV2Filter, GlutenDataSourceV2Suite, GlutenDeleteFromTableSuite, GlutenFileDataSourceV2FallBackSuite, GlutenKeyGroupedPartitioningSuite, GlutenLocalScanSuite, GlutenMetadataColumnSuite, GlutenSupportsCatalogOptionsSuite, GlutenTableCapabilityCheckSuite, GlutenWriteDistributionAndOrderingSuite}
 import org.apache.spark.sql.errors.{GlutenQueryCompilationErrorsDSv2Suite, GlutenQueryCompilationErrorsSuite, GlutenQueryExecutionErrorsSuite, GlutenQueryParsingErrorsSuite}
 import org.apache.spark.sql.execution.{FallbackStrategiesSuite, GlutenBroadcastExchangeSuite, GlutenCoalesceShufflePartitionsSuite, GlutenExchangeSuite, GlutenReplaceHashWithSortAggSuite, GlutenReuseExchangeAndSubquerySuite, GlutenSameResultSuite, GlutenSortSuite, GlutenSQLAggregateFunctionSuite, GlutenSQLWindowFunctionSuite, GlutenTakeOrderedAndProjectSuite}
@@ -668,7 +668,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // decimal failed ut
     .exclude("SPARK-34212 Parquet should read decimals correctly")
     // Timestamp is read as INT96.
-    .exclude("SPARK-10634 timestamp written and read as INT64 - truncation")
     .exclude("Migration from INT96 to TIMESTAMP_MICROS timestamp type")
     .exclude("SPARK-10365 timestamp written and read as INT64 - TIMESTAMP_MICROS")
     .exclude("SPARK-36182: read TimestampNTZ as TimestampLTZ")
@@ -684,7 +683,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // decimal failed ut
     .exclude("SPARK-34212 Parquet should read decimals correctly")
     // Timestamp is read as INT96.
-    .exclude("SPARK-10634 timestamp written and read as INT64 - truncation")
     .exclude("Migration from INT96 to TIMESTAMP_MICROS timestamp type")
     .exclude("SPARK-10365 timestamp written and read as INT64 - TIMESTAMP_MICROS")
     .exclude("SPARK-36182: read TimestampNTZ as TimestampLTZ")
@@ -1138,7 +1136,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFallbackSuite]
   enableSuite[GlutenHiveSQLQuerySuite]
   enableSuite[GlutenCollapseProjectExecTransformerSuite]
-  enableSuite[GlutenExpressionMappingSuite]
   enableSuite[GlutenSparkSessionExtensionSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings

@@ -35,7 +35,6 @@ import scala.collection.JavaConverters._
 object GenerateExample extends Tag("io.glutenproject.tags.GenerateExample")
 
 class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
-  override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
   val generatedPlanDir = getClass.getResource("/").getPath + "../../../generated-native-benchmark/"

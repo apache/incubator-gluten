@@ -26,6 +26,7 @@
 
   <modules>
     <module>common</module>
+    <module>test</module>
   </modules>
 
   <artifactId>gluten-ut</artifactId>

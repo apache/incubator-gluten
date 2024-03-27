@@ -16,12 +16,10 @@
  */
 package io.glutenproject.backendsapi
 
-import io.glutenproject.GlutenPlugin
-
 trait Backend {
   def name(): String
 
-  def buildInfo(): GlutenPlugin.BackendBuildInfo
+  def buildInfo(): BackendBuildInfo
 
   def iteratorApi(): IteratorApi
 
@@ -39,3 +37,9 @@ trait Backend {
 
   def settings(): BackendSettingsApi
 }
+
+case class BackendBuildInfo(
+    backend: String,
+    backendBranch: String,
+    backendRevision: String,
+    backendRevisionTime: String)

@@ -114,18 +114,34 @@ class ClickHouseTableV2(
   }
 
   lazy val lowCardKeyOption: Option[Seq[String]] = {
+    getCommaSeparatedColumns("lowCardKey")
+  }
+
+  lazy val minmaxIndexKeyOption: Option[Seq[String]] = {
+    getCommaSeparatedColumns("minmaxIndexKey")
+  }
+
+  lazy val bfIndexKeyOption: Option[Seq[String]] = {
+    getCommaSeparatedColumns("bloomfilterIndexKey")
+  }
+
+  lazy val setIndexKeyOption: Option[Seq[String]] = {
+    getCommaSeparatedColumns("setIndexKey")
+  }
+
+  private def getCommaSeparatedColumns(keyName: String) = {
     val tableProperties = properties()
-    if (tableProperties.containsKey("lowCardKey")) {
-      if (tableProperties.get("lowCardKey").nonEmpty) {
-        val lowCardKeys = tableProperties.get("lowCardKey").split(",").map(_.trim).toSeq
-        lowCardKeys.foreach(
+    if (tableProperties.containsKey(keyName)) {
+      if (tableProperties.get(keyName).nonEmpty) {
+        val keys = tableProperties.get(keyName).split(",").map(_.trim).toSeq
+        keys.foreach(
           s => {
             if (s.contains(".")) {
               throw new IllegalStateException(
-                s"lowCardKey $s can not contain '.' (not support nested column yet)")
+                s"$keyName $s can not contain '.' (not support nested column yet)")
             }
           })
-        Some(lowCardKeys.map(s => s.toLowerCase()))
+        Some(keys.map(s => s.toLowerCase()))
       } else {
         None
       }
@@ -259,12 +275,15 @@ class ClickHouseTableV2(
       meta,
       dataBaseName,
       tableName,
-      Seq.empty[Attribute],
       orderByKeyOption,
       lowCardKeyOption,
+      minmaxIndexKeyOption,
+      bfIndexKeyOption,
+      setIndexKeyOption,
       primaryKeyOption,
       clickhouseTableConfigs,
-      partitionColumns)
+      partitionColumns
+    )
   }
   def cacheThis(): Unit = {
     deltaLog2Table.put(deltaLog, this)

@@ -26,6 +26,7 @@ namespace gluten {
  * A customized RowFunction to set struct as null when one of its argument is null.
  */
 class RowFunctionWithNull final : public facebook::velox::exec::VectorFunction {
+ public:
   void apply(
       const facebook::velox::SelectivityVector& rows,
       std::vector<facebook::velox::VectorPtr>& args,
@@ -58,8 +59,8 @@ class RowFunctionWithNull final : public facebook::velox::exec::VectorFunction {
     context.moveOrCopyResult(localResult, rows, result);
   }
 
-  bool isDefaultNullBehavior() const override {
-    return false;
+  static facebook::velox::exec::VectorFunctionMetadata metadata() {
+    return facebook::velox::exec::VectorFunctionMetadataBuilder().defaultNullBehavior(false).build();
   }
 };
 

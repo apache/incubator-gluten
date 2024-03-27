@@ -19,10 +19,11 @@ package io.glutenproject.expression
 import io.glutenproject.tags.{SkipTestTags, UDFTest}
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{GlutenQueryTest, SparkSession}
+import org.apache.spark.sql.{GlutenQueryTest, Row, SparkSession}
 import org.apache.spark.sql.catalyst.plans.SQLHelper
 
 import java.nio.file.Paths
+import java.sql.Date
 
 abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
 
@@ -37,9 +38,6 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
     sys.props.get(UDFLibPathProperty) match {
       case Some(path) =>
         path
-          .split(",")
-          .map(p => Paths.get(p).toAbsolutePath.toString)
-          .mkString(",")
       case None =>
         throw new IllegalArgumentException(
           UDFLibPathProperty + s" cannot be null. You may set it by adding " +
@@ -74,8 +72,14 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
   }
 
   test("test udf") {
-    val df = spark.sql("""select myudf1(1), myudf2(100L)""")
-    df.collect().sameElements(Array(6, 105))
+    val df = spark.sql("""select
+                         |  myudf1(1),
+                         |  myudf1(1L),
+                         |  myudf2(100L),
+                         |  mydate(cast('2024-03-25' as date), 5)
+                         |""".stripMargin)
+    df.collect()
+    assert(df.collect().sameElements(Array(Row(6, 6L, 105, Date.valueOf("2024-03-30")))))
   }
 }
 
@@ -115,10 +119,15 @@ class VeloxUdfSuiteCluster extends VeloxUdfSuite {
           s"-D$GLUTEN_JAR=" +
           "/path/to/gluten/package/target/gluten-package-${project.version}.jar")
   }
+
+  private lazy val driverUdfLibPath =
+    udfLibPath.split(",").map("file://" + _).mkString(",")
+
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths", udfLibPath)
-      .set("spark.gluten.sql.columnar.backend.velox.udfLibraryPaths", udfLibPath)
+      .set("spark.files", udfLibPath)
+      .set("spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths", driverUdfLibPath)
+      .set("spark.gluten.sql.columnar.backend.velox.udfLibraryPaths", udfLibRelativePath)
       .set("spark.driver.extraClassPath", glutenJar)
       .set("spark.executor.extraClassPath", glutenJar)
   }

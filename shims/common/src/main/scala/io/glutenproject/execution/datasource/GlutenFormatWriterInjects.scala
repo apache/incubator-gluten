@@ -43,10 +43,12 @@ trait GlutenFormatWriterInjects {
       tableName: String,
       orderByKeyOption: Option[Seq[String]],
       lowCardKeyOption: Option[Seq[String]],
+      minmaxIndexKeyOption: Option[Seq[String]],
+      bfIndexKeyOption: Option[Seq[String]],
+      setIndexKeyOption: Option[Seq[String]],
       primaryKeyOption: Option[Seq[String]],
       partitionColumns: Seq[String],
       tableSchema: StructType,
-      dataSchema: Seq[Attribute],
       clickhouseTableConfigs: Map[String, String],
       context: TaskAttemptContext,
       nativeConf: java.util.Map[String, String]): OutputWriter = null

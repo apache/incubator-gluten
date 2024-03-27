@@ -22,7 +22,7 @@ import io.glutenproject.execution.ProjectExecTransformer
 import io.glutenproject.test.TestStats
 import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
-import org.apache.spark.sql.GlutenQueryTest.isNaNOrInf
+import org.apache.spark.sql.GlutenQueryTestUtil.isNaNOrInf
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
 import org.apache.spark.sql.catalyst.expressions._

@@ -141,7 +141,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
     } else {
       s"$GLUTEN_SESSION_EXTENSION_NAME"
     }
-    conf.set(SPARK_SESSION_EXTS_KEY, String.format("%s", extensions))
+    conf.set(SPARK_SESSION_EXTS_KEY, extensions)
 
     // off-heap bytes
     if (!conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
@@ -278,10 +278,4 @@ private[glutenproject] object GlutenPlugin {
   implicit def sparkConfImplicit(conf: SparkConf): SparkConfImplicits = {
     new SparkConfImplicits(conf)
   }
-
-  case class BackendBuildInfo(
-      backend: String,
-      backendBranch: String,
-      backendRevision: String,
-      backendRevisionTime: String)
 }

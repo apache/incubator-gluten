@@ -16,7 +16,7 @@
  */
 package io.glutenproject.backendsapi.velox
 
-import io.glutenproject.{GlutenConfig, GlutenPlugin, VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME}
+import io.glutenproject.{GlutenConfig, VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME}
 import io.glutenproject.backendsapi._
 import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.execution.WriteFilesExecTransformer
@@ -44,8 +44,8 @@ import scala.util.control.Breaks.breakable
 
 class VeloxBackend extends Backend {
   override def name(): String = VeloxBackend.BACKEND_NAME
-  override def buildInfo(): GlutenPlugin.BackendBuildInfo =
-    GlutenPlugin.BackendBuildInfo("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
+  override def buildInfo(): BackendBuildInfo =
+    BackendBuildInfo("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
   override def iteratorApi(): IteratorApi = new IteratorApiImpl
   override def sparkPlanExecApi(): SparkPlanExecApi = new SparkPlanExecApiImpl
   override def transformerApi(): TransformerApi = new TransformerApiImpl

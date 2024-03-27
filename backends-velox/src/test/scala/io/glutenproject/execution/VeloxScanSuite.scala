@@ -22,7 +22,6 @@ import org.apache.spark.sql.execution.ScalarSubquery
 
 class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
-  override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
 
