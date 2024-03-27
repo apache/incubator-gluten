@@ -28,6 +28,10 @@
 #include "MergeTreeRelParser.h"
 
 #include <Poco/StringTokenizer.h>
+#include <Storages/MergeTree/FutureMergedMutatedPart.h>
+#include <Storages/MergeTree/MergeMutateSelectedEntry.h>
+#include <Storages/MergeTree/MergeTreeDataMergerMutator.h>
+#include "Storages/Mergetree/MergeSparkMergeTreeTask.h"
 
 
 namespace DB
@@ -158,6 +162,7 @@ MergeTreeRelParser::parseReadRel(
     }
 
     std::vector<DataPartPtr> selected_parts = storage_factory.getDataParts(table_id, merge_tree_table.getPartNames());
+
     auto ranges = merge_tree_table.extractRange(selected_parts);
     if (selected_parts.empty())
         throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "no data part found.");
