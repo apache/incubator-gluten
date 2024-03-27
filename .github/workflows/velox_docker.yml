@@ -71,8 +71,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu:20.04", "ubuntu:22.04"]
-        spark: ["spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5"]
+        os: [ "ubuntu:20.04", "ubuntu:22.04" ]
+        spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
         java: [ "java-8", "java-17" ]
         # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
         exclude:
@@ -119,9 +119,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["centos:7", "centos:8"]
-        spark: ["spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5"]
-        java: ["java-8", "java-17"]
+        os: [ "centos:7", "centos:8" ]
+        spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
+        java: [ "java-8", "java-17" ]
         # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
         exclude:
           - spark: spark-3.2
@@ -156,25 +156,22 @@ jobs:
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
+      - name: Set environment variables
+        run: |
+          echo "MAVEN_HOME=/usr/lib/maven" >> $GITHUB_ENV
+          echo "PATH=${PATH}:${MAVEN_HOME}/bin" >> $GITHUB_ENV
+          if [ "${{ matrix.java }}" = "java-17" ]; then
+            echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk" >> $GITHUB_ENV
+          else
+            echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
+          fi
       - name: Build gluten-it
         run: |
-          export MAVEN_HOME=/usr/lib/maven
-          export PATH=${PATH}:${MAVEN_HOME}/bin
-          if [ "${{ matrix.java }}" = "java-17" ]; then
-            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-          else
-            export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
-          fi
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/tools/gluten-it
           mvn clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
       - name: Run TPC-H / TPC-DS
         run: |
-          if [ "${{ matrix.java }}" = "java-17" ]; then
-            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-          else
-            export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
-          fi
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/tools/gluten-it
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
@@ -183,11 +180,6 @@ jobs:
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
       - name: Run TPC-H / TPC-DS with ACBO
         run: |
-          if [ "${{ matrix.java }}" = "java-17" ]; then
-            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-          else
-            export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
-          fi
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/tools/gluten-it
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
