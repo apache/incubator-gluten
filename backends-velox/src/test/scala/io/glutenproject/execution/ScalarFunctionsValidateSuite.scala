@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import org.apache.spark.sql.types._
 
-import java.sql.{Date, Timestamp}
+import java.sql.Timestamp
 
 class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
   disableFallbackCheck
@@ -327,22 +327,22 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
-  test("second") {
+  test("to_utc_timestamp") {
     withTempPath {
       path =>
         Seq(
-          (
-            Date.valueOf("2015-04-08"),
-            Timestamp.valueOf("2015-04-08 13:10:15"),
-            Timestamp.valueOf("2013-04-08 13:10:15"))
-        )
-          .toDF("a", "b", "c")
+          (Timestamp.valueOf("2015-07-24 00:00:00"), "America/Los_Angeles"),
+          (Timestamp.valueOf("2015-07-25 00:00:00"), "America/Los_Angeles")
+        ).toDF("a", "b")
           .write
           .parquet(path.getCanonicalPath)
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
 
-        runQueryAndCompare("SELECT second(a), second(b), second(c) from view") {
+        runQueryAndCompare("SELECT to_utc_timestamp(a, \"America/Los_Angeles\") from view") {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
+        runQueryAndCompare("SELECT to_utc_timestamp(a, b) from view") {
           checkOperatorMatch[ProjectExecTransformer]
         }
     }
