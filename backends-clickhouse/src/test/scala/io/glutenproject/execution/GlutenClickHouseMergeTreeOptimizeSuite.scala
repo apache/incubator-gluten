@@ -69,20 +69,27 @@ class GlutenClickHouseMergeTreeOptimizeSuite
   }
 
   test("test mergetree optimize basic") {
-    spark.sql(s"""
-                 |DROP TABLE IF EXISTS lineitem_mergetree_optimize;
-                 |""".stripMargin)
+    withSQLConf("spark.databricks.delta.optimize.maxFileSize" -> "2000000") {
+      spark.sql(s"""
+                   |DROP TABLE IF EXISTS lineitem_mergetree_optimize;
+                   |""".stripMargin)
 
-    spark.sql(s"""
-                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_optimize
-                 |USING clickhouse
-                 |LOCATION '$basePath/lineitem_mergetree_optimize'
-                 | as select * from lineitem
-                 |""".stripMargin)
+      spark.sql(s"""
+                   |CREATE TABLE IF NOT EXISTS lineitem_mergetree_optimize
+                   |USING clickhouse
+                   |LOCATION '$basePath/lineitem_mergetree_optimize'
+                   | as select * from lineitem
+                   |""".stripMargin)
 
-    spark.sql("optimize lineitem_mergetree_optimize")
-    val ret = spark.sql("select count(*) from lineitem_mergetree_optimize").collect()
-    assert(ret.apply(0).get(0) == 600572)
+      spark.sql("optimize lineitem_mergetree_optimize")
+      val ret = spark.sql("select count(*) from lineitem_mergetree_optimize").collect()
+      assert(ret.apply(0).get(0) == 600572)
+
+      spark.sql("optimize lineitem_mergetree_optimize")
+      assert(
+        countFiles(new File(s"$basePath/lineitem_mergetree_optimize")) == 462
+      ) // many merged parts
+    }
   }
 
   def countFiles(directory: File): Int = {
