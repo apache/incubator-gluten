@@ -158,7 +158,6 @@ jobs:
           mv apache-maven-3.8.8 /usr/lib/maven
       - name: Build gluten-it
         run: |
-          cd $GITHUB_WORKSPACE/
           export MAVEN_HOME=/usr/lib/maven
           export PATH=${PATH}:${MAVEN_HOME}/bin
           if [ "${{ matrix.java }}" = "java-17" ]; then
@@ -167,6 +166,7 @@ jobs:
             export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
           fi
           echo "JAVA_HOME: $JAVA_HOME"
+          cd $GITHUB_WORKSPACE/tools/gluten-it
           mvn clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
       - name: Run TPC-H / TPC-DS
         run: |
