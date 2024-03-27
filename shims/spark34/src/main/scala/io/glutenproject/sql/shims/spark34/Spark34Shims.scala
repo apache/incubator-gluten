@@ -344,4 +344,6 @@ class Spark34Shims extends SparkShims {
         filteredPartitions.flatten
     }
   }
+
+  override def supportsRowBased(plan: SparkPlan): Boolean = plan.supportsRowBased
 }

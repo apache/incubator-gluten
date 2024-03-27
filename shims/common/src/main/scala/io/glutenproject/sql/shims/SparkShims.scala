@@ -180,4 +180,7 @@ trait SparkShims {
 
   def extractExpressionTimestampAddUnit(timestampAdd: Expression): Option[Seq[String]] =
     Option.empty
+
+  def supportsRowBased(plan: SparkPlan): Boolean = !plan.supportsColumnar
+
 }
