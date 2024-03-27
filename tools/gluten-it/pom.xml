@@ -14,8 +14,9 @@
   </modules>
 
   <properties>
-    <maven.compiler.source>8</maven.compiler.source>
-    <maven.compiler.target>8</maven.compiler.target>
+    <java.version>1.8</java.version>
+    <maven.compiler.source>${java.version}</maven.compiler.source>
+    <maven.compiler.target>${java.version}</maven.compiler.target>
     <scala.library.version>2.12.15</scala.library.version>
     <spark.version>3.4.2</spark.version>
     <scala.binary.version>2.12</scala.binary.version>
@@ -89,6 +90,24 @@
   </dependencyManagement>
 
   <profiles>
+    <profile>
+      <id>java-8</id>
+      <activation>
+        <jdk>1.8</jdk>
+      </activation>
+      <properties>
+        <java.version>1.8</java.version>
+      </properties>
+    </profile>
+    <profile>
+      <id>java-17</id>
+      <activation>
+        <jdk>17</jdk>
+      </activation>
+      <properties>
+        <java.version>17</java.version>
+      </properties>
+    </profile>
     <profile>
       <id>spark-3.2</id>
       <activation>

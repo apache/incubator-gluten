@@ -74,6 +74,21 @@ object MergeTreePartsPartitionsUtil extends Logging {
       case None => ""
     }
 
+    val minmaxIndexKey = table.minmaxIndexKeyOption match {
+      case Some(keys) => keys.mkString(",")
+      case None => ""
+    }
+
+    val bfIndexKey = table.bfIndexKeyOption match {
+      case Some(keys) => keys.mkString(",")
+      case None => ""
+    }
+
+    val setIndexKey = table.setIndexKeyOption match {
+      case Some(keys) => keys.mkString(",")
+      case None => ""
+    }
+
     val tableSchemaJson = ConverterUtils.convertNamedStructJson(table.schema())
 
     // bucket table
@@ -92,6 +107,9 @@ object MergeTreePartsPartitionsUtil extends Logging {
         partitions,
         orderByKey,
         lowCardKey,
+        minmaxIndexKey,
+        bfIndexKey,
+        setIndexKey,
         primaryKey,
         table.clickhouseTableConfigs,
         sparkSession
@@ -109,6 +127,9 @@ object MergeTreePartsPartitionsUtil extends Logging {
         partitions,
         orderByKey,
         lowCardKey,
+        minmaxIndexKey,
+        bfIndexKey,
+        setIndexKey,
         primaryKey,
         table.clickhouseTableConfigs,
         sparkSession
@@ -129,6 +150,9 @@ object MergeTreePartsPartitionsUtil extends Logging {
       partitions: ArrayBuffer[InputPartition],
       orderByKey: String,
       lowCardKey: String,
+      minmaxIndexKey: String,
+      bfIndexKey: String,
+      setIndexKey: String,
       primaryKey: String,
       clickhouseTableConfigs: Map[String, String],
       sparkSession: SparkSession): Unit = {
@@ -214,6 +238,9 @@ object MergeTreePartsPartitionsUtil extends Logging {
           absoluteTablePath,
           orderByKey,
           lowCardKey,
+          minmaxIndexKey,
+          bfIndexKey,
+          setIndexKey,
           primaryKey,
           currentFiles.toArray,
           tableSchemaJson,
@@ -256,6 +283,9 @@ object MergeTreePartsPartitionsUtil extends Logging {
       partitions: ArrayBuffer[InputPartition],
       orderByKey: String,
       lowCardKey: String,
+      minmaxIndexKey: String,
+      bfIndexKey: String,
+      setIndexKey: String,
       primaryKey: String,
       clickhouseTableConfigs: Map[String, String],
       sparkSession: SparkSession): Unit = {
@@ -318,6 +348,9 @@ object MergeTreePartsPartitionsUtil extends Logging {
             absoluteTablePath,
             orderByKey,
             lowCardKey,
+            minmaxIndexKey,
+            bfIndexKey,
+            setIndexKey,
             primaryKey,
             currentFiles.toArray,
             tableSchemaJson,

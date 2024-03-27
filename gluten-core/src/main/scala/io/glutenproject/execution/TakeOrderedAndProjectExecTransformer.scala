@@ -49,7 +49,7 @@ case class TakeOrderedAndProjectExecTransformer(
     val orderByString = truncatedString(sortOrder, "[", ",", "]", maxFields)
     val outputString = truncatedString(output, "[", ",", "]", maxFields)
 
-    s"TakeOrderedAndProjectExecTransform(limit=$limit, " +
+    s"TakeOrderedAndProjectExecTransformer (limit=$limit, " +
       s"orderBy=$orderByString, output=$outputString)"
   }
 
