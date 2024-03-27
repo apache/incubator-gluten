@@ -120,9 +120,12 @@ void RelMetric::serialize(Writer<StringBuffer> & writer, bool) const
             if (auto read_mergetree = dynamic_cast<DB::ReadFromMergeTree*>(step))
             {
                 auto selected_marks_pk = read_mergetree->getAnalysisResult().selected_marks_pk;
+                auto selected_marks = read_mergetree->getAnalysisResult().selected_marks;
                 auto total_marks_pk = read_mergetree->getAnalysisResult().total_marks_pk;
                 writer.Key("selected_marks_pk");
                 writer.Uint64(selected_marks_pk);
+                writer.Key("selected_marks");
+                writer.Uint64(selected_marks);
                 writer.Key("total_marks_pk");
                 writer.Uint64(total_marks_pk);
             }

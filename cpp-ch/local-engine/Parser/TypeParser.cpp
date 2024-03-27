@@ -238,7 +238,9 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
 }
 
 
-DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & struct_, const std::string & low_card_cols)
+DB::Block TypeParser::buildBlockFromNamedStruct(
+    const substrait::NamedStruct & struct_,
+    const std::string & low_card_cols)
 {
     std::unordered_set<std::string> low_card_columns;
     Poco::StringTokenizer tokenizer(low_card_cols, ",");
