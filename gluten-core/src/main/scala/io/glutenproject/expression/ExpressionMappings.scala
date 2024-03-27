@@ -277,6 +277,7 @@ object ExpressionMappings {
     Sig[Last](LAST),
     Sig[First](FIRST),
     Sig[Skewness](SKEWNESS),
+    Sig[Kurtosis](KURTOSIS),
     Sig[ApproximatePercentile](APPROX_PERCENTILE)
   ) ++ SparkShimLoader.getSparkShims.aggregateExpressionMappings
 
