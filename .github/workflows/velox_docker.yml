@@ -136,11 +136,11 @@ jobs:
     container: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
-#      - name: Download All Artifacts
-#        uses: actions/download-artifact@v2
-#        with:
-#          name: velox-native-lib-${{github.sha}}
-#          path: ./cpp/build/releases
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-${{github.sha}}
+          path: ./cpp/build/releases
       - name: Update mirror list
         if: matrix.os == 'centos:8'
         run: |
