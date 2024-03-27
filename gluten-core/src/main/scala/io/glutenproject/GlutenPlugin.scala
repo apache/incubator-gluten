@@ -278,10 +278,4 @@ private[glutenproject] object GlutenPlugin {
   implicit def sparkConfImplicit(conf: SparkConf): SparkConfImplicits = {
     new SparkConfImplicits(conf)
   }
-
-  case class BackendBuildInfo(
-      backend: String,
-      backendBranch: String,
-      backendRevision: String,
-      backendRevisionTime: String)
 }

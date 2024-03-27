@@ -16,8 +16,6 @@
  */
 package io.glutenproject.backendsapi
 
-import io.glutenproject.GlutenPlugin
-
 import java.util.ServiceLoader
 
 import scala.collection.JavaConverters
@@ -57,7 +55,7 @@ object BackendsApiManager {
     backend.name()
   }
 
-  def getBuildInfo: GlutenPlugin.BackendBuildInfo = {
+  def getBuildInfo: BackendBuildInfo = {
     backend.buildInfo()
   }
 

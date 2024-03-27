@@ -16,7 +16,7 @@
  */
 package io.glutenproject.backendsapi.clickhouse
 
-import io.glutenproject.{CH_BRANCH, CH_COMMIT, GlutenConfig, GlutenPlugin}
+import io.glutenproject.{CH_BRANCH, CH_COMMIT, GlutenConfig}
 import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.extension.ValidationResult
@@ -41,8 +41,8 @@ import scala.util.control.Breaks.{break, breakable}
 
 class CHBackend extends Backend {
   override def name(): String = CHBackend.BACKEND_NAME
-  override def buildInfo(): GlutenPlugin.BackendBuildInfo =
-    GlutenPlugin.BackendBuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
+  override def buildInfo(): BackendBuildInfo =
+    BackendBuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
   override def iteratorApi(): IteratorApi = new CHIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new CHSparkPlanExecApi
   override def transformerApi(): TransformerApi = new CHTransformerApi
