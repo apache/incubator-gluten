@@ -33,6 +33,7 @@ import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v2.{AppendDataExec, OverwriteByExpressionExec}
 import org.apache.spark.sql.hive.execution.{CreateHiveTableAsSelectCommand, InsertIntoHiveDirCommand, InsertIntoHiveTable}
+import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType, TimestampType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 private case class FakeRowLogicAdaptor(child: LogicalPlan) extends OrderPreservingUnaryNode {
@@ -143,6 +144,17 @@ object GlutenWriterColumnarRules {
     }
   }
 
+  def validateDateTypes(fields: Array[StructField]): Boolean = {
+    fields.map {
+      field =>
+        field.dataType match {
+          case _: TimestampType | _: StructType | _: ArrayType | _: MapType => return false
+          case _ =>
+        }
+    }
+    true
+  }
+
   case class NativeWritePostRule(session: SparkSession) extends Rule[SparkPlan] {
 
     private val NOOP_WRITE = "org.apache.spark.sql.execution.datasources.noop.NoopWrite$"
@@ -156,7 +168,8 @@ object GlutenWriterColumnarRules {
           if write.getClass.getName == NOOP_WRITE &&
             BackendsApiManager.getSettings.enableNativeWriteFiles() =>
         injectFakeRowAdaptor(rc, rc.child)
-      case rc @ DataWritingCommandExec(cmd, child) =>
+      case rc @ DataWritingCommandExec(cmd, child)
+          if validateDateTypes(child.output.toStructType.fields) =>
         val format = getNativeFormat(cmd)
         session.sparkContext.setLocalProperty(
           "staticPartitionWriteOnly",
