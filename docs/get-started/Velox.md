@@ -13,18 +13,6 @@ parent: Getting-Started
 | jdk   | openjdk8/jdk17                  |
 | scala | 2.12                            |
 
-**JDK17**
-
-By defaults, Gluten compiles package using JDK8. Add maven profile `-Pjava-17` changing to use JDK17, and please make sure your JAVA_HOME points to jdk17.
-
-Apache Spark and Arrow requires setting java args `-Dio.netty.tryReflectionSetAccessible=true`, see [SPARK-29924](https://issues.apache.org/jira/browse/SPARK-29924) and [ARROW-6206](https://issues.apache.org/jira/browse/ARROW-6206).
-So please add following configs in `spark-defaults.conf`:
-
-```
-spark.driver.extraJavaOptions=-Dio.netty.tryReflectionSetAccessible=true
-spark.executor.extraJavaOptions=-Dio.netty.tryReflectionSetAccessible=true
-```
-
 # Prerequisite
 
 Currently, Gluten+Velox backend is only tested on **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8**. Other kinds of OS support are still in progress. The long term goal is to support several

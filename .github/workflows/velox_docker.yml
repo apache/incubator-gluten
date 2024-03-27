@@ -104,11 +104,7 @@ jobs:
       - name: Build and run TPCH/DS
         run: |
           cd $GITHUB_WORKSPACE/
-          if [ "${{ matrix.java }}" = "java-17" ]; then
-            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-          else
-            export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
-          fi
+          export JAVA_HOME=/usr/lib/jvm/${{ matrix.java }}-openjdk-amd64
           echo "JAVA_HOME: $JAVA_HOME"
           mvn clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it

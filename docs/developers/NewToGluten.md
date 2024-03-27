@@ -43,6 +43,18 @@ export PATH="$PATH:$JAVA_HOME/bin"
 
 > Must set PATH with double quote in ubuntu.
 
+## Openjdk17
+
+By defaults, Gluten compiles package using JDK8. Add maven profile `-Pjava-17` changing to use JDK17, and please make sure your JAVA_HOME points to jdk17.
+
+Apache Spark and Arrow requires setting java args `-Dio.netty.tryReflectionSetAccessible=true`, see [SPARK-29924](https://issues.apache.org/jira/browse/SPARK-29924) and [ARROW-6206](https://issues.apache.org/jira/browse/ARROW-6206).
+So please add following configs in `spark-defaults.conf`:
+
+```
+spark.driver.extraJavaOptions=-Dio.netty.tryReflectionSetAccessible=true
+spark.executor.extraJavaOptions=-Dio.netty.tryReflectionSetAccessible=true
+```
+
 ## Maven 3.6.3 or above
 
 [Maven Dowload Page](https://maven.apache.org/docs/history.html)
