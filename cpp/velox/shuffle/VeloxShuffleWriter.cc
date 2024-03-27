@@ -668,7 +668,7 @@ arrow::Status VeloxShuffleWriter::splitBinaryType(
     for (auto i = 0; i < numRows; i++) {
       auto rowId = rowOffset2RowId_[rowOffsetBase + i];
       auto& stringView = srcRawValues[rowId];
-      auto stringLen = stringView.size();
+      auto stringLen = src.isNullAt(rowId) ? 0 : stringView.size();
 
       // 1. copy length, update offset.
       dstOffsetBase[i] = stringLen;
