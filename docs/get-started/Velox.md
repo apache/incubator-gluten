@@ -5,28 +5,22 @@ nav_order: 1
 parent: Getting-Started
 ---
 # Supported Version
-| Type  | Version                      |
-|-------|------------------------------|
-| Spark | 3.2.2, 3.3.1                 |
-| OS    | Ubuntu20.04/22.04, Centos7/8 |
-| jdk   | openjdk8                     |
-| scala | 2.12
 
-Spark3.4.0 support is still WIP. TPCH/DS can pass, UT is not yet passed.
-
-There are pending PRs for jdk11 support.
-
-
-Currently, the mvn script can automatically fetch and build all dependency libraries incluing Velox. Our nightly build still use Velox under oap-project. 
+| Type  | Version                         |
+|-------|---------------------------------|
+| Spark | 3.2.2, 3.3.1, 3.4.2, 3.5.1(wip) |
+| OS    | Ubuntu20.04/22.04, Centos7/8    |
+| jdk   | openjdk8/jdk17                  |
+| scala | 2.12                            |
 
 # Prerequisite
 
-Currently, Gluten+Velox backend is only tested on **Ubuntu20.04/Ubuntu22.04/Centos8**. Other kinds of OS support are still in progress. The long term goal is to support several
+Currently, Gluten+Velox backend is only tested on **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8**. Other kinds of OS support are still in progress. The long term goal is to support several
 common OS and conda env deployment.
 
-Gluten builds with Spark3.2.x and Spark3.3.x now but only fully tested in CI with 3.2.2 and 3.3.1. We will add/update supported/tested versions according to the upstream changes. 
+Gluten only fully tested in CI with 3.2.2, 3.3.1 and 3.4.2. We will add/update supported/tested versions according to the upstream changes. 
 
-we need to set up the `JAVA_HOME` env. Currently, **java 8** is required and the support for java 11/17 is not ready.
+We need to set up the `JAVA_HOME` env. Currently, Gluten supports **java 8** and **java 17**.
 
 **For x86_64**
 
@@ -63,7 +57,7 @@ It's recommended to use buildbundle-veloxbe.sh to build gluten in one script.
 ```bash
 cd /path/to/gluten
 
-## The script builds two jars for spark 3.2.2 and 3.3.1.
+## The script builds jars for all spark version
 ./dev/buildbundle-veloxbe.sh
 
 ## After a complete build, if you need to re-build the project and only some gluten code is changed,
@@ -83,6 +77,8 @@ cd /path/to/gluten
 ```
 
 **Build Velox separately**
+
+Gluten still uses Velox under oap-project and does daily update with upstream(meta) Velox.
 
 Scripts under `/path/to/gluten/ep/build-velox/src` provide `get_velox.sh` and `build_velox.sh` to build Velox separately, you could use these scripts with custom repo/branch/location.
 
