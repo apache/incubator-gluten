@@ -168,8 +168,10 @@ jobs:
       - name: Build gluten-it
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
-          cd $GITHUB_WORKSPACE/tools/gluten-it
+          cd $GITHUB_WORKSPACE/
           mvn clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          mvn clean install -P${{ matrix.spark }} -P${{ matrix.java }}
       - name: Run TPC-H / TPC-DS
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
