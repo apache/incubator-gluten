@@ -88,7 +88,9 @@ class GlutenClickHouseMergeTreeOptimizeSuite
   def countFiles(directory: File): Int = {
     if (directory.exists && directory.isDirectory) {
       val files = directory.listFiles
-      val count = files.count(_.isFile) + files.filter(_.isDirectory).map(countFiles).sum
+      val count = files
+        .filter(!_.getName.endsWith(".crc"))
+        .count(_.isFile) + files.filter(_.isDirectory).map(countFiles).sum
       count + 1
     } else {
       0
