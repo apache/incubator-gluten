@@ -160,6 +160,8 @@ MergeTreeTable parseMergeTreeTableString(const std::string & info)
     assertChar('\n', in);
     readString(table.table, in);
     assertChar('\n', in);
+    readString(table.snapshot_id, in);
+    assertChar('\n', in);
     String schema;
     readString(schema, in);
     google::protobuf::util::JsonStringToMessage(schema, &table.schema);

@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
 import java.io.File
@@ -34,11 +34,6 @@ class GlutenClickHouseMergeTreeOptimizeSuite
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "mergetree-queries-output"
 
-  protected lazy val sparkVersion: String = {
-    val version = SPARK_VERSION_SHORT.split("\\.")
-    version(0) + "." + version(1)
-  }
-
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -49,15 +44,9 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
       .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.user_defined_path",
-        "/tmp/user_defined")
-      .set(
         "spark.gluten.sql.columnar.backend.ch.runtime_settings.min_insert_block_size_rows",
         "10000"
-      ) // so that we have enough parts to test
-//      .set("spark.ui.enabled", "true")
-//      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.dump_pipeline", "true")
-//      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "debug")
+      )
       .set(
         "spark.databricks.delta.retentionDurationCheck.enabled",
         "false"

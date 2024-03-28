@@ -16,12 +16,14 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, SaveMode}
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
+
+import org.apache.commons.io.filefilter.WildcardFileFilter
 
 import java.io.File
 
@@ -39,11 +41,6 @@ class GlutenClickHouseMergeTreeWriteSuite
   override protected val tablesPath: String = basePath + "/tpch-data"
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "mergetree-queries-output"
-
-  protected lazy val sparkVersion: String = {
-    val version = SPARK_VERSION_SHORT.split("\\.")
-    version(0) + "." + version(1)
-  }
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
@@ -1551,6 +1548,193 @@ class GlutenClickHouseMergeTreeWriteSuite
 
         checkSelectedMarksCnt(df, 29)
       })
+  }
+
+  test("GLUTEN-5219: Fix the table metadata sync issue for the CH backend") {
+    def checkQueryResult(tableName: String): Unit = {
+      val sqlStr =
+        s"""
+           |SELECT
+           |    l_returnflag,
+           |    l_linestatus,
+           |    sum(l_quantity) AS sum_qty,
+           |    sum(l_extendedprice) AS sum_base_price,
+           |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
+           |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
+           |    avg(l_quantity) AS avg_qty,
+           |    avg(l_extendedprice) AS avg_price,
+           |    avg(l_discount) AS avg_disc,
+           |    count(*) AS count_order
+           |FROM
+           |    $tableName
+           |WHERE
+           |    l_shipdate <= date'1998-09-02' - interval 1 day
+           |GROUP BY
+           |    l_returnflag,
+           |    l_linestatus
+           |ORDER BY
+           |    l_returnflag,
+           |    l_linestatus;
+           |
+           |""".stripMargin
+      runTPCHQueryBySQL(1, sqlStr) {
+        df =>
+          val scanExec = collect(df.queryExecution.executedPlan) {
+            case f: FileSourceScanExecTransformer => f
+          }
+          assert(scanExec.size == 1)
+
+          val mergetreeScan = scanExec(0)
+          assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+
+          val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
+          val addFiles =
+            fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
+          assert(addFiles.size == 6)
+          assert(
+            addFiles.map(_.rows).sum
+              == 600572)
+      }
+    }
+
+    // test with ctas
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_ctas_5219;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE lineitem_mergetree_ctas_5219
+                 |USING clickhouse
+                 |LOCATION '$basePath/lineitem_mergetree_ctas_5219'
+                 | as select * from lineitem
+                 |""".stripMargin)
+
+    checkQueryResult("lineitem_mergetree_ctas_5219")
+
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_ctas_5219;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE lineitem_mergetree_ctas_5219
+                 |USING clickhouse
+                 |TBLPROPERTIES (orderByKey='l_returnflag,l_shipdate',
+                 |               primaryKey='l_returnflag,l_shipdate')
+                 |LOCATION '$basePath/lineitem_mergetree_ctas_5219_1'
+                 | as select * from lineitem
+                 |""".stripMargin)
+
+    checkQueryResult("lineitem_mergetree_ctas_5219")
+
+    var dataPath = new File(s"$basePath/lineitem_mergetree_ctas_5219_1")
+    assert(dataPath.isDirectory && dataPath.isDirectory)
+
+    val fileFilter = new WildcardFileFilter("*_0_*")
+    var dataFileList = dataPath.list(fileFilter)
+    assert(dataFileList.size == 6)
+
+    // test with the normal table
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_5219;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_5219
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |TBLPROPERTIES (orderByKey='l_returnflag,l_shipdate',
+                 |               primaryKey='l_returnflag,l_shipdate')
+                 |LOCATION '$basePath/lineitem_mergetree_5219'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_5219
+                 | select * from lineitem
+                 |""".stripMargin)
+
+    checkQueryResult("lineitem_mergetree_5219")
+
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_5219;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_5219
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |TBLPROPERTIES (orderByKey='l_shipdate',
+                 |               primaryKey='l_shipdate')
+                 |LOCATION '$basePath/lineitem_mergetree_5219_1'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_5219
+                 | select * from lineitem
+                 |""".stripMargin)
+
+    checkQueryResult("lineitem_mergetree_5219")
+
+    dataPath = new File(s"$basePath/lineitem_mergetree_5219_1")
+    assert(dataPath.isDirectory && dataPath.isDirectory)
+
+    dataFileList = dataPath.list(fileFilter)
+    assert(dataFileList.size == 6)
+
+    // re-create the same table
+    for (i <- 0 until 10) {
+      spark.sql(s"""
+                   |DROP TABLE IF EXISTS lineitem_mergetree_5219_s purge;
+                   |""".stripMargin)
+
+      spark.sql(s"""
+                   |CREATE TABLE lineitem_mergetree_5219_s
+                   |USING clickhouse
+                   |LOCATION '$basePath/lineitem_mergetree_5219_s'
+                   | as select * from lineitem
+                   |""".stripMargin)
+
+      checkQueryResult("lineitem_mergetree_5219_s")
+    }
+
+    dataPath = new File(s"$basePath/lineitem_mergetree_5219_s")
+    assert(dataPath.isDirectory && dataPath.isDirectory)
+
+    dataFileList = dataPath.list(fileFilter)
+    assert(dataFileList.size == 6)
   }
 }
 // scalastyle:off line.size.limit

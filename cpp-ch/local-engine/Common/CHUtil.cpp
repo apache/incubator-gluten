@@ -797,6 +797,9 @@ void BackendInitializerUtil::init(std::string * plan)
     // in case of running the multiple gluten ut in one process
     ReadBufferBuilderFactory::instance().clean();
 
+    // Init the table metadata cache map
+    StorageMergeTreeFactory::init_cache_map();
+
     std::call_once(
         init_flag,
         [&]

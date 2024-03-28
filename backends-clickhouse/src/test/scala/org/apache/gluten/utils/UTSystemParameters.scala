@@ -48,4 +48,14 @@ object UTSystemParameters {
     }
   }
 
+  private val TEST_MERGETREE_ON_OBJECT_STORAGE = "gluten.ch.test.mergetree.object.storage"
+  private val TEST_MERGETREE_ON_OBJECT_STORAGE_DEFAULT_VALUE = "true"
+
+  def testMergeTreeOnObjectStorage: Boolean = {
+    System
+      .getProperty(
+        UTSystemParameters.TEST_MERGETREE_ON_OBJECT_STORAGE,
+        UTSystemParameters.TEST_MERGETREE_ON_OBJECT_STORAGE_DEFAULT_VALUE)
+      .toBoolean
+  }
 }

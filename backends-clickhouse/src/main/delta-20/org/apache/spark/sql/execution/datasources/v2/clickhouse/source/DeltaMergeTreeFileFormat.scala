@@ -30,6 +30,7 @@ class DeltaMergeTreeFileFormat(metadata: Metadata)
 
   protected var database = ""
   protected var tableName = ""
+  protected var snapshotId = ""
   protected var orderByKeyOption: Option[Seq[String]] = None
   protected var lowCardKeyOption: Option[Seq[String]] = None
   protected var minmaxIndexKeyOption: Option[Seq[String]] = None
@@ -39,10 +40,12 @@ class DeltaMergeTreeFileFormat(metadata: Metadata)
   protected var partitionColumns: Seq[String] = Seq.empty[String]
   protected var clickhouseTableConfigs: Map[String, String] = Map.empty
 
+  // scalastyle:off argcount
   def this(
       metadata: Metadata,
       database: String,
       tableName: String,
+      snapshotId: String,
       orderByKeyOption: Option[Seq[String]],
       lowCardKeyOption: Option[Seq[String]],
       minmaxIndexKeyOption: Option[Seq[String]],
@@ -54,6 +57,7 @@ class DeltaMergeTreeFileFormat(metadata: Metadata)
     this(metadata)
     this.database = database
     this.tableName = tableName
+    this.snapshotId = snapshotId
     this.orderByKeyOption = orderByKeyOption
     this.lowCardKeyOption = lowCardKeyOption
     this.minmaxIndexKeyOption = minmaxIndexKeyOption
@@ -63,6 +67,7 @@ class DeltaMergeTreeFileFormat(metadata: Metadata)
     this.clickhouseTableConfigs = clickhouseTableConfigs
     this.partitionColumns = partitionColumns
   }
+  // scalastyle:on argcount
 
   override def shortName(): String = "mergetree"
 
@@ -105,6 +110,7 @@ class DeltaMergeTreeFileFormat(metadata: Metadata)
             path,
             database,
             tableName,
+            snapshotId,
             orderByKeyOption,
             lowCardKeyOption,
             minmaxIndexKeyOption,
