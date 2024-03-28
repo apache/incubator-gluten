@@ -651,7 +651,7 @@ arrow::Status VeloxShuffleWriter::splitBinaryType(
     const facebook::velox::FlatVector<facebook::velox::StringView>& src,
     std::vector<BinaryBuf>& dst) {
   const auto* srcRawValues = src.rawValues();
-  const auto* srcRawNulls =  src.rawNulls();
+  const auto* srcRawNulls = src.rawNulls();
 
   for (auto& pid : partitionUsed_) {
     auto& binaryBuf = dst[pid];
