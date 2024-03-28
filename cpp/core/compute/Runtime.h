@@ -64,8 +64,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   Runtime(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
   virtual ~Runtime() = default;
 
-  virtual void
-  parsePlan(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) = 0;
+  virtual void parsePlan(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) = 0;
 
   virtual void parseSplitInfo(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) = 0;
 
