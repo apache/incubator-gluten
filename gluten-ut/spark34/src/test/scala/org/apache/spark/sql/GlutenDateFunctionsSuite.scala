@@ -253,15 +253,15 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
       (Timestamp.valueOf("2015-07-25 00:00:00"), "2015-07-25 00:00:00")
     ).toDF("a", "b")
     checkAnswer(
-      df.select(to_utc_timestamp(col("a"), "America/Los_Angeles"),
-        Seq(
-          Row(Timestamp.valueOf("2015-07-24 07:00:00")),
-          Row(Timestamp.valueOf("2015-07-25 07:00:00"))))
-        checkAnswer(
-        df.select(to_utc_timestamp(col("b"), "America/Los_Angeles"),
-          Seq(
-            Row(Timestamp.valueOf("2015-07-24 07:00:00")),
-            Row(Timestamp.valueOf("2015-07-25 07:00:00"))))
+      df.select(to_utc_timestamp(col("a"), "America/Los_Angeles")),
+      Seq(
+        Row(Timestamp.valueOf("2015-07-24 07:00:00")),
+        Row(Timestamp.valueOf("2015-07-25 07:00:00"))))
+    checkAnswer(
+      df.select(to_utc_timestamp(col("b"), "America/Los_Angeles")),
+      Seq(
+        Row(Timestamp.valueOf("2015-07-24 07:00:00")),
+        Row(Timestamp.valueOf("2015-07-25 07:00:00"))))
   }
 
   test("to_utc_timestamp with column zone") {
