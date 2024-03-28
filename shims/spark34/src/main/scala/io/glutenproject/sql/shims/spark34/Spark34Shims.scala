@@ -20,7 +20,8 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ExpressionNames, Sig}
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
-import org.apache.spark.{ShuffleUtils, SparkContext, SparkException, TaskContext, TaskContextUtils}
+import org.apache.spark.{ShuffleUtils, SparkContext, SparkContextUtils, SparkException, TaskContext, TaskContextUtils}
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.paths.SparkPath
 import org.apache.spark.scheduler.TaskInfo
@@ -52,6 +53,8 @@ import org.apache.hadoop.fs.{FileStatus, Path}
 
 import java.time.ZoneOffset
 import java.util.{HashMap => JHashMap, Map => JMap}
+
+import scala.reflect.ClassTag
 
 class Spark34Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
@@ -239,6 +242,10 @@ class Spark34Shims extends SparkShims {
 
   override def createTestTaskContext(): TaskContext = {
     TaskContextUtils.createTestTaskContext()
+  }
+
+  override def broadcastInternal[T: ClassTag](sc: SparkContext, value: T): Broadcast[T] = {
+    SparkContextUtils.broadcastInternal(sc, value)
   }
 
   def setJobDescriptionOrTagForBroadcastExchange(
