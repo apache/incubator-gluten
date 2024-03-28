@@ -51,10 +51,10 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
     errorBuilder
         .append(
             String.format(
-                "Not enough spark off-heap execution memory. Acquired: %d, granted: %d. "
+                "Not enough spark off-heap execution memory. Acquired: %s, granted: %s. "
                     + "Try tweaking config option spark.memory.offHeap.size to get larger space "
                     + "to run this application. %n",
-                size, granted))
+                Utils.bytesToString(size), Utils.bytesToString(granted)))
         .append("Current config settings: ")
         .append(System.lineSeparator())
         .append(

@@ -112,12 +112,14 @@ Welcome to contribute to Gluten project! See [contributing guide](CONTRIBUTING.m
 
 ## 4.1 Community
 
-Glunten successfully joined Apache Incubator since March'24. We welcome developers and users who are interested in Gluten project. Here are several ways to contat us:
+Glunten successfully joined Apache Incubator since March'24. We welcome developers and users who are interested in Gluten project. Here are several ways to contact us:
+
 ### Gluten website
 https://gluten.apache.org/
 
 ### Mailing lists
-For any technical questions, please subscribe/email to dev@gluten.apache.org
+For any technical discussion, please send email to [dev@gluten.apache.org](mailto:dev@gluten.apache.org). See [archives](https://lists.apache.org/list.html?dev@gluten.apache.org).
+Please click [here](mailto:dev-subscribe@gluten.apache.org) to subscribe.
 
 ### Wechat group
 We also have a Wechat group (in Chinese) which maybe more firendly for PRC developers/users. Due to the limitation of wechat group, please contat with weitingchen at apache.org or zhangzc at apache.org to be invited to the group. 

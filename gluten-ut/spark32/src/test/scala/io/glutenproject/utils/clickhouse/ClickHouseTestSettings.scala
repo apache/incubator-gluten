@@ -1138,6 +1138,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("sorting on ShortType with nullable=false, sortOrder=List('a ASC NULLS LAST)")
     .exclude("sorting on ShortType with nullable=false, sortOrder=List('a DESC NULLS LAST)")
     .exclude("sorting on ShortType with nullable=false, sortOrder=List('a DESC NULLS FIRST)")
+    .excludeByPrefix("sorting on YearMonthIntervalType(0,1) with")
   enableSuite[GlutenTakeOrderedAndProjectSuite]
     .exclude("TakeOrderedAndProject.doExecute without project")
     .exclude("TakeOrderedAndProject.doExecute with project")
@@ -1459,11 +1460,13 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Loading a JSON dataset primitivesAsString returns complex fields as strings")
     .exclude("SPARK-4228 DataFrame to JSON")
     .exclude("SPARK-18352: Handle multi-line corrupt documents (PERMISSIVE)")
+    .exclude("SPARK-36830: Support reading and writing ANSI intervals")
   enableSuite[GlutenJsonV2Suite]
     .exclude("Complex field and type inferring")
     .exclude("Loading a JSON dataset primitivesAsString returns complex fields as strings")
     .exclude("SPARK-4228 DataFrame to JSON")
     .exclude("SPARK-18352: Handle multi-line corrupt documents (PERMISSIVE)")
+    .exclude("SPARK-36830: Support reading and writing ANSI intervals")
   enableSuite[GlutenOrcColumnarBatchReaderSuite]
   enableSuite[GlutenOrcFilterSuite].exclude("SPARK-32622: case sensitivity in predicate pushdown")
   enableSuite[GlutenOrcPartitionDiscoverySuite]
@@ -1485,6 +1488,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-36594: ORC vectorized reader should properly check maximal number of fields")
     // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
     .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
+    .excludeByPrefix(
+      "SPARK-36931: Support reading and writing ANSI intervals (spark.sql.orc.enableVectorizedReader=false,")
     .excludeGlutenTest("SPARK-31238: compatibility with Spark 2.4 in reading dates")
     .excludeGlutenTest("SPARK-31238, SPARK-31423: rebasing dates in write")
     .excludeGlutenTest("SPARK-31284: compatibility with Spark 2.4 in reading timestamps")
@@ -1723,7 +1728,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetCompressionCodecPrecedenceSuite]
   enableSuite[GlutenParquetEncodingSuite]
   enableSuite[GlutenParquetFileFormatV1Suite]
+    .exclude(
+      "SPARK-36825, SPARK-36854: year-month/day-time intervals written and read as INT32/INT64")
   enableSuite[GlutenParquetFileFormatV2Suite]
+    .exclude(
+      "SPARK-36825, SPARK-36854: year-month/day-time intervals written and read as INT32/INT64")
   enableSuite[GlutenParquetIOSuite]
     .exclude("Standard mode - nested map with struct as key type")
     .exclude("Legacy mode - nested map with struct as key type")
@@ -1762,6 +1771,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-25207: exception when duplicate fields in case-insensitive mode")
     .exclude("Support Parquet column index")
     .exclude("SPARK-34562: Bloom filter push down")
+    .exclude("SPARK-36866: filter pushdown - year-month interval")
     .excludeGlutenTest("SPARK-25207: exception when duplicate fields in case-insensitive mode")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     .exclude("SPARK-7847: Dynamic partition directory path escaping and unescaping")
@@ -1967,6 +1977,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-25207: exception when duplicate fields in case-insensitive mode")
     .exclude("Support Parquet column index")
     .exclude("SPARK-34562: Bloom filter push down")
+    .exclude("SPARK-36866: filter pushdown - year-month interval")
     .excludeGlutenTest("SPARK-25207: exception when duplicate fields in case-insensitive mode")
     .excludeGlutenTest("filter pushdown - date")
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]
@@ -2161,6 +2172,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenFiltersSuite]
   enableSuite[GlutenInsertSuite]
   enableSuite[GlutenPartitionedWriteSuite]
+    .exclude("SPARK-37231, SPARK-37240: Dynamic writes/reads of ANSI interval partitions")
   enableSuite[GlutenPathOptionSuite]
   enableSuite[GlutenPrunedScanSuite]
   enableSuite[GlutenResolvedDataSourceSuite]
