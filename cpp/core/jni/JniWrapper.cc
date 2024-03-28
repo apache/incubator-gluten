@@ -341,7 +341,7 @@ JNIEXPORT jstring JNICALL Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapp
   auto planData = safeArray.elems();
   auto planSize = env->GetArrayLength(planArray);
   auto ctx = gluten::getRuntime(env, wrapper);
-  ctx->parsePlan(planData, planSize, {}, std::nullopt);
+  ctx->parsePlan(planData, planSize, std::nullopt);
   auto& conf = ctx->getConfMap();
   auto planString = ctx->planString(details, conf);
   return env->NewStringUTF(planString.c_str());
