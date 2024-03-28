@@ -66,7 +66,7 @@ static Int64 findMinPosition(const NameSet & condition_table_columns, const Name
 
 CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(
     const substrait::ReadRel::ExtensionTable & extension_table,
-    ContextMutablePtr context)
+    ContextMutablePtr context,  UUID uuid)
 {
     google::protobuf::StringValue table;
     table.ParseFromString(extension_table.detail().value());
@@ -81,12 +81,12 @@ CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(
     auto metadata = buildMetaData(names_and_types_list, context, merge_tree_table);
 
     auto storage = storage_factory.getStorage(
-        StorageID(merge_tree_table.database, merge_tree_table.table),
+        StorageID(merge_tree_table.database, merge_tree_table.table, uuid),
         metadata->getColumns(),
         [&]() -> CustomStorageMergeTreePtr
         {
             auto custom_storage_merge_tree = std::make_shared<CustomStorageMergeTree>(
-                StorageID(merge_tree_table.database, merge_tree_table.table),
+                StorageID(merge_tree_table.database, merge_tree_table.table, uuid),
                 merge_tree_table.relative_path,
                 *metadata,
                 false,
