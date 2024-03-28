@@ -112,8 +112,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       projectList: Seq[NamedExpression],
       child: SparkPlan): ProjectExecTransformer = {
     def processProjectExecTransformer(projectList: Seq[NamedExpression]): Seq[NamedExpression] = {
-      // When there is a MergeScalarSubqueries which will create the named_struct with the same name,
-      // looks like {'bloomFilter', BF1, 'bloomFilter', BF2}
+      // When there is a MergeScalarSubqueries which will create the named_struct with the
+      // same name, looks like {'bloomFilter', BF1, 'bloomFilter', BF2}
       // or {'count(1)', count(1)#111L, 'avg(a)', avg(a)#222L, 'count(1)', count(1)#333L},
       // it will cause problem for ClickHouse backend,
       // which cannot tolerate duplicate type names in struct type,
