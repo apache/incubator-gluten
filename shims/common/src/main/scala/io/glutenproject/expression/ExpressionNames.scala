@@ -156,7 +156,7 @@ object ExpressionNames {
   final val LOG1P = "log1p"
   final val LOG2 = "log2"
   final val LOG = "log"
-  final val LN = "ln"
+  final val LOGARITHM = "logarithm"
   final val RADIANS = "radians"
   final val GREATEST = "greatest"
   final val LEAST = "least"

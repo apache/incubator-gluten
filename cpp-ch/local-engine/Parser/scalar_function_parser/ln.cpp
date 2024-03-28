@@ -25,7 +25,7 @@ public:
     explicit FunctionParserLn(SerializedPlanParser * plan_parser_) : FunctionParserLogBase(plan_parser_) {}
     ~FunctionParserLn() override = default;
 
-    static constexpr auto name = "ln";
+    static constexpr auto name = "log";
 
     String getName() const override { return name; }
     String getCHFunctionName() const override { return name; }
