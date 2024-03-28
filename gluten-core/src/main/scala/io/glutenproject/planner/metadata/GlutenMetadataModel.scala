@@ -20,10 +20,10 @@ import io.glutenproject.cbo.{Metadata, MetadataModel}
 import io.glutenproject.planner.metadata.GlutenMetadata.Schema
 import io.glutenproject.planner.plan.GlutenPlanModel.GroupLeafExec
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
 
-object GlutenMetadataModel {
-
+object GlutenMetadataModel extends Logging {
   def apply(): MetadataModel[SparkPlan] = {
     MetadataModelImpl
   }
@@ -35,8 +35,14 @@ object GlutenMetadataModel {
     }
 
     override def dummy(): Metadata = GlutenMetadata(Schema(List()))
-    override def verify(one: Metadata, other: Metadata): Unit = {
-      assert(one == other)
+    override def verify(one: Metadata, other: Metadata): Unit = (one, other) match {
+      case (left: GlutenMetadata, right: GlutenMetadata) if left.schema() != right.schema() =>
+        // We apply loose restriction on schema. Since Gluten still have some customized
+        // logics causing schema of an operator to change after being transformed.
+        // For example: https://github.com/apache/incubator-gluten/pull/5171
+        logWarning(s"Warning: Schema mismatch: one: ${left.schema()}, other: ${right.schema()}")
+      case (left: GlutenMetadata, right: GlutenMetadata) if left == right =>
+      case _ => throw new IllegalStateException(s"Metadata mismatch: one: $one, other $other")
     }
   }
 }
