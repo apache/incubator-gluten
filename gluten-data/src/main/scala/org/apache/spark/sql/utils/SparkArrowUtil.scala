@@ -19,7 +19,7 @@ package org.apache.spark.sql.utils
 import org.apache.spark.sql.types._
 
 import org.apache.arrow.vector.complex.MapVector
-import org.apache.arrow.vector.types.{DateUnit, FloatingPointPrecision, TimeUnit}
+import org.apache.arrow.vector.types.{DateUnit, FloatingPointPrecision, IntervalUnit, TimeUnit}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
 
 import scala.collection.JavaConverters._
@@ -47,6 +47,8 @@ object SparkArrowUtil {
       } else {
         new ArrowType.Timestamp(TimeUnit.MICROSECOND, "UTC")
       }
+    case YearMonthIntervalType.DEFAULT =>
+      new ArrowType.Interval(IntervalUnit.YEAR_MONTH)
     case _: ArrayType => ArrowType.List.INSTANCE
     case NullType => ArrowType.Null.INSTANCE
     case _ =>
@@ -69,6 +71,8 @@ object SparkArrowUtil {
     case date: ArrowType.Date if date.getUnit == DateUnit.DAY => DateType
     // TODO: Time unit is not handled.
     case _: ArrowType.Timestamp => TimestampType
+    case interval: ArrowType.Interval if interval.getUnit == IntervalUnit.YEAR_MONTH =>
+      YearMonthIntervalType.DEFAULT
     case ArrowType.Null.INSTANCE => NullType
     case _ => throw new UnsupportedOperationException(s"Unsupported data type: $dt")
   }

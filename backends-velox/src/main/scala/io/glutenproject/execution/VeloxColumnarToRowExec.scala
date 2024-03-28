@@ -58,6 +58,7 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
         case _: ArrayType =>
         case _: MapType =>
         case _: StructType =>
+        case YearMonthIntervalType.DEFAULT =>
         case _: NullType =>
         case _ =>
           throw new GlutenNotSupportException(

@@ -556,6 +556,38 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("Test make_ym_interval function") {
+    runQueryAndCompare("select make_ym_interval(1, 1)") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare("select make_ym_interval(1)") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare("select make_ym_interval()") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+
+    withTempPath {
+      path =>
+        Seq[Tuple2[Integer, Integer]]((1, 0), (-1, 1), (null, 1), (1, null))
+          .toDF("year", "month")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("make_ym_interval_tbl")
+
+        runQueryAndCompare("select make_ym_interval(year, month) from make_ym_interval_tbl") {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
+
+        runQueryAndCompare("select make_ym_interval(year) from make_ym_interval_tbl") {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("Test uuid function") {
     runQueryAndCompare("""SELECT uuid() from lineitem limit 100""".stripMargin, false) {
       checkOperatorMatch[ProjectExecTransformer]

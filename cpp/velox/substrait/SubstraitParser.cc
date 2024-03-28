@@ -83,6 +83,9 @@ TypePtr SubstraitParser::parseType(const ::substrait::Type& substraitType, bool 
       auto scale = substraitType.decimal().scale();
       return DECIMAL(precision, scale);
     }
+    case ::substrait::Type::KindCase::kIntervalYear: {
+      return INTERVAL_YEAR_MONTH();
+    }
     case ::substrait::Type::KindCase::kNothing:
       return UNKNOWN();
     default:
