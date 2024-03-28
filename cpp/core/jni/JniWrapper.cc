@@ -400,25 +400,25 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
 
   auto spillDirStr = jStringToCString(env, spillDir);
 
+  auto safePlanArray = gluten::getByteArrayElementsSafe(env, planArr);
+  auto planSize = env->GetArrayLength(planArr);
+  ctx->parsePlan(
+      safePlanArray.elems(),
+      planSize,
+      {stageId, partitionId, taskId},
+      saveInput ? std::optional<std::string>(saveDir + "/plan" + fileIdentifier + ".json") : std::nullopt);
+
   for (jsize i = 0, splitInfoArraySize = env->GetArrayLength(splitInfosArr); i < splitInfoArraySize; i++) {
     jbyteArray splitInfoArray = static_cast<jbyteArray>(env->GetObjectArrayElement(splitInfosArr, i));
     jsize splitInfoSize = env->GetArrayLength(splitInfoArray);
-    auto safeArray = gluten::getByteArrayElementsSafe(env, splitInfoArray);
-    auto splitInfoData = safeArray.elems();
+    auto safeSplitArray = gluten::getByteArrayElementsSafe(env, splitInfoArray);
+    auto splitInfoData = safeSplitArray.elems();
     ctx->parseSplitInfo(
         splitInfoData,
         splitInfoSize,
         saveInput ? std::optional<std::string>(saveDir + "/split" + fileIdentifier + "_" + std::to_string(i) + ".json")
                   : std::nullopt);
   }
-
-  auto safeArray = gluten::getByteArrayElementsSafe(env, planArr);
-  auto planSize = env->GetArrayLength(planArr);
-  ctx->parsePlan(
-      safeArray.elems(),
-      planSize,
-      {stageId, partitionId, taskId},
-      saveInput ? std::optional<std::string>(saveDir + "/plan" + fileIdentifier + ".json") : std::nullopt);
 
   // Handle the Java iters
   jsize itersLen = env->GetArrayLength(iterArr);
