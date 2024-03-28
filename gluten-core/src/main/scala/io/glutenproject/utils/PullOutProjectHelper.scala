@@ -73,7 +73,7 @@ trait PullOutProjectHelper {
   protected def eliminateProjectList(
       projectAttributes: Seq[NamedExpression],
       childOutput: AttributeSet): Seq[NamedExpression] = {
-    (projectAttributes ++ (childOutput -- projectAttributes).toIndexedSeq)
+    (childOutput -- projectAttributes).toIndexedSeq ++ projectAttributes
       .sortWith(_.exprId.id < _.exprId.id)
   }
 
