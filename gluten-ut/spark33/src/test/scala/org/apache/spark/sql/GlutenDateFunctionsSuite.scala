@@ -247,7 +247,7 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
     }
   }
 
-  test("to_utc_timestamp with literal zone") {
+  testGluten("to_utc_timestamp with literal zone") {
     val df = Seq(
       (Timestamp.valueOf("2015-07-24 00:00:00"), "2015-07-24 00:00:00"),
       (Timestamp.valueOf("2015-07-25 00:00:00"), "2015-07-25 00:00:00")
@@ -266,7 +266,7 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
     )
   }
 
-  test("to_utc_timestamp with column zone") {
+  testGluten("to_utc_timestamp with column zone") {
     val df = Seq(
       (Timestamp.valueOf("2015-07-24 00:00:00"), "2015-07-24 00:00:00", "America/Los_Angeles"),
       (Timestamp.valueOf("2015-07-25 00:00:00"), "2015-07-25 00:00:00", "Europe/Paris")
