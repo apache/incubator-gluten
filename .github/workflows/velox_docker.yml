@@ -18,7 +18,7 @@ name: Velox backend Github Runner
 on:
   pull_request:
     paths:
-      - '.github/**'
+      - '.github/workflows/velox_docker.yml'
       - 'pom.xml'
       - 'backends-velox/**'
       - 'gluten-celeborn/**'
