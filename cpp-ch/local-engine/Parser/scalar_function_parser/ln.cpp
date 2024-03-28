@@ -25,10 +25,10 @@ public:
     explicit FunctionParserLn(SerializedPlanParser * plan_parser_) : FunctionParserLogBase(plan_parser_) {}
     ~FunctionParserLn() override = default;
 
-    static constexpr auto name = "log";
+    static constexpr auto name = "ln";
 
     String getName() const override { return name; }
-    String getCHFunctionName() const override { return "log"; }
+    String getCHFunctionName() const override { return name; }
     const DB::ActionsDAG::Node * getParameterLowerBound(ActionsDAGPtr & actions_dag, const DataTypePtr & data_type) const override
     {
         return addColumnToActionsDAG(actions_dag, data_type, 0.0);
