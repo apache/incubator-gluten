@@ -71,11 +71,9 @@ trait PullOutProjectHelper {
     }
 
   protected def eliminateProjectList(
-      childOutput: AttributeSet,
-      appendAttributes: Seq[NamedExpression]): Seq[NamedExpression] = {
-    childOutput.toIndexedSeq.filter {
-      attr => !appendAttributes.exists(_.exprId == attr.exprId)
-    } ++ appendAttributes
+      projectAttributes: Seq[NamedExpression],
+      childOutput: AttributeSet): Seq[NamedExpression] = {
+    (projectAttributes ++ (childOutput -- projectAttributes).toIndexedSeq)
       .sortWith(_.exprId.id < _.exprId.id)
   }
 
