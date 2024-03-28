@@ -161,7 +161,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     spark.sql("set spark.gluten.enabled=false")
     assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 815)
     spark.sql("VACUUM lineitem_mergetree_optimize_p2 RETAIN 0 HOURS")
-//    assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 232)
+    assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 232)
     spark.sql("VACUUM lineitem_mergetree_optimize_p2 RETAIN 0 HOURS")
     // the second VACUUM will remove some empty folders
     assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 220)
@@ -192,7 +192,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       spark.sql("set spark.gluten.enabled=false")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 411)
       spark.sql("VACUUM lineitem_mergetree_optimize_p3 RETAIN 0 HOURS")
-//      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 290)
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 290)
       spark.sql("VACUUM lineitem_mergetree_optimize_p3 RETAIN 0 HOURS")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 270)
       spark.sql("set spark.gluten.enabled=true")
