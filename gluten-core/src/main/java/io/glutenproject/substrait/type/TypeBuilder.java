@@ -69,6 +69,10 @@ public class TypeBuilder {
     return new DateTypeNode(nullable);
   }
 
+  public static TypeNode makeIntervalYear(Boolean nullable) {
+    return new IntervalYearTypeNode(nullable);
+  }
+
   public static TypeNode makeDecimal(Boolean nullable, Integer precision, Integer scale) {
     return new DecimalTypeNode(nullable, precision, scale);
   }

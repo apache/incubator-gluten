@@ -682,7 +682,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // decimal failed ut
     .exclude("SPARK-34212 Parquet should read decimals correctly")
     // Timestamp is read as INT96.
-    .exclude("SPARK-10634 timestamp written and read as INT64 - truncation")
     .exclude("Migration from INT96 to TIMESTAMP_MICROS timestamp type")
     .exclude("SPARK-10365 timestamp written and read as INT64 - TIMESTAMP_MICROS")
     .exclude("SPARK-36182: read TimestampNTZ as TimestampLTZ")
@@ -698,7 +697,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // decimal failed ut
     .exclude("SPARK-34212 Parquet should read decimals correctly")
     // Timestamp is read as INT96.
-    .exclude("SPARK-10634 timestamp written and read as INT64 - truncation")
     .exclude("Migration from INT96 to TIMESTAMP_MICROS timestamp type")
     .exclude("SPARK-10365 timestamp written and read as INT64 - TIMESTAMP_MICROS")
     .exclude("SPARK-36182: read TimestampNTZ as TimestampLTZ")
@@ -1006,7 +1004,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("unbounded preceding/following range between with aggregation")
     .exclude("sliding range between with aggregation")
     .exclude("store and retrieve column stats in different time zones")
-    .exclude("rows between should accept int/long values as boundary")
   enableSuite[GlutenDataFrameWriterV2Suite]
   enableSuite[GlutenDatasetAggregatorSuite]
   enableSuite[GlutenDatasetCacheSuite]

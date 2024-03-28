@@ -32,6 +32,9 @@ public class MetricsStep {
   @JsonProperty("selected_marks_pk")
   protected long selectedMarksPk;
 
+  @JsonProperty("selected_marks")
+  protected long selectedMarks;
+
   public String getName() {
     return name;
   }
@@ -62,6 +65,14 @@ public class MetricsStep {
 
   public void setSelectedMarksPk(long selectedMarksPk) {
     this.selectedMarksPk = selectedMarksPk;
+  }
+
+  public long getSelectedMarks() {
+    return selectedMarks;
+  }
+
+  public void setSelectedMarks(long selectedMarks) {
+    this.selectedMarks = selectedMarks;
   }
 
   public long getTotalMarksPk() {

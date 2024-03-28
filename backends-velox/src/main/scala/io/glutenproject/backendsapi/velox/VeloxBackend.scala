@@ -16,7 +16,7 @@
  */
 package io.glutenproject.backendsapi.velox
 
-import io.glutenproject.{GlutenConfig, GlutenPlugin, VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME}
+import io.glutenproject.{GlutenConfig, VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME}
 import io.glutenproject.backendsapi._
 import io.glutenproject.exception.GlutenNotSupportException
 import io.glutenproject.execution.WriteFilesExecTransformer
@@ -27,7 +27,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Lag, Lead, Literal, NamedExpression, NthValue, NTile, PercentRank, Rand, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame, Uuid}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Lag, Lead, Literal, MakeYMInterval, NamedExpression, NthValue, NTile, PercentRank, Rand, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame, Uuid}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Sum}
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.util.CharVarcharUtils
@@ -44,8 +44,8 @@ import scala.util.control.Breaks.breakable
 
 class VeloxBackend extends Backend {
   override def name(): String = VeloxBackend.BACKEND_NAME
-  override def buildInfo(): GlutenPlugin.BackendBuildInfo =
-    GlutenPlugin.BackendBuildInfo("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
+  override def buildInfo(): BackendBuildInfo =
+    BackendBuildInfo("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
   override def iteratorApi(): IteratorApi = new IteratorApiImpl
   override def sparkPlanExecApi(): SparkPlanExecApi = new SparkPlanExecApiImpl
   override def transformerApi(): TransformerApi = new TransformerApiImpl
@@ -200,6 +200,7 @@ object BackendSettings extends BackendSettingsApi {
             case _: StructType => Some("StructType")
             case _: ArrayType => Some("ArrayType")
             case _: MapType => Some("MapType")
+            case _: YearMonthIntervalType => Some("YearMonthIntervalType")
             case _ => None
           }
       }
@@ -253,6 +254,17 @@ object BackendSettings extends BackendSettingsApi {
       case Some(reason) => ValidationResult.notOk(reason)
       case _ => ValidationResult.ok
     }
+  }
+
+  override def supportNativeWrite(fields: Array[StructField]): Boolean = {
+    fields.map {
+      field =>
+        field.dataType match {
+          case _: TimestampType | _: StructType | _: ArrayType | _: MapType => return false
+          case _ =>
+        }
+    }
+    true
   }
 
   override def supportNativeMetadataColumns(): Boolean = true
@@ -387,8 +399,7 @@ object BackendSettings extends BackendSettingsApi {
       expr match {
         // Block directly falling back the below functions by FallbackEmptySchemaRelation.
         case alias: Alias => checkExpr(alias.child)
-        case _: Rand => true
-        case _: Uuid => true
+        case _: Rand | _: Uuid | _: MakeYMInterval => true
         case _ => false
       }
     }

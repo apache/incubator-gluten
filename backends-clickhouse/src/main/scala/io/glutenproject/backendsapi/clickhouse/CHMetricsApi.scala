@@ -127,6 +127,7 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
       "selectedMarksPk" -> SQLMetrics.createMetric(sparkContext, "selected marks primary"),
+      "selectedMarks" -> SQLMetrics.createMetric(sparkContext, "selected marks"),
       "totalMarksPk" -> SQLMetrics.createMetric(sparkContext, "total marks primary")
     )
 

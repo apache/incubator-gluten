@@ -128,9 +128,11 @@ class ClickhouseOptimisticTransaction(
             metadata,
             tableV2.dataBaseName,
             tableV2.tableName,
-            output,
             tableV2.orderByKeyOption,
             tableV2.lowCardKeyOption,
+            tableV2.minmaxIndexKeyOption,
+            tableV2.bfIndexKeyOption,
+            tableV2.setIndexKeyOption,
             tableV2.primaryKeyOption,
             tableV2.clickhouseTableConfigs,
             tableV2.partitionColumns
@@ -144,6 +146,9 @@ class ClickhouseOptimisticTransaction(
           // scalastyle:on deltahadoopconfiguration
           orderByKeyOption = tableV2.orderByKeyOption,
           lowCardKeyOption = tableV2.lowCardKeyOption,
+          minmaxIndexKeyOption = tableV2.minmaxIndexKeyOption,
+          bfIndexKeyOption = tableV2.bfIndexKeyOption,
+          setIndexKeyOption = tableV2.setIndexKeyOption,
           primaryKeyOption = tableV2.primaryKeyOption,
           partitionColumns = partitioningColumns,
           bucketSpec = tableV2.bucketOption,

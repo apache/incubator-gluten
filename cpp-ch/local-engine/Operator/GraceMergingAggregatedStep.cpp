@@ -67,6 +67,10 @@ GraceMergingAggregatedStep::GraceMergingAggregatedStep(
 
 void GraceMergingAggregatedStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings &)
 {
+    if (params.max_bytes_before_external_group_by)
+    {
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "max_bytes_before_external_group_by is not supported in GraceMergingAggregatedStep");
+    }
     auto num_streams = pipeline.getNumStreams();
     auto transform_params = std::make_shared<DB::AggregatingTransformParams>(pipeline.getHeader(), params, true);
     pipeline.resize(1);
