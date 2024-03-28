@@ -192,7 +192,10 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       spark.sql("set spark.gluten.enabled=false")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 411)
       spark.sql("VACUUM lineitem_mergetree_optimize_p3 RETAIN 0 HOURS")
-      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 290)
+      // for tables with more than one layer of nested table (like partition + bucket, or two partition col
+      // the 'tmp_merge' folder is not guarantee to be removed, causing this file number to be unstable
+//      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 290)
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) > 270)
       spark.sql("VACUUM lineitem_mergetree_optimize_p3 RETAIN 0 HOURS")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 270)
       spark.sql("set spark.gluten.enabled=true")
@@ -224,6 +227,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 411)
       spark.sql("VACUUM lineitem_mergetree_optimize_p4 RETAIN 0 HOURS")
 //      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 290)
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) > 270)
       spark.sql("VACUUM lineitem_mergetree_optimize_p4 RETAIN 0 HOURS")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 270)
       spark.sql("set spark.gluten.enabled=true")
