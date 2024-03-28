@@ -48,9 +48,7 @@ VeloxRuntime::VeloxRuntime(const std::unordered_map<std::string, std::string>& c
 void VeloxRuntime::parsePlan(
     const uint8_t* data,
     int32_t size,
-    SparkTaskInfo taskInfo,
     std::optional<std::string> dumpFile) {
-  taskInfo_ = taskInfo;
   if (debugModeEnabled_ || dumpFile.has_value()) {
     try {
       auto planJson = substraitFromPbToJson("Plan", data, size, dumpFile);

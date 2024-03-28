@@ -382,6 +382,8 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
   auto ctx = gluten::getRuntime(env, wrapper);
   auto& conf = ctx->getConfMap();
 
+  ctx->setSparkTaskInfo({stageId, partitionId, taskId});
+
   std::string saveDir{};
   std::string fileIdentifier = "_" + std::to_string(stageId) + "_" + std::to_string(partitionId);
   if (saveInput) {
@@ -405,7 +407,6 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
   ctx->parsePlan(
       safePlanArray.elems(),
       planSize,
-      {stageId, partitionId, taskId},
       saveInput ? std::optional<std::string>(saveDir + "/plan" + fileIdentifier + ".json") : std::nullopt);
 
   for (jsize i = 0, splitInfoArraySize = env->GetArrayLength(splitInfosArr); i < splitInfoArraySize; i++) {
