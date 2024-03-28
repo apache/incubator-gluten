@@ -227,6 +227,11 @@ case class ColumnarOverrideRules(session: SparkSession)
 
     def maybeRas(outputsColumnar: Boolean): List[SparkSession => Rule[SparkPlan]] = {
       if (GlutenConfig.getConf.enableRas) {
+        if (!BackendsApiManager.getSettings.supportRas()) {
+          throw new UnsupportedOperationException(
+            s"RAS support is currently not added for backend: " +
+              s"${BackendsApiManager.getBackendName}")
+        }
         return List(
           (_: SparkSession) => TransformPreOverrides(List(ImplementFilter()), List.empty),
           (session: SparkSession) => EnumeratedTransform(session, outputsColumnar),

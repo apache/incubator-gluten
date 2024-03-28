@@ -503,4 +503,6 @@ object BackendSettings extends BackendSettingsApi {
   }
 
   override def shouldRewriteCollect(): Boolean = true
+
+  override def supportRas(): Boolean = true
 }
