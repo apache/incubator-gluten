@@ -218,7 +218,7 @@ mvn clean package -Pbackends-velox -Pspark-3.3 -Prss -DskipTests
 Then add the Gluten and Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
 
 - Celeborn: celeborn-client-spark-3-shaded_2.12-[celebornVersion].jar
-- Gluten: gluten-velox-bundle-spark3.x_2.12-xx_xx_xx-SNAPSHOT.jar, gluten-thirdparty-lib-xx-xx.jar
+- Gluten: gluten-velox-bundle-spark3.x_2.12-xx_xx_xx-SNAPSHOT.jar, gluten-celeborn-package-xx-SNAPSHOT.jar
 
 Currently to use Gluten following configurations are required in `spark-defaults.conf`
 
@@ -264,7 +264,7 @@ First of all, compile gluten-delta module by a `delta` profile, as follows:
 mvn clean package -Pbackends-velox -Pspark-3.3 -Pdelta -DskipTests
 ```
 
-Then, put the additional gluten-delta jar to the class path (usually it's `$SPARK_HOME/jars`).
+Then, put the additional `gluten-delta-XX-SNAPSHOT.jar` to the class path (usually it's `$SPARK_HOME/jars`).
 The gluten-delta jar is in `gluten-delta/target` directory.
 
 After the two steps, you can query delta table by gluten/velox without scan's fallback.
@@ -284,7 +284,7 @@ First of all, compile gluten-iceberg module by a `iceberg` profile, as follows:
 mvn clean package -Pbackends-velox -Pspark-3.3 -Piceberg -DskipTests
 ```
 
-Then, put the additional gluten-iceberg jar to the class path (usually it's `$SPARK_HOME/jars`).
+Then, put the additional `gluten-iceberg-XX-SNAPSHOT.jar` to the class path (usually it's `$SPARK_HOME/jars`).
 The gluten-iceberg jar is in `gluten-iceberg/target` directory.
 
 After the two steps, you can query iceberg table by gluten/velox without scan's fallback.
