@@ -431,12 +431,12 @@ public:
         }
 
         auto read_buffer_creator
-            = [bucket, client, this](bool restricted_seek, const std::string & path) -> std::unique_ptr<DB::ReadBufferFromFileBase>
+            = [bucket, client, this](bool restricted_seek, const DB::StoredObject & object) -> std::unique_ptr<DB::ReadBufferFromFileBase>
         {
             return std::make_unique<DB::ReadBufferFromS3>(
                 client,
                 bucket,
-                path,
+                object.remote_path,
                 "",
                 DB::S3Settings::RequestSettings(),
                 new_settings,
