@@ -1144,6 +1144,19 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("nanvl") {
+    val sql =
+      """
+        |SELECT nanvl(cast('nan' as float), 1f),
+        | nanvl(n_nationkey, cast('null' as double)),
+        | nanvl(cast('null' as double), n_nationkey),
+        | nanvl(n_nationkey, n_nationkey / 0.0d),
+        | nanvl(cast('nan' as float), n_nationkey)
+        | from nation
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("test 'sequence'") {
     runQueryAndCompare(
       "select sequence(id, id+10), sequence(id+10, id), sequence(id, id+10, 3), " +

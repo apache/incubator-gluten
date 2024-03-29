@@ -194,7 +194,7 @@ trait SparkPlanExecApi {
       left: ExpressionTransformer,
       right: ExpressionTransformer,
       original: NaNvl): ExpressionTransformer = {
-    throw new GlutenNotSupportException("NaNvl is not supported")
+    GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
   }
 
   def genUuidTransformer(substraitExprName: String, original: Uuid): ExpressionTransformer = {

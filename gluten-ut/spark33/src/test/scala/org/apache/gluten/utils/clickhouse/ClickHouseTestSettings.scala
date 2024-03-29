@@ -863,7 +863,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SparkPartitionID")
     .exclude("InputFileName")
   enableSuite[GlutenNullExpressionsSuite]
-    .exclude("nanvl")
     .exclude("AtLeastNNonNulls")
     .exclude("AtLeastNNonNulls should not throw 64KiB exception")
   enableSuite[GlutenPredicateSuite]
