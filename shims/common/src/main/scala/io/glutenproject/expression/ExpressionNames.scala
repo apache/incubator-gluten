@@ -192,6 +192,7 @@ object ExpressionNames {
   final val MONTHS_BETWEEN = "months_between"
   final val DATE_FROM_UNIX_DATE = "date_from_unix_date"
   final val MAKE_TIMESTAMP = "make_timestamp"
+  final val MAKE_YM_INTERVAL = "make_ym_interval"
   final val FROM_UTC_TIMESTAMP = "from_utc_timestamp"
 
   // JSON functions

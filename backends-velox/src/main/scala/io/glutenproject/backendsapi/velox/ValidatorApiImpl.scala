@@ -45,7 +45,8 @@ class ValidatorApiImpl extends ValidatorApi {
   private def isPrimitiveType(dataType: DataType): Boolean = {
     dataType match {
       case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
-          StringType | BinaryType | _: DecimalType | DateType | TimestampType | NullType =>
+          StringType | BinaryType | _: DecimalType | DateType | TimestampType |
+          YearMonthIntervalType.DEFAULT | NullType =>
         true
       case _ => false
     }

@@ -238,6 +238,8 @@ object ConverterUtils extends Logging {
         TypeBuilder.makeBinary(nullable)
       case DateType =>
         TypeBuilder.makeDate(nullable)
+      case YearMonthIntervalType.DEFAULT =>
+        TypeBuilder.makeIntervalYear(nullable)
       case DecimalType() =>
         val decimalType = datatype.asInstanceOf[DecimalType]
         val precision = decimalType.precision
