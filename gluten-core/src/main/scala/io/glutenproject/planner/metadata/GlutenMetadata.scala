@@ -14,26 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Parser/scalar_function_parser/logarithm.h>
+package io.glutenproject.planner.metadata
 
-namespace local_engine
-{
+import io.glutenproject.cbo.Metadata
 
-class FunctionParserLn : public FunctionParserLogBase
-{
-public:
-    explicit FunctionParserLn(SerializedPlanParser * plan_parser_) : FunctionParserLogBase(plan_parser_) {}
-    ~FunctionParserLn() override = default;
+import org.apache.spark.sql.catalyst.expressions.Attribute
 
-    static constexpr auto name = "log";
+sealed trait GlutenMetadata extends Metadata {
+  import GlutenMetadata._
+  def schema(): Schema
+}
 
-    String getName() const override { return name; }
-    String getCHFunctionName() const override { return name; }
-    const DB::ActionsDAG::Node * getParameterLowerBound(ActionsDAGPtr & actions_dag, const DataTypePtr & data_type) const override
-    {
-        return addColumnToActionsDAG(actions_dag, data_type, 0.0);
-    }
-};
+object GlutenMetadata {
+  def apply(schema: Schema): Metadata = {
+    Impl(schema)
+  }
 
-static FunctionParserRegister<FunctionParserLn> register_ln;
+  private case class Impl(schema: Schema) extends GlutenMetadata
+  case class Schema(output: Seq[Attribute])
 }

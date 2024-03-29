@@ -14,26 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Parser/scalar_function_parser/logarithm.h>
+package io.glutenproject.cbo
 
-namespace local_engine
-{
-
-class FunctionParserLn : public FunctionParserLogBase
-{
-public:
-    explicit FunctionParserLn(SerializedPlanParser * plan_parser_) : FunctionParserLogBase(plan_parser_) {}
-    ~FunctionParserLn() override = default;
-
-    static constexpr auto name = "log";
-
-    String getName() const override { return name; }
-    String getCHFunctionName() const override { return name; }
-    const DB::ActionsDAG::Node * getParameterLowerBound(ActionsDAGPtr & actions_dag, const DataTypePtr & data_type) const override
-    {
-        return addColumnToActionsDAG(actions_dag, data_type, 0.0);
-    }
-};
-
-static FunctionParserRegister<FunctionParserLn> register_ln;
+/**
+ * Metadata defines the common traits among nodes in one single cluster. E.g. Schema, statistics.
+ */
+trait MetadataModel[T <: AnyRef] {
+  def metadataOf(node: T): Metadata
+  def dummy(): Metadata
+  def verify(one: Metadata, other: Metadata): Unit
 }
+
+trait Metadata {}

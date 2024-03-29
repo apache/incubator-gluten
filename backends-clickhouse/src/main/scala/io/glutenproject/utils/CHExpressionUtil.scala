@@ -181,6 +181,7 @@ object CHExpressionUtil {
     SKEWNESS -> DefaultValidator(),
     BIT_LENGTH -> DefaultValidator(),
     MAKE_YM_INTERVAL -> DefaultValidator(),
+    KURTOSIS -> DefaultValidator(),
     FROM_UTC_TIMESTAMP -> DefaultValidator()
   )
 }

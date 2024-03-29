@@ -49,8 +49,7 @@ namespace local_engine
         /// Build block from substrait NamedStruct without DFS rules, different from buildBlockFromNamedStruct
         static DB::Block buildBlockFromNamedStructWithoutDFS(const substrait::NamedStruct& struct_);
 
-        static bool isTypeMatched(const substrait::Type& substrait_type, const DB::DataTypePtr& ch_type);
-        static bool isTypeMatchedWithNullability(const substrait::Type& substrait_type, const DB::DataTypePtr& ch_type);
+        static bool isTypeMatched(const substrait::Type & substrait_type, const DB::DataTypePtr & ch_type, bool ignore_nullability = true);
 
     private:
         /// Mapping spark type names to CH type names.
