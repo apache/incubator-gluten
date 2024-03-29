@@ -258,12 +258,14 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
       df.select(from_utc_timestamp(col("a"), "America/Los_Angeles")),
       Seq(
         Row(Timestamp.valueOf("2015-07-23 17:00:00")),
-        Row(Timestamp.valueOf("2015-07-24 17:00:00"))))
+        Row(Timestamp.valueOf("2015-07-24 17:00:00")))
+    )
     checkAnswer(
       df.select(from_utc_timestamp(col("b"), "America/Los_Angeles")),
       Seq(
         Row(Timestamp.valueOf("2015-07-23 17:00:00")),
-        Row(Timestamp.valueOf("2015-07-24 17:00:00"))))
+        Row(Timestamp.valueOf("2015-07-24 17:00:00")))
+    )
   }
 
   testGluten("from_utc_timestamp with column zone") {
@@ -275,11 +277,13 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
       df.select(from_utc_timestamp(col("a"), col("c"))),
       Seq(
         Row(Timestamp.valueOf("2015-07-24 02:00:00")),
-        Row(Timestamp.valueOf("2015-07-24 17:00:00"))))
+        Row(Timestamp.valueOf("2015-07-24 17:00:00")))
+    )
     checkAnswer(
       df.select(from_utc_timestamp(col("b"), col("c"))),
       Seq(
         Row(Timestamp.valueOf("2015-07-24 02:00:00")),
-        Row(Timestamp.valueOf("2015-07-24 17:00:00"))))
+        Row(Timestamp.valueOf("2015-07-24 17:00:00")))
+    )
   }
 }
