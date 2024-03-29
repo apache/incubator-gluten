@@ -292,6 +292,7 @@ function setup_linux {
     esac
   elif [[ "$LINUX_DISTRIBUTION" == "tencentos" ]]; then
     case "$LINUX_VERSION_ID" in
+      2.4) process_setup_centos7 ;;
       3.2) process_setup_tencentos32 ;;
       *)
         echo "Unsupport tencentos version: $LINUX_VERSION_ID"

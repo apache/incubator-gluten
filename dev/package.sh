@@ -67,7 +67,9 @@ elif [ "$LINUX_OS" == "alinux" ]; then
     process_setup_centos_7
   fi
 elif [ "$LINUX_OS" == "tencentos" ]; then
-  if [ "$VERSION" == "3.2" ]; then
+  if [ "$VERSION" == "2.4" ]; then
+    process_setup_centos_7
+  elif [ "$VERSION" == "3.2" ]; then
     process_setup_centos_8
   fi
 elif [ "$LINUX_OS" == "debian" ]; then
