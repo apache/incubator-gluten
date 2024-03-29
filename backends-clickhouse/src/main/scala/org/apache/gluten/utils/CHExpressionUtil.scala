@@ -182,6 +182,7 @@ object CHExpressionUtil {
     SKEWNESS -> DefaultValidator(),
     BIT_LENGTH -> DefaultValidator(),
     MAKE_YM_INTERVAL -> DefaultValidator(),
-    KURTOSIS -> DefaultValidator()
+    KURTOSIS -> DefaultValidator(),
+    REGR_R2 -> DefaultValidator()
   )
 }

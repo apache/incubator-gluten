@@ -343,6 +343,21 @@ abstract class WholeStageTransformerSuite
       compareResultStr(sqlNum, result, queriesResults)
     }
   }
+
+  protected def isSparkVersionAtleast(version: String): Boolean = {
+    val currentVersion = spark.version
+    val currentVersionSplit = currentVersion.split("\\.")
+    val versionSplit = version.split("\\.")
+    currentVersionSplit.zip(versionSplit).foreach {
+      case (current, required) =>
+        if (current.toInt > required.toInt) {
+          return true
+        } else if (current.toInt < required.toInt) {
+          return false
+        }
+    }
+    true
+  }
 }
 
 object WholeStageTransformerSuite extends Logging {
