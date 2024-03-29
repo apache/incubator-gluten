@@ -26,7 +26,6 @@
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
 #include "velox/functions/prestosql/registration/RegistrationFunctions.h"
 #include "velox/functions/prestosql/window/WindowFunctionsRegistration.h"
-#include "velox/functions/sparksql/Bitwise.h"
 #include "velox/functions/sparksql/Hash.h"
 #include "velox/functions/sparksql/Rand.h"
 #include "velox/functions/sparksql/Register.h"
@@ -67,7 +66,6 @@ void registerFunctionOverwrite() {
   velox::exec::registerFunctionCallToSpecialForm(
       kRowConstructorWithAllNull,
       std::make_unique<RowConstructorWithNullCallToSpecialForm>(kRowConstructorWithAllNull));
-  velox::functions::sparksql::registerBitwiseFunctions("spark_");
   velox::functions::registerBinaryIntegral<velox::functions::CheckedPlusFunction>({"check_add"});
   velox::functions::registerBinaryIntegral<velox::functions::CheckedMinusFunction>({"check_subtract"});
   velox::functions::registerBinaryIntegral<velox::functions::CheckedMultiplyFunction>({"check_multiply"});
@@ -79,7 +77,6 @@ void registerAllFunctions() {
   // The registration order matters. Spark sql functions are registered after
   // presto sql functions to overwrite the registration for same named
   // functions.
-  velox::functions::prestosql::registerAllScalarFunctions();
   velox::functions::sparksql::registerFunctions("");
   velox::aggregate::prestosql::registerAllAggregateFunctions(
       "", true /*registerCompanionFunctions*/, false /*onlyPrestoSignatures*/, true /*overwrite*/);
