@@ -266,7 +266,7 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
 
   testGluten("from_utc_timestamp with column zone") {
     val df = Seq(
-      (Timestamp.valueOf("2015-07-24 00:00:00"), "2015-07-24 00:00:00","Europe/Paris"),
+      (Timestamp.valueOf("2015-07-24 00:00:00"), "2015-07-24 00:00:00", "Europe/Paris"),
       (Timestamp.valueOf("2015-07-25 00:00:00"), "2015-07-25 00:00:00", "America/Los_Angeles")
     ).toDF("a", "b", "c")
     checkAnswer(
