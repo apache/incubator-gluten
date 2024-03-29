@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include <Parser/FunctionParser.h>
 #include <Common/CHUtil.h>
 #include <Core/Field.h>
@@ -55,7 +56,7 @@ public:
                 e1
         */
         auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
-        if (parsed_args.size() < 2)
+        if (parsed_args.size() != 2)
             throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires at least two arguments", getName());
 
         const auto * e1 = parsed_args[0];
