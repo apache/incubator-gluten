@@ -45,7 +45,9 @@ object ExpressionNames {
   final val FIRST = "first"
   final val FIRST_IGNORE_NULL = "first_ignore_null"
   final val APPROX_DISTINCT = "approx_distinct"
+  final val APPROX_PERCENTILE = "approx_percentile"
   final val SKEWNESS = "skewness"
+  final val KURTOSIS = "kurtosis"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -156,6 +158,7 @@ object ExpressionNames {
   final val LOG1P = "log1p"
   final val LOG2 = "log2"
   final val LOG = "log"
+  final val LOGARITHM = "logarithm"
   final val RADIANS = "radians"
   final val GREATEST = "greatest"
   final val LEAST = "least"

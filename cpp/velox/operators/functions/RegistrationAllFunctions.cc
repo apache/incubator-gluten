@@ -25,6 +25,7 @@
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
 #include "velox/functions/prestosql/registration/RegistrationFunctions.h"
 #include "velox/functions/prestosql/window/WindowFunctionsRegistration.h"
+#include "velox/functions/sparksql/Bitwise.h"
 #include "velox/functions/sparksql/Hash.h"
 #include "velox/functions/sparksql/Register.h"
 #include "velox/functions/sparksql/aggregates/Register.h"
@@ -61,6 +62,7 @@ void registerFunctionOverwrite() {
   velox::exec::registerFunctionCallToSpecialForm(
       RowConstructorWithNullCallToSpecialForm::kRowConstructorWithNull,
       std::make_unique<RowConstructorWithNullCallToSpecialForm>());
+  velox::functions::sparksql::registerBitwiseFunctions("spark_");
 }
 } // namespace
 

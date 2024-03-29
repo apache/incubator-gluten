@@ -132,9 +132,11 @@ object ExpressionMappings {
     Sig[Unhex](UNHEX),
     Sig[Hypot](HYPOT),
     Sig[Signum](SIGN),
+    Sig[Log10](LOG10),
     Sig[Log1p](LOG1P),
     Sig[Log2](LOG2),
     Sig[Log](LOG),
+    Sig[Logarithm](LOGARITHM),
     Sig[ToRadians](RADIANS),
     Sig[Greatest](GREATEST),
     Sig[Least](LEAST),
@@ -148,7 +150,6 @@ object ExpressionMappings {
     Sig[Atan2](ATAN2),
     Sig[Cos](COS),
     Sig[Cosh](COSH),
-    Sig[Log10](LOG10),
     Sig[ToDegrees](DEGREES),
     // SparkSQL DateTime functions
     Sig[Year](EXTRACT),
@@ -276,7 +277,9 @@ object ExpressionMappings {
     Sig[CovSample](COVAR_SAMP),
     Sig[Last](LAST),
     Sig[First](FIRST),
-    Sig[Skewness](SKEWNESS)
+    Sig[Skewness](SKEWNESS),
+    Sig[Kurtosis](KURTOSIS),
+    Sig[ApproximatePercentile](APPROX_PERCENTILE)
   ) ++ SparkShimLoader.getSparkShims.aggregateExpressionMappings
 
   /** Mapping Spark window expression to Substrait function name */

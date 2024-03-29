@@ -2464,5 +2464,28 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
     spark.sql("drop table test_tbl_4997")
   }
+
+  test("aggregate function approx_percentile") {
+    // single percentage
+    val sql1 = "select l_linenumber % 10, approx_percentile(l_extendedprice, 0.5) " +
+      "from lineitem group by l_linenumber % 10"
+    runQueryAndCompare(sql1)({ _ => })
+
+    // multiple percentages
+    val sql2 =
+      "select l_linenumber % 10, approx_percentile(l_extendedprice, array(0.1, 0.2, 0.3)) " +
+        "from lineitem group by l_linenumber % 10"
+    runQueryAndCompare(sql2)({ _ => })
+  }
+
+  test("GLUTEN-5096: Bug fix regexp_extract diff") {
+    val tbl_create_sql = "create table test_tbl_5096(id bigint, data string) using parquet"
+    val tbl_insert_sql = "insert into test_tbl_5096 values(1, 'abc'), (2, 'abc\n')"
+    val select_sql = "select id, regexp_extract(data, '(abc)$', 1) from test_tbl_5096"
+    spark.sql(tbl_create_sql)
+    spark.sql(tbl_insert_sql)
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    spark.sql("drop table test_tbl_5096")
+  }
 }
 // scalastyle:on line.size.limit

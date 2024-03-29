@@ -121,7 +121,7 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
       // post-projection, the additional columns need to be removed, leaving only the original
       // output of the child.
       val preProject = ProjectExec(
-        eliminateProjectList(sort.child.outputSet, expressionMap.values.toSeq),
+        eliminateProjectList(expressionMap.values.toSeq, sort.child.outputSet),
         sort.child)
       val newSort = sort.copy(sortOrder = newSortOrder, child = preProject)
       // The pre-project and post-project of SortExec always appear together, so it's more
@@ -133,7 +133,7 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
       val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
       val newSortOrder = getNewSortOrder(topK.sortOrder, expressionMap)
       val preProject = ProjectExec(
-        eliminateProjectList(topK.child.outputSet, expressionMap.values.toSeq),
+        eliminateProjectList(expressionMap.values.toSeq, topK.child.outputSet),
         topK.child)
       topK.copy(sortOrder = newSortOrder, child = preProject)
 
@@ -152,7 +152,7 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
         newGroupingExpressions = newGroupingExpressions,
         newAggregateExpressions = newAggregateExpressions)
       val preProject = ProjectExec(
-        eliminateProjectList(agg.child.outputSet, expressionMap.values.toSeq),
+        eliminateProjectList(expressionMap.values.toSeq, agg.child.outputSet),
         agg.child)
       newAgg.withNewChildren(Seq(preProject))
 
@@ -175,7 +175,7 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
         partitionSpec = newPartitionSpec,
         windowExpression = newWindowExpressions.asInstanceOf[Seq[NamedExpression]],
         child = ProjectExec(
-          eliminateProjectList(window.child.outputSet, expressionMap.values.toSeq),
+          eliminateProjectList(expressionMap.values.toSeq, window.child.outputSet),
           window.child)
       )
 
@@ -188,7 +188,7 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
       expand.copy(
         projections = newProjections,
         child = ProjectExec(
-          eliminateProjectList(expand.child.outputSet, expressionMap.values.toSeq),
+          eliminateProjectList(expressionMap.values.toSeq, expand.child.outputSet),
           expand.child))
 
     case generate: GenerateExec =>
