@@ -70,10 +70,20 @@ trait PullOutProjectHelper {
           .toAttribute
     }
 
+  /**
+   * Append the pulled-out NamedExpressions after the child output and eliminate the duplicated
+   * parts in the append.
+   * @param childOutput
+   *   the outputSet of the child
+   * @param appendNamedExprs
+   *   the pulled-out NamedExpressions that need to be append after child output
+   * @return
+   *   the eliminated project list for the pre-project
+   */
   protected def eliminateProjectList(
-      projectAttributes: Seq[NamedExpression],
-      childOutput: AttributeSet): Seq[NamedExpression] = {
-    (childOutput -- projectAttributes).toIndexedSeq ++ projectAttributes
+      childOutput: AttributeSet,
+      appendNamedExprs: Seq[NamedExpression]): Seq[NamedExpression] = {
+    (childOutput -- appendNamedExprs).toIndexedSeq ++ appendNamedExprs
       .sortWith(_.exprId.id < _.exprId.id)
   }
 
