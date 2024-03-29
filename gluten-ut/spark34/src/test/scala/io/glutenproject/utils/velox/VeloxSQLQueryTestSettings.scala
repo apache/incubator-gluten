@@ -233,9 +233,11 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
   )
 
   val OVERWRITE_SQL_QUERY_LIST: Set[String] = Set(
-    // Velox corr has better computation logic but it fails Spark's precision check.
+    // The calculation formulas for corr, skewness, kurtosis, variance, and stddev in Velox differ
+    // slightly from those in Spark, resulting in some differences in the final results.
     // Overwrite below test cases.
     // -- SPARK-24369 multiple distinct aggregations having the same argument set
+    // -- Aggregate with nulls.
     "group-by.sql",
     "udf/udf-group-by.sql",
     // Exception string doesn't match for
