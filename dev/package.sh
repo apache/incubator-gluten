@@ -4,17 +4,28 @@ set -eux
 
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 GLUTEN_DIR="$CURRENT_DIR/.."
-THIRDPARTY_LIB="$GLUTEN_DIR/package/target/thirdparty-lib"
+DISTDIR="$GLUTEN_DIR/dist"
+THIRDPARTY_LIB="$DISTDIR/thirdparty-lib"
 LINUX_OS=$(. /etc/os-release && echo ${ID})
 VERSION=$(. /etc/os-release && echo ${VERSION_ID})
 ARCH=`uname -m`
 
+rm -rf "$DISTDIR"
+mkdir -p "$DISTDIR"
+
 # compile gluten jar
 $GLUTEN_DIR/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --enable_s3=ON --enable_hdfs=ON
 mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -DskipTests
+cp package/target/gluten-*-bundle-spark*.jar "$DISTDIR"
+
 mvn clean package -Pbackends-velox -Prss -Pspark-3.3 -DskipTests
+cp package/target/gluten-*-bundle-spark*.jar "$DISTDIR"
+
 mvn clean package -Pbackends-velox -Prss -Pspark-3.4 -DskipTests
+cp package/target/gluten-*-bundle-spark*.jar "$DISTDIR"
+
 mvn clean package -Pbackends-velox -Prss -Pspark-3.5 -DskipTests
+cp package/target/gluten-*-bundle-spark*.jar "$DISTDIR"
 
 mkdir -p $THIRDPARTY_LIB
 function process_setup_ubuntu_2004 {
@@ -77,5 +88,6 @@ elif [ "$LINUX_OS" == "debian" ]; then
       process_setup_debian_12
   fi
 fi
-cd $THIRDPARTY_LIB/
-jar cvf gluten-thirdparty-lib-$LINUX_OS-$VERSION-$ARCH.jar ./
+cd $DISTDIR
+jar cvf gluten-thirdparty-lib-$LINUX_OS-$VERSION-$ARCH.jar $THIRDPARTY_LIB
+rm -rf $THIRDPARTY_LIB
