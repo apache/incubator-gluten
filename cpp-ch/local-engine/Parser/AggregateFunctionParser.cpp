@@ -174,6 +174,28 @@ const DB::ActionsDAG::Node * AggregateFunctionParser::convertNodeTypeIfNeeded(
     return func_node;
 }
 
+const DB::ActionsDAG::Node * AggregateFunctionParser::convertInfiniteIfNeeded(
+    const CommonFunctionInfo & func_info,
+    const DB::ActionsDAG::Node * func_node,
+    DB::ActionsDAGPtr & actions_dag) const
+{
+    static std::unordered_set<String> infinite_aggs{"varSampStable", "stddevSampStable", "covarSampStable"};
+    auto func_name = getCHFunctionName(func_info);
+    if (infinite_aggs.contains(func_name))
+    {
+          static const String if_infinite = "ifInfinite";
+          const auto & output_type = func_info.output_type;
+          DB::ActionsDAG::NodeRawConstPtrs if_infinite_args
+              = {func_node,
+                 plan_parser->addColumn(actions_dag, makeNullable(TypeParser::parseType(output_type)), DB::Field{})};
+          func_node = toFunctionNode(actions_dag, if_infinite, func_node->result_name, if_infinite_args);
+          actions_dag->addOrReplaceInOutputs(*func_node);
+    }
+
+    return func_node;
+}
+
+
 AggregateFunctionParserFactory & AggregateFunctionParserFactory::instance()
 {
     static AggregateFunctionParserFactory factory;

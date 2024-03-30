@@ -117,6 +117,12 @@ public:
         DB::ActionsDAGPtr & actions_dag,
         bool with_nullability) const;
 
+    /// Make a postprojection for the function result.
+        virtual const DB::ActionsDAG::Node * convertInfiniteIfNeeded(
+            const CommonFunctionInfo & func_info,
+            const DB::ActionsDAG::Node * func_node,
+            DB::ActionsDAGPtr & actions_dag) const;
+
     /// Parameters are only used in aggregate functions at present. e.g. percentiles(0.5)(x).
     /// 0.5 is the parameter of percentiles function.
     virtual DB::Array

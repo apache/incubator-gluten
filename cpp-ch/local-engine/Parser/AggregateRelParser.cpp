@@ -496,7 +496,8 @@ void AggregateRelParser::addPostProjection()
             {
                 if (input_node->result_name == agg_info.measure_column_name)
                 {
-                    agg_info.function_parser->convertNodeTypeIfNeeded(agg_info.parser_func_info, input_node, project_actions_dag, false);
+                    auto func_node = agg_info.function_parser->convertNodeTypeIfNeeded(agg_info.parser_func_info, input_node, project_actions_dag, false);
+                    agg_info.function_parser->convertInfiniteIfNeeded(agg_info.parser_func_info, func_node, project_actions_dag);
                 }
             }
         }
@@ -510,7 +511,8 @@ void AggregateRelParser::addPostProjection()
             {
                 if (output_node->result_name == agg_info.measure_column_name)
                 {
-                    agg_info.function_parser->convertNodeTypeIfNeeded(agg_info.parser_func_info, output_node, project_actions_dag, true);
+                    auto func_node = agg_info.function_parser->convertNodeTypeIfNeeded(agg_info.parser_func_info, output_node, project_actions_dag, true);
+                    agg_info.function_parser->convertInfiniteIfNeeded(agg_info.parser_func_info, func_node, project_actions_dag);
                 }
             }
         }

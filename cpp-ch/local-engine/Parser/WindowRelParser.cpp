@@ -358,7 +358,8 @@ void WindowRelParser::tryAddProjectionAfterWindow()
     {
         auto & win_info = win_infos[i];
         const auto * win_result_node = &actions_dag->findInOutputs(win_info.result_column_name);
-        win_info.function_parser->convertNodeTypeIfNeeded(win_info.parser_func_info, win_result_node, actions_dag, false);
+        auto func_node = win_info.function_parser->convertNodeTypeIfNeeded(win_info.parser_func_info, win_result_node, actions_dag, false);
+        win_info.function_parser->convertInfiniteIfNeeded(win_info.parser_func_info, func_node, actions_dag);
     }
 
     if (actions_dag->dumpDAG() != dag_footprint)

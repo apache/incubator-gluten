@@ -349,13 +349,18 @@ case class CHHashAggregateExecTransformer(
               (makeStructTypeSingleOne(child.dataType, child.nullable), child.nullable)
             case covar: Covariance =>
               var fields = Seq[(DataType, Boolean)]()
-              fields = fields :+ (covar.left.dataType, covar.left.nullable)
-              fields = fields :+ (covar.right.dataType, covar.right.nullable)
+              // when COVAR_SAMP's input is non-nullable , due to its output maybe null in spark,
+              // backend parser will cast input type to nullable for intermediate agg,
+              // While final stage still use input type no changed.
+              // It causes type miss match between partial and final AggregationFunction
+              // so directly assign attr.nullable here, which should always be nullable
+              fields = fields :+ (covar.left.dataType, attr.nullable)
+              fields = fields :+ (covar.right.dataType, attr.nullable)
               (makeStructType(fields), attr.nullable)
             case corr: PearsonCorrelation =>
               var fields = Seq[(DataType, Boolean)]()
-              fields = fields :+ (corr.left.dataType, corr.left.nullable)
-              fields = fields :+ (corr.right.dataType, corr.right.nullable)
+              fields = fields :+ (corr.left.dataType, attr.nullable)
+              fields = fields :+ (corr.right.dataType, attr.nullable)
               (makeStructType(fields), attr.nullable)
             case expr if "bloom_filter_agg".equals(expr.prettyName) =>
               (makeStructTypeSingleOne(expr.children.head.dataType, attr.nullable), attr.nullable)
