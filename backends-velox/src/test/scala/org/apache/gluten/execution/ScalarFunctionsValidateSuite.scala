@@ -663,4 +663,13 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("unbase64") {
+    withTable("t") {
+      sql("create table t(e string) using parquet")
+      sql("insert into table t(e) select base64('Gluten')")
+      runQueryAndCompare("select unbase64(e) from t") {
+        checkOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
 }
