@@ -17,8 +17,8 @@
 package org.apache.gluten.planner.property
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.cbo._
-import org.apache.gluten.cbo.rule.{CboRule, Shape, Shapes}
+import org.apache.gluten.ras._
+import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 import org.apache.gluten.extension.columnar.ColumnarTransitions
 import org.apache.gluten.planner.plan.GlutenPlanModel.GroupLeafExec
 import org.apache.gluten.planner.property.GlutenProperties.{Convention, CONVENTION_DEF, ConventionEnforcerRule}
@@ -55,7 +55,7 @@ object GlutenProperties {
     }
   }
 
-  case class ConventionEnforcerRule(reqConv: Convention) extends CboRule[SparkPlan] {
+  case class ConventionEnforcerRule(reqConv: Convention) extends RasRule[SparkPlan] {
     override def shift(node: SparkPlan): Iterable[SparkPlan] = {
       val conv = CONVENTION_DEF.getProperty(node)
       if (conv == reqConv) {

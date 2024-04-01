@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.planner.metadata
 
-import org.apache.gluten.cbo.{Metadata, MetadataModel}
+import org.apache.gluten.ras.{Metadata, MetadataModel}
 import org.apache.gluten.planner.metadata.GlutenMetadata.Schema
 import org.apache.gluten.planner.plan.GlutenPlanModel.GroupLeafExec
 

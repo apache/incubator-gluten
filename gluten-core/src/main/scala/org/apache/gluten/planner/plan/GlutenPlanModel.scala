@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.planner.plan
 
-import org.apache.gluten.cbo.{Metadata, PlanModel}
-import org.apache.gluten.cbo.property.PropertySet
+import org.apache.gluten.ras.{Metadata, PlanModel}
+import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.planner.metadata.GlutenMetadata
 import org.apache.gluten.planner.property.GlutenProperties
 import org.apache.gluten.planner.property.GlutenProperties.Conventions

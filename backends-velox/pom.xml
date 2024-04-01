@@ -52,7 +52,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.gluten</groupId>
-      <artifactId>gluten-cbo-common</artifactId>
+      <artifactId>gluten-ras-common</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.cbo.property.PropertySet
-import org.apache.gluten.cbo.rule.{CboRule, Shape, Shapes}
+import org.apache.gluten.ras.property.PropertySet
+import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 import org.apache.gluten.extension.columnar.transform.{ImplementExchange, ImplementJoin, ImplementOthers, ImplementSingleNode}
 import org.apache.gluten.planner.GlutenOptimization
 import org.apache.gluten.planner.property.GlutenProperties
@@ -33,9 +33,9 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
   import EnumeratedTransform._
 
   private val cboRules = List(
-    CboImplement(ImplementOthers()),
-    CboImplement(ImplementExchange()),
-    CboImplement(ImplementJoin())
+    RasImplement(ImplementOthers()),
+    RasImplement(ImplementExchange()),
+    RasImplement(ImplementJoin())
   )
 
   private val optimization = GlutenOptimization(cboRules)
@@ -55,7 +55,7 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
 }
 
 object EnumeratedTransform {
-  private case class CboImplement(delegate: ImplementSingleNode) extends CboRule[SparkPlan] {
+  private case class RasImplement(delegate: ImplementSingleNode) extends RasRule[SparkPlan] {
     override def shift(node: SparkPlan): Iterable[SparkPlan] = {
       val out = List(delegate.impl(node))
       out
