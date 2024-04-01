@@ -26,6 +26,7 @@ ENABLE_HDFS=OFF
 ENABLE_ABFS=OFF
 BUILD_TYPE=release
 VELOX_HOME=""
+ARROW_BINARY=""
 ENABLE_EP_CACHE=OFF
 # May be deprecated in Gluten build.
 ENABLE_BENCHMARK=OFF
@@ -45,6 +46,10 @@ for arg in "$@"; do
   case $arg in
   --velox_home=*)
     VELOX_HOME=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --arrow_binary=*)
+    ARROW_BINARY=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --enable_s3=*)
@@ -117,6 +122,9 @@ function compile {
   COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF"
   if [ $BUILD_TEST_UTILS == "ON" ]; then
       COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TEST_UTILS=ON"
+  fi
+  if [-n $ARROW_BINARY]; then
+      COMPILE_OPTION="$COMPILE_OPTION -DARROW_BINARY=ON"
   fi
   if [ $ENABLE_HDFS == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_HDFS=ON"
