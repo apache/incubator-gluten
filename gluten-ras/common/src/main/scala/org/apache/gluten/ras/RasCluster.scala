@@ -40,17 +40,19 @@ trait RasCluster[T <: AnyRef] {
 object RasCluster {
   // Node cluster.
   trait MutableRasCluster[T <: AnyRef] extends RasCluster[T] {
-    def cbo(): Ras[T]
+    def ras(): Ras[T]
     def contains(t: CanonicalNode[T]): Boolean
     def add(t: CanonicalNode[T]): Unit
   }
 
   object MutableRasCluster {
-    def apply[T <: AnyRef](cbo: Ras[T], metadata: Metadata): MutableRasCluster[T] = {
-      new RegularMutableRasCluster(cbo, metadata)
+    def apply[T <: AnyRef](ras: Ras[T], metadata: Metadata): MutableRasCluster[T] = {
+      new RegularMutableRasCluster(ras, metadata)
     }
 
-    private class RegularMutableRasCluster[T <: AnyRef](val cbo: Ras[T], metadata: Metadata)
+    private class RegularMutableRasCluster[T <: AnyRef](
+        override val ras: Ras[T],
+        metadata: Metadata)
       extends MutableRasCluster[T] {
       private val buffer: mutable.Set[CanonicalNode[T]] =
         mutable.Set()
@@ -60,7 +62,7 @@ object RasCluster {
       }
 
       override def add(t: CanonicalNode[T]): Unit = {
-        cbo.metadataModel.verify(metadata, cbo.metadataModel.metadataOf(t.self()))
+        ras.metadataModel.verify(metadata, ras.metadataModel.metadataOf(t.self()))
         assert(!buffer.contains(t))
         buffer += t
       }
@@ -71,14 +73,14 @@ object RasCluster {
     }
   }
 
-  case class ImmutableRasCluster[T <: AnyRef] private(
-                                                        cbo: Ras[T],
-                                                        override val nodes: Set[CanonicalNode[T]])
+  case class ImmutableRasCluster[T <: AnyRef] private (
+      ras: Ras[T],
+      override val nodes: Set[CanonicalNode[T]])
     extends RasCluster[T]
 
   object ImmutableRasCluster {
-    def apply[T <: AnyRef](cbo: Ras[T], cluster: RasCluster[T]): ImmutableRasCluster[T] = {
-      ImmutableRasCluster(cbo, cluster.nodes().toSet)
+    def apply[T <: AnyRef](ras: Ras[T], cluster: RasCluster[T]): ImmutableRasCluster[T] = {
+      ImmutableRasCluster(ras, cluster.nodes().toSet)
     }
   }
 }

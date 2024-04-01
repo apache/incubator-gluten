@@ -38,12 +38,12 @@ trait Optimization[T <: AnyRef] {
 
 object Optimization {
   def apply[T <: AnyRef](
-                          planModel: PlanModel[T],
-                          costModel: CostModel[T],
-                          metadataModel: MetadataModel[T],
-                          propertyModel: PropertyModel[T],
-                          explain: RasExplain[T],
-                          ruleFactory: RasRule.Factory[T]): Optimization[T] = {
+      planModel: PlanModel[T],
+      costModel: CostModel[T],
+      metadataModel: MetadataModel[T],
+      propertyModel: PropertyModel[T],
+      explain: RasExplain[T],
+      ruleFactory: RasRule.Factory[T]): Optimization[T] = {
     Ras(planModel, costModel, metadataModel, propertyModel, explain, ruleFactory)
   }
 
@@ -57,14 +57,14 @@ object Optimization {
   }
 }
 
-class Ras[T <: AnyRef] private(
-                                val config: RasConfig,
-                                val planModel: PlanModel[T],
-                                val costModel: CostModel[T],
-                                val metadataModel: MetadataModel[T],
-                                val propertyModel: PropertyModel[T],
-                                val explain: RasExplain[T],
-                                val ruleFactory: RasRule.Factory[T])
+class Ras[T <: AnyRef] private (
+    val config: RasConfig,
+    val planModel: PlanModel[T],
+    val costModel: CostModel[T],
+    val metadataModel: MetadataModel[T],
+    val propertyModel: PropertyModel[T],
+    val explain: RasExplain[T],
+    val ruleFactory: RasRule.Factory[T])
   extends Optimization[T] {
   import Ras._
 
@@ -175,12 +175,12 @@ class Ras[T <: AnyRef] private(
 
 object Ras {
   private[ras] def apply[T <: AnyRef](
-                                       planModel: PlanModel[T],
-                                       costModel: CostModel[T],
-                                       metadataModel: MetadataModel[T],
-                                       propertyModel: PropertyModel[T],
-                                       explain: RasExplain[T],
-                                       ruleFactory: RasRule.Factory[T]): Ras[T] = {
+      planModel: PlanModel[T],
+      costModel: CostModel[T],
+      metadataModel: MetadataModel[T],
+      propertyModel: PropertyModel[T],
+      explain: RasExplain[T],
+      ruleFactory: RasRule.Factory[T]): Ras[T] = {
     new Ras[T](
       RasConfig(),
       planModel,
@@ -197,11 +197,11 @@ object Ras {
   }
 
   private object PropertySetFactory {
-    def apply[T <: AnyRef](cbo: Ras[T]): PropertySetFactory[T] = new PropertySetFactoryImpl[T](cbo)
+    def apply[T <: AnyRef](ras: Ras[T]): PropertySetFactory[T] = new PropertySetFactoryImpl[T](ras)
 
-    private class PropertySetFactoryImpl[T <: AnyRef](val cbo: Ras[T])
+    private class PropertySetFactoryImpl[T <: AnyRef](val ras: Ras[T])
       extends PropertySetFactory[T] {
-      private val propDefs: Seq[PropertyDef[T, _ <: Property[T]]] = cbo.propertyModel.propertyDefs
+      private val propDefs: Seq[PropertyDef[T, _ <: Property[T]]] = ras.propertyModel.propertyDefs
 
       override def get(node: T): PropertySet[T] = {
         val m: Map[PropertyDef[T, _ <: Property[T]], Property[T]] =
@@ -213,7 +213,7 @@ object Ras {
           constraintSet: PropertySet[T],
           node: T): Seq[PropertySet[T]] = {
         val builder: Seq[mutable.Map[PropertyDef[T, _ <: Property[T]], Property[T]]] =
-          cbo.planModel
+          ras.planModel
             .childrenOf(node)
             .map(_ => mutable.Map[PropertyDef[T, _ <: Property[T]], Property[T]]())
 

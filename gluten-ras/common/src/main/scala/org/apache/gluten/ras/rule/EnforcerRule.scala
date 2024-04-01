@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.ras.rule
 
-import org.apache.gluten.ras.{Ras, EnforcerRuleFactory, Property, PropertyDef}
+import org.apache.gluten.ras.{EnforcerRuleFactory, Property, PropertyDef, Ras}
 import org.apache.gluten.ras.memo.Closure
 import org.apache.gluten.ras.property.PropertySet
 
@@ -38,8 +38,8 @@ object EnforcerRule {
   }
 
   private class EnforcerRuleImpl[T <: AnyRef](
-                                               rule: RasRule[T],
-                                               override val constraint: Property[T])
+      rule: RasRule[T],
+      override val constraint: Property[T])
     extends EnforcerRule[T] {
     override def shift(node: T): Iterable[T] = rule.shift(node)
     override def shape(): Shape[T] = rule.shape()
@@ -57,17 +57,17 @@ trait EnforcerRuleSet[T <: AnyRef] {
 }
 
 object EnforcerRuleSet {
-  def apply[T <: AnyRef](cbo: Ras[T], closure: Closure[T]): EnforcerRuleSet[T] = {
-    new EnforcerRuleSetImpl(cbo, closure)
+  def apply[T <: AnyRef](ras: Ras[T], closure: Closure[T]): EnforcerRuleSet[T] = {
+    new EnforcerRuleSetImpl(ras, closure)
   }
 
   private def newEnforcerRuleFactory[T <: AnyRef](
-                                                   cbo: Ras[T],
-                                                   propertyDef: PropertyDef[T, _ <: Property[T]]): EnforcerRuleFactory[T] = {
-    cbo.propertyModel.newEnforcerRuleFactory(propertyDef)
+      ras: Ras[T],
+      propertyDef: PropertyDef[T, _ <: Property[T]]): EnforcerRuleFactory[T] = {
+    ras.propertyModel.newEnforcerRuleFactory(propertyDef)
   }
 
-  private class EnforcerRuleSetImpl[T <: AnyRef](cbo: Ras[T], closure: Closure[T])
+  private class EnforcerRuleSetImpl[T <: AnyRef](ras: Ras[T], closure: Closure[T])
     extends EnforcerRuleSet[T] {
     private val factoryBuffer =
       mutable.Map[PropertyDef[T, _ <: Property[T]], EnforcerRuleFactory[T]]()
@@ -81,10 +81,10 @@ object EnforcerRuleSet {
               val factory =
                 factoryBuffer.getOrElseUpdate(
                   constraintDef,
-                  newEnforcerRuleFactory(cbo, constraintDef))
-              RuleApplier(cbo, closure, EnforcerRule.builtin(constraint)) +: factory
+                  newEnforcerRuleFactory(ras, constraintDef))
+              RuleApplier(ras, closure, EnforcerRule.builtin(constraint)) +: factory
                 .newEnforcerRules(constraint)
-                .map(rule => RuleApplier(cbo, closure, EnforcerRule(rule, constraint)))
+                .map(rule => RuleApplier(ras, closure, EnforcerRule(rule, constraint)))
             }
           )
       }.toSeq

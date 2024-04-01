@@ -23,7 +23,7 @@ import org.apache.gluten.ras.property.PropertySet
 sealed trait MemoTable[T <: AnyRef] extends MemoStore[T] {
   import MemoTable._
 
-  def cbo: Ras[T]
+  def ras: Ras[T]
 
   override def getCluster(key: RasClusterKey): RasCluster[T]
   override def getGroup(id: Int): RasGroup[T]
@@ -39,7 +39,7 @@ sealed trait MemoTable[T <: AnyRef] extends MemoStore[T] {
 }
 
 object MemoTable {
-  def create[T <: AnyRef](cbo: Ras[T]): Writable[T] = ForwardMemoTable(cbo)
+  def create[T <: AnyRef](ras: Ras[T]): Writable[T] = ForwardMemoTable(ras)
 
   trait Writable[T <: AnyRef] extends MemoTable[T] {
     def newCluster(metadata: Metadata): RasClusterKey
@@ -71,9 +71,9 @@ object MemoTable {
     def newState(): MemoState[T] = {
       val immutableClusters = table
         .allClusters()
-        .map(key => key -> ImmutableRasCluster(table.cbo, table.getCluster(key)))
+        .map(key => key -> ImmutableRasCluster(table.ras, table.getCluster(key)))
         .toMap
-      MemoState(table.cbo, immutableClusters, table.allGroups())
+      MemoState(table.ras, immutableClusters, table.allGroups())
     }
 
     def doExhaustively(func: => Unit): Unit = {

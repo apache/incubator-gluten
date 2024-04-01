@@ -37,7 +37,7 @@ abstract class JoinReorderSuite extends AnyFunSuite {
   protected def conf: RasConfig
 
   test("3 way join - dry run") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -47,13 +47,13 @@ abstract class JoinReorderSuite extends AnyFunSuite {
         RasRule.Factory.none())
         .withNewConfig(_ => conf)
     val plan = LeftJoin(LeftJoin(Scan(50), Scan(200)), Scan(100))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val out = planner.plan()
     assert(out == plan)
   }
 
   test("3 way join - reorder") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -63,13 +63,13 @@ abstract class JoinReorderSuite extends AnyFunSuite {
         RasRule.Factory.reuse(List(JoinAssociateRule, JoinCommuteRule)))
         .withNewConfig(_ => conf)
     val plan = LeftJoin(LeftJoin(Scan(200), Scan(100)), Scan(30))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val out = planner.plan()
     assert(out == LeftJoin(LeftJoin(Scan(30), Scan(200)), Scan(100)))
   }
 
   test("5 way join - reorder") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -80,7 +80,7 @@ abstract class JoinReorderSuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
     val plan =
       LeftJoin(LeftJoin(Scan(2000), Scan(300)), LeftJoin(LeftJoin(Scan(200), Scan(1000)), Scan(50)))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val out = planner.plan()
     assert(
       out == LeftJoin(
@@ -90,7 +90,7 @@ abstract class JoinReorderSuite extends AnyFunSuite {
 
   // too slow
   ignore("7 way join - reorder") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -104,14 +104,14 @@ abstract class JoinReorderSuite extends AnyFunSuite {
         LeftJoin(Scan(2000), Scan(300)),
         LeftJoin(LeftJoin(Scan(200), Scan(1000)), Scan(50))),
       LeftJoin(Scan(700), Scan(3000)))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val out = planner.plan()
     throw new UnsupportedOperationException("Not yet implemented")
   }
 
   // too slow
   ignore("9 way join - reorder") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -126,14 +126,14 @@ abstract class JoinReorderSuite extends AnyFunSuite {
         LeftJoin(LeftJoin(Scan(200), Scan(1000)), Scan(50))),
       LeftJoin(LeftJoin(Scan(700), Scan(3000)), LeftJoin(Scan(9000), Scan(1000)))
     )
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val out = planner.plan()
     throw new UnsupportedOperationException("Not yet implemented")
   }
 
   // too slow
   ignore("12 way join - reorder") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -151,13 +151,13 @@ abstract class JoinReorderSuite extends AnyFunSuite {
       ),
       LeftJoin(LeftJoin(Scan(5000), Scan(1200)), Scan(150))
     )
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val out = planner.plan()
     throw new UnsupportedOperationException("Not yet implemented")
   }
 
   test("2 way join - reorder, left deep only") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -167,13 +167,13 @@ abstract class JoinReorderSuite extends AnyFunSuite {
         RasRule.Factory.reuse(leftDeepJoinRules(2)))
         .withNewConfig(_ => conf)
     val plan = LeftJoin(Scan(200), Scan(30))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val out = planner.plan()
     assert(out == LeftDeepJoin(Scan(30), Scan(200)))
   }
 
   test("3 way join - reorder, left deep only") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -183,13 +183,13 @@ abstract class JoinReorderSuite extends AnyFunSuite {
         RasRule.Factory.reuse(leftDeepJoinRules(3)))
         .withNewConfig(_ => conf)
     val plan = LeftJoin(LeftJoin(Scan(200), Scan(100)), Scan(30))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val out = planner.plan()
     assert(out == LeftDeepJoin(LeftDeepJoin(Scan(30), Scan(200)), Scan(100)))
   }
 
   test("5 way join - reorder, left deep only") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -200,7 +200,7 @@ abstract class JoinReorderSuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
     val plan =
       LeftJoin(LeftJoin(Scan(2000), Scan(300)), LeftJoin(LeftJoin(Scan(200), Scan(1000)), Scan(50)))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val out = planner.plan()
     assert(
       out == LeftDeepJoin(
@@ -209,7 +209,7 @@ abstract class JoinReorderSuite extends AnyFunSuite {
   }
 
   test("7 way join - reorder, left deep only") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -223,7 +223,7 @@ abstract class JoinReorderSuite extends AnyFunSuite {
         LeftJoin(Scan(2000), Scan(300)),
         LeftJoin(LeftJoin(Scan(200), Scan(1000)), Scan(50))),
       LeftJoin(Scan(700), Scan(3000)))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val out = planner.plan()
     assert(
       out == LeftDeepJoin(
@@ -236,7 +236,7 @@ abstract class JoinReorderSuite extends AnyFunSuite {
   }
 
   test("9 way join - reorder, left deep only") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -251,7 +251,7 @@ abstract class JoinReorderSuite extends AnyFunSuite {
         LeftJoin(LeftJoin(Scan(200), Scan(1000)), Scan(50))),
       LeftJoin(LeftJoin(Scan(700), Scan(3000)), LeftJoin(Scan(9000), Scan(1000)))
     )
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val out = planner.plan()
     assert(
       out == LeftDeepJoin(
@@ -273,7 +273,7 @@ abstract class JoinReorderSuite extends AnyFunSuite {
 
   // too slow
   ignore("12 way join - reorder, left deep only") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -291,7 +291,7 @@ abstract class JoinReorderSuite extends AnyFunSuite {
       ),
       LeftJoin(LeftJoin(Scan(5000), Scan(1200)), Scan(150))
     )
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val out = planner.plan()
     throw new UnsupportedOperationException("Not yet implemented")
   }

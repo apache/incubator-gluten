@@ -25,19 +25,19 @@ import org.apache.gluten.ras.vis.GraphvizVisualizer
 import scala.collection.mutable
 
 case class MockMemoState[T <: AnyRef] private (
-                                                override val cbo: Ras[T],
-                                                override val clusterLookup: Map[RasClusterKey, RasCluster[T]],
-                                                override val allGroups: Seq[RasGroup[T]])
+    override val ras: Ras[T],
+    override val clusterLookup: Map[RasClusterKey, RasCluster[T]],
+    override val allGroups: Seq[RasGroup[T]])
   extends MemoState[T] {
   def printGraphviz(group: RasGroup[T]): Unit = {
-    val graph = GraphvizVisualizer(cbo, this, group.id())
+    val graph = GraphvizVisualizer(ras, this, group.id())
     // scalastyle:off println
     println(graph.format())
     // scalastyle:on println
   }
 
   def printGraphviz(best: Best[T]): Unit = {
-    val graph = vis.GraphvizVisualizer(cbo, this, best)
+    val graph = vis.GraphvizVisualizer(ras, this, best)
     // scalastyle:off println
     println(graph.format())
     // scalastyle:on println
@@ -51,11 +51,11 @@ case class MockMemoState[T <: AnyRef] private (
 }
 
 object MockMemoState {
-  class Builder[T <: AnyRef] private (cbo: Ras[T]) {
+  class Builder[T <: AnyRef] private (ras: Ras[T]) {
     private var propSet: PropertySet[T] = PropertySet[T](List.empty)
     private val clusterBuffer = mutable.Map[RasClusterKey, MockMutableCluster[T]]()
     private val groupFactory: MockMutableGroup.Factory[T] =
-      MockMutableGroup.Factory.create[T](cbo, propSet)
+      MockMutableGroup.Factory.create[T](ras, propSet)
 
     def withPropertySet(propSet: PropertySet[T]): Builder[T] = {
       this.propSet = propSet
@@ -65,27 +65,27 @@ object MockMemoState {
     def newCluster(): MockMutableCluster[T] = {
       val id = clusterBuffer.size
       val key = MockMutableCluster.DummyIntClusterKey(id)
-      val cluster = MockMutableCluster[T](cbo, key, groupFactory)
+      val cluster = MockMutableCluster[T](ras, key, groupFactory)
       clusterBuffer += (key -> cluster)
       cluster
     }
 
     def build(): MockMemoState[T] = {
-      MockMemoState[T](cbo, clusterBuffer.toMap, groupFactory.allGroups())
+      MockMemoState[T](ras, clusterBuffer.toMap, groupFactory.allGroups())
     }
   }
 
   object Builder {
-    def apply[T <: AnyRef](cbo: Ras[T]): Builder[T] = {
-      new Builder[T](cbo)
+    def apply[T <: AnyRef](ras: Ras[T]): Builder[T] = {
+      new Builder[T](ras)
     }
   }
 
   // TODO add groups with different property sets
   class MockMutableCluster[T <: AnyRef] private (
-                                                  cbo: Ras[T],
-                                                  key: RasClusterKey,
-                                                  groupFactory: MockMutableGroup.Factory[T])
+      ras: Ras[T],
+      key: RasClusterKey,
+      groupFactory: MockMutableGroup.Factory[T])
     extends RasCluster[T] {
     private val nodeBuffer = mutable.ArrayBuffer[CanonicalNode[T]]()
 
@@ -102,10 +102,10 @@ object MockMemoState {
 
   object MockMutableCluster {
     def apply[T <: AnyRef](
-                            cbo: Ras[T],
-                            key: RasClusterKey,
-                            groupFactory: MockMutableGroup.Factory[T]): MockMutableCluster[T] = {
-      new MockMutableCluster[T](cbo, key, groupFactory)
+        ras: Ras[T],
+        key: RasClusterKey,
+        groupFactory: MockMutableGroup.Factory[T]): MockMutableCluster[T] = {
+      new MockMutableCluster[T](ras, key, groupFactory)
     }
 
     case class DummyIntClusterKey(id: Int) extends RasClusterKey {
@@ -114,10 +114,10 @@ object MockMemoState {
   }
 
   class MockMutableGroup[T <: AnyRef] private (
-                                                override val id: Int,
-                                                override val clusterKey: RasClusterKey,
-                                                override val propSet: PropertySet[T],
-                                                override val self: T)
+      override val id: Int,
+      override val clusterKey: RasClusterKey,
+      override val propSet: PropertySet[T],
+      override val self: T)
     extends RasGroup[T] {
     private val nodes: mutable.ArrayBuffer[CanonicalNode[T]] = mutable.ArrayBuffer()
 
@@ -133,7 +133,7 @@ object MockMemoState {
   }
 
   object MockMutableGroup {
-    class Factory[T <: AnyRef] private (cbo: Ras[T], propSet: PropertySet[T]) {
+    class Factory[T <: AnyRef] private (ras: Ras[T], propSet: PropertySet[T]) {
       private val groupBuffer = mutable.ArrayBuffer[MockMutableGroup[T]]()
 
       def newGroup(clusterKey: RasClusterKey): MockMutableGroup[T] = {
@@ -143,7 +143,7 @@ object MockMemoState {
             id,
             clusterKey,
             propSet,
-            cbo.planModel.newGroupLeaf(id, clusterKey.metadata, propSet))
+            ras.planModel.newGroupLeaf(id, clusterKey.metadata, propSet))
         groupBuffer += group
         group
       }
@@ -152,8 +152,8 @@ object MockMemoState {
     }
 
     object Factory {
-      def create[T <: AnyRef](cbo: Ras[T], propSet: PropertySet[T]): Factory[T] = {
-        new Factory[T](cbo, propSet)
+      def create[T <: AnyRef](ras: Ras[T], propSet: PropertySet[T]): Factory[T] = {
+        new Factory[T](ras, propSet)
       }
     }
   }

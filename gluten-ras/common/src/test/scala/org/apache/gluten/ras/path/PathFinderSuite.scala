@@ -27,7 +27,7 @@ class PathFinderSuite extends AnyFunSuite {
   import PathFinderSuite._
 
   test("Base") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -36,7 +36,7 @@ class PathFinderSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
 
-    val mock = MockMemoState.Builder(cbo)
+    val mock = MockMemoState.Builder(ras)
     val cluster = mock.newCluster()
     val groupA = cluster.newGroup()
     val groupB = cluster.newGroup()
@@ -49,12 +49,12 @@ class PathFinderSuite extends AnyFunSuite {
     val n4 = "n4"
     val n5 = "n5"
     val n6 = "n6"
-    val node1 = Binary(n1, groupB.self, groupC.self).asCanonical(cbo)
-    val node2 = Unary(n2, groupD.self).asCanonical(cbo)
-    val node3 = Unary(n3, groupE.self).asCanonical(cbo)
-    val node4 = Leaf(n4, 1).asCanonical(cbo)
-    val node5 = Leaf(n5, 1).asCanonical(cbo)
-    val node6 = Leaf(n6, 1).asCanonical(cbo)
+    val node1 = Binary(n1, groupB.self, groupC.self).asCanonical(ras)
+    val node2 = Unary(n2, groupD.self).asCanonical(ras)
+    val node3 = Unary(n3, groupE.self).asCanonical(ras)
+    val node4 = Leaf(n4, 1).asCanonical(ras)
+    val node5 = Leaf(n5, 1).asCanonical(ras)
+    val node6 = Leaf(n6, 1).asCanonical(ras)
 
     groupA.add(node1)
     groupB.add(node2)
@@ -65,7 +65,7 @@ class PathFinderSuite extends AnyFunSuite {
     val state = mock.build()
 
     def find(can: CanonicalNode[TestNode], depth: Int): Iterable[RasPath[TestNode]] = {
-      val finder = PathFinder.builder(cbo, state).depth(depth).build()
+      val finder = PathFinder.builder(ras, state).depth(depth).build()
       finder.find(can)
     }
 
@@ -82,7 +82,7 @@ class PathFinderSuite extends AnyFunSuite {
   }
 
   test("Find - multiple depths") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -91,7 +91,7 @@ class PathFinderSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
 
-    val mock = MockMemoState.Builder(cbo)
+    val mock = MockMemoState.Builder(ras)
     val cluster = mock.newCluster()
     val groupA = cluster.newGroup()
     val groupB = cluster.newGroup()
@@ -105,12 +105,12 @@ class PathFinderSuite extends AnyFunSuite {
     val n4 = "n4"
     val n5 = "n5"
     val n6 = "n6"
-    val node1 = Binary(n1, groupB.self, groupC.self).asCanonical(cbo)
-    val node2 = Unary(n2, groupD.self).asCanonical(cbo)
-    val node3 = Unary(n3, groupE.self).asCanonical(cbo)
-    val node4 = Leaf(n4, 1).asCanonical(cbo)
-    val node5 = Leaf(n5, 1).asCanonical(cbo)
-    val node6 = Leaf(n6, 1).asCanonical(cbo)
+    val node1 = Binary(n1, groupB.self, groupC.self).asCanonical(ras)
+    val node2 = Unary(n2, groupD.self).asCanonical(ras)
+    val node3 = Unary(n3, groupE.self).asCanonical(ras)
+    val node4 = Leaf(n4, 1).asCanonical(ras)
+    val node5 = Leaf(n5, 1).asCanonical(ras)
+    val node6 = Leaf(n6, 1).asCanonical(ras)
 
     groupA.add(node1)
     groupB.add(node2)
@@ -121,7 +121,7 @@ class PathFinderSuite extends AnyFunSuite {
     val state = mock.build()
 
     val finder1 = PathFinder
-      .builder(cbo, state)
+      .builder(ras, state)
       .depth(1)
       .depth(3)
       .build()
@@ -133,7 +133,7 @@ class PathFinderSuite extends AnyFunSuite {
         Binary(n1, Unary(n2, Leaf(n4, 1)), Unary(n3, Leaf(n6, 1)))))
 
     val finder2 = PathFinder
-      .builder(cbo, state)
+      .builder(ras, state)
       .depth(2)
       .depth(RasPath.INF_DEPTH)
       .build()
@@ -146,7 +146,7 @@ class PathFinderSuite extends AnyFunSuite {
       ))
 
     val finder3 = PathFinder
-      .builder(cbo, state)
+      .builder(ras, state)
       .depth(2)
       .depth(2)
       .depth(RasPath.INF_DEPTH)
@@ -162,7 +162,7 @@ class PathFinderSuite extends AnyFunSuite {
   }
 
   test("Dive - basic") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -171,7 +171,7 @@ class PathFinderSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
 
-    val mock = MockMemoState.Builder(cbo)
+    val mock = MockMemoState.Builder(ras)
     val cluster = mock.newCluster()
     val groupA = cluster.newGroup()
     val groupB = cluster.newGroup()
@@ -185,12 +185,12 @@ class PathFinderSuite extends AnyFunSuite {
     val n4 = "n4"
     val n5 = "n5"
     val n6 = "n6"
-    val node1 = Binary(n1, groupB.self, groupC.self).asCanonical(cbo)
-    val node2 = Unary(n2, groupD.self).asCanonical(cbo)
-    val node3 = Unary(n3, groupE.self).asCanonical(cbo)
-    val node4 = Leaf(n4, 1).asCanonical(cbo)
-    val node5 = Leaf(n5, 1).asCanonical(cbo)
-    val node6 = Leaf(n6, 1).asCanonical(cbo)
+    val node1 = Binary(n1, groupB.self, groupC.self).asCanonical(ras)
+    val node2 = Unary(n2, groupD.self).asCanonical(ras)
+    val node3 = Unary(n3, groupE.self).asCanonical(ras)
+    val node4 = Leaf(n4, 1).asCanonical(ras)
+    val node5 = Leaf(n5, 1).asCanonical(ras)
+    val node6 = Leaf(n6, 1).asCanonical(ras)
 
     groupA.add(node1)
     groupB.add(node2)
@@ -200,7 +200,7 @@ class PathFinderSuite extends AnyFunSuite {
 
     val state = mock.build()
 
-    val path = RasPath.one(cbo, PathKeySet.trivial, state.allGroups, node1)
+    val path = RasPath.one(ras, PathKeySet.trivial, state.allGroups, node1)
 
     assert(path.plan() == Binary(n1, Group(1), Group(2)))
     assert(
@@ -221,7 +221,7 @@ class PathFinderSuite extends AnyFunSuite {
   }
 
   test("Find/Dive - binary with different children heights") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -230,7 +230,7 @@ class PathFinderSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
 
-    val mock = MockMemoState.Builder(cbo)
+    val mock = MockMemoState.Builder(ras)
     val cluster = mock.newCluster()
     val groupA = cluster.newGroup()
     val groupB = cluster.newGroup()
@@ -243,11 +243,11 @@ class PathFinderSuite extends AnyFunSuite {
     val n3 = "n3"
     val n4 = "n4"
     val n5 = "n5"
-    val node1 = Binary(n1, groupB.self, groupC.self).asCanonical(cbo)
-    val node2 = Binary(n2, groupD.self, groupE.self).asCanonical(cbo)
-    val node3 = Leaf(n3, 1).asCanonical(cbo)
-    val node4 = Leaf(n4, 1).asCanonical(cbo)
-    val node5 = Leaf(n5, 1).asCanonical(cbo)
+    val node1 = Binary(n1, groupB.self, groupC.self).asCanonical(ras)
+    val node2 = Binary(n2, groupD.self, groupE.self).asCanonical(ras)
+    val node3 = Leaf(n3, 1).asCanonical(ras)
+    val node4 = Leaf(n4, 1).asCanonical(ras)
+    val node5 = Leaf(n5, 1).asCanonical(ras)
 
     groupA.add(node1)
     groupB.add(node2)
@@ -258,7 +258,7 @@ class PathFinderSuite extends AnyFunSuite {
     val state = mock.build()
 
     def find(can: CanonicalNode[TestNode], depth: Int): Iterable[RasPath[TestNode]] = {
-      PathFinder.builder(cbo, state).depth(depth).build().find(can)
+      PathFinder.builder(ras, state).depth(depth).build().find(can)
     }
 
     val height1 = find(node1, 1).map(_.plan()).toSeq
@@ -273,7 +273,7 @@ class PathFinderSuite extends AnyFunSuite {
     assert(height4 == List(Binary(n1, Binary(n2, Leaf(n4, 1), Leaf(n5, 1)), Leaf(n3, 1))))
     assert(heightInf == List(Binary(n1, Binary(n2, Leaf(n4, 1), Leaf(n5, 1)), Leaf(n3, 1))))
 
-    val path = RasPath.one(cbo, PathKeySet.trivial, state.allGroups, node1)
+    val path = RasPath.one(ras, PathKeySet.trivial, state.allGroups, node1)
 
     assert(path.plan() == Binary(n1, Group(1), Group(2)))
     assert(

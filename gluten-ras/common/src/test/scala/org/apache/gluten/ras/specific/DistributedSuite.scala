@@ -38,7 +38,7 @@ abstract class DistributedSuite extends AnyFunSuite {
   protected def conf: RasConfig
 
   test("Project - dry run") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -49,13 +49,13 @@ abstract class DistributedSuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
 
     val plan = DProject(DLeaf())
-    val planner = cbo.newPlanner(plan, PropertySet(List(AnyDistribution, AnyOrdering)))
+    val planner = ras.newPlanner(plan, PropertySet(List(AnyDistribution, AnyOrdering)))
     val out = planner.plan()
     assert(out == DProject(DLeaf()))
   }
 
   test("Project - required distribution") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -67,13 +67,13 @@ abstract class DistributedSuite extends AnyFunSuite {
 
     val plan = DProject(DLeaf())
     val planner =
-      cbo.newPlanner(plan, PropertySet(List(HashDistribution(List("a", "b")), AnyOrdering)))
+      ras.newPlanner(plan, PropertySet(List(HashDistribution(List("a", "b")), AnyOrdering)))
     val out = planner.plan()
     assert(out == DProject(DExchange(List("a", "b"), DLeaf())))
   }
 
   test("Aggregate - none-distribution constraint") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -85,7 +85,7 @@ abstract class DistributedSuite extends AnyFunSuite {
 
     val plan = DAggregate(List("a", "b"), DLeaf())
     val planner =
-      cbo.newPlanner(plan, PropertySet(List(HashDistribution(List("b", "c")), AnyOrdering)))
+      ras.newPlanner(plan, PropertySet(List(HashDistribution(List("b", "c")), AnyOrdering)))
     val out = planner.plan()
     assert(
       out == DExchange(
@@ -94,7 +94,7 @@ abstract class DistributedSuite extends AnyFunSuite {
   }
 
   test("Project - required ordering") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -106,13 +106,13 @@ abstract class DistributedSuite extends AnyFunSuite {
 
     val plan = DProject(DLeaf())
     val planner =
-      cbo.newPlanner(plan, PropertySet(List(AnyDistribution, SimpleOrdering(List("a", "b")))))
+      ras.newPlanner(plan, PropertySet(List(AnyDistribution, SimpleOrdering(List("a", "b")))))
     val out = planner.plan()
     assert(out == DProject(DSort(List("a", "b"), DLeaf())))
   }
 
   test("Project - required distribution and ordering") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -124,7 +124,7 @@ abstract class DistributedSuite extends AnyFunSuite {
 
     val plan = DProject(DLeaf())
     val planner =
-      cbo.newPlanner(
+      ras.newPlanner(
         plan,
         PropertySet(List(HashDistribution(List("a", "b")), SimpleOrdering(List("b", "c")))))
     val out = planner.plan()
@@ -132,7 +132,7 @@ abstract class DistributedSuite extends AnyFunSuite {
   }
 
   test("Aggregate - avoid re-exchange") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -143,7 +143,7 @@ abstract class DistributedSuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
 
     val plan = DAggregate(List("a"), DProject(DAggregate(List("a", "b"), DLeaf())))
-    val planner = cbo.newPlanner(plan, PropertySet(List(AnyDistribution, AnyOrdering)))
+    val planner = ras.newPlanner(plan, PropertySet(List(AnyDistribution, AnyOrdering)))
     val out = planner.plan()
     assert(
       out == DAggregate(
@@ -152,7 +152,7 @@ abstract class DistributedSuite extends AnyFunSuite {
   }
 
   test("Aggregate - avoid re-exchange, required ordering") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -164,7 +164,7 @@ abstract class DistributedSuite extends AnyFunSuite {
 
     val plan = DAggregate(List("a"), DProject(DAggregate(List("a", "b"), DLeaf())))
     val planner =
-      cbo.newPlanner(plan, PropertySet(List(AnyDistribution, SimpleOrdering(List("b", "c")))))
+      ras.newPlanner(plan, PropertySet(List(AnyDistribution, SimpleOrdering(List("b", "c")))))
     val out = planner.plan()
     assert(
       out == DSort(
@@ -173,7 +173,7 @@ abstract class DistributedSuite extends AnyFunSuite {
   }
 
   ignore("Aggregate - avoid re-exchange, partial") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -184,7 +184,7 @@ abstract class DistributedSuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
 
     val plan = DAggregate(List("a"), DProject(DAggregate(List("a", "b"), DLeaf())))
-    val planner = cbo.newPlanner(plan, PropertySet(List(AnyDistribution, AnyOrdering)))
+    val planner = ras.newPlanner(plan, PropertySet(List(AnyDistribution, AnyOrdering)))
     val out = planner.plan()
     // FIXME: Should push partial agg down through exchange, otherwise we'd have to write
     //  a rule for that

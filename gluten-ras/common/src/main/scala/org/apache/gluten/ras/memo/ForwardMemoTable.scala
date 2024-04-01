@@ -24,7 +24,7 @@ import org.apache.gluten.ras.util.IndexDisjointSet
 
 import scala.collection.mutable
 
-class ForwardMemoTable[T <: AnyRef] private (override val cbo: Ras[T])
+class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
   extends MemoTable.Writable[T] {
   import ForwardMemoTable._
 
@@ -48,7 +48,7 @@ class ForwardMemoTable[T <: AnyRef] private (override val cbo: Ras[T])
     checkBufferSizes()
     val key = IntClusterKey(clusterBuffer.size, metadata)
     clusterKeyBuffer += key
-    clusterBuffer += MutableRasCluster(cbo, metadata)
+    clusterBuffer += MutableRasCluster(ras, metadata)
     clusterDisjointSet.grow()
     groupLookup += mutable.Map()
     key
@@ -62,7 +62,7 @@ class ForwardMemoTable[T <: AnyRef] private (override val cbo: Ras[T])
     }
     val gid = groupBuffer.size
     val newGroup =
-      RasGroup(cbo, IntClusterKey(ancestor, key.metadata), gid, propSet)
+      RasGroup(ras, IntClusterKey(ancestor, key.metadata), gid, propSet)
     lookup += propSet -> newGroup
     groupBuffer += newGroup
     memoWriteCount += 1
@@ -89,7 +89,7 @@ class ForwardMemoTable[T <: AnyRef] private (override val cbo: Ras[T])
     }
 
     case class Merge(from: RasClusterKey, to: RasClusterKey) {
-      cbo.metadataModel.verify(from.metadata, to.metadata)
+      ras.metadataModel.verify(from.metadata, to.metadata)
     }
 
     val merge = if (oneAncestor > otherAncestor) {
@@ -150,7 +150,7 @@ class ForwardMemoTable[T <: AnyRef] private (override val cbo: Ras[T])
 }
 
 object ForwardMemoTable {
-  def apply[T <: AnyRef](cbo: Ras[T]): MemoTable.Writable[T] = new ForwardMemoTable[T](cbo)
+  def apply[T <: AnyRef](ras: Ras[T]): MemoTable.Writable[T] = new ForwardMemoTable[T](ras)
 
   private case class IntClusterKey(id: Int, metadata: Metadata) extends RasClusterKey
 

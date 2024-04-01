@@ -24,7 +24,7 @@ import org.apache.gluten.ras.path._
 import scala.collection.mutable
 
 // Visualize the planning procedure using dot language.
-class GraphvizVisualizer[T <: AnyRef](cbo: Ras[T], memoState: MemoState[T], best: Best[T]) {
+class GraphvizVisualizer[T <: AnyRef](ras: Ras[T], memoState: MemoState[T], best: Best[T]) {
 
   private val allGroups = memoState.allGroups()
   private val allClusters = memoState.clusterLookup()
@@ -128,7 +128,7 @@ class GraphvizVisualizer[T <: AnyRef](cbo: Ras[T], memoState: MemoState[T], best
     // Since there might be cases that best path was not found for some reason and
     // user needs the graph for debug purpose, we loose the restriction on best path
     // here by filtering out the illegal ones.
-    val rootNode = bestPath.cboPath.node()
+    val rootNode = bestPath.rasPath.node()
     if (rootNode.self().isCanonical) {
       drawBest(rootNode, rootGroup)
     }
@@ -150,32 +150,32 @@ class GraphvizVisualizer[T <: AnyRef](cbo: Ras[T], memoState: MemoState[T], best
   }
 
   private def describeNode(
-                            costs: InGroupNode[T] => Option[Cost],
-                            group: RasGroup[T],
-                            node: CanonicalNode[T]): String = {
+      costs: InGroupNode[T] => Option[Cost],
+      group: RasGroup[T],
+      node: CanonicalNode[T]): String = {
     s"${describeGroup(group)}[Cost ${costs(InGroupNode(group.id(), node))
         .map {
-          case c if cbo.isInfCost(c) => "<INF>"
+          case c if ras.isInfCost(c) => "<INF>"
           case other => other
         }
-        .getOrElse("N/A")}]${cbo.explain.describeNode(node.self())}"
+        .getOrElse("N/A")}]${ras.explain.describeNode(node.self())}"
   }
 }
 
 object GraphvizVisualizer {
-  private class FakeBestFinder[T <: AnyRef](cbo: Ras[T], allGroups: Int => RasGroup[T])
+  private class FakeBestFinder[T <: AnyRef](ras: Ras[T], allGroups: Int => RasGroup[T])
     extends BestFinder[T] {
     import FakeBestFinder._
     override def bestOf(groupId: Int): Best[T] = {
-      new FakeBest(cbo, allGroups, groupId)
+      new FakeBest(ras, allGroups, groupId)
     }
   }
 
   private object FakeBestFinder {
     private class FakeBest[T <: AnyRef](
-                                         cbo: Ras[T],
-                                         allGroups: Int => RasGroup[T],
-                                         rootGroupId: Int)
+        ras: Ras[T],
+        allGroups: Int => RasGroup[T],
+        rootGroupId: Int)
       extends Best[T] {
       override def rootGroupId(): Int = {
         rootGroupId
@@ -190,25 +190,25 @@ object GraphvizVisualizer {
 
       override def path(): Best.KnownCostPath[T] = {
         Best.KnownCostPath(
-          RasPath.zero(cbo, PathKeySet.trivial, GroupNode(cbo, allGroups(rootGroupId))),
-          cbo.getInfCost())
+          RasPath.zero(ras, PathKeySet.trivial, GroupNode(ras, allGroups(rootGroupId))),
+          ras.getInfCost())
       }
     }
   }
 
   def apply[T <: AnyRef](
-                          cbo: Ras[T],
-                          memoState: MemoState[T],
-                          rootGroupId: Int): GraphvizVisualizer[T] = {
-    val fakeBestFinder = new FakeBestFinder[T](cbo, memoState.allGroups())
+      ras: Ras[T],
+      memoState: MemoState[T],
+      rootGroupId: Int): GraphvizVisualizer[T] = {
+    val fakeBestFinder = new FakeBestFinder[T](ras, memoState.allGroups())
     val fakeBest = fakeBestFinder.bestOf(rootGroupId)
-    new GraphvizVisualizer(cbo, memoState, fakeBest)
+    new GraphvizVisualizer(ras, memoState, fakeBest)
   }
 
   def apply[T <: AnyRef](
-                          cbo: Ras[T],
-                          memoState: MemoState[T],
-                          best: Best[T]): GraphvizVisualizer[T] = {
-    new GraphvizVisualizer(cbo, memoState, best)
+      ras: Ras[T],
+      memoState: MemoState[T],
+      best: Best[T]): GraphvizVisualizer[T] = {
+    new GraphvizVisualizer(ras, memoState, best)
   }
 }

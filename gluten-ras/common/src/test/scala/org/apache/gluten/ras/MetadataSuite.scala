@@ -35,7 +35,7 @@ abstract class MetadataSuite extends AnyFunSuite {
   protected def conf: RasConfig
 
   test("Dry run") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -45,7 +45,7 @@ abstract class MetadataSuite extends AnyFunSuite {
         RasRule.Factory.none())
         .withNewConfig(_ => conf)
 
-    val planner = cbo.newPlanner(KnownRowCountUnary(0.5, KnownRowCountLeaf(2000)))
+    val planner = ras.newPlanner(KnownRowCountUnary(0.5, KnownRowCountLeaf(2000)))
     val out = planner.plan()
     assert(out == KnownRowCountUnary(0.5, KnownRowCountLeaf(2000)))
   }
@@ -64,7 +64,7 @@ abstract class MetadataSuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(2)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -75,7 +75,7 @@ abstract class MetadataSuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
 
     val planner =
-      cbo.newPlanner(KnownRowCountUnary(0.25d, KnownRowCountUnary(2.0d, KnownRowCountLeaf(2000))))
+      ras.newPlanner(KnownRowCountUnary(0.25d, KnownRowCountUnary(2.0d, KnownRowCountLeaf(2000))))
     val out = planner.plan()
     assert(out == KnownRowCountUnary(0.5d, KnownRowCountLeaf(2000)))
   }
@@ -94,7 +94,7 @@ abstract class MetadataSuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(2)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -107,7 +107,7 @@ abstract class MetadataSuite extends AnyFunSuite {
     val in = KnownRowCountBinary(
       KnownRowCountUnary(0.5d, KnownRowCountLeaf(2000)),
       KnownRowCountUnary(0.25d, KnownRowCountUnary(2.0d, KnownRowCountLeaf(2000))))
-    val planner = cbo.newPlanner(in)
+    val planner = ras.newPlanner(in)
     val out = planner.plan()
     assert(
       out == KnownRowCountBinary(

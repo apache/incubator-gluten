@@ -27,7 +27,7 @@ class WizardSuite extends AnyFunSuite {
   import WizardSuite._
 
   test("None") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -36,23 +36,23 @@ class WizardSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
 
-    val mock = MockMemoState.Builder(cbo)
+    val mock = MockMemoState.Builder(ras)
     val cluster = mock.newCluster()
     val groupA = cluster.newGroup()
 
     val n1 = "n1"
-    val node1 = Leaf(n1, 1).asCanonical(cbo)
+    val node1 = Leaf(n1, 1).asCanonical(ras)
 
     groupA.add(node1)
 
     val state = mock.build()
 
-    val finder = PathFinder.builder(cbo, state).output(OutputWizards.none()).build()
+    val finder = PathFinder.builder(ras, state).output(OutputWizards.none()).build()
     assert(finder.find(node1).map(_.plan()).toSeq == List.empty)
   }
 
   test("Prune by maximum depth") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -61,7 +61,7 @@ class WizardSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
 
-    val mock = MockMemoState.Builder(cbo)
+    val mock = MockMemoState.Builder(ras)
     val cluster = mock.newCluster()
     val groupA = cluster.newGroup()
     val groupB = cluster.newGroup()
@@ -75,12 +75,12 @@ class WizardSuite extends AnyFunSuite {
     val n4 = "n4"
     val n5 = "n5"
     val n6 = "n6"
-    val node1 = Binary(n1, groupB.self, groupC.self).asCanonical(cbo)
-    val node2 = Unary(n2, groupD.self).asCanonical(cbo)
-    val node3 = Unary(n3, groupE.self).asCanonical(cbo)
-    val node4 = Leaf(n4, 1).asCanonical(cbo)
-    val node5 = Leaf(n5, 1).asCanonical(cbo)
-    val node6 = Leaf(n6, 1).asCanonical(cbo)
+    val node1 = Binary(n1, groupB.self, groupC.self).asCanonical(ras)
+    val node2 = Unary(n2, groupD.self).asCanonical(ras)
+    val node3 = Unary(n3, groupE.self).asCanonical(ras)
+    val node4 = Leaf(n4, 1).asCanonical(ras)
+    val node5 = Leaf(n5, 1).asCanonical(ras)
+    val node6 = Leaf(n6, 1).asCanonical(ras)
 
     groupA.add(node1)
     groupB.add(node2)
@@ -91,7 +91,7 @@ class WizardSuite extends AnyFunSuite {
     val state = mock.build()
 
     def findWithMaxDepths(maxDepths: Seq[Int]): Seq[TestNode] = {
-      val builder = PathFinder.builder(cbo, state)
+      val builder = PathFinder.builder(ras, state)
       val finder = maxDepths
         .foldLeft(builder) {
           case (builder, d) =>
@@ -129,7 +129,7 @@ class WizardSuite extends AnyFunSuite {
   }
 
   test("Prune by pattern") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -138,7 +138,7 @@ class WizardSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
 
-    val mock = MockMemoState.Builder(cbo)
+    val mock = MockMemoState.Builder(ras)
     val cluster = mock.newCluster()
     val groupA = cluster.newGroup()
     val groupB = cluster.newGroup()
@@ -152,12 +152,12 @@ class WizardSuite extends AnyFunSuite {
     val n4 = "n4"
     val n5 = "n5"
     val n6 = "n6"
-    val node1 = Binary(n1, groupB.self, groupC.self).asCanonical(cbo)
-    val node2 = Unary(n2, groupD.self).asCanonical(cbo)
-    val node3 = Unary(n3, groupE.self).asCanonical(cbo)
-    val node4 = Leaf(n4, 1).asCanonical(cbo)
-    val node5 = Leaf(n5, 1).asCanonical(cbo)
-    val node6 = Leaf(n6, 1).asCanonical(cbo)
+    val node1 = Binary(n1, groupB.self, groupC.self).asCanonical(ras)
+    val node2 = Unary(n2, groupD.self).asCanonical(ras)
+    val node3 = Unary(n3, groupE.self).asCanonical(ras)
+    val node4 = Leaf(n4, 1).asCanonical(ras)
+    val node5 = Leaf(n5, 1).asCanonical(ras)
+    val node6 = Leaf(n6, 1).asCanonical(ras)
 
     groupA.add(node1)
     groupB.add(node2)
@@ -168,7 +168,7 @@ class WizardSuite extends AnyFunSuite {
     val state = mock.build()
 
     def findWithPatterns(patterns: Seq[Pattern[TestNode]]): Seq[TestNode] = {
-      val builder = PathFinder.builder(cbo, state)
+      val builder = PathFinder.builder(ras, state)
       val finder = patterns
         .foldLeft(builder) {
           case (builder, pattern) =>
@@ -220,7 +220,7 @@ class WizardSuite extends AnyFunSuite {
   }
 
   test("Prune by mask") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -229,7 +229,7 @@ class WizardSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
 
-    val mock = MockMemoState.Builder(cbo)
+    val mock = MockMemoState.Builder(ras)
     val cluster = mock.newCluster()
     val groupA = cluster.newGroup()
     val groupB = cluster.newGroup()
@@ -243,12 +243,12 @@ class WizardSuite extends AnyFunSuite {
     val n4 = "n4"
     val n5 = "n5"
     val n6 = "n6"
-    val node1 = Binary(n1, groupB.self, groupC.self).asCanonical(cbo)
-    val node2 = Unary(n2, groupD.self).asCanonical(cbo)
-    val node3 = Unary(n3, groupE.self).asCanonical(cbo)
-    val node4 = Leaf(n4, 1).asCanonical(cbo)
-    val node5 = Leaf(n5, 1).asCanonical(cbo)
-    val node6 = Leaf(n6, 1).asCanonical(cbo)
+    val node1 = Binary(n1, groupB.self, groupC.self).asCanonical(ras)
+    val node2 = Unary(n2, groupD.self).asCanonical(ras)
+    val node3 = Unary(n3, groupE.self).asCanonical(ras)
+    val node4 = Leaf(n4, 1).asCanonical(ras)
+    val node5 = Leaf(n5, 1).asCanonical(ras)
+    val node6 = Leaf(n6, 1).asCanonical(ras)
 
     groupA.add(node1)
     groupB.add(node2)
@@ -260,7 +260,7 @@ class WizardSuite extends AnyFunSuite {
 
     def findWithMask(mask: Seq[Int]): Seq[TestNode] = {
       PathFinder
-        .builder(cbo, state)
+        .builder(ras, state)
         .output(OutputWizards.withMask(PathMask(mask)))
         .build()
         .find(node1)

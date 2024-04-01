@@ -28,15 +28,15 @@ trait BestFinder[T <: AnyRef] {
 }
 
 object BestFinder {
-  def apply[T <: AnyRef](cbo: Ras[T], memoState: MemoState[T]): BestFinder[T] = {
-    unsafe(cbo, memoState, DpGroupAlgo.Adjustment.none())
+  def apply[T <: AnyRef](ras: Ras[T], memoState: MemoState[T]): BestFinder[T] = {
+    unsafe(ras, memoState, DpGroupAlgo.Adjustment.none())
   }
 
   def unsafe[T <: AnyRef](
-                           cbo: Ras[T],
-                           memoState: MemoState[T],
-                           adjustment: DpGroupAlgo.Adjustment[T]): BestFinder[T] = {
-    new GroupBasedBestFinder[T](cbo, memoState, adjustment)
+      ras: Ras[T],
+      memoState: MemoState[T],
+      adjustment: DpGroupAlgo.Adjustment[T]): BestFinder[T] = {
+    new GroupBasedBestFinder[T](ras, memoState, adjustment)
   }
 
   case class KnownCostGroup[T <: AnyRef](
@@ -48,12 +48,12 @@ object BestFinder {
   case class KnownCostCluster[T <: AnyRef](groupToCost: Map[Int, KnownCostGroup[T]])
 
   private[best] def newBest[T <: AnyRef](
-                                          cbo: Ras[T],
-                                          allGroups: Seq[RasGroup[T]],
-                                          group: RasGroup[T],
-                                          groupToCosts: Map[Int, KnownCostGroup[T]]): Best[T] = {
+      ras: Ras[T],
+      allGroups: Seq[RasGroup[T]],
+      group: RasGroup[T],
+      groupToCosts: Map[Int, KnownCostGroup[T]]): Best[T] = {
     val bestPath = groupToCosts(group.id()).best()
-    val bestRoot = bestPath.cboPath.node()
+    val bestRoot = bestPath.rasPath.node()
     val winnerNodes = groupToCosts.map { case (id, g) => InGroupNode(id, g.bestNode) }.toSeq
     val costsMap = mutable.Map[InGroupNode[T], Cost]()
     groupToCosts.foreach {
@@ -63,6 +63,6 @@ object BestFinder {
             costsMap += (InGroupNode(gid, n) -> c.cost)
         }
     }
-    Best(cbo, group.id(), bestPath, winnerNodes, costsMap.get)
+    Best(ras, group.id(), bestPath, winnerNodes, costsMap.get)
   }
 }

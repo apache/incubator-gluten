@@ -46,7 +46,7 @@ class OperationSuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(2)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -55,7 +55,7 @@ class OperationSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.reuse(List(l2l2, u2u2, Unary2Unary2ToUnary3)))
     val plan = Unary(50, Unary2(50, Unary2(50, Unary2(50, Leaf(30)))))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val optimized = planner.plan()
 
     assert(Unary2Unary2ToUnary3.invocationCount == 14)
@@ -68,7 +68,7 @@ class OperationSuite extends AnyFunSuite {
     val u2u2 = new UnaryToUnary2()
     val u2u22u3 = new Unary2Unary2ToUnary3()
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -77,7 +77,7 @@ class OperationSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.reuse(List(l2l2, u2u2, u2u22u3)))
     val plan = Unary(50, Unary2(50, Unary2(50, Unary2(50, Leaf(30)))))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val optimized = planner.plan()
 
     assert(l2l2.invocationCount == 10)
@@ -95,7 +95,7 @@ class OperationSuite extends AnyFunSuite {
 
     val planModel = new PlanModelWithStats(PlanModelImpl)
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -104,7 +104,7 @@ class OperationSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.reuse(List(l2l2, u2u2)))
     val plan = Unary(50, Leaf(30))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val optimized = planner.plan()
     assert(optimized == Unary2(49, Leaf2(29)))
 
@@ -125,7 +125,7 @@ class OperationSuite extends AnyFunSuite {
 
     val planModel = new PlanModelWithStats(PlanModelImpl)
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -134,7 +134,7 @@ class OperationSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.reuse(List(l2l2, u2u2, u2u22u3)))
     val plan = Unary(50, Unary2(50, Unary2(50, Unary2(50, Leaf(30)))))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val optimized = planner.plan()
     assert(optimized == Unary3(98, Unary3(99, Leaf2(29))))
 
@@ -161,7 +161,7 @@ class OperationSuite extends AnyFunSuite {
 
     val planModel = new PlanModelWithStats(PlanModelImpl)
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -176,7 +176,7 @@ class OperationSuite extends AnyFunSuite {
         Unary(
           50,
           Unary(50, Unary(50, Unary(50, Unary(50, Unary(50, Unary(50, Unary(50, Leaf(30)))))))))))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val optimized = planner.plan()
     assert(
       optimized == Unary2(
@@ -202,7 +202,7 @@ class OperationSuite extends AnyFunSuite {
   test("Cost evaluation count - base") {
     val costModel = new CostModelWithStats(CostModelImpl)
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         costModel,
@@ -217,7 +217,7 @@ class OperationSuite extends AnyFunSuite {
         Unary(
           50,
           Unary(50, Unary(50, Unary(50, Unary(50, Unary(50, Unary(50, Unary(50, Leaf(30)))))))))))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val optimized = planner.plan()
     assert(
       optimized == Unary3(
@@ -264,7 +264,7 @@ class OperationSuite extends AnyFunSuite {
 
     val costModel = new CostModelWithStats(costModelPruned)
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         costModel,
@@ -279,7 +279,7 @@ class OperationSuite extends AnyFunSuite {
         Unary(
           50,
           Unary(50, Unary(50, Unary(50, Unary(50, Unary(50, Unary(50, Unary(50, Leaf(30)))))))))))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val optimized = planner.plan()
     assert(
       optimized == Unary3(

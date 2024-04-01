@@ -21,13 +21,13 @@ import org.apache.gluten.ras.Best.{BestNotFoundException, KnownCostPath}
 import org.apache.gluten.ras.best.BestFinder.KnownCostGroup
 import org.apache.gluten.ras.dp.{DpGroupAlgo, DpGroupAlgoDef}
 import org.apache.gluten.ras.memo.MemoState
-import org.apache.gluten.ras.path.{RasPath, PathKeySet}
+import org.apache.gluten.ras.path.{PathKeySet, RasPath}
 
 // The best path's each sub-path is considered optimal in its own group.
 private class GroupBasedBestFinder[T <: AnyRef](
-                                                 cbo: Ras[T],
-                                                 memoState: MemoState[T],
-                                                 adjustment: DpGroupAlgo.Adjustment[T])
+    ras: Ras[T],
+    memoState: MemoState[T],
+    adjustment: DpGroupAlgo.Adjustment[T])
   extends BestFinder[T] {
   import GroupBasedBestFinder._
 
@@ -41,11 +41,11 @@ private class GroupBasedBestFinder[T <: AnyRef](
         s"Best path not found. Memo state (Graphviz): \n" +
           s"${memoState.formatGraphvizWithoutBest(groupId)}")
     }
-    BestFinder.newBest(cbo, allGroups, group, groupToCosts)
+    BestFinder.newBest(ras, allGroups, group, groupToCosts)
   }
 
   private def fillBests(group: RasGroup[T]): Map[Int, KnownCostGroup[T]] = {
-    val algoDef = new AlgoDef(cbo, memoState)
+    val algoDef = new AlgoDef(ras, memoState)
     val solution = DpGroupAlgo.resolve(memoState, algoDef, adjustment, group)
     val bests = allGroups.flatMap {
       group =>
@@ -60,15 +60,15 @@ private class GroupBasedBestFinder[T <: AnyRef](
 }
 
 private object GroupBasedBestFinder {
-  private[best] def algoDef[T <: AnyRef](cbo: Ras[T], memoState: MemoState[T])
+  private[best] def algoDef[T <: AnyRef](ras: Ras[T], memoState: MemoState[T])
       : DpGroupAlgoDef[T, Option[KnownCostPath[T]], Option[KnownCostGroup[T]]] = {
-    new AlgoDef(cbo, memoState)
+    new AlgoDef(ras, memoState)
   }
 
-  private class AlgoDef[T <: AnyRef](cbo: Ras[T], memoState: MemoState[T])
+  private class AlgoDef[T <: AnyRef](ras: Ras[T], memoState: MemoState[T])
     extends DpGroupAlgoDef[T, Option[KnownCostPath[T]], Option[KnownCostGroup[T]]] {
     private val allGroups = memoState.allGroups()
-    private val costComparator = cbo.costModel.costComparator()
+    private val costComparator = ras.costModel.costComparator()
 
     override def solveNode(
         ign: InGroupNode[T],
@@ -76,24 +76,24 @@ private object GroupBasedBestFinder {
         : Option[KnownCostPath[T]] = {
       val can = ign.can
       if (can.isLeaf()) {
-        val path = RasPath.one(cbo, PathKeySet.trivial, allGroups, can)
-        return Some(KnownCostPath(cbo, path))
+        val path = RasPath.one(ras, PathKeySet.trivial, allGroups, can)
+        return Some(KnownCostPath(ras, path))
       }
       val childrenGroups = can.getChildrenGroups(allGroups).map(gn => allGroups(gn.groupId()))
       val maybeBestChildrenPaths: Seq[Option[RasPath[T]]] = childrenGroups.map {
-        childGroup => childrenGroupsOutput(childGroup).map(kcg => kcg.best().cboPath)
+        childGroup => childrenGroupsOutput(childGroup).map(kcg => kcg.best().rasPath)
       }
       if (maybeBestChildrenPaths.exists(_.isEmpty)) {
         // Node should only be solved when all children outputs exist.
         return None
       }
       val bestChildrenPaths = maybeBestChildrenPaths.map(_.get)
-      Some(KnownCostPath(cbo, path.RasPath(cbo, can, bestChildrenPaths).get))
+      Some(KnownCostPath(ras, path.RasPath(ras, can, bestChildrenPaths).get))
     }
 
     override def solveGroup(
-                             group: RasGroup[T],
-                             nodesOutput: InGroupNode[T] => Option[KnownCostPath[T]]): Option[KnownCostGroup[T]] = {
+        group: RasGroup[T],
+        nodesOutput: InGroupNode[T] => Option[KnownCostPath[T]]): Option[KnownCostGroup[T]] = {
       val nodes = group.nodes(memoState)
       // Allow unsolved children nodes while solving group.
       val flatNodesOutput =
@@ -108,7 +108,7 @@ private object GroupBasedBestFinder {
             .by((cp: KnownCostPath[T]) => cp.cost)(costComparator)
             .min(left, right)
       }
-      Some(KnownCostGroup(flatNodesOutput, bestPath.cboPath.node().self().asCanonical()))
+      Some(KnownCostGroup(flatNodesOutput, bestPath.rasPath.node().self().asCanonical()))
     }
 
     override def solveNodeOnCycle(node: InGroupNode[T]): Option[KnownCostPath[T]] =

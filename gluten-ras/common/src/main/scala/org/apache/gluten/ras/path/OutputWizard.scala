@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.ras.path
 
-import org.apache.gluten.ras.{CanonicalNode, Ras, RasGroup, GroupNode}
+import org.apache.gluten.ras.{CanonicalNode, GroupNode, Ras, RasGroup}
 import org.apache.gluten.ras.path.OutputWizard.{OutputAction, PathDrain}
 
 import scala.collection.{mutable, Seq}
@@ -91,18 +91,18 @@ object OutputWizard {
     }
 
     def prepareForNode(
-                        cbo: Ras[T],
-                        allGroups: Int => RasGroup[T],
-                        can: CanonicalNode[T]): NodePrepare[T] = {
-      new NodePrepareImpl[T](cbo, wizard, allGroups, can)
+        ras: Ras[T],
+        allGroups: Int => RasGroup[T],
+        can: CanonicalNode[T]): NodePrepare[T] = {
+      new NodePrepareImpl[T](ras, wizard, allGroups, can)
     }
 
     def prepareForGroup(
-                         cbo: Ras[T],
-                         group: GroupNode[T],
-                         offset: Int,
-                         count: Int): GroupPrepare[T] = {
-      new GroupPrepareImpl[T](cbo, wizard, group, offset, count)
+        ras: Ras[T],
+        group: GroupNode[T],
+        offset: Int,
+        count: Int): GroupPrepare[T] = {
+      new GroupPrepareImpl[T](ras, wizard, group, offset, count)
     }
   }
 
@@ -135,35 +135,35 @@ object OutputWizard {
     }
 
     private class NodePrepareImpl[T <: AnyRef](
-                                                cbo: Ras[T],
-                                                wizard: OutputWizard[T],
-                                                allGroups: Int => RasGroup[T],
-                                                can: CanonicalNode[T])
+        ras: Ras[T],
+        wizard: OutputWizard[T],
+        allGroups: Int => RasGroup[T],
+        can: CanonicalNode[T])
       extends NodePrepare[T] {
       override def visit(): Terminate[T] = {
         val action = wizard.visit(can)
         val drained = if (action.drain().isEmpty()) {
           List.empty
         } else {
-          List(RasPath.one(cbo, PathKeySet(action.drain().keysUnsafe().toSet), allGroups, can))
+          List(RasPath.one(ras, PathKeySet(action.drain().keysUnsafe().toSet), allGroups, can))
         }
         new DrainedTerminate[T](action, drained)
       }
     }
 
     private class GroupPrepareImpl[T <: AnyRef](
-                                                 cbo: Ras[T],
-                                                 wizard: OutputWizard[T],
-                                                 group: GroupNode[T],
-                                                 offset: Int,
-                                                 count: Int)
+        ras: Ras[T],
+        wizard: OutputWizard[T],
+        group: GroupNode[T],
+        offset: Int,
+        count: Int)
       extends GroupPrepare[T] {
       override def advance(): Terminate[T] = {
         val action = wizard.advance(group, offset, count)
         val drained = if (action.drain().isEmpty()) {
           List.empty
         } else {
-          List(RasPath.zero(cbo, PathKeySet(action.drain().keysUnsafe().toSet), group))
+          List(RasPath.zero(ras, PathKeySet(action.drain().keysUnsafe().toSet), group))
         }
         new DrainedTerminate[T](action, drained)
       }

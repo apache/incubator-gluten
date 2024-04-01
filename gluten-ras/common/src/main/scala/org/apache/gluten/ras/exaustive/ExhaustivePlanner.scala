@@ -26,14 +26,14 @@ import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.{EnforcerRuleSet, RuleApplier, Shape}
 
 private class ExhaustivePlanner[T <: AnyRef] private (
-                                                       cbo: Ras[T],
-                                                       altConstraintSets: Seq[PropertySet[T]],
-                                                       constraintSet: PropertySet[T],
-                                                       plan: T)
+    ras: Ras[T],
+    altConstraintSets: Seq[PropertySet[T]],
+    constraintSet: PropertySet[T],
+    plan: T)
   extends RasPlanner[T] {
-  private val memo = Memo(cbo)
-  private val rules = cbo.ruleFactory.create().map(rule => RuleApplier(cbo, memo, rule))
-  private val enforcerRuleSet = EnforcerRuleSet[T](cbo, memo)
+  private val memo = Memo(ras)
+  private val rules = ras.ruleFactory.create().map(rule => RuleApplier(ras, memo, rule))
+  private val enforcerRuleSet = EnforcerRuleSet[T](ras, memo)
 
   private lazy val rootGroupId: Int = {
     memo.memorize(plan, constraintSet).id()
@@ -49,42 +49,42 @@ private class ExhaustivePlanner[T <: AnyRef] private (
   }
 
   override def plan(): T = {
-    best._2.cboPath.plan()
+    best._2.rasPath.plan()
   }
 
   override def newState(): PlannerState[T] = {
     val foundBest = best._1
-    PlannerState(cbo, memo.newState(), rootGroupId, foundBest)
+    PlannerState(ras, memo.newState(), rootGroupId, foundBest)
   }
 
   private def explore(): Unit = {
     // TODO1: Prune paths within cost threshold
     // ~~ TODO2: Use partial-canonical paths to reduce search space ~~
     memo.doExhaustively {
-      val explorer = new ExhaustiveExplorer(cbo, memo.newState(), rules, enforcerRuleSet)
+      val explorer = new ExhaustiveExplorer(ras, memo.newState(), rules, enforcerRuleSet)
       explorer.explore()
     }
   }
 
   private def findBest(memoState: MemoState[T], groupId: Int): Best[T] = {
-    BestFinder(cbo, memoState).bestOf(groupId)
+    BestFinder(ras, memoState).bestOf(groupId)
   }
 }
 
 object ExhaustivePlanner {
   def apply[T <: AnyRef](
-                          cbo: Ras[T],
-                          altConstraintSets: Seq[PropertySet[T]],
-                          constraintSet: PropertySet[T],
-                          plan: T): RasPlanner[T] = {
-    new ExhaustivePlanner(cbo, altConstraintSets, constraintSet, plan)
+      ras: Ras[T],
+      altConstraintSets: Seq[PropertySet[T]],
+      constraintSet: PropertySet[T],
+      plan: T): RasPlanner[T] = {
+    new ExhaustivePlanner(ras, altConstraintSets, constraintSet, plan)
   }
 
   private class ExhaustiveExplorer[T <: AnyRef](
-                                                 cbo: Ras[T],
-                                                 memoState: MemoState[T],
-                                                 rules: Seq[RuleApplier[T]],
-                                                 enforcerRuleSet: EnforcerRuleSet[T]) {
+      ras: Ras[T],
+      memoState: MemoState[T],
+      rules: Seq[RuleApplier[T]],
+      enforcerRuleSet: EnforcerRuleSet[T]) {
     private val allClusters = memoState.allClusters()
     private val allGroups = memoState.allGroups()
 
@@ -99,7 +99,7 @@ object ExhaustivePlanner {
       val finder = shapes
         .foldLeft(
           PathFinder
-            .builder(cbo, memoState)) {
+            .builder(ras, memoState)) {
           case (builder, shape) =>
             builder.output(shape.wizard())
         }

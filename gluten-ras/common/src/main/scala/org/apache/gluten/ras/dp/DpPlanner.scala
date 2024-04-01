@@ -21,22 +21,22 @@ import org.apache.gluten.ras.Best.KnownCostPath
 import org.apache.gluten.ras.best.BestFinder
 import org.apache.gluten.ras.dp.DpZipperAlgo.Adjustment.Panel
 import org.apache.gluten.ras.memo.{Memo, MemoTable}
-import org.apache.gluten.ras.path.{RasPath, PathFinder}
+import org.apache.gluten.ras.path.{PathFinder, RasPath}
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.{EnforcerRuleSet, RuleApplier, Shape}
 
 // TODO: Branch and bound pruning.
 private class DpPlanner[T <: AnyRef] private (
-                                               cbo: Ras[T],
-                                               altConstraintSets: Seq[PropertySet[T]],
-                                               constraintSet: PropertySet[T],
-                                               plan: T)
+    ras: Ras[T],
+    altConstraintSets: Seq[PropertySet[T]],
+    constraintSet: PropertySet[T],
+    plan: T)
   extends RasPlanner[T] {
   import DpPlanner._
 
-  private val memo = Memo.unsafe(cbo)
-  private val rules = cbo.ruleFactory.create().map(rule => RuleApplier(cbo, memo, rule))
-  private val enforcerRuleSet = EnforcerRuleSet[T](cbo, memo)
+  private val memo = Memo.unsafe(ras)
+  private val rules = ras.ruleFactory.create().map(rule => RuleApplier(ras, memo, rule))
+  private val enforcerRuleSet = EnforcerRuleSet[T](ras, memo)
 
   private lazy val rootGroupId: Int = {
     memo.memorize(plan, constraintSet).id()
@@ -51,31 +51,31 @@ private class DpPlanner[T <: AnyRef] private (
   }
 
   override def plan(): T = {
-    best._2.cboPath.plan()
+    best._2.rasPath.plan()
   }
 
   override def newState(): PlannerState[T] = {
     val foundBest = best._1
-    PlannerState(cbo, memo.newState(), rootGroupId, foundBest)
+    PlannerState(ras, memo.newState(), rootGroupId, foundBest)
   }
 
   private def findBest(memoTable: MemoTable[T], groupId: Int): Best[T] = {
     val cKey = memoTable.allGroups()(groupId).clusterKey()
     val algoDef = new DpExploreAlgoDef[T]
-    val adjustment = new ExploreAdjustment(cbo, memoTable, rules, enforcerRuleSet)
+    val adjustment = new ExploreAdjustment(ras, memoTable, rules, enforcerRuleSet)
     DpClusterAlgo.resolve(memoTable, algoDef, adjustment, cKey)
-    val finder = BestFinder(cbo, memoTable.newState())
+    val finder = BestFinder(ras, memoTable.newState())
     finder.bestOf(groupId)
   }
 }
 
 object DpPlanner {
   def apply[T <: AnyRef](
-                          cbo: Ras[T],
-                          altConstraintSets: Seq[PropertySet[T]],
-                          constraintSet: PropertySet[T],
-                          plan: T): RasPlanner[T] = {
-    new DpPlanner(cbo, altConstraintSets: Seq[PropertySet[T]], constraintSet, plan)
+      ras: Ras[T],
+      altConstraintSets: Seq[PropertySet[T]],
+      constraintSet: PropertySet[T],
+      plan: T): RasPlanner[T] = {
+    new DpPlanner(ras, altConstraintSets: Seq[PropertySet[T]], constraintSet, plan)
   }
 
   // Visited flag.
@@ -87,34 +87,34 @@ object DpPlanner {
         node: InClusterNode[T],
         childrenClustersOutput: RasClusterKey => SolvedFlag): SolvedFlag = Solved
     override def solveCluster(
-                               group: RasClusterKey,
-                               nodesOutput: InClusterNode[T] => SolvedFlag): SolvedFlag = Solved
+        group: RasClusterKey,
+        nodesOutput: InClusterNode[T] => SolvedFlag): SolvedFlag = Solved
     override def solveNodeOnCycle(node: InClusterNode[T]): SolvedFlag = Solved
     override def solveClusterOnCycle(cluster: RasClusterKey): SolvedFlag = Solved
   }
 
   private class ExploreAdjustment[T <: AnyRef](
-                                                cbo: Ras[T],
-                                                memoTable: MemoTable[T],
-                                                rules: Seq[RuleApplier[T]],
-                                                enforcerRuleSet: EnforcerRuleSet[T])
+      ras: Ras[T],
+      memoTable: MemoTable[T],
+      rules: Seq[RuleApplier[T]],
+      enforcerRuleSet: EnforcerRuleSet[T])
     extends DpClusterAlgo.Adjustment[T] {
     private val allGroups = memoTable.allGroups()
     private val clusterLookup = cKey => memoTable.getCluster(cKey)
 
     override def exploreChildX(
-                                panel: Panel[InClusterNode[T], RasClusterKey],
-                                x: InClusterNode[T]): Unit = {}
+        panel: Panel[InClusterNode[T], RasClusterKey],
+        x: InClusterNode[T]): Unit = {}
     override def exploreChildY(
-                                panel: Panel[InClusterNode[T], RasClusterKey],
-                                y: RasClusterKey): Unit = {}
+        panel: Panel[InClusterNode[T], RasClusterKey],
+        y: RasClusterKey): Unit = {}
     override def exploreParentX(
-                                 panel: Panel[InClusterNode[T], RasClusterKey],
-                                 x: InClusterNode[T]): Unit = {}
+        panel: Panel[InClusterNode[T], RasClusterKey],
+        x: InClusterNode[T]): Unit = {}
 
     override def exploreParentY(
-                                 panel: Panel[InClusterNode[T], RasClusterKey],
-                                 cKey: RasClusterKey): Unit = {
+        panel: Panel[InClusterNode[T], RasClusterKey],
+        cKey: RasClusterKey): Unit = {
       memoTable.doExhaustively {
         applyEnforcerRules(panel, cKey)
         applyRules(panel, cKey)
@@ -122,8 +122,8 @@ object DpPlanner {
     }
 
     private def applyRules(
-                            panel: Panel[InClusterNode[T], RasClusterKey],
-                            cKey: RasClusterKey): Unit = {
+        panel: Panel[InClusterNode[T], RasClusterKey],
+        cKey: RasClusterKey): Unit = {
       if (rules.isEmpty) {
         return
       }
@@ -136,8 +136,8 @@ object DpPlanner {
     }
 
     private def applyEnforcerRules(
-                                    panel: Panel[InClusterNode[T], RasClusterKey],
-                                    cKey: RasClusterKey): Unit = {
+        panel: Panel[InClusterNode[T], RasClusterKey],
+        cKey: RasClusterKey): Unit = {
       val cluster = clusterLookup(cKey)
       cKey.propSets(memoTable).foreach {
         constraintSet =>
@@ -158,7 +158,7 @@ object DpPlanner {
       val finder = shapes
         .foldLeft(
           PathFinder
-            .builder(cbo, memoTable)) {
+            .builder(ras, memoTable)) {
           case (builder, shape) =>
             builder.output(shape.wizard())
         }
@@ -167,10 +167,10 @@ object DpPlanner {
     }
 
     private def applyRule(
-                           panel: Panel[InClusterNode[T], RasClusterKey],
-                           thisClusterKey: RasClusterKey,
-                           rule: RuleApplier[T],
-                           path: RasPath[T]): Unit = {
+        panel: Panel[InClusterNode[T], RasClusterKey],
+        thisClusterKey: RasClusterKey,
+        rule: RuleApplier[T],
+        path: RasPath[T]): Unit = {
       val probe = memoTable.probe()
       rule.apply(path)
       val diff = probe.toDiff()

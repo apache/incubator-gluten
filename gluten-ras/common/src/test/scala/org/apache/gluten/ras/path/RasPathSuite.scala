@@ -27,7 +27,7 @@ class RasPathSuite extends AnyFunSuite {
   import RasPathSuite._
 
   test("Path aggregate - empty") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -35,11 +35,11 @@ class RasPathSuite extends AnyFunSuite {
         PropertyModelImpl,
         ExplainImpl,
         RasRule.Factory.reuse(List.empty))
-    assert(RasPath.aggregate(cbo, List.empty) == List.empty)
+    assert(RasPath.aggregate(ras, List.empty) == List.empty)
   }
 
   test("Path aggregate") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -55,32 +55,32 @@ class RasPathSuite extends AnyFunSuite {
     val n5 = "n5"
     val n6 = "n6"
     val path1 = MockCboPath.mock(
-      cbo,
+      ras,
       Unary(n5, Leaf(n6, 1)),
       PathKeySet(Set(DummyPathKey(1), DummyPathKey(3)))
     )
     val path2 = MockCboPath.mock(
-      cbo,
+      ras,
       Unary(n1, Unary(n2, Leaf(n3, 1))),
       PathKeySet(Set(DummyPathKey(1)))
     )
     val path3 = MockCboPath.mock(
-      cbo,
+      ras,
       Unary(n1, Unary(n2, Leaf(n3, 1))),
       PathKeySet(Set(DummyPathKey(1), DummyPathKey(2)))
     )
     val path4 = MockCboPath.mock(
-      cbo,
+      ras,
       Unary(n1, Unary(n2, Leaf(n3, 1))),
       PathKeySet(Set(DummyPathKey(4)))
     )
     val path5 = MockCboPath.mock(
-      cbo,
+      ras,
       Unary(n5, Leaf(n6, 1)),
       PathKeySet(Set(DummyPathKey(4)))
     )
     val out = RasPath
-      .aggregate(cbo, List(path1, path2, path3, path4, path5))
+      .aggregate(ras, List(path1, path2, path3, path4, path5))
       .toSeq
       .sortBy(_.height())
     assert(out.size == 2)

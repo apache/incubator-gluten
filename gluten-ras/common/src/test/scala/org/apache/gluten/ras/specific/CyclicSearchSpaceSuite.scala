@@ -21,24 +21,24 @@ import org.apache.gluten.ras.RasSuiteBase._
 import org.apache.gluten.ras.best.BestFinder
 import org.apache.gluten.ras.memo.MemoState
 import org.apache.gluten.ras.mock.MockMemoState
-import org.apache.gluten.ras.path.{RasPath, PathFinder}
+import org.apache.gluten.ras.path.{PathFinder, RasPath}
 import org.apache.gluten.ras.rule.RasRule
 
 import org.scalatest.funsuite.AnyFunSuite
 
 class GroupBastBestFinderCyclicSearchSpaceSuite extends CyclicSearchSpaceSuite {
   override protected def newBestFinder[T <: AnyRef](
-                                                     cbo: Ras[T],
-                                                     memoState: MemoState[T]): BestFinder[T] = BestFinder(cbo, memoState)
+      ras: Ras[T],
+      memoState: MemoState[T]): BestFinder[T] = BestFinder(ras, memoState)
 }
 
 abstract class CyclicSearchSpaceSuite extends AnyFunSuite {
   import CyclicSearchSpaceSuite._
 
-  protected def newBestFinder[T <: AnyRef](cbo: Ras[T], memoState: MemoState[T]): BestFinder[T]
+  protected def newBestFinder[T <: AnyRef](ras: Ras[T], memoState: MemoState[T]): BestFinder[T]
 
   test("Cyclic - find paths, simple self cycle") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -47,13 +47,13 @@ abstract class CyclicSearchSpaceSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
 
-    val mock = MockMemoState.Builder(cbo)
+    val mock = MockMemoState.Builder(ras)
     val cluster = mock.newCluster()
 
     val groupA = cluster.newGroup()
 
-    val node1 = Unary("node1", groupA.self).asCanonical(cbo)
-    val node2 = Leaf("node2", 1).asCanonical(cbo)
+    val node1 = Unary("node1", groupA.self).asCanonical(ras)
+    val node2 = Leaf("node2", 1).asCanonical(ras)
 
     groupA.add(List(node1, node2))
 
@@ -62,7 +62,7 @@ abstract class CyclicSearchSpaceSuite extends AnyFunSuite {
     val mockState = mock.build()
 
     def find(can: CanonicalNode[TestNode], depth: Int): Iterable[RasPath[TestNode]] = {
-      PathFinder.builder(cbo, mockState).depth(depth).build().find(can)
+      PathFinder.builder(ras, mockState).depth(depth).build().find(can)
     }
 
     assert(find(node1, 1).map(p => p.plan()) == List(Unary("node1", Group(0))))
@@ -73,7 +73,7 @@ abstract class CyclicSearchSpaceSuite extends AnyFunSuite {
   }
 
   test("Cyclic - find best, simple self cycle") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -82,27 +82,27 @@ abstract class CyclicSearchSpaceSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
 
-    val mock = MockMemoState.Builder(cbo)
+    val mock = MockMemoState.Builder(ras)
     val cluster = mock.newCluster()
 
     val groupA = cluster.newGroup()
 
-    val node1 = Unary("node1", groupA.self).asCanonical(cbo)
-    val node2 = Leaf("node2", 1).asCanonical(cbo)
+    val node1 = Unary("node1", groupA.self).asCanonical(ras)
+    val node2 = Leaf("node2", 1).asCanonical(ras)
 
     groupA.add(List(node1, node2))
 
     cluster.addNodes(List(node1, node2))
 
     val mockState = mock.build()
-    val bestFinder = newBestFinder(cbo, mockState)
+    val bestFinder = newBestFinder(ras, mockState)
     val best = bestFinder.bestOf(groupA.id).path()
-    assert(best.cboPath.plan() == Leaf("node2", 1))
+    assert(best.rasPath.plan() == Leaf("node2", 1))
     assert(best.cost == LongCost(1))
   }
 
   test("Cyclic - find best, case 1") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -111,7 +111,7 @@ abstract class CyclicSearchSpaceSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
 
-    val mock = MockMemoState.Builder(cbo)
+    val mock = MockMemoState.Builder(ras)
     val cluster = mock.newCluster()
 
     val groupA = cluster.newGroup()
@@ -123,17 +123,17 @@ abstract class CyclicSearchSpaceSuite extends AnyFunSuite {
     val groupG = cluster.newGroup()
     val groupH = cluster.newGroup()
 
-    val node1 = Binary("node1", groupB.self, groupC.self).asCanonical(cbo)
-    val node2 = Unary("node2", groupF.self).asCanonical(cbo)
-    val node3 = Binary("node3", groupD.self, groupF.self).asCanonical(cbo)
-    val node4 = Binary("node4", groupG.self, groupH.self).asCanonical(cbo)
-    val node5 = Unary("node5", groupC.self).asCanonical(cbo)
-    val node6 = Unary("node6", groupE.self).asCanonical(cbo)
-    val node7 = Leaf("node7", 1).asCanonical(cbo)
-    val node8 = Leaf("node8", 1).asCanonical(cbo)
-    val node9 = Leaf("node9", 1).asCanonical(cbo)
+    val node1 = Binary("node1", groupB.self, groupC.self).asCanonical(ras)
+    val node2 = Unary("node2", groupF.self).asCanonical(ras)
+    val node3 = Binary("node3", groupD.self, groupF.self).asCanonical(ras)
+    val node4 = Binary("node4", groupG.self, groupH.self).asCanonical(ras)
+    val node5 = Unary("node5", groupC.self).asCanonical(ras)
+    val node6 = Unary("node6", groupE.self).asCanonical(ras)
+    val node7 = Leaf("node7", 1).asCanonical(ras)
+    val node8 = Leaf("node8", 1).asCanonical(ras)
+    val node9 = Leaf("node9", 1).asCanonical(ras)
     // The best path should avoid including this node to most extent.
-    val node10 = Leaf("node10", 100).asCanonical(cbo)
+    val node10 = Leaf("node10", 100).asCanonical(ras)
 
     groupA.add(node1)
     groupB.add(node2)
@@ -148,7 +148,7 @@ abstract class CyclicSearchSpaceSuite extends AnyFunSuite {
 
     val mockState = mock.build()
 
-    val bestFinder = newBestFinder(cbo, mockState)
+    val bestFinder = newBestFinder(ras, mockState)
 
     def assertBestOf(group: RasGroup[TestNode])(assertion: Best[TestNode] => Unit): Unit = {
       val best = bestFinder.bestOf(group.id())
@@ -166,7 +166,7 @@ abstract class CyclicSearchSpaceSuite extends AnyFunSuite {
   }
 
   test("Cyclic - find best, case 2") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -175,7 +175,7 @@ abstract class CyclicSearchSpaceSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
 
-    val mock = MockMemoState.Builder(cbo)
+    val mock = MockMemoState.Builder(ras)
     val cluster = mock.newCluster()
 
     val groupA = cluster.newGroup()
@@ -183,12 +183,12 @@ abstract class CyclicSearchSpaceSuite extends AnyFunSuite {
     val groupC = cluster.newGroup()
     val groupD = cluster.newGroup()
 
-    val node1 = Unary("node1", groupB.self).asCanonical(cbo)
-    val node2 = Unary("node2", groupC.self).asCanonical(cbo)
-    val node3 = Unary("node3", groupC.self).asCanonical(cbo)
-    val node4 = Unary("node4", groupD.self).asCanonical(cbo)
-    val node5 = Unary("node5", groupB.self).asCanonical(cbo)
-    val node6 = Leaf("node6", 1).asCanonical(cbo)
+    val node1 = Unary("node1", groupB.self).asCanonical(ras)
+    val node2 = Unary("node2", groupC.self).asCanonical(ras)
+    val node3 = Unary("node3", groupC.self).asCanonical(ras)
+    val node4 = Unary("node4", groupD.self).asCanonical(ras)
+    val node5 = Unary("node5", groupB.self).asCanonical(ras)
+    val node6 = Leaf("node6", 1).asCanonical(ras)
 
     groupA.add(node1)
     groupA.add(node2)
@@ -201,7 +201,7 @@ abstract class CyclicSearchSpaceSuite extends AnyFunSuite {
 
     val mockState = mock.build()
 
-    val bestFinder = newBestFinder(cbo, mockState)
+    val bestFinder = newBestFinder(ras, mockState)
     val best = bestFinder.bestOf(groupA.id)
 
     assert(best.costs()(InGroupNode(groupA.id, node1)).contains(LongCost(3)))

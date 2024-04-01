@@ -21,12 +21,12 @@ import org.apache.gluten.ras.{CanonicalNode, Ras}
 import scala.collection.mutable
 
 // Arbitrary node key.
-class NodeKey[T <: AnyRef](cbo: Ras[T], val node: T) {
-  override def hashCode(): Int = cbo.planModel.hashCode(node)
+class NodeKey[T <: AnyRef](ras: Ras[T], val node: T) {
+  override def hashCode(): Int = ras.planModel.hashCode(node)
 
   override def equals(obj: Any): Boolean = {
     obj match {
-      case other: NodeKey[T] => cbo.planModel.equals(node, other.node)
+      case other: NodeKey[T] => ras.planModel.equals(node, other.node)
       case _ => false
     }
   }
@@ -35,7 +35,7 @@ class NodeKey[T <: AnyRef](cbo: Ras[T], val node: T) {
 }
 
 // Canonical node map.
-class CanonicalNodeMap[T <: AnyRef, V](cbo: Ras[T]) {
+class CanonicalNodeMap[T <: AnyRef, V](ras: Ras[T]) {
   private val map: mutable.Map[NodeKey[T], V] = mutable.Map()
 
   def contains(node: CanonicalNode[T]): Boolean = {
@@ -55,6 +55,6 @@ class CanonicalNodeMap[T <: AnyRef, V](cbo: Ras[T]) {
   }
 
   private def keyOf(node: CanonicalNode[T]): NodeKey[T] = {
-    new NodeKey(cbo, node.self())
+    new NodeKey(ras, node.self())
   }
 }

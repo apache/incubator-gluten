@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.ras.path
 
-import org.apache.gluten.ras.{CanonicalNode, Ras, GroupNode}
+import org.apache.gluten.ras.{CanonicalNode, GroupNode, Ras}
 import org.apache.gluten.ras.memo.MemoStore
 
 import scala.collection.mutable
@@ -27,15 +27,15 @@ trait PathFinder[T <: AnyRef] {
 }
 
 object PathFinder {
-  def apply[T <: AnyRef](cbo: Ras[T], memoStore: MemoStore[T]): PathFinder[T] = {
-    builder(cbo, memoStore).build()
+  def apply[T <: AnyRef](ras: Ras[T], memoStore: MemoStore[T]): PathFinder[T] = {
+    builder(ras, memoStore).build()
   }
 
-  def builder[T <: AnyRef](cbo: Ras[T], memoStore: MemoStore[T]): Builder[T] = {
-    Builder[T](cbo, memoStore)
+  def builder[T <: AnyRef](ras: Ras[T], memoStore: MemoStore[T]): Builder[T] = {
+    Builder[T](ras, memoStore)
   }
 
-  class Builder[T <: AnyRef] private (cbo: Ras[T], memoStore: MemoStore[T]) {
+  class Builder[T <: AnyRef] private (ras: Ras[T], memoStore: MemoStore[T]) {
     private val filterWizards = mutable.ListBuffer[FilterWizard[T]](FilterWizards.omitCycles())
     private val outputWizards = mutable.ListBuffer[OutputWizard[T]]()
 
@@ -62,27 +62,27 @@ object PathFinder {
       val wizard = filterWizards.foldLeft(allOutputs) {
         (outputWizard, filterWizard) => outputWizard.filterBy(filterWizard)
       }
-      PathEnumerator(cbo, memoStore, wizard)
+      PathEnumerator(ras, memoStore, wizard)
     }
   }
 
   private object Builder {
-    def apply[T <: AnyRef](cbo: Ras[T], memoStore: MemoStore[T]): Builder[T] = {
-      new Builder(cbo, memoStore)
+    def apply[T <: AnyRef](ras: Ras[T], memoStore: MemoStore[T]): Builder[T] = {
+      new Builder(ras, memoStore)
     }
   }
 
   // Using children's enumerated paths recursively to enumerate the paths of the current node.
   // This works like from bottom up to assemble all possible paths.
   private class PathEnumerator[T <: AnyRef] private (
-                                                      cbo: Ras[T],
-                                                      memoStore: MemoStore[T],
-                                                      wizard: OutputWizard[T])
+      ras: Ras[T],
+      memoStore: MemoStore[T],
+      wizard: OutputWizard[T])
     extends PathFinder[T] {
 
     override def find(canonical: CanonicalNode[T]): Iterable[RasPath[T]] = {
       val all =
-        wizard.prepareForNode(cbo, memoStore.asGroupSupplier(), canonical).visit().onContinue {
+        wizard.prepareForNode(ras, memoStore.asGroupSupplier(), canonical).visit().onContinue {
           newWizard => enumerateFromNode(canonical, newWizard)
         }
       all
@@ -90,7 +90,7 @@ object PathFinder {
 
     override def find(base: RasPath[T]): Iterable[RasPath[T]] = {
       val can = base.node().self().asCanonical()
-      val all = wizard.prepareForNode(cbo, memoStore.asGroupSupplier(), can).visit().onContinue {
+      val all = wizard.prepareForNode(ras, memoStore.asGroupSupplier(), can).visit().onContinue {
         newWizard => diveFromNode(base.height(), base.node(), newWizard)
       }
       all
@@ -104,7 +104,7 @@ object PathFinder {
         .nodes(memoStore)
         .flatMap(
           can => {
-            wizard.prepareForNode(cbo, memoStore.asGroupSupplier(), can).visit().onContinue {
+            wizard.prepareForNode(ras, memoStore.asGroupSupplier(), can).visit().onContinue {
               newWizard => enumerateFromNode(can, newWizard)
             }
           })
@@ -123,11 +123,11 @@ object PathFinder {
         childrenGroups.zipWithIndex.map {
           case (childGroup, index) =>
             wizard
-              .prepareForGroup(cbo, childGroup, index, childrenGroups.size)
+              .prepareForGroup(ras, childGroup, index, childrenGroups.size)
               .advance()
               .onContinue(newWizard => enumerateFromGroup(childGroup, newWizard))
         }
-      RasPath.cartesianProduct(cbo, canonical, expandedChildren)
+      RasPath.cartesianProduct(ras, canonical, expandedChildren)
     }
 
     private def diveFromGroup(
@@ -143,15 +143,15 @@ object PathFinder {
       assert(gpn.node.self().isCanonical)
       val canonical = gpn.node.self().asCanonical()
 
-      wizard.prepareForNode(cbo, memoStore.asGroupSupplier(), canonical).visit().onContinue {
+      wizard.prepareForNode(ras, memoStore.asGroupSupplier(), canonical).visit().onContinue {
         newWizard => diveFromNode(depth, gpn.node, newWizard)
       }
     }
 
     private def diveFromNode(
-                              depth: Int,
-                              node: RasPath.PathNode[T],
-                              wizard: OutputWizard[T]): Iterable[RasPath[T]] = {
+        depth: Int,
+        node: RasPath.PathNode[T],
+        wizard: OutputWizard[T]): Iterable[RasPath[T]] = {
       assert(depth >= 1)
       assert(node.self().isCanonical)
       val canonical = node.self().asCanonical()
@@ -163,12 +163,12 @@ object PathFinder {
 
       val childrenGroups = canonical.getChildrenGroups(memoStore.asGroupSupplier())
       RasPath.cartesianProduct(
-        cbo,
+        ras,
         canonical,
         children.zip(childrenGroups).zipWithIndex.map {
           case ((child, childGroup), index) =>
             wizard
-              .prepareForGroup(cbo, childGroup, index, childrenGroups.size)
+              .prepareForGroup(ras, childGroup, index, childrenGroups.size)
               .advance()
               .onContinue {
                 newWizard => diveFromGroup(depth - 1, GroupedPathNode(childGroup, child), newWizard)
@@ -180,10 +180,10 @@ object PathFinder {
 
   private object PathEnumerator {
     def apply[T <: AnyRef](
-                            cbo: Ras[T],
-                            memoStore: MemoStore[T],
-                            wizard: OutputWizard[T]): PathEnumerator[T] = {
-      new PathEnumerator(cbo, memoStore, wizard)
+        ras: Ras[T],
+        memoStore: MemoStore[T],
+        wizard: OutputWizard[T]): PathEnumerator[T] = {
+      new PathEnumerator(ras, memoStore, wizard)
     }
   }
 

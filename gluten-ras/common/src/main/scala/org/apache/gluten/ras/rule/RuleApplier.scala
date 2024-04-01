@@ -29,20 +29,20 @@ trait RuleApplier[T <: AnyRef] {
 }
 
 object RuleApplier {
-  def apply[T <: AnyRef](cbo: Ras[T], closure: Closure[T], rule: RasRule[T]): RuleApplier[T] = {
-    new ShapeAwareRuleApplier[T](cbo, new RegularRuleApplier(cbo, closure, rule))
+  def apply[T <: AnyRef](ras: Ras[T], closure: Closure[T], rule: RasRule[T]): RuleApplier[T] = {
+    new ShapeAwareRuleApplier[T](ras, new RegularRuleApplier(ras, closure, rule))
   }
 
   def apply[T <: AnyRef](
-                          cbo: Ras[T],
-                          closure: Closure[T],
-                          rule: EnforcerRule[T]): RuleApplier[T] = {
-    new ShapeAwareRuleApplier[T](cbo, new EnforcerRuleApplier[T](cbo, closure, rule))
+      ras: Ras[T],
+      closure: Closure[T],
+      rule: EnforcerRule[T]): RuleApplier[T] = {
+    new ShapeAwareRuleApplier[T](ras, new EnforcerRuleApplier[T](ras, closure, rule))
   }
 
-  private class RegularRuleApplier[T <: AnyRef](cbo: Ras[T], closure: Closure[T], rule: RasRule[T])
+  private class RegularRuleApplier[T <: AnyRef](ras: Ras[T], closure: Closure[T], rule: RasRule[T])
     extends RuleApplier[T] {
-    private val cache = new CanonicalNodeMap[T, mutable.Set[T]](cbo)
+    private val cache = new CanonicalNodeMap[T, mutable.Set[T]](ras)
 
     override def apply(path: RasPath[T]): Unit = {
       val can = path.node().self().asCanonical()
@@ -61,7 +61,7 @@ object RuleApplier {
         equiv =>
           closure
             .openFor(can)
-            .memorize(equiv, cbo.propertySetFactory().get(equiv))
+            .memorize(equiv, ras.propertySetFactory().get(equiv))
       }
     }
 
@@ -69,11 +69,11 @@ object RuleApplier {
   }
 
   private class EnforcerRuleApplier[T <: AnyRef](
-                                                  cbo: Ras[T],
-                                                  closure: Closure[T],
-                                                  rule: EnforcerRule[T])
+      ras: Ras[T],
+      closure: Closure[T],
+      rule: EnforcerRule[T])
     extends RuleApplier[T] {
-    private val cache = new CanonicalNodeMap[T, mutable.Set[T]](cbo)
+    private val cache = new CanonicalNodeMap[T, mutable.Set[T]](ras)
     private val constraint = rule.constraint()
     private val constraintDef = constraint.definition()
 
@@ -92,7 +92,7 @@ object RuleApplier {
     }
 
     private def apply0(can: CanonicalNode[T], plan: T): Unit = {
-      val propSet = cbo.propertySetFactory().get(plan)
+      val propSet = ras.propertySetFactory().get(plan)
       val constraintSet = propSet.withProp(constraint)
       val equivalents = rule.shift(plan)
       equivalents.foreach {
@@ -106,7 +106,7 @@ object RuleApplier {
     override def shape(): Shape[T] = rule.shape()
   }
 
-  private class ShapeAwareRuleApplier[T <: AnyRef](cbo: Ras[T], rule: RuleApplier[T])
+  private class ShapeAwareRuleApplier[T <: AnyRef](ras: Ras[T], rule: RuleApplier[T])
     extends RuleApplier[T] {
     private val ruleShape = rule.shape()
 

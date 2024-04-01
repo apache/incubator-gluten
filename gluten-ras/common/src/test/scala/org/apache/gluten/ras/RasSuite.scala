@@ -37,7 +37,7 @@ abstract class RasSuite extends AnyFunSuite {
   protected def conf: RasConfig
 
   test("Group memo - re-memorize") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -46,14 +46,14 @@ abstract class RasSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
         .withNewConfig(_ => conf)
-    val memo = Memo(cbo)
-    val group1 = memo.memorize(cbo, Unary(50, Unary(50, Leaf(30))))
-    val group2 = memo.memorize(cbo, Unary(50, Unary(50, Leaf(30))))
+    val memo = Memo(ras)
+    val group1 = memo.memorize(ras, Unary(50, Unary(50, Leaf(30))))
+    val group2 = memo.memorize(ras, Unary(50, Unary(50, Leaf(30))))
     assert(group2 eq group1)
   }
 
   test("Group memo - define equivalence") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -62,17 +62,17 @@ abstract class RasSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
         .withNewConfig(_ => conf)
-    val memo = Memo(cbo)
-    val group = memo.memorize(cbo, Unary(50, Unary(50, Leaf(30))))
+    val memo = Memo(ras)
+    val group = memo.memorize(ras, Unary(50, Unary(50, Leaf(30))))
     val state = memo.newState()
     assert(group.nodes(state).size == 1)
     val can = group.nodes(state).head.asCanonical()
-    memo.openFor(can).memorize(cbo, Unary(30, Leaf(90)))
+    memo.openFor(can).memorize(ras, Unary(30, Leaf(90)))
     assert(memo.newState().allGroups().size == 4)
   }
 
   test("Group memo - define equivalence: binary with similar children, 1") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -81,19 +81,19 @@ abstract class RasSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
         .withNewConfig(_ => conf)
-    val memo = Memo(cbo)
-    val group = memo.memorize(cbo, Binary(50, Leaf(30), Leaf(40)))
+    val memo = Memo(ras)
+    val group = memo.memorize(ras, Binary(50, Leaf(30), Leaf(40)))
     val state = memo.newState()
     assert(group.nodes(state).size == 1)
-    val leaf40Group = memo.memorize(cbo, Leaf(40))
+    val leaf40Group = memo.memorize(ras, Leaf(40))
     assert(leaf40Group.nodes(state).size == 1)
     val can = leaf40Group.nodes(state).head.asCanonical()
-    memo.openFor(can).memorize(cbo, Leaf(30))
+    memo.openFor(can).memorize(ras, Leaf(30))
     assert(memo.newState().allGroups().size == 3)
   }
 
   test("Group memo - define equivalence: binary with similar children, 2") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -102,19 +102,19 @@ abstract class RasSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
         .withNewConfig(_ => conf)
-    val memo = Memo(cbo)
-    val group = memo.memorize(cbo, Binary(50, Unary(20, Leaf(30)), Unary(20, Leaf(40))))
+    val memo = Memo(ras)
+    val group = memo.memorize(ras, Binary(50, Unary(20, Leaf(30)), Unary(20, Leaf(40))))
     val state = memo.newState()
     assert(group.nodes(state).size == 1)
-    val leaf40Group = memo.memorize(cbo, Leaf(40))
+    val leaf40Group = memo.memorize(ras, Leaf(40))
     assert(leaf40Group.nodes(state).size == 1)
     val can = leaf40Group.nodes(state).head.asCanonical()
-    memo.openFor(can).memorize(cbo, Leaf(30))
+    memo.openFor(can).memorize(ras, Leaf(30))
     assert(memo.newState().allGroups().size == 5)
   }
 
   test("Group memo - partial canonical") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -123,9 +123,9 @@ abstract class RasSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
         .withNewConfig(_ => conf)
-    val memo = Memo(cbo)
-    val group1 = memo.memorize(cbo, Unary(50, Unary(50, Leaf(30))))
-    val group2 = memo.memorize(cbo, Unary(50, Group(1)))
+    val memo = Memo(ras)
+    val group1 = memo.memorize(ras, Unary(50, Unary(50, Leaf(30))))
+    val group2 = memo.memorize(ras, Unary(50, Group(1)))
     assert(group2 eq group1)
   }
 
@@ -159,7 +159,7 @@ abstract class RasSuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -169,7 +169,7 @@ abstract class RasSuite extends AnyFunSuite {
         RasRule.Factory.reuse(List(DivideUnaryCost, DecreaseUnaryCost)))
         .withNewConfig(_ => conf)
     val plan = Unary(90, Leaf(70))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val optimized = planner.plan()
 
     assert(optimized == Unary(23, Unary(23, Leaf(70))))
@@ -186,7 +186,7 @@ abstract class RasSuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(2)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -197,7 +197,7 @@ abstract class RasSuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
 
     val plan = Unary(90, Unary(90, Leaf(70)))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val optimized = planner.plan()
 
     assert(optimized == Unary(79, Unary2(10, Unary(90, Leaf(70)))))
@@ -219,7 +219,7 @@ abstract class RasSuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -230,7 +230,7 @@ abstract class RasSuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
 
     val plan = Binary(90, Leaf(70), Leaf(70))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val optimized = planner.plan()
 
     assert(optimized == Binary(90, Leaf(70), Leaf(70)))
@@ -247,7 +247,7 @@ abstract class RasSuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -258,7 +258,7 @@ abstract class RasSuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
 
     val plan = Unary(90, Leaf(70))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val optimized = planner.plan()
     val state = planner.newState()
 
@@ -278,7 +278,7 @@ abstract class RasSuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -289,7 +289,7 @@ abstract class RasSuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
 
     val plan = Binary(90, Leaf(50), Leaf(70))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val optimized = planner.plan()
 
     assert(optimized == Binary(0, Leaf(50), Leaf(70)))
@@ -306,7 +306,7 @@ abstract class RasSuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -317,7 +317,7 @@ abstract class RasSuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
 
     val plan = Binary(70, Binary(90, Leaf(50), Leaf(50)), Leaf(50))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val optimized = planner.plan()
 
     assert(optimized == Binary(0, Binary(0, Leaf(50), Leaf(50)), Leaf(50)))
@@ -334,7 +334,7 @@ abstract class RasSuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -345,7 +345,7 @@ abstract class RasSuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
 
     val plan = Unary(50, Unary2(50, Leaf(30)))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val optimized = planner.plan()
     val state = planner.newState()
 
@@ -356,7 +356,7 @@ abstract class RasSuite extends AnyFunSuite {
   test(s"Rule application depth - depth 1") {
     val l2l2 = new LeafToLeaf2()
     val u2u2 = new UnaryToUnary2()
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -367,7 +367,7 @@ abstract class RasSuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
 
     val plan = Unary(50, Unary2(50, Unary2(50, Unary2(50, Leaf(30)))))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val optimized = planner.plan()
 
     assert(optimized == Unary2(49, Unary2(50, Unary2(50, Unary2(50, Leaf2(29))))))
@@ -393,7 +393,7 @@ abstract class RasSuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(2)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -404,7 +404,7 @@ abstract class RasSuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
 
     val plan = Unary(50, Unary2(50, Unary2(50, Unary2(50, Leaf(30)))))
-    val planner = cbo.newPlanner(plan)
+    val planner = ras.newPlanner(plan)
     val optimized = planner.plan()
 
     assert(Unary2Unary2ToUnary3.invocationCount == 14)

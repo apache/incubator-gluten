@@ -29,20 +29,20 @@ trait RasGroup[T <: AnyRef] {
 
 object RasGroup {
   def apply[T <: AnyRef](
-                          cbo: Ras[T],
-                          clusterKey: RasClusterKey,
-                          id: Int,
-                          propSet: PropertySet[T]): RasGroup[T] = {
-    new RasGroupImpl[T](cbo, clusterKey, id, propSet)
+      ras: Ras[T],
+      clusterKey: RasClusterKey,
+      id: Int,
+      propSet: PropertySet[T]): RasGroup[T] = {
+    new RasGroupImpl[T](ras, clusterKey, id, propSet)
   }
 
   private class RasGroupImpl[T <: AnyRef](
-                                           cbo: Ras[T],
-                                           clusterKey: RasClusterKey,
-                                           override val id: Int,
-                                           override val propSet: PropertySet[T])
+      ras: Ras[T],
+      clusterKey: RasClusterKey,
+      override val id: Int,
+      override val propSet: PropertySet[T])
     extends RasGroup[T] {
-    private val groupLeaf: T = cbo.planModel.newGroupLeaf(id, clusterKey.metadata, propSet)
+    private val groupLeaf: T = ras.planModel.newGroupLeaf(id, clusterKey.metadata, propSet)
 
     override def clusterKey(): RasClusterKey = clusterKey
     override def self(): T = groupLeaf

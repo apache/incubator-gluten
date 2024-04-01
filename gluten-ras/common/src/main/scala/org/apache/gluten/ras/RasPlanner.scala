@@ -33,15 +33,15 @@ trait RasPlanner[T <: AnyRef] {
 
 object RasPlanner {
   def apply[T <: AnyRef](
-                          cbo: Ras[T],
-                          altConstraintSets: Seq[PropertySet[T]],
-                          constraintSet: PropertySet[T],
-                          plan: T): RasPlanner[T] = {
-    cbo.config.plannerType match {
+      ras: Ras[T],
+      altConstraintSets: Seq[PropertySet[T]],
+      constraintSet: PropertySet[T],
+      plan: T): RasPlanner[T] = {
+    ras.config.plannerType match {
       case PlannerType.Exhaustive =>
-        ExhaustivePlanner(cbo, altConstraintSets, constraintSet, plan)
+        ExhaustivePlanner(ras, altConstraintSets, constraintSet, plan)
       case PlannerType.Dp =>
-        DpPlanner(cbo, altConstraintSets, constraintSet, plan)
+        DpPlanner(ras, altConstraintSets, constraintSet, plan)
     }
   }
 }
@@ -57,11 +57,11 @@ trait Best[T <: AnyRef] {
 
 object Best {
   def apply[T <: AnyRef](
-                          cbo: Ras[T],
-                          rootGroupId: Int,
-                          bestPath: KnownCostPath[T],
-                          winnerNodes: Seq[InGroupNode[T]],
-                          costs: InGroupNode[T] => Option[Cost]): Best[T] = {
+      ras: Ras[T],
+      rootGroupId: Int,
+      bestPath: KnownCostPath[T],
+      winnerNodes: Seq[InGroupNode[T]],
+      costs: InGroupNode[T] => Option[Cost]): Best[T] = {
     val bestNodes = mutable.Set[InGroupNode[T]]()
 
     def dfs(groupId: Int, cursor: RasPath.PathNode[T]): Unit = {
@@ -73,37 +73,37 @@ object Best {
       }
     }
 
-    dfs(rootGroupId, bestPath.cboPath.node())
+    dfs(rootGroupId, bestPath.rasPath.node())
 
     val winnerNodeSet = winnerNodes.toSet
 
-    BestImpl(cbo, rootGroupId, bestPath, bestNodes.toSet, winnerNodeSet, costs)
+    BestImpl(ras, rootGroupId, bestPath, bestNodes.toSet, winnerNodeSet, costs)
   }
 
   private case class BestImpl[T <: AnyRef](
-                                            cbo: Ras[T],
-                                            override val rootGroupId: Int,
-                                            override val path: KnownCostPath[T],
-                                            override val bestNodes: Set[InGroupNode[T]],
-                                            override val winnerNodes: Set[InGroupNode[T]],
-                                            override val costs: InGroupNode[T] => Option[Cost])
+      ras: Ras[T],
+      override val rootGroupId: Int,
+      override val path: KnownCostPath[T],
+      override val bestNodes: Set[InGroupNode[T]],
+      override val winnerNodes: Set[InGroupNode[T]],
+      override val costs: InGroupNode[T] => Option[Cost])
     extends Best[T]
 
   trait KnownCostPath[T <: AnyRef] {
-    def cboPath: RasPath[T]
+    def rasPath: RasPath[T]
     def cost: Cost
   }
 
   object KnownCostPath {
-    def apply[T <: AnyRef](cbo: Ras[T], cboPath: RasPath[T]): KnownCostPath[T] = {
-      KnownCostPathImpl(cboPath, cbo.costModel.costOf(cboPath.plan()))
+    def apply[T <: AnyRef](ras: Ras[T], rasPath: RasPath[T]): KnownCostPath[T] = {
+      KnownCostPathImpl(rasPath, ras.costModel.costOf(rasPath.plan()))
     }
 
-    def apply[T <: AnyRef](cboPath: RasPath[T], cost: Cost): KnownCostPath[T] = {
-      KnownCostPathImpl(cboPath, cost)
+    def apply[T <: AnyRef](rasPath: RasPath[T], cost: Cost): KnownCostPath[T] = {
+      KnownCostPathImpl(rasPath, cost)
     }
 
-    private case class KnownCostPathImpl[T <: AnyRef](cboPath: RasPath[T], cost: Cost)
+    private case class KnownCostPathImpl[T <: AnyRef](rasPath: RasPath[T], cost: Cost)
       extends KnownCostPath[T]
   }
 
@@ -120,7 +120,7 @@ object Best {
 }
 
 trait PlannerState[T <: AnyRef] {
-  def cbo(): Ras[T]
+  def ras(): Ras[T]
   def memoState(): MemoState[T]
   def rootGroupId(): Int
   def best(): Best[T]
@@ -128,11 +128,11 @@ trait PlannerState[T <: AnyRef] {
 
 object PlannerState {
   def apply[T <: AnyRef](
-                          cbo: Ras[T],
-                          memoState: MemoState[T],
-                          rootGroupId: Int,
-                          best: Best[T]): PlannerState[T] = {
-    PlannerStateImpl(cbo, memoState, rootGroupId, best)
+      ras: Ras[T],
+      memoState: MemoState[T],
+      rootGroupId: Int,
+      best: Best[T]): PlannerState[T] = {
+    PlannerStateImpl(ras, memoState, rootGroupId, best)
   }
 
   implicit class PlannerStateImplicits[T <: AnyRef](state: PlannerState[T]) {
@@ -141,14 +141,14 @@ object PlannerState {
     }
 
     private def formatGraphvizWithBest(): String = {
-      GraphvizVisualizer(state.cbo(), state.memoState(), state.best()).format()
+      GraphvizVisualizer(state.ras(), state.memoState(), state.best()).format()
     }
   }
 
   private case class PlannerStateImpl[T <: AnyRef] private (
-                                                             override val cbo: Ras[T],
-                                                             override val memoState: MemoState[T],
-                                                             override val rootGroupId: Int,
-                                                             override val best: Best[T])
+      override val ras: Ras[T],
+      override val memoState: MemoState[T],
+      override val rootGroupId: Int,
+      override val best: Best[T])
     extends PlannerState[T]
 }

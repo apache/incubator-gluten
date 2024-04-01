@@ -20,7 +20,7 @@ import org.apache.gluten.ras._
 import org.apache.gluten.ras.memo.MemoStore
 
 trait RasPath[T <: AnyRef] {
-  def cbo(): Ras[T]
+  def ras(): Ras[T]
   def keys(): PathKeySet
   def height(): Int
   def node(): RasPath.PathNode[T]
@@ -57,19 +57,19 @@ object RasPath {
   }
 
   private def apply[T <: AnyRef](
-                                  cbo: Ras[T],
-                                  keys: PathKeySet,
-                                  height: Int,
-                                  node: RasPath.PathNode[T]): RasPath[T] = {
-    RasPathImpl(cbo, keys, height, node)
+      ras: Ras[T],
+      keys: PathKeySet,
+      height: Int,
+      node: RasPath.PathNode[T]): RasPath[T] = {
+    RasPathImpl(ras, keys, height, node)
   }
 
   // Returns none if children doesn't share at least one path key.
   def apply[T <: AnyRef](
-                          cbo: Ras[T],
-                          node: RasNode[T],
-                          children: Seq[RasPath[T]]): Option[RasPath[T]] = {
-    assert(children.forall(_.cbo() eq cbo))
+      ras: Ras[T],
+      node: RasNode[T],
+      children: Seq[RasPath[T]]): Option[RasPath[T]] = {
+    assert(children.forall(_.ras() eq ras))
 
     val newKeysUnsafe = children.map(_.keys().keys()).reduce[Set[PathKey]] {
       case (one, other) =>
@@ -81,23 +81,23 @@ object RasPath {
     val newKeys = PathKeySet(newKeysUnsafe)
     Some(
       RasPath(
-        cbo,
+        ras,
         newKeys,
         1 + children.map(_.height()).reduceOption(_ max _).getOrElse(0),
         PathNode(node, children.map(_.node()))))
   }
 
-  def zero[T <: AnyRef](cbo: Ras[T], keys: PathKeySet, group: GroupNode[T]): RasPath[T] = {
-    RasPath(cbo, keys, 0, PathNode(group, List.empty))
+  def zero[T <: AnyRef](ras: Ras[T], keys: PathKeySet, group: GroupNode[T]): RasPath[T] = {
+    RasPath(ras, keys, 0, PathNode(group, List.empty))
   }
 
   def one[T <: AnyRef](
-                        cbo: Ras[T],
-                        keys: PathKeySet,
-                        allGroups: Int => RasGroup[T],
-                        canonical: CanonicalNode[T]): RasPath[T] = {
+      ras: Ras[T],
+      keys: PathKeySet,
+      allGroups: Int => RasGroup[T],
+      canonical: CanonicalNode[T]): RasPath[T] = {
     RasPath(
-      cbo,
+      ras,
       keys,
       1,
       PathNode(canonical, canonical.getChildrenGroups(allGroups).map(g => PathNode(g, List.empty))))
@@ -105,7 +105,7 @@ object RasPath {
 
   // Aggregates paths that have same shape but different keys together.
   // Currently not in use because of bad performance.
-  def aggregate[T <: AnyRef](cbo: Ras[T], paths: Iterable[RasPath[T]]): Iterable[RasPath[T]] = {
+  def aggregate[T <: AnyRef](ras: Ras[T], paths: Iterable[RasPath[T]]): Iterable[RasPath[T]] = {
     // Scala has specialized optimization against small set of input of group-by.
     // So it's better only to pass small inputs to this method if possible.
     val grouped = paths.groupBy(_.node())
@@ -118,14 +118,14 @@ object RasPath {
           case (one, other) =>
             one.union(other)
         }
-        RasPath(cbo, PathKeySet(keys), height, node)
+        RasPath(ras, PathKeySet(keys), height, node)
     }
   }
 
   def cartesianProduct[T <: AnyRef](
-                                     cbo: Ras[T],
-                                     canonical: CanonicalNode[T],
-                                     children: Seq[Iterable[RasPath[T]]]): Iterable[RasPath[T]] = {
+      ras: Ras[T],
+      canonical: CanonicalNode[T],
+      children: Seq[Iterable[RasPath[T]]]): Iterable[RasPath[T]] = {
     // Apply cartesian product across all children to get an enumeration
     // of all possible choices of parent and children.
     //
@@ -152,7 +152,7 @@ object RasPath {
           for (left <- choicesBuilder; right <- child) yield left :+ right
       }
 
-    choices.flatMap { children: Seq[RasPath[T]] => RasPath(cbo, canonical, children) }
+    choices.flatMap { children: Seq[RasPath[T]] => RasPath(ras, canonical, children) }
   }
 
   implicit class CboPathImplicits[T <: AnyRef](path: RasPath[T]) {
@@ -164,7 +164,7 @@ object RasPath {
       }
 
       val finder = PathFinder
-        .builder(path.cbo(), memoStore)
+        .builder(path.ras(), memoStore)
         .depth(accumulatedDepth)
         .build()
       finder.find(path)
@@ -172,20 +172,20 @@ object RasPath {
   }
 
   private case class PathNodeImpl[T <: AnyRef](
-                                                override val self: RasNode[T],
-                                                override val children: Seq[PathNode[T]])
+      override val self: RasNode[T],
+      override val children: Seq[PathNode[T]])
     extends PathNode[T]
 
   private case class RasPathImpl[T <: AnyRef](
-                                               override val cbo: Ras[T],
-                                               override val keys: PathKeySet,
-                                               override val height: Int,
-                                               override val node: RasPath.PathNode[T])
+      override val ras: Ras[T],
+      override val keys: PathKeySet,
+      override val height: Int,
+      override val node: RasPath.PathNode[T])
     extends RasPath[T] {
     assert(height >= 0)
     private lazy val built: T = {
       def dfs(node: RasPath.PathNode[T]): T = {
-        cbo.withNewChildren(node.self().self(), node.children().map(c => dfs(c)))
+        ras.withNewChildren(node.self().self(), node.children().map(c => dfs(c)))
       }
       dfs(node)
     }

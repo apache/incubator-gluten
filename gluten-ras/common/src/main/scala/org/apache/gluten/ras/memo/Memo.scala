@@ -40,18 +40,18 @@ trait UnsafeMemo[T <: AnyRef] extends Memo[T] {
 }
 
 object Memo {
-  def apply[T <: AnyRef](cbo: Ras[T]): Memo[T] = {
-    new RasMemo[T](cbo)
+  def apply[T <: AnyRef](ras: Ras[T]): Memo[T] = {
+    new RasMemo[T](ras)
   }
 
-  def unsafe[T <: AnyRef](cbo: Ras[T]): UnsafeMemo[T] = {
-    new RasMemo[T](cbo)
+  def unsafe[T <: AnyRef](ras: Ras[T]): UnsafeMemo[T] = {
+    new RasMemo[T](ras)
   }
 
-  private class RasMemo[T <: AnyRef](val cbo: Ras[T]) extends UnsafeMemo[T] {
+  private class RasMemo[T <: AnyRef](val ras: Ras[T]) extends UnsafeMemo[T] {
     import RasMemo._
-    private val memoTable: MemoTable.Writable[T] = MemoTable.create(cbo)
-    private val cache: NodeToClusterMap[T] = new NodeToClusterMap(cbo)
+    private val memoTable: MemoTable.Writable[T] = MemoTable.create(ras)
+    private val cache: NodeToClusterMap[T] = new NodeToClusterMap(ras)
 
     private def newCluster(metadata: Metadata): RasClusterKey = {
       memoTable.newCluster(metadata)
@@ -67,11 +67,11 @@ object Memo {
     private def canonizeUnsafe(node: T, constraintSet: PropertySet[T], depth: Int): T = {
       assert(depth >= 1)
       if (depth > 1) {
-        return cbo.withNewChildren(
+        return ras.withNewChildren(
           node,
-          cbo.planModel
+          ras.planModel
             .childrenOf(node)
-            .zip(cbo.propertySetFactory().childrenConstraintSets(constraintSet, node))
+            .zip(ras.propertySetFactory().childrenConstraintSets(constraintSet, node))
             .map {
               case (child, constraintSet) =>
                 canonizeUnsafe(child, constraintSet, depth - 1)
@@ -79,25 +79,25 @@ object Memo {
         )
       }
       assert(depth == 1)
-      val childrenGroups: Seq[RasGroup[T]] = cbo.planModel
+      val childrenGroups: Seq[RasGroup[T]] = ras.planModel
         .childrenOf(node)
-        .zip(cbo.propertySetFactory().childrenConstraintSets(constraintSet, node))
+        .zip(ras.propertySetFactory().childrenConstraintSets(constraintSet, node))
         .map {
           case (child, childConstraintSet) =>
             memorize(child, childConstraintSet)
         }
       val newNode =
-        cbo.withNewChildren(node, childrenGroups.map(group => group.self()))
+        ras.withNewChildren(node, childrenGroups.map(group => group.self()))
       newNode
     }
 
     private def canonize(node: T, constraintSet: PropertySet[T]): CanonicalNode[T] = {
-      CanonicalNode(cbo, canonizeUnsafe(node, constraintSet, 1))
+      CanonicalNode(ras, canonizeUnsafe(node, constraintSet, 1))
     }
 
     private def insert(n: T, constraintSet: PropertySet[T]): RasClusterKey = {
-      if (cbo.planModel.isGroupLeaf(n)) {
-        val plainGroup = memoTable.allGroups()(cbo.planModel.getGroupId(n))
+      if (ras.planModel.isGroupLeaf(n)) {
+        val plainGroup = memoTable.allGroups()(ras.planModel.getGroupId(n))
         return plainGroup.clusterKey()
       }
 
@@ -107,7 +107,7 @@ object Memo {
         cache.get(node)
       } else {
         // Node not yet added to cluster.
-        val meta = cbo.metadataModel.metadataOf(node.self())
+        val meta = ras.metadataModel.metadataOf(node.self())
         val clusterKey = newCluster(meta)
         addToCluster(clusterKey, node)
         clusterKey
@@ -170,8 +170,8 @@ object Memo {
     }
   }
 
-  private class NodeToClusterMap[T <: AnyRef](cbo: Ras[T])
-    extends CanonicalNodeMap[T, RasClusterKey](cbo)
+  private class NodeToClusterMap[T <: AnyRef](ras: Ras[T])
+    extends CanonicalNodeMap[T, RasClusterKey](ras)
 }
 
 trait MemoStore[T <: AnyRef] {
@@ -188,7 +188,7 @@ object MemoStore {
 }
 
 trait MemoState[T <: AnyRef] extends MemoStore[T] {
-  def cbo(): Ras[T]
+  def ras(): Ras[T]
   def clusterLookup(): Map[RasClusterKey, RasCluster[T]]
   def allClusters(): Iterable[RasCluster[T]]
   def allGroups(): Seq[RasGroup[T]]
@@ -196,16 +196,16 @@ trait MemoState[T <: AnyRef] extends MemoStore[T] {
 
 object MemoState {
   def apply[T <: AnyRef](
-                          cbo: Ras[T],
-                          clusterLookup: Map[RasClusterKey, ImmutableRasCluster[T]],
-                          allGroups: Seq[RasGroup[T]]): MemoState[T] = {
-    MemoStateImpl(cbo, clusterLookup, allGroups)
+      ras: Ras[T],
+      clusterLookup: Map[RasClusterKey, ImmutableRasCluster[T]],
+      allGroups: Seq[RasGroup[T]]): MemoState[T] = {
+    MemoStateImpl(ras, clusterLookup, allGroups)
   }
 
   private case class MemoStateImpl[T <: AnyRef](
-                                                 override val cbo: Ras[T],
-                                                 override val clusterLookup: Map[RasClusterKey, ImmutableRasCluster[T]],
-                                                 override val allGroups: Seq[RasGroup[T]])
+      override val ras: Ras[T],
+      override val clusterLookup: Map[RasClusterKey, ImmutableRasCluster[T]],
+      override val allGroups: Seq[RasGroup[T]])
     extends MemoState[T] {
     private val allClustersCopy = clusterLookup.values
 
@@ -217,11 +217,11 @@ object MemoState {
   implicit class MemoStateImplicits[T <: AnyRef](state: MemoState[T]) {
 
     def formatGraphvizWithBest(best: Best[T]): String = {
-      GraphvizVisualizer(state.cbo(), state, best).format()
+      GraphvizVisualizer(state.ras(), state, best).format()
     }
 
     def formatGraphvizWithoutBest(rootGroupId: Int): String = {
-      GraphvizVisualizer(state.cbo(), state, rootGroupId).format()
+      GraphvizVisualizer(state.ras(), state, rootGroupId).format()
     }
   }
 }

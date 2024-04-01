@@ -17,7 +17,7 @@
 package org.apache.gluten.ras
 
 import org.apache.gluten.ras.memo.{MemoLike, MemoState}
-import org.apache.gluten.ras.path.{RasPath, PathFinder}
+import org.apache.gluten.ras.path.{PathFinder, RasPath}
 import org.apache.gluten.ras.property.PropertySet
 
 object RasSuiteBase {
@@ -162,8 +162,8 @@ object RasSuiteBase {
   }
 
   implicit class MemoLikeImplicits[T <: AnyRef](val memo: MemoLike[T]) {
-    def memorize(cbo: Ras[T], node: T): RasGroup[T] = {
-      memo.memorize(node, cbo.propSetsOf(node))
+    def memorize(ras: Ras[T], node: T): RasGroup[T] = {
+      memo.memorize(node, ras.propSetsOf(node))
     }
   }
 
@@ -177,7 +177,7 @@ object RasSuiteBase {
       val allGroups = state.allGroups()
 
       val highestFinder = PathFinder
-        .builder(state.cbo(), state)
+        .builder(state.ras(), state)
         .depth(depth)
         .build()
 
@@ -188,7 +188,7 @@ object RasSuiteBase {
             val highest = highestFinder.find(node).maxBy(c => c.height())
             val finder = (1 to highest.height())
               .foldLeft(PathFinder
-                .builder(state.cbo(), state)) {
+                .builder(state.ras(), state)) {
                 case (builder, d) =>
                   builder.depth(d)
               }
@@ -199,14 +199,14 @@ object RasSuiteBase {
   }
 
   implicit class TestNodeImplicits(val node: TestNode) {
-    def asCanonical(cbo: Ras[TestNode]): CanonicalNode[TestNode] = {
-      CanonicalNode(cbo, node)
+    def asCanonical(ras: Ras[TestNode]): CanonicalNode[TestNode] = {
+      CanonicalNode(ras, node)
     }
   }
 
   implicit class TestNodeGroupImplicits(val group: RasGroup[TestNode]) {
-    def asGroup(cbo: Ras[TestNode]): GroupNode[TestNode] = {
-      GroupNode(cbo, group)
+    def asGroup(ras: Ras[TestNode]): GroupNode[TestNode] = {
+      GroupNode(ras, group)
     }
   }
 }

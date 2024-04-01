@@ -18,16 +18,16 @@ package org.apache.gluten.ras.mock
 
 import org.apache.gluten.ras.{CanonicalNode, Ras}
 import org.apache.gluten.ras.memo.Memo
-import org.apache.gluten.ras.path.{RasPath, PathKeySet}
+import org.apache.gluten.ras.path.{PathKeySet, RasPath}
 
 object MockCboPath {
-  def mock[T <: AnyRef](cbo: Ras[T], node: T): RasPath[T] = {
-    mock(cbo, node, PathKeySet.trivial)
+  def mock[T <: AnyRef](ras: Ras[T], node: T): RasPath[T] = {
+    mock(ras, node, PathKeySet.trivial)
   }
 
-  def mock[T <: AnyRef](cbo: Ras[T], node: T, keys: PathKeySet): RasPath[T] = {
-    val memo = Memo(cbo)
-    val g = memo.memorize(node, cbo.propSetsOf(node))
+  def mock[T <: AnyRef](ras: Ras[T], node: T, keys: PathKeySet): RasPath[T] = {
+    val memo = Memo(ras)
+    val g = memo.memorize(node, ras.propSetsOf(node))
     val state = memo.newState()
     val groupSupplier = state.asGroupSupplier()
     assert(g.nodes(state).size == 1)
@@ -35,10 +35,10 @@ object MockCboPath {
 
     def dfs(n: CanonicalNode[T]): RasPath[T] = {
       if (n.isLeaf()) {
-        return RasPath.one(cbo, keys, groupSupplier, n)
+        return RasPath.one(ras, keys, groupSupplier, n)
       }
       RasPath(
-        cbo,
+        ras,
         n,
         n.getChildrenGroups(groupSupplier).map(_.group(groupSupplier)).map {
           cg =>

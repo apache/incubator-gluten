@@ -56,7 +56,7 @@ abstract class PropertySuite extends AnyFunSuite {
   }
 
   test(s"Cannot enforce property") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -66,14 +66,14 @@ abstract class PropertySuite extends AnyFunSuite {
         RasRule.Factory.none())
         .withNewConfig(_ => conf)
     val plan = TypedUnary(TypeA, 10, TypedLeaf(TypeA, 10))
-    val planner = cbo.newPlanner(plan, PropertySet(Seq(TypeB)))
+    val planner = ras.newPlanner(plan, PropertySet(Seq(TypeB)))
     assertThrows[BestNotFoundException] {
       planner.plan()
     }
   }
 
   test(s"Property enforcement - A to B") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -85,13 +85,13 @@ abstract class PropertySuite extends AnyFunSuite {
 
     val plan =
       TypedBinary(TypeA, 5, TypedUnary(TypeA, 10, TypedLeaf(TypeA, 10)), TypedLeaf(TypeA, 10))
-    val planner = cbo.newPlanner(plan, PropertySet(Seq(TypeB)))
+    val planner = ras.newPlanner(plan, PropertySet(Seq(TypeB)))
     val out = planner.plan()
     assert(out == TypeEnforcer(TypeB, 1, plan))
   }
 
   test(s"Property convert - (A, B)") {
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -102,7 +102,7 @@ abstract class PropertySuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
     val plan =
       TypedBinary(TypeA, 5, TypedUnary(TypeA, 10, TypedLeaf(TypeA, 10)), TypedLeaf(TypeA, 10))
-    val planner = cbo.newPlanner(plan, PropertySet(Seq(TypeB)))
+    val planner = ras.newPlanner(plan, PropertySet(Seq(TypeB)))
     val out = planner.plan()
     assert(
       out == TypedBinary(
@@ -147,7 +147,7 @@ abstract class PropertySuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(3)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -159,7 +159,7 @@ abstract class PropertySuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
 
     val plan = PassNodeType(10, TypedLeaf(TypeA, 10))
-    val planner = cbo.newPlanner(plan, PropertySet(Seq(TypeA)))
+    val planner = ras.newPlanner(plan, PropertySet(Seq(TypeA)))
     val out = planner.plan()
     assert(out == TypedLeaf(TypeA, 1))
 
@@ -193,7 +193,7 @@ abstract class PropertySuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -206,7 +206,7 @@ abstract class PropertySuite extends AnyFunSuite {
     val sub =
       PassNodeType(5, TypedLeaf(TypeA, 10))
     val plan = TypedUnary(TypeB, 10, sub)
-    val planner = cbo.newPlanner(plan, PropertySet(Seq(TypeAny)))
+    val planner = ras.newPlanner(plan, PropertySet(Seq(TypeAny)))
     val out = planner.plan()
 
     assert(out == TypedUnary(TypeA, 8, PassNodeType(5, TypedLeaf(TypeA, 10))))
@@ -222,7 +222,7 @@ abstract class PropertySuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(2)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -233,7 +233,7 @@ abstract class PropertySuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
     val plan =
       TypedBinary(TypeA, 5, TypedUnary(TypeA, 10, TypedLeaf(TypeA, 10)), TypedLeaf(TypeA, 10))
-    val planner = cbo.newPlanner(
+    val planner = ras.newPlanner(
       plan,
       PropertySet(Seq(TypeAny)),
       List(PropertySet(Seq(TypeB)), PropertySet(Seq(TypeC))))
@@ -260,7 +260,7 @@ abstract class PropertySuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -272,7 +272,7 @@ abstract class PropertySuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
     val plan =
       TypedBinary(TypeA, 5, TypedUnary(TypeA, 10, TypedLeaf(TypeA, 10)), TypedLeaf(TypeA, 10))
-    val planner = cbo.newPlanner(plan, PropertySet(Seq(TypeB)))
+    val planner = ras.newPlanner(plan, PropertySet(Seq(TypeB)))
     val out = planner.plan()
     assert(
       out == TypeEnforcer(
@@ -312,7 +312,7 @@ abstract class PropertySuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -324,7 +324,7 @@ abstract class PropertySuite extends AnyFunSuite {
 
     val plan =
       TypedUnary(TypeB, 10, TypedLeaf(TypeA, 20))
-    val planner = cbo.newPlanner(plan, PropertySet(Seq(TypeB)))
+    val planner = ras.newPlanner(plan, PropertySet(Seq(TypeB)))
     val out = planner.plan()
     assert(
       out == TypeEnforcer(
@@ -364,7 +364,7 @@ abstract class PropertySuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(2)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -378,7 +378,7 @@ abstract class PropertySuite extends AnyFunSuite {
     val left = TypedUnary(TypeA, 10, TypedLeaf(TypeA, 20))
     val right = TypeEnforcer(TypeA, 1, TypedUnary(TypeA, 15, TypedLeaf(TypeA, 20)))
     val plan = TypedBinary(TypeA, 10, left, right)
-    val planner = cbo.newPlanner(plan, PropertySet(Seq(TypeA)))
+    val planner = ras.newPlanner(plan, PropertySet(Seq(TypeA)))
     val out = planner.plan()
     assert(
       out == TypedBinary(
@@ -411,7 +411,7 @@ abstract class PropertySuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(3)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -427,7 +427,7 @@ abstract class PropertySuite extends AnyFunSuite {
     val right =
       TypedUnary(TypeB, 15, TypedUnary(TypeB, 15, TypedLeaf(TypeA, 20)))
     val plan = TypedBinary(TypeB, 10, left, right)
-    val planner = cbo.newPlanner(plan, PropertySet(Seq(TypeB)))
+    val planner = ras.newPlanner(plan, PropertySet(Seq(TypeB)))
     val out = planner.plan()
     assert(
       out == TypedBinary(
@@ -464,7 +464,7 @@ abstract class PropertySuite extends AnyFunSuite {
       override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
     }
 
-    val cbo =
+    val ras =
       Ras[TestNode](
         PlanModelImpl,
         CostModelImpl,
@@ -476,7 +476,7 @@ abstract class PropertySuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
     val plan =
       TypedBinary(TypeA, 5, TypedUnary(TypeA, 10, TypedLeaf(TypeA, 10)), TypedLeaf(TypeA, 10))
-    val planner = cbo.newPlanner(plan, PropertySet(Seq(TypeB)))
+    val planner = ras.newPlanner(plan, PropertySet(Seq(TypeB)))
     val out = planner.plan()
     assert(
       out == TypedBinary(

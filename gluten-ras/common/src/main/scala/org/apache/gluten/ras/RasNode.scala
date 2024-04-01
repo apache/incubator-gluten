@@ -49,11 +49,11 @@ trait CanonicalNode[T <: AnyRef] extends RasNode[T] {
 }
 
 object CanonicalNode {
-  def apply[T <: AnyRef](cbo: Ras[T], canonical: T): CanonicalNode[T] = {
-    assert(cbo.isCanonical(canonical))
-    val propSet = cbo.propSetsOf(canonical)
-    val children = cbo.planModel.childrenOf(canonical)
-    CanonicalNodeImpl[T](cbo, canonical, propSet, children.size)
+  def apply[T <: AnyRef](ras: Ras[T], canonical: T): CanonicalNode[T] = {
+    assert(ras.isCanonical(canonical))
+    val propSet = ras.propSetsOf(canonical)
+    val children = ras.planModel.childrenOf(canonical)
+    CanonicalNodeImpl[T](ras, canonical, propSet, children.size)
   }
 
   // We put CboNode's API methods that accept mutable input in implicit definition.
@@ -64,21 +64,21 @@ object CanonicalNode {
     }
 
     def getChildrenGroups(allGroups: Int => RasGroup[T]): Seq[GroupNode[T]] = {
-      val cbo = node.ras()
-      cbo.getChildrenGroupIds(node.self()).map(allGroups(_)).map(g => GroupNode(cbo, g))
+      val ras = node.ras()
+      ras.getChildrenGroupIds(node.self()).map(allGroups(_)).map(g => GroupNode(ras, g))
     }
 
     def getChildrenGroupIds(): Seq[Int] = {
-      val cbo = node.ras()
-      cbo.getChildrenGroupIds(node.self())
+      val ras = node.ras()
+      ras.getChildrenGroupIds(node.self())
     }
   }
 
   private case class CanonicalNodeImpl[T <: AnyRef](
-                                                     ras: Ras[T],
-                                                     override val self: T,
-                                                     override val propSet: PropertySet[T],
-                                                     override val childrenCount: Int)
+      ras: Ras[T],
+      override val self: T,
+      override val propSet: PropertySet[T],
+      override val childrenCount: Int)
     extends CanonicalNode[T]
 }
 
@@ -87,15 +87,15 @@ trait GroupNode[T <: AnyRef] extends RasNode[T] {
 }
 
 object GroupNode {
-  def apply[T <: AnyRef](cbo: Ras[T], group: RasGroup[T]): GroupNode[T] = {
-    GroupNodeImpl[T](cbo, group.self(), group.propSet(), group.id())
+  def apply[T <: AnyRef](ras: Ras[T], group: RasGroup[T]): GroupNode[T] = {
+    GroupNodeImpl[T](ras, group.self(), group.propSet(), group.id())
   }
 
   private case class GroupNodeImpl[T <: AnyRef](
-                                                 ras: Ras[T],
-                                                 override val self: T,
-                                                 override val propSet: PropertySet[T],
-                                                 override val groupId: Int)
+      ras: Ras[T],
+      override val self: T,
+      override val propSet: PropertySet[T],
+      override val groupId: Int)
     extends GroupNode[T] {}
 
   // We put CboNode's API methods that accept mutable input in implicit definition.
@@ -130,7 +130,7 @@ object InClusterNode {
     InClusterNodeImpl(clusterId, node)
   }
   private case class InClusterNodeImpl[T <: AnyRef](
-                                                     clusterKey: RasClusterKey,
-                                                     can: CanonicalNode[T])
+      clusterKey: RasClusterKey,
+      can: CanonicalNode[T])
     extends InClusterNode[T]
 }
