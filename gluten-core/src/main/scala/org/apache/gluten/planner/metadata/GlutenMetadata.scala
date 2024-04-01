@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.planner.metadata
 
-import org.apache.gluten.cbo.Metadata
+import org.apache.gluten.ras.Metadata
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
 
