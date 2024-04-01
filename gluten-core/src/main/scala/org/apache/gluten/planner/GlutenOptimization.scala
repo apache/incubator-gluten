@@ -16,18 +16,18 @@
  */
 package org.apache.gluten.planner
 
-import org.apache.gluten.cbo.{CboExplain, Optimization}
-import org.apache.gluten.cbo.rule.CboRule
 import org.apache.gluten.planner.cost.GlutenCostModel
 import org.apache.gluten.planner.metadata.GlutenMetadataModel
 import org.apache.gluten.planner.plan.GlutenPlanModel
 import org.apache.gluten.planner.property.GlutenPropertyModel
 import org.apache.gluten.planner.rule.GlutenRules
+import org.apache.gluten.ras.{Optimization, RasExplain}
+import org.apache.gluten.ras.rule.RasRule
 
 import org.apache.spark.sql.execution.SparkPlan
 
 object GlutenOptimization {
-  private object GlutenExplain extends CboExplain[SparkPlan] {
+  private object GlutenExplain extends RasExplain[SparkPlan] {
     override def describeNode(node: SparkPlan): String = node.nodeName
   }
 
@@ -38,16 +38,16 @@ object GlutenOptimization {
       GlutenMetadataModel(),
       GlutenPropertyModel(),
       GlutenExplain,
-      CboRule.Factory.reuse(GlutenRules()))
+      RasRule.Factory.reuse(GlutenRules()))
   }
 
-  def apply(rules: Seq[CboRule[SparkPlan]]): Optimization[SparkPlan] = {
+  def apply(rules: Seq[RasRule[SparkPlan]]): Optimization[SparkPlan] = {
     Optimization[SparkPlan](
       GlutenPlanModel(),
       GlutenCostModel(),
       GlutenMetadataModel(),
       GlutenPropertyModel(),
       GlutenExplain,
-      CboRule.Factory.reuse(rules))
+      RasRule.Factory.reuse(rules))
   }
 }
