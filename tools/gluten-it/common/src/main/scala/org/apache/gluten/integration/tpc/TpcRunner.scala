@@ -63,7 +63,7 @@ object TpcRunner {
         }
       })
     } finally {
-      println("done.")
+      println("... Done.")
     }
   }
 

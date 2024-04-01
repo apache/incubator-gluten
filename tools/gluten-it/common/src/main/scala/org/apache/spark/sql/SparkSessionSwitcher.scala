@@ -72,14 +72,16 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
     if (!sessionMap.containsKey(desc.sessionToken)) {
       throw new IllegalArgumentException(s"Session doesn't exist: $desc")
     }
-    println(s"Switching to $desc session... ")
-    stopActiveSession()
-    val conf = new SparkConf(false)
-      .setAllWarningOnOverriding(testDefaults.getAll)
-      .setAllWarningOnOverriding(sessionMap.get(desc.sessionToken).getAll)
-    activateSession(conf, desc.appName)
-    _activeSessionDesc = desc
-    println(s"Successfully switched to $desc session. ")
+    print(s"Switching to $desc session... ")
+    try {
+      stopActiveSession()
+      val conf = new SparkConf(false)
+        .setAllWarningOnOverriding(testDefaults.getAll)
+        .setAllWarningOnOverriding(sessionMap.get(desc.sessionToken).getAll)
+      activateSession(conf, desc.appName)
+      _activeSessionDesc = desc
+    }
+    println("Done. ")
   }
 
   def spark(): SparkSession = {
