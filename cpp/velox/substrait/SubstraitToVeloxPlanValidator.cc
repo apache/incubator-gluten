@@ -478,7 +478,6 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::GenerateRel& gen
     LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
     return false;
   }
-  
   return true;
 }
 
