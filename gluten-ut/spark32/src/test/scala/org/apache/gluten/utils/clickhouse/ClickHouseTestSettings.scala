@@ -834,7 +834,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-35871: Literal.create(value, dataType) should support fields")
     .excludeGlutenTest("default")
   enableSuite[GlutenMathExpressionsSuite]
-    .exclude("cot")
     .exclude("tanh")
     .exclude("ceil")
     .exclude("floor")
