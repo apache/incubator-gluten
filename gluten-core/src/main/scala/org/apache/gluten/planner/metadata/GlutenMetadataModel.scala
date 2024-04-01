@@ -16,9 +16,9 @@
  */
 package org.apache.gluten.planner.metadata
 
-import org.apache.gluten.ras.{Metadata, MetadataModel}
 import org.apache.gluten.planner.metadata.GlutenMetadata.Schema
 import org.apache.gluten.planner.plan.GlutenPlanModel.GroupLeafExec
+import org.apache.gluten.ras.{Metadata, MetadataModel}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan

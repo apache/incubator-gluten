@@ -16,9 +16,9 @@
  */
 package org.apache.gluten.planner.cost
 
-import org.apache.gluten.ras.{Cost, CostModel}
 import org.apache.gluten.extension.columnar.ColumnarTransitions
 import org.apache.gluten.planner.plan.GlutenPlanModel.GroupLeafExec
+import org.apache.gluten.ras.{Cost, CostModel}
 import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.sql.execution.{ColumnarToRowExec, RowToColumnarExec, SparkPlan}

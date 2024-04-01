@@ -16,13 +16,13 @@
  */
 package org.apache.gluten.planner
 
-import org.apache.gluten.ras.{RasExplain, Optimization}
-import org.apache.gluten.ras.rule.RasRule
 import org.apache.gluten.planner.cost.GlutenCostModel
 import org.apache.gluten.planner.metadata.GlutenMetadataModel
 import org.apache.gluten.planner.plan.GlutenPlanModel
 import org.apache.gluten.planner.property.GlutenPropertyModel
 import org.apache.gluten.planner.rule.GlutenRules
+import org.apache.gluten.ras.{Optimization, RasExplain}
+import org.apache.gluten.ras.rule.RasRule
 
 import org.apache.spark.sql.execution.SparkPlan
 

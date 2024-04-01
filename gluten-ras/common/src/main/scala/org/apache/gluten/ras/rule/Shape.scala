@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.ras.rule
 
-import org.apache.gluten.ras.path.{RasPath, OutputWizard, OutputWizards}
+import org.apache.gluten.ras.path.{OutputWizard, OutputWizards, RasPath}
 
 // Shape is an abstraction for all inputs the rule can accept.
 // Shape can be specification on pattern, height, or mask
