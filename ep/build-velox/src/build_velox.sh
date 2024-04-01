@@ -123,7 +123,7 @@ function compile {
   if [ $BUILD_TEST_UTILS == "ON" ]; then
       COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TEST_UTILS=ON"
   fi
-  if [-n $ARROW_BINARY]; then
+  if [ -n $ARROW_BINARY ]; then
       COMPILE_OPTION="$COMPILE_OPTION -DARROW_BINARY=ON"
   fi
   if [ $ENABLE_HDFS == "ON" ]; then
