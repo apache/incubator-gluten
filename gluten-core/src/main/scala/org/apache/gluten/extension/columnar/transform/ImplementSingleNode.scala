@@ -295,7 +295,7 @@ object ImplementOthers {
   // Children will be preserved as they are as children of the output node.
   //
   // Do not look-up on children on the input node in this rule. Otherwise
-  // it may break ACBO which would group all the possible input nodes to
+  // it may break RAS which would group all the possible input nodes to
   // search for validate candidates.
   class ReplaceSingleNode() extends LogLevelUtil with Logging {
 
