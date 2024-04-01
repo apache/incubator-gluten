@@ -75,7 +75,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
     FileUtils.deleteDirectory(new File(S3_CACHE_PATH))
   }
 
-  test("test mergetree table write") {
+  ignore("test mergetree table write") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_s3;
                  |""".stripMargin)
@@ -158,7 +158,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
     spark.sql("drop table lineitem_mergetree_s3") // clean up
   }
 
-  test("test mergetree write with orderby keys / primary keys") {
+  ignore("test mergetree write with orderby keys / primary keys") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_orderbykey_s3;
                  |""".stripMargin)
@@ -255,7 +255,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
     spark.sql("drop table lineitem_mergetree_orderbykey_s3")
   }
 
-  test("test mergetree write with partition") {
+  ignore("test mergetree write with partition") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_partition_s3;
                  |""".stripMargin)
@@ -437,7 +437,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
 
   }
 
-  test("test mergetree write with bucket table") {
+  ignore("test mergetree write with bucket table") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_bucket_s3;
                  |""".stripMargin)

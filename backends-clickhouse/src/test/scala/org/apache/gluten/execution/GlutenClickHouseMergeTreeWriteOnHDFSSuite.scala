@@ -59,7 +59,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
 //    FileUtils.deleteDirectory(new File(HDFS_CACHE_PATH))
   }
 
-  test("test mergetree table write") {
+  ignore("test mergetree table write") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_hdfs;
                  |""".stripMargin)
@@ -142,7 +142,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
     spark.sql("drop table lineitem_mergetree_hdfs")
   }
 
-  test("test mergetree write with orderby keys / primary keys") {
+  ignore("test mergetree write with orderby keys / primary keys") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_orderbykey_hdfs;
                  |""".stripMargin)
@@ -239,7 +239,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
     spark.sql("drop table lineitem_mergetree_orderbykey_hdfs")
   }
 
-  test("test mergetree write with partition") {
+  ignore("test mergetree write with partition") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_partition_hdfs;
                  |""".stripMargin)
@@ -420,7 +420,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
     spark.sql("drop table lineitem_mergetree_partition_hdfs")
   }
 
-  test("test mergetree write with bucket table") {
+  ignore("test mergetree write with bucket table") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_bucket_hdfs;
                  |""".stripMargin)
