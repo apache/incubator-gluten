@@ -16,6 +16,9 @@
 name: Velox backend Github Runner
 
 on:
+  push:
+    branches:
+      - 'main'
   pull_request:
     paths:
       - '.github/workflows/velox_docker.yml'
