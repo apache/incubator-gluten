@@ -80,8 +80,9 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
         .setAllWarningOnOverriding(sessionMap.get(desc.sessionToken).getAll)
       activateSession(conf, desc.appName)
       _activeSessionDesc = desc
+    } finally {
+      println("Done. ")
     }
-    println("Done. ")
   }
 
   def spark(): SparkSession = {
