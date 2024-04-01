@@ -88,7 +88,7 @@ object ClickhouseSnapshot {
     .build()
 
   val addFileToAddMTPCache: LoadingCache[AddFileAsKey, AddMergeTreeParts] = CacheBuilder.newBuilder
-    .maximumSize(100000)
+    .maximumSize(1000000)
     .expireAfterAccess(3600L, TimeUnit.SECONDS)
     .recordStats
     .build[AddFileAsKey, AddMergeTreeParts](new CacheLoader[AddFileAsKey, AddMergeTreeParts]() {
@@ -99,7 +99,7 @@ object ClickhouseSnapshot {
     })
 
   val pathToAddMTPCache: Cache[String, AddMergeTreeParts] = CacheBuilder.newBuilder
-    .maximumSize(100000)
+    .maximumSize(1000000)
     .expireAfterAccess(3600L, TimeUnit.SECONDS)
     .recordStats()
     .build()
