@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.delta.commands
 
-import io.glutenproject.expression.ConverterUtils
+import org.apache.gluten.expression.ConverterUtils
 
 import org.apache.spark.{TaskContext, TaskOutputFileAlreadyExistException}
 import org.apache.spark.internal.Logging
