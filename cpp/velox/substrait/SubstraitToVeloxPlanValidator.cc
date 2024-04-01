@@ -1141,6 +1141,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
       "last",
       "last_ignore_null",
       "corr",
+      "regr_r2",
       "covar_pop",
       "covar_samp",
       "approx_distinct",

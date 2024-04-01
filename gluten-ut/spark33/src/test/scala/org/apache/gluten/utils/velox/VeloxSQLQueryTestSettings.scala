@@ -237,6 +237,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     // Overwrite below test cases.
     // -- SPARK-24369 multiple distinct aggregations having the same argument set
     // -- Aggregate with nulls.
+    // -- SPARK-37613: Support ANSI Aggregate Function: regr_r2
     "group-by.sql",
     "udf/udf-group-by.sql"
   )

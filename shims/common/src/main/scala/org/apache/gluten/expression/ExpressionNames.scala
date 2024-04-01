@@ -38,6 +38,7 @@ object ExpressionNames {
   final val BIT_OR_AGG = "bit_or"
   final val BIT_XOR_AGG = "bit_xor"
   final val CORR = "corr"
+  final val REGR_R2 = "regr_r2"
   final val COVAR_POP = "covar_pop"
   final val COVAR_SAMP = "covar_samp"
   final val LAST = "last"
