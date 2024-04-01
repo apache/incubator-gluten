@@ -16,8 +16,7 @@
  */
 package org.apache.gluten.integration.tpc
 
-import org.apache.spark.sql.{QueryRunner, RunResult, SparkSession}
-
+import org.apache.spark.sql.{AnalysisException, QueryRunner, RunResult, SparkSession}
 import com.google.common.base.Preconditions
 import org.apache.commons.io.FileUtils
 
@@ -59,7 +58,7 @@ object TpcRunner {
           try {
             spark.catalog.recoverPartitions(file.getName)
           } catch {
-            case _: Throwable =>
+            case _: AnalysisException =>
           }
         }
       })
