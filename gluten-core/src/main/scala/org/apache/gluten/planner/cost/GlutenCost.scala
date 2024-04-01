@@ -16,6 +16,6 @@
  */
 package org.apache.gluten.planner.cost
 
-import org.apache.gluten.cbo.Cost
+import org.apache.gluten.ras.Cost
 
 case class GlutenCost(value: Long) extends Cost

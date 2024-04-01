@@ -225,8 +225,8 @@ case class ColumnarOverrideRules(session: SparkSession)
    */
   private def transformRules(outputsColumnar: Boolean): List[SparkSession => Rule[SparkPlan]] = {
 
-    def maybeCbo(outputsColumnar: Boolean): List[SparkSession => Rule[SparkPlan]] = {
-      if (GlutenConfig.getConf.enableAdvancedCbo) {
+    def maybeRas(outputsColumnar: Boolean): List[SparkSession => Rule[SparkPlan]] = {
+      if (GlutenConfig.getConf.enableRas) {
         return List(
           (_: SparkSession) => TransformPreOverrides(List(ImplementFilter()), List.empty),
           (session: SparkSession) => EnumeratedTransform(session, outputsColumnar),
@@ -251,7 +251,7 @@ case class ColumnarOverrideRules(session: SparkSession)
         (_: SparkSession) => AddTransformHintRule(),
         (_: SparkSession) => FallbackBloomFilterAggIfNeeded()
       ) :::
-      maybeCbo(outputsColumnar) :::
+      maybeRas(outputsColumnar) :::
       List(
         (_: SparkSession) => RemoveNativeWriteFilesSortAndProject(),
         (spark: SparkSession) => RewriteTransformer(spark),

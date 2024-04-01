@@ -26,7 +26,7 @@ import scala.collection.JavaConverters._
 
 object VeloxIntermediateData {
   // Agg functions with inconsistent ordering of intermediate data between Velox and Spark.
-  // Corr
+  // Corr, RegrR2
   private val veloxCorrIntermediateDataOrder: Seq[String] =
     Seq("ck", "n", "xMk", "yMk", "xAvg", "yAvg")
   // CovPopulation, CovSample
@@ -59,7 +59,7 @@ object VeloxIntermediateData {
    */
   def veloxIntermediateDataOrder(aggFunc: AggregateFunction): Seq[String] = {
     aggFunc match {
-      case _: Corr =>
+      case _: PearsonCorrelation =>
         veloxCorrIntermediateDataOrder
       case _: CovPopulation | _: CovSample =>
         veloxCovarIntermediateDataOrder
@@ -138,7 +138,7 @@ object VeloxIntermediateData {
      */
     def unapply(aggFunc: AggregateFunction): Option[Seq[DataType]] = {
       aggFunc match {
-        case _: Corr =>
+        case _: PearsonCorrelation =>
           Some(veloxCorrIntermediateTypes)
         case _: Covariance =>
           Some(veloxCovarIntermediateTypes)

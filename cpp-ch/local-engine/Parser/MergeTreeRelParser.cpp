@@ -66,7 +66,7 @@ static Int64 findMinPosition(const NameSet & condition_table_columns, const Name
 
 CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(
     const substrait::ReadRel::ExtensionTable & extension_table,
-    ContextMutablePtr context,  UUID uuid)
+    ContextMutablePtr context, UUID uuid)
 {
     google::protobuf::StringValue table;
     table.ParseFromString(extension_table.detail().value());

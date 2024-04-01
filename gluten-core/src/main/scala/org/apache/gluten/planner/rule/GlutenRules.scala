@@ -16,12 +16,12 @@
  */
 package org.apache.gluten.planner.rule
 
-import org.apache.gluten.cbo.rule.CboRule
+import org.apache.gluten.ras.rule.RasRule
 
 import org.apache.spark.sql.execution.SparkPlan
 
 object GlutenRules {
-  def apply(): Seq[CboRule[SparkPlan]] = {
+  def apply(): Seq[RasRule[SparkPlan]] = {
     List() // TODO
   }
 }

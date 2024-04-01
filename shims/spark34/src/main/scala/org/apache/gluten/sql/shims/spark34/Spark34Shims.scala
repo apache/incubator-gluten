@@ -30,7 +30,7 @@ import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.BloomFilterAggregate
+import org.apache.spark.sql.catalyst.expressions.aggregate.{BloomFilterAggregate, RegrR2}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution, KeyGroupedPartitioning, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -78,7 +78,11 @@ class Spark34Shims extends SparkShims {
       Sig[Empty2Null](ExpressionNames.EMPTY2NULL))
   }
 
-  override def aggregateExpressionMappings: Seq[Sig] = Seq.empty
+  override def aggregateExpressionMappings: Seq[Sig] = {
+    Seq(
+      Sig[RegrR2](ExpressionNames.REGR_R2)
+    )
+  }
 
   override def convertPartitionTransforms(
       partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {
