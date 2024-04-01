@@ -16,8 +16,7 @@
  */
 package org.apache.gluten.integration.tpc
 
-import org.apache.spark.sql.{QueryRunner, RunResult, SparkSession}
-
+import org.apache.spark.sql.{AnalysisException, QueryRunner, RunResult, SparkSession}
 import com.google.common.base.Preconditions
 import org.apache.commons.io.FileUtils
 
@@ -47,21 +46,25 @@ class TpcRunner(val queryResourceFolder: String, val dataPath: String) {
 
 object TpcRunner {
   def createTables(spark: SparkSession, dataPath: String): Unit = {
-    val files = new File(dataPath).listFiles()
-    files.foreach(
-      file => {
+    print("Creating catalog tables: ")
+    try {
+      val files = new File(dataPath).listFiles()
+      files.foreach(file => {
         if (spark.catalog.tableExists(file.getName)) {
-          println("Table exists: " + file.getName)
+          print(s"${file.getName}(exists), ")
         } else {
-          println("Creating catalog table: " + file.getName)
+          print(s"${file.getName}, ")
           spark.catalog.createTable(file.getName, file.getAbsolutePath, "parquet")
           try {
             spark.catalog.recoverPartitions(file.getName)
           } catch {
-            case _: Throwable =>
+            case _: AnalysisException =>
           }
         }
       })
+    } finally {
+      println("... Done.")
+    }
   }
 
   private def delete(path: String): Unit = {
