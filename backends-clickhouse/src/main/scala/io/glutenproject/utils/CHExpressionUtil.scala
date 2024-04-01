@@ -178,6 +178,7 @@ object CHExpressionUtil {
     MONOTONICALLY_INCREASING_ID -> DefaultValidator(),
     SPARK_PARTITION_ID -> DefaultValidator(),
     URL_DECODE -> DefaultValidator(),
+    URL_ENCODE -> DefaultValidator(),
     SKEWNESS -> DefaultValidator(),
     BIT_LENGTH -> DefaultValidator(),
     MAKE_YM_INTERVAL -> DefaultValidator(),

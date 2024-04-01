@@ -127,6 +127,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
                 child.map(
                   replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
                 i)
+            case "encode" =>
+              return GenericExpressionTransformer(
+                ExpressionNames.URL_ENCODE,
+                child.map(
+                  replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
+                i)
           }
         }
       case _ =>
