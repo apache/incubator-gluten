@@ -335,36 +335,6 @@ IQueryPlanStep * SerializedPlanParser::addRemoveNullableStep(QueryPlan & plan, c
     return step_ptr;
 }
 
-PrewhereInfoPtr SerializedPlanParser::parsePreWhereInfo(const substrait::Expression & rel, Block & input)
-{
-    auto prewhere_info = std::make_shared<PrewhereInfo>();
-    prewhere_info->prewhere_actions = std::make_shared<ActionsDAG>(input.getNamesAndTypesList());
-    std::string filter_name;
-    // for in function
-    if (rel.has_singular_or_list())
-    {
-        const auto * in_node = parseExpression(prewhere_info->prewhere_actions, rel);
-        prewhere_info->prewhere_actions->addOrReplaceInOutputs(*in_node);
-        filter_name = in_node->result_name;
-    }
-    else
-    {
-        parseFunctionWithDAG(rel, filter_name, prewhere_info->prewhere_actions, true);
-    }
-    prewhere_info->prewhere_column_name = filter_name;
-    prewhere_info->need_filter = true;
-    prewhere_info->remove_prewhere_column = true;
-    auto cols = prewhere_info->prewhere_actions->getRequiredColumnsNames();
-    // Keep it the same as the input.
-    prewhere_info->prewhere_actions->removeUnusedActions(Names{filter_name}, false, true);
-    prewhere_info->prewhere_actions->projectInput(false);
-    for (const auto & name : input.getNames())
-    {
-        prewhere_info->prewhere_actions->tryRestoreColumn(name);
-    }
-    return prewhere_info;
-}
-
 DataTypePtr wrapNullableType(substrait::Type_Nullability nullable, DataTypePtr nested_type)
 {
     return wrapNullableType(nullable == substrait::Type_Nullability_NULLABILITY_NULLABLE, nested_type);
