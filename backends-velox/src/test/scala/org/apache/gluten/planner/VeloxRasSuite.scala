@@ -16,12 +16,12 @@
  */
 package org.apache.gluten.planner
 
+import org.apache.gluten.planner.property.GlutenProperties.Conventions
 import org.apache.gluten.ras.Ras
 import org.apache.gluten.ras.RasSuiteBase._
 import org.apache.gluten.ras.path.RasPath
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
-import org.apache.gluten.planner.property.GlutenProperties.Conventions
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -34,7 +34,7 @@ class VeloxRasSuite extends SharedSparkSession {
 
   test("C2R, R2C - basic") {
     val in = RowUnary(RowLeaf())
-    val planner = newCbo().newPlanner(in)
+    val planner = newRas().newPlanner(in)
     val out = planner.plan()
     assert(out == RowUnary(RowLeaf()))
   }
@@ -42,7 +42,7 @@ class VeloxRasSuite extends SharedSparkSession {
   test("C2R, R2C - explicitly requires any properties") {
     val in = RowUnary(RowLeaf())
     val planner =
-      newCbo().newPlanner(in, PropertySet(List(Conventions.ANY)))
+      newRas().newPlanner(in, PropertySet(List(Conventions.ANY)))
     val out = planner.plan()
     assert(out == RowUnary(RowLeaf()))
   }
@@ -50,7 +50,7 @@ class VeloxRasSuite extends SharedSparkSession {
   test("C2R, R2C - requires columnar output") {
     val in = RowUnary(RowLeaf())
     val planner =
-      newCbo().newPlanner(in, PropertySet(List(Conventions.VANILLA_COLUMNAR)))
+      newRas().newPlanner(in, PropertySet(List(Conventions.VANILLA_COLUMNAR)))
     val out = planner.plan()
     assert(out == RowToColumnarExec(RowUnary(RowLeaf())))
   }
@@ -59,7 +59,7 @@ class VeloxRasSuite extends SharedSparkSession {
     val in =
       ColumnarUnary(RowUnary(RowUnary(ColumnarUnary(RowUnary(RowUnary(ColumnarUnary(RowLeaf())))))))
     val planner =
-      newCbo().newPlanner(in, PropertySet(List(Conventions.ROW_BASED)))
+      newRas().newPlanner(in, PropertySet(List(Conventions.ROW_BASED)))
     val out = planner.plan()
     assert(out == ColumnarToRowExec(ColumnarUnary(
       RowToColumnarExec(RowUnary(RowUnary(ColumnarToRowExec(ColumnarUnary(RowToColumnarExec(
@@ -82,7 +82,7 @@ class VeloxRasSuite extends SharedSparkSession {
     val in =
       ColumnarUnary(RowUnary(RowUnary(ColumnarUnary(RowUnary(RowUnary(ColumnarUnary(RowLeaf())))))))
     val planner =
-      newCbo(List(ConvertRowUnaryToColumnar))
+      newRas(List(ConvertRowUnaryToColumnar))
         .newPlanner(in, PropertySet(List(Conventions.ROW_BASED)))
     val out = planner.plan()
     assert(out == ColumnarToRowExec(ColumnarUnary(ColumnarUnary(ColumnarUnary(
@@ -94,12 +94,12 @@ class VeloxRasSuite extends SharedSparkSession {
 }
 
 object VeloxRasSuite {
-  def newCbo(): Ras[SparkPlan] = {
+  def newRas(): Ras[SparkPlan] = {
     GlutenOptimization().asInstanceOf[Ras[SparkPlan]]
   }
 
-  def newCbo(cboRules: Seq[RasRule[SparkPlan]]): Ras[SparkPlan] = {
-    GlutenOptimization(cboRules).asInstanceOf[Ras[SparkPlan]]
+  def newRas(RasRules: Seq[RasRule[SparkPlan]]): Ras[SparkPlan] = {
+    GlutenOptimization(RasRules).asInstanceOf[Ras[SparkPlan]]
   }
 
   case class RowLeaf() extends LeafExecNode {

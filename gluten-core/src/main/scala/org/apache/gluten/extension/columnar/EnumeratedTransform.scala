@@ -16,11 +16,11 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.ras.property.PropertySet
-import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 import org.apache.gluten.extension.columnar.transform.{ImplementExchange, ImplementJoin, ImplementOthers, ImplementSingleNode}
 import org.apache.gluten.planner.GlutenOptimization
 import org.apache.gluten.planner.property.GlutenProperties
+import org.apache.gluten.ras.property.PropertySet
+import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 import org.apache.gluten.utils.LogLevelUtil
 
 import org.apache.spark.sql.SparkSession
@@ -32,13 +32,13 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
   with LogLevelUtil {
   import EnumeratedTransform._
 
-  private val cboRules = List(
+  private val rasRules = List(
     RasImplement(ImplementOthers()),
     RasImplement(ImplementExchange()),
     RasImplement(ImplementJoin())
   )
 
-  private val optimization = GlutenOptimization(cboRules)
+  private val optimization = GlutenOptimization(rasRules)
 
   private val reqConvention = GlutenProperties.Conventions.ANY
   private val altConventions =
