@@ -50,7 +50,7 @@ object RasGroup {
       store.getCluster(clusterKey).nodes().filter(n => n.propSet().satisfies(propSet))
     }
     override def toString(): String = {
-      s"CboGroup(id=$id, clusterKey=$clusterKey, propSet=$propSet))"
+      s"RasGroup(id=$id, clusterKey=$clusterKey, propSet=$propSet))"
     }
   }
 }

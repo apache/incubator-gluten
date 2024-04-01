@@ -20,7 +20,7 @@ import org.apache.gluten.ras.{CanonicalNode, Ras}
 import org.apache.gluten.ras.memo.Memo
 import org.apache.gluten.ras.path.{PathKeySet, RasPath}
 
-object MockCboPath {
+object MockRasPath {
   def mock[T <: AnyRef](ras: Ras[T], node: T): RasPath[T] = {
     mock(ras, node, PathKeySet.trivial)
   }

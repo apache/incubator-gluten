@@ -16,11 +16,11 @@
  */
 package org.apache.gluten.ras.dp
 
-import org.apache.gluten.ras.{RasGroup, InGroupNode}
+import org.apache.gluten.ras.{InGroupNode, RasGroup}
 import org.apache.gluten.ras.dp.DpZipperAlgo.Solution
 import org.apache.gluten.ras.memo.MemoState
 
-// Dynamic programming algorithm to solve problem against a single CBO group that can be
+// Dynamic programming algorithm to solve problem against a single RAS group that can be
 // broken down to sub problems for sub groups.
 trait DpGroupAlgoDef[T <: AnyRef, NodeOutput <: AnyRef, GroupOutput <: AnyRef] {
   def solveNode(node: InGroupNode[T], childrenGroupsOutput: RasGroup[T] => GroupOutput): NodeOutput
@@ -37,17 +37,17 @@ object DpGroupAlgo {
   object Adjustment {
     private class None[T <: AnyRef] extends Adjustment[T] {
       override def exploreChildX(
-                                  panel: DpZipperAlgo.Adjustment.Panel[InGroupNode[T], RasGroup[T]],
-                                  x: InGroupNode[T]): Unit = {}
+          panel: DpZipperAlgo.Adjustment.Panel[InGroupNode[T], RasGroup[T]],
+          x: InGroupNode[T]): Unit = {}
       override def exploreParentY(
-                                   panel: DpZipperAlgo.Adjustment.Panel[InGroupNode[T], RasGroup[T]],
-                                   y: RasGroup[T]): Unit = {}
+          panel: DpZipperAlgo.Adjustment.Panel[InGroupNode[T], RasGroup[T]],
+          y: RasGroup[T]): Unit = {}
       override def exploreChildY(
-                                  panel: DpZipperAlgo.Adjustment.Panel[InGroupNode[T], RasGroup[T]],
-                                  y: RasGroup[T]): Unit = {}
+          panel: DpZipperAlgo.Adjustment.Panel[InGroupNode[T], RasGroup[T]],
+          y: RasGroup[T]): Unit = {}
       override def exploreParentX(
-                                   panel: DpZipperAlgo.Adjustment.Panel[InGroupNode[T], RasGroup[T]],
-                                   x: InGroupNode[T]): Unit = {}
+          panel: DpZipperAlgo.Adjustment.Panel[InGroupNode[T], RasGroup[T]],
+          x: InGroupNode[T]): Unit = {}
     }
 
     def none[T <: AnyRef](): Adjustment[T] = new None[T]()

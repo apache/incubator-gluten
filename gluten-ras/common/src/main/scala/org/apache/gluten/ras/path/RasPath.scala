@@ -155,7 +155,7 @@ object RasPath {
     choices.flatMap { children: Seq[RasPath[T]] => RasPath(ras, canonical, children) }
   }
 
-  implicit class CboPathImplicits[T <: AnyRef](path: RasPath[T]) {
+  implicit class RasPathImplicits[T <: AnyRef](path: RasPath[T]) {
     def dive(memoStore: MemoStore[T], extraDepth: Int): Iterable[RasPath[T]] = {
       val accumulatedDepth = extraDepth match {
         case RasPath.INF_DEPTH => RasPath.INF_DEPTH

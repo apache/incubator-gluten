@@ -22,7 +22,7 @@ import org.apache.gluten.ras.rule.RasRule
 import scala.collection.mutable
 
 /**
- * Entrypoint of ACBO (Advanced CBO)'s search engine. See basic introduction of ACBO:
+ * Entrypoint of RAS (relational algebra selector)'s search engine. See basic introduction of RAS:
  * https://github.com/apache/incubator-gluten/issues/5057.
  */
 trait Optimization[T <: AnyRef] {

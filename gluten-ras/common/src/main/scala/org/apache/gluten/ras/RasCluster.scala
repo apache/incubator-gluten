@@ -26,7 +26,7 @@ trait RasClusterKey {
 }
 
 object RasClusterKey {
-  implicit class CboClusterKeyImplicits[T <: AnyRef](key: RasClusterKey) {
+  implicit class RasClusterKeyImplicits[T <: AnyRef](key: RasClusterKey) {
     def propSets(memoTable: MemoTable[T]): Set[PropertySet[T]] = {
       memoTable.getClusterPropSets(key)
     }

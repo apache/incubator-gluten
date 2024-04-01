@@ -18,7 +18,7 @@ package org.apache.gluten.ras.path
 
 import org.apache.gluten.ras.Ras
 import org.apache.gluten.ras.RasSuiteBase._
-import org.apache.gluten.ras.mock.MockCboPath
+import org.apache.gluten.ras.mock.MockRasPath
 import org.apache.gluten.ras.rule.RasRule
 
 import org.scalatest.funsuite.AnyFunSuite
@@ -54,27 +54,27 @@ class RasPathSuite extends AnyFunSuite {
     val n4 = "n4"
     val n5 = "n5"
     val n6 = "n6"
-    val path1 = MockCboPath.mock(
+    val path1 = MockRasPath.mock(
       ras,
       Unary(n5, Leaf(n6, 1)),
       PathKeySet(Set(DummyPathKey(1), DummyPathKey(3)))
     )
-    val path2 = MockCboPath.mock(
+    val path2 = MockRasPath.mock(
       ras,
       Unary(n1, Unary(n2, Leaf(n3, 1))),
       PathKeySet(Set(DummyPathKey(1)))
     )
-    val path3 = MockCboPath.mock(
+    val path3 = MockRasPath.mock(
       ras,
       Unary(n1, Unary(n2, Leaf(n3, 1))),
       PathKeySet(Set(DummyPathKey(1), DummyPathKey(2)))
     )
-    val path4 = MockCboPath.mock(
+    val path4 = MockRasPath.mock(
       ras,
       Unary(n1, Unary(n2, Leaf(n3, 1))),
       PathKeySet(Set(DummyPathKey(4)))
     )
-    val path5 = MockCboPath.mock(
+    val path5 = MockRasPath.mock(
       ras,
       Unary(n5, Leaf(n6, 1)),
       PathKeySet(Set(DummyPathKey(4)))

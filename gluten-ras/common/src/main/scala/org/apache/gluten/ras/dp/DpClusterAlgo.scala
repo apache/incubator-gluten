@@ -16,11 +16,11 @@
  */
 package org.apache.gluten.ras.dp
 
-import org.apache.gluten.ras.{RasClusterKey, InClusterNode}
+import org.apache.gluten.ras.{InClusterNode, RasClusterKey}
 import org.apache.gluten.ras.dp.DpZipperAlgo.Solution
 import org.apache.gluten.ras.memo.MemoTable
 
-// Dynamic programming algorithm to solve problem against a single CBO cluster that can be
+// Dynamic programming algorithm to solve problem against a single RAS cluster that can be
 // broken down to sub problems for sub clusters.
 //
 // FIXME: Code is so similar with DpGroupAlgo.
@@ -29,8 +29,8 @@ trait DpClusterAlgoDef[T <: AnyRef, NodeOutput <: AnyRef, ClusterOutput <: AnyRe
       node: InClusterNode[T],
       childrenClustersOutput: RasClusterKey => ClusterOutput): NodeOutput
   def solveCluster(
-                    cluster: RasClusterKey,
-                    nodesOutput: InClusterNode[T] => NodeOutput): ClusterOutput
+      cluster: RasClusterKey,
+      nodesOutput: InClusterNode[T] => NodeOutput): ClusterOutput
 
   def solveNodeOnCycle(node: InClusterNode[T]): NodeOutput
   def solveClusterOnCycle(cluster: RasClusterKey): ClusterOutput
@@ -43,17 +43,17 @@ object DpClusterAlgo {
   object Adjustment {
     private class None[T <: AnyRef] extends Adjustment[T] {
       override def exploreChildX(
-                                  panel: DpZipperAlgo.Adjustment.Panel[InClusterNode[T], RasClusterKey],
-                                  x: InClusterNode[T]): Unit = {}
+          panel: DpZipperAlgo.Adjustment.Panel[InClusterNode[T], RasClusterKey],
+          x: InClusterNode[T]): Unit = {}
       override def exploreParentY(
-                                   panel: DpZipperAlgo.Adjustment.Panel[InClusterNode[T], RasClusterKey],
-                                   y: RasClusterKey): Unit = {}
+          panel: DpZipperAlgo.Adjustment.Panel[InClusterNode[T], RasClusterKey],
+          y: RasClusterKey): Unit = {}
       override def exploreChildY(
-                                  panel: DpZipperAlgo.Adjustment.Panel[InClusterNode[T], RasClusterKey],
-                                  y: RasClusterKey): Unit = {}
+          panel: DpZipperAlgo.Adjustment.Panel[InClusterNode[T], RasClusterKey],
+          y: RasClusterKey): Unit = {}
       override def exploreParentX(
-                                   panel: DpZipperAlgo.Adjustment.Panel[InClusterNode[T], RasClusterKey],
-                                   x: InClusterNode[T]): Unit = {}
+          panel: DpZipperAlgo.Adjustment.Panel[InClusterNode[T], RasClusterKey],
+          x: InClusterNode[T]): Unit = {}
     }
 
     def none[T <: AnyRef](): Adjustment[T] = new None[T]()

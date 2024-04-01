@@ -191,7 +191,7 @@ object ForwardMemoTable {
     }
   }
 
-  implicit class CboClusterKeyImplicits(key: RasClusterKey) {
+  implicit class RasClusterKeyImplicits(key: RasClusterKey) {
     def id(): Int = {
       asIntKey().id
     }

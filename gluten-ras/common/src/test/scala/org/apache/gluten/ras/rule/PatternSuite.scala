@@ -18,7 +18,7 @@ package org.apache.gluten.ras.rule
 
 import org.apache.gluten.ras.Ras
 import org.apache.gluten.ras.RasSuiteBase._
-import org.apache.gluten.ras.mock.MockCboPath
+import org.apache.gluten.ras.mock.MockRasPath
 import org.apache.gluten.ras.path.{Pattern, RasPath}
 
 import org.scalatest.funsuite.AnyFunSuite
@@ -36,7 +36,7 @@ class PatternSuite extends AnyFunSuite {
         RasRule.Factory.none())
 
     val pattern = Pattern.ignore[TestNode].build()
-    val path = MockCboPath.mock(ras, Leaf("n1", 1))
+    val path = MockRasPath.mock(ras, Leaf("n1", 1))
     assert(path.height() == 1)
 
     assert(pattern.matches(path, 1))
@@ -53,7 +53,7 @@ class PatternSuite extends AnyFunSuite {
         RasRule.Factory.none())
 
     val pattern = Pattern.ignore[TestNode].build()
-    val path = MockCboPath.mock(ras, Leaf("n1", 1))
+    val path = MockRasPath.mock(ras, Leaf("n1", 1))
     assert(path.height() == 1)
 
     assert(pattern.matches(path, 1))
@@ -69,7 +69,7 @@ class PatternSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
 
-    val path = MockCboPath.mock(ras, Unary("n1", Leaf("n2", 1)))
+    val path = MockRasPath.mock(ras, Unary("n1", Leaf("n2", 1)))
     assert(path.height() == 2)
 
     val pattern1 = Pattern.node[TestNode](n => n.isInstanceOf[Unary], Pattern.ignore).build()
@@ -92,7 +92,7 @@ class PatternSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
 
-    val path = MockCboPath.mock(
+    val path = MockRasPath.mock(
       ras,
       Binary("n7", Unary("n1", Unary("n2", Leaf("n3", 1))), Unary("n5", Leaf("n6", 1))))
     assert(path.height() == 4)
@@ -125,7 +125,7 @@ class PatternSuite extends AnyFunSuite {
         ExplainImpl,
         RasRule.Factory.none())
 
-    val path = MockCboPath.mock(
+    val path = MockRasPath.mock(
       ras,
       Binary("n7", Unary("n1", Unary("n2", Leaf("n3", 1))), Unary("n5", Leaf("n6", 1))))
     assert(path.height() == 4)

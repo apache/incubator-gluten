@@ -25,7 +25,7 @@ trait RasNode[T <: AnyRef] {
 }
 
 object RasNode {
-  implicit class CboNodeImplicits[T <: AnyRef](node: RasNode[T]) {
+  implicit class RasNodeImplicits[T <: AnyRef](node: RasNode[T]) {
     def isCanonical: Boolean = {
       node.isInstanceOf[CanonicalNode[T]]
     }
@@ -56,7 +56,7 @@ object CanonicalNode {
     CanonicalNodeImpl[T](ras, canonical, propSet, children.size)
   }
 
-  // We put CboNode's API methods that accept mutable input in implicit definition.
+  // We put RasNode's API methods that accept mutable input in implicit definition.
   // Do not break this rule during further development.
   implicit class CanonicalNodeImplicits[T <: AnyRef](node: CanonicalNode[T]) {
     def isLeaf(): Boolean = {
@@ -98,7 +98,7 @@ object GroupNode {
       override val groupId: Int)
     extends GroupNode[T] {}
 
-  // We put CboNode's API methods that accept mutable input in implicit definition.
+  // We put RasNode's API methods that accept mutable input in implicit definition.
   // Do not break this rule during further development.
   implicit class GroupNodeImplicits[T <: AnyRef](gn: GroupNode[T]) {
     def group(allGroups: Int => RasGroup[T]): RasGroup[T] = {
