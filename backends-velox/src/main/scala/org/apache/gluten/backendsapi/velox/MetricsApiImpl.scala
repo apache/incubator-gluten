@@ -222,7 +222,7 @@ class MetricsApiImpl extends MetricsApi with Logging {
         "rowConstruction cpu wall time count"),
       "rowConstructionWallNanos" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
-        "totaltime of preProjection"),
+        "totaltime of rowConstruction"),
       "extractionCpuCount" -> SQLMetrics.createMetric(
         sparkContext,
         "extraction cpu wall time count"),
