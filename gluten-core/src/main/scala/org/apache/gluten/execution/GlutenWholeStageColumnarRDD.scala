@@ -24,13 +24,10 @@ import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.InputFileBlockHolderProxy
-import org.apache.spark.sql.execution.datasources.PartitionedFile
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.ExecutorManager
-
-import scala.collection.mutable
 
 trait BaseGlutenPartition extends Partition with InputPartition {
   def plan: Array[Byte]
@@ -46,28 +43,6 @@ case class GlutenPartition(
 ) extends BaseGlutenPartition {
 
   override def preferredLocations(): Array[String] = locations
-}
-
-case class GlutenFilePartition(index: Int, files: Array[PartitionedFile], plan: Array[Byte])
-  extends BaseGlutenPartition {
-  override def preferredLocations(): Array[String] = {
-    // Computes total number of bytes can be retrieved from each host.
-    val hostToNumBytes = mutable.HashMap.empty[String, Long]
-    files.foreach {
-      file =>
-        file.locations.filter(_ != "localhost").foreach {
-          host => hostToNumBytes(host) = hostToNumBytes.getOrElse(host, 0L) + file.length
-        }
-    }
-
-    // Takes the first 3 hosts with the most data to be retrieved
-    hostToNumBytes.toSeq
-      .sortBy { case (host, numBytes) => numBytes }
-      .reverse
-      .take(3)
-      .map { case (host, numBytes) => host }
-      .toArray
-  }
 }
 
 case class FirstZippedPartitionsPartition(
