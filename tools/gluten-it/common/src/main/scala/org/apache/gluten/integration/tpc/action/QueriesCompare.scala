@@ -189,10 +189,7 @@ object QueriesCompare {
       val result = runner.runTpcQuery(sessionSwitcher.spark(), testDesc, id, explain = explain)
       val resultRows = result.rows
       val error = TestUtils.compareAnswers(resultRows, expectedRows, sort = true)
-      // FIXME: This is too hacky
-      // A list of query ids whose corresponding query results can differ because of order.
-      val unorderedQueries = Seq("q65")
-      if (error.isEmpty || unorderedQueries.contains(id)) {
+      if (error.isEmpty) {
         println(
           s"Successfully ran query $id, result check was passed. " +
             s"Returned row count: ${resultRows.length}, expected: ${expectedRows.length}")
