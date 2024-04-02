@@ -63,6 +63,7 @@ void registerFunctionOverwrite() {
       RowConstructorWithNullCallToSpecialForm::kRowConstructorWithNull,
       std::make_unique<RowConstructorWithNullCallToSpecialForm>());
   velox::functions::sparksql::registerBitwiseFunctions("spark_");
+  velox::functions::prestosql::registerBinaryFunctions("presto_");
 }
 } // namespace
 

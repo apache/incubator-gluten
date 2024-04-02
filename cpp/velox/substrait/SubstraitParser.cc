@@ -403,7 +403,7 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"date_format", "format_datetime"},
     {"collect_set", "set_agg"},
     {"collect_list", "array_agg"},
-    {"unbase64", "from_base64"}};
+    {"unbase64", "presto_from_base64"}};
 
 const std::unordered_map<std::string, std::string> SubstraitParser::typeMap_ = {
     {"bool", "BOOLEAN"},
