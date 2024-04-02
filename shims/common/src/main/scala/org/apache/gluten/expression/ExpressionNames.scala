@@ -49,6 +49,7 @@ object ExpressionNames {
   final val APPROX_PERCENTILE = "approx_percentile"
   final val SKEWNESS = "skewness"
   final val KURTOSIS = "kurtosis"
+  final val REGR_SLOPE = "regr_slope"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
