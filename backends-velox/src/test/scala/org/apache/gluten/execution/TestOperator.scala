@@ -767,7 +767,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
         checkGlutenOperatorMatch[ProjectExecTransformer]
       }
       runQueryAndCompare("""
-                           |SELECT array_remove(c3, 0) FROM t;
+                           |SELECT array_remove(c1, 3) FROM t;
                            |""".stripMargin) {
         checkGlutenOperatorMatch[ProjectExecTransformer]
       }
