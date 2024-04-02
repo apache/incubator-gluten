@@ -179,7 +179,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     TransformContext(output, output, readNode)
   }
 
-  def filteRedundantField(outputs : Seq[Attribute]) : Seq[Attribute] = {
+  def filteRedundantField(outputs: Seq[Attribute]): Seq[Attribute] = {
     var final_output: List[Attribute] = List()
     val outputList = outputs.toArray
     for (i <- 0 to outputList.size - 1) {
