@@ -1055,7 +1055,7 @@ class GlutenClickHouseHiveTableSuite
       s"CREATE FUNCTION my_add as " +
         s"'org.apache.hadoop.hive.contrib.udf.example.UDFExampleAdd2' USING JAR '$jarUrl'")
     runQueryAndCompare("select MY_ADD(id, id+1) from range(10)")(
-      checkOperatorMatch[ProjectExecTransformer])
+      checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("GLUTEN-4333: fix CSE in aggregate operator") {
@@ -1147,7 +1147,7 @@ class GlutenClickHouseHiveTableSuite
     Seq("true", "false").foreach {
       enabled =>
         withSQLConf(SQLConf.JSON_EXPRESSION_OPTIMIZATION.key -> enabled) {
-          runQueryAndCompare(selectSql)(checkOperatorMatch[ProjectExecTransformer])
+          runQueryAndCompare(selectSql)(checkGlutenOperatorMatch[ProjectExecTransformer])
         }
     }
   }

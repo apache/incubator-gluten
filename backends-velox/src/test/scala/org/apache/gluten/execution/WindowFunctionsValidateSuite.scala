@@ -22,13 +22,13 @@ class WindowFunctionsValidateSuite extends FunctionsValidateTest {
     runQueryAndCompare(
       "select lag(l_orderkey, -2) over" +
         " (partition by l_suppkey order by l_orderkey) from lineitem") {
-      checkOperatorMatch[WindowExecTransformer]
+      checkGlutenOperatorMatch[WindowExecTransformer]
     }
 
     runQueryAndCompare(
       "select lead(l_orderkey, -2) over" +
         " (partition by l_suppkey order by l_orderkey) from lineitem") {
-      checkOperatorMatch[WindowExecTransformer]
+      checkGlutenOperatorMatch[WindowExecTransformer]
     }
   }
 
