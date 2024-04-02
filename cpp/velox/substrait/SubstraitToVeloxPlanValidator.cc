@@ -268,7 +268,7 @@ bool SubstraitToVeloxPlanValidator::validateCast(
   // Only support cast from date to timestamp
   if (toType->kind() == TypeKind::TIMESTAMP && !input->type()->isDate()) {
     LOG_VALIDATION_MSG(
-      "Casting from " + input->type()->toString() + " to " + toType->toString() + " is not supported.");
+        "Casting from " + input->type()->toString() + " to " + toType->toString() + " is not supported.");
     return false;
   }
 
