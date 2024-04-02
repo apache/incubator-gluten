@@ -16,8 +16,8 @@
  */
 package org.apache.spark.sql.execution.datasources.utils
 
-import io.glutenproject.execution.{GlutenMergeTreePartition, MergeTreePartSplit}
-import io.glutenproject.expression.ConverterUtils
+import org.apache.gluten.execution.{GlutenMergeTreePartition, MergeTreePartSplit}
+import org.apache.gluten.expression.ConverterUtils
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -175,7 +175,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
                   "Can't find AddMergeTreeParts from cache pathToAddMTPCache for key: " +
                     path + ". This happens when too many new entries are added to " +
                     "pathToAddMTPCache during current query. " +
-                    "Try rerun current query. KeySample: " + keySample
+                    "Try rerun current query. Existing KeySample: " + keySample
                 )
               }
               ret
@@ -307,7 +307,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
                   "Can't find AddMergeTreeParts from cache pathToAddMTPCache for key: " +
                     path + ". This happens when too many new entries are added to " +
                     "pathToAddMTPCache during current query. " +
-                    "Try rerun current query. KeySample: " + keySample)
+                    "Try rerun current query. Existing KeySample: " + keySample)
               }
               ret
             }))

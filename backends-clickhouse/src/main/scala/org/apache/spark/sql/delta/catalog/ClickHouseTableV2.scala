@@ -314,7 +314,8 @@ object ClickHouseTableV2 extends Logging {
     } else if (temporalThreadLocalCHTable.get() != null) {
       temporalThreadLocalCHTable.get()
     } else {
-      throw new IllegalStateException("Can not find ClickHouseTableV2")
+      throw new IllegalStateException(
+        s"Can not find ClickHouseTableV2 for deltalog ${deltaLog.dataPath}")
     }
   }
 

@@ -174,7 +174,7 @@ auto BM_Generic = [](::benchmark::State& state,
           });
     }
     runtime->injectWriteFilesTempPath(FLAGS_write_path);
-    runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size(), {}, std::nullopt);
+    runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size(), std::nullopt);
     for (auto& split : splits) {
       runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size(), std::nullopt);
     }

@@ -24,10 +24,45 @@ StorageMergeTreeFactory & StorageMergeTreeFactory::instance()
     return ret;
 }
 
+void StorageMergeTreeFactory::freeStorage(StorageID id)
+{
+    auto table_name = id.database_name + "." + id.table_name + "@" + toString(id.uuid);
+
+
+    {
+        std::lock_guard lock(storage_map_mutex);
+        if (storage_map.contains(table_name))
+        {
+            storage_map.erase(table_name);
+        }
+        if (storage_columns_map.contains(table_name))
+        {
+            storage_columns_map.erase(table_name);
+        }
+    }
+
+    {
+        std::lock_guard lock(datapart_mutex);
+        if (datapart_map.contains(table_name))
+        {
+            datapart_map.erase(table_name);
+        }
+    }
+
+    {
+        std::lock_guard lock(metadata_map_mutex);
+        if (metadata_map.contains(table_name))
+        {
+            metadata_map.erase(table_name);
+        }
+    }
+
+}
+
 CustomStorageMergeTreePtr
 StorageMergeTreeFactory::getStorage(StorageID id, ColumnsDescription columns, std::function<CustomStorageMergeTreePtr()> creator)
 {
-    auto table_name = id.database_name + "." + id.table_name;
+    auto table_name = id.database_name + "." + id.table_name + "@" + toString(id.uuid);
     std::lock_guard lock(storage_map_mutex);
     if (!storage_map.contains(table_name))
     {
@@ -58,7 +93,7 @@ StorageMergeTreeFactory::getStorage(StorageID id, ColumnsDescription columns, st
 
 StorageInMemoryMetadataPtr StorageMergeTreeFactory::getMetadata(StorageID id, std::function<StorageInMemoryMetadataPtr()> creator)
 {
-    auto table_name = id.database_name + "." + id.table_name;
+    auto table_name = id.database_name + "." + id.table_name + "@" + toString(id.uuid);
 
     std::lock_guard lock(metadata_map_mutex);
     if (!metadata_map.contains(table_name))
@@ -71,7 +106,7 @@ StorageInMemoryMetadataPtr StorageMergeTreeFactory::getMetadata(StorageID id, st
 DataPartsVector StorageMergeTreeFactory::getDataParts(StorageID id, std::unordered_set<String> part_name)
 {
     DataPartsVector res;
-    auto table_name = id.database_name + "." + id.table_name;
+    auto table_name = id.database_name + "." + id.table_name + "@" + toString(id.uuid);
     std::lock_guard lock(datapart_mutex);
     CustomStorageMergeTreePtr storage_merge_tree;
     {
@@ -106,7 +141,7 @@ DataPartsVector StorageMergeTreeFactory::getDataParts(StorageID id, std::unorder
 }
 void StorageMergeTreeFactory::addDataPartToCache(StorageID id, String part_name, DataPartPtr part)
 {
-    auto table_name = id.database_name + "." + id.table_name;
+    auto table_name = id.database_name + "." + id.table_name + "@" + toString(id.uuid);
     std::lock_guard lock(datapart_mutex);
     if (!datapart_map.contains(table_name))
     {

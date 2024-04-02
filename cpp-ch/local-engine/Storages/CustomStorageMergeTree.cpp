@@ -89,6 +89,7 @@ CustomStorageMergeTree::CustomStorageMergeTree(
           attach ? LoadingStrictnessLevel::ATTACH : LoadingStrictnessLevel::FORCE_RESTORE)
     , writer(*this)
     , reader(*this)
+    , merger_mutator(*this)
 {
     relative_data_path = relative_data_path_;
     format_version = 1;
@@ -106,6 +107,15 @@ DataPartsVector CustomStorageMergeTree::loadDataPartsWithNames(std::unordered_se
         MergeTreePartInfo part_info = {"all", num, num, 0};
         auto res = loadDataPart(part_info, name, disk, MergeTreeDataPartState::Active);
         data_parts.emplace_back(res.part);
+    }
+
+    if(getStorageID().hasUUID())
+    {
+        // the following lines will modify storage's member.
+        // So when current storage is shared (when UUID is default Nil value),
+        // we should avoid modify because we don't have locks here
+
+        calculateColumnAndSecondaryIndexSizesImpl(); // without it "test mergetree optimize partitioned by one low card column" will log ERROR
     }
     return data_parts;
 }

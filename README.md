@@ -70,7 +70,7 @@ One way is to use released jar. Here is a simple example. Currently, only centos
 ```
 spark-shell \
  --master yarn --deploy-mode client \
- --conf spark.plugins=io.glutenproject.GlutenPlugin \
+ --conf spark.plugins=org.apache.gluten.GlutenPlugin \
  --conf spark.memory.offHeap.enabled=true \
  --conf spark.memory.offHeap.size=20g \
  --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
@@ -85,7 +85,7 @@ Alternatively, you can build gluten from source, then do some configurations to 
 export gluten_jar = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
 spark-shell 
   --master yarn --deploy-mode client \
-  --conf spark.plugins=io.glutenproject.GlutenPlugin \
+  --conf spark.plugins=org.apache.gluten.GlutenPlugin \
   --conf spark.memory.offHeap.enabled=true \
   --conf spark.memory.offHeap.size=20g \
   --conf spark.driver.extraClassPath=${gluten_jar} \
@@ -160,6 +160,11 @@ binwei.yang@intel.com; weiting.chen@intel.com;
 chang.chen@kyligence.io; zhichao.zhang@kyligence.io; neng.liu@kyligence.io;
 zuochunwei@meituan.com;yangchuan.zy@alibaba-inc.com;xiyu.zk@alibaba-inc.com;joey.ljy@alibaba-inc.com
 
+# 8 Thanks to our contributors
+
+<a href="https://github.com/apache/incubator-gluten/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=apache/incubator-gluten" />
+</a>
 
 ##### \* LEGAL NOTICE: Your use of this software and any required dependent software (the "Software Package") is subject to the terms and conditions of the software license agreements for the Software Package, which may also include notices, disclaimers, or license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the "TPP.txt" or other similarly-named text file included with the Software Package for additional details.
 
