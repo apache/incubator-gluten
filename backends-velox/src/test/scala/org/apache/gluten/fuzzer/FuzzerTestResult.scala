@@ -14,22 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.fuzzer
 
-class WindowFunctionsValidateSuite extends FunctionsValidateTest {
+object FuzzerTestResult {
+  trait TestResult {
+    val seed: Long
 
-  test("lag/lead window function with negative input offset") {
-    runQueryAndCompare(
-      "select lag(l_orderkey, -2) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem") {
-      checkGlutenOperatorMatch[WindowExecTransformer]
-    }
-
-    runQueryAndCompare(
-      "select lead(l_orderkey, -2) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem") {
-      checkGlutenOperatorMatch[WindowExecTransformer]
-    }
+    def getSeed: Long = seed
   }
-
+  case class Successful(seed: Long) extends TestResult
+  case class Failed(seed: Long) extends TestResult
+  case class OOM(seed: Long) extends TestResult
 }

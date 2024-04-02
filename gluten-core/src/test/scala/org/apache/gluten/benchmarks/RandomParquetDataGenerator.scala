@@ -16,7 +16,8 @@
  */
 package org.apache.gluten.benchmarks
 
-import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.types._
 
 import com.github.javafaker.Faker
@@ -24,7 +25,7 @@ import com.github.javafaker.Faker
 import java.sql.Date
 import java.util.Random
 
-case class RandomParquetDataGenerator(initialSeed: Long = 0L) {
+case class RandomParquetDataGenerator(initialSeed: Long = 0L) extends Logging {
   private var seed: Long = initialSeed
   private var faker = new Faker(new Random(seed))
 
@@ -88,17 +89,21 @@ case class RandomParquetDataGenerator(initialSeed: Long = 0L) {
       spark: SparkSession,
       schema: StructType,
       numRows: Int,
-      outputPath: String): Unit = {
+      outputPath: Option[String]): DataFrame = {
     val data = (0 until numRows).map(_ => generateRow(schema, faker.random().nextDouble()))
     val df = spark.createDataFrame(spark.sparkContext.parallelize(data), schema)
-    df.coalesce(1)
-      .write
-      .mode("overwrite")
-      .parquet(outputPath)
+    if (outputPath.isDefined) {
+      df.coalesce(1)
+        .write
+        .mode("overwrite")
+        .parquet(outputPath.get)
+    }
+    df
   }
 
-  def generateRandomData(spark: SparkSession, outputPath: String): Unit = {
+  def generateRandomData(spark: SparkSession, outputPath: Option[String] = None): DataFrame = {
     val schema = generateRandomSchema()
+    logWarning(s"Generated schema:\n ${schema.prettyJson}")
     val numRows = faker.random().nextInt(1000, 300000)
     generateRandomData(spark, schema, numRows, outputPath)
   }
@@ -120,7 +125,8 @@ case class RandomParquetDataGenerator(initialSeed: Long = 0L) {
     () => StructField(fieldName, DoubleType, nullable = true),
     () => StructField(fieldName, DateType, nullable = true),
 //    () => StructField(fieldName, TimestampType, nullable = true),
-    () => StructField(fieldName, DecimalType(10, 2), nullable = true)
+    () => StructField(fieldName, DecimalType(10, 2), nullable = true),
+    () => StructField(fieldName, DecimalType(30, 10), nullable = true)
   )
 
   val binaryFields: List[() => StructField] = List(
@@ -129,25 +135,62 @@ case class RandomParquetDataGenerator(initialSeed: Long = 0L) {
   )
 
   val complexFields: List[() => StructField] = List(
-    () => StructField(fieldName, ArrayType(StringType, containsNull = true), nullable = true),
     () =>
-      StructField(
-        fieldName,
-        MapType(StringType, IntegerType, valueContainsNull = true),
-        nullable = true),
+      StructField(fieldName, generateNestedArray(faker.random().nextInt(1, 5)), nullable = true),
+    () => StructField(fieldName, generateNestedMap(faker.random().nextInt(1, 5)), nullable = true),
     () =>
-      StructField(
-        fieldName,
-        StructType(
-          Seq(
-            StructField(fieldName, StringType, nullable = true),
-            StructField(fieldName, DoubleType, nullable = true)
-          )),
-        nullable = true)
+      StructField(fieldName, generateNestedStruct(faker.random().nextInt(1, 5)), nullable = true)
   )
 
-  val candidateFields: List[() => StructField] =
-    numericFields ++ binaryFields ++ complexFields
+  // Do not include BinaryType in the complex types. The judgement in GlutenQueryTest
+  // will misjudge the equality of Array[Byte] within complex types.
+  // e.g.
+  // val a: Array[Byte] = Array(1, 2, 3)
+  // val b: Array[Byte] = Array(1, 2, 3)
+  // (a == b) -> false
+  val simpleTypes: List[DataType] = List(
+    BooleanType,
+    ByteType,
+    ShortType,
+    IntegerType,
+    LongType,
+    FloatType,
+    DoubleType,
+    DateType,
+    DecimalType(10, 2),
+    DecimalType(30, 10),
+    StringType)
+
+  def generateInnerField(): DataType = {
+    simpleTypes(faker.random().nextInt(simpleTypes.length))
+  }
+
+  def generateChild(depth: Int): DataType = {
+    if (depth == 0) {
+      generateInnerField()
+    } else {
+      faker.random().nextInt(3) match {
+        case 0 => generateNestedArray(depth)
+        case 1 => generateNestedMap(depth)
+        case 2 => generateNestedStruct(depth)
+      }
+    }
+  }
+
+  def generateNestedArray(depth: Int): ArrayType = {
+    ArrayType(generateChild(depth - 1), containsNull = true)
+  }
+
+  def generateNestedMap(depth: Int): MapType = {
+    MapType(generateChild(depth - 1), generateChild(depth - 1))
+  }
+
+  def generateNestedStruct(depth: Int): StructType = {
+    StructType(
+      (0 until faker.random().nextInt(1, 5))
+        .map(_ => fieldName)
+        .map(StructField(_, generateChild(depth - 1))))
+  }
 
   // Function to generate random schema with n fields
   def generateRandomSchema(n: Int): StructType = {
@@ -156,14 +199,14 @@ case class RandomParquetDataGenerator(initialSeed: Long = 0L) {
       (0 until 3).map(_ => numericFields(faker.random().nextInt(numericFields.length))()) ++
         (0 until 3).map(_ => binaryFields(faker.random().nextInt(binaryFields.length))()) ++
         (0 until Math.max(0, n - 6))
-          .map(_ => candidateFields(faker.random().nextInt(candidateFields.length))())
+          .map(_ => complexFields(faker.random().nextInt(complexFields.length))())
     }
     StructType(selectedFields)
   }
 
   // Generate random schema with [10, 30) fields
   def generateRandomSchema(): StructType = {
-    generateRandomSchema(faker.random().nextInt(4, 24))
+    generateRandomSchema(faker.random().nextInt(6, 10))
   }
 }
 
@@ -176,6 +219,6 @@ object RandomParquetDataGenerator {
     val seed: Long = 0L
     val outputPath = s"${seed}_output.parquet"
 
-    RandomParquetDataGenerator(seed).generateRandomData(spark, outputPath)
+    RandomParquetDataGenerator(seed).generateRandomData(spark, Some(outputPath))
   }
 }

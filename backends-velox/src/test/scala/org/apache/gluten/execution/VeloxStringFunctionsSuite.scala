@@ -60,152 +60,152 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
   test("ascii") {
     runQueryAndCompare(
       s"select l_orderkey, ascii(l_comment) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
 
     runQueryAndCompare(
       s"select l_orderkey, ascii($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("concat") {
     runQueryAndCompare(
       s"select l_orderkey, concat(l_comment, 'hello') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, concat(l_comment, 'hello', 'world') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("extract") {
     runQueryAndCompare(
       s"select l_orderkey, l_shipdate, " +
         s"extract(doy FROM DATE'2019-08-12') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("day") {
     runQueryAndCompare(
       s"select l_orderkey, l_shipdate, day(l_shipdate) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, day($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("dayofmonth") {
     runQueryAndCompare(
       s"select l_orderkey, l_shipdate, dayofmonth(l_shipdate) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, dayofmonth($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("day_of_year") {
     runQueryAndCompare(
       s"select l_orderkey, l_shipdate, dayofyear(l_shipdate) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, dayofyear($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("dayofweek") {
     runQueryAndCompare(
       s"select l_orderkey, l_shipdate, dayofweek(l_shipdate) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, dayofweek($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   ignore("weekday") { // todo: result mismatched
     runQueryAndCompare(
       s"select l_orderkey, l_shipdate, weekday(l_shipdate) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, weekday($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("month") {
     runQueryAndCompare(
       s"select l_orderkey, l_shipdate, month(l_shipdate) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, month($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("quarter") {
     runQueryAndCompare(
       s"select l_orderkey, l_shipdate, quarter(l_shipdate) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, quarter($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("year") {
     runQueryAndCompare(
       s"select l_orderkey, l_shipdate, year(l_shipdate) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, year($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("instr") {
     runQueryAndCompare(
       s"select l_orderkey, instr(l_comment, 'h') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, instr(l_comment, $NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, instr($NULL_STR_COL, 'h') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("length") {
     runQueryAndCompare(
       s"select l_orderkey, length(l_comment) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, length($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
 
     runQueryAndCompare(
       s"select l_orderkey, CHAR_LENGTH(l_comment) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, CHAR_LENGTH($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
 
     runQueryAndCompare(
       s"select l_orderkey, CHARACTER_LENGTH(l_comment) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, CHARACTER_LENGTH($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("md5") {
     runQueryAndCompare(
       s"select l_orderkey, md5(l_comment) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, md5($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("sha1") {
     runQueryAndCompare(
       s"select l_orderkey, sha1(l_comment) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, sha1($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("sha2") {
@@ -213,168 +213,168 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
       bitLength =>
         runQueryAndCompare(
           s"select l_orderkey, sha2(l_comment, $bitLength) " +
-            s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+            s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
     runQueryAndCompare(
       s"select l_orderkey, sha2($NULL_STR_COL, 256) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, sha2(l_comment, $NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("crc32") {
     runQueryAndCompare(
       s"select l_orderkey, crc32(l_comment) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, crc32($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("lower") {
     runQueryAndCompare(
       s"select l_orderkey, lower(l_comment) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, lower($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("upper") {
     runQueryAndCompare(
       s"select l_orderkey, upper(l_comment) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, upper($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("lcase") {
     runQueryAndCompare(
       s"select l_orderkey, lcase(l_comment) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, lcase($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("ucase") {
     runQueryAndCompare(
       s"select l_orderkey, ucase(l_comment) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, ucase($NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   ignore("locate") {
     runQueryAndCompare(
       s"select l_orderkey, locate(l_comment, 'a', 1) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, locate($NULL_STR_COL, 'a', 1) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("trim") {
     runQueryAndCompare(
       s"select l_orderkey, trim(l_comment) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, trim('. abcdefg', l_comment) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, trim($NULL_STR_COL), " +
         s"trim($NULL_STR_COL, l_comment), trim('. abcdefg', $NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("ltrim") {
     runQueryAndCompare(
       s"select l_orderkey, ltrim(l_comment) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, ltrim('. abcdefg', l_comment) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, ltrim($NULL_STR_COL), " +
         s"ltrim($NULL_STR_COL, l_comment), ltrim('. abcdefg', $NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("rtrim") {
     runQueryAndCompare(
       s"select l_orderkey, rtrim(l_comment) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, rtrim('. abcdefg', l_comment) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, rtrim($NULL_STR_COL), " +
         s"rtrim($NULL_STR_COL, l_comment), rtrim('. abcdefg', $NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("lpad") {
     runQueryAndCompare(
       s"select l_orderkey, lpad($NULL_STR_COL, 80) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, lpad(l_comment, 80) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, lpad(l_comment, 80, '??') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, lpad(l_comment, $NULL_STR_COL, '??') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, lpad(l_comment, 80, $NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("rpad") {
     runQueryAndCompare(
       s"select l_orderkey, rpad($NULL_STR_COL, 80) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, rpad(l_comment, 80) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, rpad(l_comment, 80, '??') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, rpad(l_comment, $NULL_STR_COL, '??') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, rpad(l_comment, 80, $NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("like") {
     runQueryAndCompare(
       """select l_orderkey, like(l_comment, '%\%') """ +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, like(l_comment, 'a_%b') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, like(l_comment, 'a\\__b') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, like(l_comment, 'abc_') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, like(l_comment, ' ') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, like($NULL_STR_COL, '%a%') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, like(l_comment, '%a%') " +
         s"from $LINEITEM_TABLE where l_comment like '%a%' limit $LENGTH") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     runQueryAndCompare(
       s"select l_orderkey, like(l_comment, ' ') " +
@@ -387,13 +387,13 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
   test("rlike") {
     runQueryAndCompare(
       s"select l_orderkey, l_comment, rlike(l_comment, 'a*') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, rlike(l_comment, ' ') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, rlike($NULL_STR_COL, '%a%') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, l_comment " +
         s"from $LINEITEM_TABLE where l_comment rlike '%a%' limit $LENGTH") { _ => }
@@ -408,13 +408,13 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
   test("regexp") {
     runQueryAndCompare(
       s"select l_orderkey, l_comment, regexp(l_comment, 'a*') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, regexp(l_comment, ' ') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, regexp($NULL_STR_COL, '%a%') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, l_comment " +
         s"from $LINEITEM_TABLE where l_comment regexp '%a%' limit $LENGTH") { _ => }
@@ -429,28 +429,28 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
   test("regexp_like") {
     runQueryAndCompare(
       s"select l_orderkey, l_comment, regexp_like(l_comment, 'a*') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, regexp_like(l_comment, ' ') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, regexp_like($NULL_STR_COL, '%a%') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("regexp_extract") {
     runQueryAndCompare(
       s"select l_orderkey, regexp_extract(l_comment, '([a-z])', 1) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, regexp_extract($NULL_STR_COL, '([a-z])', 1) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("regexp_extract_all") {
     runQueryAndCompare(
       s"select l_orderkey, regexp_extract_all(l_comment, '([a-z])', 1) " +
-        s"from $LINEITEM_TABLE limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
     // fall back because of unsupported cast(array)
     runQueryAndCompare(
       s"select l_orderkey, l_comment, " +
@@ -461,13 +461,13 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
   test("regexp_replace") {
     runQueryAndCompare(
       s"select l_orderkey, regexp_replace(l_comment, '([a-z])', '1') " +
-        s"from $LINEITEM_TABLE limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, regexp_replace(l_comment, '([a-z])', '1', 1) " +
-        s"from $LINEITEM_TABLE limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, regexp_replace(l_comment, '([a-z])', '1', 10) " +
-        s"from $LINEITEM_TABLE limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("regex invalid") {
@@ -496,22 +496,22 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
   test("replace") {
     runQueryAndCompare(
       s"select l_orderkey, replace(l_comment, ' ', 'hello') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, replace(l_comment, 'ha') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, replace(l_comment, ' ', $NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, replace(l_comment, $NULL_STR_COL, 'hello') " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("reverse") {
     runQueryAndCompare(
       s"select l_orderkey, l_comment, reverse(l_comment) " +
-        s"from $LINEITEM_TABLE limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
 
     // fall back because of unsupported cast(array)
     runQueryAndCompare(
@@ -541,56 +541,56 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
   test("substr") {
     runQueryAndCompare(
       s"select l_orderkey, substr(l_comment, 1) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, substr(l_comment, 1, 3) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, substr($NULL_STR_COL, 1) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, substr($NULL_STR_COL, 1, 3) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, substr(l_comment, $NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, substr(l_comment, $NULL_STR_COL, 3) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("substring") {
     runQueryAndCompare(
       s"select l_orderkey, substring(l_comment, 1) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, substring(l_comment, 1, 3) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, substring($NULL_STR_COL, 1) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, substring($NULL_STR_COL, 1, 3) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, substring(l_comment, $NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, substring(l_comment, $NULL_STR_COL, 3) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("left") {
     runQueryAndCompare(
       s"select l_orderkey, left(l_comment, 1) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
 
     runQueryAndCompare(
       s"select l_orderkey, left($NULL_STR_COL, 1) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
 
     runQueryAndCompare(
       s"select l_orderkey, left(l_comment, $NULL_STR_COL) " +
-        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 }

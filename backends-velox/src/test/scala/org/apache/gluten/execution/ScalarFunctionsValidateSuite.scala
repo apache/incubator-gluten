@@ -26,60 +26,60 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
 
   // Test "SELECT ..." without a from clause.
   test("isnull function") {
-    runQueryAndCompare("SELECT isnull(1)")(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare("SELECT isnull(1)")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("Test bit_count function") {
     runQueryAndCompare("SELECT bit_count(l_partkey) from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test bit_get function") {
     runQueryAndCompare("SELECT bit_get(l_partkey, 0) from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test chr function") {
     runQueryAndCompare("SELECT chr(l_orderkey + 64) from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test abs function") {
     runQueryAndCompare("SELECT abs(l_orderkey) from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test ceil function") {
     runQueryAndCompare("SELECT ceil(cast(l_orderkey as long)) from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test floor function") {
     runQueryAndCompare("SELECT floor(cast(l_orderkey as long)) from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test Exp function") {
     runQueryAndCompare("SELECT exp(l_orderkey) from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test Power function") {
     runQueryAndCompare("SELECT power(l_orderkey, 2) from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test Pmod function") {
     runQueryAndCompare("SELECT pmod(cast(l_orderkey as int), 3) from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -87,13 +87,13 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     runQueryAndCompare(
       "SELECT round(cast(l_orderkey as int), 2)" +
         "from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
 
     runQueryAndCompare("""
                          |select round(l_quantity, 2) from lineitem;
                          |""".stripMargin) {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -108,7 +108,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     val df = runQueryAndCompare(
       "SELECT bin(l_orderkey) " +
         "from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     checkLengthAndPlan(df, 1)
   }
@@ -156,20 +156,20 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
   test("greatest function") {
     val df = runQueryAndCompare(
       "SELECT greatest(l_orderkey, l_orderkey)" +
-        "from lineitem limit 1")(checkOperatorMatch[ProjectExecTransformer])
+        "from lineitem limit 1")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("least function") {
     val df = runQueryAndCompare(
       "SELECT least(l_orderkey, l_orderkey)" +
-        "from lineitem limit 1")(checkOperatorMatch[ProjectExecTransformer])
+        "from lineitem limit 1")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("Test greatest function") {
     runQueryAndCompare(
       "SELECT greatest(l_orderkey, l_orderkey)" +
         "from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -177,13 +177,13 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     runQueryAndCompare(
       "SELECT least(l_orderkey, l_orderkey)" +
         "from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test hash function") {
     runQueryAndCompare("SELECT hash(l_orderkey) from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -191,7 +191,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     runQueryAndCompare(
       "SELECT get_json_object(string_field1, '$.a') " +
         "from datatab limit 1;") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -199,85 +199,85 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     runQueryAndCompare(
       "SELECT l_orderkey, get_json_object('{\"a\":\"b\"}', '$.a') " +
         "from lineitem limit 1;") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   ignore("json_array_length") {
     runQueryAndCompare(
       s"select *, json_array_length(string_field1) " +
-        s"from datatab limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        s"from datatab limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, json_array_length('[1,2,3,4]') " +
-        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        s"from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, json_array_length(null) " +
-        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        s"from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("Test acos function") {
     runQueryAndCompare("SELECT acos(l_orderkey) from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test asin function") {
     runQueryAndCompare("SELECT asin(l_orderkey) from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test atan function") {
     runQueryAndCompare("SELECT atan(l_orderkey) from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   ignore("Test atan2 function datatab") {
     runQueryAndCompare("SELECT atan2(double_field1, 0) from datatab limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test ceiling function") {
     runQueryAndCompare("SELECT ceiling(cast(l_orderkey as long)) from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test cos function") {
     runQueryAndCompare("SELECT cos(l_orderkey) from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test cosh function") {
     runQueryAndCompare("SELECT cosh(l_orderkey) from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test degrees function") {
     runQueryAndCompare("SELECT degrees(l_orderkey) from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test log10 function") {
     runQueryAndCompare("SELECT log10(l_orderkey) from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test shiftleft function") {
     val df = runQueryAndCompare("SELECT shiftleft(int_field1, 1) from datatab limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test shiftright function") {
     val df = runQueryAndCompare("SELECT shiftright(int_field1, 1) from datatab limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -299,7 +299,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
 
         runQueryAndCompare("SELECT date_add(a, b) from view") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }
@@ -322,7 +322,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
 
         runQueryAndCompare("SELECT datediff(a, b) from view") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }
@@ -340,10 +340,10 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
 
         runQueryAndCompare("SELECT to_utc_timestamp(a, \"America/Los_Angeles\") from view") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
         runQueryAndCompare("SELECT to_utc_timestamp(a, b) from view") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }
@@ -366,7 +366,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         runQueryAndCompare(
           "select aggregate(i, 0, (acc, x) -> acc + x," +
             " acc -> acc * 3) as v from array_tbl;") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
     withTempPath {
@@ -382,7 +382,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
 
         runQueryAndCompare("select aggregate(ys, 0, (y, a) -> y + a + x) as v from array_tbl;") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }
@@ -392,6 +392,27 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
       sql("create table t1 (c1 int, c2 timestamp) USING PARQUET")
       sql("INSERT INTO t1 VALUES(1, NOW())")
       runQueryAndCompare("SELECT c1, HOUR(c2) FROM t1 LIMIT 1")(df => checkFallbackOperators(df, 0))
+    }
+  }
+
+  test("from_utc_timestamp") {
+    withTempPath {
+      path =>
+        Seq(
+          (Timestamp.valueOf("2015-07-24 00:00:00"), "America/Los_Angeles"),
+          (Timestamp.valueOf("2015-07-25 00:00:00"), "America/Los_Angeles")
+        ).toDF("a", "b")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+
+        runQueryAndCompare("SELECT from_utc_timestamp(a, \"America/Los_Angeles\") from view") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+        runQueryAndCompare("SELECT from_utc_timestamp(a, b) from view") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
     }
   }
 
@@ -411,7 +432,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
 
         runQueryAndCompare("select i[\"1\"] from map_tbl") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }
@@ -431,7 +452,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
 
         runQueryAndCompare("select map_entries(i) from map_tbl") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }
@@ -451,7 +472,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
 
         runQueryAndCompare("select map_keys(i) from map_tbl") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }
@@ -471,7 +492,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
 
         runQueryAndCompare("select map_values(i) from map_tbl") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }
@@ -480,7 +501,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     runQueryAndCompare(
       "SELECT isnan(l_orderkey), isnan(cast('NaN' as double)), isnan(0.0F/0.0F)" +
         " from lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -491,21 +512,21 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
                          | nanvl(l_orderkey, l_orderkey / 0.0d),
                          | nanvl(cast('nan' as float), l_orderkey)
                          | from lineitem limit 1""".stripMargin) {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test monotonically_increasing_id function") {
     runQueryAndCompare("""SELECT monotonically_increasing_id(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test spark_partition_id function") {
     runQueryAndCompare("""SELECT spark_partition_id(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -519,7 +540,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         spark.sparkContext.setLogLevel("info")
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("url_tbl")
         runQueryAndCompare("select url_decode(a) from url_tbl") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }
@@ -534,20 +555,20 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         spark.sparkContext.setLogLevel("info")
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("url_tbl")
         runQueryAndCompare("select url_encode(a) from url_tbl") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }
 
   test("Test hex function") {
     runQueryAndCompare("SELECT hex(l_partkey), hex(l_shipmode) FROM lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("Test unhex function") {
     runQueryAndCompare("SELECT unhex(hex(l_shipmode)) FROM lineitem limit 1") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -568,7 +589,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
 
         runQueryAndCompare(
           "select make_timestamp(year, month, day, hour, min, sec) from make_timestamp_tbl1") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
     withTempPath {
@@ -589,22 +610,22 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
                              |select make_timestamp(year, month, day, hour, min, sec, timezone)
                              |from make_timestamp_tbl2
                              |""".stripMargin) {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }
 
   test("Test make_ym_interval function") {
     runQueryAndCompare("select make_ym_interval(1, 1)") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
 
     runQueryAndCompare("select make_ym_interval(1)") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
 
     runQueryAndCompare("select make_ym_interval()") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
 
     withTempPath {
@@ -617,29 +638,29 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("make_ym_interval_tbl")
 
         runQueryAndCompare("select make_ym_interval(year, month) from make_ym_interval_tbl") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
 
         runQueryAndCompare("select make_ym_interval(year) from make_ym_interval_tbl") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }
 
   test("Test uuid function") {
     runQueryAndCompare("""SELECT uuid() from lineitem limit 100""".stripMargin, false) {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
   test("regexp_replace") {
     runQueryAndCompare(
       "SELECT regexp_replace(c_comment, '\\w', 'something') FROM customer limit 50") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     runQueryAndCompare(
       "SELECT regexp_replace(c_comment, '\\w', 'something', 3) FROM customer limit 50") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -647,7 +668,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     runQueryAndCompare(
       "select bit_length(c_comment), bit_length(cast(c_comment as binary))" +
         " from customer limit 50") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -656,7 +677,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
       "select cast(l_orderkey as tinyint) & cast(l_partkey as tinyint)," +
         " cast(l_orderkey as int) & cast(l_partkey as int), l_orderkey & l_partkey" +
         " from lineitem") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -664,7 +685,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     runQueryAndCompare(
       "select ~(cast(l_orderkey as tinyint)), ~(cast(l_orderkey as int)), ~l_orderkey" +
         " from lineitem") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -673,7 +694,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
       "select cast(l_orderkey as tinyint) | cast(l_partkey as tinyint)," +
         " cast(l_orderkey as int) | cast(l_partkey as int), l_orderkey | l_partkey" +
         " from lineitem") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -682,7 +703,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
       "select cast(l_orderkey as tinyint) ^ cast(l_partkey as tinyint)," +
         " cast(l_orderkey as int) ^ cast(l_partkey as int), l_orderkey ^ l_partkey" +
         " from lineitem") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 

@@ -60,6 +60,8 @@ object ExpressionMappings {
     Sig[IsNull](IS_NULL),
     Sig[Not](NOT),
     Sig[IsNaN](IS_NAN),
+    Sig[NaNvl](NANVL),
+
     // SparkSQL String functions
     Sig[Ascii](ASCII),
     Sig[Chr](CHR),
@@ -115,6 +117,7 @@ object ExpressionMappings {
     Sig[Sinh](SINH),
     Sig[Tan](TAN),
     Sig[Tanh](TANH),
+    Sig[Cot](COT),
     Sig[BitwiseNot](BITWISE_NOT),
     Sig[BitwiseAnd](BITWISE_AND),
     Sig[BitwiseOr](BITWISE_OR),
@@ -182,6 +185,7 @@ object ExpressionMappings {
     Sig[MakeTimestamp](MAKE_TIMESTAMP),
     Sig[MakeYMInterval](MAKE_YM_INTERVAL),
     Sig[ToUTCTimestamp](TO_UTC_TIMESTAMP),
+    Sig[FromUTCTimestamp](FROM_UTC_TIMESTAMP),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
