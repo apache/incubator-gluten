@@ -140,6 +140,7 @@ object ExpressionNames {
   final val SINH = "sinh"
   final val TAN = "tan"
   final val TANH = "tanh"
+  final val COT = "cot"
   final val BITWISE_NOT = "bitwise_not"
   final val BITWISE_AND = "bitwise_and"
   final val BITWISE_OR = "bitwise_or"

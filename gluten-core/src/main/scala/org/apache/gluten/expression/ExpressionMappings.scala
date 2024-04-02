@@ -117,6 +117,7 @@ object ExpressionMappings {
     Sig[Sinh](SINH),
     Sig[Tan](TAN),
     Sig[Tanh](TANH),
+    Sig[Cot](COT),
     Sig[BitwiseNot](BITWISE_NOT),
     Sig[BitwiseAnd](BITWISE_AND),
     Sig[BitwiseOr](BITWISE_OR),
