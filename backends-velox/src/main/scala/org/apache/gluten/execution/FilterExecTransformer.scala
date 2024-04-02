@@ -22,13 +22,22 @@ import org.apache.spark.sql.execution.SparkPlan
 case class FilterExecTransformer(condition: Expression, child: SparkPlan)
   extends FilterExecTransformerBase(condition, child) {
   override protected def getRemainingCondition: Expression = {
-    val scanFilters = child match {
-      // Get the filters including the manually pushed down ones.
-      case basicScanExecTransformer: BasicScanExecTransformer =>
-        basicScanExecTransformer.filterExprs()
-      // For fallback scan, we need to keep original filter.
-      case _ =>
-        Seq.empty[Expression]
+    var scanFilters: Seq[Expression] = Seq()
+    if (child.isInstanceOf[BatchScanExecTransformerBase]) {
+      scanFilters = child.asInstanceOf[BatchScanExecTransformerBase].filterExprs();
+    } else if (child.isInstanceOf[FileSourceScanExecTransformerBase]) {
+      scanFilters = child.asInstanceOf[FileSourceScanExecTransformerBase].filterExprs();
+    } else {
+      scanFilters = child match {
+        // Get the filters including the manually pushed down ones.
+        case basicScanExecTransformer: BasicScanExecTransformer =>
+          basicScanExecTransformer.filterExprs()
+        // For fallback scan, we need to keep original filter.
+        //      case batchScanExecTransformer: BatchScanExecTransformerBase =>
+        //        batchScanExecTransformer.filterExprs()
+        case _ =>
+          Seq.empty[Expression]
+      }
     }
     if (scanFilters.isEmpty) {
       condition
