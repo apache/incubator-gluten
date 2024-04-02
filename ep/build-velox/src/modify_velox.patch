@@ -36,10 +36,10 @@ index d49115f12..1aaa8e532 100644
 +  endif()
  endif()
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 82fed089f..91e4cc0df 100644
+index fa30c5fa0..5edfe6732 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -249,10 +249,15 @@ if(VELOX_ENABLE_ABFS)
+@@ -247,10 +247,15 @@ if(VELOX_ENABLE_ABFS)
  endif()
  
  if(VELOX_ENABLE_HDFS)
@@ -59,7 +59,7 @@ index 82fed089f..91e4cc0df 100644
    add_definitions(-DVELOX_ENABLE_HDFS3)
  endif()
  
-@@ -399,7 +404,7 @@ resolve_dependency(Boost 1.66.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
+@@ -391,7 +396,7 @@ resolve_dependency(Boost 1.66.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
  # for reference. find_package(range-v3)
  
  set_source(gflags)
@@ -69,11 +69,62 @@ index 82fed089f..91e4cc0df 100644
    # This is a bit convoluted, but we want to be able to use gflags::gflags as a
    # target even when velox is built as a subproject which uses
 diff --git a/third_party/CMakeLists.txt b/third_party/CMakeLists.txt
-index ce4c24dbe..785a2acc6 100644
+index ce4c24dbe..ea8ab031c 100644
 --- a/third_party/CMakeLists.txt
 +++ b/third_party/CMakeLists.txt
-@@ -26,7 +26,9 @@ if(VELOX_ENABLE_ARROW)
+@@ -24,9 +24,60 @@ if(VELOX_ENABLE_ARROW)
+   else()
+     set(THRIFT_SOURCE "BUNDLED")
    endif()
++  if(DEFINED ARROW_BINARY)
++    message(STATUS "arrow binary found" ${ARROW_BINARY})
++    find_package(Arrow REQUIRED)
++    find_package(Parquet REQUIRED)
++    if(Arrow_FOUND AND Parquet_FOUND)
++      add_library(arrow INTERFACE)
++      add_library(arrow_testing INTERFACE)
++      add_library(parquet INTERFACE)
++
++      if(TARGET Arrow::arrow_static)
++        target_link_libraries(arrow INTERFACE Arrow::arrow_static)
++      else()
++        target_link_libraries(arrow INTERFACE Arrow::arrow_shared)
++      endif()
++
++      if(TARGET Parquet::parquet_static)
++        target_link_libraries(parquet INTERFACE Parquet::parquet_static)
++      else()
++        target_link_libraries(parquet INTERFACE Parquet::parquet_shared)
++      endif()
++
++      message(STATUS "Using pre-builded arrow")
++    endif()
++
++    if(Thrift_FOUND)
++      add_library(thrift INTERFACE)
++      target_link_libraries(thrift INTERFACE thrift::thrift)
++      message(STATUS "Using system thrift")
++    else()
++      add_library(thrift STATIC IMPORTED GLOBAL)
++      if(NOT Thrift_FOUND)
++        set(THRIFT_ROOT ${ARROW_BINARY}/arrow_ep/cpp/build/thrift_ep-install)
++        if(CMAKE_BUILD_TYPE STREQUAL "Debug")
++          set(THRIFT_LIB ${THRIFT_ROOT}/lib/libthriftd.a)
++        else()
++          set(THRIFT_LIB ${THRIFT_ROOT}/lib/libthrift.a)
++        endif()
++
++        file(MAKE_DIRECTORY ${THRIFT_ROOT}/include)
++        set(THRIFT_INCLUDE_DIR ${THRIFT_ROOT}/include)
++      endif()
++
++      set_property(TARGET thrift PROPERTY INTERFACE_INCLUDE_DIRECTORIES
++                                          ${THRIFT_INCLUDE_DIR})
++      set_property(TARGET thrift PROPERTY IMPORTED_LOCATION ${THRIFT_LIB})
++      message(STATUS "Using pre-builded thrift")
++    endif()
++    return()
++  endif()
    set(ARROW_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep")
    set(ARROW_CMAKE_ARGS
 -      -DARROW_PARQUET=OFF
@@ -83,7 +134,7 @@ index ce4c24dbe..785a2acc6 100644
        -DARROW_WITH_THRIFT=ON
        -DARROW_WITH_LZ4=ON
        -DARROW_WITH_SNAPPY=ON
-@@ -69,6 +71,7 @@ if(VELOX_ENABLE_ARROW)
+@@ -69,6 +120,7 @@ if(VELOX_ENABLE_ARROW)
      arrow_ep
      PREFIX ${ARROW_PREFIX}
      URL ${VELOX_ARROW_SOURCE_URL}
@@ -92,10 +143,10 @@ index ce4c24dbe..785a2acc6 100644
      SOURCE_SUBDIR cpp
      CMAKE_ARGS ${ARROW_CMAKE_ARGS}
 diff --git a/velox/common/process/tests/CMakeLists.txt b/velox/common/process/tests/CMakeLists.txt
-index 2fce354e3..64cfcb2ab 100644
+index 6797697a1..3e241f8f7 100644
 --- a/velox/common/process/tests/CMakeLists.txt
 +++ b/velox/common/process/tests/CMakeLists.txt
-@@ -19,4 +19,4 @@ add_executable(
+@@ -18,4 +18,4 @@ add_executable(velox_process_test ProfilerTest.cpp ThreadLocalRegistryTest.cpp
  add_test(velox_process_test velox_process_test)
  
  target_link_libraries(velox_process_test PRIVATE velox_process fmt::fmt gtest
@@ -127,10 +178,10 @@ index 10ee508ba..027a58ecc 100644
  }
  
 diff --git a/velox/dwio/common/CMakeLists.txt b/velox/dwio/common/CMakeLists.txt
-index 25e8bb56a..5b2aa526b 100644
+index 9b6574d6e..61abddb59 100644
 --- a/velox/dwio/common/CMakeLists.txt
 +++ b/velox/dwio/common/CMakeLists.txt
-@@ -76,4 +76,5 @@ target_link_libraries(
+@@ -77,4 +77,5 @@ target_link_libraries(
    velox_memory
    Boost::regex
    Folly::folly

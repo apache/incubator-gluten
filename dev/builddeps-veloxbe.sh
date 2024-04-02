@@ -30,6 +30,7 @@ RUN_SETUP_SCRIPT=ON
 VELOX_REPO=""
 VELOX_BRANCH=""
 VELOX_HOME=""
+ARROW_BINARY=""
 VELOX_PARAMETER=""
 COMPILE_ARROW_JAVA=OFF
 
@@ -127,6 +128,10 @@ do
         VELOX_HOME=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
+        --arrow_binary=*)
+        ARROW_BINARY=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
         --build_velox_tests=*)
         BUILD_VELOX_TESTS=("${arg#*=}")
         shift # Remove argument name from processing
@@ -182,7 +187,7 @@ function build_velox {
   # When BUILD_TESTS is on for gluten cpp, we need turn on VELOX_BUILD_TEST_UTILS via build_test_utils.
   ./build_velox.sh --run_setup_script=$RUN_SETUP_SCRIPT --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
                    --enable_abfs=$ENABLE_ABFS --enable_ep_cache=$ENABLE_EP_CACHE --build_test_utils=$BUILD_TESTS --build_tests=$BUILD_VELOX_TESTS --build_benchmarks=$BUILD_VELOX_BENCHMARKS \
-                   --compile_arrow_java=$COMPILE_ARROW_JAVA  --num_threads=$NUM_THREADS
+                   --compile_arrow_java=$COMPILE_ARROW_JAVA  --num_threads=$NUM_THREADS --arrow_binary=$ARROW_BINARY
 }
 
 ## compile gluten cpp
