@@ -160,6 +160,11 @@ binwei.yang@intel.com; weiting.chen@intel.com;
 chang.chen@kyligence.io; zhichao.zhang@kyligence.io; neng.liu@kyligence.io;
 zuochunwei@meituan.com;yangchuan.zy@alibaba-inc.com;xiyu.zk@alibaba-inc.com;joey.ljy@alibaba-inc.com
 
+# 8 Thanks to our contributors
+
+<a href="https://github.com/apache/incubator-gluten/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=apache/incubator-gluten" />
+</a>
 
 ##### \* LEGAL NOTICE: Your use of this software and any required dependent software (the "Software Package") is subject to the terms and conditions of the software license agreements for the Software Package, which may also include notices, disclaimers, or license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the "TPP.txt" or other similarly-named text file included with the Software Package for additional details.
 

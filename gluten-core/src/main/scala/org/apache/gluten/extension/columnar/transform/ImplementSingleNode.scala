@@ -192,14 +192,15 @@ case class ImplementJoin() extends ImplementSingleNode with LogLevelUtil {
         val left = plan.left
         val right = plan.right
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        SortMergeJoinExecTransformer(
-          plan.leftKeys,
-          plan.rightKeys,
-          plan.joinType,
-          plan.condition,
-          left,
-          right,
-          plan.isSkewJoin)
+        BackendsApiManager.getSparkPlanExecApiInstance
+          .genSortMergeJoinExecTransformer(
+            plan.leftKeys,
+            plan.rightKeys,
+            plan.joinType,
+            plan.condition,
+            left,
+            right,
+            plan.isSkewJoin)
       case plan: BroadcastHashJoinExec =>
         val left = plan.left
         val right = plan.right

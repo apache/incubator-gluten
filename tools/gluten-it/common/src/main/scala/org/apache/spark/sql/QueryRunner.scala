@@ -18,12 +18,7 @@ package org.apache.spark.sql
 
 import org.apache.spark.{SparkContext, Success, TaskKilled}
 import org.apache.spark.executor.ExecutorMetrics
-import org.apache.spark.scheduler.{
-  SparkListener,
-  SparkListenerExecutorMetricsUpdate,
-  SparkListenerTaskEnd,
-  SparkListenerTaskStart
-}
+import org.apache.spark.scheduler.{SparkListener, SparkListenerExecutorMetricsUpdate, SparkListenerTaskEnd, SparkListenerTaskStart}
 import org.apache.spark.sql.KillTaskListener.INIT_WAIT_TIME_MS
 
 import com.google.common.base.Preconditions
@@ -50,7 +45,8 @@ object QueryRunner {
     "ProcessTreePythonVMemory",
     "ProcessTreePythonRSSMemory",
     "ProcessTreeOtherVMemory",
-    "ProcessTreeOtherRSSMemory")
+    "ProcessTreeOtherRSSMemory"
+  )
 
   def runTpcQuery(
       spark: SparkSession,
@@ -80,7 +76,7 @@ object QueryRunner {
     }
     killTaskListener.foreach(sc.addSparkListener(_))
 
-    print(s"Executing SQL query from resource path $queryPath... ")
+    println(s"Executing SQL query from resource path $queryPath...")
     try {
       val sql = resourceToString(queryPath)
       val prev = System.nanoTime()
@@ -94,13 +90,13 @@ object QueryRunner {
       RunResult(rows, millis, collectedMetrics)
     } finally {
       sc.removeSparkListener(metricsListener)
-      killTaskListener.foreach(l => {
-        sc.removeSparkListener(l)
-        println(s"Successful kill rate ${"%.2f%%"
-          .format(100 * l.successfulKillRate())} during execution of app: ${sc.applicationId}")
-      })
+      killTaskListener.foreach(
+        l => {
+          sc.removeSparkListener(l)
+          println(s"Successful kill rate ${"%.2f%%".format(
+              100 * l.successfulKillRate())} during execution of app: ${sc.applicationId}")
+        })
       sc.setJobDescription(null)
-      println("Done.")
     }
   }
 
@@ -160,8 +156,8 @@ class KillTaskListener(val sc: SparkContext) extends SparkListener {
             sync.synchronized {
               val total = Math.min(
                 stageKillMaxWaitTimeLookup.computeIfAbsent(taskStart.stageId, _ => Long.MaxValue),
-                stageKillWaitTimeLookup
-                  .computeIfAbsent(taskStart.stageId, _ => INIT_WAIT_TIME_MS))
+                stageKillWaitTimeLookup.computeIfAbsent(taskStart.stageId, _ => INIT_WAIT_TIME_MS)
+              )
               val elapsed = System.currentTimeMillis() - startMs
               val remaining = total - elapsed
               if (remaining <= 0L) {

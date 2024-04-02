@@ -295,8 +295,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-30793: truncate timestamps before the epoch to seconds and minutes")
     .excludeGlutenTest("unix_timestamp")
     .excludeGlutenTest("to_unix_timestamp")
-    .excludeGlutenTest("from_utc_timestamp with literal zone")
-    .excludeGlutenTest("from_utc_timestamp with column zone")
+    .exclude("to_utc_timestamp with literal zone")
+    .exclude("to_utc_timestamp with column zone")
+    .exclude("from_utc_timestamp with literal zone")
+    .exclude("from_utc_timestamp with column zone")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].excludeGlutenTest(
     "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
@@ -1187,6 +1189,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-36020: Check logical link in remove redundant projects")
     .exclude("SPARK-36032: Use inputPlan instead of currentPhysicalPlan to initialize logical link")
     .exclude("SPARK-37742: AQE reads invalid InMemoryRelation stats and mistakenly plans BHJ")
+    // SMJ Exec have changed to CH SMJ Transformer
+    .exclude("Change broadcast join to merge join")
+    .exclude("Avoid plan change if cost is greater")
+    .exclude("SPARK-30524: Do not optimize skew join if introduce additional shuffle")
     .excludeGlutenTest("Change broadcast join to merge join")
     .excludeGlutenTest("Empty stage coalesced to 1-partition RDD")
     .excludeGlutenTest(

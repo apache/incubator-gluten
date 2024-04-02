@@ -184,6 +184,7 @@ object CHExpressionUtil {
     MAKE_YM_INTERVAL -> DefaultValidator(),
     KURTOSIS -> DefaultValidator(),
     REGR_R2 -> DefaultValidator(),
+    TO_UTC_TIMESTAMP -> DefaultValidator(),
     FROM_UTC_TIMESTAMP -> DefaultValidator()
   )
 }
