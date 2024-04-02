@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.execution
+package org.apache.gluten.execution
 
-import io.glutenproject.extension.{GlutenPlan, ValidationResult}
+import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
