@@ -330,7 +330,7 @@ class GlutenClickHouseTableAfterRestart
 
     restartSpark()
 
-    spark.sql("drop  table_restart_drop")
+    spark.sql("drop table table_restart_drop")
   }
 
   private def restartSpark(): Unit = {
