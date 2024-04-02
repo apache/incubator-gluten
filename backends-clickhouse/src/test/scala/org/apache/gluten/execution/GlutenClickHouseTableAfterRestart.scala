@@ -30,6 +30,7 @@ import java.io.File
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
 
+// This suite is to make sure clickhouse commands works well even after spark restart
 class GlutenClickHouseTableAfterRestart
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
@@ -73,7 +74,9 @@ class GlutenClickHouseTableAfterRestart
 
   override protected def initializeSession(): Unit = {
     if (_hiveSpark == null) {
-      val hiveMetaStoreDB = metaStorePathAbsolute + "/metastore_db"
+      val hiveMetaStoreDB = metaStorePathAbsolute + "/metastore_db_" + current_db_num
+      current_db_num += 1
+
       _hiveSpark = SparkSession
         .builder()
         .config(sparkConf)
@@ -107,6 +110,8 @@ class GlutenClickHouseTableAfterRestart
       }
     }
   }
+
+  var current_db_num: Int = 0
 
   test("test mergetree after restart") {
     spark.sql(s"""
@@ -182,33 +187,10 @@ class GlutenClickHouseTableAfterRestart
       assert(stats2.missCount() - oldMissingCount2 == 0)
     }
 
-    // now restart
-    ClickHouseTableV2.clearCache()
-    ClickhouseSnapshot.clearAllFileStatusCache()
-
     val oldMissingCount1 = ClickhouseSnapshot.deltaScanCache.stats().missCount()
     val oldMissingCount2 = ClickhouseSnapshot.addFileToAddMTPCache.stats().missCount()
 
-    val session = getActiveSession.orElse(getDefaultSession)
-    if (session.isDefined) {
-      session.get.stop()
-      SparkSession.clearActiveSession()
-      SparkSession.clearDefaultSession()
-    }
-
-    val hiveMetaStoreDB = metaStorePathAbsolute + "/metastore_db"
-    // use metastore_db2 to avoid issue: "Another instance of Derby may have already booted the database"
-    val destDir = new File(hiveMetaStoreDB + "2")
-    destDir.mkdirs()
-    FileUtils.copyDirectory(new File(hiveMetaStoreDB), destDir)
-    _hiveSpark = null
-    _hiveSpark = SparkSession
-      .builder()
-      .config(sparkConf)
-      .enableHiveSupport()
-      .config("javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${hiveMetaStoreDB}2")
-      .master("local[2]")
-      .getOrCreate()
+    restartSpark()
 
     runTPCHQueryBySQL(1, sqlStr)(_ => {})
 
@@ -220,5 +202,165 @@ class GlutenClickHouseTableAfterRestart
 
   }
 
+  test("test optimize after restart") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS table_restart_optimize;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS table_restart_optimize (id bigint,  name string)
+                 |USING clickhouse
+                 |LOCATION '$basePath/table_restart_optimize'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table table_restart_optimize values (1,"tom"), (2, "jim")
+                 |""".stripMargin)
+    // second file
+    spark.sql(s"""
+                 | insert into table table_restart_optimize values (1,"tom"), (2, "jim")
+                 |""".stripMargin)
+
+    restartSpark()
+
+    spark.sql("optimize table_restart_optimize")
+    assert(spark.sql("select count(*) from table_restart_optimize").collect().apply(0).get(0) == 4)
+  }
+
+  test("test vacuum after restart") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS table_restart_vacuum;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS table_restart_vacuum (id bigint,  name string)
+                 |USING clickhouse
+                 |LOCATION '$basePath/table_restart_vacuum'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table table_restart_vacuum values (1,"tom"), (2, "jim")
+                 |""".stripMargin)
+    // second file
+    spark.sql(s"""
+                 | insert into table table_restart_vacuum values (1,"tom"), (2, "jim")
+                 |""".stripMargin)
+
+    spark.sql("optimize table_restart_vacuum")
+
+    restartSpark()
+
+    spark.sql("set spark.gluten.enabled=false")
+    spark.sql("vacuum table_restart_vacuum")
+    spark.sql("set spark.gluten.enabled=true")
+
+    assert(spark.sql("select count(*) from table_restart_vacuum").collect().apply(0).get(0) == 4)
+  }
+
+  test("test update after restart") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS table_restart_update;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS table_restart_update (id bigint,  name string)
+                 |USING clickhouse
+                 |LOCATION '$basePath/table_restart_update'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table table_restart_update values (1,"tom"), (2, "jim")
+                 |""".stripMargin)
+    // second file
+    spark.sql(s"""
+                 | insert into table table_restart_update values (1,"tom"), (2, "jim")
+                 |""".stripMargin)
+
+    restartSpark()
+
+    spark.sql("update table_restart_update set name = 'tom' where id = 1")
+
+    assert(spark.sql("select count(*) from table_restart_update").collect().apply(0).get(0) == 4)
+  }
+
+  test("test delete after restart") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS table_restart_delete;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS table_restart_delete (id bigint,  name string)
+                 |USING clickhouse
+                 |LOCATION '$basePath/table_restart_delete'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table table_restart_delete values (1,"tom"), (2, "jim")
+                 |""".stripMargin)
+    // second file
+    spark.sql(s"""
+                 | insert into table table_restart_delete values (1,"tom"), (2, "jim")
+                 |""".stripMargin)
+
+    restartSpark()
+
+    spark.sql("delete from table_restart_delete where where id = 1")
+
+    assert(spark.sql("select count(*) from table_restart_delete").collect().apply(0).get(0) == 2)
+  }
+
+  test("test drop after restart") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS table_restart_drop;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS table_restart_drop (id bigint,  name string)
+                 |USING clickhouse
+                 |LOCATION '$basePath/table_restart_drop'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table table_restart_drop values (1,"tom"), (2, "jim")
+                 |""".stripMargin)
+    // second file
+    spark.sql(s"""
+                 | insert into table table_restart_drop values (1,"tom"), (2, "jim")
+                 |""".stripMargin)
+
+    restartSpark()
+
+    spark.sql("drop  table_restart_drop")
+  }
+
+  private def restartSpark(): Unit = {
+    // now restart
+    ClickHouseTableV2.clearCache()
+    ClickhouseSnapshot.clearAllFileStatusCache()
+
+    val session = getActiveSession.orElse(getDefaultSession)
+    if (session.isDefined) {
+      session.get.stop()
+      SparkSession.clearActiveSession()
+      SparkSession.clearDefaultSession()
+    }
+
+    val hiveMetaStoreDB = metaStorePathAbsolute + "/metastore_db_"
+    // use metastore_db2 to avoid issue: "Another instance of Derby may have already booted the database"
+    val destDir = new File(hiveMetaStoreDB + current_db_num)
+    destDir.mkdirs()
+    FileUtils.copyDirectory(new File(hiveMetaStoreDB + (current_db_num - 1)), destDir)
+    _hiveSpark = null
+    _hiveSpark = SparkSession
+      .builder()
+      .config(sparkConf)
+      .enableHiveSupport()
+      .config(
+        "javax.jdo.option.ConnectionURL",
+        s"jdbc:derby:;databaseName=$hiveMetaStoreDB$current_db_num")
+      .master("local[2]")
+      .getOrCreate()
+    current_db_num += 1
+  }
 }
 // scalastyle:off line.size.limit
