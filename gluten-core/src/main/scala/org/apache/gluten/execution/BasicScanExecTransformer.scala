@@ -81,7 +81,8 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     val scanTime = longMetric("scanTime")
     val substraitContext = new SubstraitContext
     val transformContext = doTransform(substraitContext)
-    val outNames = filteRedundantField(outputAttributes()).map(ConverterUtils.genColumnNameWithExprId).asJava
+    val outNames =
+      filteRedundantField(outputAttributes()).map(ConverterUtils.genColumnNameWithExprId).asJava
     val planNode =
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(transformContext.root), outNames)
 
