@@ -1156,7 +1156,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         | nanvl(cast('nan' as float), n_nationkey)
         | from nation
         |""".stripMargin
-    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("test 'sequence'") {
