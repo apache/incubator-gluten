@@ -16,9 +16,6 @@
 name: Velox backend Github Runner
 
 on:
-  push:
-    branches:
-      - 'main'
   pull_request:
     paths:
       - '.github/workflows/velox_docker.yml'
@@ -58,14 +55,14 @@ jobs:
           echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*') }} > cache-key
       - name: Cache
         id: cache
-        uses: actions/cache@v3
+        uses: actions/cache/restore@v3
         with:
           path: ./cpp/build/releases/
           key: cache-velox-build-${{ hashFiles('./cache-key') }}
       - name: Build Gluten Velox third party
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
-          dev/build-static-ci.sh
+          dev/ci-velox-buildstatic.sh
       - uses: actions/upload-artifact@v2
         with:
           path: ./cpp/build/releases/
