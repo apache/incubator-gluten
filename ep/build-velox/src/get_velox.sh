@@ -134,6 +134,8 @@ function process_setup_centos8 {
   sed -i 's/dnf_install ninja-build cmake curl ccache gcc-toolset-9 git/dnf_install ninja-build cmake curl ccache gcc-toolset-9/' scripts/setup-centos8.sh
   sed -i '/^function dnf_install/i\DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)}' scripts/setup-centos8.sh
   sed -i '/^dnf_install autoconf/a\dnf_install libxml2-devel libgsasl-devel libuuid-devel' scripts/setup-centos8.sh
+  sed -i '/^function install_gflags.*/i function install_openssl {\n  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz openssl \n cd openssl \n ./config no-shared && make depend && make && sudo make install \n cd ..\n}\n'     scripts/setup-centos8.sh
+  sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_openssl' scripts/setup-centos8.sh
 
   if [ $ENABLE_HDFS == "ON" ]; then
     sed -i '/^function install_gflags.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master\n cd ..\n cmake_install libhdfs3\n}\n' scripts/setup-centos8.sh
