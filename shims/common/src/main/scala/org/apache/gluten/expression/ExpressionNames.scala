@@ -199,6 +199,7 @@ object ExpressionNames {
   final val MAKE_TIMESTAMP = "make_timestamp"
   final val MAKE_YM_INTERVAL = "make_ym_interval"
   final val TO_UTC_TIMESTAMP = "to_utc_timestamp"
+  final val FROM_UTC_TIMESTAMP = "from_utc_timestamp"
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"

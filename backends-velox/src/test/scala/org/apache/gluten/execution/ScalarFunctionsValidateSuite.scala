@@ -395,6 +395,27 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("from_utc_timestamp") {
+    withTempPath {
+      path =>
+        Seq(
+          (Timestamp.valueOf("2015-07-24 00:00:00"), "America/Los_Angeles"),
+          (Timestamp.valueOf("2015-07-25 00:00:00"), "America/Los_Angeles")
+        ).toDF("a", "b")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+
+        runQueryAndCompare("SELECT from_utc_timestamp(a, \"America/Los_Angeles\") from view") {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
+        runQueryAndCompare("SELECT from_utc_timestamp(a, b) from view") {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("map extract - getmapvalue") {
     withTempPath {
       path =>
