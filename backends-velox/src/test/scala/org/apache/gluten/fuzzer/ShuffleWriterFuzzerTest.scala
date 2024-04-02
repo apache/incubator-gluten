@@ -46,7 +46,7 @@ class ShuffleWriterFuzzerTest extends FuzzerTestBase {
     }
 
   private val TEST_REPARTITION = (numPartitions: Int) => s"repartition - $numPartitions"
-  for (numPartitions <- Seq(3, 10, 100, 1000, 4000, 8000)) {
+  for (numPartitions <- Seq(1, 3, 10, 100, 1000, 4000, 8000)) {
     val testName = TEST_REPARTITION(numPartitions)
     test(testName) {
       repeat(10, testName, defaultRunner(testShuffle(REPARTITION_SQL(numPartitions))))
