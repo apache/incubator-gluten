@@ -362,20 +362,20 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   test("test 'function pmod'") {
     val df = runQueryAndCompare(
       "select pmod(-10, id+10) from range(10)"
-    )(checkOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df, 10)
   }
 
   test("test 'function ascii'") {
     val df = runQueryAndCompare(
       "select ascii(cast(id as String)) from range(10)"
-    )(checkOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df, 10)
   }
 
   test("test 'function rand'") {
     runSql("select rand(), rand(1), rand(null) from range(10)")(
-      checkOperatorMatch[ProjectExecTransformer])
+      checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("test 'function date_add/date_sub/datediff'") {
@@ -385,20 +385,20 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         "date_sub(l_shipdate, 1), date_sub(l_shipdate, -1), " +
         "datediff(l_shipdate, l_commitdate), datediff(l_commitdate, l_shipdate) " +
         "from lineitem order by l_shipdate, l_commitdate limit 1"
-    )(checkOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("test 'function remainder'") {
     runQueryAndCompare(
       "select l_orderkey, l_partkey, l_orderkey % l_partkey, l_partkey % l_orderkey " +
         "from lineitem order by l_orderkey desc, l_partkey desc limit 1"
-    )(checkOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("test positive/negative") {
     runQueryAndCompare(
       "select +n_nationkey, positive(n_nationkey), -n_nationkey, negative(n_nationkey) from nation"
-    )(checkOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   // TODO: enable when supports interval type
@@ -408,7 +408,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       runQueryAndCompare(
         "select +interval 1 day, positive(interval 1 day), -interval 1 day, negative(interval 1 day)",
         noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
@@ -418,24 +418,24 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       runQueryAndCompare(
         "select a from (select array_intersect(split(n_comment, ' '), split(n_comment, ' ')) as arr " +
           "from nation) lateral view explode(arr) as a order by a"
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
         "select a from (select array_intersect(array(null,1,2,3,null), array(3,5,1,null,null)) as arr) " +
           "lateral view explode(arr) as a order by a",
         noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
         "select array_intersect(array(null,1,2,3,null), cast(null as array<int>))",
         noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
         "select a from (select array_intersect(array(array(1,2),array(3,4)), array(array(1,2),array(3,4))) as arr) " +
           "lateral view explode(arr) as a order by a",
         noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
@@ -444,14 +444,14 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
         "select array_position(split(n_comment, ' '), 'final') from nation"
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
         "select array_position(array(1,2,3,null), 1), array_position(array(1,2,3,null), null)," +
           "array_position(array(1,2,3,null), 5), array_position(array(1,2,3), 5), " +
           "array_position(array(1,2,3), 2), array_position(cast(null as array<int>), 1)",
         noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
@@ -460,14 +460,14 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
         "select array_contains(split(n_comment, ' '), 'final') from nation"
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
         "select array_contains(array(1,2,3,null), 1), array_contains(array(1,2,3,null), " +
           "cast(null as int)), array_contains(array(1,2,3,null), 5), array_contains(array(1,2,3), 5)," +
           "array_contains(array(1,2,3), 2), array_contains(cast(null as array<int>), 1)",
         noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
@@ -476,40 +476,40 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
         "select sort_array(split(n_comment, ' ')) from nation"
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
         "select sort_array(split(n_comment, ' '), false) from nation"
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
         "select sort_array(array(1,3,2,null)), sort_array(array(1,2,3,null),false)",
         noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
   test("test coalesce") {
     var df = runQueryAndCompare(
       "select l_orderkey, coalesce(l_comment, 'default_val') " +
-        "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        "from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df, 5)
     df = runQueryAndCompare(
       "select l_orderkey, coalesce(cast(null as string), l_comment, 'default_val') " +
-        "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        "from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df, 5)
     df = runQueryAndCompare(
       "select l_orderkey, coalesce(cast(null as string), cast(null as string), l_comment) " +
-        "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        "from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df, 5)
     df = runQueryAndCompare(
       "select l_orderkey, coalesce(cast(null as string), cast(null as string), 1, 2) " +
-        "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        "from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df, 5)
     df = runQueryAndCompare(
       "select l_orderkey, " +
         "coalesce(cast(null as string), cast(null as string), cast(null as string)) "
-        + "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        + "from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df, 5)
   }
 
@@ -518,7 +518,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       "select l_orderkey, from_unixtime(l_orderkey, 'yyyy-MM-dd HH:mm:ss'), " +
         "from_unixtime(l_orderkey, 'yyyy-MM-dd') " +
         "from lineitem order by l_orderkey desc limit 10"
-    )(checkOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df, 10)
   }
 
@@ -526,7 +526,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     val df = runQueryAndCompare(
       "select l_orderkey,from_unixtime(l_orderkey, 'yyyy-MM-dd HH:mm:ss') " +
         "from lineitem order by l_orderkey desc limit 10"
-    )(checkOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df, 10)
   }
 
@@ -537,47 +537,47 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         "select find_in_set(null, 'a'), find_in_set('a', null), " +
           "find_in_set('a', 'a,b'), find_in_set('a', 'ab,ab')",
         noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
   test("test 'function regexp_replace'") {
     runQueryAndCompare(
       "select l_orderkey, regexp_replace(l_comment, '([a-z])', '1') " +
-        "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        "from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       "select l_orderkey, regexp_replace(l_comment, '([a-z])', '1', 1) " +
-        "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        "from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("regexp_extract") {
     runQueryAndCompare(
       s"select l_orderkey, regexp_extract(l_comment, '([a-z])', 1) " +
-        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        s"from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, regexp_extract(l_comment, '([a-z])') " +
-        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        s"from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, regexp_extract(l_comment, '([a-z])', 0) " +
-        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        s"from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("lpad") {
     runQueryAndCompare(
       s"select l_orderkey, lpad(l_comment, 80) " +
-        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        s"from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, lpad(l_comment, 80, '??') " +
-        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        s"from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("rpad") {
     runQueryAndCompare(
       s"select l_orderkey, rpad(l_comment, 80) " +
-        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        s"from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, rpad(l_comment, 80, '??') " +
-        s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        s"from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("test elt") {
@@ -585,11 +585,11 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
         "select elt(2, n_comment, n_regionkey) from nation"
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
       runQueryAndCompare(
         "select elt(null, 'a', 'b'), elt(0, 'a', 'b'), elt(1, 'a', 'b'), elt(3, 'a', 'b')",
         noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
@@ -598,12 +598,12 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
         "select array_max(split(n_comment, ' ')) from nation"
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
       runQueryAndCompare(
         "select array_max(null), array_max(array(null)), array_max(array(1, 2, 3, null)), " +
           "array_max(array(1.0, 2.0, 3.0, null)), array_max(array('z', 't', 'abc'))",
         noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
@@ -612,12 +612,12 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
         "select array_min(split(n_comment, ' ')) from nation"
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
       runQueryAndCompare(
         "select array_min(null), array_min(array(null)), array_min(array(1, 2, 3, null)), " +
           "array_min(array(1.0, 2.0, 3.0, null)), array_min(array('z', 't', 'abc'))",
         noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
@@ -630,7 +630,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |""".stripMargin
     withSQLConf(
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
-      runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+      runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
@@ -660,13 +660,13 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
         "select array_distinct(split(n_comment, ' ')) from nation"
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
         "select array_distinct(array(1,2,1,2,3)), array_distinct(array(null,1,null,1,2,null,3)), " +
           "array_distinct(array(array(1,null,2), array(1,null,2))), array_distinct(null), array_distinct(array(null))",
         noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
@@ -675,7 +675,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
         "select array_union(split(n_comment, ' '), reverse(split(n_comment, ' '))) from nation"
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
         "select array_union(array(1,2,1,2,3), array(2,4,2,3,5)), " +
@@ -684,23 +684,25 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
           "array_union(array(null), array(null)), " +
           "array_union(cast(null as array<int>), cast(null as array<int>))",
         noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
   test("test 'function regexp_extract_all'") {
     runQueryAndCompare(
       "select l_orderkey, regexp_extract_all(l_comment, '([a-z])', 1) " +
-        "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        "from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("test 'function to_unix_timestamp/unix_timestamp'") {
     runQueryAndCompare(
       "select to_unix_timestamp(concat(cast(l_shipdate as String), ' 00:00:00')) " +
-        "from lineitem order by l_shipdate limit 10;")(checkOperatorMatch[ProjectExecTransformer])
+        "from lineitem order by l_shipdate limit 10;")(
+      checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       "select unix_timestamp(concat(cast(l_shipdate as String), ' 00:00:00')) " +
-        "from lineitem order by l_shipdate limit 10;")(checkOperatorMatch[ProjectExecTransformer])
+        "from lineitem order by l_shipdate limit 10;")(
+      checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("test literals") {
@@ -725,7 +727,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         ARRAY(1, NULL, 3) as array_with_null_literal,
         MAP(1, 2, CAST(3 as SHORT), null) as map_with_null_literal
       from range(10)"""
-    runQueryAndCompare(query)(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(query)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   // see issue https://github.com/Kyligence/ClickHouse/issues/93
@@ -778,7 +780,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |from nation
         |order by n_regionkey
         |""".stripMargin
-    runQueryAndCompare(sql)(checkOperatorMatch[WindowExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[WindowExecTransformer])
   }
 
   test("window max") {
@@ -1050,7 +1052,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |grouping sets((a, n_regionkey, n_nationkey),(a, n_regionkey), (a))
         |order by a, n_regionkey, n_nationkey
         |""".stripMargin
-    runQueryAndCompare(sql)(checkOperatorMatch[ExpandExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ExpandExecTransformer])
   }
 
   test("expand col result") {
@@ -1060,7 +1062,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |group by n_regionkey, n_nationkey with rollup
         |order by n_regionkey, n_nationkey, cnt
         |""".stripMargin
-    runQueryAndCompare(sql)(checkOperatorMatch[ExpandExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ExpandExecTransformer])
   }
 
   test("expand with not nullable") {
@@ -1070,7 +1072,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |(select nvl(n_nationkey, 0) as c, nvl(n_name, '') as b, nvl(n_nationkey, 0) as a from nation)
         |group by a,b with rollup
         |""".stripMargin
-    runQueryAndCompare(sql)(checkOperatorMatch[ExpandExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ExpandExecTransformer])
   }
 
   test("expand with function expr") {
@@ -1084,7 +1086,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |group by n_name
         |order by n_name, col1, col2
         |""".stripMargin
-    runQueryAndCompare(sql)(checkOperatorMatch[ExpandExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ExpandExecTransformer])
   }
 
   test("test 'position/locate'") {
@@ -1108,7 +1110,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |position(null, null, null)
         |from lineitem
         |""".stripMargin
-    )(checkOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("test stddev_samp 1") {
@@ -1147,7 +1149,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   test("test 'sequence'") {
     runQueryAndCompare(
       "select sequence(id, id+10), sequence(id+10, id), sequence(id, id+10, 3), " +
-        "sequence(id+10, id, -3) from range(1)")(checkOperatorMatch[ProjectExecTransformer])
+        "sequence(id+10, id, -3) from range(1)")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("GLUTEN-2491: sequence with null value as argument") {
@@ -1157,12 +1159,12 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         "select sequence(null, 1), sequence(1, null), sequence(1, 3, null), sequence(1, 5)," +
           "sequence(5, 1), sequence(1, 5, 2), sequence(5, 1, -2)",
         noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
         "select sequence(n_nationkey, n_nationkey+10), sequence(n_nationkey, n_nationkey+10, 2) " +
           "from nation"
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
@@ -1183,13 +1185,13 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |lateral view explode(set) as b
         |order by a, b
         |""".stripMargin
-    runQueryAndCompare(sql)(checkOperatorMatch[CHHashAggregateExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[CHHashAggregateExecTransformer])
   }
 
   test("collect_set should return empty set") {
     runQueryAndCompare(
       "select collect_set(if(n_regionkey != -1, null, n_regionkey)) from nation"
-    )(checkOperatorMatch[CHHashAggregateExecTransformer])
+    )(checkGlutenOperatorMatch[CHHashAggregateExecTransformer])
   }
 
   test("Test 'spark.gluten.enabled' false") {
@@ -1210,7 +1212,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       "cast(x as date), cast(x as timestamp), cast(x as decimal(10, 2)) from " +
       "(select cast(null as string) as x from range(10) union all " +
       "select cast(id as string) as x from range(2))"
-    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("test 'max(NULL)/min(NULL) from table'") {
@@ -1227,47 +1229,47 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   test("test 'dayofweek/weekday'") {
     val sql = "select l_orderkey, l_shipdate, weekday(l_shipdate), dayofweek(l_shipdate) " +
       "from lineitem limit 10"
-    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("test 'to_date/to_timestamp'") {
     val sql = "select to_date(concat('2022-01-0', cast(id+1 as String)), 'yyyy-MM-dd')," +
       "to_timestamp(concat('2022-01-01 10:30:0', cast(id+1 as String)), 'yyyy-MM-dd HH:mm:ss') " +
       "from range(9)"
-    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("test 'btrim/ltrim/rtrim/trim'") {
     runQueryAndCompare(
       "select l_comment, btrim(l_comment), btrim(l_comment, 'abcd') " +
-        "from lineitem limit 10")(checkOperatorMatch[ProjectExecTransformer])
+        "from lineitem limit 10")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       "select l_comment, ltrim(l_comment), ltrim('abcd', l_comment) " +
-        "from lineitem limit 10")(checkOperatorMatch[ProjectExecTransformer])
+        "from lineitem limit 10")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       "select l_comment, rtrim(l_comment), rtrim('abcd', l_comment) " +
-        "from lineitem limit 10")(checkOperatorMatch[ProjectExecTransformer])
+        "from lineitem limit 10")(checkGlutenOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       "select l_comment, trim(l_comment), trim('abcd' from l_comment), " +
         "trim(BOTH 'abcd' from l_comment), trim(LEADING 'abcd' from l_comment), " +
         "trim(TRAILING 'abcd' from l_comment) from lineitem limit 10"
-    )(checkOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("bit_and/bit_or/bit_xor") {
     runQueryAndCompare(
       "select bit_and(n_regionkey), bit_or(n_regionkey), bit_xor(n_regionkey) from nation") {
-      checkOperatorMatch[CHHashAggregateExecTransformer]
+      checkGlutenOperatorMatch[CHHashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select bit_and(l_partkey), bit_or(l_suppkey), bit_xor(l_orderkey) from lineitem") {
-      checkOperatorMatch[CHHashAggregateExecTransformer]
+      checkGlutenOperatorMatch[CHHashAggregateExecTransformer]
     }
   }
 
   test("test 'EqualNullSafe'") {
     runQueryAndCompare("select l_linenumber <=> l_orderkey, l_linenumber <=> null from lineitem") {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -1278,14 +1280,14 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     val sql = """
                 | select id from test_1767 lateral view
                 | posexplode(split(data['k'], ',')) tx as a, b""".stripMargin
-    runQueryAndCompare(sql)(checkOperatorMatch[CHGenerateExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[CHGenerateExecTransformer])
 
     spark.sql("drop table test_1767")
   }
 
   test("test posexplode issue: https://github.com/oap-project/gluten/issues/2492") {
     val sql = "select posexplode(split(n_comment, ' ')) from nation where n_comment is null"
-    runQueryAndCompare(sql)(checkOperatorMatch[CHGenerateExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[CHGenerateExecTransformer])
   }
 
   test("test posexplode issue: https://github.com/oap-project/gluten/issues/2454") {
@@ -1297,7 +1299,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     )
 
     for (sql <- sqls) {
-      runQueryAndCompare(sql)(checkOperatorMatch[CHGenerateExecTransformer])
+      runQueryAndCompare(sql)(checkGlutenOperatorMatch[CHGenerateExecTransformer])
     }
   }
 
@@ -1306,7 +1308,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     spark.sql("insert into test_3124  values (31, null, 'm'), (32, 'a,b,c', 'f')")
 
     val sql = "select id, flag from test_3124 lateral view explode(split(name, ',')) as flag"
-    runQueryAndCompare(sql)(checkOperatorMatch[CHGenerateExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[CHGenerateExecTransformer])
 
     spark.sql("drop table test_3124")
   }
@@ -1314,7 +1316,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   test("test 'scala udf'") {
     spark.udf.register("my_add", (x: Long, y: Long) => x + y)
     runQueryAndCompare("select my_add(id, id+1) from range(10)")(
-      checkOperatorMatch[ProjectExecTransformer])
+      checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   override protected def runTPCHQuery(
@@ -1350,7 +1352,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     withSQLConf(SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> ConstantFolding.ruleName) {
       runQueryAndCompare(
         "select size(null), size(split(l_shipinstruct, ' ')) from lineitem"
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
@@ -1362,7 +1364,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |concat(split(n_comment, ' '), split(n_name, ' '))
         |from nation
         |""".stripMargin
-    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("GLUTEN-1620: fix 'attribute binding failed.' when executing hash agg without aqe") {
@@ -1566,7 +1568,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     withSQLConf(SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> ConstantFolding.ruleName) {
       runQueryAndCompare(
         "select struct(1.0f), array(2.0f), map('a', 3.0f) from range(1)"
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
@@ -1783,20 +1785,20 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   test("GLUTEN-2095: test cast(string as binary)") {
     runQueryAndCompare(
       "select cast(n_nationkey as binary), cast(n_comment as binary) from nation"
-    )(checkOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("var_samp") {
     runQueryAndCompare("""
                          |select var_samp(l_quantity) from lineitem;
                          |""".stripMargin) {
-      checkOperatorMatch[CHHashAggregateExecTransformer]
+      checkGlutenOperatorMatch[CHHashAggregateExecTransformer]
     }
     runQueryAndCompare("""
                          |select l_orderkey % 5, var_samp(l_quantity) from lineitem
                          |group by l_orderkey % 5;
                          |""".stripMargin) {
-      checkOperatorMatch[CHHashAggregateExecTransformer]
+      checkGlutenOperatorMatch[CHHashAggregateExecTransformer]
     }
   }
 
@@ -1804,13 +1806,13 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     runQueryAndCompare("""
                          |select var_pop(l_quantity) from lineitem;
                          |""".stripMargin) {
-      checkOperatorMatch[CHHashAggregateExecTransformer]
+      checkGlutenOperatorMatch[CHHashAggregateExecTransformer]
     }
     runQueryAndCompare("""
                          |select l_orderkey % 5, var_pop(l_quantity) from lineitem
                          |group by l_orderkey % 5;
                          |""".stripMargin) {
-      checkOperatorMatch[CHHashAggregateExecTransformer]
+      checkGlutenOperatorMatch[CHHashAggregateExecTransformer]
     }
   }
 
@@ -1818,7 +1820,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     runQueryAndCompare("""
                          |select corr(l_partkey, l_suppkey) from lineitem;
                          |""".stripMargin) {
-      checkOperatorMatch[CHHashAggregateExecTransformer]
+      checkGlutenOperatorMatch[CHHashAggregateExecTransformer]
     }
 
     runQueryAndCompare(
@@ -1842,12 +1844,12 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
           "concat_ws(null, 'a'), concat_ws('-', 'a'), concat_ws('-', 'a', null), " +
           "concat_ws('-', 'a', null, 'b', 'c', null, array(null), array('d', null), array('f', 'g'))",
         noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
         "select concat_ws('-', n_comment, " +
           "array(if(n_regionkey=0, null, cast(n_regionkey as string)))) from nation"
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
@@ -1857,7 +1859,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |select a from values (1.0), (2.1), (null), (cast('NaN' as double)), (cast('inf' as double)),
         | (cast('-inf' as double)) as data(a) order by a asc nulls last
         |""".stripMargin
-    runQueryAndCompare(sql)(checkOperatorMatch[SortExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[SortExecTransformer])
   }
 
   test("GLUTEN-2639: log1p") {
@@ -1865,7 +1867,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
         "select log1p(n_regionkey), log1p(-1.0), log1p(-2.0) from nation"
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
@@ -1989,7 +1991,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     // cast('nan' as double) output 'NaN' in Spark, 'nan' in CH
     // cast('inf' as double) output 'Infinity' in Spark, 'inf' in CH
     // ignore them temporarily
-    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("GLUTEN-3501: test json output format with struct contains null value") {
@@ -1997,7 +1999,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       """
         |select to_json(struct(cast(id as string), null, id, 1.1, 1.1f, 1.1d)) from range(3)
         |""".stripMargin
-    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("GLUTEN-3216: invalid read rel schema in aggregation") {
@@ -2080,11 +2082,11 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       runQueryAndCompare(
         "select 1/0f, 1/0.0d",
         noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
         "select n_nationkey / n_regionkey from nation"
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
@@ -2303,12 +2305,12 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       runQueryAndCompare(
         "select trunc('2023-12-06', 'MM'), trunc('2023-12-06', 'YEAR'), trunc('2023-12-06', 'WEEK'), trunc('2023-12-06', 'QUARTER')",
         noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
         "select trunc(l_shipdate, 'MM'), trunc(l_shipdate, 'YEAR'), trunc(l_shipdate, 'WEEK'), " +
           "trunc(l_shipdate, 'QUARTER') from lineitem"
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
@@ -2319,7 +2321,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         "select log10(n_regionkey), log10(-1.0), log10(0), log10(n_regionkey - 100000), " +
           "log2(n_regionkey), log2(-1.0), log2(0), log2(n_regionkey - 100000), " +
           "ln(n_regionkey), ln(-1.0), ln(0), ln(n_regionkey - 100000) from nation"
-      )(checkOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 

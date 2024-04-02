@@ -68,7 +68,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
       runQueryAndCompare("""
                            |select * from iceberg_tb;
                            |""".stripMargin) {
-        checkOperatorMatch[IcebergScanTransformer]
+        checkGlutenOperatorMatch[IcebergScanTransformer]
       }
     }
   }
@@ -401,7 +401,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
       runQueryAndCompare("""
                            |select * from iceberg_mor_tb;
                            |""".stripMargin) {
-        checkOperatorMatch[IcebergScanTransformer]
+        checkGlutenOperatorMatch[IcebergScanTransformer]
       }
     }
   }
@@ -471,7 +471,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
       runQueryAndCompare("""
                            |select * from iceberg_mor_tb;
                            |""".stripMargin) {
-        checkOperatorMatch[IcebergScanTransformer]
+        checkGlutenOperatorMatch[IcebergScanTransformer]
       }
     }
   }

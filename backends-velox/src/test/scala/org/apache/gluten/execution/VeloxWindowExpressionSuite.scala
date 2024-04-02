@@ -45,28 +45,28 @@ class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
       "select max(l_suppkey) over" +
         " (partition by l_suppkey order by l_orderkey " +
         "rows between 2 preceding and 1 preceding) from lineitem ") {
-      checkOperatorMatch[WindowExecTransformer]
+      checkGlutenOperatorMatch[WindowExecTransformer]
     }
 
     runQueryAndCompare(
       "select max(l_suppkey) over" +
         " (partition by l_suppkey order by l_orderkey " +
         "rows between 2 following and 3 following) from lineitem ") {
-      checkOperatorMatch[WindowExecTransformer]
+      checkGlutenOperatorMatch[WindowExecTransformer]
     }
 
     runQueryAndCompare(
       "select max(l_suppkey) over" +
         " (partition by l_suppkey order by l_orderkey " +
         "rows between -3 following and -2 following) from lineitem ") {
-      checkOperatorMatch[WindowExecTransformer]
+      checkGlutenOperatorMatch[WindowExecTransformer]
     }
 
     runQueryAndCompare(
       "select max(l_suppkey) over" +
         " (partition by l_suppkey order by l_orderkey " +
         "rows between unbounded preceding and 3 following) from lineitem ") {
-      checkOperatorMatch[WindowExecTransformer]
+      checkGlutenOperatorMatch[WindowExecTransformer]
     }
   }
 }
