@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Generate cache key
         run: |
-          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*') }} > cache-key
+          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './github/workflows/*') }} > cache-key
       - name: Build Gluten Velox third party
         run: |
           dev/ci-velox-buildstatic.sh
