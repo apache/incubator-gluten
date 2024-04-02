@@ -148,6 +148,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"repeat", "repeat"},
        {"space", "space"},
        {"initcap", "initcapUTF8"},
+       {"overlay", "sparkOverlay"},
        {"conv", "sparkConv"},
        {"uuid", "generateUUIDv4"},
 
