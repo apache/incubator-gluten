@@ -373,6 +373,19 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
   }
 
+  test("test 'collect limit'") {
+    val df = spark.sql(
+      """
+        |select n_nationkey from nation limit 5
+        |""".stripMargin
+    )
+    val collectLimitExec = df.queryExecution.executedPlan.collect {
+      case collectLimitExec: CollectLimitExecTransformer => collectLimitExec
+    }
+    assert(collectLimitExec.size == 1)
+
+  }
+
   test("test 'function space'") {
     val result = runSql("""
                           | select

@@ -371,6 +371,9 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
   val enableTakeOrderedAndProject: Boolean =
     !scanOnly && columnarConf.enableTakeOrderedAndProject &&
       enableColumnarSort && enableColumnarLimit && enableColumnarShuffle && enableColumnarProject
+  val enableCollectLimit: Boolean =
+    !scanOnly && columnarConf.enableCollectLimit &&
+      enableColumnarSort && enableColumnarLimit && enableColumnarShuffle && enableColumnarProject
   val enableColumnarWrite: Boolean = BackendsApiManager.getSettings.enableNativeWriteFiles()
   val enableCartesianProduct: Boolean =
     BackendsApiManager.getSettings.supportCartesianProductExec() &&
@@ -733,6 +736,20 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.child,
               offset)
             transformer.doValidate().tagOnFallback(plan)
+          }
+        case plan: CollectLimitExec =>
+          if (!enableCollectLimit) {
+            TransformHints.tagNotTransformable(
+              plan,
+              "columnar collect limit  is not enabled in CollectLimitExec")
+          } else {
+            val (limit, offset) =
+              SparkShimLoader.getSparkShims.getLimitAndOffsetFromCollectLimit(plan)
+            val transformer = CollectLimitExecTransformer(
+              limit,
+              plan.child,
+              offset
+            )
           }
         case _ =>
         // Currently we assume a plan to be transformable by default.

@@ -179,6 +179,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableTakeOrderedAndProject: Boolean =
     conf.getConf(COLUMNAR_TAKE_ORDERED_AND_PROJECT_ENABLED)
 
+  def enableCollectLimit: Boolean =
+    conf.getConf(COLUMNAR_COLLECT_LIMIT_ENABLED)
+
   def enableNativeBloomFilter: Boolean = conf.getConf(COLUMNAR_NATIVE_BLOOMFILTER_ENABLED)
 
   def enableNativeHyperLogLogAggregateFunction: Boolean =
@@ -1014,6 +1017,12 @@ object GlutenConfig {
 
   val COLUMNAR_TAKE_ORDERED_AND_PROJECT_ENABLED =
     buildConf("spark.gluten.sql.columnar.takeOrderedAndProject")
+      .internal()
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_COLLECT_LIMIT_ENABLED =
+    buildConf("spark.gluten.sql.columnar.collectLimit")
       .internal()
       .booleanConf
       .createWithDefault(true)
