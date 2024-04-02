@@ -408,10 +408,10 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
 
         runQueryAndCompare("SELECT from_utc_timestamp(a, \"America/Los_Angeles\") from view") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
         runQueryAndCompare("SELECT from_utc_timestamp(a, b) from view") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }
