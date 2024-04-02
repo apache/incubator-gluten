@@ -35,7 +35,7 @@ jobs:
           echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './github/workflows/*') }} > cache-key
       - name: Build Gluten Velox third party
         run: |
-          dev/ci-velox-buildstatic.sh
+          source dev/ci-velox-buildstatic.sh
       - name: Cache
         id: cache
         uses: actions/cache/save@v3

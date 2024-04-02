@@ -62,7 +62,7 @@ jobs:
       - name: Build Gluten Velox third party
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
-          dev/ci-velox-buildstatic.sh
+          source dev/ci-velox-buildstatic.sh
       - uses: actions/upload-artifact@v2
         with:
           path: ./cpp/build/releases/
