@@ -1272,14 +1272,14 @@ object GlutenConfig {
       .createWithDefaultString("local")
 
   val COLUMNAR_VELOX_MAX_SPILL_RUN_ROWS =
-    buildConf("spark.gluten.sql.columnar.backend.velox.MaxSpillRunRows")
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxSpillRunRows")
       .internal()
       .doc("The maximum row size of a single spill run")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("12M")
 
   val COLUMNAR_VELOX_MAX_SPILL_BYTES =
-    buildConf("spark.gluten.sql.columnar.backend.velox.MaxSpillBytes")
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxSpillBytes")
       .internal()
       .doc("The maximum file size of a query")
       .bytesConf(ByteUnit.BYTE)
