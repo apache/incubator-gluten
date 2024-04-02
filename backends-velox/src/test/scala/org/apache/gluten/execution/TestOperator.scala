@@ -1247,7 +1247,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           .parquet(path.getCanonicalPath)
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
         runQueryAndCompare("SELECT cast(dateColumn as string) from view") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }
@@ -1262,7 +1262,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           .parquet(path.getCanonicalPath)
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
         runQueryAndCompare("SELECT cast(dateColumn as timestamp) from view") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }
