@@ -394,7 +394,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare("""
                          |select regr_slope(l_partkey, l_suppkey) from lineitem;
                          |""".stripMargin) {
-      checkOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenOperatorMatch[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select regr_slope(l_partkey, l_suppkey), count(distinct l_orderkey) from lineitem") {
