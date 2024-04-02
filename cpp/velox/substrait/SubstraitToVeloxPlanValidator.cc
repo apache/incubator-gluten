@@ -263,20 +263,16 @@ bool SubstraitToVeloxPlanValidator::validateCast(
   }
 
   const auto& toType = SubstraitParser::parseType(castExpr.type());
-  if (toType->kind() == TypeKind::TIMESTAMP || toType->isIntervalYearMonth()) {
+  if (toType->isIntervalYearMonth()) {
     LOG_VALIDATION_MSG("Casting to " + toType->toString() + " is not supported.");
     return false;
   }
 
   core::TypedExprPtr input = exprConverter_->toVeloxExpr(castExpr.input(), inputType);
 
-  // Casting from some types is not supported. See CastExpr::applyCast.
+  // Casting from some types is not supported. See CastExpr::applyPeeled.
   if (input->type()->isDate()) {
-    if (toType->kind() == TypeKind::TIMESTAMP) {
-      LOG_VALIDATION_MSG("Casting from DATE to TIMESTAMP is not supported.");
-      return false;
-    }
-    if (toType->kind() != TypeKind::VARCHAR) {
+    if (toType->kind() != TypeKind::VARCHAR && toType->kind() != TypeKind::TIMESTAMP) {
       LOG_VALIDATION_MSG("Casting from DATE to " + toType->toString() + " is not supported.");
       return false;
     }

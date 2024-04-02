@@ -22,7 +22,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, Row}
 import org.apache.spark.sql.execution.{FilterExec, GenerateExec, ProjectExec, RDDScanExec}
-import org.apache.spark.sql.functions.{avg, col, lit, udf}
+import org.apache.spark.sql.functions.{avg, col, lit, to_date, udf}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DecimalType, StringType, StructField, StructType}
 
@@ -1234,6 +1234,36 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
                            |""".stripMargin) {
         checkGlutenOperatorMatch[HashAggregateExecTransformer]
       }
+    }
+  }
+
+  test("Cast date to string") {
+    withTempPath {
+      path =>
+        Seq("2023-01-01", "2023-01-02", "2023-01-03")
+          .toDF("dateColumn")
+          .select(to_date($"dateColumn", "yyyy-MM-dd").as("dateColumn"))
+          .write
+          .parquet(path.getCanonicalPath)
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+        runQueryAndCompare("SELECT cast(dateColumn as string) from view") {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("Cast date to timestamp") {
+    withTempPath {
+      path =>
+        Seq("2023-01-01", "2023-01-02", "2023-01-03")
+          .toDF("dateColumn")
+          .select(to_date($"dateColumn", "yyyy-MM-dd").as("dateColumn"))
+          .write
+          .parquet(path.getCanonicalPath)
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+        runQueryAndCompare("SELECT cast(dateColumn as timestamp) from view") {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
     }
   }
 }
