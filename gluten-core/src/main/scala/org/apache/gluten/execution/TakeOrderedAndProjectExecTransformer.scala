@@ -106,8 +106,8 @@ case class TakeOrderedAndProjectExecTransformer(
         }
       }
 
-      val hasShuffle = childRDDPartsNum == 1
-      val limitBeforeShuffleOffset = if (hasShuffle) {
+      val requiresShuffle = childRDDPartsNum > 1
+      val limitBeforeShuffleOffset = if (requiresShuffle) {
         // Local limit does not need offset
         0
       } else {
@@ -129,9 +129,7 @@ case class TakeOrderedAndProjectExecTransformer(
       }
       val transformStageCounter: AtomicInteger =
         ColumnarCollapseTransformStages.transformStageCounter
-      val finalLimitPlan = if (hasShuffle) {
-        limitBeforeShuffle
-      } else {
+      val finalLimitPlan = if (requiresShuffle) {
         val limitStagePlan =
           WholeStageTransformer(limitBeforeShuffle)(transformStageCounter.incrementAndGet())
         val shuffleExec = ShuffleExchangeExec(SinglePartition, limitStagePlan)
@@ -143,6 +141,8 @@ case class TakeOrderedAndProjectExecTransformer(
             false,
             ColumnarCollapseTransformStages.wrapInputIteratorTransformer(transformedShuffleExec))
         LimitTransformer(localSortPlan, offset, limit)
+      } else {
+        limitBeforeShuffle
       }
 
       val projectPlan = if (projectList != child.output) {

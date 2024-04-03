@@ -365,6 +365,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
   val enableColumnarBroadcastJoin: Boolean = !scanOnly &&
     columnarConf.enableColumnarBroadcastJoin
   val enableColumnarLimit: Boolean = !scanOnly && columnarConf.enableColumnarLimit
+  val enableColumnarCollectLimit: Boolean = !scanOnly && columnarConf.enableColumnarCollectLimit
   val enableColumnarGenerate: Boolean = !scanOnly && columnarConf.enableColumnarGenerate
   val enableColumnarCoalesce: Boolean = !scanOnly && columnarConf.enableColumnarCoalesce
   val enableTakeOrderedAndProject: Boolean =
@@ -696,6 +697,16 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           } else {
             val transformer = LimitTransformer(plan.child, 0L, plan.limit)
             transformer.doValidate().tagOnFallback(plan)
+          }
+        case plan: CollectLimitExec =>
+          if (!enableColumnarCollectLimit) {
+            TransformHints.tagNotTransformable(plan, "columnar collect limit is not enabled")
+          } else {
+            val (limit, offset) =
+              SparkShimLoader.getSparkShims.getLimitAndOffsetFromCollectLimit(plan)
+            val columnarCollectLimit = BackendsApiManager.getSparkPlanExecApiInstance
+              .genColumnarCollectLimit(plan.child, offset, limit)
+            columnarCollectLimit.doValidate().tagOnFallback(plan)
           }
         case plan: GenerateExec =>
           if (!enableColumnarGenerate) {

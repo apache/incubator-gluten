@@ -700,6 +700,13 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
     GenerateExecTransformer(generator, requiredChildOutput, outer, generatorOutput, child)
   }
 
+  override def genColumnarCollectLimit(
+      child: SparkPlan,
+      offset: Int,
+      limit: Int): BaseColumnarCollectLimitExec = {
+    ColumnarCollectLimitExec(child, offset, limit)
+  }
+
   override def genPreProjectForGenerate(generate: GenerateExec): SparkPlan = {
     PullOutGenerateProjectHelper.pullOutPreProject(generate)
   }

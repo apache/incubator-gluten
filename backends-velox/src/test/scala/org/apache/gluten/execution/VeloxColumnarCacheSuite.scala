@@ -202,4 +202,27 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
       }
     }
   }
+
+  test("Support columnar collect limit") {
+    runQueryAndCompare("SELECT * FROM lineitem LIMIT 11", cache = true) {
+      df =>
+        val plan = df.queryExecution.executedPlan
+        val tableCache = find(plan)(_.isInstanceOf[InMemoryTableScanExec])
+        assert(tableCache.isDefined)
+        val cachedPlan =
+          tableCache.get.asInstanceOf[InMemoryTableScanExec].relation.cachedPlan
+        assert(
+          find(cachedPlan) {
+            case _: BaseColumnarCollectLimitExec => true
+            case _ => false
+          }.isDefined
+        )
+        assert(
+          find(cachedPlan) {
+            case _: ColumnarToRowExec => true
+            case _ => false
+          }.isEmpty
+        )
+    }
+  }
 }

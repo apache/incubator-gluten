@@ -18,7 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
 import org.apache.gluten.memory.nmm.NativeMemoryManagers
 import org.apache.gluten.utils.Iterators
 import org.apache.gluten.vectorized.NativeColumnarToRowJniWrapper
@@ -103,6 +103,15 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
         numInputBatches,
         convertTime
       ))
+  }
+
+  override def executeCollect(): Array[InternalRow] = {
+    child match {
+      case gluten: GlutenPlan if gluten.supportExecuteCollect =>
+        child.executeCollect()
+      case _ =>
+        super.executeCollect()
+    }
   }
 
   protected def withNewChildInternal(newChild: SparkPlan): VeloxColumnarToRowExec =

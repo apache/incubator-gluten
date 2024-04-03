@@ -174,6 +174,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarLimit: Boolean = conf.getConf(COLUMNAR_LIMIT_ENABLED)
 
+  def enableColumnarCollectLimit: Boolean = conf.getConf(COLUMNAR_COLLECT_LIMIT_ENABLED)
+
   def enableColumnarGenerate: Boolean = conf.getConf(COLUMNAR_GENERATE_ENABLED)
 
   def enableTakeOrderedAndProject: Boolean =
@@ -1004,6 +1006,12 @@ object GlutenConfig {
 
   val COLUMNAR_LIMIT_ENABLED =
     buildConf("spark.gluten.sql.columnar.limit")
+      .internal()
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_COLLECT_LIMIT_ENABLED =
+    buildConf("spark.gluten.sql.columnar.collectLimit")
       .internal()
       .booleanConf
       .createWithDefault(true)

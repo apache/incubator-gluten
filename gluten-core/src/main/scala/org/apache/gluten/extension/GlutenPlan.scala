@@ -59,6 +59,12 @@ trait GlutenPlan extends SparkPlan with LogLevelUtil {
   protected def glutenConf: GlutenConfig = GlutenConfig.getConf
 
   /**
+   * When true, ColumnarToRow would call `child.executeCollect` directly. For now, only
+   * [[org.apache.gluten.execution.BaseColumnarCollectLimitExec]] supports it.
+   */
+  def supportExecuteCollect: Boolean = false
+
+  /**
    * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
    */
   final def doValidate(): ValidationResult = {
