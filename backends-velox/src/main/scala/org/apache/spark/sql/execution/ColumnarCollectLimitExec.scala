@@ -285,7 +285,7 @@ case class ColumnarCollectLimitExec(child: SparkPlan, offset: Int, limit: Int)
           if (it.hasNext) {
             it.next()
           } else {
-            new ChunkedByteBuffer()
+            new ChunkedByteBuffer(Array.empty[ByteBuffer])
           },
         partsToScan)
       submitJobs += 1
