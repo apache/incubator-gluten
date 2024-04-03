@@ -160,7 +160,7 @@ object ExpressionMappings {
     Sig[Quarter](EXTRACT),
     Sig[Month](EXTRACT),
     Sig[WeekOfYear](EXTRACT),
-    Sig[WeekDay](EXTRACT),
+    Sig[WeekDay](WEEKDAY),
     Sig[DayOfWeek](EXTRACT),
     Sig[DayOfMonth](EXTRACT),
     Sig[DayOfYear](EXTRACT),
