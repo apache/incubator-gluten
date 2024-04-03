@@ -26,7 +26,6 @@ import org.apache.spark.sql.functions.{avg, col, lit, to_date, udf}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DecimalType, StringType, StructField, StructType}
 
-import java.sql.Timestamp
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters
@@ -1283,8 +1282,8 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     assert(TimeUnit.MILLISECONDS.toHours(timeInMillisInLA - timeInMillisInSH) == 16)
 
     // check ProjectExecTransformer
-    val plan1 = dfWithLA.queryExecution.executedPlan
-    val plan2 = dfWithSH.queryExecution.executedPlan
+    val plan1 = dfInLA.queryExecution.executedPlan
+    val plan2 = dfInSH.queryExecution.executedPlan
     assert(plan1.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
     assert(plan2.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
   }
