@@ -276,7 +276,7 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toLambdaExpr(
         SubstraitParser::findVeloxFunction(functionMap_, arg.scalar_function().function_reference());
     CHECK_EQ(veloxFunction, "namedlambdavariable");
     argumentNames.emplace_back(arg.scalar_function().arguments(0).value().literal().string());
-    argumentTypes.emplace_back(SubstraitParser::parseType(substraitFunc.output_type()));
+    argumentTypes.emplace_back(SubstraitParser::parseType(arg.scalar_function().output_type()));
   }
   auto rowType = ROW(std::move(argumentNames), std::move(argumentTypes));
   // Arg[0] -> function.

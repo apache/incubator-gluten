@@ -220,6 +220,15 @@ trait SparkPlanExecApi {
     throw new GlutenNotSupportException("map_entries is not supported")
   }
 
+  /** Transform array filter to Substrait. */
+  def genArrayFilterTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArrayFilter): ExpressionTransformer = {
+    throw new GlutenNotSupportException("filter(on array) is not supported")
+  }
+
   /** Transform inline to Substrait. */
   def genInlineTransformer(
       substraitExprName: String,

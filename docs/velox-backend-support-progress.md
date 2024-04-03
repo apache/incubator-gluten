@@ -92,6 +92,7 @@ Gluten supports 28 operators (Drag to right to see all data types)
 
 Gluten supports 199 functions. (Drag to right to see all data types)
 
+<<<<<<< HEAD
 | Spark Functions               | Velox/Presto Functions | Velox/Spark functions | Gluten | Restrictions             | BOOLEAN | BYTE | SHORT | INT | LONG | FLOAT | DOUBLE | DATE | TIMESTAMP | STRING | DECIMAL | NULL | BINARS | CALENDAR | ARRAY | MAP | STRUCT | UDT |
 |-------------------------------|------------------------|-----------------------|--------|--------------------------|---------|------|-------|-----|------|-------|--------|------|-----------|--------|---------|------|--------|----------|-------|-----|--------|-----|
 | !                             |                        | not                   | S      |                          | S       | S    | S     | S   | S    | S     | S      |      |           | S      |         |      |        |          |       |     |        |     |
@@ -279,7 +280,7 @@ Gluten supports 199 functions. (Drag to right to see all data types)
 | exists                        |                        |                       |        |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
 | explode, explode_outer        |                        |                       |        |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
 | explode_outer, explode        |                        |                       |        |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
-| filter                        | filter                 | filter                |        |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
+| filter                        | filter                 | filter                | S      | Lambda with index argument not supported |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
 | flatten                       | flatten                |                       |        |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
 | map                           | map                    | map                   | S      |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
 | map_concat                    | map_concat             |                       |        |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
