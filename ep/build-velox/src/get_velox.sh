@@ -169,9 +169,6 @@ function process_setup_centos7 {
 
   # No need to re-install git.
   sed -i 's/dnf_install ccache git/dnf_install ccache/' scripts/setup-centos7.sh
-  # cmake 3 and ninja should be installed
-  sed -i '/^run_and_time install_cmake/d' scripts/setup-centos7.sh
-  sed -i '/^run_and_time install_ninja/d' scripts/setup-centos7.sh
 
   # install gtest
   sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_gtest' scripts/setup-centos7.sh
