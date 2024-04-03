@@ -43,7 +43,7 @@ std::unordered_map<String, String> extractPartMetaData(ReadBuffer & in)
     return result;
 }
 
-void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable & mergeTreeTable, ContextPtr & context)
+void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable & mergeTreeTable, const Context & context)
 {
     auto data_disk = storage->getStoragePolicy()->getAnyDisk();
     if (!data_disk->isRemote())
@@ -63,7 +63,7 @@ void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable &
     if (not_exists_part.empty())
         return;
 
-    if (auto lock = storage->lockForAlter(context->getSettingsRef().lock_acquire_timeout))
+    if (auto lock = storage->lockForAlter(context.getSettingsRef().lock_acquire_timeout))
     {
         auto s3 = data_disk->getObjectStorage();
 

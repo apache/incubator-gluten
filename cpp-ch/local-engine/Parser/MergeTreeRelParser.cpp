@@ -97,6 +97,7 @@ CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(
                 buildMergeTreeSettings(merge_tree_table.table_configs));
             return custom_storage_merge_tree;
         });
+    restoreMetaData(storage, merge_tree_table, *local_engine::SerializedPlanParser::global_context);
     return storage;
 }
 
@@ -146,7 +147,7 @@ MergeTreeRelParser::parseReadRel(
             return custom_storage_merge_tree;
         });
 
-    restoreMetaData(storage, merge_tree_table, context);
+    restoreMetaData(storage, merge_tree_table, *context);
     for (const auto & [name, sizes] : storage->getColumnSizes())
         column_sizes[name] = sizes.data_compressed;
     query_context.storage_snapshot = std::make_shared<StorageSnapshot>(*storage, metadata);
