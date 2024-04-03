@@ -87,7 +87,15 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitO
     }
     else
     {
-        partition_writer = std::make_unique<LocalPartitionWriter>(this);
+        if (options.force_sort || options.partition_num > 300)
+        {
+            partition_writer = std::make_unique<ExternalSortLocalPartitionWriter>(this);
+            sort_shuffle = true;
+        }
+        else
+        {
+            partition_writer = std::make_unique<LocalPartitionWriter>(this);
+        }
     }
 
     split_result.partition_lengths.resize(options.partition_num, 0);
@@ -100,7 +108,8 @@ void CachedShuffleWriter::split(DB::Block & block)
     initOutputIfNeeded(block);
 
     Stopwatch split_time_watch;
-    block = convertAggregateStateInBlock(block);
+    if (!sort_shuffle)
+        block = convertAggregateStateInBlock(block);
     split_result.total_split_time += split_time_watch.elapsedNanoseconds();
 
     Stopwatch compute_pid_time_watch;

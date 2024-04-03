@@ -36,6 +36,8 @@ struct PartitionInfo
 {
     DB::IColumn::Selector partition_selector;
     std::vector<size_t> partition_start_points;
+    // for sort partition
+    DB::IColumn::Selector src_partition_num;
     size_t partition_num;
 
     static PartitionInfo fromSelector(DB::IColumn::Selector selector, size_t partition_num);

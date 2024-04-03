@@ -19,14 +19,17 @@
 #include <memory>
 #include <mutex>
 #include <vector>
-#include <IO/WriteBuffer.h>
 #include <Core/Block.h>
+#include <IO/WriteBuffer.h>
+#include <Interpreters/TemporaryDataOnDisk.h>
 #include <Shuffle/ShuffleSplitter.h>
 #include <jni/CelebornClient.h>
+#include <Parser/SerializedPlanParser.h>
 
 namespace local_engine
 {
-struct PartitionSpillInfo {
+struct PartitionSpillInfo
+{
     size_t partition_id;
     size_t start;
     size_t length; // in Bytes
@@ -61,12 +64,12 @@ using PartitionPtr = std::shared_ptr<Partition>;
 class PartitionWriter : boost::noncopyable
 {
 public:
-    explicit PartitionWriter(CachedShuffleWriter* shuffle_writer_);
+    explicit PartitionWriter(CachedShuffleWriter * shuffle_writer_);
     virtual ~PartitionWriter() = default;
 
     virtual String getName() const = 0;
 
-    void write(const PartitionInfo& info, DB::Block & block);
+    virtual void write(const PartitionInfo & info, DB::Block & block);
     size_t evictPartitions(bool for_memory_spill = false, bool flush_block_buffer = false);
     void stop();
 
@@ -115,6 +118,38 @@ protected:
     std::vector<SpillInfo> spill_infos;
 };
 
+class ExternalSortLocalPartitionWriter : public PartitionWriter
+{
+public:
+    explicit ExternalSortLocalPartitionWriter(CachedShuffleWriter * shuffle_writer_) : PartitionWriter(shuffle_writer_)
+    {
+        max_merge_block_size = options->split_size;
+        max_sort_buffer_size = options->max_sort_buffer_size;
+        tmp_data = std::make_unique<TemporaryDataOnDisk>(SerializedPlanParser::global_context->getTempDataOnDisk());
+    }
+
+    ~ExternalSortLocalPartitionWriter() override = default;
+
+    String getName() const override { return "ExternalSortLocalPartitionWriter"; }
+    void write(const PartitionInfo & info, DB::Block & block) override;
+
+protected:
+    size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer) override;
+    void unsafeStop() override;
+    std::queue<DB::Block> mergeDataInMemory();
+
+private:
+    size_t max_sort_buffer_size = 1_GiB;
+    size_t max_merge_block_size = DB::DEFAULT_BLOCK_SIZE;
+    size_t current_accumulated_bytes = 0;
+    DB::Chunks accumulated_blocks;
+    DB::Block output_header;
+    DB::Block sort_header;
+    DB::SortDescription sort_description;
+    DB::TemporaryDataOnDiskPtr tmp_data;
+    std::vector<DB::TemporaryFileStream *> streams;
+};
+
 class CelebornPartitionWriter : public PartitionWriter
 {
 public:
@@ -134,6 +169,3 @@ protected:
     std::unique_ptr<CelebornClient> celeborn_client;
 };
 }
-
-
-
