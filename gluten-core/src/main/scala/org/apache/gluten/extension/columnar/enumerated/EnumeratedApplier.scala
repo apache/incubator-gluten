@@ -20,6 +20,7 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, TransformPostOverrides, TransformPreOverrides}
+import org.apache.gluten.extension.columnar.util.AdaptiveContext
 import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.gluten.utils.{LogLevelUtil, PhysicalPlanSelector}
 
@@ -37,17 +38,10 @@ class EnumeratedApplier(session: SparkSession)
   with Logging
   with LogLevelUtil {
 
-  private val GLUTEN_IS_ADAPTIVE_CONTEXT = "gluten.isAdaptiveContext"
-
   private lazy val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
   private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
-  // Holds the original plan for possible entire fallback.
-  private val localOriginalPlans: ListBuffer[SparkPlan] = ListBuffer.empty
-  private val localIsAdaptiveContextFlags: ListBuffer[Boolean] = ListBuffer.empty
-
-  // This is an empirical value, may need to be changed for supporting other versions of spark.
-  private val aqeStackTraceIndex = 18
+  private val adaptiveContext = AdaptiveContext(session)
 
   override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan =
     withTransformRules(transformRules(outputsColumnar)).apply(plan)
@@ -94,13 +88,13 @@ class EnumeratedApplier(session: SparkSession)
   }(t => logOnLevel(transformPlanLogLevel, s"${step}Transform SparkPlan took: $t ms."))
 
   private def prepareFallback[T](plan: SparkPlan)(f: SparkPlan => T): T = {
-    setAdaptiveContext()
-    setOriginalPlan(plan)
+    adaptiveContext.setAdaptiveContext()
+    adaptiveContext.setOriginalPlan(plan)
     try {
       f(plan)
     } finally {
-      resetOriginalPlan()
-      resetAdaptiveContext()
+      adaptiveContext.resetOriginalPlan()
+      adaptiveContext.resetAdaptiveContext()
     }
   }
 
@@ -146,7 +140,9 @@ class EnumeratedApplier(session: SparkSession)
    * back the whole input plan to the original vanilla Spark plan.
    */
   private def fallbackPolicies(): List[SparkSession => Rule[SparkPlan]] = {
-    List((_: SparkSession) => ExpandFallbackPolicy(isAdaptiveContext, originalPlan))
+    List(
+      (_: SparkSession) =>
+        ExpandFallbackPolicy(adaptiveContext.isAdaptiveContext(), adaptiveContext.originalPlan()))
   }
 
   /**
@@ -157,7 +153,7 @@ class EnumeratedApplier(session: SparkSession)
     List(
       (_: SparkSession) => TransformPostOverrides(),
       (s: SparkSession) => InsertColumnarToColumnarTransitions(s),
-      (s: SparkSession) => RemoveTopmostColumnarToRow(s, isAdaptiveContext)
+      (s: SparkSession) => RemoveTopmostColumnarToRow(s, adaptiveContext.isAdaptiveContext())
     ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
       List((_: SparkSession) => ColumnarCollapseTransformStages(GlutenConfig.getConf)) :::
@@ -177,41 +173,4 @@ class EnumeratedApplier(session: SparkSession)
       (_: SparkSession) => RemoveTransformHintRule()
     )
   }
-
-  private def isAdaptiveContext: Boolean =
-    Option(session.sparkContext.getLocalProperty(GLUTEN_IS_ADAPTIVE_CONTEXT))
-      .getOrElse("false")
-      .toBoolean ||
-      localIsAdaptiveContextFlags.head
-
-  private def setAdaptiveContext(): Unit = {
-    val traceElements = Thread.currentThread.getStackTrace
-    assert(
-      traceElements.length > aqeStackTraceIndex,
-      s"The number of stack trace elements is expected to be more than $aqeStackTraceIndex")
-    // ApplyColumnarRulesAndInsertTransitions is called by either QueryExecution or
-    // AdaptiveSparkPlanExec. So by checking the stack trace, we can know whether
-    // columnar rule will be applied in adaptive execution context. This part of code
-    // needs to be carefully checked when supporting higher versions of spark to make
-    // sure the calling stack has not been changed.
-    localIsAdaptiveContextFlags
-      .prepend(
-        traceElements(aqeStackTraceIndex).getClassName
-          .equals(AdaptiveSparkPlanExec.getClass.getName))
-  }
-
-  private def resetAdaptiveContext(): Unit =
-    localIsAdaptiveContextFlags.remove(0)
-
-  private def setOriginalPlan(plan: SparkPlan): Unit = {
-    localOriginalPlans.prepend(plan)
-  }
-
-  private def originalPlan: SparkPlan = {
-    val plan = localOriginalPlans.head
-    assert(plan != null)
-    plan
-  }
-
-  private def resetOriginalPlan(): Unit = localOriginalPlans.remove(0)
 }
