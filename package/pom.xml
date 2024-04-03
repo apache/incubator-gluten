@@ -80,6 +80,16 @@
         </dependency>
       </dependencies>
     </profile>
+    <profile>
+      <id>rss-uniffle</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-uniffle-package</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
   </profiles>
 
   <build>
