@@ -199,6 +199,7 @@ object ExpressionNames {
   final val LAST_DAY = "last_day"
   final val MONTHS_BETWEEN = "months_between"
   final val DATE_FROM_UNIX_DATE = "date_from_unix_date"
+  final val UNIX_DATE = "unix_date"
   final val MAKE_TIMESTAMP = "make_timestamp"
   final val MAKE_YM_INTERVAL = "make_ym_interval"
   final val TO_UTC_TIMESTAMP = "to_utc_timestamp"
