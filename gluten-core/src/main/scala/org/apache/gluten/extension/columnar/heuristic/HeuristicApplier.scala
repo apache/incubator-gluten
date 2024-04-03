@@ -164,4 +164,10 @@ class HeuristicApplier(session: SparkSession)
       (_: SparkSession) => RemoveTransformHintRule()
     )
   }
+
+  // Just for test use.
+  def enableAdaptiveContext(): HeuristicApplier = {
+    adaptiveContext.enableAdaptiveContext()
+    this
+  }
 }

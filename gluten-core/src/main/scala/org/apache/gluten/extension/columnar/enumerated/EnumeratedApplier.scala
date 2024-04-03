@@ -28,10 +28,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, GlutenFallbackReporter, SparkPlan}
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.util.SparkRuleUtil
-
-import scala.collection.mutable.ListBuffer
 
 class EnumeratedApplier(session: SparkSession)
   extends ColumnarRuleApplier
