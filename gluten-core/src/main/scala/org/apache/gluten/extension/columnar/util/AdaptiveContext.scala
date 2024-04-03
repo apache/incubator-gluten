@@ -40,13 +40,13 @@ object AdaptiveContext {
   // This is an empirical value, may need to be changed for supporting other versions of spark.
   private val aqeStackTraceIndex = 18
 
-  private class AdaptiveContextImpl(session: SparkSession) extends AdaptiveContext {
-    // Holds the original plan for possible entire fallback.
-    private val localOriginalPlans: ThreadLocal[ListBuffer[SparkPlan]] =
-      ThreadLocal.withInitial(() => ListBuffer.empty[SparkPlan])
-    private val localIsAdaptiveContextFlags: ThreadLocal[ListBuffer[Boolean]] =
-      ThreadLocal.withInitial(() => ListBuffer.empty[Boolean])
+  // Holds the original plan for possible entire fallback.
+  private val localOriginalPlans: ThreadLocal[ListBuffer[SparkPlan]] =
+    ThreadLocal.withInitial(() => ListBuffer.empty[SparkPlan])
+  private val localIsAdaptiveContextFlags: ThreadLocal[ListBuffer[Boolean]] =
+    ThreadLocal.withInitial(() => ListBuffer.empty[Boolean])
 
+  private class AdaptiveContextImpl(session: SparkSession) extends AdaptiveContext {
     // Just for test use.
     override def enableAdaptiveContext(): Unit = {
       session.sparkContext.setLocalProperty(GLUTEN_IS_ADAPTIVE_CONTEXT, "true")
