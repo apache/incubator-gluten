@@ -559,7 +559,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
 }
 
 std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig() {
-  // The configs below are used in session-wise.
+  // The configs below are used at session level.
   std::unordered_map<std::string, std::string> configs = {};
   // The semantics of reading as lower case is opposite with case-sensitive.
   configs[velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCaseSession] =

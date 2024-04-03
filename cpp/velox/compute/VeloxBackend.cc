@@ -258,7 +258,7 @@ void VeloxBackend::initCache(const std::shared_ptr<const facebook::velox::Config
 }
 
 void VeloxBackend::initConnector(const std::shared_ptr<const facebook::velox::Config>& conf) {
-  // The configs below are used in process-wise.
+  // The configs below are used at process level.
   auto mutableConf = std::make_shared<facebook::velox::core::MemConfigMutable>(conf->valuesCopy());
 
   auto hiveConf = getHiveConfig(conf);
