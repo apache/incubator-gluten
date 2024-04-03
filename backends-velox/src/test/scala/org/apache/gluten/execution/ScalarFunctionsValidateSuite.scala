@@ -647,6 +647,35 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("Test make_date function") {
+    runQueryAndCompare("select make_date(2023, 7, 15)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare("select make_date(null, 7, 15)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    withTempPath {
+      path =>
+        Seq[Tuple3[Integer, Integer, Integer]](
+          (2019, 1, 1),
+          (2018, 1, 1),
+          (null, 1, 1),
+          (1, null, 1)
+        )
+          .toDF("year", "month", "day")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("make_date_tbl")
+
+        runQueryAndCompare("select make_date(year, month, day) from make_date_tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("Test uuid function") {
     runQueryAndCompare("""SELECT uuid() from lineitem limit 100""".stripMargin, false) {
       checkGlutenOperatorMatch[ProjectExecTransformer]

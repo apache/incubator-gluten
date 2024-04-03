@@ -184,6 +184,7 @@ object ExpressionMappings {
     Sig[DateFromUnixDate](DATE_FROM_UNIX_DATE),
     Sig[MakeTimestamp](MAKE_TIMESTAMP),
     Sig[MakeYMInterval](MAKE_YM_INTERVAL),
+    Sig[MakeDate](MAKE_DATE),
     Sig[ToUTCTimestamp](TO_UTC_TIMESTAMP),
     Sig[FromUTCTimestamp](FROM_UTC_TIMESTAMP),
     // JSON functions
