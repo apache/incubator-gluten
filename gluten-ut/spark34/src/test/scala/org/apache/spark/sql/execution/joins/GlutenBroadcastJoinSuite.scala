@@ -36,12 +36,10 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
    * Create a new [[SparkSession]] running in local-cluster mode with unsafe and codegen enabled.
    */
   override def beforeAll(): Unit = {
-    super.beforeAll()
     val sparkBuilder = SparkSession
       .builder()
       .master("local-cluster[2,1,1024]")
       .appName("Gluten-UT")
-      .master(s"local[2]")
       .config(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
       .config("spark.driver.memory", "1G")
       .config("spark.sql.adaptive.enabled", "true")
@@ -74,5 +72,6 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
         .config("spark.unsafe.exceptionOnMemoryLeak", "true")
         .getOrCreate()
     }
+    super.beforeAll()
   }
 }
