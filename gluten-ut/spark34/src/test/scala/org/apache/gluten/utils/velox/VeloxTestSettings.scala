@@ -1032,6 +1032,10 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("to_utc_timestamp with literal zone")
     // Replaced by another test.
     .exclude("to_utc_timestamp with column zone")
+    // Replaced by another test
+    .exclude("from_utc_timestamp with literal zone")
+    // Replaced by another test
+    .exclude("from_utc_timestamp with column zone")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]

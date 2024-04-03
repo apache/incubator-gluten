@@ -297,6 +297,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeGlutenTest("to_unix_timestamp")
     .exclude("to_utc_timestamp with literal zone")
     .exclude("to_utc_timestamp with column zone")
+    .exclude("from_utc_timestamp with literal zone")
+    .exclude("from_utc_timestamp with column zone")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].excludeGlutenTest(
     "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
@@ -836,7 +838,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-35871: Literal.create(value, dataType) should support fields")
     .excludeGlutenTest("default")
   enableSuite[GlutenMathExpressionsSuite]
-    .exclude("cot")
     .exclude("tanh")
     .exclude("ceil")
     .exclude("floor")
@@ -854,7 +855,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SparkPartitionID")
     .exclude("InputFileName")
   enableSuite[GlutenNullExpressionsSuite]
-    .exclude("nanvl")
     .exclude("AtLeastNNonNulls")
     .exclude("AtLeastNNonNulls should not throw 64KiB exception")
   enableSuite[GlutenPredicateSuite]

@@ -265,6 +265,10 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("to_utc_timestamp with literal zone")
     // Replaced by another test.
     .exclude("to_utc_timestamp with column zone")
+    // Replaced by another test
+    .exclude("from_utc_timestamp with literal zone")
+    // Replaced by another test
+    .exclude("from_utc_timestamp with column zone")
   enableSuite[GlutenDataFrameFunctionsSuite]
     // blocked by Velox-5768
     .exclude("aggregate function - array for primitive type containing null")

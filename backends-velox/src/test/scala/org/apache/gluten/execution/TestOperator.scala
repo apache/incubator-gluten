@@ -202,19 +202,19 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           runQueryAndCompare(
             "select ntile(4) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkOperatorMatch[WindowExecTransformer]
+            checkGlutenOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select row_number() over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkOperatorMatch[WindowExecTransformer]
+            checkGlutenOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select rank() over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkOperatorMatch[WindowExecTransformer]
+            checkGlutenOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
@@ -232,63 +232,63 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           runQueryAndCompare(
             "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkOperatorMatch[WindowExecTransformer]
+            checkGlutenOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) IGNORE NULLS over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkOperatorMatch[WindowExecTransformer]
+            checkGlutenOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select sum(l_partkey + 1) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem") {
-            checkOperatorMatch[WindowExecTransformer]
+            checkGlutenOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkOperatorMatch[WindowExecTransformer]
+            checkGlutenOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select min(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkOperatorMatch[WindowExecTransformer]
+            checkGlutenOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select avg(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkOperatorMatch[WindowExecTransformer]
+            checkGlutenOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select lag(l_orderkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkOperatorMatch[WindowExecTransformer]
+            checkGlutenOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select lead(l_orderkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkOperatorMatch[WindowExecTransformer]
+            checkGlutenOperatorMatch[WindowExecTransformer]
           }
 
           // Test same partition/ordering keys.
           runQueryAndCompare(
             "select avg(l_partkey) over" +
               " (partition by l_suppkey order by l_suppkey) from lineitem ") {
-            checkOperatorMatch[WindowExecTransformer]
+            checkGlutenOperatorMatch[WindowExecTransformer]
           }
 
           // Test overlapping partition/ordering keys.
           runQueryAndCompare(
             "select avg(l_partkey) over" +
               " (partition by l_suppkey order by l_suppkey, l_orderkey) from lineitem ") {
-            checkOperatorMatch[WindowExecTransformer]
+            checkGlutenOperatorMatch[WindowExecTransformer]
           }
         }
     }
@@ -352,7 +352,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
                          | select * from lineitem limit 10
                          |) where l_suppkey != 0 limit 100;
                          |""".stripMargin) {
-      checkOperatorMatch[LimitTransformer]
+      checkGlutenOperatorMatch[LimitTransformer]
     }
   }
 
@@ -365,7 +365,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           .parquet(path.getCanonicalPath)
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
         runQueryAndCompare("SELECT a from view") {
-          checkOperatorMatch[FileSourceScanExecTransformer]
+          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
         }
     }
   }
@@ -377,7 +377,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
                          |abs(cast (l_quantity as decimal(12, 2))),
                          |abs(cast (l_quantity as decimal(12, 2))) from lineitem;
                          |""".stripMargin) {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     withTempPath {
       path =>
@@ -387,7 +387,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           .parquet(path.getCanonicalPath)
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
         runQueryAndCompare("SELECT abs(cast (a as decimal(19, 6))) from view") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }
@@ -407,7 +407,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
                          |ORDER BY
                          |  l_orderkey
                          |""".stripMargin) {
-      checkOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenOperatorMatch[HashAggregateExecTransformer]
     }
   }
 
@@ -422,7 +422,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     // https://github.com/facebookincubator/velox/pull/6051#issuecomment-1731028215.
     // assert(result.collect()(0).get(0).toString.equals("0.0345678900000000000000000000000000000"))
     assert((result.collect()(0).get(0).toString.toDouble - d).abs < 0.00000000001)
-    checkOperatorMatch[HashAggregateExecTransformer](result)
+    checkGlutenOperatorMatch[HashAggregateExecTransformer](result)
   }
 
   test("orc scan") {
@@ -455,7 +455,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     runQueryAndCompare("""
                          |select l_quantity <=> 1000 from lineitem;
                          |""".stripMargin) {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -463,7 +463,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     runQueryAndCompare("""
                          |select overlay(l_shipdate placing '_' from 0) from lineitem limit 1;
                          |""".stripMargin) {
-      checkOperatorMatch[ProjectExecTransformer]
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -487,7 +487,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
             |join t2 on t1.c1 = t2.c1 and t1.c1 > conv(t2.c1, 2, 10);
             |""".stripMargin
         ) {
-          checkOperatorMatch[HashAggregateExecTransformer]
+          checkGlutenOperatorMatch[HashAggregateExecTransformer]
         }
       }
     }
@@ -503,11 +503,11 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
         .saveAsTable("t")
 
       runQueryAndCompare("SELECT c1, explode(array(c2)) FROM t") {
-        checkOperatorMatch[GenerateExecTransformer]
+        checkGlutenOperatorMatch[GenerateExecTransformer]
       }
 
       runQueryAndCompare("SELECT c1, explode(c3) FROM (SELECT c1, array(c2) as c3 FROM t)") {
-        checkOperatorMatch[GenerateExecTransformer]
+        checkGlutenOperatorMatch[GenerateExecTransformer]
       }
     }
   }
@@ -604,7 +604,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       if (!SparkShimLoader.getSparkVersion.startsWith("3.2")) {
         sql("create table t using parquet as select sum(l_partkey) from lineitem")
         runQueryAndCompare("select * from t") {
-          checkOperatorMatch[FileSourceScanExecTransformer]
+          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
         }
       } else {
         val msg = intercept[AnalysisException] {
@@ -622,23 +622,23 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
         runQueryAndCompare(s"""
                               |SELECT $func(array(1, 2, 3));
                               |""".stripMargin) {
-          checkOperatorMatch[GenerateExecTransformer]
+          checkGlutenOperatorMatch[GenerateExecTransformer]
         }
         runQueryAndCompare(s"""
                               |SELECT $func(map(1, 'a', 2, 'b'));
                               |""".stripMargin) {
-          checkOperatorMatch[GenerateExecTransformer]
+          checkGlutenOperatorMatch[GenerateExecTransformer]
         }
         runQueryAndCompare(
           s"""
              |SELECT $func(array(map(1, 'a', 2, 'b'), map(3, 'c', 4, 'd'), map(5, 'e', 6, 'f')));
              |""".stripMargin) {
-          checkOperatorMatch[GenerateExecTransformer]
+          checkGlutenOperatorMatch[GenerateExecTransformer]
         }
         runQueryAndCompare(s"""
                               |SELECT $func(map(1, array(1, 2), 2, array(3, 4)));
                               |""".stripMargin) {
-          checkOperatorMatch[GenerateExecTransformer]
+          checkGlutenOperatorMatch[GenerateExecTransformer]
         }
 
         // CreateArray/CreateMap: func(array(col)), func(map(k, v))
@@ -649,7 +649,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           runQueryAndCompare(s"""
                                 |SELECT $func(array(a)) from t1;
                                 |""".stripMargin) {
-            checkOperatorMatch[GenerateExecTransformer]
+            checkGlutenOperatorMatch[GenerateExecTransformer]
           }
           sql("""select * from values (1, 'a'), (2, 'b'), (3, null), (4, null)
                 |as tbl(a, b)
@@ -657,7 +657,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           runQueryAndCompare(s"""
                                 |SELECT $func(map(a, b)) from t1;
                                 |""".stripMargin) {
-            checkOperatorMatch[GenerateExecTransformer]
+            checkGlutenOperatorMatch[GenerateExecTransformer]
           }
         }
 
@@ -671,7 +671,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           runQueryAndCompare(s"""
                                 |SELECT $func(a) from t2;
                                 |""".stripMargin) {
-            checkOperatorMatch[GenerateExecTransformer]
+            checkGlutenOperatorMatch[GenerateExecTransformer]
           }
           sql("""select * from values
                 |  map(1, 'a', 2, 'b', 3, null),
@@ -681,7 +681,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           runQueryAndCompare(s"""
                                 |SELECT $func(a) from t2;
                                 |""".stripMargin) {
-            checkOperatorMatch[GenerateExecTransformer]
+            checkGlutenOperatorMatch[GenerateExecTransformer]
           }
         }
     }
@@ -694,7 +694,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
                           |  named_struct('c1', 0, 'c2', 1),
                           |  named_struct('c1', 2, 'c2', null)));
                           |""".stripMargin) {
-      checkOperatorMatch[GenerateExecTransformer]
+      checkGlutenOperatorMatch[GenerateExecTransformer]
     }
 
     // CreateArray: func(array(col))
@@ -708,7 +708,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       runQueryAndCompare(s"""
                             |SELECT inline(array(a)) from t1;
                             |""".stripMargin) {
-        checkOperatorMatch[GenerateExecTransformer]
+        checkGlutenOperatorMatch[GenerateExecTransformer]
       }
     }
 
@@ -729,7 +729,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       runQueryAndCompare("""
                            |SELECT inline(a) from t2;
                            |""".stripMargin) {
-        checkOperatorMatch[GenerateExecTransformer]
+        checkGlutenOperatorMatch[GenerateExecTransformer]
       }
     }
 
@@ -749,22 +749,22 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       runQueryAndCompare("""
                            |SELECT array_except(c1, c2) FROM t;
                            |""".stripMargin) {
-        checkOperatorMatch[ProjectExecTransformer]
+        checkGlutenOperatorMatch[ProjectExecTransformer]
       }
       runQueryAndCompare("""
                            |SELECT array_distinct(c1), array_distinct(c2) FROM t;
                            |""".stripMargin) {
-        checkOperatorMatch[ProjectExecTransformer]
+        checkGlutenOperatorMatch[ProjectExecTransformer]
       }
       runQueryAndCompare("""
                            |SELECT array_position(c1, 3), array_position(c2, 2) FROM t;
                            |""".stripMargin) {
-        checkOperatorMatch[ProjectExecTransformer]
+        checkGlutenOperatorMatch[ProjectExecTransformer]
       }
       runQueryAndCompare("""
                            |SELECT array_repeat(c3, 5) FROM t;
                            |""".stripMargin) {
-        checkOperatorMatch[ProjectExecTransformer]
+        checkGlutenOperatorMatch[ProjectExecTransformer]
       }
     }
   }
@@ -774,13 +774,13 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       sql("create table t (id int, b boolean) using parquet")
       sql("insert into t values (1, true), (2, false), (3, null)")
       runQueryAndCompare("select * from t where b = true") {
-        checkOperatorMatch[FileSourceScanExecTransformer]
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
       }
       runQueryAndCompare("select * from t where b = false") {
-        checkOperatorMatch[FileSourceScanExecTransformer]
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
       }
       runQueryAndCompare("select * from t where b is NULL") {
-        checkOperatorMatch[FileSourceScanExecTransformer]
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
       }
     }
   }
@@ -792,19 +792,19 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
         s"insert into short_table values " +
           s"(1, 1), (null, 2), (${Short.MinValue}, 3), (${Short.MaxValue}, 4)")
       runQueryAndCompare("select * from short_table where a = 1") {
-        checkOperatorMatch[FileSourceScanExecTransformer]
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
       }
 
       runQueryAndCompare("select * from short_table where a is NULL") {
-        checkOperatorMatch[FileSourceScanExecTransformer]
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
       }
 
       runQueryAndCompare(s"select * from short_table where a != ${Short.MinValue}") {
-        checkOperatorMatch[FileSourceScanExecTransformer]
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
       }
 
       runQueryAndCompare(s"select * from short_table where a != ${Short.MaxValue}") {
-        checkOperatorMatch[FileSourceScanExecTransformer]
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
       }
     }
   }
@@ -816,19 +816,19 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
         s"insert into int_table values " +
           s"(1, 1), (null, 2), (${Int.MinValue}, 3), (${Int.MaxValue}, 4)")
       runQueryAndCompare("select * from int_table where a = 1") {
-        checkOperatorMatch[FileSourceScanExecTransformer]
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
       }
 
       runQueryAndCompare("select * from int_table where a is NULL") {
-        checkOperatorMatch[FileSourceScanExecTransformer]
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
       }
 
       runQueryAndCompare(s"select * from int_table where a != ${Int.MinValue}") {
-        checkOperatorMatch[FileSourceScanExecTransformer]
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
       }
 
       runQueryAndCompare(s"select * from int_table where a != ${Int.MaxValue}") {
-        checkOperatorMatch[FileSourceScanExecTransformer]
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
       }
     }
   }
@@ -841,7 +841,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       sql("insert into ts values (3, timestamp'1965-01-01 10:11:12.123456')")
 
       runQueryAndCompare("select c1, c2 from ts where c1 = 1") {
-        checkOperatorMatch[FileSourceScanExecTransformer]
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
       }
 
       // Fallback should only happen when there is a filter on timestamp column
@@ -871,7 +871,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           |select * from t1 cross join t2 on t1.c1 = t2.c1;
           |""".stripMargin
       ) {
-        checkOperatorMatch[ShuffledHashJoinExecTransformer]
+        checkGlutenOperatorMatch[ShuffledHashJoinExecTransformer]
       }
 
       withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "1MB") {
@@ -880,7 +880,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
             |select * from t1 cross join t2 on t1.c1 = t2.c1;
             |""".stripMargin
         ) {
-          checkOperatorMatch[BroadcastHashJoinExecTransformer]
+          checkGlutenOperatorMatch[BroadcastHashJoinExecTransformer]
         }
       }
 
@@ -890,7 +890,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
             |select * from t1 cross join t2 on t1.c1 = t2.c1;
             |""".stripMargin
         ) {
-          checkOperatorMatch[SortMergeJoinExecTransformer]
+          checkGlutenOperatorMatch[SortMergeJoinExecTransformer]
         }
       }
 
@@ -899,7 +899,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           |select * from t1 cross join t2;
           |""".stripMargin
       ) {
-        checkOperatorMatch[CartesianProductExecTransformer]
+        checkGlutenOperatorMatch[CartesianProductExecTransformer]
       }
 
       runQueryAndCompare(
@@ -907,7 +907,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           |select * from t1 cross join t2 on t1.c1 > t2.c1;
           |""".stripMargin
       ) {
-        checkOperatorMatch[CartesianProductExecTransformer]
+        checkGlutenOperatorMatch[CartesianProductExecTransformer]
       }
 
       withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "1MB") {
@@ -916,7 +916,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
             |select * from t1 cross join t2 on 2*t1.c1 > 3*t2.c1;
             |""".stripMargin
         ) {
-          checkOperatorMatch[BroadcastNestedLoopJoinExecTransformer]
+          checkGlutenOperatorMatch[BroadcastNestedLoopJoinExecTransformer]
         }
       }
     }
@@ -939,7 +939,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
 
     spark.read.format("parquet").load(path).createOrReplaceTempView("test")
     runQueryAndCompare("select * from test") {
-      checkOperatorMatch[FileSourceScanExecTransformer]
+      checkGlutenOperatorMatch[FileSourceScanExecTransformer]
     }
   }
 
@@ -1052,14 +1052,14 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
         |select (l_partkey % 10 + 5)
         |from lineitem
         |""".stripMargin
-    )(checkOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
     runQueryAndCompare(
       """
         |select l_partkey
         |from lineitem where (l_partkey % 10 + 5) > 6
         |""".stripMargin
-    )(checkOperatorMatch[FilterExecTransformer])
+    )(checkGlutenOperatorMatch[FilterExecTransformer])
 
     withSQLConf(GlutenConfig.COLUMNAR_FALLBACK_EXPRESSIONS_THRESHOLD.key -> "2") {
       runQueryAndCompare(
@@ -1067,14 +1067,14 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           |select (l_partkey % 10 + 5)
           |from lineitem
           |""".stripMargin
-      )(checkFallbackOperatorMatch[ProjectExec])
+      )(checkSparkOperatorMatch[ProjectExec])
 
       runQueryAndCompare(
         """
           |select l_partkey
           |from lineitem where (l_partkey % 10 + 5) > 6
           |""".stripMargin
-      )(checkFallbackOperatorMatch[FilterExec])
+      )(checkSparkOperatorMatch[FilterExec])
     }
   }
 
@@ -1155,7 +1155,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
                          |   'id_str', cast(id as string)) as s from range(100)
                          |) group by s
                          |""".stripMargin) {
-      checkOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenOperatorMatch[HashAggregateExecTransformer]
     }
   }
 
@@ -1169,7 +1169,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
             +- ^(2) ProjectExecTransformer [hash(l_orderkey#16L, l_partkey#17L) AS hash_partition_key#302, l_orderkey#16L, l_partkey#17L]
                 +- ^(2) BatchScanExecTransformer[l_orderkey#16L, l_partkey#17L] ParquetScan DataFilters: [], Format: parquet, Location: InMemoryFileIndex(1 paths)[..., PartitionFilters: [], PushedFilters: [], ReadSchema: struct<l_orderkey:bigint,l_partkey:bigint>, PushedFilters: [] RuntimeFilters: []
        */
-      checkOperatorMatch[SortExecTransformer]
+      checkGlutenOperatorMatch[SortExecTransformer]
     }
     // scalastyle:on
 
@@ -1193,7 +1193,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       runQueryAndCompare("""
                            |SELECT c1, collect_list(map_c2) FROM t1 group by c1;
                            |""".stripMargin) {
-        checkOperatorMatch[HashAggregateExecTransformer]
+        checkGlutenOperatorMatch[HashAggregateExecTransformer]
       }
     }
     // test map<str,map<str,str>>
@@ -1206,7 +1206,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       runQueryAndCompare("""
                            |SELECT c1, collect_list(map_c2) FROM t2 group by c1;
                            |""".stripMargin) {
-        checkOperatorMatch[HashAggregateExecTransformer]
+        checkGlutenOperatorMatch[HashAggregateExecTransformer]
       }
     }
     // test map<map<str,str>,map<str,str>>
@@ -1219,7 +1219,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       runQueryAndCompare("""
                            |SELECT collect_list(map_c2) FROM t3 group by c1;
                            |""".stripMargin) {
-        checkOperatorMatch[HashAggregateExecTransformer]
+        checkGlutenOperatorMatch[HashAggregateExecTransformer]
       }
     }
     // test map<str,list<str>>
@@ -1232,7 +1232,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       runQueryAndCompare("""
                            |SELECT collect_list(map_c2) FROM t4 group by c1;
                            |""".stripMargin) {
-        checkOperatorMatch[HashAggregateExecTransformer]
+        checkGlutenOperatorMatch[HashAggregateExecTransformer]
       }
     }
   }

@@ -44,12 +44,12 @@ public:
         ActionsDAGPtr & actions_dag) const override
     {
         const auto & args = substrait_func.arguments();
-        if (args.size() != 2 && args.size() != 3)
-            throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires 2 or 3 arguments", getName());
+        if (args.size() != 3)
+            throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires 3 arguments", getName());
         
         if(args[1].value().has_literal())
         {
-            auto literal_expr = args[1].value().literal();
+            const auto & literal_expr = args[1].value().literal();
             if (literal_expr.has_string())
             {
                 std::string expr_str = literal_expr.string();
@@ -57,10 +57,11 @@ public:
                 if (expr_str.data()[expr_size - 1] == '$')
                     expr_str.replace(expr_str.find_last_of("$"), 1, "(?:(\n)*)$");
                 
-                auto * regex_expr_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), expr_str);
+                const auto * regex_expr_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), expr_str);
                 auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
                 parsed_args[1] =  regex_expr_node;
-                return toFunctionNode(actions_dag, "regexpExtract", parsed_args);
+                const auto * result_node = toFunctionNode(actions_dag, "regexpExtract", parsed_args);
+                return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
             }
             else
                 throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {} 2nd argument's type must be const string", getName());

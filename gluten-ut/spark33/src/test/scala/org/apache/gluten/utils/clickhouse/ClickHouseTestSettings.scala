@@ -323,6 +323,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeGlutenTest("to_unix_timestamp")
     .exclude("to_utc_timestamp with literal zone")
     .exclude("to_utc_timestamp with column zone")
+    .exclude("from_utc_timestamp with literal zone")
+    .exclude("from_utc_timestamp with column zone")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].excludeGlutenTest(
     "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
@@ -402,7 +404,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-33907: bad json input with json pruning optimization: GetStructField")
     .exclude("SPARK-33907: json pruning optimization with corrupt record field")
     .exclude("SPARK-33907: bad json input with json pruning optimization: GetArrayStructFields")
-  enableSuite[GlutenMathFunctionsSuite].exclude("csc").exclude("sec")
+  enableSuite[GlutenMathFunctionsSuite]
   enableSuite[GlutenMetadataCacheSuite].exclude(
     "SPARK-16336,SPARK-27961 Suggest fixing FileNotFoundException")
   enableSuite[GlutenMiscFunctionsSuite]
@@ -841,9 +843,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-35871: Literal.create(value, dataType) should support fields")
     .exclude("SPARK-37967: Literal.create support ObjectType")
   enableSuite[GlutenMathExpressionsSuite]
-    .exclude("csc")
-    .exclude("sec")
-    .exclude("cot")
     .exclude("tanh")
     .exclude("ceil")
     .exclude("floor")
@@ -865,7 +864,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SparkPartitionID")
     .exclude("InputFileName")
   enableSuite[GlutenNullExpressionsSuite]
-    .exclude("nanvl")
     .exclude("AtLeastNNonNulls")
     .exclude("AtLeastNNonNulls should not throw 64KiB exception")
   enableSuite[GlutenPredicateSuite]

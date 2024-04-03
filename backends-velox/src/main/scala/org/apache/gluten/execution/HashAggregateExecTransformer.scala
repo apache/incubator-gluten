@@ -147,7 +147,7 @@ abstract class HashAggregateExecTransformer(
           val (sparkOrders, sparkTypes) =
             aggFunc.aggBufferAttributes.map(attr => (attr.name, attr.dataType)).unzip
           val veloxOrders = VeloxIntermediateData.veloxIntermediateDataOrder(aggFunc)
-          val adjustedOrders = sparkOrders.map(veloxOrders.indexOf(_))
+          val adjustedOrders = sparkOrders.map(VeloxIntermediateData.getAttrIndex(veloxOrders, _))
           sparkTypes.zipWithIndex.foreach {
             case (sparkType, idx) =>
               val veloxType = veloxTypes(adjustedOrders(idx))
@@ -380,7 +380,7 @@ abstract class HashAggregateExecTransformer(
               val (sparkOrders, sparkTypes) =
                 aggFunc.aggBufferAttributes.map(attr => (attr.name, attr.dataType)).unzip
               val veloxOrders = VeloxIntermediateData.veloxIntermediateDataOrder(aggFunc)
-              val adjustedOrders = veloxOrders.map(sparkOrders.indexOf(_))
+              val adjustedOrders = veloxOrders.map(o => sparkOrders.indexOf(o.head))
               veloxTypes.zipWithIndex.foreach {
                 case (veloxType, idx) =>
                   val adjustedIdx = adjustedOrders(idx)
@@ -392,7 +392,7 @@ abstract class HashAggregateExecTransformer(
                     // have the column of m4, thus a placeholder m4 with a value of 0 must be passed
                     // to Velox, and this value cannot be omitted. Velox will always read m4 column
                     // when accessing the intermediate data.
-                    val extraAttr = AttributeReference(veloxOrders(idx), veloxType)()
+                    val extraAttr = AttributeReference(veloxOrders(idx).head, veloxType)()
                     newInputAttributes += extraAttr
                     val lt = Literal.default(veloxType)
                     childNodes.add(ExpressionBuilder.makeLiteral(lt.value, lt.dataType, false))
