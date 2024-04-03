@@ -52,26 +52,17 @@ jobs:
       - uses: actions/checkout@v2
       - name: Generate cache key
         run: |
-          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*') }} > cache-key
+          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './github/workflows/*') }} > cache-key
       - name: Cache
         id: cache
-        uses: actions/cache@v3
+        uses: actions/cache/restore@v3
         with:
           path: ./cpp/build/releases/
           key: cache-velox-build-${{ hashFiles('./cache-key') }}
-      - name: Build Gluten velox third party
+      - name: Build Gluten Velox third party
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel -y && \
-          cd $GITHUB_WORKSPACE/ep/build-velox/src && \
-          ./get_velox.sh && \
-          source /opt/rh/devtoolset-9/enable && \
-          source $GITHUB_WORKSPACE//dev/vcpkg/env.sh && \
-          cd $GITHUB_WORKSPACE/ && \
-          sed -i '/^headers/d' ep/build-velox/build/velox_ep/CMakeLists.txt && \
-          export NUM_THREADS=4
-          ./dev/builddeps-veloxbe.sh --build_tests=OFF --build_benchmarks=OFF --enable_s3=ON \
-          --enable_gcs=ON --enable_hdfs=ON --enable_abfs=ON
+          source dev/ci-velox-buildstatic.sh
       - uses: actions/upload-artifact@v2
         with:
           path: ./cpp/build/releases/
