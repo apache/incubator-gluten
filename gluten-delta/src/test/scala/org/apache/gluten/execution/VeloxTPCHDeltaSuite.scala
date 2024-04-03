@@ -36,6 +36,7 @@ class VeloxTPCHDeltaSuite extends VeloxTPCHSuite {
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
+      .set("spark.executor.memory", "4g")
       .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
       .set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
   }
