@@ -238,6 +238,7 @@ object ExpressionNames {
   final val GET_ARRAY_STRUCT_FIELDS = "get_array_struct_fields"
   final val ARRAY_EXCEPT = "array_except"
   final val ARRAY_REPEAT = "array_repeat"
+  final val ARRAY_REMOVE = "array_remove"
 
   // Map functions
   final val CREATE_MAP = "map"
