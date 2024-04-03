@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar.transform
+package org.apache.gluten.extension.columnar
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
@@ -22,10 +22,8 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.TransformHints
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.{LogLevelUtil, PlanUtil}
-
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
