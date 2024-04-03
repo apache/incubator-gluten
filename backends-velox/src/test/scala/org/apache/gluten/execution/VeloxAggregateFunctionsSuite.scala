@@ -409,6 +409,25 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     }
   }
 
+  testWithSpecifiedSparkVersion("regr_intercept", Some("3.4")) {
+    runQueryAndCompare("""
+                         |select regr_intercept(l_partkey, l_suppkey) from lineitem;
+                         |""".stripMargin) {
+      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+    }
+    runQueryAndCompare(
+      "select regr_intercept(l_partkey, l_suppkey), count(distinct l_orderkey) from lineitem") {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 4)
+        }
+    }
+  }
+
   test("first") {
     runQueryAndCompare(s"""
                           |select first(l_linenumber), first(l_linenumber, true) from lineitem;

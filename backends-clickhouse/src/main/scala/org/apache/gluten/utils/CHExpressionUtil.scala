@@ -186,6 +186,7 @@ object CHExpressionUtil {
     KURTOSIS -> DefaultValidator(),
     REGR_R2 -> DefaultValidator(),
     REGR_SLOPE -> DefaultValidator(),
+    REGR_INTERCEPT -> DefaultValidator(),
     TO_UTC_TIMESTAMP -> DefaultValidator(),
     FROM_UTC_TIMESTAMP -> DefaultValidator()
   )
