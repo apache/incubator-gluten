@@ -43,14 +43,12 @@ jobs:
           sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: build
         run: |
-          yum install -y epel-release sudo dnf && \
-          yum install -y dnf-plugins-core && \
-          yum config-manager --set-enabled powertools && \
-          dnf --enablerepo=powertools install -y ninja-build && \
-          dnf --enablerepo=powertools install -y libdwarf-devel && \
-          dnf install -y --setopt=install_weak_deps=False ccache gcc-toolset-9 git wget which libevent-devel openssl-devel re2-devel libzstd-devel lz4-devel double-conversion-devel curl-devel cmake libicu-devel && \
-          source /opt/rh/gcc-toolset-9/enable || exit 1 && \
-          yum install -y java-1.8.0-openjdk-devel patch && \
+          yum install -y epel-release sudo dnf
+          if [ "${{ matrix.os }}" = "centos:8" ]; then
+            dnf install -y --setopt=install_weak_deps=False gcc-toolset-9
+            source /opt/rh/gcc-toolset-9/enable || exit 1
+          fi
+          yum install -y java-1.8.0-openjdk-devel patch wget git && \
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           export PATH=$JAVA_HOME/bin:$PATH && \
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
