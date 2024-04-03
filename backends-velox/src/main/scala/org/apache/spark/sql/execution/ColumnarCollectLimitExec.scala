@@ -109,7 +109,7 @@ case class ColumnarCollectLimitExec(child: SparkPlan, offset: Int, limit: Int)
       return new Array[InternalRow](0)
     }
 
-    val rows = if (limit > 0) {
+    if (limit > 0) {
       if (offset > 0) {
         incrementCollectAsUnsafeRow(limit).drop(offset)
       } else {
@@ -118,7 +118,6 @@ case class ColumnarCollectLimitExec(child: SparkPlan, offset: Int, limit: Int)
     } else {
       collectAsUnsafeRow().drop(offset)
     }
-    rows
   }
 
   class BytesToUnsafeRow {
@@ -251,12 +250,12 @@ case class ColumnarCollectLimitExec(child: SparkPlan, offset: Int, limit: Int)
 
   // Refer `SparkPlan.executeTake`
   private def nativeExecuteTake(
-      numRowsAndArrayBytesRDD: RDD[ChunkedByteBuffer],
+      byteArrayRDD: RDD[ChunkedByteBuffer],
       localLimit: Int,
       bytesToUnsafeRow: BytesToUnsafeRow): Array[InternalRow] = {
     val buf = new ArrayBuffer[InternalRow]
     var partsScanned = 0
-    val totalParts = numRowsAndArrayBytesRDD.partitions.length
+    val totalParts = byteArrayRDD.partitions.length
     val limitScaleUpFactor = Math.max(conf.limitScaleUpFactor, 2)
     var submitJobs = 0
     while (buf.length < limit && partsScanned < totalParts) {
@@ -281,8 +280,13 @@ case class ColumnarCollectLimitExec(child: SparkPlan, offset: Int, limit: Int)
       val partsToScan = partsScanned.until(math.min(partsScanned + numPartsToTry, totalParts))
       val sc = sparkContext
       val res = sc.runJob(
-        numRowsAndArrayBytesRDD,
-        (it: Iterator[ChunkedByteBuffer]) => if (it.hasNext) it.next() else new ChunkedByteBuffer(),
+        byteArrayRDD,
+        (it: Iterator[ChunkedByteBuffer]) =>
+          if (it.hasNext) {
+            it.next()
+          } else {
+            new ChunkedByteBuffer()
+          },
         partsToScan)
       submitJobs += 1
 
