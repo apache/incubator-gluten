@@ -26,6 +26,9 @@ import org.apache.spark.sql.functions.{avg, col, lit, to_date, udf}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DecimalType, StringType, StructField, StructType}
 
+import java.sql.Timestamp
+import java.util.concurrent.TimeUnit
+
 import scala.collection.JavaConverters
 
 class TestOperator extends VeloxWholeStageTransformerSuite {
@@ -1265,5 +1268,24 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
+  }
+
+  test("cast date to timestamp with timezone") {
+    sql("SET spark.sql.session.timeZone = America/Los_Angeles")
+    val dfInLA = sql("SELECT cast(date'2023-01-02 01:01:01' as timestamp) as ts")
+
+    sql("SET spark.sql.session.timeZone = Asia/Shanghai")
+    val dfInSH = sql("SELECT cast(date'2023-01-02 01:01:01' as timestamp) as ts")
+
+    // They should be different because timestamp in spark is with timezone
+    val timeInMillisInLA = dfInLA.collect()(0).getTimestamp(0).getTime()
+    val timeInMillisInSH = dfInSH.collect()(0).getTimestamp(0).getTime()
+    assert(TimeUnit.MILLISECONDS.toHours(timeInMillisInLA - timeInMillisInSH) == 16)
+
+    // check ProjectExecTransformer
+    val plan1 = dfWithLA.queryExecution.executedPlan
+    val plan2 = dfWithSH.queryExecution.executedPlan
+    assert(plan1.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+    assert(plan2.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
   }
 }
