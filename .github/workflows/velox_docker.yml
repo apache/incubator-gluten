@@ -307,7 +307,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           mvn clean install -P${{ matrix.spark }} -Pbackends-velox,rss -DskipTests
-      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 with ${{ matrix.celeborn }}
+      - name: TPC-H SF-0.1 && TPC-DS SF-0.1 Parquet local spark3.2 with ${{ matrix.celeborn }}
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
           EXTRA_PROFILE=""
@@ -324,9 +324,9 @@ jobs:
           bash ./sbin/start-master.sh && bash ./sbin/start-worker.sh && \
           cd $GITHUB_WORKSPACE/tools/gluten-it && mvn clean install -Pspark-3.2,rss ${EXTRA_PROFILE} && \
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox-with-celeborn --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=8 --iterations=1 && \
+            --local --preset=velox-with-celeborn --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=0.1 --threads=8 --iterations=1 && \
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox-with-celeborn --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=8 --iterations=1 && \
+            --local --preset=velox-with-celeborn --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=0.1 --threads=8 --iterations=1 && \
           bash /opt/celeborn/sbin/stop-worker.sh && \
           bash /opt/celeborn/sbin/stop-master.sh && rm -rf /opt/celeborn
 
