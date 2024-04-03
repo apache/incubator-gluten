@@ -17,6 +17,7 @@
 package org.apache.gluten.extension.columnar
 
 import org.apache.gluten.extension.{RewriteCollect, RewriteIn}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
@@ -42,7 +43,8 @@ case class RewrittenNodeWall(originalChild: SparkPlan) extends LeafExecNode {
  *
  * Note that, this rule does not touch and tag these operators who does not need to rewrite.
  */
-class RewriteSparkPlanRulesManager private (rewriteRules: Seq[Rule[SparkPlan]]) extends Rule[SparkPlan] {
+class RewriteSparkPlanRulesManager private (rewriteRules: Seq[Rule[SparkPlan]])
+  extends Rule[SparkPlan] {
 
   private def mayNeedRewrite(plan: SparkPlan): Boolean = {
     TransformHints.isTransformable(plan) && {
@@ -126,7 +128,6 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[Rule[SparkPlan]]) 
     }
   }
 }
-
 
 object RewriteSparkPlanRulesManager {
   def apply(): Rule[SparkPlan] = {

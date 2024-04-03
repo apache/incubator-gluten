@@ -19,6 +19,7 @@ package org.apache.gluten.extension.columnar
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.columnar.ColumnarTransitions.ColumnarToRowLike
 import org.apache.gluten.utils.{LogLevelUtil, PlanUtil}
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution._
