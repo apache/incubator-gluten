@@ -21,6 +21,7 @@ import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.enumerated.EnumeratedApplier
 import org.apache.gluten.extension.columnar.heuristic.HeuristicApplier
 import org.apache.gluten.utils.LogLevelUtil
+
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
