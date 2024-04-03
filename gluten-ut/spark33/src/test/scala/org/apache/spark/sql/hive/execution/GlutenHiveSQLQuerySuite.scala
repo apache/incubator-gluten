@@ -154,13 +154,15 @@ class GlutenHiveSQLQuerySuite extends GlutenHiveSQLQuerySuiteBase {
         "INSERT INTO test_4990_0 VALUES('test_1', 'red', '2024-03-30'), " +
           "('test_2', 'green', '2024-03-31'), ('test_3', 'blue', '2024-03-30');")
       sql(
-        "INSERT INTO test_4990_0 partition(day='2024-03-31') VALUES;")
-      sql(
         "INSERT overwrite table test_4990_1 partition(day) " +
           "select name, favorite_color, day from test_4990_0;")
       val df = spark.sql("select * from test_4990_1")
-      checkAnswer(df, Seq(Row("test_1", "red", "2024-03-30"),
-        Row("test_2", "green", "2024-03-31"), Row("test_3", "blue", "2024-03-30")))
+      checkAnswer(
+        df,
+        Seq(
+          Row("test_1", "red", "2024-03-30"),
+          Row("test_2", "green", "2024-03-31"),
+          Row("test_3", "blue", "2024-03-30")))
       checkOperatorMatch[HiveTableScanExecTransformer](df)
     }
     spark.sessionState.catalog.dropTable(
