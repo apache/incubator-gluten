@@ -685,7 +685,6 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
   }
 
   test("bit_length") {
-  test("bit_length") {
     runQueryAndCompare(
       "select bit_length(c_comment), bit_length(cast(c_comment as binary))" +
         " from customer limit 50") {
