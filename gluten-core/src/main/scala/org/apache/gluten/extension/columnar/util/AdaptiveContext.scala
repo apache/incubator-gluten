@@ -38,7 +38,7 @@ object AdaptiveContext {
   private val GLUTEN_IS_ADAPTIVE_CONTEXT = "gluten.isAdaptiveContext"
 
   // This is an empirical value, may need to be changed for supporting other versions of spark.
-  private val aqeStackTraceIndex = 18
+  private val aqeStackTraceIndex = 19
 
   // Holds the original plan for possible entire fallback.
   private val localOriginalPlans: ThreadLocal[ListBuffer[SparkPlan]] =
