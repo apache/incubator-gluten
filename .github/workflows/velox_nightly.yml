@@ -43,10 +43,15 @@ jobs:
           sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: build
         run: |
+          yum update -y
           yum install -y epel-release sudo dnf
           if [ "${{ matrix.os }}" = "centos:8" ]; then
             dnf install -y --setopt=install_weak_deps=False gcc-toolset-9
             source /opt/rh/gcc-toolset-9/enable || exit 1
+          else
+            yum install -y centos-release-scl
+            yum install -y devtoolset-9
+            source /opt/rh/devtoolset-9/enable || exit 1
           fi
           yum install -y java-1.8.0-openjdk-devel patch wget git && \
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
