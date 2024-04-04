@@ -494,4 +494,27 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
       TimestampAdd("YEAR", Literal(1), Literal(Timestamp.valueOf("2022-02-15 12:57:00"))),
       Timestamp.valueOf("2023-02-15 12:57:00"))
   }
+
+  testGluten("creating values of DateType via make_date") {
+    Seq(true, false).foreach({ ansi =>
+      withSQLConf(SQLConf.ANSI_ENABLED.key -> ansi.toString) {
+        checkEvaluation(MakeDate(Literal(2013), Literal(7), Literal(15)), Date.valueOf("2013-7-15"))
+        checkEvaluation(MakeDate(Literal.create(null, IntegerType), Literal(7), Literal(15)), null)
+        checkEvaluation(MakeDate(Literal(2019), Literal.create(null, IntegerType), Literal(19)),
+          null)
+        checkEvaluation(MakeDate(Literal(2019), Literal(7), Literal.create(null, IntegerType)),
+          null)
+      }
+    })
+    Seq(true, false).foreach({ ansi =>
+      withSQLConf(SQLConf.ANSI_ENABLED.key -> ansi.toString) {
+        checkExceptionInExpression[RuntimeException](MakeDate(Literal(Int.MaxValue), Literal(13),
+          Literal(19)), EmptyRow, "Date out of range: 2147483647-13-19")
+        checkExceptionInExpression[RuntimeException](MakeDate(Literal(2019),
+          Literal(13), Literal(19)), EmptyRow, "Date out of range: 2019-13-19")
+        checkExceptionInExpression[RuntimeException](MakeDate(Literal(2019), Literal(7),
+          Literal(32)), EmptyRow, "Date out of range: 2019-7-32")
+      }
+    })
+  }
 }
