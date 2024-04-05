@@ -1082,7 +1082,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
       "skewness",
       "kurtosis",
       "regr_slope",
-      "regr_intercept"};
+      "regr_intercept",
+      "regr_sxy"};
 
   auto udfFuncs = UdfLoader::getInstance()->getRegisteredUdafNames();
 
