@@ -437,13 +437,13 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare(
       "select regr_sxy(l_partkey, l_suppkey), count(distinct l_orderkey) from lineitem") {
       df =>
-      {
-        assert(
-          getExecutedPlan(df).count(
-            plan => {
-              plan.isInstanceOf[HashAggregateExecTransformer]
-            }) == 4)
-      }
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 4)
+        }
     }
   }
 
