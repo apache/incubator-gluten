@@ -78,6 +78,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "like-all.sql",
     "like-any.sql",
     "limit.sql",
+    "linear-regression.sql",
     "literals.sql",
     "map.sql",
     "misc-functions.sql",
