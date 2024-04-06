@@ -1276,7 +1276,8 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     sql("SET spark.sql.session.timeZone = Asia/Shanghai")
     val dfInSH = sql("SELECT cast(date'2023-01-02 01:01:01' as timestamp) as ts")
 
-    // They should be different because timestamp in spark is with timezone
+    // Casting date to timestamp considers configured local timezone. 
+    // There is 16-hour difference between America/Los_Angeles & Asia/Shanghai.
     val timeInMillisInLA = dfInLA.collect()(0).getTimestamp(0).getTime()
     val timeInMillisInSH = dfInSH.collect()(0).getTimestamp(0).getTime()
     assert(TimeUnit.MILLISECONDS.toHours(timeInMillisInLA - timeInMillisInSH) == 16)
