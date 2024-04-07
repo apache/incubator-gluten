@@ -100,21 +100,6 @@ abstract class WholeStageTransformerSuite
       .set("spark.gluten.ui.enabled", "false")
   }
 
-  protected def isSparkVersionAtleast(version: String): Boolean = {
-    val currentVersion = spark.version
-    val currentVersionSplit = currentVersion.split("\\.")
-    val versionSplit = version.split("\\.")
-    currentVersionSplit.zip(versionSplit).foreach {
-      case (current, required) =>
-        if (current.toInt > required.toInt) {
-          return true
-        } else if (current.toInt < required.toInt) {
-          return false
-        }
-    }
-    true
-  }
-
   protected def checkFallbackOperators(df: DataFrame, num: Int): Unit = {
     // Decrease one VeloxColumnarToRowExec for the top level node
     assert(
