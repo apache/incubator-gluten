@@ -16,9 +16,10 @@
  */
 #include "AggregateFunctionParser.h"
 #include <type_traits>
+#include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeTuple.h>
-#include <AggregateFunctions/AggregateFunctionFactory.h>
+#include <Functions/FunctionHelpers.h>
 #include <Parser/TypeParser.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>

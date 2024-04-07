@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 #pragma once
-#include <AggregateFunctions/IAggregateFunction.h>
+#include <AggregateFunctions/IAggregateFunction_fwd.h>
 #include <Core/Block.h>
 #include <DataTypes/IDataType.h>
 

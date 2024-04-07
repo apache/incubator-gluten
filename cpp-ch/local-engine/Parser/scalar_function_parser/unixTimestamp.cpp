@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
+#include <DataTypes/DataTypeNullable.h>
 #include <Parser/FunctionParser.h>
-#include <DataTypes/DataTypesNumber.h>
 
 
 namespace DB
