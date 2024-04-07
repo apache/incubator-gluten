@@ -74,7 +74,11 @@ object Memo {
       }
     }
 
-    private def toCacheKeyUnsafe(n: T): MemoCacheKey[T] ={
+    private def dummyGroupOf(clusterKey: RasClusterKey): RasGroup[T] = {
+      memoTable.dummyGroupOf(clusterKey)
+    }
+
+    private def toCacheKeyUnsafe(n: T): MemoCacheKey[T] = {
       MemoCacheKey(ras, n)
     }
 
@@ -88,10 +92,7 @@ object Memo {
 
       val canUnsafe = ras.withNewChildren(
         n,
-        childrenPrepares.map {
-          childPrepare =>
-            memoTable.groupOf(childPrepare.clusterKey(), ras.propertySetFactory().any()).self()
-        })
+        childrenPrepares.map(childPrepare => dummyGroupOf(childPrepare.clusterKey()).self()))
 
       val cacheKey = toCacheKeyUnsafe(canUnsafe)
 
@@ -128,13 +129,13 @@ object Memo {
       private def prepareInsert(node: T): Prepare[T] = {
         assert(!ras.isGroupLeaf(node))
 
-        val childrenPrepares = ras.planModel.childrenOf(node).map(child => parent.prepareInsert(child))
+        val childrenPrepares =
+          ras.planModel.childrenOf(node).map(child => parent.prepareInsert(child))
 
         val canUnsafe = ras.withNewChildren(
           node,
           childrenPrepares.map {
-            childPrepare =>
-              parent.memoTable.groupOf(childPrepare.clusterKey(), ras.propertySetFactory().any()).self()
+            childPrepare => parent.dummyGroupOf(childPrepare.clusterKey()).self()
           })
 
         val cacheKey = parent.toCacheKeyUnsafe(canUnsafe)
@@ -210,9 +211,7 @@ object Memo {
         }
       }
 
-      private class ClusterPrepare[T <: AnyRef](
-          memo: RasMemo[T],
-          cKey: RasClusterKey)
+      private class ClusterPrepare[T <: AnyRef](memo: RasMemo[T], cKey: RasClusterKey)
         extends Prepare[T] {
         private val ras = memo.ras
         override def doInsert(node: T, constraintSet: PropertySet[T]): RasGroup[T] = {

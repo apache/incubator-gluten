@@ -80,9 +80,9 @@ class Ras[T <: AnyRef] private (
   }
 
   private val propSetFactory: PropertySetFactory[T] = PropertySetFactory(propertyModel, planModel)
-  // Normal groups start with ID 0, so it's safe to use -1 to do validation.
+  // Normal groups start with ID 0, so it's safe to use Int.MinValue to do validation.
   private val dummyGroup: T =
-    planModel.newGroupLeaf(-1, metadataModel.dummy(), propSetFactory.any())
+    planModel.newGroupLeaf(Int.MinValue, metadataModel.dummy(), propSetFactory.any())
   private val infCost: Cost = costModel.makeInfCost()
 
   validateModels()
