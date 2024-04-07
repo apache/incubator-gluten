@@ -56,7 +56,9 @@ abstract class PropertySuite extends AnyFunSuite {
     memo.openFor(leafGroup.clusterKey())
       .memorize(ras, TypedLeaf(TypeB, 1))
     memo.memorize(ras, PassNodeType(1, PassNodeType(1, PassNodeType(1, TypedLeaf(TypeB, 1)))))
-    assert(memo.newState().getGroupCount() == 11)
+    val state = memo.newState()
+    assert(state.allClusters().size == 4)
+    assert(state.getGroupCount() == 11)
   }
 
   test(s"Get property") {
