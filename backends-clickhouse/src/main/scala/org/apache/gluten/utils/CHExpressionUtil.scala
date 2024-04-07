@@ -188,6 +188,7 @@ object CHExpressionUtil {
     REGR_R2 -> DefaultValidator(),
     REGR_SLOPE -> DefaultValidator(),
     REGR_INTERCEPT -> DefaultValidator(),
+    REGR_SXY -> DefaultValidator(),
     TO_UTC_TIMESTAMP -> DefaultValidator(),
     FROM_UTC_TIMESTAMP -> DefaultValidator()
   )

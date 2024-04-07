@@ -45,6 +45,11 @@ object VeloxIntermediateData {
   // RegrSlope, RegrIntercept
   private val veloxRegrIntermediateDataOrder: Seq[Seq[String]] =
     Seq("ck", "n", "m2", "xAvg:avg", "yAvg").map(attr => attr.split(":").toSeq)
+  // RegrSXY
+  // Use "undefined" to represent variables in the accumulator that do not exist in Spark. These
+  // variables will not affect the final result and are considered redundant data.
+  private val veloxRegrSXYIntermediateDataOrder: Seq[Seq[String]] =
+    Seq("ck", "n", "undefined", "xAvg", "yAvg", "undefined").map(Seq(_))
 
   // Agg functions with inconsistent types of intermediate data between Velox and Spark.
   // StddevSamp, StddevPop, VarianceSamp, VariancePop
@@ -61,6 +66,9 @@ object VeloxIntermediateData {
   // RegrSlope, RegrIntercept
   private val veloxRegrIntermediateTypes: Seq[DataType] =
     Seq(DoubleType, LongType, DoubleType, DoubleType, DoubleType)
+  // RegrSXY
+  private val veloxRegrSXYIntermediateTypes: Seq[DataType] =
+    Seq(DoubleType, LongType, DoubleType, DoubleType, DoubleType, DoubleType)
 
   def getAttrIndex(intermediateDataOrder: Seq[Seq[String]], attr: String): Int =
     intermediateDataOrder.zipWithIndex
@@ -93,6 +101,8 @@ object VeloxIntermediateData {
           if aggFunc.getClass.getSimpleName.equals("RegrSlope") ||
             aggFunc.getClass.getSimpleName.equals("RegrIntercept") =>
         veloxRegrIntermediateDataOrder
+      case _ if aggFunc.getClass.getSimpleName.equals("RegrSXY") =>
+        veloxRegrSXYIntermediateDataOrder
       case _ =>
         aggFunc.aggBufferAttributes.map(_.name).map(Seq(_))
     }
@@ -168,6 +178,9 @@ object VeloxIntermediateData {
       aggFunc match {
         case _: PearsonCorrelation =>
           Some(veloxCorrIntermediateTypes)
+        case _ if aggFunc.getClass.getSimpleName.equals("RegrSXY") =>
+          // RegrSXY extends Covariance, it must be placed before Covariance.
+          Some(veloxRegrSXYIntermediateTypes)
         case _: Covariance =>
           Some(veloxCovarIntermediateTypes)
         case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
