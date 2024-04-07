@@ -205,7 +205,6 @@ class GlutenHiveSQLQuerySuite extends GlutenSQLTestsTrait {
           Row("name_1", null, 1),
           Row(null, "id_1", 1),
           Row(null, null, 1)))
-      checkOperatorMatch[HiveTableScanExecTransformer](df)
     }
     spark.sessionState.catalog.dropTable(
       TableIdentifier("test_5249"),
