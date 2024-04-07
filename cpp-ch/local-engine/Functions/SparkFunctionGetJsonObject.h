@@ -216,13 +216,11 @@ private:
     {
         const char * json_chars = json.data();
         const size_t json_size = json.size();
-        UInt8 NULL_CHAR = 0x0000;
-        UInt8 SPACE_CHAR = 0x0020;
         std::stack<char> tmp;
         size_t new_json_size = 0;
         for (size_t i = 0; i <= json_size; ++i)
         {
-            if ((*(json_chars + i) >= NULL_CHAR && *(json_chars + i) < SPACE_CHAR) || *(json_chars + i) == 0x7F)
+            if ((*(json_chars + i) >= 0x00 && *(json_chars + i) <= 0x1F) || *(json_chars + i) == 0x7F)
                 continue;
             else
             {
