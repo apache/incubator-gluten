@@ -18,7 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
 
-import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, SaveMode}
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
@@ -28,6 +28,7 @@ import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMerg
 import org.apache.commons.io.filefilter.WildcardFileFilter
 
 import java.io.File
+
 import scala.io.Source
 
 // Some sqls' line length exceeds 100
@@ -1739,43 +1740,40 @@ class GlutenClickHouseMergeTreeWriteSuite
   }
 
   test("test mergetree with primary keys filter pruning by driver") {
-    spark.sql(
-      s"""
-         |DROP TABLE IF EXISTS lineitem_mergetree_pk_pruning_by_driver;
-         |""".stripMargin)
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_pk_pruning_by_driver;
+                 |""".stripMargin)
 
-    spark.sql(
-      s"""
-         |CREATE TABLE IF NOT EXISTS lineitem_mergetree_pk_pruning_by_driver
-         |(
-         | l_orderkey      bigint,
-         | l_partkey       bigint,
-         | l_suppkey       bigint,
-         | l_linenumber    bigint,
-         | l_quantity      double,
-         | l_extendedprice double,
-         | l_discount      double,
-         | l_tax           double,
-         | l_returnflag    string,
-         | l_linestatus    string,
-         | l_shipdate      date,
-         | l_commitdate    date,
-         | l_receiptdate   date,
-         | l_shipinstruct  string,
-         | l_shipmode      string,
-         | l_comment       string
-         |)
-         |USING clickhouse
-         |TBLPROPERTIES (orderByKey='l_shipdate,l_orderkey',
-         |               primaryKey='l_shipdate')
-         |LOCATION '$basePath/lineitem_mergetree_pk_pruning_by_driver'
-         |""".stripMargin)
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_pk_pruning_by_driver
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |TBLPROPERTIES (orderByKey='l_shipdate,l_orderkey',
+                 |               primaryKey='l_shipdate')
+                 |LOCATION '$basePath/lineitem_mergetree_pk_pruning_by_driver'
+                 |""".stripMargin)
 
-    spark.sql(
-      s"""
-         | insert into table lineitem_mergetree_pk_pruning_by_driver
-         | select * from lineitem
-         |""".stripMargin)
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_pk_pruning_by_driver
+                 | select * from lineitem
+                 |""".stripMargin)
 
     val sqlStr =
       s"""

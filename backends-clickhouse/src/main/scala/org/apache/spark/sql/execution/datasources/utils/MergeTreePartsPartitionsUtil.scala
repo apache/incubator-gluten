@@ -189,6 +189,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
     val selectRanges: Seq[MergeTreePartRange] =
       getMergeTreePartRange(
         selectPartsFiles,
+        snapshotId,
         database,
         tableName,
         relativeTablePath,
@@ -198,7 +199,8 @@ object MergeTreePartsPartitionsUtil extends Logging {
         clickhouseTableConfigs,
         filterExprs,
         output,
-        sparkSession)
+        sparkSession
+      )
 
     if (selectRanges.isEmpty) {
       return
@@ -367,6 +369,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
 
   def getMergeTreePartRange(
       selectPartsFiles: Seq[AddMergeTreeParts],
+      snapshotId: String,
       database: String,
       tableName: String,
       relativeTablePath: String,
@@ -402,6 +405,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
           -1L,
           database,
           tableName,
+          snapshotId,
           relativeTablePath,
           absoluteTablePath,
           table.orderByKey(),

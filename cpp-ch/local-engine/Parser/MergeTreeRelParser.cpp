@@ -59,9 +59,7 @@ static Int64 findMinPosition(const NameSet & condition_table_columns, const Name
     return min_position;
 }
 
-CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(
-    const substrait::ReadRel::ExtensionTable & extension_table,
-    UUID uuid)
+MergeTreeTable MergeTreeRelParser::parseMergeTreeTable(const substrait::ReadRel::ExtensionTable & extension_table)
 {
     google::protobuf::StringValue table;
     table.ParseFromString(extension_table.detail().value());
@@ -424,7 +422,7 @@ String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_
 
     auto storage_factory = StorageMergeTreeFactory::instance();
     std::vector<DataPartPtr> selected_parts
-        = storage_factory.getDataParts(StorageID(merge_tree_table.database, merge_tree_table.table), merge_tree_table.getPartNames());
+        = storage_factory.getDataParts(StorageID(merge_tree_table.database, merge_tree_table.table), merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
 
     auto metadata = buildMetaData(input.getNamesAndTypesList(), context, merge_tree_table);
     auto storage_snapshot = std::make_shared<StorageSnapshot>(*custom_storage_mergetree, metadata);
