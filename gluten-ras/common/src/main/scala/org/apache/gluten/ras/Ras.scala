@@ -79,9 +79,10 @@ class Ras[T <: AnyRef] private (
       ruleFactory)
   }
 
+  private val propSetFactory: PropertySetFactory[T] = PropertySetFactory(propertyModel, planModel)
   // Normal groups start with ID 0, so it's safe to use -1 to do validation.
   private val dummyGroup: T =
-    planModel.newGroupLeaf(-1, metadataModel.dummy(), PropertySet(Seq.empty))
+    planModel.newGroupLeaf(-1, metadataModel.dummy(), propSetFactory.any())
   private val infCost: Cost = costModel.makeInfCost()
 
   validateModels()
@@ -122,8 +123,6 @@ class Ras[T <: AnyRef] private (
         }
     }
   }
-
-  private val propSetFactory: PropertySetFactory[T] = PropertySetFactory(this)
 
   override def newPlanner(
       plan: T,
@@ -192,16 +191,29 @@ object Ras {
   }
 
   trait PropertySetFactory[T <: AnyRef] {
+    def any(): PropertySet[T]
     def get(node: T): PropertySet[T]
     def childrenConstraintSets(constraintSet: PropertySet[T], node: T): Seq[PropertySet[T]]
   }
 
   private object PropertySetFactory {
-    def apply[T <: AnyRef](ras: Ras[T]): PropertySetFactory[T] = new PropertySetFactoryImpl[T](ras)
+    def apply[T <: AnyRef](
+        propertyModel: PropertyModel[T],
+        planModel: PlanModel[T]): PropertySetFactory[T] =
+      new PropertySetFactoryImpl[T](propertyModel, planModel)
 
-    private class PropertySetFactoryImpl[T <: AnyRef](val ras: Ras[T])
+    private class PropertySetFactoryImpl[T <: AnyRef](
+        propertyModel: PropertyModel[T],
+        planModel: PlanModel[T])
       extends PropertySetFactory[T] {
-      private val propDefs: Seq[PropertyDef[T, _ <: Property[T]]] = ras.propertyModel.propertyDefs
+      private val propDefs: Seq[PropertyDef[T, _ <: Property[T]]] = propertyModel.propertyDefs
+      private val anyConstraint = {
+        val m: Map[PropertyDef[T, _ <: Property[T]], Property[T]] =
+          propDefs.map(propDef => (propDef, propDef.any())).toMap
+        PropertySet[T](m)
+      }
+
+      override def any(): PropertySet[T] = anyConstraint
 
       override def get(node: T): PropertySet[T] = {
         val m: Map[PropertyDef[T, _ <: Property[T]], Property[T]] =
@@ -213,7 +225,7 @@ object Ras {
           constraintSet: PropertySet[T],
           node: T): Seq[PropertySet[T]] = {
         val builder: Seq[mutable.Map[PropertyDef[T, _ <: Property[T]], Property[T]]] =
-          ras.planModel
+          planModel
             .childrenOf(node)
             .map(_ => mutable.Map[PropertyDef[T, _ <: Property[T]], Property[T]]())
 

@@ -262,6 +262,8 @@ object DistributedSuite {
       case (d: Distribution, p: DNode) => p.getDistributionConstraints(d)
       case _ => throw new UnsupportedOperationException()
     }
+
+    override def any(): Distribution = AnyDistribution
   }
 
   trait Ordering extends Property[TestNode]
@@ -315,6 +317,8 @@ object DistributedSuite {
         case (o: Ordering, p: DNode) => p.getOrderingConstraints(o)
         case _ => throw new UnsupportedOperationException()
       }
+
+    override def any(): Ordering = AnyOrdering
   }
 
   private class EnforceDistribution(distribution: Distribution) extends RasRule[TestNode] {

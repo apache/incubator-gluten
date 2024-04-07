@@ -531,6 +531,7 @@ object PropertySuite {
   }
 
   object DummyPropertyDef extends PropertyDef[TestNode, DummyProperty] {
+    override def any(): DummyProperty = DummyProperty(Int.MinValue)
     override def getProperty(plan: TestNode): DummyProperty = {
       plan match {
         case Group(_, _, _) => throw new IllegalStateException()
@@ -669,6 +670,8 @@ object PropertySuite {
     }
 
     override def toString: String = "NodeTypeDef"
+
+    override def any(): NodeType = TypeAny
   }
 
   trait NodeType extends Property[TestNode] {

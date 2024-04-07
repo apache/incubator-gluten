@@ -53,6 +53,8 @@ object GlutenProperties {
         val conv = getProperty(plan)
         plan.children.map(_ => conv)
     }
+
+    override def any(): Convention = Conventions.ANY
   }
 
   case class ConventionEnforcerRule(reqConv: Convention) extends RasRule[SparkPlan] {
