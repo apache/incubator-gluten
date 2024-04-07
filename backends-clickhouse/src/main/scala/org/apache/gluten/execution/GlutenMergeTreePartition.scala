@@ -35,6 +35,7 @@ case class GlutenMergeTreePartition(
     engine: String,
     database: String,
     table: String,
+    snapshotId: String,
     relativeTablePath: String,
     absoluteTablePath: String,
     orderByKey: String,

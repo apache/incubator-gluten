@@ -19,7 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.utils.UTSystemParameters
 
-import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.internal.SQLConf
@@ -31,11 +31,6 @@ import java.sql.Date
 import scala.reflect.ClassTag
 
 class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerSuite {
-
-  protected lazy val sparkVersion: String = {
-    val version = SPARK_VERSION_SHORT.split("\\.")
-    version(0) + "." + version(1)
-  }
 
   protected val tablesPath: String = basePath + "/tpch-data"
   protected val tpchQueries: String =

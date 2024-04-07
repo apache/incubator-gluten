@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
@@ -32,7 +33,7 @@ import java.io.File
 // scalastyle:off line.size.limit
 
 class GlutenClickHouseMergeTreeWriteOnHDFSSuite
-  extends GlutenClickHouseMergeTreeWriteOnObjectStorageAbstractSuite
+  extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
 
   override protected val needCopyParquetToTablePath = true
@@ -41,6 +42,20 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "mergetree-queries-output"
 
+  override protected def createTPCHNotNullTables(): Unit = {
+    createNotNullTPCHTablesInParquet(tablesPath)
+  }
+
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+      .set("spark.io.compression.codec", "LZ4")
+      .set("spark.sql.shuffle.partitions", "5")
+      .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
+      .set("spark.sql.adaptive.enabled", "true")
+      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
+  }
+
   override protected def beforeEach(): Unit = {
     super.beforeEach()
     val conf = new Configuration
@@ -48,15 +63,12 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
     val fs = FileSystem.get(conf)
     fs.delete(new org.apache.hadoop.fs.Path(HDFS_URL), true)
     FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
-//    FileUtils.deleteDirectory(new File(HDFS_CACHE_PATH))
     FileUtils.forceMkdir(new File(HDFS_METADATA_PATH))
-//    FileUtils.forceMkdir(new File(HDFS_CACHE_PATH))
   }
 
   override protected def afterEach(): Unit = {
     super.afterEach()
     FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
-//    FileUtils.deleteDirectory(new File(HDFS_CACHE_PATH))
   }
 
   ignore("test mergetree table write") {

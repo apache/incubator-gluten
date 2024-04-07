@@ -382,7 +382,7 @@ class Snapshot(
 
   override def filesForScan(filters: Seq[Expression], keepNumRecords: Boolean): DeltaScan = {
     val deltaScan = ClickhouseSnapshot.deltaScanCache.get(
-      FilterExprsAsKey(path, version, filters, None),
+      FilterExprsAsKey(path, ClickhouseSnapshot.genSnapshotId(this), filters, None),
       () => {
         super.filesForScan(filters, keepNumRecords)
       })
@@ -392,7 +392,7 @@ class Snapshot(
 
   override def filesForScan(limit: Long): DeltaScan = {
     val deltaScan = ClickhouseSnapshot.deltaScanCache.get(
-      FilterExprsAsKey(path, version, Seq.empty, Some(limit)),
+      FilterExprsAsKey(path, ClickhouseSnapshot.genSnapshotId(this), Seq.empty, Some(limit)),
       () => {
         super.filesForScan(limit)
       })
@@ -402,7 +402,7 @@ class Snapshot(
 
   override def filesForScan(limit: Long, partitionFilters: Seq[Expression]): DeltaScan = {
     val deltaScan = ClickhouseSnapshot.deltaScanCache.get(
-      FilterExprsAsKey(path, version, partitionFilters, Some(limit)),
+      FilterExprsAsKey(path, ClickhouseSnapshot.genSnapshotId(this), partitionFilters, Some(limit)),
       () => {
         super.filesForScan(limit, partitionFilters)
       })
