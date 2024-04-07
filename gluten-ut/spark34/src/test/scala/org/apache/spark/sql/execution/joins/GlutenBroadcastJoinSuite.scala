@@ -72,6 +72,8 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
         .config("spark.unsafe.exceptionOnMemoryLeak", "true")
         .getOrCreate()
     }
+    // BroadcastJoinSuiteBase will create SparkContext instance in its beforeAll call,
+    // which cause Gluten's plugin will not be injected.
     super.beforeAll()
   }
 }
