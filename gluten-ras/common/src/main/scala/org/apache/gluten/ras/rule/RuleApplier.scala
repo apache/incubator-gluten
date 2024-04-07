@@ -19,7 +19,6 @@ package org.apache.gluten.ras.rule
 import org.apache.gluten.ras._
 import org.apache.gluten.ras.memo.Closure
 import org.apache.gluten.ras.path.RasPath
-import org.apache.gluten.ras.util.CanonicalNodeMap
 
 import scala.collection.mutable
 
@@ -42,7 +41,7 @@ object RuleApplier {
 
   private class RegularRuleApplier[T <: AnyRef](ras: Ras[T], closure: Closure[T], rule: RasRule[T])
     extends RuleApplier[T] {
-    private val cache = new CanonicalNodeMap[T, mutable.Set[T]](ras)
+    private val cache = mutable.Map[CanonicalNode[T], mutable.Set[T]]()
 
     override def apply(path: RasPath[T]): Unit = {
       val can = path.node().self().asCanonical()
@@ -73,7 +72,7 @@ object RuleApplier {
       closure: Closure[T],
       rule: EnforcerRule[T])
     extends RuleApplier[T] {
-    private val cache = new CanonicalNodeMap[T, mutable.Set[T]](ras)
+    private val cache = mutable.Map[CanonicalNode[T], mutable.Set[T]]()
     private val constraint = rule.constraint()
     private val constraintDef = constraint.definition()
 

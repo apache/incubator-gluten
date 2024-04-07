@@ -16,11 +16,12 @@
  */
 package org.apache.gluten.ras.memo
 
-import org.apache.gluten.ras._
 import org.apache.gluten.ras.RasCluster.ImmutableRasCluster
+import org.apache.gluten.ras._
 import org.apache.gluten.ras.property.PropertySet
-import org.apache.gluten.ras.util.CanonicalNodeMap
 import org.apache.gluten.ras.vis.GraphvizVisualizer
+
+import scala.collection.mutable
 
 trait MemoLike[T <: AnyRef] {
   def memorize(node: T, constraintSet: PropertySet[T]): RasGroup[T]
@@ -51,81 +52,84 @@ object Memo {
   private class RasMemo[T <: AnyRef](val ras: Ras[T]) extends UnsafeMemo[T] {
     import RasMemo._
     private val memoTable: MemoTable.Writable[T] = MemoTable.create(ras)
-    private val cache: NodeToClusterMap[T] = new NodeToClusterMap(ras)
+    private val cache = mutable.Map[MemoCacheKey[T], RasClusterKey]()
 
     private def newCluster(metadata: Metadata): RasClusterKey = {
       memoTable.newCluster(metadata)
     }
 
     private def addToCluster(clusterKey: RasClusterKey, can: CanonicalNode[T]): Unit = {
-      assert(!cache.contains(can))
-      cache.put(can, clusterKey)
       memoTable.addToCluster(clusterKey, can)
     }
 
-    // Replace node's children with node groups. When a group doesn't exist, create it.
-    private def canonizeUnsafe(node: T, constraintSet: PropertySet[T], depth: Int): T = {
-      assert(depth >= 1)
-      if (depth > 1) {
-        return ras.withNewChildren(
-          node,
-          ras.planModel
-            .childrenOf(node)
-            .zip(ras.propertySetFactory().childrenConstraintSets(constraintSet, node))
-            .map {
-              case (child, constraintSet) =>
-                canonizeUnsafe(child, constraintSet, depth - 1)
-            }
-        )
-      }
-      assert(depth == 1)
-      val childrenGroups: Seq[RasGroup[T]] = ras.planModel
+    private def toCacheKeyUnsafe(node: T): T = {
+      val childrenClusters: Seq[RasClusterKey] = ras.planModel
         .childrenOf(node)
-        .zip(ras.propertySetFactory().childrenConstraintSets(constraintSet, node))
-        .map {
-          case (child, childConstraintSet) =>
-            memorize(child, childConstraintSet)
-        }
+        .map(clusterOf)
+
       val newNode =
-        ras.withNewChildren(node, childrenGroups.map(group => group.self()))
+        ras.withNewChildren(
+          node,
+          childrenClusters.map(c => memoTable.groupOf(c, ras.propertySetFactory().any()).self()))
+
       newNode
     }
 
-    private def canonize(node: T, constraintSet: PropertySet[T]): CanonicalNode[T] = {
-      CanonicalNode(ras, canonizeUnsafe(node, constraintSet, 1))
+    private def toCacheKey(node: T): MemoCacheKey[T] = {
+      MemoCacheKey(ras, toCacheKeyUnsafe(node))
     }
 
-    private def insert(n: T, constraintSet: PropertySet[T]): RasClusterKey = {
+    private def clusterOf(n: T): RasClusterKey = {
       if (ras.planModel.isGroupLeaf(n)) {
         val plainGroup = memoTable.allGroups()(ras.planModel.getGroupId(n))
         return plainGroup.clusterKey()
       }
 
-      val node = canonize(n, constraintSet)
+      val memoCacheKey = toCacheKey(n)
 
-      if (cache.contains(node)) {
-        cache.get(node)
+      if (cache.contains(memoCacheKey)) {
+        cache(memoCacheKey)
       } else {
         // Node not yet added to cluster.
-        val meta = ras.metadataModel.metadataOf(node.self())
-        val clusterKey = newCluster(meta)
-        addToCluster(clusterKey, node)
-        clusterKey
+        val meta = ras.metadataModel.metadataOf(n)
+        newCluster(meta)
       }
     }
 
+    private def insertUnsafe(
+        node: T,
+        constraintSet: PropertySet[T]): RasGroup[T] = {
+
+      val childrenGroups: Seq[RasGroup[T]] = ras.planModel
+        .childrenOf(node)
+        .zip(ras.propertySetFactory().childrenConstraintSets(constraintSet, node))
+        .map {
+          case (child, childConstraintSet) =>
+            val childGroup = insertUnsafe(child, childConstraintSet)
+            childGroup
+        }
+
+      val nodeUnsafe = ras.withNewChildren(node, childrenGroups.map(group => group.self()))
+      val can = CanonicalNode(ras, nodeUnsafe)
+      val cKey = can.toMemoCacheKey(memoTable)
+
+      assert(cache.contains(cKey))
+      val cluster = cache(cKey)
+      addToCluster(cluster, can)
+
+      val group = memoTable.groupOf(cluster, constraintSet)
+      group
+    }
+
     override def memorize(node: T, constraintSet: PropertySet[T]): RasGroup[T] = {
-      val clusterKey = insert(node, constraintSet)
-      val prevGroupCount = memoTable.allGroups().size
-      val out = memoTable.groupOf(clusterKey, constraintSet)
-      val newGroupCount = memoTable.allGroups().size
-      assert(newGroupCount >= prevGroupCount)
-      out
+      clusterOf(node)
+      insertUnsafe(node, constraintSet)
     }
 
     override def openFor(node: CanonicalNode[T]): MemoLike[T] = {
-      assert(cache.contains(node))
-      val targetCluster = cache.get(node)
+      val cacheKey = node.toMemoCacheKey(memoTable)
+      assert(cache.contains(cacheKey))
+      val targetCluster = cache(cacheKey)
       new InCusterMemo[T](this, targetCluster)
     }
 
@@ -144,34 +148,60 @@ object Memo {
     private class InCusterMemo[T <: AnyRef](parent: RasMemo[T], preparedCluster: RasClusterKey)
       extends MemoLike[T] {
 
-      private def insert(node: T, constraintSet: PropertySet[T]): Unit = {
-        val can = parent.canonize(node, constraintSet)
-        if (parent.cache.contains(can)) {
-          val cachedCluster = parent.cache.get(can)
-          if (cachedCluster == preparedCluster) {
-            return
-          }
-          // The new node already memorized to memo, but in the different cluster
-          // with the input node. Merge the two clusters.
-          //
-          // TODO: Traversal up the tree to do more merges.
-          parent.memoTable.mergeClusters(cachedCluster, preparedCluster)
-          // Since new node already memorized, we don't have to add it to either of the clusters
-          // anymore.
+      private def prepare(node: T): Unit = {
+        val cacheKey = parent.toCacheKey(node)
+        if (!parent.cache.contains(cacheKey)) {
           return
         }
-        parent.addToCluster(preparedCluster, can)
+        val cachedCluster = parent.cache(cacheKey)
+        if (cachedCluster == preparedCluster) {
+          // The new node already memorized to memo and in the prepared cluster.
+          return
+        }
+        // The new node already memorized to memo, but in the different cluster.
+        // Merge the two clusters.
+        //
+        // TODO: Traverse up the tree to do more merges.
+        parent.memoTable.mergeClusters(cachedCluster, preparedCluster)
       }
 
       override def memorize(node: T, constraintSet: PropertySet[T]): RasGroup[T] = {
-        insert(node, constraintSet)
-        parent.memoTable.groupOf(preparedCluster, constraintSet)
+        prepare(node)
+        parent.insertUnsafe(node, constraintSet)
       }
     }
   }
 
-  private class NodeToClusterMap[T <: AnyRef](ras: Ras[T])
-    extends CanonicalNodeMap[T, RasClusterKey](ras)
+  private object MemoCacheKey {
+    def apply[T <: AnyRef](ras: Ras[T], self: T): MemoCacheKey[T] = {
+      assert(ras.isCanonical(self))
+      new MemoCacheKey[T](ras, self)
+    }
+  }
+
+  private class MemoCacheKey[T <: AnyRef] private (ras: Ras[T], val self: T) {
+    override def hashCode(): Int = ras.planModel.hashCode(self)
+    override def equals(other: Any): Boolean = {
+      other match {
+        case that: MemoCacheKey[T] => ras.planModel.equals(self, that.self)
+        case _ => false
+      }
+    }
+  }
+
+  implicit private class CanonicalNodeImplicits[T <: AnyRef](can: CanonicalNode[T]) {
+    def toMemoCacheKey(memoTable: MemoTable.Writable[T]): MemoCacheKey[T] = {
+      val ras = can.ras()
+      val withDummyChildren = ras.withNewChildren(
+        can.self(),
+        can
+          .getChildrenGroupIds()
+          .map(gid => memoTable.allGroups()(gid))
+          .map(g => memoTable.groupOf(g.clusterKey(), ras.propertySetFactory().any()).self())
+      )
+      MemoCacheKey(ras, withDummyChildren)
+    }
+  }
 }
 
 trait MemoStore[T <: AnyRef] {

@@ -41,6 +41,23 @@ object RasNode {
     def asGroup(): GroupNode[T] = {
       node.asInstanceOf[GroupNode[T]]
     }
+
+    def toUnsafeKey(): UnsafeKey[T] = UnsafeKey(node.ras(), node.self())
+  }
+
+  trait UnsafeKey[T]
+
+  private object UnsafeKey {
+    def apply[T <: AnyRef](ras: Ras[T], self: T): UnsafeKey[T] = new UnsafeKeyImpl(ras, self)
+    private class UnsafeKeyImpl[T <: AnyRef](ras: Ras[T], val self: T) extends UnsafeKey[T] {
+      override def hashCode(): Int = ras.planModel.hashCode(self)
+      override def equals(other: Any): Boolean = {
+        other match {
+          case that: UnsafeKeyImpl[T] => ras.planModel.equals(self, that.self)
+          case _ => false
+        }
+      }
+    }
   }
 }
 
@@ -53,7 +70,7 @@ object CanonicalNode {
     assert(ras.isCanonical(canonical))
     val propSet = ras.propSetsOf(canonical)
     val children = ras.planModel.childrenOf(canonical)
-    CanonicalNodeImpl[T](ras, canonical, propSet, children.size)
+    new CanonicalNodeImpl[T](ras, canonical, propSet, children.size)
   }
 
   // We put RasNode's API methods that accept mutable input in implicit definition.
@@ -74,12 +91,15 @@ object CanonicalNode {
     }
   }
 
-  private case class CanonicalNodeImpl[T <: AnyRef](
-      ras: Ras[T],
+  private class CanonicalNodeImpl[T <: AnyRef](
+      override val ras: Ras[T],
       override val self: T,
       override val propSet: PropertySet[T],
       override val childrenCount: Int)
-    extends CanonicalNode[T]
+    extends CanonicalNode[T] {
+    override def hashCode(): Int = throw new UnsupportedOperationException()
+    override def equals(obj: Any): Boolean = throw new UnsupportedOperationException()
+  }
 }
 
 trait GroupNode[T <: AnyRef] extends RasNode[T] {
@@ -88,15 +108,18 @@ trait GroupNode[T <: AnyRef] extends RasNode[T] {
 
 object GroupNode {
   def apply[T <: AnyRef](ras: Ras[T], group: RasGroup[T]): GroupNode[T] = {
-    GroupNodeImpl[T](ras, group.self(), group.propSet(), group.id())
+    new GroupNodeImpl[T](ras, group.self(), group.propSet(), group.id())
   }
 
-  private case class GroupNodeImpl[T <: AnyRef](
-      ras: Ras[T],
+  private class GroupNodeImpl[T <: AnyRef](
+      override val ras: Ras[T],
       override val self: T,
       override val propSet: PropertySet[T],
       override val groupId: Int)
-    extends GroupNode[T] {}
+    extends GroupNode[T] {
+    override def hashCode(): Int = throw new UnsupportedOperationException()
+    override def equals(obj: Any): Boolean = throw new UnsupportedOperationException()
+  }
 
   // We put RasNode's API methods that accept mutable input in implicit definition.
   // Do not break this rule during further development.
