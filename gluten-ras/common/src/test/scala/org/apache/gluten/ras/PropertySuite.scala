@@ -19,6 +19,7 @@ package org.apache.gluten.ras
 import org.apache.gluten.ras.Best.BestNotFoundException
 import org.apache.gluten.ras.RasConfig.PlannerType
 import org.apache.gluten.ras.RasSuiteBase._
+import org.apache.gluten.ras.memo.Memo
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 
@@ -36,6 +37,27 @@ abstract class PropertySuite extends AnyFunSuite {
   import PropertySuite._
 
   protected def conf: RasConfig
+
+  test("Group memo - cache") {
+    val ras =
+      Ras[TestNode](
+        PlanModelImpl,
+        CostModelImpl,
+        MetadataModelImpl,
+        NodeTypePropertyModelWithOutEnforcerRules,
+        ExplainImpl,
+        RasRule.Factory.none())
+        .withNewConfig(_ => conf)
+
+    val memo = Memo(ras)
+
+    memo.memorize(ras, PassNodeType(1, PassNodeType(1, PassNodeType(1, TypedLeaf(TypeA, 1)))))
+    val leafGroup = memo.memorize(ras, TypedLeaf(TypeA, 1))
+    memo.openFor(leafGroup.clusterKey())
+      .memorize(ras, TypedLeaf(TypeB, 1))
+    memo.memorize(ras, PassNodeType(1, PassNodeType(1, PassNodeType(1, TypedLeaf(TypeB, 1)))))
+    assert(memo.newState().getGroupCount() == 11)
+  }
 
   test(s"Get property") {
     val leaf = PLeaf(10, DummyProperty(0))
