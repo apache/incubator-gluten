@@ -147,7 +147,7 @@ class GlutenHiveSQLQuerySuite extends GlutenSQLTestsTrait {
       purge = false)
   }
 
-  testGluten("5128: Fix failed to parse post join filters") {
+  testGluten("5182: Fix failed to parse post join filters") {
     withSQLConf(
       "spark.sql.hive.convertMetastoreParquet" -> "false",
       "spark.gluten.sql.complexType.scan.fallback.enabled" -> "false") {
@@ -170,7 +170,7 @@ class GlutenHiveSQLQuerySuite extends GlutenSQLTestsTrait {
           "(select t_a.day, if(cast(substr(t_a.ts,1,10) as bigint) between " +
           "t_b.ss_start_time and t_b.ss_end_time, t_b.ss_id, 0) ss_id, " +
           "t_a.vgift_typeid, t_a.from_uid, vm_count money from " +
-          "(select from_uid,day,vgift_typeid,vm_count,ts from test_5128_0" +
+          "(select from_uid,day,vgift_typeid,vm_count,ts from test_5128_0 " +
           "where day between '2024-03-30' and '2024-03-31' and status=1 and vm_typeid=2) t_a " +
           "left join test_5128_1 t_b on t_a.vgift_typeid=t_b.typeid " +
           "where t_b.groupid in (1,2)) ee where ss_id=1;")
