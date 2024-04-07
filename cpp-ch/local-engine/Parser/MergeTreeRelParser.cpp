@@ -66,7 +66,7 @@ static Int64 findMinPosition(const NameSet & condition_table_columns, const Name
 
 CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(
     const substrait::ReadRel::ExtensionTable & extension_table,
-    ContextMutablePtr context,  UUID uuid)
+    ContextMutablePtr context, UUID uuid)
 {
     google::protobuf::StringValue table;
     table.ParseFromString(extension_table.detail().value());
@@ -82,6 +82,7 @@ CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(
 
     auto storage = storage_factory.getStorage(
         StorageID(merge_tree_table.database, merge_tree_table.table, uuid),
+        merge_tree_table.snapshot_id,
         metadata->getColumns(),
         [&]() -> CustomStorageMergeTreePtr
         {
@@ -129,6 +130,7 @@ MergeTreeRelParser::parseReadRel(
     StorageID table_id(merge_tree_table.database, merge_tree_table.table);
     auto storage = storage_factory.getStorage(
         table_id,
+        merge_tree_table.snapshot_id,
         metadata->getColumns(),
         [&]() -> CustomStorageMergeTreePtr
         {
@@ -161,8 +163,7 @@ MergeTreeRelParser::parseReadRel(
         query_info->prewhere_info = parsePreWhereInfo(rel.filter(), input);
     }
 
-    std::vector<DataPartPtr> selected_parts = storage_factory.getDataParts(table_id, merge_tree_table.getPartNames());
-
+    std::vector<DataPartPtr> selected_parts = storage_factory.getDataParts(table_id, merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
     auto ranges = merge_tree_table.extractRange(selected_parts);
     if (selected_parts.empty())
         throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "no data part found.");

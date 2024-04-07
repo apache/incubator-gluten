@@ -52,7 +52,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.gluten</groupId>
-      <artifactId>gluten-cbo-common</artifactId>
+      <artifactId>gluten-ras-common</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -225,7 +225,9 @@
           <junitxml>.</junitxml>
           <tagsToExclude>${tagsToExclude}</tagsToExclude>
           <systemProperties>
-            <velox.udf.lib.path>${cpp.build.dir}/velox/udf/examples/libmyudf.so</velox.udf.lib.path>
+            <velox.udf.lib.path>
+              ${cpp.build.dir}/velox/udf/examples/libmyudf.so,${cpp.build.dir}/velox/udf/examples/libmyudaf.so
+            </velox.udf.lib.path>
           </systemProperties>
         </configuration>
       </plugin>

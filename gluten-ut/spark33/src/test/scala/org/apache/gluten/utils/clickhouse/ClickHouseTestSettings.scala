@@ -321,6 +321,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-30793: truncate timestamps before the epoch to seconds and minutes")
     .excludeGlutenTest("unix_timestamp")
     .excludeGlutenTest("to_unix_timestamp")
+    .exclude("to_utc_timestamp with literal zone")
+    .exclude("to_utc_timestamp with column zone")
+    .exclude("from_utc_timestamp with literal zone")
+    .exclude("from_utc_timestamp with column zone")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].excludeGlutenTest(
     "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
@@ -400,7 +404,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-33907: bad json input with json pruning optimization: GetStructField")
     .exclude("SPARK-33907: json pruning optimization with corrupt record field")
     .exclude("SPARK-33907: bad json input with json pruning optimization: GetArrayStructFields")
-  enableSuite[GlutenMathFunctionsSuite].exclude("csc").exclude("sec")
+  enableSuite[GlutenMathFunctionsSuite]
   enableSuite[GlutenMetadataCacheSuite].exclude(
     "SPARK-16336,SPARK-27961 Suggest fixing FileNotFoundException")
   enableSuite[GlutenMiscFunctionsSuite]
@@ -839,9 +843,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-35871: Literal.create(value, dataType) should support fields")
     .exclude("SPARK-37967: Literal.create support ObjectType")
   enableSuite[GlutenMathExpressionsSuite]
-    .exclude("csc")
-    .exclude("sec")
-    .exclude("cot")
     .exclude("tanh")
     .exclude("ceil")
     .exclude("floor")
@@ -863,7 +864,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SparkPartitionID")
     .exclude("InputFileName")
   enableSuite[GlutenNullExpressionsSuite]
-    .exclude("nanvl")
     .exclude("AtLeastNNonNulls")
     .exclude("AtLeastNNonNulls should not throw 64KiB exception")
   enableSuite[GlutenPredicateSuite]
@@ -1230,12 +1230,17 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-37742: AQE reads invalid InMemoryRelation stats and mistakenly plans BHJ")
     .exclude("SPARK-37328: skew join with 3 tables")
     .exclude("SPARK-39915: Dataset.repartition(N) may not create N partitions")
-    .excludeGlutenTest("Change broadcast join to merge join")
-    .excludeGlutenTest("Change broadcast join to merge join")
+    .exclude("Change broadcast join to merge join")
+    .exclude("Avoid plan change if cost is greater")
+    .exclude("SPARK-37652: optimize skewed join through union")
+    .exclude("SPARK-35455: Unify empty relation optimization between normal and AQE optimizer " +
+      "- single join")
+    .exclude("SPARK-35455: Unify empty relation optimization between normal and AQE optimizer " +
+      "- multi join")
     .excludeGlutenTest("Empty stage coalesced to 1-partition RDD")
     .excludeGlutenTest(
       "Avoid changing merge join to broadcast join if too many empty partitions on build plan")
-    .excludeGlutenTest("SPARK-30524: Do not optimize skew join if introduce additional shuffle")
+    .exclude("SPARK-30524: Do not optimize skew join if introduce additional shuffle")
     .excludeGlutenTest("SPARK-33551: Do not use AQE shuffle read for repartition")
     .excludeGlutenTest("SPARK-35264: Support AQE side broadcastJoin threshold")
     .excludeGlutenTest("SPARK-35264: Support AQE side shuffled hash join formula")

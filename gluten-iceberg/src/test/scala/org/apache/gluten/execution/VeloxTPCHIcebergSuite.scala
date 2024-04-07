@@ -38,6 +38,7 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
+      .set("spark.executor.memory", "4g")
       .set(
         "spark.sql.extensions",
         "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
@@ -99,7 +100,9 @@ class VeloxPartitionedTableTPCHIcebergSuite extends VeloxTPCHIcebergSuite {
         val tablePath = new File(resourcePath, table.name).getAbsolutePath
         val tableDF = spark.read.format(fileFormat).load(tablePath)
 
-        tableDF.write
+        tableDF
+          .repartition(50)
+          .write
           .format("iceberg")
           .partitionBy(table.partitionColumns: _*)
           .option(SparkWriteOptions.FANOUT_ENABLED, "true")

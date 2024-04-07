@@ -130,6 +130,17 @@ trait SparkPlanExecApi {
       right: SparkPlan,
       isNullAwareAntiJoin: Boolean = false): BroadcastHashJoinExecTransformerBase
 
+  /** Generate ShuffledHashJoinExecTransformer. */
+  def genSortMergeJoinExecTransformer(
+      leftKeys: Seq[Expression],
+      rightKeys: Seq[Expression],
+      joinType: JoinType,
+      condition: Option[Expression],
+      left: SparkPlan,
+      right: SparkPlan,
+      isSkewJoin: Boolean = false,
+      projectList: Seq[NamedExpression] = null): SortMergeJoinExecTransformerBase
+
   /** Generate CartesianProductExecTransformer. */
   def genCartesianProductExecTransformer(
       left: SparkPlan,
@@ -194,7 +205,7 @@ trait SparkPlanExecApi {
       left: ExpressionTransformer,
       right: ExpressionTransformer,
       original: NaNvl): ExpressionTransformer = {
-    throw new GlutenNotSupportException("NaNvl is not supported")
+    GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
   }
 
   def genUuidTransformer(substraitExprName: String, original: Uuid): ExpressionTransformer = {

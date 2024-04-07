@@ -35,7 +35,7 @@ class SharedLibraryLoaderCentos8 extends SharedLibraryLoader {
       .loadAndCreateLink("libdouble-conversion.so.3", "libdouble-conversion.so", false)
       .loadAndCreateLink("libevent-2.1.so.6", "libevent-2.1.so", false)
       .loadAndCreateLink("libgflags.so.2.2", "libgflags.so", false)
-      .loadAndCreateLink("libglog.so.0", "libglog.so", false)
+      .loadAndCreateLink("libglog.so.1", "libglog.so", false)
       .loadAndCreateLink("libdwarf.so.1", "libdwarf.so", false)
       .loadAndCreateLink("libidn.so.11", "libidn.so", false)
       .loadAndCreateLink("libntlm.so.0", "libntlm.so", false)

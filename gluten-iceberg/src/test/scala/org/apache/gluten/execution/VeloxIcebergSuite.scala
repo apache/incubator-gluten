@@ -43,21 +43,6 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
       .set("spark.sql.catalog.spark_catalog.warehouse", s"file://$rootPath/tpch-data-iceberg-velox")
   }
 
-  private def isSparkVersionAtleast(version: String): Boolean = {
-    val currentVersion = spark.version
-    val currentVersionSplit = currentVersion.split("\\.")
-    val versionSplit = version.split("\\.")
-    currentVersionSplit.zip(versionSplit).foreach {
-      case (current, required) =>
-        if (current.toInt > required.toInt) {
-          return true
-        } else if (current.toInt < required.toInt) {
-          return false
-        }
-    }
-    true
-  }
-
   test("iceberg transformer exists") {
     withTable("iceberg_tb") {
       spark.sql("""
@@ -68,7 +53,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
       runQueryAndCompare("""
                            |select * from iceberg_tb;
                            |""".stripMargin) {
-        checkOperatorMatch[IcebergScanTransformer]
+        checkGlutenOperatorMatch[IcebergScanTransformer]
       }
     }
   }
@@ -401,7 +386,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
       runQueryAndCompare("""
                            |select * from iceberg_mor_tb;
                            |""".stripMargin) {
-        checkOperatorMatch[IcebergScanTransformer]
+        checkGlutenOperatorMatch[IcebergScanTransformer]
       }
     }
   }
@@ -471,7 +456,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
       runQueryAndCompare("""
                            |select * from iceberg_mor_tb;
                            |""".stripMargin) {
-        checkOperatorMatch[IcebergScanTransformer]
+        checkGlutenOperatorMatch[IcebergScanTransformer]
       }
     }
   }

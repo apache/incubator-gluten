@@ -22,7 +22,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.catalog.TableCatalog
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
-import org.apache.spark.sql.delta.{ColumnWithDefaultExprUtils, DeltaColumnMapping, DeltaErrors, DeltaLog, DeltaTableIdentifier, DeltaTimeTravelSpec, Snapshot}
+import org.apache.spark.sql.delta.{ClickhouseSnapshot, ColumnWithDefaultExprUtils, DeltaColumnMapping, DeltaErrors, DeltaLog, DeltaTableIdentifier, DeltaTimeTravelSpec, Snapshot}
 import org.apache.spark.sql.delta.actions.Metadata
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2.deltaLog2Table
 import org.apache.spark.sql.delta.files.TahoeLogFileIndex
@@ -275,6 +275,7 @@ class ClickHouseTableV2(
       meta,
       dataBaseName,
       tableName,
+      ClickhouseSnapshot.genSnapshotId(snapshot),
       orderByKeyOption,
       lowCardKeyOption,
       minmaxIndexKeyOption,
@@ -314,7 +315,8 @@ object ClickHouseTableV2 extends Logging {
     } else if (temporalThreadLocalCHTable.get() != null) {
       temporalThreadLocalCHTable.get()
     } else {
-      throw new IllegalStateException("Can not find ClickHouseTableV2")
+      throw new IllegalStateException(
+        s"Can not find ClickHouseTableV2 for deltalog ${deltaLog.dataPath}")
     }
   }
 

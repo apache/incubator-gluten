@@ -41,7 +41,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableGluten: Boolean = conf.getConf(GLUTEN_ENABLED)
 
-  def enableAdvancedCbo: Boolean = conf.getConf(ADVANCED_CBO_ENABLED)
+  def enableRas: Boolean = conf.getConf(RAS_ENABLED)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   def enableNativeValidation: Boolean = conf.getConf(NATIVE_VALIDATION_ENABLED)
@@ -253,6 +253,12 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxMaxSpillFileSize: Long = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_FILE_SIZE)
 
   def veloxSpillFileSystem: String = conf.getConf(COLUMNAR_VELOX_SPILL_FILE_SYSTEM)
+
+  def veloxMaxSpillRunRows: Long = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_RUN_ROWS)
+
+  def veloxMaxSpillBytes: Long = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_BYTES)
+
+  def veloxMaxWriteBufferSize: Long = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_WRITE_BUFFER_SIZE)
 
   def veloxBloomFilterExpectedNumItems: Long =
     conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS)
@@ -667,16 +673,12 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(GLUTEN_ENABLE_BY_DEFAULT)
 
-  val ADVANCED_CBO_ENABLED =
-    buildConf("spark.gluten.sql.advanced.cbo.enabled")
+  val RAS_ENABLED =
+    buildConf("spark.gluten.sql.ras.enabled")
       .doc(
-        "Experimental: Enables Gluten's advanced CBO features during physical planning. " +
-          "E.g, More efficient fallback strategy, etc. The option can be turned on and off " +
-          "individually despite vanilla Spark's CBO settings. Note, Gluten's query optimizer " +
-          "may still adopt a subset of its advanced CBO capabilities even this option " +
-          "is off. Enabling it would cause Gluten consider using CBO for optimization " +
-          "more aggressively. Note, this feature is still in development and may not bring " +
-          "performance profits.")
+        "Experimental: Enables RAS (relation algebra selector) during physical " +
+          "planning to generate more efficient query plan. Note, this feature is still in " +
+          "development and may not bring performance profits.")
       .booleanConf
       .createWithDefault(false)
 
@@ -1268,6 +1270,27 @@ object GlutenConfig {
       .stringConf
       .checkValues(Set("local", "heap-over-local"))
       .createWithDefaultString("local")
+
+  val COLUMNAR_VELOX_MAX_SPILL_RUN_ROWS =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxSpillRunRows")
+      .internal()
+      .doc("The maximum row size of a single spill run")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("12M")
+
+  val COLUMNAR_VELOX_MAX_SPILL_BYTES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxSpillBytes")
+      .internal()
+      .doc("The maximum file size of a query")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("100G")
+
+  val COLUMNAR_VELOX_MAX_SPILL_WRITE_BUFFER_SIZE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.spillWriteBufferSize")
+      .internal()
+      .doc("The maximum write buffer size")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("4M")
 
   val MAX_PARTITION_PER_WRITERS_SESSION =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxPartitionsPerWritersSession")

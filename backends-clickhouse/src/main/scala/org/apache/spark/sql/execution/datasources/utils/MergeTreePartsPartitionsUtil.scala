@@ -55,6 +55,9 @@ object MergeTreePartsPartitionsUtil extends Logging {
     }
     val fileIndex = relation.location.asInstanceOf[TahoeFileIndex]
 
+    // when querying, use deltaLog.update(true) to get the staleness acceptable snapshot
+    val snapshotId = ClickhouseSnapshot.genSnapshotId(table.deltaLog.update(true))
+
     val partitions = new ArrayBuffer[InputPartition]
     val (database, tableName) = if (table.catalogTable.isDefined) {
       (table.catalogTable.get.identifier.database.get, table.catalogTable.get.identifier.table)
@@ -97,6 +100,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
         engine,
         database,
         tableName,
+        snapshotId,
         relativeTablePath,
         absoluteTablePath,
         table.bucketOption.get,
@@ -119,6 +123,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
         engine,
         database,
         tableName,
+        snapshotId,
         relativeTablePath,
         absoluteTablePath,
         optionalBucketSet,
@@ -142,6 +147,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       engine: String,
       database: String,
       tableName: String,
+      snapshotId: String,
       relativeTablePath: String,
       absoluteTablePath: String,
       optionalBucketSet: Option[BitSet],
@@ -175,7 +181,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
                   "Can't find AddMergeTreeParts from cache pathToAddMTPCache for key: " +
                     path + ". This happens when too many new entries are added to " +
                     "pathToAddMTPCache during current query. " +
-                    "Try rerun current query. KeySample: " + keySample
+                    "Try rerun current query. Existing KeySample: " + keySample
                 )
               }
               ret
@@ -234,6 +240,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
           engine,
           database,
           tableName,
+          snapshotId,
           relativeTablePath,
           absoluteTablePath,
           orderByKey,
@@ -273,6 +280,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       engine: String,
       database: String,
       tableName: String,
+      snapshotId: String,
       relativeTablePath: String,
       absoluteTablePath: String,
       bucketSpec: BucketSpec,
@@ -307,7 +315,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
                   "Can't find AddMergeTreeParts from cache pathToAddMTPCache for key: " +
                     path + ". This happens when too many new entries are added to " +
                     "pathToAddMTPCache during current query. " +
-                    "Try rerun current query. KeySample: " + keySample)
+                    "Try rerun current query. Existing KeySample: " + keySample)
               }
               ret
             }))
@@ -344,6 +352,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
             engine,
             database,
             tableName,
+            snapshotId,
             relativeTablePath,
             absoluteTablePath,
             orderByKey,

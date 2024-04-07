@@ -29,6 +29,14 @@ class SubstraitToVeloxPlanValidator {
   SubstraitToVeloxPlanValidator(memory::MemoryPool* pool, core::ExecCtx* execCtx)
       : pool_(pool), execCtx_(execCtx), planConverter_(pool_, confMap_, std::nullopt, true) {}
 
+  /// Used to validate whether the computing of this Plan is supported.
+  bool validate(const ::substrait::Plan& plan);
+
+  const std::vector<std::string>& getValidateLog() const {
+    return validateLog_;
+  }
+
+ private:
   /// Used to validate whether the computing of this Write is supported.
   bool validate(const ::substrait::WriteRel& writeRel);
 
@@ -71,14 +79,6 @@ class SubstraitToVeloxPlanValidator {
   /// Used to validate whether the computing of this RelRoot is supported.
   bool validate(const ::substrait::RelRoot& relRoot);
 
-  /// Used to validate whether the computing of this Plan is supported.
-  bool validate(const ::substrait::Plan& plan);
-
-  const std::vector<std::string>& getValidateLog() const {
-    return validateLog_;
-  }
-
- private:
   /// A memory pool used for function validation.
   memory::MemoryPool* pool_;
 

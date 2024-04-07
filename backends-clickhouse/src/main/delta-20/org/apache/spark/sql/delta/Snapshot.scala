@@ -409,7 +409,7 @@ class Snapshot(
       filters: Seq[Expression],
       keepNumRecords: Boolean): DeltaScan = {
     val deltaScan = ClickhouseSnapshot.deltaScanCache.get(
-      FilterExprsAsKey(path, version, filters, None),
+      FilterExprsAsKey(path, ClickhouseSnapshot.genSnapshotId(this), filters, None),
       () => {
         super.filesForScan(projection, filters, keepNumRecords)
       })

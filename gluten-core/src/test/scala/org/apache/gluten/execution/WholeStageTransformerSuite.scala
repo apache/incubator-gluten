@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.utils.{Arm, FallbackUtil}
 
 import org.apache.spark.SparkConf
@@ -97,6 +98,21 @@ abstract class WholeStageTransformerSuite
       .set("spark.memory.offHeap.size", "1024MB")
       .set("spark.ui.enabled", "false")
       .set("spark.gluten.ui.enabled", "false")
+  }
+
+  protected def isSparkVersionAtleast(version: String): Boolean = {
+    val currentVersion = spark.version
+    val currentVersionSplit = currentVersion.split("\\.")
+    val versionSplit = version.split("\\.")
+    currentVersionSplit.zip(versionSplit).foreach {
+      case (current, required) =>
+        if (current.toInt > required.toInt) {
+          return true
+        } else if (current.toInt < required.toInt) {
+          return false
+        }
+    }
+    true
   }
 
   protected def checkFallbackOperators(df: DataFrame, num: Int): Unit = {
@@ -235,7 +251,7 @@ abstract class WholeStageTransformerSuite
    * @tparam T:
    *   type of the expected plan.
    */
-  def checkOperatorMatch[T <: TransformSupport](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
+  def checkGlutenOperatorMatch[T <: GlutenPlan](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
     val executedPlan = getExecutedPlan(df)
     assert(
       executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)),
@@ -244,7 +260,7 @@ abstract class WholeStageTransformerSuite
     )
   }
 
-  def checkFallbackOperatorMatch[T <: SparkPlan](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
+  def checkSparkOperatorMatch[T <: SparkPlan](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
     val executedPlan = getExecutedPlan(df)
     assert(executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)))
   }

@@ -60,6 +60,8 @@ object ExpressionMappings {
     Sig[IsNull](IS_NULL),
     Sig[Not](NOT),
     Sig[IsNaN](IS_NAN),
+    Sig[NaNvl](NANVL),
+
     // SparkSQL String functions
     Sig[Ascii](ASCII),
     Sig[Chr](CHR),
@@ -115,6 +117,7 @@ object ExpressionMappings {
     Sig[Sinh](SINH),
     Sig[Tan](TAN),
     Sig[Tanh](TANH),
+    Sig[Cot](COT),
     Sig[BitwiseNot](BITWISE_NOT),
     Sig[BitwiseAnd](BITWISE_AND),
     Sig[BitwiseOr](BITWISE_OR),
@@ -179,8 +182,11 @@ object ExpressionMappings {
     Sig[LastDay](LAST_DAY),
     Sig[MonthsBetween](MONTHS_BETWEEN),
     Sig[DateFromUnixDate](DATE_FROM_UNIX_DATE),
+    Sig[UnixDate](UNIX_DATE),
     Sig[MakeTimestamp](MAKE_TIMESTAMP),
     Sig[MakeYMInterval](MAKE_YM_INTERVAL),
+    Sig[ToUTCTimestamp](TO_UTC_TIMESTAMP),
+    Sig[FromUTCTimestamp](FROM_UTC_TIMESTAMP),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
@@ -220,6 +226,7 @@ object ExpressionMappings {
     Sig[GetArrayStructFields](GET_ARRAY_STRUCT_FIELDS),
     Sig[ArrayExcept](ARRAY_EXCEPT),
     Sig[ArrayRepeat](ARRAY_REPEAT),
+    Sig[ArrayRemove](ARRAY_REMOVE),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),

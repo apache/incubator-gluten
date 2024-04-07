@@ -318,14 +318,14 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
         |lateral view explode(set) as b
         |order by a, b
         |""".stripMargin
-    runQueryAndCompare(sql)(checkOperatorMatch[CHHashAggregateExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[CHHashAggregateExecTransformer])
   }
 
   test("test 'aggregate function collect_list'") {
     val df = runQueryAndCompare(
       "select l_orderkey,from_unixtime(l_orderkey, 'yyyy-MM-dd HH:mm:ss') " +
         "from lineitem order by l_orderkey desc limit 10"
-    )(checkOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df, 10)
   }
 

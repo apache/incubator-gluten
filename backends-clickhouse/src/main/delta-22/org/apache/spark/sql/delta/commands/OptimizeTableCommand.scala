@@ -126,6 +126,8 @@ case class OptimizeTableCommand(
   override val otherCopyArgs: Seq[AnyRef] = zOrderBy :: Nil
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
+    CommandUtils.ensureClickHouseTableV2(tableId, sparkSession)
+
     val deltaLog = getDeltaLogClickhouse(sparkSession, path, tableId, "OPTIMIZE", options)
 
     val txn = deltaLog.startTransaction()

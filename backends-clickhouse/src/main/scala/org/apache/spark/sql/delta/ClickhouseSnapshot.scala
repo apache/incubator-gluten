@@ -41,7 +41,7 @@ case class AddFileAsKey(addFile: AddFile) {
 
 case class FilterExprsAsKey(
     path: Path,
-    version: Long,
+    snapshotId: String,
     filters: Seq[Expression],
     limit: Option[Long]) {
 
@@ -64,14 +64,14 @@ case class FilterExprsAsKey(
       )
     })
   override def hashCode(): Int = {
-    Objects.hashCode(path, version.asInstanceOf[AnyRef], semanticFilters, limit)
+    Objects.hashCode(path, snapshotId, semanticFilters, limit)
   }
 
   override def equals(o: Any): Boolean = {
     o match {
       case that: FilterExprsAsKey =>
         that.path == this.path &&
-        that.version == this.version &&
+        that.snapshotId.equals(this.snapshotId) &&
         that.semanticFilters == this.semanticFilters &&
         that.limit == this.limit
       case _ => false
@@ -88,7 +88,7 @@ object ClickhouseSnapshot {
     .build()
 
   val addFileToAddMTPCache: LoadingCache[AddFileAsKey, AddMergeTreeParts] = CacheBuilder.newBuilder
-    .maximumSize(100000)
+    .maximumSize(1000000)
     .expireAfterAccess(3600L, TimeUnit.SECONDS)
     .recordStats
     .build[AddFileAsKey, AddMergeTreeParts](new CacheLoader[AddFileAsKey, AddMergeTreeParts]() {
@@ -99,7 +99,7 @@ object ClickhouseSnapshot {
     })
 
   val pathToAddMTPCache: Cache[String, AddMergeTreeParts] = CacheBuilder.newBuilder
-    .maximumSize(100000)
+    .maximumSize(1000000)
     .expireAfterAccess(3600L, TimeUnit.SECONDS)
     .recordStats()
     .build()
@@ -108,5 +108,16 @@ object ClickhouseSnapshot {
     addFileToAddMTPCache.invalidateAll()
     pathToAddMTPCache.invalidateAll()
     deltaScanCache.invalidateAll()
+  }
+
+  // use timestamp + version as the snapshot id for ch backend
+  def genSnapshotId(snapshot: Snapshot): String = {
+    // When CTAS, there is no latest timestamp in the Snapshot
+    val ts = if (snapshot.metadata.createdTime.isDefined) {
+      snapshot.metadata.createdTime.get
+    } else {
+      System.currentTimeMillis()
+    }
+    ts.toString + "_" + snapshot.version.toString
   }
 }

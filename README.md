@@ -112,7 +112,7 @@ Welcome to contribute to Gluten project! See [contributing guide](CONTRIBUTING.m
 
 ## 4.1 Community
 
-Glunten successfully joined Apache Incubator since March'24. We welcome developers and users who are interested in Gluten project. Here are several ways to contact us:
+Gluten successfully joined Apache Incubator since March'24. We welcome developers and users who are interested in Gluten project. Here are several ways to contact us:
 
 ### Gluten website
 https://gluten.apache.org/
@@ -122,7 +122,7 @@ For any technical discussion, please send email to [dev@gluten.apache.org](mailt
 Please click [here](mailto:dev-subscribe@gluten.apache.org) to subscribe.
 
 ### Wechat group
-We also have a Wechat group (in Chinese) which maybe more firendly for PRC developers/users. Due to the limitation of wechat group, please contat with weitingchen at apache.org or zhangzc at apache.org to be invited to the group. 
+We also have a Wechat group (in Chinese) which may be more friendly for PRC developers/users. Due to the limitation of wechat group, please contact with weitingchen at apache.org or zhangzc at apache.org to be invited to the group. 
 
 ### Slack channel
 There's also a Spark channel in Velox Slack group (in English) for community communication for Velox backend. Please check Velox document here: https://github.com/facebookincubator/velox?tab=readme-ov-file#community
@@ -160,6 +160,11 @@ binwei.yang@intel.com; weiting.chen@intel.com;
 chang.chen@kyligence.io; zhichao.zhang@kyligence.io; neng.liu@kyligence.io;
 zuochunwei@meituan.com;yangchuan.zy@alibaba-inc.com;xiyu.zk@alibaba-inc.com;joey.ljy@alibaba-inc.com
 
+# 8 Thanks to our contributors
+
+<a href="https://github.com/apache/incubator-gluten/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=apache/incubator-gluten" />
+</a>
 
 ##### \* LEGAL NOTICE: Your use of this software and any required dependent software (the "Software Package") is subject to the terms and conditions of the software license agreements for the Software Package, which may also include notices, disclaimers, or license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the "TPP.txt" or other similarly-named text file included with the Software Package for additional details.
 

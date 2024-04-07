@@ -20,6 +20,7 @@
 #include <re2/re2.h>
 #include <string>
 #include "TypeUtils.h"
+#include "udf/UdfLoader.h"
 #include "utils/Common.h"
 #include "velox/core/ExpressionEvaluator.h"
 #include "velox/exec/Aggregate.h"
@@ -95,12 +96,7 @@ bool SubstraitToVeloxPlanValidator::validateInputTypes(
   // Get the input types.
   const auto& sTypes = inputType.struct_().types();
   for (const auto& sType : sTypes) {
-    try {
-      types.emplace_back(SubstraitParser::parseType(sType));
-    } catch (const VeloxException& err) {
-      LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
-      return false;
-    }
+    types.emplace_back(SubstraitParser::parseType(sType));
   }
   return true;
 }
@@ -267,20 +263,24 @@ bool SubstraitToVeloxPlanValidator::validateCast(
   }
 
   const auto& toType = SubstraitParser::parseType(castExpr.type());
-  if (toType->kind() == TypeKind::TIMESTAMP || toType->isIntervalYearMonth()) {
+  core::TypedExprPtr input = exprConverter_->toVeloxExpr(castExpr.input(), inputType);
+
+  // Only support cast from date to timestamp
+  if (toType->kind() == TypeKind::TIMESTAMP && !input->type()->isDate()) {
+    LOG_VALIDATION_MSG(
+        "Casting from " + input->type()->toString() + " to " + toType->toString() + " is not supported.");
+    return false;
+  }
+
+  if (toType->isIntervalYearMonth()) {
     LOG_VALIDATION_MSG("Casting to " + toType->toString() + " is not supported.");
     return false;
   }
 
-  core::TypedExprPtr input = exprConverter_->toVeloxExpr(castExpr.input(), inputType);
-
-  // Casting from some types is not supported. See CastExpr::applyCast.
+  // Casting from some types is not supported. See CastExpr::applyPeeled.
   if (input->type()->isDate()) {
-    if (toType->kind() == TypeKind::TIMESTAMP) {
-      LOG_VALIDATION_MSG("Casting from DATE to TIMESTAMP is not supported.");
-      return false;
-    }
-    if (toType->kind() != TypeKind::VARCHAR) {
+    // Only support cast date to varchar & timestamp
+    if (toType->kind() != TypeKind::VARCHAR && toType->kind() != TypeKind::TIMESTAMP) {
       LOG_VALIDATION_MSG("Casting from DATE to " + toType->toString() + " is not supported.");
       return false;
     }
@@ -469,7 +469,6 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::GenerateRel& gen
     names.emplace_back(SubstraitParser::makeNodeName(inputPlanNodeId, colIdx));
   }
   auto rowType = std::make_shared<RowType>(std::move(names), std::move(types));
-
   if (generateRel.has_generator() && !validateExpression(generateRel.generator(), rowType)) {
     LOG_VALIDATION_MSG("Input validation fails in GenerateRel.");
     return false;
@@ -515,31 +514,25 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ExpandRel& expan
         return false;
       }
 
-      try {
-        for (const auto& projectExpr : projectExprs) {
-          const auto& typeCase = projectExpr.rex_type_case();
-          switch (typeCase) {
-            case ::substrait::Expression::RexTypeCase::kSelection:
-            case ::substrait::Expression::RexTypeCase::kLiteral:
-              break;
-            default:
-              LOG_VALIDATION_MSG("Only field or literal is supported in project of ExpandRel.");
-              return false;
-          }
-          if (rowType) {
-            expressions.emplace_back(exprConverter_->toVeloxExpr(projectExpr, rowType));
-          }
+      for (const auto& projectExpr : projectExprs) {
+        const auto& typeCase = projectExpr.rex_type_case();
+        switch (typeCase) {
+          case ::substrait::Expression::RexTypeCase::kSelection:
+          case ::substrait::Expression::RexTypeCase::kLiteral:
+            break;
+          default:
+            LOG_VALIDATION_MSG("Only field or literal is supported in project of ExpandRel.");
+            return false;
         }
-
         if (rowType) {
-          // Try to compile the expressions. If there is any unregistered
-          // function or mismatched type, exception will be thrown.
-          exec::ExprSet exprSet(std::move(expressions), execCtx_);
+          expressions.emplace_back(exprConverter_->toVeloxExpr(projectExpr, rowType));
         }
+      }
 
-      } catch (const VeloxException& err) {
-        LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
-        return false;
+      if (rowType) {
+        // Try to compile the expressions. If there is any unregistered
+        // function or mismatched type, exception will be thrown.
+        exec::ExprSet exprSet(std::move(expressions), execCtx_);
       }
     } else {
       LOG_VALIDATION_MSG("Only SwitchingField is supported in ExpandRel.");
@@ -594,43 +587,38 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
   std::vector<std::string> funcSpecs;
   funcSpecs.reserve(windowRel.measures().size());
   for (const auto& smea : windowRel.measures()) {
-    try {
-      const auto& windowFunction = smea.measure();
-      funcSpecs.emplace_back(planConverter_.findFuncSpec(windowFunction.function_reference()));
-      SubstraitParser::parseType(windowFunction.output_type());
-      for (const auto& arg : windowFunction.arguments()) {
-        auto typeCase = arg.value().rex_type_case();
-        switch (typeCase) {
-          case ::substrait::Expression::RexTypeCase::kSelection:
-          case ::substrait::Expression::RexTypeCase::kLiteral:
-            break;
-          default:
-            LOG_VALIDATION_MSG("Only field or constant is supported in window functions.");
-            return false;
-        }
-      }
-      // Validate BoundType and Frame Type
-      switch (windowFunction.window_type()) {
-        case ::substrait::WindowType::ROWS:
-        case ::substrait::WindowType::RANGE:
+    const auto& windowFunction = smea.measure();
+    funcSpecs.emplace_back(planConverter_.findFuncSpec(windowFunction.function_reference()));
+    SubstraitParser::parseType(windowFunction.output_type());
+    for (const auto& arg : windowFunction.arguments()) {
+      auto typeCase = arg.value().rex_type_case();
+      switch (typeCase) {
+        case ::substrait::Expression::RexTypeCase::kSelection:
+        case ::substrait::Expression::RexTypeCase::kLiteral:
           break;
         default:
-          LOG_VALIDATION_MSG(
-              "the window type only support ROWS and RANGE, and the input type is " +
-              std::to_string(windowFunction.window_type()));
+          LOG_VALIDATION_MSG("Only field or constant is supported in window functions.");
           return false;
       }
-
-      bool boundTypeSupported =
-          validateBoundType(windowFunction.upper_bound()) && validateBoundType(windowFunction.lower_bound());
-      if (!boundTypeSupported) {
+    }
+    // Validate BoundType and Frame Type
+    switch (windowFunction.window_type()) {
+      case ::substrait::WindowType::ROWS:
+      case ::substrait::WindowType::RANGE:
+        break;
+      default:
         LOG_VALIDATION_MSG(
-            "Found unsupported Bound Type: upper " + std::to_string(windowFunction.upper_bound().kind_case()) +
-            ", lower " + std::to_string(windowFunction.lower_bound().kind_case()));
+            "the window type only support ROWS and RANGE, and the input type is " +
+            std::to_string(windowFunction.window_type()));
         return false;
-      }
-    } catch (const VeloxException& err) {
-      LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
+    }
+
+    bool boundTypeSupported =
+        validateBoundType(windowFunction.upper_bound()) && validateBoundType(windowFunction.lower_bound());
+    if (!boundTypeSupported) {
+      LOG_VALIDATION_MSG(
+          "Found unsupported Bound Type: upper " + std::to_string(windowFunction.upper_bound().kind_case()) +
+          ", lower " + std::to_string(windowFunction.lower_bound().kind_case()));
       return false;
     }
   }
@@ -649,24 +637,19 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
   const auto& groupByExprs = windowRel.partition_expressions();
   std::vector<core::TypedExprPtr> expressions;
   expressions.reserve(groupByExprs.size());
-  try {
-    for (const auto& expr : groupByExprs) {
-      auto expression = exprConverter_->toVeloxExpr(expr, rowType);
-      auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
-      if (exprField == nullptr) {
-        LOG_VALIDATION_MSG("Only field is supported for partition key in Window Operator!");
-        return false;
-      } else {
-        expressions.emplace_back(expression);
-      }
+  for (const auto& expr : groupByExprs) {
+    auto expression = exprConverter_->toVeloxExpr(expr, rowType);
+    auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
+    if (exprField == nullptr) {
+      LOG_VALIDATION_MSG("Only field is supported for partition key in Window Operator!");
+      return false;
+    } else {
+      expressions.emplace_back(expression);
     }
-    // Try to compile the expressions. If there is any unregistred funciton or
-    // mismatched type, exception will be thrown.
-    exec::ExprSet exprSet(std::move(expressions), execCtx_);
-  } catch (const VeloxException& err) {
-    LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
-    return false;
   }
+  // Try to compile the expressions. If there is any unregistred funciton or
+  // mismatched type, exception will be thrown.
+  exec::ExprSet exprSet(std::move(expressions), execCtx_);
 
   // Validate Sort expression
   const auto& sorts = windowRel.sorts();
@@ -683,18 +666,13 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
     }
 
     if (sort.has_expr()) {
-      try {
-        auto expression = exprConverter_->toVeloxExpr(sort.expr(), rowType);
-        auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
-        if (!exprField) {
-          LOG_VALIDATION_MSG("in windowRel, the sorting key in Sort Operator only support field.");
-          return false;
-        }
-        exec::ExprSet exprSet({std::move(expression)}, execCtx_);
-      } catch (const VeloxException& err) {
-        LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
+      auto expression = exprConverter_->toVeloxExpr(sort.expr(), rowType);
+      auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
+      if (!exprField) {
+        LOG_VALIDATION_MSG("in windowRel, the sorting key in Sort Operator only support field.");
         return false;
       }
+      exec::ExprSet exprSet({std::move(expression)}, execCtx_);
     }
   }
 
@@ -741,18 +719,13 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::SortRel& sortRel
     }
 
     if (sort.has_expr()) {
-      try {
-        auto expression = exprConverter_->toVeloxExpr(sort.expr(), rowType);
-        auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
-        if (!exprField) {
-          LOG_VALIDATION_MSG("in SortRel, the sorting key in Sort Operator only support field.");
-          return false;
-        }
-        exec::ExprSet exprSet({std::move(expression)}, execCtx_);
-      } catch (const VeloxException& err) {
-        LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
+      auto expression = exprConverter_->toVeloxExpr(sort.expr(), rowType);
+      auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
+      if (!exprField) {
+        LOG_VALIDATION_MSG("in SortRel, the sorting key in Sort Operator only support field.");
         return false;
       }
+      exec::ExprSet exprSet({std::move(expression)}, execCtx_);
     }
   }
 
@@ -790,20 +763,15 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ProjectRel& proj
   const auto& projectExprs = projectRel.expressions();
   std::vector<core::TypedExprPtr> expressions;
   expressions.reserve(projectExprs.size());
-  try {
-    for (const auto& expr : projectExprs) {
-      if (!validateExpression(expr, rowType)) {
-        return false;
-      }
-      expressions.emplace_back(exprConverter_->toVeloxExpr(expr, rowType));
+  for (const auto& expr : projectExprs) {
+    if (!validateExpression(expr, rowType)) {
+      return false;
     }
-    // Try to compile the expressions. If there is any unregistered function or
-    // mismatched type, exception will be thrown.
-    exec::ExprSet exprSet(std::move(expressions), execCtx_);
-  } catch (const VeloxException& err) {
-    LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
-    return false;
+    expressions.emplace_back(exprConverter_->toVeloxExpr(expr, rowType));
   }
+  // Try to compile the expressions. If there is any unregistered function or
+  // mismatched type, exception will be thrown.
+  exec::ExprSet exprSet(std::move(expressions), execCtx_);
   return true;
 }
 
@@ -835,18 +803,13 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FilterRel& filte
   auto rowType = std::make_shared<RowType>(std::move(names), std::move(types));
 
   std::vector<core::TypedExprPtr> expressions;
-  try {
-    if (!validateExpression(filterRel.condition(), rowType)) {
-      return false;
-    }
-    expressions.emplace_back(exprConverter_->toVeloxExpr(filterRel.condition(), rowType));
-    // Try to compile the expressions. If there is any unregistered function
-    // or mismatched type, exception will be thrown.
-    exec::ExprSet exprSet(std::move(expressions), execCtx_);
-  } catch (const VeloxException& err) {
-    LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
+  if (!validateExpression(filterRel.condition(), rowType)) {
     return false;
   }
+  expressions.emplace_back(exprConverter_->toVeloxExpr(filterRel.condition(), rowType));
+  // Try to compile the expressions. If there is any unregistered function
+  // or mismatched type, exception will be thrown.
+  exec::ExprSet exprSet(std::move(expressions), execCtx_);
   return true;
 }
 
@@ -909,22 +872,12 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
 
   if (joinRel.has_expression()) {
     std::vector<const ::substrait::Expression::FieldReference*> leftExprs, rightExprs;
-    try {
-      planConverter_.extractJoinKeys(joinRel.expression(), leftExprs, rightExprs);
-    } catch (const VeloxException& err) {
-      LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
-      return false;
-    }
+    planConverter_.extractJoinKeys(joinRel.expression(), leftExprs, rightExprs);
   }
 
   if (joinRel.has_post_join_filter()) {
-    try {
-      auto expression = exprConverter_->toVeloxExpr(joinRel.post_join_filter(), rowType);
-      exec::ExprSet exprSet({std::move(expression)}, execCtx_);
-    } catch (const VeloxException& err) {
-      LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
-      return false;
-    }
+    auto expression = exprConverter_->toVeloxExpr(joinRel.post_join_filter(), rowType);
+    exec::ExprSet exprSet({std::move(expression)}, execCtx_);
   }
   return true;
 }
@@ -971,13 +924,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossR
   auto rowType = std::make_shared<RowType>(std::move(names), std::move(types));
 
   if (crossRel.has_expression()) {
-    try {
-      auto expression = exprConverter_->toVeloxExpr(crossRel.expression(), rowType);
-      exec::ExprSet exprSet({std::move(expression)}, execCtx_);
-    } catch (const VeloxException& err) {
-      logValidateMsg("Native validation failed due to: crossRel expression validation fails, " + err.message());
-      return false;
-    }
+    auto expression = exprConverter_->toVeloxExpr(crossRel.expression(), rowType);
+    exec::ExprSet exprSet({std::move(expression)}, execCtx_);
   }
 
   return true;
@@ -994,16 +942,11 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
     auto funcSpec = planConverter_.findFuncSpec(aggFunction.function_reference());
     std::vector<TypePtr> types;
     bool isDecimal = false;
-    try {
-      types = SubstraitParser::sigToTypes(funcSpec);
-      for (const auto& type : types) {
-        if (!isDecimal && type->isDecimal()) {
-          isDecimal = true;
-        }
+    types = SubstraitParser::sigToTypes(funcSpec);
+    for (const auto& type : types) {
+      if (!isDecimal && type->isDecimal()) {
+        isDecimal = true;
       }
-    } catch (const VeloxException& err) {
-      LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
-      return false;
     }
     auto baseFuncName =
         SubstraitParser::mapToVeloxFunction(SubstraitParser::getNameBeforeDelimiter(funcSpec), isDecimal);
@@ -1072,47 +1015,42 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
   std::vector<std::string> funcSpecs;
   funcSpecs.reserve(aggRel.measures().size());
   for (const auto& smea : aggRel.measures()) {
-    try {
-      // Validate the filter expression
-      if (smea.has_filter()) {
-        ::substrait::Expression aggRelMask = smea.filter();
-        if (aggRelMask.ByteSizeLong() > 0) {
-          auto typeCase = aggRelMask.rex_type_case();
-          switch (typeCase) {
-            case ::substrait::Expression::RexTypeCase::kSelection:
-              break;
-            default:
-              LOG_VALIDATION_MSG("Only field is supported in aggregate filter expression.");
-              return false;
-          }
-        }
-      }
-
-      const auto& aggFunction = smea.measure();
-      const auto& functionSpec = planConverter_.findFuncSpec(aggFunction.function_reference());
-      funcSpecs.emplace_back(functionSpec);
-      SubstraitParser::parseType(aggFunction.output_type());
-      // Validate the size of arguments.
-      if (SubstraitParser::getNameBeforeDelimiter(functionSpec) == "count" && aggFunction.arguments().size() > 1) {
-        LOG_VALIDATION_MSG("Count should have only one argument.");
-        // Count accepts only one argument.
-        return false;
-      }
-
-      for (const auto& arg : aggFunction.arguments()) {
-        auto typeCase = arg.value().rex_type_case();
+    // Validate the filter expression
+    if (smea.has_filter()) {
+      ::substrait::Expression aggRelMask = smea.filter();
+      if (aggRelMask.ByteSizeLong() > 0) {
+        auto typeCase = aggRelMask.rex_type_case();
         switch (typeCase) {
           case ::substrait::Expression::RexTypeCase::kSelection:
-          case ::substrait::Expression::RexTypeCase::kLiteral:
             break;
           default:
-            LOG_VALIDATION_MSG("Only field is supported in aggregate functions.");
+            LOG_VALIDATION_MSG("Only field is supported in aggregate filter expression.");
             return false;
         }
       }
-    } catch (const VeloxException& err) {
-      LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
+    }
+
+    const auto& aggFunction = smea.measure();
+    const auto& functionSpec = planConverter_.findFuncSpec(aggFunction.function_reference());
+    funcSpecs.emplace_back(functionSpec);
+    SubstraitParser::parseType(aggFunction.output_type());
+    // Validate the size of arguments.
+    if (SubstraitParser::getNameBeforeDelimiter(functionSpec) == "count" && aggFunction.arguments().size() > 1) {
+      LOG_VALIDATION_MSG("Count should have only one argument.");
+      // Count accepts only one argument.
       return false;
+    }
+
+    for (const auto& arg : aggFunction.arguments()) {
+      auto typeCase = arg.value().rex_type_case();
+      switch (typeCase) {
+        case ::substrait::Expression::RexTypeCase::kSelection:
+        case ::substrait::Expression::RexTypeCase::kLiteral:
+          break;
+        default:
+          LOG_VALIDATION_MSG("Only field is supported in aggregate functions.");
+          return false;
+      }
     }
   }
 
@@ -1141,15 +1079,21 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
       "last",
       "last_ignore_null",
       "corr",
+      "regr_r2",
       "covar_pop",
       "covar_samp",
       "approx_distinct",
       "skewness",
-      "kurtosis"};
+      "kurtosis",
+      "regr_slope",
+      "regr_intercept",
+      "regr_sxy"};
+
+  auto udfFuncs = UdfLoader::getInstance()->getRegisteredUdafNames();
 
   for (const auto& funcSpec : funcSpecs) {
     auto funcName = SubstraitParser::getNameBeforeDelimiter(funcSpec);
-    if (supportedAggFuncs.find(funcName) == supportedAggFuncs.end()) {
+    if (supportedAggFuncs.find(funcName) == supportedAggFuncs.end() && udfFuncs.find(funcName) == udfFuncs.end()) {
       LOG_VALIDATION_MSG(funcName + " was not supported in AggregateRel.");
       return false;
     }
@@ -1178,12 +1122,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
 }
 
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ReadRel& readRel) {
-  try {
-    planConverter_.toVeloxPlan(readRel);
-  } catch (const VeloxException& err) {
-    LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
-    return false;
-  }
+  planConverter_.toVeloxPlan(readRel);
 
   // Validate filter in ReadRel.
   if (readRel.has_filter()) {
@@ -1202,18 +1141,13 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ReadRel& readRel
 
     auto rowType = std::make_shared<RowType>(std::move(names), std::move(veloxTypeList));
     std::vector<core::TypedExprPtr> expressions;
-    try {
-      if (!validateExpression(readRel.filter(), rowType)) {
-        return false;
-      }
-      expressions.emplace_back(exprConverter_->toVeloxExpr(readRel.filter(), rowType));
-      // Try to compile the expressions. If there is any unregistered function
-      // or mismatched type, exception will be thrown.
-      exec::ExprSet exprSet(std::move(expressions), execCtx_);
-    } catch (const VeloxException& err) {
-      LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
+    if (!validateExpression(readRel.filter(), rowType)) {
       return false;
     }
+    expressions.emplace_back(exprConverter_->toVeloxExpr(readRel.filter(), rowType));
+    // Try to compile the expressions. If there is any unregistered function
+    // or mismatched type, exception will be thrown.
+    exec::ExprSet exprSet(std::move(expressions), execCtx_);
   }
 
   return true;
@@ -1258,19 +1192,24 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::RelRoot& relRoot
 }
 
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Plan& plan) {
-  // Create plan converter and expression converter to help the validation.
-  planConverter_.constructFunctionMap(plan);
-  exprConverter_ = planConverter_.getExprConverter();
+  try {
+    // Create plan converter and expression converter to help the validation.
+    planConverter_.constructFunctionMap(plan);
+    exprConverter_ = planConverter_.getExprConverter();
 
-  for (const auto& rel : plan.relations()) {
-    if (rel.has_root()) {
-      return validate(rel.root());
-    } else if (rel.has_rel()) {
-      return validate(rel.rel());
+    for (const auto& rel : plan.relations()) {
+      if (rel.has_root()) {
+        return validate(rel.root());
+      } else if (rel.has_rel()) {
+        return validate(rel.rel());
+      }
     }
-  }
 
-  return false;
+    return false;
+  } catch (const VeloxException& err) {
+    LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
+    return false;
+  }
 }
 
 } // namespace gluten

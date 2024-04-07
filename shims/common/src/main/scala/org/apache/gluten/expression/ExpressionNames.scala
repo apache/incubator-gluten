@@ -38,6 +38,7 @@ object ExpressionNames {
   final val BIT_OR_AGG = "bit_or"
   final val BIT_XOR_AGG = "bit_xor"
   final val CORR = "corr"
+  final val REGR_R2 = "regr_r2"
   final val COVAR_POP = "covar_pop"
   final val COVAR_SAMP = "covar_samp"
   final val LAST = "last"
@@ -48,6 +49,9 @@ object ExpressionNames {
   final val APPROX_PERCENTILE = "approx_percentile"
   final val SKEWNESS = "skewness"
   final val KURTOSIS = "kurtosis"
+  final val REGR_SLOPE = "regr_slope"
+  final val REGR_INTERCEPT = "regr_intercept"
+  final val REGR_SXY = "regr_sxy"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -139,6 +143,7 @@ object ExpressionNames {
   final val SINH = "sinh"
   final val TAN = "tan"
   final val TANH = "tanh"
+  final val COT = "cot"
   final val BITWISE_NOT = "bitwise_not"
   final val BITWISE_AND = "bitwise_and"
   final val BITWISE_OR = "bitwise_or"
@@ -195,8 +200,11 @@ object ExpressionNames {
   final val LAST_DAY = "last_day"
   final val MONTHS_BETWEEN = "months_between"
   final val DATE_FROM_UNIX_DATE = "date_from_unix_date"
+  final val UNIX_DATE = "unix_date"
   final val MAKE_TIMESTAMP = "make_timestamp"
   final val MAKE_YM_INTERVAL = "make_ym_interval"
+  final val TO_UTC_TIMESTAMP = "to_utc_timestamp"
+  final val FROM_UTC_TIMESTAMP = "from_utc_timestamp"
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
@@ -233,6 +241,7 @@ object ExpressionNames {
   final val GET_ARRAY_STRUCT_FIELDS = "get_array_struct_fields"
   final val ARRAY_EXCEPT = "array_except"
   final val ARRAY_REPEAT = "array_repeat"
+  final val ARRAY_REMOVE = "array_remove"
 
   // Map functions
   final val CREATE_MAP = "map"

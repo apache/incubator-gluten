@@ -19,10 +19,8 @@ package org.apache.gluten.execution
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.utils.UTSystemParameters
 
-import org.apache.spark.SPARK_VERSION_SHORT
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
@@ -89,11 +87,6 @@ class GlutenClickHouseHiveTableSuite
 
   private var _hiveSpark: SparkSession = _
 
-  protected lazy val sparkVersion: String = {
-    val version = SPARK_VERSION_SHORT.split("\\.")
-    version(0) + "." + version(1)
-  }
-
   override protected def sparkConf: SparkConf = {
     new SparkConf()
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
@@ -115,7 +108,7 @@ class GlutenClickHouseHiveTableSuite
       .set("spark.gluten.sql.parquet.maxmin.index", "true")
       .set(
         "spark.sql.warehouse.dir",
-        getClass.getResource("/").getPath + "unit-tests-working-home/spark-warehouse")
+        getClass.getResource("/").getPath + "tests-working-home/spark-warehouse")
       .set("spark.hive.exec.dynamic.partition.mode", "nonstrict")
       .set("spark.gluten.supported.hive.udfs", "my_add")
       .setMaster("local[*]")
@@ -1058,7 +1051,7 @@ class GlutenClickHouseHiveTableSuite
       s"CREATE FUNCTION my_add as " +
         s"'org.apache.hadoop.hive.contrib.udf.example.UDFExampleAdd2' USING JAR '$jarUrl'")
     runQueryAndCompare("select MY_ADD(id, id+1) from range(10)")(
-      checkOperatorMatch[ProjectExecTransformer])
+      checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("GLUTEN-4333: fix CSE in aggregate operator") {
@@ -1150,7 +1143,7 @@ class GlutenClickHouseHiveTableSuite
     Seq("true", "false").foreach {
       enabled =>
         withSQLConf(SQLConf.JSON_EXPRESSION_OPTIMIZATION.key -> enabled) {
-          runQueryAndCompare(selectSql)(checkOperatorMatch[ProjectExecTransformer])
+          runQueryAndCompare(selectSql)(checkGlutenOperatorMatch[ProjectExecTransformer])
         }
     }
   }
