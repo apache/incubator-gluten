@@ -81,7 +81,7 @@ object Memo {
     private def prepareInsert(n: T): Prepare[T] = {
       if (ras.isGroupLeaf(n)) {
         val group = memoTable.allGroups()(ras.planModel.getGroupId(n))
-        return Prepare.group(ras, group)
+        return Prepare.cluster(this, group.clusterKey())
       }
 
       val childrenPrepares = ras.planModel.childrenOf(n).map(child => prepareInsert(child))
@@ -179,8 +179,8 @@ object Memo {
         new TreePrepare[T](memo, cKey, children)
       }
 
-      def group[T <: AnyRef](ras: Ras[T], group: RasGroup[T]): Prepare[T] = {
-        new GroupPrepare[T](ras, group)
+      def cluster[T <: AnyRef](memo: RasMemo[T], cKey: RasClusterKey): Prepare[T] = {
+        new ClusterPrepare[T](memo, cKey)
       }
 
       private class TreePrepare[T <: AnyRef](
@@ -191,6 +191,7 @@ object Memo {
         private val ras = memo.ras
 
         override def doInsert(node: T, constraintSet: PropertySet[T]): RasGroup[T] = {
+          assert(!ras.isGroupLeaf(node))
           val childrenGroups = children
             .zip(ras.planModel.childrenOf(node))
             .zip(ras.propertySetFactory().childrenConstraintSets(constraintSet, node))
@@ -209,17 +210,17 @@ object Memo {
         }
       }
 
-      private class GroupPrepare[T <: AnyRef](
-          ras: Ras[T],
-          group: RasGroup[T])
+      private class ClusterPrepare[T <: AnyRef](
+          memo: RasMemo[T],
+          cKey: RasClusterKey)
         extends Prepare[T] {
+        private val ras = memo.ras
         override def doInsert(node: T, constraintSet: PropertySet[T]): RasGroup[T] = {
           assert(ras.isGroupLeaf(node))
-          assert(ras.planModel.getGroupId(node) == group.id())
-          group
+          memo.memoTable.groupOf(cKey, constraintSet)
         }
 
-        override def clusterKey(): RasClusterKey = group.clusterKey()
+        override def clusterKey(): RasClusterKey = cKey
       }
     }
   }
