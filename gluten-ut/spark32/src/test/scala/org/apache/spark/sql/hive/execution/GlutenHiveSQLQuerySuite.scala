@@ -75,7 +75,8 @@ class GlutenHiveSQLQuerySuite extends GlutenHiveSQLQuerySuiteBase {
       "spark.gluten.sql.complexType.scan.fallback.enabled" -> "false",
       "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_parquet_max_block_size"
         -> "1",
-      "spark.default.parallelism" -> "1"
+      "spark.default.parallelism" -> "1",
+      "hive.exec.dynamic.partition.mode" -> "nonstrict"
     ) {
       sql("DROP TABLE IF EXISTS test_4990_0;")
       sql("DROP TABLE IF EXISTS test_4990_1;")
