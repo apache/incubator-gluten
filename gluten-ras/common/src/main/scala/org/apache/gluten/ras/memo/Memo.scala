@@ -63,40 +63,46 @@ object Memo {
       memoTable.addToCluster(clusterKey, can)
     }
 
-    private def clusterOfUnsafe(t: T): RasClusterKey = {
-      val cacheKey = MemoCacheKey(ras, t)
+    private def clusterOfUnsafe(metadata: Metadata, cacheKey: MemoCacheKey[T]): RasClusterKey = {
       if (cache.contains(cacheKey)) {
         cache(cacheKey)
       } else {
         // Node not yet added to cluster.
-        val meta = ras.metadataModel.metadataOf(t)
-        val cluster = newCluster(meta)
+        val cluster = newCluster(metadata)
         cache += (cacheKey -> cluster)
         cluster
       }
     }
 
+    private def toCacheKeyUnsafe(n: T): MemoCacheKey[T] ={
+      MemoCacheKey(ras, n)
+    }
+
     private def prepareInsert(n: T): Prepare[T] = {
       if (ras.isGroupLeaf(n)) {
         val group = memoTable.allGroups()(ras.planModel.getGroupId(n))
-        return Prepare.leaf(this, group.clusterKey())
+        return Prepare.group(ras, group)
       }
 
       val childrenPrepares = ras.planModel.childrenOf(n).map(child => prepareInsert(child))
 
-      val cKey = clusterOfUnsafe(
-        ras.withNewChildren(
-          n,
-          childrenPrepares.map {
-            childPrepare =>
-              memoTable.groupOf(childPrepare.clusterKey(), ras.propertySetFactory().any()).self()
-          }))
+      val canUnsafe = ras.withNewChildren(
+        n,
+        childrenPrepares.map {
+          childPrepare =>
+            memoTable.groupOf(childPrepare.clusterKey(), ras.propertySetFactory().any()).self()
+        })
 
-      Prepare(this, cKey, childrenPrepares)
+      val cacheKey = toCacheKeyUnsafe(canUnsafe)
+
+      val clusterKey = clusterOfUnsafe(ras.metadataModel.metadataOf(n), cacheKey)
+
+      Prepare.tree(this, clusterKey, childrenPrepares)
     }
 
     override def memorize(node: T, constraintSet: PropertySet[T]): RasGroup[T] = {
-      prepareInsert(node).doInsert(node, constraintSet)
+      val prepare = prepareInsert(node)
+      prepare.doInsert(node, constraintSet)
     }
 
     override def openFor(cKey: RasClusterKey): MemoLike[T] = {
@@ -115,36 +121,47 @@ object Memo {
   }
 
   private object RasMemo {
-    private class InCusterMemo[T <: AnyRef](parent: RasMemo[T], toMerge: RasClusterKey)
+    private class InCusterMemo[T <: AnyRef](parent: RasMemo[T], targetCluster: RasClusterKey)
       extends MemoLike[T] {
       private val ras = parent.ras
 
       private def prepareInsert(node: T): Prepare[T] = {
         assert(!ras.isGroupLeaf(node))
 
-        val childrenPrepares = ras.planModel.childrenOf(node).map(child => prepareInsert(child))
+        val childrenPrepares = ras.planModel.childrenOf(node).map(child => parent.prepareInsert(child))
 
-        val cacheKey = parent.toCacheKey(node)
+        val canUnsafe = ras.withNewChildren(
+          node,
+          childrenPrepares.map {
+            childPrepare =>
+              parent.memoTable.groupOf(childPrepare.clusterKey(), ras.propertySetFactory().any()).self()
+          })
+
+        val cacheKey = parent.toCacheKeyUnsafe(canUnsafe)
+
         if (!parent.cache.contains(cacheKey)) {
-          parent.cache += (cacheKey -> preparedCluster)
-          return
+          // The new node was not added to memo yet. Add it to the target cluster.
+          parent.cache += (cacheKey -> targetCluster)
+          return Prepare.tree(parent, targetCluster, childrenPrepares)
         }
+
+        // The new node already memorized to memo.
+
         val cachedCluster = parent.cache(cacheKey)
-        if (cachedCluster == preparedCluster) {
-          // The new node already memorized to memo and in the prepared cluster.
-          return
+        if (cachedCluster == targetCluster) {
+          // The new node already memorized to memo and in the target cluster.
+          return Prepare.tree(parent, targetCluster, childrenPrepares)
         }
         // The new node already memorized to memo, but in the different cluster.
         // Merge the two clusters.
         //
         // TODO: Traverse up the tree to do more merges.
-        parent.memoTable.mergeClusters(cachedCluster, preparedCluster)
+        parent.memoTable.mergeClusters(cachedCluster, targetCluster)
+        Prepare.tree(parent, targetCluster, childrenPrepares)
       }
 
       override def memorize(node: T, constraintSet: PropertySet[T]): RasGroup[T] = {
-        val prepare = parent.prepareInsert(node)
-        val insertedCluster = prepare.clusterKey()
-        parent.memoTable.mergeClusters(insertedCluster, toMerge)
+        val prepare = prepareInsert(node)
         prepare.doInsert(node, constraintSet)
       }
     }
@@ -155,18 +172,18 @@ object Memo {
     }
 
     private object Prepare {
-      def trivial[T <: AnyRef](
+      def tree[T <: AnyRef](
           memo: RasMemo[T],
           cKey: RasClusterKey,
           children: Seq[Prepare[T]]): Prepare[T] = {
-        new TrivialPrepare[T](memo, cKey, children)
+        new TreePrepare[T](memo, cKey, children)
       }
 
-      def leaf[T <: AnyRef](memo: RasMemo[T], cKey: RasClusterKey): Prepare[T] = {
-        new LeafPrepare[T](memo, cKey)
+      def group[T <: AnyRef](ras: Ras[T], group: RasGroup[T]): Prepare[T] = {
+        new GroupPrepare[T](ras, group)
       }
 
-      private class TrivialPrepare[T <: AnyRef](
+      private class TreePrepare[T <: AnyRef](
           memo: RasMemo[T],
           override val clusterKey: RasClusterKey,
           children: Seq[Prepare[T]])
@@ -182,8 +199,8 @@ object Memo {
                 childPrepare.doInsert(child, childConstraintSet)
             }
 
-          val nodeUnsafe = ras.withNewChildren(node, childrenGroups.map(group => group.self()))
-          val can = CanonicalNode(ras, nodeUnsafe)
+          val canUnsafe = ras.withNewChildren(node, childrenGroups.map(group => group.self()))
+          val can = CanonicalNode(ras, canUnsafe)
 
           memo.addToCluster(clusterKey, can)
 
@@ -192,13 +209,17 @@ object Memo {
         }
       }
 
-      private class LeafPrepare[T <: AnyRef](
-          memo: RasMemo[T],
-          override val clusterKey: RasClusterKey)
+      private class GroupPrepare[T <: AnyRef](
+          ras: Ras[T],
+          group: RasGroup[T])
         extends Prepare[T] {
         override def doInsert(node: T, constraintSet: PropertySet[T]): RasGroup[T] = {
-          memo.memoTable.groupOf(clusterKey, constraintSet)
+          assert(ras.isGroupLeaf(node))
+          assert(ras.planModel.getGroupId(node) == group.id())
+          group
         }
+
+        override def clusterKey(): RasClusterKey = group.clusterKey()
       }
     }
   }
@@ -211,20 +232,6 @@ object Memo {
   }
 
   private case class MemoCacheKey[T <: AnyRef] private (delegate: UnsafeKey[T])
-
-  implicit private class CanonicalNodeImplicits[T <: AnyRef](can: CanonicalNode[T]) {
-    def toMemoCacheKey(memoTable: MemoTable.Writable[T]): MemoCacheKey[T] = {
-      val ras = can.ras()
-      val withDummyChildren = ras.withNewChildren(
-        can.self(),
-        can
-          .getChildrenGroupIds()
-          .map(gid => memoTable.allGroups()(gid))
-          .map(g => memoTable.groupOf(g.clusterKey(), ras.propertySetFactory().any()).self())
-      )
-      MemoCacheKey(ras, withDummyChildren)
-    }
-  }
 }
 
 trait MemoStore[T <: AnyRef] {
