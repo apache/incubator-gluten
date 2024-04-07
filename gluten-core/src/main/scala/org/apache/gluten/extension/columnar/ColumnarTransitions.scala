@@ -16,7 +16,11 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.utils.PlanUtil
+
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution.{ApplyColumnarRulesAndInsertTransitions, ColumnarToRowExec, ColumnarToRowTransition, RowToColumnarExec, RowToColumnarTransition, SparkPlan}
 
 /** See rule code from vanilla Spark: [[ApplyColumnarRulesAndInsertTransitions]]. */
@@ -41,6 +45,38 @@ object RemoveTransitions extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
     case ColumnarToRowLike(child) => child
     case RowToColumnarLike(child) => child
+  }
+}
+
+// This rule will try to add RowToColumnarExecBase and ColumnarToRowExec
+// to support vanilla columnar operators.
+case class InsertColumnarToColumnarTransitions(session: SparkSession) extends Rule[SparkPlan] {
+  @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
+
+  private def replaceWithVanillaColumnarToRow(p: SparkPlan): SparkPlan = p.transformUp {
+    case plan if PlanUtil.isGlutenColumnarOp(plan) =>
+      plan.withNewChildren(plan.children.map {
+        case child if PlanUtil.isVanillaColumnarOp(child) =>
+          BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(
+            ColumnarToRowExec(child))
+        case other => other
+      })
+  }
+
+  private def replaceWithVanillaRowToColumnar(p: SparkPlan): SparkPlan = p.transformUp {
+    case plan if PlanUtil.isVanillaColumnarOp(plan) =>
+      plan.withNewChildren(plan.children.map {
+        case child if PlanUtil.isGlutenColumnarOp(child) =>
+          RowToColumnarExec(
+            BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child))
+        case other => other
+      })
+  }
+
+  def apply(plan: SparkPlan): SparkPlan = {
+    val newPlan = replaceWithVanillaRowToColumnar(replaceWithVanillaColumnarToRow(plan))
+    planChangeLogger.logRule(ruleName, plan, newPlan)
+    newPlan
   }
 }
 

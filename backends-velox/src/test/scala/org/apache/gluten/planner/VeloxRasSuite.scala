@@ -95,7 +95,7 @@ class VeloxRasSuite extends SharedSparkSession {
 
 object VeloxRasSuite {
   def newRas(): Ras[SparkPlan] = {
-    GlutenOptimization().asInstanceOf[Ras[SparkPlan]]
+    GlutenOptimization(List()).asInstanceOf[Ras[SparkPlan]]
   }
 
   def newRas(RasRules: Seq[RasRule[SparkPlan]]): Ras[SparkPlan] = {

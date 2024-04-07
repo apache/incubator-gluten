@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar
+package org.apache.gluten.extension.columnar.enumerated
 
-import org.apache.gluten.extension.columnar.transform.{ImplementExchange, ImplementJoin, ImplementOthers, ImplementSingleNode}
+import org.apache.gluten.extension.columnar.{ImplementExchange, ImplementJoin, ImplementOthers, ImplementSingleNode}
 import org.apache.gluten.planner.GlutenOptimization
 import org.apache.gluten.planner.property.GlutenProperties
 import org.apache.gluten.ras.property.PropertySet
