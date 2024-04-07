@@ -25,7 +25,7 @@ import org.apache.spark.internal.io.SparkHadoopWriterUtils
 import org.apache.spark.shuffle.FetchFailedException
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
-import org.apache.spark.sql.delta.{DeltaErrors, DeltaLog, DeltaTableIdentifier, OptimisticTransaction}
+import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaErrors, DeltaLog, DeltaTableIdentifier, OptimisticTransaction}
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.errors.QueryExecutionErrors
@@ -51,6 +51,7 @@ object OptimizeTableCommandOverwrites extends Logging {
       path: String,
       database: String,
       tableName: String,
+      snapshotId: String,
       orderByKeyOption: Option[Seq[String]],
       lowCardKeyOption: Option[Seq[String]],
       minmaxIndexKeyOption: Option[Seq[String]],
@@ -100,6 +101,7 @@ object OptimizeTableCommandOverwrites extends Logging {
           description.path,
           description.database,
           description.tableName,
+          description.snapshotId,
           description.orderByKeyOption,
           description.lowCardKeyOption,
           description.minmaxIndexKeyOption,
@@ -198,6 +200,7 @@ object OptimizeTableCommandOverwrites extends Logging {
       txn.deltaLog.dataPath.toString,
       tableV2.dataBaseName,
       tableV2.tableName,
+      ClickhouseSnapshot.genSnapshotId(tableV2.snapshot),
       tableV2.orderByKeyOption,
       tableV2.lowCardKeyOption,
       tableV2.minmaxIndexKeyOption,
@@ -294,11 +297,12 @@ object OptimizeTableCommandOverwrites extends Logging {
             // Generally, a bin is a group of existing files, whose total size does not exceed the
             // desired maxFileSize. They will be coalesced into a single output file.
             // However, if isMultiDimClustering = true, all files in a partition will be read by the
-            // same job, the data will be range-partitioned and numFiles = totalFileSize / maxFileSize
+            // same job, the data will be range-partitioned and
+            // numFiles = totalFileSize / maxFileSize
             // will be produced. See below.
 
             // isMultiDimClustering is always false for Gluten Clickhouse for now
-            if (file.size + currentBinSize > maxTargetFileSize /*&& !isMultiDimClustering */ ) {
+            if (file.size + currentBinSize > maxTargetFileSize /* && !isMultiDimClustering */ ) {
               bins += currentBin.toVector
               currentBin.clear()
               currentBin += file
@@ -317,7 +321,7 @@ object OptimizeTableCommandOverwrites extends Logging {
           .map(b => (partition, b))
           // select bins that have at least two files or in case of multi-dim clustering
           // select all bins
-          .filter(_._2.size > 1 /*|| isMultiDimClustering*/ )
+          .filter(_._2.size > 1 /* || isMultiDimClustering */ )
     }
   }
 }

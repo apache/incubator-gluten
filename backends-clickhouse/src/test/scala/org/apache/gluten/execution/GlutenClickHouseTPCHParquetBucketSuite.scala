@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.InputIteratorTransformer
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
@@ -42,10 +42,6 @@ class GlutenClickHouseTPCHParquetBucketSuite
 
   protected val bucketTableResourcePath: String = rootPath + "tpch-data-bucket/parquet_bucket"
   protected val bucketTableDataPath: String = basePath + "/tpch-parquet-bucket"
-  protected lazy val sparkVersion: String = {
-    val version = SPARK_VERSION_SHORT.split("\\.")
-    version(0) + "." + version(1)
-  }
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf

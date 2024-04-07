@@ -14,14 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.planner.rule
-
-import org.apache.gluten.ras.rule.RasRule
+package org.apache.gluten.extension.columnar
 
 import org.apache.spark.sql.execution.SparkPlan
 
-object GlutenRules {
-  def apply(): Seq[RasRule[SparkPlan]] = {
-    List() // TODO
-  }
+trait ColumnarRuleApplier {
+  def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan
 }

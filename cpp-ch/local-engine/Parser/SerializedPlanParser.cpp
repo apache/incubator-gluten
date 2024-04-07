@@ -23,15 +23,13 @@
 #include <Columns/ColumnSet.h>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
+#include <Core/Field.h>
 #include <Core/Names.h>
 #include <Core/NamesAndTypes.h>
-#include <Core/Types.h>
-#include <Core/Field.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeDate32.h>
 #include <DataTypes/DataTypeDateTime64.h>
-#include <DataTypes/DataTypeFactory.h>
 #include <DataTypes/DataTypeMap.h>
 #include <DataTypes/DataTypeNothing.h>
 #include <DataTypes/DataTypeNullable.h>
@@ -44,6 +42,7 @@
 #include <DataTypes/Serializations/ISerialization.h>
 #include <DataTypes/getLeastSupertype.h>
 #include <Functions/FunctionFactory.h>
+#include <Functions/FunctionHelpers.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/ActionsVisitor.h>
 #include <Interpreters/CollectJoinOnKeysVisitor.h>
@@ -54,31 +53,24 @@
 #include <Join/StorageJoinFromReadBuffer.h>
 #include <Operator/BlocksBufferPoolTransform.h>
 #include <Parser/FunctionParser.h>
-#include <Parser/JoinRelParser.h>
+#include <Parser/MergeTreeRelParser.h>
 #include <Parser/RelParser.h>
 #include <Parser/TypeParser.h>
-#include <Parser/MergeTreeRelParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Parsers/ExpressionListParsers.h>
-#include <Processors/Executors/PullingAsyncPipelineExecutor.h>
 #include <Processors/Formats/Impl/ArrowBlockOutputFormat.h>
 #include <Processors/QueryPlan/AggregatingStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
-#include <Processors/QueryPlan/FilterStep.h>
 #include <Processors/QueryPlan/LimitStep.h>
-#include <Processors/QueryPlan/MergingAggregatedStep.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Processors/QueryPlan/ReadFromPreparedSource.h>
 #include <Processors/Transforms/AggregatingTransform.h>
-#include <Processors/Transforms/MaterializingTransform.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <QueryPipeline/printPipeline.h>
 #include <Storages/CustomStorageMergeTree.h>
-#include <Storages/IStorage.h>
 #include <Storages/MergeTree/MergeTreeData.h>
-#include <Storages/StorageMergeTreeFactory.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
 #include <google/protobuf/util/json_util.h>
@@ -86,10 +78,10 @@
 #include <Poco/Util/MapConfiguration.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
+#include <Common/JNIUtils.h>
 #include <Common/MergeTreeTool.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
-#include <Common/JNIUtils.h>
 
 namespace DB
 {
@@ -1935,23 +1927,23 @@ ActionsDAGPtr ASTParser::convertToActions(const NamesAndTypesList & name_and_typ
 ASTPtr ASTParser::parseToAST(const Names & names, const substrait::Expression & rel)
 {
     LOG_DEBUG(&Poco::Logger::get("ASTParser"), "substrait plan:\n{}", rel.DebugString());
-    if (rel.has_singular_or_list())
+    if (rel.has_scalar_function())
+    {
+        const auto & scalar_function = rel.scalar_function();
+        auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
+
+        auto substrait_name = function_signature.substr(0, function_signature.find(':'));
+        auto func_parser = FunctionParserFactory::instance().tryGet(substrait_name, plan_parser);
+        String function_name = func_parser ? func_parser->getCHFunctionName(scalar_function)
+                                           : SerializedPlanParser::getFunctionName(function_signature, scalar_function);
+
+        ASTs ast_args;
+        parseFunctionArgumentsToAST(names, scalar_function, ast_args);
+
+        return makeASTFunction(function_name, ast_args);
+    }
+    else
         return parseArgumentToAST(names, rel);
-    if (!rel.has_scalar_function())
-        throw Exception(ErrorCodes::BAD_ARGUMENTS, "the root of expression should be a scalar function:\n {}", rel.DebugString());
-
-    const auto & scalar_function = rel.scalar_function();
-    auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
-
-    auto substrait_name = function_signature.substr(0, function_signature.find(':'));
-    auto func_parser = FunctionParserFactory::instance().tryGet(substrait_name, plan_parser);
-    String function_name = func_parser ? func_parser->getCHFunctionName(scalar_function)
-                                       : SerializedPlanParser::getFunctionName(function_signature, scalar_function);
-
-    ASTs ast_args;
-    parseFunctionArgumentsToAST(names, scalar_function, ast_args);
-
-    return makeASTFunction(function_name, ast_args);
 }
 
 void ASTParser::parseFunctionArgumentsToAST(

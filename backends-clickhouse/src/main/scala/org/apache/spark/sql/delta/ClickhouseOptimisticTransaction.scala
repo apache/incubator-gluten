@@ -128,6 +128,7 @@ class ClickhouseOptimisticTransaction(
             metadata,
             tableV2.dataBaseName,
             tableV2.tableName,
+            ClickhouseSnapshot.genSnapshotId(tableV2.snapshot),
             tableV2.orderByKeyOption,
             tableV2.lowCardKeyOption,
             tableV2.minmaxIndexKeyOption,

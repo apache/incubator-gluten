@@ -43,21 +43,6 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
       .set("spark.sql.catalog.spark_catalog.warehouse", s"file://$rootPath/tpch-data-iceberg-velox")
   }
 
-  private def isSparkVersionAtleast(version: String): Boolean = {
-    val currentVersion = spark.version
-    val currentVersionSplit = currentVersion.split("\\.")
-    val versionSplit = version.split("\\.")
-    currentVersionSplit.zip(versionSplit).foreach {
-      case (current, required) =>
-        if (current.toInt > required.toInt) {
-          return true
-        } else if (current.toInt < required.toInt) {
-          return false
-        }
-    }
-    true
-  }
-
   test("iceberg transformer exists") {
     withTable("iceberg_tb") {
       spark.sql("""
@@ -73,8 +58,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("iceberg bucketed join") {
-    assume(isSparkVersionAtleast("3.4"))
+  testWithSpecifiedSparkVersion("iceberg bucketed join", Some("3.4")) {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
@@ -154,8 +138,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("iceberg bucketed join with partition") {
-    assume(isSparkVersionAtleast("3.4"))
+  testWithSpecifiedSparkVersion("iceberg bucketed join with partition", Some("3.4")) {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
@@ -235,8 +218,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("iceberg bucketed join with partition filter") {
-    assume(isSparkVersionAtleast("3.4"))
+  testWithSpecifiedSparkVersion("iceberg bucketed join with partition filter", Some("3.4")) {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {

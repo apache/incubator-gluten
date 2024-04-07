@@ -15,15 +15,14 @@
  * limitations under the License.
  */
 
-#include <cmath>
 #include <string>
 #include <DataTypes/DataTypeAggregateFunction.h>
+#include <DataTypes/DataTypeNullable.h>
+#include <Functions/FunctionHelpers.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Parser/AggregateFunctionParser.h>
 #include <Parser/aggregate_function_parser/ApproxPercentileParser.h>
-#include <Poco/StringTokenizer.h>
-#include <Common/CHUtil.h>
-#include "substrait/algebra.pb.h"
+#include <substrait/algebra.pb.h>
 
 namespace DB
 {

@@ -95,6 +95,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
             -1L,
             p.database,
             p.table,
+            p.snapshotId,
             p.relativeTablePath,
             p.absoluteTablePath,
             p.orderByKey,

@@ -50,6 +50,8 @@ object ExpressionNames {
   final val SKEWNESS = "skewness"
   final val KURTOSIS = "kurtosis"
   final val REGR_SLOPE = "regr_slope"
+  final val REGR_INTERCEPT = "regr_intercept"
+  final val REGR_SXY = "regr_sxy"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -198,6 +200,7 @@ object ExpressionNames {
   final val LAST_DAY = "last_day"
   final val MONTHS_BETWEEN = "months_between"
   final val DATE_FROM_UNIX_DATE = "date_from_unix_date"
+  final val UNIX_DATE = "unix_date"
   final val MAKE_TIMESTAMP = "make_timestamp"
   final val MAKE_YM_INTERVAL = "make_ym_interval"
   final val TO_UTC_TIMESTAMP = "to_utc_timestamp"
@@ -238,6 +241,7 @@ object ExpressionNames {
   final val GET_ARRAY_STRUCT_FIELDS = "get_array_struct_fields"
   final val ARRAY_EXCEPT = "array_except"
   final val ARRAY_REPEAT = "array_repeat"
+  final val ARRAY_REMOVE = "array_remove"
 
   // Map functions
   final val CREATE_MAP = "map"

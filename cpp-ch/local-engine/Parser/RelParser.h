@@ -17,16 +17,14 @@
 #pragma once
 #include <map>
 #include <optional>
-#include <unordered_map>
 #include <AggregateFunctions/AggregateFunctionFactory.h>
-#include <AggregateFunctions/IAggregateFunction.h>
+#include <AggregateFunctions/IAggregateFunction_fwd.h>
 #include <Core/Field.h>
 #include <DataTypes/IDataType.h>
 #include <DataTypes/Serializations/ISerialization.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <base/types.h>
-#include <google/protobuf/repeated_field.h>
 #include <substrait/extensions/extensions.pb.h>
 #include <substrait/plan.pb.h>
 namespace local_engine

@@ -81,7 +81,9 @@ class Spark34Shims extends SparkShims {
   override def aggregateExpressionMappings: Seq[Sig] = {
     Seq(
       Sig[RegrR2](ExpressionNames.REGR_R2),
-      Sig[RegrSlope](ExpressionNames.REGR_SLOPE)
+      Sig[RegrSlope](ExpressionNames.REGR_SLOPE),
+      Sig[RegrIntercept](ExpressionNames.REGR_INTERCEPT),
+      Sig[RegrSXY](ExpressionNames.REGR_SXY)
     )
   }
 

@@ -376,7 +376,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     // transpose =>
     // scan1 | scan2
     //  p11  |  p21    => substraitContext.setSplitInfo([p11, p21])
-    //  p12  |  p22    => substraitContext.setSplitInfo([p11, p22])
+    //  p12  |  p22    => substraitContext.setSplitInfo([p12, p22])
     //  p13  |  p23    ...
     //  p14  |  p24
     //      ...

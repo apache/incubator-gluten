@@ -1,0 +1,82 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Velox backend nightly job
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/velox_nightly.yml'
+  schedule:
+    - cron: '0 0 * * *'
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  build-on-centos:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ "centos:7", "centos:8" ]
+    runs-on: ubuntu-20.04
+    container: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Update mirror list
+        if: matrix.os == 'centos:8'
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+      - name: build
+        run: |
+          yum update -y
+          yum install -y epel-release sudo dnf
+          if [ "${{ matrix.os }}" = "centos:8" ]; then
+            dnf install -y --setopt=install_weak_deps=False gcc-toolset-9
+            source /opt/rh/gcc-toolset-9/enable || exit 1
+          else
+            yum install -y centos-release-scl
+            yum install -y devtoolset-9
+            source /opt/rh/devtoolset-9/enable || exit 1
+          fi
+          yum install -y java-1.8.0-openjdk-devel patch wget git && \
+          export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
+          export PATH=$JAVA_HOME/bin:$PATH && \
+          wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
+          tar -xvf apache-maven-3.8.8-bin.tar.gz && \
+          mv apache-maven-3.8.8 /usr/lib/maven && \
+          export MAVEN_HOME=/usr/lib/maven && \
+          export PATH=${PATH}:${MAVEN_HOME}/bin && \
+          cd $GITHUB_WORKSPACE/ && \
+          ./dev/package.sh
+
+  build-on-ubuntu:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ "ubuntu:20.04", "ubuntu:22.04" ]
+    runs-on: ubuntu-20.04
+    container: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: build
+        run: |
+          # To avoid the prompt for region selection during installing tzdata.
+          export DEBIAN_FRONTEND="noninteractive"
+          apt-get update && apt-get install -y sudo openjdk-8-jdk maven wget git
+          export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+          cd $GITHUB_WORKSPACE/ && ./dev/package.sh

@@ -19,7 +19,6 @@ package org.apache.gluten.execution.datasource
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.{BlockStripes, FakeRow, OutputWriter}
@@ -41,6 +40,7 @@ trait GlutenFormatWriterInjects {
       path: String,
       database: String,
       tableName: String,
+      snapshotId: String,
       orderByKeyOption: Option[Seq[String]],
       lowCardKeyOption: Option[Seq[String]],
       minmaxIndexKeyOption: Option[Seq[String]],

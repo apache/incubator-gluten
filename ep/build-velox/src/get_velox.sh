@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_04_02
+VELOX_BRANCH=2024_04_07
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
@@ -93,7 +93,6 @@ function process_setup_ubuntu {
   sed -i '/ccache/a\  libuuid1 \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  uuid-dev \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  curl \\' scripts/setup-ubuntu.sh
-  sed -i '/libre2-dev/d' scripts/setup-ubuntu.sh
   sed -i '/libgmock-dev/d' scripts/setup-ubuntu.sh # resolved by ep/build-velox/build/velox_ep/CMake/resolve_dependency_modules/gtest.cmake
   sed -i 's/github_checkout boostorg\/boost \"\${BOOST_VERSION}\" --recursive/wget_and_untar https:\/\/github.com\/boostorg\/boost\/releases\/download\/boost-1.84.0\/boost-1.84.0.tar.gz boost \&\& cd boost/g' scripts/setup-ubuntu.sh
   if [ $ENABLE_HDFS == "ON" ]; then
@@ -169,9 +168,6 @@ function process_setup_centos7 {
 
   # No need to re-install git.
   sed -i 's/dnf_install ccache git/dnf_install ccache/' scripts/setup-centos7.sh
-  # cmake 3 and ninja should be installed
-  sed -i '/^run_and_time install_cmake/d' scripts/setup-centos7.sh
-  sed -i '/^run_and_time install_ninja/d' scripts/setup-centos7.sh
 
   # install gtest
   sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_gtest' scripts/setup-centos7.sh

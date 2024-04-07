@@ -182,6 +182,7 @@ object ExpressionMappings {
     Sig[LastDay](LAST_DAY),
     Sig[MonthsBetween](MONTHS_BETWEEN),
     Sig[DateFromUnixDate](DATE_FROM_UNIX_DATE),
+    Sig[UnixDate](UNIX_DATE),
     Sig[MakeTimestamp](MAKE_TIMESTAMP),
     Sig[MakeYMInterval](MAKE_YM_INTERVAL),
     Sig[ToUTCTimestamp](TO_UTC_TIMESTAMP),
@@ -225,6 +226,7 @@ object ExpressionMappings {
     Sig[GetArrayStructFields](GET_ARRAY_STRUCT_FIELDS),
     Sig[ArrayExcept](ARRAY_EXCEPT),
     Sig[ArrayRepeat](ARRAY_REPEAT),
+    Sig[ArrayRemove](ARRAY_REMOVE),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),

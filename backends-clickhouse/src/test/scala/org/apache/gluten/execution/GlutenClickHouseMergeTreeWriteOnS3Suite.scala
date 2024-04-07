@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
@@ -33,7 +34,7 @@ import java.util
 // scalastyle:off line.size.limit
 
 class GlutenClickHouseMergeTreeWriteOnS3Suite
-  extends GlutenClickHouseMergeTreeWriteOnObjectStorageAbstractSuite
+  extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
 
   override protected val needCopyParquetToTablePath = true
@@ -41,6 +42,20 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
   override protected val tablesPath: String = basePath + "/tpch-data"
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "mergetree-queries-output"
+
+  override protected def createTPCHNotNullTables(): Unit = {
+    createNotNullTPCHTablesInParquet(tablesPath)
+  }
+
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+      .set("spark.io.compression.codec", "LZ4")
+      .set("spark.sql.shuffle.partitions", "5")
+      .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
+      .set("spark.sql.adaptive.enabled", "true")
+      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
+  }
 
   override protected def beforeEach(): Unit = {
     super.beforeEach()
@@ -64,18 +79,15 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
     }
     client.makeBucket(MakeBucketArgs.builder().bucket(BUCKET_NAME).build())
     FileUtils.deleteDirectory(new File(S3_METADATA_PATH))
-    FileUtils.deleteDirectory(new File(S3_CACHE_PATH))
     FileUtils.forceMkdir(new File(S3_METADATA_PATH))
-    FileUtils.forceMkdir(new File(S3_CACHE_PATH))
   }
 
   override protected def afterEach(): Unit = {
     super.afterEach()
     FileUtils.deleteDirectory(new File(S3_METADATA_PATH))
-    FileUtils.deleteDirectory(new File(S3_CACHE_PATH))
   }
 
-  ignore("test mergetree table write") {
+  test("test mergetree table write") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_s3;
                  |""".stripMargin)
@@ -158,7 +170,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
     spark.sql("drop table lineitem_mergetree_s3") // clean up
   }
 
-  ignore("test mergetree write with orderby keys / primary keys") {
+  test("test mergetree write with orderby keys / primary keys") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_orderbykey_s3;
                  |""".stripMargin)
@@ -255,7 +267,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
     spark.sql("drop table lineitem_mergetree_orderbykey_s3")
   }
 
-  ignore("test mergetree write with partition") {
+  test("test mergetree write with partition") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_partition_s3;
                  |""".stripMargin)
@@ -437,7 +449,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
 
   }
 
-  ignore("test mergetree write with bucket table") {
+  test("test mergetree write with bucket table") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_bucket_s3;
                  |""".stripMargin)
