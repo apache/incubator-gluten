@@ -280,7 +280,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_
     std::string plan_string;
     plan_string.assign(reinterpret_cast<const char *>(plan_address), plan_size);
     auto query_plan = parser.parse(plan_string);
-    local_engine::LocalExecutor * executor = new local_engine::LocalExecutor(parser.query_context, query_context);
+    local_engine::LocalExecutor * executor = new local_engine::LocalExecutor(query_context);
     executor->setMetric(parser.getMetric());
     executor->setExtraPlanHolder(parser.extra_plan_holder);
     executor->execute(std::move(query_plan));
@@ -1036,6 +1036,49 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
 
+
+JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_filterRangesOnDriver(
+    JNIEnv * env, jclass, jbyteArray plan_, jbyteArray read_)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    jsize plan_buf_size = env->GetArrayLength(plan_);
+    jbyte * plan_buf_addr = env->GetByteArrayElements(plan_, nullptr);
+    std::string plan_str;
+    plan_str.assign(reinterpret_cast<const char *>(plan_buf_addr), plan_buf_size);
+
+    auto plan_ptr = std::make_unique<substrait::Plan>();
+    if (!plan_ptr->ParseFromString(plan_str))
+        throw Exception(DB::ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from string failed");
+
+    jsize read_buf_size = env->GetArrayLength(read_);
+    jbyte * read_buf_addr = env->GetByteArrayElements(read_, nullptr);
+    std::string filter_str;
+    filter_str.assign(reinterpret_cast<const char *>(read_buf_addr), read_buf_size);
+
+    auto read_ptr = std::make_unique<substrait::Rel>();
+    /// https://stackoverflow.com/questions/52028583/getting-error-parsing-protobuf-data
+    /// Parsing may fail when the number of recursive layers is large.
+    /// Here, set a limit large enough to avoid this problem.
+    /// Once this problem occurs, it is difficult to troubleshoot, because the pb of c++ will not provide any valid information
+    google::protobuf::io::CodedInputStream coded_in(
+        reinterpret_cast<const uint8_t *>(filter_str.data()), static_cast<int>(filter_str.size()));
+    coded_in.SetRecursionLimit(100000);
+
+    if (!read_ptr->ParseFromCodedStream(&coded_in))
+        throw Exception(DB::ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Expression from string failed");
+
+
+    local_engine::SerializedPlanParser parser(local_engine::SerializedPlanParser::global_context);
+    parser.parseExtensions(plan_ptr->extensions());
+    local_engine::MergeTreeRelParser mergeTreeParser(&parser, local_engine::SerializedPlanParser::global_context);
+    auto res = mergeTreeParser.filterRangesOnDriver(read_ptr->read());
+
+    env->ReleaseByteArrayElements(plan_, plan_buf_addr, JNI_ABORT);
+    env->ReleaseByteArrayElements(read_, read_buf_addr, JNI_ABORT);
+    return stringTojstring(env, res.c_str());
+    LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
+}
+
 JNIEXPORT void
 Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_write(JNIEnv * env, jobject, jlong instanceId, jlong block_address)
 {
@@ -1368,7 +1411,7 @@ Java_org_apache_gluten_vectorized_SimpleExpressionEval_createNativeInstance(JNIE
     std::string plan_string;
     plan_string.assign(reinterpret_cast<const char *>(plan_address), plan_size);
     auto query_plan = parser.parse(plan_string);
-    local_engine::LocalExecutor * executor = new local_engine::LocalExecutor(parser.query_context, context);
+    local_engine::LocalExecutor * executor = new local_engine::LocalExecutor(context);
     executor->execute(std::move(query_plan));
     env->ReleaseByteArrayElements(plan, plan_address, JNI_ABORT);
     return reinterpret_cast<jlong>(executor);

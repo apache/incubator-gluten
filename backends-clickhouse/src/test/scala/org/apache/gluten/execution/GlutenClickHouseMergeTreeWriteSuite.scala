@@ -16,7 +16,9 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.SparkConf
+import org.apache.gluten.GlutenConfig
+
+import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
 import org.apache.spark.sql.{DataFrame, SaveMode}
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
@@ -26,7 +28,6 @@ import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMerg
 import org.apache.commons.io.filefilter.WildcardFileFilter
 
 import java.io.File
-
 import scala.io.Source
 
 // Some sqls' line length exceeds 100
@@ -1735,6 +1736,81 @@ class GlutenClickHouseMergeTreeWriteSuite
 
     dataFileList = dataPath.list(fileFilter)
     assert(dataFileList.size == 6)
+  }
+
+  test("test mergetree with primary keys filter pruning by driver") {
+    spark.sql(
+      s"""
+         |DROP TABLE IF EXISTS lineitem_mergetree_pk_pruning_by_driver;
+         |""".stripMargin)
+
+    spark.sql(
+      s"""
+         |CREATE TABLE IF NOT EXISTS lineitem_mergetree_pk_pruning_by_driver
+         |(
+         | l_orderkey      bigint,
+         | l_partkey       bigint,
+         | l_suppkey       bigint,
+         | l_linenumber    bigint,
+         | l_quantity      double,
+         | l_extendedprice double,
+         | l_discount      double,
+         | l_tax           double,
+         | l_returnflag    string,
+         | l_linestatus    string,
+         | l_shipdate      date,
+         | l_commitdate    date,
+         | l_receiptdate   date,
+         | l_shipinstruct  string,
+         | l_shipmode      string,
+         | l_comment       string
+         |)
+         |USING clickhouse
+         |TBLPROPERTIES (orderByKey='l_shipdate,l_orderkey',
+         |               primaryKey='l_shipdate')
+         |LOCATION '$basePath/lineitem_mergetree_pk_pruning_by_driver'
+         |""".stripMargin)
+
+    spark.sql(
+      s"""
+         | insert into table lineitem_mergetree_pk_pruning_by_driver
+         | select * from lineitem
+         |""".stripMargin)
+
+    val sqlStr =
+      s"""
+         |SELECT
+         |    sum(l_extendedprice * l_discount) AS revenue
+         |FROM
+         |    lineitem_mergetree_pk_pruning_by_driver
+         |WHERE
+         |    l_shipdate >= date'1994-01-01'
+         |    AND l_shipdate < date'1994-01-01' + interval 1 year
+         |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
+         |    AND l_quantity < 24
+         |""".stripMargin
+
+    Seq(("true", 2), ("false", 3)).foreach(
+      conf => {
+        withSQLConf((GlutenConfig.COLUMNAR_CH_NATIVE_ENABLE_DRIVER_FILTER_INDEX.key -> conf._1)) {
+          runTPCHQueryBySQL(6, sqlStr) {
+            df =>
+              val scanExec = collect(df.queryExecution.executedPlan) {
+                case f: FileSourceScanExecTransformer => f
+              }
+              assert(scanExec.size == 1)
+
+              val mergetreeScan = scanExec(0)
+              assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+
+              val plans = collect(df.queryExecution.executedPlan) {
+                case scanExec: BasicScanExecTransformer => scanExec
+              }
+              assert(plans.size == 1)
+              assert(plans(0).getSplitInfos.size == conf._2)
+          }
+        }
+      })
   }
 }
 // scalastyle:off line.size.limit

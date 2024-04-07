@@ -504,9 +504,8 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
                 else
                     extension_table = parseExtensionTable(split_infos.at(nextSplitInfoIndex()));
 
-                MergeTreeRelParser mergeTreeParser(this, context, query_context, global_context);
-                std::list<const substrait::Rel *> stack;
-                query_plan = mergeTreeParser.parseReadRel(std::make_unique<QueryPlan>(), read, extension_table, stack);
+                MergeTreeRelParser mergeTreeParser(this, context);
+                query_plan = mergeTreeParser.parseReadRel(std::make_unique<QueryPlan>(), read, extension_table);
                 steps = mergeTreeParser.getSteps();
             }
             break;
@@ -2226,9 +2225,8 @@ Block & LocalExecutor::getHeader()
     return header;
 }
 
-LocalExecutor::LocalExecutor(QueryContext & _query_context, ContextPtr context_)
-    : query_context(_query_context)
-    , context(context_)
+LocalExecutor::LocalExecutor(ContextPtr context_)
+    : context(context_)
 {
 }
 

@@ -291,6 +291,36 @@ class ClickHouseTableV2(
   }
 
   cacheThis()
+
+  def primaryKey(): String = primaryKeyOption match {
+    case Some(keys) => keys.mkString(",")
+    case None => ""
+  }
+
+  def orderByKey(): String = primaryKeyOption match {
+    case Some(keys) => keys.mkString(",")
+    case None => "tuple()"
+  }
+
+  def lowCardKey(): String = lowCardKeyOption match {
+    case Some(keys) => keys.mkString(",")
+    case None => ""
+  }
+
+  def minmaxIndexKey(): String = minmaxIndexKeyOption match {
+    case Some(keys) => keys.mkString(",")
+    case None => ""
+  }
+
+  def bfIndexKey(): String = bfIndexKeyOption match {
+    case Some(keys) => keys.mkString(",")
+    case None => ""
+  }
+
+  def setIndexKey(): String = setIndexKeyOption match {
+    case Some(keys) => keys.mkString(",")
+    case None => ""
+  }
 }
 
 class TempClickHouseTableV2(
@@ -333,7 +363,8 @@ object ClickHouseTableV2 extends Logging {
       bucketedScan: Boolean,
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
-      disableBucketedScan: Boolean): Seq[InputPartition] = {
+      disableBucketedScan: Boolean,
+      filterExprs: Seq[Expression]): Seq[InputPartition] = {
     val tableV2 = ClickHouseTableV2.getTable(deltaLog)
 
     MergeTreePartsPartitionsUtil.getMergeTreePartsPartitions(
@@ -345,7 +376,8 @@ object ClickHouseTableV2 extends Logging {
       tableV2,
       optionalBucketSet,
       optionalNumCoalescedBuckets,
-      disableBucketedScan)
+      disableBucketedScan,
+      filterExprs)
 
   }
 }

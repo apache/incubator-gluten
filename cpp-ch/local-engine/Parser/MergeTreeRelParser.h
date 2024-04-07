@@ -19,8 +19,11 @@
 #include <memory>
 #include <substrait/algebra.pb.h>
 
+#include <Common/MergeTreeTool.h>
 #include <Parser/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Storages/StorageMergeTreeFactory.h>
+
 
 namespace DB
 {
@@ -37,15 +40,16 @@ using namespace DB;
 class MergeTreeRelParser : public RelParser
 {
 public:
-    static std::shared_ptr<CustomStorageMergeTree> parseStorage(
-        const substrait::ReadRel::ExtensionTable & extension_table,
-        ContextMutablePtr context,
-        UUID uuid = UUIDHelpers::Nil
-        );
+    static CustomStorageMergeTreePtr
+    parseStorage(const substrait::ReadRel::ExtensionTable & extension_table, ContextMutablePtr context, UUID uuid = UUIDHelpers::Nil);
+    static CustomStorageMergeTreePtr
+    parseStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context, UUID uuid = UUIDHelpers::Nil);
+
+    static MergeTreeTable parseMergeTreeTable(const substrait::ReadRel::ExtensionTable & extension_table);
 
     explicit MergeTreeRelParser(
-        SerializedPlanParser * plan_paser_, ContextPtr & context_, QueryContext & query_context_, ContextMutablePtr & global_context_)
-        : RelParser(plan_paser_), context(context_), query_context(query_context_), global_context(global_context_)
+        SerializedPlanParser * plan_paser_, const ContextPtr & context_)
+        : RelParser(plan_paser_), context(context_), global_context(plan_paser_->global_context)
     {
     }
 
@@ -61,13 +65,14 @@ public:
     parseReadRel(
         DB::QueryPlanPtr query_plan,
         const substrait::ReadRel & read_rel,
-        const substrait::ReadRel::ExtensionTable & extension_table,
-        std::list<const substrait::Rel *> & rel_stack_);
+        const substrait::ReadRel::ExtensionTable & extension_table);
 
     const substrait::Rel & getSingleInput(const substrait::Rel &) override
     {
         throw Exception(ErrorCodes::LOGICAL_ERROR, "MergeTreeRelParser can't call getSingleInput().");
     }
+
+    String filterRangesOnDriver(const substrait::ReadRel & read_rel);
 
     struct Condition
     {
@@ -98,8 +103,7 @@ private:
     void collectColumns(const substrait::Expression & rel, NameSet & columns, Block & block);
     UInt64 getColumnsSize(const NameSet & columns);
 
-    ContextPtr & context;
-    QueryContext & query_context;
+    const ContextPtr & context;
     ContextMutablePtr & global_context;
 };
 

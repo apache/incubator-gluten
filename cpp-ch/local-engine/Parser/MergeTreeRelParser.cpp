@@ -20,18 +20,13 @@
 
 #include <Parser/FunctionParser.h>
 #include <Parser/TypeParser.h>
-#include <Storages/StorageMergeTreeFactory.h>
-#include <Common/CHUtil.h>
-#include <Common/MergeTreeTool.h>
+#include <Storages/MergeTree/MergeTreeDataMergerMutator.h>
+#include <Storages/Mergetree/MergeSparkMergeTreeTask.h>
 #include <Storages/Mergetree/MetaDataHelper.h>
+#include <Poco/StringTokenizer.h>
+#include <Common/CHUtil.h>
 
 #include "MergeTreeRelParser.h"
-
-#include <Poco/StringTokenizer.h>
-#include <Storages/MergeTree/FutureMergedMutatedPart.h>
-#include <Storages/MergeTree/MergeMutateSelectedEntry.h>
-#include <Storages/MergeTree/MergeTreeDataMergerMutator.h>
-#include "Storages/Mergetree/MergeSparkMergeTreeTask.h"
 
 
 namespace DB
@@ -66,16 +61,19 @@ static Int64 findMinPosition(const NameSet & condition_table_columns, const Name
 
 CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(
     const substrait::ReadRel::ExtensionTable & extension_table,
-    ContextMutablePtr context, UUID uuid)
+    UUID uuid)
 {
     google::protobuf::StringValue table;
     table.ParseFromString(extension_table.detail().value());
-    auto merge_tree_table = local_engine::parseMergeTreeTableString(table.value());
-    DB::Block header;
+    return parseMergeTreeTableString(table.value());
+}
 
-    header = TypeParser::buildBlockFromNamedStruct(
-        merge_tree_table.schema,
-        merge_tree_table.low_card_key);
+CustomStorageMergeTreePtr
+MergeTreeRelParser::parseStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context, UUID uuid)
+{
+    DB::Block header = TypeParser::buildBlockFromNamedStruct(
+            merge_tree_table.schema,
+            merge_tree_table.low_card_key);
     auto names_and_types_list = header.getNamesAndTypesList();
     auto storage_factory = StorageMergeTreeFactory::instance();
     auto metadata = buildMetaData(names_and_types_list, context, merge_tree_table);
@@ -126,18 +124,21 @@ CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(
     return storage;
 }
 
+CustomStorageMergeTreePtr
+MergeTreeRelParser::parseStorage(const substrait::ReadRel::ExtensionTable & extension_table, ContextMutablePtr context, UUID uuid)
+{
+    auto merge_tree_table = parseMergeTreeTable(extension_table);
+    return parseStorage(merge_tree_table, context, uuid);
+}
+
 DB::QueryPlanPtr
 MergeTreeRelParser::parseReadRel(
     DB::QueryPlanPtr query_plan,
     const substrait::ReadRel & rel,
-    const substrait::ReadRel::ExtensionTable & extension_table,
-    std::list<const substrait::Rel *> & /*rel_stack_*/)
+    const substrait::ReadRel::ExtensionTable & extension_table)
 {
-    google::protobuf::StringValue table;
-    table.ParseFromString(extension_table.detail().value());
-    auto merge_tree_table = local_engine::parseMergeTreeTableString(table.value());
-    DB::Block header;
-    header = TypeParser::buildBlockFromNamedStruct(merge_tree_table.schema, merge_tree_table.low_card_key);
+    auto merge_tree_table = parseMergeTreeTable(extension_table);
+    DB::Block header = TypeParser::buildBlockFromNamedStruct(merge_tree_table.schema, merge_tree_table.low_card_key);
     DB::Block input;
     if (rel.has_base_schema() && rel.base_schema().names_size())
     {
@@ -152,7 +153,6 @@ MergeTreeRelParser::parseReadRel(
     }
     auto storage_factory = StorageMergeTreeFactory::instance();
     auto metadata = buildMetaData(header.getNamesAndTypesList(), context, merge_tree_table);
-    query_context.metadata = metadata;
     StorageID table_id(merge_tree_table.database, merge_tree_table.table);
     auto storage = storage_factory.getStorage(
         table_id,
@@ -172,11 +172,10 @@ MergeTreeRelParser::parseReadRel(
             return custom_storage_merge_tree;
         });
 
-    restoreMetaData(storage, merge_tree_table, *context);
+    restoreMetaData(storage, merge_tree_table, context);
     for (const auto & [name, sizes] : storage->getColumnSizes())
         column_sizes[name] = sizes.data_compressed;
-    query_context.storage_snapshot = std::make_shared<StorageSnapshot>(*storage, metadata);
-    query_context.custom_storage_merge_tree = storage;
+    auto storage_snapshot = std::make_shared<StorageSnapshot>(*custom_storage_merge_tree, metadata);
     auto names_and_types_list = input.getNamesAndTypesList();
 
     auto query_info = buildQueryInfo(names_and_types_list);
@@ -193,12 +192,12 @@ MergeTreeRelParser::parseReadRel(
     auto ranges = merge_tree_table.extractRange(selected_parts);
     if (selected_parts.empty())
         throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "no data part found.");
-    auto read_step = query_context.custom_storage_merge_tree->reader.readFromParts(
+    auto read_step = custom_storage_merge_tree->reader.readFromParts(
         selected_parts,
         /* alter_conversions = */
         {},
         names_and_types_list.getNames(),
-        query_context.storage_snapshot,
+        storage_snapshot,
         *query_info,
         context,
         context->getSettingsRef().max_block_size,
@@ -212,7 +211,7 @@ MergeTreeRelParser::parseReadRel(
         source_step_with_filter->applyFilters();
     }
 
-    query_context.custom_storage_merge_tree->wrapRangesInDataParts(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
+    custom_storage_merge_tree->wrapRangesInDataParts(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
     steps.emplace_back(read_step.get());
     query_plan->addStep(std::move(read_step));
     if (!non_nullable_columns.empty())
@@ -417,4 +416,72 @@ String MergeTreeRelParser::getCHFunctionName(const substrait::Expression_ScalarF
         throw Exception(ErrorCodes::UNKNOWN_FUNCTION, "Unsupported substrait function on mergetree prewhere parser: {}", func_name);
     return it->second;
 }
+
+
+String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_rel)
+{
+    google::protobuf::StringValue table;
+    table.ParseFromString(read_rel.advanced_extension().enhancement().value());
+    auto merge_tree_table = parseMergeTreeTableString(table.value());
+    auto custom_storage_mergetree = parseStorage(merge_tree_table, global_context);
+
+    auto input = TypeParser::buildBlockFromNamedStruct(read_rel.base_schema());
+    auto names_and_types_list = input.getNamesAndTypesList();
+    auto query_info = buildQueryInfo(names_and_types_list);
+
+    query_info->prewhere_info = parsePreWhereInfo(read_rel.filter(), input);
+
+    auto storage_factory = StorageMergeTreeFactory::instance();
+    std::vector<DataPartPtr> selected_parts
+        = storage_factory.getDataParts(StorageID(merge_tree_table.database, merge_tree_table.table), merge_tree_table.getPartNames());
+
+    auto metadata = buildMetaData(input.getNamesAndTypesList(), context, merge_tree_table);
+    auto storage_snapshot = std::make_shared<StorageSnapshot>(*custom_storage_mergetree, metadata);;
+
+    if (selected_parts.empty())
+        throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "no data part found.");
+    auto read_step = custom_storage_mergetree->reader.readFromParts(
+        selected_parts,
+        /* alter_conversions = */
+        {},
+        names_and_types_list.getNames(),
+        storage_snapshot,
+        *query_info,
+        context,
+        context->getSettingsRef().max_block_size,
+        1);
+
+    auto * read_from_mergetree = static_cast<ReadFromMergeTree *>(read_step.get());
+    if (const auto & storage_prewhere_info = query_info->prewhere_info)
+    {
+        ActionDAGNodes filter_nodes;
+        filter_nodes.nodes.emplace_back(
+            &storage_prewhere_info->prewhere_actions->findInOutputs(storage_prewhere_info->prewhere_column_name));
+        read_from_mergetree->applyFilters(std::move(filter_nodes));
+    }
+
+    auto analysis = read_from_mergetree->getAnalysisResult();
+    rapidjson::StringBuffer result;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(result);
+    writer.StartArray();
+    for (auto & parts_with_range : analysis.parts_with_ranges)
+    {
+        MarkRanges final_ranges;
+        for (auto & range : parts_with_range.ranges)
+        {
+            writer.StartObject();
+            writer.Key("part_name");
+            writer.String(parts_with_range.data_part->name.c_str());
+            writer.Key("begin");
+            writer.Uint(range.begin);
+            writer.Key("end");
+            writer.Uint(range.end);
+            writer.EndObject();
+        }
+    }
+
+    writer.EndArray();
+    return result.GetString();
+}
+
 }
