@@ -952,7 +952,7 @@ class GlutenClickHouseHiveTableSuite
     val select_sql_4 = "select id, get_json_object(data, '$.v111') from test_tbl_3337"
     val select_sql_5 = "select id, get_json_object(data, 'v112') from test_tbl_3337"
     val select_sql_6 =
-      "select id, get_json_object(data, '$.data') from test_tbl_3337 where id = 123";
+      "select id, get_json_object(data, '$.d') from test_tbl_3337 where id = 123";
     compareResultsAgainstVanillaSpark(select_sql_1, compareResult = true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_2, compareResult = true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_3, compareResult = true, _ => {})
