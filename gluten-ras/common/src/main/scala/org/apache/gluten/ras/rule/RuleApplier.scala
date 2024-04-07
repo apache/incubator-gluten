@@ -17,13 +17,14 @@
 package org.apache.gluten.ras.rule
 
 import org.apache.gluten.ras._
+import org.apache.gluten.ras.Ras.UnsafeKey
 import org.apache.gluten.ras.memo.Closure
-import org.apache.gluten.ras.path.RasPath
+import org.apache.gluten.ras.path.InClusterPath
 
 import scala.collection.mutable
 
 trait RuleApplier[T <: AnyRef] {
-  def apply(path: RasPath[T]): Unit
+  def apply(icp: InClusterPath[T]): Unit
   def shape(): Shape[T]
 }
 
@@ -41,25 +42,27 @@ object RuleApplier {
 
   private class RegularRuleApplier[T <: AnyRef](ras: Ras[T], closure: Closure[T], rule: RasRule[T])
     extends RuleApplier[T] {
-    private val cache = mutable.Map[CanonicalNode[T], mutable.Set[T]]()
+    private val deDup = mutable.Map[RasClusterKey, mutable.Set[UnsafeKey[T]]]()
 
-    override def apply(path: RasPath[T]): Unit = {
-      val can = path.node().self().asCanonical()
+    override def apply(icp: InClusterPath[T]): Unit = {
+      val cKey = icp.cluster()
+      val path = icp.path()
       val plan = path.plan()
-      val appliedPlans = cache.getOrElseUpdate(can, mutable.Set())
-      if (appliedPlans.contains(plan)) {
+      val appliedPlans = deDup.getOrElseUpdate(cKey, mutable.Set())
+      val pKey = ras.toUnsafeKey(plan)
+      if (appliedPlans.contains(pKey)) {
         return
       }
-      apply0(can, plan)
-      appliedPlans += plan
+      apply0(cKey, plan)
+      appliedPlans += pKey
     }
 
-    private def apply0(can: CanonicalNode[T], plan: T): Unit = {
+    private def apply0(cKey: RasClusterKey, plan: T): Unit = {
       val equivalents = rule.shift(plan)
       equivalents.foreach {
         equiv =>
           closure
-            .openFor(can)
+            .openFor(cKey)
             .memorize(equiv, ras.propertySetFactory().get(equiv))
       }
     }
@@ -72,32 +75,35 @@ object RuleApplier {
       closure: Closure[T],
       rule: EnforcerRule[T])
     extends RuleApplier[T] {
-    private val cache = mutable.Map[CanonicalNode[T], mutable.Set[T]]()
+    private val deDup = mutable.Map[RasClusterKey, mutable.Set[UnsafeKey[T]]]()
     private val constraint = rule.constraint()
     private val constraintDef = constraint.definition()
 
-    override def apply(path: RasPath[T]): Unit = {
+    override def apply(icp: InClusterPath[T]): Unit = {
+      val cKey = icp.cluster()
+      val path = icp.path()
       val can = path.node().self().asCanonical()
       if (can.propSet().get(constraintDef).satisfies(constraint)) {
         return
       }
       val plan = path.plan()
-      val appliedPlans = cache.getOrElseUpdate(can, mutable.Set())
-      if (appliedPlans.contains(plan)) {
+      val pKey = ras.toUnsafeKey(plan)
+      val appliedPlans = deDup.getOrElseUpdate(cKey, mutable.Set())
+      if (appliedPlans.contains(pKey)) {
         return
       }
-      apply0(can, plan)
-      appliedPlans += plan
+      apply0(cKey, plan)
+      appliedPlans += pKey
     }
 
-    private def apply0(can: CanonicalNode[T], plan: T): Unit = {
+    private def apply0(cKey: RasClusterKey, plan: T): Unit = {
       val propSet = ras.propertySetFactory().get(plan)
       val constraintSet = propSet.withProp(constraint)
       val equivalents = rule.shift(plan)
       equivalents.foreach {
         equiv =>
           closure
-            .openFor(can)
+            .openFor(cKey)
             .memorize(equiv, constraintSet)
       }
     }
@@ -109,11 +115,11 @@ object RuleApplier {
     extends RuleApplier[T] {
     private val ruleShape = rule.shape()
 
-    override def apply(path: RasPath[T]): Unit = {
-      if (!ruleShape.identify(path)) {
+    override def apply(icp: InClusterPath[T]): Unit = {
+      if (!ruleShape.identify(icp.path())) {
         return
       }
-      rule.apply(path)
+      rule.apply(icp)
     }
 
     override def shape(): Shape[T] = ruleShape

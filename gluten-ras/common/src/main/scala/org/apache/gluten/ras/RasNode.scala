@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.ras
 
+import org.apache.gluten.ras.Ras.UnsafeKey
 import org.apache.gluten.ras.property.PropertySet
 
 trait RasNode[T <: AnyRef] {
@@ -42,23 +43,7 @@ object RasNode {
       node.asInstanceOf[GroupNode[T]]
     }
 
-    def toUnsafeKey(): UnsafeKey[T] = UnsafeKey(node.ras(), node.self())
-  }
-
-  trait UnsafeKey[T]
-
-  private object UnsafeKey {
-    def apply[T <: AnyRef](ras: Ras[T], self: T): UnsafeKey[T] = new UnsafeKeyImpl(ras, self)
-    private class UnsafeKeyImpl[T <: AnyRef](ras: Ras[T], val self: T) extends UnsafeKey[T] {
-      override def hashCode(): Int = ras.planModel.hashCode(self)
-      override def equals(other: Any): Boolean = {
-        other match {
-          case that: UnsafeKeyImpl[T] => ras.planModel.equals(self, that.self)
-          case _ => false
-        }
-      }
-      override def toString: String = ras.explain.describeNode(self)
-    }
+    def toUnsafeKey(): UnsafeKey[T] = node.ras().toUnsafeKey(node.self())
   }
 }
 

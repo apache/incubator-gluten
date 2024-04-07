@@ -16,8 +16,9 @@
  */
 package org.apache.gluten.ras.memo
 
-import org.apache.gluten.ras.RasCluster.ImmutableRasCluster
 import org.apache.gluten.ras._
+import org.apache.gluten.ras.Ras.UnsafeKey
+import org.apache.gluten.ras.RasCluster.ImmutableRasCluster
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.vis.GraphvizVisualizer
 
@@ -28,7 +29,7 @@ trait MemoLike[T <: AnyRef] {
 }
 
 trait Closure[T <: AnyRef] {
-  def openFor(node: CanonicalNode[T]): MemoLike[T]
+  def openFor(cKey: RasClusterKey): MemoLike[T]
 }
 
 trait Memo[T <: AnyRef] extends Closure[T] with MemoLike[T] {
@@ -98,11 +99,10 @@ object Memo {
       }
     }
 
-    private def insertUnsafe(
-        node: T,
-        constraintSet: PropertySet[T]): RasGroup[T] = {
+    private def insertUnsafe(node: T, constraintSet: PropertySet[T]): RasGroup[T] = {
       if (ras.planModel.isGroupLeaf(node)) {
-        return memoTable.allGroups()(ras.planModel.getGroupId(node))
+        val cluster = memoTable.allGroups()(ras.planModel.getGroupId(node)).clusterKey()
+        return memoTable.groupOf(cluster, constraintSet)
       }
 
       val childrenGroups: Seq[RasGroup[T]] = ras.planModel
@@ -131,11 +131,8 @@ object Memo {
       insertUnsafe(node, constraintSet)
     }
 
-    override def openFor(node: CanonicalNode[T]): MemoLike[T] = {
-      val cacheKey = node.toMemoCacheKey(memoTable)
-      assert(cache.contains(cacheKey))
-      val targetCluster = cache(cacheKey)
-      new InCusterMemo[T](this, targetCluster)
+    override def openFor(cKey: RasClusterKey): MemoLike[T] = {
+      new InCusterMemo[T](this, cKey)
     }
 
     override def newState(): MemoState[T] = {
@@ -181,20 +178,11 @@ object Memo {
   private object MemoCacheKey {
     def apply[T <: AnyRef](ras: Ras[T], self: T): MemoCacheKey[T] = {
       assert(ras.isCanonical(self))
-      new MemoCacheKey[T](ras, self)
+      MemoCacheKey[T](ras.toUnsafeKey(self))
     }
   }
 
-  private class MemoCacheKey[T <: AnyRef] private (ras: Ras[T], val self: T) {
-    override def hashCode(): Int = ras.planModel.hashCode(self)
-    override def equals(other: Any): Boolean = {
-      other match {
-        case that: MemoCacheKey[T] => ras.planModel.equals(self, that.self)
-        case _ => false
-      }
-    }
-    override def toString: String = ras.explain.describeNode(self)
-  }
+  private case class MemoCacheKey[T <: AnyRef] private (delegate: UnsafeKey[T])
 
   implicit private class CanonicalNodeImplicits[T <: AnyRef](can: CanonicalNode[T]) {
     def toMemoCacheKey(memoTable: MemoTable.Writable[T]): MemoCacheKey[T] = {

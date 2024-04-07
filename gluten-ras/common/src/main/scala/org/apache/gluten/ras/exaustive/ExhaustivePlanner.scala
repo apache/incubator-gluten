@@ -107,8 +107,8 @@ object ExhaustivePlanner {
       finder.find(canonical).foreach(path => onFound(path))
     }
 
-    private def applyRule(rule: RuleApplier[T], path: RasPath[T]): Unit = {
-      rule.apply(path)
+    private def applyRule(rule: RuleApplier[T], icp: InClusterPath[T]): Unit = {
+      rule.apply(icp)
     }
 
     private def applyRules(): Unit = {
@@ -116,10 +116,17 @@ object ExhaustivePlanner {
         return
       }
       val shapes = rules.map(_.shape())
-      allClusters
-        .flatMap(c => c.nodes())
-        .foreach(
-          node => findPaths(node, shapes)(path => rules.foreach(rule => applyRule(rule, path))))
+      memoState
+        .clusterLookup()
+        .foreach {
+          case (cKey, cluster) =>
+            cluster
+              .nodes()
+              .foreach(
+                node =>
+                  findPaths(node, shapes)(
+                    path => rules.foreach(rule => applyRule(rule, InClusterPath(cKey, path)))))
+        }
     }
 
     private def applyEnforcerRules(): Unit = {
@@ -129,10 +136,11 @@ object ExhaustivePlanner {
           val enforcerRules = enforcerRuleSet.rulesOf(constraintSet)
           if (enforcerRules.nonEmpty) {
             val shapes = enforcerRules.map(_.shape())
-            memoState.clusterLookup()(group.clusterKey()).nodes().foreach {
+            val cKey = group.clusterKey()
+            memoState.clusterLookup()(cKey).nodes().foreach {
               node =>
                 findPaths(node, shapes)(
-                  path => enforcerRules.foreach(rule => applyRule(rule, path)))
+                  path => enforcerRules.foreach(rule => applyRule(rule, InClusterPath(cKey, path))))
             }
           }
       }

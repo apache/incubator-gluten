@@ -170,6 +170,8 @@ class Ras[T <: AnyRef] private (
   private[ras] def getInfCost(): Cost = infCost
 
   private[ras] def isInfCost(cost: Cost) = costModel.costComparator().equiv(cost, infCost)
+
+  private[ras] def toUnsafeKey(node: T): UnsafeKey[T] = UnsafeKey(this, node)
 }
 
 object Ras {
@@ -246,6 +248,22 @@ object Ras {
               PropertySet[T](builder.toMap)
           }
       }
+    }
+  }
+
+  trait UnsafeKey[T]
+
+  private object UnsafeKey {
+    def apply[T <: AnyRef](ras: Ras[T], self: T): UnsafeKey[T] = new UnsafeKeyImpl(ras, self)
+    private class UnsafeKeyImpl[T <: AnyRef](ras: Ras[T], val self: T) extends UnsafeKey[T] {
+      override def hashCode(): Int = ras.planModel.hashCode(self)
+      override def equals(other: Any): Boolean = {
+        other match {
+          case that: UnsafeKeyImpl[T] => ras.planModel.equals(self, that.self)
+          case _ => false
+        }
+      }
+      override def toString: String = ras.explain.describeNode(self)
     }
   }
 }

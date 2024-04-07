@@ -21,7 +21,7 @@ import org.apache.gluten.ras.Best.KnownCostPath
 import org.apache.gluten.ras.best.BestFinder
 import org.apache.gluten.ras.dp.DpZipperAlgo.Adjustment.Panel
 import org.apache.gluten.ras.memo.{Memo, MemoTable}
-import org.apache.gluten.ras.path.{PathFinder, RasPath}
+import org.apache.gluten.ras.path.{InClusterPath, PathFinder, RasPath}
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.{EnforcerRuleSet, RuleApplier, Shape}
 
@@ -172,7 +172,7 @@ object DpPlanner {
         rule: RuleApplier[T],
         path: RasPath[T]): Unit = {
       val probe = memoTable.probe()
-      rule.apply(path)
+      rule.apply(InClusterPath(thisClusterKey, path))
       val diff = probe.toDiff()
       val changedClusters = diff.changedClusters()
       if (changedClusters.isEmpty) {
