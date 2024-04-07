@@ -19,6 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.metrics.{GlutenTimeMetric, IMetrics}
+import org.apache.gluten.substrait.rel.RawSplitInfo
 
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
@@ -45,6 +46,15 @@ case class GlutenPartition(
       Array.empty[String] // touched files, for implementing UDF input_file_names
 ) extends BaseGlutenPartition {
 
+  override def preferredLocations(): Array[String] = locations
+}
+
+case class GlutenRawPartition(
+    index: Int,
+    plan: Array[Byte],
+    splitInfos: Seq[RawSplitInfo],
+    locations: Array[String] = Array.empty[String])
+  extends BaseGlutenPartition {
   override def preferredLocations(): Array[String] = locations
 }
 

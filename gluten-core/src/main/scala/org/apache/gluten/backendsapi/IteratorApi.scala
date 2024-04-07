@@ -17,7 +17,7 @@
 package org.apache.gluten.backendsapi
 
 import org.apache.gluten.GlutenNumaBindingInfo
-import org.apache.gluten.execution.{BaseGlutenPartition, BasicScanExecTransformer, WholeStageTransformContext}
+import org.apache.gluten.execution.{BaseGlutenPartition, BasicScanExecTransformer, GlutenRawPartition, WholeStageTransformContext}
 import org.apache.gluten.metrics.IMetrics
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -91,4 +91,6 @@ trait IteratorApi {
       numOutputRows: SQLMetric,
       numOutputBatches: SQLMetric,
       scanTime: SQLMetric): RDD[ColumnarBatch]
+
+  def toLocalFilesNodeByteArray(p: GlutenRawPartition): Array[Array[Byte]]
 }
