@@ -112,7 +112,7 @@ abstract class PropertySuite extends AnyFunSuite {
         TypedLeaf(TypeB, 10)))
   }
 
-  ignore(s"Memo cache hit - (A, B)") {
+  test(s"Memo cache hit - (A, B)") {
     object ReplaceLeafAByLeafBRule extends RasRule[TestNode] {
       override def shift(node: TestNode): Iterable[TestNode] = {
         node match {
@@ -163,8 +163,8 @@ abstract class PropertySuite extends AnyFunSuite {
     val out = planner.plan()
     assert(out == TypedLeaf(TypeA, 1))
 
-    // FIXME: Cluster 2 and 1 are currently able to merge but it's better to
-    //  have them identified as the same right after HitCacheOp is applied
+    // Cluster 2 and 1 are able to merge but we'd make sure
+    // they are identified as the same right after HitCacheOp is applied
     val clusterCount = planner.newState().memoState().allClusters().size
     assert(clusterCount == 2)
   }
