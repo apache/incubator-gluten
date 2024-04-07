@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  nightly-build-on-centos:
+  build-on-centos:
     strategy:
       fail-fast: false
       matrix:
@@ -63,3 +63,20 @@ jobs:
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
           cd $GITHUB_WORKSPACE/ && \
           ./dev/package.sh
+
+  build-on-ubuntu:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ "ubuntu:20.04", "ubuntu:22.04" ]
+    runs-on: ubuntu-20.04
+    container: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: build
+        run: |
+          # To avoid the prompt for region selection during installing tzdata.
+          export DEBIAN_FRONTEND="noninteractive"
+          apt-get update && apt-get install -y sudo openjdk-8-jdk maven wget git
+          export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+          cd $GITHUB_WORKSPACE/ && ./dev/package.sh
