@@ -57,6 +57,7 @@ object RasNode {
           case _ => false
         }
       }
+      override def toString: String = ras.explain.describeNode(self)
     }
   }
 }
@@ -97,8 +98,7 @@ object CanonicalNode {
       override val propSet: PropertySet[T],
       override val childrenCount: Int)
     extends CanonicalNode[T] {
-    override def hashCode(): Int = throw new UnsupportedOperationException()
-    override def equals(obj: Any): Boolean = throw new UnsupportedOperationException()
+    override def toString: String = ras.explain.describeNode(self)
   }
 }
 
@@ -117,8 +117,7 @@ object GroupNode {
       override val propSet: PropertySet[T],
       override val groupId: Int)
     extends GroupNode[T] {
-    override def hashCode(): Int = throw new UnsupportedOperationException()
-    override def equals(obj: Any): Boolean = throw new UnsupportedOperationException()
+    override def toString: String = ras.explain.describeNode(self)
   }
 
   // We put RasNode's API methods that accept mutable input in implicit definition.

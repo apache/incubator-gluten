@@ -54,16 +54,19 @@ object RasCluster {
         override val ras: Ras[T],
         metadata: Metadata)
       extends MutableRasCluster[T] {
-      private val buffer: mutable.Set[CanonicalNode[T]] =
-        mutable.Set()
+      private val deDup: mutable.Set[RasNode.UnsafeKey[T]] = mutable.Set()
+      private val buffer: mutable.ListBuffer[CanonicalNode[T]] =
+        mutable.ListBuffer()
 
       override def contains(t: CanonicalNode[T]): Boolean = {
-        buffer.contains(t)
+        deDup.contains(t.toUnsafeKey())
       }
 
       override def add(t: CanonicalNode[T]): Unit = {
+        val key = t.toUnsafeKey()
+        assert(!deDup.contains(key))
         ras.metadataModel.verify(metadata, ras.metadataModel.metadataOf(t.self()))
-        assert(!buffer.contains(t))
+        deDup += key
         buffer += t
       }
 

@@ -75,7 +75,11 @@ class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
   }
 
   override def addToCluster(key: RasClusterKey, node: CanonicalNode[T]): Unit = {
-    getCluster(key).add(node)
+    val cluster = getCluster(key)
+    if (cluster.contains(node)) {
+      return
+    }
+    cluster.add(node)
     memoWriteCount += 1
   }
 

@@ -85,20 +85,25 @@ object Memo {
         return plainGroup.clusterKey()
       }
 
-      val memoCacheKey = toCacheKey(n)
+      val cacheKey = toCacheKey(n)
 
-      if (cache.contains(memoCacheKey)) {
-        cache(memoCacheKey)
+      if (cache.contains(cacheKey)) {
+        cache(cacheKey)
       } else {
         // Node not yet added to cluster.
         val meta = ras.metadataModel.metadataOf(n)
-        newCluster(meta)
+        val cluster = newCluster(meta)
+        cache += (cacheKey -> cluster)
+        cluster
       }
     }
 
     private def insertUnsafe(
         node: T,
         constraintSet: PropertySet[T]): RasGroup[T] = {
+      if (ras.planModel.isGroupLeaf(node)) {
+        return memoTable.allGroups()(ras.planModel.getGroupId(node))
+      }
 
       val childrenGroups: Seq[RasGroup[T]] = ras.planModel
         .childrenOf(node)
@@ -111,10 +116,10 @@ object Memo {
 
       val nodeUnsafe = ras.withNewChildren(node, childrenGroups.map(group => group.self()))
       val can = CanonicalNode(ras, nodeUnsafe)
-      val cKey = can.toMemoCacheKey(memoTable)
+      val cacheKey = can.toMemoCacheKey(memoTable)
 
-      assert(cache.contains(cKey))
-      val cluster = cache(cKey)
+      assert(cache.contains(cacheKey))
+      val cluster = cache(cacheKey)
       addToCluster(cluster, can)
 
       val group = memoTable.groupOf(cluster, constraintSet)
@@ -151,6 +156,7 @@ object Memo {
       private def prepare(node: T): Unit = {
         val cacheKey = parent.toCacheKey(node)
         if (!parent.cache.contains(cacheKey)) {
+          parent.cache += (cacheKey -> preparedCluster)
           return
         }
         val cachedCluster = parent.cache(cacheKey)
@@ -187,6 +193,7 @@ object Memo {
         case _ => false
       }
     }
+    override def toString: String = ras.explain.describeNode(self)
   }
 
   implicit private class CanonicalNodeImplicits[T <: AnyRef](can: CanonicalNode[T]) {
