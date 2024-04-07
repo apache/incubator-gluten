@@ -63,72 +63,40 @@ object Memo {
       memoTable.addToCluster(clusterKey, can)
     }
 
-    private def toCacheKeyUnsafe(node: T): T = {
-      val childrenClusters: Seq[RasClusterKey] = ras.planModel
-        .childrenOf(node)
-        .map(clusterOf)
-
-      val newNode =
-        ras.withNewChildren(
-          node,
-          childrenClusters.map(c => memoTable.groupOf(c, ras.propertySetFactory().any()).self()))
-
-      newNode
-    }
-
-    private def toCacheKey(node: T): MemoCacheKey[T] = {
-      MemoCacheKey(ras, toCacheKeyUnsafe(node))
-    }
-
-    private def clusterOf(n: T): RasClusterKey = {
-      if (ras.planModel.isGroupLeaf(n)) {
-        val plainGroup = memoTable.allGroups()(ras.planModel.getGroupId(n))
-        return plainGroup.clusterKey()
-      }
-
-      val cacheKey = toCacheKey(n)
-
+    private def clusterOfUnsafe(t: T): RasClusterKey = {
+      val cacheKey = MemoCacheKey(ras, t)
       if (cache.contains(cacheKey)) {
         cache(cacheKey)
       } else {
         // Node not yet added to cluster.
-        val meta = ras.metadataModel.metadataOf(n)
+        val meta = ras.metadataModel.metadataOf(t)
         val cluster = newCluster(meta)
         cache += (cacheKey -> cluster)
         cluster
       }
     }
 
-    private def insertUnsafe(node: T, constraintSet: PropertySet[T]): RasGroup[T] = {
-      if (ras.planModel.isGroupLeaf(node)) {
-        val cluster = memoTable.allGroups()(ras.planModel.getGroupId(node)).clusterKey()
-        return memoTable.groupOf(cluster, constraintSet)
+    private def prepareInsert(n: T): Prepare[T] = {
+      if (ras.isGroupLeaf(n)) {
+        val group = memoTable.allGroups()(ras.planModel.getGroupId(n))
+        return Prepare.leaf(this, group.clusterKey())
       }
 
-      val childrenGroups: Seq[RasGroup[T]] = ras.planModel
-        .childrenOf(node)
-        .zip(ras.propertySetFactory().childrenConstraintSets(constraintSet, node))
-        .map {
-          case (child, childConstraintSet) =>
-            val childGroup = insertUnsafe(child, childConstraintSet)
-            childGroup
-        }
+      val childrenPrepares = ras.planModel.childrenOf(n).map(child => prepareInsert(child))
 
-      val nodeUnsafe = ras.withNewChildren(node, childrenGroups.map(group => group.self()))
-      val can = CanonicalNode(ras, nodeUnsafe)
-      val cacheKey = can.toMemoCacheKey(memoTable)
+      val cKey = clusterOfUnsafe(
+        ras.withNewChildren(
+          n,
+          childrenPrepares.map {
+            childPrepare =>
+              memoTable.groupOf(childPrepare.clusterKey(), ras.propertySetFactory().any()).self()
+          }))
 
-      assert(cache.contains(cacheKey))
-      val cluster = cache(cacheKey)
-      addToCluster(cluster, can)
-
-      val group = memoTable.groupOf(cluster, constraintSet)
-      group
+      Prepare(this, cKey, childrenPrepares)
     }
 
     override def memorize(node: T, constraintSet: PropertySet[T]): RasGroup[T] = {
-      clusterOf(node)
-      insertUnsafe(node, constraintSet)
+      prepareInsert(node).doInsert(node, constraintSet)
     }
 
     override def openFor(cKey: RasClusterKey): MemoLike[T] = {
@@ -147,10 +115,15 @@ object Memo {
   }
 
   private object RasMemo {
-    private class InCusterMemo[T <: AnyRef](parent: RasMemo[T], preparedCluster: RasClusterKey)
+    private class InCusterMemo[T <: AnyRef](parent: RasMemo[T], toMerge: RasClusterKey)
       extends MemoLike[T] {
+      private val ras = parent.ras
 
-      private def prepare(node: T): Unit = {
+      private def prepareInsert(node: T): Prepare[T] = {
+        assert(!ras.isGroupLeaf(node))
+
+        val childrenPrepares = ras.planModel.childrenOf(node).map(child => prepareInsert(child))
+
         val cacheKey = parent.toCacheKey(node)
         if (!parent.cache.contains(cacheKey)) {
           parent.cache += (cacheKey -> preparedCluster)
@@ -169,8 +142,63 @@ object Memo {
       }
 
       override def memorize(node: T, constraintSet: PropertySet[T]): RasGroup[T] = {
-        prepare(node)
-        parent.insertUnsafe(node, constraintSet)
+        val prepare = parent.prepareInsert(node)
+        val insertedCluster = prepare.clusterKey()
+        parent.memoTable.mergeClusters(insertedCluster, toMerge)
+        prepare.doInsert(node, constraintSet)
+      }
+    }
+
+    private trait Prepare[T <: AnyRef] {
+      def clusterKey(): RasClusterKey
+      def doInsert(node: T, constraintSet: PropertySet[T]): RasGroup[T]
+    }
+
+    private object Prepare {
+      def trivial[T <: AnyRef](
+          memo: RasMemo[T],
+          cKey: RasClusterKey,
+          children: Seq[Prepare[T]]): Prepare[T] = {
+        new TrivialPrepare[T](memo, cKey, children)
+      }
+
+      def leaf[T <: AnyRef](memo: RasMemo[T], cKey: RasClusterKey): Prepare[T] = {
+        new LeafPrepare[T](memo, cKey)
+      }
+
+      private class TrivialPrepare[T <: AnyRef](
+          memo: RasMemo[T],
+          override val clusterKey: RasClusterKey,
+          children: Seq[Prepare[T]])
+        extends Prepare[T] {
+        private val ras = memo.ras
+
+        override def doInsert(node: T, constraintSet: PropertySet[T]): RasGroup[T] = {
+          val childrenGroups = children
+            .zip(ras.planModel.childrenOf(node))
+            .zip(ras.propertySetFactory().childrenConstraintSets(constraintSet, node))
+            .map {
+              case ((childPrepare, child), childConstraintSet) =>
+                childPrepare.doInsert(child, childConstraintSet)
+            }
+
+          val nodeUnsafe = ras.withNewChildren(node, childrenGroups.map(group => group.self()))
+          val can = CanonicalNode(ras, nodeUnsafe)
+
+          memo.addToCluster(clusterKey, can)
+
+          val group = memo.memoTable.groupOf(clusterKey, constraintSet)
+          group
+        }
+      }
+
+      private class LeafPrepare[T <: AnyRef](
+          memo: RasMemo[T],
+          override val clusterKey: RasClusterKey)
+        extends Prepare[T] {
+        override def doInsert(node: T, constraintSet: PropertySet[T]): RasGroup[T] = {
+          memo.memoTable.groupOf(clusterKey, constraintSet)
+        }
       }
     }
   }
