@@ -53,7 +53,8 @@ abstract class PropertySuite extends AnyFunSuite {
 
     memo.memorize(ras, PassNodeType(1, PassNodeType(1, PassNodeType(1, TypedLeaf(TypeA, 1)))))
     val leafGroup = memo.memorize(ras, TypedLeaf(TypeA, 1))
-    memo.openFor(leafGroup.clusterKey())
+    memo
+      .openFor(leafGroup.clusterKey())
       .memorize(ras, TypedLeaf(TypeB, 1))
     memo.memorize(ras, PassNodeType(1, PassNodeType(1, PassNodeType(1, TypedLeaf(TypeB, 1)))))
     val state = memo.newState()
