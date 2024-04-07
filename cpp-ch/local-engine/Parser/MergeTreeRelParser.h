@@ -19,10 +19,10 @@
 #include <memory>
 #include <substrait/algebra.pb.h>
 
-#include <Common/MergeTreeTool.h>
 #include <Parser/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Storages/StorageMergeTreeFactory.h>
+#include <Common/MergeTreeTool.h>
 
 
 namespace DB
@@ -47,25 +47,20 @@ public:
 
     static MergeTreeTable parseMergeTreeTable(const substrait::ReadRel::ExtensionTable & extension_table);
 
-    explicit MergeTreeRelParser(
-        SerializedPlanParser * plan_paser_, const ContextPtr & context_)
+    explicit MergeTreeRelParser(SerializedPlanParser * plan_paser_, const ContextPtr & context_)
         : RelParser(plan_paser_), context(context_), global_context(plan_paser_->global_context)
     {
     }
 
     ~MergeTreeRelParser() override = default;
 
-    DB::QueryPlanPtr
-    parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override
+    DB::QueryPlanPtr parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override
     {
         throw Exception(ErrorCodes::LOGICAL_ERROR, "MergeTreeRelParser can't call parse(), call parseReadRel instead.");
     }
 
-    DB::QueryPlanPtr
-    parseReadRel(
-        DB::QueryPlanPtr query_plan,
-        const substrait::ReadRel & read_rel,
-        const substrait::ReadRel::ExtensionTable & extension_table);
+    DB::QueryPlanPtr parseReadRel(
+        DB::QueryPlanPtr query_plan, const substrait::ReadRel & read_rel, const substrait::ReadRel::ExtensionTable & extension_table);
 
     const substrait::Rel & getSingleInput(const substrait::Rel &) override
     {

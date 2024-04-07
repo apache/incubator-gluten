@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <Common/MergeTreeTool.h>
 #include <Storages/StorageMergeTreeFactory.h>
+#include <Common/MergeTreeTool.h>
 
 namespace local_engine
 {
@@ -31,4 +31,3 @@ void saveFileStatus(
     IDataPartStorage & data_part_storage);
 
 }
-

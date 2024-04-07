@@ -68,12 +68,9 @@ CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(
     return parseMergeTreeTableString(table.value());
 }
 
-CustomStorageMergeTreePtr
-MergeTreeRelParser::parseStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context, UUID uuid)
+CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context, UUID uuid)
 {
-    DB::Block header = TypeParser::buildBlockFromNamedStruct(
-            merge_tree_table.schema,
-            merge_tree_table.low_card_key);
+    DB::Block header = TypeParser::buildBlockFromNamedStruct(merge_tree_table.schema, merge_tree_table.low_card_key);
     auto names_and_types_list = header.getNamesAndTypesList();
     auto storage_factory = StorageMergeTreeFactory::instance();
     auto metadata = buildMetaData(names_and_types_list, context, merge_tree_table);
@@ -131,11 +128,8 @@ MergeTreeRelParser::parseStorage(const substrait::ReadRel::ExtensionTable & exte
     return parseStorage(merge_tree_table, context, uuid);
 }
 
-DB::QueryPlanPtr
-MergeTreeRelParser::parseReadRel(
-    DB::QueryPlanPtr query_plan,
-    const substrait::ReadRel & rel,
-    const substrait::ReadRel::ExtensionTable & extension_table)
+DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
+    DB::QueryPlanPtr query_plan, const substrait::ReadRel & rel, const substrait::ReadRel::ExtensionTable & extension_table)
 {
     auto merge_tree_table = parseMergeTreeTable(extension_table);
     DB::Block header = TypeParser::buildBlockFromNamedStruct(merge_tree_table.schema, merge_tree_table.low_card_key);
@@ -301,10 +295,7 @@ void MergeTreeRelParser::parseToAction(ActionsDAGPtr & filter_action, const subs
 }
 
 void MergeTreeRelParser::analyzeExpressions(
-    Conditions & res,
-    const substrait::Expression & rel,
-    std::set<Int64> & pk_positions,
-    Block & block)
+    Conditions & res, const substrait::Expression & rel, std::set<Int64> & pk_positions, Block & block)
 {
     if (rel.has_scalar_function() && getCHFunctionName(rel.scalar_function()) == "and")
     {
@@ -436,7 +427,7 @@ String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_
         = storage_factory.getDataParts(StorageID(merge_tree_table.database, merge_tree_table.table), merge_tree_table.getPartNames());
 
     auto metadata = buildMetaData(input.getNamesAndTypesList(), context, merge_tree_table);
-    auto storage_snapshot = std::make_shared<StorageSnapshot>(*custom_storage_mergetree, metadata);;
+    auto storage_snapshot = std::make_shared<StorageSnapshot>(*custom_storage_mergetree, metadata);
 
     if (selected_parts.empty())
         throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "no data part found.");
