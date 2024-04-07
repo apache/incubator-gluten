@@ -327,6 +327,26 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("unix_date") {
+    withTempPath {
+      path =>
+        Seq(
+          (java.sql.Date.valueOf("1970-01-01")),
+          (java.sql.Date.valueOf("1969-12-31")),
+          (java.sql.Date.valueOf("2022-09-13"))
+        )
+          .toDF("a")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+
+        runQueryAndCompare("SELECT unix_date(a) from view") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("to_utc_timestamp") {
     withTempPath {
       path =>
