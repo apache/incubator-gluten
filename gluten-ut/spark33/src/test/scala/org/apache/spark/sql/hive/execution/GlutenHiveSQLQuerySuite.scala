@@ -136,13 +136,15 @@ class GlutenHiveSQLQuerySuite extends GlutenHiveSQLQuerySuiteBase {
   }
 
   testGluten("4990: dynamic partition may lose data") {
+    val testHdfs = classOf[DebugFilesystem].getName
     withSQLConf(
       "spark.sql.hive.convertMetastoreParquet" -> "false",
       "spark.gluten.sql.complexType.scan.fallback.enabled" -> "false",
       "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_parquet_max_block_size"
         -> "1",
       "spark.default.parallelism" -> "1",
-      "hive.exec.dynamic.partition.mode" -> "nonstrict"
+      "hive.exec.dynamic.partition.mode" -> "nonstrict",
+      "spark.hadoop.fs.file.impl" -> testHdfs
     ) {
       sql("DROP TABLE IF EXISTS test_4990_0;")
       sql("DROP TABLE IF EXISTS test_4990_1;")
