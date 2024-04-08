@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, SaveMode}
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
@@ -1790,7 +1788,8 @@ class GlutenClickHouseMergeTreeWriteSuite
 
     Seq(("true", 2), ("false", 3)).foreach(
       conf => {
-        withSQLConf((GlutenConfig.COLUMNAR_CH_NATIVE_ENABLE_DRIVER_FILTER_INDEX.key -> conf._1)) {
+        withSQLConf(
+          ("spark.gluten.sql.columnar.backend.ch.runtime_settings.enabled_driver_filter_mergetree_index" -> conf._1)) {
           runTPCHQueryBySQL(6, sqlStr) {
             df =>
               val scanExec = collect(df.queryExecution.executedPlan) {

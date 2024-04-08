@@ -181,7 +181,6 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     }
 
     std::vector<DataPartPtr> selected_parts = storage_factory.getDataParts(table_id, merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
-    auto ranges = merge_tree_table.extractRange(selected_parts);
     if (selected_parts.empty())
         throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "no data part found.");
     auto read_step = custom_storage_merge_tree->reader.readFromParts(
@@ -203,7 +202,13 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
         source_step_with_filter->applyFilters();
     }
 
-    custom_storage_merge_tree->wrapRangesInDataParts(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
+    auto ranges = merge_tree_table.extractRange(selected_parts);
+    std::string ret;
+    if (context->getSettings().tryGetString("enabled_driver_filter_mergetree_index", ret) && ret == "'true'")
+        custom_storage_merge_tree->analysisPartsByRanges(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
+    else
+        custom_storage_merge_tree->wrapRangesInDataParts(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
+
     steps.emplace_back(read_step.get());
     query_plan->addStep(std::move(read_step));
     if (!non_nullable_columns.empty())

@@ -1758,11 +1758,4 @@ object GlutenConfig {
       .internal()
       .booleanConf
       .createWithDefault(true)
-
-  val COLUMNAR_CH_NATIVE_ENABLE_DRIVER_FILTER_INDEX =
-    buildConf("spark.gluten.sql.columnar.backend.ch.scan.enabledDriverFilterIndex")
-      .internal()
-      .doc("Enable driver to filter primary / secondary index when file format is mergetree.")
-      .booleanConf
-      .createWithDefault(false)
 }

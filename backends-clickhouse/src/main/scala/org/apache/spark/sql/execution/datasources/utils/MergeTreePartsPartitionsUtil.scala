@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.utils
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.execution.{GlutenMergeTreePartition, MergeTreePartRange, MergeTreePartSplit}
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
@@ -380,10 +380,12 @@ object MergeTreePartsPartitionsUtil extends Logging {
       filterExprs: Seq[Expression],
       output: Seq[Attribute],
       sparkSession: SparkSession): Seq[MergeTreePartRange] = {
+    val enableDriverFilter = s"${CHBackendSettings.getBackendConfigPrefix}.runtime_settings" +
+      s".enabled_driver_filter_mergetree_index"
+
     if (
-      filterExprs.nonEmpty && sparkSession.sessionState.conf.getConf(
-        GlutenConfig.COLUMNAR_CH_NATIVE_ENABLE_DRIVER_FILTER_INDEX,
-        false)
+      filterExprs.nonEmpty && sparkSession.sessionState.conf.getConfString(
+        enableDriverFilter) == "true"
     ) {
       val size_per_mark = selectPartsFiles.map(part => (part.size, part.marks)).unzip match {
         case (l1, l2) => l1.sum / l2.sum
