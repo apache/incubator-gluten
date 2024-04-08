@@ -155,7 +155,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[VeloxAdaptiveQueryExecSuite]
     .includeAllGlutenTests()
     .includeByPrefix(
-      "SPARK-29906",
       "SPARK-30291",
       "SPARK-30403",
       "SPARK-30719",
@@ -337,6 +336,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("broadcast join where streamed side's output partitioning is HashPartitioning")
     .exclude("broadcast join where streamed side's output partitioning is PartitioningCollection")
   enableSuite[GlutenSQLQuerySuite]
+    .exclude("SPARK-19650: An action on a Command should not trigger a Spark job")
+    .exclude("SPARK-17515: CollectLimit.execute() should perform per-partition limits")
     // Unstable. Needs to be fixed.
     .exclude("SPARK-36093: RemoveRedundantAliases should not change expression's name")
     // Rewrite from ORC scan to Parquet scan because ORC is not well supported.
