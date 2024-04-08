@@ -608,7 +608,6 @@ object DpZipperAlgo {
   }
 
   private object XKey {
-    // Keep argument "ele" although it is unused. To give compiler type hint.
     def apply[X <: AnyRef, Y <: AnyRef, XOutput <: AnyRef, YOutput <: AnyRef](
         algoDef: DpZipperAlgoDef[X, Y, XOutput, YOutput],
         x: X): XKey[X, Y, XOutput, YOutput] = {
@@ -631,7 +630,6 @@ object DpZipperAlgo {
   }
 
   private object YKey {
-    // Keep argument "ele" although it is unused. To give compiler type hint.
     def apply[X <: AnyRef, Y <: AnyRef, XOutput <: AnyRef, YOutput <: AnyRef](
         algoDef: DpZipperAlgoDef[X, Y, XOutput, YOutput],
         y: Y): YKey[X, Y, XOutput, YOutput] = {

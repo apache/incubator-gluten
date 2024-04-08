@@ -84,6 +84,8 @@ object CanonicalNode {
       override val childrenCount: Int)
     extends CanonicalNode[T] {
     override def toString: String = ras.explain.describeNode(self)
+    override def hashCode(): Int = throw new UnsupportedOperationException()
+    override def equals(obj: Any): Boolean = throw new UnsupportedOperationException()
   }
 }
 
@@ -103,6 +105,8 @@ object GroupNode {
       override val groupId: Int)
     extends GroupNode[T] {
     override def toString: String = ras.explain.describeNode(self)
+    override def hashCode(): Int = throw new UnsupportedOperationException()
+    override def equals(obj: Any): Boolean = throw new UnsupportedOperationException()
   }
 
   // We put RasNode's API methods that accept mutable input in implicit definition.
@@ -123,8 +127,21 @@ object InGroupNode {
   def apply[T <: AnyRef](groupId: Int, node: CanonicalNode[T]): InGroupNode[T] = {
     InGroupNodeImpl(groupId, node)
   }
+
   private case class InGroupNodeImpl[T <: AnyRef](groupId: Int, can: CanonicalNode[T])
     extends InGroupNode[T]
+
+  trait HashKey extends Any
+
+  implicit class InGroupNodeImplicits[T <: AnyRef](n: InGroupNode[T]) {
+    import InGroupNodeImplicits._
+    def toHashKey: HashKey =
+      InGroupNodeHashKeyImpl(n.groupId, System.identityHashCode(n.can))
+  }
+
+  private object InGroupNodeImplicits {
+    private case class InGroupNodeHashKeyImpl(gid: Int, cid: Int) extends HashKey
+  }
 }
 
 trait InClusterNode[T <: AnyRef] {
@@ -136,8 +153,21 @@ object InClusterNode {
   def apply[T <: AnyRef](clusterId: RasClusterKey, node: CanonicalNode[T]): InClusterNode[T] = {
     InClusterNodeImpl(clusterId, node)
   }
+
   private case class InClusterNodeImpl[T <: AnyRef](
       clusterKey: RasClusterKey,
       can: CanonicalNode[T])
     extends InClusterNode[T]
+
+  trait HashKey extends Any
+
+  implicit class InClusterNodeImplicits[T <: AnyRef](n: InClusterNode[T]) {
+    import InClusterNodeImplicits._
+    def toHashKey: HashKey =
+      InClusterNodeHashKeyImpl(n.clusterKey, System.identityHashCode(n.can))
+  }
+
+  private object InClusterNodeImplicits {
+    private case class InClusterNodeHashKeyImpl(clusterKey: RasClusterKey, cid: Int) extends HashKey
+  }
 }

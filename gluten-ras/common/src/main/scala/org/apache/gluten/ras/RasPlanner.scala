@@ -49,8 +49,8 @@ object RasPlanner {
 trait Best[T <: AnyRef] {
   import Best._
   def rootGroupId(): Int
-  def bestNodes(): Set[InGroupNode[T]]
-  def winnerNodes(): Set[InGroupNode[T]]
+  def bestNodes(): InGroupNode[T] => Boolean
+  def winnerNodes(): InGroupNode[T] => Boolean
   def costs(): InGroupNode[T] => Option[Cost]
   def path(): KnownCostPath[T]
 }
@@ -62,11 +62,11 @@ object Best {
       bestPath: KnownCostPath[T],
       winnerNodes: Seq[InGroupNode[T]],
       costs: InGroupNode[T] => Option[Cost]): Best[T] = {
-    val bestNodes = mutable.Set[InGroupNode[T]]()
+    val bestNodes = mutable.Set[InGroupNode.HashKey]()
 
     def dfs(groupId: Int, cursor: RasPath.PathNode[T]): Unit = {
       val can = cursor.self().asCanonical()
-      bestNodes += InGroupNode(groupId, can)
+      bestNodes += InGroupNode(groupId, can).toHashKey
       cursor.zipChildrenWithGroupIds().foreach {
         case (childPathNode, childGroupId) =>
           dfs(childGroupId, childPathNode)
@@ -75,17 +75,24 @@ object Best {
 
     dfs(rootGroupId, bestPath.rasPath.node())
 
-    val winnerNodeSet = winnerNodes.toSet
+    val bestNodeSet = bestNodes.toSet
+    val winnerNodeSet = winnerNodes.map(_.toHashKey).toSet
 
-    BestImpl(ras, rootGroupId, bestPath, bestNodes.toSet, winnerNodeSet, costs)
+    BestImpl(
+      ras,
+      rootGroupId,
+      bestPath,
+      n => bestNodeSet.contains(n.toHashKey),
+      n => winnerNodeSet.contains(n.toHashKey),
+      costs)
   }
 
   private case class BestImpl[T <: AnyRef](
       ras: Ras[T],
       override val rootGroupId: Int,
       override val path: KnownCostPath[T],
-      override val bestNodes: Set[InGroupNode[T]],
-      override val winnerNodes: Set[InGroupNode[T]],
+      override val bestNodes: InGroupNode[T] => Boolean,
+      override val winnerNodes: InGroupNode[T] => Boolean,
       override val costs: InGroupNode[T] => Option[Cost])
     extends Best[T]
 

@@ -40,9 +40,12 @@ object BestFinder {
   }
 
   case class KnownCostGroup[T <: AnyRef](
-      nodeToCost: Map[CanonicalNode[T], KnownCostPath[T]],
+      nodeToCost: java.util.IdentityHashMap[CanonicalNode[T], KnownCostPath[T]],
       bestNode: CanonicalNode[T]) {
-    def best(): KnownCostPath[T] = nodeToCost(bestNode)
+    def best(): KnownCostPath[T] = {
+      assert(nodeToCost.containsKey(bestNode))
+      nodeToCost.get(bestNode)
+    }
   }
 
   case class KnownCostCluster[T <: AnyRef](groupToCost: Map[Int, KnownCostGroup[T]])
@@ -52,17 +55,20 @@ object BestFinder {
       allGroups: Seq[RasGroup[T]],
       group: RasGroup[T],
       groupToCosts: Map[Int, KnownCostGroup[T]]): Best[T] = {
+    import scala.collection.JavaConverters._
+
     val bestPath = groupToCosts(group.id()).best()
     val bestRoot = bestPath.rasPath.node()
     val winnerNodes = groupToCosts.map { case (id, g) => InGroupNode(id, g.bestNode) }.toSeq
-    val costsMap = mutable.Map[InGroupNode[T], Cost]()
+    val costsMap = mutable.Map[InGroupNode.HashKey, Cost]()
     groupToCosts.foreach {
       case (gid, g) =>
-        g.nodeToCost.foreach {
+        val scala = new java.util.ArrayList(g.nodeToCost.entrySet()).asScala
+        scala.map(entry => entry.getKey -> entry.getValue).foreach {
           case (n, c) =>
-            costsMap += (InGroupNode(gid, n) -> c.cost)
+            costsMap += (InGroupNode(gid, n).toHashKey -> c.cost)
         }
     }
-    Best(ras, group.id(), bestPath, winnerNodes, costsMap.get)
+    Best(ras, group.id(), bestPath, winnerNodes, ign => costsMap.get(ign.toHashKey))
   }
 }
