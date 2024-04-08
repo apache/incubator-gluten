@@ -99,8 +99,6 @@ object DpPlanner {
       rules: Seq[RuleApplier[T]],
       enforcerRuleSet: EnforcerRuleSet[T])
     extends DpClusterAlgo.Adjustment[T] {
-    private val allGroups = memoTable.allGroups()
-    private val clusterLookup = cKey => memoTable.getCluster(cKey)
 
     override def exploreChildX(
         panel: Panel[InClusterNode[T], RasClusterKey],
@@ -127,33 +125,30 @@ object DpPlanner {
       if (rules.isEmpty) {
         return
       }
-      val cluster = clusterLookup(cKey)
-      cluster.nodes().foreach {
-        node =>
-          val shapes = rules.map(_.shape())
-          findPaths(node, shapes)(path => rules.foreach(rule => applyRule(panel, cKey, rule, path)))
+      val dummyGroup = memoTable.getDummyGroup(cKey)
+      val shapes = rules.map(_.shape())
+      findPaths(GroupNode(ras, dummyGroup), shapes) {
+        path => rules.foreach(rule => applyRule(panel, cKey, rule, path))
       }
     }
 
     private def applyEnforcerRules(
         panel: Panel[InClusterNode[T], RasClusterKey],
         cKey: RasClusterKey): Unit = {
-      val cluster = clusterLookup(cKey)
+      val dummyGroup = memoTable.getDummyGroup(cKey)
       cKey.propSets(memoTable).foreach {
         constraintSet =>
           val enforcerRules = enforcerRuleSet.rulesOf(constraintSet)
           if (enforcerRules.nonEmpty) {
             val shapes = enforcerRules.map(_.shape())
-            cluster.nodes().foreach {
-              node =>
-                findPaths(node, shapes)(
-                  path => enforcerRules.foreach(rule => applyRule(panel, cKey, rule, path)))
+            findPaths(GroupNode(ras, dummyGroup), shapes) {
+              path => enforcerRules.foreach(rule => applyRule(panel, cKey, rule, path))
             }
           }
       }
     }
 
-    private def findPaths(canonical: CanonicalNode[T], shapes: Seq[Shape[T]])(
+    private def findPaths(gn: GroupNode[T], shapes: Seq[Shape[T]])(
         onFound: RasPath[T] => Unit): Unit = {
       val finder = shapes
         .foldLeft(
@@ -163,7 +158,7 @@ object DpPlanner {
             builder.output(shape.wizard())
         }
         .build()
-      finder.find(canonical).foreach(path => onFound(path))
+      finder.find(gn).foreach(path => onFound(path))
     }
 
     private def applyRule(

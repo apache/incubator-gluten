@@ -54,7 +54,7 @@ trait CanonicalNode[T <: AnyRef] extends RasNode[T] {
 object CanonicalNode {
   def apply[T <: AnyRef](ras: Ras[T], canonical: T): CanonicalNode[T] = {
     assert(ras.isCanonical(canonical))
-    val propSet = ras.propSetsOf(canonical)
+    val propSet = ras.propSetOf(canonical)
     val children = ras.planModel.childrenOf(canonical)
     new CanonicalNodeImpl[T](ras, canonical, propSet, children.size)
   }

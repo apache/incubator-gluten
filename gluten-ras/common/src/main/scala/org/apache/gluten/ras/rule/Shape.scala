@@ -33,8 +33,18 @@ object Shapes {
     new FixedHeight[T](height)
   }
 
+  def pattern[T <: AnyRef](pattern: org.apache.gluten.ras.path.Pattern[T]): Shape[T] = {
+    new Pattern(pattern)
+  }
+
   def none[T <: AnyRef](): Shape[T] = {
     new None()
+  }
+
+  private class Pattern[T <: AnyRef](pattern: org.apache.gluten.ras.path.Pattern[T])
+    extends Shape[T] {
+    override def wizard(): OutputWizard[T] = OutputWizards.withPattern(pattern)
+    override def identify(path: RasPath[T]): Boolean = pattern.matches(path, path.height())
   }
 
   private class FixedHeight[T <: AnyRef](height: Int) extends Shape[T] {

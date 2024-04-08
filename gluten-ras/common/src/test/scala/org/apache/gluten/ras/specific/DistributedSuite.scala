@@ -242,6 +242,7 @@ object DistributedSuite {
 
   case object NoneDistribution extends Distribution {
     override def satisfies(other: Property[TestNode]): Boolean = other match {
+      case AnyDistribution => true
       case _: Distribution => false
       case _ => throw new UnsupportedOperationException()
     }
@@ -296,6 +297,7 @@ object DistributedSuite {
 
   case object NoneOrdering extends Ordering {
     override def satisfies(other: Property[TestNode]): Boolean = other match {
+      case AnyOrdering => true
       case _: Ordering => false
       case _ => throw new UnsupportedOperationException()
     }

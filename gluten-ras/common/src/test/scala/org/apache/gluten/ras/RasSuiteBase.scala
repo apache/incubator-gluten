@@ -163,7 +163,7 @@ object RasSuiteBase {
 
   implicit class MemoLikeImplicits[T <: AnyRef](val memo: MemoLike[T]) {
     def memorize(ras: Ras[T], node: T): RasGroup[T] = {
-      memo.memorize(node, ras.propSetsOf(node))
+      memo.memorize(node, ras.propSetOf(node))
     }
   }
 

@@ -178,8 +178,22 @@ class WizardSuite extends AnyFunSuite {
       finder.find(node1).map(_.plan()).toSeq
     }
 
+    def findWithPatternsFromGroup(patterns: Seq[Pattern[TestNode]]): Seq[TestNode] = {
+      val builder = PathFinder.builder(ras, state)
+      val finder = patterns
+        .foldLeft(builder) {
+          case (builder, pattern) =>
+            builder.output(OutputWizards.withPattern(pattern))
+        }
+        .build()
+      finder.find(groupA.asGroup(ras)).map(_.plan()).toSeq
+    }
+
+    assert(findWithPatternsFromGroup(List(Pattern.ignore[TestNode].build())) == List(Group(0)))
+
     assert(
       findWithPatterns(List(Pattern.any[TestNode].build())) == List(Binary(n1, Group(1), Group(2))))
+
     assert(
       findWithPatterns(
         List(

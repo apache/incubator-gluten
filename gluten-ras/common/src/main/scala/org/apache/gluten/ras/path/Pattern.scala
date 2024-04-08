@@ -90,20 +90,19 @@ object Pattern {
 
   private case class PatternImpl[T <: AnyRef](root: Node[T]) extends Pattern[T] {
     override def matches(path: RasPath[T], depth: Int): Boolean = {
-      assert(depth >= 1)
+      assert(depth >= 0)
       assert(depth <= path.height())
       def dfs(remainingDepth: Int, patternN: Node[T], n: PathNode[T]): Boolean = {
         assert(remainingDepth >= 0)
-        assert(n.self().isCanonical)
         if (remainingDepth == 0) {
+          return true
+        }
+        if (patternN.skip()) {
           return true
         }
         val can = n.self().asCanonical()
         if (patternN.abort(can)) {
           return false
-        }
-        if (patternN.skip()) {
-          return true
         }
         if (!patternN.matches(can)) {
           return false
