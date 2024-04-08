@@ -44,6 +44,7 @@ object MemoTable {
   trait Writable[T <: AnyRef] extends MemoTable[T] {
     def newCluster(metadata: Metadata): RasClusterKey
     def groupOf(key: RasClusterKey, propertySet: PropertySet[T]): RasGroup[T]
+    def dummyGroupOf(key: RasClusterKey): RasGroup[T]
 
     def addToCluster(key: RasClusterKey, node: CanonicalNode[T]): Unit
     def mergeClusters(one: RasClusterKey, other: RasClusterKey): Unit

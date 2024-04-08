@@ -33,6 +33,8 @@ class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
   private val clusterKeyBuffer: mutable.ArrayBuffer[IntClusterKey] = mutable.ArrayBuffer()
   private val clusterBuffer: mutable.ArrayBuffer[MutableRasCluster[T]] = mutable.ArrayBuffer()
   private val clusterDisjointSet: IndexDisjointSet = IndexDisjointSet()
+  private val clusterDummyGroupBuffer = mutable.ArrayBuffer[RasGroup[T]]()
+
   private val groupLookup: mutable.ArrayBuffer[mutable.Map[PropertySet[T], RasGroup[T]]] =
     mutable.ArrayBuffer()
 
@@ -46,12 +48,20 @@ class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
 
   override def newCluster(metadata: Metadata): RasClusterKey = {
     checkBufferSizes()
-    val key = IntClusterKey(clusterBuffer.size, metadata)
+    val clusterId = clusterBuffer.size
+    val key = IntClusterKey(clusterId, metadata)
     clusterKeyBuffer += key
     clusterBuffer += MutableRasCluster(ras, metadata)
     clusterDisjointSet.grow()
     groupLookup += mutable.Map()
+    // Normal groups start with ID 0, so it's safe to use negative IDs for dummy groups.
+    clusterDummyGroupBuffer += RasGroup(ras, key, -clusterId, ras.propertySetFactory().any())
     key
+  }
+
+  override def dummyGroupOf(key: RasClusterKey): RasGroup[T] = {
+    val ancestor = ancestorClusterIdOf(key)
+    clusterDummyGroupBuffer(ancestor)
   }
 
   override def groupOf(key: RasClusterKey, propSet: PropertySet[T]): RasGroup[T] = {
@@ -75,7 +85,11 @@ class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
   }
 
   override def addToCluster(key: RasClusterKey, node: CanonicalNode[T]): Unit = {
-    getCluster(key).add(node)
+    val cluster = getCluster(key)
+    if (cluster.contains(node)) {
+      return
+    }
+    cluster.add(node)
     memoWriteCount += 1
   }
 
@@ -142,6 +156,7 @@ class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
     assert(clusterKeyBuffer.size == clusterBuffer.size)
     assert(clusterKeyBuffer.size == clusterDisjointSet.size)
     assert(clusterKeyBuffer.size == groupLookup.size)
+    assert(clusterKeyBuffer.size == clusterDummyGroupBuffer.size)
   }
 
   override def probe(): MemoTable.Probe[T] = new ForwardMemoTable.Probe[T](this)

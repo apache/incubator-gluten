@@ -40,9 +40,12 @@ object BestFinder {
   }
 
   case class KnownCostGroup[T <: AnyRef](
-      nodeToCost: Map[CanonicalNode[T], KnownCostPath[T]],
+      nodes: Iterable[CanonicalNode[T]],
+      nodeToCost: CanonicalNode[T] => Option[KnownCostPath[T]],
       bestNode: CanonicalNode[T]) {
-    def best(): KnownCostPath[T] = nodeToCost(bestNode)
+    def best(): KnownCostPath[T] = {
+      nodeToCost(bestNode).get
+    }
   }
 
   case class KnownCostCluster[T <: AnyRef](groupToCost: Map[Int, KnownCostGroup[T]])
@@ -52,17 +55,21 @@ object BestFinder {
       allGroups: Seq[RasGroup[T]],
       group: RasGroup[T],
       groupToCosts: Map[Int, KnownCostGroup[T]]): Best[T] = {
+
     val bestPath = groupToCosts(group.id()).best()
     val bestRoot = bestPath.rasPath.node()
     val winnerNodes = groupToCosts.map { case (id, g) => InGroupNode(id, g.bestNode) }.toSeq
-    val costsMap = mutable.Map[InGroupNode[T], Cost]()
+    val costsMap = mutable.Map[InGroupNode.HashKey, Cost]()
     groupToCosts.foreach {
       case (gid, g) =>
-        g.nodeToCost.foreach {
-          case (n, c) =>
-            costsMap += (InGroupNode(gid, n) -> c.cost)
+        g.nodes.foreach {
+          n =>
+            val c = g.nodeToCost(n)
+            if (c.nonEmpty) {
+              costsMap += (InGroupNode(gid, n).toHashKey -> c.get.cost)
+            }
         }
     }
-    Best(ras, group.id(), bestPath, winnerNodes, costsMap.get)
+    Best(ras, group.id(), bestPath, winnerNodes, ign => costsMap.get(ign.toHashKey))
   }
 }

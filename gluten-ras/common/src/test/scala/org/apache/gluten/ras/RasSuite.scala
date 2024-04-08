@@ -66,8 +66,7 @@ abstract class RasSuite extends AnyFunSuite {
     val group = memo.memorize(ras, Unary(50, Unary(50, Leaf(30))))
     val state = memo.newState()
     assert(group.nodes(state).size == 1)
-    val can = group.nodes(state).head.asCanonical()
-    memo.openFor(can).memorize(ras, Unary(30, Leaf(90)))
+    memo.openFor(group.clusterKey()).memorize(ras, Unary(30, Leaf(90)))
     assert(memo.newState().allGroups().size == 4)
   }
 
@@ -87,8 +86,7 @@ abstract class RasSuite extends AnyFunSuite {
     assert(group.nodes(state).size == 1)
     val leaf40Group = memo.memorize(ras, Leaf(40))
     assert(leaf40Group.nodes(state).size == 1)
-    val can = leaf40Group.nodes(state).head.asCanonical()
-    memo.openFor(can).memorize(ras, Leaf(30))
+    memo.openFor(leaf40Group.clusterKey()).memorize(ras, Leaf(30))
     assert(memo.newState().allGroups().size == 3)
   }
 
@@ -108,8 +106,7 @@ abstract class RasSuite extends AnyFunSuite {
     assert(group.nodes(state).size == 1)
     val leaf40Group = memo.memorize(ras, Leaf(40))
     assert(leaf40Group.nodes(state).size == 1)
-    val can = leaf40Group.nodes(state).head.asCanonical()
-    memo.openFor(can).memorize(ras, Leaf(30))
+    memo.openFor(leaf40Group.clusterKey()).memorize(ras, Leaf(30))
     assert(memo.newState().allGroups().size == 5)
   }
 

@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.ras
 
+import org.apache.gluten.ras.Ras.UnsafeKey
 import org.apache.gluten.ras.memo.MemoTable
 import org.apache.gluten.ras.property.PropertySet
 
@@ -54,16 +55,19 @@ object RasCluster {
         override val ras: Ras[T],
         metadata: Metadata)
       extends MutableRasCluster[T] {
-      private val buffer: mutable.Set[CanonicalNode[T]] =
-        mutable.Set()
+      private val deDup: mutable.Set[UnsafeKey[T]] = mutable.Set()
+      private val buffer: mutable.ListBuffer[CanonicalNode[T]] =
+        mutable.ListBuffer()
 
       override def contains(t: CanonicalNode[T]): Boolean = {
-        buffer.contains(t)
+        deDup.contains(t.toUnsafeKey())
       }
 
       override def add(t: CanonicalNode[T]): Unit = {
+        val key = t.toUnsafeKey()
+        assert(!deDup.contains(key))
         ras.metadataModel.verify(metadata, ras.metadataModel.metadataOf(t.self()))
-        assert(!buffer.contains(t))
+        deDup += key
         buffer += t
       }
 
@@ -75,12 +79,12 @@ object RasCluster {
 
   case class ImmutableRasCluster[T <: AnyRef] private (
       ras: Ras[T],
-      override val nodes: Set[CanonicalNode[T]])
+      override val nodes: Seq[CanonicalNode[T]])
     extends RasCluster[T]
 
   object ImmutableRasCluster {
     def apply[T <: AnyRef](ras: Ras[T], cluster: RasCluster[T]): ImmutableRasCluster[T] = {
-      ImmutableRasCluster(ras, cluster.nodes().toSet)
+      ImmutableRasCluster(ras, cluster.nodes().toVector)
     }
   }
 }

@@ -19,6 +19,7 @@ package org.apache.gluten.ras
 import org.apache.gluten.ras.Best.BestNotFoundException
 import org.apache.gluten.ras.RasConfig.PlannerType
 import org.apache.gluten.ras.RasSuiteBase._
+import org.apache.gluten.ras.memo.Memo
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 
@@ -36,6 +37,30 @@ abstract class PropertySuite extends AnyFunSuite {
   import PropertySuite._
 
   protected def conf: RasConfig
+
+  test("Group memo - cache") {
+    val ras =
+      Ras[TestNode](
+        PlanModelImpl,
+        CostModelImpl,
+        MetadataModelImpl,
+        NodeTypePropertyModelWithOutEnforcerRules,
+        ExplainImpl,
+        RasRule.Factory.none())
+        .withNewConfig(_ => conf)
+
+    val memo = Memo(ras)
+
+    memo.memorize(ras, PassNodeType(1, PassNodeType(1, PassNodeType(1, TypedLeaf(TypeA, 1)))))
+    val leafGroup = memo.memorize(ras, TypedLeaf(TypeA, 1))
+    memo
+      .openFor(leafGroup.clusterKey())
+      .memorize(ras, TypedLeaf(TypeB, 1))
+    memo.memorize(ras, PassNodeType(1, PassNodeType(1, PassNodeType(1, TypedLeaf(TypeB, 1)))))
+    val state = memo.newState()
+    assert(state.allClusters().size == 4)
+    assert(state.getGroupCount() == 8)
+  }
 
   test(s"Get property") {
     val leaf = PLeaf(10, DummyProperty(0))
@@ -112,7 +137,7 @@ abstract class PropertySuite extends AnyFunSuite {
         TypedLeaf(TypeB, 10)))
   }
 
-  ignore(s"Memo cache hit - (A, B)") {
+  test(s"Memo cache hit - (A, B)") {
     object ReplaceLeafAByLeafBRule extends RasRule[TestNode] {
       override def shift(node: TestNode): Iterable[TestNode] = {
         node match {
@@ -163,8 +188,8 @@ abstract class PropertySuite extends AnyFunSuite {
     val out = planner.plan()
     assert(out == TypedLeaf(TypeA, 1))
 
-    // FIXME: Cluster 2 and 1 are currently able to merge but it's better to
-    //  have them identified as the same right after HitCacheOp is applied
+    // Cluster 2 and 1 are able to merge but we'd make sure
+    // they are identified as the same right after HitCacheOp is applied
     val clusterCount = planner.newState().memoState().allClusters().size
     assert(clusterCount == 2)
   }
@@ -531,6 +556,7 @@ object PropertySuite {
   }
 
   object DummyPropertyDef extends PropertyDef[TestNode, DummyProperty] {
+    override def any(): DummyProperty = DummyProperty(Int.MinValue)
     override def getProperty(plan: TestNode): DummyProperty = {
       plan match {
         case Group(_, _, _) => throw new IllegalStateException()
@@ -669,6 +695,8 @@ object PropertySuite {
     }
 
     override def toString: String = "NodeTypeDef"
+
+    override def any(): NodeType = TypeAny
   }
 
   trait NodeType extends Property[TestNode] {

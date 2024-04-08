@@ -21,8 +21,9 @@ package org.apache.gluten.ras
  */
 trait MetadataModel[T <: AnyRef] {
   def metadataOf(node: T): Metadata
-  def dummy(): Metadata
   def verify(one: Metadata, other: Metadata): Unit
+
+  def dummy(): Metadata
 }
 
 trait Metadata {}

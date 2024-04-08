@@ -73,7 +73,7 @@ object DpClusterAlgo {
       clusterAlgoDef: DpClusterAlgoDef[T, NodeOutput, ClusterOutput])
     extends DpZipperAlgoDef[InClusterNode[T], RasClusterKey, NodeOutput, ClusterOutput] {
     override def idOfX(x: InClusterNode[T]): Any = {
-      x
+      x.toHashKey
     }
 
     override def idOfY(y: RasClusterKey): Any = {

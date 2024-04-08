@@ -37,7 +37,7 @@ object RasPath {
 
   object PathNode {
     def apply[T <: AnyRef](node: RasNode[T], children: Seq[PathNode[T]]): PathNode[T] = {
-      PathNodeImpl(node, children)
+      new PathNodeImpl(node, children)
     }
   }
 
@@ -61,7 +61,7 @@ object RasPath {
       keys: PathKeySet,
       height: Int,
       node: RasPath.PathNode[T]): RasPath[T] = {
-    RasPathImpl(ras, keys, height, node)
+    new RasPathImpl(ras, keys, height, node)
   }
 
   // Returns none if children doesn't share at least one path key.
@@ -101,25 +101,6 @@ object RasPath {
       keys,
       1,
       PathNode(canonical, canonical.getChildrenGroups(allGroups).map(g => PathNode(g, List.empty))))
-  }
-
-  // Aggregates paths that have same shape but different keys together.
-  // Currently not in use because of bad performance.
-  def aggregate[T <: AnyRef](ras: Ras[T], paths: Iterable[RasPath[T]]): Iterable[RasPath[T]] = {
-    // Scala has specialized optimization against small set of input of group-by.
-    // So it's better only to pass small inputs to this method if possible.
-    val grouped = paths.groupBy(_.node())
-    grouped.map {
-      case (node, paths) =>
-        val heights = paths.map(_.height()).toSeq.distinct
-        assert(heights.size == 1)
-        val height = heights.head
-        val keys = paths.map(_.keys().keys()).reduce[Set[PathKey]] {
-          case (one, other) =>
-            one.union(other)
-        }
-        RasPath(ras, PathKeySet(keys), height, node)
-    }
   }
 
   def cartesianProduct[T <: AnyRef](
@@ -171,12 +152,12 @@ object RasPath {
     }
   }
 
-  private case class PathNodeImpl[T <: AnyRef](
+  private class PathNodeImpl[T <: AnyRef](
       override val self: RasNode[T],
       override val children: Seq[PathNode[T]])
     extends PathNode[T]
 
-  private case class RasPathImpl[T <: AnyRef](
+  private class RasPathImpl[T <: AnyRef](
       override val ras: Ras[T],
       override val keys: PathKeySet,
       override val height: Int,
@@ -192,4 +173,20 @@ object RasPath {
 
     override def plan(): T = built
   }
+}
+
+trait InClusterPath[T <: AnyRef] {
+  def cluster(): RasClusterKey
+  def path(): RasPath[T]
+}
+
+object InClusterPath {
+  def apply[T <: AnyRef](cluster: RasClusterKey, path: RasPath[T]): InClusterPath[T] = {
+    new InClusterPathImpl(cluster, path)
+  }
+
+  private class InClusterPathImpl[T <: AnyRef](
+      override val cluster: RasClusterKey,
+      override val path: RasPath[T])
+    extends InClusterPath[T]
 }

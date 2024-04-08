@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.ras
 
+import org.apache.gluten.ras.Ras.UnsafeKey
 import org.apache.gluten.ras.property.PropertySet
 
 trait RasNode[T <: AnyRef] {
@@ -41,6 +42,8 @@ object RasNode {
     def asGroup(): GroupNode[T] = {
       node.asInstanceOf[GroupNode[T]]
     }
+
+    def toUnsafeKey(): UnsafeKey[T] = node.ras().toUnsafeKey(node.self())
   }
 }
 
@@ -53,7 +56,7 @@ object CanonicalNode {
     assert(ras.isCanonical(canonical))
     val propSet = ras.propSetsOf(canonical)
     val children = ras.planModel.childrenOf(canonical)
-    CanonicalNodeImpl[T](ras, canonical, propSet, children.size)
+    new CanonicalNodeImpl[T](ras, canonical, propSet, children.size)
   }
 
   // We put RasNode's API methods that accept mutable input in implicit definition.
@@ -74,12 +77,16 @@ object CanonicalNode {
     }
   }
 
-  private case class CanonicalNodeImpl[T <: AnyRef](
-      ras: Ras[T],
+  private class CanonicalNodeImpl[T <: AnyRef](
+      override val ras: Ras[T],
       override val self: T,
       override val propSet: PropertySet[T],
       override val childrenCount: Int)
-    extends CanonicalNode[T]
+    extends CanonicalNode[T] {
+    override def toString: String = ras.explain.describeNode(self)
+    override def hashCode(): Int = throw new UnsupportedOperationException()
+    override def equals(obj: Any): Boolean = throw new UnsupportedOperationException()
+  }
 }
 
 trait GroupNode[T <: AnyRef] extends RasNode[T] {
@@ -88,15 +95,19 @@ trait GroupNode[T <: AnyRef] extends RasNode[T] {
 
 object GroupNode {
   def apply[T <: AnyRef](ras: Ras[T], group: RasGroup[T]): GroupNode[T] = {
-    GroupNodeImpl[T](ras, group.self(), group.propSet(), group.id())
+    new GroupNodeImpl[T](ras, group.self(), group.propSet(), group.id())
   }
 
-  private case class GroupNodeImpl[T <: AnyRef](
-      ras: Ras[T],
+  private class GroupNodeImpl[T <: AnyRef](
+      override val ras: Ras[T],
       override val self: T,
       override val propSet: PropertySet[T],
       override val groupId: Int)
-    extends GroupNode[T] {}
+    extends GroupNode[T] {
+    override def toString: String = ras.explain.describeNode(self)
+    override def hashCode(): Int = throw new UnsupportedOperationException()
+    override def equals(obj: Any): Boolean = throw new UnsupportedOperationException()
+  }
 
   // We put RasNode's API methods that accept mutable input in implicit definition.
   // Do not break this rule during further development.
@@ -116,8 +127,21 @@ object InGroupNode {
   def apply[T <: AnyRef](groupId: Int, node: CanonicalNode[T]): InGroupNode[T] = {
     InGroupNodeImpl(groupId, node)
   }
+
   private case class InGroupNodeImpl[T <: AnyRef](groupId: Int, can: CanonicalNode[T])
     extends InGroupNode[T]
+
+  trait HashKey extends Any
+
+  implicit class InGroupNodeImplicits[T <: AnyRef](n: InGroupNode[T]) {
+    import InGroupNodeImplicits._
+    def toHashKey: HashKey =
+      InGroupNodeHashKeyImpl(n.groupId, System.identityHashCode(n.can))
+  }
+
+  private object InGroupNodeImplicits {
+    private case class InGroupNodeHashKeyImpl(gid: Int, cid: Int) extends HashKey
+  }
 }
 
 trait InClusterNode[T <: AnyRef] {
@@ -129,8 +153,21 @@ object InClusterNode {
   def apply[T <: AnyRef](clusterId: RasClusterKey, node: CanonicalNode[T]): InClusterNode[T] = {
     InClusterNodeImpl(clusterId, node)
   }
+
   private case class InClusterNodeImpl[T <: AnyRef](
       clusterKey: RasClusterKey,
       can: CanonicalNode[T])
     extends InClusterNode[T]
+
+  trait HashKey extends Any
+
+  implicit class InClusterNodeImplicits[T <: AnyRef](n: InClusterNode[T]) {
+    import InClusterNodeImplicits._
+    def toHashKey: HashKey =
+      InClusterNodeHashKeyImpl(n.clusterKey, System.identityHashCode(n.can))
+  }
+
+  private object InClusterNodeImplicits {
+    private case class InClusterNodeHashKeyImpl(clusterKey: RasClusterKey, cid: Int) extends HashKey
+  }
 }

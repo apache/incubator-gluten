@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.ras.path
 
-import org.apache.gluten.ras.Ras
+import org.apache.gluten.ras.{CanonicalNode, Ras}
 import org.apache.gluten.ras.RasSuiteBase._
 import org.apache.gluten.ras.mock.MockRasPath
 import org.apache.gluten.ras.rule.RasRule
@@ -26,7 +26,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class RasPathSuite extends AnyFunSuite {
   import RasPathSuite._
 
-  test("Path aggregate - empty") {
+  test("Cartesian product - empty") {
     val ras =
       Ras[TestNode](
         PlanModelImpl,
@@ -35,10 +35,21 @@ class RasPathSuite extends AnyFunSuite {
         PropertyModelImpl,
         ExplainImpl,
         RasRule.Factory.reuse(List.empty))
-    assert(RasPath.aggregate(ras, List.empty) == List.empty)
+    assert(
+      RasPath.cartesianProduct(
+        ras,
+        CanonicalNode(ras, Binary("b", ras.dummyGroupLeaf(), ras.dummyGroupLeaf())),
+        List(
+          List.empty,
+          List(
+            MockRasPath.mock(
+              ras,
+              Leaf("l", 1),
+              PathKeySet(Set(DummyPathKey(3)))
+            )))
+      ) == List.empty)
   }
-
-  test("Path aggregate") {
+  test("Cartesian product") {
     val ras =
       Ras[TestNode](
         PlanModelImpl,
@@ -54,6 +65,7 @@ class RasPathSuite extends AnyFunSuite {
     val n4 = "n4"
     val n5 = "n5"
     val n6 = "n6"
+
     val path1 = MockRasPath.mock(
       ras,
       Unary(n5, Leaf(n6, 1)),
@@ -66,31 +78,37 @@ class RasPathSuite extends AnyFunSuite {
     )
     val path3 = MockRasPath.mock(
       ras,
-      Unary(n1, Unary(n2, Leaf(n3, 1))),
-      PathKeySet(Set(DummyPathKey(1), DummyPathKey(2)))
+      Leaf(n6, 1),
+      PathKeySet(Set(DummyPathKey(1)))
     )
     val path4 = MockRasPath.mock(
       ras,
-      Unary(n1, Unary(n2, Leaf(n3, 1))),
-      PathKeySet(Set(DummyPathKey(4)))
+      Leaf(n3, 1),
+      PathKeySet(Set(DummyPathKey(3)))
     )
+
     val path5 = MockRasPath.mock(
       ras,
-      Unary(n5, Leaf(n6, 1)),
+      Unary(n2, Leaf(n3, 1)),
       PathKeySet(Set(DummyPathKey(4)))
     )
-    val out = RasPath
-      .aggregate(ras, List(path1, path2, path3, path4, path5))
-      .toSeq
-      .sortBy(_.height())
-    assert(out.size == 2)
-    assert(out.head.height() == 2)
-    assert(out.head.plan() == Unary(n5, Leaf(n6, 1)))
-    assert(out.head.keys() == PathKeySet(Set(DummyPathKey(1), DummyPathKey(3), DummyPathKey(4))))
 
-    assert(out(1).height() == 3)
-    assert(out(1).plan() == Unary(n1, Unary(n2, Leaf(n3, 1))))
-    assert(out(1).keys() == PathKeySet(Set(DummyPathKey(1), DummyPathKey(2), DummyPathKey(4))))
+    val product = RasPath.cartesianProduct(
+      ras,
+      CanonicalNode(ras, Binary(n4, ras.dummyGroupLeaf(), ras.dummyGroupLeaf())),
+      List(
+        List(path1, path2),
+        List(path3, path4, path5)
+      ))
+
+    val out = product.toList
+    assert(out.size == 3)
+
+    assert(
+      out.map(_.plan()) == List(
+        Binary(n4, Unary(n5, Leaf(n6, 1)), Leaf(n6, 1)),
+        Binary(n4, Unary(n5, Leaf(n6, 1)), Leaf(n3, 1)),
+        Binary(n4, Unary(n1, Unary(n2, Leaf(n3, 1))), Leaf(n6, 1))))
   }
 }
 
