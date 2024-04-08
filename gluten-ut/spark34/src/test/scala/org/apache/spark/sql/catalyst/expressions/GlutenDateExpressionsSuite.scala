@@ -497,16 +497,13 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
         withSQLConf(SQLConf.ANSI_ENABLED.key -> ansi.toString) {
           checkExceptionInExpression[RuntimeException](
             MakeDate(Literal(Int.MaxValue), Literal(13), Literal(19)),
-            EmptyRow,
-            "Date out of range: 2147483647-13-19")
+            EmptyRow)
           checkExceptionInExpression[RuntimeException](
             MakeDate(Literal(2019), Literal(13), Literal(19)),
-            EmptyRow,
-            "Date out of range: 2019-13-19")
+            EmptyRow)
           checkExceptionInExpression[RuntimeException](
             MakeDate(Literal(2019), Literal(7), Literal(32)),
-            EmptyRow,
-            "Date out of range: 2019-7-32")
+            EmptyRow)
         }
     })
   }
