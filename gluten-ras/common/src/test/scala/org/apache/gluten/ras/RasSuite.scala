@@ -202,6 +202,7 @@ abstract class RasSuite extends AnyFunSuite {
   test(s"Group expansion - fixed height") {
     object AddUnary extends RasRule[TestNode] {
       override def shift(node: TestNode): Iterable[TestNode] = {
+        assert(node.isInstanceOf[Group])
         List(Unary(50, node))
       }
 
@@ -234,6 +235,7 @@ abstract class RasSuite extends AnyFunSuite {
   test(s"Group expansion - pattern") {
     object AddUnary extends RasRule[TestNode] {
       override def shift(node: TestNode): Iterable[TestNode] = {
+        assert(node.isInstanceOf[Group])
         List(Unary(50, node))
       }
 
