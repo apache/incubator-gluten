@@ -177,6 +177,7 @@ public class ExtensionTableNode implements SplitInfo {
     return this.preferredLocations;
   }
 
+  @Override
   public ReadRel.ExtensionTable toProtobuf() {
     ReadRel.ExtensionTable.Builder extensionTableBuilder = ReadRel.ExtensionTable.newBuilder();
     StringValue extensionTable =
