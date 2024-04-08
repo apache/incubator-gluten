@@ -24,6 +24,7 @@ on:
       - 'gluten-celeborn/common'
       - 'gluten-celeborn/package'
       - 'gluten-celeborn/velox'
+      - 'gluten-ras/**'
       - 'gluten-core/**'
       - 'gluten-data/**'
       - 'gluten-delta/**'

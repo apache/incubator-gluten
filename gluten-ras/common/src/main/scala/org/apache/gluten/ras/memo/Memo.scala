@@ -126,8 +126,20 @@ object Memo {
       extends MemoLike[T] {
       private val ras = parent.ras
 
+      // TODO: Traverse up the tree to do more merges.
       private def prepareInsert(node: T): Prepare[T] = {
-        assert(!ras.isGroupLeaf(node))
+        if (ras.isGroupLeaf(node)) {
+          val group = parent.memoTable.allGroups()(ras.planModel.getGroupId(node))
+          val residentCluster = group.clusterKey()
+
+          if (residentCluster == targetCluster) {
+            return Prepare.cluster(parent, targetCluster)
+          }
+          // The resident cluster of group leaf is not the same with target cluster.
+          // Merge.
+          parent.memoTable.mergeClusters(residentCluster, targetCluster)
+          return Prepare.cluster(parent, targetCluster)
+        }
 
         val childrenPrepares =
           ras.planModel.childrenOf(node).map(child => parent.prepareInsert(child))
@@ -155,8 +167,6 @@ object Memo {
         }
         // The new node already memorized to memo, but in the different cluster.
         // Merge the two clusters.
-        //
-        // TODO: Traverse up the tree to do more merges.
         parent.memoTable.mergeClusters(cachedCluster, targetCluster)
         Prepare.tree(parent, targetCluster, childrenPrepares)
       }

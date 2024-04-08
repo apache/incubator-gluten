@@ -172,6 +172,32 @@ abstract class RasSuite extends AnyFunSuite {
     assert(optimized == Unary(23, Unary(23, Leaf(70))))
   }
 
+  test(s"Group reduction") {
+    object RemoveUnary extends RasRule[TestNode] {
+      override def shift(node: TestNode): Iterable[TestNode] = node match {
+        case Unary(cost, child) => List(child)
+        case other => List.empty
+      }
+
+      override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
+    }
+
+    val ras =
+      Ras[TestNode](
+        PlanModelImpl,
+        CostModelImpl,
+        MetadataModelImpl,
+        PropertyModelImpl,
+        ExplainImpl,
+        RasRule.Factory.reuse(List(RemoveUnary)))
+        .withNewConfig(_ => conf)
+    val plan = Unary(60, Unary(90, Leaf(70)))
+    val planner = ras.newPlanner(plan)
+    val optimized = planner.plan()
+
+    assert(optimized == Leaf(70))
+  }
+
   test(s"Unary node insertion") {
     object InsertUnary2 extends RasRule[TestNode] {
       override def shift(node: TestNode): Iterable[TestNode] = node match {
