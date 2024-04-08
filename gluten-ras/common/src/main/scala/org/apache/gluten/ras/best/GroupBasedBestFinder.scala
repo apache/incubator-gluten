@@ -43,7 +43,7 @@ private class GroupBasedBestFinder[T <: AnyRef](
         s"Best path not found. Memo state (Graphviz): \n" +
           s"${memoState.formatGraphvizWithoutBest(groupId)}")
     }
-    BestFinder.newBest(ras, allGroups, group, groupToCosts)
+    BestFinder.newBest(ras, group, groupToCosts)
   }
 
   private def fillBests(group: RasGroup[T]): Map[Int, KnownCostGroup[T]] = {

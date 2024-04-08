@@ -27,16 +27,29 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class ExhaustivePlannerPropertySuite extends PropertySuite {
   override protected def conf: RasConfig = RasConfig(plannerType = PlannerType.Exhaustive)
+  override protected def zeroDepth: Boolean = false
 }
 
 class DpPlannerPropertySuite extends PropertySuite {
   override protected def conf: RasConfig = RasConfig(plannerType = PlannerType.Dp)
+  override protected def zeroDepth: Boolean = false
+}
+
+class ExhaustivePlannerPropertyZeroDepthSuite extends PropertySuite {
+  override protected def conf: RasConfig = RasConfig(plannerType = PlannerType.Exhaustive)
+  override protected def zeroDepth: Boolean = true
+}
+
+class DpPlannerPropertyZeroDepthSuite extends PropertySuite {
+  override protected def conf: RasConfig = RasConfig(plannerType = PlannerType.Dp)
+  override protected def zeroDepth: Boolean = true
 }
 
 abstract class PropertySuite extends AnyFunSuite {
   import PropertySuite._
 
   protected def conf: RasConfig
+  protected def zeroDepth: Boolean
 
   test("Group memo - cache") {
     val ras =
@@ -44,7 +57,7 @@ abstract class PropertySuite extends AnyFunSuite {
         PlanModelImpl,
         CostModelImpl,
         MetadataModelImpl,
-        NodeTypePropertyModelWithOutEnforcerRules,
+        propertyModelWithoutEnforcerRules(),
         ExplainImpl,
         RasRule.Factory.none())
         .withNewConfig(_ => conf)
@@ -86,7 +99,7 @@ abstract class PropertySuite extends AnyFunSuite {
         PlanModelImpl,
         CostModelImpl,
         MetadataModelImpl,
-        NodeTypePropertyModelWithOutEnforcerRules,
+        propertyModelWithoutEnforcerRules(),
         ExplainImpl,
         RasRule.Factory.none())
         .withNewConfig(_ => conf)
@@ -103,7 +116,7 @@ abstract class PropertySuite extends AnyFunSuite {
         PlanModelImpl,
         CostModelImpl,
         MetadataModelImpl,
-        NodeTypePropertyModel,
+        propertyModel(zeroDepth),
         ExplainImpl,
         RasRule.Factory.none())
         .withNewConfig(_ => conf)
@@ -121,7 +134,7 @@ abstract class PropertySuite extends AnyFunSuite {
         PlanModelImpl,
         CostModelImpl,
         MetadataModelImpl,
-        NodeTypePropertyModel,
+        propertyModel(zeroDepth),
         ExplainImpl,
         RasRule.Factory.reuse(List(ReplaceByTypeARule, ReplaceByTypeBRule)))
         .withNewConfig(_ => conf)
@@ -177,7 +190,7 @@ abstract class PropertySuite extends AnyFunSuite {
         PlanModelImpl,
         CostModelImpl,
         MetadataModelImpl,
-        NodeTypePropertyModelWithOutEnforcerRules,
+        propertyModelWithoutEnforcerRules(),
         ExplainImpl,
         RasRule.Factory.reuse(List(ReplaceLeafAByLeafBRule, HitCacheOp, FinalOp))
       )
@@ -223,7 +236,7 @@ abstract class PropertySuite extends AnyFunSuite {
         PlanModelImpl,
         CostModelImpl,
         MetadataModelImpl,
-        NodeTypePropertyModelWithOutEnforcerRules,
+        propertyModelWithoutEnforcerRules(),
         ExplainImpl,
         RasRule.Factory.reuse(List(ReplaceLeafAByLeafBRule, ReplaceUnaryBByUnaryARule))
       )
@@ -252,7 +265,7 @@ abstract class PropertySuite extends AnyFunSuite {
         PlanModelImpl,
         CostModelImpl,
         MetadataModelImpl,
-        NodeTypePropertyModel,
+        propertyModel(zeroDepth),
         ExplainImpl,
         RasRule.Factory.reuse(List(ConvertEnforcerAndTypeAToTypeB)))
         .withNewConfig(_ => conf)
@@ -290,7 +303,7 @@ abstract class PropertySuite extends AnyFunSuite {
         PlanModelImpl,
         CostModelImpl,
         MetadataModelImpl,
-        NodeTypePropertyModel,
+        propertyModel(zeroDepth),
         ExplainImpl,
         RasRule.Factory.reuse(List(ReplaceByTypeARule, ReplaceNonUnaryByTypeBRule))
       )
@@ -342,9 +355,10 @@ abstract class PropertySuite extends AnyFunSuite {
         PlanModelImpl,
         CostModelImpl,
         MetadataModelImpl,
-        NodeTypePropertyModel,
+        propertyModel(zeroDepth),
         ExplainImpl,
-        RasRule.Factory.reuse(List(ReduceTypeBCost, ConvertUnaryTypeBToTypeC)))
+        RasRule.Factory.reuse(List(ReduceTypeBCost, ConvertUnaryTypeBToTypeC))
+      )
         .withNewConfig(_ => conf)
 
     val plan =
@@ -394,7 +408,7 @@ abstract class PropertySuite extends AnyFunSuite {
         PlanModelImpl,
         CostModelImpl,
         MetadataModelImpl,
-        NodeTypePropertyModel,
+        propertyModel(zeroDepth),
         ExplainImpl,
         RasRule.Factory.reuse(List(LeftOp, RightOp))
       )
@@ -441,7 +455,7 @@ abstract class PropertySuite extends AnyFunSuite {
         PlanModelImpl,
         CostModelImpl,
         MetadataModelImpl,
-        NodeTypePropertyModel,
+        propertyModel(zeroDepth),
         ExplainImpl,
         RasRule.Factory.reuse(List(ConvertTypeBEnforcerAndLeafToTypeC, ConvertTypeATypeCToTypeC))
       )
@@ -494,7 +508,7 @@ abstract class PropertySuite extends AnyFunSuite {
         PlanModelImpl,
         CostModelImpl,
         MetadataModelImpl,
-        NodeTypePropertyModel,
+        propertyModel(zeroDepth),
         ExplainImpl,
         RasRule.Factory.reuse(List(ReplaceNonUnaryByTypeBRule, ReduceTypeBCost))
       )
@@ -651,6 +665,23 @@ object PropertySuite {
     override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
   }
 
+  case class ZeroDepthNodeTypeEnforcerRule(reqType: NodeType) extends RasRule[TestNode] {
+    override def shift(node: TestNode): Iterable[TestNode] = {
+      node match {
+        case group: Group =>
+          val groupType = group.propSet.get(NodeTypeDef)
+          if (groupType.satisfies(reqType)) {
+            List(group)
+          } else {
+            List(TypeEnforcer(reqType, 1, group))
+          }
+        case _ => throw new IllegalStateException()
+      }
+    }
+
+    override def shape(): Shape[TestNode] = Shapes.fixedHeight(0)
+  }
+
   object ReplaceByTypeARule extends RasRule[TestNode] {
     override def shift(node: TestNode): Iterable[TestNode] = {
       node match {
@@ -739,24 +770,53 @@ object PropertySuite {
     }
   }
 
-  object NodeTypePropertyModel extends PropertyModel[TestNode] {
-    override def propertyDefs: Seq[PropertyDef[TestNode, _ <: Property[TestNode]]] = Seq(
-      NodeTypeDef)
-
-    override def newEnforcerRuleFactory(propertyDef: PropertyDef[TestNode, _ <: Property[TestNode]])
-        : EnforcerRuleFactory[TestNode] = {
-      (constraint: Property[TestNode]) =>
-        {
-          List(NodeTypeEnforcerRule(constraint.asInstanceOf[NodeType]))
-        }
+  private def propertyModel(zeroDepth: Boolean): PropertyModel[TestNode] = {
+    if (zeroDepth) {
+      return PropertyModels.NodeTypePropertyModelZeroDepth
     }
+    PropertyModels.NodeTypePropertyModel
   }
 
-  object NodeTypePropertyModelWithOutEnforcerRules extends PropertyModel[TestNode] {
-    override def propertyDefs: Seq[PropertyDef[TestNode, _ <: Property[TestNode]]] = Seq(
-      NodeTypeDef)
+  private def propertyModelWithoutEnforcerRules(): PropertyModel[TestNode] = {
+    PropertyModels.NodeTypePropertyModelWithoutEnforcerRules
+  }
 
-    override def newEnforcerRuleFactory(propertyDef: PropertyDef[TestNode, _ <: Property[TestNode]])
-        : EnforcerRuleFactory[TestNode] = (_: Property[TestNode]) => List.empty
+  private object PropertyModels {
+    object NodeTypePropertyModel extends PropertyModel[TestNode] {
+      override def propertyDefs: Seq[PropertyDef[TestNode, _ <: Property[TestNode]]] = Seq(
+        NodeTypeDef)
+
+      override def newEnforcerRuleFactory(
+          propertyDef: PropertyDef[TestNode, _ <: Property[TestNode]])
+          : EnforcerRuleFactory[TestNode] = {
+        (constraint: Property[TestNode]) =>
+          {
+            List(NodeTypeEnforcerRule(constraint.asInstanceOf[NodeType]))
+          }
+      }
+    }
+
+    object NodeTypePropertyModelZeroDepth extends PropertyModel[TestNode] {
+      override def propertyDefs: Seq[PropertyDef[TestNode, _ <: Property[TestNode]]] = Seq(
+        NodeTypeDef)
+
+      override def newEnforcerRuleFactory(
+          propertyDef: PropertyDef[TestNode, _ <: Property[TestNode]])
+          : EnforcerRuleFactory[TestNode] = {
+        (constraint: Property[TestNode]) =>
+          {
+            List(ZeroDepthNodeTypeEnforcerRule(constraint.asInstanceOf[NodeType]))
+          }
+      }
+    }
+
+    object NodeTypePropertyModelWithoutEnforcerRules extends PropertyModel[TestNode] {
+      override def propertyDefs: Seq[PropertyDef[TestNode, _ <: Property[TestNode]]] = Seq(
+        NodeTypeDef)
+
+      override def newEnforcerRuleFactory(
+          propertyDef: PropertyDef[TestNode, _ <: Property[TestNode]])
+          : EnforcerRuleFactory[TestNode] = (_: Property[TestNode]) => List.empty
+    }
   }
 }

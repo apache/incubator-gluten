@@ -19,6 +19,7 @@ package org.apache.gluten.ras
 import org.apache.gluten.ras.RasConfig.PlannerType
 import org.apache.gluten.ras.RasSuiteBase._
 import org.apache.gluten.ras.memo.Memo
+import org.apache.gluten.ras.path.Pattern
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 
 import org.scalatest.funsuite.AnyFunSuite
@@ -196,6 +197,70 @@ abstract class RasSuite extends AnyFunSuite {
     val optimized = planner.plan()
 
     assert(optimized == Leaf(70))
+  }
+
+  test(s"Group expansion - fixed height") {
+    object AddUnary extends RasRule[TestNode] {
+      override def shift(node: TestNode): Iterable[TestNode] = {
+        List(Unary(50, node))
+      }
+
+      override def shape(): Shape[TestNode] = Shapes.fixedHeight(0)
+    }
+
+    val ras =
+      Ras[TestNode](
+        PlanModelImpl,
+        CostModelImpl,
+        MetadataModelImpl,
+        PropertyModelImpl,
+        ExplainImpl,
+        RasRule.Factory.reuse(List(AddUnary)))
+        .withNewConfig(_ => conf)
+    val plan = Unary(60, Unary(90, Leaf(70)))
+    val planner = ras.newPlanner(plan)
+    val optimized = planner.plan()
+
+    assert(optimized == Unary(60, Unary(90, Leaf(70))))
+
+    val state = planner.newState().memoState()
+    val allPaths = state.collectAllPaths(Int.MaxValue)
+
+    assert(state.allClusters().size == 3)
+    assert(state.allGroups().size == 3)
+    assert(allPaths.size == 15)
+  }
+
+  test(s"Group expansion - pattern") {
+    object AddUnary extends RasRule[TestNode] {
+      override def shift(node: TestNode): Iterable[TestNode] = {
+        List(Unary(50, node))
+      }
+
+      override def shape(): Shape[TestNode] = Shapes.pattern(Pattern.ignore.build())
+    }
+
+    val ras =
+      Ras[TestNode](
+        PlanModelImpl,
+        CostModelImpl,
+        MetadataModelImpl,
+        PropertyModelImpl,
+        ExplainImpl,
+        RasRule.Factory.reuse(List(AddUnary)))
+        .withNewConfig(_ => conf)
+    val plan = Unary(60, Unary(90, Leaf(70)))
+    val planner = ras.newPlanner(plan)
+    val optimized = planner.plan()
+
+    assert(optimized == Unary(60, Unary(90, Leaf(70))))
+
+    val state = planner.newState().memoState()
+    val allPaths = state.collectAllPaths(Int.MaxValue)
+
+    assert(state.allClusters().size == 3)
+    assert(state.allGroups().size == 3)
+    assert(allPaths.size == 15)
   }
 
   test(s"Unary node insertion") {

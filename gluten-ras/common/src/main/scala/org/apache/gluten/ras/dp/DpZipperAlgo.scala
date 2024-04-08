@@ -29,7 +29,7 @@ import scala.collection.mutable
  *
  * Two major issues are handled by the base algo internally:
  *
- *   1. Cycle exclusion:
+ * 1. Cycle exclusion:
  *
  * The algo will withdraw the recursive call when found a cycle. Cycle is detected via the
  * comparison function passed by DpZipperAlgoDef#idOfX and DpZipperAlgoDef#idOfY. When a cycle is

@@ -31,7 +31,7 @@ trait Optimization[T <: AnyRef] {
       constraintSet: PropertySet[T],
       altConstraintSets: Seq[PropertySet[T]]): RasPlanner[T]
 
-  def propSetsOf(plan: T): PropertySet[T]
+  def propSetOf(plan: T): PropertySet[T]
 
   def withNewConfig(confFunc: RasConfig => RasConfig): Optimization[T]
 }
@@ -49,7 +49,7 @@ object Optimization {
 
   implicit class OptimizationImplicits[T <: AnyRef](opt: Optimization[T]) {
     def newPlanner(plan: T): RasPlanner[T] = {
-      opt.newPlanner(plan, opt.propSetsOf(plan), List.empty)
+      opt.newPlanner(plan, opt.propSetOf(plan), List.empty)
     }
     def newPlanner(plan: T, constraintSet: PropertySet[T]): RasPlanner[T] = {
       opt.newPlanner(plan, constraintSet, List.empty)
@@ -131,7 +131,7 @@ class Ras[T <: AnyRef] private (
     RasPlanner(this, altConstraintSets, constraintSet, plan)
   }
 
-  override def propSetsOf(plan: T): PropertySet[T] = propertySetFactory().get(plan)
+  override def propSetOf(plan: T): PropertySet[T] = propertySetFactory().get(plan)
 
   private[ras] def withNewChildren(node: T, newChildren: Seq[T]): T = {
     val oldChildren = planModel.childrenOf(node)

@@ -94,7 +94,7 @@ object ExhaustivePlanner {
       applyRules()
     }
 
-    private def findPaths(canonical: CanonicalNode[T], shapes: Seq[Shape[T]])(
+    private def findPaths(gn: GroupNode[T], shapes: Seq[Shape[T]])(
         onFound: RasPath[T] => Unit): Unit = {
       val finder = shapes
         .foldLeft(
@@ -104,7 +104,7 @@ object ExhaustivePlanner {
             builder.output(shape.wizard())
         }
         .build()
-      finder.find(canonical).foreach(path => onFound(path))
+      finder.find(gn).foreach(path => onFound(path))
     }
 
     private def applyRule(rule: RuleApplier[T], icp: InClusterPath[T]): Unit = {
@@ -120,12 +120,10 @@ object ExhaustivePlanner {
         .clusterLookup()
         .foreach {
           case (cKey, cluster) =>
-            cluster
-              .nodes()
-              .foreach(
-                node =>
-                  findPaths(node, shapes)(
-                    path => rules.foreach(rule => applyRule(rule, InClusterPath(cKey, path)))))
+            val dummyGroup = memoState.getDummyGroup(cKey)
+            findPaths(GroupNode(ras, dummyGroup), shapes) {
+              path => rules.foreach(rule => applyRule(rule, InClusterPath(cKey, path)))
+            }
         }
     }
 
@@ -137,10 +135,9 @@ object ExhaustivePlanner {
           if (enforcerRules.nonEmpty) {
             val shapes = enforcerRules.map(_.shape())
             val cKey = group.clusterKey()
-            memoState.clusterLookup()(cKey).nodes().foreach {
-              node =>
-                findPaths(node, shapes)(
-                  path => enforcerRules.foreach(rule => applyRule(rule, InClusterPath(cKey, path))))
+            val dummyGroup = memoState.getDummyGroup(cKey)
+            findPaths(GroupNode(ras, dummyGroup), shapes) {
+              path => enforcerRules.foreach(rule => applyRule(rule, InClusterPath(cKey, path)))
             }
           }
       }

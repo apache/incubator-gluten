@@ -52,12 +52,10 @@ object BestFinder {
 
   private[best] def newBest[T <: AnyRef](
       ras: Ras[T],
-      allGroups: Seq[RasGroup[T]],
       group: RasGroup[T],
       groupToCosts: Map[Int, KnownCostGroup[T]]): Best[T] = {
 
     val bestPath = groupToCosts(group.id()).best()
-    val bestRoot = bestPath.rasPath.node()
     val winnerNodes = groupToCosts.map { case (id, g) => InGroupNode(id, g.bestNode) }.toSeq
     val costsMap = mutable.Map[InGroupNode.HashKey, Cost]()
     groupToCosts.foreach {

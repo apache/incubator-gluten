@@ -17,7 +17,7 @@
 package org.apache.gluten.ras.path
 
 import org.apache.gluten.ras.{CanonicalNode, GroupNode, Ras, RasGroup}
-import org.apache.gluten.ras.path.OutputWizard.{OutputAction, PathDrain}
+import org.apache.gluten.ras.path.OutputWizard.{AdvanceAction, OutputAction, PathDrain}
 
 import scala.collection.{mutable, Seq}
 
@@ -25,11 +25,11 @@ trait OutputWizard[T <: AnyRef] {
   import OutputWizard._
   // Visit a new node.
   def visit(can: CanonicalNode[T]): OutputAction[T]
-  // The returned object is a wizard for one of the node's children at the
+  // Visit a new group.
+  def visit(group: GroupNode[T]): OutputAction[T]
+  // The returned action is typically a wizard for one of the node's children at the
   // known offset among all children.
-  def advance(group: GroupNode[T], offset: Int, count: Int): OutputAction[T]
-  // The returned wizard would be same with this wizard
-  // except it drains paths with the input path key.
+  def advance(offset: Int, count: Int): AdvanceAction[T]
   def withPathKey(newKey: PathKey): OutputWizard[T]
 }
 
@@ -48,6 +48,11 @@ object OutputWizard {
 
     case class Continue[T <: AnyRef](override val drain: PathDrain, newWizard: OutputWizard[T])
       extends OutputAction[T]
+  }
+
+  sealed trait AdvanceAction[T <: AnyRef]
+  object AdvanceAction {
+    case class Continue[T <: AnyRef](newWizard: OutputWizard[T]) extends AdvanceAction[T]
   }
 
   // Path drain provides possibility to lazily materialize the yielded paths using path key.
@@ -97,12 +102,8 @@ object OutputWizard {
       new NodePrepareImpl[T](ras, wizard, allGroups, can)
     }
 
-    def prepareForGroup(
-        ras: Ras[T],
-        group: GroupNode[T],
-        offset: Int,
-        count: Int): GroupPrepare[T] = {
-      new GroupPrepareImpl[T](ras, wizard, group, offset, count)
+    def prepareForGroup(ras: Ras[T], group: GroupNode[T]): GroupPrepare[T] = {
+      new GroupPrepareImpl[T](ras, wizard, group)
     }
   }
 
@@ -112,7 +113,7 @@ object OutputWizard {
     }
 
     sealed trait GroupPrepare[T <: AnyRef] {
-      def advance(): Terminate[T]
+      def visit(): Terminate[T]
     }
 
     sealed trait Terminate[T <: AnyRef] {
@@ -154,12 +155,10 @@ object OutputWizard {
     private class GroupPrepareImpl[T <: AnyRef](
         ras: Ras[T],
         wizard: OutputWizard[T],
-        group: GroupNode[T],
-        offset: Int,
-        count: Int)
+        group: GroupNode[T])
       extends GroupPrepare[T] {
-      override def advance(): Terminate[T] = {
-        val action = wizard.advance(group, offset, count)
+      override def visit(): Terminate[T] = {
+        val action = wizard.visit(group)
         val drained = if (action.drain().isEmpty()) {
           List.empty
         } else {
@@ -201,8 +200,12 @@ object OutputWizards {
       OutputAction.Stop(PathDrain.none)
     }
 
-    override def advance(group: GroupNode[T], offset: Int, count: Int): OutputAction[T] =
+    override def visit(group: GroupNode[T]): OutputAction[T] = {
       OutputAction.Stop(PathDrain.none)
+    }
+
+    override def advance(offset: Int, count: Int): OutputWizard.AdvanceAction[T] =
+      AdvanceAction.Continue(this)
 
     override def withPathKey(newKey: PathKey): OutputWizard[T] = this
   }
@@ -219,8 +222,10 @@ object OutputWizards {
       OutputAction.Continue(PathDrain.none, this)
     }
 
-    override def advance(group: GroupNode[T], offset: Int, count: Int): OutputAction[T] =
+    override def visit(group: GroupNode[T]): OutputAction[T] =
       OutputAction.Continue(PathDrain.none, this)
+
+    override def advance(offset: Int, count: Int): AdvanceAction[T] = AdvanceAction.Continue(this)
 
     override def withPathKey(newKey: PathKey): OutputWizard[T] =
       new Emit[T](PathDrain.Specific(List(newKey)))
@@ -267,10 +272,18 @@ object OutputWizards {
       act(actions)
     }
 
-    override def advance(group: GroupNode[T], offset: Int, count: Int): OutputAction[T] = {
+    override def visit(group: GroupNode[T]): OutputAction[T] = {
       val actions = wizards
-        .map(_.advance(group, offset, count))
+        .map(_.visit(group))
       act(actions)
+    }
+
+    override def advance(offset: Int, count: Int): AdvanceAction[T] = {
+      val newWizards = wizards.map(_.advance(offset, count)).map {
+        case AdvanceAction.Continue(newWizard) =>
+          newWizard
+      }
+      AdvanceAction.Continue(new Union(newWizards))
     }
 
     override def withPathKey(newKey: PathKey): OutputWizard[T] =
@@ -331,13 +344,17 @@ object OutputWizards {
       OutputAction.Continue(PathDrain.none, this)
     }
 
-    override def advance(group: GroupNode[T], offset: Int, count: Int): OutputAction[T] = {
-      var skipCursor = ele + 1
-      (0 until offset).foreach(_ => skipCursor = mask.skip(skipCursor))
-      if (mask.isAny(skipCursor)) {
+    override def visit(group: GroupNode[T]): OutputAction[T] = {
+      if (mask.isAny(ele)) {
         return OutputAction.Stop(drain)
       }
-      OutputAction.Continue(PathDrain.none, new WithMask[T](drain, mask, skipCursor))
+      OutputAction.Continue(PathDrain.none, this)
+    }
+
+    override def advance(offset: Int, count: Int): AdvanceAction[T] = {
+      var skipCursor = ele + 1
+      (0 until offset).foreach(_ => skipCursor = mask.skip(skipCursor))
+      AdvanceAction.Continue(new WithMask[T](drain, mask, skipCursor))
     }
 
     override def withPathKey(newKey: PathKey): OutputWizard[T] =
@@ -372,13 +389,16 @@ object OutputWizards {
       OutputAction.Continue(PathDrain.none, this)
     }
 
-    override def advance(group: GroupNode[T], offset: Int, count: Int): OutputAction[T] = {
-      // Omit should be done in #advance.
-      val child = pNode.children(count)(offset)
-      if (child.skip()) {
+    override def visit(group: GroupNode[T]): OutputAction[T] = {
+      if (pNode.skip()) {
         return OutputAction.Stop(drain)
       }
-      OutputAction.Continue(PathDrain.none, new WithPattern(drain, pattern, child))
+      OutputAction.Continue(PathDrain.none, this)
+    }
+
+    override def advance(offset: Int, count: Int): AdvanceAction[T] = {
+      val child = pNode.children(count)(offset)
+      AdvanceAction.Continue(new WithPattern(drain, pattern, child))
     }
 
     override def withPathKey(newKey: PathKey): OutputWizard[T] =
@@ -398,8 +418,8 @@ object OutputWizards {
 
     override def visit(can: CanonicalNode[T]): OutputAction[T] = {
       assert(
-        currentDepth <= depth,
-        "Current depth already larger than the maximum depth to prune. " +
+        currentDepth < depth,
+        "Current depth already larger than (or equals) the maximum depth to prune. " +
           "It probably because a zero depth was specified for path finding."
       )
       if (can.isLeaf()) {
@@ -408,13 +428,15 @@ object OutputWizards {
       OutputAction.Continue(PathDrain.none, this)
     }
 
-    override def advance(group: GroupNode[T], offset: Int, count: Int): OutputAction[T] = {
-      assert(currentDepth <= depth)
-      val nextDepth = currentDepth + 1
-      if (nextDepth > depth) {
+    override def visit(group: GroupNode[T]): OutputAction[T] = {
+      if (currentDepth >= depth) {
         return OutputAction.Stop(drain)
       }
-      OutputAction.Continue(PathDrain.none, new WithMaxDepth(drain, depth, nextDepth))
+      OutputAction.Continue(PathDrain.none, this)
+    }
+
+    override def advance(offset: Int, count: Int): AdvanceAction[T] = {
+      AdvanceAction.Continue(new WithMaxDepth(drain, depth, currentDepth + 1))
     }
 
     override def withPathKey(newKey: PathKey): OutputWizard[T] =
@@ -423,7 +445,7 @@ object OutputWizards {
 
   private object WithMaxDepth {
     def apply[T <: AnyRef](depth: Int): WithMaxDepth[T] = {
-      new WithMaxDepth(PathDrain.Specific(List(PathKey.random())), depth, 1)
+      new WithMaxDepth(PathDrain.Specific(List(PathKey.random())), depth, 0)
     }
   }
 }

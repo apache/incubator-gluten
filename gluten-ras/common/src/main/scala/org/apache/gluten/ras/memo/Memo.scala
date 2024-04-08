@@ -75,7 +75,7 @@ object Memo {
     }
 
     private def dummyGroupOf(clusterKey: RasClusterKey): RasGroup[T] = {
-      memoTable.dummyGroupOf(clusterKey)
+      memoTable.getDummyGroup(clusterKey)
     }
 
     private def toCacheKeyUnsafe(n: T): MemoCacheKey[T] = {
@@ -84,7 +84,7 @@ object Memo {
 
     private def prepareInsert(n: T): Prepare[T] = {
       if (ras.isGroupLeaf(n)) {
-        val group = memoTable.allGroups()(ras.planModel.getGroupId(n))
+        val group = memoTable.getGroup(ras.planModel.getGroupId(n))
         return Prepare.cluster(this, group.clusterKey())
       }
 
@@ -129,7 +129,7 @@ object Memo {
       // TODO: Traverse up the tree to do more merges.
       private def prepareInsert(node: T): Prepare[T] = {
         if (ras.isGroupLeaf(node)) {
-          val group = parent.memoTable.allGroups()(ras.planModel.getGroupId(node))
+          val group = parent.memoTable.getGroup(ras.planModel.getGroupId(node))
           val residentCluster = group.clusterKey()
 
           if (residentCluster == targetCluster) {
@@ -246,6 +246,7 @@ object Memo {
 
 trait MemoStore[T <: AnyRef] {
   def getCluster(key: RasClusterKey): RasCluster[T]
+  def getDummyGroup(key: RasClusterKey): RasGroup[T]
   def getGroup(id: Int): RasGroup[T]
 }
 
@@ -260,6 +261,7 @@ object MemoStore {
 trait MemoState[T <: AnyRef] extends MemoStore[T] {
   def ras(): Ras[T]
   def clusterLookup(): Map[RasClusterKey, RasCluster[T]]
+  def clusterDummyGroupLookup(): Map[RasClusterKey, RasGroup[T]]
   def allClusters(): Iterable[RasCluster[T]]
   def allGroups(): Seq[RasGroup[T]]
 }
@@ -268,19 +270,31 @@ object MemoState {
   def apply[T <: AnyRef](
       ras: Ras[T],
       clusterLookup: Map[RasClusterKey, ImmutableRasCluster[T]],
-      allGroups: Seq[RasGroup[T]]): MemoState[T] = {
-    MemoStateImpl(ras, clusterLookup, allGroups)
+      clusterDummyGroupLookup: Map[RasClusterKey, RasGroup[T]],
+      allGroups: Seq[RasGroup[T]],
+      allDummyGroups: Seq[RasGroup[T]]): MemoState[T] = {
+    MemoStateImpl(ras, clusterLookup, clusterDummyGroupLookup, allGroups, allDummyGroups)
   }
 
   private case class MemoStateImpl[T <: AnyRef](
       override val ras: Ras[T],
       override val clusterLookup: Map[RasClusterKey, ImmutableRasCluster[T]],
-      override val allGroups: Seq[RasGroup[T]])
+      override val clusterDummyGroupLookup: Map[RasClusterKey, RasGroup[T]],
+      override val allGroups: Seq[RasGroup[T]],
+      allDummyGroups: Seq[RasGroup[T]])
     extends MemoState[T] {
     private val allClustersCopy = clusterLookup.values
 
     override def getCluster(key: RasClusterKey): RasCluster[T] = clusterLookup(key)
-    override def getGroup(id: Int): RasGroup[T] = allGroups(id)
+    override def getDummyGroup(key: RasClusterKey): RasGroup[T] = clusterDummyGroupLookup(key)
+    override def getGroup(id: Int): RasGroup[T] = {
+      if (id < 0) {
+        val out = allDummyGroups((-id - 1))
+        assert(out.id() == id)
+        return out
+      }
+      allGroups(id)
+    }
     override def allClusters(): Iterable[RasCluster[T]] = allClustersCopy
   }
 

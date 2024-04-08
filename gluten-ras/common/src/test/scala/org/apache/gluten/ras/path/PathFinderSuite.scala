@@ -16,11 +16,10 @@
  */
 package org.apache.gluten.ras.path
 
-import org.apache.gluten.ras.{CanonicalNode, Ras}
+import org.apache.gluten.ras.{CanonicalNode, Ras, RasGroup}
 import org.apache.gluten.ras.RasSuiteBase._
 import org.apache.gluten.ras.mock.MockMemoState
 import org.apache.gluten.ras.rule.RasRule
-
 import org.scalatest.funsuite.AnyFunSuite
 
 class PathFinderSuite extends AnyFunSuite {
@@ -79,6 +78,64 @@ class PathFinderSuite extends AnyFunSuite {
       heightInf == List(
         Binary(n1, Unary(n2, Leaf(n4, 1)), Unary(n3, Leaf(n5, 1))),
         Binary(n1, Unary(n2, Leaf(n4, 1)), Unary(n3, Leaf(n6, 1)))))
+  }
+
+  test("Find - from group") {
+    val ras =
+      Ras[TestNode](
+        PlanModelImpl,
+        CostModelImpl,
+        MetadataModelImpl,
+        PropertyModelImpl,
+        ExplainImpl,
+        RasRule.Factory.none())
+
+    val mock = MockMemoState.Builder(ras)
+    val cluster = mock.newCluster()
+    val groupA = cluster.newGroup()
+    val groupB = cluster.newGroup()
+    val groupC = cluster.newGroup()
+    val groupD = cluster.newGroup()
+    val groupE = cluster.newGroup()
+    val n1 = "n1"
+    val n2 = "n2"
+    val n3 = "n3"
+    val n4 = "n4"
+    val n5 = "n5"
+    val n6 = "n6"
+    val node1 = Binary(n1, groupB.self, groupC.self).asCanonical(ras)
+    val node2 = Unary(n2, groupD.self).asCanonical(ras)
+    val node3 = Unary(n3, groupE.self).asCanonical(ras)
+    val node4 = Leaf(n4, 1).asCanonical(ras)
+    val node5 = Leaf(n5, 1).asCanonical(ras)
+    val node6 = Leaf(n6, 1).asCanonical(ras)
+
+    groupA.add(node1)
+    groupB.add(node2)
+    groupC.add(node3)
+    groupD.add(node4)
+    groupE.add(List(node5, node6))
+
+    val state = mock.build()
+
+    def find(group: RasGroup[TestNode], depth: Int): Iterable[RasPath[TestNode]] = {
+      val finder = PathFinder.builder(ras, state).depth(depth).build()
+      finder.find(group.asGroup(ras))
+    }
+
+    val height0 = find(groupA, 0).map(_.plan()).toSeq
+    val height1 = find(groupA, 1).map(_.plan()).toSeq
+    val height2 = find(groupA, 2).map(_.plan()).toSeq
+    val heightInf = find(groupA, RasPath.INF_DEPTH).map(_.plan()).toSeq
+
+    assert(height0 == List(Group(0)))
+    assert(height1 == List(Binary(n1, Group(1), Group(2))))
+    assert(height2 == List(Binary(n1, Unary(n2, Group(3)), Unary(n3, Group(4)))))
+    assert(
+      heightInf == List(
+        Binary(n1, Unary(n2, Leaf(n4, 1)), Unary(n3, Leaf(n5, 1))),
+        Binary(n1, Unary(n2, Leaf(n4, 1)), Unary(n3, Leaf(n6, 1)))))
+
   }
 
   test("Find - multiple depths") {

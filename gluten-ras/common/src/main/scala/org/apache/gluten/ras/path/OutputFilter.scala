@@ -17,14 +17,15 @@
 package org.apache.gluten.ras.path
 
 import org.apache.gluten.ras.{CanonicalNode, GroupNode}
-import org.apache.gluten.ras.path.FilterWizard.FilterAction
-import org.apache.gluten.ras.path.OutputWizard.OutputAction
+import org.apache.gluten.ras.path.FilterWizard.{FilterAction, FilterAdvanceAction}
+import org.apache.gluten.ras.path.OutputWizard.{AdvanceAction, OutputAction}
 import org.apache.gluten.ras.util.CycleDetector
 
 trait FilterWizard[T <: AnyRef] {
   import FilterWizard._
   def omit(can: CanonicalNode[T]): FilterAction[T]
-  def omit(group: GroupNode[T], offset: Int, count: Int): FilterAction[T]
+  def omit(group: GroupNode[T]): FilterAction[T]
+  def advance(offset: Int, count: Int): FilterAdvanceAction[T]
 }
 
 object FilterWizard {
@@ -39,6 +40,11 @@ object FilterWizard {
     def omit[T <: AnyRef]: Omit[T] = Omit.INSTANCE.asInstanceOf[Omit[T]]
 
     case class Continue[T <: AnyRef](newWizard: FilterWizard[T]) extends FilterAction[T]
+  }
+
+  sealed trait FilterAdvanceAction[T <: AnyRef]
+  object FilterAdvanceAction {
+    case class Continue[T <: AnyRef](newWizard: FilterWizard[T]) extends FilterAdvanceAction[T]
   }
 }
 
@@ -55,12 +61,15 @@ object FilterWizards {
       FilterAction.Continue(this)
     }
 
-    override def omit(group: GroupNode[T], offset: Int, count: Int): FilterAction[T] = {
+    override def omit(group: GroupNode[T]): FilterAction[T] = {
       if (detector.contains(group)) {
         return FilterAction.omit
       }
       FilterAction.Continue(new OmitCycles(detector.append(group)))
     }
+
+    override def advance(offset: Int, count: Int): FilterAdvanceAction[T] =
+      FilterAdvanceAction.Continue(this)
   }
 
   private object OmitCycles {
@@ -98,16 +107,26 @@ object OutputFilter {
       }
     }
 
-    override def advance(group: GroupNode[T], offset: Int, count: Int): OutputAction[T] = {
-      filterWizard.omit(group: GroupNode[T], offset: Int, count: Int) match {
+    override def visit(group: GroupNode[T]): OutputAction[T] = {
+      filterWizard.omit(group: GroupNode[T]) match {
         case FilterAction.Omit() => OutputAction.stop
         case FilterAction.Continue(newFilterWizard) =>
-          outputWizard.advance(group, offset, count) match {
+          outputWizard.visit(group) match {
             case stop @ OutputAction.Stop(_) => stop
             case OutputAction.Continue(drain, newOutputWizard) =>
               OutputAction.Continue(drain, new OutputFilterImpl(newOutputWizard, newFilterWizard))
           }
       }
+    }
+
+    override def advance(offset: Int, count: Int): OutputWizard.AdvanceAction[T] = {
+      val newOutputWizard = outputWizard.advance(offset, count) match {
+        case AdvanceAction.Continue(newWizard) => newWizard
+      }
+      val newFilterWizard = filterWizard.advance(offset, count) match {
+        case FilterAdvanceAction.Continue(newWizard) => newWizard
+      }
+      AdvanceAction.Continue(new OutputFilterImpl(newOutputWizard, newFilterWizard))
     }
 
     override def withPathKey(newKey: PathKey): OutputWizard[T] =

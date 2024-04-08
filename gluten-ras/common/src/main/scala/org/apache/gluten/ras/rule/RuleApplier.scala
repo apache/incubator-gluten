@@ -20,6 +20,7 @@ import org.apache.gluten.ras._
 import org.apache.gluten.ras.Ras.UnsafeKey
 import org.apache.gluten.ras.memo.Closure
 import org.apache.gluten.ras.path.InClusterPath
+import org.apache.gluten.ras.property.PropertySet
 
 import scala.collection.mutable
 
@@ -82,8 +83,8 @@ object RuleApplier {
     override def apply(icp: InClusterPath[T]): Unit = {
       val cKey = icp.cluster()
       val path = icp.path()
-      val can = path.node().self().asCanonical()
-      if (can.propSet().get(constraintDef).satisfies(constraint)) {
+      val propSet = path.node().self().propSet()
+      if (propSet.get(constraintDef).satisfies(constraint)) {
         return
       }
       val plan = path.plan()
@@ -92,13 +93,12 @@ object RuleApplier {
       if (appliedPlans.contains(pKey)) {
         return
       }
-      apply0(cKey, plan)
+      val constraintSet = propSet.withProp(constraint)
+      apply0(cKey, constraintSet, plan)
       appliedPlans += pKey
     }
 
-    private def apply0(cKey: RasClusterKey, plan: T): Unit = {
-      val propSet = ras.propertySetFactory().get(plan)
-      val constraintSet = propSet.withProp(constraint)
+    private def apply0(cKey: RasClusterKey, constraintSet: PropertySet[T], plan: T): Unit = {
       val equivalents = rule.shift(plan)
       equivalents.foreach {
         equiv =>
