@@ -28,7 +28,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.concurrent.atomic.AtomicInteger
 
-case class CollectLimitExecTransformer(limit: Int, child: SparkPlan, offset: Long)
+case class CollectLimitExecTransformer(limit: Int, child: SparkPlan, offset: Long = 0)
   extends UnaryExecNode
   with GlutenPlan {
 
@@ -47,6 +47,9 @@ case class CollectLimitExecTransformer(limit: Int, child: SparkPlan, offset: Lon
   }
 
   override protected def doValidateInternal(): ValidationResult = {
+    if (offset != 0) {
+      return ValidationResult.notOk(s"Native TopK does not support offset: $offset")
+    }
     LimitTransformer(child, offset, limit).doValidate()
   }
 

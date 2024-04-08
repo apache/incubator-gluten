@@ -748,6 +748,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.child,
               offset
             )
+            transformer.doValidate().tagOnFallback(plan)
           }
         case _ =>
         // Currently we assume a plan to be transformable by default.
