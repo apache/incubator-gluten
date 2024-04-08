@@ -660,20 +660,20 @@ jobs:
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
-      - name: Prepare spark.test.home for Spark 3.5.0 (other tests)
+      - name: Prepare spark.test.home for Spark 3.5.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
-          wget https://archive.apache.org/dist/spark/spark-3.5.0/spark-3.5.0-bin-hadoop3.tgz && \
-          tar --strip-components=1 -xf spark-3.5.0-bin-hadoop3.tgz spark-3.5.0-bin-hadoop3/jars/ && \
-          rm -rf spark-3.5.0-bin-hadoop3.tgz && \
-          mkdir -p $GITHUB_WORKSPACE//shims/spark34/spark_home/assembly/target/scala-2.12 && \
-          mv jars $GITHUB_WORKSPACE//shims/spark34/spark_home/assembly/target/scala-2.12 && \
+          wget https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz && \
+          tar --strip-components=1 -xf spark-3.5.1-bin-hadoop3.tgz spark-3.5.1-bin-hadoop3/jars/ && \
+          rm -rf spark-3.5.1-bin-hadoop3.tgz && \
+          mkdir -p $GITHUB_WORKSPACE//shims/spark35/spark_home/assembly/target/scala-2.12 && \
+          mv jars $GITHUB_WORKSPACE//shims/spark35/spark_home/assembly/target/scala-2.12 && \
           cd $GITHUB_WORKSPACE// && \
-          wget https://github.com/apache/spark/archive/refs/tags/v3.5.0.tar.gz && \
-          tar --strip-components=1 -xf v3.5.0.tar.gz spark-3.5.0/sql/core/src/test/resources/  && \
+          wget https://github.com/apache/spark/archive/refs/tags/v3.5.1.tar.gz && \
+          tar --strip-components=1 -xf v3.5.1.tar.gz spark-3.5.1/sql/core/src/test/resources/  && \
           mkdir -p shims/spark35/spark_home/ && \
           mv sql shims/spark35/spark_home/
-      - name: Build for Spark 3.5.0 (other tests)
+      - name: Build for Spark 3.5.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
           export SPARK_SCALA_VERSION=2.12 && \
