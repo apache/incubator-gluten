@@ -20,6 +20,7 @@ import org.apache.gluten.ras.{CanonicalNode, Ras, RasGroup}
 import org.apache.gluten.ras.RasSuiteBase._
 import org.apache.gluten.ras.mock.MockMemoState
 import org.apache.gluten.ras.rule.RasRule
+
 import org.scalatest.funsuite.AnyFunSuite
 
 class PathFinderSuite extends AnyFunSuite {
