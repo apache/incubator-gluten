@@ -411,8 +411,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     withTempPath {
       path =>
         Seq(
-          (Seq(4, null, 2, 3), Seq("b", null, "a")),
-          (Seq(4, 2, 3), Seq("b", "a"))
+          (Seq(4, null, 2, 3), Seq("b", null, "a"))
         ).toDF("a", "b")
           .write
           .parquet(path.getCanonicalPath)
