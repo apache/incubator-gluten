@@ -119,7 +119,11 @@ private object GroupBasedBestFinder {
             .by((cp: KnownCostPath[T]) => cp.cost)(costComparator)
             .min(left, right)
       }
-      Some(KnownCostGroup(flatNodesOutput, bestPath.rasPath.node().self().asCanonical()))
+      Some(
+        KnownCostGroup(
+          nodes,
+          n => Option(flatNodesOutput.get(n)),
+          bestPath.rasPath.node().self().asCanonical()))
     }
 
     override def solveNodeOnCycle(node: InGroupNode[T]): Option[KnownCostPath[T]] =
