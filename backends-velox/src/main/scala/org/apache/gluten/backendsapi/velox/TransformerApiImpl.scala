@@ -23,7 +23,7 @@ import org.apache.gluten.utils.InputPartitionsUtil
 import org.apache.gluten.vectorized.PlanEvaluatorJniWrapper
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types._
@@ -44,7 +44,8 @@ class TransformerApiImpl extends TransformerApi with Logging {
       bucketedScan: Boolean,
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
-      disableBucketedScan: Boolean): Seq[InputPartition] = {
+      disableBucketedScan: Boolean,
+      filterExprs: Seq[Expression] = Seq.empty): Seq[InputPartition] = {
     InputPartitionsUtil(
       relation,
       selectedPartitions,
