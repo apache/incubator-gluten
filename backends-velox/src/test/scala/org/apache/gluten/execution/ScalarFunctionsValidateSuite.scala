@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.spark.sql.catalyst.expressions.{ArraySort, Literal, UnaryMinus}
 import org.apache.spark.sql.types._
 
 import java.sql.Timestamp
@@ -402,6 +403,27 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
 
         runQueryAndCompare("select aggregate(ys, 0, (y, a) -> y + a + x) as v from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("array_sort") {
+    withTempPath {
+      path =>
+        Seq(
+          (Seq(4, null, 2, 3), Seq("b", null, "a")),
+          (Seq(4, 2, 3), Seq("b", "a"))
+        ).toDF("a", "b")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+
+        runQueryAndCompare("SELECT array_sort(a) from view") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+        runQueryAndCompare("SELECT array_sort(b) from view") {
           checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
