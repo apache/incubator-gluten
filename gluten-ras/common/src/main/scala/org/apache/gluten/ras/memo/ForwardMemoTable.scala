@@ -33,9 +33,10 @@ class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
   private val clusterKeyBuffer: mutable.ArrayBuffer[IntClusterKey] = mutable.ArrayBuffer()
   private val clusterBuffer: mutable.ArrayBuffer[MutableRasCluster[T]] = mutable.ArrayBuffer()
   private val clusterDisjointSet: IndexDisjointSet = IndexDisjointSet()
+  private val clusterDummyGroupBuffer = mutable.ArrayBuffer[RasGroup[T]]()
+
   private val groupLookup: mutable.ArrayBuffer[mutable.Map[PropertySet[T], RasGroup[T]]] =
     mutable.ArrayBuffer()
-  private val dummyGroupBuffer = mutable.ArrayBuffer[RasGroup[T]]()
 
   private val clusterMergeLog: mutable.ArrayBuffer[(Int, Int)] = mutable.ArrayBuffer()
   private var memoWriteCount: Int = 0
@@ -54,13 +55,13 @@ class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
     clusterDisjointSet.grow()
     groupLookup += mutable.Map()
     // Normal groups start with ID 0, so it's safe to use negative IDs for dummy groups.
-    dummyGroupBuffer += RasGroup(ras, key, -clusterId, ras.propertySetFactory().any())
+    clusterDummyGroupBuffer += RasGroup(ras, key, -clusterId, ras.propertySetFactory().any())
     key
   }
 
   override def dummyGroupOf(key: RasClusterKey): RasGroup[T] = {
     val ancestor = ancestorClusterIdOf(key)
-    dummyGroupBuffer(ancestor)
+    clusterDummyGroupBuffer(ancestor)
   }
 
   override def groupOf(key: RasClusterKey, propSet: PropertySet[T]): RasGroup[T] = {
@@ -155,6 +156,7 @@ class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
     assert(clusterKeyBuffer.size == clusterBuffer.size)
     assert(clusterKeyBuffer.size == clusterDisjointSet.size)
     assert(clusterKeyBuffer.size == groupLookup.size)
+    assert(clusterKeyBuffer.size == clusterDummyGroupBuffer.size)
   }
 
   override def probe(): MemoTable.Probe[T] = new ForwardMemoTable.Probe[T](this)
