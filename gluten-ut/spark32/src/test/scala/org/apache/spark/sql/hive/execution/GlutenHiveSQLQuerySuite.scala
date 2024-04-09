@@ -78,6 +78,7 @@ class GlutenHiveSQLQuerySuite extends GlutenHiveSQLQuerySuiteBase {
         -> "1",
       "spark.default.parallelism" -> "1",
       "hive.exec.dynamic.partition.mode" -> "nonstrict",
+      "spark.sql.storeAssignmentPolicy" -> "legacy",
       "spark.hadoop.fs.file.impl" -> testHdfs
     ) {
       sql("DROP TABLE IF EXISTS test_4990_0;")
