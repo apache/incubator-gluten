@@ -443,7 +443,7 @@ String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_
         *query_info,
         context,
         context->getSettingsRef().max_block_size,
-        1);
+        10); // TODO: Expect use driver cores.
 
     auto * read_from_mergetree = static_cast<ReadFromMergeTree *>(read_step.get());
     if (const auto & storage_prewhere_info = query_info->prewhere_info)

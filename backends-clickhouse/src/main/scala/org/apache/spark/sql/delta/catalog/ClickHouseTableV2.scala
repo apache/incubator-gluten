@@ -297,7 +297,7 @@ class ClickHouseTableV2(
     case None => ""
   }
 
-  def orderByKey(): String = primaryKeyOption match {
+  def orderByKey(): String = orderByKeyOption match {
     case Some(keys) => keys.mkString(",")
     case None => "tuple()"
   }

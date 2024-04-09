@@ -1398,6 +1398,92 @@ class GlutenClickHouseMergeTreeWriteSuite
     }
   }
 
+  test("test mergetree with order keys filter") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_orderbykey3;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_orderbykey3
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |TBLPROPERTIES (orderByKey='l_shipdate')
+                 |LOCATION '$basePath/lineitem_mergetree_orderbykey3'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_orderbykey3
+                 | select * from lineitem
+                 |""".stripMargin)
+
+    val sqlStr = s"""
+                    |SELECT
+                    |    sum(l_extendedprice * l_discount) AS revenue
+                    |FROM
+                    |    lineitem_mergetree_orderbykey3
+                    |WHERE
+                    |    l_shipdate >= date'1994-01-01'
+                    |    AND l_shipdate < date'1994-01-01' + interval 1 year
+                    |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
+                    |    AND l_quantity < 24
+                    |""".stripMargin
+    runTPCHQueryBySQL(6, sqlStr) {
+      df =>
+        val scanExec = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer => f
+        }
+        assert(scanExec.size == 1)
+
+        val mergetreeScan = scanExec(0)
+        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+
+        val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
+        assert(
+          ClickHouseTableV2
+            .getTable(fileIndex.deltaLog)
+            .orderByKeyOption
+            .get
+            .mkString(",")
+            .equals("l_shipdate"))
+        assert(
+          ClickHouseTableV2
+            .getTable(fileIndex.deltaLog)
+            .primaryKeyOption
+            .isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
+        val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
+
+        assert(addFiles.size == 6)
+        assert(addFiles.map(_.rows).sum == 600572)
+
+        val plans = collect(df.queryExecution.executedPlan) {
+          case scanExec: BasicScanExecTransformer => scanExec
+        }
+        assert(plans.size == 1)
+        assert(plans(0).metrics("selectedMarksPk").value === 17)
+        assert(plans(0).metrics("totalMarksPk").value === 74)
+    }
+  }
+
   test(
     "GLUTEN-5061: Fix assert error when writing mergetree data with select * from table limit n") {
     spark.sql(s"""
@@ -1763,8 +1849,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | l_comment       string
                  |)
                  |USING clickhouse
-                 |TBLPROPERTIES (orderByKey='l_shipdate,l_orderkey',
-                 |               primaryKey='l_shipdate')
+                 |TBLPROPERTIES (orderByKey='l_shipdate')
                  |LOCATION '$basePath/lineitem_mergetree_pk_pruning_by_driver'
                  |""".stripMargin)
 
