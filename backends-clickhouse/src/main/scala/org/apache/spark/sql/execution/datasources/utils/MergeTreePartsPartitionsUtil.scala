@@ -385,7 +385,8 @@ object MergeTreePartsPartitionsUtil extends Logging {
 
     if (
       filterExprs.nonEmpty && sparkSession.sessionState.conf.getConfString(
-        enableDriverFilter) == "true"
+        enableDriverFilter,
+        "false") == "true"
     ) {
       val size_per_mark = selectPartsFiles.map(part => (part.size, part.marks)).unzip match {
         case (l1, l2) => l1.sum / l2.sum
