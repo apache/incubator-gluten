@@ -51,6 +51,7 @@ class GlutenHiveSQLQuerySuite extends GlutenHiveSQLQuerySuiteBase {
   testGluten("4990: dynamic partition may lose data") {
     val testHdfs = classOf[DebugFilesystem].getName
     withSQLConf(
+      "spark.gluten.sql.columnar.backend.lib" -> "ch",
       "spark.sql.hive.convertMetastoreParquet" -> "false",
       "spark.gluten.sql.complexType.scan.fallback.enabled" -> "false",
       "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_parquet_max_block_size"
