@@ -26,6 +26,7 @@ trait Property[T <: AnyRef] {
 }
 
 trait PropertyDef[T <: AnyRef, P <: Property[T]] {
+  def any(): P
   def getProperty(plan: T): P
   def getChildrenConstraints(constraint: Property[T], plan: T): Seq[P]
 }

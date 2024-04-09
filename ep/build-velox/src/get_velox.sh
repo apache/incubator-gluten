@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_04_07
+VELOX_BRANCH=2024_04_09
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
@@ -202,6 +202,9 @@ function process_setup_alinux3 {
   sed -i "s/.*dnf config-manager --set-enabled powertools/#&/" scripts/setup-centos8.sh
   sed -i "s/gcc-toolset-9 //" scripts/setup-centos8.sh
   sed -i "s/.*source \/opt\/rh\/gcc-toolset-9\/enable/#&/" scripts/setup-centos8.sh
+  sed -i 's|^export CC=/opt/rh/gcc-toolset-9/root/bin/gcc|# &|' scripts/setup-centos8.sh
+  sed -i 's|^export CXX=/opt/rh/gcc-toolset-9/root/bin/g++|# &|' scripts/setup-centos8.sh
+  sed -i 's/python39 python39-devel python39-pip //g' scripts/setup-centos8.sh
   sed -i "s/\${CMAKE_INSTALL_LIBDIR}/lib64/" third_party/CMakeLists.txt
 }
 

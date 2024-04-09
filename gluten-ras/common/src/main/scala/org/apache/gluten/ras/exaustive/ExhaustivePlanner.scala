@@ -94,7 +94,7 @@ object ExhaustivePlanner {
       applyRules()
     }
 
-    private def findPaths(canonical: CanonicalNode[T], shapes: Seq[Shape[T]])(
+    private def findPaths(gn: GroupNode[T], shapes: Seq[Shape[T]])(
         onFound: RasPath[T] => Unit): Unit = {
       val finder = shapes
         .foldLeft(
@@ -104,11 +104,11 @@ object ExhaustivePlanner {
             builder.output(shape.wizard())
         }
         .build()
-      finder.find(canonical).foreach(path => onFound(path))
+      finder.find(gn).foreach(path => onFound(path))
     }
 
-    private def applyRule(rule: RuleApplier[T], path: RasPath[T]): Unit = {
-      rule.apply(path)
+    private def applyRule(rule: RuleApplier[T], icp: InClusterPath[T]): Unit = {
+      rule.apply(icp)
     }
 
     private def applyRules(): Unit = {
@@ -116,10 +116,15 @@ object ExhaustivePlanner {
         return
       }
       val shapes = rules.map(_.shape())
-      allClusters
-        .flatMap(c => c.nodes())
-        .foreach(
-          node => findPaths(node, shapes)(path => rules.foreach(rule => applyRule(rule, path))))
+      memoState
+        .clusterLookup()
+        .foreach {
+          case (cKey, cluster) =>
+            val dummyGroup = memoState.getDummyGroup(cKey)
+            findPaths(GroupNode(ras, dummyGroup), shapes) {
+              path => rules.foreach(rule => applyRule(rule, InClusterPath(cKey, path)))
+            }
+        }
     }
 
     private def applyEnforcerRules(): Unit = {
@@ -129,10 +134,10 @@ object ExhaustivePlanner {
           val enforcerRules = enforcerRuleSet.rulesOf(constraintSet)
           if (enforcerRules.nonEmpty) {
             val shapes = enforcerRules.map(_.shape())
-            memoState.clusterLookup()(group.clusterKey()).nodes().foreach {
-              node =>
-                findPaths(node, shapes)(
-                  path => enforcerRules.foreach(rule => applyRule(rule, path)))
+            val cKey = group.clusterKey()
+            val dummyGroup = memoState.getDummyGroup(cKey)
+            findPaths(GroupNode(ras, dummyGroup), shapes) {
+              path => enforcerRules.foreach(rule => applyRule(rule, InClusterPath(cKey, path)))
             }
           }
       }

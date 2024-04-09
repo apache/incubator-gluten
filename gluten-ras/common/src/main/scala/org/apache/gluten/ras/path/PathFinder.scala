@@ -18,11 +18,13 @@ package org.apache.gluten.ras.path
 
 import org.apache.gluten.ras.{CanonicalNode, GroupNode, Ras}
 import org.apache.gluten.ras.memo.MemoStore
+import org.apache.gluten.ras.path.OutputWizard.AdvanceAction
 
 import scala.collection.mutable
 
 trait PathFinder[T <: AnyRef] {
   def find(base: CanonicalNode[T]): Iterable[RasPath[T]]
+  def find(base: GroupNode[T]): Iterable[RasPath[T]]
   def find(base: RasPath[T]): Iterable[RasPath[T]]
 }
 
@@ -88,6 +90,14 @@ object PathFinder {
       all
     }
 
+    override def find(base: GroupNode[T]): Iterable[RasPath[T]] = {
+      val all =
+        wizard.prepareForGroup(ras, base).visit().onContinue {
+          newWizard => enumerateFromGroup(base, newWizard)
+        }
+      all
+    }
+
     override def find(base: RasPath[T]): Iterable[RasPath[T]] = {
       val can = base.node().self().asCanonical()
       val all = wizard.prepareForNode(ras, memoStore.asGroupSupplier(), can).visit().onContinue {
@@ -123,9 +133,13 @@ object PathFinder {
         childrenGroups.zipWithIndex.map {
           case (childGroup, index) =>
             wizard
-              .prepareForGroup(ras, childGroup, index, childrenGroups.size)
-              .advance()
-              .onContinue(newWizard => enumerateFromGroup(childGroup, newWizard))
+              .advance(index, childrenGroups.size) match {
+              case AdvanceAction.Continue(newWizard) =>
+                newWizard
+                  .prepareForGroup(ras, childGroup)
+                  .visit()
+                  .onContinue(newWizard => enumerateFromGroup(childGroup, newWizard))
+            }
         }
       RasPath.cartesianProduct(ras, canonical, expandedChildren)
     }
@@ -168,11 +182,16 @@ object PathFinder {
         children.zip(childrenGroups).zipWithIndex.map {
           case ((child, childGroup), index) =>
             wizard
-              .prepareForGroup(ras, childGroup, index, childrenGroups.size)
-              .advance()
-              .onContinue {
-                newWizard => diveFromGroup(depth - 1, GroupedPathNode(childGroup, child), newWizard)
-              }
+              .advance(index, childrenGroups.size) match {
+              case AdvanceAction.Continue(newWizard) =>
+                newWizard
+                  .prepareForGroup(ras, childGroup)
+                  .visit()
+                  .onContinue {
+                    newWizard =>
+                      diveFromGroup(depth - 1, GroupedPathNode(childGroup, child), newWizard)
+                  }
+            }
         }
       )
     }
