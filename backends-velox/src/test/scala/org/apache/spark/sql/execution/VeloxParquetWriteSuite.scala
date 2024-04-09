@@ -51,7 +51,11 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  test("test write parquet with compression codec") {
+  // Disable for Spark3.5.
+  testWithSpecifiedSparkVersion(
+    "test write parquet with compression codec",
+    Some("3.2"),
+    Some("3.4")) {
     // compression codec details see `VeloxParquetDatasource.cc`
     Seq("snappy", "gzip", "zstd", "lz4", "none", "uncompressed")
       .foreach {

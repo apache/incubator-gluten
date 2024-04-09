@@ -171,7 +171,7 @@
         <sparkshim.artifactId>spark-sql-columnar-shims-spark35</sparkshim.artifactId>
         <spark.version>3.5.1</spark.version>
         <iceberg.version>1.4.3</iceberg.version>
-        <delta.version>2.4.0</delta.version>
+        <delta.version>3.0.0</delta.version>
         <delta.binary.version>24</delta.binary.version>
         <hadoop.version>3.3.4</hadoop.version>
       </properties>
