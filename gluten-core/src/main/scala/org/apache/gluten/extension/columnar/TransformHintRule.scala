@@ -743,11 +743,8 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           } else {
             val (limit, offset) =
               SparkShimLoader.getSparkShims.getLimitAndOffsetFromCollectLimit(plan)
-            val transformer = CollectLimitExecTransformer(
-              limit,
-              plan.child,
-              offset
-            )
+            val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+              .genColumnarCollectLimit(plan.child, offset, limit)
             transformer.doValidate().tagOnFallback(plan)
           }
         case _ =>

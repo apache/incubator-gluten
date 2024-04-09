@@ -403,7 +403,8 @@ object ImplementOthers {
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           val (limit, offset) = SparkShimLoader.getSparkShims
             .getLimitAndOffsetFromCollectLimit(plan)
-          CollectLimitExecTransformer(limit, plan.child, offset)
+          BackendsApiManager.getSparkPlanExecApiInstance
+            .genColumnarCollectLimit(plan.child, offset, limit)
         case plan: WindowExec =>
           WindowExecTransformer(
             plan.windowExpression,
