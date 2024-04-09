@@ -738,11 +738,11 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
 
         runQueryAndCompare("select filter(value, x -> x % 2 == 1) as res from array_tbl;") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
 
         runQueryAndCompare("select filter(value, x -> x is not null) as res from array_tbl;") {
-          checkOperatorMatch[ProjectExecTransformer]
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }
