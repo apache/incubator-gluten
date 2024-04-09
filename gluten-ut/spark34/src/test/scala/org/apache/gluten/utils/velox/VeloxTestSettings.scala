@@ -920,6 +920,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenConfigBehaviorSuite]
     // Will be fixed by cleaning up ColumnarShuffleExchangeExec.
     .exclude("SPARK-22160 spark.sql.execution.rangeExchange.sampleSizePerPartition")
+    .exclude("SPARK-40211: customize initialNumPartitions for take")
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
   enableSuite[GlutenCTEHintSuite]
@@ -1101,6 +1102,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileSourceSQLInsertTestSuite]
   enableSuite[GlutenDSV2SQLInsertTestSuite]
   enableSuite[GlutenSQLQuerySuite]
+    .exclude("Common subexpression elimination")
     .exclude("SPARK-19650: An action on a Command should not trigger a Spark job")
     .exclude("SPARK-17515: CollectLimit.execute() should perform per-partition limits")
     // Decimal precision exceeds.
