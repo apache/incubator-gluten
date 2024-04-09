@@ -671,10 +671,10 @@ trait SparkPlanExecApi {
   ): GenerateExecTransformerBase
 
   def genColumnarCollectLimit(
-                               child: SparkPlan,
-                               offset: Int,
-                               limit: Int
-                             ): CollectLimitExecTransformer = {
+      child: SparkPlan,
+      offset: Int,
+      limit: Int
+  ): CollectLimitExecTransformer = {
     throw new GlutenNotSupportException("Do not support columnar collect limit")
   }
 
