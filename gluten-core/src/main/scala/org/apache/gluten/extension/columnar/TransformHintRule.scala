@@ -692,7 +692,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           if (!enableColumnarLimit) {
             TransformHints.tagNotTransformable(
               plan,
-              "columnar limit is not enabled in GlobalLimitExec")
+              "columnar limit is not enabled in LocalLimitExec")
           } else {
             val transformer = LimitTransformer(plan.child, 0L, plan.limit)
             transformer.doValidate().tagOnFallback(plan)
