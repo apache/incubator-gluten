@@ -149,7 +149,8 @@ void MergeSparkMergeTreeTask::prepare()
         deduplicate_by_columns,
         cleanup,
         storage.merging_params,
-        txn);
+        txn,
+        false);
 }
 
 
@@ -157,9 +158,9 @@ void MergeSparkMergeTreeTask::finish()
 {
     new_part = merge_task->getFuture().get();
 
-    MergeTreeData::Transaction transaction(storage, txn.get());
-    storage.merger_mutator.renameMergedTemporaryPart(new_part, future_part->parts, txn, transaction);
-    transaction.commit();
+    // MergeTreeData::Transaction transaction(storage, txn.get());
+    // storage.merger_mutator.renameMergedTemporaryPart(new_part, future_part->parts, txn, transaction);
+    // transaction.commit();
 
     ThreadFuzzer::maybeInjectSleep();
     ThreadFuzzer::maybeInjectMemoryLimitException();
