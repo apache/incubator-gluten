@@ -244,7 +244,10 @@ class GlutenHiveSQLQuerySuite extends GlutenSQLTestsTrait {
   }
 
   testGluten("5249: Reading csv may throw Unexpected empty column") {
-    withSQLConf("spark.gluten.sql.complexType.scan.fallback.enabled" -> "false") {
+    withSQLConf(
+      "spark.gluten.sql.columnar.backend.lib" -> "ch"
+      "spark.gluten.sql.complexType.scan.fallback.enabled" -> "false"
+    ) {
       sql("DROP TABLE IF EXISTS test_5249;")
       sql(
         "CREATE TABLE test_5249 (name STRING, uid STRING) " +
