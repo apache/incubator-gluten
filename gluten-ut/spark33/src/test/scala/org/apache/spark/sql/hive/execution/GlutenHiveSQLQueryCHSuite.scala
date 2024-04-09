@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.hive.execution
 
-import org.apache.gluten.execution.TransformSupport
+import org.apache.gluten.execution.{FileSourceScanExecTransformer, TransformSupport}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.config
@@ -25,12 +25,13 @@ import org.apache.spark.sql.{DataFrame, GlutenSQLTestsTrait, Row, SparkSession}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.hive.{HiveTableScanExecTransformer, HiveUtils}
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 
 import scala.reflect.ClassTag
 
-class GlutenHiveSQLQuerySuite extends GlutenSQLTestsTrait {
+class GlutenHiveSQLQueryCHSuite extends GlutenSQLTestsTrait {
   private var _spark: SparkSession = null
 
   override def beforeAll(): Unit = {
@@ -97,63 +98,38 @@ class GlutenHiveSQLQuerySuite extends GlutenSQLTestsTrait {
   override def sparkConf: SparkConf = {
     defaultSparkConf
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
+      .set("spark.gluten.sql.columnar.backend.lib", "ch")
+      .set("spark.sql.storeAssignmentPolicy", "legacy")
+      .set("spark.hadoop.fs.file.impl", classOf[DebugFilesystem].getName)
       .set("spark.default.parallelism", "1")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
   }
 
-  testGluten("hive orc scan") {
-    withSQLConf("spark.sql.hive.convertMetastoreOrc" -> "false") {
-      sql("DROP TABLE IF EXISTS test_orc")
-      sql(
-        "CREATE TABLE test_orc (name STRING, favorite_color STRING)" +
-          " USING hive OPTIONS(fileFormat 'orc')")
-      sql("INSERT INTO test_orc VALUES('test_1', 'red')");
-      val df = spark.sql("select * from test_orc")
-      checkAnswer(df, Seq(Row("test_1", "red")))
-      checkOperatorMatch[HiveTableScanExecTransformer](df)
-    }
-    spark.sessionState.catalog.dropTable(
-      TableIdentifier("test_orc"),
-      ignoreIfNotExists = true,
-      purge = false)
-  }
-
-  testGluten("5182: Fix failed to parse post join filters") {
+  testGluten("5249: Reading csv may throw Unexpected empty column") {
     withSQLConf(
-      "spark.sql.hive.convertMetastoreParquet" -> "false",
-      "spark.gluten.sql.complexType.scan.fallback.enabled" -> "false") {
-      sql("DROP TABLE IF EXISTS test_5128_0;")
-      sql("DROP TABLE IF EXISTS test_5128_1;")
+      "spark.gluten.sql.complexType.scan.fallback.enabled" -> "false"
+    ) {
+      sql("DROP TABLE IF EXISTS test_5249;")
       sql(
-        "CREATE TABLE test_5128_0 (from_uid STRING, vgift_typeid int, vm_count int, " +
-          "status bigint, ts bigint, vm_typeid int) " +
-          "USING hive OPTIONS(fileFormat 'parquet') PARTITIONED BY (`day` STRING);")
-      sql(
-        "CREATE TABLE test_5128_1 (typeid int, groupid int, ss_id bigint, " +
-          "ss_start_time bigint, ss_end_time bigint) " +
-          "USING hive OPTIONS(fileFormat 'parquet');")
-      sql(
-        "INSERT INTO test_5128_0 partition(day='2024-03-31') " +
-          "VALUES('uid_1', 2, 10, 1, 11111111111, 2);")
-      sql("INSERT INTO test_5128_1 VALUES(2, 1, 1, 1000000000, 2111111111);")
+        "CREATE TABLE test_5249 (name STRING, uid STRING) " +
+          "ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe' " +
+          "STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' " +
+          "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat';")
+      sql("INSERT INTO test_5249 VALUES('name_1', 'id_1');")
       val df = spark.sql(
-        "select ee.from_uid as uid,day, vgift_typeid, money from " +
-          "(select t_a.day, if(cast(substr(t_a.ts,1,10) as bigint) between " +
-          "t_b.ss_start_time and t_b.ss_end_time, t_b.ss_id, 0) ss_id, " +
-          "t_a.vgift_typeid, t_a.from_uid, vm_count money from " +
-          "(select from_uid,day,vgift_typeid,vm_count,ts from test_5128_0 " +
-          "where day between '2024-03-30' and '2024-03-31' and status=1 and vm_typeid=2) t_a " +
-          "left join test_5128_1 t_b on t_a.vgift_typeid=t_b.typeid " +
-          "where t_b.groupid in (1,2)) ee where ss_id=1;")
-      checkAnswer(df, Seq(Row("uid_1", "2024-03-31", 2, 10)))
+        "SELECT name, uid, count(distinct uid) total_uid_num from test_5249 " +
+          "group by name, uid with cube;")
+      checkAnswer(
+        df,
+        Seq(
+          Row("name_1", "id_1", 1),
+          Row("name_1", null, 1),
+          Row(null, "id_1", 1),
+          Row(null, null, 1)))
     }
     spark.sessionState.catalog.dropTable(
-      TableIdentifier("test_5128_0"),
-      ignoreIfNotExists = true,
-      purge = false)
-    spark.sessionState.catalog.dropTable(
-      TableIdentifier("test_5128_1"),
+      TableIdentifier("test_5249"),
       ignoreIfNotExists = true,
       purge = false)
   }
