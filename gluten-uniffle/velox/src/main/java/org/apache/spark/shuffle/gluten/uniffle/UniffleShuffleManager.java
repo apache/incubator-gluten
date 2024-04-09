@@ -42,8 +42,7 @@ public class UniffleShuffleManager extends RssShuffleManager {
 
   public UniffleShuffleManager(SparkConf conf, boolean isDriver) {
     super(conf, isDriver);
-    conf.set(
-        RssSparkConfig.SPARK_RSS_CONFIG_PREFIX + RssSparkConfig.RSS_ROW_BASED, "false");
+    conf.set(RssSparkConfig.SPARK_RSS_CONFIG_PREFIX + RssSparkConfig.RSS_ROW_BASED, "false");
   }
 
   @Override
