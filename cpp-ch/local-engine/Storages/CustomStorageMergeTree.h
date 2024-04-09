@@ -52,7 +52,7 @@ public:
     std::vector<MergeTreeMutationStatus> getMutationsStatus() const override;
     bool scheduleDataProcessingJob(BackgroundJobsAssignee & executor) override;
     std::map<std::string, MutationCommands> getUnfinishedMutationCommands() const override;
-    DataPartsVector loadDataPartsWithNames(std::unordered_set<std::string> parts);
+    MutableDataPartsVector loadDataPartsWithNames(std::unordered_set<std::string> parts);
 
 
     MergeTreeDataWriter writer;

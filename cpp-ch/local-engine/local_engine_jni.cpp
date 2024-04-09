@@ -55,6 +55,7 @@
 #include <google/protobuf/wrappers.pb.h>
 #include <Storages/StorageMergeTreeFactory.h>
 #include <Storages/Mergetree/MergeSparkMergeTreeTask.h>
+#include <Storages/Mergetree/MetaDataHelper.h>
 
 
 #ifdef __cplusplus
@@ -1167,13 +1168,16 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     executeHere(task);
 
     std::unordered_set<std::string> to_load{future_part->name};
-    std::vector<DataPartPtr> loaded = storage->loadDataPartsWithNames(to_load);
+    std::vector<std::shared_ptr<DB::IMergeTreeDataPart>> loaded = storage->loadDataPartsWithNames(to_load);
     std::vector<local_engine::PartInfo> res;
-    for (const MergeTreeDataPartPtr & partPtr : loaded)
+    for (auto & partPtr : loaded)
+    {
+        local_engine::saveFileStatus(*storage, local_engine::SerializedPlanParser::global_context, partPtr->getDataPartStorage());
         res.emplace_back(
             local_engine::PartInfo{partPtr->name, partPtr->getMarksCount(), partPtr->getBytesOnDisk(), partPtr->rows_count,
                                    /*partition_value*/ partition_values,
                                    bucket_dir});
+    }
 
     auto json_info = local_engine::SparkMergeTreeWriter::partInfosToJson(res);
 
