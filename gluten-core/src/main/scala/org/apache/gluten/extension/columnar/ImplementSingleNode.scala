@@ -83,7 +83,10 @@ case class ImplementAggregate() extends ImplementSingleNode with LogLevelUtil {
     }
 
     // If child's output is empty, fallback or offload both the child and aggregation.
-    if (plan.child.output.isEmpty && BackendsApiManager.getSettings.fallbackAggregateWithChild()) {
+    if (
+      aggChild.output.isEmpty && BackendsApiManager.getSettings
+        .fallbackAggregateWithEmptyOutputChild()
+    ) {
       aggChild match {
         case _: TransformSupport =>
           // If the child is transformable, transform aggregation as well.

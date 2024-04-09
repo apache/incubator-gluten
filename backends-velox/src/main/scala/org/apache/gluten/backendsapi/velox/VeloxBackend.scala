@@ -431,7 +431,7 @@ object BackendSettings extends BackendSettingsApi {
     !mayNeedOffload(plan)
   }
 
-  override def fallbackAggregateWithChild(): Boolean = true
+  override def fallbackAggregateWithEmptyOutputChild(): Boolean = true
 
   override def recreateJoinExecOnFallback(): Boolean = true
   override def rescaleDecimalLiteral(): Boolean = true

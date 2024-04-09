@@ -30,6 +30,10 @@ import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, GlutenFallbackReporter, SparkPlan}
 import org.apache.spark.util.SparkRuleUtil
 
+/**
+ * Columnar rule applier that optimizes, implements Spark plan into Gluten plan by heuristically
+ * applying columnar rules in fixed order.
+ */
 class HeuristicApplier(session: SparkSession)
   extends ColumnarRuleApplier
   with Logging

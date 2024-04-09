@@ -18,7 +18,7 @@ package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.extension.columnar.{ImplementExchange, ImplementJoin, ImplementOthers, ImplementSingleNode}
 import org.apache.gluten.planner.GlutenOptimization
-import org.apache.gluten.planner.property.GlutenProperties
+import org.apache.gluten.planner.property.Conventions
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 import org.apache.gluten.utils.LogLevelUtil
@@ -33,16 +33,17 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
   import EnumeratedTransform._
 
   private val rasRules = List(
-    RasImplement(ImplementOthers()),
-    RasImplement(ImplementExchange()),
-    RasImplement(ImplementJoin())
+    AsRasImplement(ImplementOthers()),
+    AsRasImplement(ImplementExchange()),
+    AsRasImplement(ImplementJoin()),
+    RasImplementAggregate
   )
 
   private val optimization = GlutenOptimization(rasRules)
 
-  private val reqConvention = GlutenProperties.Conventions.ANY
+  private val reqConvention = Conventions.ANY
   private val altConventions =
-    Seq(GlutenProperties.Conventions.GLUTEN_COLUMNAR, GlutenProperties.Conventions.ROW_BASED)
+    Seq(Conventions.GLUTEN_COLUMNAR, Conventions.ROW_BASED)
 
   override def apply(plan: SparkPlan): SparkPlan = {
     val constraintSet = PropertySet(List(reqConvention))
@@ -55,7 +56,7 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
 }
 
 object EnumeratedTransform {
-  private case class RasImplement(delegate: ImplementSingleNode) extends RasRule[SparkPlan] {
+  private case class AsRasImplement(delegate: ImplementSingleNode) extends RasRule[SparkPlan] {
     override def shift(node: SparkPlan): Iterable[SparkPlan] = {
       val out = List(delegate.impl(node))
       out

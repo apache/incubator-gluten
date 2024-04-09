@@ -17,8 +17,7 @@
 package org.apache.gluten.planner.plan
 
 import org.apache.gluten.planner.metadata.GlutenMetadata
-import org.apache.gluten.planner.property.GlutenProperties
-import org.apache.gluten.planner.property.GlutenProperties.Conventions
+import org.apache.gluten.planner.property.{ConventionDef, Conventions}
 import org.apache.gluten.ras.{Metadata, PlanModel}
 import org.apache.gluten.ras.property.PropertySet
 
@@ -42,7 +41,7 @@ object GlutenPlanModel {
     override protected def doExecute(): RDD[InternalRow] = throw new IllegalStateException()
     override def output: Seq[Attribute] = metadata.schema().output
     override def supportsColumnar: Boolean =
-      propertySet.get(GlutenProperties.CONVENTION_DEF) match {
+      propertySet.get(ConventionDef) match {
         case Conventions.ROW_BASED => false
         case Conventions.VANILLA_COLUMNAR => true
         case Conventions.GLUTEN_COLUMNAR => true
