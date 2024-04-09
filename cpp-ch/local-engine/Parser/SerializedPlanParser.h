@@ -114,7 +114,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"shiftleft", "bitShiftLeft"},
        {"shiftright", "bitShiftRight"},
        {"check_overflow", "checkDecimalOverflowSpark"},
-       {"factorial", "factorial"},
        {"rand", "randCanonical"},
        {"isnan", "isNaN"},
 
