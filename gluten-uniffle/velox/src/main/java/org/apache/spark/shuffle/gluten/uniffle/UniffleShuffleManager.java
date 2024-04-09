@@ -33,8 +33,6 @@ import org.apache.uniffle.common.exception.RssException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Constructor;
-
 public class UniffleShuffleManager extends RssShuffleManager {
   private static final Logger LOG = LoggerFactory.getLogger(UniffleShuffleManager.class);
 
