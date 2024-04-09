@@ -234,20 +234,15 @@ DB::Chunk VectorizedParquetRecordReader::nextBatch()
 {
     assert(initialized());
     ::arrow::ChunkedArrayVector columns(column_readers_.size());
-    DB::ArrowColumnToCHColumn::NameToColumnPtr name_to_column_ptr;
+    DB::ArrowColumnToCHColumn::NameToArrowColumn name_to_column_ptr;
     for (auto & vectorized_column_reader : column_readers_)
     {
-        const std::shared_ptr<arrow::ChunkedArray> arrow_column
-            = vectorized_column_reader.readBatch(format_settings_.parquet.max_block_size);
-        name_to_column_ptr[lowerColumnNameIfNeed(vectorized_column_reader.columnName(), format_settings_)] = arrow_column;
+        name_to_column_ptr[lowerColumnNameIfNeed(vectorized_column_reader.columnName(), format_settings_)]
+            = {vectorized_column_reader.readBatch(format_settings_.parquet.max_block_size), vectorized_column_reader.arrowField()};
     }
 
-    if (const size_t num_rows = name_to_column_ptr.begin()->second->length(); num_rows > 0)
-    {
-        DB::Chunk result;
-        arrow_column_to_ch_column_.arrowColumnsToCHChunk(result, name_to_column_ptr, num_rows, nullptr);
-        return result;
-    }
+    if (const size_t num_rows = name_to_column_ptr.begin()->second.column->length(); num_rows > 0)
+        return arrow_column_to_ch_column_.arrowColumnsToCHChunk(name_to_column_ptr, num_rows, nullptr);
     return {};
 }
 
