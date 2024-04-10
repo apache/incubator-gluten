@@ -1894,5 +1894,112 @@ class GlutenClickHouseMergeTreeWriteSuite
         }
       })
   }
+
+  test("test mergetree with primary keys filter pruning by driver with bucket") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_pk_pruning_by_driver_bucket;
+                 |""".stripMargin)
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS orders_mergetree_pk_pruning_by_driver_bucket;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_pk_pruning_by_driver_bucket
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |CLUSTERED by (l_orderkey) SORTED by  (l_receiptdate) INTO 2 BUCKETS
+                 |LOCATION '$basePath/lineitem_mergetree_pk_pruning_by_driver_bucket'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS orders_mergetree_pk_pruning_by_driver_bucket (
+                 | o_orderkey      bigint,
+                 | o_custkey       bigint,
+                 | o_orderstatus   string,
+                 | o_totalprice    double,
+                 | o_orderdate     date,
+                 | o_orderpriority string,
+                 | o_clerk         string,
+                 | o_shippriority  bigint,
+                 | o_comment       string)
+                 |USING clickhouse
+                 |CLUSTERED by (o_orderkey) SORTED by  (o_orderdate) INTO 2 BUCKETS
+                 |LOCATION '$basePath/orders_mergetree_pk_pruning_by_driver_bucket'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_pk_pruning_by_driver_bucket
+                 | select * from lineitem
+                 |""".stripMargin)
+    spark.sql(s"""
+                 | insert into table orders_mergetree_pk_pruning_by_driver_bucket
+                 | select * from orders
+                 |""".stripMargin)
+
+    val sqlStr =
+      s"""
+         |SELECT
+         |    l_shipmode,
+         |    sum(
+         |        CASE WHEN o_orderpriority = '1-URGENT'
+         |            OR o_orderpriority = '2-HIGH' THEN
+         |            1
+         |        ELSE
+         |            0
+         |        END) AS high_line_count,
+         |    sum(
+         |        CASE WHEN o_orderpriority <> '1-URGENT'
+         |            AND o_orderpriority <> '2-HIGH' THEN
+         |            1
+         |        ELSE
+         |            0
+         |        END) AS low_line_count
+         |FROM
+         |    orders_mergetree_pk_pruning_by_driver_bucket,
+         |    lineitem_mergetree_pk_pruning_by_driver_bucket
+         |WHERE
+         |    o_orderkey = l_orderkey
+         |    AND l_shipmode IN ('MAIL', 'SHIP')
+         |    AND l_commitdate < l_receiptdate
+         |    AND l_shipdate < l_commitdate
+         |    AND l_receiptdate >= date'1994-01-01' AND l_receiptdate < date'1994-01-01' + interval 1 year
+         |GROUP BY
+         |    l_shipmode
+         |ORDER BY
+         |    l_shipmode;
+         |""".stripMargin
+
+    Seq(("true", 2), ("false", 2)).foreach(
+      conf => {
+        withSQLConf(
+          ("spark.gluten.sql.columnar.backend.ch.runtime_settings.enabled_driver_filter_mergetree_index" -> conf._1)) {
+          runTPCHQueryBySQL(12, sqlStr) {
+            df =>
+              val scanExec = collect(df.queryExecution.executedPlan) {
+                case f: BasicScanExecTransformer => f
+              }
+              assert(scanExec.size == 2)
+              assert(scanExec(1).getSplitInfos.size == conf._2)
+          }
+        }
+      })
+  }
 }
 // scalastyle:off line.size.limit

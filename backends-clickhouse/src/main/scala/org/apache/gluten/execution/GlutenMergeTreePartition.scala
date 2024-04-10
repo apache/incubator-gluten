@@ -22,6 +22,7 @@ case class MergeTreePartRange(
     name: String,
     dirName: String,
     targetNode: String,
+    bucketNum: String,
     start: Long,
     marks: Long,
     size: Long) {

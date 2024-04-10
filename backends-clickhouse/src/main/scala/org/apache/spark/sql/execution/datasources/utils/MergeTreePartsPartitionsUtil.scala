@@ -104,6 +104,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
         partitions,
         table,
         table.clickhouseTableConfigs,
+        output,
         filterExprs,
         sparkSession
       )
@@ -167,7 +168,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
               val ret = ClickhouseSnapshot.pathToAddMTPCache.getIfPresent(path)
               if (ret == null) {
                 val keys = ClickhouseSnapshot.pathToAddMTPCache.asMap().keySet()
-                val keySample = keys.isEmpty() match {
+                val keySample = keys.isEmpty match {
                   case true => "<empty>"
                   case false => keys.iterator().next()
                 }
@@ -216,9 +217,10 @@ object MergeTreePartsPartitionsUtil extends Logging {
     val splitFiles = selectRanges
       .flatMap {
         part =>
-          (part.start until part.marks by markCntPerPartition).map {
+          val end = part.marks + part.start
+          (part.start until end by markCntPerPartition).map {
             offset =>
-              val remaining = part.marks - offset
+              val remaining = end - offset
               val size = if (remaining > markCntPerPartition) markCntPerPartition else remaining
               MergeTreePartSplit(
                 part.name,
@@ -292,6 +294,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       partitions: ArrayBuffer[InputPartition],
       table: ClickHouseTableV2,
       clickhouseTableConfigs: Map[String, String],
+      output: Seq[Attribute],
       filterExprs: Seq[Expression],
       sparkSession: SparkSession): Unit = {
 
@@ -322,7 +325,27 @@ object MergeTreePartsPartitionsUtil extends Logging {
       return
     }
 
-    val bucketGroupParts = selectPartsFiles.groupBy(p => Integer.parseInt(p.bucketNum))
+    val selectRanges: Seq[MergeTreePartRange] =
+      getMergeTreePartRange(
+        selectPartsFiles,
+        snapshotId,
+        database,
+        tableName,
+        relativeTablePath,
+        absoluteTablePath,
+        tableSchemaJson,
+        table,
+        clickhouseTableConfigs,
+        filterExprs,
+        output,
+        sparkSession
+      )
+
+    if (selectRanges.isEmpty) {
+      return
+    }
+
+    val bucketGroupParts = selectRanges.groupBy(p => Integer.parseInt(p.bucketNum))
 
     val prunedFilesGroupedToBuckets = if (optionalBucketSet.isDefined) {
       val bucketSet = optionalBucketSet.get
@@ -337,12 +360,12 @@ object MergeTreePartsPartitionsUtil extends Logging {
     }
     Seq.tabulate(bucketSpec.numBuckets) {
       bucketId =>
-        val currBucketParts: Seq[AddMergeTreeParts] =
+        val currBucketParts: Seq[MergeTreePartRange] =
           prunedFilesGroupedToBuckets.getOrElse(bucketId, Seq.empty)
         if (!currBucketParts.isEmpty) {
           val currentFiles = currBucketParts.map {
             part =>
-              MergeTreePartSplit(part.name, part.dirName, part.targetNode, 0, part.marks, part.size)
+              MergeTreePartSplit(part.name, part.dirName, part.targetNode, part.start, part.marks, part.size)
           }
           val newPartition = GlutenMergeTreePartition(
             partitions.size,
@@ -483,8 +506,9 @@ object MergeTreePartsPartitionsUtil extends Logging {
               part.name,
               part.dirName,
               part.targetNode,
+              part.bucketNum,
               range.getBegin,
-              range.getEnd,
+              marks,
               marks * size_per_mark)
           })
         .toSeq
@@ -492,7 +516,15 @@ object MergeTreePartsPartitionsUtil extends Logging {
       selectPartsFiles
         .map(
           part =>
-            MergeTreePartRange(part.name, part.dirName, part.targetNode, 0, part.marks, part.size))
+            MergeTreePartRange(
+              part.name,
+              part.dirName,
+              part.targetNode,
+              part.bucketNum,
+              0,
+              part.marks,
+              part.size)
+        )
         .toSeq
     }
   }
