@@ -365,7 +365,13 @@ object MergeTreePartsPartitionsUtil extends Logging {
         if (!currBucketParts.isEmpty) {
           val currentFiles = currBucketParts.map {
             part =>
-              MergeTreePartSplit(part.name, part.dirName, part.targetNode, part.start, part.marks, part.size)
+              MergeTreePartSplit(
+                part.name,
+                part.dirName,
+                part.targetNode,
+                part.start,
+                part.marks,
+                part.size)
           }
           val newPartition = GlutenMergeTreePartition(
             partitions.size,
@@ -523,8 +529,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
               part.bucketNum,
               0,
               part.marks,
-              part.size)
-        )
+              part.size))
         .toSeq
     }
   }
