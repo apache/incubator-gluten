@@ -28,6 +28,7 @@ import org.apache.gluten.vectorized.SplitResult;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
 import org.apache.spark.executor.ShuffleWriteMetrics;
+import org.apache.spark.internal.config.package$;
 import org.apache.spark.memory.SparkMemoryUtil;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.shuffle.ColumnarShuffleDependency;
@@ -113,7 +114,9 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
             sparkConf.getSizeAsBytes(
                 RssSparkConfig.RSS_WRITER_BUFFER_SIZE.key(),
                 RssSparkConfig.RSS_WRITER_BUFFER_SIZE.defaultValue().get());
-    compressionCodec = GlutenShuffleUtils.getCompressionCodec(sparkConf);
+    if ((boolean) sparkConf.get(package$.MODULE$.SHUFFLE_COMPRESS())) {
+      compressionCodec = GlutenShuffleUtils.getCompressionCodec(sparkConf);
+    }
     compressionLevel = GlutenShuffleUtils.getCompressionLevel(sparkConf, compressionCodec, null);
   }
 
