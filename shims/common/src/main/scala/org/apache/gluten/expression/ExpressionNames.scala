@@ -242,6 +242,7 @@ object ExpressionNames {
   final val ARRAY_EXCEPT = "array_except"
   final val ARRAY_REPEAT = "array_repeat"
   final val ARRAY_REMOVE = "array_remove"
+  final val FILTER = "filter"
 
   // Map functions
   final val CREATE_MAP = "map"

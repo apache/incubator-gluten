@@ -576,6 +576,13 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         e.getTransformer(childrenTransformers)
       case u: Uuid =>
         BackendsApiManager.getSparkPlanExecApiInstance.genUuidTransformer(substraitExprName, u)
+      case f: ArrayFilter =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genArrayFilterTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(f.argument, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(f.function, attributeSeq, expressionsMap),
+          f
+        )
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,
