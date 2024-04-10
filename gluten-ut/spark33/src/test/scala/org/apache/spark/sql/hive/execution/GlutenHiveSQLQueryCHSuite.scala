@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.hive.execution
 
-import org.apache.gluten.execution.{FileSourceScanExecTransformer, TransformSupport}
+import org.apache.gluten.execution.TransformSupport
 
 import org.apache.spark.{DebugFilesystem, SparkConf}
 import org.apache.spark.internal.config
@@ -25,8 +25,7 @@ import org.apache.spark.sql.{DataFrame, GlutenSQLTestsTrait, Row, SparkSession}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.hive.{HiveTableScanExecTransformer, HiveUtils}
+import org.apache.spark.sql.hive.HiveUtils
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 
 import scala.reflect.ClassTag
