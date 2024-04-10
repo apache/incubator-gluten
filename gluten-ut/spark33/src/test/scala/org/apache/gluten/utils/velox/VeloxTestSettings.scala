@@ -138,8 +138,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Replaced by a gluten test to pass timezone through config.
     .exclude("from_unixtime")
     .exclude("test timestamp add")
-    // Replace by a gluten test to catch exception.
-    .exclude("creating values of DateType via make_date")
   enableSuite[GlutenDecimalExpressionSuite]
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenIntervalExpressionsSuite]
