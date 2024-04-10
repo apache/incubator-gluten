@@ -319,4 +319,18 @@ class Spark35Shims extends SparkShims {
     null
 
   override def supportsRowBased(plan: SparkPlan): Boolean = plan.supportsRowBased
+
+  override def withTryEvalMode(expr: Expression): Boolean = {
+    expr match {
+      case a: Add => a.evalMode == EvalMode.TRY
+      case _ => false
+    }
+  }
+
+  override def withAnsiEvalMode(expr: Expression): Boolean = {
+    expr match {
+      case a: Add => a.evalMode == EvalMode.ANSI
+      case _ => false
+    }
+  }
 }

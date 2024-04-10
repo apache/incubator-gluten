@@ -61,6 +61,7 @@ object ExpressionMappings {
     Sig[Not](NOT),
     Sig[IsNaN](IS_NAN),
     Sig[NaNvl](NANVL),
+    Sig[TryEval](TRY_EVAL),
 
     // SparkSQL String functions
     Sig[Ascii](ASCII),

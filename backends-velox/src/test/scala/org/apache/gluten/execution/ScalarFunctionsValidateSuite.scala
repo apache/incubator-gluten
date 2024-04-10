@@ -747,4 +747,12 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("try_add") {
+    runQueryAndCompare(
+      "select try_add(cast(l_orderkey as int), 1), try_add(cast(l_orderkey as int), 2147483647)" +
+        " from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
 }

@@ -195,4 +195,8 @@ trait SparkShims {
 
   def supportsRowBased(plan: SparkPlan): Boolean = !plan.supportsColumnar
 
+  def withTryEvalMode(expr: Expression): Boolean = false
+
+  def withAnsiEvalMode(expr: Expression): Boolean = false
+
 }

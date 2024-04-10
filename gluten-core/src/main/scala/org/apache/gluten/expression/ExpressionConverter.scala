@@ -583,6 +583,27 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(f.function, attributeSeq, expressionsMap),
           f
         )
+      case tryEval @ TryEval(a: Add) =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genTryAddTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
+          tryEval
+        )
+      case a: Add =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genAddTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
+          a
+        )
+      case tryEval: TryEval =>
+        // This is a placeholder to handle try_eval(other expressions).
+        BackendsApiManager.getSparkPlanExecApiInstance.genTryAddTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(tryEval.child, attributeSeq, expressionsMap),
+          tryEval
+        )
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,
