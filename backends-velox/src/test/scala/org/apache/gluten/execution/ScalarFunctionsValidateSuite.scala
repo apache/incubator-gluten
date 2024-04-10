@@ -436,6 +436,26 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("weekday") {
+    withTempPath {
+      path =>
+        Seq(
+          (java.sql.Date.valueOf("2017-05-27")),
+          (java.sql.Date.valueOf("1969-12-31")),
+          (java.sql.Date.valueOf("1582-10-15"))
+        )
+          .toDF("a")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+
+        runQueryAndCompare("SELECT weekday(a) from view") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("map extract - getmapvalue") {
     withTempPath {
       path =>
