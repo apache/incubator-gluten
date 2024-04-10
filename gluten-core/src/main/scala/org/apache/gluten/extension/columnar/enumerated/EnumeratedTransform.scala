@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.enumerated
 
-import org.apache.gluten.extension.columnar.{ImplementExchange, ImplementJoin, ImplementOthers, ImplementSingleNode}
+import org.apache.gluten.extension.columnar.{TransformExchange, TransformJoin, TransformOthers, TransformSingleNode}
 import org.apache.gluten.planner.GlutenOptimization
 import org.apache.gluten.planner.property.Conventions
 import org.apache.gluten.ras.property.PropertySet
@@ -33,10 +33,12 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
   import EnumeratedTransform._
 
   private val rasRules = List(
-    AsRasImplement(ImplementOthers()),
-    AsRasImplement(ImplementExchange()),
-    AsRasImplement(ImplementJoin()),
-    RasImplementAggregate
+    AsRasImplement(TransformOthers()),
+    AsRasImplement(TransformExchange()),
+    AsRasImplement(TransformJoin()),
+    ImplementAggregate,
+    ImplementFilter, // TODO pushed filter + scan should have lower cost
+    PushFilterToScan
   )
 
   private val optimization = GlutenOptimization(rasRules)
@@ -56,7 +58,7 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
 }
 
 object EnumeratedTransform {
-  private case class AsRasImplement(delegate: ImplementSingleNode) extends RasRule[SparkPlan] {
+  private case class AsRasImplement(delegate: TransformSingleNode) extends RasRule[SparkPlan] {
     override def shift(node: SparkPlan): Iterable[SparkPlan] = {
       val out = List(delegate.impl(node))
       out

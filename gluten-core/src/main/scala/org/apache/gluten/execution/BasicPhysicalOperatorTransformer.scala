@@ -361,12 +361,12 @@ object FilterHandler extends PredicateHelper {
 
   // Separate and compare the filter conditions in Scan and Filter.
   // Try to push down the remaining conditions in Filter into Scan.
-  def applyFilterPushdownToScan(filter: FilterExec): SparkPlan =
-    filter.child match {
+  def pushFilterToScan(condition: Expression, scan: SparkPlan): SparkPlan =
+    scan match {
       case fileSourceScan: FileSourceScanExec =>
         val pushDownFilters =
           BackendsApiManager.getSparkPlanExecApiInstance.postProcessPushDownFilter(
-            splitConjunctivePredicates(filter.condition),
+            splitConjunctivePredicates(condition),
             fileSourceScan)
         ScanTransformerFactory.createFileSourceScanTransformer(
           fileSourceScan,
@@ -374,7 +374,7 @@ object FilterHandler extends PredicateHelper {
       case batchScan: BatchScanExec =>
         val pushDownFilters =
           BackendsApiManager.getSparkPlanExecApiInstance.postProcessPushDownFilter(
-            splitConjunctivePredicates(filter.condition),
+            splitConjunctivePredicates(condition),
             batchScan)
         ScanTransformerFactory.createBatchScanTransformer(
           batchScan,
