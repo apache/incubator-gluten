@@ -384,7 +384,6 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
         checkGlutenOperatorMatch[ProjectExecTransformer]
       }
     }
-
   }
 
   test("decimal abs") {
