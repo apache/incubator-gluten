@@ -39,12 +39,14 @@ void registerFunctionOverwrite() {
   velox::exec::registerStatefulVectorFunction(
       "murmur3hash",
       velox::functions::sparksql::hashWithSeedSignatures(),
-      velox::functions::sparksql::makeHashWithSeed);
+      velox::functions::sparksql::makeHashWithSeed,
+      velox::functions::sparksql::hashMetadata());
 
   velox::exec::registerStatefulVectorFunction(
       "xxhash64",
       velox::functions::sparksql::xxhash64WithSeedSignatures(),
-      velox::functions::sparksql::makeXxHash64WithSeed);
+      velox::functions::sparksql::makeXxHash64WithSeed,
+      velox::functions::sparksql::hashMetadata());
 
   velox::functions::registerUnaryNumeric<RoundFunction>({"round"});
   velox::registerFunction<RoundFunction, int8_t, int8_t, int32_t>({"round"});
