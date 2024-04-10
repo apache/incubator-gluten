@@ -372,6 +372,21 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     }
   }
 
+  test("hash") {
+    withTempView("t") {
+      Seq[(Integer, String)]((1, "a"), (2, null), (null, "b"))
+        .toDF("a", "b")
+        .createOrReplaceTempView("t")
+      runQueryAndCompare("select hash(a, b) from t") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+      runQueryAndCompare("select xxhash64(a, b) from t") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+    }
+
+  }
+
   test("decimal abs") {
     runQueryAndCompare("""
                          |select abs(cast (l_quantity * (-1.0) as decimal(12, 2))),
