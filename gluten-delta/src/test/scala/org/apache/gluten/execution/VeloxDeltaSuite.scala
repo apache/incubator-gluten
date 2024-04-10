@@ -204,7 +204,8 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("deletion vector", Some("3.4.2")) {
+  // Disable for Spark3.5
+  testWithSpecifiedSparkVersion("deletion vector", Some("3.4.2"), Some("3.4.2")) {
     withTempPath {
       p =>
         import testImplicits._

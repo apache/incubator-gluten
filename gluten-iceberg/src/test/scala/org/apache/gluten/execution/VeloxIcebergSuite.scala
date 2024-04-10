@@ -139,13 +139,8 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-<<<<<<< HEAD
   // Ignored due to failures, see https://github.com/apache/incubator-gluten/issues/5362
   ignore("iceberg bucketed join with partition", Some("3.4")) {
-=======
-  // Disable for Spark3.5.
-  testWithSpecifiedSparkVersion("iceberg bucketed join with partition", Some("3.4"), Some("3.4")) {
->>>>>>> [GLUTEN-5309] Enable Spark3.5 UTs with failed ones excluded
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
@@ -225,16 +220,8 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-<<<<<<< HEAD
   // Ignored due to failures, see https://github.com/apache/incubator-gluten/issues/5362
   ignore("iceberg bucketed join with partition filter", Some("3.4")) {
-=======
-  // Disable for Spark3.5.
-  testWithSpecifiedSparkVersion(
-    "iceberg bucketed join with partition filter",
-    Some("3.4"),
-    Some("3.4")) {
->>>>>>> [GLUTEN-5309] Enable Spark3.5 UTs with failed ones excluded
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
