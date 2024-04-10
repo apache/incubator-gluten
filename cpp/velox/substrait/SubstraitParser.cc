@@ -399,6 +399,7 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"bitwise_or", "spark_bitwise_or"},
     {"bitwise_xor", "spark_bitwise_xor"},
     {"murmur3hash", "hash_with_seed"},
+    {"xxhash64", "xxhash64_with_seed"},
     {"modulus", "remainder"},
     {"date_format", "format_datetime"},
     {"collect_set", "set_agg"}};
