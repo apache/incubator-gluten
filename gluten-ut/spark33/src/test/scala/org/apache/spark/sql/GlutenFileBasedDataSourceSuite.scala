@@ -169,7 +169,7 @@ class GlutenFileBasedDataSourceSuite extends FileBasedDataSourceSuite with Glute
             spark.read.csv(path).limit(1).collect()
             sparkContext.listenerBus.waitUntilEmpty()
             // plan is different, so metric is different
-            assert(bytesReads.sum === 7864)
+            assert(bytesReads.sum === 7868)
           } finally {
             sparkContext.removeSparkListener(bytesReadListener)
           }

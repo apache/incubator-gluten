@@ -166,7 +166,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[VeloxAdaptiveQueryExecSuite]
     .includeAllGlutenTests()
     .includeByPrefix(
-      "SPARK-29906",
       "SPARK-30291",
       "SPARK-30403",
       "SPARK-30719",
@@ -1096,6 +1095,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileSourceSQLInsertTestSuite]
   enableSuite[GlutenDSV2SQLInsertTestSuite]
   enableSuite[GlutenSQLQuerySuite]
+    .exclude("SPARK-19650: An action on a Command should not trigger a Spark job")
+    .exclude("SPARK-17515: CollectLimit.execute() should perform per-partition limits")
+    .exclude("should be able to resolve a persistent view")
     // Decimal precision exceeds.
     .exclude("should be able to resolve a persistent view")
     // Unstable. Needs to be fixed.

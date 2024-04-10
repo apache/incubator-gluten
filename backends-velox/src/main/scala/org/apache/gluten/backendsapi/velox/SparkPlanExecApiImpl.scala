@@ -19,7 +19,7 @@ package org.apache.gluten.backendsapi.velox
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.SparkPlanExecApi
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.execution._
+import org.apache.gluten.execution.{CollectLimitExecTransformer, _}
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
 import org.apache.gluten.extension.columnar.TransformHints
@@ -37,7 +37,7 @@ import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FlushableHas
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, Generator, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, Literal, Murmur3Hash, NamedExpression, NaNvl, PosExplode, Round, SortOrder, StringSplit, StringTrim, Uuid}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -698,6 +698,13 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       child: SparkPlan
   ): GenerateExecTransformerBase = {
     GenerateExecTransformer(generator, requiredChildOutput, outer, generatorOutput, child)
+  }
+
+  override def genColumnarCollectLimit(
+      child: SparkPlan,
+      offset: Int,
+      limit: Int): CollectLimitExecTransformer = {
+    CollectLimitExecTransformer(limit, child, offset)
   }
 
   override def genPreProjectForGenerate(generate: GenerateExec): SparkPlan = {
