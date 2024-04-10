@@ -64,8 +64,8 @@ trait BackendSettingsApi {
   def supportStructType(): Boolean = false
   def fallbackOnEmptySchema(plan: SparkPlan): Boolean = false
 
-  // Whether to fallback aggregate at the same time if its child is fallbacked.
-  def fallbackAggregateWithChild(): Boolean = false
+  // Whether to fallback aggregate at the same time if its empty-output child is fallen back.
+  def fallbackAggregateWithEmptyOutputChild(): Boolean = false
 
   def disableVanillaColumnarReaders(conf: SparkConf): Boolean =
     !conf.getBoolean(

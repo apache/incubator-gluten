@@ -24,12 +24,22 @@ import org.apache.gluten.extension.columnar.util.AdaptiveContext
 import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.gluten.utils.{LogLevelUtil, PhysicalPlanSelector}
 
+import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, GlutenFallbackReporter, SparkPlan}
 import org.apache.spark.util.SparkRuleUtil
 
+/**
+ * Columnar rule applier that optimizes, implements Spark plan into Gluten plan by enumerating on
+ * all the possibilities of executable Gluten plans, then choose the best plan among them.
+ *
+ * NOTE: This is still working in progress. We still have a bunch of heuristic rules in this
+ * implementation's rule list. Future work will include removing them from the list then
+ * implementing them in EnumeratedTransform.
+ */
+@Experimental
 class EnumeratedApplier(session: SparkSession)
   extends ColumnarRuleApplier
   with Logging
@@ -107,18 +117,17 @@ class EnumeratedApplier(session: SparkSession)
       (spark: SparkSession) => PlanOneRowRelation(spark),
       (_: SparkSession) => FallbackEmptySchemaRelation()
     ) :::
-      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarValidationRules()
-    List(
-      (spark: SparkSession) => MergeTwoPhasesHashBaseAggregate(spark),
-      (_: SparkSession) => RewriteSparkPlanRulesManager(),
-      (_: SparkSession) => AddTransformHintRule(),
-      (_: SparkSession) => FallbackBloomFilterAggIfNeeded()
-    ) :::
+      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarValidationRules() :::
+      List(
+        (spark: SparkSession) => MergeTwoPhasesHashBaseAggregate(spark),
+        (_: SparkSession) => RewriteSparkPlanRulesManager(),
+        (_: SparkSession) => AddTransformHintRule(),
+        (_: SparkSession) => FallbackBloomFilterAggIfNeeded()
+      ) :::
       List(
         (_: SparkSession) => TransformPreOverrides(List(ImplementFilter()), List.empty),
         (session: SparkSession) => EnumeratedTransform(session, outputsColumnar),
-        (_: SparkSession) => RemoveTransitions,
-        (_: SparkSession) => TransformPreOverrides(List.empty, List(ImplementAggregate()))
+        (_: SparkSession) => RemoveTransitions
       ) :::
       List(
         (_: SparkSession) => RemoveNativeWriteFilesSortAndProject(),
