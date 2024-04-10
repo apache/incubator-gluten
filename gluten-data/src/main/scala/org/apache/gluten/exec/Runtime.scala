@@ -22,6 +22,7 @@ import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.init.JniUtils
 
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.internal.GlutenConfigUtil
 import org.apache.spark.util.TaskResource
 
 import java.util.concurrent.atomic.AtomicBoolean
@@ -32,7 +33,7 @@ class Runtime private[exec] () extends TaskResource {
     JniUtils.toNativeConf(
       GlutenConfig.getNativeSessionConf(
         BackendsApiManager.getSettings.getBackendConfigPrefix,
-        SQLConf.get.getAllConfs))
+        GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs)))
   )
 
   private val released: AtomicBoolean = new AtomicBoolean(false)
