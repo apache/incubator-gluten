@@ -429,9 +429,7 @@ String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_
     std::vector<DataPartPtr> selected_parts
         = storage_factory.getDataParts(StorageID(merge_tree_table.database, merge_tree_table.table), merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
 
-    auto metadata = buildMetaData(input.getNamesAndTypesList(), context, merge_tree_table);
-    auto storage_snapshot = std::make_shared<StorageSnapshot>(*custom_storage_mergetree, metadata);
-
+    auto storage_snapshot = std::make_shared<StorageSnapshot>(*custom_storage_mergetree, custom_storage_mergetree->getInMemoryMetadataPtr());
     if (selected_parts.empty())
         throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "no data part found.");
     auto read_step = custom_storage_mergetree->reader.readFromParts(
