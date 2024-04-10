@@ -1061,6 +1061,7 @@ object GlutenConfig {
 
   val COLUMNAR_FALLBACK_EXPRESSIONS_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.fallback.expressions.threshold")
+      .internal()
       .doc("Fall back filter/project if number of nested expressions reaches this threshold," +
         " considering Spark codegen can bring better performance for such case.")
       .intConf
@@ -1100,6 +1101,7 @@ object GlutenConfig {
 
   val COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES =
     buildConf(GlutenConfig.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY)
+      .internal()
       .doc(
         "Must provide default value since non-execution operations " +
           "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
@@ -1315,6 +1317,7 @@ object GlutenConfig {
 
   val COLUMNAR_CH_FLUSH_BLOCK_BUFFER_BEFORE_EVICT =
     buildConf("spark.gluten.sql.columnar.backend.ch.flushBlockBufferBeforeEvict")
+      .internal()
       .doc("Whether to flush partition_block_buffer before execute evict in CH PartitionWriter.")
       .booleanConf
       .createWithDefault(false)
