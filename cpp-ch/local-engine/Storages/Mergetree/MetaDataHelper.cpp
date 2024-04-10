@@ -60,11 +60,12 @@ void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable &
             not_exists_part.emplace(part);
     }
 
-    if (not_exists_part.empty())
-        return;
 
     if (auto lock = storage->lockForAlter(context.getSettingsRef().lock_acquire_timeout))
     {
+        if (not_exists_part.empty())
+            return;
+
         auto s3 = data_disk->getObjectStorage();
 
         if (!metadata_disk->exists(table_path))
@@ -87,6 +88,8 @@ void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable &
                 auto item_path = part_path / item.first;
                 auto out = metadata_disk->writeFile(item_path);
                 out->write(item.second.data(), item.second.size());
+                out->finalize();
+                out->sync();
             }
         }
     }
