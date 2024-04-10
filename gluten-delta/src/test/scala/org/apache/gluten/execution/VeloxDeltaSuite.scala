@@ -81,8 +81,7 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("delta: time travel") {
-    assume(isSparkVersionAtleast("3.3"))
+  testWithSpecifiedSparkVersion("delta: time travel", Some("3.3.1")) {
     withTable("delta_tm") {
       spark.sql(s"""
                    |create table delta_tm (id int, name string) using delta

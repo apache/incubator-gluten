@@ -33,6 +33,8 @@ public class ExtensionTableNode implements SplitInfo {
   private Long maxPartsNum;
   private String database;
   private String tableName;
+
+  private String snapshotId;
   private String relativePath;
   private String absolutePath;
   private String tableSchemaJson;
@@ -60,6 +62,7 @@ public class ExtensionTableNode implements SplitInfo {
       Long maxPartsNum,
       String database,
       String tableName,
+      String snapshotId,
       String relativePath,
       String absolutePath,
       String orderByKey,
@@ -78,6 +81,7 @@ public class ExtensionTableNode implements SplitInfo {
     this.maxPartsNum = maxPartsNum;
     this.database = database;
     this.tableName = tableName;
+    this.snapshotId = snapshotId;
     URI table_uri = URI.create(relativePath);
     if (table_uri.getPath().startsWith("/")) { // file:///tmp/xxx => tmp/xxx
       this.relativePath = table_uri.getPath().substring(1);
@@ -113,11 +117,13 @@ public class ExtensionTableNode implements SplitInfo {
     }
 
     extensionTableStr
-        .append(database)
+        .append(this.database)
         .append("\n")
-        .append(tableName)
+        .append(this.tableName)
         .append("\n")
-        .append(tableSchemaJson)
+        .append(this.snapshotId)
+        .append("\n")
+        .append(this.tableSchemaJson)
         .append("\n")
         .append(this.orderByKey)
         .append("\n");
@@ -171,6 +177,7 @@ public class ExtensionTableNode implements SplitInfo {
     return this.preferredLocations;
   }
 
+  @Override
   public ReadRel.ExtensionTable toProtobuf() {
     ReadRel.ExtensionTable.Builder extensionTableBuilder = ReadRel.ExtensionTable.newBuilder();
     StringValue extensionTable =

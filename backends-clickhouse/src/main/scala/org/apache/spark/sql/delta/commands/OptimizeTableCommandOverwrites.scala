@@ -25,7 +25,7 @@ import org.apache.spark.internal.io.SparkHadoopWriterUtils
 import org.apache.spark.shuffle.FetchFailedException
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
-import org.apache.spark.sql.delta.{DeltaErrors, DeltaLog, DeltaTableIdentifier, OptimisticTransaction}
+import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaErrors, DeltaLog, DeltaTableIdentifier, OptimisticTransaction}
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.errors.QueryExecutionErrors
@@ -51,6 +51,7 @@ object OptimizeTableCommandOverwrites extends Logging {
       path: String,
       database: String,
       tableName: String,
+      snapshotId: String,
       orderByKeyOption: Option[Seq[String]],
       lowCardKeyOption: Option[Seq[String]],
       minmaxIndexKeyOption: Option[Seq[String]],
@@ -100,6 +101,7 @@ object OptimizeTableCommandOverwrites extends Logging {
           description.path,
           description.database,
           description.tableName,
+          description.snapshotId,
           description.orderByKeyOption,
           description.lowCardKeyOption,
           description.minmaxIndexKeyOption,
@@ -198,6 +200,7 @@ object OptimizeTableCommandOverwrites extends Logging {
       txn.deltaLog.dataPath.toString,
       tableV2.dataBaseName,
       tableV2.tableName,
+      ClickhouseSnapshot.genSnapshotId(tableV2.snapshot),
       tableV2.orderByKeyOption,
       tableV2.lowCardKeyOption,
       tableV2.minmaxIndexKeyOption,

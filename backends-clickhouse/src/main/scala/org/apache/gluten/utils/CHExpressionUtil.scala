@@ -176,6 +176,7 @@ object CHExpressionUtil {
     ARRAY_REPEAT -> DefaultValidator(),
     ARRAY_REMOVE -> DefaultValidator(),
     DATE_FROM_UNIX_DATE -> DefaultValidator(),
+    UNIX_DATE -> DefaultValidator(),
     MONOTONICALLY_INCREASING_ID -> DefaultValidator(),
     SPARK_PARTITION_ID -> DefaultValidator(),
     URL_DECODE -> DefaultValidator(),
@@ -187,6 +188,7 @@ object CHExpressionUtil {
     REGR_R2 -> DefaultValidator(),
     REGR_SLOPE -> DefaultValidator(),
     REGR_INTERCEPT -> DefaultValidator(),
+    REGR_SXY -> DefaultValidator(),
     TO_UTC_TIMESTAMP -> DefaultValidator(),
     FROM_UTC_TIMESTAMP -> DefaultValidator()
   )

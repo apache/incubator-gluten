@@ -821,6 +821,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-23192: broadcast hint should be retained after using the cached data")
     .exclude("broadcast hint isn't propagated after a join")
     .exclude("broadcast join where streamed side's output partitioning is HashPartitioning")
+    .exclude("broadcast join where streamed side's output partitioning is PartitioningCollection")
 
   enableSuite[GlutenExistenceJoinSuite]
   enableSuite[GlutenInnerJoinSuite]

@@ -49,6 +49,11 @@ object PropertySet {
   private case class ImmutablePropertySet[T <: AnyRef](
       map: Map[PropertyDef[T, _ <: Property[T]], Property[T]])
     extends PropertySet[T] {
+
+    assert(
+      map.values.forall(p => p.satisfies(p.definition().any())),
+      s"Property set $this doesn't satisfy its ${'"'}any${'"'} variant")
+
     override def getMap: Map[PropertyDef[T, _ <: Property[T]], Property[T]] = map
     override def satisfies(other: PropertySet[T]): Boolean = {
       assert(map.size == other.getMap.size)

@@ -15,15 +15,18 @@
  * limitations under the License.
  */
 #include "AggregateSerializationUtils.h"
-#include <Common/Arena.h>
-
+#include <AggregateFunctions/IAggregateFunction.h>
 #include <Columns/ColumnAggregateFunction.h>
 #include <Columns/ColumnFixedString.h>
 #include <Columns/ColumnString.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeFixedString.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeString.h>
-
+#include <Functions/FunctionHelpers.h>
+#include <IO/WriteBufferFromVector.h>
+#include <IO/WriteHelpers.h>
+#include <Common/Arena.h>
 
 using namespace DB;
 

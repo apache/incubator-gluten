@@ -242,6 +242,7 @@ object DistributedSuite {
 
   case object NoneDistribution extends Distribution {
     override def satisfies(other: Property[TestNode]): Boolean = other match {
+      case AnyDistribution => true
       case _: Distribution => false
       case _ => throw new UnsupportedOperationException()
     }
@@ -262,6 +263,8 @@ object DistributedSuite {
       case (d: Distribution, p: DNode) => p.getDistributionConstraints(d)
       case _ => throw new UnsupportedOperationException()
     }
+
+    override def any(): Distribution = AnyDistribution
   }
 
   trait Ordering extends Property[TestNode]
@@ -294,6 +297,7 @@ object DistributedSuite {
 
   case object NoneOrdering extends Ordering {
     override def satisfies(other: Property[TestNode]): Boolean = other match {
+      case AnyOrdering => true
       case _: Ordering => false
       case _ => throw new UnsupportedOperationException()
     }
@@ -315,6 +319,8 @@ object DistributedSuite {
         case (o: Ordering, p: DNode) => p.getOrderingConstraints(o)
         case _ => throw new UnsupportedOperationException()
       }
+
+    override def any(): Ordering = AnyOrdering
   }
 
   private class EnforceDistribution(distribution: Distribution) extends RasRule[TestNode] {

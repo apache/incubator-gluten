@@ -23,6 +23,8 @@ import org.apache.gluten.ras.dp.{DpGroupAlgo, DpGroupAlgoDef}
 import org.apache.gluten.ras.memo.MemoState
 import org.apache.gluten.ras.path.{PathKeySet, RasPath}
 
+import java.util
+
 // The best path's each sub-path is considered optimal in its own group.
 private class GroupBasedBestFinder[T <: AnyRef](
     ras: Ras[T],
@@ -41,7 +43,7 @@ private class GroupBasedBestFinder[T <: AnyRef](
         s"Best path not found. Memo state (Graphviz): \n" +
           s"${memoState.formatGraphvizWithoutBest(groupId)}")
     }
-    BestFinder.newBest(ras, allGroups, group, groupToCosts)
+    BestFinder.newBest(ras, group, groupToCosts)
   }
 
   private def fillBests(group: RasGroup[T]): Map[Int, KnownCostGroup[T]] = {
@@ -94,21 +96,34 @@ private object GroupBasedBestFinder {
     override def solveGroup(
         group: RasGroup[T],
         nodesOutput: InGroupNode[T] => Option[KnownCostPath[T]]): Option[KnownCostGroup[T]] = {
+      import scala.collection.JavaConverters._
+
       val nodes = group.nodes(memoState)
       // Allow unsolved children nodes while solving group.
-      val flatNodesOutput =
-        nodes.flatMap(n => nodesOutput(InGroupNode(group.id(), n)).map(kcp => n -> kcp)).toMap
+      val flatNodesOutput = new util.IdentityHashMap[CanonicalNode[T], KnownCostPath[T]]()
+
+      nodes
+        .flatMap(n => nodesOutput(InGroupNode(group.id(), n)).map(kcp => n -> kcp))
+        .foreach {
+          case (n, kcp) =>
+            assert(!flatNodesOutput.containsKey(n))
+            flatNodesOutput.put(n, kcp)
+        }
 
       if (flatNodesOutput.isEmpty) {
         return None
       }
-      val bestPath = flatNodesOutput.values.reduce {
+      val bestPath = flatNodesOutput.values.asScala.reduce {
         (left, right) =>
           Ordering
             .by((cp: KnownCostPath[T]) => cp.cost)(costComparator)
             .min(left, right)
       }
-      Some(KnownCostGroup(flatNodesOutput, bestPath.rasPath.node().self().asCanonical()))
+      Some(
+        KnownCostGroup(
+          nodes,
+          n => Option(flatNodesOutput.get(n)),
+          bestPath.rasPath.node().self().asCanonical()))
     }
 
     override def solveNodeOnCycle(node: InGroupNode[T]): Option[KnownCostPath[T]] =

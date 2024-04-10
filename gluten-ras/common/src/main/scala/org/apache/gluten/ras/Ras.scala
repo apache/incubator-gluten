@@ -31,7 +31,7 @@ trait Optimization[T <: AnyRef] {
       constraintSet: PropertySet[T],
       altConstraintSets: Seq[PropertySet[T]]): RasPlanner[T]
 
-  def propSetsOf(plan: T): PropertySet[T]
+  def propSetOf(plan: T): PropertySet[T]
 
   def withNewConfig(confFunc: RasConfig => RasConfig): Optimization[T]
 }
@@ -49,7 +49,7 @@ object Optimization {
 
   implicit class OptimizationImplicits[T <: AnyRef](opt: Optimization[T]) {
     def newPlanner(plan: T): RasPlanner[T] = {
-      opt.newPlanner(plan, opt.propSetsOf(plan), List.empty)
+      opt.newPlanner(plan, opt.propSetOf(plan), List.empty)
     }
     def newPlanner(plan: T, constraintSet: PropertySet[T]): RasPlanner[T] = {
       opt.newPlanner(plan, constraintSet, List.empty)
@@ -79,9 +79,10 @@ class Ras[T <: AnyRef] private (
       ruleFactory)
   }
 
-  // Normal groups start with ID 0, so it's safe to use -1 to do validation.
+  private val propSetFactory: PropertySetFactory[T] = PropertySetFactory(propertyModel, planModel)
+  // Normal groups start with ID 0, so it's safe to use Int.MinValue to do validation.
   private val dummyGroup: T =
-    planModel.newGroupLeaf(-1, metadataModel.dummy(), PropertySet(Seq.empty))
+    planModel.newGroupLeaf(Int.MinValue, metadataModel.dummy(), propSetFactory.any())
   private val infCost: Cost = costModel.makeInfCost()
 
   validateModels()
@@ -123,8 +124,6 @@ class Ras[T <: AnyRef] private (
     }
   }
 
-  private val propSetFactory: PropertySetFactory[T] = PropertySetFactory(this)
-
   override def newPlanner(
       plan: T,
       constraintSet: PropertySet[T],
@@ -132,7 +131,7 @@ class Ras[T <: AnyRef] private (
     RasPlanner(this, altConstraintSets, constraintSet, plan)
   }
 
-  override def propSetsOf(plan: T): PropertySet[T] = propertySetFactory().get(plan)
+  override def propSetOf(plan: T): PropertySet[T] = propertySetFactory().get(plan)
 
   private[ras] def withNewChildren(node: T, newChildren: Seq[T]): T = {
     val oldChildren = planModel.childrenOf(node)
@@ -171,6 +170,8 @@ class Ras[T <: AnyRef] private (
   private[ras] def getInfCost(): Cost = infCost
 
   private[ras] def isInfCost(cost: Cost) = costModel.costComparator().equiv(cost, infCost)
+
+  private[ras] def toUnsafeKey(node: T): UnsafeKey[T] = UnsafeKey(this, node)
 }
 
 object Ras {
@@ -192,16 +193,29 @@ object Ras {
   }
 
   trait PropertySetFactory[T <: AnyRef] {
+    def any(): PropertySet[T]
     def get(node: T): PropertySet[T]
     def childrenConstraintSets(constraintSet: PropertySet[T], node: T): Seq[PropertySet[T]]
   }
 
   private object PropertySetFactory {
-    def apply[T <: AnyRef](ras: Ras[T]): PropertySetFactory[T] = new PropertySetFactoryImpl[T](ras)
+    def apply[T <: AnyRef](
+        propertyModel: PropertyModel[T],
+        planModel: PlanModel[T]): PropertySetFactory[T] =
+      new PropertySetFactoryImpl[T](propertyModel, planModel)
 
-    private class PropertySetFactoryImpl[T <: AnyRef](val ras: Ras[T])
+    private class PropertySetFactoryImpl[T <: AnyRef](
+        propertyModel: PropertyModel[T],
+        planModel: PlanModel[T])
       extends PropertySetFactory[T] {
-      private val propDefs: Seq[PropertyDef[T, _ <: Property[T]]] = ras.propertyModel.propertyDefs
+      private val propDefs: Seq[PropertyDef[T, _ <: Property[T]]] = propertyModel.propertyDefs
+      private val anyConstraint = {
+        val m: Map[PropertyDef[T, _ <: Property[T]], Property[T]] =
+          propDefs.map(propDef => (propDef, propDef.any())).toMap
+        PropertySet[T](m)
+      }
+
+      override def any(): PropertySet[T] = anyConstraint
 
       override def get(node: T): PropertySet[T] = {
         val m: Map[PropertyDef[T, _ <: Property[T]], Property[T]] =
@@ -213,7 +227,7 @@ object Ras {
           constraintSet: PropertySet[T],
           node: T): Seq[PropertySet[T]] = {
         val builder: Seq[mutable.Map[PropertyDef[T, _ <: Property[T]], Property[T]]] =
-          ras.planModel
+          planModel
             .childrenOf(node)
             .map(_ => mutable.Map[PropertyDef[T, _ <: Property[T]], Property[T]]())
 
@@ -234,6 +248,22 @@ object Ras {
               PropertySet[T](builder.toMap)
           }
       }
+    }
+  }
+
+  trait UnsafeKey[T]
+
+  private object UnsafeKey {
+    def apply[T <: AnyRef](ras: Ras[T], self: T): UnsafeKey[T] = new UnsafeKeyImpl(ras, self)
+    private class UnsafeKeyImpl[T <: AnyRef](ras: Ras[T], val self: T) extends UnsafeKey[T] {
+      override def hashCode(): Int = ras.planModel.hashCode(self)
+      override def equals(other: Any): Boolean = {
+        other match {
+          case that: UnsafeKeyImpl[T] => ras.planModel.equals(self, that.self)
+          case _ => false
+        }
+      }
+      override def toString: String = ras.explain.describeNode(self)
     }
   }
 }

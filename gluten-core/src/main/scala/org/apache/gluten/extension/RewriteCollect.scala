@@ -20,7 +20,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.utils.PullOutProjectHelper
 
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeSet, If, IsNotNull, IsNull, Literal, NamedExpression}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, CollectList, CollectSet, Complete, Final, Partial}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, CollectSet, Complete, Final, Partial}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
@@ -53,7 +53,7 @@ object RewriteCollect extends Rule[SparkPlan] with PullOutProjectHelper {
 
   private def shouldReplaceNullToEmptyArray(ae: AggregateExpression): Boolean = {
     ae.aggregateFunction match {
-      case _: CollectSet | _: CollectList =>
+      case _: CollectSet =>
         ae.mode match {
           case Final | Complete => true
           case _ => false

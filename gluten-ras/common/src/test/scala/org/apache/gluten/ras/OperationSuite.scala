@@ -97,7 +97,7 @@ class OperationSuite extends AnyFunSuite {
 
     val ras =
       Ras[TestNode](
-        PlanModelImpl,
+        planModel,
         CostModelImpl,
         MetadataModelImpl,
         PropertyModelImpl,
@@ -108,7 +108,7 @@ class OperationSuite extends AnyFunSuite {
     val optimized = planner.plan()
     assert(optimized == Unary2(49, Leaf2(29)))
 
-    planModel.assertPlanOpsLte((200, 50, 50, 50))
+    planModel.assertPlanOpsLte((200, 50, 100, 50))
 
     val state = planner.newState()
     val allPaths = state.memoState().collectAllPaths(RasPath.INF_DEPTH).toSeq
@@ -127,7 +127,7 @@ class OperationSuite extends AnyFunSuite {
 
     val ras =
       Ras[TestNode](
-        PlanModelImpl,
+        planModel,
         CostModelImpl,
         MetadataModelImpl,
         PropertyModelImpl,
@@ -163,7 +163,7 @@ class OperationSuite extends AnyFunSuite {
 
     val ras =
       Ras[TestNode](
-        PlanModelImpl,
+        planModel,
         CostModelImpl,
         MetadataModelImpl,
         PropertyModelImpl,

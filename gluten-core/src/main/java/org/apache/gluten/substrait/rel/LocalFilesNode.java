@@ -120,6 +120,7 @@ public class LocalFilesNode implements SplitInfo {
   protected void processFileBuilder(
       ReadRel.LocalFiles.FileOrFiles.Builder fileBuilder, int index) {}
 
+  @Override
   public ReadRel.LocalFiles toProtobuf() {
     ReadRel.LocalFiles.Builder localFilesBuilder = ReadRel.LocalFiles.newBuilder();
     // The input is iterator, and the path is in the format of: Iterator:index.

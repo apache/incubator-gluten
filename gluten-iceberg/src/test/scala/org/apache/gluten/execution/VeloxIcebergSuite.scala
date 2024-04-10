@@ -58,8 +58,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("iceberg bucketed join") {
-    assume(isSparkVersionAtleast("3.4"))
+  testWithSpecifiedSparkVersion("iceberg bucketed join", Some("3.4")) {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
@@ -139,8 +138,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("iceberg bucketed join with partition") {
-    assume(isSparkVersionAtleast("3.4"))
+  testWithSpecifiedSparkVersion("iceberg bucketed join with partition", Some("3.4")) {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
@@ -220,8 +218,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("iceberg bucketed join with partition filter") {
-    assume(isSparkVersionAtleast("3.4"))
+  testWithSpecifiedSparkVersion("iceberg bucketed join with partition filter", Some("3.4")) {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {

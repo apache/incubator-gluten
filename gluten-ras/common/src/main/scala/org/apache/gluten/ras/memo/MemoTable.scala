@@ -30,6 +30,7 @@ sealed trait MemoTable[T <: AnyRef] extends MemoStore[T] {
 
   def allClusters(): Seq[RasClusterKey]
   def allGroups(): Seq[RasGroup[T]]
+  def allDummyGroups(): Seq[RasGroup[T]]
 
   def getClusterPropSets(key: RasClusterKey): Set[PropertySet[T]]
 
@@ -73,7 +74,20 @@ object MemoTable {
         .allClusters()
         .map(key => key -> ImmutableRasCluster(table.ras, table.getCluster(key)))
         .toMap
-      MemoState(table.ras, immutableClusters, table.allGroups())
+      val immutableDummyGroups = table
+        .allClusters()
+        .map(key => key -> table.getDummyGroup(key))
+        .toMap
+      table.allDummyGroups().zipWithIndex.foreach {
+        case (group, idx) =>
+          assert(group.id() == -(idx + 1))
+      }
+      MemoState(
+        table.ras,
+        immutableClusters,
+        immutableDummyGroups,
+        table.allGroups(),
+        table.allDummyGroups())
     }
 
     def doExhaustively(func: => Unit): Unit = {

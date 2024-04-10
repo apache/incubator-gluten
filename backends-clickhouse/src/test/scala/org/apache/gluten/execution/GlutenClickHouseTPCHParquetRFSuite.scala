@@ -16,14 +16,9 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
+import org.apache.spark.SparkConf
 
 class GlutenClickHouseTPCHParquetRFSuite extends GlutenClickHouseTPCHSaltNullParquetSuite {
-
-  protected lazy val sparkVersion: String = {
-    val version = SPARK_VERSION_SHORT.split("\\.")
-    version(0) + "." + version(1)
-  }
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf

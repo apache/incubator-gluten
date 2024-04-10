@@ -14,8 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Parser/aggregate_function_parser/CountParser.h>
+#include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypesNumber.h>
 #include <Interpreters/ActionsDAG.h>
+#include <Parser/aggregate_function_parser/CountParser.h>
 #include <Common/CHUtil.h>
 
 namespace DB

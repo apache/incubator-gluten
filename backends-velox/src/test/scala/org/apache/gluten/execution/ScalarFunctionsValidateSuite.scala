@@ -327,6 +327,26 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("unix_date") {
+    withTempPath {
+      path =>
+        Seq(
+          (java.sql.Date.valueOf("1970-01-01")),
+          (java.sql.Date.valueOf("1969-12-31")),
+          (java.sql.Date.valueOf("2022-09-13"))
+        )
+          .toDF("a")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+
+        runQueryAndCompare("SELECT unix_date(a) from view") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("to_utc_timestamp") {
     withTempPath {
       path =>
@@ -704,6 +724,26 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         " cast(l_orderkey as int) ^ cast(l_partkey as int), l_orderkey ^ l_partkey" +
         " from lineitem") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("test array filter") {
+    withTempPath {
+      path =>
+        Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
+          .toDF("value")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare("select filter(value, x -> x % 2 == 1) as res from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+
+        runQueryAndCompare("select filter(value, x -> x is not null) as res from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
     }
   }
 

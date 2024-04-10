@@ -48,6 +48,11 @@ case class MockMemoState[T <: AnyRef] private (
   override def getCluster(key: RasClusterKey): RasCluster[T] = clusterLookup(key)
 
   override def getGroup(id: Int): RasGroup[T] = allGroups(id)
+
+  override def clusterDummyGroupLookup(): Map[RasClusterKey, RasGroup[T]] = Map.empty
+
+  override def getDummyGroup(key: RasClusterKey): RasGroup[T] =
+    throw new UnsupportedOperationException()
 }
 
 object MockMemoState {

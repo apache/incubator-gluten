@@ -17,25 +17,17 @@
 #include "SelectorBuilder.h"
 #include <limits>
 #include <memory>
-#include <mutex>
 #include <Columns/ColumnArray.h>
 #include <Columns/ColumnMap.h>
 #include <Columns/ColumnNullable.h>
-#include <Columns/ColumnTuple.h>
 #include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeMap.h>
-#include <DataTypes/DataTypeTuple.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesDecimal.h>
 #include <Functions/FunctionFactory.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/TypeParser.h>
-#include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
-#include <Processors/QueryPlan/QueryPlan.h>
-#include <Poco/Base64Decoder.h>
-#include <Poco/JSON/JSON.h>
 #include <Poco/JSON/Parser.h>
 #include <Poco/MemoryStream.h>
-#include <Poco/StreamCopier.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 

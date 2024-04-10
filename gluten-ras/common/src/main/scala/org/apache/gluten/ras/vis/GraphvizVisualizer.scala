@@ -43,13 +43,13 @@ class GraphvizVisualizer[T <: AnyRef](ras: Ras[T], memoState: MemoState[T], best
 
     object IsBestNode {
       def unapply(nodeAndGroupToTest: (CanonicalNode[T], RasGroup[T])): Boolean = {
-        bestNodes.contains(InGroupNode(nodeAndGroupToTest._2.id(), nodeAndGroupToTest._1))
+        bestNodes(InGroupNode(nodeAndGroupToTest._2.id(), nodeAndGroupToTest._1))
       }
     }
 
     object IsWinnerNode {
       def unapply(nodeAndGroupToTest: (CanonicalNode[T], RasGroup[T])): Boolean = {
-        winnerNodes.contains(InGroupNode(nodeAndGroupToTest._2.id(), nodeAndGroupToTest._1))
+        winnerNodes(InGroupNode(nodeAndGroupToTest._2.id(), nodeAndGroupToTest._1))
       }
     }
 
