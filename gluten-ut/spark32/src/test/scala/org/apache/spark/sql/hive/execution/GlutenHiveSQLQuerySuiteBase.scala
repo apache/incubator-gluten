@@ -85,7 +85,7 @@ abstract class GlutenHiveSQLQuerySuiteBase extends GlutenSQLTestsTrait {
 
     conf.set(
       "spark.sql.warehouse.dir",
-      getClass.getResource("/").getPath + "tests-working-home/spark-warehouse")
+      getClass.getResource("/").getPath + getClass.getName + "/tests-working-home/spark-warehouse")
   }
 
   def checkOperatorMatch[T <: TransformSupport](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
