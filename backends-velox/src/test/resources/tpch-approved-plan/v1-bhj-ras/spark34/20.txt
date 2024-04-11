@@ -1,96 +1,91 @@
 == Physical Plan ==
-AdaptiveSparkPlan (96)
+AdaptiveSparkPlan (91)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (60)
-   +- AQEShuffleRead (59)
-      +- ShuffleQueryStage (58), Statistics(X)
-         +- ColumnarExchange (57)
-            +- ^ ProjectExecTransformer (55)
-               +- ^ BroadcastHashJoinExecTransformer Inner (54)
-                  :- ^ ProjectExecTransformer (45)
-                  :  +- ^ BroadcastHashJoinExecTransformer LeftSemi (44)
-                  :     :- ^ FilterExecTransformer (2)
-                  :     :  +- ^ Scan parquet (1)
-                  :     +- ^ InputIteratorTransformer (43)
-                  :        +- ^ InputAdapter (42)
-                  :           +- ^ BroadcastQueryStage (41), Statistics(X)
-                  :              +- ColumnarBroadcastExchange (40)
-                  :                 +- ^ ProjectExecTransformer (38)
-                  :                    +- ^ BroadcastHashJoinExecTransformer Inner (37)
-                  :                       :- ^ InputIteratorTransformer (18)
-                  :                       :  +- ^ InputAdapter (17)
-                  :                       :     +- ^ BroadcastQueryStage (16), Statistics(X)
-                  :                       :        +- ColumnarBroadcastExchange (15)
-                  :                       :           +- ^ BroadcastHashJoinExecTransformer LeftSemi (13)
-                  :                       :              :- ^ FilterExecTransformer (4)
-                  :                       :              :  +- ^ Scan parquet (3)
-                  :                       :              +- ^ InputIteratorTransformer (12)
-                  :                       :                 +- ^ InputAdapter (11)
-                  :                       :                    +- ^ BroadcastQueryStage (10), Statistics(X)
-                  :                       :                       +- ColumnarBroadcastExchange (9)
-                  :                       :                          +- ^ ProjectExecTransformer (7)
-                  :                       :                             +- ^ FilterExecTransformer (6)
-                  :                       :                                +- ^ Scan parquet (5)
-                  :                       +- ^ FilterExecTransformer (36)
-                  :                          +- ^ ProjectExecTransformer (35)
-                  :                             +- ^ RegularHashAggregateExecTransformer (34)
-                  :                                +- ^ InputIteratorTransformer (33)
-                  :                                   +- ^ InputAdapter (32)
-                  :                                      +- ^ ShuffleQueryStage (31), Statistics(X)
-                  :                                         +- ColumnarExchange (30)
-                  :                                            +- ^ ProjectExecTransformer (28)
-                  :                                               +- ^ FlushableHashAggregateExecTransformer (27)
-                  :                                                  +- ^ BroadcastHashJoinExecTransformer LeftSemi (26)
-                  :                                                     :- ^ ProjectExecTransformer (21)
-                  :                                                     :  +- ^ FilterExecTransformer (20)
-                  :                                                     :     +- ^ Scan parquet (19)
-                  :                                                     +- ^ InputIteratorTransformer (25)
-                  :                                                        +- ^ InputAdapter (24)
-                  :                                                           +- ^ BroadcastQueryStage (23), Statistics(X)
-                  :                                                              +- ReusedExchange (22)
-                  +- ^ InputIteratorTransformer (53)
-                     +- ^ InputAdapter (52)
-                        +- ^ BroadcastQueryStage (51), Statistics(X)
-                           +- ColumnarBroadcastExchange (50)
-                              +- ^ ProjectExecTransformer (48)
-                                 +- ^ FilterExecTransformer (47)
-                                    +- ^ Scan parquet (46)
+   VeloxColumnarToRowExec (55)
+   +- AQEShuffleRead (54)
+      +- ShuffleQueryStage (53), Statistics(X)
+         +- ColumnarExchange (52)
+            +- ^ ProjectExecTransformer (50)
+               +- ^ BroadcastHashJoinExecTransformer Inner (49)
+                  :- ^ ProjectExecTransformer (41)
+                  :  +- ^ BroadcastHashJoinExecTransformer LeftSemi (40)
+                  :     :- ^ Scan parquet (1)
+                  :     +- ^ InputIteratorTransformer (39)
+                  :        +- ^ InputAdapter (38)
+                  :           +- ^ BroadcastQueryStage (37), Statistics(X)
+                  :              +- ColumnarBroadcastExchange (36)
+                  :                 +- ^ ProjectExecTransformer (34)
+                  :                    +- ^ BroadcastHashJoinExecTransformer Inner (33)
+                  :                       :- ^ InputIteratorTransformer (15)
+                  :                       :  +- ^ InputAdapter (14)
+                  :                       :     +- ^ BroadcastQueryStage (13), Statistics(X)
+                  :                       :        +- ColumnarBroadcastExchange (12)
+                  :                       :           +- ^ BroadcastHashJoinExecTransformer LeftSemi (10)
+                  :                       :              :- ^ Scan parquet (2)
+                  :                       :              +- ^ InputIteratorTransformer (9)
+                  :                       :                 +- ^ InputAdapter (8)
+                  :                       :                    +- ^ BroadcastQueryStage (7), Statistics(X)
+                  :                       :                       +- ColumnarBroadcastExchange (6)
+                  :                       :                          +- ^ ProjectExecTransformer (4)
+                  :                       :                             +- ^ Scan parquet (3)
+                  :                       +- ^ FilterExecTransformer (32)
+                  :                          +- ^ ProjectExecTransformer (31)
+                  :                             +- ^ RegularHashAggregateExecTransformer (30)
+                  :                                +- ^ InputIteratorTransformer (29)
+                  :                                   +- ^ InputAdapter (28)
+                  :                                      +- ^ ShuffleQueryStage (27), Statistics(X)
+                  :                                         +- ColumnarExchange (26)
+                  :                                            +- ^ ProjectExecTransformer (24)
+                  :                                               +- ^ FlushableHashAggregateExecTransformer (23)
+                  :                                                  +- ^ BroadcastHashJoinExecTransformer LeftSemi (22)
+                  :                                                     :- ^ ProjectExecTransformer (17)
+                  :                                                     :  +- ^ Scan parquet (16)
+                  :                                                     +- ^ InputIteratorTransformer (21)
+                  :                                                        +- ^ InputAdapter (20)
+                  :                                                           +- ^ BroadcastQueryStage (19), Statistics(X)
+                  :                                                              +- ReusedExchange (18)
+                  +- ^ InputIteratorTransformer (48)
+                     +- ^ InputAdapter (47)
+                        +- ^ BroadcastQueryStage (46), Statistics(X)
+                           +- ColumnarBroadcastExchange (45)
+                              +- ^ ProjectExecTransformer (43)
+                                 +- ^ Scan parquet (42)
 +- == Initial Plan ==
-   Sort (95)
-   +- Exchange (94)
-      +- Project (93)
-         +- BroadcastHashJoin Inner BuildRight (92)
-            :- Project (87)
-            :  +- BroadcastHashJoin LeftSemi BuildRight (86)
-            :     :- Filter (62)
-            :     :  +- Scan parquet (61)
-            :     +- BroadcastExchange (85)
-            :        +- Project (84)
-            :           +- BroadcastHashJoin Inner BuildLeft (83)
-            :              :- BroadcastExchange (70)
-            :              :  +- BroadcastHashJoin LeftSemi BuildRight (69)
-            :              :     :- Filter (64)
-            :              :     :  +- Scan parquet (63)
-            :              :     +- BroadcastExchange (68)
-            :              :        +- Project (67)
-            :              :           +- Filter (66)
-            :              :              +- Scan parquet (65)
-            :              +- Filter (82)
-            :                 +- HashAggregate (81)
-            :                    +- Exchange (80)
-            :                       +- HashAggregate (79)
-            :                          +- BroadcastHashJoin LeftSemi BuildRight (78)
-            :                             :- Project (73)
-            :                             :  +- Filter (72)
-            :                             :     +- Scan parquet (71)
-            :                             +- BroadcastExchange (77)
-            :                                +- Project (76)
-            :                                   +- Filter (75)
-            :                                      +- Scan parquet (74)
-            +- BroadcastExchange (91)
-               +- Project (90)
-                  +- Filter (89)
-                     +- Scan parquet (88)
+   Sort (90)
+   +- Exchange (89)
+      +- Project (88)
+         +- BroadcastHashJoin Inner BuildRight (87)
+            :- Project (82)
+            :  +- BroadcastHashJoin LeftSemi BuildRight (81)
+            :     :- Filter (57)
+            :     :  +- Scan parquet (56)
+            :     +- BroadcastExchange (80)
+            :        +- Project (79)
+            :           +- BroadcastHashJoin Inner BuildLeft (78)
+            :              :- BroadcastExchange (65)
+            :              :  +- BroadcastHashJoin LeftSemi BuildRight (64)
+            :              :     :- Filter (59)
+            :              :     :  +- Scan parquet (58)
+            :              :     +- BroadcastExchange (63)
+            :              :        +- Project (62)
+            :              :           +- Filter (61)
+            :              :              +- Scan parquet (60)
+            :              +- Filter (77)
+            :                 +- HashAggregate (76)
+            :                    +- Exchange (75)
+            :                       +- HashAggregate (74)
+            :                          +- BroadcastHashJoin LeftSemi BuildRight (73)
+            :                             :- Project (68)
+            :                             :  +- Filter (67)
+            :                             :     +- Scan parquet (66)
+            :                             +- BroadcastExchange (72)
+            :                                +- Project (71)
+            :                                   +- Filter (70)
+            :                                      +- Scan parquet (69)
+            +- BroadcastExchange (86)
+               +- Project (85)
+                  +- Filter (84)
+                     +- Scan parquet (83)
 
 
 (1) Scan parquet
@@ -100,430 +95,410 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(s_nationkey)]
 ReadSchema: struct<s_suppkey:bigint,s_name:string,s_address:string,s_nationkey:bigint>
 
-(2) FilterExecTransformer
-Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
-Arguments: isnotnull(s_nationkey#X)
-
-(3) Scan parquet
+(2) Scan parquet
 Output [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(ps_availqty), IsNotNull(ps_partkey), IsNotNull(ps_suppkey)]
 ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint,ps_availqty:int>
 
-(4) FilterExecTransformer
-Input [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
-Arguments: ((isnotnull(ps_availqty#X) AND isnotnull(ps_partkey#X)) AND isnotnull(ps_suppkey#X))
-
-(5) Scan parquet
+(3) Scan parquet
 Output [2]: [p_partkey#X, p_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(p_name), StringStartsWith(p_name,forest)]
 ReadSchema: struct<p_partkey:bigint,p_name:string>
 
-(6) FilterExecTransformer
-Input [2]: [p_partkey#X, p_name#X]
-Arguments: (isnotnull(p_name#X) AND StartsWith(p_name#X, forest))
-
-(7) ProjectExecTransformer
+(4) ProjectExecTransformer
 Output [1]: [p_partkey#X]
 Input [2]: [p_partkey#X, p_name#X]
 
-(8) WholeStageCodegenTransformer (X)
+(5) WholeStageCodegenTransformer (X)
 Input [1]: [p_partkey#X]
 Arguments: false
 
-(9) ColumnarBroadcastExchange
+(6) ColumnarBroadcastExchange
 Input [1]: [p_partkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(10) BroadcastQueryStage
+(7) BroadcastQueryStage
 Output [1]: [p_partkey#X]
 Arguments: X
 
-(11) InputAdapter
+(8) InputAdapter
 Input [1]: [p_partkey#X]
 
-(12) InputIteratorTransformer
+(9) InputIteratorTransformer
 Input [1]: [p_partkey#X]
 
-(13) BroadcastHashJoinExecTransformer
+(10) BroadcastHashJoinExecTransformer
 Left keys [1]: [ps_partkey#X]
 Right keys [1]: [p_partkey#X]
 Join type: LeftSemi
 Join condition: None
 
-(14) WholeStageCodegenTransformer (X)
+(11) WholeStageCodegenTransformer (X)
 Input [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
 Arguments: false
 
-(15) ColumnarBroadcastExchange
+(12) ColumnarBroadcastExchange
 Input [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false], input[1, bigint, false]),false), [plan_id=X]
 
-(16) BroadcastQueryStage
+(13) BroadcastQueryStage
 Output [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
 Arguments: X
 
-(17) InputAdapter
+(14) InputAdapter
 Input [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
 
-(18) InputIteratorTransformer
+(15) InputIteratorTransformer
 Input [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
 
-(19) Scan parquet
+(16) Scan parquet
 Output [4]: [l_partkey#X, l_suppkey#X, l_quantity#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_shipdate), GreaterThanOrEqual(l_shipdate,1994-01-01), LessThan(l_shipdate,1995-01-01), IsNotNull(l_partkey), IsNotNull(l_suppkey)]
 ReadSchema: struct<l_partkey:bigint,l_suppkey:bigint,l_quantity:decimal(12,2),l_shipdate:date>
 
-(20) FilterExecTransformer
-Input [4]: [l_partkey#X, l_suppkey#X, l_quantity#X, l_shipdate#X]
-Arguments: ((((isnotnull(l_shipdate#X) AND (l_shipdate#X >= 1994-01-01)) AND (l_shipdate#X < 1995-01-01)) AND isnotnull(l_partkey#X)) AND isnotnull(l_suppkey#X))
-
-(21) ProjectExecTransformer
+(17) ProjectExecTransformer
 Output [3]: [l_partkey#X, l_suppkey#X, l_quantity#X]
 Input [4]: [l_partkey#X, l_suppkey#X, l_quantity#X, l_shipdate#X]
 
-(22) ReusedExchange [Reuses operator id: 9]
+(18) ReusedExchange [Reuses operator id: 6]
 Output [1]: [p_partkey#X]
 
-(23) BroadcastQueryStage
+(19) BroadcastQueryStage
 Output [1]: [p_partkey#X]
 Arguments: X
 
-(24) InputAdapter
+(20) InputAdapter
 Input [1]: [p_partkey#X]
 
-(25) InputIteratorTransformer
+(21) InputIteratorTransformer
 Input [1]: [p_partkey#X]
 
-(26) BroadcastHashJoinExecTransformer
+(22) BroadcastHashJoinExecTransformer
 Left keys [1]: [l_partkey#X]
 Right keys [1]: [p_partkey#X]
 Join type: LeftSemi
 Join condition: None
 
-(27) FlushableHashAggregateExecTransformer
+(23) FlushableHashAggregateExecTransformer
 Input [3]: [l_partkey#X, l_suppkey#X, l_quantity#X]
 Keys [2]: [l_partkey#X, l_suppkey#X]
 Functions [1]: [partial_sum(l_quantity#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [4]: [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
 
-(28) ProjectExecTransformer
+(24) ProjectExecTransformer
 Output [5]: [hash(l_partkey#X, l_suppkey#X, 42) AS hash_partition_key#X, l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
 Input [4]: [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
 
-(29) WholeStageCodegenTransformer (X)
+(25) WholeStageCodegenTransformer (X)
 Input [5]: [hash_partition_key#X, l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
 Arguments: false
 
-(30) ColumnarExchange
+(26) ColumnarExchange
 Input [5]: [hash_partition_key#X, l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
 Arguments: hashpartitioning(l_partkey#X, l_suppkey#X, 1), ENSURE_REQUIREMENTS, [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X], [plan_id=X], [id=#X]
 
-(31) ShuffleQueryStage
+(27) ShuffleQueryStage
 Output [4]: [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
 Arguments: X
 
-(32) InputAdapter
+(28) InputAdapter
 Input [4]: [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
 
-(33) InputIteratorTransformer
+(29) InputIteratorTransformer
 Input [4]: [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
 
-(34) RegularHashAggregateExecTransformer
+(30) RegularHashAggregateExecTransformer
 Input [4]: [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
 Keys [2]: [l_partkey#X, l_suppkey#X]
 Functions [1]: [sum(l_quantity#X)]
 Aggregate Attributes [1]: [sum(l_quantity#X)#X]
 Results [3]: [l_partkey#X, l_suppkey#X, sum(l_quantity#X)#X]
 
-(35) ProjectExecTransformer
+(31) ProjectExecTransformer
 Output [3]: [(0.5 * sum(l_quantity#X)#X) AS (0.5 * sum(l_quantity))#X, l_partkey#X, l_suppkey#X]
 Input [3]: [l_partkey#X, l_suppkey#X, sum(l_quantity#X)#X]
 
-(36) FilterExecTransformer
+(32) FilterExecTransformer
 Input [3]: [(0.5 * sum(l_quantity))#X, l_partkey#X, l_suppkey#X]
 Arguments: isnotnull((0.5 * sum(l_quantity))#X)
 
-(37) BroadcastHashJoinExecTransformer
+(33) BroadcastHashJoinExecTransformer
 Left keys [2]: [ps_partkey#X, ps_suppkey#X]
 Right keys [2]: [l_partkey#X, l_suppkey#X]
 Join type: Inner
 Join condition: (cast(ps_availqty#X as decimal(24,3)) > (0.5 * sum(l_quantity))#X)
 
-(38) ProjectExecTransformer
+(34) ProjectExecTransformer
 Output [1]: [ps_suppkey#X]
 Input [6]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, (0.5 * sum(l_quantity))#X, l_partkey#X, l_suppkey#X]
 
-(39) WholeStageCodegenTransformer (X)
+(35) WholeStageCodegenTransformer (X)
 Input [1]: [ps_suppkey#X]
 Arguments: false
 
-(40) ColumnarBroadcastExchange
+(36) ColumnarBroadcastExchange
 Input [1]: [ps_suppkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(41) BroadcastQueryStage
+(37) BroadcastQueryStage
 Output [1]: [ps_suppkey#X]
 Arguments: X
 
-(42) InputAdapter
+(38) InputAdapter
 Input [1]: [ps_suppkey#X]
 
-(43) InputIteratorTransformer
+(39) InputIteratorTransformer
 Input [1]: [ps_suppkey#X]
 
-(44) BroadcastHashJoinExecTransformer
+(40) BroadcastHashJoinExecTransformer
 Left keys [1]: [s_suppkey#X]
 Right keys [1]: [ps_suppkey#X]
 Join type: LeftSemi
 Join condition: None
 
-(45) ProjectExecTransformer
+(41) ProjectExecTransformer
 Output [3]: [s_name#X, s_address#X, s_nationkey#X]
 Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
 
-(46) Scan parquet
+(42) Scan parquet
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(n_name), EqualTo(n_name,CANADA), IsNotNull(n_nationkey)]
 ReadSchema: struct<n_nationkey:bigint,n_name:string>
 
-(47) FilterExecTransformer
-Input [2]: [n_nationkey#X, n_name#X]
-Arguments: ((isnotnull(n_name#X) AND (n_name#X = CANADA)) AND isnotnull(n_nationkey#X))
-
-(48) ProjectExecTransformer
+(43) ProjectExecTransformer
 Output [1]: [n_nationkey#X]
 Input [2]: [n_nationkey#X, n_name#X]
 
-(49) WholeStageCodegenTransformer (X)
+(44) WholeStageCodegenTransformer (X)
 Input [1]: [n_nationkey#X]
 Arguments: false
 
-(50) ColumnarBroadcastExchange
+(45) ColumnarBroadcastExchange
 Input [1]: [n_nationkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(51) BroadcastQueryStage
+(46) BroadcastQueryStage
 Output [1]: [n_nationkey#X]
 Arguments: X
 
-(52) InputAdapter
+(47) InputAdapter
 Input [1]: [n_nationkey#X]
 
-(53) InputIteratorTransformer
+(48) InputIteratorTransformer
 Input [1]: [n_nationkey#X]
 
-(54) BroadcastHashJoinExecTransformer
+(49) BroadcastHashJoinExecTransformer
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
 Join type: Inner
 Join condition: None
 
-(55) ProjectExecTransformer
+(50) ProjectExecTransformer
 Output [2]: [s_name#X, s_address#X]
 Input [4]: [s_name#X, s_address#X, s_nationkey#X, n_nationkey#X]
 
-(56) WholeStageCodegenTransformer (X)
+(51) WholeStageCodegenTransformer (X)
 Input [2]: [s_name#X, s_address#X]
 Arguments: false
 
-(57) ColumnarExchange
+(52) ColumnarExchange
 Input [2]: [s_name#X, s_address#X]
 Arguments: rangepartitioning(s_name#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
-(58) ShuffleQueryStage
+(53) ShuffleQueryStage
 Output [2]: [s_name#X, s_address#X]
 Arguments: X
 
-(59) AQEShuffleRead
+(54) AQEShuffleRead
 Input [2]: [s_name#X, s_address#X]
 Arguments: local
 
-(60) VeloxColumnarToRowExec
+(55) VeloxColumnarToRowExec
 Input [2]: [s_name#X, s_address#X]
 
-(61) Scan parquet
+(56) Scan parquet
 Output [4]: [s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(s_nationkey)]
 ReadSchema: struct<s_suppkey:bigint,s_name:string,s_address:string,s_nationkey:bigint>
 
-(62) Filter
+(57) Filter
 Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
 Condition : isnotnull(s_nationkey#X)
 
-(63) Scan parquet
+(58) Scan parquet
 Output [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(ps_availqty), IsNotNull(ps_partkey), IsNotNull(ps_suppkey)]
 ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint,ps_availqty:int>
 
-(64) Filter
+(59) Filter
 Input [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
 Condition : ((isnotnull(ps_availqty#X) AND isnotnull(ps_partkey#X)) AND isnotnull(ps_suppkey#X))
 
-(65) Scan parquet
+(60) Scan parquet
 Output [2]: [p_partkey#X, p_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(p_name), StringStartsWith(p_name,forest)]
 ReadSchema: struct<p_partkey:bigint,p_name:string>
 
-(66) Filter
+(61) Filter
 Input [2]: [p_partkey#X, p_name#X]
 Condition : (isnotnull(p_name#X) AND StartsWith(p_name#X, forest))
 
-(67) Project
+(62) Project
 Output [1]: [p_partkey#X]
 Input [2]: [p_partkey#X, p_name#X]
 
-(68) BroadcastExchange
+(63) BroadcastExchange
 Input [1]: [p_partkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(69) BroadcastHashJoin
+(64) BroadcastHashJoin
 Left keys [1]: [ps_partkey#X]
 Right keys [1]: [p_partkey#X]
 Join type: LeftSemi
 Join condition: None
 
-(70) BroadcastExchange
+(65) BroadcastExchange
 Input [3]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false], input[1, bigint, false]),false), [plan_id=X]
 
-(71) Scan parquet
+(66) Scan parquet
 Output [4]: [l_partkey#X, l_suppkey#X, l_quantity#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_shipdate), GreaterThanOrEqual(l_shipdate,1994-01-01), LessThan(l_shipdate,1995-01-01), IsNotNull(l_partkey), IsNotNull(l_suppkey)]
 ReadSchema: struct<l_partkey:bigint,l_suppkey:bigint,l_quantity:decimal(12,2),l_shipdate:date>
 
-(72) Filter
+(67) Filter
 Input [4]: [l_partkey#X, l_suppkey#X, l_quantity#X, l_shipdate#X]
 Condition : ((((isnotnull(l_shipdate#X) AND (l_shipdate#X >= 1994-01-01)) AND (l_shipdate#X < 1995-01-01)) AND isnotnull(l_partkey#X)) AND isnotnull(l_suppkey#X))
 
-(73) Project
+(68) Project
 Output [3]: [l_partkey#X, l_suppkey#X, l_quantity#X]
 Input [4]: [l_partkey#X, l_suppkey#X, l_quantity#X, l_shipdate#X]
 
-(74) Scan parquet
+(69) Scan parquet
 Output [2]: [p_partkey#X, p_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(p_name), StringStartsWith(p_name,forest)]
 ReadSchema: struct<p_partkey:bigint,p_name:string>
 
-(75) Filter
+(70) Filter
 Input [2]: [p_partkey#X, p_name#X]
 Condition : (isnotnull(p_name#X) AND StartsWith(p_name#X, forest))
 
-(76) Project
+(71) Project
 Output [1]: [p_partkey#X]
 Input [2]: [p_partkey#X, p_name#X]
 
-(77) BroadcastExchange
+(72) BroadcastExchange
 Input [1]: [p_partkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(78) BroadcastHashJoin
+(73) BroadcastHashJoin
 Left keys [1]: [l_partkey#X]
 Right keys [1]: [p_partkey#X]
 Join type: LeftSemi
 Join condition: None
 
-(79) HashAggregate
+(74) HashAggregate
 Input [3]: [l_partkey#X, l_suppkey#X, l_quantity#X]
 Keys [2]: [l_partkey#X, l_suppkey#X]
 Functions [1]: [partial_sum(l_quantity#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [4]: [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
 
-(80) Exchange
+(75) Exchange
 Input [4]: [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
 Arguments: hashpartitioning(l_partkey#X, l_suppkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(81) HashAggregate
+(76) HashAggregate
 Input [4]: [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
 Keys [2]: [l_partkey#X, l_suppkey#X]
 Functions [1]: [sum(l_quantity#X)]
 Aggregate Attributes [1]: [sum(l_quantity#X)#X]
 Results [3]: [(0.5 * sum(l_quantity#X)#X) AS (0.5 * sum(l_quantity))#X, l_partkey#X, l_suppkey#X]
 
-(82) Filter
+(77) Filter
 Input [3]: [(0.5 * sum(l_quantity))#X, l_partkey#X, l_suppkey#X]
 Condition : isnotnull((0.5 * sum(l_quantity))#X)
 
-(83) BroadcastHashJoin
+(78) BroadcastHashJoin
 Left keys [2]: [ps_partkey#X, ps_suppkey#X]
 Right keys [2]: [l_partkey#X, l_suppkey#X]
 Join type: Inner
 Join condition: (cast(ps_availqty#X as decimal(24,3)) > (0.5 * sum(l_quantity))#X)
 
-(84) Project
+(79) Project
 Output [1]: [ps_suppkey#X]
 Input [6]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, (0.5 * sum(l_quantity))#X, l_partkey#X, l_suppkey#X]
 
-(85) BroadcastExchange
+(80) BroadcastExchange
 Input [1]: [ps_suppkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(86) BroadcastHashJoin
+(81) BroadcastHashJoin
 Left keys [1]: [s_suppkey#X]
 Right keys [1]: [ps_suppkey#X]
 Join type: LeftSemi
 Join condition: None
 
-(87) Project
+(82) Project
 Output [3]: [s_name#X, s_address#X, s_nationkey#X]
 Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
 
-(88) Scan parquet
+(83) Scan parquet
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(n_name), EqualTo(n_name,CANADA), IsNotNull(n_nationkey)]
 ReadSchema: struct<n_nationkey:bigint,n_name:string>
 
-(89) Filter
+(84) Filter
 Input [2]: [n_nationkey#X, n_name#X]
 Condition : ((isnotnull(n_name#X) AND (n_name#X = CANADA)) AND isnotnull(n_nationkey#X))
 
-(90) Project
+(85) Project
 Output [1]: [n_nationkey#X]
 Input [2]: [n_nationkey#X, n_name#X]
 
-(91) BroadcastExchange
+(86) BroadcastExchange
 Input [1]: [n_nationkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(92) BroadcastHashJoin
+(87) BroadcastHashJoin
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
 Join type: Inner
 Join condition: None
 
-(93) Project
+(88) Project
 Output [2]: [s_name#X, s_address#X]
 Input [4]: [s_name#X, s_address#X, s_nationkey#X, n_nationkey#X]
 
-(94) Exchange
+(89) Exchange
 Input [2]: [s_name#X, s_address#X]
 Arguments: rangepartitioning(s_name#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(95) Sort
+(90) Sort
 Input [2]: [s_name#X, s_address#X]
 Arguments: [s_name#X ASC NULLS FIRST], true, 0
 
-(96) AdaptiveSparkPlan
+(91) AdaptiveSparkPlan
 Output [2]: [s_name#X, s_address#X]
 Arguments: isFinalPlan=true
