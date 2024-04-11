@@ -16,8 +16,6 @@
  */
 package org.apache.spark.sql.hive.execution
 
-import org.apache.gluten.execution.FileSourceScanExecTransformer
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.TableIdentifier
