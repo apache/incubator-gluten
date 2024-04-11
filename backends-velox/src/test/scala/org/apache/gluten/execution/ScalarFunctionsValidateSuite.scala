@@ -727,4 +727,14 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("weekofyear") {
+    withTable("t") {
+      sql("create table t (dt date) using parquet")
+      sql("insert into t values(date '2008-02-20')")
+      runQueryAndCompare("select weekofyear(dt) from t") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
+
 }

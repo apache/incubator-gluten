@@ -623,6 +623,7 @@ std::unordered_map<std::string, std::string> SubstraitVeloxExprConverter::extrac
     {"MONTH", "month"},
     {"QUARTER", "quarter"},
     {"YEAR", "year"},
+    {"WEEK_OF_YEAR", "week_of_year"},
     {"YEAR_OF_WEEK", "week_of_year"}};
 
 } // namespace gluten
