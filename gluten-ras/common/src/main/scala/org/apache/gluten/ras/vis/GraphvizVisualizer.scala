@@ -29,7 +29,7 @@ class GraphvizVisualizer[T <: AnyRef](ras: Ras[T], memoState: MemoState[T], best
   private val allGroups = memoState.allGroups()
   private val allClusters = memoState.clusterLookup()
 
-  private val nodeToId = mutable.Map[InGroupNode.HashKey, Int]()
+  private val nodeToId = mutable.Map[InGroupNode.UniqueKey, Int]()
 
   def format(): String = {
     val rootGroupId = best.rootGroupId()
@@ -156,7 +156,7 @@ class GraphvizVisualizer[T <: AnyRef](ras: Ras[T], memoState: MemoState[T], best
       group: RasGroup[T],
       node: CanonicalNode[T]): String = {
     val ign = InGroupNode(group.id(), node)
-    val nodeId = nodeToId.getOrElseUpdate(ign.toHashKey, nodeToId.size)
+    val nodeId = nodeToId.getOrElseUpdate(ign.toUniqueKey, nodeToId.size)
     s"[$nodeId][Cost ${costs(ign)
         .map {
           case c if ras.isInfCost(c) => "<INF>"
