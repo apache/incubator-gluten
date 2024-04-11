@@ -152,6 +152,14 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
   }
 }
 
+object FilterExecTransformerBase {
+  implicit class FilterExecTransformerBaseImplicits(filter: FilterExecTransformerBase) {
+    def isNoop(): Boolean = {
+      filter.getRemainingCondition == null
+    }
+  }
+}
+
 case class ProjectExecTransformer private (projectList: Seq[NamedExpression], child: SparkPlan)
   extends UnaryTransformSupport
   with OrderPreservingNodeShim

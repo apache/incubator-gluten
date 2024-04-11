@@ -37,8 +37,9 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
     AsRasImplement(TransformExchange()),
     AsRasImplement(TransformJoin()),
     ImplementAggregate,
-    ImplementFilter, // TODO pushed filter + scan should have lower cost
-    PushFilterToScan
+    ImplementFilter,
+    PushFilterToScan,
+    FilterRemoveRule
   )
 
   private val optimization = GlutenOptimization(rasRules)
