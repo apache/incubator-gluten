@@ -1903,31 +1903,32 @@ class GlutenClickHouseMergeTreeWriteSuite
                  |DROP TABLE IF EXISTS orders_mergetree_pk_pruning_by_driver_bucket;
                  |""".stripMargin)
 
-    spark.sql(s"""
-                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_pk_pruning_by_driver_bucket
-                 |(
-                 | l_orderkey      bigint,
-                 | l_partkey       bigint,
-                 | l_suppkey       bigint,
-                 | l_linenumber    bigint,
-                 | l_quantity      double,
-                 | l_extendedprice double,
-                 | l_discount      double,
-                 | l_tax           double,
-                 | l_returnflag    string,
-                 | l_linestatus    string,
-                 | l_shipdate      date,
-                 | l_commitdate    date,
-                 | l_receiptdate   date,
-                 | l_shipinstruct  string,
-                 | l_shipmode      string,
-                 | l_comment       string
-                 |)
-                 |USING clickhouse
-                 |CLUSTERED by (l_orderkey)
-                 |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_receiptdate)"} INTO 2 BUCKETS
-                 |LOCATION '$basePath/lineitem_mergetree_pk_pruning_by_driver_bucket'
-                 |""".stripMargin)
+    spark.sql(
+      s"""
+         |CREATE TABLE IF NOT EXISTS lineitem_mergetree_pk_pruning_by_driver_bucket
+         |(
+         | l_orderkey      bigint,
+         | l_partkey       bigint,
+         | l_suppkey       bigint,
+         | l_linenumber    bigint,
+         | l_quantity      double,
+         | l_extendedprice double,
+         | l_discount      double,
+         | l_tax           double,
+         | l_returnflag    string,
+         | l_linestatus    string,
+         | l_shipdate      date,
+         | l_commitdate    date,
+         | l_receiptdate   date,
+         | l_shipinstruct  string,
+         | l_shipmode      string,
+         | l_comment       string
+         |)
+         |USING clickhouse
+         |CLUSTERED by (l_orderkey)
+         |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_receiptdate)"} INTO 2 BUCKETS
+         |LOCATION '$basePath/lineitem_mergetree_pk_pruning_by_driver_bucket'
+         |""".stripMargin)
 
     spark.sql(s"""
                  |CREATE TABLE IF NOT EXISTS orders_mergetree_pk_pruning_by_driver_bucket (
