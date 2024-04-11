@@ -62,9 +62,9 @@ The below parameters can be set via `-P` for mvn.
 | delta               | Build Gluten with Delta Lake support.                                        | disabled      |
 | iceberg             | Build Gluten with Iceberg support.                                           | disabled      |
 | spark-3.2           | Build Gluten for Spark 3.2.                                                  | enabled       |
-| spark-3.3           | Build Gluten for Spark 3.3.                                                  | enabled       |
-| spark-3.4           | Build Gluten for Spark 3.4.                                                  | enabled       |
-| spark-3.5           | Build Gluten for Spark 3.5.                                                  | enabled       |
+| spark-3.3           | Build Gluten for Spark 3.3.                                                  | disabled       |
+| spark-3.4           | Build Gluten for Spark 3.4.                                                  | disabled       |
+| spark-3.5           | Build Gluten for Spark 3.5.                                                  | disabled       |
 
 ## Gluten Jar for Deployment
 The gluten jar built out is under `GLUTEN_SRC/package/target/`.
