@@ -1924,7 +1924,8 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | l_comment       string
                  |)
                  |USING clickhouse
-                 |CLUSTERED by (l_orderkey) SORTED by  (l_receiptdate) INTO 2 BUCKETS
+                 |CLUSTERED by (l_orderkey)
+                 |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_receiptdate)"} INTO 2 BUCKETS
                  |LOCATION '$basePath/lineitem_mergetree_pk_pruning_by_driver_bucket'
                  |""".stripMargin)
 
@@ -1940,7 +1941,8 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | o_shippriority  bigint,
                  | o_comment       string)
                  |USING clickhouse
-                 |CLUSTERED by (o_orderkey) SORTED by  (o_orderdate) INTO 2 BUCKETS
+                 |CLUSTERED by (o_orderkey)
+                 |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (o_orderdate)"} INTO 2 BUCKETS
                  |LOCATION '$basePath/orders_mergetree_pk_pruning_by_driver_bucket'
                  |""".stripMargin)
 
