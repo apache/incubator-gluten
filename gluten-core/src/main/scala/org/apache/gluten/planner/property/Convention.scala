@@ -87,7 +87,7 @@ object ConventionDef extends PropertyDef[SparkPlan, Convention] {
     case p if canPropagateConvention(p) =>
       p.children.map(_ => constraint.asInstanceOf[Convention])
     case other =>
-      val conv = getProperty(other)
+      val conv = conventionOf(other)
       other.children.map(_ => conv)
   }
 
