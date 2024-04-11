@@ -22,9 +22,9 @@ import scala.collection.JavaConverters._
 
 object GlutenConfigUtil {
   def parseConfig(conf: Map[String, String]): Map[String, String] = {
-    val reader = new ConfigReader(conf.filter(_._1.contains(".gluten.")).asJava)
+    val reader = new ConfigReader(conf.filter(_._1.contains("spark.gluten.")).asJava)
     val glutenConfigEntries =
-      SQLConf.getConfigEntries().asScala.filter(e => e.key.contains(".gluten."))
+      SQLConf.getConfigEntries().asScala.filter(e => e.key.contains("spark.gluten."))
     val glutenConfig = glutenConfigEntries.map(e => (e.key, e.readFrom(reader).toString)).toMap
     conf.map(e => (e._1, glutenConfig.getOrElse(e._1, e._2)))
   }
