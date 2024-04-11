@@ -63,6 +63,7 @@ jobs:
       - name: Build Gluten Velox third party
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
+          sudo rm -rf ep/build-velox/build/velox_ep/
           source dev/ci-velox-buildstatic.sh
       - uses: actions/upload-artifact@v2
         with:
