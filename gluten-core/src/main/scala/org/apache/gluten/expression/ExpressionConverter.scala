@@ -431,6 +431,11 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           sha2
         )
       case size: Size =>
+        if (size.legacySizeOfNull != SQLConf.get.legacySizeOfNull) {
+          throw new GlutenNotSupportException(
+            "The value of legacySizeOfNull field of size is " +
+              "not equals to legacySizeOfNull of SQLConf, this case is not supported yet")
+        }
         BackendsApiManager.getSparkPlanExecApiInstance.genSizeExpressionTransformer(
           substraitExprName,
           replaceWithExpressionTransformerInternal(size.child, attributeSeq, expressionsMap),

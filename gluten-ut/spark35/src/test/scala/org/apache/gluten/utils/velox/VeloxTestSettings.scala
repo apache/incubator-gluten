@@ -970,10 +970,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAsOfJoinSuite]
   enableSuite[GlutenDataFrameComplexTypeSuite]
   enableSuite[GlutenDataFrameFunctionsSuite]
-    // Disabled as failed in Spark3.5.
-    .exclude("array_size function")
-    .exclude("cardinality function")
-    .exclude("SPARK-40470: array_zip should return field names in GetArrayStructFields")
     // blocked by Velox-5768
     .exclude("aggregate function - array for primitive type containing null")
     .exclude("aggregate function - array for non-primitive type")
@@ -1046,8 +1042,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameWriterV2Suite]
   enableSuite[GlutenDatasetAggregatorSuite]
   enableSuite[GlutenDatasetCacheSuite]
-  // Disable for Spark3.5.
-  // .exclude("SPARK-27739 Save stats from optimized plan")
   enableSuite[GlutenDatasetOptimizationSuite]
   enableSuite[GlutenDatasetPrimitiveSuite]
   enableSuite[GlutenDatasetSerializerRegistratorSuite]
@@ -1166,14 +1160,9 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-27619: When spark.sql.legacy.allowHashOnMapType is true, hash can be used on Maptype")
   enableSuite[GlutenSQLQueryTestSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
-    // Disable for Spark3.5.
-    .exclude("statistics collection of a table with zero column")
     // The output byte size of Velox is different
     .exclude("SPARK-33687: analyze all tables in a specific database")
   enableSuite[GlutenSubquerySuite]
-    // Disable for Spark3.5.
-    .exclude("SPARK-40615: Check unsupported data type when decorrelating subqueries")
-    .exclude("SPARK-40618: Regression test for merging subquery bug with nested subqueries")
     .excludeByPrefix(
       "SPARK-26893" // Rewrite this test because it checks Spark's physical operators.
     )
