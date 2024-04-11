@@ -60,7 +60,7 @@ private class DpPlanner[T <: AnyRef] private (
   }
 
   private def findBest(memoTable: MemoTable[T], groupId: Int): Best[T] = {
-    val cKey = memoTable.allGroups()(groupId).clusterKey()
+    val cKey = memoTable.asGroupSupplier()(groupId).clusterKey()
     val algoDef = new DpExploreAlgoDef[T]
     val adjustment = new ExploreAdjustment(ras, memoTable, rules, enforcerRuleSet)
     DpClusterAlgo.resolve(memoTable, algoDef, adjustment, cKey)
