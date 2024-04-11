@@ -21,7 +21,7 @@ import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, FileSourceConstantMetadataAttribute, FileSourceGeneratedMetadataAttribute, FileSourceMetadataAttribute, PlanExpression, Predicate}
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
+import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, ParquetUtils}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.collection.BitSet
@@ -66,6 +66,7 @@ abstract class FileSourceScanExecShim(
     // TODO, fallback if user define same name column due to we can't right now
     // detect which column is metadata column which is user defined column.
     val metadataColumnsNames = metadataColumns.map(_.name)
+    metadataColumnsNames.contains(ParquetFileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME) ||
     output
       .filterNot(metadataColumns.toSet)
       .exists(v => metadataColumnsNames.contains(v.name)) ||
