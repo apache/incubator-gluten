@@ -37,7 +37,7 @@ import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FlushableHas
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, ArrayFilter, Ascending, Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, Generator, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, LambdaFunction, Literal, Murmur3Hash, NamedExpression, NaNvl, PosExplode, Round, SortOrder, StringSplit, StringTrim, Uuid}
+import org.apache.spark.sql.catalyst.expressions.{Add, Alias, ArrayFilter, Ascending, Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, Generator, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, LambdaFunction, Literal, Murmur3Hash, NamedExpression, NaNvl, PosExplode, Round, SortOrder, StringSplit, StringTrim, TryEval, Uuid}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -137,6 +137,47 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       substraitExprName,
       Seq(LiteralTransformer(Literal(original.randomSeed.get))),
       original)
+  }
+
+  override def genTryAddTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: TryEval): ExpressionTransformer = {
+    if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original.child)) {
+      throw new GlutenNotSupportException(s"add with ansi mode is not supported")
+    }
+    original.child.dataType match {
+      case LongType | IntegerType | ShortType | ByteType =>
+      case _ => throw new GlutenNotSupportException(s"try_add is not supported")
+    }
+    // Offload to velox for only IntegralTypes.
+    GenericExpressionTransformer(
+      substraitExprName,
+      Seq(GenericExpressionTransformer(ExpressionNames.TRY_ADD, Seq(left, right), original)),
+      original)
+  }
+
+  override def genAddTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Add): ExpressionTransformer = {
+    if (SparkShimLoader.getSparkShims.withTryEvalMode(original)) {
+      original.dataType match {
+        case LongType | IntegerType | ShortType | ByteType =>
+        case _ => throw new GlutenNotSupportException(s"try_add is not supported")
+      }
+      // Offload to velox for only IntegralTypes.
+      GenericExpressionTransformer(
+        ExpressionMappings.expressionsMap(classOf[TryEval]),
+        Seq(GenericExpressionTransformer(ExpressionNames.TRY_ADD, Seq(left, right), original)),
+        original)
+    } else if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original)) {
+      throw new GlutenNotSupportException(s"add with ansi mode is not supported")
+    } else {
+      GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
+    }
   }
 
   /** Transform map_entries to Substrait. */
