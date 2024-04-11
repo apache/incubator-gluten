@@ -488,7 +488,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           replaceWithExpressionTransformerInternal(rand.child, attributeSeq, expressionsMap),
           rand)
-      case _: KnownFloatingPointNormalized | _: NormalizeNaNAndZero | _: PromotePrecision =>
+      case _: KnownNullable | _: KnownNotNull | _: KnownFloatingPointNormalized |
+          _: NormalizeNaNAndZero | _: PromotePrecision =>
         ChildTransformer(
           replaceWithExpressionTransformerInternal(expr.children.head, attributeSeq, expressionsMap)
         )
