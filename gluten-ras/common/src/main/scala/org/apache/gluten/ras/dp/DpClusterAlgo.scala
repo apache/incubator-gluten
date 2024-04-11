@@ -81,7 +81,7 @@ object DpClusterAlgo {
     }
 
     override def browseX(x: InClusterNode[T]): Iterable[RasClusterKey] = {
-      val allGroups = memoTable.allGroups()
+      val allGroups = memoTable.asGroupSupplier()
       x.can
         .getChildrenGroups(allGroups)
         .map(gn => allGroups(gn.groupId()).clusterKey())
