@@ -65,14 +65,15 @@ object ConventionDef extends PropertyDef[SparkPlan, Convention] {
     case ColumnarTransitions.ColumnarToRowLike(child) => Conventions.ROW_BASED
     case ColumnarTransitions.RowToColumnarLike(child) => Conventions.GLUTEN_COLUMNAR
     case q: QueryStageExec => conventionOf(q.plan)
+    case r: ReusedExchangeExec => conventionOf(r.child)
     case a: AdaptiveSparkPlanExec => conventionOf(a.executedPlan)
     case i: InMemoryTableScanExec => getCacheConvention(i)
-    case _: GlutenPlan => Conventions.GLUTEN_COLUMNAR
-    case p if !p.isInstanceOf[GlutenPlan] && p.supportsColumnar => Conventions.VANILLA_COLUMNAR
     case p if canPropagateConvention(p) =>
       val childrenProps = p.children.map(conventionOf).distinct
       assert(childrenProps.size == 1)
       childrenProps.head
+    case _: GlutenPlan => Conventions.GLUTEN_COLUMNAR
+    case p if !p.isInstanceOf[GlutenPlan] && p.supportsColumnar => Conventions.VANILLA_COLUMNAR
     case p if SparkShimLoader.getSparkShims.supportsRowBased(p) => Conventions.ROW_BASED
     case other => throw new IllegalStateException(s"Unable to get convention of $other")
   }
@@ -84,17 +85,16 @@ object ConventionDef extends PropertyDef[SparkPlan, Convention] {
     case ColumnarTransitions.ColumnarToRowLike(child) => Seq(Conventions.GLUTEN_COLUMNAR)
     case ColumnarTransitions.RowToColumnarLike(child) => Seq(Conventions.ROW_BASED)
     case p if canPropagateConvention(p) =>
-      plan.children.map(_ => constraint.asInstanceOf[Convention])
-    case _ =>
-      val conv = getProperty(plan)
-      plan.children.map(_ => conv)
+      p.children.map(_ => constraint.asInstanceOf[Convention])
+    case other =>
+      val conv = getProperty(other)
+      other.children.map(_ => conv)
   }
 
   override def any(): Convention = Conventions.ANY
 
   private def canPropagateConvention(plan: SparkPlan): Boolean = plan match {
     case p: AQEShuffleReadExec => true
-    case p: ReusedExchangeExec => true
     case p: InputAdapter => true
     case p: WholeStageCodegenExec => true
     case _ => false
