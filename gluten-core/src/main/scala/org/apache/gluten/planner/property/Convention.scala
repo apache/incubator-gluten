@@ -73,7 +73,7 @@ object ConventionDef extends PropertyDef[SparkPlan, Convention] {
       assert(childrenProps.size == 1)
       childrenProps.head
     case _: GlutenPlan => Conventions.GLUTEN_COLUMNAR
-    case p if !p.isInstanceOf[GlutenPlan] && p.supportsColumnar => Conventions.VANILLA_COLUMNAR
+    case p if p.supportsColumnar => Conventions.VANILLA_COLUMNAR
     case p if SparkShimLoader.getSparkShims.supportsRowBased(p) => Conventions.ROW_BASED
     case other => throw new IllegalStateException(s"Unable to get convention of $other")
   }
