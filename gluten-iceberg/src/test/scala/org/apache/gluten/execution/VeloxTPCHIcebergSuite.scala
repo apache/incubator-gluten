@@ -96,6 +96,7 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
   }
 }
 
+// Ignored due to failures, see https://github.com/apache/incubator-gluten/issues/5362
 @Ignore
 class VeloxPartitionedTableTPCHIcebergSuite extends VeloxTPCHIcebergSuite {
   override protected def createTPCHNotNullTables(): Unit = {
