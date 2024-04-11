@@ -58,7 +58,7 @@ The below parameters can be set via `-P` for mvn.
 |---------------------|------------------------------------------------------------------------------|---------------|
 | backends-velox      | Build Gluten Velox backend.                                                  | enabled       |
 | backends-clickhouse | Build Gluten ClickHouse backend.                                             | disabled      |
-| rss                 | Build Gluten with Remote Shuffle Service, only applicable for Velox backend. | enabled       |
+| rss                 | Build Gluten with Remote Shuffle Service, only applicable for Velox backend. | disabled       |
 | delta               | Build Gluten with Delta Lake support.                                        | disabled      |
 | iceberg             | Build Gluten with Iceberg support.                                           | disabled      |
 | spark-3.2           | Build Gluten for Spark 3.2.                                                  | enabled       |
