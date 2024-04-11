@@ -17,7 +17,7 @@
 
 package org.apache.gluten.extension.columnar.enumerated
 
-import org.apache.gluten.execution.FilterExecTransformerBase
+import org.apache.gluten.execution.{BasicScanExecTransformer, FilterExecTransformerBase}
 import org.apache.gluten.ras.path.Pattern._
 import org.apache.gluten.ras.path.Pattern.Matchers._
 import org.apache.gluten.ras.rule.{RasRule, Shape}
@@ -40,6 +40,6 @@ object FilterRemoveRule extends RasRule[SparkPlan] {
     pattern(
       node[SparkPlan](
         clazz(classOf[FilterExecTransformerBase]),
-        ignore
+        leaf(clazz(classOf[BasicScanExecTransformer]))
       ).build())
 }
