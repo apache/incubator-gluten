@@ -19,9 +19,12 @@ package org.apache.gluten.execution
 import org.apache.spark.SparkConf
 
 import org.apache.iceberg.spark.SparkWriteOptions
+import org.scalatest.Ignore
 
 import java.io.File
 
+// Ignored due to failures, see https://github.com/apache/incubator-gluten/issues/5362
+@Ignore
 class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
 
   protected val tpchBasePath: String = new File(
