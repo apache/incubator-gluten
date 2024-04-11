@@ -56,7 +56,7 @@ The below parameters can be set via `-P` for mvn.
 
 | Parameters          | Description                                                                  | Default state |
 |---------------------|------------------------------------------------------------------------------|---------------|
-| backends-velox      | Build Gluten Velox backend.                                                  | enabled       |
+| backends-velox      | Build Gluten Velox backend.                                                  | disabled       |
 | backends-clickhouse | Build Gluten ClickHouse backend.                                             | disabled      |
 | rss                 | Build Gluten with Remote Shuffle Service, only applicable for Velox backend. | disabled       |
 | delta               | Build Gluten with Delta Lake support.                                        | disabled      |
