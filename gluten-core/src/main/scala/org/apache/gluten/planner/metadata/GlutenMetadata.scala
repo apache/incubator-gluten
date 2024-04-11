@@ -30,6 +30,30 @@ object GlutenMetadata {
     Impl(schema)
   }
 
-  private case class Impl(schema: Schema) extends GlutenMetadata
-  case class Schema(output: Seq[Attribute])
+  private case class Impl(override val schema: Schema) extends GlutenMetadata
+
+  case class Schema(output: Seq[Attribute]) {
+    private val hash = output.map(_.semanticHash()).hashCode()
+
+    override def hashCode(): Int = {
+      hash
+    }
+
+    override def equals(obj: Any): Boolean = obj match {
+      case other: Schema =>
+        semanticEquals(other)
+      case _ =>
+        false
+    }
+
+    private def semanticEquals(other: Schema): Boolean = {
+      if (output.size != other.output.size) {
+        return false
+      }
+      output.zip(other.output).forall {
+        case (left, right) =>
+          left.semanticEquals(right)
+      }
+    }
+  }
 }
