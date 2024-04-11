@@ -80,6 +80,32 @@ CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(
     auto storage_factory = StorageMergeTreeFactory::instance();
     auto metadata = buildMetaData(names_and_types_list, context, merge_tree_table);
 
+    {
+        // use instance global table (without uuid) to restore metadata folder on current instance
+        // we need its lock
+
+        auto global_storage = storage_factory.getStorage(
+        StorageID(merge_tree_table.database, merge_tree_table.table),
+        merge_tree_table.snapshot_id,
+        metadata->getColumns(),
+        [&]() -> CustomStorageMergeTreePtr
+        {
+            auto custom_storage_merge_tree = std::make_shared<CustomStorageMergeTree>(
+                StorageID(merge_tree_table.database, merge_tree_table.table),
+                merge_tree_table.relative_path,
+                *metadata,
+                false,
+                context,
+                "",
+                MergeTreeData::MergingParams(),
+                buildMergeTreeSettings(merge_tree_table.table_configs));
+            return custom_storage_merge_tree;
+        });
+
+        restoreMetaData(global_storage, merge_tree_table, *context);
+    }
+
+    // return local table (with a uuid) for isolation
     auto storage = storage_factory.getStorage(
         StorageID(merge_tree_table.database, merge_tree_table.table, uuid),
         merge_tree_table.snapshot_id,
@@ -97,7 +123,6 @@ CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(
                 buildMergeTreeSettings(merge_tree_table.table_configs));
             return custom_storage_merge_tree;
         });
-    restoreMetaData(storage, merge_tree_table, *local_engine::SerializedPlanParser::global_context);
     return storage;
 }
 
