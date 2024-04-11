@@ -154,7 +154,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
     // Offload to velox for only IntegralTypes.
     GenericExpressionTransformer(
       substraitExprName,
-      Seq(GenericExpressionTransformer(ExpressionNames.CHECK_ADD, Seq(left, right), original)),
+      Seq(GenericExpressionTransformer(ExpressionNames.TRY_ADD, Seq(left, right), original)),
       original)
   }
 
@@ -171,7 +171,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       // Offload to velox for only IntegralTypes.
       GenericExpressionTransformer(
         ExpressionMappings.expressionsMap(classOf[TryEval]),
-        Seq(GenericExpressionTransformer(ExpressionNames.CHECK_ADD, Seq(left, right), original)),
+        Seq(GenericExpressionTransformer(ExpressionNames.TRY_ADD, Seq(left, right), original)),
         original)
     } else if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original)) {
       throw new GlutenNotSupportException(s"add with ansi mode is not supported")

@@ -401,7 +401,8 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"murmur3hash", "hash_with_seed"},
     {"modulus", "remainder"},
     {"date_format", "format_datetime"},
-    {"collect_set", "set_agg"}};
+    {"collect_set", "set_agg"},
+    {"try_add", "plus"}};
 
 const std::unordered_map<std::string, std::string> SubstraitParser::typeMap_ = {
     {"bool", "BOOLEAN"},

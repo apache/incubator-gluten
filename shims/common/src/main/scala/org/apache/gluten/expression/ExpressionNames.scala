@@ -82,7 +82,7 @@ object ExpressionNames {
   final val IS_NAN = "isnan"
   final val NANVL = "nanvl"
   final val TRY_EVAL = "try"
-  final val CHECK_ADD = "plus"
+  final val TRY_ADD = "try_add"
 
   // SparkSQL String functions
   final val ASCII = "ascii"
