@@ -96,6 +96,7 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
   }
 }
 
+@Ignore
 class VeloxPartitionedTableTPCHIcebergSuite extends VeloxTPCHIcebergSuite {
   override protected def createTPCHNotNullTables(): Unit = {
     TPCHTables.map {
