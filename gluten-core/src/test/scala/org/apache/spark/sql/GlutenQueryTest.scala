@@ -26,7 +26,7 @@ import org.apache.spark.SPARK_VERSION_SHORT
 import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.catalyst.plans.logical.{Join, LogicalPlan, Sort, Subquery, SubqueryAlias}
+import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.sql.execution.SQLExecution
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
@@ -43,6 +43,20 @@ import scala.reflect.runtime.universe
 abstract class GlutenQueryTest extends PlanTest {
 
   protected def spark: SparkSession
+
+  def ignore(
+      testName: String,
+      minSparkVersion: Option[String] = None,
+      maxSparkVersion: Option[String] = None)(testFun: => Any): Unit = {
+    if (
+      minSparkVersion.forall(_ <= SPARK_VERSION_SHORT)
+      && maxSparkVersion.forall(_ >= SPARK_VERSION_SHORT)
+    ) {
+      ignore(testName) {
+        testFun
+      }
+    }
+  }
 
   def testWithSpecifiedSparkVersion(
       testName: String,
