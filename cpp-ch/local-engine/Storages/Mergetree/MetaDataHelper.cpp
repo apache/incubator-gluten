@@ -63,6 +63,8 @@ void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable &
 
     if (auto lock = storage->lockForAlter(context.getSettingsRef().lock_acquire_timeout))
     {
+        // put this return clause in lockForAlter
+        // so that it will not return until other thread finishes restoring
         if (not_exists_part.empty())
             return;
 
