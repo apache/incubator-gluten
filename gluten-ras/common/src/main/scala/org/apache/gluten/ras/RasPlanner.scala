@@ -62,11 +62,11 @@ object Best {
       bestPath: KnownCostPath[T],
       winnerNodes: Seq[InGroupNode[T]],
       costs: InGroupNode[T] => Option[Cost]): Best[T] = {
-    val bestNodes = mutable.Set[InGroupNode.HashKey]()
+    val bestNodes = mutable.Set[InGroupNode.UniqueKey]()
 
     def dfs(groupId: Int, cursor: RasPath.PathNode[T]): Unit = {
       val can = cursor.self().asCanonical()
-      bestNodes += InGroupNode(groupId, can).toHashKey
+      bestNodes += InGroupNode(groupId, can).toUniqueKey
       cursor.zipChildrenWithGroupIds().foreach {
         case (childPathNode, childGroupId) =>
           dfs(childGroupId, childPathNode)
@@ -76,14 +76,14 @@ object Best {
     dfs(rootGroupId, bestPath.rasPath.node())
 
     val bestNodeSet = bestNodes.toSet
-    val winnerNodeSet = winnerNodes.map(_.toHashKey).toSet
+    val winnerNodeSet = winnerNodes.map(_.toUniqueKey).toSet
 
     BestImpl(
       ras,
       rootGroupId,
       bestPath,
-      n => bestNodeSet.contains(n.toHashKey),
-      n => winnerNodeSet.contains(n.toHashKey),
+      n => bestNodeSet.contains(n.toUniqueKey),
+      n => winnerNodeSet.contains(n.toUniqueKey),
       costs)
   }
 

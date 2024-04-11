@@ -17,7 +17,7 @@
 package org.apache.gluten.ras.memo
 
 import org.apache.gluten.ras._
-import org.apache.gluten.ras.Ras.UnsafeKey
+import org.apache.gluten.ras.Ras.UnsafeHashKey
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.vis.GraphvizVisualizer
 
@@ -236,11 +236,11 @@ object Memo {
   private object MemoCacheKey {
     def apply[T <: AnyRef](ras: Ras[T], self: T): MemoCacheKey[T] = {
       assert(ras.isCanonical(self))
-      MemoCacheKey[T](ras.toUnsafeKey(self))
+      MemoCacheKey[T](ras.toHashKey(self))
     }
   }
 
-  private case class MemoCacheKey[T <: AnyRef] private (delegate: UnsafeKey[T])
+  private case class MemoCacheKey[T <: AnyRef] private (delegate: UnsafeHashKey[T])
 }
 
 trait MemoStore[T <: AnyRef] {

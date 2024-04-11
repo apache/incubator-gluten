@@ -66,7 +66,7 @@ object DpGroupAlgo {
       groupAlgoDef: DpGroupAlgoDef[T, NodeOutput, GroupOutput])
     extends DpZipperAlgoDef[InGroupNode[T], RasGroup[T], NodeOutput, GroupOutput] {
     override def idOfX(x: InGroupNode[T]): Any = {
-      x.toHashKey
+      x.toUniqueKey
     }
 
     override def idOfY(y: RasGroup[T]): Any = {

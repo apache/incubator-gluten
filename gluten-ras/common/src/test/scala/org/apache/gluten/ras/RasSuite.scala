@@ -20,6 +20,7 @@ import org.apache.gluten.ras.RasConfig.PlannerType
 import org.apache.gluten.ras.RasSuiteBase._
 import org.apache.gluten.ras.memo.Memo
 import org.apache.gluten.ras.path.Pattern
+import org.apache.gluten.ras.path.Pattern.Matchers
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 
 import org.scalatest.funsuite.AnyFunSuite
@@ -263,6 +264,58 @@ abstract class RasSuite extends AnyFunSuite {
     assert(state.allClusters().size == 3)
     assert(state.allGroups().size == 3)
     assert(allPaths.size == 15)
+  }
+
+  test(s"Rule dependency") {
+    // Op3 relies on Op2 relies on Op1
+
+    object Op1 extends RasRule[TestNode] {
+      override def shift(node: TestNode): Iterable[TestNode] = node match {
+        case Leaf(70) =>
+          List(Leaf(69))
+        case other => List.empty
+      }
+
+      override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
+    }
+
+    object Op2 extends RasRule[TestNode] {
+      override def shift(node: TestNode): Iterable[TestNode] = node match {
+        case Leaf(69) =>
+          List(Leaf(68))
+        case other => List.empty
+      }
+
+      override def shape(): Shape[TestNode] =
+        Shapes.pattern(Pattern.leaf[TestNode](Matchers.clazz(classOf[Leaf])).build())
+    }
+
+    object Op3 extends RasRule[TestNode] {
+      override def shift(node: TestNode): Iterable[TestNode] = node match {
+        case Leaf(68) =>
+          List(Leaf(67))
+        case other => List.empty
+      }
+
+      override def shape(): Shape[TestNode] =
+        Shapes.pattern(Pattern.any[TestNode].build())
+    }
+
+    val ras =
+      Ras[TestNode](
+        PlanModelImpl,
+        CostModelImpl,
+        MetadataModelImpl,
+        PropertyModelImpl,
+        ExplainImpl,
+        RasRule.Factory.reuse(List(Op3, Op1, Op2)))
+        .withNewConfig(_ => conf)
+
+    val plan = Unary(90, Unary(90, Leaf(70)))
+    val planner = ras.newPlanner(plan)
+    val optimized = planner.plan()
+
+    assert(optimized == Unary(90, Unary(90, Leaf(67))))
   }
 
   test(s"Unary node insertion") {

@@ -54,6 +54,21 @@ object FilterWizards {
     OmitCycles[T](CycleDetector[GroupNode[T]]((one, other) => one.groupId() == other.groupId()))
   }
 
+  def none[T <: AnyRef](): FilterWizard[T] = {
+    None[T]()
+  }
+
+  private class None[T <: AnyRef] private () extends FilterWizard[T] {
+    override def omit(can: CanonicalNode[T]): FilterAction[T] = FilterAction.Continue(this)
+    override def omit(group: GroupNode[T]): FilterAction[T] = FilterAction.Continue(this)
+    override def advance(offset: Int, count: Int): FilterAdvanceAction[T] =
+      FilterAdvanceAction.Continue(this)
+  }
+
+  private object None {
+    def apply[T <: AnyRef](): None[T] = new None[T]()
+  }
+
   // Cycle detection starts from the first visited group in the input path.
   private class OmitCycles[T <: AnyRef] private (detector: CycleDetector[GroupNode[T]])
     extends FilterWizard[T] {
