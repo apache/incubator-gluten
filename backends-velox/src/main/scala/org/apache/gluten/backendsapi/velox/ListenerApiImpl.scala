@@ -28,6 +28,7 @@ import org.apache.gluten.vectorized.{JniLibLoader, JniWorkspace}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.datasources.velox.{VeloxOrcWriterInjects, VeloxParquetWriterInjects, VeloxRowSplitter}
+import org.apache.spark.sql.internal.GlutenConfigUtil
 import org.apache.spark.sql.internal.StaticSQLConf
 
 import org.apache.commons.lang3.StringUtils
@@ -164,7 +165,7 @@ class ListenerApiImpl extends ListenerApi {
       loader.mapAndLoad(VeloxBackend.BACKEND_NAME, false)
     }
 
-    initializeNative(conf.getAll.toMap)
+    initializeNative(GlutenConfigUtil.parseConfig(conf.getAll.toMap))
 
     // inject backend-specific implementations to override spark classes
     // FIXME: The following set instances twice in local mode?
