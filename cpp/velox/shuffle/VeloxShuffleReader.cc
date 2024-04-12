@@ -183,7 +183,9 @@ RowVectorPtr readComplexType(BufferPtr buffer, RowTypePtr& rowType, memory::Memo
   RowVectorPtr result;
   auto byteStream = toByteStream(const_cast<uint8_t*>(buffer->as<uint8_t>()), buffer->size());
   auto serde = std::make_unique<serializer::presto::PrestoVectorSerde>();
-  serde->deserialize(byteStream.get(), pool, rowType, &result, /* serdeOptions */ nullptr);
+  serializer::presto::PrestoVectorSerde::PrestoOptions options;
+  options.useLosslessTimestamp = true;
+  serde->deserialize(byteStream.get(), pool, rowType, &result, &options);
   return result;
 }
 
