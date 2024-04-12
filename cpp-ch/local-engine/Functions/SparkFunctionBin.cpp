@@ -94,7 +94,7 @@ namespace
             size_t tot_len = 0;
             for (size_t i = 0; i < size; ++i)
             {
-                auto len = std::max(1, static_cast<int>(64 - getLeadingZeroBits(in_vec[i])));
+                auto len = std::max(1, static_cast<int>(64 - getLeadingZeroBits(static_cast<Int64>(in_vec[i]))));
                 tot_len += len + 1;
             }
             out_chars.resize_exact(tot_len);
@@ -102,7 +102,7 @@ namespace
             size_t pos = 0;
             for (size_t i = 0; i < size; ++i)
             {
-                auto val = in_vec[i];
+                auto val = static_cast<Int64>(in_vec[i]);
                 auto len = std::max(1, static_cast<int>(64 - getLeadingZeroBits(val)));
                 char * begin = reinterpret_cast<char *>(&out_chars[pos]);
                 int char_pos = len;
