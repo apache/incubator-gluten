@@ -241,6 +241,7 @@ object ExpressionMappings {
     Sig[GetStructField](GET_STRUCT_FIELD),
     Sig[CreateNamedStruct](NAMED_STRUCT),
     // Directly use child expression transformer
+    Sig[KnownNotNull](KNOWN_NOT_NULL),
     Sig[KnownFloatingPointNormalized](KNOWN_FLOATING_POINT_NORMALIZED),
     Sig[NormalizeNaNAndZero](NORMALIZE_NANAND_ZERO),
     // Specific expression

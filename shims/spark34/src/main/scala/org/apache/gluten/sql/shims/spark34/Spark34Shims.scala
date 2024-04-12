@@ -18,6 +18,7 @@ package org.apache.gluten.sql.shims.spark34
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.expression.{ExpressionNames, Sig}
+import org.apache.gluten.expression.ExpressionNames.KNOWN_NULLABLE
 import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
 
 import org.apache.spark.{ShuffleUtils, SparkContext, SparkContextUtils, SparkException, TaskContext, TaskContextUtils}
@@ -75,7 +76,9 @@ class Spark34Shims extends SparkShims {
       Sig[SplitPart](ExpressionNames.SPLIT_PART),
       Sig[Sec](ExpressionNames.SEC),
       Sig[Csc](ExpressionNames.CSC),
-      Sig[Empty2Null](ExpressionNames.EMPTY2NULL))
+      Sig[KnownNullable](KNOWN_NULLABLE),
+      Sig[Empty2Null](ExpressionNames.EMPTY2NULL)
+    )
   }
 
   override def aggregateExpressionMappings: Seq[Sig] = {

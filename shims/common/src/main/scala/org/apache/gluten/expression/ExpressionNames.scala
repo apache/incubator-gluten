@@ -287,6 +287,8 @@ object ExpressionNames {
   final val MONOTONICALLY_INCREASING_ID = "monotonically_increasing_id"
 
   // Directly use child expression transformer
+  final val KNOWN_NULLABLE = "known_nullable"
+  final val KNOWN_NOT_NULL = "known_not_null"
   final val KNOWN_FLOATING_POINT_NORMALIZED = "known_floating_point_normalized"
   final val NORMALIZE_NANAND_ZERO = "normalize_nanand_zero"
 
