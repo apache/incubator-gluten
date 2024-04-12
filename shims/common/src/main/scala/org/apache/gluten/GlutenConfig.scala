@@ -256,6 +256,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxSpillStrategy: String = conf.getConf(COLUMNAR_VELOX_SPILL_STRATEGY)
 
+  def veloxMaxSpillLevel: Int = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_LEVEL)
+
   def veloxMaxSpillFileSize: Long = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_FILE_SIZE)
 
   def veloxSpillFileSystem: String = conf.getConf(COLUMNAR_VELOX_SPILL_FILE_SYSTEM)
@@ -1248,6 +1250,13 @@ object GlutenConfig {
       .transform(_.toLowerCase(Locale.ROOT))
       .checkValues(Set("none", "auto"))
       .createWithDefault("auto")
+
+  val COLUMNAR_VELOX_MAX_SPILL_LEVEL =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxSpillLevel")
+      .internal()
+      .doc("The max allowed spilling level with zero being the initial spilling level")
+      .intConf
+      .createWithDefault(4)
 
   val COLUMNAR_VELOX_MAX_SPILL_FILE_SIZE =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxSpillFileSize")
