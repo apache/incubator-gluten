@@ -1256,7 +1256,7 @@ object GlutenConfig {
       .internal()
       .doc("The max allowed spilling level with zero being the initial spilling level")
       .intConf
-      .createWithDefault(4)
+      .createWithDefault(6)
 
   val COLUMNAR_VELOX_MAX_SPILL_FILE_SIZE =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxSpillFileSize")
