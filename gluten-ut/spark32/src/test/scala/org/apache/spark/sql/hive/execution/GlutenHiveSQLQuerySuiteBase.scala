@@ -86,9 +86,10 @@ abstract class GlutenHiveSQLQuerySuiteBase extends GlutenSQLTestsTrait {
     conf.set(
       "spark.sql.warehouse.dir",
       getClass.getResource("/").getPath + "/tests-working-home/spark-warehouse")
+    val metastore = getClass.getResource("/").getPath + getClass.getCanonicalName + "/metastore_db"
     conf.set(
-      "hive.metastore.warehouse.dir",
-      getClass.getResource("/").getPath + getClass.getCanonicalName)
+      "javax.jdo.option.ConnectionURL",
+      s"jdbc:derby:;databaseName=$metastore;create=true")
   }
 
   def checkOperatorMatch[T <: TransformSupport](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
