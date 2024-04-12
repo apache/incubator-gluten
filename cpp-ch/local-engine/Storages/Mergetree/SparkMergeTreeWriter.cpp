@@ -21,6 +21,7 @@
 #include <Interpreters/ActionsDAG.h>
 #include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
 #include <rapidjson/prettywriter.h>
+#include <Storages/Mergetree/MetaDataHelper.h>
 
 using namespace DB;
 
@@ -77,30 +78,8 @@ SparkMergeTreeWriter::writeTempPartAndFinalize(
 {
     auto temp_part = writeTempPart(block_with_partition, metadata_snapshot);
     temp_part.finalize();
-    saveFileStatus(temp_part);
+    saveFileStatus(storage, context, temp_part.part->getDataPartStorage());
     return temp_part;
-}
-
-void SparkMergeTreeWriter::saveFileStatus(const DB::MergeTreeDataWriter::TemporaryPart & temp_part) const
-{
-    auto & data_part_storage = temp_part.part->getDataPartStorage();
-
-    const DiskPtr disk = storage.getStoragePolicy()->getAnyDisk();
-    if (!disk->isRemote()) return;
-    if (auto *const disk_metadata = dynamic_cast<MetadataStorageFromDisk *>(disk->getMetadataStorage().get()))
-    {
-        const auto out = data_part_storage.writeFile("metadata.gluten", DBMS_DEFAULT_BUFFER_SIZE, context->getWriteSettings());
-        for (const auto it = data_part_storage.iterate(); it->isValid(); it->next())
-        {
-            auto content = disk_metadata->readFileToString(it->path());
-            writeString(it->name(), *out);
-            writeChar('\t', *out);
-            writeIntText(content.length(), *out);
-            writeChar('\n', *out);
-            writeString(content, *out);
-        }
-        out->finalize();
-    }
 }
 
 MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPart(

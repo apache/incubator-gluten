@@ -97,9 +97,9 @@ CustomStorageMergeTree::CustomStorageMergeTree(
 
 std::atomic<int> CustomStorageMergeTree::part_num;
 
-DataPartsVector CustomStorageMergeTree::loadDataPartsWithNames(std::unordered_set<std::string> parts)
+MergeTreeData::MutableDataPartsVector CustomStorageMergeTree::loadDataPartsWithNames(std::unordered_set<std::string> parts)
 {
-    DataPartsVector data_parts;
+    MutableDataPartsVector data_parts;
     const auto disk = getStoragePolicy()->getDisks().at(0);
     for (const auto& name : parts)
     {

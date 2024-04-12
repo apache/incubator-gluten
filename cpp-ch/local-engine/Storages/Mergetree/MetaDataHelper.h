@@ -23,7 +23,12 @@
 namespace local_engine
 {
 
-void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable & mergeTreeTable, ContextPtr & context);
+void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable & mergeTreeTable, const Context & context);
+
+void saveFileStatus(
+    const DB::MergeTreeData & storage,
+    const DB::ContextPtr& context,
+    IDataPartStorage & data_part_storage);
 
 }
 

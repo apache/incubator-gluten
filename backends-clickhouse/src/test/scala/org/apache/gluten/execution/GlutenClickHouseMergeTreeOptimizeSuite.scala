@@ -74,7 +74,6 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       val ret = spark.sql("select count(*) from lineitem_mergetree_optimize").collect()
       assert(ret.apply(0).get(0) == 600572)
 
-      spark.sql("optimize lineitem_mergetree_optimize")
       assert(
         countFiles(new File(s"$basePath/lineitem_mergetree_optimize")) == 462
       ) // many merged parts
@@ -148,7 +147,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     assert(ret.apply(0).get(0) == 600572)
 
     spark.sql("set spark.gluten.enabled=false")
-    assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 815)
+    assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 812)
     spark.sql("VACUUM lineitem_mergetree_optimize_p2 RETAIN 0 HOURS")
     assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 232)
     spark.sql("VACUUM lineitem_mergetree_optimize_p2 RETAIN 0 HOURS")
@@ -179,12 +178,9 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       assert(ret.apply(0).get(0) == 600572)
 
       spark.sql("set spark.gluten.enabled=false")
-      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 411)
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 398)
       spark.sql("VACUUM lineitem_mergetree_optimize_p3 RETAIN 0 HOURS")
-      // for tables with more than one layer of nested table (like partition + bucket, or two partition col
-      // the 'tmp_merge' folder is not guarantee to be removed, causing this file number to be unstable
-//      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 290)
-      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) > 270)
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 286)
       spark.sql("VACUUM lineitem_mergetree_optimize_p3 RETAIN 0 HOURS")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 270)
       spark.sql("set spark.gluten.enabled=true")
@@ -213,10 +209,9 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       assert(ret.apply(0).get(0) == 600572)
 
       spark.sql("set spark.gluten.enabled=false")
-      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 411)
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 398)
       spark.sql("VACUUM lineitem_mergetree_optimize_p4 RETAIN 0 HOURS")
-//      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 290)
-      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) > 270)
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 286)
       spark.sql("VACUUM lineitem_mergetree_optimize_p4 RETAIN 0 HOURS")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 270)
       spark.sql("set spark.gluten.enabled=true")
@@ -308,7 +303,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
     spark.sql("set spark.gluten.enabled=false")
     assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p6")) == {
-      if (sparkVersion.equals("3.2")) 940 else 1023
+      if (sparkVersion.equals("3.2")) 931 else 1014
     })
     spark.sql("VACUUM lineitem_mergetree_optimize_p6 RETAIN 0 HOURS")
     spark.sql("VACUUM lineitem_mergetree_optimize_p6 RETAIN 0 HOURS")
@@ -319,6 +314,50 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
     val ret2 = spark.sql("select count(*) from lineitem_mergetree_optimize_p6").collect()
     assert(ret2.apply(0).get(0) == 600572)
+  }
+
+  test("test skip index after optimize") {
+    withSQLConf(
+      "spark.databricks.delta.optimize.maxFileSize" -> "2000000",
+      "spark.sql.adaptive.enabled" -> "false") {
+      spark.sql(s"""
+                   |DROP TABLE IF EXISTS lineitem_mergetree_index;
+                   |""".stripMargin)
+
+      spark.sql(s"""
+                   |CREATE TABLE IF NOT EXISTS lineitem_mergetree_index
+                   |USING clickhouse
+                   |LOCATION '$basePath/lineitem_mergetree_index'
+                   |TBLPROPERTIES('bloomfilterIndexKey'='l_orderkey')
+                   | as select * from lineitem
+                   |""".stripMargin)
+
+      spark.sql("optimize lineitem_mergetree_index")
+      spark.sql("set spark.gluten.enabled=false")
+      spark.sql("vacuum lineitem_mergetree_index")
+      spark.sql("set spark.gluten.enabled=true")
+
+      val df = spark
+        .sql(s"""
+                |select count(*) from lineitem_mergetree_index  where l_orderkey = '600000'
+                |""".stripMargin)
+
+      val scanExec = collect(df.queryExecution.executedPlan) {
+        case f: FileSourceScanExecTransformer => f
+      }
+      assert(scanExec.size == 1)
+      val mergetreeScan = scanExec(0)
+      val ret = df.collect()
+      assert(ret.apply(0).get(0) == 2)
+      val marks = mergetreeScan.metrics("selectedMarks").value
+      assert(marks == 1)
+
+      val directory = new File(s"$basePath/lineitem_mergetree_index")
+      val partDir = directory.listFiles().filter(f => f.getName.endsWith("merged")).head
+      assert(
+        partDir.listFiles().exists(p => p.getName.contains("skp_idx__bloomfilter_l_orderkey.idx")))
+
+    }
   }
 
 }
