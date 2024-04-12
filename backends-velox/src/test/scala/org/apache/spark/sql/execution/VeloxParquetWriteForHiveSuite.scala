@@ -99,7 +99,11 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
         _.getMessage.toString.contains("Use Gluten partition write for hive")) == native)
   }
 
-  test("test hive static partition write table") {
+  // Disable for Sparke3.5.
+  testWithSpecifiedSparkVersion(
+    "test hive static partition write table",
+    Some("3.2"),
+    Some("3.4")) {
     withTable("t") {
       spark.sql(
         "CREATE TABLE t (c int, d long, e long)" +
@@ -137,7 +141,8 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
     }
   }
 
-  test("test hive write table") {
+  // Disable for Sparke3.5.
+  testWithSpecifiedSparkVersion("test hive write table", Some("3.2"), Some("3.4")) {
     withTable("t") {
       spark.sql("CREATE TABLE t (c int) STORED AS PARQUET")
       withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "false") {
@@ -152,7 +157,8 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
     }
   }
 
-  test("test hive write dir") {
+  // Disable for Sparke3.5.
+  testWithSpecifiedSparkVersion("test hive write dir", Some("3.2"), Some("3.4")) {
     withTempPath {
       f =>
         // compatible with Spark3.3 and later

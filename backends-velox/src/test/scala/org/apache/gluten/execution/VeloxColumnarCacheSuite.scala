@@ -76,7 +76,8 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
     }
   }
 
-  test("input row") {
+  // Disable for Sparke3.5.
+  testWithSpecifiedSparkVersion("input row", Some("3.2"), Some("3.4")) {
     withTable("t") {
       sql("CREATE TABLE t USING json AS SELECT * FROM values(1, 'a', (2, 'b'), (3, 'c'))")
       runQueryAndCompare("SELECT * FROM t", cache = true) {
