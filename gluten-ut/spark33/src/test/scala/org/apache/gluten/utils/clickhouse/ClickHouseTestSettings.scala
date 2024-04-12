@@ -846,7 +846,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("tanh")
     .exclude("rint")
     .exclude("expm1")
-    .exclude("bin")
     .exclude("unhex")
     .exclude("atan2")
     .exclude("round/bround/floor/ceil")
