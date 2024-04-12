@@ -149,7 +149,10 @@ void MergeSparkMergeTreeTask::prepare()
         deduplicate_by_columns,
         cleanup,
         storage.merging_params,
-        txn);
+        txn,
+        // need_prefix = false, so CH won't create a tmp_ folder while merging.
+        // the tmp_ folder is problematic when on S3 (particularlly when renaming)
+        false);
 }
 
 
@@ -157,9 +160,10 @@ void MergeSparkMergeTreeTask::finish()
 {
     new_part = merge_task->getFuture().get();
 
-    MergeTreeData::Transaction transaction(storage, txn.get());
-    storage.merger_mutator.renameMergedTemporaryPart(new_part, future_part->parts, txn, transaction);
-    transaction.commit();
+    // Since there is not tmp_ folder, we don't need renaming
+    // MergeTreeData::Transaction transaction(storage, txn.get());
+    // storage.merger_mutator.renameMergedTemporaryPart(new_part, future_part->parts, txn, transaction);
+    // transaction.commit();
 
     ThreadFuzzer::maybeInjectSleep();
     ThreadFuzzer::maybeInjectMemoryLimitException();

@@ -43,7 +43,7 @@ std::unordered_map<String, String> extractPartMetaData(ReadBuffer & in)
     return result;
 }
 
-void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable & mergeTreeTable, ContextPtr & context)
+void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable & mergeTreeTable, const Context & context)
 {
     auto data_disk = storage->getStoragePolicy()->getAnyDisk();
     if (!data_disk->isRemote())
@@ -60,11 +60,14 @@ void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable &
             not_exists_part.emplace(part);
     }
 
-    if (not_exists_part.empty())
-        return;
 
-    if (auto lock = storage->lockForAlter(context->getSettingsRef().lock_acquire_timeout))
+    if (auto lock = storage->lockForAlter(context.getSettingsRef().lock_acquire_timeout))
     {
+        // put this return clause in lockForAlter
+        // so that it will not return until other thread finishes restoring
+        if (not_exists_part.empty())
+            return;
+
         auto s3 = data_disk->getObjectStorage();
 
         if (!metadata_disk->exists(table_path))
@@ -87,9 +90,35 @@ void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable &
                 auto item_path = part_path / item.first;
                 auto out = metadata_disk->writeFile(item_path);
                 out->write(item.second.data(), item.second.size());
+                out->finalize();
+                out->sync();
             }
         }
     }
 }
 
+
+void saveFileStatus(
+    const DB::MergeTreeData & storage,
+    const DB::ContextPtr& context,
+    IDataPartStorage & data_part_storage)
+{
+    const DiskPtr disk = storage.getStoragePolicy()->getAnyDisk();
+    if (!disk->isRemote())
+        return;
+    if (auto * const disk_metadata = dynamic_cast<MetadataStorageFromDisk *>(disk->getMetadataStorage().get()))
+    {
+        const auto out = data_part_storage.writeFile("metadata.gluten", DBMS_DEFAULT_BUFFER_SIZE, context->getWriteSettings());
+        for (const auto it = data_part_storage.iterate(); it->isValid(); it->next())
+        {
+            auto content = disk_metadata->readFileToString(it->path());
+            writeString(it->name(), *out);
+            writeChar('\t', *out);
+            writeIntText(content.length(), *out);
+            writeChar('\n', *out);
+            writeString(content, *out);
+        }
+        out->finalize();
+    }
+}
 }
