@@ -92,12 +92,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
 
  private:
   uint64_t growPoolLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
-    try {
-      listener_->allocationChanged(bytes);
-    } catch (const std::exception&) {
-      pool->abort(std::current_exception());
-      std::rethrow_exception(std::current_exception());
-    }
+    listener_->allocationChanged(bytes);
     return pool->grow(bytes);
   }
 
