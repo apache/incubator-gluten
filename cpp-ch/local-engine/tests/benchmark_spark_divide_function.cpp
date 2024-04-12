@@ -43,7 +43,7 @@ static Block createDataBlock(String name1, String name2, size_t rows)
     {
         double d = i * 1.0;
         column1->insert(d);
-        column2->insert(d-1);
+        column2->insert(0);
     }
     ColumnWithTypeAndName col_type_name_1(std::move(column1), type, name1);
     ColumnWithTypeAndName col_type_name_2(std::move(column2), type, name2);
