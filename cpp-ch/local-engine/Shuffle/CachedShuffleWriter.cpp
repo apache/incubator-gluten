@@ -40,9 +40,10 @@ using namespace DB;
 
 CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitOptions & options_, jobject rss_pusher) : options(options_)
 {
+    bool use_external_sort_shuffle = (options.force_sort) && !rss_pusher;
     if (short_name == "rr")
     {
-        partitioner = std::make_unique<RoundRobinSelectorBuilder>(options.partition_num);
+        partitioner = std::make_unique<RoundRobinSelectorBuilder>(options.partition_num, use_external_sort_shuffle);
     }
     else if (short_name == "hash")
     {
@@ -52,16 +53,16 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitO
         {
             hash_fields.push_back(std::stoi(expr));
         }
-        partitioner = std::make_unique<HashSelectorBuilder>(options.partition_num, hash_fields, options_.hash_algorithm);
+        partitioner = std::make_unique<HashSelectorBuilder>(options.partition_num, hash_fields, options_.hash_algorithm, use_external_sort_shuffle);
     }
     else if (short_name == "single")
     {
         options.partition_num = 1;
-        partitioner = std::make_unique<RoundRobinSelectorBuilder>(options.partition_num);
+        partitioner = std::make_unique<RoundRobinSelectorBuilder>(options.partition_num, use_external_sort_shuffle);
     }
     else if (short_name == "range")
     {
-        partitioner = std::make_unique<RangeSelectorBuilder>(options.hash_exprs, options.partition_num);
+        partitioner = std::make_unique<RangeSelectorBuilder>(options.hash_exprs, options.partition_num, use_external_sort_shuffle);
     }
     else
     {
@@ -87,7 +88,7 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitO
     }
     else
     {
-        if (options.force_sort || options.partition_num > 300)
+        if (use_external_sort_shuffle)
         {
             partition_writer = std::make_unique<ExternalSortLocalPartitionWriter>(this);
             sort_shuffle = true;
