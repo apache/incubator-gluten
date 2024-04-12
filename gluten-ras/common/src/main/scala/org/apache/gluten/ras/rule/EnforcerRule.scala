@@ -45,6 +45,11 @@ object EnforcerRule {
     override def shape(): Shape[T] = rule.shape()
   }
 
+  // A built-in enforcer rule that does constraint propagation. The rule directly outputs
+  // whatever passed in, and memo will copy the output node in with the desired constraint.
+  // During witch children constraints will be derived through PropertyDef#getChildrenConstraints.
+  // When the children constraints do changed, the new node with changed children constraints will
+  // be persisted into memo.
   private class BuiltinEnforcerRule[T <: AnyRef](override val constraint: Property[T])
     extends EnforcerRule[T] {
     override def shift(node: T): Iterable[T] = List(node)
