@@ -655,4 +655,16 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     }
   }
 
+  test("equalTo rewrite to isNaN") {
+    withTable("tb_scrt") {
+      sql("create table tb_scrt(id int) using parquet")
+      sql("""
+            |insert into tb_scrt values (-2147483648),(-2147483648)
+            |""".stripMargin)
+      val q = "select sqrt(id),sqrt(id)='NaN' from tb_scrt"
+      runQueryAndCompare(q)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    }
+
+  }
+
 }

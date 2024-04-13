@@ -35,7 +35,7 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper, HashPartitioningWrapper}
 import org.apache.spark.shuffle.utils.CHShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.CHAggregateFunctionRewriteRule
+import org.apache.spark.sql.catalyst.{CHAggregateFunctionRewriteRule, EqualToRewrite}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
@@ -585,7 +585,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     List(
       spark => new CommonSubexpressionEliminateRule(spark, spark.sessionState.conf),
       spark => CHAggregateFunctionRewriteRule(spark),
-      _ => CountDistinctWithoutExpand
+      _ => CountDistinctWithoutExpand,
+      _ => EqualToRewrite
     )
   }
 
