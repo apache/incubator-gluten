@@ -118,7 +118,7 @@ object GenerateExecTransformer {
       false
     } else {
       generator match {
-        case _: Inline | _: ExplodeBase =>
+        case _: Inline | _: ExplodeBase | _: JsonTuple =>
           true
         case _ =>
           false
@@ -130,7 +130,7 @@ object GenerateExecTransformer {
 object PullOutGenerateProjectHelper extends PullOutProjectHelper {
   def pullOutPreProject(generate: GenerateExec): SparkPlan = {
     if (GenerateExecTransformer.supportsGenerate(generate.generator, generate.outer)) {
-      val newGeneratorChildren = generate.generator match {
+      generate.generator match {
         case _: Inline | _: ExplodeBase =>
           val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
           // The new child should be either the original Attribute,
@@ -146,20 +146,35 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
             // generator.child is other expression, e.g Literal/CreateArray/CreateMap
             expressionMap.values.head
           }
-          Seq(newGeneratorChild)
+          val newGeneratorChildren = Seq(newGeneratorChild)
+
+          // Avoid using elimainateProjectList to create the project list
+          // because newGeneratorChild can be a duplicated Attribute in generate.child.output.
+          // The native side identifies the last field of projection as generator's input.
+          generate.copy(
+            generator =
+              generate.generator.withNewChildren(newGeneratorChildren).asInstanceOf[Generator],
+            child = ProjectExec(generate.child.output ++ newGeneratorChildren, generate.child)
+          )
+        case JsonTuple(children) =>
+          val jsonObj = children.head
+          val preGenerateExprs = Alias(
+            CreateArray(children.drop(1).map {
+              child => Alias(GetJsonObject(jsonObj, child), generatePreAliasName)()
+            }),
+            generatePreAliasName)()
+
+          val newGenerator = Explode(preGenerateExprs.toAttribute)
+          generate.copy(
+            generator = newGenerator,
+            child = ProjectExec(generate.child.output ++ Seq(preGenerateExprs), generate.child)
+          )
         case _ =>
           // Unreachable.
           throw new IllegalStateException(
             s"Generator ${generate.generator.getClass.getSimpleName} is not supported.")
       }
-      // Avoid using elimainateProjectList to create the project list
-      // because newGeneratorChild can be a duplicated Attribute in generate.child.output.
-      // The native side identifies the last field of projection as generator's input.
-      generate.copy(
-        generator =
-          generate.generator.withNewChildren(newGeneratorChildren).asInstanceOf[Generator],
-        child = ProjectExec(generate.child.output ++ newGeneratorChildren, generate.child)
-      )
+
     } else {
       generate
     }
