@@ -862,7 +862,7 @@ uint16_t VeloxShuffleWriter::calculatePartitionBufferSize(const facebook::velox:
     const auto* srcRawValues = column->rawValues();
     const auto* srcRawNulls = column->rawNulls();
 
-    for(auto idx=0;idx<numRows;idx++) {
+    for (auto idx = 0; idx < numRows; idx++) {
       auto& stringView = srcRawValues[idx];
       size_t isNull = srcRawNulls && facebook::velox::bits::isBitNull(srcRawNulls, idx);
       auto stringLen = (isNull - 1) & stringView.size();
