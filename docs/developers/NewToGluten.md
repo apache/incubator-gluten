@@ -65,7 +65,7 @@ And then set the environment setting.
 # Compile gluten using debug mode
 
 If you want to just debug java/scala code, there is no need to compile cpp code with debug mode.
-You can just refer to [build-gluten-with-velox-backend](../get-started/Velox.md#2-build-gluten-with-velox-backend).
+You can just refer to [build-gluten-with-velox-backend](../get-started/Velox.md#build-gluten-with-velox-backend).
 
 If you need to debug cpp code, please compile the backend code and gluten cpp code with debug mode.
 
