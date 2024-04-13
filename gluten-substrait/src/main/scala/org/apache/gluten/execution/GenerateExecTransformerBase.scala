@@ -40,12 +40,13 @@ abstract class GenerateExecTransformerBase(
     child: SparkPlan)
   extends UnaryTransformSupport {
 
-  protected def doGeneratorValidate(generator: Generator, outer: Boolean): ValidationResult
+  protected def doGeneratorValidate(generator: Generator): ValidationResult
 
   protected def getRelNode(
       context: SubstraitContext,
       inputRel: RelNode,
       generatorNode: ExpressionNode,
+      outer: Boolean,
       validation: Boolean): RelNode
 
   protected lazy val requiredChildOutputNodes: Seq[ExpressionNode] = {
@@ -66,19 +67,20 @@ abstract class GenerateExecTransformerBase(
   override def producedAttributes: AttributeSet = AttributeSet(generatorOutput)
 
   override protected def doValidateInternal(): ValidationResult = {
-    val validationResult = doGeneratorValidate(generator, outer)
+    val validationResult = doGeneratorValidate(generator)
     if (!validationResult.ok()) {
       return validationResult
     }
     val context = new SubstraitContext
     val relNode =
-      getRelNode(context, null, getGeneratorNode(context), validation = true)
+      getRelNode(context, null, getGeneratorNode(context), outer, validation = true)
     doNativeValidation(context, relNode)
   }
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
-    val relNode = getRelNode(context, childCtx.root, getGeneratorNode(context), validation = false)
+    val relNode =
+      getRelNode(context, childCtx.root, getGeneratorNode(context), outer, validation = false)
     TransformContext(output, relNode)
   }
 

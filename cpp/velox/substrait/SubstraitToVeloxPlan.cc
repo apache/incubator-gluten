@@ -827,8 +827,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     ordinalityName = std::make_optional<std::string>("pos");
   }
 
+  bool isOuter = false;
+  if (generateRel.has_advanced_extension() &&
+      SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isOuter=")) {
+    isOuter = true;
+  }
+
   return std::make_shared<core::UnnestNode>(
-      nextPlanNodeId(), replicated, unnest, std::move(unnestNames), ordinalityName, childNode);
+      nextPlanNodeId(), replicated, unnest, std::move(unnestNames), ordinalityName, childNode, isOuter);
 }
 
 const core::WindowNode::Frame SubstraitToVeloxPlanConverter::createWindowFrame(

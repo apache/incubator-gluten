@@ -1976,4 +1976,54 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       }
     }
   }
+
+  test("test explode_outer && pos_explode_outer on array") {
+    Seq[(Int, Seq[Int])](
+      (1, Seq(1, 2, 3)),
+      (2, Seq()),
+      (3, Seq(3, null.asInstanceOf[Int])),
+      (4, null.asInstanceOf[Array[Int]])
+    ).toDF("a", "intList").createTempView("t")
+
+    runQueryAndCompare("""
+                         |SELECT
+                         | a, explode_outer(intList)
+                         | FROM t
+                         |""".stripMargin) {
+      checkGlutenOperatorMatch[GenerateExecTransformer]
+    }
+
+    runQueryAndCompare("""
+                         |SELECT
+                         | a, posexplode_outer(intList)
+                         | FROM t
+                         |""".stripMargin) {
+      checkGlutenOperatorMatch[GenerateExecTransformer]
+    }
+  }
+
+  test("test explode_outer && pos_explode_outer on map") {
+    Seq[(Int, Map[String, String])](
+      (1, Map("a" -> "1", "b" -> "2")),
+      (2, Map()),
+      (3, Map("c" -> "3")),
+      (4, null.asInstanceOf[Map[String, String]])
+    ).toDF("a", "mapData").createTempView("t")
+
+    runQueryAndCompare("""
+                         |SELECT
+                         | a, explode_outer(mapData)
+                         | FROM t
+                         |""".stripMargin) {
+      checkGlutenOperatorMatch[GenerateExecTransformer]
+    }
+
+    runQueryAndCompare("""
+                         |SELECT
+                         | a, posexplode_outer(mapData)
+                         | FROM t
+                         |""".stripMargin) {
+      checkGlutenOperatorMatch[GenerateExecTransformer]
+    }
+  }
 }

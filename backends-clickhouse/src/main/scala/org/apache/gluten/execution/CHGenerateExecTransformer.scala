@@ -70,6 +70,7 @@ case class CHGenerateExecTransformer(
       context: SubstraitContext,
       inputRel: RelNode,
       generatorNode: ExpressionNode,
+      outer: Boolean,
       validation: Boolean): RelNode = {
     if (!validation) {
       RelBuilder.makeGenerateRel(
