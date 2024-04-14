@@ -698,6 +698,10 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
   return true;
 }
 
+bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowGroupLimitRel& windowGroupLimitRel) {
+  return true;
+}
+
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::SortRel& sortRel) {
   if (sortRel.has_input() && !validate(sortRel.input())) {
     return false;
@@ -1200,6 +1204,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Rel& rel) {
     return validate(rel.window());
   } else if (rel.has_write()) {
     return validate(rel.write());
+  } else if (rel.has_windowgrouplimit()) {
+    return validate(rel.windowgrouplimit());
   } else {
     return false;
   }

@@ -67,6 +67,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarWindow: Boolean = conf.getConf(COLUMNAR_WINDOW_ENABLED)
 
+  def enableColumnarWindowGroupLimit: Boolean = conf.getConf(COLUMNAR_WINDOW_GROUP_LIMIT_ENABLED)
+
   def veloxColumnarWindowType: String = conf.getConfString(COLUMNAR_VELOX_WINDOW_TYPE.key)
 
   def enableColumnarShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED)
@@ -768,6 +770,13 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.window")
       .internal()
       .doc("Enable or disable columnar window.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_WINDOW_GROUP_LIMIT_ENABLED =
+    buildConf("spark.gluten.sql.columnar.window.group.limit")
+      .internal()
+      .doc("Enable or disable columnar window group limit.")
       .booleanConf
       .createWithDefault(true)
 

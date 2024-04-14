@@ -408,6 +408,17 @@ object TransformOthers {
             plan.partitionSpec,
             plan.orderSpec,
             plan.child)
+        case plan if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) =>
+          val windowGroupLimitPlan =
+            SparkShimLoader.getSparkShims.getWindowGroupLimitExecShim(plan)
+          WindowGroupLimitExecTransformer(
+            windowGroupLimitPlan.partitionSpec,
+            windowGroupLimitPlan.orderSpec,
+            windowGroupLimitPlan.rankLikeFunction,
+            windowGroupLimitPlan.limit,
+            windowGroupLimitPlan.mode,
+            windowGroupLimitPlan.child
+          )
         case plan: GlobalLimitExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           val child = plan.child

@@ -22,7 +22,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.NamedExpression
+import org.apache.spark.sql.catalyst.expressions.{Expression, NamedExpression}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
@@ -47,6 +47,9 @@ trait BackendSettingsApi {
   def supportSortExec(): Boolean = false
   def supportSortMergeJoinExec(): Boolean = true
   def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
+    false
+  }
+  def supportWindowGroupLimitExec(rankLikeFunction: Expression): Boolean = {
     false
   }
   def supportColumnarShuffleExec(): Boolean = {
@@ -113,6 +116,8 @@ trait BackendSettingsApi {
   def alwaysFailOnMapExpression(): Boolean = false
 
   def requiredChildOrderingForWindow(): Boolean = false
+
+  def requiredChildOrderingForWindowGroupLimit(): Boolean = false
 
   def staticPartitionWriteOnly(): Boolean = false
 

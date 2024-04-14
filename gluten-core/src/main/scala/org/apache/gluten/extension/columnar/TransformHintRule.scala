@@ -301,6 +301,8 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
     !scanOnly && BackendsApiManager.getSettings.supportColumnarShuffleExec()
   val enableColumnarSort: Boolean = !scanOnly && columnarConf.enableColumnarSort
   val enableColumnarWindow: Boolean = !scanOnly && columnarConf.enableColumnarWindow
+  val enableColumnarWindowGroupLimit: Boolean = !scanOnly &&
+    columnarConf.enableColumnarWindowGroupLimit
   val enableColumnarSortMergeJoin: Boolean = !scanOnly &&
     BackendsApiManager.getSettings.supportSortMergeJoinExec()
   val enableColumnarBatchScan: Boolean = columnarConf.enableColumnarBatchScan
@@ -620,6 +622,24 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.partitionSpec,
               plan.orderSpec,
               plan.child)
+            transformer.doValidate().tagOnFallback(plan)
+          }
+        case plan if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) =>
+          if (!enableColumnarWindowGroupLimit) {
+            TransformHints.tagNotTransformable(
+              plan,
+              "columnar window group limit is not enabled in WindowGroupLimitExec")
+          } else {
+            val windowGroupLimitPlan =
+              SparkShimLoader.getSparkShims.getWindowGroupLimitExecShim(plan)
+            val transformer = WindowGroupLimitExecTransformer(
+              windowGroupLimitPlan.partitionSpec,
+              windowGroupLimitPlan.orderSpec,
+              windowGroupLimitPlan.rankLikeFunction,
+              windowGroupLimitPlan.limit,
+              windowGroupLimitPlan.mode,
+              windowGroupLimitPlan.child
+            )
             transformer.doValidate().tagOnFallback(plan)
           }
         case plan: CoalesceExec =>

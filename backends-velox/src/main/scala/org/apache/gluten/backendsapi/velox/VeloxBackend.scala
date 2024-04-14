@@ -274,6 +274,13 @@ object BackendSettings extends BackendSettingsApi {
     GlutenConfig.getConf.enableColumnarSortMergeJoin
   }
 
+  override def supportWindowGroupLimitExec(rankLikeFunction: Expression): Boolean = {
+    rankLikeFunction match {
+      case _: RowNumber => true
+      case _ => false
+    }
+  }
+
   override def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
     var allSupported = true
     breakable {

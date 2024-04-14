@@ -272,6 +272,29 @@ public class RelBuilder {
         partitionExpressions, sorts);
   }
 
+  public static RelNode makeWindowGroupLimitRel(
+      RelNode input,
+      List<ExpressionNode> partitionExpressions,
+      List<SortField> sorts,
+      Integer limit,
+      AdvancedExtensionNode extensionNode,
+      SubstraitContext context,
+      Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new WindowGroupLimitRelNode(input, partitionExpressions, sorts, limit, extensionNode);
+  }
+
+  public static RelNode makeWindowGroupLimitRel(
+      RelNode input,
+      List<ExpressionNode> partitionExpressions,
+      List<SortField> sorts,
+      Integer limit,
+      SubstraitContext context,
+      Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new WindowGroupLimitRelNode(input, partitionExpressions, sorts, limit);
+  }
+
   public static RelNode makeGenerateRel(
       RelNode input,
       ExpressionNode generator,
