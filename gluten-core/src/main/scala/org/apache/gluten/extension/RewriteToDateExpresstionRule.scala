@@ -80,7 +80,7 @@ class RewriteToDateExpresstionRule(session: SparkSession, conf: SQLConf)
           && fromUnixTime.left.asInstanceOf[UnixTimestamp].left.dataType.isInstanceOf[StringType] =>
       val unixTimestamp = fromUnixTime.left.asInstanceOf[UnixTimestamp]
       val newLeft = unixTimestamp.left
-      ParseToDate(newLeft, Option.empty, Option.empty)
+      new ParseToDate(newLeft)
     case _ => toDate
   }
 }
