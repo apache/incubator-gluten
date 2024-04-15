@@ -48,12 +48,6 @@ case class LimitTransformer(child: SparkPlan, offset: Long, count: Long)
   override protected def doValidateInternal(): ValidationResult = {
     val context = new SubstraitContext
     val operatorId = context.nextOperatorId(this.nodeName)
-    // If RAS is enabled and is capable to move limit operators up and down among the plan nodes,
-    // It might become possible that an independent limit gets to be transited to a order-by-limit.
-    // In that case, we should tuning on the validation procedure. Either to move limit validation
-    // To RAS, or re-validate it in RAS, or add properties or rules in RAS to avoid such moves.
-    //
-    // It's not a issue for now since RAS doesn't do such moves.
     val relNode = getRelNode(context, operatorId, offset, count, child.output, null, true)
 
     doNativeValidation(context, relNode)
