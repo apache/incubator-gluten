@@ -164,10 +164,10 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
             return custom_storage_merge_tree;
         });
 
-    restoreMetaData(storage, merge_tree_table, context);
+    restoreMetaData(storage, merge_tree_table, *context);
     for (const auto & [name, sizes] : storage->getColumnSizes())
         column_sizes[name] = sizes.data_compressed;
-    auto storage_snapshot = std::make_shared<StorageSnapshot>(*custom_storage_merge_tree, metadata);
+    auto storage_snapshot = std::make_shared<StorageSnapshot>(*storage, metadata);
     auto names_and_types_list = input.getNamesAndTypesList();
 
     auto query_info = buildQueryInfo(names_and_types_list);
@@ -183,7 +183,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     std::vector<DataPartPtr> selected_parts = storage_factory.getDataParts(table_id, merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
     if (selected_parts.empty())
         throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "no data part found.");
-    auto read_step = custom_storage_merge_tree->reader.readFromParts(
+    auto read_step = storage->reader.readFromParts(
         selected_parts,
         /* alter_conversions = */
         {},
@@ -205,9 +205,9 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     auto ranges = merge_tree_table.extractRange(selected_parts);
     std::string ret;
     if (context->getSettings().tryGetString("enabled_driver_filter_mergetree_index", ret) && ret == "'true'")
-        custom_storage_merge_tree->analysisPartsByRanges(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
+        storage->analysisPartsByRanges(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
     else
-        custom_storage_merge_tree->wrapRangesInDataParts(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
+        storage->wrapRangesInDataParts(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
 
     steps.emplace_back(read_step.get());
     query_plan->addStep(std::move(read_step));
