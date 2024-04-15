@@ -268,6 +268,15 @@ message FetchRel {
   substrait.extensions.AdvancedExtension advanced_extension = 10;
 }
 
+// The relational operator representing TOP N calculation
+message TopNRel {
+  RelCommon common = 1;
+  Rel input = 2;
+  int64 n = 3;
+  repeated SortField sorts = 4;
+  substrait.extensions.AdvancedExtension advanced_extension = 10;
+}
+
 // The relational operator representing a GROUP BY Aggregate
 message AggregateRel {
   RelCommon common = 1;
@@ -485,6 +494,7 @@ message Rel {
     WindowRel window = 16;
     GenerateRel generate = 17;
     WriteRel write = 18;
+    TopNRel top_n = 19;
   }
 }
 

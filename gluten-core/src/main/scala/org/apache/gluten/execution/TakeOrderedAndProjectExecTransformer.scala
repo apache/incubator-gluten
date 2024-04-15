@@ -29,6 +29,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.concurrent.atomic.AtomicInteger
 
+// FIXME: The operator is simply a wrapper for sort + limit + project. It's better to remove this
+//  wrapper then return the piped sub-operators to query planner directly.
 case class TakeOrderedAndProjectExecTransformer(
     limit: Long,
     sortOrder: Seq[SortOrder],

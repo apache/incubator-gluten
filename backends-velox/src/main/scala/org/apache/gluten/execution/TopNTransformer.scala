@@ -17,72 +17,96 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.extension.ValidationResult
-import org.apache.gluten.metrics.MetricsUpdater
+import org.apache.gluten.metrics.{MetricsUpdater, NoopMetricsUpdater}
 import org.apache.gluten.substrait.`type`.TypeBuilder
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
+import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
+import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution.SparkPlan
+
+import io.substrait.proto.SortField
 
 import scala.collection.JavaConverters._
 
-case class LimitTransformer(child: SparkPlan, offset: Long, count: Long)
+case class TopNTransformer(limit: Long, sortOrder: Seq[SortOrder], child: SparkPlan)
   extends UnaryTransformSupport {
+  override def outputPartitioning: Partitioning = SinglePartition
+  override def outputOrdering: Seq[SortOrder] = sortOrder
 
-  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
-  @transient override lazy val metrics =
-    BackendsApiManager.getMetricsApiInstance.genLimitTransformerMetrics(sparkContext)
+  override def simpleString(maxFields: Int): String = {
+    val orderByString = truncatedString(sortOrder, "[", ",", "]", maxFields)
+    val outputString = truncatedString(output, "[", ",", "]", maxFields)
 
-  override def output: Seq[Attribute] = child.output
+    s"TopNTransformer (limit=$limit, " +
+      s"orderBy=$orderByString, output=$outputString)"
+  }
 
-  override protected def withNewChildInternal(newChild: SparkPlan): LimitTransformer =
+  override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan = {
     copy(child = newChild)
-
-  override def metricsUpdater(): MetricsUpdater =
-    BackendsApiManager.getMetricsApiInstance.genLimitTransformerMetricsUpdater(metrics)
+  }
 
   override protected def doValidateInternal(): ValidationResult = {
     val context = new SubstraitContext
     val operatorId = context.nextOperatorId(this.nodeName)
-    // If RAS is enabled and is capable to move limit operators up and down among the plan nodes,
-    // It might become possible that an independent limit gets to be transited to a order-by-limit.
-    // In that case, we should tuning on the validation procedure. Either to move limit validation
-    // To RAS, or re-validate it in RAS, or add properties or rules in RAS to avoid such moves.
-    //
-    // It's not a issue for now since RAS doesn't do such moves.
-    val relNode = getRelNode(context, operatorId, offset, count, child.output, null, true)
-
+    val relNode =
+      getRelNode(context, operatorId, limit, sortOrder, child.output, null, validation = true)
     doNativeValidation(context, relNode)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
-    val relNode = getRelNode(context, operatorId, offset, count, child.output, childCtx.root, false)
+    val relNode =
+      getRelNode(
+        context,
+        operatorId,
+        limit,
+        sortOrder,
+        child.output,
+        childCtx.root,
+        validation = false)
     TransformContext(child.output, child.output, relNode)
   }
 
-  def getRelNode(
+  private def getRelNode(
       context: SubstraitContext,
       operatorId: Long,
-      offset: Long,
       count: Long,
+      sortOrder: Seq[SortOrder],
       inputAttributes: Seq[Attribute],
       input: RelNode,
       validation: Boolean): RelNode = {
+    val args = context.registeredFunction
+    val sortFieldList = sortOrder.map {
+      order =>
+        val builder = SortField.newBuilder()
+        val exprNode = ExpressionConverter
+          .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
+          .doTransform(args)
+        builder.setExpr(exprNode.toProtobuf)
+
+        builder.setDirectionValue(SortExecTransformer.transformSortDirection(order))
+        builder.build()
+    }
     if (!validation) {
-      RelBuilder.makeFetchRel(input, offset, count, context, operatorId)
+      RelBuilder.makeTopNRel(input, count, sortFieldList.asJava, context, operatorId)
     } else {
       val inputTypeNodes =
         inputAttributes.map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable)).asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         BackendsApiManager.getTransformerApiInstance.packPBMessage(
           TypeBuilder.makeStruct(false, inputTypeNodes).toProtobuf))
-      RelBuilder.makeFetchRel(input, offset, count, extensionNode, context, operatorId)
+      RelBuilder.makeTopNRel(input, count, sortFieldList.asJava, extensionNode, context, operatorId)
     }
   }
+
+  override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater // TODO
+
+  override def output: Seq[Attribute] = child.output
 }

@@ -229,6 +229,27 @@ public class RelBuilder {
     return new FetchRelNode(input, offset, count, extensionNode);
   }
 
+  public static RelNode makeTopNRel(
+      RelNode input,
+      Long n,
+      List<SortField> sorts,
+      SubstraitContext context,
+      Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new TopNNode(input, n, sorts);
+  }
+
+  public static RelNode makeTopNRel(
+      RelNode input,
+      Long n,
+      List<SortField> sorts,
+      AdvancedExtensionNode extensionNode,
+      SubstraitContext context,
+      Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new TopNNode(input, n, sorts, extensionNode);
+  }
+
   public static RelNode makeWindowRel(
       RelNode input,
       List<WindowFunctionNode> windowFunctionNodes,

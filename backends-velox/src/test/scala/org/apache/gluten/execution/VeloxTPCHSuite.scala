@@ -275,6 +275,7 @@ class VeloxTPCHMiscSuite extends VeloxTPCHTableSupport {
     }
     assert(sortExec.size == 1)
     val result = df.collect()
+    df.explain(true)
     val expectedResult = Seq(Row(0), Row(1), Row(2), Row(3), Row(4))
     TestUtils.compareAnswers(result, expectedResult)
   }
