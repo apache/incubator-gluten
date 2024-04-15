@@ -65,6 +65,7 @@ include_directories(
         ${CMAKE_CURRENT_BINARY_DIR}/proto
         ${THRIFT_INCLUDE_DIR}
         ${CMAKE_BINARY_DIR}/contrib/thrift-cmake
+        ${CMAKE_BINARY_DIR}/contrib/llvm-project/llvm/include
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${ClickHouse_SOURCE_DIR}/src
         ${ClickHouse_SOURCE_DIR}/base
@@ -74,6 +75,8 @@ include_directories(
         ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/storage/azure-storage-blobs/inc
         ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/core/azure-core/inc
         ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/storage/azure-storage-common/inc
+        ${ClickHouse_SOURCE_DIR}/contrib/llvm-project/llvm/include
+        ${ClickHouse_SOURCE_DIR}/contrib/llvm-project/utils/bazel/llvm-project-overlay/llvm/include
 )
 
 add_subdirectory(Storages/Parquet)
