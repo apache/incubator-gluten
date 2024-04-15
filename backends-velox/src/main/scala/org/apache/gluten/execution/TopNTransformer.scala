@@ -26,7 +26,7 @@ import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
-import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
+import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, Distribution, Partitioning, SinglePartition, UnspecifiedDistribution}
 import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution.SparkPlan
 
@@ -34,17 +34,25 @@ import io.substrait.proto.SortField
 
 import scala.collection.JavaConverters._
 
-case class TopNTransformer(limit: Long, sortOrder: Seq[SortOrder], child: SparkPlan)
+case class TopNTransformer(
+    limit: Long,
+    sortOrder: Seq[SortOrder],
+    global: Boolean,
+    child: SparkPlan)
   extends UnaryTransformSupport {
-  override def outputPartitioning: Partitioning = SinglePartition
+  override def output: Seq[Attribute] = child.output
+  override def outputPartitioning: Partitioning = child.outputPartitioning
   override def outputOrdering: Seq[SortOrder] = sortOrder
+
+  override def requiredChildDistribution: Seq[Distribution] =
+    if (global) AllTuples :: Nil else UnspecifiedDistribution :: Nil
 
   override def simpleString(maxFields: Int): String = {
     val orderByString = truncatedString(sortOrder, "[", ",", "]", maxFields)
     val outputString = truncatedString(output, "[", ",", "]", maxFields)
 
     s"TopNTransformer (limit=$limit, " +
-      s"orderBy=$orderByString, output=$outputString)"
+      s"orderBy=$orderByString, global=$global, output=$outputString)"
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan = {
@@ -107,6 +115,4 @@ case class TopNTransformer(limit: Long, sortOrder: Seq[SortOrder], child: SparkP
   }
 
   override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater // TODO
-
-  override def output: Seq[Attribute] = child.output
 }

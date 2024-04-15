@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
 
 import org.apache.spark.rdd.RDD
@@ -29,8 +30,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.concurrent.atomic.AtomicInteger
 
-// FIXME: The operator is simply a wrapper for sort + limit + project. It's better to remove this
-//  wrapper then return the piped sub-operators to query planner directly.
+// FIXME: The operator is simply a wrapper for sort + limit + project (+ exchange if needed).
+//  It's better to remove this wrapper then return the piped sub-operators to query planner
+//  directly. Otherwise optimizer may not get enough information to optimize.
 case class TakeOrderedAndProjectExecTransformer(
     limit: Long,
     sortOrder: Seq[SortOrder],
@@ -80,6 +82,10 @@ case class TakeOrderedAndProjectExecTransformer(
       val inputTransformer =
         ColumnarCollapseTransformStages.wrapInputIteratorTransformer(child)
       val sortPlan = SortExecTransformer(sortOrder, false, inputTransformer)
+      val sortValidation = sortPlan.doValidate()
+      if (!sortValidation.isValid) {
+        return sortValidation
+      }
       val limitPlan = LimitTransformer(sortPlan, offset, limit)
       tagged = limitPlan.doValidate()
     }
@@ -153,8 +159,12 @@ case class TakeOrderedAndProjectExecTransformer(
         finalLimitPlan
       }
 
+      val collapsed =
+        BackendsApiManager.getSparkPlanExecApiInstance.maybeCollapseTakeOrderedAndProject(
+          projectPlan)
+
       val finalPlan =
-        WholeStageTransformer(projectPlan)(transformStageCounter.incrementAndGet())
+        WholeStageTransformer(collapsed)(transformStageCounter.incrementAndGet())
 
       finalPlan.executeColumnar()
     }

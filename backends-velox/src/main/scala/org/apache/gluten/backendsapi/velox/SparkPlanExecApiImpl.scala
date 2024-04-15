@@ -762,4 +762,22 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
   override def genPostProjectForGenerate(generate: GenerateExec): SparkPlan = {
     PullOutGenerateProjectHelper.pullOutPostProject(generate)
   }
+
+  override def maybeCollapseTakeOrderedAndProject(plan: SparkPlan): SparkPlan = {
+    plan.transformUp {
+      case p @ LimitTransformer(SortExecTransformer(sortOrder, _, child, _), 0, count) =>
+        // Since `maybeCollapseTakeOrderedAndProject` has a fixed caller
+        // (TakeOrderedAndProjectExecTransformer#doExecuteColumnar), we don't have to
+        // set global/local flag for the output operator. Since
+        // TakeOrderedAndProjectExecTransformer's execution code is in a way hacky and already
+        // manually placed required exchanges.
+        val topN = TopNTransformer(count, sortOrder, global = false, child);
+        if (topN.doValidate().isValid) {
+          topN
+        } else {
+          p
+        }
+      case other => other
+    }
+  }
 }
