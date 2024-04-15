@@ -66,10 +66,11 @@ class RewriteToDateExpresstionRule(session: SparkSession, conf: SQLConf)
   private def visitExpression(expression: NamedExpression): NamedExpression = expression match {
     case Alias(c, _) if c.isInstanceOf[ParseToDate] =>
       val newToDate = rewriteParseToDate(c.asInstanceOf[ParseToDate])
-      if (!newToDate.fastEquals(c))
+      if (!newToDate.fastEquals(c)) {
         Alias(newToDate, newToDate.toString())()
-      else
+      } else {
         expression
+      }
     case _ => expression
   }
 
