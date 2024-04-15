@@ -33,10 +33,11 @@ function detect_os_version() {
 }
 detect_os_version
 
+DEFAULT_SPARK_PROFILE="spark-3.3"
 function get_project_version() {
   cd "${GLUTEN_SOURCE}"
   # use mvn command to get project version
-  PROJECT_VERSION=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive exec:exec)
+  PROJECT_VERSION=$(mvn -q -P${DEFAULT_SPARK_PROFILE} -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive exec:exec)
   export PROJECT_VERSION=${PROJECT_VERSION}
 }
 get_project_version
@@ -94,11 +95,11 @@ wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/${delta_version_33}
 wget https://repo1.maven.org/maven2/io/delta/delta-storage/${delta_version_33}/delta-storage-${delta_version_33}.jar -P "${PACKAGE_DIR_PATH}"/jars/spark33
 
 # download common 3rd party jars
-protobuf_version=$(mvn -q -Dexec.executable="echo" -Dexec.args='${protobuf.version}' --non-recursive exec:exec)
+protobuf_version=$(mvn -q -P${DEFAULT_SPARK_PROFILE} -Dexec.executable="echo" -Dexec.args='${protobuf.version}' --non-recursive exec:exec)
 wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/${protobuf_version}/protobuf-java-${protobuf_version}.jar -P "${PACKAGE_DIR_PATH}"/jars/spark32
 cp "${PACKAGE_DIR_PATH}"/jars/spark32/protobuf-java-${protobuf_version}.jar "${PACKAGE_DIR_PATH}"/jars/spark33
 
-celeborn_version=$(mvn -q -Dexec.executable="echo" -Dexec.args='${celeborn.version}' --non-recursive exec:exec)
+celeborn_version=$(mvn -q -P${DEFAULT_SPARK_PROFILE} -Dexec.executable="echo" -Dexec.args='${celeborn.version}' --non-recursive exec:exec)
 wget https://repo1.maven.org/maven2/org/apache/celeborn/celeborn-client-spark-3-shaded_2.12/${celeborn_version}/celeborn-client-spark-3-shaded_2.12-${celeborn_version}.jar -P "${PACKAGE_DIR_PATH}"/jars/spark32
 cp "${PACKAGE_DIR_PATH}"/jars/spark32/celeborn-client-spark-3-shaded_2.12-${celeborn_version}.jar "${PACKAGE_DIR_PATH}"/jars/spark33
 
