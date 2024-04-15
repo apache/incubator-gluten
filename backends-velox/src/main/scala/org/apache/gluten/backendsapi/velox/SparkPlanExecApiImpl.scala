@@ -768,7 +768,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       case p @ LimitTransformer(SortExecTransformer(sortOrder, _, child, _), 0, count) =>
         // Since `maybeCollapseTakeOrderedAndProject` has a fixed caller
         // (TakeOrderedAndProjectExecTransformer#doExecuteColumnar), we don't have to
-        // set global/local flag for the output operator. Since
+        // set global/local flag for the output top n operator. Since
         // TakeOrderedAndProjectExecTransformer's execution code is in a way hacky and already
         // manually placed required exchanges.
         val topN = TopNTransformer(count, sortOrder, global = false, child);
