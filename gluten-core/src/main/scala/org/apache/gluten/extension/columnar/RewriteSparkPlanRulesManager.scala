@@ -18,6 +18,7 @@ package org.apache.gluten.extension.columnar
 
 import org.apache.gluten.extension.{RewriteCollect, RewriteIn}
 import org.apache.gluten.sql.shims.SparkShimLoader
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}

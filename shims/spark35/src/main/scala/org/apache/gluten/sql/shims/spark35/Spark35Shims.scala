@@ -43,7 +43,7 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
-import org.apache.spark.sql.execution.window.WindowGroupLimitExec
+import org.apache.spark.sql.execution.window.{WindowGroupLimitExec, WindowGroupLimitExecShim}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
@@ -268,14 +268,15 @@ class Spark35Shims extends SparkShims {
     )
   }
 
-  override def getWindowGroupLimitExec(windowGroupLimitPlan: WindowGroupLimitExecShim): SparkPlan = {
+  override def getWindowGroupLimitExec(windowGroupLimitPlan: SparkPlan): SparkPlan = {
+    val windowGroupLimitExecShim = windowGroupLimitPlan.asInstanceOf[WindowGroupLimitExecShim]
     WindowGroupLimitExec(
-      windowGroupLimitPlan.partitionSpec,
-      windowGroupLimitPlan.orderSpec,
-      windowGroupLimitPlan.rankLikeFunction,
-      windowGroupLimitPlan.limit,
-      windowGroupLimitPlan.mode,
-      windowGroupLimitPlan.child
+      windowGroupLimitExecShim.partitionSpec,
+      windowGroupLimitExecShim.orderSpec,
+      windowGroupLimitExecShim.rankLikeFunction,
+      windowGroupLimitExecShim.limit,
+      windowGroupLimitExecShim.mode,
+      windowGroupLimitExecShim.child
     )
   }
 

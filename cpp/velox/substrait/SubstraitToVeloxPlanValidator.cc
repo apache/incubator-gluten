@@ -699,6 +699,72 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
 }
 
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowGroupLimitRel& windowGroupLimitRel) {
+  if (windowGroupLimitRel.has_input() && !validate(windowGroupLimitRel.input())) {
+    LOG_VALIDATION_MSG("WindowGroupLimitRel input fails to validate.");
+    return false;
+  }
+
+  // Get and validate the input types from extension.
+  if (!windowGroupLimitRel.has_advanced_extension()) {
+    LOG_VALIDATION_MSG("Input types are expected in WindowGroupLimitRel.");
+    return false;
+  }
+  const auto& extension = windowGroupLimitRel.advanced_extension();
+  std::vector<TypePtr> types;
+  if (!validateInputTypes(extension, types)) {
+    LOG_VALIDATION_MSG("Validation failed for input types in WindowGroupLimitRel.");
+    return false;
+  }
+
+  int32_t inputPlanNodeId = 0;
+  std::vector<std::string> names;
+  names.reserve(types.size());
+  for (auto colIdx = 0; colIdx < types.size(); colIdx++) {
+    names.emplace_back(SubstraitParser::makeNodeName(inputPlanNodeId, colIdx));
+  }
+  auto rowType = std::make_shared<RowType>(std::move(names), std::move(types));
+  // Validate groupby expression
+  const auto& groupByExprs = windowGroupLimitRel.partition_expressions();
+  std::vector<core::TypedExprPtr> expressions;
+  expressions.reserve(groupByExprs.size());
+  for (const auto& expr : groupByExprs) {
+    auto expression = exprConverter_->toVeloxExpr(expr, rowType);
+    auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
+    if (exprField == nullptr) {
+      LOG_VALIDATION_MSG("Only field is supported for partition key in Window Group Limit Operator!");
+      return false;
+    } else {
+      expressions.emplace_back(expression);
+    }
+  }
+  // Try to compile the expressions. If there is any unregistered function or
+  // mismatched type, exception will be thrown.
+  exec::ExprSet exprSet(std::move(expressions), execCtx_);
+  // Validate Sort expression
+  const auto& sorts = windowGroupLimitRel.sorts();
+  for (const auto& sort : sorts) {
+    switch (sort.direction()) {
+      case ::substrait::SortField_SortDirection_SORT_DIRECTION_ASC_NULLS_FIRST:
+      case ::substrait::SortField_SortDirection_SORT_DIRECTION_ASC_NULLS_LAST:
+      case ::substrait::SortField_SortDirection_SORT_DIRECTION_DESC_NULLS_FIRST:
+      case ::substrait::SortField_SortDirection_SORT_DIRECTION_DESC_NULLS_LAST:
+        break;
+      default:
+        LOG_VALIDATION_MSG("in windowGroupLimitRel, unsupported Sort direction " + std::to_string(sort.direction()));
+        return false;
+    }
+
+    if (sort.has_expr()) {
+      auto expression = exprConverter_->toVeloxExpr(sort.expr(), rowType);
+      auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
+      if (!exprField) {
+        LOG_VALIDATION_MSG("in windowGroupLimitRel, the sorting key in Sort Operator only support field.");
+        return false;
+      }
+    exec::ExprSet exprSet({std::move(expression)}, execCtx_);
+    }
+  }
+
   return true;
 }
 

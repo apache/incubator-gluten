@@ -14,11 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources
+package org.apache.spark.sql.execution.window
 
-import org.apache.spark.sql.catalyst.expressions.{Expression, SortOrder}
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.window.WindowGroupLimitMode
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, SortOrder}
+import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 
 case class WindowGroupLimitExecShim(
     partitionSpec: Seq[Expression],
@@ -27,3 +28,14 @@ case class WindowGroupLimitExecShim(
     limit: Int,
     mode: WindowGroupLimitMode,
     child: SparkPlan)
+  extends UnaryExecNode {
+  override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
+    copy(child = newChild)
+
+  override protected def doExecute(): RDD[InternalRow] = {
+    throw new UnsupportedOperationException(
+      s"${this.getClass.getSimpleName} doesn't support doExecute")
+  }
+
+  override def output: Seq[Attribute] = child.output
+}

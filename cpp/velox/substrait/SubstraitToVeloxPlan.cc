@@ -922,39 +922,39 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
   const auto& inputType = childNode->outputType();
   // Construct partitionKeys
-    std::vector<core::FieldAccessTypedExprPtr> partitionKeys;
-    std::unordered_set<std::string> keyNames;
-    const auto& partitions = windowGroupLimitRel.partition_expressions();
-    partitionKeys.reserve(partitions.size());
-    for (const auto& partition : partitions) {
-      auto expression = exprConverter_->toVeloxExpr(partition, inputType);
-      core::FieldAccessTypedExprPtr veloxPartitionKey =
-          std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression);
-      VELOX_USER_CHECK_NOT_NULL(veloxPartitionKey, "Window Group Limit Operator only supports field partition key.");
-      // Constructs unique partition keys.
-      if (keyNames.insert(veloxPartitionKey->name()).second) {
-        partitionKeys.emplace_back(veloxPartitionKey);
-      }
+  std::vector<core::FieldAccessTypedExprPtr> partitionKeys;
+  std::unordered_set<std::string> keyNames;
+  const auto& partitions = windowGroupLimitRel.partition_expressions();
+  partitionKeys.reserve(partitions.size());
+  for (const auto& partition : partitions) {
+    auto expression = exprConverter_->toVeloxExpr(partition, inputType);
+    core::FieldAccessTypedExprPtr veloxPartitionKey =
+        std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression);
+    VELOX_USER_CHECK_NOT_NULL(veloxPartitionKey, "Window Group Limit Operator only supports field partition key.");
+    // Constructs unique partition keys.
+    if (keyNames.insert(veloxPartitionKey->name()).second) {
+      partitionKeys.emplace_back(veloxPartitionKey);
     }
-    std::vector<core::FieldAccessTypedExprPtr> sortingKeys;
-    std::vector<core::SortOrder> sortingOrders;
-    const auto& [rawSortingKeys, rawSortingOrders] = processSortField(windowGroupLimitRel.sorts(), inputType);
-    for (vector_size_t i = 0; i < rawSortingKeys.size(); ++i) {
-      // Constructs unique sort keys and excludes keys overlapped with partition keys.
-      if (keyNames.insert(rawSortingKeys[i]->name()).second) {
-        sortingKeys.emplace_back(rawSortingKeys[i]);
-        sortingOrders.emplace_back(rawSortingOrders[i]);
-      }
+  }
+  std::vector<core::FieldAccessTypedExprPtr> sortingKeys;
+  std::vector<core::SortOrder> sortingOrders;
+  const auto& [rawSortingKeys, rawSortingOrders] = processSortField(windowGroupLimitRel.sorts(), inputType);
+  for (vector_size_t i = 0; i < rawSortingKeys.size(); ++i) {
+    // Constructs unique sort keys and excludes keys overlapped with partition keys.
+    if (keyNames.insert(rawSortingKeys[i]->name()).second) {
+      sortingKeys.emplace_back(rawSortingKeys[i]);
+      sortingOrders.emplace_back(rawSortingOrders[i]);
     }
+  }
   const std::optional<std::string> rowNumberColumnName = std::nullopt;
   return std::make_shared<core::TopNRowNumberNode>(
-          nextPlanNodeId(),
-          partitionKeys,
-          sortingKeys,
-          sortingOrders,
-          rowNumberColumnName,
-          (int32_t)windowGroupLimitRel.limit(),
-          childNode);
+      nextPlanNodeId(),
+      partitionKeys,
+      sortingKeys,
+      sortingOrders,
+      rowNumberColumnName,
+      (int32_t)windowGroupLimitRel.limit(),
+      childNode);
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::SortRel& sortRel) {

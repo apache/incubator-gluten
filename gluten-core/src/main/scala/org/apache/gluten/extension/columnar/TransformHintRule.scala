@@ -39,7 +39,7 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python.EvalPythonExec
-import org.apache.spark.sql.execution.window.WindowExec
+import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.StringType
 
@@ -630,8 +630,9 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan,
               "columnar window group limit is not enabled in WindowGroupLimitExec")
           } else {
-            val windowGroupLimitPlan =
-              SparkShimLoader.getSparkShims.getWindowGroupLimitExecShim(plan)
+            val windowGroupLimitPlan = SparkShimLoader.getSparkShims
+              .getWindowGroupLimitExecShim(plan)
+              .asInstanceOf[WindowGroupLimitExecShim]
             val transformer = WindowGroupLimitExecTransformer(
               windowGroupLimitPlan.partitionSpec,
               windowGroupLimitPlan.orderSpec,

@@ -38,7 +38,7 @@ import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.{FileSourceScanExec, FilterExec, GlobalLimitExec, SparkPlan, TakeOrderedAndProjectExec}
 import org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec
-import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex, WindowGroupLimitExecShim, WriteJobDescription, WriteTaskResult}
+import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex, WriteJobDescription, WriteTaskResult}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
@@ -131,9 +131,9 @@ trait SparkShims {
 
   def isWindowGroupLimitExec(plan: SparkPlan): Boolean = false
 
-  def getWindowGroupLimitExecShim(plan: SparkPlan): WindowGroupLimitExecShim = null
+  def getWindowGroupLimitExecShim(plan: SparkPlan): SparkPlan = null
 
-  def getWindowGroupLimitExec(windowGroupLimitPlan: WindowGroupLimitExecShim): SparkPlan = null
+  def getWindowGroupLimitExec(windowGroupLimitPlan: SparkPlan): SparkPlan = null
 
   def getLimitAndOffsetFromGlobalLimit(plan: GlobalLimitExec): (Int, Int) = (plan.limit, 0)
 

@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.execution.{WindowExecTransformer, WindowGroupLimitExecTransformer}
+
 import org.apache.spark.sql.GlutenSQLTestsTrait
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
