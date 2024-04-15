@@ -858,8 +858,15 @@ uint16_t VeloxShuffleWriter::calculatePartitionBufferSize(const facebook::velox:
   for (size_t i = 0; i < binaryColumnIndices_.size(); ++i) {
     uint64_t binarySizeBytes = 0;
     auto column = rv.childAt(binaryColumnIndices_[i])->asFlatVector<facebook::velox::StringView>();
-    for (auto& buffer : column->stringBuffers()) {
-      binarySizeBytes += buffer->size();
+
+    const auto* srcRawValues = column->rawValues();
+    const auto* srcRawNulls = column->rawNulls();
+
+    for (auto idx = 0; idx < numRows; idx++) {
+      auto& stringView = srcRawValues[idx];
+      size_t isNull = srcRawNulls && facebook::velox::bits::isBitNull(srcRawNulls, idx);
+      auto stringLen = (isNull - 1) & stringView.size();
+      binarySizeBytes += stringLen;
     }
 
     binaryArrayTotalSizeBytes_[i] += binarySizeBytes;
