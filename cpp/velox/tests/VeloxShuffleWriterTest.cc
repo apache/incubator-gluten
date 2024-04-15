@@ -20,7 +20,7 @@
 
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
-#include "shuffle/rss/CelebornPartitionWriter.h"
+#include "shuffle/rss/RssPartitionWriter.h"
 #include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
 #include "utils/tests/MemoryPoolUtils.h"
@@ -73,7 +73,7 @@ std::vector<ShuffleTestParams> createShuffleTestParams() {
         params.push_back(
             ShuffleTestParams{PartitionWriterType::kLocal, compression, compressionThreshold, mergeBufferSize});
       }
-      params.push_back(ShuffleTestParams{PartitionWriterType::kCeleborn, compression, compressionThreshold, 0});
+      params.push_back(ShuffleTestParams{PartitionWriterType::kRss, compression, compressionThreshold, 0});
     }
   }
 

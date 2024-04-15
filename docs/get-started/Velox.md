@@ -101,9 +101,9 @@ cd /path/to/gluten/cpp
 ## compile Gluten java module and create package jar
 cd /path/to/gluten
 # For spark3.2.x
-mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -DskipTests
+mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.2 -DskipTests
 # For spark3.3.x
-mvn clean package -Pbackends-velox -Prss -Pspark-3.3 -DskipTests
+mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.3 -DskipTests
 ```
 
 notes：The compilation of `Velox` using the script of `build_velox.sh` may fail caused by `oom`, you can prevent this failure by using the user command of `export NUM_THREADS=4` before executing the above scripts.
@@ -214,7 +214,7 @@ First refer to this URL(https://github.com/apache/celeborn) to setup a celeborn 
 When compiling the Gluten Java module, it's required to enable `rss` profile, as follows:
 
 ```
-mvn clean package -Pbackends-velox -Pspark-3.3 -Prss -DskipTests
+mvn clean package -Pbackends-velox -Pspark-3.3 -Pceleborn -DskipTests
 ```
 
 Then add the Gluten and Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).

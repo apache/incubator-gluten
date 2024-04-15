@@ -26,14 +26,14 @@
 
 namespace gluten {
 
-class CelebornPartitionWriter final : public RemotePartitionWriter {
+class RssPartitionWriter final : public RemotePartitionWriter {
  public:
-  CelebornPartitionWriter(
+  RssPartitionWriter(
       uint32_t numPartitions,
       PartitionWriterOptions options,
       arrow::MemoryPool* pool,
-      std::shared_ptr<RssClient> celebornClient)
-      : RemotePartitionWriter(numPartitions, std::move(options), pool), celebornClient_(celebornClient) {
+      std::shared_ptr<RssClient> rssClient)
+      : RemotePartitionWriter(numPartitions, std::move(options), pool), rssClient_(rssClient) {
     init();
   }
 
@@ -51,7 +51,7 @@ class CelebornPartitionWriter final : public RemotePartitionWriter {
  private:
   void init();
 
-  std::shared_ptr<RssClient> celebornClient_;
+  std::shared_ptr<RssClient> rssClient_;
 
   std::vector<int64_t> bytesEvicted_;
   std::vector<int64_t> rawPartitionLengths_;

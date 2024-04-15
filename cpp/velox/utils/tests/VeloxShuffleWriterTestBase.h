@@ -53,9 +53,9 @@ std::unique_ptr<PartitionWriter> createPartitionWriter(
     const std::vector<std::string>& localDirs,
     const PartitionWriterOptions& options,
     arrow::MemoryPool* pool) {
-  if (partitionWriterType == PartitionWriterType::kCeleborn) {
+  if (partitionWriterType == PartitionWriterType::kRss) {
     auto rssClient = std::make_unique<LocalRssClient>(dataFile);
-    return std::make_unique<CelebornPartitionWriter>(numPartitions, options, pool, std::move(rssClient));
+    return std::make_unique<RssPartitionWriter>(numPartitions, options, pool, std::move(rssClient));
   }
   return std::make_unique<LocalPartitionWriter>(numPartitions, options, pool, dataFile, localDirs);
 }
