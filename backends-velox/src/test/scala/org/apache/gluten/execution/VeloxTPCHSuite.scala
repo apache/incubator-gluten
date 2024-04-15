@@ -246,7 +246,7 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
   }
 }
 
-class VeloxTPCHMiscSuite extends VeloxTPCHTableSupport {
+class VeloxTPCHDistinctSpillSuite extends VeloxTPCHTableSupport {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.memory.offHeap.size", "50m")
@@ -256,6 +256,12 @@ class VeloxTPCHMiscSuite extends VeloxTPCHTableSupport {
   test("distinct spill") {
     val df = spark.sql("select count(distinct *) from lineitem limit 1")
     TestUtils.compareAnswers(df.collect(), Seq(Row(60175)))
+  }
+}
+
+class VeloxTPCHMiscSuite extends VeloxTPCHTableSupport {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
   }
 
   test("order by limit") {
