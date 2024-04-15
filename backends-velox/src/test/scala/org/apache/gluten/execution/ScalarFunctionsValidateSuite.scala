@@ -764,7 +764,8 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
       runQueryAndCompare("select weekofyear(dt) from t") {
         checkGlutenOperatorMatch[ProjectExecTransformer]
       }
-      runQueryAndCompare("SELECT date_part('yearofweek', dt) from t") {
+      runQueryAndCompare("SELECT date_part('yearofweek', dt), extract(yearofweek from dt)" +
+        " from t") {
         checkGlutenOperatorMatch[ProjectExecTransformer]
       }
     }
