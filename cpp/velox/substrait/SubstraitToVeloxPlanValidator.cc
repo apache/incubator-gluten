@@ -761,7 +761,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowGroupLimit
         LOG_VALIDATION_MSG("in windowGroupLimitRel, the sorting key in Sort Operator only support field.");
         return false;
       }
-    exec::ExprSet exprSet({std::move(expression)}, execCtx_);
+      exec::ExprSet exprSet({std::move(expression)}, execCtx_);
     }
   }
 

@@ -913,7 +913,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
 }
 
-core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::WindowGroupLimitRel& windowGroupLimitRel) {
+core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(
+    const ::substrait::WindowGroupLimitRel& windowGroupLimitRel) {
   core::PlanNodePtr childNode;
   if (windowGroupLimitRel.has_input()) {
     childNode = toVeloxPlan(windowGroupLimitRel.input());
