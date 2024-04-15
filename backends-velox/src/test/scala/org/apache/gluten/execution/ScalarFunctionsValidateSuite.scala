@@ -550,7 +550,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
-  testWithSpecifiedSparkVersion("Test url_decode function", Some("3.4.2")) {
+  testWithSpecifiedSparkVersion("Test url_decode function", Some("3.4")) {
     withTempPath {
       path =>
         Seq("https%3A%2F%2Fspark.apache.org")
@@ -565,7 +565,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
-  testWithSpecifiedSparkVersion("Test url_encode function", Some("3.4.2")) {
+  testWithSpecifiedSparkVersion("Test url_encode function", Some("3.4")) {
     withTempPath {
       path =>
         Seq("https://spark.apache.org")
