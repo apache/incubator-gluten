@@ -16,11 +16,12 @@
  */
 package org.apache.gluten.substrait.rel;
 
+import org.apache.gluten.substrait.extensions.AdvancedExtensionNode;
+
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
 import io.substrait.proto.SortField;
 import io.substrait.proto.TopNRel;
-import org.apache.gluten.substrait.extensions.AdvancedExtensionNode;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -39,7 +40,8 @@ public class TopNNode implements RelNode, Serializable {
     this.extensionNode = null;
   }
 
-  public TopNNode(RelNode input, Long count, List<SortField> sorts, AdvancedExtensionNode extensionNode) {
+  public TopNNode(
+      RelNode input, Long count, List<SortField> sorts, AdvancedExtensionNode extensionNode) {
     this.input = input;
     this.count = count;
     this.sorts.addAll(sorts);

@@ -230,11 +230,7 @@ public class RelBuilder {
   }
 
   public static RelNode makeTopNRel(
-      RelNode input,
-      Long n,
-      List<SortField> sorts,
-      SubstraitContext context,
-      Long operatorId) {
+      RelNode input, Long n, List<SortField> sorts, SubstraitContext context, Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new TopNNode(input, n, sorts);
   }

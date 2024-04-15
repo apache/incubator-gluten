@@ -454,8 +454,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::TopNRel& topNRel
   for (const auto& sortingKey : sortingKeys) {
     auto result = sortingKeyNames.insert(sortingKey->name());
     if (!result.second) {
-      LOG_VALIDATION_MSG(
-          "Duplicate sort keys were found in TopNRel.");
+      LOG_VALIDATION_MSG("Duplicate sort keys were found in TopNRel.");
       return false;
     }
   }
