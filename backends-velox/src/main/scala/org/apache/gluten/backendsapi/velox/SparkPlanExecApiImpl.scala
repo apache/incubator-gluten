@@ -42,7 +42,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, HashPartitioning, Partitioning, RoundRobinPartitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, BroadcastMode, HashPartitioning, Partitioning, RoundRobinPartitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
@@ -764,14 +764,11 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
   }
 
   override def maybeCollapseTakeOrderedAndProject(plan: SparkPlan): SparkPlan = {
+    // This to-top-n optimization assumes exchange operators were already placed.
     plan.transformUp {
       case p @ LimitTransformer(SortExecTransformer(sortOrder, _, child, _), 0, count) =>
-        // Since `maybeCollapseTakeOrderedAndProject` has a fixed caller
-        // (TakeOrderedAndProjectExecTransformer#doExecuteColumnar), we don't have to
-        // set global/local flag for the output top n operator. Since
-        // TakeOrderedAndProjectExecTransformer's execution code is in a way hacky and already
-        // manually placed required exchanges.
-        val topN = TopNTransformer(count, sortOrder, global = false, child);
+        val global = child.outputPartitioning.satisfies(AllTuples)
+        val topN = TopNTransformer(count, sortOrder, global, child)
         if (topN.doValidate().isValid) {
           topN
         } else {
