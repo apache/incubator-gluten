@@ -116,6 +116,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"check_overflow", "checkDecimalOverflowSpark"},
        {"rand", "randCanonical"},
        {"isnan", "isNaN"},
+       {"bin", "sparkBin"},
 
        /// string functions
        {"like", "like"},

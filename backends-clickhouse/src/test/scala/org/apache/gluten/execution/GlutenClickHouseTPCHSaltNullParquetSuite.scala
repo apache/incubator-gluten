@@ -1159,6 +1159,14 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
+  test("test bin function") {
+    runQueryAndCompare("select bin(id - 50) from range (100)")(
+      checkGlutenOperatorMatch[ProjectExecTransformer])
+
+    runQueryAndCompare("select bin(n_nationkey) from nation")(
+      checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
   test("test 'sequence'") {
     runQueryAndCompare(
       "select sequence(id, id+10), sequence(id+10, id), sequence(id, id+10, 3), " +
