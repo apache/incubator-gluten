@@ -1307,4 +1307,15 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     assert(plan1.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
     assert(plan2.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
   }
+
+  test("timestamp broadcast join") {
+    spark.range(0, 5).createOrReplaceTempView("right")
+    spark.sql("SELECT id, timestamp_micros(id) as ts from right").createOrReplaceTempView("left")
+    val expected = spark.sql("SELECT unix_micros(ts) from left")
+    val df = spark.sql(
+      "SELECT unix_micros(ts)" +
+        " FROM left RIGHT OUTER JOIN right ON left.id = right.id")
+    // Verify there is not precision loss for timestamp columns after data broadcast.
+    checkAnswer(df, expected)
+  }
 }

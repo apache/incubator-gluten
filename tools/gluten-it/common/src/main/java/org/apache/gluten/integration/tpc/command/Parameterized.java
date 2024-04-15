@@ -16,8 +16,10 @@
  */
 package org.apache.gluten.integration.tpc.command;
 
+import com.google.common.base.Preconditions;
 import org.apache.gluten.integration.tpc.TpcMixin;
 import org.apache.gluten.integration.tpc.action.Dim;
+import org.apache.gluten.integration.tpc.action.DimKv;
 import org.apache.gluten.integration.tpc.action.DimValue;
 import org.apache.commons.lang3.ArrayUtils;
 import picocli.CommandLine;
@@ -25,12 +27,7 @@ import scala.Tuple2;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -64,12 +61,29 @@ public class Parameterized implements Callable<Integer> {
   @CommandLine.Option(names = {"-d", "--dim"}, description = "Set a series of dimensions consisting of possible config options, example: -d=offheap:1g,spark.memory.offHeap.enabled=true,spark.memory.offHeap.size=1g")
   private String[] dims = new String[0];
 
+  @CommandLine.Option(names = {"--excluded-dims"}, description = "Set a series of comma-separated list of dimension combinations to exclude. Example: --exclude-dims=offheap:1g,aqe=on")
+  private String[] excludedDims = new String[0];
+
   private static final Pattern dimPattern1 = Pattern.compile("([\\w-]+):([^,:]+)((?:,[^=,]+=[^=,]+)+)");
   private static final Pattern dimPattern2 = Pattern.compile("([^,:]+)((?:,[^=,]+=[^=,]+)+)");
 
+  private static final Pattern excludedDimsPattern = Pattern.compile("[\\w-]+:[^,:]+(?:,[\\w-]+:[^,:]+)*");
   @Override
   public Integer call() throws Exception {
     final Map<String, Map<String, List<Map.Entry<String, String>>>> parsed = new HashMap<>();
+
+    final Seq<scala.collection.immutable.Set<DimKv>> excludedCombinations = JavaConverters.asScalaBufferConverter(Arrays.stream(excludedDims).map(d -> {
+      final Matcher m = excludedDimsPattern.matcher(d);
+      Preconditions.checkArgument(m.matches(), "Unrecognizable excluded dims: " + d);
+      Set<DimKv> out = new HashSet<>();
+      final String[] dims = d.split(",");
+      for (String dim : dims) {
+        final String[] kv = dim.split(":");
+        Preconditions.checkArgument(kv.length == 2, "Unrecognizable excluded dims: " + d);
+        out.add(new DimKv(kv[0], kv[1]));
+      }
+      return JavaConverters.asScalaSetConverter(out).asScala().<DimKv>toSet();
+    }).collect(Collectors.toList())).asScala();
 
     // parse dims
     for (String dim : dims) {
@@ -122,7 +136,7 @@ public class Parameterized implements Callable<Integer> {
             )).collect(Collectors.toList())).asScala();
 
     org.apache.gluten.integration.tpc.action.Parameterized parameterized =
-        new org.apache.gluten.integration.tpc.action.Parameterized(dataGenMixin.getScale(), this.queries, excludedQueries, iterations, warmupIterations, parsedDims, metrics);
+        new org.apache.gluten.integration.tpc.action.Parameterized(dataGenMixin.getScale(), this.queries, excludedQueries, iterations, warmupIterations, parsedDims, excludedCombinations, metrics);
     return mixin.runActions(ArrayUtils.addAll(dataGenMixin.makeActions(), parameterized));
   }
 }

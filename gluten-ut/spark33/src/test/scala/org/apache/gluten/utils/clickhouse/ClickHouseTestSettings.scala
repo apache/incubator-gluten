@@ -844,9 +844,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-37967: Literal.create support ObjectType")
   enableSuite[GlutenMathExpressionsSuite]
     .exclude("tanh")
-    .exclude("ceil")
-    .exclude("floor")
-    .exclude("factorial")
     .exclude("rint")
     .exclude("expm1")
     .exclude("bin")

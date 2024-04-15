@@ -19,7 +19,7 @@ package org.apache.gluten.extension.columnar.enumerated
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.columnar._
-import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, TransformPostOverrides, TransformPreOverrides}
+import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, TransformPostOverrides}
 import org.apache.gluten.extension.columnar.util.AdaptiveContext
 import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.gluten.utils.{LogLevelUtil, PhysicalPlanSelector}
@@ -125,7 +125,6 @@ class EnumeratedApplier(session: SparkSession)
         (_: SparkSession) => FallbackBloomFilterAggIfNeeded()
       ) :::
       List(
-        (_: SparkSession) => TransformPreOverrides(List(ImplementFilter()), List.empty),
         (session: SparkSession) => EnumeratedTransform(session, outputsColumnar),
         (_: SparkSession) => RemoveTransitions
       ) :::

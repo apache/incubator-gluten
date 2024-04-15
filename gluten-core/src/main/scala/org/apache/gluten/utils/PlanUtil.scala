@@ -24,7 +24,7 @@ import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.exchange._
 
 object PlanUtil {
-  private def isGlutenTableCacheInternal(i: InMemoryTableScanExec): Boolean = {
+  def isGlutenTableCacheInternal(i: InMemoryTableScanExec): Boolean = {
     // `ColumnarCachedBatchSerializer` is at velox module, so use class name here
     i.relation.cacheBuilder.serializer.getClass.getSimpleName == "ColumnarCachedBatchSerializer" &&
     i.supportsColumnar

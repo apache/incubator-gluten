@@ -550,7 +550,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
-  testWithSpecifiedSparkVersion("Test url_decode function", Some("3.4.2")) {
+  testWithSpecifiedSparkVersion("Test url_decode function", Some("3.4")) {
     withTempPath {
       path =>
         Seq("https%3A%2F%2Fspark.apache.org")
@@ -565,7 +565,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
-  testWithSpecifiedSparkVersion("Test url_encode function", Some("3.4.2")) {
+  testWithSpecifiedSparkVersion("Test url_encode function", Some("3.4")) {
     withTempPath {
       path =>
         Seq("https://spark.apache.org")
@@ -744,6 +744,16 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         runQueryAndCompare("select filter(value, x -> x is not null) as res from array_tbl;") {
           checkGlutenOperatorMatch[ProjectExecTransformer]
         }
+    }
+  }
+
+  test("weekofyear") {
+    withTable("t") {
+      sql("create table t (dt date) using parquet")
+      sql("insert into t values(date '2008-02-20')")
+      runQueryAndCompare("select weekofyear(dt) from t") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
     }
   }
 

@@ -274,8 +274,8 @@ void VeloxShuffleWriter::setPartitionBufferSize(uint16_t newSize) {
 arrow::Result<std::shared_ptr<arrow::Buffer>> VeloxShuffleWriter::generateComplexTypeBuffers(
     facebook::velox::RowVectorPtr vector) {
   auto arena = std::make_unique<facebook::velox::StreamArena>(veloxPool_.get());
-  auto serializer = serde_.createIterativeSerializer(
-      asRowType(vector->type()), vector->size(), arena.get(), /* serdeOptions */ nullptr);
+  auto serializer =
+      serde_.createIterativeSerializer(asRowType(vector->type()), vector->size(), arena.get(), &serdeOptions_);
   const facebook::velox::IndexRange allRows{0, vector->size()};
   serializer->append(vector, folly::Range(&allRows, 1));
   auto serializedSize = serializer->maxSerializedSize();
@@ -736,7 +736,7 @@ arrow::Status VeloxShuffleWriter::splitComplexType(const facebook::velox::RowVec
         arenas_[partition] = std::make_unique<facebook::velox::StreamArena>(veloxPool_.get());
       }
       complexTypeData_[partition] = serde_.createIterativeSerializer(
-          complexWriteType_, partition2RowCount_[partition], arenas_[partition].get(), /* serdeOptions */ nullptr);
+          complexWriteType_, partition2RowCount_[partition], arenas_[partition].get(), &serdeOptions_);
     }
     rowIndexs[partition].emplace_back(facebook::velox::IndexRange{row, 1});
   }
@@ -858,8 +858,15 @@ uint16_t VeloxShuffleWriter::calculatePartitionBufferSize(const facebook::velox:
   for (size_t i = 0; i < binaryColumnIndices_.size(); ++i) {
     uint64_t binarySizeBytes = 0;
     auto column = rv.childAt(binaryColumnIndices_[i])->asFlatVector<facebook::velox::StringView>();
-    for (auto& buffer : column->stringBuffers()) {
-      binarySizeBytes += buffer->size();
+
+    const auto* srcRawValues = column->rawValues();
+    const auto* srcRawNulls = column->rawNulls();
+
+    for (auto idx = 0; idx < numRows; idx++) {
+      auto& stringView = srcRawValues[idx];
+      size_t isNull = srcRawNulls && facebook::velox::bits::isBitNull(srcRawNulls, idx);
+      auto stringLen = (isNull - 1) & stringView.size();
+      binarySizeBytes += stringLen;
     }
 
     binaryArrayTotalSizeBytes_[i] += binarySizeBytes;

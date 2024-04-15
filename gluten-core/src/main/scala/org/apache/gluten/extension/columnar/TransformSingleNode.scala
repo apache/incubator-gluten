@@ -40,12 +40,12 @@ import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
-sealed trait ImplementSingleNode extends Logging {
+sealed trait TransformSingleNode extends Logging {
   def impl(plan: SparkPlan): SparkPlan
 }
 
 // Aggregation transformation.
-case class ImplementAggregate() extends ImplementSingleNode with LogLevelUtil {
+case class TransformAggregate() extends TransformSingleNode with LogLevelUtil {
   override def impl(plan: SparkPlan): SparkPlan = plan match {
     case plan if TransformHints.isNotTransformable(plan) =>
       plan
@@ -107,7 +107,7 @@ case class ImplementAggregate() extends ImplementSingleNode with LogLevelUtil {
 }
 
 // Exchange transformation.
-case class ImplementExchange() extends ImplementSingleNode with LogLevelUtil {
+case class TransformExchange() extends TransformSingleNode with LogLevelUtil {
   override def impl(plan: SparkPlan): SparkPlan = plan match {
     case plan if TransformHints.isNotTransformable(plan) =>
       plan
@@ -131,7 +131,7 @@ case class ImplementExchange() extends ImplementSingleNode with LogLevelUtil {
 }
 
 // Join transformation.
-case class ImplementJoin() extends ImplementSingleNode with LogLevelUtil {
+case class TransformJoin() extends TransformSingleNode with LogLevelUtil {
 
   /**
    * Get the build side supported by the execution of vanilla Spark.
@@ -238,8 +238,8 @@ case class ImplementJoin() extends ImplementSingleNode with LogLevelUtil {
 }
 
 // Filter transformation.
-case class ImplementFilter() extends ImplementSingleNode with LogLevelUtil {
-  import ImplementOthers._
+case class TransformFilter() extends TransformSingleNode with LogLevelUtil {
+  import TransformOthers._
   private val replace = new ReplaceSingleNode()
 
   override def impl(plan: SparkPlan): SparkPlan = plan match {
@@ -251,24 +251,24 @@ case class ImplementFilter() extends ImplementSingleNode with LogLevelUtil {
   /**
    * Generate a plan for filter.
    *
-   * @param plan
+   * @param filter
    *   : the original Spark plan.
    * @return
    *   the actually used plan for execution.
    */
-  private def genFilterExec(plan: FilterExec): SparkPlan = {
-    if (TransformHints.isNotTransformable(plan)) {
-      return plan
+  private def genFilterExec(filter: FilterExec): SparkPlan = {
+    if (TransformHints.isNotTransformable(filter)) {
+      return filter
     }
 
     // FIXME: Filter push-down should be better done by Vanilla Spark's planner or by
     //  a individual rule.
-    val scan = plan.child
     // Push down the left conditions in Filter into FileSourceScan.
-    val newChild: SparkPlan = scan match {
-      case _: FileSourceScanExec | _: BatchScanExec =>
+    val newChild: SparkPlan = filter.child match {
+      case scan @ (_: FileSourceScanExec | _: BatchScanExec) =>
         if (TransformHints.isTransformable(scan)) {
-          val newScan = FilterHandler.applyFilterPushdownToScan(plan)
+          val newScan =
+            FilterHandler.pushFilterToScan(filter.condition, scan)
           newScan match {
             case ts: TransformSupport if ts.doValidate().isValid => ts
             // TODO remove the call
@@ -277,23 +277,23 @@ case class ImplementFilter() extends ImplementSingleNode with LogLevelUtil {
         } else {
           replace.doReplace(scan)
         }
-      case _ => replace.doReplace(plan.child)
+      case _ => replace.doReplace(filter.child)
     }
-    logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+    logDebug(s"Columnar Processing for ${filter.getClass} is currently supported.")
     BackendsApiManager.getSparkPlanExecApiInstance
-      .genFilterExecTransformer(plan.condition, newChild)
+      .genFilterExecTransformer(filter.condition, newChild)
   }
 }
 
 // Other transformations.
-case class ImplementOthers() extends ImplementSingleNode with LogLevelUtil {
-  import ImplementOthers._
+case class TransformOthers() extends TransformSingleNode with LogLevelUtil {
+  import TransformOthers._
   private val replace = new ReplaceSingleNode()
 
   override def impl(plan: SparkPlan): SparkPlan = replace.doReplace(plan)
 }
 
-object ImplementOthers {
+object TransformOthers {
   // Utility to replace single node within transformed Gluten node.
   // Children will be preserved as they are as children of the output node.
   //

@@ -44,14 +44,35 @@ abstract class GlutenQueryTest extends PlanTest {
 
   protected def spark: SparkSession
 
+  def shouldRun(
+      minSparkVersion: Option[String] = None,
+      maxSparkVersion: Option[String] = None): Boolean = {
+    val version = SPARK_VERSION_SHORT.split("\\.")
+    var shouldRun = true
+    if (!minSparkVersion.isEmpty) {
+      val minVersion = minSparkVersion.get.split("\\.");
+      shouldRun =
+        minVersion(0) < version(0) || (minVersion(0) == version(0) && minVersion(1) <= version(1))
+      if (!maxSparkVersion.isEmpty) {
+        val maxVersion = maxSparkVersion.get.split("\\.")
+        shouldRun = shouldRun && (maxVersion(0) > version(0) || maxVersion(0) == version(
+          0) && maxVersion(1) >= version(1))
+      }
+    } else {
+      if (!maxSparkVersion.isEmpty) {
+        val maxVersion = maxSparkVersion.get.split("\\.")
+        shouldRun =
+          maxVersion(0) > version(0) || maxVersion(0) == version(0) && maxVersion(1) >= version(1)
+      }
+    }
+    shouldRun
+  }
+
   def ignore(
       testName: String,
       minSparkVersion: Option[String] = None,
       maxSparkVersion: Option[String] = None)(testFun: => Any): Unit = {
-    if (
-      minSparkVersion.forall(_ <= SPARK_VERSION_SHORT)
-      && maxSparkVersion.forall(_ >= SPARK_VERSION_SHORT)
-    ) {
+    if (shouldRun(minSparkVersion, maxSparkVersion)) {
       ignore(testName) {
         testFun
       }
@@ -62,10 +83,7 @@ abstract class GlutenQueryTest extends PlanTest {
       testName: String,
       minSparkVersion: Option[String] = None,
       maxSparkVersion: Option[String] = None)(testFun: => Any): Unit = {
-    if (
-      minSparkVersion.forall(_ <= SPARK_VERSION_SHORT)
-      && maxSparkVersion.forall(_ >= SPARK_VERSION_SHORT)
-    ) {
+    if (shouldRun(minSparkVersion, maxSparkVersion)) {
       test(testName) {
         testFun
       }

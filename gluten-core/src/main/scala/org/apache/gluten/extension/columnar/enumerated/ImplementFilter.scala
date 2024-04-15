@@ -20,32 +20,17 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.columnar.TransformHints
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 
-object RasImplementAggregate extends RasRule[SparkPlan] {
+object ImplementFilter extends RasRule[SparkPlan] {
   override def shift(node: SparkPlan): Iterable[SparkPlan] = node match {
     case plan if TransformHints.isNotTransformable(plan) => List.empty
-    case agg: HashAggregateExec => shiftAgg(agg)
-    case _ => List.empty
+    case FilterExec(condition, child) =>
+      List(
+        BackendsApiManager.getSparkPlanExecApiInstance
+          .genFilterExecTransformer(condition, child))
+    case _ =>
+      List.empty
   }
-
-  private def shiftAgg(agg: HashAggregateExec): Iterable[SparkPlan] = {
-    List(implement(agg))
-  }
-
-  private def implement(agg: HashAggregateExec): SparkPlan = {
-    BackendsApiManager.getSparkPlanExecApiInstance
-      .genHashAggregateExecTransformer(
-        agg.requiredChildDistributionExpressions,
-        agg.groupingExpressions,
-        agg.aggregateExpressions,
-        agg.aggregateAttributes,
-        agg.initialInputBufferOffset,
-        agg.resultExpressions,
-        agg.child
-      )
-  }
-
   override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)
 }

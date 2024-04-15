@@ -54,7 +54,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     val expressionsMap = ExpressionMappings.expressionsMap
     exprs.map {
       expr => replaceWithExpressionTransformerInternal(expr, attributeSeq, expressionsMap)
-    }.toSeq
+    }
   }
 
   def replaceWithExpressionTransformer(
@@ -85,7 +85,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       udf: ScalaUDF,
       attributeSeq: Seq[Attribute],
       expressionsMap: Map[Class[_], String]): ExpressionTransformer = {
-    if (!udf.udfName.isDefined) {
+    if (udf.udfName.isEmpty) {
       throw new GlutenNotSupportException("UDF name is not found!")
     }
     val substraitExprName = UDFMappings.scalaUDFMap.get(udf.udfName.get)
@@ -493,7 +493,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           replaceWithExpressionTransformerInternal(rand.child, attributeSeq, expressionsMap),
           rand)
-      case _: KnownFloatingPointNormalized | _: NormalizeNaNAndZero | _: PromotePrecision =>
+      case _: NormalizeNaNAndZero | _: PromotePrecision =>
         ChildTransformer(
           replaceWithExpressionTransformerInternal(expr.children.head, attributeSeq, expressionsMap)
         )
@@ -574,6 +574,10 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           extract.get.last,
           add.dataType,
           add.nullable
+        )
+      case e: TaggingExpression =>
+        ChildTransformer(
+          replaceWithExpressionTransformerInternal(e.child, attributeSeq, expressionsMap)
         )
       case e: Transformable =>
         val childrenTransformers =

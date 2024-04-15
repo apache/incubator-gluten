@@ -286,8 +286,16 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
 
 void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left, DB::QueryPlan & right)
 {
+
+    /// After https://github.com/ClickHouse/ClickHouse/pull/61216, We will failed at tryPushDownFilter() in filterPushDown.cpp
+    /// Here is a workaround, refer to chooseJoinAlgorithm() in PlannerJoins.cpp, it always call TableJoin::setRename to
+    /// create aliases for columns in the right table
+    /// By using right table header name sets, so TableJoin::deduplicateAndQualifyColumnNames can do same thing as chooseJoinAlgorithm()
+    ///
+    /// Affected UT fixed bh this workaround:
+    ///    GlutenClickHouseTPCHParquetRFSuite:TPCH Q17, Q19, Q20, Q21
     NameSet left_columns_set;
-    for (const auto & col : left.getCurrentDataStream().header.getNames())
+    for (const auto & col : right.getCurrentDataStream().header.getNames())
     {
         left_columns_set.emplace(col);
     }

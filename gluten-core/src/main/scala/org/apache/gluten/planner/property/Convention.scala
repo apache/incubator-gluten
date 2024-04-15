@@ -17,6 +17,7 @@
 package org.apache.gluten.planner.property
 
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.ColumnarTransitions
 import org.apache.gluten.planner.plan.GlutenPlanModel.GroupLeafExec
 import org.apache.gluten.ras.{Property, PropertyDef}
@@ -24,8 +25,9 @@ import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.PlanUtil
 
-import org.apache.spark.sql.execution.{ColumnarToRowExec, InputAdapter, RowToColumnarExec, SparkPlan, WholeStageCodegenExec}
-import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, QueryStageExec}
+import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AQEShuffleReadExec, QueryStageExec}
+import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
 sealed trait Convention extends Property[SparkPlan] {
@@ -53,14 +55,27 @@ object ConventionDef extends PropertyDef[SparkPlan, Convention] {
   //  convention-propagation. Probably need to refactor getChildrenPropertyRequirements.
   override def getProperty(plan: SparkPlan): Convention = plan match {
     case _: GroupLeafExec => throw new IllegalStateException()
+    case other => conventionOf(other)
+  }
+
+  private def conventionOf(plan: SparkPlan): Convention = plan match {
+    case g: GroupLeafExec => g.propertySet.get(ConventionDef)
     case ColumnarToRowExec(child) => Conventions.ROW_BASED
     case RowToColumnarExec(child) => Conventions.VANILLA_COLUMNAR
     case ColumnarTransitions.ColumnarToRowLike(child) => Conventions.ROW_BASED
     case ColumnarTransitions.RowToColumnarLike(child) => Conventions.GLUTEN_COLUMNAR
-    case p if PlanUtil.outputNativeColumnarData(p) => Conventions.GLUTEN_COLUMNAR
-    case p if PlanUtil.isVanillaColumnarOp(p) => Conventions.VANILLA_COLUMNAR
+    case q: QueryStageExec => conventionOf(q.plan)
+    case r: ReusedExchangeExec => conventionOf(r.child)
+    case a: AdaptiveSparkPlanExec => conventionOf(a.executedPlan)
+    case i: InMemoryTableScanExec => getCacheConvention(i)
+    case p if canPropagateConvention(p) =>
+      val childrenProps = p.children.map(conventionOf).distinct
+      assert(childrenProps.size == 1)
+      childrenProps.head
+    case _: GlutenPlan => Conventions.GLUTEN_COLUMNAR
+    case p if p.supportsColumnar => Conventions.VANILLA_COLUMNAR
     case p if SparkShimLoader.getSparkShims.supportsRowBased(p) => Conventions.ROW_BASED
-    case _ => throw new IllegalStateException()
+    case other => throw new IllegalStateException(s"Unable to get convention of $other")
   }
 
   override def getChildrenConstraints(
@@ -70,21 +85,29 @@ object ConventionDef extends PropertyDef[SparkPlan, Convention] {
     case ColumnarTransitions.ColumnarToRowLike(child) => Seq(Conventions.GLUTEN_COLUMNAR)
     case ColumnarTransitions.RowToColumnarLike(child) => Seq(Conventions.ROW_BASED)
     case p if canPropagateConvention(p) =>
-      plan.children.map(_ => constraint.asInstanceOf[Convention])
-    case _ =>
-      val conv = getProperty(plan)
-      plan.children.map(_ => conv)
+      p.children.map(_ => constraint.asInstanceOf[Convention])
+    case other =>
+      val conv = conventionOf(other)
+      other.children.map(_ => conv)
   }
 
   override def any(): Convention = Conventions.ANY
 
   private def canPropagateConvention(plan: SparkPlan): Boolean = plan match {
     case p: AQEShuffleReadExec => true
-    case p: QueryStageExec => true
-    case p: ReusedExchangeExec => true
     case p: InputAdapter => true
     case p: WholeStageCodegenExec => true
     case _ => false
+  }
+
+  private def getCacheConvention(i: InMemoryTableScanExec): Convention = {
+    if (PlanUtil.isGlutenTableCache(i)) {
+      Conventions.GLUTEN_COLUMNAR
+    } else if (i.supportsColumnar) {
+      Conventions.VANILLA_COLUMNAR
+    } else {
+      Conventions.ROW_BASED
+    }
   }
 }
 

@@ -35,6 +35,7 @@ class Parameterized(
     iterations: Int,
     warmupIterations: Int,
     configDimensions: Seq[Dim],
+    excludedCombinations: Seq[Set[DimKv]],
     metrics: Array[String])
   extends Action {
 
@@ -70,6 +71,16 @@ class Parameterized(
         intermediateConf: Seq[(String, String)]): Unit = {
       if (dimOffset == dimCount) {
         // we got one coordinate
+        excludedCombinations.foreach {
+          ec: Set[DimKv] =>
+            if (ec.forall {
+              kv =>
+                intermediateCoordinates.contains(kv.k) && intermediateCoordinates(kv.k) == kv.v
+            }) {
+              println(s"Coordinate ${Coordinate(intermediateCoordinates)} excluded by $ec.")
+              return
+            }
+        }
         coordinateMap(Coordinate(intermediateCoordinates)) = intermediateConf
         return
       }
@@ -95,6 +106,11 @@ class Parameterized(
     val sessionSwitcher = tpcSuite.sessionSwitcher
     val testConf = tpcSuite.getTestConf()
 
+    println("Prepared coordinates: ")
+    coordinates.toList.map(_._1).zipWithIndex.foreach {
+      case (c, idx) =>
+        println(s"  $idx: $c")
+    }
     coordinates.foreach {
       entry =>
         // register one session per coordinate
@@ -176,6 +192,7 @@ class Parameterized(
   }
 }
 
+case class DimKv(k: String, v: String)
 case class Dim(name: String, dimValues: Seq[DimValue])
 case class DimValue(name: String, conf: Seq[(String, String)])
 case class Coordinate(coordinate: Map[String, String]) // [dim, dim value]
