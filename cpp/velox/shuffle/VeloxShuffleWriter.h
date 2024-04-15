@@ -202,6 +202,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       : ShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), pool),
         veloxPool_(std::move(veloxPool)) {
     arenas_.resize(numPartitions);
+    serdeOptions_.useLosslessTimestamp = true;
   }
 
   arrow::Status init();
@@ -409,6 +410,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
   std::vector<std::unique_ptr<facebook::velox::StreamArena>> arenas_;
   facebook::velox::serializer::presto::PrestoVectorSerde serde_;
+  facebook::velox::serializer::presto::PrestoVectorSerde::PrestoOptions serdeOptions_;
 
   // stat
   enum CpuWallTimingType {
