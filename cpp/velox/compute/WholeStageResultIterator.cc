@@ -22,9 +22,9 @@
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
 
-#ifdef ENABLE_HDFS
-#include "utils/HdfsUtils.h"
-#endif
+// #ifdef ENABLE_HDFS
+// #include "utils/HdfsUtils.h"
+// #endif
 
 using namespace facebook;
 
@@ -68,9 +68,9 @@ WholeStageResultIterator::WholeStageResultIterator(
       scanNodeIds_(scanNodeIds),
       scanInfos_(scanInfos),
       streamIds_(streamIds) {
-#ifdef ENABLE_HDFS
-  gluten::updateHdfsTokens(veloxCfg_.get());
-#endif
+  // #ifdef ENABLE_HDFS
+  //   gluten::updateHdfsTokens(veloxCfg_.get());
+  // #endif
   spillStrategy_ = veloxCfg_->get<std::string>(kSpillStrategy, kSpillStrategyDefaultValue);
   auto spillThreadNum = veloxCfg_->get<uint32_t>(kSpillThreadNum, kSpillThreadNumDefaultValue);
   if (spillThreadNum > 0) {

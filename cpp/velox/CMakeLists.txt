@@ -531,9 +531,9 @@ set(VELOX_SRCS
     utils/Common.cc
     utils/VeloxBatchAppender.cc)
 
-if(ENABLE_HDFS)
-  list(APPEND VELOX_SRCS utils/HdfsUtils.cc)
-endif()
+# if (ENABLE_HDFS)
+#   list(APPEND VELOX_SRCS utils/HdfsUtils.cc)
+# endif ()
 
 if(ENABLE_S3)
   find_package(ZLIB)

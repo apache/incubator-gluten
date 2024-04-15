@@ -39,27 +39,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 5c7bf770a..9f897f577 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -234,10 +234,15 @@ if(VELOX_ENABLE_ABFS)
- endif()
-
- if(VELOX_ENABLE_HDFS)
--  find_library(
--    LIBHDFS3
--    NAMES libhdfs3.so libhdfs3.dylib
--    HINTS "${CMAKE_SOURCE_DIR}/hawq/depends/libhdfs3/_build/src/" REQUIRED)
-+  find_package(libhdfs3)
-+  if(libhdfs3_FOUND AND TARGET HDFS::hdfs3)
-+    set(LIBHDFS3 HDFS::hdfs3)
-+  else()
-+    find_library(
-+      LIBHDFS3
-+      NAMES libhdfs3.so libhdfs3.dylib
-+      HINTS "${CMAKE_SOURCE_DIR}/hawq/depends/libhdfs3/_build/src/" REQUIRED)
-+  endif()
-   add_definitions(-DVELOX_ENABLE_HDFS3)
- endif()
-
-@@ -377,7 +382,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
+@@ -386,7 +391,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
  # for reference. find_package(range-v3)
 
  set_source(gflags)
