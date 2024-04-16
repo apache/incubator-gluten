@@ -419,7 +419,7 @@ class GlutenInsertSuite
       // declarations, if applicable.
       val incompatibleDefault =
         "Failed to execute ALTER TABLE ADD COLUMNS command because the destination " +
-          "table column s has a DEFAULT value with type"
+          "table column `s` has a DEFAULT value"
       Seq(Config("parquet"), Config("parquet", true)).foreach {
         config =>
           withTable("t") {
@@ -468,7 +468,7 @@ class GlutenInsertSuite
       // declarations, if applicable.
       val incompatibleDefault =
         "Failed to execute ALTER TABLE ADD COLUMNS command because the destination " +
-          "table column s has a DEFAULT value with type"
+          "table column `s` has a DEFAULT value"
       Seq(Config("parquet"), Config("parquet", true)).foreach {
         config =>
           withTable("t") {
@@ -565,7 +565,7 @@ class GlutenInsertSuite
       // declarations, if applicable.
       val incompatibleDefault =
         "Failed to execute ALTER TABLE ADD COLUMNS command because the destination " +
-          "table column s has a DEFAULT value with type"
+          "table column `s` has a DEFAULT value"
       Seq(Config("parquet"), Config("parquet", true)).foreach {
         config =>
           withTable("t") {
