@@ -597,7 +597,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite by just removing test timestamp.
     .exclude("test reading unaligned pages - test all types")
   enableSuite[GlutenParquetCompressionCodecPrecedenceSuite]
-    .exclude("Create parquet table with compression")
   enableSuite[GlutenParquetDeltaByteArrayEncodingSuite]
   enableSuite[GlutenParquetDeltaEncodingInteger]
   enableSuite[GlutenParquetDeltaEncodingLong]
@@ -1096,9 +1095,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Merge runtime bloom filters")
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenJoinSuite]
-    // Disable for Spark3.5.
-    .exclude(
-      "SPARK-36612: Support left outer join build left or right outer join build right in shuffled hash join")
     // exclude as it check spark plan
     .exclude("SPARK-36794: Ignore duplicated key when building relation for semi/anti hash join")
     // exclude as it check for SMJ node
