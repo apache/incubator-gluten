@@ -137,6 +137,7 @@ object ExpressionNames {
   final val CEIL = "ceil"
   final val FLOOR = "floor"
   final val EXP = "exp"
+  final val EXPM1 = "expm1"
   final val POWER = "power"
   final val PMOD = "pmod"
   final val ROUND = "round"
