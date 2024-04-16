@@ -71,7 +71,7 @@
       </dependencies>
     </profile>
     <profile>
-      <id>rss</id>
+      <id>celeborn</id>
       <dependencies>
         <dependency>
           <groupId>org.apache.gluten</groupId>
@@ -81,7 +81,7 @@
       </dependencies>
     </profile>
     <profile>
-      <id>rss-uniffle</id>
+      <id>uniffle</id>
       <dependencies>
         <dependency>
           <groupId>org.apache.gluten</groupId>

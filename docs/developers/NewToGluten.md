@@ -120,8 +120,8 @@ To generate a fix for Java/Scala code style, you can run one or more of the belo
 
 For Velox backend:
 ```
-mvn spotless:apply -Pbackends-velox -Prss -Pspark-3.2 -Pspark-ut -DskipTests
-mvn spotless:apply -Pbackends-velox -Prss -Pspark-3.3 -Pspark-ut -DskipTests
+mvn spotless:apply -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.2 -Pspark-ut -DskipTests
+mvn spotless:apply -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.3 -Pspark-ut -DskipTests
 ```
 For Clickhouse backend:
 ```

@@ -124,7 +124,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def isUseUniffleShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
-      .contains("RssShuffleManager")
+      .contains("UniffleShuffleManager")
 
   def enableColumnarShuffle: Boolean = conf.getConf(COLUMNAR_SHUFFLE_ENABLED)
 

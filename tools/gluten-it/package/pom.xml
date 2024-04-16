@@ -95,7 +95,7 @@
 
   <profiles>
     <profile>
-      <id>rss</id>
+      <id>celeborn</id>
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
@@ -119,7 +119,7 @@
       </dependencies>
     </profile>
     <profile>
-      <id>rss-uniffle</id>
+      <id>uniffle</id>
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>

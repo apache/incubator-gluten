@@ -411,28 +411,28 @@ class BacktraceAllocationListener final : public gluten::AllocationListener {
   std::atomic_int64_t backtraceBytes_{1L << 30};
 };
 
-class CelebornClient : public RssClient {
+class JavaRssClient : public RssClient {
  public:
-  CelebornClient(JavaVM* vm, jobject javaCelebornShuffleWriter, jmethodID javaCelebornPushPartitionDataMethod)
-      : vm_(vm), javaCelebornPushPartitionData_(javaCelebornPushPartitionDataMethod) {
+  JavaRssClient(JavaVM* vm, jobject javaRssShuffleWriter, jmethodID javaPushPartitionDataMethod)
+      : vm_(vm), javaPushPartitionData_(javaPushPartitionDataMethod) {
     JNIEnv* env;
     if (vm_->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
       throw gluten::GlutenException("JNIEnv was not attached to current thread");
     }
 
-    javaCelebornShuffleWriter_ = env->NewGlobalRef(javaCelebornShuffleWriter);
+    javaRssShuffleWriter_ = env->NewGlobalRef(javaRssShuffleWriter);
     array_ = env->NewByteArray(1024 * 1024);
     array_ = static_cast<jbyteArray>(env->NewGlobalRef(array_));
   }
 
-  ~CelebornClient() {
+  ~JavaRssClient() {
     JNIEnv* env;
     if (vm_->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
-      LOG(WARNING) << "CelebornClient#~CelebornClient(): "
+      LOG(WARNING) << "JavaRssClient#~JavaRssClient(): "
                    << "JNIEnv was not attached to current thread";
       return;
     }
-    env->DeleteGlobalRef(javaCelebornShuffleWriter_);
+    env->DeleteGlobalRef(javaRssShuffleWriter_);
     jbyte* byteArray = env->GetByteArrayElements(array_, NULL);
     env->ReleaseByteArrayElements(array_, byteArray, JNI_ABORT);
     env->DeleteGlobalRef(array_);
@@ -452,17 +452,16 @@ class CelebornClient : public RssClient {
       array_ = static_cast<jbyteArray>(env->NewGlobalRef(array_));
     }
     env->SetByteArrayRegion(array_, 0, size, reinterpret_cast<jbyte*>(bytes));
-    jint celebornBytesSize =
-        env->CallIntMethod(javaCelebornShuffleWriter_, javaCelebornPushPartitionData_, partitionId, array_, size);
+    jint javaBytesSize = env->CallIntMethod(javaRssShuffleWriter_, javaPushPartitionData_, partitionId, array_, size);
     checkException(env);
-    return static_cast<int32_t>(celebornBytesSize);
+    return static_cast<int32_t>(javaBytesSize);
   }
 
   void stop() override {}
 
  private:
   JavaVM* vm_;
-  jobject javaCelebornShuffleWriter_;
-  jmethodID javaCelebornPushPartitionData_;
+  jobject javaRssShuffleWriter_;
+  jmethodID javaPushPartitionData_;
   jbyteArray array_;
 };
