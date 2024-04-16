@@ -252,6 +252,15 @@ trait SparkPlanExecApi {
     throw new GlutenNotSupportException("filter(on array) is not supported")
   }
 
+  /** Transform array forall to Substrait. */
+  def genArrayForAllTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArrayForAll): ExpressionTransformer = {
+    throw new GlutenNotSupportException("all_match is not supported")
+  }
+
   /** Transform inline to Substrait. */
   def genInlineTransformer(
       substraitExprName: String,
