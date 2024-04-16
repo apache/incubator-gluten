@@ -81,7 +81,8 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     val scanTime = longMetric("scanTime")
     val substraitContext = new SubstraitContext
     val transformContext = doTransform(substraitContext)
-    val outNames = outputAttributes().map(ConverterUtils.genColumnNameWithExprId).asJava
+    val outNames =
+      filteRedundantField(outputAttributes()).map(ConverterUtils.genColumnNameWithExprId).asJava
     val planNode =
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(transformContext.root), outNames)
 
@@ -133,7 +134,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    val output = outputAttributes()
+    val output = filteRedundantField(outputAttributes())
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
     val columnTypeNodes = output.map {
@@ -176,5 +177,22 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       context,
       context.nextOperatorId(this.nodeName))
     TransformContext(output, output, readNode)
+  }
+
+  def filteRedundantField(outputs: Seq[Attribute]): Seq[Attribute] = {
+    var final_output: List[Attribute] = List()
+    val outputList = outputs.toArray
+    for (i <- 0 to outputList.size - 1) {
+      var dup = false
+      for (j <- 0 to i - 1) {
+        if (outputList(i).name == outputList(j).name) {
+          dup = true
+        }
+      }
+      if (!dup) {
+        final_output = final_output :+ outputList(i)
+      }
+    }
+    final_output.toSeq
   }
 }
