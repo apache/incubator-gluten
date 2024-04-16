@@ -95,7 +95,6 @@ object BackendSettings extends BackendSettingsApi {
         structType.simpleString + " is forced to fallback."
     }
     val orcTypeValidatorWithComplexTypeFallback: PartialFunction[StructField, String] = {
-      case StructField(_, ByteType, _, _) => "ByteType not support"
       case StructField(_, arrayType: ArrayType, _, _) =>
         arrayType.simpleString + " is forced to fallback."
       case StructField(_, mapType: MapType, _, _) =>
@@ -136,7 +135,6 @@ object BackendSettings extends BackendSettingsApi {
           ValidationResult.notOk(s"Velox ORC scan is turned off.")
         } else {
           val typeValidator: PartialFunction[StructField, String] = {
-            case StructField(_, ByteType, _, _) => "ByteType not support"
             case StructField(_, arrayType: ArrayType, _, _)
                 if arrayType.elementType.isInstanceOf[StructType] =>
               "StructType as element in ArrayType"
