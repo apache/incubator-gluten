@@ -741,6 +741,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("nested column: Max(top level column) not push down")
     .exclude("nested column: Count(nested sub-field) not push down")
   enableSuite[GlutenParquetCodecSuite]
+    // codec not supported in native
+    .exclude("write and read - file source parquet - codec: lz4_raw")
+    .exclude("write and read - file source parquet - codec: lz4raw")
   enableSuite[GlutenOrcCodecSuite]
   enableSuite[GlutenFileSourceStrategySuite]
     // Plan comparison.
