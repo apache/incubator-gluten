@@ -117,6 +117,7 @@ WriteBufferBuilderFactory & WriteBufferBuilderFactory::instance()
 WriteBufferBuilderPtr WriteBufferBuilderFactory::createBuilder(const String & schema, DB::ContextPtr context)
 {
     auto it = builders.find(schema);
+    std::cout << "createWriterBuilder for " << schema << std::endl;
     if (it == builders.end())
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Not found write buffer builder for {}", schema);
     return it->second(context);
