@@ -54,7 +54,7 @@ class RewriteToDateExpresstionRule(session: SparkSession, conf: SQLConf)
   }
 
   private def visitPlan(plan: LogicalPlan): LogicalPlan = plan match {
-    case project: Project =>
+    case project: Project if canRewrite(project) =>
       val newProjectList = project.projectList.map(expr => visitExpression(expr))
       val newProject = Project(newProjectList, project.child)
       newProject
@@ -82,5 +82,10 @@ class RewriteToDateExpresstionRule(session: SparkSession, conf: SQLConf)
       val newLeft = unixTimestamp.left
       new ParseToDate(newLeft)
     case _ => toDate
+  }
+
+  private def canRewrite(project: Project): Boolean = {
+    project.projectList.exists(
+      expr => expr.isInstanceOf[Alias] && expr.asInstanceOf[Alias].child.isInstanceOf[ParseToDate])
   }
 }
