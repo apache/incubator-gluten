@@ -37,7 +37,7 @@ import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FlushableHas
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
-import org.apache.spark.sql.catalyst.expressions.{Add, Alias, ArrayFilter, ArrayForAll, Ascending, Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, Generator, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, LambdaFunction, Literal, Murmur3Hash, NamedExpression, NaNvl, PosExplode, Round, SortOrder, StringSplit, StringTrim, TryEval, Uuid}
+import org.apache.spark.sql.catalyst.expressions.{Add, Alias, ArrayExists, ArrayFilter, ArrayForAll, Ascending, Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, Generator, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, LambdaFunction, Literal, Murmur3Hash, NamedExpression, NaNvl, PosExplode, Round, SortOrder, StringSplit, StringTrim, TryEval, Uuid}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -212,6 +212,20 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       case LambdaFunction(_, arguments, _) if arguments.size == 2 =>
         throw new GlutenNotSupportException(
           "forall on array with lambda using index argument is not supported yet")
+      case _ => GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
+    }
+  }
+
+  /** Transform array exists to Substrait */
+  override def genArrayExistsTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArrayExists): ExpressionTransformer = {
+    expr.function match {
+      case LambdaFunction(_, arguments, _) if arguments.size == 2 =>
+        throw new GlutenNotSupportException(
+          "exists on array with lambda using index argument is not supported yet")
       case _ => GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
     }
   }

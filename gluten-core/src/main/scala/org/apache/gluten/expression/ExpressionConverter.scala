@@ -621,6 +621,14 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           a
         )
 
+      case a: ArrayExists =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genArrayExistsTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(a.argument, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(a.function, attributeSeq, expressionsMap),
+          a
+        )
+
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,

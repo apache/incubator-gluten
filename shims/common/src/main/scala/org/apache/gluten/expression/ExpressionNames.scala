@@ -246,6 +246,7 @@ object ExpressionNames {
   final val ARRAY_REMOVE = "array_remove"
   final val FILTER = "filter"
   final val ALL_MATCH = "all_match"
+  final val ANY_MATCH = "any_match"
 
   // Map functions
   final val CREATE_MAP = "map"

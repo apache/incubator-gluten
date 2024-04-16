@@ -230,6 +230,7 @@ object ExpressionMappings {
     Sig[ArrayRemove](ARRAY_REMOVE),
     Sig[ArrayFilter](FILTER),
     Sig[ArrayForAll](ALL_MATCH),
+    Sig[ArrayExists](ANY_MATCH),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
