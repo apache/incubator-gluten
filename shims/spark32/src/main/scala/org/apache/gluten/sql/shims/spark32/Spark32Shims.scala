@@ -33,7 +33,7 @@ import org.apache.spark.sql.catalyst.plans.physical.{Distribution, HashClustered
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.execution.{FileSourceScanExec, FilterExec, PartitionedFileUtil, SparkPlan}
+import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.FileFormatWriter.Empty2Null
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
@@ -130,16 +130,18 @@ class Spark32Shims extends SparkShims {
       valueExpression: Expression): BinaryExpression =
     throw new UnsupportedOperationException()
 
-  override def replaceMightContain[T](
-      filter: FilterExec,
-      mightContainReplacer: (Expression, Expression) => BinaryExpression,
+  override def replaceBloomFilterAggregate[T](
+      expr: Expression,
       bloomFilterAggReplacer: (
           Expression,
           Expression,
           Expression,
           Int,
-          Int) => TypedImperativeAggregate[T]): FilterExec =
-    filter
+          Int) => TypedImperativeAggregate[T]): Expression = expr
+
+  override def replaceMightContain[T](
+      expr: Expression,
+      mightContainReplacer: (Expression, Expression) => BinaryExpression): Expression = expr
 
   override def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
     List(session => GlutenParquetWriterInjects.getInstance().getExtendedColumnarPostRule(session))

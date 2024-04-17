@@ -39,7 +39,6 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Scan}
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
@@ -169,54 +168,35 @@ class Spark34Shims extends SparkShims {
     BloomFilterMightContain(bloomFilterExpression, valueExpression)
   }
 
-  override def replaceMightContain[T](
-      filter: FilterExec,
-      mightContainReplacer: (Expression, Expression) => BinaryExpression,
+  override def replaceBloomFilterAggregate[T](
+      expr: Expression,
       bloomFilterAggReplacer: (
           Expression,
           Expression,
           Expression,
           Int,
-          Int) => TypedImperativeAggregate[T]): FilterExec = {
+          Int) => TypedImperativeAggregate[T]): Expression = expr match {
+    case BloomFilterAggregate(
+          child,
+          estimatedNumItemsExpression,
+          numBitsExpression,
+          mutableAggBufferOffset,
+          inputAggBufferOffset) =>
+      bloomFilterAggReplacer(
+        child,
+        estimatedNumItemsExpression,
+        numBitsExpression,
+        mutableAggBufferOffset,
+        inputAggBufferOffset)
+    case other => other
+  }
 
-    def replaceSingleOp(p: SparkPlan): SparkPlan = {
-      p.transformExpressions {
-        case BloomFilterMightContain(bloomFilterExpression, valueExpression) =>
-          mightContainReplacer(bloomFilterExpression, valueExpression)
-        case BloomFilterAggregate(
-              child,
-              estimatedNumItemsExpression,
-              numBitsExpression,
-              mutableAggBufferOffset,
-              inputAggBufferOffset) =>
-          bloomFilterAggReplacer(
-            child,
-            estimatedNumItemsExpression,
-            numBitsExpression,
-            mutableAggBufferOffset,
-            inputAggBufferOffset)
-      }
-    }
-
-    def replaceAqeAware(plan: SparkPlan): SparkPlan = plan.transform {
-      case p: AdaptiveSparkPlanExec =>
-        p.copy(inputPlan = replaceAqeAware(p.executedPlan))
-      case p => replaceSingleOp(p)
-    }
-
-    def replace0(plan: SparkPlan): SparkPlan = {
-      // The following call only expands one single layer
-      // of sub-query.
-      replaceSingleOp(
-        plan
-          .transformExpressions {
-            case planExpression: PlanExpression[SparkPlan] =>
-              val newPlan = replaceAqeAware(planExpression.plan)
-              planExpression.withNewPlan(newPlan)
-          })
-    }
-
-    replace0(filter).asInstanceOf[FilterExec]
+  override def replaceMightContain[T](
+      expr: Expression,
+      mightContainReplacer: (Expression, Expression) => BinaryExpression): Expression = expr match {
+    case BloomFilterMightContain(bloomFilterExpression, valueExpression) =>
+      mightContainReplacer(bloomFilterExpression, valueExpression)
+    case other => other
   }
 
   override def generateMetadataColumns(

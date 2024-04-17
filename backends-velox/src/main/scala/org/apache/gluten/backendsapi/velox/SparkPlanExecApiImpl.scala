@@ -33,7 +33,7 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.ShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FlushableHashAggregateRule, FunctionIdentifier}
+import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, BloomFilterMightContainJointRewriteRule, FlushableHashAggregateRule, FunctionIdentifier}
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
@@ -63,6 +63,7 @@ import javax.ws.rs.core.UriBuilder
 import java.lang.{Long => JLong}
 import java.util.{Map => JMap}
 
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 class SparkPlanExecApiImpl extends SparkPlanExecApi {
@@ -262,15 +263,6 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
   override def genFilterExecTransformer(
       condition: Expression,
       child: SparkPlan): FilterExecTransformerBase = {
-    if (GlutenConfig.getConf.enableNativeBloomFilter) {
-      val from = FilterExec(condition, child)
-      val to = SparkShimLoader.getSparkShims.replaceMightContain(
-        from,
-        VeloxBloomFilterMightContain.apply,
-        VeloxBloomFilterAggregate.apply)
-      return FilterExecTransformer(to.condition, to.child)
-    }
-
     FilterExecTransformer(condition, child)
   }
 
@@ -684,8 +676,12 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] =
-    List(AggregateFunctionRewriteRule)
+  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = {
+    val buf = mutable.ListBuffer[SparkSession => Rule[LogicalPlan]]()
+    buf += AggregateFunctionRewriteRule.apply
+    buf += BloomFilterMightContainJointRewriteRule.apply
+    buf.toList
+  }
 
   /**
    * Generate extended columnar pre-rules, in the validation phase.
