@@ -155,6 +155,11 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
     }
   }
 
+  def clearDataPath(dataPath: String): Unit = {
+    val dataPathDir = new File(dataPath)
+    if (dataPathDir.exists()) FileUtils.forceDelete(dataPathDir)
+  }
+
   override def beforeAll(): Unit = {
     // prepare working paths
     val basePathDir = new File(basePath)
