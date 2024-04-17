@@ -378,6 +378,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def awsSdkLogLevel: String = conf.getConf(AWS_SDK_LOG_LEVEL)
 
   def enableCastAvgAggregateFunction: Boolean = conf.getConf(COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED)
+
+  def onHeapMemorySize: Long = conf.getConf(COLUMNAR_ONHEAP_SIZE_IN_BYTES)
+
+  def dynamicOffHeapSizingEnabled: Boolean =
+    conf.getConf(DYNAMIC_OFFHEAP_SIZING_ENABLED)
 }
 
 object GlutenConfig {
@@ -449,6 +454,7 @@ object GlutenConfig {
   val GLUTEN_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend."
 
   // Private Spark configs.
+  val GLUTEN_ONHEAP_SIZE_KEY = "spark.executor.memory"
   val GLUTEN_OFFHEAP_SIZE_KEY = "spark.memory.offHeap.size"
   val GLUTEN_OFFHEAP_ENABLED = "spark.memory.offHeap.enabled"
 
@@ -480,6 +486,7 @@ object GlutenConfig {
   val GLUTEN_DEBUG_KEEP_JNI_WORKSPACE = "spark.gluten.sql.debug.keepJniWorkspace"
 
   // Added back to Spark Conf during executor initialization
+  val GLUTEN_ONHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.onHeap.size.in.bytes"
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
   val GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.task.offHeap.size.in.bytes"
   val GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY =
@@ -523,6 +530,8 @@ object GlutenConfig {
   val GLUTEN_UGI_TOKENS = "spark.gluten.ugi.tokens"
 
   val GLUTEN_UI_ENABLED = "spark.gluten.ui.enabled"
+
+  val GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED = "spark.gluten.memory.dynamic.offHeap.sizing.enabled"
 
   var ins: GlutenConfig = _
 
@@ -1758,4 +1767,21 @@ object GlutenConfig {
       .internal()
       .booleanConf
       .createWithDefault(true)
+
+  val DYNAMIC_OFFHEAP_SIZING_ENABLED =
+    buildConf(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED)
+      .internal()
+      .doc("Enable using free on-heap memory as off-heap memory.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_ONHEAP_SIZE_IN_BYTES =
+    buildConf(GlutenConfig.GLUTEN_ONHEAP_SIZE_IN_BYTES_KEY)
+      .internal()
+      .doc(
+        "Must provide default value since non-execution operations " +
+          "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
+          "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("0")
 }
