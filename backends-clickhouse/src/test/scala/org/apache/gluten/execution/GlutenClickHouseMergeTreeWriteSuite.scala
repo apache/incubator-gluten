@@ -50,12 +50,7 @@ class GlutenClickHouseMergeTreeWriteSuite
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.user_defined_path",
-        "/tmp/user_defined")
       .set("spark.sql.files.maxPartitionBytes", "20000000")
-      .set("spark.ui.enabled", "true")
       .set(
         "spark.gluten.sql.columnar.backend.ch.runtime_settings.min_insert_block_size_rows",
         "100000")
@@ -890,7 +885,7 @@ class GlutenClickHouseMergeTreeWriteSuite
          |USING clickhouse
          |PARTITIONED BY (l_shipdate)
          |CLUSTERED BY (l_orderkey)
-         |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_orderkey, l_returnflag)"} INTO 4 BUCKETS
+         |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_partkey, l_returnflag)"} INTO 4 BUCKETS
          |LOCATION '$basePath/lineitem_mergetree_bucket'
          |""".stripMargin)
 
@@ -946,7 +941,7 @@ class GlutenClickHouseMergeTreeWriteSuite
               .orderByKeyOption
               .get
               .mkString(",")
-              .equals("l_orderkey,l_returnflag"))
+              .equals("l_partkey,l_returnflag"))
         }
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.isEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size == 1)
@@ -1175,7 +1170,7 @@ class GlutenClickHouseMergeTreeWriteSuite
          |USING clickhouse
          |PARTITIONED BY (l_shipdate)
          |CLUSTERED BY (l_orderkey)
-         |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_orderkey, l_returnflag)"} INTO 4 BUCKETS
+         |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_partkey, l_returnflag)"} INTO 4 BUCKETS
          |LOCATION '$basePath/lineitem_mergetree_ctas2'
          | as select * from lineitem
          |""".stripMargin)

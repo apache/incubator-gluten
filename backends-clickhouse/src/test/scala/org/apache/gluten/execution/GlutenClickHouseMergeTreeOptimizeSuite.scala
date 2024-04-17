@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
 import java.io.File
@@ -360,5 +361,66 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     }
   }
 
+  // TODO: support later
+  ignore("test mergetree optimize with the path based table") {
+    val dataPath = s"$basePath/lineitem_mergetree_optimize_p1"
+    clearDataPath(dataPath)
+    withSQLConf("spark.databricks.delta.optimize.minFileSize" -> "838000") {
+      // 3 from 37 parts are larger than this, so after optimize there should be 4 parts:
+      // 3 original parts and 1 merged part
+
+      val sourceDF = spark.sql(s"""
+                                  |select * from lineitem
+                                  |""".stripMargin)
+
+      sourceDF.write
+        .format("clickhouse")
+        .mode(SaveMode.Append)
+        .save(dataPath)
+
+      spark.sql(s"optimize clickhouse.`$dataPath`")
+
+      spark.sql("set spark.gluten.enabled=false")
+      spark.sql("VACUUM clickhouse.`${dataPath}` RETAIN 0 HOURS")
+      spark.sql("VACUUM clickhouse.`${dataPath}` RETAIN 0 HOURS")
+      spark.sql("set spark.gluten.enabled=true")
+      assert(countFiles(new File(dataPath)) == 99)
+
+      val ret = spark.sql("select count(*) from clickhouse.`${dataPath}`").collect()
+      assert(ret.apply(0).get(0) == 600572)
+    }
+
+    withSQLConf(
+      ("spark.databricks.delta.optimize.maxFileSize" -> "10000000"),
+      ("spark.databricks.delta.optimize.minFileSize" -> "838250")) {
+      // of the remaing 3 original parts, 2 are less than 838250, 1 is larger (size 838255)
+      // the merged part is ~27MB, so after optimize there should be 3 parts:
+      // 1 merged part from 2 original parts, 1 merged part from 34 original parts
+      // and 1 original part (size 838255)
+
+      spark.sql("optimize clickhouse.`${dataPath}`")
+
+      spark.sql("set spark.gluten.enabled=false")
+      spark.sql("VACUUM clickhouse.`${dataPath}` RETAIN 0 HOURS")
+      spark.sql("VACUUM clickhouse.`${dataPath}` RETAIN 0 HOURS")
+      spark.sql("set spark.gluten.enabled=true")
+      assert(countFiles(new File(dataPath)) == 93)
+
+      val ret = spark.sql("select count(*) from clickhouse.`${dataPath}`").collect()
+      assert(ret.apply(0).get(0) == 600572)
+    }
+
+    // now merge all parts (testing merging from merged parts)
+    spark.sql("optimize clickhouse.`${dataPath}`")
+
+    spark.sql("set spark.gluten.enabled=false")
+    spark.sql("VACUUM clickhouse.`${dataPath}` RETAIN 0 HOURS")
+    spark.sql("VACUUM clickhouse.`${dataPath}` RETAIN 0 HOURS")
+    spark.sql("set spark.gluten.enabled=true")
+    assert(countFiles(new File(dataPath)) == 77)
+
+    val ret = spark.sql("select count(*) from clickhouse.`${dataPath}`").collect()
+    assert(ret.apply(0).get(0) == 600572)
+  }
 }
 // scalastyle:off line.size.limit

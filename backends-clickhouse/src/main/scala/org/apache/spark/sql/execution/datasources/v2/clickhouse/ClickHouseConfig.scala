@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution.datasources.v2.clickhouse
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
+import org.apache.spark.sql.connector.catalog.TableCatalog
 
 import java.util
 
@@ -29,6 +30,7 @@ object ClickHouseConfig {
   val ALT_NAME = "clickhouse"
   val METADATA_DIR = "_delta_log"
   val DEFAULT_ENGINE = "MergeTree"
+  val OPT_NAME_PREFIX = "clickhouse."
 
   @deprecated
   // Whether to use MergeTree DataSource V2 API, default is false, fall back to V1.
@@ -42,9 +44,10 @@ object ClickHouseConfig {
   /** Create a mergetree configurations and returns the normalized key -> value map. */
   def createMergeTreeConfigurations(
       allProperties: util.Map[String, String],
-      buckets: Option[BucketSpec]): Map[String, String] = {
+      buckets: Option[BucketSpec] = None): Map[String, String] = {
     val configurations = scala.collection.mutable.Map[String, String]()
     allProperties.asScala.foreach(configurations += _)
+    configurations.put(TableCatalog.PROP_PROVIDER, ClickHouseConfig.NAME)
     if (!configurations.contains("metadata_path")) {
       configurations += ("metadata_path" -> METADATA_DIR)
     }
@@ -71,9 +74,19 @@ object ClickHouseConfig {
       configurations += ("numBuckets" -> bucketSpec.numBuckets.toString)
       configurations += ("bucketColumnNames" -> bucketSpec.bucketColumnNames.mkString(","))
       if (bucketSpec.sortColumnNames.nonEmpty) {
-        configurations += ("sortColumnNames" -> bucketSpec.sortColumnNames.mkString(","))
+        configurations += ("orderByKey" -> bucketSpec.sortColumnNames.mkString(","))
       }
     }
     configurations.toMap
+  }
+
+  /** Get the related clickhouse option when using DataFrameWriter / DataFrameReader */
+  def getMergeTreeConfigurations(
+      properties: util.Map[String, String]
+  ): Map[String, String] = {
+    properties.asScala
+      .filterKeys(_.startsWith(OPT_NAME_PREFIX))
+      .map(x => (x._1.substring(OPT_NAME_PREFIX.length), x._2))
+      .toMap
   }
 }

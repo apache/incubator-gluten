@@ -442,7 +442,7 @@ class DeltaLog private (
 
     val fileIndex =
       TahoeLogFileIndex(spark, this, dataPath, snapshotToUse, partitionFilters, isTimeTravelQuery)
-    var bucketSpec: Option[BucketSpec] = None
+    var bucketSpec: Option[BucketSpec] = ClickHouseTableV2.getTable(this).bucketOption
     new HadoopFsRelation(
       fileIndex,
       partitionSchema =
