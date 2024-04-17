@@ -37,12 +37,12 @@ import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FlushableHas
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
-import org.apache.spark.sql.catalyst.expressions.{Add, Alias, ArrayFilter, Ascending, Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, Generator, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, LambdaFunction, Literal, Murmur3Hash, NamedExpression, NaNvl, PosExplode, Round, SortOrder, StringSplit, StringTrim, TryEval, Uuid}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
+import org.apache.spark.sql.catalyst.expressions.{Add, Alias, ArrayFilter, Ascending, Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, Generator, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, LambdaFunction, Literal, Murmur3Hash, NamedExpression, NaNvl, PosExplode, Round, SortOrder, StringSplit, StringTrim, TryEval, Uuid, VeloxBloomFilterMightContain}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter, VeloxBloomFilterAggregate}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, BroadcastMode, HashPartitioning, Partitioning, RoundRobinPartitioning}
+import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
@@ -261,7 +261,18 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
    */
   override def genFilterExecTransformer(
       condition: Expression,
-      child: SparkPlan): FilterExecTransformerBase = FilterExecTransformer(condition, child)
+      child: SparkPlan): FilterExecTransformerBase = {
+    if (GlutenConfig.getConf.enableNativeBloomFilter) {
+      val from = FilterExec(condition, child)
+      val to = SparkShimLoader.getSparkShims.replaceMightContain(
+        from,
+        VeloxBloomFilterMightContain.apply,
+        VeloxBloomFilterAggregate.apply)
+      return FilterExecTransformer(to.condition, to.child)
+    }
+
+    FilterExecTransformer(condition, child)
+  }
 
   /** Generate HashAggregateExecTransformer. */
   override def genHashAggregateExecTransformer(
@@ -720,7 +731,9 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       Sig[HLLAdapter](ExpressionNames.APPROX_DISTINCT),
       Sig[UDFExpression](ExpressionNames.UDF_PLACEHOLDER),
       Sig[UserDefinedAggregateFunction](ExpressionNames.UDF_PLACEHOLDER),
-      Sig[NaNvl](ExpressionNames.NANVL)
+      Sig[NaNvl](ExpressionNames.NANVL),
+      Sig[VeloxBloomFilterMightContain](ExpressionNames.MIGHT_CONTAIN),
+      Sig[VeloxBloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG)
     )
   }
 

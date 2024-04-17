@@ -26,13 +26,14 @@ import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BinaryExpression, Expression}
+import org.apache.spark.sql.catalyst.expressions.aggregate.TypedImperativeAggregate
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{Distribution, HashClusteredDistribution}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
+import org.apache.spark.sql.execution.{FileSourceScanExec, FilterExec, PartitionedFileUtil, SparkPlan}
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.FileFormatWriter.Empty2Null
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
@@ -116,10 +117,29 @@ class Spark32Shims extends SparkShims {
       @transient locations: Array[String] = Array.empty): PartitionedFile =
     PartitionedFile(partitionValues, filePath, start, length, locations)
 
-  override def hasBloomFilterAggregate(
-      agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec): Boolean = false
+  override def newBloomFilterAggregate[T](
+      child: Expression,
+      estimatedNumItemsExpression: Expression,
+      numBitsExpression: Expression,
+      mutableAggBufferOffset: Int,
+      inputAggBufferOffset: Int): TypedImperativeAggregate[T] =
+    throw new UnsupportedOperationException()
 
-  override def extractSubPlanFromMightContain(expr: Expression): Option[SparkPlan] = None
+  override def newMightContain(
+      bloomFilterExpression: Expression,
+      valueExpression: Expression): BinaryExpression =
+    throw new UnsupportedOperationException()
+
+  override def replaceMightContain[T](
+      filter: FilterExec,
+      mightContainReplacer: (Expression, Expression) => BinaryExpression,
+      bloomFilterAggReplacer: (
+          Expression,
+          Expression,
+          Expression,
+          Int,
+          Int) => TypedImperativeAggregate[T]): FilterExec =
+    filter
 
   override def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
     List(session => GlutenParquetWriterInjects.getInstance().getExtendedColumnarPostRule(session))

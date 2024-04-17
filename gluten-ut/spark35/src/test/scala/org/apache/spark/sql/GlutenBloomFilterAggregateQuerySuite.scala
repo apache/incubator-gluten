@@ -97,7 +97,7 @@ class GlutenBloomFilterAggregateQuerySuite
           df.queryExecution.executedPlan
         )
       }
-      if (BackendsApiManager.getSettings.enableBloomFilterAggFallbackRule()) {
+      if (BackendsApiManager.getSettings.requireBloomFilterAggMightContainJointFallback()) {
         withSQLConf(
           GlutenConfig.COLUMNAR_FILTER_ENABLED.key -> "false"
         ) {
