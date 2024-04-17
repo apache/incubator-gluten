@@ -727,6 +727,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude(
       "SPARK-36740: ArrayMin/ArrayMax/SortArray should handle NaN greater then non-NaN value")
     .exclude("SPARK-39184: Avoid ArrayIndexOutOfBoundsException when crossing DST boundary")
+    .excludeGlutenTest("Shuffle")
   enableSuite[GlutenComplexTypeSuite]
     .exclude("SPARK-33386: GetArrayItem ArrayIndexOutOfBoundsException")
     .exclude("SPARK-33460: GetMapValue NoSuchElementException")

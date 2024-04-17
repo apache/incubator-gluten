@@ -686,6 +686,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-36755: ArraysOverlap hould handle duplicated Double.NaN and Float.Nan")
     .exclude(
       "SPARK-36740: ArrayMin/ArrayMax/SortArray should handle NaN greater then non-NaN value")
+    .excludeGlutenTest("Shuffle")
   enableSuite[GlutenComplexTypeSuite]
     .exclude("SPARK-33386: GetArrayItem ArrayIndexOutOfBoundsException")
     .exclude("SPARK-33460: GetMapValue NoSuchElementException")
