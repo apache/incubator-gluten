@@ -27,6 +27,7 @@
 #include "velox/functions/prestosql/window/WindowFunctionsRegistration.h"
 #include "velox/functions/sparksql/Bitwise.h"
 #include "velox/functions/sparksql/Hash.h"
+#include "velox/functions/sparksql/Rand.h"
 #include "velox/functions/sparksql/Register.h"
 #include "velox/functions/sparksql/aggregates/Register.h"
 #include "velox/functions/sparksql/window/WindowFunctionsRegistration.h"
@@ -43,6 +44,12 @@ void registerFunctionOverwrite() {
   velox::registerFunction<RoundFunction, int64_t, int64_t, int32_t>({"round"});
   velox::registerFunction<RoundFunction, double, double, int32_t>({"round"});
   velox::registerFunction<RoundFunction, float, float, int32_t>({"round"});
+  // To fix conflict issues in registered functions.
+  // TODO: the below rand function registry can be removed after presto function registry is removed.
+  const std::string prefix = "spark_";
+  registerFunction<RandFunction, double>({prefix + "rand"});
+  registerFunction<RandFunction, double, Constant<int32_t>>({prefix + "rand"});
+  registerFunction<RandFunction, double, Constant<int64_t>>({prefix + "rand"});
 
   velox::exec::registerVectorFunction(
       "row_constructor_with_null",
@@ -52,6 +59,7 @@ void registerFunctionOverwrite() {
   velox::exec::registerFunctionCallToSpecialForm(
       RowConstructorWithNullCallToSpecialForm::kRowConstructorWithNull,
       std::make_unique<RowConstructorWithNullCallToSpecialForm>());
+  // TODO: the below function registry can be removed after presto function registry is removed.
   velox::functions::sparksql::registerBitwiseFunctions("spark_");
 }
 } // namespace
