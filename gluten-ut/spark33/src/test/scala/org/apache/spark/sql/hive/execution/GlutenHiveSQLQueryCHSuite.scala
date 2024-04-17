@@ -16,6 +16,9 @@
  */
 package org.apache.spark.sql.hive.execution
 
+import org.apache.gluten.GlutenConfig
+import org.apache.gluten.utils.SystemParameters
+
 import org.apache.spark.{DebugFilesystem, SparkConf}
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.TableIdentifier
@@ -26,6 +29,7 @@ class GlutenHiveSQLQueryCHSuite extends GlutenHiveSQLQuerySuiteBase {
   override def sparkConf: SparkConf = {
     defaultSparkConf
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
+      .set(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.default.parallelism", "1")
       .set("spark.memory.offHeap.enabled", "true")
@@ -101,17 +105,12 @@ class GlutenHiveSQLQueryCHSuite extends GlutenHiveSQLQuerySuiteBase {
   }
 
   testGluten("4990: dynamic partition may lose data") {
-    val testHdfs = classOf[DebugFilesystem].getName
     withSQLConf(
-      "spark.gluten.sql.columnar.backend.lib" -> "ch",
       "spark.sql.hive.convertMetastoreParquet" -> "false",
       "spark.gluten.sql.complexType.scan.fallback.enabled" -> "false",
       "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_parquet_max_block_size"
         -> "1",
-      "spark.default.parallelism" -> "1",
-      "hive.exec.dynamic.partition.mode" -> "nonstrict",
-      "spark.sql.storeAssignmentPolicy" -> "legacy",
-      "spark.hadoop.fs.file.impl" -> testHdfs
+      "hive.exec.dynamic.partition.mode" -> "nonstrict"
     ) {
       sql("DROP TABLE IF EXISTS test_4990_0;")
       sql("DROP TABLE IF EXISTS test_4990_1;")
