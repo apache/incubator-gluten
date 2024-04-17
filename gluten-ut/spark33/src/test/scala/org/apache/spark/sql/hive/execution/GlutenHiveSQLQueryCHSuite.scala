@@ -30,6 +30,7 @@ class GlutenHiveSQLQueryCHSuite extends GlutenHiveSQLQuerySuiteBase {
     defaultSparkConf
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .set(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
+      .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.default.parallelism", "1")
       .set("spark.memory.offHeap.enabled", "true")
