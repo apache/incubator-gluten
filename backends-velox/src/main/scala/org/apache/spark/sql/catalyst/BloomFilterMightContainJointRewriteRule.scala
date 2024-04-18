@@ -29,8 +29,7 @@ case class BloomFilterMightContainJointRewriteRule(spark: SparkSession) extends 
   override def apply(plan: LogicalPlan): LogicalPlan = {
     if (
       !(GlutenConfig.getConf.enableNativeBloomFilter &&
-        GlutenConfig.getConf.enableColumnarHashAgg &&
-        GlutenConfig.getConf.enableColumnarFilter)
+        GlutenConfig.getConf.enableColumnarHashAgg)
     ) {
       return plan
     }
