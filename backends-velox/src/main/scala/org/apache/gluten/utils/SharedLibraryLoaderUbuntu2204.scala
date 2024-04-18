@@ -44,7 +44,7 @@ class SharedLibraryLoaderUbuntu2204 extends SharedLibraryLoader {
       .loadAndCreateLink("libgsasl.so.7", "libgsasl.so", false)
       .loadAndCreateLink("libprotobuf.so.32", "libprotobuf.so", false)
       .loadAndCreateLink("libxml2.so.2", "libxml2.so", false)
-      .loadAndCreateLink("libhdfs3.so.1", "libhdfs3.so", false)
+      .loadAndCreateLink("libhdfs.so.0.0.0", "libhdfs.so", false)
       .loadAndCreateLink("libre2.so.9", "libre2.so", false)
       .loadAndCreateLink("libsnappy.so.1", "libsnappy.so", false)
       .loadAndCreateLink("libthrift-0.16.0.so", "libthrift.so", false)
