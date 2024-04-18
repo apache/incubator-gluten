@@ -181,6 +181,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
 
        // array functions
        {"array", "array"},
+       {"shuffle", "arrayShuffle"},
        {"range", "range"}, /// dummy mapping
 
        // map functions

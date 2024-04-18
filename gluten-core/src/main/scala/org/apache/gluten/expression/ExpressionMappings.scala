@@ -229,6 +229,7 @@ object ExpressionMappings {
     Sig[ArrayRepeat](ARRAY_REPEAT),
     Sig[ArrayRemove](ARRAY_REMOVE),
     Sig[ArrayFilter](FILTER),
+    Sig[Shuffle](SHUFFLE),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
