@@ -153,7 +153,7 @@ object RowToVeloxColumnarExec {
         }
         val rowLength = new ListBuffer[Long]()
         var rowCount = 0
-        var offset = 0
+        var offset = 0L
         val sizeInBytes = row.getSizeInBytes
         // allocate buffer based on 1st row, but if first row is very big, this will cause OOM
         // maybe we should optimize to list ArrayBuf to native to avoid buf close and allocate
@@ -182,7 +182,7 @@ object RowToVeloxColumnarExec {
             val unsafeRow = convertToUnsafeRow(row)
             val sizeInBytes = unsafeRow.getSizeInBytes
             if ((offset + sizeInBytes) > arrowBuf.capacity()) {
-              val tmpBuf = arrowAllocator.buffer(((offset + sizeInBytes) * 2).toLong)
+              val tmpBuf = arrowAllocator.buffer((offset + sizeInBytes) * 2)
               tmpBuf.setBytes(0, arrowBuf, 0, offset)
               arrowBuf.close()
               arrowBuf = tmpBuf
