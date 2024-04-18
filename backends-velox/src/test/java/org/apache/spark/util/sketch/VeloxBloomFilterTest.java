@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.util.sketch;
 
 import org.apache.gluten.backendsapi.ListenerApi;
 import org.apache.gluten.backendsapi.velox.ListenerApiImpl;
 import org.apache.gluten.vectorized.JniWorkspace;
+
 import org.apache.spark.SparkConf;
 import org.apache.spark.util.TaskResources$;
 import org.junit.BeforeClass;
@@ -40,9 +40,10 @@ public class VeloxBloomFilterTest {
   @Test
   public void testEmpty() {
     final InputStream in = new ByteArrayInputStream(new byte[0]);
-    TaskResources$.MODULE$.runUnsafe(() -> {
-      final BloomFilter filter = VeloxBloomFilter.readFrom(in);
-      return null;
-    });
+    TaskResources$.MODULE$.runUnsafe(
+        () -> {
+          final BloomFilter filter = VeloxBloomFilter.readFrom(in);
+          return null;
+        });
   }
 }

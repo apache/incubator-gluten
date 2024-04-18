@@ -25,12 +25,14 @@ import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.init.NativeBackendInitializer
 import org.apache.gluten.utils._
 import org.apache.gluten.vectorized.{JniLibLoader, JniWorkspace}
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.datasources.velox.{VeloxOrcWriterInjects, VeloxParquetWriterInjects, VeloxRowSplitter}
+import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.GlutenConfigUtil
 import org.apache.spark.sql.internal.StaticSQLConf
+
 import org.apache.commons.lang3.StringUtils
-import org.apache.spark.sql.expression.UDFResolver
 
 import scala.sys.process._
 

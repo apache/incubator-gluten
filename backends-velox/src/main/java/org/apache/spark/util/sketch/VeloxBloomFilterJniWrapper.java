@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.util.sketch;
 
 import org.apache.gluten.exec.Runtime;
@@ -27,7 +26,6 @@ public class VeloxBloomFilterJniWrapper implements RuntimeAware {
   private VeloxBloomFilterJniWrapper(Runtime runtime) {
     this.runtime = runtime;
   }
-
 
   public static VeloxBloomFilterJniWrapper create() {
     return new VeloxBloomFilterJniWrapper(Runtimes.contextInstance());

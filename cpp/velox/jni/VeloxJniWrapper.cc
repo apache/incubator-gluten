@@ -157,7 +157,6 @@ JNIEXPORT jlong JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWra
   JNI_METHOD_END(gluten::kInvalidResourceHandle)
 }
 
-
 JNIEXPORT jboolean JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWrapper_mightContainLong( // NOLINT
     JNIEnv* env,
     jobject wrapper,

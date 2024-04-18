@@ -14,12 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.util.sketch;
 
 import org.apache.commons.io.IOUtils;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -34,7 +32,7 @@ public class VeloxBloomFilter extends BloomFilter {
     handle = jni.init(data);
   }
 
-  public static VeloxBloomFilter readFrom(InputStream in)  {
+  public static VeloxBloomFilter readFrom(InputStream in) {
     try {
       byte[] all = IOUtils.toByteArray(in);
       return new VeloxBloomFilter(all);
