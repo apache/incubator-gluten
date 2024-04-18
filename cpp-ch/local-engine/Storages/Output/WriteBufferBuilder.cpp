@@ -54,7 +54,11 @@ public:
         if (!std::filesystem::exists(p.parent_path()))
             std::filesystem::create_directories(p.parent_path());
 
-        return std::make_unique<DB::WriteBufferFromFile>(file_path, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC);
+	std::cout << "LocalFileWriteBufferBuilder " << file_path << std::endl;
+        return std::make_unique<DB::WriteBufferFromFile>(
+                file_path,
+                DB::DBMS_DEFAULT_BUFFER_SIZE,
+                O_WRONLY | O_APPEND | O_CREAT);
     }
 };
 
