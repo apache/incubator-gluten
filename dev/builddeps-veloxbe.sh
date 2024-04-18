@@ -189,7 +189,7 @@ function build_velox {
 function build_gluten_cpp {
   echo "Start to Gluten CPP"
   cd $GLUTEN_DIR/cpp
-  rm -rf build
+  sudo rm -rf build
   mkdir build
   cd build
   cmake -DBUILD_VELOX_BACKEND=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
