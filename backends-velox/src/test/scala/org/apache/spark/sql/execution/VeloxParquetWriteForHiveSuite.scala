@@ -99,17 +99,16 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
         _.getMessage.toString.contains("Use Gluten partition write for hive")) == native)
   }
 
-  // Disable for Sparke3.5.
-  testWithSpecifiedSparkVersion(
-    "test hive static partition write table",
-    Some("3.2"),
-    Some("3.4")) {
+  test("test hive static partition write table") {
     withTable("t") {
       spark.sql(
         "CREATE TABLE t (c int, d long, e long)" +
           " STORED AS PARQUET partitioned by (c, d)")
       withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "true") {
-        if (SparkShimLoader.getSparkVersion.startsWith("3.4")) {
+        if (
+          SparkShimLoader.getSparkVersion.startsWith("3.4") ||
+          SparkShimLoader.getSparkVersion.startsWith("3.5")
+        ) {
           checkNativeStaticPartitionWrite(
             "INSERT OVERWRITE TABLE t partition(c=1, d=2)" +
               " SELECT 3 as e",
@@ -141,12 +140,14 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
     }
   }
 
-  // Disable for Sparke3.5.
-  testWithSpecifiedSparkVersion("test hive write table", Some("3.2"), Some("3.4")) {
+  test("test hive write table") {
     withTable("t") {
       spark.sql("CREATE TABLE t (c int) STORED AS PARQUET")
       withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "false") {
-        if (SparkShimLoader.getSparkVersion.startsWith("3.4")) {
+        if (
+          SparkShimLoader.getSparkVersion.startsWith("3.4") ||
+          SparkShimLoader.getSparkVersion.startsWith("3.5")
+        ) {
           checkNativeWrite("INSERT OVERWRITE TABLE t SELECT 1 as c", native = false)
         } else {
           checkNativeWrite("INSERT OVERWRITE TABLE t SELECT 1 as c", native = true)
@@ -157,13 +158,15 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
     }
   }
 
-  // Disable for Sparke3.5.
-  testWithSpecifiedSparkVersion("test hive write dir", Some("3.2"), Some("3.4")) {
+  test("test hive write dir") {
     withTempPath {
       f =>
         // compatible with Spark3.3 and later
         withSQLConf("spark.sql.hive.convertMetastoreInsertDir" -> "false") {
-          if (SparkShimLoader.getSparkVersion.startsWith("3.4")) {
+          if (
+            SparkShimLoader.getSparkVersion.startsWith("3.4") ||
+            SparkShimLoader.getSparkVersion.startsWith("3.5")
+          ) {
             checkNativeWrite(
               s"""
                  |INSERT OVERWRITE DIRECTORY '${f.getCanonicalPath}' STORED AS PARQUET SELECT 1 as c
