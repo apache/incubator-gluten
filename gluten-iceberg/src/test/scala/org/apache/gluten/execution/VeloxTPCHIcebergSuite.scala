@@ -17,8 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
-
-import org.apache.iceberg.spark.SparkWriteOptions
+import org.apache.spark.sql.functions.col
 
 import java.io.File
 
@@ -99,14 +98,15 @@ class VeloxPartitionedTableTPCHIcebergSuite extends VeloxTPCHIcebergSuite {
     TPCHTables.map {
       table =>
         val tablePath = new File(resourcePath, table.name).getAbsolutePath
-        val tableDF = spark.read.format(fileFormat).load(tablePath)
+        val tableDF = spark.read
+          .format(fileFormat)
+          .load(tablePath)
+          .repartition(table.partitionColumns.map(col): _*)
+          .sortWithinPartitions(table.partitionColumns.map(col): _*)
 
-        tableDF
-          .repartition(800)
-          .write
+        tableDF.write
           .format("iceberg")
           .partitionBy(table.partitionColumns: _*)
-          .option(SparkWriteOptions.FANOUT_ENABLED, "true")
           .mode("overwrite")
           .saveAsTable(table.name)
         (table.name, tableDF)
