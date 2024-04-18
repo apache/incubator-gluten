@@ -849,7 +849,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenMathExpressionsSuite]
     .exclude("tanh")
     .exclude("rint")
-    .exclude("expm1")
     .exclude("unhex")
     .exclude("atan2")
     .exclude("round/bround/floor/ceil")
