@@ -19,6 +19,8 @@ package org.apache.gluten.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.functions.col
 
+import org.apache.iceberg.spark.SparkWriteOptions
+
 import java.io.File
 
 class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
@@ -107,6 +109,7 @@ class VeloxPartitionedTableTPCHIcebergSuite extends VeloxTPCHIcebergSuite {
         tableDF.write
           .format("iceberg")
           .partitionBy(table.partitionColumns: _*)
+          .option(SparkWriteOptions.FANOUT_ENABLED, "false")
           .mode("overwrite")
           .saveAsTable(table.name)
         (table.name, tableDF)
