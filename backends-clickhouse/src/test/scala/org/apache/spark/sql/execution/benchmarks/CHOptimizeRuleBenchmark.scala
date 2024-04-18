@@ -33,7 +33,6 @@ object CHOptimizeRuleBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmar
     beforeAll()
     val conf = getSparkConf
       .setIfMissing("spark.sql.columnVector.offheap.enabled", "true")
-      .set("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "true")
 
     SparkSession.builder.config(conf).getOrCreate()
   }
@@ -50,35 +49,18 @@ object CHOptimizeRuleBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmar
       new Benchmark(s"OptimizeRuleBenchmark", 10, output = output)
 
     parquetReadBenchmark.addCase(s"ClickHouse rewrite dateConversion: false", executedCnt) {
-      _ => testToDateNotOptimize(parquetDir)
+      _ => testToDateOptimize(parquetDir, "false")
     }
 
     parquetReadBenchmark.addCase(s"ClickHouse rewrite dateConversion: true", executedCnt) {
-      _ => testToDateOptimize(parquetDir)
+      _ => testToDateOptimize(parquetDir, "true")
     }
 
     parquetReadBenchmark.run()
   }
 
-  def testToDateNotOptimize(parquetDir: String): Unit = {
-    withSQLConf(("spark.gluten.sql.rewrite.dateConversion", "false")) {
-      spark
-        .sql(s"""
-                |select
-                |to_date(
-                |  from_unixtime(
-                |    unix_timestamp(date_format(l_shipdate, 'yyyyMMdd'), 'yyyyMMdd')
-                |  )
-                |)
-                |from parquet.`$parquetDir`
-                |
-                |""".stripMargin)
-        .collect()
-    }
-  }
-
-  def testToDateOptimize(parquetDir: String): Unit = {
-    withSQLConf(("spark.gluten.sql.rewrite.dateConversion", "true")) {
+  def testToDateOptimize(parquetDir: String, enable: String): Unit = {
+    withSQLConf(("spark.gluten.sql.columnar.backend.ch.rewrite.dateConversion", enable)) {
       spark
         .sql(s"""
                 |select

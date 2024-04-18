@@ -228,7 +228,7 @@ class GlutenClickHouseTPCHNullableSuite extends GlutenClickHouseTPCHAbstractSuit
 
     Seq(("true", false), ("false", true)).foreach(
       conf => {
-        withSQLConf((GlutenConfig.ENABLE_REWRITE_DATE_CONVERSION.key, conf._1)) {
+        withSQLConf((GlutenConfig.ENABLE_CH_REWRITE_DATE_CONVERSION.key, conf._1)) {
           runSql(sqlStr)(
             df => {
               val project = df.queryExecution.executedPlan.collect {

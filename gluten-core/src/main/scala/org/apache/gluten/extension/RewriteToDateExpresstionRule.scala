@@ -45,7 +45,7 @@ class RewriteToDateExpresstionRule(session: SparkSession, conf: SQLConf)
     if (
       plan.resolved &&
       GlutenConfig.getConf.enableGluten &&
-      GlutenConfig.getConf.enableRewriteDateConversion
+      GlutenConfig.getConf.enableCHRewriteDateConversion
     ) {
       visitPlan(plan)
     } else {
