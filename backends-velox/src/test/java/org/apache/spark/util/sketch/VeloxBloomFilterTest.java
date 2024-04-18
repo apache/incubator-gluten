@@ -43,6 +43,7 @@ public class VeloxBloomFilterTest {
     TaskResources$.MODULE$.runUnsafe(
         () -> {
           final BloomFilter filter = VeloxBloomFilter.readFrom(in);
+          // todo fake some data to test
           return null;
         });
   }
