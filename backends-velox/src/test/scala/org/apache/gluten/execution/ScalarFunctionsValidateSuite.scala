@@ -785,7 +785,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
-  test("test array forall") {
+  test("test array exists") {
     withTempPath {
       path =>
         Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
