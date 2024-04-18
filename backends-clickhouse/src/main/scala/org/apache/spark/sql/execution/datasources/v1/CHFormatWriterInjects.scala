@@ -36,9 +36,6 @@ trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
       context: TaskAttemptContext,
       nativeConf: java.util.Map[String, String]): OutputWriter = {
     val originPath = path
-    // scalastyle:off println
-    println("createOutputWriter " + path)
-    // scalastyle:on println
     val datasourceJniWrapper = new CHDatasourceJniWrapper();
     val instance =
       datasourceJniWrapper.nativeInitFileWriterWrapper(
