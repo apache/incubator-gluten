@@ -121,7 +121,8 @@ case class ColumnarOverrideRules(session: SparkSession)
     } else {
       new HeuristicApplier(session)
     }
-    applier.apply(vanillaPlan, outputsColumnar)
+    val out = applier.apply(vanillaPlan, outputsColumnar)
+    out
   }
 
 }

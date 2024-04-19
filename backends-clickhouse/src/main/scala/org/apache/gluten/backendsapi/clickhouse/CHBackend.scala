@@ -260,7 +260,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
 
   override def requiredInputFilePaths(): Boolean = true
 
-  override def enableBloomFilterAggFallbackRule(): Boolean = false
+  override def requireBloomFilterAggMightContainJointFallback(): Boolean = false
 
   def maxShuffleReadRows(): Long = {
     SparkEnv.get.conf

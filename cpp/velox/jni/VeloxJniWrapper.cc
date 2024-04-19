@@ -22,6 +22,7 @@
 
 #include <exception>
 #include "JniUdf.h"
+#include "compute/Runtime.h"
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
@@ -29,7 +30,7 @@
 #include "jni/JniFileSystem.h"
 #include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlanValidator.h"
-#include "utils/ConfigExtractor.h"
+#include "velox/common/base/BloomFilter.h"
 
 #include <iostream>
 
@@ -138,6 +139,35 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFail
     return env->NewObject(infoCls, method, isSupported, env->NewStringUTF(""));
   }
   JNI_METHOD_END(nullptr)
+}
+
+JNIEXPORT jlong JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWrapper_init( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jbyteArray data) {
+  JNI_METHOD_START
+
+  auto len = env->GetArrayLength(data);
+  auto safeArray = gluten::getByteArrayElementsSafe(env, data);
+  auto ctx = gluten::getRuntime(env, wrapper);
+  auto filter = std::make_shared<velox::BloomFilter<std::allocator<uint64_t>>>();
+  uint8_t* serialized = safeArray.elems();
+  filter->merge(reinterpret_cast<char*>(serialized));
+  return ctx->objectStore()->save(filter);
+  JNI_METHOD_END(gluten::kInvalidResourceHandle)
+}
+
+JNIEXPORT jboolean JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWrapper_mightContainLong( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong handle,
+    jlong item) {
+  JNI_METHOD_START
+  auto ctx = gluten::getRuntime(env, wrapper);
+  auto filter = ctx->objectStore()->retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
+  bool out = filter->isSet() && filter->mayContain(folly::hasher<int64_t>()(item));
+  return out;
+  JNI_METHOD_END(false)
 }
 
 #ifdef __cplusplus
