@@ -387,8 +387,9 @@ class DynamicPartitionDataSingleWriter(
     val nextBucketId = if (isBucketed) Some(getBucketId(record)) else None
 
     // scalastyle:off println
-    println("beforeWrite "  + currentPartitionValues + " " + nextPartitionValues
-      + " " + currentBucketId + " " + nextBucketId)
+    println(
+      "beforeWrite " + currentPartitionValues + " " + nextPartitionValues
+        + " " + currentBucketId + " " + nextBucketId)
     // scalastyle:on println
     if (currentPartitionValues != nextPartitionValues || currentBucketId != nextBucketId) {
       // See a new partition or bucket - write to a new partition dir (or a new bucket file).
