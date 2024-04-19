@@ -96,7 +96,7 @@ DataPartsVector StorageMergeTreeFactory::getDataParts(StorageID id, const String
     // find the missing cache part name
     for (const auto & name : part_name)
     {
-            if (!(*(datapart_map->get(table_name)))->has(name))
+        if (!(*(datapart_map->get(table_name)))->has(name))
         {
             missing_names.emplace(name);
         }

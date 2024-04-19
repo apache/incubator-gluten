@@ -137,6 +137,7 @@ object ExpressionNames {
   final val CEIL = "ceil"
   final val FLOOR = "floor"
   final val EXP = "exp"
+  final val EXPM1 = "expm1"
   final val POWER = "power"
   final val PMOD = "pmod"
   final val ROUND = "round"
@@ -247,6 +248,7 @@ object ExpressionNames {
   final val FILTER = "filter"
   final val ALL_MATCH = "all_match"
   final val ANY_MATCH = "any_match"
+  final val SHUFFLE = "shuffle"
 
   // Map functions
   final val CREATE_MAP = "map"

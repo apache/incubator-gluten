@@ -688,6 +688,22 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     }
   }
 
+  test("test shuffle function") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select shuffle(split(n_comment, ' ')) from nation",
+        compareResult = false
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select shuffle(array(1,2,3,4,5)), shuffle(array(1,3,null,3,4)), shuffle(null)",
+        compareResult = false,
+        noFallBack = false
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
   test("test 'function regexp_extract_all'") {
     runQueryAndCompare(
       "select l_orderkey, regexp_extract_all(l_comment, '([a-z])', 1) " +

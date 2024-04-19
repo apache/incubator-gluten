@@ -113,4 +113,37 @@ class GlutenBloomFilterAggregateQuerySuite
       }
     }
   }
+
+  testGluten("Test bloom_filter_agg fallback with might_contain offloaded") {
+    val table = "bloom_filter_test"
+    val numEstimatedItems = 5000000L
+    val numBits = GlutenConfig.getConf.veloxBloomFilterMaxNumBits
+    val sqlString = s"""
+                       |SELECT col positive_membership_test
+                       |FROM $table
+                       |WHERE might_contain(
+                       |            (SELECT bloom_filter_agg(col,
+                       |              cast($numEstimatedItems as long),
+                       |              cast($numBits as long))
+                       |             FROM $table), col)
+                      """.stripMargin
+
+    withTempView(table) {
+      (Seq(Long.MinValue, 0, Long.MaxValue) ++ (1L to 200000L))
+        .toDF("col")
+        .createOrReplaceTempView(table)
+      withSQLConf(
+        GlutenConfig.COLUMNAR_HASHAGG_ENABLED.key -> "false"
+      ) {
+        val df = spark.sql(sqlString)
+        df.collect
+        assert(
+          collectWithSubqueries(df.queryExecution.executedPlan) {
+            case h if h.isInstanceOf[HashAggregateExecBaseTransformer] => h
+          }.isEmpty,
+          df.queryExecution.executedPlan
+        )
+      }
+    }
+  }
 }

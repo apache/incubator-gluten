@@ -227,7 +227,6 @@ class GlutenSQLQueryTestSuite
     "window.sql", // Local window fixes are not added.
     // Disable for Spark 3.
     "group-by.sql",
-    "subquery/scalar-subquery/scalar-subquery-select.sql",
     "udf/udf-group-by.sql - Scala UDF"
   ) ++ otherIgnoreList ++ udafIgnoreList
 

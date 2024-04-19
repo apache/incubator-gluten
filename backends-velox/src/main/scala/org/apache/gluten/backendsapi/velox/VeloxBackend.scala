@@ -95,7 +95,6 @@ object BackendSettings extends BackendSettingsApi {
         structType.simpleString + " is forced to fallback."
     }
     val orcTypeValidatorWithComplexTypeFallback: PartialFunction[StructField, String] = {
-      case StructField(_, ByteType, _, _) => "ByteType not support"
       case StructField(_, arrayType: ArrayType, _, _) =>
         arrayType.simpleString + " is forced to fallback."
       case StructField(_, mapType: MapType, _, _) =>
@@ -136,7 +135,6 @@ object BackendSettings extends BackendSettingsApi {
           ValidationResult.notOk(s"Velox ORC scan is turned off.")
         } else {
           val typeValidator: PartialFunction[StructField, String] = {
-            case StructField(_, ByteType, _, _) => "ByteType not support"
             case StructField(_, arrayType: ArrayType, _, _)
                 if arrayType.elementType.isInstanceOf[StructType] =>
               "StructType as element in ArrayType"
@@ -182,10 +180,10 @@ object BackendSettings extends BackendSettingsApi {
 
     def validateCompressionCodec(): Option[String] = {
       // Velox doesn't support brotli and lzo.
-      val unSupportedCompressions = Set("brotli, lzo")
+      val unSupportedCompressions = Set("brotli", "lzo", "lz4raw", "lz4_raw")
       val compressionCodec = WriteFilesExecTransformer.getCompressionCodec(options)
       if (unSupportedCompressions.contains(compressionCodec)) {
-        Some("Brotli or lzo compression codec is unsupported in Velox backend.")
+        Some("Brotli, lzo, lz4raw and lz4_raw compression codec is unsupported in Velox backend.")
       } else {
         None
       }
@@ -292,6 +290,10 @@ object BackendSettings extends BackendSettingsApi {
           def checkLimitations(swf: SpecifiedWindowFrame, orderSpec: Seq[SortOrder]): Unit = {
             def doCheck(bound: Expression, isUpperBound: Boolean): Unit = {
               bound match {
+                case _: Literal =>
+                  throw new GlutenNotSupportException(
+                    "Window frame of type RANGE does" +
+                      " not support constant arguments in velox backend")
                 case _: SpecialFrameBoundary =>
                 case e if e.foldable =>
                   orderSpec.foreach(

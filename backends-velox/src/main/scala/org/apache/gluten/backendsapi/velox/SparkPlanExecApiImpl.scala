@@ -42,7 +42,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, HashPartitioning, Partitioning, RoundRobinPartitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, BroadcastMode, HashPartitioning, Partitioning, RoundRobinPartitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
@@ -789,5 +789,20 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
 
   override def genPostProjectForGenerate(generate: GenerateExec): SparkPlan = {
     PullOutGenerateProjectHelper.pullOutPostProject(generate)
+  }
+
+  override def maybeCollapseTakeOrderedAndProject(plan: SparkPlan): SparkPlan = {
+    // This to-top-n optimization assumes exchange operators were already placed in input plan.
+    plan.transformUp {
+      case p @ LimitTransformer(SortExecTransformer(sortOrder, _, child, _), 0, count) =>
+        val global = child.outputPartitioning.satisfies(AllTuples)
+        val topN = TopNTransformer(count, sortOrder, global, child)
+        if (topN.doValidate().isValid) {
+          topN
+        } else {
+          p
+        }
+      case other => other
+    }
   }
 }

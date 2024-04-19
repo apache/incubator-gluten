@@ -723,4 +723,6 @@ trait SparkPlanExecApi {
   def genPreProjectForGenerate(generate: GenerateExec): SparkPlan
 
   def genPostProjectForGenerate(generate: GenerateExec): SparkPlan
+
+  def maybeCollapseTakeOrderedAndProject(plan: SparkPlan): SparkPlan = plan
 }

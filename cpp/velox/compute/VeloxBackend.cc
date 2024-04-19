@@ -97,7 +97,7 @@ const std::string kVeloxUdfLibraryPaths = "spark.gluten.sql.columnar.backend.vel
 
 // spill
 const std::string kMaxSpillFileSize = "spark.gluten.sql.columnar.backend.velox.maxSpillFileSize";
-const uint64_t kMaxSpillFileSizeDefault = 20L * 1024 * 1024;
+const uint64_t kMaxSpillFileSizeDefault = 1L * 1024 * 1024 * 1024;
 
 // backtrace allocation
 const std::string kBacktraceAllocation = "spark.gluten.backtrace.allocation";

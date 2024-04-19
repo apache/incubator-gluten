@@ -324,7 +324,7 @@ case class FallbackBloomFilterAggIfNeeded() extends Rule[SparkPlan] {
         case a: org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec =>
           tagNotTransformableRecursive(a.executedPlan)
         case _ =>
-          p.children.map(tagNotTransformableRecursive)
+          p.children.foreach(tagNotTransformableRecursive)
       }
     }
 
