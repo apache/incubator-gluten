@@ -905,11 +905,11 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
     if (ch_func_name == "toYear")
     {
         const ActionsDAG::Node * arg_node = args[0];
-        const String & arg_func_name = arg_node->function->getName();
-        if (arg_func_name == "sparkToDate" || arg_func_name == "sparkToDateTime")
+        const String & arg_func_name = arg_node->function ? arg_node->function->getName() : "";
+        if ((arg_func_name == "sparkToDate" || arg_func_name == "sparkToDateTime") && arg_node->children.size() > 0)
         {
             const ActionsDAG::Node * child_node = arg_node->children[0];
-            if (isString(removeNullable(child_node->result_type)))
+            if (child_node && isString(removeNullable(child_node->result_type)))
             {
                 auto extract_year_builder = FunctionFactory::instance().get("sparkExtractYear", context);
                 auto func_result_name = "sparkExtractYear(" + child_node->result_name + ")";
