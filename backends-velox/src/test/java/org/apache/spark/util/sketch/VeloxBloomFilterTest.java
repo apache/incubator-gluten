@@ -90,15 +90,21 @@ public class VeloxBloomFilterTest {
           final int attemptCount = 5000000;
 
           int falsePositives = 0;
+          int negativeFalsePositives = 0;
 
           for (int i = attemptStart; i < attemptStart + attemptCount; i++) {
             if (filter.mightContainLong(i)) {
               falsePositives++;
             }
+            if (filter.mightContainLong(-i)) {
+              negativeFalsePositives++;
+            }
           }
 
           Assert.assertTrue(falsePositives > 0);
           Assert.assertTrue(falsePositives < attemptCount);
+          Assert.assertTrue(negativeFalsePositives > 0);
+          Assert.assertTrue(negativeFalsePositives < attemptCount);
 
           return null;
         });
