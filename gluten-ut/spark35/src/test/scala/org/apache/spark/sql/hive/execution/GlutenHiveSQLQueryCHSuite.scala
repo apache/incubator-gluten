@@ -111,7 +111,7 @@ class GlutenHiveSQLQueryCHSuite extends GlutenHiveSQLQuerySuiteBase {
       "spark.sql.hive.convertMetastoreParquet" -> "false",
       "spark.gluten.sql.complexType.scan.fallback.enabled" -> "false",
       "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_parquet_max_block_size"
-        -> "1",
+        -> "3",
       "hive.exec.dynamic.partition.mode" -> "nonstrict"
     ) {
       sql("DROP TABLE IF EXISTS test_4990_0;")
@@ -121,10 +121,7 @@ class GlutenHiveSQLQueryCHSuite extends GlutenHiveSQLQuerySuiteBase {
           "USING hive OPTIONS(fileFormat 'parquet');")
       sql(
         "CREATE TABLE test_4990_1 (name STRING, favorite_color STRING) " +
-          "PARTITIONED BY (`day` STRING) " +
-          "ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe' " +
-          "STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' " +
-          "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat';")
+          "USING hive OPTIONS(fileFormat 'parquet') PARTITIONED BY (`day` STRING);")
       sql(
         "INSERT INTO test_4990_0 VALUES('test_1', 'red', '2024-03-30'), " +
           "('test_2', 'green', '2024-03-31'), ('test_3', 'blue', '2024-03-30');")
