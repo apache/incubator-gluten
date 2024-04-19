@@ -19,6 +19,7 @@ package org.apache.spark.util.sketch;
 import org.apache.gluten.backendsapi.ListenerApi;
 import org.apache.gluten.backendsapi.velox.ListenerApiImpl;
 import org.apache.gluten.vectorized.JniWorkspace;
+
 import org.apache.spark.SparkConf;
 import org.apache.spark.util.TaskResources$;
 import org.junit.Assert;
@@ -41,12 +42,13 @@ public class VeloxBloomFilterTest {
     final ByteBuffer buf = ByteBuffer.allocate(5);
     buf.put((byte) 1); // kBloomFilterV1
     buf.putInt(0); // size
-    TaskResources$.MODULE$.runUnsafe(() -> {
-      final BloomFilter filter = VeloxBloomFilter.readFrom(buf.array());
-      for (int i = 0; i < 1000; i++) {
-        Assert.assertFalse(filter.mightContainLong(i));
-      }
-      return null;
-    });
+    TaskResources$.MODULE$.runUnsafe(
+        () -> {
+          final BloomFilter filter = VeloxBloomFilter.readFrom(buf.array());
+          for (int i = 0; i < 1000; i++) {
+            Assert.assertFalse(filter.mightContainLong(i));
+          }
+          return null;
+        });
   }
 }
