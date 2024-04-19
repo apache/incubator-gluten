@@ -106,7 +106,7 @@ class GlutenBloomFilterAggregateQuerySuite
           assert(
             collectWithSubqueries(df.queryExecution.executedPlan) {
               case h if h.isInstanceOf[HashAggregateExecBaseTransformer] => h
-            }.size == 0,
+            }.size == 2,
             df.queryExecution.executedPlan
           )
         }

@@ -18,6 +18,7 @@ package org.apache.spark.util.sketch;
 
 import org.apache.commons.io.IOUtils;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -36,6 +37,14 @@ public class VeloxBloomFilter extends BloomFilter {
     try {
       byte[] all = IOUtils.toByteArray(in);
       return new VeloxBloomFilter(all);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static VeloxBloomFilter readFrom(byte[] data) {
+    try (ByteArrayInputStream in = new ByteArrayInputStream(data)) {
+      return readFrom(in);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

@@ -17,9 +17,13 @@
 package org.apache.spark.sql.catalyst.expressions
 import org.apache.gluten.sql.shims.SparkShimLoader
 
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, CodeGenerator, ExprCode, JavaCode, TrueLiteral}
+import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
 import org.apache.spark.sql.types.DataType
+import org.apache.spark.util.TaskResources
+import org.apache.spark.util.sketch.VeloxBloomFilter
 
 /**
  * Velox's bloom-filter implementation uses different algorithms internally comparing to vanilla
@@ -51,6 +55,44 @@ case class VeloxBloomFilterMightContain(
       newValueExpression: Expression): VeloxBloomFilterMightContain =
     copy(bloomFilterExpression = newBloomFilterExpression, valueExpression = newValueExpression)
 
-  override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode =
-    throw new UnsupportedOperationException()
+  private lazy val bloomFilterData: Array[Byte] =
+    bloomFilterExpression.eval().asInstanceOf[Array[Byte]]
+
+  @transient private lazy val bloomFilter =
+    if (bloomFilterData == null) null else VeloxBloomFilter.readFrom(bloomFilterData)
+
+  override def eval(input: InternalRow): Any = {
+    if (!TaskResources.inSparkTask()) {
+      throw new UnsupportedOperationException("velox_might_contain is not evaluable on Driver")
+    }
+    if (bloomFilter == null) {
+      return null
+    }
+    val value = valueExpression.eval(input)
+    if (value == null) {
+      return null
+    }
+    bloomFilter.mightContainLong(value.asInstanceOf[Long])
+  }
+
+  override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+    if (bloomFilterData == null) {
+      return ev.copy(isNull = TrueLiteral, value = JavaCode.defaultLiteral(dataType))
+    }
+    val bfData = ctx.addReferenceObj("bloomFilterData", bloomFilterData)
+    val className = classOf[VeloxBloomFilter].getName
+    val bf = ctx.addMutableState(className, "bloomFilter")
+    ctx.addPartitionInitializationStatement(s"$bf = $className.readFrom($bfData);")
+
+    val valueEval = valueExpression.genCode(ctx)
+    val code =
+      code"""
+      ${valueEval.code}
+      boolean ${ev.isNull} = ${valueEval.isNull};
+      ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
+      if (!${ev.isNull}) {
+        ${ev.value} = $bf.mightContainLong((Long)${valueEval.value});
+      }"""
+    ev.copy(code = code)
+  }
 }
