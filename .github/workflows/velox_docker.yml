@@ -502,7 +502,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Build Gluten velox third party
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget numactl-devel -y && \
+          yum install sudo patch java-1.8.0-openjdk-devel wget numactl-devel python3.12 python3.12-pip -y && \
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
@@ -533,7 +533,13 @@ jobs:
           wget https://github.com/apache/spark/archive/refs/tags/v3.2.2.tar.gz && \
           tar --strip-components=1 -xf v3.2.2.tar.gz spark-3.2.2/sql/core/src/test/resources/  && \
           mkdir -p shims/spark32/spark_home/ && \
-          mv sql shims/spark32/spark_home/
+          mv sql shims/spark32/spark_home/ && \
+          rm -f /usr/bin/python3 && \
+          ln -s /usr/bin/python3.12 /usr/bin/python3 && \
+          python --version && \
+          pip3 install --upgrade pip && \
+          pip3 install pyspark==3.2.2 cython && \
+          pip3 install pandas pyarrow
       - name: Build and run unit test for Spark 3.2.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -561,7 +567,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Build Gluten velox third party
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          yum install sudo patch java-1.8.0-openjdk-devel wget python3.12 python3.12-pip -y && \
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
@@ -624,7 +630,13 @@ jobs:
           wget https://github.com/apache/spark/archive/refs/tags/v3.3.1.tar.gz && \
           tar --strip-components=1 -xf v3.3.1.tar.gz spark-3.3.1/sql/core/src/test/resources/  && \
           mkdir -p shims/spark33/spark_home/ && \
-          mv sql shims/spark33/spark_home/
+          mv sql shims/spark33/spark_home/ && \
+          rm -f /usr/bin/python3 && \
+          ln -s /usr/bin/python3.12 /usr/bin/python3 && \
+          python --version && \
+          pip3 install --upgrade pip && \
+          pip3 install pyspark==3.3.1 cython && \
+          pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.3.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -648,7 +660,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Build Gluten velox third party
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          yum install sudo patch java-1.8.0-openjdk-devel wget python3.12 python3.12-pip -y && \
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
@@ -711,7 +723,13 @@ jobs:
           wget https://github.com/apache/spark/archive/refs/tags/v3.4.2.tar.gz && \
           tar --strip-components=1 -xf v3.4.2.tar.gz spark-3.4.2/sql/core/src/test/resources/  && \
           mkdir -p shims/spark34/spark_home/ && \
-          mv sql shims/spark34/spark_home/
+          mv sql shims/spark34/spark_home/ && \
+          rm -f /usr/bin/python3 && \
+          ln -s /usr/bin/python3.12 /usr/bin/python3 && \
+          python --version && \
+          pip3 install --upgrade pip && \
+          pip3 install pyspark==3.4.2 cython && \
+          pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.4.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -735,7 +753,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Build Gluten velox third party
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          yum install sudo patch java-1.8.0-openjdk-devel wget python3.12 python3.12-pip -y && \
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
@@ -798,7 +816,13 @@ jobs:
           wget https://github.com/apache/spark/archive/refs/tags/v3.5.1.tar.gz && \
           tar --strip-components=1 -xf v3.5.1.tar.gz spark-3.5.1/sql/core/src/test/resources/  && \
           mkdir -p shims/spark35/spark_home/ && \
-          mv sql shims/spark35/spark_home/
+          mv sql shims/spark35/spark_home/ && \
+          rm -f /usr/bin/python3 && \
+          ln -s /usr/bin/python3.12 /usr/bin/python3 && \
+          python --version && \
+          pip3 install --upgrade pip && \
+          pip3 install pyspark==3.5.1 cython && \
+          pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.5.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
