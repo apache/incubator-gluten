@@ -44,25 +44,30 @@ abstract class GlutenQueryTest extends PlanTest {
 
   protected def spark: SparkSession
 
+  def isSparkVersionGE(minSparkVersion: String): Boolean = {
+    val version = SPARK_VERSION_SHORT.split("\\.")
+    val minVersion = minSparkVersion.split("\\.")
+    minVersion(0) < version(0) || (minVersion(0) == version(0) && minVersion(1) <= version(1))
+  }
+
+  def isSparkVersionLE(maxSparkVersion: String): Boolean = {
+    val version = SPARK_VERSION_SHORT.split("\\.")
+    val maxVersion = maxSparkVersion.split("\\.")
+    maxVersion(0) > version(0) || maxVersion(0) == version(0) && maxVersion(1) >= version(1)
+  }
+
   def shouldRun(
       minSparkVersion: Option[String] = None,
       maxSparkVersion: Option[String] = None): Boolean = {
-    val version = SPARK_VERSION_SHORT.split("\\.")
     var shouldRun = true
     if (!minSparkVersion.isEmpty) {
-      val minVersion = minSparkVersion.get.split("\\.");
-      shouldRun =
-        minVersion(0) < version(0) || (minVersion(0) == version(0) && minVersion(1) <= version(1))
+      shouldRun = isSparkVersionGE(minSparkVersion.get)
       if (!maxSparkVersion.isEmpty) {
-        val maxVersion = maxSparkVersion.get.split("\\.")
-        shouldRun = shouldRun && (maxVersion(0) > version(0) || maxVersion(0) == version(
-          0) && maxVersion(1) >= version(1))
+        shouldRun = shouldRun && isSparkVersionLE(maxSparkVersion.get)
       }
     } else {
       if (!maxSparkVersion.isEmpty) {
-        val maxVersion = maxSparkVersion.get.split("\\.")
-        shouldRun =
-          maxVersion(0) > version(0) || maxVersion(0) == version(0) && maxVersion(1) >= version(1)
+        shouldRun = isSparkVersionLE(maxSparkVersion.get)
       }
     }
     shouldRun
