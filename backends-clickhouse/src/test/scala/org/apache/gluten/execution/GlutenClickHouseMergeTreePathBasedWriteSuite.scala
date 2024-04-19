@@ -24,6 +24,7 @@ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.functions._
 
+import io.delta.tables.ClickhouseTable
 import org.apache.commons.io.filefilter.WildcardFileFilter
 
 import java.io.File
@@ -405,6 +406,37 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       assert(Array(2, 4).sameElements(filePaths.values.map(paths => paths.size).toArray.sorted))
     }
 
+    val clickhouseTable = ClickhouseTable.forPath(spark, dataPath)
+    clickhouseTable.updateExpr("l_orderkey = 10086", Map("l_returnflag" -> "'X'"))
+
+    {
+      val df = spark.read
+        .format("clickhouse")
+        .load(dataPath)
+        .where("l_returnflag = 'X'")
+      assert(df.count() == 1)
+      val scanExec = collect(df.queryExecution.executedPlan) {
+        case f: FileSourceScanExecTransformer => f
+      }
+      assert(scanExec.size == 1)
+
+      val mergetreeScan = scanExec.head
+      assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+
+      val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
+      val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
+      assert(
+        addFiles.map(_.rows).sum
+          == 600572)
+
+      // 4 parts belong to the first batch
+      // 2 parts belong to the second batch (1 actual updated part, 1 passively updated).
+      assert(addFiles.size == 6)
+      val filePaths = addFiles.map(_.path).groupBy(name => name.substring(0, name.lastIndexOf("_")))
+      assert(filePaths.size == 2)
+      assert(Array(2, 4).sameElements(filePaths.values.map(paths => paths.size).toArray.sorted))
+    }
+
     val df = spark.read
       .format("clickhouse")
       .load(dataPath)
@@ -444,9 +476,8 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     assert(filePaths.size == 2)
     assert(Array(2, 4).sameElements(filePaths.values.map(paths => paths.size).toArray.sorted))
 
-    spark.sql(s"""
-                 | delete from clickhouse.`$dataPath` where mod(l_orderkey, 3) = 2
-                 |""".stripMargin)
+    val clickhouseTable = ClickhouseTable.forPath(spark, dataPath)
+    clickhouseTable.delete("mod(l_orderkey, 3) = 2")
     val df1 = spark.read
       .format("clickhouse")
       .load(dataPath)
@@ -1272,7 +1303,8 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
 
     checkQueryResult(dataPath)
 
-    val dataPath1 = s"$basePath/lineitem_mergetree_ctas_5219_1"
+    val dataPath1 = s"$basePath/lineitem_mergetree_ctas_5219"
+    clearDataPath(dataPath1)
     sourceDF.write
       .format("clickhouse")
       .mode(SaveMode.Append)
