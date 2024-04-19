@@ -142,6 +142,11 @@ class Spark33Shims extends SparkShims {
       @transient locations: Array[String] = Array.empty): PartitionedFile =
     PartitionedFile(partitionValues, filePath, start, length, locations)
 
+  override def bloomFilterExpressionMappings(): Seq[Sig] = Seq(
+    Sig[BloomFilterMightContain](ExpressionNames.MIGHT_CONTAIN),
+    Sig[BloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG)
+  )
+
   override def newBloomFilterAggregate[T](
       child: Expression,
       estimatedNumItemsExpression: Expression,
@@ -309,5 +314,4 @@ class Spark33Shims extends SparkShims {
   }
 
   override def supportsRowBased(plan: SparkPlan): Boolean = plan.supportsRowBased
-
 }

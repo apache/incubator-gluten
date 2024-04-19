@@ -117,6 +117,8 @@ class Spark32Shims extends SparkShims {
       @transient locations: Array[String] = Array.empty): PartitionedFile =
     PartitionedFile(partitionValues, filePath, start, length, locations)
 
+  override def bloomFilterExpressionMappings(): Seq[Sig] = List.empty
+
   override def newBloomFilterAggregate[T](
       child: Expression,
       estimatedNumItemsExpression: Expression,

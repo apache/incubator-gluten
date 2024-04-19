@@ -103,6 +103,8 @@ trait SparkShims {
       length: Long,
       @transient locations: Array[String] = Array.empty): PartitionedFile
 
+  def bloomFilterExpressionMappings(): Seq[Sig]
+
   def newBloomFilterAggregate[T](
       child: Expression,
       estimatedNumItemsExpression: Expression,
