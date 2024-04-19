@@ -95,7 +95,6 @@ object BackendSettings extends BackendSettingsApi {
         structType.simpleString + " is forced to fallback."
     }
     val orcTypeValidatorWithComplexTypeFallback: PartialFunction[StructField, String] = {
-      case StructField(_, ByteType, _, _) => "ByteType not support"
       case StructField(_, arrayType: ArrayType, _, _) =>
         arrayType.simpleString + " is forced to fallback."
       case StructField(_, mapType: MapType, _, _) =>
@@ -136,7 +135,6 @@ object BackendSettings extends BackendSettingsApi {
           ValidationResult.notOk(s"Velox ORC scan is turned off.")
         } else {
           val typeValidator: PartialFunction[StructField, String] = {
-            case StructField(_, ByteType, _, _) => "ByteType not support"
             case StructField(_, arrayType: ArrayType, _, _)
                 if arrayType.elementType.isInstanceOf[StructType] =>
               "StructType as element in ArrayType"
@@ -182,10 +180,10 @@ object BackendSettings extends BackendSettingsApi {
 
     def validateCompressionCodec(): Option[String] = {
       // Velox doesn't support brotli and lzo.
-      val unSupportedCompressions = Set("brotli, lzo")
+      val unSupportedCompressions = Set("brotli", "lzo", "lz4raw", "lz4_raw")
       val compressionCodec = WriteFilesExecTransformer.getCompressionCodec(options)
       if (unSupportedCompressions.contains(compressionCodec)) {
-        Some("Brotli or lzo compression codec is unsupported in Velox backend.")
+        Some("Brotli, lzo, lz4raw and lz4_raw compression codec is unsupported in Velox backend.")
       } else {
         None
       }
@@ -292,6 +290,10 @@ object BackendSettings extends BackendSettingsApi {
           def checkLimitations(swf: SpecifiedWindowFrame, orderSpec: Seq[SortOrder]): Unit = {
             def doCheck(bound: Expression, isUpperBound: Boolean): Unit = {
               bound match {
+                case _: Literal =>
+                  throw new GlutenNotSupportException(
+                    "Window frame of type RANGE does" +
+                      " not support constant arguments in velox backend")
                 case _: SpecialFrameBoundary =>
                 case e if e.foldable =>
                   orderSpec.foreach(
@@ -446,7 +448,6 @@ object BackendSettings extends BackendSettingsApi {
   override def shuffleSupportedCodec(): Set[String] = SHUFFLE_SUPPORTED_CODEC
 
   override def resolveNativeConf(nativeConf: java.util.Map[String, String]): Unit = {
-    checkMaxBatchSize(nativeConf)
     UDFResolver.resolveUdfConf(nativeConf)
   }
 
@@ -474,17 +475,6 @@ object BackendSettings extends BackendSettingsApi {
     GlutenConfig.getConf.enableNativeWriter.getOrElse(
       SparkShimLoader.getSparkShims.enableNativeWriteFilesByDefault()
     )
-  }
-
-  private def checkMaxBatchSize(nativeConf: java.util.Map[String, String]): Unit = {
-    if (nativeConf.containsKey(GlutenConfig.GLUTEN_MAX_BATCH_SIZE_KEY)) {
-      val maxBatchSize = nativeConf.get(GlutenConfig.GLUTEN_MAX_BATCH_SIZE_KEY).toInt
-      if (maxBatchSize > MAXIMUM_BATCH_SIZE) {
-        throw new IllegalArgumentException(
-          s"The maximum value of ${GlutenConfig.GLUTEN_MAX_BATCH_SIZE_KEY}" +
-            s" is $MAXIMUM_BATCH_SIZE for Velox backend.")
-      }
-    }
   }
 
   override def shouldRewriteCount(): Boolean = {

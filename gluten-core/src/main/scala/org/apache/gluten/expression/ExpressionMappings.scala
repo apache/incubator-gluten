@@ -110,6 +110,7 @@ object ExpressionMappings {
     Sig[Ceil](CEIL),
     Sig[Floor](FLOOR),
     Sig[Exp](EXP),
+    Sig[Expm1](EXPM1),
     Sig[Pow](POWER),
     Sig[Pmod](PMOD),
     Sig[Round](ROUND),
@@ -229,6 +230,7 @@ object ExpressionMappings {
     Sig[ArrayRepeat](ARRAY_REPEAT),
     Sig[ArrayRemove](ARRAY_REMOVE),
     Sig[ArrayFilter](FILTER),
+    Sig[Shuffle](SHUFFLE),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),

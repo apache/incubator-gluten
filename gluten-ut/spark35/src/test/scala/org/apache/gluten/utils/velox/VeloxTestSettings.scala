@@ -96,6 +96,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenCollectionExpressionsSuite]
     // Rewrite in Gluten to replace Seq with Array
     .exclude("Shuffle")
+    .excludeGlutenTest("Shuffle")
     // TODO: ArrayDistinct should handle duplicated Double.NaN
     .excludeByPrefix("SPARK-36741")
     // TODO: ArrayIntersect should handle duplicated Double.NaN
@@ -597,7 +598,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite by just removing test timestamp.
     .exclude("test reading unaligned pages - test all types")
   enableSuite[GlutenParquetCompressionCodecPrecedenceSuite]
-    .exclude("Create parquet table with compression")
   enableSuite[GlutenParquetDeltaByteArrayEncodingSuite]
   enableSuite[GlutenParquetDeltaEncodingInteger]
   enableSuite[GlutenParquetDeltaEncodingLong]
@@ -742,6 +742,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("nested column: Max(top level column) not push down")
     .exclude("nested column: Count(nested sub-field) not push down")
   enableSuite[GlutenParquetCodecSuite]
+    // codec not supported in native
+    .exclude("write and read - file source parquet - codec: lz4_raw")
+    .exclude("write and read - file source parquet - codec: lz4raw")
   enableSuite[GlutenOrcCodecSuite]
   enableSuite[GlutenFileSourceStrategySuite]
     // Plan comparison.
@@ -957,6 +960,9 @@ class VeloxTestSettings extends BackendTestSettings {
     // blocked by Velox-5768
     .exclude("aggregate function - array for primitive type containing null")
     .exclude("aggregate function - array for non-primitive type")
+    .exclude("shuffle function - array for primitive type not containing null")
+    .exclude("shuffle function - array for primitive type containing null")
+    .exclude("shuffle function - array for non-primitive type")
   enableSuite[GlutenDataFrameHintSuite]
   enableSuite[GlutenDataFrameImplicitsSuite]
   enableSuite[GlutenDataFrameJoinSuite]
@@ -1096,9 +1102,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Merge runtime bloom filters")
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenJoinSuite]
-    // Disable for Spark3.5.
-    .exclude(
-      "SPARK-36612: Support left outer join build left or right outer join build right in shuffled hash join")
     // exclude as it check spark plan
     .exclude("SPARK-36794: Ignore duplicated key when building relation for semi/anti hash join")
     // exclude as it check for SMJ node

@@ -403,7 +403,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FetchRel& fetchR
     const auto& extension = fetchRel.advanced_extension();
     std::vector<TypePtr> types;
     if (!validateInputTypes(extension, types)) {
-      LOG_VALIDATION_MSG("Unsupported input types in ExpandRel.");
+      LOG_VALIDATION_MSG("Unsupported input types in FetchRel.");
       return false;
     }
 
@@ -421,22 +421,41 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FetchRel& fetchR
     return false;
   }
 
-  // Check the input of fetchRel, if it's sortRel, we need to check whether the sorting key is duplicated.
-  bool topNFlag = false;
-  if (fetchRel.has_input()) {
-    topNFlag = fetchRel.input().has_sort();
-    if (topNFlag) {
-      ::substrait::SortRel sortRel = fetchRel.input().sort();
-      auto [sortingKeys, sortingOrders] = planConverter_.processSortField(sortRel.sorts(), rowType);
-      folly::F14FastSet<std::string> sortingKeyNames;
-      for (const auto& sortingKey : sortingKeys) {
-        auto result = sortingKeyNames.insert(sortingKey->name());
-        if (!result.second) {
-          LOG_VALIDATION_MSG(
-              "If the input of fetchRel is a SortRel, we will convert it to a TopNNode. In Velox, it is important to ensure unique sorting keys. However, duplicate keys were found in this case.");
-          return false;
-        }
-      }
+  return true;
+}
+
+bool SubstraitToVeloxPlanValidator::validate(const ::substrait::TopNRel& topNRel) {
+  RowTypePtr rowType = nullptr;
+  // Get and validate the input types from extension.
+  if (topNRel.has_advanced_extension()) {
+    const auto& extension = topNRel.advanced_extension();
+    std::vector<TypePtr> types;
+    if (!validateInputTypes(extension, types)) {
+      LOG_VALIDATION_MSG("Unsupported input types in TopNRel.");
+      return false;
+    }
+
+    int32_t inputPlanNodeId = 0;
+    std::vector<std::string> names;
+    names.reserve(types.size());
+    for (auto colIdx = 0; colIdx < types.size(); colIdx++) {
+      names.emplace_back(SubstraitParser::makeNodeName(inputPlanNodeId, colIdx));
+    }
+    rowType = std::make_shared<RowType>(std::move(names), std::move(types));
+  }
+
+  if (topNRel.n() < 0) {
+    LOG_VALIDATION_MSG("N should be valid in TopNRel.");
+    return false;
+  }
+
+  auto [sortingKeys, sortingOrders] = planConverter_.processSortField(topNRel.sorts(), rowType);
+  folly::F14FastSet<std::string> sortingKeyNames;
+  for (const auto& sortingKey : sortingKeys) {
+    auto result = sortingKeyNames.insert(sortingKey->name());
+    if (!result.second) {
+      LOG_VALIDATION_MSG("Duplicate sort keys were found in TopNRel.");
+      return false;
     }
   }
 
@@ -1174,6 +1193,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Rel& rel) {
     return validate(rel.generate());
   } else if (rel.has_fetch()) {
     return validate(rel.fetch());
+  } else if (rel.has_top_n()) {
+    return validate(rel.top_n());
   } else if (rel.has_window()) {
     return validate(rel.window());
   } else if (rel.has_write()) {

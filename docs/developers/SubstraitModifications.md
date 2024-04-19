@@ -26,6 +26,7 @@ changed `Unbounded` in `WindowFunction` into `Unbounded_Preceding` and `Unbounde
 * Added `GenerateRel`([#574](https://github.com/apache/incubator-gluten/pull/574)).
 * Added `PartitionColumn` in `LocalFiles`([#2405](https://github.com/apache/incubator-gluten/pull/2405)).
 * Added `WriteRel` ([#3690](https://github.com/apache/incubator-gluten/pull/3690)).
+* Added `TopNRel` ([#5409](https://github.com/apache/incubator-gluten/pull/5409)).
 
 ## Modifications to type.proto
 
