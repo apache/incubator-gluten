@@ -428,7 +428,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     }
   }
 
-  testWithSpecifiedSparkVersion("regr_sxy", Some("3.4")) {
+  testWithSpecifiedSparkVersion("regr_sxy regr_sxx regr_syy", Some("3.4")) {
     runQueryAndCompare("""
                          |select regr_sxy(l_quantity, l_tax) from lineitem;
                          |""".stripMargin) {
