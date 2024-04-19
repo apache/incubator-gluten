@@ -21,6 +21,7 @@
 #include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <Functions/FunctionFactory.h>
+#include <iostream>
 
 using namespace DB;
 
@@ -63,39 +64,28 @@ public:
     {
         for (size_t i = 0; i < src.size(); ++i)
         {
-            const StringRef & s = src.getDataAt(i);
-            StringRef year;
-            if (extractYear(s, year))
-            {
-                result_data[i] = std::stoi(String(year.data, year.size));
-                // Spark's year range is between 1000 and 5881580
-                if (result_data[i] < 1000 || result_data[i] > 5881580)
-                    null_map[i] = 1;
-            }
-            else
+            if (!extractYear(src.getDataAt(i), result_data[i]))
                 null_map[i] = 1;
         }
     }
 
-    bool extractYear(const StringRef & s, StringRef & year) const
+    bool extractYear(const StringRef & s, Int32 & year) const
     {
         size_t i = 0;
         for (; i < s.size; ++i)
         {
             char ch = *(s.data + i);
-            if (!isNumericASCII(*(s.data + i)))
+            if (!isNumericASCII(ch))
             {
-                if (ch == '-')
+                if (ch == '-') 
                     break;
                 else
                     return false;
             }
         }
-        year = StringRef{s.data, i};
-        if (year.size == 0)
-            return false;
-        else
-            return true;
+        if (i != 4) return false;
+        year += (*(s.data + 0) - '0') * 1000 + (*(s.data + 1) - '0') * 100 + (*(s.data + 2) - '0') * 10 + (*(s.data + 3) - '0'); 
+        return true;
     }
 };
 
