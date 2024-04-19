@@ -535,7 +535,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
   }
 
   ignore("test mergetree write with the path based") {
-    val dataPath = s"$HDFS_URL/test/lineitem_mergetree_bucket_path_based_hdfs"
+    val dataPath = s"$HDFS_URL/test/lineitem_mergetree_bucket_hdfs"
 
     val sourceDF = spark.sql(s"""
                                 |select * from lineitem
