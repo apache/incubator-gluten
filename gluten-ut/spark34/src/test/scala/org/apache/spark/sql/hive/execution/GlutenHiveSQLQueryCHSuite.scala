@@ -121,7 +121,10 @@ class GlutenHiveSQLQueryCHSuite extends GlutenHiveSQLQuerySuiteBase {
           "USING hive OPTIONS(fileFormat 'parquet');")
       sql(
         "CREATE TABLE test_4990_1 (name STRING, favorite_color STRING) " +
-          "USING hive OPTIONS(fileFormat 'parquet') PARTITIONED BY (`day` STRING);")
+          "PARTITIONED BY (`day` STRING) " +
+          "ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe' " +
+          "STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' " +
+          "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat';")
       sql(
         "INSERT INTO test_4990_0 VALUES('test_1', 'red', '2024-03-30'), " +
           "('test_2', 'green', '2024-03-31'), ('test_3', 'blue', '2024-03-30');")
