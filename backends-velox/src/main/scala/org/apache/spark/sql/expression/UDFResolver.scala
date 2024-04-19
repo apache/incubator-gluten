@@ -206,7 +206,7 @@ object UDFResolver extends Logging {
       case Some(paths) =>
         sparkConf.set(
           BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS,
-          getAllLibraries(isDriver, paths, sparkConf))
+          getAllLibraries(sparkConf, isDriver, paths))
       case None =>
     }
   }
@@ -240,7 +240,7 @@ object UDFResolver extends Logging {
 
   // Get the full paths of all libraries.
   // If it's a directory, get all files ends with ".so" recursively.
-  private def getAllLibraries(isDriver: Boolean, files: String, sparkConf: SparkConf): String = {
+  private def getAllLibraries(sparkConf: SparkConf, isDriver: Boolean, files: String) = {
     val hadoopConf = SparkHadoopUtil.newConfiguration(sparkConf)
     val master = sparkConf.getOption("spark.master")
     val isYarnCluster =
