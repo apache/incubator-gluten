@@ -72,7 +72,7 @@ public class VeloxBloomFilterTest {
     TaskResources$.MODULE$.runUnsafe(
         () -> {
           final BloomFilter filter = VeloxBloomFilter.empty(10000);
-          int numItems = 1000;
+          final int numItems = 1000;
           for (int i = 0; i < numItems; i++) {
             Assert.assertFalse(filter.mightContainLong(i));
           }
@@ -83,6 +83,21 @@ public class VeloxBloomFilterTest {
           for (int i = 0; i < numItems; i++) {
             Assert.assertTrue(filter.mightContainLong(i));
           }
+
+          // Check false positives.
+          final int attemptStart = 1000;
+          final int attemptCount = 5000000;
+
+          int falsePositives = 0;
+
+          for (int i = attemptStart; i < attemptStart + attemptCount; i++) {
+            if (filter.mightContainLong(i)) {
+              falsePositives++;
+            }
+          }
+
+          Assert.assertTrue(falsePositives > 0);
+          Assert.assertTrue(falsePositives < attemptCount);
 
           return null;
         });
