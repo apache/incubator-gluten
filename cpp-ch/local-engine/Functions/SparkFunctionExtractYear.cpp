@@ -14,20 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <Common/StringUtils/StringUtils.h>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnString.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <Functions/FunctionFactory.h>
-#include <iostream>
 
 using namespace DB;
 
 namespace local_engine
 {
-
 class SparkFunctionExtractYear : public IFunction
 {
 public:
@@ -44,7 +41,6 @@ public:
     {
         return makeNullable(std::make_shared<DataTypeInt32>());
     }
-
     DB::ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr &, size_t) const override
     {
         if (arguments.size() != 1)
@@ -77,10 +73,8 @@ public:
             char ch = *(s.data + i);
             if (!isNumericASCII(ch))
             {
-                if (ch == '-') 
-                    break;
-                else
-                    return false;
+                if (ch == '-') break;
+                else return false;
             }
         }
         if (i != 4) return false;
@@ -93,5 +87,4 @@ REGISTER_FUNCTION(SparkExtractYear)
 {
     factory.registerFunction<SparkFunctionExtractYear>();
 }
-
 }
