@@ -22,7 +22,14 @@
 #include <Functions/FunctionFactory.h>
 
 using namespace DB;
-
+namespace DB
+{
+namespace ErrorCodes
+{
+    extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
+    extern const int ILLEGAL_TYPE_OF_ARGUMENT;
+}
+}
 namespace local_engine
 {
 class SparkFunctionExtractYear : public IFunction
@@ -44,18 +51,17 @@ public:
     DB::ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr &, size_t) const override
     {
         if (arguments.size() != 1)
-            throw Exception(-1, "Function {}'s argument size must be 1", name);
+            throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s argument size must be 1", name);
         
         const ColumnString * col_str = checkAndGetColumn<ColumnString>(arguments[0].column.get());
         if (!col_str)
-            throw Exception(-1, "Function {}'s 1st argument type must be string", name);
+            throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s 1st argument type must be string", name);
         
         auto res_col = ColumnInt32::create(col_str->size(), 0);
         auto null_map_col = ColumnUInt8::create(col_str->size(), 0);
         executeInternal(*col_str, res_col->getData(), null_map_col->getData());
         return ColumnNullable::create(std::move(res_col), std::move(null_map_col));
     }
-
     void executeInternal(const ColumnString & src, PaddedPODArray<Int32> & result_data, PaddedPODArray<UInt8> & null_map) const
     {
         for (size_t i = 0; i < src.size(); ++i)
@@ -64,7 +70,6 @@ public:
                 null_map[i] = 1;
         }
     }
-
     bool extractYear(const StringRef & s, Int32 & year) const
     {
         size_t i = 0;
