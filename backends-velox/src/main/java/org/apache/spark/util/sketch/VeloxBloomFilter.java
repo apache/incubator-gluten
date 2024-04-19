@@ -33,6 +33,15 @@ public class VeloxBloomFilter extends BloomFilter {
     handle = jni.init(data);
   }
 
+  private VeloxBloomFilter(int capacity) {
+    jni = VeloxBloomFilterJniWrapper.create();
+    handle = jni.empty(capacity);
+  }
+
+  public static VeloxBloomFilter empty(int capacity) {
+    return new VeloxBloomFilter(capacity);
+  }
+
   public static VeloxBloomFilter readFrom(InputStream in) {
     try {
       byte[] all = IOUtils.toByteArray(in);
@@ -72,7 +81,8 @@ public class VeloxBloomFilter extends BloomFilter {
 
   @Override
   public boolean putLong(long item) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    jni.insertLong(handle, item);
+    return true;
   }
 
   @Override
@@ -117,6 +127,7 @@ public class VeloxBloomFilter extends BloomFilter {
 
   @Override
   public void writeTo(OutputStream out) throws IOException {
-    throw new UnsupportedOperationException("Not yet implemented");
+    byte[] data = jni.serialize(handle);
+    out.write(data);
   }
 }

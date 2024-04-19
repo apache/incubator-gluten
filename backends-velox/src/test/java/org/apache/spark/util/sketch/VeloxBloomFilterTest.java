@@ -26,6 +26,9 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.nio.ByteBuffer;
 
 public class VeloxBloomFilterTest {
@@ -38,7 +41,19 @@ public class VeloxBloomFilterTest {
   }
 
   @Test
-  public void testEmpty() {
+  public void testEmpty1() {
+    TaskResources$.MODULE$.runUnsafe(
+        () -> {
+          final BloomFilter filter = VeloxBloomFilter.empty(10000);
+          for (int i = 0; i < 1000; i++) {
+            Assert.assertFalse(filter.mightContainLong(i));
+          }
+          return null;
+        });
+  }
+
+  @Test
+  public void testEmpty2() {
     final ByteBuffer buf = ByteBuffer.allocate(5);
     buf.put((byte) 1); // kBloomFilterV1
     buf.putInt(0); // size
@@ -48,6 +63,58 @@ public class VeloxBloomFilterTest {
           for (int i = 0; i < 1000; i++) {
             Assert.assertFalse(filter.mightContainLong(i));
           }
+          return null;
+        });
+  }
+
+  @Test
+  public void testSanity() {
+    TaskResources$.MODULE$.runUnsafe(
+        () -> {
+          final BloomFilter filter = VeloxBloomFilter.empty(10000);
+          int numItems = 1000;
+          for (int i = 0; i < numItems; i++) {
+            Assert.assertFalse(filter.mightContainLong(i));
+          }
+          for (int i = 0; i < numItems; i++) {
+            filter.putLong(i);
+            Assert.assertTrue(filter.mightContainLong(i));
+          }
+          for (int i = 0; i < numItems; i++) {
+            Assert.assertTrue(filter.mightContainLong(i));
+          }
+
+          return null;
+        });
+  }
+
+  @Test
+  public void testSerde() {
+    TaskResources$.MODULE$.runUnsafe(
+        () -> {
+          final BloomFilter filter = VeloxBloomFilter.empty(10000);
+          for (int i = 0; i < 1000; i++) {
+            filter.putLong(i);
+          }
+
+          final ByteArrayOutputStream o = new ByteArrayOutputStream();
+          try {
+            filter.writeTo(o);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+          byte[] data1 = o.toByteArray();
+
+          final BloomFilter filter2 = VeloxBloomFilter.readFrom(data1);
+          final ByteArrayOutputStream o2 = new ByteArrayOutputStream();
+          try {
+            filter2.writeTo(o2);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+          byte[] data2 = o2.toByteArray();
+
+          Assert.assertArrayEquals(data2, data1);
           return null;
         });
   }

@@ -141,12 +141,24 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFail
   JNI_METHOD_END(nullptr)
 }
 
+JNIEXPORT jlong JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWrapper_empty( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jint capacity) {
+  JNI_METHOD_START
+  auto ctx = gluten::getRuntime(env, wrapper);
+  auto filter = std::make_shared<velox::BloomFilter<std::allocator<uint64_t>>>();
+  filter->reset(capacity);
+  GLUTEN_CHECK(filter->isSet(), "Bloom-filter is not initialized");
+  return ctx->objectStore()->save(filter);
+  JNI_METHOD_END(gluten::kInvalidResourceHandle)
+}
+
 JNIEXPORT jlong JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWrapper_init( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jbyteArray data) {
   JNI_METHOD_START
-
   auto len = env->GetArrayLength(data);
   auto safeArray = gluten::getByteArrayElementsSafe(env, data);
   auto ctx = gluten::getRuntime(env, wrapper);
@@ -157,6 +169,19 @@ JNIEXPORT jlong JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWra
   JNI_METHOD_END(gluten::kInvalidResourceHandle)
 }
 
+JNIEXPORT void JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWrapper_insertLong( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong handle,
+    jlong item) {
+  JNI_METHOD_START
+  auto ctx = gluten::getRuntime(env, wrapper);
+  auto filter = ctx->objectStore()->retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
+  GLUTEN_CHECK(filter->isSet(), "Bloom-filter is not initialized");
+  filter->insert(folly::hasher<int64_t>()(item));
+  JNI_METHOD_END()
+}
+
 JNIEXPORT jboolean JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWrapper_mightContainLong( // NOLINT
     JNIEnv* env,
     jobject wrapper,
@@ -165,9 +190,27 @@ JNIEXPORT jboolean JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJni
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
   auto filter = ctx->objectStore()->retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
-  bool out = filter->isSet() && filter->mayContain(folly::hasher<int64_t>()(item));
+  GLUTEN_CHECK(filter->isSet(), "Bloom-filter is not initialized");
+  bool out = filter->mayContain(folly::hasher<int64_t>()(item));
   return out;
   JNI_METHOD_END(false)
+}
+
+JNIEXPORT jbyteArray JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWrapper_serialize( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong handle) {
+  JNI_METHOD_START
+  auto ctx = gluten::getRuntime(env, wrapper);
+  auto filter = ctx->objectStore()->retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
+  GLUTEN_CHECK(filter->isSet(), "Bloom-filter is not initialized");
+  uint32_t size = filter->serializedSize();
+  jbyteArray out = env->NewByteArray(size);
+  char buffer[size];
+  filter->serialize(buffer);
+  env->SetByteArrayRegion(out, 0, size, reinterpret_cast<jbyte*>(buffer));
+  return out;
+  JNI_METHOD_END(nullptr)
 }
 
 #ifdef __cplusplus

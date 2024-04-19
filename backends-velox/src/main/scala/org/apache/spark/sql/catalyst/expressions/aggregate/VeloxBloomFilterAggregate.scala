@@ -23,6 +23,7 @@ import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.trees.TernaryLike
 import org.apache.spark.sql.types.DataType
+import org.apache.spark.util.TaskResources
 import org.apache.spark.util.sketch.BloomFilter
 
 /**
@@ -70,7 +71,12 @@ case class VeloxBloomFilterAggregate(
       numBitsExpression = newNumBitsExpression)
   }
 
-  override def createAggregationBuffer(): BloomFilter = throw new UnsupportedOperationException()
+  override def createAggregationBuffer(): BloomFilter = {
+    if (!TaskResources.inSparkTask()) {
+      throw new UnsupportedOperationException("velox_bloom_filter_agg is not evaluable on Driver")
+    }
+    ???
+  }
 
   override def update(buffer: BloomFilter, input: InternalRow): BloomFilter =
     throw new UnsupportedOperationException()
