@@ -36,7 +36,6 @@ import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
 import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
@@ -447,9 +446,7 @@ object BackendSettings extends BackendSettingsApi {
 
   override def shuffleSupportedCodec(): Set[String] = SHUFFLE_SUPPORTED_CODEC
 
-  override def resolveNativeConf(nativeConf: java.util.Map[String, String]): Unit = {
-    UDFResolver.resolveUdfConf(nativeConf)
-  }
+  override def resolveNativeConf(nativeConf: java.util.Map[String, String]): Unit = {}
 
   override def insertPostProjectForGenerate(): Boolean = true
 

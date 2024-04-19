@@ -121,8 +121,7 @@ class EnumeratedApplier(session: SparkSession)
       List(
         (spark: SparkSession) => MergeTwoPhasesHashBaseAggregate(spark),
         (_: SparkSession) => RewriteSparkPlanRulesManager(),
-        (_: SparkSession) => AddTransformHintRule(),
-        (_: SparkSession) => FallbackBloomFilterAggIfNeeded()
+        (_: SparkSession) => AddTransformHintRule()
       ) :::
       List(
         (session: SparkSession) => EnumeratedTransform(session, outputsColumnar),

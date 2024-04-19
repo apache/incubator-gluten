@@ -97,7 +97,7 @@ class GlutenBloomFilterAggregateQuerySuite
           df.queryExecution.executedPlan
         )
       }
-      if (BackendsApiManager.getSettings.enableBloomFilterAggFallbackRule()) {
+      if (BackendsApiManager.getSettings.requireBloomFilterAggMightContainJointFallback()) {
         withSQLConf(
           GlutenConfig.COLUMNAR_FILTER_ENABLED.key -> "false"
         ) {
@@ -106,7 +106,7 @@ class GlutenBloomFilterAggregateQuerySuite
           assert(
             collectWithSubqueries(df.queryExecution.executedPlan) {
               case h if h.isInstanceOf[HashAggregateExecBaseTransformer] => h
-            }.size == 0,
+            }.size == 2,
             df.queryExecution.executedPlan
           )
         }

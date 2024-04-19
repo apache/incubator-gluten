@@ -33,16 +33,16 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.ShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FlushableHashAggregateRule, FunctionIdentifier}
+import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, BloomFilterMightContainJointRewriteRule, FlushableHashAggregateRule, FunctionIdentifier}
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
-import org.apache.spark.sql.catalyst.expressions.{Add, Alias, ArrayFilter, Ascending, Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, Generator, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, LambdaFunction, Literal, Murmur3Hash, NamedExpression, NaNvl, PosExplode, Round, SortOrder, StringSplit, StringTrim, TryEval, Uuid}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
+import org.apache.spark.sql.catalyst.expressions.{Add, Alias, ArrayFilter, Ascending, Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, Generator, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, LambdaFunction, Literal, Murmur3Hash, NamedExpression, NaNvl, PosExplode, Round, SortOrder, StringSplit, StringTrim, TryEval, Uuid, VeloxBloomFilterMightContain}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter, VeloxBloomFilterAggregate}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, BroadcastMode, HashPartitioning, Partitioning, RoundRobinPartitioning}
+import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
@@ -63,6 +63,7 @@ import javax.ws.rs.core.UriBuilder
 import java.lang.{Long => JLong}
 import java.util.{Map => JMap}
 
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 class SparkPlanExecApiImpl extends SparkPlanExecApi {
@@ -261,7 +262,9 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
    */
   override def genFilterExecTransformer(
       condition: Expression,
-      child: SparkPlan): FilterExecTransformerBase = FilterExecTransformer(condition, child)
+      child: SparkPlan): FilterExecTransformerBase = {
+    FilterExecTransformer(condition, child)
+  }
 
   /** Generate HashAggregateExecTransformer. */
   override def genHashAggregateExecTransformer(
@@ -673,8 +676,12 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] =
-    List(AggregateFunctionRewriteRule)
+  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = {
+    val buf = mutable.ListBuffer[SparkSession => Rule[LogicalPlan]]()
+    buf += AggregateFunctionRewriteRule.apply
+    buf += BloomFilterMightContainJointRewriteRule.apply
+    buf.toList
+  }
 
   /**
    * Generate extended columnar pre-rules, in the validation phase.
@@ -720,7 +727,9 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       Sig[HLLAdapter](ExpressionNames.APPROX_DISTINCT),
       Sig[UDFExpression](ExpressionNames.UDF_PLACEHOLDER),
       Sig[UserDefinedAggregateFunction](ExpressionNames.UDF_PLACEHOLDER),
-      Sig[NaNvl](ExpressionNames.NANVL)
+      Sig[NaNvl](ExpressionNames.NANVL),
+      Sig[VeloxBloomFilterMightContain](ExpressionNames.MIGHT_CONTAIN),
+      Sig[VeloxBloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG)
     )
   }
 

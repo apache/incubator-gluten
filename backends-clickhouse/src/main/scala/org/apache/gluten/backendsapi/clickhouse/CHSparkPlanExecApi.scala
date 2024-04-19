@@ -25,6 +25,7 @@ import org.apache.gluten.expression.ConverterUtils.FunctionConfig
 import org.apache.gluten.extension.{CountDistinctWithoutExpand, FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage, RewriteToDateExpresstionRule}
 import org.apache.gluten.extension.columnar.AddTransformHintRule
 import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import org.apache.gluten.utils.CHJoinValidateUtil
 import org.apache.gluten.vectorized.CHColumnarBatchSerializer
@@ -623,6 +624,11 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def genExtendedStrategies(): List[SparkSession => Strategy] =
     List()
+
+  /** Define backend specfic expression mappings. */
+  override def extraExpressionMappings: Seq[Sig] = {
+    SparkShimLoader.getSparkShims.bloomFilterExpressionMappings()
+  }
 
   override def genStringTranslateTransformer(
       substraitExprName: String,
