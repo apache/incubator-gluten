@@ -94,6 +94,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableRewriteDateTimestampComparison: Boolean =
     conf.getConf(ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON)
 
+  def enableCHRewriteDateConversion: Boolean =
+    conf.getConf(ENABLE_CH_REWRITE_DATE_CONVERSION)
+
   def enableCommonSubexpressionEliminate: Boolean =
     conf.getConf(ENABLE_COMMON_SUBEXPRESSION_ELIMINATE)
 
@@ -1585,6 +1588,16 @@ object GlutenConfig {
       .internal()
       .doc("Rewrite the comparision between date and timestamp to timestamp comparison."
         + "For example `from_unixtime(ts) > date` will be rewritten to `ts > to_unixtime(date)`")
+      .booleanConf
+      .createWithDefault(true)
+
+  val ENABLE_CH_REWRITE_DATE_CONVERSION =
+    buildConf("spark.gluten.sql.columnar.backend.ch.rewrite.dateConversion")
+      .internal()
+      .doc(
+        "Rewrite the conversion between date and string."
+          + "For example `to_date(from_unixtime(unix_timestamp(stringType, 'yyyyMMdd')))`"
+          + " will be rewritten to `to_date(stringType)`")
       .booleanConf
       .createWithDefault(true)
 
