@@ -38,7 +38,7 @@ import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
-import org.apache.spark.sql.execution.python.EvalPythonExec
+import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BatchEvalPythonExec}
 import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.StringType
@@ -495,6 +495,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           val transformer = LimitTransformer(plan.child, 0L, plan.limit)
           transformer.doValidate().tagOnFallback(plan)
         case plan: GenerateExec =>
+<<<<<<< HEAD
           val transformer = BackendsApiManager.getSparkPlanExecApiInstance.genGenerateTransformer(
             plan.generator,
             plan.requiredChildOutput,
@@ -505,6 +506,32 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
         case plan: EvalPythonExec =>
           val transformer = EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, plan.child)
           transformer.doValidate().tagOnFallback(plan)
+=======
+          if (!enableColumnarGenerate) {
+            TransformHints.tagNotTransformable(
+              plan,
+              "columnar generate is not enabled in GenerateExec")
+          } else {
+            val transformer = BackendsApiManager.getSparkPlanExecApiInstance.genGenerateTransformer(
+              plan.generator,
+              plan.requiredChildOutput,
+              plan.outer,
+              plan.generatorOutput,
+              plan.child)
+            transformer.doValidate().tagOnFallback(plan)
+          }
+        case plan: BatchEvalPythonExec =>
+          val transformer = EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, plan.child)
+          transformer.doValidate().tagOnFallback(plan)
+        case plan: ArrowEvalPythonExec =>
+          if (!enableColumnarArrowUdf) {
+            // Both CH and Velox will try using backend's built-in functions for calculate
+            val transformer = EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, plan.child)
+            transformer.doValidate().tagOnFallback(plan)
+          }
+        case _: AQEShuffleReadExec =>
+        // Considered transformable by default.
+>>>>>>> [GLUTEN-5461] ColumnarArrowPythonEvalExec support for Velox backend
         case plan: TakeOrderedAndProjectExec =>
           val (limit, offset) =
             SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(plan)

@@ -36,8 +36,8 @@ import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins._
-import org.apache.spark.sql.execution.python.EvalPythonExec
-import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
+import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BatchEvalPythonExec}
+import org.apache.spark.sql.execution.window.{WindowExec,WindowGroupLimitExecShim}
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
 sealed trait TransformSingleNode extends Logging {
@@ -439,10 +439,24 @@ object TransformOthers {
             plan.outer,
             plan.generatorOutput,
             child)
-        case plan: EvalPythonExec =>
+        case plan: BatchEvalPythonExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           val child = plan.child
           EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, child)
+        case plan: ArrowEvalPythonExec =>
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          val child = plan.child
+          // For ArrowEvalPythonExec, CH supports it through EvalPythonExecTransformer while
+          // Velox backend uses ColumnarArrowEvalPythonExec.
+          if (!BackendsApiManager.getSettings.supportColumnarArrowUdf()) {
+            EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, child)
+          } else {
+            BackendsApiManager.getSparkPlanExecApiInstance.createColumnarArrowEvalPythonExec(
+              plan.udfs,
+              plan.resultAttrs,
+              child,
+              plan.evalType)
+          }
         case p if !p.isInstanceOf[GlutenPlan] =>
           logDebug(s"Transformation for ${p.getClass} is currently not supported.")
           val children = plan.children

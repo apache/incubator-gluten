@@ -30,6 +30,7 @@ import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode
 import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializeResult}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
+import org.apache.spark.api.python.ColumnarArrowEvalPythonExec
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
@@ -516,6 +517,14 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       bucketSpec,
       options,
       staticPartitions)
+  }
+
+  override def createColumnarArrowEvalPythonExec(
+      udfs: Seq[PythonUDF],
+      resultAttrs: Seq[Attribute],
+      child: SparkPlan,
+      evalType: Int): SparkPlan = {
+    new ColumnarArrowEvalPythonExec(udfs, resultAttrs, child, evalType)
   }
 
   /**
