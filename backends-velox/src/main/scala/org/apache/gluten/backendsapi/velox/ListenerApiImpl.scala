@@ -28,6 +28,7 @@ import org.apache.gluten.vectorized.{JniLibLoader, JniWorkspace}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.datasources.velox.{VeloxOrcWriterInjects, VeloxParquetWriterInjects, VeloxRowSplitter}
+import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.GlutenConfigUtil
 import org.apache.spark.sql.internal.StaticSQLConf
 
@@ -45,12 +46,16 @@ class ListenerApiImpl extends ListenerApi {
         StaticSQLConf.SPARK_CACHE_SERIALIZER.key,
         "org.apache.spark.sql.execution.ColumnarCachedBatchSerializer")
     }
+    UDFResolver.resolveUdfConf(conf, isDriver = true)
     initialize(conf)
   }
 
   override def onDriverShutdown(): Unit = shutdown()
 
-  override def onExecutorStart(conf: SparkConf): Unit = initialize(conf)
+  override def onExecutorStart(conf: SparkConf): Unit = {
+    UDFResolver.resolveUdfConf(conf, isDriver = false)
+    initialize(conf)
+  }
 
   override def onExecutorShutdown(): Unit = shutdown()
 
@@ -165,7 +170,8 @@ class ListenerApiImpl extends ListenerApi {
       loader.mapAndLoad(VeloxBackend.BACKEND_NAME, false)
     }
 
-    initializeNative(GlutenConfigUtil.parseConfig(conf.getAll.toMap))
+    val parsed = GlutenConfigUtil.parseConfig(conf.getAll.toMap)
+    initializeNative(parsed)
 
     // inject backend-specific implementations to override spark classes
     // FIXME: The following set instances twice in local mode?

@@ -566,7 +566,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           throw new UnsupportedOperationException(s"Not support expression TimestampAdd.")
         }
         val add = timestampAdd.asInstanceOf[BinaryExpression]
-        TimestampAddTransform(
+        TimestampAddTransformer(
           substraitExprName,
           extract.get.head,
           replaceWithExpressionTransformerInternal(add.left, attributeSeq, expressionsMap),

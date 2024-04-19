@@ -227,7 +227,7 @@ class ClickHouseSparkCatalog
   override def loadTable(ident: Identifier): Table = {
     try {
       super.loadTable(ident) match {
-        case v1: V1Table if CHDataSourceUtils.isDeltaTable(v1.catalogTable) =>
+        case v1: V1Table if CHDataSourceUtils.isClickHouseTable(v1.catalogTable) =>
           new ClickHouseTableV2(
             spark,
             new Path(v1.catalogTable.location),

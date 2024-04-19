@@ -23,7 +23,7 @@ import org.apache.spark.sql.types.DataType
 
 import com.google.common.collect.Lists
 
-case class TimestampAddTransform(
+case class TimestampAddTransformer(
     substraitExprName: String,
     unit: String,
     left: ExpressionTransformer,
