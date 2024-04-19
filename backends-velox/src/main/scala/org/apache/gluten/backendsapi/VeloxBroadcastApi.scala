@@ -14,13 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.backendsapi.velox
-
-import org.apache.gluten.backendsapi.BroadcastApi
+package org.apache.gluten.backendsapi
 
 import java.util
 
-class BroadcastApiImpl extends BroadcastApi {
+class VeloxBroadcastApi extends BroadcastApi {
 
   override def collectExecutionBroadcastTableId(executionId: String, buildTableId: String): Unit =
     super.collectExecutionBroadcastTableId(executionId, buildTableId)

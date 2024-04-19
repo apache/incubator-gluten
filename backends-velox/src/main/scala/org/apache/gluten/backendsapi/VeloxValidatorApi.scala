@@ -14,9 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.backendsapi.velox
+package org.apache.gluten.backendsapi
 
-import org.apache.gluten.backendsapi.ValidatorApi
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.validate.NativePlanValidationInfo
 import org.apache.gluten.vectorized.NativePlanEvaluator
@@ -27,7 +26,7 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
 import org.apache.spark.util.TaskResources
 
-class ValidatorApiImpl extends ValidatorApi {
+class VeloxValidatorApi extends ValidatorApi {
 
   /** For velox backend, key validation is on native side. */
   override def doExprValidate(substraitExprName: String, expr: Expression): Boolean =

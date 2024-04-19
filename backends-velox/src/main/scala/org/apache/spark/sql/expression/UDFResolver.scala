@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.expression
 
-import org.apache.gluten.backendsapi.velox.BackendSettings
+import org.apache.gluten.backendsapi.VeloxBackendSettings
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.expression.{ConverterUtils, ExpressionTransformer, ExpressionType, Transformable}
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
@@ -196,16 +196,16 @@ object UDFResolver extends Logging {
   def resolveUdfConf(sparkConf: SparkConf, isDriver: Boolean): Unit = {
     val udfLibPaths = if (isDriver) {
       sparkConf
-        .getOption(BackendSettings.GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS)
-        .orElse(sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS))
+        .getOption(VeloxBackendSettings.GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS)
+        .orElse(sparkConf.getOption(VeloxBackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS))
     } else {
-      sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)
+      sparkConf.getOption(VeloxBackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)
     }
 
     udfLibPaths match {
       case Some(paths) =>
         sparkConf.set(
-          BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS,
+          VeloxBackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS,
           getAllLibraries(sparkConf, isDriver, paths))
       case None =>
     }
@@ -294,7 +294,7 @@ object UDFResolver extends Logging {
   def getFunctionSignatures: Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
     val sparkContext = SparkContext.getActive.get
     val sparkConf = sparkContext.conf
-    val udfLibPaths = sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)
+    val udfLibPaths = sparkConf.getOption(VeloxBackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)
 
     udfLibPaths match {
       case None =>

@@ -14,10 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.backendsapi.velox
+package org.apache.gluten.backendsapi
 
 import org.apache.gluten.GlutenNumaBindingInfo
-import org.apache.gluten.backendsapi.IteratorApi
 import org.apache.gluten.execution._
 import org.apache.gluten.metrics.IMetrics
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -49,7 +48,7 @@ import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
 
-class IteratorApiImpl extends IteratorApi with Logging {
+class VeloxIteratorApi extends IteratorApi with Logging {
 
   override def genSplitInfo(
       partition: InputPartition,

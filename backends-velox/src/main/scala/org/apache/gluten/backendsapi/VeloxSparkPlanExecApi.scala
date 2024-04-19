@@ -14,10 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.backendsapi.velox
+package org.apache.gluten.backendsapi
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backendsapi.SparkPlanExecApi
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
@@ -66,7 +65,7 @@ import java.util.{Map => JMap}
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-class SparkPlanExecApiImpl extends SparkPlanExecApi {
+class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
   /**
    * Transform GetArrayItem to Substrait.

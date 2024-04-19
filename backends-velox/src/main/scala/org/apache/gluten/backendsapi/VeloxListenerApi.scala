@@ -14,11 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.backendsapi.velox
+package org.apache.gluten.backendsapi
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backendsapi.ListenerApi
-import org.apache.gluten.backendsapi.velox.ListenerApiImpl.initializeNative
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.datasource.{GlutenOrcWriterInjects, GlutenParquetWriterInjects, GlutenRowSplitter}
 import org.apache.gluten.expression.UDFMappings
@@ -33,11 +31,12 @@ import org.apache.spark.sql.internal.GlutenConfigUtil
 import org.apache.spark.sql.internal.StaticSQLConf
 import org.apache.spark.util.SparkDirectoryUtil
 
+import VeloxListenerApi.initializeNative
 import org.apache.commons.lang3.StringUtils
 
 import scala.sys.process._
 
-class ListenerApiImpl extends ListenerApi {
+class VeloxListenerApi extends ListenerApi {
   private val ARROW_VERSION = "1500"
 
   override def onDriverStart(conf: SparkConf): Unit = {
@@ -187,7 +186,7 @@ class ListenerApiImpl extends ListenerApi {
   }
 }
 
-object ListenerApiImpl {
+object VeloxListenerApi {
   // Spark DriverPlugin/ExecutorPlugin will only invoke ContextInitializer#initialize method once
   // in its init method.
   // In cluster mode, ContextInitializer#initialize only will be invoked in different JVM.

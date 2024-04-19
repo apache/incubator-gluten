@@ -14,9 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.backendsapi.velox
+package org.apache.gluten.backendsapi
 
-import org.apache.gluten.backendsapi.TransformerApi
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.utils.InputPartitionsUtil
@@ -34,7 +33,7 @@ import com.google.protobuf.{Any, Message}
 
 import java.util.{Map => JMap}
 
-class TransformerApiImpl extends TransformerApi with Logging {
+class VeloxTransformerApi extends TransformerApi with Logging {
 
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(

@@ -14,9 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.backendsapi.velox
+package org.apache.gluten.backendsapi
 
-import org.apache.gluten.backendsapi.MetricsApi
 import org.apache.gluten.metrics._
 import org.apache.gluten.substrait.{AggregationParams, JoinParams}
 
@@ -28,7 +27,7 @@ import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import java.lang.{Long => JLong}
 import java.util.{List => JList, Map => JMap}
 
-class MetricsApiImpl extends MetricsApi with Logging {
+class VeloxMetricsApi extends MetricsApi with Logging {
   override def metricsUpdatingFunction(
       child: SparkPlan,
       relMap: JMap[JLong, JList[JLong]],
