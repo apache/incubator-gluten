@@ -218,9 +218,6 @@ arrow::Status VeloxShuffleWriter::init() {
   supportAvx512_ = false;
 #endif
 
-  // Split record batch size should be less than 32k.
-  VELOX_CHECK_LE(options_.bufferSize, 32 * 1024);
-
   ARROW_ASSIGN_OR_RAISE(
       partitioner_, Partitioner::make(options_.partitioning, numPartitions_, options_.startPartitionId));
   DLOG(INFO) << "Create partitioning type: " << std::to_string(options_.partitioning);

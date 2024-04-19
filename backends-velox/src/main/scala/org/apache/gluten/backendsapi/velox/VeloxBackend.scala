@@ -448,7 +448,6 @@ object BackendSettings extends BackendSettingsApi {
   override def shuffleSupportedCodec(): Set[String] = SHUFFLE_SUPPORTED_CODEC
 
   override def resolveNativeConf(nativeConf: java.util.Map[String, String]): Unit = {
-    checkMaxBatchSize(nativeConf)
     UDFResolver.resolveUdfConf(nativeConf)
   }
 
@@ -476,17 +475,6 @@ object BackendSettings extends BackendSettingsApi {
     GlutenConfig.getConf.enableNativeWriter.getOrElse(
       SparkShimLoader.getSparkShims.enableNativeWriteFilesByDefault()
     )
-  }
-
-  private def checkMaxBatchSize(nativeConf: java.util.Map[String, String]): Unit = {
-    if (nativeConf.containsKey(GlutenConfig.GLUTEN_MAX_BATCH_SIZE_KEY)) {
-      val maxBatchSize = nativeConf.get(GlutenConfig.GLUTEN_MAX_BATCH_SIZE_KEY).toInt
-      if (maxBatchSize > MAXIMUM_BATCH_SIZE) {
-        throw new IllegalArgumentException(
-          s"The maximum value of ${GlutenConfig.GLUTEN_MAX_BATCH_SIZE_KEY}" +
-            s" is $MAXIMUM_BATCH_SIZE for Velox backend.")
-      }
-    }
   }
 
   override def shouldRewriteCount(): Boolean = {
