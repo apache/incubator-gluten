@@ -33,6 +33,7 @@ import org.apache.spark.sql.delta.skipping.MultiDimClustering
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.execution.command.{LeafRunnableCommand, RunnableCommand}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.CHDataSourceUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.metric.SQLMetrics.createMetric
 import org.apache.spark.sql.types._
@@ -126,7 +127,7 @@ case class OptimizeTableCommand(
   override val otherCopyArgs: Seq[AnyRef] = zOrderBy :: Nil
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
-    CommandUtils.ensureClickHouseTableV2(tableId, sparkSession)
+    CHDataSourceUtils.ensureClickHouseTableV2(tableId, sparkSession)
 
     val deltaLog = getDeltaLogClickhouse(sparkSession, path, tableId, "OPTIMIZE", options)
 
@@ -295,8 +296,8 @@ class OptimizeExecutor(
             // Generally, a bin is a group of existing files, whose total size does not exceed the
             // desired maxFileSize. They will be coalesced into a single output file.
             // However, if isMultiDimClustering = true, all files in a partition will be read by the
-            // same job, the data will be range-partitioned and numFiles = totalFileSize / maxFileSize
-            // will be produced. See below.
+            // same job, the data will be range-partitioned and
+            // umFiles = totalFileSize / maxFileSize will be produced. See below.
             if (file.size + currentBinSize > maxTargetFileSize && !isMultiDimClustering) {
               bins += currentBin.toVector
               currentBin.clear()
