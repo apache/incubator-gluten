@@ -261,6 +261,7 @@
         <delta.package.name>delta-core</delta.package.name>
         <delta.version>2.0.1</delta.version>
         <delta.binary.version>20</delta.binary.version>
+        <hudi.version>0.14.1</hudi.version>
       </properties>
     </profile>
     <profile>
@@ -274,7 +275,8 @@
         <iceberg.version>1.3.1</iceberg.version>
         <delta.package.name>delta-core</delta.package.name>
         <delta.version>2.3.0</delta.version>
-        <delta.binary.version>23</delta.binary.version>
+	<delta.binary.version>23</delta.binary.version>
+	<hudi.version>0.14.1</hudi.version>
       </properties>
     </profile>
     <profile>
@@ -288,6 +290,7 @@
         <delta.package.name>delta-core</delta.package.name>
         <delta.version>2.4.0</delta.version>
         <delta.binary.version>24</delta.binary.version>
+        <hudi.version>0.14.1</hudi.version>
       </properties>
     </profile>
     <profile>
@@ -406,6 +409,15 @@
       </activation>
       <modules>
         <module>gluten-iceberg</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>hudi</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <modules>
+        <module>gluten-hudi</module>
       </modules>
     </profile>
     <profile>

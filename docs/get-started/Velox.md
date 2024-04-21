@@ -338,6 +338,23 @@ Once built successfully, iceberg features will be included in gluten-velox-bundl
 
 After the two steps, you can query iceberg table by gluten/velox without scan's fallback.
 
+## Hudi Support
+
+Gluten with velox backend supports [Hudi](https://hudi.apache.org/) table. Currently, only reading COW (Copy-On-Write) tables is supported.
+
+### How to use
+
+First of all, compile gluten-hudi module by a `hudi` profile, as follows:
+
+```
+mvn clean package -Pbackends-velox -Pspark-3.3 -Phudi -DskipTests
+```
+
+Then, put the additional `gluten-hudi-XX-SNAPSHOT.jar` to the class path (usually it's `$SPARK_HOME/jars`).
+The gluten-hudi jar is in `gluten-hudi/target` directory.
+
+After the two steps, you can query Hudi table by gluten/velox without scan's fallback.
+
 # Coverage
 
 Spark3.3 has 387 functions in total. ~240 are commonly used. To get the support status of all Spark built-in functions, please refer to [Velox Backend's Supported Operators & Functions](../velox-backend-support-progress.md).
