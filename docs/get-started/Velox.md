@@ -291,6 +291,23 @@ The gluten-iceberg jar is in `gluten-iceberg/target` directory.
 
 After the two steps, you can query iceberg table by gluten/velox without scan's fallback.
 
+## Hudi Support
+
+Gluten with velox backend supports [Hudi](https://hudi.apache.org/) table. Currently, only reading COW (Copy-On-Write) tables is supported.
+
+### How to use
+
+First of all, compile gluten-hudi module by a `hudi` profile, as follows:
+
+```
+mvn clean package -Pbackends-velox -Pspark-3.3 -Phudi -DskipTests
+```
+
+Then, put the additional `gluten-hudi-XX-SNAPSHOT.jar` to the class path (usually it's `$SPARK_HOME/jars`).
+The gluten-hudi jar is in `gluten-hudi/target` directory.
+
+After the two steps, you can query Hudi table by gluten/velox without scan's fallback.
+
 # Coverage
 
 Spark3.3 has 387 functions in total. ~240 are commonly used. Velox's functions have two category, Presto and Spark. Presto has 124 functions implemented. Spark has 62 functions. Spark functions are verified to have the same result as Vanilla Spark. Some Presto functions have the same result as Vanilla Spark but some others have different. Gluten prefer to use Spark functions firstly. If it's not in Spark's list but implemented in Presto, we currently offload to Presto one until we noted some result mismatch, then we need to reimplement the function in Spark category. Gluten currently offloads 94 functions and 14 operators, more details refer to [Velox Backend's Supported Operators & Functions](../velox-backend-support-progress.md).
