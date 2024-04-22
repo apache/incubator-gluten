@@ -191,6 +191,19 @@ Here are two steps to enable kerberos.
 
 The ticket cache file can be found by `klist`.
 
+## Azure Blob File System (ABFS) support
+
+Velox supports ABFS with the open source [Azure SDK for C++](https://github.com/Azure/azure-sdk-for-cpp) and Gluten uses the Velox ABFS connector to connect with ABFS.
+The build option for ABFS (enable_abfs) must be set to enable this feature as listed below
+
+```
+cd /path/to/gluten
+./dev/buildbundle-veloxbe.sh --enable_abfs=ON
+```
+
+Please refer [Velox ABFS](VeloxABFS.md) part for more detailed configurations
+
+
 ## AWS S3 support
 
 Velox supports S3 with the open source [AWS C++ SDK](https://github.com/aws/aws-sdk-cpp) and Gluten uses Velox S3 connector to connect with S3.
