@@ -54,7 +54,10 @@ case class VeloxBloomFilterAggregate(
   private lazy val estimatedNumItems: Long =
     Math.min(
       estimatedNumItemsExpression.eval().asInstanceOf[Number].longValue,
-      SQLConf.get.getConf(SQLConf.RUNTIME_BLOOM_FILTER_MAX_NUM_ITEMS))
+      SQLConf.get
+        .getConfString("spark.sql.optimizer.runtime.bloomFilter.maxNumItems", "4000000")
+        .toLong
+    )
 
   override def first: Expression = child
 
