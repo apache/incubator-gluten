@@ -765,4 +765,44 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("test array forall") {
+    withTempPath {
+      path =>
+        Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
+          .toDF("value")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare("select forall(value, x -> x % 2 == 1) as res from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+
+        runQueryAndCompare("select forall(value, x -> x is not null) as res from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("test array exists") {
+    withTempPath {
+      path =>
+        Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
+          .toDF("value")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare("select exists(value, x -> x % 2 == 1) as res from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+
+        runQueryAndCompare("select exists(value, x -> x is not null) as res from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
 }
