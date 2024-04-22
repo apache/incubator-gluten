@@ -16,14 +16,13 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.sql.shims.SparkShimLoader
-
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.config
 import org.apache.spark.internal.config.UI.UI_ENABLED
 import org.apache.spark.sql.{GlutenQueryTest, Row, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
+import org.apache.spark.sql.execution.datasources.FakeRowAdaptor
 import org.apache.spark.sql.hive.HiveUtils
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 import org.apache.spark.sql.test.SQLTestUtils
@@ -80,23 +79,18 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
   }
 
   private def checkNativeWrite(sqlStr: String, native: Boolean): Unit = {
-    val testAppender = new LogAppender("native write tracker")
-    withLogAppender(testAppender) {
-      spark.sql(sqlStr)
+    val df = spark.sql(sqlStr)
+    if (native) {
+      if (isSparkVersionGE("3.4")) {
+        assert(
+          df.queryExecution.executedPlan.innerChildren
+            .exists(_.exists(_.isInstanceOf[VeloxColumnarWriteFilesExec])))
+      } else {
+        assert(
+          df.queryExecution.executedPlan.innerChildren
+            .exists(_.exists(_.isInstanceOf[FakeRowAdaptor])))
+      }
     }
-    assert(
-      testAppender.loggingEvents.exists(
-        _.getMessage.toString.contains("Use Gluten parquet write for hive")) == native)
-  }
-
-  private def checkNativeStaticPartitionWrite(sqlStr: String, native: Boolean): Unit = {
-    val testAppender = new LogAppender("native write tracker")
-    withLogAppender(testAppender) {
-      spark.sql(sqlStr)
-    }
-    assert(
-      testAppender.loggingEvents.exists(
-        _.getMessage.toString.contains("Use Gluten partition write for hive")) == native)
   }
 
   test("test hive static partition write table") {
@@ -105,21 +99,10 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
         "CREATE TABLE t (c int, d long, e long)" +
           " STORED AS PARQUET partitioned by (c, d)")
       withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "true") {
-        if (
-          SparkShimLoader.getSparkVersion.startsWith("3.4") ||
-          SparkShimLoader.getSparkVersion.startsWith("3.5")
-        ) {
-          checkNativeStaticPartitionWrite(
-            "INSERT OVERWRITE TABLE t partition(c=1, d=2)" +
-              " SELECT 3 as e",
-            native = false)
-        } else {
-          checkNativeStaticPartitionWrite(
-            "INSERT OVERWRITE TABLE t partition(c=1, d=2)" +
-              " SELECT 3 as e",
-            native = true)
-        }
-
+        checkNativeWrite(
+          "INSERT OVERWRITE TABLE t partition(c=1, d=2)" +
+            " SELECT 3 as e",
+          native = true)
       }
       checkAnswer(spark.table("t"), Row(3, 1, 2))
     }
@@ -131,7 +114,7 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
         "CREATE TABLE t (c int, d long, e long)" +
           " STORED AS PARQUET partitioned by (c, d)")
       withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "true") {
-        checkNativeStaticPartitionWrite(
+        checkNativeWrite(
           "INSERT OVERWRITE TABLE t partition(c=1, d)" +
             " SELECT 3 as e, 2 as e",
           native = false)
@@ -144,15 +127,7 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
     withTable("t") {
       spark.sql("CREATE TABLE t (c int) STORED AS PARQUET")
       withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "false") {
-        if (
-          SparkShimLoader.getSparkVersion.startsWith("3.4") ||
-          SparkShimLoader.getSparkVersion.startsWith("3.5")
-        ) {
-          checkNativeWrite("INSERT OVERWRITE TABLE t SELECT 1 as c", native = false)
-        } else {
-          checkNativeWrite("INSERT OVERWRITE TABLE t SELECT 1 as c", native = true)
-        }
-
+        checkNativeWrite("INSERT OVERWRITE TABLE t SELECT 1 as c", native = true)
       }
       checkAnswer(spark.table("t"), Row(1))
     }
@@ -163,25 +138,12 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
       f =>
         // compatible with Spark3.3 and later
         withSQLConf("spark.sql.hive.convertMetastoreInsertDir" -> "false") {
-          if (
-            SparkShimLoader.getSparkVersion.startsWith("3.4") ||
-            SparkShimLoader.getSparkVersion.startsWith("3.5")
-          ) {
-            checkNativeWrite(
-              s"""
-                 |INSERT OVERWRITE DIRECTORY '${f.getCanonicalPath}' STORED AS PARQUET SELECT 1 as c
-                 |""".stripMargin,
-              native = false
-            )
-          } else {
-            checkNativeWrite(
-              s"""
-                 |INSERT OVERWRITE DIRECTORY '${f.getCanonicalPath}' STORED AS PARQUET SELECT 1 as c
-                 |""".stripMargin,
-              native = true
-            )
-          }
-
+          checkNativeWrite(
+            s"""
+               |INSERT OVERWRITE DIRECTORY '${f.getCanonicalPath}' STORED AS PARQUET SELECT 1 as c
+               |""".stripMargin,
+            native = true
+          )
           checkAnswer(spark.read.parquet(f.getCanonicalPath), Row(1))
         }
     }
