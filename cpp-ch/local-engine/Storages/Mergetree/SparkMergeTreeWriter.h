@@ -19,6 +19,7 @@
 #include <Interpreters/SquashingTransform.h>
 #include <Storages/MergeTree/MergeTreeDataWriter.h>
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
+#include <Storages/StorageMergeTreeFactory.h>
 #include <Poco/StringTokenizer.h>
 
 namespace DB
@@ -40,6 +41,8 @@ struct PartInfo
     size_t row_count;
     std::unordered_map<String, String> partition_values;
     String bucket_id;
+
+    bool operator<(const PartInfo & rhs) const { return disk_size < rhs.disk_size; }
 };
 
 class SparkMergeTreeWriter
@@ -47,7 +50,7 @@ class SparkMergeTreeWriter
 public:
     static String partInfosToJson(const std::vector<PartInfo> & part_infos);
     SparkMergeTreeWriter(
-        DB::MergeTreeData & storage_,
+        CustomStorageMergeTreePtr storage_,
         const DB::StorageMetadataPtr & metadata_snapshot_,
         const DB::ContextPtr & context_,
         const String & uuid_,
@@ -89,7 +92,7 @@ private:
     String uuid;
     String partition_dir;
     String bucket_dir;
-    DB::MergeTreeData & storage;
+    CustomStorageMergeTreePtr storage;
     DB::StorageMetadataPtr metadata_snapshot;
     DB::ContextPtr context;
     std::unique_ptr<DB::SquashingTransform> squashing_transform;

@@ -15,9 +15,13 @@
  * limitations under the License.
  */
 #include "MetaDataHelper.h"
+
 #include <filesystem>
 
 #include <Disks/ObjectStorages/MetadataStorageFromDisk.h>
+#include <Parser/MergeTreeRelParser.h>
+#include <Storages/Mergetree/MergeSparkMergeTreeTask.h>
+#include <Poco/StringTokenizer.h>
 
 namespace CurrentMetrics
 {
@@ -142,5 +146,67 @@ void saveFileStatus(
         }
         out->finalize();
     }
+}
+
+
+std::vector<std::shared_ptr<DB::IMergeTreeDataPart>> mergeParts(
+    std::vector<DB::DataPartPtr> selected_parts,
+    const String & new_part_uuid,
+    CustomStorageMergeTreePtr storage,
+    const String  & partition_dir,
+    const String & bucket_dir)
+{
+    // UUID tmp_table_uuid = UUIDHelpers::generateV4();
+    // auto storage = MergeTreeRelParser::parseStorage(
+    //     table, local_engine::SerializedPlanParser::global_context, tmp_table_uuid);
+
+    auto future_part = std::make_shared<DB::FutureMergedMutatedPart>();
+    future_part->uuid = UUIDHelpers::generateV4();
+
+    future_part->assign(std::move(selected_parts));
+
+    future_part->name = "";
+    std::unordered_map<String, String> partition_values;
+    if(!partition_dir.empty())
+    {
+        future_part->name =  partition_dir + "/";
+        Poco::StringTokenizer partitions(partition_dir, "/");
+        for (const auto & partition : partitions)
+        {
+            Poco::StringTokenizer key_value(partition, "=");
+            chassert(key_value.count() == 2);
+            partition_values.emplace(key_value[0], key_value[1]);
+        }
+    }
+    if(!bucket_dir.empty())
+    {
+        future_part->name = future_part->name + bucket_dir + "/";
+    }
+    future_part->name = future_part->name +  new_part_uuid + "-merged";
+
+    auto entry = std::make_shared<DB::MergeMutateSelectedEntry>(future_part, DB::CurrentlyMergingPartsTaggerPtr{}, std::make_shared<DB::MutationCommands>());
+
+    // Copying a vector of columns `deduplicate by columns.
+    DB::IExecutableTask::TaskResultCallback f = [](bool) {};
+    auto task = std::make_shared<local_engine::MergeSparkMergeTreeTask>(
+        *storage, storage->getInMemoryMetadataPtr(), false,  std::vector<std::string>{}, false, entry,
+        DB::TableLockHolder{}, f);
+
+    task->setCurrentTransaction(DB::MergeTreeTransactionHolder{}, DB::MergeTreeTransactionPtr{});
+
+    executeHere(task);
+
+    std::unordered_set<std::string> to_load{future_part->name};
+    std::vector<std::shared_ptr<DB::IMergeTreeDataPart>> merged = storage->loadDataPartsWithNames(to_load);
+    return merged;
+    // std::vector<local_engine::PartInfo> res;
+    // for (auto & partPtr : loaded)
+    // {
+    //     local_engine::saveFileStatus(*storage, local_engine::SerializedPlanParser::global_context, partPtr->getDataPartStorage());
+    //     res.emplace_back(
+    //         local_engine::PartInfo{partPtr->name, partPtr->getMarksCount(), partPtr->getBytesOnDisk(), partPtr->rows_count,
+    //                                /*partition_value*/ partition_values,
+    //                                bucket_dir});
+    // }
 }
 }

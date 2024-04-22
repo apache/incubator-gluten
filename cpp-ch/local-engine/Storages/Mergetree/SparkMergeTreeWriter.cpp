@@ -16,12 +16,14 @@
  */
 #include "SparkMergeTreeWriter.h"
 
-#include <Disks/createVolume.h>
 #include <Disks/ObjectStorages/MetadataStorageFromDisk.h>
+#include <Disks/createVolume.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
-#include <rapidjson/prettywriter.h>
 #include <Storages/Mergetree/MetaDataHelper.h>
+#include <rapidjson/prettywriter.h>
+#include <Common/CHUtil.h>
+
 
 using namespace DB;
 
@@ -69,6 +71,50 @@ void SparkMergeTreeWriter::finalize()
         for (auto & item : blocks_with_partition)
             new_parts.emplace_back(writeTempPartAndFinalize(item, metadata_snapshot).part);
     }
+
+    if (new_parts.empty() || new_parts.size() == 1)
+        return;
+
+    Field merge_after_insert;
+    if (!context->getSettings().tryGet(MERGE_AFTER_INSERT, merge_after_insert) || !merge_after_insert.get<bool>())
+        return;
+
+    // TODO begin merge
+    std::sort(new_parts.begin(), new_parts.end(), [](const auto & l, const auto & r) { return l->getBytesOnDisk() < r->getBytesOnDisk(); });
+
+    size_t max_size = 1024*1024 *1024 ; // g
+    size_t max_cnt = 10 ; // g
+    std::vector<DB::DataPartPtr> selected_parts(max_cnt);
+    size_t totol_size = 0;
+    std::vector<std::shared_ptr<DB::IMergeTreeDataPart>> new_tmp_parts;
+
+    for (const auto & merge_tree_data_part : new_parts)
+    {
+        if (merge_tree_data_part->getBytesOnDisk() >=  max_size)
+            continue;
+
+        selected_parts.emplace_back(merge_tree_data_part);
+        totol_size += merge_tree_data_part->getBytesOnDisk();
+        if (max_size < totol_size && selected_parts.size() < max_cnt )
+            continue;
+
+        auto merged = mergeParts(selected_parts, toString(UUIDHelpers::generateV4()), storage, partition_dir, bucket_dir);
+        new_tmp_parts.insert(new_tmp_parts.end(), merged.begin(), merged.end());
+        selected_parts.clear();
+    }
+
+    if (!new_tmp_parts.empty())
+    {
+        auto merged = mergeParts(selected_parts, toString(UUIDHelpers::generateV4()), storage, partition_dir, bucket_dir);
+        new_tmp_parts.insert(new_tmp_parts.end(), merged.begin(), merged.end());
+    }
+
+    new_parts.clear();
+    for (const auto new_tmp_part : new_tmp_parts)
+    {
+        saveFileStatus(*storage, context, new_tmp_part->getDataPartStorage());
+        new_parts.emplace_back(new_tmp_part);
+    }
 }
 
 DB::MergeTreeDataWriter::TemporaryPart
@@ -78,7 +124,7 @@ SparkMergeTreeWriter::writeTempPartAndFinalize(
 {
     auto temp_part = writeTempPart(block_with_partition, metadata_snapshot);
     temp_part.finalize();
-    saveFileStatus(storage, context, temp_part.part->getDataPartStorage());
+    saveFileStatus(*storage, context, temp_part.part->getDataPartStorage());
     return temp_part;
 }
 
@@ -95,7 +141,7 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPart(
             column.type = block.getByName(column.name).type;
 
     auto minmax_idx = std::make_shared<IMergeTreeDataPart::MinMaxIndex>();
-    minmax_idx->update(block, storage.getMinMaxColumnsNames(metadata_snapshot->getPartitionKey()));
+    minmax_idx->update(block, storage->getMinMaxColumnsNames(metadata_snapshot->getPartitionKey()));
 
     MergeTreePartition partition(block_with_partition.partition);
 
@@ -121,13 +167,13 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPart(
 
     String part_name = part_dir;
 
-    temp_part.temporary_directory_lock = storage.getTemporaryPartDirectoryHolder(part_dir);
+    temp_part.temporary_directory_lock = storage->getTemporaryPartDirectoryHolder(part_dir);
 
     auto indices = MergeTreeIndexFactory::instance().getMany(metadata_snapshot->getSecondaryIndices());
 
     /// If we need to calculate some columns to sort.
     if (metadata_snapshot->hasSortingKey() || metadata_snapshot->hasSecondaryIndices())
-        storage.getSortingKeyAndSkipIndicesExpression(metadata_snapshot, indices)->execute(block);
+        storage->getSortingKeyAndSkipIndicesExpression(metadata_snapshot, indices)->execute(block);
 
     Names sort_columns = metadata_snapshot->getSortingKeyColumns();
     SortDescription sort_description;
@@ -159,17 +205,17 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPart(
     if (expected_size == 0)
         return temp_part;
 
-    VolumePtr volume = storage.getStoragePolicy()->getVolume(0);
+    VolumePtr volume = storage->getStoragePolicy()->getVolume(0);
     VolumePtr data_part_volume = std::make_shared<SingleDiskVolume>(volume->getName(), volume->getDisk(), volume->max_data_part_size);
-    auto new_data_part = storage.getDataPartBuilder(part_name, data_part_volume, part_dir)
-                             .withPartFormat(storage.choosePartFormat(expected_size, block.rows()))
+    auto new_data_part = storage->getDataPartBuilder(part_name, data_part_volume, part_dir)
+                             .withPartFormat(storage->choosePartFormat(expected_size, block.rows()))
                              .withPartInfo(new_part_info)
                              .build();
 
     auto data_part_storage = new_data_part->getDataPartStoragePtr();
 
 
-    const auto & data_settings = storage.getSettings();
+    const auto & data_settings = storage->getSettings();
 
     SerializationInfo::Settings settings{data_settings->ratio_of_defaults_for_sparse_serialization, true};
     SerializationInfoByName infos(columns, settings);
@@ -194,7 +240,7 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPart(
 
         data_part_storage->createDirectories();
 
-        if (storage.getSettings()->fsync_part_directory)
+        if (storage->getSettings()->fsync_part_directory)
         {
             const auto disk = data_part_volume->getDisk();
             sync_guard = disk->getDirectorySyncGuard(full_path);
@@ -203,7 +249,7 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPart(
 
     /// This effectively chooses minimal compression method:
     ///  either default lz4 or compression method with zero thresholds on absolute and relative part size.
-    auto compression_codec = storage.getContext()->chooseCompressionCodec(0, 0);
+    auto compression_codec = storage->getContext()->chooseCompressionCodec(0, 0);
 
     auto out = std::make_unique<MergedBlockOutputStream>(
         new_data_part,

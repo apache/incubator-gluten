@@ -32,6 +32,9 @@
 
 namespace local_engine
 {
+inline static const std::string MERGE_AFTER_INSERT = "merge_after_insert";
+static const std::unordered_set<String> bool_settings{MERGE_AFTER_INSERT};
+
 class BlockUtil
 {
 public:

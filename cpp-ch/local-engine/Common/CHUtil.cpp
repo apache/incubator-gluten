@@ -598,6 +598,7 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
 {
     /// Initialize default setting.
     settings.set("date_time_input_format", "best_effort");
+    settings.set(MERGE_AFTER_INSERT, true);
 
     for (const auto & [key, value] : backend_conf_map)
     {
@@ -609,7 +610,12 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
         }
         else if (key.starts_with(CH_RUNTIME_SETTINGS_PREFIX))
         {
-            settings.set(key.substr(CH_RUNTIME_SETTINGS_PREFIX.size()), value);
+            auto k = key.substr(CH_RUNTIME_SETTINGS_PREFIX.size());
+            if (bool_settings.contains(k))
+                settings.set(k, value == "true" || value == "'true'" || value == "1");
+            else
+                settings.set(k, value);
+
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
         }
         else if (key.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX))
