@@ -65,7 +65,8 @@ public class JniWorkspace {
   private static JniWorkspace createDefault() {
     try {
       final String tempRoot =
-          SparkDirectoryUtil.namespace("jni")
+          SparkDirectoryUtil.get()
+              .namespace("jni")
               .mkChildDirRandomly(UUID.randomUUID().toString())
               .getAbsolutePath();
       return createOrGet(tempRoot);

@@ -18,7 +18,6 @@ package org.apache.spark.util.sketch;
 
 import org.apache.gluten.backendsapi.ListenerApi;
 import org.apache.gluten.backendsapi.velox.ListenerApiImpl;
-import org.apache.gluten.vectorized.JniWorkspace;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.util.TaskResources$;
@@ -32,7 +31,6 @@ public class VeloxBloomFilterTest {
 
   @BeforeClass
   public static void setup() {
-    JniWorkspace.enableDebug();
     final ListenerApi api = new ListenerApiImpl();
     api.onDriverStart(new SparkConf());
   }
