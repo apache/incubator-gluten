@@ -14,20 +14,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.sql.execution.datasources.clickhouse;
 
-#pragma once
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-#include <Storages/StorageMergeTreeFactory.h>
-#include <Common/MergeTreeTool.h>
+public class MergeTreePartFilterReturnedRange {
+  @JsonProperty("part_name")
+  protected String partName;
 
-namespace local_engine
-{
+  @JsonProperty("begin")
+  protected long begin;
 
-void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable & mergeTreeTable, const Context & context);
+  @JsonProperty("end")
+  protected long end;
 
-void saveFileStatus(
-    const DB::MergeTreeData & storage,
-    const DB::ContextPtr& context,
-    IDataPartStorage & data_part_storage);
+  public String getPartName() {
+    return partName;
+  }
 
+  public void setPartName(String partName) {
+    this.partName = partName;
+  }
+
+  public long getBegin() {
+    return begin;
+  }
+
+  public void setBegin(long begin) {
+    this.begin = begin;
+  }
+
+  public long getEnd() {
+    return end;
+  }
+
+  public void setEnd(long end) {
+    this.end = end;
+  }
 }

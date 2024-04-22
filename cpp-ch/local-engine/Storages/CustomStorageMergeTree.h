@@ -38,6 +38,7 @@ class CustomStorageMergeTree final : public MergeTreeData
 
 public:
     static void wrapRangesInDataParts(DB::ReadFromMergeTree & source, DB::RangesInDataParts ranges);
+    void analysisPartsByRanges(DB::ReadFromMergeTree & source, DB::RangesInDataParts ranges_in_data_parts);
     CustomStorageMergeTree(
         const StorageID & table_id_,
         const String & relative_data_path_,
