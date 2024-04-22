@@ -805,4 +805,10 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("negative") {
+    runQueryAndCompare("select negative(l_orderkey) from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
 }
