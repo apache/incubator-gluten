@@ -405,7 +405,8 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"collect_set", "set_agg"},
     {"try_add", "plus"},
     {"forall", "all_match"},
-    {"exists", "any_match"}};
+    {"exists", "any_match"},
+    {"negative", "unaryminus"}};
 
 const std::unordered_map<std::string, std::string> SubstraitParser::typeMap_ = {
     {"bool", "BOOLEAN"},
