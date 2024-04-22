@@ -34,7 +34,10 @@ public class CHShuffleSplitterJniWrapper {
       long spillThreshold,
       String hashAlgorithm,
       boolean throwIfMemoryExceed,
-      boolean flushBlockBufferBeforeEvict) {
+      boolean flushBlockBufferBeforeEvict,
+      long maxSortBufferSize,
+      boolean spillFirstlyBeforeStop,
+      boolean forceSort) {
     return nativeMake(
         part.getShortName(),
         part.getNumPartitions(),
@@ -51,7 +54,10 @@ public class CHShuffleSplitterJniWrapper {
         spillThreshold,
         hashAlgorithm,
         throwIfMemoryExceed,
-        flushBlockBufferBeforeEvict);
+        flushBlockBufferBeforeEvict,
+        maxSortBufferSize,
+        spillFirstlyBeforeStop,
+        forceSort);
   }
 
   public long makeForRSS(
@@ -97,7 +103,10 @@ public class CHShuffleSplitterJniWrapper {
       long spillThreshold,
       String hashAlgorithm,
       boolean throwIfMemoryExceed,
-      boolean flushBlockBufferBeforeEvict);
+      boolean flushBlockBufferBeforeEvict,
+      long maxSortBufferSize,
+      boolean spillFirstlyBeforeStop,
+      boolean forceSort);
 
   public native long nativeMakeForRSS(
       String shortName,
