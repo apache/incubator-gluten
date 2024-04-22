@@ -327,7 +327,7 @@ case class VeloxColumnarWriteFilesExec(
   // So we add a no-op `WriteFilesExec` child to let Spark pick the new code path.
   //
   // See: FileFormatWriter#write
-  // See: V1Write#getWriteFilesOpt
+  // See: V1Writes#getWriteFilesOpt
   override val right: SparkPlan =
     WriteFilesExec(NoopLeaf(), fileFormat, partitionColumns, bucketSpec, options, staticPartitions)
 
