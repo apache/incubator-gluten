@@ -287,6 +287,13 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def chColumnarFlushBlockBufferBeforeEvict: Boolean =
     conf.getConf(COLUMNAR_CH_FLUSH_BLOCK_BUFFER_BEFORE_EVICT)
 
+  def chColumnarMaxSortBufferSize: Long = conf.getConf(COLUMNAR_CH_MAX_SORT_BUFFER_SIZE)
+
+  def chColumnarSpillFirstlyBeforeStop: Boolean =
+    conf.getConf(COLUMNAR_CH_SPILL_FIRSTLY_BEFORE_STOP)
+
+  def chColumnarForceSortShuffle: Boolean = conf.getConf(COLUMNAR_CH_FORCE_SORT_SHUFFLE)
+
   def cartesianProductTransformerEnabled: Boolean =
     conf.getConf(CARTESIAN_PRODUCT_TRANSFORMER_ENABLED)
 
@@ -1336,6 +1343,28 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.backend.ch.flushBlockBufferBeforeEvict")
       .internal()
       .doc("Whether to flush partition_block_buffer before execute evict in CH PartitionWriter.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_CH_MAX_SORT_BUFFER_SIZE =
+    buildConf("spark.gluten.sql.columnar.backend.ch.maxSortBufferSize")
+      .internal()
+      .doc("The maximum size of sort shuffle buffer in CH backend.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("1GB")
+
+  val COLUMNAR_CH_SPILL_FIRSTLY_BEFORE_STOP =
+    buildConf("spark.gluten.sql.columnar.backend.ch.spillFirstlyBeforeStop")
+      .internal()
+      .doc("Whether to spill the sort buffers before stopping the shuffle writer.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_CH_FORCE_SORT_SHUFFLE =
+    buildConf("spark.gluten.sql.columnar.backend.ch.forceSortShuffle")
+      .internal()
+      .doc("Whether to force to use sort shuffle in CH backend. " +
+        "Sort shuffle will enable When partition num greater than 300.")
       .booleanConf
       .createWithDefault(false)
 
