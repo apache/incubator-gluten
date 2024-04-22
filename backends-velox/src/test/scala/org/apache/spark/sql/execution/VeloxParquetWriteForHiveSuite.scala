@@ -84,11 +84,11 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
       if (isSparkVersionGE("3.4")) {
         assert(
           df.queryExecution.executedPlan.innerChildren
-            .exists(_.exists(_.isInstanceOf[VeloxColumnarWriteFilesExec])))
+            .exists(_.find(_.isInstanceOf[VeloxColumnarWriteFilesExec]).isDefined))
       } else {
         assert(
           df.queryExecution.executedPlan.innerChildren
-            .exists(_.exists(_.isInstanceOf[FakeRowAdaptor])))
+            .exists(_.find(_.isInstanceOf[FakeRowAdaptor]).isDefined))
       }
     }
   }
