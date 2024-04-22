@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.execution.VeloxWholeStageTransformerSuite
-import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.FallbackUtil
 
 import org.apache.spark.SparkConf
@@ -51,11 +50,7 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  // Disable for Spark3.5.
-  testWithSpecifiedSparkVersion(
-    "test write parquet with compression codec",
-    Some("3.2"),
-    Some("3.4")) {
+  testWithSpecifiedSparkVersion("test write parquet with compression codec", Some("3.2")) {
     // compression codec details see `VeloxParquetDatasource.cc`
     Seq("snappy", "gzip", "zstd", "lz4", "none", "uncompressed")
       .foreach {
@@ -77,7 +72,7 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
                   val files = f.list()
                   assert(files.nonEmpty, extension)
 
-                  if (!SparkShimLoader.getSparkVersion.startsWith("3.4")) {
+                  if (!isSparkVersionGE("3.4")) {
                     assert(
                       files.exists(_.contains(extension)),
                       extension
