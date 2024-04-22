@@ -35,6 +35,7 @@ local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vec
     if (has_bucket)
         partition_bucket_column_indices.push_back(block.columns() - 1);
 
+    std::cout << "BlockStripeSplitter " << rows << " " << partition_column_indices.size() << " " << block.dumpStructure() << std::endl;
     std::vector<size_t> split_points;
     for (size_t i = 0; i < partition_bucket_column_indices.size(); i++)
     {
@@ -43,13 +44,17 @@ local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vec
         if (i == 0 && column->compareAt(0, rows - 1, *column, 1) == 0)
         {
             /// No value changes for this whole column
+	    std::cout << "BlockStripeSplitter bypass " << partition_bucket_column_indices.at(i) << std::endl;
             continue;
         }
 
         for (size_t j = 1; j < rows; ++j)
         {
             if (column->compareAt(j - 1, j, *column, 1) != 0)
+	    {
                 split_points.push_back(j);
+		std::cout << "BlockStripeSplitter split_points " << j << std::endl;
+	    }
         }
     }
 
@@ -62,6 +67,7 @@ local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vec
     split_points.erase(std::unique(split_points.begin(), split_points.end()), split_points.end());
     split_points.push_back(rows);
 
+    std::cout << "BlockStripeSplitter r " << reserve_partition_columns << " h: " << has_bucket << std::endl;
     /// Create output block by ignoring the partition cols
     DB::ColumnsWithTypeAndName output_columns;
     for (size_t col_i = 0; col_i < block.columns(); ++col_i)
@@ -83,6 +89,7 @@ local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vec
     {
         size_t from = i == 0 ? 0 : split_points.at(i - 1);
         size_t to = split_points.at(i);
+        std::cout << "BlockStripeSplitter f " << from << " t: " << to  << " n: " << no_need_split << std::endl;
 
         DB::Block * p = nullptr;
         if (!no_need_split)
