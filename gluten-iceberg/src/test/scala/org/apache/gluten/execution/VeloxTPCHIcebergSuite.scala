@@ -17,14 +17,12 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.functions.col
 
 import org.apache.iceberg.spark.SparkWriteOptions
-import org.scalatest.Ignore
 
 import java.io.File
 
-// Ignored due to failures, see https://github.com/apache/incubator-gluten/issues/5362
-@Ignore
 class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
 
   protected val tpchBasePath: String = new File(
@@ -97,21 +95,21 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
   }
 }
 
-// Ignored due to failures, see https://github.com/apache/incubator-gluten/issues/5362
-@Ignore
 class VeloxPartitionedTableTPCHIcebergSuite extends VeloxTPCHIcebergSuite {
   override protected def createTPCHNotNullTables(): Unit = {
     TPCHTables.map {
       table =>
         val tablePath = new File(resourcePath, table.name).getAbsolutePath
-        val tableDF = spark.read.format(fileFormat).load(tablePath)
+        val tableDF = spark.read
+          .format(fileFormat)
+          .load(tablePath)
+          .repartition(table.partitionColumns.map(col): _*)
+          .sortWithinPartitions(table.partitionColumns.map(col): _*)
 
-        tableDF
-          .repartition(800)
-          .write
+        tableDF.write
           .format("iceberg")
           .partitionBy(table.partitionColumns: _*)
-          .option(SparkWriteOptions.FANOUT_ENABLED, "true")
+          .option(SparkWriteOptions.FANOUT_ENABLED, "false")
           .mode("overwrite")
           .saveAsTable(table.name)
         (table.name, tableDF)

@@ -179,6 +179,8 @@ void MergeSparkMergeTreeTask::finish()
         ThreadFuzzer::maybeInjectSleep();
         ThreadFuzzer::maybeInjectMemoryLimitException();
     }
+
+    new_part->is_temp = false;
 }
 
 ContextMutablePtr MergeSparkMergeTreeTask::createTaskContext() const

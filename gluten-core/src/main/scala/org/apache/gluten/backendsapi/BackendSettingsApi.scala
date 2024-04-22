@@ -120,7 +120,8 @@ trait BackendSettingsApi {
 
   def requiredInputFilePaths(): Boolean = false
 
-  def enableBloomFilterAggFallbackRule(): Boolean = true
+  // TODO: Move this to test settings as used in UT only.
+  def requireBloomFilterAggMightContainJointFallback(): Boolean = true
 
   def enableNativeWriteFiles(): Boolean
 

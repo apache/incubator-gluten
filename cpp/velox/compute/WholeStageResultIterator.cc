@@ -127,7 +127,8 @@ WholeStageResultIterator::WholeStageResultIterator(
       fmt::format("Gluten_Stage_{}_TID_{}", std::to_string(taskInfo_.stageId), std::to_string(taskInfo_.taskId)),
       std::move(planFragment),
       0,
-      std::move(queryCtx));
+      std::move(queryCtx),
+      velox::exec::Task::ExecutionMode::kSerial);
   if (!task_->supportsSingleThreadedExecution()) {
     throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
   }

@@ -552,7 +552,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
   }
 
   test("test mergetree write with the path based") {
-    val dataPath = s"s3a://$BUCKET_NAME/lineitem_mergetree_bucket_path_based_s3"
+    val dataPath = s"s3a://$BUCKET_NAME/lineitem_mergetree_bucket_s3"
 
     val sourceDF = spark.sql(s"""
                                 |select * from lineitem

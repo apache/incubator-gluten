@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_04_18
+VELOX_BRANCH=2024_04_21
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
@@ -137,7 +137,7 @@ function process_setup_centos8 {
   sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_openssl' scripts/setup-centos8.sh
 
   if [ $ENABLE_HDFS == "ON" ]; then
-    sed -i '/^function install_gflags.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master\n cd ..\n cmake_install libhdfs3\n}\n' scripts/setup-centos8.sh
+    sed -i '/^function install_gflags.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master\n cmake_install\n}\n' scripts/setup-centos8.sh
     sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_libhdfs3' scripts/setup-centos8.sh
     sed -i '/^  dnf_install ninja-build/a\  dnf_install yasm\' scripts/setup-centos8.sh
   fi

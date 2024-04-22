@@ -114,8 +114,7 @@ class HeuristicApplier(session: SparkSession)
       List(
         (spark: SparkSession) => MergeTwoPhasesHashBaseAggregate(spark),
         (_: SparkSession) => RewriteSparkPlanRulesManager(),
-        (_: SparkSession) => AddTransformHintRule(),
-        (_: SparkSession) => FallbackBloomFilterAggIfNeeded()
+        (_: SparkSession) => AddTransformHintRule()
       ) :::
       List((_: SparkSession) => TransformPreOverrides()) :::
       List(
