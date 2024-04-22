@@ -196,6 +196,33 @@ JNIEXPORT jboolean JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJni
   JNI_METHOD_END(false)
 }
 
+namespace {
+static std::vector<char> serialize(BloomFilter<std::allocator<uint64_t>>* bf) {
+  uint32_t size = bf->serializedSize();
+  std::vector<char> buffer;
+  buffer.reserve(size);
+  char* data = buffer.data();
+  bf->serialize(data);
+  return buffer;
+}
+} // namespace
+
+JNIEXPORT void JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWrapper_mergeFrom( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong handle,
+    jlong other) {
+  JNI_METHOD_START
+  auto ctx = gluten::getRuntime(env, wrapper);
+  auto to = ctx->objectStore()->retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
+  auto from = ctx->objectStore()->retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(other);
+  GLUTEN_CHECK(to->isSet(), "Bloom-filter is not initialized");
+  GLUTEN_CHECK(from->isSet(), "Bloom-filter is not initialized");
+  std::vector<char> serialized = serialize(from.get());
+  to->merge(serialized.data());
+  JNI_METHOD_END()
+}
+
 JNIEXPORT jbyteArray JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWrapper_serialize( // NOLINT
     JNIEnv* env,
     jobject wrapper,
@@ -204,11 +231,10 @@ JNIEXPORT jbyteArray JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJ
   auto ctx = gluten::getRuntime(env, wrapper);
   auto filter = ctx->objectStore()->retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
   GLUTEN_CHECK(filter->isSet(), "Bloom-filter is not initialized");
-  uint32_t size = filter->serializedSize();
+  std::vector<char> buffer = serialize(filter.get());
+  auto size = buffer.capacity();
   jbyteArray out = env->NewByteArray(size);
-  char buffer[size];
-  filter->serialize(buffer);
-  env->SetByteArrayRegion(out, 0, size, reinterpret_cast<jbyte*>(buffer));
+  env->SetByteArrayRegion(out, 0, size, reinterpret_cast<jbyte*>(buffer.data()));
   return out;
   JNI_METHOD_END(nullptr)
 }

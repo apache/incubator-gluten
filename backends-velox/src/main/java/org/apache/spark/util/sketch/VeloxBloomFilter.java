@@ -19,6 +19,7 @@ package org.apache.spark.util.sketch;
 import org.apache.commons.io.IOUtils;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -54,6 +55,15 @@ public class VeloxBloomFilter extends BloomFilter {
   public static VeloxBloomFilter readFrom(byte[] data) {
     try (ByteArrayInputStream in = new ByteArrayInputStream(data)) {
       return readFrom(in);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public byte[] serialize() {
+    try (ByteArrayOutputStream o = new ByteArrayOutputStream()) {
+      writeTo(o);
+      return o.toByteArray();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -97,7 +107,18 @@ public class VeloxBloomFilter extends BloomFilter {
 
   @Override
   public BloomFilter mergeInPlace(BloomFilter other) throws IncompatibleMergeException {
-    throw new UnsupportedOperationException("Not yet implemented");
+    if (!(other instanceof VeloxBloomFilter)) {
+      throw new IncompatibleMergeException(
+          "Cannot merge Velox bloom-filter with non-Velox bloom-filter");
+    }
+    final VeloxBloomFilter from = (VeloxBloomFilter) other;
+
+    if (!jni.isCompatibleWith(from.jni)) {
+      throw new IncompatibleMergeException(
+          "Cannot merge Velox bloom-filters with different Velox runtimes");
+    }
+    jni.mergeFrom(handle, from.handle);
+    return this;
   }
 
   @Override

@@ -115,7 +115,7 @@ class GlutenBloomFilterAggregateQuerySuite
     }
   }
 
-  testGluten("Test bloom_filter_agg fallback with might_contain offloaded") {
+  testGluten("Test bloom_filter_agg agg fallback") {
     val table = "bloom_filter_test"
     val numEstimatedItems = 5000000L
     val numBits = GlutenConfig.getConf.veloxBloomFilterMaxNumBits
