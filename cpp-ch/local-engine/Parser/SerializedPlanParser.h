@@ -215,13 +215,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
 
 static const std::set<std::string> FUNCTION_NEED_KEEP_ARGUMENTS = {"alias"};
 
-struct QueryContext
-{
-    StorageSnapshotPtr storage_snapshot;
-    std::shared_ptr<const DB::StorageInMemoryMetadata> metadata;
-    std::shared_ptr<CustomStorageMergeTree> custom_storage_merge_tree;
-};
-
 DataTypePtr wrapNullableType(substrait::Type_Nullability nullable, DataTypePtr nested_type);
 DataTypePtr wrapNullableType(bool nullable, DataTypePtr nested_type);
 
@@ -275,7 +268,6 @@ public:
 
     DB::QueryPlanStepPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel);
     DB::QueryPlanStepPtr parseReadRealWithJavaIter(const substrait::ReadRel & rel);
-    PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input);
 
     static bool isReadRelFromJava(const substrait::ReadRel & rel);
     static bool isReadFromMergeTree(const substrait::ReadRel & rel);
@@ -289,15 +281,16 @@ public:
         materialize_inputs.emplace_back(materialize_input);
     }
 
-    void addSplitInfo(std::string & split_info)
-    {
-        split_infos.emplace_back(std::move(split_info));
-    }
+    void addSplitInfo(std::string & split_info) { split_infos.emplace_back(std::move(split_info)); }
 
     int nextSplitInfoIndex()
     {
         if (split_info_index >= split_infos.size())
-            throw Exception(ErrorCodes::LOGICAL_ERROR, "split info index out of range, split_info_index: {}, split_infos.size(): {}", split_info_index, split_infos.size());
+            throw Exception(
+                ErrorCodes::LOGICAL_ERROR,
+                "split info index out of range, split_info_index: {}, split_infos.size(): {}",
+                split_info_index,
+                split_infos.size());
         return split_info_index++;
     }
 
@@ -316,7 +309,6 @@ public:
     static ContextMutablePtr global_context;
     static Context::ConfigurationPtr config;
     static SharedContextHolder shared_context;
-    QueryContext query_context;
     std::vector<QueryPlanPtr> extra_plan_holder;
 
 private:
@@ -415,7 +407,7 @@ class LocalExecutor : public BlockIterator
 {
 public:
     LocalExecutor() = default;
-    explicit LocalExecutor(QueryContext & _query_context, ContextPtr context);
+    explicit LocalExecutor(ContextPtr context);
     void execute(QueryPlanPtr query_plan);
     SparkRowInfoPtr next();
     Block * nextColumnar();
@@ -430,7 +422,6 @@ public:
     void setExtraPlanHolder(std::vector<QueryPlanPtr> & extra_plan_holder_) { extra_plan_holder = std::move(extra_plan_holder_); }
 
 private:
-    QueryContext query_context;
     std::unique_ptr<SparkRowInfo> writeBlockToSparkRow(DB::Block & block);
     QueryPipeline query_pipeline;
     std::unique_ptr<PullingPipelineExecutor> executor;
