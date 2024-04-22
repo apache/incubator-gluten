@@ -17,8 +17,7 @@
 package org.apache.spark.util.sketch;
 
 import org.apache.gluten.backendsapi.ListenerApi;
-import org.apache.gluten.backendsapi.VeloxListenerApi;
-import org.apache.gluten.vectorized.JniWorkspace;
+import org.apache.gluten.backendsapi.velox.VeloxListenerApi;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.util.TaskResources$;

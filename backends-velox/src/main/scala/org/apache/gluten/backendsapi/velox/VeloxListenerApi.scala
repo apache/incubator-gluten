@@ -14,9 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.backendsapi
+package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.ListenerApi
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.datasource.{GlutenOrcWriterInjects, GlutenParquetWriterInjects, GlutenRowSplitter}
 import org.apache.gluten.expression.UDFMappings

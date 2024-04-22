@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.expression
 
-import org.apache.gluten.backendsapi.VeloxBackendSettings
+import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.expression.{ConverterUtils, ExpressionTransformer, ExpressionType, Transformable}
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
