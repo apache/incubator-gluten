@@ -230,8 +230,8 @@ object ExpressionMappings {
     Sig[ArrayRepeat](ARRAY_REPEAT),
     Sig[ArrayRemove](ARRAY_REMOVE),
     Sig[ArrayFilter](FILTER),
-    Sig[ArrayForAll](ALL_MATCH),
-    Sig[ArrayExists](ANY_MATCH),
+    Sig[ArrayForAll](FORALL),
+    Sig[ArrayExists](EXISTS),
     Sig[Shuffle](SHUFFLE),
     // Map functions
     Sig[CreateMap](CREATE_MAP),

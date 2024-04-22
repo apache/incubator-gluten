@@ -246,8 +246,8 @@ object ExpressionNames {
   final val ARRAY_REPEAT = "array_repeat"
   final val ARRAY_REMOVE = "array_remove"
   final val FILTER = "filter"
-  final val ALL_MATCH = "all_match"
-  final val ANY_MATCH = "any_match"
+  final val FORALL = "forall"
+  final val EXISTS = "exists"
   final val SHUFFLE = "shuffle"
 
   // Map functions
