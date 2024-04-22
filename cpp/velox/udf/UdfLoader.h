@@ -36,11 +36,22 @@ class UdfLoader {
 
     std::string intermediateType{};
 
-    UdfSignature(std::string name, std::string returnType, std::string argTypes)
-        : name(name), returnType(returnType), argTypes(argTypes) {}
+    bool variableArity;
 
-    UdfSignature(std::string name, std::string returnType, std::string argTypes, std::string intermediateType)
-        : name(name), returnType(returnType), argTypes(argTypes), intermediateType(intermediateType) {}
+    UdfSignature(std::string name, std::string returnType, std::string argTypes, bool variableArity)
+        : name(name), returnType(returnType), argTypes(argTypes), variableArity(variableArity) {}
+
+    UdfSignature(
+        std::string name,
+        std::string returnType,
+        std::string argTypes,
+        std::string intermediateType,
+        bool variableArity)
+        : name(name),
+          returnType(returnType),
+          argTypes(argTypes),
+          intermediateType(intermediateType),
+          variableArity(variableArity) {}
 
     ~UdfSignature() = default;
   };
@@ -58,27 +69,9 @@ class UdfLoader {
  private:
   void loadUdfLibraries0(const std::vector<std::string>& libPaths);
 
-  std::string toSubstraitTypeStr(const std::string& type) {
-    auto returnType = parser_.parse(type);
-    auto substraitType = convertor_.toSubstraitType(arena_, returnType);
+  std::string toSubstraitTypeStr(const std::string& type);
 
-    std::string output;
-    substraitType.SerializeToString(&output);
-    return output;
-  }
-
-  std::string toSubstraitTypeStr(int32_t numArgs, const char** args) {
-    std::vector<facebook::velox::TypePtr> argTypes;
-    argTypes.resize(numArgs);
-    for (auto i = 0; i < numArgs; ++i) {
-      argTypes[i] = parser_.parse(args[i]);
-    }
-    auto substraitType = convertor_.toSubstraitType(arena_, facebook::velox::ROW(std::move(argTypes)));
-
-    std::string output;
-    substraitType.SerializeToString(&output);
-    return output;
-  }
+  std::string toSubstraitTypeStr(int32_t numArgs, const char** args);
 
   std::unordered_map<std::string, void*> handles_;
 

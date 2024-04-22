@@ -14,28 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.sql.catalyst.types
 
-#pragma once
+import org.apache.spark.sql.types.DataType
 
-namespace gluten {
+object DataTypeUtils {
 
-struct UdfEntry {
-  const char* name;
-  const char* dataType;
-
-  size_t numArgs;
-  const char** argTypes;
-
-  bool variableArity{false};
-};
-
-#define GLUTEN_GET_NUM_UDF getNumUdf
-#define DEFINE_GET_NUM_UDF extern "C" int GLUTEN_GET_NUM_UDF()
-
-#define GLUTEN_GET_UDF_ENTRIES getUdfEntries
-#define DEFINE_GET_UDF_ENTRIES extern "C" void GLUTEN_GET_UDF_ENTRIES(gluten::UdfEntry* udfEntries)
-
-#define GLUTEN_REGISTER_UDF registerUdf
-#define DEFINE_REGISTER_UDF extern "C" void GLUTEN_REGISTER_UDF()
-
-} // namespace gluten
+  /**
+   * Check if `this` and `other` are the same data type when ignoring nullability
+   * (`StructField.nullable`, `ArrayType.containsNull`, and `MapType.valueContainsNull`).
+   */
+  def sameType(left: DataType, right: DataType): Boolean = left.sameType(right)
+}
