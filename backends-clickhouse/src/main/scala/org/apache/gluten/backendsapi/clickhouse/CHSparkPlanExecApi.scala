@@ -677,7 +677,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       partitionColumns: Seq[Attribute],
       bucketSpec: Option[BucketSpec],
       options: Map[String, String],
-      staticPartitions: TablePartitionSpec): WriteFilesExec = {
+      staticPartitions: TablePartitionSpec): SparkPlan = {
     throw new GlutenNotSupportException("ColumnarWriteFilesExec is not support in ch backend.")
   }
 

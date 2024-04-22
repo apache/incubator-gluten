@@ -492,8 +492,8 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       partitionColumns: Seq[Attribute],
       bucketSpec: Option[BucketSpec],
       options: Map[String, String],
-      staticPartitions: TablePartitionSpec): WriteFilesExec = {
-    new VeloxColumnarWriteFilesExec(
+      staticPartitions: TablePartitionSpec): SparkPlan = {
+    VeloxColumnarWriteFilesExec(
       child,
       fileFormat,
       partitionColumns,

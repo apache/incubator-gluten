@@ -32,7 +32,7 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSet, GenericInternalRow}
 import org.apache.spark.sql.connector.write.WriterCommitMessage
-import org.apache.spark.sql.execution.datasources.{BasicWriteTaskStats, DynamicPartitionDataSingleWriter, EmptyDirectoryDataWriter, ExecutedWriteSummary, FileFormat, PartitioningUtils, SingleDirectoryDataWriter, WriteFilesExec, WriteFilesSpec, WriteTaskResult}
+import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
@@ -254,19 +254,25 @@ class VeloxColumnarWriteFilesRDD(
   }
 }
 
-class VeloxColumnarWriteFilesExec(
+case class VeloxColumnarWriteFilesExec(
     child: SparkPlan,
     fileFormat: FileFormat,
     partitionColumns: Seq[Attribute],
     bucketSpec: Option[BucketSpec],
     options: Map[String, String],
     staticPartitions: TablePartitionSpec)
-  extends WriteFilesExec(child, fileFormat, partitionColumns, bucketSpec, options, staticPartitions)
+  extends UnaryExecNode
   with GlutenPlan {
 
   override lazy val references: AttributeSet = AttributeSet.empty
 
   override def supportsColumnar(): Boolean = true
+
+  override def output: Seq[Attribute] = Seq.empty
+
+  override protected def doExecute(): RDD[InternalRow] = {
+    throw SparkException.internalError(s"$nodeName does not support doExecute")
+  }
 
   /** Fallback to use vanilla Spark write files to generate an empty file for metadata only. */
   private def writeFilesForEmptyRDD(
@@ -308,12 +314,6 @@ class VeloxColumnarWriteFilesExec(
     }
   }
 
-  override protected def withNewChildInternal(newChild: SparkPlan): WriteFilesExec =
-    new VeloxColumnarWriteFilesExec(
-      newChild,
-      fileFormat,
-      partitionColumns,
-      bucketSpec,
-      options,
-      staticPartitions)
+  override protected def withNewChildInternal(newChild: SparkPlan): VeloxColumnarWriteFilesExec =
+    copy(newChild, fileFormat, partitionColumns, bucketSpec, options, staticPartitions)
 }
