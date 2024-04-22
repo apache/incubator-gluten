@@ -16,6 +16,7 @@
  */
 #include "BlockStripeSplitter.h"
 #include <Columns/ColumnNullable.h>
+#include <iostream>
 
 using namespace local_engine;
 
