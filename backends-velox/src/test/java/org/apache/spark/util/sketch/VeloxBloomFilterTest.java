@@ -27,9 +27,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.function.ThrowingRunnable;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.lang.management.ManagementFactory;
 import java.nio.ByteBuffer;
 
 public class VeloxBloomFilterTest {
@@ -61,7 +58,9 @@ public class VeloxBloomFilterTest {
     TaskResources$.MODULE$.runUnsafe(
         () -> {
           final BloomFilter filter = VeloxBloomFilter.readFrom(buf.array());
-          Assert.assertThrows("Bloom-filter is not initialized", RuntimeException.class,
+          Assert.assertThrows(
+              "Bloom-filter is not initialized",
+              RuntimeException.class,
               new ThrowingRunnable() {
                 @Override
                 public void run() throws Throwable {
@@ -115,7 +114,6 @@ public class VeloxBloomFilterTest {
             Assert.assertTrue(filter1.mightContainLong(i));
           }
 
-
           final BloomFilter filter2 = VeloxBloomFilter.empty(10000);
           final int start2 = 1000;
           final int end2 = 3000;
@@ -139,7 +137,6 @@ public class VeloxBloomFilterTest {
           for (int i = start1; i < end2; i++) {
             Assert.assertTrue(filter1.mightContainLong(i));
           }
-
 
           // Check false positives.
           checkFalsePositives(filter1, end2);
