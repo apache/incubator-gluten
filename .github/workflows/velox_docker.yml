@@ -339,6 +339,57 @@ jobs:
             --local --preset=velox --benchmark-type=ds --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
             --skip-data-gen  --random-kill-tasks
 
+  run-tpc-test-ubuntu-sf30:
+    needs: build-native-lib
+    strategy:
+      fail-fast: false
+      matrix:
+        spark: [ "spark-3.2" ]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Maximize build disk space
+        shell: bash
+        run: |
+          df -h
+          set -euo pipefail
+          echo "Removing unwanted software... "
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force > /dev/null
+          df -h
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Setup java and maven
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-8-jdk maven
+      - name: Set environment variables
+        run: |
+          echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
+      - name: Build for Spark ${{ matrix.spark }}
+        run: |
+          cd $GITHUB_WORKSPACE/ 
+          mvn -ntp clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          mvn -ntp clean install -P${{ matrix.spark }}
+          GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=h -s=30.0 --threads=12
+          GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
+      - name: TPC-DS SF30.0 Parquet local spark3.2 random kill tasks
+        run: |
+          cd tools/gluten-it \
+          && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries \
+            --local --preset=velox --benchmark-type=h --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
+            --skip-data-gen \
+          && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
+            --skip-data-gen
+
   run-tpc-test-centos8-uniffle:
     needs: build-native-lib
     strategy:
