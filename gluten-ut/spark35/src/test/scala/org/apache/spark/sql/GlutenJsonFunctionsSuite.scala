@@ -19,7 +19,7 @@ package org.apache.spark.sql
 class GlutenJsonFunctionsSuite extends JsonFunctionsSuite with GlutenSQLTestsTrait {
   import testImplicits._
 
-  test("Gluten: SPARK-42782: Hive compatibility check for get_json_object ") {
+  testGluten("SPARK-42782: Hive compatibility check for get_json_object ") {
     val book0 = "{\"author\":\"Nigel Rees\",\"title\":\"Sayings of the Century\"" +
       ",\"category\":\"reference\",\"price\":8.95}"
     val backet0 = "[1,2,{\"b\":\"y\",\"a\":\"x\"}]"
@@ -44,27 +44,28 @@ class GlutenJsonFunctionsSuite extends JsonFunctionsSuite with GlutenSQLTestsTra
     runTest(json, "$.store.bicycle", "{\"price\":19.95,\"color\":\"red\"}")
     runTest(json, "$.store.book", book)
     runTest(json, "$.store.book[0]", book0)
-    runTest(json, "$.store.book[*]", null) // not supported in velox
+    // runTest(json, "$.store.book[*]", book) - not supported in velox
     runTest(json, "$.store.book[0].category", "reference")
-    runTest(json, "$.store.book[*].category", null) // not supported in velox
-    runTest(json, "$.store.book[*].reader[0].age", null) // not supported in velox
-    runTest(json, "$.store.book[*].reader[*].age", null) // not supported in velox
+    // runTest(json, "$.store.book[*].category",
+    // "[\"reference\",\"fiction\",\"fiction\"]") - not supported in velox
+    // runTest(json, "$.store.book[*].reader[0].age", "25") - not supported in velox
+    // runTest(json, "$.store.book[*].reader[*].age", "[25,26]") - not supported in velox
     runTest(json, "$.store.basket[0][1]", "2")
-    runTest(json, "$.store.basket[*]", null) // not supported in velox
-    runTest(json, "$.store.basket[*][0]", null) // not supported in velox
-    runTest(json, "$.store.basket[0][*]", null) // not supported in velox
-    runTest(json, "$.store.basket[*][*]", null) // not supported in velox
+    // runTest(json, "$.store.basket[*]", backet) - not supported in velox
+    // runTest(json, "$.store.basket[*][0]", "[1,3,5]") - not supported in velox
+    // runTest(json, "$.store.basket[0][*]", backet0) - not supported in velox
+    // runTest(json, "$.store.basket[*][*]", backetFlat) - not supported in velox
     runTest(json, "$.store.basket[0][2].b", "y")
-    runTest(json, "$.store.basket[0][*].b", null) // not supported in velox
+    // runTest(json, "$.store.basket[0][*].b", "[\"y\"]") - not supported in velox
     runTest(json, "$.non_exist_key", null)
     runTest(json, "$.store.book[10]", null)
     runTest(json, "$.store.book[0].non_exist_key", null)
-    runTest(json, "$.store.basket[*].non_exist_key", null) // not supported in velox
-    runTest(json, "$.store.basket[0][*].non_exist_key", null) // not supported in velox
-    runTest(json, "$.store.basket[*][*].non_exist_key", null) // not supported in velox
+    // runTest(json, "$.store.basket[*].non_exist_key", null) - not supported in velox
+    // runTest(json, "$.store.basket[0][*].non_exist_key", null) - not supported in velox
+    // runTest(json, "$.store.basket[*][*].non_exist_key", null) - not supported in velox
     runTest(json, "$.zip code", "94025")
     runTest(json, "$.fb:testid", "1234")
-    runTest("{\"a\":\"b\nc\"}", "$.a", null) // not supported in velox
+    // runTest("{\"a\":\"b\nc\"}", "$.a", "b\nc") - not supported in velox
 
     // Test root array
     runTest("[1,2,3]", "$[0]", "1")
@@ -74,8 +75,8 @@ class GlutenJsonFunctionsSuite extends JsonFunctionsSuite with GlutenSQLTestsTra
 
     runTest("[1,2,3]", "$[3]", null)
     runTest("[1,2,3]", "$.[*]", null) // Not supported in spark and velox
-    runTest("[1,2,3]", "$[*]", null) // not supported in velox
-    runTest("[1,2,3]", "$", null) // not supported in velox
+    // runTest("[1,2,3]", "$[*]", "[1,2,3]") - not supported in velox
+    // runTest("[1,2,3]", "$", "[1,2,3]") - not supported in velox
     runTest("[{\"k1\":\"v1\"},{\"k2\":\"v2\"},{\"k3\":\"v3\"}]", "$[2]", "{\"k3\":\"v3\"}")
     runTest("[{\"k1\":\"v1\"},{\"k2\":\"v2\"},{\"k3\":\"v3\"}]", "$[2].k3", "v3")
     runTest("[{\"k1\":[{\"k11\":[1,2,3]}]}]", "$[0].k1[0].k11[1]", "2")
@@ -93,8 +94,8 @@ class GlutenJsonFunctionsSuite extends JsonFunctionsSuite with GlutenSQLTestsTra
     runTest("[1,2,3]", "0", null)
     runTest("[1,2,3]", "$.", null)
 
-    // runTest("[1,2,3]", "$", null) crashes in velox
-    // runTest("{\"a\":4}", "$", null) crashes in velox
+    // runTest("[1,2,3]", "$", "[1,2,3]") crashes in velox
+    // runTest("{\"a\":4}", "$", "{\"a\":4}") crashes in velox
 
     def runTest(json: String, path: String, exp: String): Unit = {
       checkAnswer(Seq(json).toDF().selectExpr(s"get_json_object(value, '$path')"), Row(exp))
