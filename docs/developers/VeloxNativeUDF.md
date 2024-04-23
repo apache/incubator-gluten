@@ -43,11 +43,11 @@ The following steps demonstrate how to set up a UDF library project:
   namespace {
   static const char* kInteger = "integer";
   }
-  
+
   const int kNumMyUdf = 1;
 
   const char* myUdfArgs[] = {kInteger}:
-  gluten::UdfEntry myUdfSig = {"myudf", kInteger, 1, myUdfArgs}; 
+  gluten::UdfEntry myUdfSig = {"myudf", kInteger, 1, myUdfArgs};
 
   class MyUdf : public facebook::velox::exec::VectorFunction {
     ... // Omit concrete implementation
