@@ -49,7 +49,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
-import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, WriteFilesExec}
+import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation}
 import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules.NativeWritePostRule
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
@@ -677,7 +677,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       partitionColumns: Seq[Attribute],
       bucketSpec: Option[BucketSpec],
       options: Map[String, String],
-      staticPartitions: TablePartitionSpec): WriteFilesExec = {
+      staticPartitions: TablePartitionSpec): SparkPlan = {
     throw new GlutenNotSupportException("ColumnarWriteFilesExec is not support in ch backend.")
   }
 
