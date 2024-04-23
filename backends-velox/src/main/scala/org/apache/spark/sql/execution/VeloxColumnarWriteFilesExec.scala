@@ -255,6 +255,10 @@ class VeloxColumnarWriteFilesRDD(
   }
 }
 
+// The class inherits from "BinaryExecNode" instead of "UnaryExecNode" because
+// we need to expose a dummy child (as right child) with type "WriteFilesExec" to let Spark
+// choose the new write code path (version >= 3.4). The actual plan to write is the left child
+// of this operator.
 case class VeloxColumnarWriteFilesExec(
     child: SparkPlan,
     fileFormat: FileFormat,
