@@ -203,6 +203,7 @@ object ExpressionMappings {
     Sig[Sha2](SHA2),
     Sig[Crc32](CRC32),
     // Array functions
+    Sig[ArrayTransform](TRANSFORM),
     Sig[Size](SIZE),
     Sig[Slice](SLICE),
     Sig[Sequence](SEQUENCE),

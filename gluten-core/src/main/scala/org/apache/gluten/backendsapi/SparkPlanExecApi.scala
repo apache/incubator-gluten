@@ -270,6 +270,15 @@ trait SparkPlanExecApi {
     throw new GlutenNotSupportException("any_match is not supported")
   }
 
+  /** Transform array transform to Substrait. */
+  def genArrayTransformTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArrayTransform): ExpressionTransformer = {
+    throw new GlutenNotSupportException("transform(on array) is not supported")
+  }
+
   /** Transform inline to Substrait. */
   def genInlineTransformer(
       substraitExprName: String,

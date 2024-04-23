@@ -747,6 +747,16 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("test array transform") {
+    withTable("t") {
+      sql("create table t (arr ARRAY<INT>) using parquet")
+      sql("insert into t values(array(1, 2, 3, null))")
+      runQueryAndCompare("select transform(arr, x -> x + 1) from t") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
+
   test("weekofyear") {
     withTable("t") {
       sql("create table t (dt date) using parquet")
