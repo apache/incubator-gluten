@@ -46,17 +46,8 @@ const int32_t kGzipWindowBits4k = 12;
 void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
     sink_ = dwio::common::FileSink::create(filePath_, {.pool = pool_.get()});
-  } else if (strncmp(filePath_.c_str(), "hdfs:", 5) == 0) {
-#ifdef ENABLE_HDFS
-    sink_ = dwio::common::FileSink::create(filePath_, {.pool = pool_.get()});
-#else
-    throw std::runtime_error(
-        "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox runtime!");
-#endif
-
   } else {
-    throw std::runtime_error(
-        "The file path is not local or hdfs when writing data with parquet format in velox runtime!");
+    throw std::runtime_error("The file path is not local when writing data with parquet format in velox runtime!");
   }
 
   ArrowSchema cSchema{};

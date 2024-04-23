@@ -33,6 +33,10 @@
 #include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
 
+#ifdef ENABLE_HDFS
+#include "operators/writer/VeloxParquetDatasourceHDFS.h"
+#endif
+
 #ifdef ENABLE_S3
 #include "operators/writer/VeloxParquetDatasourceS3.h"
 #endif
@@ -194,7 +198,14 @@ std::shared_ptr<Datasource> VeloxRuntime::createDatasource(
   // Pass a dedicate pool for S3 and GCS sinks as can't share veloxPool
   // with parquet writer.
   auto sinkPool = getLeafVeloxPool(memoryManager);
-  if (isSupportedS3SdkPath(filePath)) {
+  if (isSupportedHDFSPath(filePath)) {
+#ifdef ENABLE_HDFS
+    return std::make_shared<VeloxParquetDatasourceHDFS>(filePath, veloxPool, sinkPool, schema);
+#else
+    throw std::runtime_error(
+        "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox runtime!");
+#endif
+  } else if (isSupportedS3SdkPath(filePath)) {
 #ifdef ENABLE_S3
     return std::make_shared<VeloxParquetDatasourceS3>(filePath, veloxPool, sinkPool, schema);
 #else

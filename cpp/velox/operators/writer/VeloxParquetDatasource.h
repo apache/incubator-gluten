@@ -51,21 +51,25 @@
 
 namespace gluten {
 
-inline bool isSupportedS3SdkPath(const std::string& filePath_) {
+inline bool isSupportedS3SdkPath(const std::string& filePath) {
   // support scheme
   const std::array<const char*, 5> supported_schemes = {"s3:", "s3a:", "oss:", "cos:", "cosn:"};
 
   for (const char* scheme : supported_schemes) {
     size_t scheme_length = std::strlen(scheme);
-    if (filePath_.length() >= scheme_length && std::strncmp(filePath_.c_str(), scheme, scheme_length) == 0) {
+    if (filePath.length() >= scheme_length && std::strncmp(filePath.c_str(), scheme, scheme_length) == 0) {
       return true;
     }
   }
   return false;
 }
 
-inline bool isSupportedGCSPath(const std::string& filePath_) {
-  return strncmp(filePath_.c_str(), "gs:", 3) == 0;
+inline bool isSupportedGCSPath(const std::string& filePath) {
+  return strncmp(filePath.c_str(), "gs:", 3) == 0;
+}
+
+inline bool isSupportedHDFSPath(const std::string& filePath) {
+  return strncmp(filePath.c_str(), "hdfs:", 5) == 0;
 }
 
 class VeloxParquetDatasource : public Datasource {
