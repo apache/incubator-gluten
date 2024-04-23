@@ -22,8 +22,10 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.trees.TernaryLike
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.DataType
-import org.apache.spark.util.sketch.BloomFilter
+import org.apache.spark.util.TaskResources
+import org.apache.spark.util.sketch.{BloomFilter, VeloxBloomFilter}
 
 /**
  * Velox's bloom-filter implementation uses different algorithms internally comparing to vanilla
@@ -48,6 +50,15 @@ case class VeloxBloomFilterAggregate(
 
   override def prettyName: String = "velox_bloom_filter_agg"
 
+  // Mark as lazy so that `estimatedNumItems` is not evaluated during tree transformation.
+  private lazy val estimatedNumItems: Long =
+    Math.min(
+      estimatedNumItemsExpression.eval().asInstanceOf[Number].longValue,
+      SQLConf.get
+        .getConfString("spark.sql.optimizer.runtime.bloomFilter.maxNumItems", "4000000")
+        .toLong
+    )
+
   override def first: Expression = child
 
   override def second: Expression = estimatedNumItemsExpression
@@ -70,26 +81,48 @@ case class VeloxBloomFilterAggregate(
       numBitsExpression = newNumBitsExpression)
   }
 
-  override def createAggregationBuffer(): BloomFilter = throw new UnsupportedOperationException()
+  override def createAggregationBuffer(): BloomFilter = {
+    if (!TaskResources.inSparkTask()) {
+      throw new UnsupportedOperationException("velox_bloom_filter_agg is not evaluable on Driver")
+    }
+    VeloxBloomFilter.empty(Math.toIntExact(estimatedNumItems))
+  }
 
-  override def update(buffer: BloomFilter, input: InternalRow): BloomFilter =
-    throw new UnsupportedOperationException()
+  override def update(buffer: BloomFilter, input: InternalRow): BloomFilter = {
+    assert(buffer.isInstanceOf[VeloxBloomFilter])
+    val value = child.eval(input)
+    // Ignore null values.
+    if (value == null) {
+      return buffer
+    }
+    buffer.putLong(value.asInstanceOf[Long])
+    buffer
+  }
 
-  override def merge(buffer: BloomFilter, input: BloomFilter): BloomFilter =
-    throw new UnsupportedOperationException()
+  override def merge(buffer: BloomFilter, input: BloomFilter): BloomFilter = {
+    assert(buffer.isInstanceOf[VeloxBloomFilter])
+    assert(input.isInstanceOf[VeloxBloomFilter])
+    buffer.asInstanceOf[VeloxBloomFilter].mergeInPlace(input)
+  }
 
-  override def eval(buffer: BloomFilter): Any = throw new UnsupportedOperationException()
+  override def eval(buffer: BloomFilter): Any = {
+    assert(buffer.isInstanceOf[VeloxBloomFilter])
+    serialize(buffer)
+  }
 
-  override def serialize(buffer: BloomFilter): Array[Byte] =
-    throw new UnsupportedOperationException()
+  override def serialize(buffer: BloomFilter): Array[Byte] = {
+    assert(buffer.isInstanceOf[VeloxBloomFilter])
+    buffer.asInstanceOf[VeloxBloomFilter].serialize()
+  }
 
-  override def deserialize(storageFormat: Array[Byte]): BloomFilter =
-    throw new UnsupportedOperationException()
+  override def deserialize(bytes: Array[Byte]): BloomFilter = {
+    VeloxBloomFilter.readFrom(bytes)
+  }
 
-  override def withNewMutableAggBufferOffset(newMutableAggBufferOffset: Int): ImperativeAggregate =
-    throw new UnsupportedOperationException()
+  override def withNewMutableAggBufferOffset(newOffset: Int): VeloxBloomFilterAggregate =
+    copy(mutableAggBufferOffset = newOffset)
 
-  override def withNewInputAggBufferOffset(newInputAggBufferOffset: Int): ImperativeAggregate =
-    throw new UnsupportedOperationException()
+  override def withNewInputAggBufferOffset(newOffset: Int): VeloxBloomFilterAggregate =
+    copy(inputAggBufferOffset = newOffset)
 
 }

@@ -19,6 +19,7 @@ package org.apache.spark.util.sketch;
 import org.apache.commons.io.IOUtils;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -33,6 +34,15 @@ public class VeloxBloomFilter extends BloomFilter {
     handle = jni.init(data);
   }
 
+  private VeloxBloomFilter(int capacity) {
+    jni = VeloxBloomFilterJniWrapper.create();
+    handle = jni.empty(capacity);
+  }
+
+  public static VeloxBloomFilter empty(int capacity) {
+    return new VeloxBloomFilter(capacity);
+  }
+
   public static VeloxBloomFilter readFrom(InputStream in) {
     try {
       byte[] all = IOUtils.toByteArray(in);
@@ -45,6 +55,15 @@ public class VeloxBloomFilter extends BloomFilter {
   public static VeloxBloomFilter readFrom(byte[] data) {
     try (ByteArrayInputStream in = new ByteArrayInputStream(data)) {
       return readFrom(in);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public byte[] serialize() {
+    try (ByteArrayOutputStream o = new ByteArrayOutputStream()) {
+      writeTo(o);
+      return o.toByteArray();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -72,7 +91,8 @@ public class VeloxBloomFilter extends BloomFilter {
 
   @Override
   public boolean putLong(long item) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    jni.insertLong(handle, item);
+    return true;
   }
 
   @Override
@@ -87,7 +107,18 @@ public class VeloxBloomFilter extends BloomFilter {
 
   @Override
   public BloomFilter mergeInPlace(BloomFilter other) throws IncompatibleMergeException {
-    throw new UnsupportedOperationException("Not yet implemented");
+    if (!(other instanceof VeloxBloomFilter)) {
+      throw new IncompatibleMergeException(
+          "Cannot merge Velox bloom-filter with non-Velox bloom-filter");
+    }
+    final VeloxBloomFilter from = (VeloxBloomFilter) other;
+
+    if (!jni.isCompatibleWith(from.jni)) {
+      throw new IncompatibleMergeException(
+          "Cannot merge Velox bloom-filters with different Velox runtimes");
+    }
+    jni.mergeFrom(handle, from.handle);
+    return this;
   }
 
   @Override
@@ -117,6 +148,7 @@ public class VeloxBloomFilter extends BloomFilter {
 
   @Override
   public void writeTo(OutputStream out) throws IOException {
-    throw new UnsupportedOperationException("Not yet implemented");
+    byte[] data = jni.serialize(handle);
+    out.write(data);
   }
 }
