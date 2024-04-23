@@ -31,6 +31,7 @@ import org.apache.spark.sql.execution.datasources.velox.{VeloxOrcWriterInjects, 
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.GlutenConfigUtil
 import org.apache.spark.sql.internal.StaticSQLConf
+import org.apache.spark.util.SparkDirectoryUtil
 
 import org.apache.commons.lang3.StringUtils
 
@@ -140,6 +141,7 @@ class ListenerApiImpl extends ListenerApi {
   }
 
   private def initialize(conf: SparkConf): Unit = {
+    SparkDirectoryUtil.init(conf)
     val debugJni = conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_MODE, defaultValue = false) &&
       conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_KEEP_JNI_WORKSPACE, defaultValue = false)
     if (debugJni) {

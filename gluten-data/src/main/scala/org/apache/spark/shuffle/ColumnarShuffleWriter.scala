@@ -56,6 +56,7 @@ class ColumnarShuffleWriter[K, V](
   private var mapStatus: MapStatus = _
 
   private val localDirs = SparkDirectoryUtil
+    .get()
     .namespace("shuffle-write")
     .all
     .map(_.getAbsolutePath)
