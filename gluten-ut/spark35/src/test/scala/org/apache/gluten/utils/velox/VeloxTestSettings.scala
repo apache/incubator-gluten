@@ -57,8 +57,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite the following tests in GlutenDataSourceV2Suite.
     .exclude("partitioning reporting")
     .exclude("ordering and partitioning reporting")
-  // Disable for Spark3.5.
-  // enableSuite[GlutenDeleteFromTableSuite]
+  enableSuite[GlutenDeleteFromTableSuite]
   enableSuite[GlutenFileDataSourceV2FallBackSuite]
     // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
     .exclude("Fallback Parquet V2 to V1")
