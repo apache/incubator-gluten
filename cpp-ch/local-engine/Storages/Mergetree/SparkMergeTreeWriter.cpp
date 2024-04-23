@@ -76,34 +76,44 @@ void SparkMergeTreeWriter::finalize()
         return;
 
     Field merge_after_insert;
-    if (!context->getSettings().tryGet(MERGE_AFTER_INSERT, merge_after_insert) || !merge_after_insert.get<bool>())
+    if (!context->getSettings().tryGet("mergetree.merge_after_insert", merge_after_insert) || !merge_after_insert.get<bool>())
         return;
 
     // TODO begin merge
     std::sort(new_parts.begin(), new_parts.end(), [](const auto & l, const auto & r) { return l->getBytesOnDisk() < r->getBytesOnDisk(); });
 
-    size_t max_size = 1024*1024 *1024 ; // g
-    size_t max_cnt = 10 ; // g
-    std::vector<DB::DataPartPtr> selected_parts(max_cnt);
+    Field limit_size_field;
+    size_t limit_size = 1024 * 1024 * 1024; // 1G
+    if (context->getSettings().tryGet("optimize.maxfilesize", limit_size_field))
+        limit_size = limit_size_field.get<Int64>();
+
+    Field limit_cnt_field;
+    size_t limit_cnt = 10;
+    if (context->getSettings().tryGet("mergetree.max_num_part_per_merge_task", limit_cnt_field))
+        limit_cnt = limit_cnt_field.get<Int64>();
+
+    std::vector<std::shared_ptr<const IMergeTreeDataPart>> selected_parts;
+    selected_parts.reserve(limit_cnt);
     size_t totol_size = 0;
     std::vector<std::shared_ptr<DB::IMergeTreeDataPart>> new_tmp_parts;
 
     for (const auto & merge_tree_data_part : new_parts)
     {
-        if (merge_tree_data_part->getBytesOnDisk() >=  max_size)
+        if (merge_tree_data_part->getBytesOnDisk() >= limit_size)
             continue;
 
         selected_parts.emplace_back(merge_tree_data_part);
         totol_size += merge_tree_data_part->getBytesOnDisk();
-        if (max_size < totol_size && selected_parts.size() < max_cnt )
+        if (limit_size >= totol_size && limit_cnt >= selected_parts.size())
             continue;
 
         auto merged = mergeParts(selected_parts, toString(UUIDHelpers::generateV4()), storage, partition_dir, bucket_dir);
         new_tmp_parts.insert(new_tmp_parts.end(), merged.begin(), merged.end());
         selected_parts.clear();
+        totol_size = 0;
     }
 
-    if (!new_tmp_parts.empty())
+    if (!selected_parts.empty())
     {
         auto merged = mergeParts(selected_parts, toString(UUIDHelpers::generateV4()), storage, partition_dir, bucket_dir);
         new_tmp_parts.insert(new_tmp_parts.end(), merged.begin(), merged.end());
@@ -277,6 +287,7 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPart(
 std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo()
 {
     std::vector<PartInfo> res;
+    res.reserve(new_parts.size());
     for (const MergeTreeDataPartPtr & part : new_parts)
         res.emplace_back(PartInfo{part->name, part->getMarksCount(), part->getBytesOnDisk(), part->rows_count, partition_values, bucket_dir});
     return res;

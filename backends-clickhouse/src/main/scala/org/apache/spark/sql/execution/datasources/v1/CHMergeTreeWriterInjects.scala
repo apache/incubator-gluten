@@ -19,10 +19,9 @@ package org.apache.spark.sql.execution.datasources.v1
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
-import org.apache.gluten.substrait.extensions.ExtensionBuilder
+import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import org.apache.gluten.substrait.plan.PlanBuilder
 import org.apache.gluten.substrait.rel.{ExtensionTableBuilder, RelBuilder}
-
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, GlutenFormatWriterInjectsBase, OutputWriter}
@@ -30,16 +29,17 @@ import org.apache.spark.sql.execution.datasources.orc.OrcUtils
 import org.apache.spark.sql.execution.datasources.utils.MergeTreeDeltaUtil
 import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeOutputWriter
 import org.apache.spark.sql.types.StructType
-
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, StringValue}
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.memory.alloc.CHNativeMemoryAllocators
+import org.apache.gluten.substrait.expression.{ExpressionBuilder, StringMapNode}
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
-import java.util.{ArrayList => JList, Map => JMap, UUID}
-
+import java.util.{UUID, ArrayList => JList, Map => JMap}
 import scala.collection.JavaConverters._
-import scala.collection.mutable
+
 case class PlanWithSplitInfo(plan: Array[Byte], splitInfo: Array[Byte])
 
 class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
@@ -47,10 +47,7 @@ class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
   override def nativeConf(
       options: Map[String, String],
       compressionCodec: String): JMap[String, String] = {
-    // pass options to native so that velox can take user-specified conf to write parquet,
-    // i.e., compression, block size, block rows.
-    val sparkOptions = new mutable.HashMap[String, String]()
-    sparkOptions.asJava
+    options.asJava
   }
 
   override def createOutputWriter(
@@ -95,7 +92,7 @@ class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
       clickhouseTableConfigs,
       tableSchema.toAttributes // use table schema instead of data schema
     )
-
+    val allocId = CHNativeMemoryAllocators.contextInstance.getNativeInstanceId
     val datasourceJniWrapper = new CHDatasourceJniWrapper()
     val instance =
       datasourceJniWrapper.nativeInitMergeTreeWriterWrapper(
@@ -104,7 +101,9 @@ class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
         uuid,
         context.getTaskAttemptID.getTaskID.getId.toString,
         context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition.dir"),
-        context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid.str")
+        context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid.str"),
+        buildNativeConf(nativeConf),
+        allocId
       )
 
     new MergeTreeOutputWriter(database, tableName, datasourceJniWrapper, instance, path)
@@ -120,6 +119,12 @@ class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
 
   override def getFormatName(): String = {
     "mergetree"
+  }
+
+  private def buildNativeConf(confs: JMap[String, String]): Array[Byte] = {
+    val stringMapNode: StringMapNode = ExpressionBuilder.makeStringMap(confs)
+    val extensionNode: AdvancedExtensionNode = ExtensionBuilder.makeAdvancedExtension(BackendsApiManager.getTransformerApiInstance.packPBMessage(stringMapNode.toProtobuf))
+    PlanBuilder.makePlan(extensionNode).toProtobuf.toByteArray
   }
 }
 

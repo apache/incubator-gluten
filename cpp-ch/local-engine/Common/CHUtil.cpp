@@ -594,11 +594,21 @@ void BackendInitializerUtil::initEnvs(DB::Context::ConfigurationPtr config)
         spark_user = spark_user_c_str;
 }
 
+DB::Field BackendInitializerUtil::toField(String key, String value)
+{
+    if (bool_value_settings.contains(key))
+        return DB::Field(value == "true" || value == "1");
+    else if (long_value_settings.contains(key))
+        return DB::Field(std::strtoll(value.c_str(), NULL, 10));
+    else
+        return DB::Field(value);
+}
+
 void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & backend_conf_map, DB::Settings & settings)
 {
     /// Initialize default setting.
     settings.set("date_time_input_format", "best_effort");
-    settings.set(MERGE_AFTER_INSERT, true);
+    settings.set("mergetree.merge_after_insert", true);
 
     for (const auto & [key, value] : backend_conf_map)
     {
@@ -611,11 +621,7 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
         else if (key.starts_with(CH_RUNTIME_SETTINGS_PREFIX))
         {
             auto k = key.substr(CH_RUNTIME_SETTINGS_PREFIX.size());
-            if (bool_settings.contains(k))
-                settings.set(k, value == "true" || value == "'true'" || value == "1");
-            else
-                settings.set(k, value);
-
+            settings.set(k, toField(k, value));
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
         }
         else if (key.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX))
@@ -629,6 +635,12 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
             // 3. fs.s3a.bucket.bucket_name.endpoint
             // 4. fs.s3a.bucket.bucket_name.assumed.role.externalId (non hadoop official)
             settings.set(key.substr(SPARK_HADOOP_PREFIX.length()), value);
+        }
+        else if (key.starts_with(SPARK_DELTA_PREFIX))
+        {
+            auto k = key.substr(SPARK_DELTA_PREFIX.size());
+            settings.set(k, toField(k, value));
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
         }
     }
 

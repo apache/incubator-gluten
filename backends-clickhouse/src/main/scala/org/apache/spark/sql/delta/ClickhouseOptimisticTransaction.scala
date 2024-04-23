@@ -34,7 +34,6 @@ import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMerg
 import org.apache.spark.util.{Clock, SerializableConfiguration}
 
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 
 import scala.collection.mutable.ListBuffer
 
@@ -120,8 +119,7 @@ class ClickhouseOptimisticTransaction(
           }.toMap
       }
 
-      options += (s"${CHBackendSettings.getBackendConfigPrefix}.runtime_settings" +
-        s".delta.${DeltaSQLConf.DELTA_OPTIMIZE_MAX_FILE_SIZE.key}" ->
+      options += (DeltaSQLConf.DELTA_OPTIMIZE_MAX_FILE_SIZE.key ->
         spark.sessionState.conf.getConf(DeltaSQLConf.DELTA_OPTIMIZE_MAX_FILE_SIZE).toString)
 
 

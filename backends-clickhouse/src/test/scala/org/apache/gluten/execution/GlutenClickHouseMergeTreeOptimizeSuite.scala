@@ -61,17 +61,21 @@ class GlutenClickHouseMergeTreeOptimizeSuite
   }
 
   test("test mergetree optimize basic") {
-    withSQLConf("spark.databricks.delta.optimize.maxFileSize" -> "2000000") {
-      spark.sql(s"""
-                   |DROP TABLE IF EXISTS lineitem_mergetree_optimize;
-                   |""".stripMargin)
+    withSQLConf(("spark.databricks.delta.optimize.maxFileSize" -> "2000000"),
+      ("spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert" -> "false")
+    ) {
+      spark.sql(
+        s"""
+           |DROP TABLE IF EXISTS lineitem_mergetree_optimize;
+           |""".stripMargin)
 
-      spark.sql(s"""
-                   |CREATE TABLE IF NOT EXISTS lineitem_mergetree_optimize
-                   |USING clickhouse
-                   |LOCATION '$basePath/lineitem_mergetree_optimize'
-                   | as select * from lineitem
-                   |""".stripMargin)
+      spark.sql(
+        s"""
+           |CREATE TABLE IF NOT EXISTS lineitem_mergetree_optimize
+           |USING clickhouse
+           |LOCATION '$basePath/lineitem_mergetree_optimize'
+           | as select * from lineitem
+           |""".stripMargin)
 
       spark.sql("optimize lineitem_mergetree_optimize")
       val ret = spark.sql("select count(*) from lineitem_mergetree_optimize").collect()
@@ -425,6 +429,32 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
     val ret = spark.sql(s"select count(*) from clickhouse.`$dataPath`").collect()
     assert(ret.apply(0).get(0) == 600572)
+  }
+
+  test("test mergetree insert with optimize basic") {
+    withSQLConf(("spark.databricks.delta.optimize.maxFileSize" -> "200000000"),
+      ("spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert" -> "true")
+    ) {
+      spark.sql(
+        s"""
+           |DROP TABLE IF EXISTS lineitem_mergetree_insert_optimize_basic;
+           |""".stripMargin)
+
+      spark.sql(
+        s"""
+           |CREATE TABLE IF NOT EXISTS lineitem_mergetree_insert_optimize_basic
+           |USING clickhouse
+           |LOCATION '$basePath/lineitem_mergetree_insert_optimize_basic'
+           | as select * from lineitem
+           |""".stripMargin)
+
+      val ret = spark.sql("select count(*) from lineitem_mergetree_insert_optimize_basic").collect()
+      assert(ret.apply(0).get(0) == 600572)
+
+      assert(
+        new File(s"$basePath/lineitem_mergetree_insert_optimize_basic").listFiles().length == 4
+      ) // many merged parts
+    }
   }
 }
 // scalastyle:off line.size.limit

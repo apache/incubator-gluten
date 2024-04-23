@@ -32,8 +32,8 @@
 
 namespace local_engine
 {
-inline static const std::string MERGE_AFTER_INSERT = "merge_after_insert";
-static const std::unordered_set<String> bool_settings{MERGE_AFTER_INSERT};
+static const std::unordered_set<String> bool_value_settings{"mergetree.merge_after_insert"};
+static const std::unordered_set<String> long_value_settings{"optimize.maxfilesize", "mergetree.max_num_part_per_merge_task"};
 
 class BlockUtil
 {
@@ -134,6 +134,8 @@ class JNIUtils;
 class BackendInitializerUtil
 {
 public:
+    static DB::Field toField(String key, String value);
+
     /// Initialize two kinds of resources
     /// 1. global level resources like global_context/shared_context, notice that they can only be initialized once in process lifetime
     /// 2. session level resources like settings/configs, they can be initialized multiple times following the lifetime of executor/driver
@@ -169,6 +171,7 @@ public:
     inline static const std::string HADOOP_S3_CLIENT_CACHE_IGNORE = "fs.s3a.client.cached.ignore";
     inline static const std::string SPARK_HADOOP_PREFIX = "spark.hadoop.";
     inline static const std::string S3A_PREFIX = "fs.s3a.";
+    inline static const std::string SPARK_DELTA_PREFIX = "spark.databricks.delta.";
 
     /// On yarn mode, native writing on hdfs cluster takes yarn container user as the user passed to libhdfs3, which
     /// will cause permission issue because yarn container user is not the owner of the hdfs dir to be written.
