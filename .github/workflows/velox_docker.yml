@@ -344,7 +344,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        spark: [ "spark-3.2" ]
+        spark: [ "spark-3.4" ]
     runs-on: ubuntu-20.04
     steps:
       - name: Maximize build disk space
@@ -380,7 +380,7 @@ jobs:
           mvn -ntp clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=h -s=30.0 --threads=12
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
-      - name: TPC-DS SF30.0 Parquet local spark3.2 random kill tasks
+      - name: TPC-H / TPC-DS SF30.0 Parquet local spark3.4
         run: |
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries \
