@@ -249,6 +249,7 @@ object ExpressionNames {
   final val FILTER = "filter"
   final val FORALL = "forall"
   final val EXISTS = "exists"
+  final val TRANSFORM = "transform"
   final val SHUFFLE = "shuffle"
 
   // Map functions
