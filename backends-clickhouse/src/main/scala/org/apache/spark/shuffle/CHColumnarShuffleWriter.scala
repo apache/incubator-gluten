@@ -46,6 +46,7 @@ class CHColumnarShuffleWriter[K, V](
 
   private val blockManager = SparkEnv.get.blockManager
   private val localDirs = SparkDirectoryUtil
+    .get()
     .namespace("ch-shuffle-write")
     .mkChildDirs(UUID.randomUUID().toString)
     .map(_.getAbsolutePath)
