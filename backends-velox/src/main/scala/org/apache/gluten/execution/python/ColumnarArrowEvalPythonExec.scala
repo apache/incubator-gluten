@@ -23,7 +23,6 @@ import org.apache.gluten.utils.Iterators
 import org.apache.gluten.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.{ContextAwareIterator, SparkEnv, TaskContext}
-import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -200,29 +199,6 @@ class ColumnarArrowPythonRunner(
   }
 }
 
-class CloseableColumnBatchIterator(itr: Iterator[ColumnarBatch])
-  extends Iterator[ColumnarBatch]
-  with Logging {
-  var cb: ColumnarBatch = null
-
-  private def closeCurrentBatch(): Unit = {
-    if (cb != null) {
-      cb.close
-      cb = null
-    }
-  }
-
-  override def hasNext: Boolean = {
-    itr.hasNext
-  }
-
-  override def next(): ColumnarBatch = {
-    closeCurrentBatch()
-    cb = itr.next()
-    cb
-  }
-}
-
 case class ColumnarArrowEvalPythonExec(
     udfs: Seq[PythonUDF],
     resultAttrs: Seq[Attribute],
@@ -324,37 +300,36 @@ case class ColumnarArrowEvalPythonExec(
             StructField(s"_$i", dt)
         }.toSeq)
         val contextAwareIterator = new ContextAwareIterator(context, iter)
-        val input_cb_cache = new ArrayBuffer[ColumnarBatch]()
+        val inputCbCache = new ArrayBuffer[ColumnarBatch]()
         val inputBatchIter = contextAwareIterator.map {
-          input_cb =>
-            ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance, input_cb)
+          inputCb =>
+            ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance, inputCb)
             // 0. cache input for later merge
-            ColumnarBatches.retain(input_cb)
-            input_cb_cache += input_cb
-            input_cb
+            ColumnarBatches.retain(inputCb)
+            inputCbCache += inputCb
+            inputCb
         }
 
         val outputColumnarBatchIterator =
           evaluateColumnar(pyFuncs, argOffsets, inputBatchIter, schema, context)
-        val res = new CloseableColumnBatchIterator(
+        val res =
           outputColumnarBatchIterator.zipWithIndex.map {
-            case (output_cb, batchId) =>
-              val input_cb = input_cb_cache(batchId)
-              val joinedVectors = (0 until input_cb.numCols).toArray.map(
-                i => input_cb.column(i)) ++ (0 until output_cb.numCols).toArray.map(
-                i => output_cb.column(i))
-              val numRows = input_cb.numRows
+            case (outputCb, batchId) =>
+              val inputCb = inputCbCache(batchId)
+              val joinedVectors = (0 until inputCb.numCols).toArray.map(
+                i => inputCb.column(i)) ++ (0 until outputCb.numCols).toArray.map(
+                i => outputCb.column(i))
+              val numRows = inputCb.numRows
               val batch = new ColumnarBatch(joinedVectors, numRows)
               val offloaded =
                 ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
-              ColumnarBatches.release(output_cb)
+              ColumnarBatches.release(outputCb)
               offloaded
           }
-        )
         Iterators
           .wrap(res)
           .recycleIterator {
-            input_cb_cache.foreach(ColumnarBatches.release(_))
+            inputCbCache.foreach(ColumnarBatches.release(_))
           }
           .recyclePayload(_.close())
           .create()
