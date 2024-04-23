@@ -21,5 +21,9 @@ package org.apache.gluten.exec;
  * for further native processing.
  */
 public interface RuntimeAware {
+  default boolean isCompatibleWith(RuntimeAware other) {
+    return handle() == other.handle();
+  }
+
   long handle();
 }
