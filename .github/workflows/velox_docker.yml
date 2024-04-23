@@ -855,3 +855,18 @@ jobs:
           export MAVEN_HOME=/usr/lib/maven
           export PATH=${PATH}:${MAVEN_HOME}/bin
           mvn -ntp clean install -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+
+  run-velox-unit-test:
+    runs-on: ubuntu-20.04
+    container: ghcr.io/facebookincubator/velox-dev:amd64-ubuntu-22.04-avx
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build Gluten velox third party
+        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          cd ep/build-velox/src && \
+          ./get_velox.sh && \
+          cd ep/build-velox/build/velox_ep/
+          git reset --hard .
+          make EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=ON -DVELOX_BUILD_TEST_UTILS=ON" 
+          cd _build/release && ctest -VV -j 6 --output-on-failure
