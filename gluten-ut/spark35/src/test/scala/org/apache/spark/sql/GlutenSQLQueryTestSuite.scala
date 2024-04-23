@@ -224,7 +224,6 @@ class GlutenSQLQueryTestSuite
     "array.sql", // blocked by VELOX-5768
     "higher-order-functions.sql", // blocked by VELOX-5768
     "udf/udf-window.sql", // Local window fixes are not added.
-    "window.sql", // Local window fixes are not added.
     // Disable for Spark 3.
     "group-by.sql",
     "udf/udf-group-by.sql - Scala UDF"

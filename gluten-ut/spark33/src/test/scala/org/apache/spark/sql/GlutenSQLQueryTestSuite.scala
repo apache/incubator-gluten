@@ -217,8 +217,7 @@ class GlutenSQLQueryTestSuite
     "group-analytics.sql", // wait velox to fix issue 3357
     "array.sql", // blocked by VELOX-5768
     "higher-order-functions.sql", // blocked by VELOX-5768
-    "udf/udf-window.sql", // Local window fixes are not added.
-    "window.sql" // Local window fixes are not added.
+    "udf/udf-window.sql" // Local window fixes are not added.
   ) ++ otherIgnoreList
 
   // List of supported cases to run with a certain backend, in lower case.
