@@ -476,9 +476,16 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def allowDecimalArithmetic: Boolean = SQLConf.get.decimalOperationsAllowPrecisionLoss
 
   override def enableNativeWriteFiles(): Boolean = {
-    GlutenConfig.getConf.enableNativeWriter.getOrElse(
-      SparkShimLoader.getSparkShims.enableNativeWriteFilesByDefault()
-    )
+    val enabled = GlutenConfig.getConf.enableNativeWriter
+    val alwaysEnabled = SparkShimLoader.getSparkShims.enableNativeWriteFilesByDefault()
+    if (alwaysEnabled) {
+      assert(
+        enabled,
+        s"${GlutenConfig.NATIVE_WRITER_ENABLED.key} should not be set to false in " +
+          s"Spark version ${SparkShimLoader.getSparkVersion}"
+      )
+    }
+    enabled
   }
 
   override def shouldRewriteCount(): Boolean = {

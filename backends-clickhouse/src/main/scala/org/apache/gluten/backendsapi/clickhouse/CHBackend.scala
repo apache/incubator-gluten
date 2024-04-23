@@ -280,7 +280,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     ValidationResult.notOk("CH backend is unsupported.")
 
   override def enableNativeWriteFiles(): Boolean = {
-    GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
+    GlutenConfig.getConf.enableNativeWriter
   }
 
   override def mergeTwoPhasesHashBaseAggregateIfNeed(): Boolean = true
