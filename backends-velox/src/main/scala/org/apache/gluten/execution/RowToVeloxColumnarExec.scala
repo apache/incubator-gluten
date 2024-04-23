@@ -124,6 +124,8 @@ object RowToVeloxColumnarExec {
     val arrowAllocator = ArrowBufferAllocators.contextInstance()
     val memoryManager = NativeMemoryManagers.contextInstance("RowToColumnar")
     val cSchema = ArrowSchema.allocateNew(arrowAllocator)
+    val factory = UnsafeProjection
+    val converter = factory.create(schema)
     val r2cHandle =
       try {
         ArrowAbiUtil.exportSchema(arrowAllocator, arrowSchema, cSchema)
@@ -213,8 +215,6 @@ object RowToVeloxColumnarExec {
         row match {
           case unsafeRow: UnsafeRow => unsafeRow
           case _ =>
-            val factory = UnsafeProjection
-            val converter = factory.create(schema)
             converter.apply(row)
         }
       }
