@@ -141,7 +141,7 @@ class GlutenInsertSuite
         .find(_.isInstanceOf[SortExecTransformer])
         .isEmpty)
     // all operators should be transformed
-    assert(writeFiles.find(!_.isInstanceOf[GlutenPlan]).isEmpty)
+    assert(writeFiles.child.find(!_.isInstanceOf[GlutenPlan]).isEmpty)
 
     val parts = spark.sessionState.catalog.listPartitionNames(TableIdentifier("pt")).toSet
     assert(parts == expectedPartitionNames)
