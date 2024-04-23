@@ -21,7 +21,7 @@ import org.apache.gluten.execution.SortExecTransformer
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.sql.catalyst.expressions.{Ascending, AttributeReference, NullsFirst, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
-import org.apache.spark.sql.execution.{QueryExecution, SortExec}
+import org.apache.spark.sql.execution.{QueryExecution, SortExec, VeloxColumnarWriteFilesExec}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{IntegerType, StringType}
@@ -122,8 +122,8 @@ class GlutenV1WriteCommandSuite
             val executedPlan = FileFormatWriter.executedPlan.get
 
             val plan = if (enabled) {
-              assert(executedPlan.isInstanceOf[WriteFilesExec])
-              executedPlan.asInstanceOf[WriteFilesExec].child
+              assert(executedPlan.isInstanceOf[VeloxColumnarWriteFilesExec])
+              executedPlan.asInstanceOf[VeloxColumnarWriteFilesExec].child
             } else {
               executedPlan.transformDown { case a: AdaptiveSparkPlanExec => a.executedPlan }
             }
@@ -204,8 +204,8 @@ class GlutenV1WriteCommandSuite
           val executedPlan = FileFormatWriter.executedPlan.get
 
           val plan = if (enabled) {
-            assert(executedPlan.isInstanceOf[WriteFilesExec])
-            executedPlan.asInstanceOf[WriteFilesExec].child
+            assert(executedPlan.isInstanceOf[VeloxColumnarWriteFilesExec])
+            executedPlan.asInstanceOf[VeloxColumnarWriteFilesExec].child
           } else {
             executedPlan.transformDown { case a: AdaptiveSparkPlanExec => a.executedPlan }
           }

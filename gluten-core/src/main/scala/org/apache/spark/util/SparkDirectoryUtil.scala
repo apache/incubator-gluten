@@ -30,8 +30,8 @@ import java.nio.file.Paths
  * Manages Gluten's local directories, for storing jars, libs, spill files, or other temporary
  * stuffs.
  */
-class SparkDirectoryUtil private (roots: Array[String]) extends Logging {
-  private val ROOTS = roots.flatMap {
+class SparkDirectoryUtil private (val roots: Array[String]) extends Logging {
+  private val ROOTS: Array[File] = roots.flatMap {
     rootDir =>
       try {
         val localDir = Utils.createDirectory(rootDir, "gluten")
@@ -78,7 +78,7 @@ object SparkDirectoryUtil extends Logging {
       INSTANCE = new SparkDirectoryUtil(roots)
       return
     }
-    if (INSTANCE.ROOTS.toSet != roots.toSet) {
+    if (INSTANCE.roots.toSet != roots.toSet) {
       logWarning(
         s"Reinitialize SparkDirectoryUtil with different root dirs: old: ${INSTANCE.ROOTS
             .mkString("Array(", ", ", ")")}, new: ${roots.mkString("Array(", ", ", ")")}"
