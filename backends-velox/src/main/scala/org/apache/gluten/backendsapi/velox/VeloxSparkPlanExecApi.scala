@@ -66,7 +66,7 @@ import java.util.{Map => JMap}
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-class SparkPlanExecApiImpl extends SparkPlanExecApi {
+class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
   /**
    * Transform GetArrayItem to Substrait.

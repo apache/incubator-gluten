@@ -34,7 +34,7 @@ import com.google.protobuf.{Any, Message}
 
 import java.util.{Map => JMap}
 
-class TransformerApiImpl extends TransformerApi with Logging {
+class VeloxTransformerApi extends TransformerApi with Logging {
 
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(
