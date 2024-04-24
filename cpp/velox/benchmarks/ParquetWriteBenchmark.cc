@@ -266,8 +266,7 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
       auto veloxParquetDatasource = std::make_unique<gluten::VeloxParquetDatasource>(
           outputPath_ + "/" + fileName,
           veloxPool->addAggregateChild("writer_benchmark"),
-          veloxPool->addLeafChild("s3_sink_pool"),
-          veloxPool->addLeafChild("gcs_sink_pool"),
+          veloxPool->addLeafChild("sink_pool"),
           localSchema);
 
       veloxParquetDatasource->init(runtime->getConfMap());

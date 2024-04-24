@@ -46,39 +46,8 @@ const int32_t kGzipWindowBits4k = 12;
 void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
     sink_ = dwio::common::FileSink::create(filePath_, {.pool = pool_.get()});
-  } else if (isSupportedS3SdkPath(filePath_)) {
-#ifdef ENABLE_S3
-    auto confs = std::make_shared<facebook::velox::core::MemConfigMutable>(sparkConfs);
-    auto hiveConfs = getHiveConfig(confs);
-    sink_ = dwio::common::FileSink::create(
-        filePath_,
-        {.connectorProperties = std::make_shared<facebook::velox::core::MemConfig>(hiveConfs->valuesCopy()),
-         .pool = s3SinkPool_.get()});
-#else
-    throw std::runtime_error(
-        "The write path is S3 path but the S3 haven't been enabled when writing parquet data in velox runtime!");
-#endif
-  } else if (strncmp(filePath_.c_str(), "gs:", 3) == 0) {
-#ifdef ENABLE_GCS
-    auto fileSystem = getFileSystem(filePath_, nullptr);
-    auto* gcsFileSystem = dynamic_cast<filesystems::GCSFileSystem*>(fileSystem.get());
-    sink_ = std::make_unique<dwio::common::WriteFileSink>(
-        gcsFileSystem->openFileForWrite(filePath_, {{}, gcsSinkPool_.get()}), filePath_);
-#else
-    throw std::runtime_error(
-        "The write path is GCS path but the GCS haven't been enabled when writing parquet data in velox runtime!");
-#endif
-  } else if (strncmp(filePath_.c_str(), "hdfs:", 5) == 0) {
-#ifdef ENABLE_HDFS
-    sink_ = dwio::common::FileSink::create(filePath_, {.pool = pool_.get()});
-#else
-    throw std::runtime_error(
-        "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox runtime!");
-#endif
-
   } else {
-    throw std::runtime_error(
-        "The file path is not local or hdfs when writing data with parquet format in velox runtime!");
+    throw std::runtime_error("The file path is not local when writing data with parquet format in velox runtime!");
   }
 
   ArrowSchema cSchema{};
