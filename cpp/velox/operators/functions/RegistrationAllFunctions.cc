@@ -44,12 +44,10 @@ void registerFunctionOverwrite() {
   velox::registerFunction<RoundFunction, int64_t, int64_t, int32_t>({"round"});
   velox::registerFunction<RoundFunction, double, double, int32_t>({"round"});
   velox::registerFunction<RoundFunction, float, float, int32_t>({"round"});
-  // To fix conflict issues in registered functions.
   // TODO: the below rand function registry can be removed after presto function registry is removed.
-  const std::string prefix = "spark_";
-  registerFunction<RandFunction, double>({prefix + "rand"});
-  registerFunction<RandFunction, double, Constant<int32_t>>({prefix + "rand"});
-  registerFunction<RandFunction, double, Constant<int64_t>>({prefix + "rand"});
+  velox::registerFunction<velox::functions::sparksql::RandFunction, double>({"spark_rand"});
+  velox::registerFunction<velox::functions::sparksql::RandFunction, double, velox::Constant<int32_t>>({"spark_rand"});
+  velox::registerFunction<velox::functions::sparksql::RandFunction, double, velox::Constant<int64_t>>({"spark_rand"});
 
   velox::exec::registerVectorFunction(
       "row_constructor_with_null",
