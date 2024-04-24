@@ -14,9 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.util.sketch;
+package org.apache.gluten.utils;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.spark.util.sketch.BloomFilter;
+import org.apache.spark.util.sketch.IncompatibleMergeException;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

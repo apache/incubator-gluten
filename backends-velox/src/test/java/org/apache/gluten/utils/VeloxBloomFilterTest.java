@@ -14,13 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.util.sketch;
+package org.apache.gluten.utils;
 
 import org.apache.gluten.backendsapi.ListenerApi;
 import org.apache.gluten.backendsapi.velox.VeloxListenerApi;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.util.TaskResources$;
+import org.apache.spark.util.sketch.BloomFilter;
+import org.apache.spark.util.sketch.IncompatibleMergeException;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
