@@ -17,6 +17,7 @@
 package org.apache.gluten.extension.columnar
 
 import org.apache.gluten.extension.{RewriteCollect, RewriteIn}
+import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -58,6 +59,7 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[Rule[SparkPlan]])
         case _: FileSourceScanExec => true
         case _: ExpandExec => true
         case _: GenerateExec => true
+        case plan if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) => true
         case _ => false
       }
     }

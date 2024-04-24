@@ -129,6 +129,12 @@ trait SparkShims {
       expr: Expression,
       mightContainReplacer: (Expression, Expression) => BinaryExpression): Expression
 
+  def isWindowGroupLimitExec(plan: SparkPlan): Boolean = false
+
+  def getWindowGroupLimitExecShim(plan: SparkPlan): SparkPlan = null
+
+  def getWindowGroupLimitExec(windowGroupLimitPlan: SparkPlan): SparkPlan = null
+
   def getLimitAndOffsetFromGlobalLimit(plan: GlobalLimitExec): (Int, Int) = (plan.limit, 0)
 
   def getLimitAndOffsetFromTopK(plan: TakeOrderedAndProjectExec): (Int, Int) = (plan.limit, 0)

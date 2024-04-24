@@ -37,7 +37,7 @@ import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python.EvalPythonExec
-import org.apache.spark.sql.execution.window.WindowExec
+import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
 sealed trait TransformSingleNode extends Logging {
@@ -408,6 +408,18 @@ object TransformOthers {
             plan.partitionSpec,
             plan.orderSpec,
             plan.child)
+        case plan if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) =>
+          val windowGroupLimitPlan = SparkShimLoader.getSparkShims
+            .getWindowGroupLimitExecShim(plan)
+            .asInstanceOf[WindowGroupLimitExecShim]
+          WindowGroupLimitExecTransformer(
+            windowGroupLimitPlan.partitionSpec,
+            windowGroupLimitPlan.orderSpec,
+            windowGroupLimitPlan.rankLikeFunction,
+            windowGroupLimitPlan.limit,
+            windowGroupLimitPlan.mode,
+            windowGroupLimitPlan.child
+          )
         case plan: GlobalLimitExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           val child = plan.child
