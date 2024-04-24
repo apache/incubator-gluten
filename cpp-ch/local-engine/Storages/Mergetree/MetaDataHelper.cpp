@@ -149,7 +149,7 @@ void saveFileStatus(
 }
 
 
-std::vector<std::shared_ptr<DB::IMergeTreeDataPart>> mergeParts(
+std::vector<MergeTreeDataPartPtr> mergeParts(
     std::vector<DB::DataPartPtr> selected_parts,
     const String & new_part_uuid,
     CustomStorageMergeTreePtr storage,
@@ -197,16 +197,7 @@ std::vector<std::shared_ptr<DB::IMergeTreeDataPart>> mergeParts(
     executeHere(task);
 
     std::unordered_set<std::string> to_load{future_part->name};
-    std::vector<std::shared_ptr<DB::IMergeTreeDataPart>> merged = storage->loadDataPartsWithNames(to_load);
+    std::vector<MergeTreeDataPartPtr> merged = storage->loadDataPartsWithNames(to_load);
     return merged;
-    // std::vector<local_engine::PartInfo> res;
-    // for (auto & partPtr : loaded)
-    // {
-    //     local_engine::saveFileStatus(*storage, local_engine::SerializedPlanParser::global_context, partPtr->getDataPartStorage());
-    //     res.emplace_back(
-    //         local_engine::PartInfo{partPtr->name, partPtr->getMarksCount(), partPtr->getBytesOnDisk(), partPtr->rows_count,
-    //                                /*partition_value*/ partition_values,
-    //                                bucket_dir});
-    // }
 }
 }

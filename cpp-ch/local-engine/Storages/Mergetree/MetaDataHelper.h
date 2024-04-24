@@ -30,7 +30,7 @@ void saveFileStatus(
     const DB::ContextPtr& context,
     IDataPartStorage & data_part_storage);
 
-std::vector<std::shared_ptr<DB::IMergeTreeDataPart>> mergeParts(
+std::vector<MergeTreeDataPartPtr> mergeParts(
     std::vector<DB::DataPartPtr> selected_parts,
     const String & new_part_uuid,
     CustomStorageMergeTreePtr storage,

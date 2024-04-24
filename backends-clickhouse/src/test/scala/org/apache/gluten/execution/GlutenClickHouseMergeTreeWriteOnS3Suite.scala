@@ -55,6 +55,8 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
+      .set("spark.gluten.sql.columnar.backend.ch.runtime_settings.min_insert_block_size_bytes","10485760")
+      .set("spark.gluten.sql.columnar.backend.ch.runtime_settings.min_insert_block_size_rows","100000")
   }
 
   override protected def beforeEach(): Unit = {

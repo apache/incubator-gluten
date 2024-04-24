@@ -21,6 +21,7 @@
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
 #include <Storages/StorageMergeTreeFactory.h>
 #include <Poco/StringTokenizer.h>
+#include <Common/CHUtil.h>
 
 namespace DB
 {
@@ -55,29 +56,7 @@ public:
         const DB::ContextPtr & context_,
         const String & uuid_,
         const String & partition_dir_ = "",
-        const String & bucket_dir_ = "")
-        : storage(storage_)
-        , metadata_snapshot(metadata_snapshot_)
-        , context(context_)
-        , uuid(uuid_)
-        , partition_dir(partition_dir_)
-        , bucket_dir(bucket_dir_)
-    {
-        const DB::Settings & settings = context->getSettingsRef();
-        squashing_transform
-            = std::make_unique<DB::SquashingTransform>(settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes);
-        if (!partition_dir.empty())
-        {
-            Poco::StringTokenizer partitions(partition_dir, "/");
-            for (const auto & partition : partitions)
-            {
-                Poco::StringTokenizer key_value(partition, "=");
-                chassert(key_value.count() == 2);
-                partition_values.emplace(key_value[0], key_value[1]);
-            }
-        }
-        header = metadata_snapshot->getSampleBlock();
-    }
+        const String & bucket_dir_ = "");
 
     void write(DB::Block & block);
     void finalize();
@@ -88,6 +67,10 @@ private:
     writeTempPart(DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot);
     DB::MergeTreeDataWriter::TemporaryPart
     writeTempPartAndFinalize(DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot);
+    void checkAndMerge(bool force = false);
+    void safeEmplaceBackPart(DB::MergeTreeDataPartPtr);
+    void safeAddPart(DB::MergeTreeDataPartPtr);
+
 
     String uuid;
     String partition_dir;
@@ -97,9 +80,16 @@ private:
     DB::ContextPtr context;
     std::unique_ptr<DB::SquashingTransform> squashing_transform;
     int part_num = 1;
-    std::vector<DB::MergeTreeDataPartPtr> new_parts;
+    ConcurrentDeque<DB::MergeTreeDataPartPtr> new_parts;
+
+
     std::unordered_map<String, String> partition_values;
+    std::unordered_set<String> tmp_parts;
     DB::Block header;
+    bool merge_after_insert;
+    FreeThreadPool thread_pool;
+    size_t merge_limit_size = 1024 * 1024 * 1024;
+    size_t merge_limit_parts = 10;
 };
 
 }

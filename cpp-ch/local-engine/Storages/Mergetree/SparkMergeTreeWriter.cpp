@@ -25,6 +25,13 @@
 #include <Common/CHUtil.h>
 
 
+namespace CurrentMetrics
+{
+extern const Metric LocalThread;
+extern const Metric LocalThreadActive;
+extern const Metric LocalThreadScheduled;
+}
+
 using namespace DB;
 
 namespace local_engine
@@ -44,6 +51,55 @@ Block removeColumnSuffix(const DB::Block & block)
     return Block(columns);
 }
 
+SparkMergeTreeWriter::SparkMergeTreeWriter(
+    CustomStorageMergeTreePtr storage_,
+    const DB::StorageMetadataPtr & metadata_snapshot_,
+    const DB::ContextPtr & context_,
+    const String & uuid_,
+    const String & partition_dir_,
+    const String & bucket_dir_)
+    : storage(storage_)
+    , metadata_snapshot(metadata_snapshot_)
+    , context(context_)
+    , uuid(uuid_)
+    , partition_dir(partition_dir_)
+    , bucket_dir(bucket_dir_)
+    , thread_pool(
+          CurrentMetrics::LocalThread,
+          CurrentMetrics::LocalThreadActive,
+          CurrentMetrics::LocalThreadScheduled,
+          10,
+          10,
+          100000)
+{
+    const DB::Settings & settings = context->getSettingsRef();
+    squashing_transform
+        = std::make_unique<DB::SquashingTransform>(settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes);
+    if (!partition_dir.empty())
+    {
+        Poco::StringTokenizer partitions(partition_dir, "/");
+        for (const auto & partition : partitions)
+        {
+            Poco::StringTokenizer key_value(partition, "=");
+            chassert(key_value.count() == 2);
+            partition_values.emplace(key_value[0], key_value[1]);
+        }
+    }
+    header = metadata_snapshot->getSampleBlock();
+
+    Field is_merge;
+    if (context->getSettings().tryGet("mergetree.merge_after_insert", is_merge))
+        merge_after_insert = is_merge.get<bool>();
+
+    Field limit_size_field;
+    if (context->getSettings().tryGet("optimize.maxfilesize", limit_size_field))
+        merge_limit_size = limit_size_field.get<Int64>() <= 0 ? merge_limit_size : limit_size_field.get<Int64>();
+
+    Field limit_cnt_field;
+    if (context->getSettings().tryGet("mergetree.max_num_part_per_merge_task", limit_cnt_field))
+        merge_limit_parts = limit_cnt_field.get<Int64>() <= 0 ? merge_limit_parts : limit_cnt_field.get<Int64>();
+}
+
 void SparkMergeTreeWriter::write(DB::Block & block)
 {
     auto new_block = removeColumnSuffix(block);
@@ -54,12 +110,16 @@ void SparkMergeTreeWriter::write(DB::Block & block)
         do_convert.execute(new_block);
     }
 
-    auto blocks_with_partition = MergeTreeDataWriter::splitBlockIntoParts(squashing_transform->add(new_block), 10, metadata_snapshot, context);
-        for (auto & item : blocks_with_partition)
-        {
-            new_parts.emplace_back(writeTempPartAndFinalize(item, metadata_snapshot).part);
+    auto blocks_with_partition
+        = MergeTreeDataWriter::splitBlockIntoParts(squashing_transform->add(new_block), 10, metadata_snapshot, context);
+    for (auto & item : blocks_with_partition)
+    {
+        new_parts.emplace_back(writeTempPartAndFinalize(item, metadata_snapshot).part);
         part_num++;
     }
+
+    if (!blocks_with_partition.empty() && merge_after_insert)
+        checkAndMerge();
 }
 
 void SparkMergeTreeWriter::finalize()
@@ -72,59 +132,47 @@ void SparkMergeTreeWriter::finalize()
             new_parts.emplace_back(writeTempPartAndFinalize(item, metadata_snapshot).part);
     }
 
-    if (new_parts.empty() || new_parts.size() == 1)
+    SCOPE_EXIT({
+        for (auto merge_tree_data_part : new_parts.unsafeGet())
+            saveFileStatus(*storage, context, const_cast<IDataPartStorage &>(merge_tree_data_part->getDataPartStorage()));
+    });
+
+
+    if (!merge_after_insert)
         return;
 
-    Field merge_after_insert;
-    if (!context->getSettings().tryGet("mergetree.merge_after_insert", merge_after_insert) || !merge_after_insert.get<bool>())
-        return;
+    // wait all merge task end and do final merge
+    thread_pool.wait();
 
-    // TODO begin merge
-    std::sort(new_parts.begin(), new_parts.end(), [](const auto & l, const auto & r) { return l->getBytesOnDisk() < r->getBytesOnDisk(); });
-
-    Field limit_size_field;
-    size_t limit_size = 1024 * 1024 * 1024; // 1G
-    if (context->getSettings().tryGet("optimize.maxfilesize", limit_size_field))
-        limit_size = limit_size_field.get<Int64>();
-
-    Field limit_cnt_field;
-    size_t limit_cnt = 10;
-    if (context->getSettings().tryGet("mergetree.max_num_part_per_merge_task", limit_cnt_field))
-        limit_cnt = limit_cnt_field.get<Int64>();
-
-    std::vector<std::shared_ptr<const IMergeTreeDataPart>> selected_parts;
-    selected_parts.reserve(limit_cnt);
-    size_t totol_size = 0;
-    std::vector<std::shared_ptr<DB::IMergeTreeDataPart>> new_tmp_parts;
-
-    for (const auto & merge_tree_data_part : new_parts)
+    size_t before_merge_size;
+    do
     {
-        if (merge_tree_data_part->getBytesOnDisk() >= limit_size)
+        before_merge_size = new_parts.size();
+        checkAndMerge(true);
+        thread_pool.wait();
+    } while (before_merge_size != new_parts.size());
+
+    std::unordered_set<String> final_parts;
+    for (auto merge_tree_data_part : new_parts.unsafeGet())
+    {
+        final_parts.emplace(merge_tree_data_part->name);
+    }
+
+    for (const auto & tmp_part : tmp_parts)
+    {
+        if (final_parts.contains(tmp_part))
             continue;
 
-        selected_parts.emplace_back(merge_tree_data_part);
-        totol_size += merge_tree_data_part->getBytesOnDisk();
-        if (limit_size >= totol_size && limit_cnt >= selected_parts.size())
-            continue;
-
-        auto merged = mergeParts(selected_parts, toString(UUIDHelpers::generateV4()), storage, partition_dir, bucket_dir);
-        new_tmp_parts.insert(new_tmp_parts.end(), merged.begin(), merged.end());
-        selected_parts.clear();
-        totol_size = 0;
+        thread_pool.scheduleOrThrow([&]()->void
+        {
+            for (auto disk : storage->getDisks())
+            {
+                auto full_path = storage->getFullPathOnDisk(disk);
+                disk->removeRecursive(full_path + "/" + tmp_part);
+            }
+        });
     }
-
-    if (!selected_parts.empty())
-    {
-        auto merged = mergeParts(selected_parts, toString(UUIDHelpers::generateV4()), storage, partition_dir, bucket_dir);
-        new_tmp_parts.insert(new_tmp_parts.end(), merged.begin(), merged.end());
-    }
-
-    new_parts.clear();
-    for (const auto new_tmp_part : new_tmp_parts)
-    {
-        saveFileStatus(*storage, context, new_tmp_part->getDataPartStorage());
-        new_parts.emplace_back(new_tmp_part);
-    }
+    thread_pool.wait();
 }
 
 DB::MergeTreeDataWriter::TemporaryPart
@@ -134,7 +182,6 @@ SparkMergeTreeWriter::writeTempPartAndFinalize(
 {
     auto temp_part = writeTempPart(block_with_partition, metadata_snapshot);
     temp_part.finalize();
-    saveFileStatus(*storage, context, temp_part.part->getDataPartStorage());
     return temp_part;
 }
 
@@ -288,8 +335,13 @@ std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo()
 {
     std::vector<PartInfo> res;
     res.reserve(new_parts.size());
-    for (const MergeTreeDataPartPtr & part : new_parts)
-        res.emplace_back(PartInfo{part->name, part->getMarksCount(), part->getBytesOnDisk(), part->rows_count, partition_values, bucket_dir});
+
+    for (auto part : new_parts.unsafeGet())
+    {
+        res.emplace_back(
+            PartInfo{part->name, part->getMarksCount(), part->getBytesOnDisk(), part->rows_count, partition_values, bucket_dir});
+    }
+
     return res;
 }
 
@@ -323,6 +375,72 @@ String SparkMergeTreeWriter::partInfosToJson(const std::vector<PartInfo> & part_
     }
     writer.EndArray();
     return result.GetString();
+}
+
+void SparkMergeTreeWriter::checkAndMerge(bool force)
+{
+    // Only finalize should force merge.
+    if (!force && new_parts.size() < merge_limit_parts)
+        return;
+
+    auto doTask = [](const ThreadGroupPtr & thread_group,
+                          const std::vector<MergeTreeDataPartPtr> prepare_merge_parts,
+                          CustomStorageMergeTreePtr & storage,
+                          String & partition_dir,
+                          String & bucket_dir) -> std::vector<MergeTreeDataPartPtr>
+    {
+        setThreadName("InsertWithMerge");
+        ThreadStatus thread_status;
+        thread_status.attachToGroup(thread_group);
+        auto merged_parts = mergeParts(prepare_merge_parts, toString(UUIDHelpers::generateV4()), storage, partition_dir, bucket_dir);
+        return merged_parts;
+    };
+
+    std::vector<MergeTreeDataPartPtr> selected_parts;
+    selected_parts.reserve(merge_limit_parts);
+    size_t totol_size = 0;
+    std::vector<MergeTreeDataPartPtr> skip_parts;
+
+    while (const auto merge_tree_data_part_option = new_parts.pop_front())
+    {
+        auto merge_tree_data_part = merge_tree_data_part_option.value();
+        if (merge_tree_data_part->getBytesOnDisk() >= merge_limit_size)
+        {
+            skip_parts.emplace_back(merge_tree_data_part);
+            continue;
+        }
+
+        selected_parts.emplace_back(merge_tree_data_part);
+        totol_size += merge_tree_data_part->getBytesOnDisk();
+        if (merge_limit_size > totol_size && merge_limit_parts > selected_parts.size())
+            continue;
+
+        for (auto selected_part : selected_parts)
+        {
+            tmp_parts.emplace(selected_part->name);
+        }
+
+        thread_pool.scheduleOrThrow([this, doTask, selected_parts, thread_group = CurrentThread::getGroup()]() -> void
+                   { new_parts.emplace_back(doTask(thread_group, selected_parts, storage, partition_dir, bucket_dir)); });
+        selected_parts.clear();
+        totol_size = 0;
+    }
+
+    if (!selected_parts.empty())
+    {
+        if (force && selected_parts.size() > 1)
+        {
+            for (auto selected_part : selected_parts)
+                tmp_parts.emplace(selected_part->name);
+            thread_pool.scheduleOrThrow(
+                [this, doTask, selected_parts, thread_group = CurrentThread::getGroup()]() -> void
+                { new_parts.emplace_back(doTask(thread_group, selected_parts, storage, partition_dir, bucket_dir)); });
+        }
+        else
+            new_parts.emplace_back(selected_parts);
+    }
+
+    new_parts.emplace_back(skip_parts);
 }
 
 }

@@ -54,6 +54,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
         "spark.databricks.delta.retentionDurationCheck.enabled",
         "false"
       ) // otherwise RETAIN 0 HOURS will fail
+      .set("spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert", "false")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -62,7 +63,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
   test("test mergetree optimize basic") {
     withSQLConf(("spark.databricks.delta.optimize.maxFileSize" -> "2000000"),
-      ("spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert" -> "false")
+
     ) {
       spark.sql(
         s"""
@@ -452,7 +453,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       assert(ret.apply(0).get(0) == 600572)
 
       assert(
-        new File(s"$basePath/lineitem_mergetree_insert_optimize_basic").listFiles().length == 4
+        new File(s"$basePath/lineitem_mergetree_insert_optimize_basic").listFiles().length == 2
       ) // many merged parts
     }
   }
