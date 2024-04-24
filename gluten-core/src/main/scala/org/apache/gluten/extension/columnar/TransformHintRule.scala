@@ -470,7 +470,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             plan.orderSpec,
             plan.child)
           transformer.doValidate().tagOnFallback(plan)
-        case plan =>
+        case plan if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) =>
           val windowGroupLimitPlan = SparkShimLoader.getSparkShims
             .getWindowGroupLimitExecShim(plan)
             .asInstanceOf[WindowGroupLimitExecShim]
