@@ -853,7 +853,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("unhex")
     .exclude("atan2")
     .exclude("round/bround/floor/ceil")
-    .excludeGlutenTest("round/bround/floor/ceil")
     .exclude("SPARK-36922: Support ANSI intervals for SIGN/SIGNUM")
     .exclude("SPARK-35926: Support YearMonthIntervalType in width-bucket function")
     .exclude("SPARK-35925: Support DayTimeIntervalType in width-bucket function")
