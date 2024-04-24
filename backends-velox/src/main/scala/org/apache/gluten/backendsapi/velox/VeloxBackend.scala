@@ -45,21 +45,21 @@ class VeloxBackend extends Backend {
   override def name(): String = VeloxBackend.BACKEND_NAME
   override def buildInfo(): BackendBuildInfo =
     BackendBuildInfo("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
-  override def iteratorApi(): IteratorApi = new IteratorApiImpl
-  override def sparkPlanExecApi(): SparkPlanExecApi = new SparkPlanExecApiImpl
-  override def transformerApi(): TransformerApi = new TransformerApiImpl
-  override def validatorApi(): ValidatorApi = new ValidatorApiImpl
-  override def metricsApi(): MetricsApi = new MetricsApiImpl
-  override def listenerApi(): ListenerApi = new ListenerApiImpl
-  override def broadcastApi(): BroadcastApi = new BroadcastApiImpl
-  override def settings(): BackendSettingsApi = BackendSettings
+  override def iteratorApi(): IteratorApi = new VeloxIteratorApi
+  override def sparkPlanExecApi(): SparkPlanExecApi = new VeloxSparkPlanExecApi
+  override def transformerApi(): TransformerApi = new VeloxTransformerApi
+  override def validatorApi(): ValidatorApi = new VeloxValidatorApi
+  override def metricsApi(): MetricsApi = new VeloxMetricsApi
+  override def listenerApi(): ListenerApi = new VeloxListenerApi
+  override def broadcastApi(): BroadcastApi = new VeloxBroadcastApi
+  override def settings(): BackendSettingsApi = VeloxBackendSettings
 }
 
 object VeloxBackend {
   val BACKEND_NAME = "velox"
 }
 
-object BackendSettings extends BackendSettingsApi {
+object VeloxBackendSettings extends BackendSettingsApi {
 
   val SHUFFLE_SUPPORTED_CODEC = Set("lz4", "zstd")
 

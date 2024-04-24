@@ -20,7 +20,7 @@ import org.apache.gluten.backendsapi.BroadcastApi
 
 import java.util
 
-class BroadcastApiImpl extends BroadcastApi {
+class VeloxBroadcastApi extends BroadcastApi {
 
   override def collectExecutionBroadcastTableId(executionId: String, buildTableId: String): Unit =
     super.collectExecutionBroadcastTableId(executionId, buildTableId)
