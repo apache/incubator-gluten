@@ -152,7 +152,7 @@ trait SparkShims {
     throw new UnsupportedOperationException()
   }
 
-  def disableNativeWriteFiles(): Boolean = true
+  def enableNativeWriteFilesByDefault(): Boolean = false
 
   def createTestTaskContext(): TaskContext
 

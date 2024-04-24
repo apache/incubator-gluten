@@ -280,7 +280,7 @@ class Spark34Shims extends SparkShims {
     )
   }
 
-  override def disableNativeWriteFiles(): Boolean = false
+  override def enableNativeWriteFilesByDefault(): Boolean = true
 
   override def createTestTaskContext(): TaskContext = {
     TaskContextUtils.createTestTaskContext()

@@ -167,7 +167,6 @@ object Validators {
       case p: GenerateExec if !conf.enableColumnarGenerate => fail(p)
       case p: CoalesceExec if !conf.enableColumnarCoalesce => fail(p)
       case p: CartesianProductExec if !conf.cartesianProductTransformerEnabled => fail(p)
-      case p: WriteFilesExec if !conf.enableNativeWriter => fail(p)
       case p: TakeOrderedAndProjectExec
           if !(conf.enableTakeOrderedAndProject && conf.enableColumnarSort &&
             conf.enableColumnarShuffle && conf.enableColumnarProject) =>

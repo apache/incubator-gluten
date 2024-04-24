@@ -368,7 +368,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConf(ABANDON_PARTIAL_AGGREGATION_MIN_ROWS)
 
   // Please use `BackendsApiManager.getSettings.enableNativeWriteFiles()` instead
-  def enableNativeWriter: Boolean = conf.getConf(NATIVE_WRITER_ENABLED)
+  def enableNativeWriter: Option[Boolean] = conf.getConf(NATIVE_WRITER_ENABLED)
 
   def directorySizeGuess: Long =
     conf.getConf(DIRECTORY_SIZE_GUESS)
@@ -1458,7 +1458,7 @@ object GlutenConfig {
       .internal()
       .doc("This is config to specify whether to enable the native columnar parquet/orc writer")
       .booleanConf
-      .createWithDefault(true)
+      .createOptional
 
   val NATIVE_WRITE_FILES_COLUMN_METADATA_EXCLUSION_LIST =
     buildConf("spark.gluten.sql.native.writeColumnMetadataExclusionList")
