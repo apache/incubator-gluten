@@ -192,6 +192,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenIntervalExpressionsSuite]
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenHashExpressionsSuite]
+  enableSuite[GlutenHigherOrderFunctionsSuite]
   enableSuite[GlutenCollectionExpressionsSuite]
     // Rewrite in Gluten to replace Seq with Array
     .exclude("Shuffle")
