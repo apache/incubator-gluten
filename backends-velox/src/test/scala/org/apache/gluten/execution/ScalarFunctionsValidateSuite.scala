@@ -941,4 +941,24 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("test flatten nested array") {
+    withTempPath {
+      path =>
+        Seq[Seq[Seq[Integer]]](
+          Seq(Seq(1, 2), Seq(4, 5)),
+          null,
+          Seq(null, Seq(1, 2)),
+          Seq(null, null),
+          Seq(Seq(1, 2, null), Seq(null, null), Seq(3, 4), Seq.empty))
+          .toDF("arrays")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare("select flatten(arrays) as res from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
 }
