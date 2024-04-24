@@ -141,7 +141,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFail
   JNI_METHOD_END(nullptr)
 }
 
-JNIEXPORT jlong JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWrapper_empty( // NOLINT
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_empty( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jint capacity) {
@@ -154,7 +154,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWra
   JNI_METHOD_END(gluten::kInvalidResourceHandle)
 }
 
-JNIEXPORT jlong JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWrapper_init( // NOLINT
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_init( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jbyteArray data) {
@@ -169,7 +169,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWra
   JNI_METHOD_END(gluten::kInvalidResourceHandle)
 }
 
-JNIEXPORT void JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWrapper_insertLong( // NOLINT
+JNIEXPORT void JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_insertLong( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong handle,
@@ -182,7 +182,7 @@ JNIEXPORT void JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWrap
   JNI_METHOD_END()
 }
 
-JNIEXPORT jboolean JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWrapper_mightContainLong( // NOLINT
+JNIEXPORT jboolean JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_mightContainLong( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong handle,
@@ -207,7 +207,7 @@ static std::vector<char> serialize(BloomFilter<std::allocator<uint64_t>>* bf) {
 }
 } // namespace
 
-JNIEXPORT void JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWrapper_mergeFrom( // NOLINT
+JNIEXPORT void JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_mergeFrom( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong handle,
@@ -223,7 +223,7 @@ JNIEXPORT void JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWrap
   JNI_METHOD_END()
 }
 
-JNIEXPORT jbyteArray JNICALL Java_org_apache_spark_util_sketch_VeloxBloomFilterJniWrapper_serialize( // NOLINT
+JNIEXPORT jbyteArray JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_serialize( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong handle) {

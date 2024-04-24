@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.catalyst
+package org.apache.gluten.extension
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.expression.VeloxBloomFilterMightContain
+import org.apache.gluten.expression.aggregate.VeloxBloomFilterAggregate
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.VeloxBloomFilterMightContain
-import org.apache.spark.sql.catalyst.expressions.aggregate.VeloxBloomFilterAggregate
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
 
