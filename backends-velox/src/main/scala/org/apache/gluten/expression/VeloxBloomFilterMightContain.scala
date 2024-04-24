@@ -14,16 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.catalyst.expressions
+package org.apache.gluten.expression
+
 import org.apache.gluten.sql.shims.SparkShimLoader
+import org.apache.gluten.utils.VeloxBloomFilter
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, CodeGenerator, ExprCode, JavaCode, TrueLiteral}
+import org.apache.spark.sql.catalyst.expressions.{BinaryExpression, Expression}
+import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.util.TaskResources
-import org.apache.spark.util.sketch.VeloxBloomFilter
 
 /**
  * Velox's bloom-filter implementation uses different algorithms internally comparing to vanilla
