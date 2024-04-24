@@ -18,7 +18,7 @@ package org.apache.gluten.sql.shims.spark33
 
 import org.apache.gluten.execution.datasource.GlutenParquetWriterInjects
 import org.apache.gluten.expression.{ExpressionNames, Sig}
-import org.apache.gluten.expression.ExpressionNames.{KNOWN_NULLABLE, TIMESTAMP_ADD}
+import org.apache.gluten.expression.ExpressionNames.{CEIL, FLOOR, KNOWN_NULLABLE, TIMESTAMP_ADD}
 import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
 
 import org.apache.spark._
@@ -67,7 +67,9 @@ class Spark33Shims extends SparkShims {
       Sig[Csc](ExpressionNames.CSC),
       Sig[KnownNullable](KNOWN_NULLABLE),
       Sig[Empty2Null](ExpressionNames.EMPTY2NULL),
-      Sig[TimestampAdd](TIMESTAMP_ADD)
+      Sig[TimestampAdd](TIMESTAMP_ADD),
+      Sig[RoundFloor](FLOOR),
+      Sig[RoundCeil](CEIL)
     )
   }
 

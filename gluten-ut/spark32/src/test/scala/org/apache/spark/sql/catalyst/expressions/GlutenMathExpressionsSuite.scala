@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.catalyst.expressions
 
+import org.apache.gluten.utils.BackendTestUtils
+
 import org.apache.spark.sql.GlutenTestsTrait
 import org.apache.spark.sql.catalyst.dsl.expressions._
 import org.apache.spark.sql.types._
@@ -70,7 +72,13 @@ class GlutenMathExpressionsSuite extends MathExpressionsSuite with GlutenTestsTr
         checkEvaluation(BRound(shortPi, scale), shortResults(i), EmptyRow)
         checkEvaluation(BRound(intPi, scale), intResultsB(i), EmptyRow)
         checkEvaluation(BRound(longPi, scale), longResults(i), EmptyRow)
-        checkEvaluation(BRound(floatPi, scale), bRoundFloatResults(i), EmptyRow)
+        checkEvaluation(
+          BRound(floatPi, scale),
+          // the velox backend will fallback when executing bround,
+          // so uses the same excepted results with the vanilla spark
+          if (BackendTestUtils.isCHBackendLoaded()) floatResults(i) else bRoundFloatResults(i),
+          EmptyRow
+        )
     }
 
     val bdResults: Seq[BigDecimal] = Seq(
