@@ -39,7 +39,7 @@ import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FlushableHas
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
-import org.apache.spark.sql.catalyst.expressions.{Add, Alias, ArrayExists, ArrayFilter, ArrayForAll, ArrayTransform, Ascending, Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, Generator, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, LambdaFunction, Literal, Murmur3Hash, NamedExpression, NaNvl, PosExplode, Round, SortOrder, StringSplit, StringTrim, TryEval, Uuid}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -571,14 +571,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   /**
    * * Expressions.
    */
-
-  /** Generates a transformer for decimal round. */
-  override def genDecimalRoundTransformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Round): ExpressionTransformer = {
-    DecimalRoundTransformer(substraitExprName, child, original)
-  }
 
   /** Generate StringSplit transformer. */
   override def genStringSplitTransformer(
