@@ -39,7 +39,7 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python.EvalPythonExec
-import org.apache.spark.sql.execution.window.WindowExec
+import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.StringType
 
@@ -301,6 +301,8 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
     !scanOnly && BackendsApiManager.getSettings.supportColumnarShuffleExec()
   val enableColumnarSort: Boolean = !scanOnly && columnarConf.enableColumnarSort
   val enableColumnarWindow: Boolean = !scanOnly && columnarConf.enableColumnarWindow
+  val enableColumnarWindowGroupLimit: Boolean = !scanOnly &&
+    columnarConf.enableColumnarWindowGroupLimit
   val enableColumnarSortMergeJoin: Boolean = !scanOnly &&
     BackendsApiManager.getSettings.supportSortMergeJoinExec()
   val enableColumnarBatchScan: Boolean = columnarConf.enableColumnarBatchScan
@@ -620,6 +622,25 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.partitionSpec,
               plan.orderSpec,
               plan.child)
+            transformer.doValidate().tagOnFallback(plan)
+          }
+        case plan if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) =>
+          if (!enableColumnarWindowGroupLimit) {
+            TransformHints.tagNotTransformable(
+              plan,
+              "columnar window group limit is not enabled in WindowGroupLimitExec")
+          } else {
+            val windowGroupLimitPlan = SparkShimLoader.getSparkShims
+              .getWindowGroupLimitExecShim(plan)
+              .asInstanceOf[WindowGroupLimitExecShim]
+            val transformer = WindowGroupLimitExecTransformer(
+              windowGroupLimitPlan.partitionSpec,
+              windowGroupLimitPlan.orderSpec,
+              windowGroupLimitPlan.rankLikeFunction,
+              windowGroupLimitPlan.limit,
+              windowGroupLimitPlan.mode,
+              windowGroupLimitPlan.child
+            )
             transformer.doValidate().tagOnFallback(plan)
           }
         case plan: CoalesceExec =>
