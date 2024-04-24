@@ -51,20 +51,35 @@
 
 namespace gluten {
 
-class VeloxParquetDatasource final : public Datasource {
+inline bool isSupportedS3SdkPath(const std::string& filePath) {
+  // support scheme
+  const std::array<const char*, 5> supported_schemes = {"s3:", "s3a:", "oss:", "cos:", "cosn:"};
+
+  for (const char* scheme : supported_schemes) {
+    size_t scheme_length = std::strlen(scheme);
+    if (filePath.length() >= scheme_length && std::strncmp(filePath.c_str(), scheme, scheme_length) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+inline bool isSupportedGCSPath(const std::string& filePath) {
+  return strncmp(filePath.c_str(), "gs:", 3) == 0;
+}
+
+inline bool isSupportedHDFSPath(const std::string& filePath) {
+  return strncmp(filePath.c_str(), "hdfs:", 5) == 0;
+}
+
+class VeloxParquetDatasource : public Datasource {
  public:
   VeloxParquetDatasource(
       const std::string& filePath,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> s3SinkPool,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> gcsSinkPool,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> sinkPool,
       std::shared_ptr<arrow::Schema> schema)
-      : Datasource(filePath, schema),
-        filePath_(filePath),
-        schema_(schema),
-        pool_(std::move(veloxPool)),
-        s3SinkPool_(std::move(s3SinkPool)),
-        gcsSinkPool_(std::move(gcsSinkPool)) {}
+      : Datasource(filePath, schema), filePath_(filePath), schema_(schema), pool_(std::move(veloxPool)) {}
 
   void init(const std::unordered_map<std::string, std::string>& sparkConfs) override;
   void inspectSchema(struct ArrowSchema* out) override;
@@ -74,31 +89,19 @@ class VeloxParquetDatasource final : public Datasource {
     return schema_;
   }
 
-  bool isSupportedS3SdkPath(const std::string& filePath_) {
-    // support scheme
-    const std::array<const char*, 5> supported_schemes = {"s3:", "s3a:", "oss:", "cos:", "cosn:"};
-
-    for (const char* scheme : supported_schemes) {
-      size_t scheme_length = std::strlen(scheme);
-      if (filePath_.length() >= scheme_length && std::strncmp(filePath_.c_str(), scheme, scheme_length) == 0) {
-        return true;
-      }
-    }
-    return false;
-  }
+ protected:
+  std::string filePath_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> sinkPool_;
+  std::unique_ptr<facebook::velox::dwio::common::FileSink> sink_;
 
  private:
   int64_t maxRowGroupBytes_ = 134217728; // 128MB
   int64_t maxRowGroupRows_ = 100000000; // 100M
 
-  std::string filePath_;
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<const facebook::velox::Type> type_;
   std::shared_ptr<facebook::velox::parquet::Writer> parquetWriter_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
-  std::shared_ptr<facebook::velox::memory::MemoryPool> s3SinkPool_;
-  std::shared_ptr<facebook::velox::memory::MemoryPool> gcsSinkPool_;
-  std::unique_ptr<facebook::velox::dwio::common::FileSink> sink_;
 };
 
 } // namespace gluten
