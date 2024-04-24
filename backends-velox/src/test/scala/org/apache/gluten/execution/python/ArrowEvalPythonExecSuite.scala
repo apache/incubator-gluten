@@ -14,21 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.python
+package org.apache.gluten.execution.python
+
+import org.apache.gluten.execution.WholeStageTransformerSuite
 
 import org.apache.spark.SparkConf
 import org.apache.spark.api.python.ColumnarArrowEvalPythonExec
-import org.apache.spark.sql.{DataFrame, GlutenSQLTestsTrait, IntegratedUDFTestUtils, QueryTest}
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.IntegratedUDFTestUtils
 
-import scala.reflect.ClassTag
-
-class ArrowEvalPythonExecSuite extends QueryTest with GlutenSQLTestsTrait {
+class ArrowEvalPythonExecSuite extends WholeStageTransformerSuite {
 
   import IntegratedUDFTestUtils._
   import testImplicits.localSeqToDatasetHolder
   import testImplicits.newProductEncoder
 
+  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val fileFormat: String = "parquet"
   val pyarrowTestUDF = TestScalarPandasUDF(name = "pyarrowUDF")
 
   override def sparkConf: SparkConf = {
@@ -36,11 +37,6 @@ class ArrowEvalPythonExecSuite extends QueryTest with GlutenSQLTestsTrait {
       .set("spark.sql.shuffle.partitions", "1")
       .set("spark.default.parallelism", "1")
       .set("spark.executor.cores", "1")
-  }
-
-  def checkSparkOperatorMatch[T <: SparkPlan](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
-    val executedPlan = getExecutedPlan(df)
-    assert(executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)))
   }
 
   test("arrow_udf test") {
