@@ -17,7 +17,11 @@
 package org.apache.spark.sql.execution.python
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{GlutenSQLTestsTrait, IntegratedUDFTestUtils, QueryTest}
+import org.apache.spark.api.python.ColumnarArrowEvalPythonExec
+import org.apache.spark.sql.{DataFrame, GlutenSQLTestsTrait, IntegratedUDFTestUtils, QueryTest}
+import org.apache.spark.sql.execution.SparkPlan
+
+import scala.reflect.ClassTag
 
 class ArrowEvalPythonExecSuite extends QueryTest with GlutenSQLTestsTrait {
 
@@ -32,6 +36,11 @@ class ArrowEvalPythonExecSuite extends QueryTest with GlutenSQLTestsTrait {
       .set("spark.sql.shuffle.partitions", "1")
       .set("spark.default.parallelism", "1")
       .set("spark.executor.cores", "1")
+  }
+
+  def checkSparkOperatorMatch[T <: SparkPlan](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
+    val executedPlan = getExecutedPlan(df)
+    assert(executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)))
   }
 
   test("arrow_udf test") {
@@ -50,6 +59,7 @@ class ArrowEvalPythonExecSuite extends QueryTest with GlutenSQLTestsTrait {
     ).toDF("a", "p_a")
 
     val df2 = base.select("a").withColumn("p_a", pyarrowTestUDF(base("a")))
+    checkSparkOperatorMatch[ColumnarArrowEvalPythonExec](df2)
     checkAnswer(df2, expected)
   }
 }
