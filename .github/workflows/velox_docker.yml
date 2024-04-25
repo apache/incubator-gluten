@@ -386,10 +386,10 @@ jobs:
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --skip-data-gen -shard=${{ matrix.shard }} \
+            --skip-data-gen --shard=${{ matrix.shard }} \
           && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --skip-data-gen -shard=${{ matrix.shard }}
+            --skip-data-gen --shard=${{ matrix.shard }}
 
   run-tpc-test-centos8-uniffle:
     needs: build-native-lib
