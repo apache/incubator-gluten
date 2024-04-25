@@ -45,8 +45,8 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
       }
       val msgRegex =
         """Validation failed for plan: Scan parquet spark_catalog.default\.t\[QueryId=[0-9]+\],""" +
-          """ due to: \[FallbackByUserOptions\] Validation failed on node Scan parquet 
-            |spark_catalog\.default\.t\.""".stripMargin
+          """ due to: \[FallbackByUserOptions\] Validation failed on node Scan parquet""" +
+          """ spark_catalog\.default\.t\.""".stripMargin
       assert(testAppender.loggingEvents.exists(_.getMessage.getFormattedMessage.matches(msgRegex)))
     }
   }
