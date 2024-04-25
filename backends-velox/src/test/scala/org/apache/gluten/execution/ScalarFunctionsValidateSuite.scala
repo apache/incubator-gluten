@@ -821,4 +821,16 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("test array_size") {
+    runQueryAndCompare("select array_size(array())") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select array_size(array(true))") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select array_size(array(2, 1))") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
 }

@@ -246,6 +246,7 @@ object ExpressionNames {
   final val ARRAY_EXCEPT = "array_except"
   final val ARRAY_REPEAT = "array_repeat"
   final val ARRAY_REMOVE = "array_remove"
+  final val ARRAY_SIZE = "array_size"
   final val FILTER = "filter"
   final val FORALL = "forall"
   final val EXISTS = "exists"

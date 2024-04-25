@@ -175,6 +175,7 @@ object CHExpressionUtil {
     ARRAY_EXCEPT -> DefaultValidator(),
     ARRAY_REPEAT -> DefaultValidator(),
     ARRAY_REMOVE -> DefaultValidator(),
+    ARRAY_SIZE -> DefaultValidator(),
     DATE_FROM_UNIX_DATE -> DefaultValidator(),
     UNIX_DATE -> DefaultValidator(),
     MONOTONICALLY_INCREASING_ID -> DefaultValidator(),
