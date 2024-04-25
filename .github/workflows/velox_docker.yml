@@ -868,7 +868,7 @@ jobs:
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-ubuntu-release-default
-      - name: Ensure Stash Dirs Exists
+      - name: Ensure Cache Dirs Exists
         working-directory: ${{ github.workspace }}
         run: |
           mkdir -p '${{ env.CCACHE_DIR }}'
@@ -884,11 +884,11 @@ jobs:
         run: |
           ccache -vs
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/cache/save@v3
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-ubuntu-release-default
 
       - name: Run Tests
         run: |
-          cd _build/release && ctest -j 8 --output-on-failure --no-tests=error
+          cd ${GITHUB_WORKSPACE}/ep/build-velox/build/velox_ep/_build/release && ctest -j 8 --output-on-failure --no-tests=error
