@@ -26,6 +26,8 @@ namespace DB
 namespace ErrorCodes
 {
 extern const int DUPLICATE_DATA_PART;
+extern const int NO_SUCH_DATA_PART;
+
 }
 }
 
@@ -158,14 +160,14 @@ std::vector<MergeTreeDataPartPtr> CustomStorageMergeTree::loadDataPartsWithNames
         data_parts.emplace_back(res.part);
     }
 
-    if(getStorageID().hasUUID())
-    {
+    // if(getStorageID().hasUUID())
+    // {
         // the following lines will modify storage's member.
         // So when current storage is shared (when UUID is default Nil value),
         // we should avoid modify because we don't have locks here
 
         calculateColumnAndSecondaryIndexSizesImpl(); // without it "test mergetree optimize partitioned by one low card column" will log ERROR
-    }
+    // }
     return data_parts;
 }
 
@@ -244,6 +246,38 @@ MergeTreeData::LoadPartResult CustomStorageMergeTree::loadDataPart(
 
     LOG_TRACE(log, "Finished loading {} part {} on disk {}", magic_enum::enum_name(to_state), part_name, part_disk_ptr->getName());
     return res;
+}
+
+void CustomStorageMergeTree::removePartFromMemory(const MergeTreeData::DataPartPtr & part_to_detach)
+{
+    auto lock = lockParts();
+    bool removed_active_part = false;
+    bool restored_active_part = false;
+
+    auto it_part = data_parts_by_info.find(part_to_detach->info);
+    if (it_part == data_parts_by_info.end())
+    {
+        LOG_DEBUG(log, "No such data part {}", part_to_detach->getNameWithState());
+        return;
+    }
+
+    /// What if part_to_detach is a reference to *it_part? Make a new owner just in case.
+    /// Important to own part pointer here (not const reference), because it will be removed from data_parts_indexes
+    /// few lines below.
+    DataPartPtr part = *it_part; // NOLINT
+
+    if (part->getState() == DataPartState::Active)
+    {
+        removePartContributionToColumnAndSecondaryIndexSizes(part);
+        removed_active_part = true;
+    }
+
+    modifyPartState(it_part, DataPartState::Deleting);
+    LOG_TEST(log, "removePartFromMemory: removing {} from data_parts_indexes", part->getNameWithState());
+    data_parts_indexes.erase(it_part);
+
+    if (removed_active_part || restored_active_part)
+        resetObjectColumnsFromActiveParts(lock);
 }
 
 void CustomStorageMergeTree::dropPartNoWaitNoThrow(const String & /*part_name*/)

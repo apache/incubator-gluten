@@ -101,14 +101,6 @@ public:
     static std::string explainPlan(DB::QueryPlan & plan);
 };
 
-class MergeTreeUtil
-{
-public:
-    using Path = std::filesystem::path;
-    static std::vector<Path> getAllMergeTreeParts(const Path & storage_path);
-    static DB::NamesAndTypesList getSchemaFromMergeTreePart(const Path & part_path);
-};
-
 class ActionsDAGUtil
 {
 public:

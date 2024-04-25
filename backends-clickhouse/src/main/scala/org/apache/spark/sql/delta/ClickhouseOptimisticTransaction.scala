@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.delta
 
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.execution.ColumnarToRowExecBase
 
 import org.apache.spark.SparkException
@@ -34,7 +35,6 @@ import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMerg
 import org.apache.spark.util.{Clock, SerializableConfiguration}
 
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 
 import scala.collection.mutable.ListBuffer
 
@@ -122,12 +122,13 @@ class ClickhouseOptimisticTransaction(
 
       spark.conf.getAll.foreach(
         entry => {
-          if (entry._1.startsWith(s"${CHBackendSettings.getBackendConfigPrefix}.runtime_settings")
-            || entry._1.equalsIgnoreCase(DeltaSQLConf.DELTA_OPTIMIZE_MAX_FILE_SIZE.key)) {
+          if (
+            entry._1.startsWith(s"${CHBackendSettings.getBackendConfigPrefix}.runtime_settings")
+            || entry._1.equalsIgnoreCase(DeltaSQLConf.DELTA_OPTIMIZE_MAX_FILE_SIZE.key)
+          ) {
             options += (entry._1 -> entry._2)
           }
-        }
-      )
+        })
 
       try {
         val tableV2 = ClickHouseTableV2.getTable(deltaLog)

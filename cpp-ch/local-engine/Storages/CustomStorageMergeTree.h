@@ -54,7 +54,7 @@ public:
     bool scheduleDataProcessingJob(BackgroundJobsAssignee & executor) override;
     std::map<std::string, MutationCommands> getUnfinishedMutationCommands() const override;
     std::vector<MergeTreeDataPartPtr> loadDataPartsWithNames(std::unordered_set<std::string> parts);
-
+    void removePartFromMemory(const MergeTreeData::DataPartPtr & part_to_detach);
 
     MergeTreeDataWriter writer;
     MergeTreeDataSelectExecutor reader;
@@ -84,6 +84,7 @@ protected:
     bool partIsAssignedToBackgroundOperation(const DataPartPtr & part) const override;
     MutationCommands getAlterMutationCommandsForPart(const DataPartPtr & /*part*/) const override { return {}; }
     void attachRestoredParts(MutableDataPartsVector && /*parts*/) override { throw std::runtime_error("not implement"); }
+
 };
 
 }

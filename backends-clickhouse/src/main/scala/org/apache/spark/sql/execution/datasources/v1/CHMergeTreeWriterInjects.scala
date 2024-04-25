@@ -16,12 +16,16 @@
  */
 package org.apache.spark.sql.execution.datasources.v1
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.memory.alloc.CHNativeMemoryAllocators
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
+import org.apache.gluten.substrait.expression.{ExpressionBuilder, StringMapNode}
 import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import org.apache.gluten.substrait.plan.PlanBuilder
 import org.apache.gluten.substrait.rel.{ExtensionTableBuilder, RelBuilder}
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, GlutenFormatWriterInjectsBase, OutputWriter}
@@ -29,15 +33,14 @@ import org.apache.spark.sql.execution.datasources.orc.OrcUtils
 import org.apache.spark.sql.execution.datasources.utils.MergeTreeDeltaUtil
 import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeOutputWriter
 import org.apache.spark.sql.types.StructType
+
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, StringValue}
-import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.memory.alloc.CHNativeMemoryAllocators
-import org.apache.gluten.substrait.expression.{ExpressionBuilder, StringMapNode}
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
-import java.util.{UUID, ArrayList => JList, Map => JMap}
+import java.util.{ArrayList => JList, Map => JMap, UUID}
+
 import scala.collection.JavaConverters._
 
 case class PlanWithSplitInfo(plan: Array[Byte], splitInfo: Array[Byte])
@@ -123,7 +126,8 @@ class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
 
   private def buildNativeConf(confs: JMap[String, String]): Array[Byte] = {
     val stringMapNode: StringMapNode = ExpressionBuilder.makeStringMap(confs)
-    val extensionNode: AdvancedExtensionNode = ExtensionBuilder.makeAdvancedExtension(BackendsApiManager.getTransformerApiInstance.packPBMessage(stringMapNode.toProtobuf))
+    val extensionNode: AdvancedExtensionNode = ExtensionBuilder.makeAdvancedExtension(
+      BackendsApiManager.getTransformerApiInstance.packPBMessage(stringMapNode.toProtobuf))
     PlanBuilder.makePlan(extensionNode).toProtobuf.toByteArray
   }
 }

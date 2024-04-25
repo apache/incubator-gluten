@@ -323,34 +323,6 @@ std::string PlanUtil::explainPlan(DB::QueryPlan & plan)
     return plan_str;
 }
 
-std::vector<MergeTreeUtil::Path> MergeTreeUtil::getAllMergeTreeParts(const Path & storage_path)
-{
-    if (!fs::exists(storage_path))
-        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Invalid merge tree store path:{}", storage_path.string());
-
-    // TODO: May need to check the storage format version
-    std::vector<fs::path> res;
-    for (const auto & entry : fs::directory_iterator(storage_path))
-    {
-        auto filename = entry.path().filename();
-        if (filename == "format_version.txt" || filename == "detached" || filename == "_delta_log")
-            continue;
-        res.push_back(entry.path());
-    }
-    return res;
-}
-
-DB::NamesAndTypesList MergeTreeUtil::getSchemaFromMergeTreePart(const fs::path & part_path)
-{
-    DB::NamesAndTypesList names_types_list;
-    if (!fs::exists(part_path))
-        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Invalid merge tree store path:{}", part_path.string());
-    DB::ReadBufferFromFile readbuffer((part_path / "columns.txt").string());
-    names_types_list.readText(readbuffer);
-    return names_types_list;
-}
-
-
 NestedColumnExtractHelper::NestedColumnExtractHelper(const DB::Block & block_, bool case_insentive_)
     : block(block_), case_insentive(case_insentive_)
 {

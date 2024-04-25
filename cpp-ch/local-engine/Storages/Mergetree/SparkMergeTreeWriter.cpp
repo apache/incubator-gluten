@@ -30,6 +30,9 @@ namespace CurrentMetrics
 extern const Metric LocalThread;
 extern const Metric LocalThreadActive;
 extern const Metric LocalThreadScheduled;
+extern const Metric GlobalThread;
+extern const Metric GlobalThreadActive;
+extern const Metric GlobalThreadScheduled;
 }
 
 using namespace DB;
@@ -68,8 +71,8 @@ SparkMergeTreeWriter::SparkMergeTreeWriter(
           CurrentMetrics::LocalThread,
           CurrentMetrics::LocalThreadActive,
           CurrentMetrics::LocalThreadScheduled,
-          10,
-          10,
+          context->getSettings().max_threads,
+          context->getSettings().max_threads,
           100000)
 {
     const DB::Settings & settings = context->getSettingsRef();
@@ -154,25 +157,33 @@ void SparkMergeTreeWriter::finalize()
 
     std::unordered_set<String> final_parts;
     for (auto merge_tree_data_part : new_parts.unsafeGet())
-    {
         final_parts.emplace(merge_tree_data_part->name);
+
+    for (const auto & tmp_part : storage->loadDataPartsWithNames(tmp_parts))
+    {
+        if (final_parts.contains(tmp_part->name))
+            continue;
+
+        storage->removePartFromMemory(tmp_part);
     }
+
+    storage->clearOldPartsFromFilesystem(true);
 
     for (const auto & tmp_part : tmp_parts)
     {
         if (final_parts.contains(tmp_part))
             continue;
 
-        thread_pool.scheduleOrThrow([&]()->void
-        {
-            for (auto disk : storage->getDisks())
+        GlobalThreadPool::instance().scheduleOrThrow(
+            [&]() -> void
             {
-                auto full_path = storage->getFullPathOnDisk(disk);
-                disk->removeRecursive(full_path + "/" + tmp_part);
-            }
-        });
+                for (auto disk : storage->getDisks())
+                {
+                    auto full_path = storage->getFullPathOnDisk(disk);
+                    disk->removeRecursive(full_path + "/" + tmp_part);
+                }
+            });
     }
-    thread_pool.wait();
 }
 
 DB::MergeTreeDataWriter::TemporaryPart
