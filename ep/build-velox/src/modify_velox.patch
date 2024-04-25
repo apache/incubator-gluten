@@ -152,3 +152,17 @@ index 2cabfc29a..54329ce23 100644
  
  add_library(
    velox_dwio_arrow_parquet_writer_test_lib
+
+diff --git a/scripts/setup-adapters.sh b/scripts/setup-adapters.sh
+index 3e3ca3afc..45ce09f99 100755
+--- a/scripts/setup-adapters.sh
++++ b/scripts/setup-adapters.sh
+@@ -144,7 +144,7 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    # /etc/os-release is a standard way to query various distribution
+    # information and is available everywhere
+    LINUX_DISTRIBUTION=$(. /etc/os-release && echo ${ID})
+-   if [[ "$LINUX_DISTRIBUTION" == "ubuntu" ]]; then
++   if [[ "$LINUX_DISTRIBUTION" == "ubuntu" || "$LINUX_DISTRIBUTION" == "debian" ]]; then
+       sudo apt install -y --no-install-recommends libxml2-dev libgsasl7-dev uuid-dev
+       # Dependencies of GCS, probably a workaround until the docker image is rebuilt
+       sudo apt install -y --no-install-recommends libc-ares-dev libcurl4-openssl-dev
