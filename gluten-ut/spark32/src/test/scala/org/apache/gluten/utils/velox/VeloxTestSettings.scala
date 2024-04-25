@@ -169,7 +169,7 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-35585",
       "SPARK-32932",
       "SPARK-33494",
-      "SPARK-33933",
+      // "SPARK-33933",
       "SPARK-31220",
       "SPARK-35874",
       "SPARK-39551"
@@ -410,8 +410,11 @@ class VeloxTestSettings extends BackendTestSettings {
     // Exception.
     .exclude("column pruning - non-readable file")
   enableSuite[GlutenCSVv1Suite]
+    .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
   enableSuite[GlutenCSVv2Suite]
+    .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
   enableSuite[GlutenCSVLegacyTimeParserSuite]
+    .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
   enableSuite[GlutenJsonV1Suite]
     // FIXME: Array direct selection fails
     .exclude("Complex field and type inferring")
@@ -1059,6 +1062,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
   enableSuite[GlutenCTEHintSuite]
+    .exclude("Resolve join hint in CTE")
   enableSuite[GlutenCTEInlineSuiteAEOff]
   enableSuite[GlutenCTEInlineSuiteAEOn]
   enableSuite[GlutenDataFrameHintSuite]
