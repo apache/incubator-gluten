@@ -866,6 +866,6 @@ jobs:
           cd ep/build-velox/src && \
           ./get_velox.sh 
           cd ../build/velox_ep/
-          git reset --hard .
+          git reset --hard
           make EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=ON -DVELOX_BUILD_TEST_UTILS=ON" 
           cd _build/release && ctest -VV -j 4 --output-on-failure
