@@ -32,6 +32,7 @@ class Parameterized(
     scale: Double,
     queryIds: Array[String],
     excludedQueryIds: Array[String],
+    explain: Boolean,
     iterations: Int,
     warmupIterations: Int,
     configDimensions: Seq[Dim],
@@ -145,6 +146,7 @@ class Parameterized(
                   queryId,
                   coordinate,
                   tpcSuite.desc(),
+                  explain,
                   metrics)
             }
         }.toList
@@ -255,6 +257,7 @@ object Parameterized {
       id: String,
       coordinate: Coordinate,
       desc: String,
+      explain: Boolean,
       metrics: Array[String]) = {
     println(s"Running query: $id...")
     try {
@@ -262,7 +265,7 @@ object Parameterized {
       sessionSwitcher.useSession(coordinate.toString, testDesc)
       runner.createTables(sessionSwitcher.spark())
       val result =
-        runner.runTpcQuery(sessionSwitcher.spark(), testDesc, id, explain = false, metrics)
+        runner.runTpcQuery(sessionSwitcher.spark(), testDesc, id, explain, metrics)
       val resultRows = result.rows
       println(
         s"Successfully ran query $id. " +
