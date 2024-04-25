@@ -392,6 +392,9 @@ object UDFResolver extends Logging {
     }
   }
 
+  // Returns true if required data types match the function signature.
+  // If the function signature is variable arity, the number of the last argument can be zero
+  // or more.
   private def tryBind(sig: UDFSignatureBase, requiredDataTypes: Seq[DataType]): Boolean = {
     if (!sig.variableArity) {
       sig.children.size == requiredDataTypes.size &&
@@ -399,7 +402,7 @@ object UDFResolver extends Logging {
         .zip(requiredDataTypes)
         .forall { case (candidate, required) => DataTypeUtils.sameType(candidate, required) }
     } else {
-      // If variableArity is true, there must be at least one argument in .the signature.
+      // If variableArity is true, there must be at least one argument in the signature.
       if (requiredDataTypes.size < sig.children.size - 1) {
         false
       } else if (requiredDataTypes.size == sig.children.size - 1) {

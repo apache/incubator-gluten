@@ -45,9 +45,9 @@ class UdfRegisterer {
 namespace myudf {
 
 template <TypeKind Kind>
-class PlusConstantFunction : public exec::VectorFunction {
+class PlusFiveFunction : public exec::VectorFunction {
  public:
-  explicit PlusConstantFunction(int32_t addition) : addition_(addition) {}
+  explicit PlusFiveFunction() {}
 
   void apply(
       const SelectivityVector& rows,
@@ -64,7 +64,7 @@ class PlusConstantFunction : public exec::VectorFunction {
 
     flatResult->clearNulls(rows);
 
-    rows.applyToSelected([&](auto row) { rawResult[row] = addition_; });
+    rows.applyToSelected([&](auto row) { rawResult[row] = 5; });
 
     if (args.size() == 0) {
       return;
@@ -82,9 +82,6 @@ class PlusConstantFunction : public exec::VectorFunction {
       }
     }
   }
-
- private:
-  const int32_t addition_;
 };
 
 static std::shared_ptr<facebook::velox::exec::VectorFunction> makePlusConstant(
@@ -92,14 +89,14 @@ static std::shared_ptr<facebook::velox::exec::VectorFunction> makePlusConstant(
     const std::vector<exec::VectorFunctionArg>& inputArgs,
     const core::QueryConfig& /*config*/) {
   if (inputArgs.size() == 0) {
-    return std::make_shared<PlusConstantFunction<TypeKind::INTEGER>>(5);
+    return std::make_shared<PlusFiveFunction<TypeKind::INTEGER>>();
   }
   auto typeKind = inputArgs[0].type->kind();
   switch (typeKind) {
     case TypeKind::INTEGER:
-      return std::make_shared<PlusConstantFunction<TypeKind::INTEGER>>(5);
+      return std::make_shared<PlusFiveFunction<TypeKind::INTEGER>>();
     case TypeKind::BIGINT:
-      return std::make_shared<PlusConstantFunction<TypeKind::BIGINT>>(5);
+      return std::make_shared<PlusFiveFunction<TypeKind::BIGINT>>();
     default:
       VELOX_UNREACHABLE();
   }
@@ -121,7 +118,7 @@ class MyUdf1Registerer final : public UdfRegisterer {
 
   void registerSignatures() override {
     facebook::velox::exec::registerVectorFunction(
-        name_, bigintSignatures(), std::make_unique<PlusConstantFunction<facebook::velox::TypeKind::BIGINT>>(5));
+        name_, bigintSignatures(), std::make_unique<PlusFiveFunction<facebook::velox::TypeKind::BIGINT>>());
   }
 
  private:
