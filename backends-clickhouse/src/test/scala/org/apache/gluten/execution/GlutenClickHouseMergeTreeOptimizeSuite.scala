@@ -434,7 +434,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
   test("test mergetree insert with optimize basic") {
     withSQLConf(
-      ("spark.databricks.delta.optimize.maxFileSize" -> "200000000"),
+      ("spark.databricks.delta.optimize.minFileSize" -> "200000000"),
       ("spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert" -> "true")
     ) {
       spark.sql(s"""

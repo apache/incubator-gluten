@@ -95,8 +95,8 @@ SparkMergeTreeWriter::SparkMergeTreeWriter(
         merge_after_insert = is_merge.get<bool>();
 
     Field limit_size_field;
-    if (context->getSettings().tryGet("optimize.maxfilesize", limit_size_field))
-        merge_limit_size = limit_size_field.get<Int64>() <= 0 ? merge_limit_size : limit_size_field.get<Int64>();
+    if (context->getSettings().tryGet("optimize.minFileSize", limit_size_field))
+        merge_min_size = limit_size_field.get<Int64>() <= 0 ? merge_min_size : limit_size_field.get<Int64>();
 
     Field limit_cnt_field;
     if (context->getSettings().tryGet("mergetree.max_num_part_per_merge_task", limit_cnt_field))
@@ -415,7 +415,7 @@ void SparkMergeTreeWriter::checkAndMerge(bool force)
     while (const auto merge_tree_data_part_option = new_parts.pop_front())
     {
         auto merge_tree_data_part = merge_tree_data_part_option.value();
-        if (merge_tree_data_part->getBytesOnDisk() >= merge_limit_size)
+        if (merge_tree_data_part->getBytesOnDisk() >= merge_min_size)
         {
             skip_parts.emplace_back(merge_tree_data_part);
             continue;
@@ -423,7 +423,7 @@ void SparkMergeTreeWriter::checkAndMerge(bool force)
 
         selected_parts.emplace_back(merge_tree_data_part);
         totol_size += merge_tree_data_part->getBytesOnDisk();
-        if (merge_limit_size > totol_size && merge_limit_parts > selected_parts.size())
+        if (merge_min_size > totol_size && merge_limit_parts > selected_parts.size())
             continue;
 
         for (auto selected_part : selected_parts)

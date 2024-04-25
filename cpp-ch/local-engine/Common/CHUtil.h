@@ -33,7 +33,8 @@
 namespace local_engine
 {
 static const std::unordered_set<String> bool_value_settings{"mergetree.merge_after_insert"};
-static const std::unordered_set<String> long_value_settings{"optimize.maxfilesize", "mergetree.max_num_part_per_merge_task"};
+static const std::unordered_set<String> long_value_settings{
+    "optimize.maxfilesize", "optimize.minFileSize", "mergetree.max_num_part_per_merge_task"};
 
 class BlockUtil
 {

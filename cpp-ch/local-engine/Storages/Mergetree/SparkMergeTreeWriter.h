@@ -88,7 +88,7 @@ private:
     DB::Block header;
     bool merge_after_insert;
     FreeThreadPool thread_pool;
-    size_t merge_limit_size = 1024 * 1024 * 1024;
+    size_t merge_min_size = 1024 * 1024 * 1024;
     size_t merge_limit_parts = 10;
 };
 

@@ -124,7 +124,7 @@ class ClickhouseOptimisticTransaction(
         entry => {
           if (
             entry._1.startsWith(s"${CHBackendSettings.getBackendConfigPrefix}.runtime_settings")
-            || entry._1.equalsIgnoreCase(DeltaSQLConf.DELTA_OPTIMIZE_MAX_FILE_SIZE.key)
+            || entry._1.equalsIgnoreCase(DeltaSQLConf.DELTA_OPTIMIZE_MIN_FILE_SIZE.key)
           ) {
             options += (entry._1 -> entry._2)
           }
