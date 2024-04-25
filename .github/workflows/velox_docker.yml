@@ -858,9 +858,20 @@ jobs:
 
   run-velox-unit-test:
     runs-on: ubuntu-20.04
+    env:
+      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     container: ghcr.io/facebookincubator/velox-dev:amd64-ubuntu-22.04-avx
     steps:
       - uses: actions/checkout@v2
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-ubuntu-release-default
+      - name: Ensure Stash Dirs Exists
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Build Gluten velox third party
         run: |
           cd ep/build-velox/src && \
@@ -868,4 +879,16 @@ jobs:
           cd ../build/velox_ep/
           git reset --hard
           make EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=ON -DVELOX_BUILD_TEST_UTILS=ON" 
-          cd _build/release && ctest -VV -j 4 --output-on-failure
+
+      - name: CCache after
+        run: |
+          ccache -vs
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-ubuntu-release-default
+
+      - name: Run Tests
+        run: |
+          cd _build/release && ctest -j 8 --output-on-failure --no-tests=error
