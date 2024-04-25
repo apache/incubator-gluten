@@ -70,7 +70,8 @@ class Spark34Shims extends SparkShims {
       Sig[Sec](ExpressionNames.SEC),
       Sig[Csc](ExpressionNames.CSC),
       Sig[KnownNullable](KNOWN_NULLABLE),
-      Sig[Empty2Null](ExpressionNames.EMPTY2NULL)
+      Sig[Empty2Null](ExpressionNames.EMPTY2NULL),
+      Sig[ArraySize](ARRAY_SIZE)
     )
   }
 

@@ -230,7 +230,6 @@ object ExpressionMappings {
     Sig[ArrayExcept](ARRAY_EXCEPT),
     Sig[ArrayRepeat](ARRAY_REPEAT),
     Sig[ArrayRemove](ARRAY_REMOVE),
-    Sig[ArraySize](ARRAY_SIZE),
     Sig[ArrayFilter](FILTER),
     Sig[ArrayForAll](FORALL),
     Sig[ArrayExists](EXISTS),
