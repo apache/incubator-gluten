@@ -159,7 +159,6 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_
     jobject wrapper,
     jbyteArray data) {
   JNI_METHOD_START
-  auto len = env->GetArrayLength(data);
   auto safeArray = gluten::getByteArrayElementsSafe(env, data);
   auto ctx = gluten::getRuntime(env, wrapper);
   auto filter = std::make_shared<velox::BloomFilter<std::allocator<uint64_t>>>();
