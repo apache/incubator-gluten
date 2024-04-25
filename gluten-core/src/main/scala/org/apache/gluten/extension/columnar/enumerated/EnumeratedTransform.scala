@@ -17,6 +17,7 @@
 package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.extension.columnar.{TransformExchange, TransformJoin, TransformOthers, TransformSingleNode}
+import org.apache.gluten.extension.columnar.validator.Validator
 import org.apache.gluten.planner.GlutenOptimization
 import org.apache.gluten.planner.property.Conventions
 import org.apache.gluten.ras.property.PropertySet
@@ -66,5 +67,12 @@ object EnumeratedTransform {
     }
 
     override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)
+  }
+
+  // TODO: Currently not in use. Prepared for future development.
+  implicit private class RasRuleImplicits(rasRule: RasRule[SparkPlan]) {
+    def withValidator(pre: Validator, post: Validator): RasRule[SparkPlan] = {
+      ConditionedRule.wrap(rasRule, pre, post)
+    }
   }
 }
