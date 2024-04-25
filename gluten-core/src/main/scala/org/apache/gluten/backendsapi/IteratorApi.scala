@@ -29,6 +29,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.SerializableConfiguration
 
 trait IteratorApi {
 
@@ -36,7 +37,8 @@ trait IteratorApi {
       partition: InputPartition,
       partitionSchema: StructType,
       fileFormat: ReadFileFormat,
-      metadataColumnNames: Seq[String]): SplitInfo
+      metadataColumnNames: Seq[String],
+      serializableHadoopConf: SerializableConfiguration): SplitInfo
 
   /** Generate native row partition. */
   def genPartitions(

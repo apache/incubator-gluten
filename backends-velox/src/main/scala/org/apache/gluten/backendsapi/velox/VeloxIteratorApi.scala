@@ -38,7 +38,9 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.{BinaryType, DateType, Decimal, DecimalType, StructType, TimestampType}
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.ExecutorManager
+import org.apache.spark.util.{ExecutorManager, SerializableConfiguration}
+
+import org.apache.hadoop.fs.{FileSystem, Path}
 
 import java.lang.{Long => JLong}
 import java.nio.charset.StandardCharsets
@@ -53,7 +55,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       partition: InputPartition,
       partitionSchema: StructType,
       fileFormat: ReadFileFormat,
-      metadataColumnNames: Seq[String]): SplitInfo = {
+      metadataColumnNames: Seq[String],
+      serializableHadoopConf: SerializableConfiguration): SplitInfo = {
     partition match {
       case f: FilePartition =>
         val (
@@ -64,7 +67,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
           modificationTimes,
           partitionColumns,
           metadataColumns) =
-          constructSplitInfo(partitionSchema, f.files, metadataColumnNames)
+          constructSplitInfo(partitionSchema, f.files, metadataColumnNames, serializableHadoopConf)
         val preferredLocations =
           SoftAffinity.getFilePartitionLocations(f)
         LocalFilesBuilder.makeLocalFiles(
@@ -105,7 +108,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
   private def constructSplitInfo(
       schema: StructType,
       files: Array[PartitionedFile],
-      metadataColumnNames: Seq[String]) = {
+      metadataColumnNames: Seq[String],
+      serializableHadoopConf: SerializableConfiguration) = {
     val paths = new JArrayList[String]()
     val starts = new JArrayList[JLong]
     val lengths = new JArrayList[JLong]()
@@ -117,9 +121,15 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       file =>
         // The "file.filePath" in PartitionedFile is not the original encoded path, so the decoded
         // path is incorrect in some cases and here fix the case of ' ' by using GlutenURLDecoder
+        var filePath = file.filePath.toString
+        if (filePath.startsWith("viewfs")) {
+          val viewPath = new Path(filePath)
+          val viewFileSystem = FileSystem.get(viewPath.toUri, serializableHadoopConf.value)
+          filePath = viewFileSystem.resolvePath(viewPath).toString
+        }
         paths.add(
           GlutenURLDecoder
-            .decode(file.filePath.toString, StandardCharsets.UTF_8.name()))
+            .decode(filePath, StandardCharsets.UTF_8.name()))
         starts.add(JLong.valueOf(file.start))
         lengths.add(JLong.valueOf(file.length))
         val (fileSize, modificationTime) =
