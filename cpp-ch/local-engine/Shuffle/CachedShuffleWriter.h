@@ -36,6 +36,7 @@ public:
     friend class LocalPartitionWriter;
     friend class CelebornPartitionWriter;
     friend class ExternalSortLocalPartitionWriter;
+    friend class ExternalSortCelebornPartitionWriter;
 
     explicit CachedShuffleWriter(const String & short_name, const SplitOptions & options,  jobject rss_pusher = nullptr);
     ~CachedShuffleWriter() override = default;
