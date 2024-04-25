@@ -61,19 +61,13 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitO
         partitioner = std::make_unique<RoundRobinSelectorBuilder>(options.partition_num, use_external_sort_shuffle);
     }
     else if (short_name == "range")
-    {
         partitioner = std::make_unique<RangeSelectorBuilder>(options.hash_exprs, options.partition_num, use_external_sort_shuffle);
-    }
     else
-    {
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "unsupported splitter {}", short_name);
-    }
 
     Poco::StringTokenizer output_column_tokenizer(options_.out_exprs, ",");
     for (const auto & iter : output_column_tokenizer)
-    {
         output_columns_indicies.push_back(std::stoi(iter));
-    }
 
     if (rss_pusher)
     {
@@ -84,7 +78,13 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitO
             GetMethodID(env, celeborn_partition_pusher_class, "pushPartitionData", "(I[BI)I");
         CLEAN_JNIENV
         auto celeborn_client = std::make_unique<CelebornClient>(rss_pusher, celeborn_push_partition_data_method);
-        partition_writer = std::make_unique<CelebornPartitionWriter>(this, std::move(celeborn_client));
+        if (use_external_sort_shuffle)
+        {
+            partition_writer = std::make_unique<ExternalSortCelebornPartitionWriter>(this, std::move(celeborn_client));
+            sort_shuffle = true;
+        }
+        else
+            partition_writer = std::make_unique<CelebornPartitionWriter>(this, std::move(celeborn_client));
     }
     else
     {
@@ -94,9 +94,7 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitO
             sort_shuffle = true;
         }
         else
-        {
             partition_writer = std::make_unique<LocalPartitionWriter>(this);
-        }
     }
 
     split_result.partition_lengths.resize(options.partition_num, 0);
@@ -134,9 +132,7 @@ void CachedShuffleWriter::initOutputIfNeeded(Block & block)
         {
             output_header = block.cloneEmpty();
             for (size_t i = 0; i < block.columns(); ++i)
-            {
                 output_columns_indicies.push_back(i);
-            }
         }
         else
         {
