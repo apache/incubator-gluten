@@ -90,7 +90,9 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
         assert(execution.get.numFallbackNodes == 1)
         val fallbackReason = execution.get.fallbackNodeToReason.head
         assert(fallbackReason._1.contains("Scan parquet default.t"))
-        assert(fallbackReason._2.contains("[FallbackByUserOptions] Validation failed on node Scan parquet default.t"))
+        assert(
+          fallbackReason._2.contains(
+            "[FallbackByUserOptions] Validation failed on node Scan parquet default.t"))
       }
     }
 
