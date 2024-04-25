@@ -1064,7 +1064,6 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> VeloxShuffleWriter::a
       case arrow::ListType::type_id:
         break;
       case arrow::NullType::type_id: {
-        fixedWidthIdx++;
         break;
       }
       default: {
