@@ -43,7 +43,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
         }
       }
       val msgRegex = """Validation failed for plan: Scan parquet default\.t\[QueryId=[0-9]+\],""" +
-        """ due to: columnar FileScan is not enabled in FileSourceScanExec\."""
+        """ due to: \[FallbackByUserOptions\] Validation failed on node Scan parquet default\.t\."""
       assert(testAppender.loggingEvents.exists(_.getMessage.getFormattedMessage.matches(msgRegex)))
     }
   }
@@ -90,7 +90,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
         assert(execution.get.numFallbackNodes == 1)
         val fallbackReason = execution.get.fallbackNodeToReason.head
         assert(fallbackReason._1.contains("Scan parquet default.t"))
-        assert(fallbackReason._2.contains("columnar FileScan is not enabled in FileSourceScanExec"))
+        assert(fallbackReason._2.contains("[FallbackByUserOptions] Validation failed on node Scan parquet default.t"))
       }
     }
 
