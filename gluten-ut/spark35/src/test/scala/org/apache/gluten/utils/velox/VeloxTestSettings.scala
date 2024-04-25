@@ -126,7 +126,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenHigherOrderFunctionsSuite]
   enableSuite[GlutenIntervalExpressionsSuite]
   enableSuite[GlutenJsonFunctionsSuite]
-    // Disable for Spark3.5.
+    // * in get_json_object expression not supported in velox
     .exclude("SPARK-42782: Hive compatibility check for get_json_object")
     // Velox does not support single quotes in get_json_object function.
     .exclude("function get_json_object - support single quotes")
