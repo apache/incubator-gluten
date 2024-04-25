@@ -23,4 +23,7 @@ trait Action {
 }
 
 object Actions {
+  trait QuerySelector {
+    def select(suite: TpcSuite): Seq[String]
+  }
 }
