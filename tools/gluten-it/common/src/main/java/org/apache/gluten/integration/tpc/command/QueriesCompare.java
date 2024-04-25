@@ -39,7 +39,7 @@ public class QueriesCompare implements Callable<Integer> {
   public Integer call() throws Exception {
     org.apache.gluten.integration.tpc.action.QueriesCompare queriesCompare =
         new org.apache.gluten.integration.tpc.action.QueriesCompare(dataGenMixin.getScale(), queriesMixin.queries(),
-            queriesMixin.excludedQueries(), queriesMixin.explain(), queriesMixin.iterations());
+            queriesMixin.explain(), queriesMixin.iterations());
     return mixin.runActions(ArrayUtils.addAll(dataGenMixin.makeActions(), queriesCompare));
   }
 }

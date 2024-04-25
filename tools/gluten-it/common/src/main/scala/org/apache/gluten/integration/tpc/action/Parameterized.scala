@@ -18,11 +18,10 @@ package org.apache.gluten.integration.tpc.action
 
 import org.apache.gluten.integration.stat.RamStat
 import org.apache.gluten.integration.tpc.{TpcRunner, TpcSuite}
-
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
 import org.apache.spark.sql.SparkSessionSwitcher
-
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.apache.gluten.integration.tpc.action.Actions.QuerySelector
 
 import scala.collection.immutable.Map
 import scala.collection.mutable
@@ -30,8 +29,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class Parameterized(
     scale: Double,
-    queryIds: Array[String],
-    excludedQueryIds: Array[String],
+    queries: QuerySelector,
     explain: Boolean,
     iterations: Int,
     warmupIterations: Int,
@@ -122,7 +120,7 @@ class Parameterized(
         sessionSwitcher.registerSession(coordinate.toString, conf)
     }
 
-    val runQueryIds = tpcSuite.selectQueryIds(queryIds, excludedQueryIds)
+    val runQueryIds = queries.select(tpcSuite)
 
     // warm up
     (0 until warmupIterations).foreach {

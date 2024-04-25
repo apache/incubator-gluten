@@ -18,22 +18,20 @@ package org.apache.gluten.integration.tpc.action
 
 import org.apache.gluten.integration.stat.RamStat
 import org.apache.gluten.integration.tpc.{TpcRunner, TpcSuite}
-
 import org.apache.spark.sql.{SparkSessionSwitcher, TestUtils}
-
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.apache.gluten.integration.tpc.action.Actions.QuerySelector
 
 case class QueriesCompare(
     scale: Double,
-    queryIds: Array[String],
-    excludedQueryIds: Array[String],
+    queries: QuerySelector,
     explain: Boolean,
     iterations: Int)
   extends Action {
 
   override def execute(tpcSuite: TpcSuite): Boolean = {
     val runner: TpcRunner = new TpcRunner(tpcSuite.queryResource(), tpcSuite.dataWritePath(scale))
-    val runQueryIds = tpcSuite.selectQueryIds(queryIds, excludedQueryIds)
+    val runQueryIds = queries.select(tpcSuite)
     val results = (0 until iterations).flatMap {
       iteration =>
         println(s"Running tests (iteration $iteration)...")
