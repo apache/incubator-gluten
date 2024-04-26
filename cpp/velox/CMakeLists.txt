@@ -306,6 +306,7 @@ set(VELOX_SRCS
     memory/VeloxMemoryManager.cc
     operators/functions/RegistrationAllFunctions.cc
     operators/functions/RowConstructorWithNull.cc
+    operators/functions/RowConstructorWithAllNull.cc
     operators/functions/SparkTokenizer.cc
     operators/serializer/VeloxColumnarToRowConverter.cc
     operators/serializer/VeloxColumnarBatchSerializer.cc

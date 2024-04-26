@@ -23,8 +23,10 @@
 namespace gluten {
 
 /**
- * A customized RowFunction to set struct as null when one of its argument is null.
+ * @tparam allNull If true, set struct as null when all of arguments are all, else will
+ * set it null when one of its arguments is null.
  */
+template <bool allNull>
 class RowFunctionWithNull final : public facebook::velox::exec::VectorFunction {
  public:
   void apply(
@@ -42,14 +44,25 @@ class RowFunctionWithNull final : public facebook::velox::exec::VectorFunction {
     rows.applyToSelected([&](facebook::velox::vector_size_t i) {
       facebook::velox::bits::clearNull(nullsPtr, i);
       if (!facebook::velox::bits::isBitNull(nullsPtr, i)) {
+        int argsNullCnt = 0;
         for (size_t c = 0; c < argsCopy.size(); c++) {
           auto arg = argsCopy[c].get();
           if (arg->mayHaveNulls() && arg->isNullAt(i)) {
-            // If any argument of the struct is null, set the struct as null.
-            facebook::velox::bits::setNull(nullsPtr, i, true);
-            cntNull++;
-            break;
+            // For row_constructor_with_null, if any argument of the struct is null,
+            // set the struct as null.
+            if (!allNull) {
+              facebook::velox::bits::setNull(nullsPtr, i, true);
+              cntNull++;
+              break;
+            } else {
+              argsNullCnt++;
+            }
           }
+        }
+        // For row_constructor_with_all_null, set the struct to be null when all arguments are all
+        if (allNull && argsNullCnt == argsCopy.size()) {
+          facebook::velox::bits::setNull(nullsPtr, i, true);
+          cntNull++;
         }
       }
     });

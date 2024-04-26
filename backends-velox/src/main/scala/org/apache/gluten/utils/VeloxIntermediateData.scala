@@ -159,7 +159,10 @@ object VeloxIntermediateData {
    * row_constructor_with_null.
    */
   def getRowConstructFuncName(aggFunc: AggregateFunction): String = aggFunc match {
-    case _: Average | _: Sum if aggFunc.dataType.isInstanceOf[DecimalType] => "row_constructor"
+    case _: Average | _: Sum if aggFunc.dataType.isInstanceOf[DecimalType] =>
+      "row_constructor"
+    case _: MaxMinBy =>
+      "row_constructor_with_all_null"
     case _ => "row_constructor_with_null"
   }
 

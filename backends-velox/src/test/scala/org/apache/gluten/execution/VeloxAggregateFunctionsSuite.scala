@@ -27,6 +27,8 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
 
+  import testImplicits._
+
   override def beforeAll(): Unit = {
     super.beforeAll()
     createTPCHNotNullTables()
@@ -184,6 +186,22 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
               plan => {
                 plan.isInstanceOf[HashAggregateExecTransformer]
               }) == 4)
+        }
+    }
+  }
+
+  test("min_by/max_by") {
+    withTempPath {
+      path =>
+        Seq((5: Integer, 6: Integer), (null: Integer, 11: Integer), (null: Integer, 5: Integer))
+          .toDF("a", "b")
+          .write
+          .parquet(path.getCanonicalPath)
+        spark.read
+          .parquet(path.getCanonicalPath)
+          .createOrReplaceTempView("test")
+        runQueryAndCompare("select min_by(a, b), max_by(a, b) from test") {
+          checkGlutenOperatorMatch[HashAggregateExecTransformer]
         }
     }
   }
