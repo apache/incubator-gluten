@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.enumerated
 
+import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.{TransformExchange, TransformJoin, TransformOthers, TransformSingleNode}
 import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
 import org.apache.gluten.planner.GlutenOptimization
@@ -47,6 +48,8 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
     FilterRemoveRule
   )
 
+  // TODO: Should obey ReplaceSingleNode#applyScanNotTransformable to select
+  //  (vanilla) scan with cheaper sub-query plan through cost model.
   private val implRules = List(
     AsRasImplement(TransformOthers()),
     AsRasImplement(TransformExchange()),
@@ -74,8 +77,13 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
 object EnumeratedTransform {
   private case class AsRasImplement(delegate: TransformSingleNode) extends RasRule[SparkPlan] {
     override def shift(node: SparkPlan): Iterable[SparkPlan] = {
-      val out = List(delegate.impl(node))
-      out
+      val out = delegate.impl(node)
+      out match {
+        case t: GlutenPlan if !t.doValidate().isValid =>
+          List.empty
+        case other =>
+          List(other)
+      }
     }
 
     override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)

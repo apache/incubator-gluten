@@ -17,6 +17,7 @@
 package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.execution.HashAggregateExecBaseTransformer
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 
 import org.apache.spark.sql.execution.SparkPlan
@@ -29,10 +30,14 @@ object ImplementAggregate extends RasRule[SparkPlan] {
   }
 
   private def shiftAgg(agg: HashAggregateExec): Iterable[SparkPlan] = {
-    List(implement(agg))
+    val transformer = implement(agg)
+    if (!transformer.doValidate().isValid) {
+      return List.empty
+    }
+    List(transformer)
   }
 
-  private def implement(agg: HashAggregateExec): SparkPlan = {
+  private def implement(agg: HashAggregateExec): HashAggregateExecBaseTransformer = {
     BackendsApiManager.getSparkPlanExecApiInstance
       .genHashAggregateExecTransformer(
         agg.requiredChildDistributionExpressions,

@@ -132,22 +132,7 @@ case class TransformExchange() extends TransformSingleNode with LogLevelUtil {
 
 // Join transformation.
 case class TransformJoin() extends TransformSingleNode with LogLevelUtil {
-
-  /**
-   * Get the build side supported by the execution of vanilla Spark.
-   *
-   * @param plan
-   *   : shuffled hash join plan
-   * @return
-   *   the supported build side
-   */
-  private def getSparkSupportedBuildSide(plan: ShuffledHashJoinExec): BuildSide = {
-    plan.joinType match {
-      case LeftOuter | LeftSemi => BuildRight
-      case RightOuter => BuildLeft
-      case _ => plan.buildSide
-    }
-  }
+  import TransformJoin._
 
   override def impl(plan: SparkPlan): SparkPlan = {
     if (TransformHints.isNotTransformable(plan)) {
@@ -236,6 +221,20 @@ case class TransformJoin() extends TransformSingleNode with LogLevelUtil {
     }
   }
 
+}
+
+object TransformJoin {
+  private def getSparkSupportedBuildSide(plan: ShuffledHashJoinExec): BuildSide = {
+    plan.joinType match {
+      case LeftOuter | LeftSemi => BuildRight
+      case RightOuter => BuildLeft
+      case _ => plan.buildSide
+    }
+  }
+
+  def isLegal(plan: ShuffledHashJoinExec): Boolean = {
+    plan.buildSide == getSparkSupportedBuildSide(plan)
+  }
 }
 
 // Filter transformation.
