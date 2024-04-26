@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.execution.window.WindowExec
 
 import java.io.File
 
@@ -494,6 +495,12 @@ class VeloxParquetDataTypeValidationSuite extends VeloxWholeStageTransformerSuit
             .load(write_path)
           checkAnswer(parquetDf, df)
       }
+    }
+  }
+
+  test("Fallback Window operator if mismatch input type and output type") {
+    runQueryAndCompare("select float / sum(float) over (partition by int) from type1") {
+      checkSparkOperatorMatch[WindowExec]
     }
   }
 }

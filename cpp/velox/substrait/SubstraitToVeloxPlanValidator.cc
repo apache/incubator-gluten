@@ -24,6 +24,7 @@
 #include "utils/Common.h"
 #include "velox/core/ExpressionEvaluator.h"
 #include "velox/exec/Aggregate.h"
+#include "velox/exec/WindowFunction.h"
 #include "velox/expression/Expr.h"
 #include "velox/expression/SignatureBinder.h"
 
@@ -606,8 +607,35 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
   funcSpecs.reserve(windowRel.measures().size());
   for (const auto& smea : windowRel.measures()) {
     const auto& windowFunction = smea.measure();
-    funcSpecs.emplace_back(planConverter_.findFuncSpec(windowFunction.function_reference()));
-    SubstraitParser::parseType(windowFunction.output_type());
+    auto funcSpec = planConverter_.findFuncSpec(windowFunction.function_reference());
+    funcSpecs.emplace_back(funcSpec);
+    auto resultType = SubstraitParser::parseType(windowFunction.output_type());
+
+    auto types = SubstraitParser::sigToTypes(funcSpec);
+    auto funcName = SubstraitParser::getNameBeforeDelimiter(funcSpec);
+    auto signaturesOpt = exec::getWindowFunctionSignatures(funcName);
+    bool resolved = false;
+    for (const auto& signature : signaturesOpt.value()) {
+      exec::SignatureBinder binder(*signature, types);
+      if (binder.tryBind()) {
+        auto type = binder.tryResolveType(signature->returnType());
+        if (!type->equivalent(*resultType)) {
+          LOG_VALIDATION_MSG(
+              "Unexpected return type for window function. Expected " + type->toString() + ". Got " +
+              resultType->toString());
+          return false;
+        } else {
+          resolved = true;
+          break;
+        }
+      }
+    }
+
+    if (!resolved) {
+      LOG_VALIDATION_MSG("Validation failed for function " + funcName + " bind signatures in WindowRel.");
+      return false;
+    }
+
     for (const auto& arg : windowFunction.arguments()) {
       auto typeCase = arg.value().rex_type_case();
       switch (typeCase) {
