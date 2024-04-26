@@ -449,7 +449,8 @@ JNIEXPORT jboolean JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIte
 
   auto iter = ctx->objectStore()->retrieve<ResultIterator>(iterHandle);
   if (iter == nullptr) {
-    std::string errorMessage = "failed to get batch iterator";
+    std::string errorMessage =
+        "When hasNext() is called on a closed iterator, an exception is thrown. To prevent this, consider using the protectInvocationFlow() method when creating the iterator in scala side. This will allow the hasNext() method to be called multiple times without issue.";
     throw gluten::GlutenException(errorMessage);
   }
   return iter->hasNext();

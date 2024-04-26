@@ -231,6 +231,7 @@ object RowToVeloxColumnarExec {
     }
     Iterators
       .wrap(res)
+      .protectInvocationFlow()
       .recycleIterator {
         jniWrapper.close(r2cHandle)
       }
