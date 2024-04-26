@@ -435,6 +435,19 @@ class VeloxParquetDataTypeValidationSuite extends VeloxWholeStageTransformerSuit
     }
   }
 
+  test("Force timestamp type scan fallback") {
+    withSQLConf(("spark.gluten.sql.parquet.timestampType.scan.fallback.enabled", "true")) {
+      runQueryAndCompare("select timestamp from type1 limit 100") {
+        df => {
+          val executedPlan = getExecutedPlan(df)
+          assert(
+            !executedPlan.exists(
+              plan => plan.find(child => child.isInstanceOf[BatchScanExecTransformer]).isDefined))
+        }
+      }
+    }
+  }
+
   test("Decimal type") {
     // Validation: BatchScan Project Aggregate Expand Sort Limit
     runQueryAndCompare(
