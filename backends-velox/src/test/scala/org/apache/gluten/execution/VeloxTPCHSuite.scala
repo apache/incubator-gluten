@@ -45,7 +45,6 @@ abstract class VeloxTPCHTableSupport extends VeloxWholeStageTransformerSuite {
       .set("spark.memory.offHeap.size", "2g")
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
-      .set("spark.gluten.sql.columnar.shuffledHashJoin", "false")
     // TODO Should enable this after fix the issue of native plan detail occasional disappearance
     // .set("spark.gluten.sql.injectNativePlanStringToExplain", "true")
   }
