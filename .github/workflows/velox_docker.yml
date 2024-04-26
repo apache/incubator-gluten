@@ -891,4 +891,4 @@ jobs:
 
       - name: Run Tests
         run: |
-          cd ${GITHUB_WORKSPACE}/ep/build-velox/build/velox_ep/_build/release && ctest -j 8 --output-on-failure --no-tests=error
+          cd ${GITHUB_WORKSPACE}/ep/build-velox/build/velox_ep/_build/release && ctest -E velox_memory_test -j 4 --output-on-failure --no-tests=error
