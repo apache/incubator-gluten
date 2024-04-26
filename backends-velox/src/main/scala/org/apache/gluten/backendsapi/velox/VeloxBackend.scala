@@ -92,7 +92,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
         mapType.simpleString + " is forced to fallback."
       case StructField(_, structType: StructType, _, _) =>
         structType.simpleString + " is forced to fallback."
-      case StructField(_, timestampType:TimestampType, _, _)
+      case StructField(_, timestampType: TimestampType, _, _)
           if GlutenConfig.getConf.forceParquetTimestampTypeScanFallbackEnabled =>
         timestampType.simpleString + " is forced to fallback."
     }
