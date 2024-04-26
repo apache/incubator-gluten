@@ -511,6 +511,8 @@ object GlutenConfig {
   // where deployed gluten jar is generated through static build (e.g., Gluten's release jar).
   val GLUTEN_LOAD_LIB_FROM_JAR = "spark.gluten.loadLibFromJar"
   val GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT = false
+  val GLUTEN_LOAD_LIB_OS = "spark.gluten.loadLibOS"
+  val GLUTEN_LOAD_LIB_OS_VERSION = "spark.gluten.loadLibOSVersion"
 
   // Expired time of execution with resource relation has cached
   val GLUTEN_RESOURCE_RELATION_EXPIRED_TIME = "spark.gluten.execution.resource.expired.time"

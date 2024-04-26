@@ -60,19 +60,11 @@ class VeloxListenerApi extends ListenerApi {
 
   override def onExecutorShutdown(): Unit = shutdown()
 
-  private def loadLibFromJar(load: JniLibLoader): Unit = {
-    val system = "cat /etc/os-release".!!
-    val systemNamePattern = "^NAME=\"?(.*)\"?".r
-    val systemVersionPattern = "^VERSION=\"?(.*)\"?".r
-    val systemInfoLines = system.stripMargin.split("\n")
-    val systemNamePattern(systemName) =
-      systemInfoLines.find(_.startsWith("NAME=")).getOrElse("")
-    val systemVersionPattern(systemVersion) =
-      systemInfoLines.find(_.startsWith("VERSION=")).getOrElse("")
-    if (systemName.isEmpty || systemVersion.isEmpty) {
-      throw new GlutenException("Failed to get OS name and version info.")
-    }
-    val loader = if (systemName.contains("Ubuntu") && systemVersion.startsWith("20.04")) {
+  private def getLibraryLoaderForOS(
+      systemName: String,
+      systemVersion: String,
+      system: String): SharedLibraryLoader = {
+    if (systemName.contains("Ubuntu") && systemVersion.startsWith("20.04")) {
       new SharedLibraryLoaderUbuntu2004
     } else if (systemName.contains("Ubuntu") && systemVersion.startsWith("22.04")) {
       new SharedLibraryLoaderUbuntu2204
@@ -100,10 +92,36 @@ class VeloxListenerApi extends ListenerApi {
       new SharedLibraryLoaderDebian12
     } else {
       throw new GlutenException(
-        "Found unsupported OS! Currently, Gluten's Velox backend" +
+        s"Found unsupported OS($systemName, $systemVersion)! Currently, Gluten's Velox backend" +
           " only supports Ubuntu 20.04/22.04, CentOS 7/8, " +
           "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 3.2, RedHat 7/8, " +
           "Debian 11/12.")
+    }
+  }
+
+  private def loadLibFromJar(load: JniLibLoader, conf: SparkConf): Unit = {
+    val systemName = conf.getOption(GlutenConfig.GLUTEN_LOAD_LIB_OS)
+    val loader = if (systemName.isDefined) {
+      val systemVersion = conf.getOption(GlutenConfig.GLUTEN_LOAD_LIB_OS_VERSION)
+      if (systemVersion.isEmpty) {
+        throw new GlutenException(
+          s"${GlutenConfig.GLUTEN_LOAD_LIB_OS_VERSION} must be specified when specifies the " +
+            s"${GlutenConfig.GLUTEN_LOAD_LIB_OS}")
+      }
+      getLibraryLoaderForOS(systemName.get, systemVersion.get, "")
+    } else {
+      val system = "cat /etc/os-release".!!
+      val systemNamePattern = "^NAME=\"?(.*)\"?".r
+      val systemVersionPattern = "^VERSION=\"?(.*)\"?".r
+      val systemInfoLines = system.stripMargin.split("\n")
+      val systemNamePattern(systemName) =
+        systemInfoLines.find(_.startsWith("NAME=")).getOrElse("")
+      val systemVersionPattern(systemVersion) =
+        systemInfoLines.find(_.startsWith("VERSION=")).getOrElse("")
+      if (systemName.isEmpty || systemVersion.isEmpty) {
+        throw new GlutenException("Failed to get OS name and version info.")
+      }
+      getLibraryLoaderForOS(systemName, systemVersion, system)
     }
     loader.loadLib(load)
   }
@@ -114,7 +132,7 @@ class VeloxListenerApi extends ListenerApi {
         GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR,
         GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT)
     ) {
-      loadLibFromJar(loader)
+      loadLibFromJar(loader, conf)
     }
     loader
       .newTransaction()
