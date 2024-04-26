@@ -25,7 +25,6 @@ import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 
 object ImplementAggregate extends RasRule[SparkPlan] {
   override def shift(node: SparkPlan): Iterable[SparkPlan] = node match {
-    case plan if TransformHints.isNotTransformable(plan) => List.empty
     case agg: HashAggregateExec => shiftAgg(agg)
     case _ => List.empty
   }

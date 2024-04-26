@@ -17,7 +17,7 @@
 package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.extension.columnar.{TransformExchange, TransformJoin, TransformOthers, TransformSingleNode}
-import org.apache.gluten.extension.columnar.validator.Validator
+import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
 import org.apache.gluten.planner.GlutenOptimization
 import org.apache.gluten.planner.property.Conventions
 import org.apache.gluten.ras.property.PropertySet
@@ -33,17 +33,29 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
   with LogLevelUtil {
   import EnumeratedTransform._
 
-  private val rasRules = List(
-    AsRasImplement(TransformOthers()),
-    AsRasImplement(TransformExchange()),
-    AsRasImplement(TransformJoin()),
-    ImplementAggregate,
-    ImplementFilter,
+  private val validator = Validators
+    .builder()
+    .fallbackByHint()
+    .fallbackIfScanOnly()
+    .fallbackComplexExpressions()
+    .fallbackByBackendSettings()
+    .fallbackByUserOptions()
+    .build()
+
+  private val rules = List(
     PushFilterToScan,
     FilterRemoveRule
   )
 
-  private val optimization = GlutenOptimization(rasRules)
+  private val implRules = List(
+    AsRasImplement(TransformOthers()),
+    AsRasImplement(TransformExchange()),
+    AsRasImplement(TransformJoin()),
+    ImplementAggregate,
+    ImplementFilter
+  ).map(_.withValidator(validator))
+
+  private val optimization = GlutenOptimization(rules ++ implRules)
 
   private val reqConvention = Conventions.ANY
   private val altConventions =
@@ -71,8 +83,8 @@ object EnumeratedTransform {
 
   // TODO: Currently not in use. Prepared for future development.
   implicit private class RasRuleImplicits(rasRule: RasRule[SparkPlan]) {
-    def withValidator(pre: Validator, post: Validator): RasRule[SparkPlan] = {
-      ConditionedRule.wrap(rasRule, pre, post)
+    def withValidator(v: Validator): RasRule[SparkPlan] = {
+      ConditionedRule.wrap(rasRule, v)
     }
   }
 }

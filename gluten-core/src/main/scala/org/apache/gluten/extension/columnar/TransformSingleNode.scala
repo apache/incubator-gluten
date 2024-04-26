@@ -465,6 +465,7 @@ object TransformOthers {
       }
     }
 
+    // Since https://github.com/apache/incubator-gluten/pull/2701
     private def applyScanNotTransformable(plan: SparkPlan): SparkPlan = plan match {
       case plan: FileSourceScanExec =>
         val newPartitionFilters =

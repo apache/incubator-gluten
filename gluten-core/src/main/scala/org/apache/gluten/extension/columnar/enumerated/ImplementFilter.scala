@@ -24,7 +24,6 @@ import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 
 object ImplementFilter extends RasRule[SparkPlan] {
   override def shift(node: SparkPlan): Iterable[SparkPlan] = node match {
-    case plan if TransformHints.isNotTransformable(plan) => List.empty
     case FilterExec(condition, child) =>
       List(
         BackendsApiManager.getSparkPlanExecApiInstance
