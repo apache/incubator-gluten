@@ -57,7 +57,8 @@ object GlutenCostModel {
     // A very rough estimation as of now.
     private def selfLongCostOf(node: SparkPlan): Long = {
       node match {
-        case p: ShuffledHashJoinExec if !TransformJoin.isLegal(p) => infLongCost
+        case p: ShuffledHashJoinExec if !TransformJoin.isLegal(p) =>
+          infLongCost
         case ColumnarToRowExec(child) => 3L
         case RowToColumnarExec(child) => 3L
         case ColumnarTransitions.ColumnarToRowLike(child) => 3L
