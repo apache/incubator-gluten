@@ -155,7 +155,7 @@ case class TransformJoin() extends TransformSingleNode with LogLevelUtil {
       plan match {
         case shj: ShuffledHashJoinExec =>
           if (BackendsApiManager.getSettings.recreateJoinExecOnFallback()) {
-            // Since https://github.com/apache/incubator-gluten/pull/5042
+            // Since https://github.com/apache/incubator-gluten/pull/408
             // Because we manually removed the build side limitation for LeftOuter, LeftSemi and
             // RightOuter, need to change the build side back if this join fallback into vanilla
             // Spark for execution.
