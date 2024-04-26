@@ -17,7 +17,6 @@
 package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.columnar.TransformHints
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 
 import org.apache.spark.sql.execution.SparkPlan
