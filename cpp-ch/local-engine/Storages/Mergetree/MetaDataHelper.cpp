@@ -127,6 +127,7 @@ void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable &
 void saveFileStatus(
     const DB::MergeTreeData & storage,
     const DB::ContextPtr& context,
+    const String & part_name,
     IDataPartStorage & data_part_storage)
 {
     const DiskPtr disk = storage.getStoragePolicy()->getAnyDisk();
@@ -146,6 +147,8 @@ void saveFileStatus(
         }
         out->finalize();
     }
+
+    LOG_DEBUG(&Poco::Logger::get("MetaDataHelper"), "Save part {} metadata success.", part_name);
 }
 
 

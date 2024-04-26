@@ -137,9 +137,9 @@ void SparkMergeTreeWriter::finalize()
 
     SCOPE_EXIT({
         for (auto merge_tree_data_part : new_parts.unsafeGet())
-            saveFileStatus(*storage, context, const_cast<IDataPartStorage &>(merge_tree_data_part->getDataPartStorage()));
+            saveFileStatus(
+                *storage, context, merge_tree_data_part->name, const_cast<IDataPartStorage &>(merge_tree_data_part->getDataPartStorage()));
     });
-
 
     if (!merge_after_insert)
         return;

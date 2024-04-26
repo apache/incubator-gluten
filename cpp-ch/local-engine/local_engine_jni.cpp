@@ -1241,7 +1241,10 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     for (auto & partPtr : loaded)
     {
         saveFileStatus(
-            *storage, local_engine::SerializedPlanParser::global_context, const_cast<IDataPartStorage &>(partPtr->getDataPartStorage()));
+            *storage,
+            local_engine::SerializedPlanParser::global_context,
+            partPtr->name,
+            const_cast<IDataPartStorage &>(partPtr->getDataPartStorage()));
         res.emplace_back(
             local_engine::PartInfo{partPtr->name, partPtr->getMarksCount(), partPtr->getBytesOnDisk(), partPtr->rows_count,
                                    /*partition_value*/ partition_values,
