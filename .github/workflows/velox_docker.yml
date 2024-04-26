@@ -533,7 +533,11 @@ jobs:
           wget https://github.com/apache/spark/archive/refs/tags/v3.2.2.tar.gz && \
           tar --strip-components=1 -xf v3.2.2.tar.gz spark-3.2.2/sql/core/src/test/resources/  && \
           mkdir -p shims/spark32/spark_home/ && \
-          mv sql shims/spark32/spark_home/
+          mv sql shims/spark32/spark_home/ && \
+          dnf module -y install python39 && \
+          alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install pyspark==3.2.2 cython && \
+          pip3 install pandas pyarrow
       - name: Build and run unit test for Spark 3.2.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -624,7 +628,11 @@ jobs:
           wget https://github.com/apache/spark/archive/refs/tags/v3.3.1.tar.gz && \
           tar --strip-components=1 -xf v3.3.1.tar.gz spark-3.3.1/sql/core/src/test/resources/  && \
           mkdir -p shims/spark33/spark_home/ && \
-          mv sql shims/spark33/spark_home/
+          mv sql shims/spark33/spark_home/ && \
+          dnf module -y install python39 && \
+          alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install pyspark==3.3.1 cython && \
+          pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.3.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -711,7 +719,11 @@ jobs:
           wget https://github.com/apache/spark/archive/refs/tags/v3.4.2.tar.gz && \
           tar --strip-components=1 -xf v3.4.2.tar.gz spark-3.4.2/sql/core/src/test/resources/  && \
           mkdir -p shims/spark34/spark_home/ && \
-          mv sql shims/spark34/spark_home/
+          mv sql shims/spark34/spark_home/ && \
+          dnf module -y install python39 && \
+          alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install pyspark==3.4.2 cython && \
+          pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.4.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -798,7 +810,11 @@ jobs:
           wget https://github.com/apache/spark/archive/refs/tags/v3.5.1.tar.gz && \
           tar --strip-components=1 -xf v3.5.1.tar.gz spark-3.5.1/sql/core/src/test/resources/  && \
           mkdir -p shims/spark35/spark_home/ && \
-          mv sql shims/spark35/spark_home/
+          mv sql shims/spark35/spark_home/ && \
+          dnf module -y install python39 && \
+          alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install pyspark==3.5.1 cython && \
+          pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.5.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \

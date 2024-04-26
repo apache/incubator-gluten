@@ -359,6 +359,13 @@ trait SparkPlanExecApi {
       options: Map[String, String],
       staticPartitions: TablePartitionSpec): SparkPlan
 
+  /** Create ColumnarArrowEvalPythonExec, for velox backend */
+  def createColumnarArrowEvalPythonExec(
+      udfs: Seq[PythonUDF],
+      resultAttrs: Seq[Attribute],
+      child: SparkPlan,
+      evalType: Int): SparkPlan
+
   /**
    * Generate extended DataSourceV2 Strategies. Currently only for ClickHouse backend.
    *

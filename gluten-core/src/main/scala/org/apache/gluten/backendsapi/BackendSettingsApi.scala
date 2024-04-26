@@ -142,4 +142,6 @@ trait BackendSettingsApi {
   def shouldRewriteTypedImperativeAggregate(): Boolean = false
 
   def shouldRewriteCollect(): Boolean = false
+
+  def supportColumnarArrowUdf(): Boolean = false
 }
