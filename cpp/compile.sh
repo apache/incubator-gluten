@@ -42,7 +42,7 @@ if [[ "$(uname)" == "Darwin" ]]; then
 else
     NPROC=${NPROC:-$(nproc --ignore=2)}
 fi
-echo $NPROC
+echo "set default number of threads is ${NPROC}"
 
 for arg in "$@"; do
   case $arg in
