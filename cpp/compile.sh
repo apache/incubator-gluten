@@ -30,6 +30,7 @@ ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 ENABLE_ABFS=OFF
 VELOX_HOME=
+# set default number of threads as cpu cores minus 2
 if [[ "$(uname)" == "Darwin" ]]; then
     physical_cpu_cores=$(sysctl -n hw.physicalcpu)
     ignore_cores=2
