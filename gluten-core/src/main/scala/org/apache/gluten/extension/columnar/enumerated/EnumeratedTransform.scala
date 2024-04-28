@@ -44,7 +44,7 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
     .build()
 
   private val rules = List(
-    PushFilterToScan,
+    new PushFilterToScan(validator),
     FilterRemoveRule
   )
 
