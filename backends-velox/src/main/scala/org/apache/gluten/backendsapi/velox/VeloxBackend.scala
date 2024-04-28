@@ -302,7 +302,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
           def checkLimitations(swf: SpecifiedWindowFrame, orderSpec: Seq[SortOrder]): Unit = {
             def doCheck(bound: Expression, isUpperBound: Boolean): Unit = {
               bound match {
-                case _: Literal =>
+                case e if e.foldable =>
                   throw new GlutenNotSupportException(
                     "Window frame of type RANGE does" +
                       " not support constant arguments in velox backend")
