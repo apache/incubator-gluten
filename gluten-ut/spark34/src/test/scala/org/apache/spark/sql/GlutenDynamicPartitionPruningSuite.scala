@@ -20,7 +20,6 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecTransformerBase}
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Expression}
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode.{CODEGEN_ONLY, NO_CODEGEN}
 import org.apache.spark.sql.catalyst.plans.ExistenceJoin
@@ -58,7 +57,7 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
 
   // === Following cases override super class's cases ===
 
-  ignore(GLUTEN_TEST + "DPP should not be rewritten as an existential join") {
+  ignoreGluten("DPP should not be rewritten as an existential join") {
     // ignored: BroadcastHashJoinExec is from Vanilla Spark
     withSQLConf(
       SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
