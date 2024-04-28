@@ -112,7 +112,7 @@
     </dependency>
     <dependency>
       <groupId>io.delta</groupId>
-      <artifactId>delta-core_${scala.binary.version}</artifactId>
+      <artifactId>${delta.package.name}_${scala.binary.version}</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

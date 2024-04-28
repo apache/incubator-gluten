@@ -139,8 +139,8 @@
         <sparkshim.module.name>spark32</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark32</sparkshim.artifactId>
         <spark.version>3.2.2</spark.version>
-	<iceberg.version>1.3.1</iceberg.version>
-	<delta.package.name>delta-core</delta.package.name>
+        <iceberg.version>1.3.1</iceberg.version>
+        <delta.package.name>delta-core</delta.package.name>
         <delta.version>2.0.1</delta.version>
         <delta.binary.version>20</delta.binary.version>
       </properties>
@@ -153,7 +153,7 @@
         <sparkshim.artifactId>spark-sql-columnar-shims-spark33</sparkshim.artifactId>
         <spark.version>3.3.1</spark.version>
         <!-- keep using iceberg v1.3.1 for parquet compatibilty. -->
-	<iceberg.version>1.3.1</iceberg.version>
+        <iceberg.version>1.3.1</iceberg.version>
         <delta.package.name>delta-core</delta.package.name>
         <delta.version>2.2.0</delta.version>
         <delta.binary.version>22</delta.binary.version>
@@ -166,8 +166,8 @@
         <sparkshim.module.name>spark34</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark34</sparkshim.artifactId>
         <spark.version>3.4.2</spark.version>
-	<iceberg.version>1.5.0</iceberg.version>
-	<delta.package.name>delta-core</delta.package.name>
+        <iceberg.version>1.5.0</iceberg.version>
+        <delta.package.name>delta-core</delta.package.name>
         <delta.version>2.4.0</delta.version>
         <delta.binary.version>24</delta.binary.version>
       </properties>
@@ -179,11 +179,11 @@
         <sparkshim.module.name>spark35</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark35</sparkshim.artifactId>
         <spark.version>3.5.1</spark.version>
-	<iceberg.version>1.5.0</iceberg.version>
-	<delta.package.name>delta-spark</delta.package.name>
+        <iceberg.version>1.5.0</iceberg.version>
+        <delta.package.name>delta-spark</delta.package.name>
         <delta.version>3.1.0</delta.version>
-	<delta.binary.version>31</delta.binary.version>
-	<fasterxml.version>2.15.1</fasterxml.version>
+        <delta.binary.version>31</delta.binary.version>
+        <fasterxml.version>2.15.1</fasterxml.version>
         <hadoop.version>3.3.4</hadoop.version>
       </properties>
     </profile>
@@ -494,7 +494,7 @@
       </dependency>
       <dependency>
         <groupId>io.delta</groupId>
-	<artifactId>${delta.package.name}_${scala.binary.version}</artifactId>
+        <artifactId>${delta.package.name}_${scala.binary.version}</artifactId>
         <version>${delta.version}</version>
         <scope>provided</scope>
         <exclusions>
