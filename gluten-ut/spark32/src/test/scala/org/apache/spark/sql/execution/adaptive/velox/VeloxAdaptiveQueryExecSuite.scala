@@ -34,6 +34,8 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SQLTestData.TestData
 import org.apache.spark.sql.types.{IntegerType, StructType}
 
+import org.apache.log4j.Level
+
 class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLTestsTrait {
   import testImplicits._
 
@@ -814,30 +816,30 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
     }
   }
 
-//  testGluten("Logging plan changes for AQE") {
-//    val testAppender = new LogAppender("plan changes")
-//    withLogAppender(testAppender) {
-//      withSQLConf(
-//        // this test default level is WARN, so we should check warn level
-//        SQLConf.PLAN_CHANGE_LOG_LEVEL.key -> "WARN",
-//        SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-//        SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "80"
-//      ) {
-//        sql(
-//          "SELECT * FROM testData JOIN testData2 ON key = a " +
-//            "WHERE value = (SELECT max(a) FROM testData3)").collect()
-//      }
-//      Seq(
-//        "=== Result of Batch AQE Preparations ===",
-//        "=== Result of Batch AQE Post Stage Creation ===",
-//        "=== Result of Batch AQE Replanning ===",
-//        "=== Result of Batch AQE Query Stage Optimization ==="
-//      ).foreach {
-//        expectedMsg =>
-//          assert(testAppender.loggingEvents.exists(_.getRenderedMessage.contains(expectedMsg)))
-//      }
-//    }
-//  }
+  ignoreGluten("Logging plan changes for AQE") {
+    val testAppender = new LogAppender("plan changes")
+    withLogAppender(testAppender) {
+      withSQLConf(
+        // this test default level is WARN, so we should check warn level
+        SQLConf.PLAN_CHANGE_LOG_LEVEL.key -> "WARN",
+        SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
+        SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "80"
+      ) {
+        sql(
+          "SELECT * FROM testData JOIN testData2 ON key = a " +
+            "WHERE value = (SELECT max(a) FROM testData3)").collect()
+      }
+      Seq(
+        "=== Result of Batch AQE Preparations ===",
+        "=== Result of Batch AQE Post Stage Creation ===",
+        "=== Result of Batch AQE Replanning ===",
+        "=== Result of Batch AQE Query Stage Optimization ==="
+      ).foreach {
+        expectedMsg =>
+          assert(testAppender.loggingEvents.exists(_.getRenderedMessage.contains(expectedMsg)))
+      }
+    }
+  }
 
   testGluten("SPARK-33551: Do not use AQE shuffle read for repartition") {
     def hasRepartitionShuffle(plan: SparkPlan): Boolean = {
@@ -1450,51 +1452,51 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
     }
   }
 
-//  testGluten("test log level") {
-//    def verifyLog(expectedLevel: Level): Unit = {
-//      val logAppender = new LogAppender("adaptive execution")
-//      logAppender.setThreshold(expectedLevel)
-//      withLogAppender(
-//        logAppender,
-//        loggerNames = Seq(AdaptiveSparkPlanExec.getClass.getName.dropRight(1)),
-//        level = Some(Level.TRACE)) {
-//        withSQLConf(
-//          SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-//          SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
-//          sql("SELECT * FROM testData join testData2 ON key = a where value = '1'").collect()
-//        }
-//      }
-//      Seq("Plan changed", "Final plan").foreach {
-//        msg =>
-//          assert(logAppender.loggingEvents.exists {
-//            event => event.getRenderedMessage.contains(msg) && event.getLevel == expectedLevel
-//          })
-//      }
-//    }
-//
-//    // Verify default log level
-//    verifyLog(Level.DEBUG)
-//
-//    // Verify custom log level
-//    val levels = Seq(
-//      "TRACE" -> Level.TRACE,
-//      "trace" -> Level.TRACE,
-//      "DEBUG" -> Level.DEBUG,
-//      "debug" -> Level.DEBUG,
-//      "INFO" -> Level.INFO,
-//      "info" -> Level.INFO,
-//      "WARN" -> Level.WARN,
-//      "warn" -> Level.WARN,
-//      "ERROR" -> Level.ERROR,
-//      "error" -> Level.ERROR,
-//      "deBUG" -> Level.DEBUG
-//    )
-//
-//    levels.foreach {
-//      level =>
-//        withSQLConf(SQLConf.ADAPTIVE_EXECUTION_LOG_LEVEL.key -> level._1) {
-//          verifyLog(level._2)
-//        }
-//    }
-//  }
+  ignoreGluten("test log level") {
+    def verifyLog(expectedLevel: Level): Unit = {
+      val logAppender = new LogAppender("adaptive execution")
+      logAppender.setThreshold(expectedLevel)
+      withLogAppender(
+        logAppender,
+        loggerNames = Seq(AdaptiveSparkPlanExec.getClass.getName.dropRight(1)),
+        level = Some(Level.TRACE)) {
+        withSQLConf(
+          SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
+          SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
+          sql("SELECT * FROM testData join testData2 ON key = a where value = '1'").collect()
+        }
+      }
+      Seq("Plan changed", "Final plan").foreach {
+        msg =>
+          assert(logAppender.loggingEvents.exists {
+            event => event.getRenderedMessage.contains(msg) && event.getLevel == expectedLevel
+          })
+      }
+    }
+
+    // Verify default log level
+    verifyLog(Level.DEBUG)
+
+    // Verify custom log level
+    val levels = Seq(
+      "TRACE" -> Level.TRACE,
+      "trace" -> Level.TRACE,
+      "DEBUG" -> Level.DEBUG,
+      "debug" -> Level.DEBUG,
+      "INFO" -> Level.INFO,
+      "info" -> Level.INFO,
+      "WARN" -> Level.WARN,
+      "warn" -> Level.WARN,
+      "ERROR" -> Level.ERROR,
+      "error" -> Level.ERROR,
+      "deBUG" -> Level.DEBUG
+    )
+
+    levels.foreach {
+      level =>
+        withSQLConf(SQLConf.ADAPTIVE_EXECUTION_LOG_LEVEL.key -> level._1) {
+          verifyLog(level._2)
+        }
+    }
+  }
 }

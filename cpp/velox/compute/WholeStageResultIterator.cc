@@ -486,7 +486,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kSessionTimezone] =
         veloxCfg_->get<std::string>(kSessionTimezone, defaultTimezone);
     // Adjust timestamp according to the above configured session timezone.
-    configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = std::to_string(true);
+    configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = "true";
     // Align Velox size function with Spark.
     configs[velox::core::QueryConfig::kSparkLegacySizeOfNull] = std::to_string(veloxCfg_->get<bool>(kLegacySize, true));
 
@@ -505,7 +505,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
       configs[velox::core::QueryConfig::kAbandonPartialAggregationMinRows] =
           std::to_string(veloxCfg_->get<int32_t>(kAbandonPartialAggregationMinRows, 100000));
       // Spark's collect_set ignore nulls.
-      configs[velox::core::QueryConfig::kPrestoArrayAggIgnoreNulls] = std::to_string(true);
+      configs[velox::core::QueryConfig::kPrestoArrayAggIgnoreNulls] = "true";
     }
     // Spill configs
     if (spillStrategy_ == "none") {

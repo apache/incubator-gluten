@@ -72,7 +72,7 @@ trait GlutenPlan extends SparkPlan with LogLevelUtil {
     } catch {
       case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
         if (!e.isInstanceOf[GlutenNotSupportException]) {
-          logDebug(s"This exception may need to be fixed: ${e.getMessage}")
+          logDebug(s"Just a warning. This exception perhaps needs to be fixed.", e)
         }
         // FIXME: Use a validation-specific method to catch validation failures
         TestStats.addFallBackClassName(this.getClass.toString)
