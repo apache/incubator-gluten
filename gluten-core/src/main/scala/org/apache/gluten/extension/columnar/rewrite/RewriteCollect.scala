@@ -20,7 +20,6 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.utils.PullOutProjectHelper
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeSet, If, IsNotNull, IsNull, Literal, NamedExpression}
-import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.types.ArrayType
@@ -35,7 +34,7 @@ import scala.collection.mutable.ArrayBuffer
  *
  * TODO: remove this rule once Velox compatible with vanilla Spark.
  */
-object RewriteCollect extends Rule[SparkPlan] with PullOutProjectHelper {
+object RewriteCollect extends RewriteSingleNode with PullOutProjectHelper {
   private lazy val shouldRewriteCollect =
     BackendsApiManager.getSettings.shouldRewriteCollect()
 
@@ -120,7 +119,7 @@ object RewriteCollect extends Rule[SparkPlan] with PullOutProjectHelper {
     (newAggregateAttributes, newResultExpressions)
   }
 
-  override def apply(plan: SparkPlan): SparkPlan = {
+  override def rewrite(plan: SparkPlan): SparkPlan = {
     if (!shouldRewriteCollect) {
       return plan
     }

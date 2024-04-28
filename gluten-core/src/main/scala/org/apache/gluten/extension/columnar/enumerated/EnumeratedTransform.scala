@@ -18,6 +18,7 @@ package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.{OffloadExchange, OffloadJoin, OffloadOthers, OffloadSingleNode}
+import org.apache.gluten.extension.columnar.rewrite.RewriteSingleNode
 import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
 import org.apache.gluten.planner.GlutenOptimization
 import org.apache.gluten.planner.property.Conventions
@@ -48,17 +49,21 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
     RemoveFilter
   )
 
+  private val rewriteRules = RewriteSingleNode
+    .allRules()
+    .map(new AsRasRewrite(_))
+
   // TODO: Should obey ReplaceSingleNode#applyScanNotTransformable to select
   //  (vanilla) scan with cheaper sub-query plan through cost model.
   private val offloadRules = List(
-    AsRasOffload(OffloadOthers()),
-    AsRasOffload(OffloadExchange()),
-    AsRasOffload(OffloadJoin()),
+    new AsRasOffload(OffloadOthers()),
+    new AsRasOffload(OffloadExchange()),
+    new AsRasOffload(OffloadJoin()),
     RasOffloadAggregate,
     RasOffloadFilter
   ).map(_.withValidator(validator))
 
-  private val optimization = GlutenOptimization(rules ++ offloadRules)
+  private val optimization = GlutenOptimization(rules ++ rewriteRules ++ offloadRules)
 
   private val reqConvention = Conventions.ANY
   private val altConventions =
@@ -75,11 +80,27 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
 }
 
 object EnumeratedTransform {
-  private case class AsRasOffload(delegate: OffloadSingleNode) extends RasRule[SparkPlan] {
+  private class AsRasOffload(delegate: OffloadSingleNode) extends RasRule[SparkPlan] {
     override def shift(node: SparkPlan): Iterable[SparkPlan] = {
       val out = delegate.offload(node)
       out match {
         case t: GlutenPlan if !t.doValidate().isValid =>
+          List.empty
+        case same if same eq node =>
+          List.empty
+        case other =>
+          List(other)
+      }
+    }
+
+    override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)
+  }
+
+  private class AsRasRewrite(delegate: RewriteSingleNode) extends RasRule[SparkPlan] {
+    override def shift(node: SparkPlan): Iterable[SparkPlan] = {
+      val out = delegate.rewrite(node)
+      out match {
+        case same if same eq node =>
           List.empty
         case other =>
           List(other)

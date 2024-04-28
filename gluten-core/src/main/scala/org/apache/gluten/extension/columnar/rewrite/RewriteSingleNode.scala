@@ -1,5 +1,6 @@
 package org.apache.gluten.extension.columnar.rewrite
 
+import org.apache.gluten.extension.RewriteIn
 import org.apache.spark.sql.execution.SparkPlan
 
 /**
@@ -15,4 +16,16 @@ import org.apache.spark.sql.execution.SparkPlan
  */
 trait RewriteSingleNode {
   def rewrite(plan: SparkPlan): SparkPlan
+}
+
+object RewriteSingleNode {
+  def allRules(): Seq[RewriteSingleNode] = {
+    Seq(
+      RewriteIn,
+      RewriteMultiChildrenCount,
+      RewriteCollect,
+      RewriteTypedImperativeAggregate,
+      PullOutPreProject,
+      PullOutPostProject)
+  }
 }

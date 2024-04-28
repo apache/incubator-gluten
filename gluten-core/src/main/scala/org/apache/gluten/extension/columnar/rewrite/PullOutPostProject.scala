@@ -18,11 +18,11 @@ package org.apache.gluten.extension.columnar.rewrite
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.utils.PullOutProjectHelper
+
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, NamedExpression, WindowExpression}
-import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.{GenerateExec, ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.execution.window.WindowExec
-import org.apache.spark.sql.execution.{GenerateExec, ProjectExec, SparkPlan}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -32,7 +32,7 @@ import scala.collection.mutable.ArrayBuffer
  * the output of Spark, ensuring that the output data of the native plan can match the Spark plan
  * when a fallback occurs.
  */
-object PullOutPostProject extends Rule[SparkPlan] with PullOutProjectHelper {
+object PullOutPostProject extends RewriteSingleNode with PullOutProjectHelper {
 
   private def needsPostProjection(plan: SparkPlan): Boolean = {
     plan match {
@@ -71,7 +71,7 @@ object PullOutPostProject extends Rule[SparkPlan] with PullOutProjectHelper {
     }
   }
 
-  override def apply(plan: SparkPlan): SparkPlan = plan match {
+  override def rewrite(plan: SparkPlan): SparkPlan = plan match {
     case agg: BaseAggregateExec if supportedAggregate(agg) && needsPostProjection(agg) =>
       val pullOutHelper =
         BackendsApiManager.getSparkPlanExecApiInstance.genHashAggregateExecPullOutHelper(

@@ -18,9 +18,9 @@ package org.apache.gluten.extension.columnar.rewrite
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.utils.PullOutProjectHelper
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Partial}
+
 import org.apache.spark.sql.catalyst.expressions.{If, IsNull, Literal, Or}
-import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Partial}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.types.IntegerType
@@ -45,7 +45,7 @@ import org.apache.spark.sql.types.IntegerType
  *
  * TODO: Remove this rule when Velox support multi-children Count
  */
-object RewriteMultiChildrenCount extends Rule[SparkPlan] with PullOutProjectHelper {
+object RewriteMultiChildrenCount extends RewriteSingleNode with PullOutProjectHelper {
   private lazy val shouldRewriteCount = BackendsApiManager.getSettings.shouldRewriteCount()
 
   private def extractCountForRewrite(aggExpr: AggregateExpression): Option[Count] = {
@@ -91,7 +91,7 @@ object RewriteMultiChildrenCount extends Rule[SparkPlan] with PullOutProjectHelp
     }
   }
 
-  override def apply(plan: SparkPlan): SparkPlan = {
+  override def rewrite(plan: SparkPlan): SparkPlan = {
     if (!shouldRewriteCount) {
       return plan
     }
