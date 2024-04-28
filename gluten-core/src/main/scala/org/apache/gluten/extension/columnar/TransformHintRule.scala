@@ -536,7 +536,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           s"${e.getMessage}, original Spark plan is " +
             s"${plan.getClass}(${plan.children.toList.map(_.getClass)})")
         if (!e.isInstanceOf[GlutenNotSupportException]) {
-          logWarning("Just a warning. This exception perhaps needs to be fixed.", e)
+          logDebug("Just a warning. This exception perhaps needs to be fixed.", e)
         }
     }
   }
