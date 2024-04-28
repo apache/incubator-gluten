@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.planner.cost
 
-import org.apache.gluten.extension.columnar.{ColumnarTransitions, TransformJoin}
+import org.apache.gluten.extension.columnar.{ColumnarTransitions, OffloadJoin}
 import org.apache.gluten.planner.plan.GlutenPlanModel.GroupLeafExec
 import org.apache.gluten.ras.{Cost, CostModel}
 import org.apache.gluten.utils.PlanUtil
@@ -57,7 +57,7 @@ object GlutenCostModel {
     // A very rough estimation as of now.
     private def selfLongCostOf(node: SparkPlan): Long = {
       node match {
-        case p: ShuffledHashJoinExec if !TransformJoin.isLegal(p) =>
+        case p: ShuffledHashJoinExec if !OffloadJoin.isLegal(p) =>
           infLongCost
         case ColumnarToRowExec(child) => 3L
         case RowToColumnarExec(child) => 3L

@@ -17,38 +17,22 @@
 package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.execution.HashAggregateExecBaseTransformer
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 
-object ImplementAggregate extends RasRule[SparkPlan] {
+object RasOffloadFilter extends RasRule[SparkPlan] {
   override def shift(node: SparkPlan): Iterable[SparkPlan] = node match {
-    case agg: HashAggregateExec => shiftAgg(agg)
-    case _ => List.empty
+    case FilterExec(condition, child) =>
+      val out = BackendsApiManager.getSparkPlanExecApiInstance
+        .genFilterExecTransformer(condition, child)
+      if (!out.doValidate().isValid) {
+        List.empty
+      } else {
+        List(out)
+      }
+    case _ =>
+      List.empty
   }
-
-  private def shiftAgg(agg: HashAggregateExec): Iterable[SparkPlan] = {
-    val transformer = implement(agg)
-    if (!transformer.doValidate().isValid) {
-      return List.empty
-    }
-    List(transformer)
-  }
-
-  private def implement(agg: HashAggregateExec): HashAggregateExecBaseTransformer = {
-    BackendsApiManager.getSparkPlanExecApiInstance
-      .genHashAggregateExecTransformer(
-        agg.requiredChildDistributionExpressions,
-        agg.groupingExpressions,
-        agg.aggregateExpressions,
-        agg.aggregateAttributes,
-        agg.initialInputBufferOffset,
-        agg.resultExpressions,
-        agg.child
-      )
-  }
-
   override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)
 }

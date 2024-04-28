@@ -40,13 +40,13 @@ import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BatchEvalPyth
 import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
-sealed trait TransformSingleNode extends Logging {
-  def impl(plan: SparkPlan): SparkPlan
+sealed trait OffloadSingleNode extends Logging {
+  def offload(plan: SparkPlan): SparkPlan
 }
 
 // Aggregation transformation.
-case class TransformAggregate() extends TransformSingleNode with LogLevelUtil {
-  override def impl(plan: SparkPlan): SparkPlan = plan match {
+case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
+  override def offload(plan: SparkPlan): SparkPlan = plan match {
     case plan if TransformHints.isNotTransformable(plan) =>
       plan
     case agg: HashAggregateExec =>
@@ -107,8 +107,8 @@ case class TransformAggregate() extends TransformSingleNode with LogLevelUtil {
 }
 
 // Exchange transformation.
-case class TransformExchange() extends TransformSingleNode with LogLevelUtil {
-  override def impl(plan: SparkPlan): SparkPlan = plan match {
+case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
+  override def offload(plan: SparkPlan): SparkPlan = plan match {
     case plan if TransformHints.isNotTransformable(plan) =>
       plan
     case plan: ShuffleExchangeExec =>
@@ -131,10 +131,10 @@ case class TransformExchange() extends TransformSingleNode with LogLevelUtil {
 }
 
 // Join transformation.
-case class TransformJoin() extends TransformSingleNode with LogLevelUtil {
-  import TransformJoin._
+case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
+  import OffloadJoin._
 
-  override def impl(plan: SparkPlan): SparkPlan = {
+  override def offload(plan: SparkPlan): SparkPlan = {
     if (TransformHints.isNotTransformable(plan)) {
       logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
       plan match {
@@ -223,7 +223,7 @@ case class TransformJoin() extends TransformSingleNode with LogLevelUtil {
 
 }
 
-object TransformJoin {
+object OffloadJoin {
   private def getSparkSupportedBuildSide(plan: ShuffledHashJoinExec): BuildSide = {
     plan.joinType match {
       case LeftOuter | LeftSemi => BuildRight
@@ -238,11 +238,11 @@ object TransformJoin {
 }
 
 // Filter transformation.
-case class TransformFilter() extends TransformSingleNode with LogLevelUtil {
-  import TransformOthers._
+case class OffloadFilter() extends OffloadSingleNode with LogLevelUtil {
+  import OffloadOthers._
   private val replace = new ReplaceSingleNode()
 
-  override def impl(plan: SparkPlan): SparkPlan = plan match {
+  override def offload(plan: SparkPlan): SparkPlan = plan match {
     case filter: FilterExec =>
       genFilterExec(filter)
     case other => other
@@ -286,14 +286,14 @@ case class TransformFilter() extends TransformSingleNode with LogLevelUtil {
 }
 
 // Other transformations.
-case class TransformOthers() extends TransformSingleNode with LogLevelUtil {
-  import TransformOthers._
+case class OffloadOthers() extends OffloadSingleNode with LogLevelUtil {
+  import OffloadOthers._
   private val replace = new ReplaceSingleNode()
 
-  override def impl(plan: SparkPlan): SparkPlan = replace.doReplace(plan)
+  override def offload(plan: SparkPlan): SparkPlan = replace.doReplace(plan)
 }
 
-object TransformOthers {
+object OffloadOthers {
   // Utility to replace single node within transformed Gluten node.
   // Children will be preserved as they are as children of the output node.
   //

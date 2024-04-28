@@ -31,7 +31,7 @@ import org.apache.spark.sql.execution.SparkPlan
 // because the pushed filter is not considered in the model. Removing the filter will make
 // optimizer choose a single scan as the winner sub-plan since a single scan's cost is lower than
 // filter + scan.
-object FilterRemoveRule extends RasRule[SparkPlan] {
+object RemoveFilter extends RasRule[SparkPlan] {
   override def shift(node: SparkPlan): Iterable[SparkPlan] = {
     val filter = node.asInstanceOf[FilterExecTransformerBase]
     if (filter.isNoop()) {
