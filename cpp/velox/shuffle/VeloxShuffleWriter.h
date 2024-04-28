@@ -192,6 +192,10 @@ class VeloxShuffleWriter final : public ShuffleWriter {
     VS_PRINT_CONTAINER(input_has_null_);
   }
 
+  int32_t maxBatchSize() const {
+    return maxBatchSize_;
+  }
+
  private:
   VeloxShuffleWriter(
       uint32_t numPartitions,
