@@ -382,6 +382,13 @@ target_link_libraries(velox PUBLIC Folly::folly)
 find_re2()
 target_link_libraries(velox PUBLIC ${RE2_LIBRARY})
 
+# since https://github.com/facebookincubator/velox/commit/47970417ac92135e862c0fde350d4d60fa2f1423
+if(Stemmer_FOUND)
+  target_link_libraries(velox PUBLIC stemmer::stemmer)
+else()
+  add_velox_dependency(velox "${VELOX_BUILD_PATH}/_deps/libstemmer/src/libstemmer/libstemmer.a")
+endif()
+
 if(ENABLE_GLUTEN_VCPKG)
   find_package(Thrift CONFIG)
 else()
