@@ -17,14 +17,13 @@
 package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.execution.{FilterHandler, TransformSupport}
-import org.apache.gluten.extension.columnar.TransformHints
 import org.apache.gluten.extension.columnar.validator.Validator
 import org.apache.gluten.ras.path.Pattern._
 import org.apache.gluten.ras.path.Pattern.Matchers._
 import org.apache.gluten.ras.rule.{RasRule, Shape}
 import org.apache.gluten.ras.rule.Shapes._
 
-import org.apache.spark.sql.execution.{ColumnarToRowExec, ColumnarToRowTransition, FileSourceScanExec, FilterExec, SparkPlan}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 
 class PushFilterToScan(validator: Validator) extends RasRule[SparkPlan] {
