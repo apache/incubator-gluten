@@ -1230,7 +1230,7 @@ object GlutenConfig {
   val COLUMNAR_VELOX_CONNECTOR_IO_THREADS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
       .internal()
-      .doc("The Size of the IO thread pool in the Connector. This thread pool is used for split:" +
+      .doc("The Size of the IO thread pool in the Connector. This thread pool is used for split" +
         " preloading and DirectBufferedInput.")
       .intConf
       .createWithDefaultFunction(() => SQLConf.get.getConfString("spark.executor.cores", "1").toInt)
