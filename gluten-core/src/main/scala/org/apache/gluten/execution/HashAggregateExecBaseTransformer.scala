@@ -172,6 +172,34 @@ abstract class HashAggregateExecBaseTransformer(
       validation: Boolean = false): RelNode
 }
 
+object HashAggregateExecBaseTransformer {
+  def from(agg: BaseAggregateExec)(
+      childConverter: SparkPlan => SparkPlan = p => p): HashAggregateExecBaseTransformer = {
+    assert(
+      canOffload(agg),
+      s"Aggregate's schema should be arranged as keys + function outputs to offload")
+    BackendsApiManager.getSparkPlanExecApiInstance
+      .genHashAggregateExecTransformer(
+        agg.requiredChildDistributionExpressions,
+        agg.groupingExpressions,
+        agg.aggregateExpressions,
+        agg.aggregateAttributes,
+        agg.initialInputBufferOffset,
+        agg.resultExpressions,
+        childConverter(agg.child)
+      )
+  }
+
+  def canOffload(agg: BaseAggregateExec): Boolean = {
+    // Native libraries emits grouping keys + function values as output schema for aggregation
+    // execution. Usually we can only offload aggregations with this kind of output schema or
+    // those already be split to aggregation + post project by PullOutPostProject, because of
+    // of the restrictions from native libraries.
+    val keysAtLhs = agg.resultExpressions.startsWith(agg.groupingExpressions.map(_.toAttribute))
+    keysAtLhs
+  }
+}
+
 abstract class HashAggregateExecPullOutBaseHelper(
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],

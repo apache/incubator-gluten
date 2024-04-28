@@ -60,6 +60,12 @@ abstract class HashAggregateExecTransformer(
     resultExpressions,
     child) {
 
+  override def output: Seq[Attribute] = {
+    // TODO: The output should be fixed to grouping attributes + aggregate attributes, rather than
+    //  output attributes of result expressions.
+    super.output
+  }
+
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
 

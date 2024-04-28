@@ -44,8 +44,8 @@ import org.apache.spark.sql.hive.HiveTableScanExecTransformer
  * Converts a vanilla Spark plan node into Gluten plan node. Gluten plan is supposed to be executed
  * in native, and the internals of execution is subject by backend's implementation.
  *
- * Note: Only the current plan node is supposed to be open to modification. Do not access or
- * modify the children node. Tree-walking is done by caller of this trait.
+ * Note: Only the current plan node is supposed to be open to modification. Do not access or modify
+ * the children node. Tree-walking is done by caller of this trait.
  */
 sealed trait OffloadSingleNode extends Logging {
   def offload(plan: SparkPlan): SparkPlan
@@ -76,19 +76,6 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
 
     val aggChild = plan.child
 
-    def transformHashAggregate(): GlutenPlan = {
-      BackendsApiManager.getSparkPlanExecApiInstance
-        .genHashAggregateExecTransformer(
-          plan.requiredChildDistributionExpressions,
-          plan.groupingExpressions,
-          plan.aggregateExpressions,
-          plan.aggregateAttributes,
-          plan.initialInputBufferOffset,
-          plan.resultExpressions,
-          aggChild
-        )
-    }
-
     // If child's output is empty, fallback or offload both the child and aggregation.
     if (
       aggChild.output.isEmpty && BackendsApiManager.getSettings
@@ -98,9 +85,9 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
         case _: TransformSupport =>
           // If the child is transformable, transform aggregation as well.
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          transformHashAggregate()
+          HashAggregateExecBaseTransformer.from(plan)()
         case p: SparkPlan if PlanUtil.isGlutenTableCache(p) =>
-          transformHashAggregate()
+          HashAggregateExecBaseTransformer.from(plan)()
         case _ =>
           // If the child is not transformable, do not transform the agg.
           TransformHints.tagNotTransformable(plan, "child output schema is empty")
@@ -108,7 +95,7 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
       }
     } else {
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      transformHashAggregate()
+      HashAggregateExecBaseTransformer.from(plan)()
     }
   }
 }
@@ -340,35 +327,16 @@ object OffloadOthers {
           ProjectExecTransformer(plan.projectList, columnarChild)
         case plan: SortAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          BackendsApiManager.getSparkPlanExecApiInstance
-            .genHashAggregateExecTransformer(
-              plan.requiredChildDistributionExpressions,
-              plan.groupingExpressions,
-              plan.aggregateExpressions,
-              plan.aggregateAttributes,
-              plan.initialInputBufferOffset,
-              plan.resultExpressions,
-              plan.child match {
-                case sort: SortExecTransformer if !sort.global =>
-                  sort.child
-                case sort: SortExec if !sort.global =>
-                  sort.child
-                case _ => plan.child
-              }
-            )
+          HashAggregateExecBaseTransformer.from(plan) {
+            case sort: SortExecTransformer if !sort.global =>
+              sort.child
+            case sort: SortExec if !sort.global =>
+              sort.child
+            case other => other
+          }
         case plan: ObjectHashAggregateExec =>
-          val child = plan.child
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          BackendsApiManager.getSparkPlanExecApiInstance
-            .genHashAggregateExecTransformer(
-              plan.requiredChildDistributionExpressions,
-              plan.groupingExpressions,
-              plan.aggregateExpressions,
-              plan.aggregateAttributes,
-              plan.initialInputBufferOffset,
-              plan.resultExpressions,
-              child
-            )
+          HashAggregateExecBaseTransformer.from(plan)()
         case plan: UnionExec =>
           val children = plan.children
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
