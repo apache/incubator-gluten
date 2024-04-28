@@ -14,13 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar
+package org.apache.gluten.extension.columnar.rewrite
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.utils.PullOutProjectHelper
-
-import org.apache.spark.sql.catalyst.expressions.{If, IsNull, Literal, Or}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Partial}
+import org.apache.spark.sql.catalyst.expressions.{If, IsNull, Literal, Or}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec

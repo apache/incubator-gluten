@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar
+package org.apache.gluten.extension.columnar.rewrite
 
-import org.apache.gluten.extension.{RewriteCollect, RewriteIn}
+import org.apache.gluten.extension.columnar.{AddTransformHintRule, TransformHint, TransformHints}
+import org.apache.gluten.extension.RewriteIn
 import org.apache.gluten.sql.shims.SparkShimLoader
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}

@@ -14,16 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar
+package org.apache.gluten.extension.columnar.rewrite
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.utils.PullOutProjectHelper
-
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, NamedExpression, WindowExpression}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{GenerateExec, ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.execution.window.WindowExec
+import org.apache.spark.sql.execution.{GenerateExec, ProjectExec, SparkPlan}
 
 import scala.collection.mutable.ArrayBuffer
 
