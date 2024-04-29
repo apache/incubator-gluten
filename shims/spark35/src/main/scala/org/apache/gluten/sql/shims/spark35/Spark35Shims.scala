@@ -16,9 +16,10 @@
  */
 package org.apache.gluten.sql.shims.spark35
 
-import org.apache.gluten.expression.ExpressionNames.ARRAY_SIZE
 import org.apache.gluten.expression.{ExpressionNames, Sig}
+import org.apache.gluten.expression.ExpressionNames.ARRAY_SIZE
 import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
+
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.io.FileCommitProtocol
@@ -29,7 +30,7 @@ import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.{ExtendedAnalysisException, InternalRow}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.{BloomFilterAggregate, RegrIntercept, RegrR2, RegrReplacement, RegrSXY, RegrSlope, TypedImperativeAggregate}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{BloomFilterAggregate, RegrIntercept, RegrR2, RegrReplacement, RegrSlope, RegrSXY, TypedImperativeAggregate}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution, KeyGroupedPartitioning, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -48,10 +49,12 @@ import org.apache.spark.sql.execution.window.{WindowGroupLimitExec, WindowGroupL
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
+
 import org.apache.hadoop.fs.{FileStatus, Path}
 
 import java.time.ZoneOffset
 import java.util.{HashMap => JHashMap, Map => JMap}
+
 import scala.reflect.ClassTag
 
 class Spark35Shims extends SparkShims {
@@ -69,7 +72,8 @@ class Spark35Shims extends SparkShims {
       Sig[Sec](ExpressionNames.SEC),
       Sig[Csc](ExpressionNames.CSC),
       Sig[Empty2Null](ExpressionNames.EMPTY2NULL),
-      Sig[ArraySize](ARRAY_SIZE))
+      Sig[ArraySize](ARRAY_SIZE)
+    )
   }
 
   override def aggregateExpressionMappings: Seq[Sig] = {

@@ -17,7 +17,7 @@
 package org.apache.gluten.sql.shims.spark34
 
 import org.apache.gluten.expression.{ExpressionNames, Sig}
-import org.apache.gluten.expression.ExpressionNames.KNOWN_NULLABLE
+import org.apache.gluten.expression.ExpressionNames.{ARRAY_SIZE, KNOWN_NULLABLE}
 import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
 
 import org.apache.spark._
