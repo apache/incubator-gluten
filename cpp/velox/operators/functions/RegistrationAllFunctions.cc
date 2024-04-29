@@ -16,6 +16,7 @@
  */
 #include "operators/functions/RegistrationAllFunctions.h"
 #include "operators/functions/Arithmetic.h"
+#include "operators/functions/RowConstructorWithAllNull.h"
 #include "operators/functions/RowConstructorWithNull.h"
 #include "operators/functions/RowFunctionWithNull.h"
 
@@ -47,11 +48,19 @@ void registerFunctionOverwrite() {
   velox::exec::registerVectorFunction(
       "row_constructor_with_null",
       std::vector<std::shared_ptr<velox::exec::FunctionSignature>>{},
-      std::make_unique<RowFunctionWithNull>(),
-      RowFunctionWithNull::metadata());
+      std::make_unique<RowFunctionWithNull</*allNull=*/false>>(),
+      RowFunctionWithNull</*allNull=*/false>::metadata());
   velox::exec::registerFunctionCallToSpecialForm(
       RowConstructorWithNullCallToSpecialForm::kRowConstructorWithNull,
       std::make_unique<RowConstructorWithNullCallToSpecialForm>());
+  velox::exec::registerVectorFunction(
+      "row_constructor_with_all_null",
+      std::vector<std::shared_ptr<velox::exec::FunctionSignature>>{},
+      std::make_unique<RowFunctionWithNull</*allNull=*/true>>(),
+      RowFunctionWithNull</*allNull=*/true>::metadata());
+  velox::exec::registerFunctionCallToSpecialForm(
+      RowConstructorWithAllNullCallToSpecialForm::kRowConstructorWithAllNull,
+      std::make_unique<RowConstructorWithAllNullCallToSpecialForm>());
   velox::functions::sparksql::registerBitwiseFunctions("spark_");
 }
 } // namespace
