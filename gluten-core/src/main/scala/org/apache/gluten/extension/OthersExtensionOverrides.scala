@@ -30,9 +30,6 @@ object OthersExtensionOverrides extends GlutenSparkExtensionsInjector {
       .genExtendedOptimizers()
       .foreach(extensions.injectOptimizerRule)
     BackendsApiManager.getSparkPlanExecApiInstance
-      .genExtendedPostHocResolutionRules()
-      .foreach(extensions.injectPostHocResolutionRule)
-    BackendsApiManager.getSparkPlanExecApiInstance
       .genExtendedDataSourceV2Strategies()
       .foreach(extensions.injectPlannerStrategy)
     BackendsApiManager.getSparkPlanExecApiInstance

@@ -399,7 +399,7 @@ trait SparkPlanExecApi {
   def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]]
 
   /** Generate extended post-hoc resolution rules. Currently only for Velox backend. */
-  def genExtendedPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]]
+  def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]]
 
   /**
    * Generate extended Strategies
