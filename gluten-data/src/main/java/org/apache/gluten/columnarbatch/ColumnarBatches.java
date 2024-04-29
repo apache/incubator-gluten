@@ -19,7 +19,7 @@ package org.apache.gluten.columnarbatch;
 import org.apache.gluten.exception.GlutenException;
 import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.Runtimes;
-import org.apache.gluten.memory.arrowalloc.ArrowBufferAllocators;
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
 import org.apache.gluten.memory.nmm.NativeMemoryManager;
 import org.apache.gluten.utils.ArrowAbiUtil;
 import org.apache.gluten.utils.ArrowUtil;

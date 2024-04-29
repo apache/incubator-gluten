@@ -20,7 +20,6 @@ import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.datasource.DatasourceJniWrapper
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.datasource.GlutenRowSplitter
-import org.apache.gluten.memory.arrowalloc.ArrowBufferAllocators
 import org.apache.gluten.memory.nmm.NativeMemoryManagers
 import org.apache.gluten.utils.{ArrowAbiUtil, DatasourceUtil}
 
@@ -38,6 +37,7 @@ import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
 import java.io.IOException
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 
 trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
   def createOutputWriter(

@@ -18,7 +18,6 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exec.Runtimes
-import org.apache.gluten.memory.arrowalloc.ArrowBufferAllocators
 import org.apache.gluten.memory.nmm.NativeMemoryManagers
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.{ArrowAbiUtil, Iterators}
@@ -35,6 +34,7 @@ import org.apache.spark.util.TaskResources
 import org.apache.arrow.c.ArrowSchema
 
 import scala.collection.JavaConverters.asScalaIteratorConverter
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 
 case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Array[Byte]])
   extends BuildSideRelation {
