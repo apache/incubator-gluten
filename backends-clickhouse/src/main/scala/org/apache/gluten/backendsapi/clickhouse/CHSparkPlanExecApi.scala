@@ -593,6 +593,10 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     )
   }
 
+  /** Generate extended post-hoc resolution rules. Currently only for Velox backend. */
+  override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] =
+    List.empty
+
   /**
    * Generate extended columnar pre-rules, in the validation phase.
    *

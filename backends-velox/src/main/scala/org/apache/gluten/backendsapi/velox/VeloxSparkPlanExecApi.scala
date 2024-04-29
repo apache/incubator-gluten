@@ -66,7 +66,6 @@ import javax.ws.rs.core.UriBuilder
 import java.lang.{Long => JLong}
 import java.util.{Map => JMap}
 
-import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 class VeloxSparkPlanExecApi extends SparkPlanExecApi {
@@ -734,12 +733,14 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = {
-    val buf = mutable.ListBuffer[SparkSession => Rule[LogicalPlan]]()
-    buf += AggregateFunctionRewriteRule.apply
-    buf += BloomFilterMightContainJointRewriteRule.apply
-    buf.toList
-  }
+  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = List(
+    AggregateFunctionRewriteRule.apply
+  )
+
+  /** Generate extended post-hoc resolution rules. Currently only for Velox backend. */
+  override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = List(
+    BloomFilterMightContainJointRewriteRule.apply
+  )
 
   /**
    * Generate extended columnar pre-rules, in the validation phase.
