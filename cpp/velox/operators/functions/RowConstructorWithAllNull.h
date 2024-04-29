@@ -17,20 +17,11 @@
 
 #pragma once
 
-#include "velox/expression/FunctionCallToSpecialForm.h"
-#include "velox/expression/SpecialForm.h"
+#include "RowConstructorWithNull.h"
 
 namespace gluten {
-class RowConstructorWithAllNullCallToSpecialForm : public facebook::velox::exec::FunctionCallToSpecialForm {
+class RowConstructorWithAllNullCallToSpecialForm : public RowConstructorWithNullCallToSpecialForm {
  public:
-  facebook::velox::TypePtr resolveType(const std::vector<facebook::velox::TypePtr>& argTypes) override;
-
-  facebook::velox::exec::ExprPtr constructSpecialForm(
-      const facebook::velox::TypePtr& type,
-      std::vector<facebook::velox::exec::ExprPtr>&& compiledChildren,
-      bool trackCpuUsage,
-      const facebook::velox::core::QueryConfig& config) override;
-
   static constexpr const char* kRowConstructorWithAllNull = "row_constructor_with_all_null";
 
  protected:
@@ -39,6 +30,8 @@ class RowConstructorWithAllNullCallToSpecialForm : public facebook::velox::exec:
       const facebook::velox::TypePtr& type,
       std::vector<facebook::velox::exec::ExprPtr>&& compiledChildren,
       bool trackCpuUsage,
-      const facebook::velox::core::QueryConfig& config);
+      const facebook::velox::core::QueryConfig& config) {
+    return constructSpecialForm(kRowConstructorWithAllNull, type, std::move(compiledChildren), trackCpuUsage, config);
+  }
 };
 } // namespace gluten

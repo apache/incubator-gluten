@@ -50,7 +50,7 @@ class RowFunctionWithNull final : public facebook::velox::exec::VectorFunction {
           if (arg->mayHaveNulls() && arg->isNullAt(i)) {
             // For row_constructor_with_null, if any argument of the struct is null,
             // set the struct as null.
-            if (!allNull) {
+            if constexpr (!allNull) {
               facebook::velox::bits::setNull(nullsPtr, i, true);
               cntNull++;
               break;
@@ -60,9 +60,11 @@ class RowFunctionWithNull final : public facebook::velox::exec::VectorFunction {
           }
         }
         // For row_constructor_with_all_null, set the struct to be null when all arguments are all
-        if (allNull && argsNullCnt == argsCopy.size()) {
-          facebook::velox::bits::setNull(nullsPtr, i, true);
-          cntNull++;
+        if constexpr (allNull) {
+          if (argsNullCnt == argsCopy.size()) {
+            facebook::velox::bits::setNull(nullsPtr, i, true);
+            cntNull++;
+          }
         }
       }
     });

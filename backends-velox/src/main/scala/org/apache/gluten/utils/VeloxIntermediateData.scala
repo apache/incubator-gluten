@@ -161,6 +161,9 @@ object VeloxIntermediateData {
   def getRowConstructFuncName(aggFunc: AggregateFunction): String = aggFunc match {
     case _: Average | _: Sum if aggFunc.dataType.isInstanceOf[DecimalType] =>
       "row_constructor"
+    // For agg function min_by/max_by, it needs to keep rows with null value but non-null
+    // comparison, such as <null, 5>. So we set the struct to null when all of the arguments
+    // are null
     case _: MaxMinBy =>
       "row_constructor_with_all_null"
     case _ => "row_constructor_with_null"
