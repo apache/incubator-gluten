@@ -22,24 +22,44 @@ import org.apache.gluten.expression.aggregate.VeloxBloomFilterAggregate
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 
-case class BloomFilterMightContainJointRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
-  override def apply(plan: LogicalPlan): LogicalPlan = {
+case class BloomFilterMightContainJointRewriteRule(spark: SparkSession) extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = {
     if (!(GlutenConfig.getConf.enableNativeBloomFilter)) {
       return plan
     }
     val out = plan.transformWithSubqueries {
+      case AdaptiveSparkPlanExec(
+            childPlan,
+            context,
+            preprocessingRules,
+            isSubquery,
+            supportsColumnar) =>
+        AdaptiveSparkPlanExec(
+          childPlan.transformWithSubqueries {
+            case p =>
+              applyForNode(p)
+          },
+          context,
+          preprocessingRules,
+          isSubquery,
+          supportsColumnar)
       case p =>
-        p.transformExpressions {
-          case e =>
-            SparkShimLoader.getSparkShims.replaceMightContain(
-              SparkShimLoader.getSparkShims
-                .replaceBloomFilterAggregate(e, VeloxBloomFilterAggregate.apply),
-              VeloxBloomFilterMightContain.apply)
-        }
+        applyForNode(p)
     }
     out
+  }
+
+  private def applyForNode(p: SparkPlan) = {
+    p.transformExpressions {
+      case e =>
+        SparkShimLoader.getSparkShims.replaceMightContain(
+          SparkShimLoader.getSparkShims
+            .replaceBloomFilterAggregate(e, VeloxBloomFilterAggregate.apply),
+          VeloxBloomFilterMightContain.apply)
+    }
   }
 }
