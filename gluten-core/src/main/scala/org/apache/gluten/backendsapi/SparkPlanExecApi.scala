@@ -529,9 +529,10 @@ trait SparkPlanExecApi {
               new JArrayList[ExpressionNode](),
               columnName,
               ConverterUtils.getTypeNode(aggWindowFunc.dataType, aggWindowFunc.nullable),
-              WindowExecTransformer.getFrameBound(frame.upper),
-              WindowExecTransformer.getFrameBound(frame.lower),
-              frame.frameType.sql
+              frame.upper,
+              frame.lower,
+              frame.frameType.sql,
+              originalInputAttributes.asJava
             )
             windowExpressionNodes.add(windowFunctionNode)
           case aggExpression: AggregateExpression =>
@@ -554,9 +555,10 @@ trait SparkPlanExecApi {
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(aggExpression.dataType, aggExpression.nullable),
-              WindowExecTransformer.getFrameBound(frame.upper),
-              WindowExecTransformer.getFrameBound(frame.lower),
-              frame.frameType.sql
+              frame.upper,
+              frame.lower,
+              frame.frameType.sql,
+              originalInputAttributes.asJava
             )
             windowExpressionNodes.add(windowFunctionNode)
           case wf @ (_: Lead | _: Lag) =>
@@ -590,10 +592,11 @@ trait SparkPlanExecApi {
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(offsetWf.dataType, offsetWf.nullable),
-              WindowExecTransformer.getFrameBound(frame.upper),
-              WindowExecTransformer.getFrameBound(frame.lower),
+              frame.upper,
+              frame.lower,
               frame.frameType.sql,
-              offsetWf.ignoreNulls
+              offsetWf.ignoreNulls,
+              originalInputAttributes.asJava
             )
             windowExpressionNodes.add(windowFunctionNode)
           case wf @ NthValue(input, offset: Literal, ignoreNulls: Boolean) =>
@@ -609,10 +612,11 @@ trait SparkPlanExecApi {
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(wf.dataType, wf.nullable),
-              frame.upper.sql,
-              frame.lower.sql,
+              frame.upper,
+              frame.lower,
               frame.frameType.sql,
-              ignoreNulls
+              ignoreNulls,
+              originalInputAttributes.asJava
             )
             windowExpressionNodes.add(windowFunctionNode)
           case wf @ NTile(buckets: Expression) =>
@@ -625,9 +629,10 @@ trait SparkPlanExecApi {
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(wf.dataType, wf.nullable),
-              frame.upper.sql,
-              frame.lower.sql,
-              frame.frameType.sql
+              frame.upper,
+              frame.lower,
+              frame.frameType.sql,
+              originalInputAttributes.asJava
             )
             windowExpressionNodes.add(windowFunctionNode)
           case _ =>

@@ -16,16 +16,22 @@
  */
 package org.apache.gluten.substrait.expression;
 
+import org.apache.gluten.expression.ExpressionConverter;
 import org.apache.gluten.substrait.type.TypeNode;
 
 import io.substrait.proto.Expression;
 import io.substrait.proto.FunctionArgument;
 import io.substrait.proto.FunctionOption;
 import io.substrait.proto.WindowType;
+import org.apache.spark.sql.catalyst.expressions.Attribute;
+import org.apache.spark.sql.catalyst.expressions.PreComputeRangeFrameBound;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+
+import scala.collection.JavaConverters;
 
 public class WindowFunctionNode implements Serializable {
   private final Integer functionId;
@@ -34,23 +40,26 @@ public class WindowFunctionNode implements Serializable {
   private final String columnName;
   private final TypeNode outputTypeNode;
 
-  private final String upperBound;
+  private final org.apache.spark.sql.catalyst.expressions.Expression upperBound;
 
-  private final String lowerBound;
+  private final org.apache.spark.sql.catalyst.expressions.Expression lowerBound;
 
   private final String frameType;
 
   private final boolean ignoreNulls;
+
+  private final List<Attribute> originalInputAttributes;
 
   WindowFunctionNode(
       Integer functionId,
       List<ExpressionNode> expressionNodes,
       String columnName,
       TypeNode outputTypeNode,
-      String upperBound,
-      String lowerBound,
+      org.apache.spark.sql.catalyst.expressions.Expression upperBound,
+      org.apache.spark.sql.catalyst.expressions.Expression lowerBound,
       String frameType,
-      boolean ignoreNulls) {
+      boolean ignoreNulls,
+      List<Attribute> originalInputAttributes) {
     this.functionId = functionId;
     this.expressionNodes.addAll(expressionNodes);
     this.columnName = columnName;
@@ -59,11 +68,13 @@ public class WindowFunctionNode implements Serializable {
     this.lowerBound = lowerBound;
     this.frameType = frameType;
     this.ignoreNulls = ignoreNulls;
+    this.originalInputAttributes = originalInputAttributes;
   }
 
   private Expression.WindowFunction.Bound.Builder setBound(
-      Expression.WindowFunction.Bound.Builder builder, String boundType) {
-    switch (boundType) {
+      Expression.WindowFunction.Bound.Builder builder,
+      org.apache.spark.sql.catalyst.expressions.Expression boundType) {
+    switch (boundType.sql()) {
       case ("CURRENT ROW"):
         Expression.WindowFunction.Bound.CurrentRow.Builder currentRowBuilder =
             Expression.WindowFunction.Bound.CurrentRow.newBuilder();
@@ -80,20 +91,50 @@ public class WindowFunctionNode implements Serializable {
         builder.setUnboundedFollowing(followingBuilder.build());
         break;
       default:
-        try {
-          Long offset = Long.valueOf(boundType);
-          if (offset < 0) {
-            Expression.WindowFunction.Bound.Preceding.Builder offsetPrecedingBuilder =
-                Expression.WindowFunction.Bound.Preceding.newBuilder();
-            offsetPrecedingBuilder.setOffset(0 - offset);
-            builder.setPreceding(offsetPrecedingBuilder.build());
-          } else {
-            Expression.WindowFunction.Bound.Following.Builder offsetFollowingBuilder =
-                Expression.WindowFunction.Bound.Following.newBuilder();
-            offsetFollowingBuilder.setOffset(offset);
-            builder.setFollowing(offsetFollowingBuilder.build());
+        if (boundType instanceof PreComputeRangeFrameBound) {
+          ExpressionNode refNode =
+              ExpressionConverter.replaceWithExpressionTransformer(
+                      ((PreComputeRangeFrameBound) boundType).child().toAttribute(),
+                      JavaConverters.asScalaIteratorConverter(originalInputAttributes.iterator())
+                          .asScala()
+                          .toSeq())
+                  .doTransform(new HashMap<String, Long>());
+          try {
+            Long offset = Long.valueOf(boundType.eval(null).toString());
+            if (offset < 0) {
+              Expression.WindowFunction.Bound.Preceding.Builder refPrecedingBuilder =
+                  Expression.WindowFunction.Bound.Preceding.newBuilder();
+              refPrecedingBuilder.setRef(refNode.toProtobuf());
+              builder.setPreceding(refPrecedingBuilder.build());
+            } else {
+              Expression.WindowFunction.Bound.Following.Builder refFollowingBuilder =
+                  Expression.WindowFunction.Bound.Following.newBuilder();
+              refFollowingBuilder.setRef(refNode.toProtobuf());
+              builder.setFollowing(refFollowingBuilder.build());
+            }
+          } catch (NumberFormatException e) {
+            throw new UnsupportedOperationException(
+                "Unsupported Window Function Frame Type:" + boundType);
           }
-        } catch (NumberFormatException e) {
+        } else if (boundType.foldable()) {
+          try {
+            Long offset = Long.valueOf(boundType.eval(null).toString());
+            if (offset < 0) {
+              Expression.WindowFunction.Bound.Preceding.Builder offsetPrecedingBuilder =
+                  Expression.WindowFunction.Bound.Preceding.newBuilder();
+              offsetPrecedingBuilder.setOffset(0 - offset);
+              builder.setPreceding(offsetPrecedingBuilder.build());
+            } else {
+              Expression.WindowFunction.Bound.Following.Builder offsetFollowingBuilder =
+                  Expression.WindowFunction.Bound.Following.newBuilder();
+              offsetFollowingBuilder.setOffset(offset);
+              builder.setFollowing(offsetFollowingBuilder.build());
+            }
+          } catch (NumberFormatException e) {
+            throw new UnsupportedOperationException(
+                "Unsupported Window Function Frame Type:" + boundType);
+          }
+        } else {
           throw new UnsupportedOperationException(
               "Unsupported Window Function Frame Type:" + boundType);
         }

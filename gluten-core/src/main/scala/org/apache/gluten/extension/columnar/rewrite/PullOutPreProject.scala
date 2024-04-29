@@ -75,6 +75,14 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
               case _ => false
             }
           case _ => false
+        }.isDefined) ||
+        window.windowExpression.exists(_.find {
+          case we: WindowExpression =>
+            we.windowSpec.frameSpecification match {
+              case swf: SpecifiedWindowFrame if needPreComputeRangeFrame(swf) => true
+              case _ => false
+            }
+          case _ => false
         }.isDefined)
       case plan if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) =>
         val window = SparkShimLoader.getSparkShims
@@ -174,7 +182,9 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
 
       // Handle windowExpressions.
       val newWindowExpressions = window.windowExpression.toIndexedSeq.map {
-        _.transform { case we: WindowExpression => rewriteWindowExpression(we, expressionMap) }
+        _.transform {
+          case we: WindowExpression => rewriteWindowExpression(we, newOrderSpec, expressionMap)
+        }
       }
 
       val newWindow = window.copy(

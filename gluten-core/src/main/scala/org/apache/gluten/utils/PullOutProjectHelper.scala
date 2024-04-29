@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.utils
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -143,8 +144,39 @@ trait PullOutProjectHelper {
     ae.copy(aggregateFunction = newAggFunc, filter = newFilter)
   }
 
+  private def needPreComputeRangeFrameBoundary(bound: Expression): Boolean = {
+    bound match {
+      case _: PreComputeRangeFrameBound => false
+      case _ if !bound.foldable => false
+      case _ => true
+    }
+  }
+
+  private def preComputeRangeFrameBoundary(
+      bound: Expression,
+      orderSpec: SortOrder,
+      expressionMap: mutable.HashMap[Expression, NamedExpression]): Expression = {
+    bound match {
+      case _: PreComputeRangeFrameBound => bound
+      case _ if !bound.foldable => bound
+      case _ if bound.foldable =>
+        val a = expressionMap
+          .getOrElseUpdate(
+            bound.canonicalized,
+            Alias(Add(orderSpec.child, bound), generatePreAliasName)())
+        PreComputeRangeFrameBound(a.asInstanceOf[Alias], bound)
+    }
+  }
+
+  protected def needPreComputeRangeFrame(swf: SpecifiedWindowFrame): Boolean = {
+    BackendsApiManager.getSettings.needPreComputeRangeFrameBoundary &&
+    swf.frameType == RangeFrame &&
+    (needPreComputeRangeFrameBoundary(swf.lower) || needPreComputeRangeFrameBoundary(swf.upper))
+  }
+
   protected def rewriteWindowExpression(
       we: WindowExpression,
+      orderSpecs: Seq[SortOrder],
       expressionMap: mutable.HashMap[Expression, NamedExpression]): WindowExpression = {
     val newWindowFunc = we.windowFunction match {
       case windowFunc: WindowFunction =>
@@ -156,6 +188,22 @@ trait PullOutProjectHelper {
       case ae: AggregateExpression => rewriteAggregateExpression(ae, expressionMap)
       case other => other
     }
-    we.copy(windowFunction = newWindowFunc)
+
+    val newWindowSpec = we.windowSpec.frameSpecification match {
+      case swf: SpecifiedWindowFrame if needPreComputeRangeFrame(swf) =>
+        // This is guaranteed by Spark, but we still check it here
+        if (orderSpecs.size != 1) {
+          throw new GlutenNotSupportException(
+            s"A range window frame with value boundaries expects one and only one " +
+              s"order by expression: ${orderSpecs.mkString(",")}")
+        }
+        val orderSpec = orderSpecs.head
+        val lowerFrameCol = preComputeRangeFrameBoundary(swf.lower, orderSpec, expressionMap)
+        val upperFrameCol = preComputeRangeFrameBoundary(swf.upper, orderSpec, expressionMap)
+        val newFrame = swf.copy(lower = lowerFrameCol, upper = upperFrameCol)
+        we.windowSpec.copy(frameSpecification = newFrame)
+      case _ => we.windowSpec
+    }
+    we.copy(windowFunction = newWindowFunc, windowSpec = newWindowSpec)
   }
 }

@@ -996,18 +996,28 @@ message Expression {
     message Bound {
       // Defines that the bound extends this far back from the current record.
       message Preceding {
-        // A strictly positive integer specifying the number of records that
-        // the window extends back from the current record. Required. Use
-        // CurrentRow for offset zero and Following for negative offsets.
-        int64 offset = 1;
+        oneof kind {
+          // A strictly positive integer specifying the number of records that
+          // the window extends back from the current record. Use
+          // CurrentRow for offset zero and Following for negative offsets.
+          int64 offset = 1;
+
+          // the reference to pre-project range frame boundary.
+          Expression ref = 2;
+        }
       }
 
       // Defines that the bound extends this far ahead of the current record.
       message Following {
-        // A strictly positive integer specifying the number of records that
-        // the window extends ahead of the current record. Required. Use
-        // CurrentRow for offset zero and Preceding for negative offsets.
-        int64 offset = 1;
+        oneof kind {
+          // A strictly positive integer specifying the number of records that
+          // the window extends ahead of the current record. Use
+          // CurrentRow for offset zero and Preceding for negative offsets.
+          int64 offset = 1;
+
+          // the reference to pre-project range frame boundary.
+          Expression ref = 2;
+        }
       }
 
       // Defines that the bound extends to or from the current record.
