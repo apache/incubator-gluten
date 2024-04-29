@@ -738,7 +738,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   )
 
   /** Generate extended post-hoc resolution rules. Currently only for Velox backend. */
-  override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = List(
+  override def genExtendedPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = List(
     BloomFilterMightContainJointRewriteRule.apply
   )
 
