@@ -84,9 +84,9 @@ object EnumeratedTransform {
     override def shift(node: SparkPlan): Iterable[SparkPlan] = {
       val out = delegate.offload(node)
       out match {
-        case t: GlutenPlan if !t.doValidate().isValid =>
-          List.empty
         case same if same eq node =>
+          List.empty
+        case t: GlutenPlan if !t.doValidate().isValid =>
           List.empty
         case other =>
           List(other)
