@@ -201,7 +201,7 @@ object HashAggregateExecBaseTransformer {
   def canOffload(agg: BaseAggregateExec): Boolean = {
     // Native libraries emits grouping keys + simple function values (without nesting) as
     // output schema for aggregation execution. Usually we can only offload aggregations with
-    // this kind of output schema or those already be split to aggregation + post project
+    // this kind of output schema or with those already be split to aggregation + post project
     // by PullOutPostProject, because of the restrictions from native libraries.
 
     // All input keys should be included in output.
