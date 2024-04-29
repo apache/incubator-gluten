@@ -21,6 +21,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
 import java.util.ServiceLoader
+
 import scala.collection.JavaConverters._
 
 trait RewriteTransformerRules {
