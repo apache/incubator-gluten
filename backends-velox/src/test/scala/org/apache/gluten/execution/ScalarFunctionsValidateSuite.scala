@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.sql.shims.SparkShimLoader
+
 import org.apache.spark.sql.types._
 
 import java.sql.Timestamp
@@ -829,17 +830,18 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
 
   test("test array_size") {
     if (!SparkShimLoader.getSparkVersion.startsWith("3.2")) {
-      withTempPath { path =>
-        Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
-          .toDF("value")
-          .write
-          .parquet(path.getCanonicalPath)
+      withTempPath {
+        path =>
+          Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
+            .toDF("value")
+            .write
+            .parquet(path.getCanonicalPath)
 
-        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+          spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
 
-        runQueryAndCompare("select array_size(value) as res from array_tbl;") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
-        }
+          runQueryAndCompare("select array_size(value) as res from array_tbl;") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
       }
     }
   }
