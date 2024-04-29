@@ -61,8 +61,8 @@ abstract class HashAggregateExecTransformer(
     child) {
 
   override def output: Seq[Attribute] = {
-    // TODO: The output should be fixed to grouping attributes + aggregate attributes, rather than
-    //  output attributes of result expressions.
+    // TODO: We should have a check to make sure the returned schema actually matches the output
+    //  data. Since "resultExpressions" is not actually in used by Velox.
     super.output
   }
 
