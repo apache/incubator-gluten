@@ -350,6 +350,10 @@ trait SparkPlanExecApi {
       numOutputRows: SQLMetric,
       dataSize: SQLMetric): BuildSideRelation
 
+  def doCanonicalizeForBroadcastMode(mode: BroadcastMode): BroadcastMode = {
+    mode.canonicalized
+  }
+
   /** Create ColumnarWriteFilesExec */
   def createColumnarWriteFilesExec(
       child: SparkPlan,

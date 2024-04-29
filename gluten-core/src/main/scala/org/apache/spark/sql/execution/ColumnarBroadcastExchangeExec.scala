@@ -128,7 +128,9 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
   override def outputPartitioning: Partitioning = BroadcastPartitioning(mode)
 
   override def doCanonicalize(): SparkPlan = {
-    ColumnarBroadcastExchangeExec(mode.canonicalized, child.canonicalized)
+    val canonicalized =
+      BackendsApiManager.getSparkPlanExecApiInstance.doCanonicalizeForBroadcastMode(mode)
+    ColumnarBroadcastExchangeExec(canonicalized, child.canonicalized)
   }
 
   override protected def doValidateInternal(): ValidationResult = {
