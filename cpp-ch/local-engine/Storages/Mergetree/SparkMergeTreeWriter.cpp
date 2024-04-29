@@ -117,12 +117,54 @@ void SparkMergeTreeWriter::write(DB::Block & block)
         = MergeTreeDataWriter::splitBlockIntoParts(squashing_transform->add(new_block), 10, metadata_snapshot, context);
     for (auto & item : blocks_with_partition)
     {
+        size_t before_write_memory = 0;
+        if (auto * memory_tracker = CurrentThread::getMemoryTracker())
+        {
+            CurrentThread::flushUntrackedMemory();
+            before_write_memory = memory_tracker->get();
+        }
+
         new_parts.emplace_back(writeTempPartAndFinalize(item, metadata_snapshot).part);
         part_num++;
+        manualFreeMemory(before_write_memory);
+        /// Reset earlier to free memory
+        item.block.clear();
+        item.partition.clear();
     }
 
     if (!blocks_with_partition.empty() && merge_after_insert)
         checkAndMerge();
+}
+
+void SparkMergeTreeWriter::manualFreeMemory(size_t before_write_memory)
+{
+    // If mergetree disk is not local fs, like remote fs s3 or hdfs,
+    // it may alloc memory in current thread, and free on global thread.
+    // Now, wo have not idea to clear global memory by used spark thread tracker.
+    // So we manually correct the memory usage.
+    auto disk = storage->getStoragePolicy()->getAnyDisk();
+    if (!disk->isRemote())
+        return;
+
+    std::lock_guard lock(memory_mutex);
+    auto * memory_tracker = CurrentThread::getMemoryTracker();
+    if (memory_tracker && CurrentMemoryTracker::before_free)
+    {
+        CurrentThread::flushUntrackedMemory();
+        const size_t ch_alloc = memory_tracker->get();
+        if (disk->getName().contains("s3") && context->getSettings().s3_allow_parallel_part_upload && ch_alloc > before_write_memory)
+        {
+            const size_t diff_ch_alloc = before_write_memory - ch_alloc;
+            memory_tracker->adjustWithUntrackedMemory(diff_ch_alloc);
+        }
+
+        const size_t a = memory_tracker->get();
+        const size_t spark_alloc = CurrentMemoryTracker::current_memory();
+        const size_t diff_alloc = spark_alloc - memory_tracker->get();
+
+        if (diff_alloc > 0)
+            CurrentMemoryTracker::before_free(diff_alloc);
+    }
 }
 
 void SparkMergeTreeWriter::finalize()
@@ -132,7 +174,21 @@ void SparkMergeTreeWriter::finalize()
     {
         auto blocks_with_partition = MergeTreeDataWriter::splitBlockIntoParts(std::move(block), 10, metadata_snapshot, context);
         for (auto & item : blocks_with_partition)
+        {
+            size_t before_write_memory = 0;
+            if (auto * memory_tracker = CurrentThread::getMemoryTracker())
+            {
+                CurrentThread::flushUntrackedMemory();
+                before_write_memory = memory_tracker->get();
+            }
+
             new_parts.emplace_back(writeTempPartAndFinalize(item, metadata_snapshot).part);
+            part_num++;
+            manualFreeMemory(before_write_memory);
+            /// Reset earlier to free memory
+            item.block.clear();
+            item.partition.clear();
+        }
     }
 
     SCOPE_EXIT({
@@ -159,16 +215,6 @@ void SparkMergeTreeWriter::finalize()
     for (auto merge_tree_data_part : new_parts.unsafeGet())
         final_parts.emplace(merge_tree_data_part->name);
 
-    for (const auto & tmp_part : storage->loadDataPartsWithNames(tmp_parts))
-    {
-        if (final_parts.contains(tmp_part->name))
-            continue;
-
-        storage->removePartFromMemory(tmp_part);
-    }
-
-    storage->clearOldPartsFromFilesystem(true);
-
     for (const auto & tmp_part : tmp_parts)
     {
         if (final_parts.contains(tmp_part))
@@ -191,15 +237,15 @@ SparkMergeTreeWriter::writeTempPartAndFinalize(
     DB::BlockWithPartition & block_with_partition,
     const DB::StorageMetadataPtr & metadata_snapshot)
 {
-    auto temp_part = writeTempPart(block_with_partition, metadata_snapshot);
+    MergeTreeDataWriter::TemporaryPart temp_part;
+    writeTempPart(temp_part, block_with_partition, metadata_snapshot);
     temp_part.finalize();
     return temp_part;
 }
 
-MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPart(
+void SparkMergeTreeWriter::writeTempPart(MergeTreeDataWriter::TemporaryPart & temp_part,
     BlockWithPartition & block_with_partition, const StorageMetadataPtr & metadata_snapshot)
 {
-    MergeTreeDataWriter::TemporaryPart temp_part;
     Block & block = block_with_partition.block;
 
     auto columns = metadata_snapshot->getColumns().getAllPhysical().filter(block.getNames());
@@ -271,7 +317,7 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPart(
     /// If optimize_on_insert is true, block may become empty after merge.
     /// There is no need to create empty part.
     if (expected_size == 0)
-        return temp_part;
+        return;
 
     VolumePtr volume = storage->getStoragePolicy()->getVolume(0);
     VolumePtr data_part_volume = std::make_shared<SingleDiskVolume>(volume->getName(), volume->getDisk(), volume->max_data_part_size);
@@ -332,14 +378,11 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPart(
         context->getWriteSettings());
 
     out->writeWithPermutation(block, perm_ptr);
-
-
     auto finalizer = out->finalizePartAsync(new_data_part, data_settings->fsync_after_insert, nullptr, nullptr);
 
     temp_part.part = new_data_part;
-    temp_part.streams.emplace_back(MergeTreeDataWriter::TemporaryPart::Stream{.stream = std::move(out), .finalizer = std::move(finalizer)});
-
-    return temp_part;
+    temp_part.streams.emplace_back(
+        MergeTreeDataWriter::TemporaryPart::Stream{.stream = std::move(out), .finalizer = std::move(finalizer)});
 }
 
 std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo()
@@ -394,16 +437,34 @@ void SparkMergeTreeWriter::checkAndMerge(bool force)
     if (!force && new_parts.size() < merge_limit_parts)
         return;
 
-    auto doTask = [](const ThreadGroupPtr & thread_group,
-                          const std::vector<MergeTreeDataPartPtr> prepare_merge_parts,
-                          CustomStorageMergeTreePtr & storage,
-                          String & partition_dir,
-                          String & bucket_dir) -> std::vector<MergeTreeDataPartPtr>
+    auto doTask = [this](
+                      const ThreadGroupPtr & thread_group,
+                      const std::vector<MergeTreeDataPartPtr> prepare_merge_parts,
+                      CustomStorageMergeTreePtr & storage,
+                      String & partition_dir,
+                      String & bucket_dir) -> std::vector<MergeTreeDataPartPtr>
     {
         setThreadName("InsertWithMerge");
         ThreadStatus thread_status;
         thread_status.attachToGroup(thread_group);
+
+        size_t before_size = 0;
+        size_t after_size = 0;
+        for (const auto & prepare_merge_part : prepare_merge_parts)
+            before_size += prepare_merge_part->getBytesOnDisk();
+
         auto merged_parts = mergeParts(prepare_merge_parts, toString(UUIDHelpers::generateV4()), storage, partition_dir, bucket_dir);
+        for (const auto & merge_tree_data_part : merged_parts)
+            after_size += merge_tree_data_part->getBytesOnDisk();
+
+        LOG_DEBUG(
+            &Poco::Logger::get("SparkMergeTreeWriter"),
+            "Mergetree merge on insert finished, before merge part size {}, part count {}, after part size {}, part count {}.",
+            before_size,
+            prepare_merge_parts.size(),
+            after_size,
+            merged_parts.size());
+
         return merged_parts;
     };
 

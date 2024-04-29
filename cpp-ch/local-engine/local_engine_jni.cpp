@@ -186,6 +186,9 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
         = local_engine::GetMethodID(env, local_engine::ReservationListenerWrapper::reservation_listener_class, "reserveOrThrow", "(J)V");
     local_engine::ReservationListenerWrapper::reservation_listener_unreserve
         = local_engine::GetMethodID(env, local_engine::ReservationListenerWrapper::reservation_listener_class, "unreserve", "(J)J");
+    local_engine::ReservationListenerWrapper::reservation_listener_currentMemory
+        = local_engine::GetMethodID(env, local_engine::ReservationListenerWrapper::reservation_listener_class, "currentMemory", "()J");
+
 
     native_metrics_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/metrics/NativeMetrics;");
     native_metrics_constructor = local_engine::GetMethodID(env, native_metrics_class, "<init>", "(Ljava/lang/String;)V");

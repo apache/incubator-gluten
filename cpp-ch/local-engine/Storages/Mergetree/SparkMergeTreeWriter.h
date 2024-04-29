@@ -63,13 +63,14 @@ public:
     std::vector<PartInfo> getAllPartInfo();
 
 private:
-    DB::MergeTreeDataWriter::TemporaryPart
-    writeTempPart(DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot);
+    void
+    writeTempPart(MergeTreeDataWriter::TemporaryPart & temp_part, DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot);
     DB::MergeTreeDataWriter::TemporaryPart
     writeTempPartAndFinalize(DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot);
     void checkAndMerge(bool force = false);
     void safeEmplaceBackPart(DB::MergeTreeDataPartPtr);
     void safeAddPart(DB::MergeTreeDataPartPtr);
+    void manualFreeMemory(size_t before_write_memory);
 
 
     String uuid;
@@ -90,6 +91,7 @@ private:
     FreeThreadPool thread_pool;
     size_t merge_min_size = 1024 * 1024 * 1024;
     size_t merge_limit_parts = 10;
+    std::mutex memory_mutex;
 };
 
 }
