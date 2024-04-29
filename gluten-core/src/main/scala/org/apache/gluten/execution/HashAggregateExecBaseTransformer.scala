@@ -193,10 +193,19 @@ object HashAggregateExecBaseTransformer {
   def canOffload(agg: BaseAggregateExec): Boolean = {
     // Native libraries emits grouping keys + function values as output schema for aggregation
     // execution. Usually we can only offload aggregations with this kind of output schema or
-    // those already be split to aggregation + post project by PullOutPostProject, because of
+    // those already be split to aggregation + post project by PullOutPostProject, because
     // of the restrictions from native libraries.
     val keysAtLhs = agg.resultExpressions.startsWith(agg.groupingExpressions.map(_.toAttribute))
-    keysAtLhs
+    val isStraightforwardOutput = agg.resultExpressions.forall {
+      case _: Attribute => true
+      case Alias(_: Attribute, _) => true
+      case other =>
+        // Offloading of complex aggregate expressions is not expected since they are not
+        // supported by native libraries and should be split into aggregation + post project by
+        // PullOutPostProject.
+        false
+    }
+    keysAtLhs && isStraightforwardOutput
   }
 }
 
