@@ -120,8 +120,7 @@ class EnumeratedApplier(session: SparkSession)
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarValidationRules() :::
       List(
         (spark: SparkSession) => MergeTwoPhasesHashBaseAggregate(spark),
-        (_: SparkSession) => RewriteSparkPlanRulesManager(),
-        (_: SparkSession) => AddTransformHintRule()
+        (_: SparkSession) => RewriteSparkPlanRulesManager()
       ) :::
       List(
         (session: SparkSession) => EnumeratedTransform(session, outputsColumnar),

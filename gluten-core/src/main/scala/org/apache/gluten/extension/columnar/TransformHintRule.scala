@@ -38,7 +38,7 @@ import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
-import org.apache.spark.sql.execution.python.EvalPythonExec
+import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BatchEvalPythonExec}
 import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.StringType
@@ -502,9 +502,20 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             plan.generatorOutput,
             plan.child)
           transformer.doValidate().tagOnFallback(plan)
-        case plan: EvalPythonExec =>
+        case plan: BatchEvalPythonExec =>
           val transformer = EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, plan.child)
           transformer.doValidate().tagOnFallback(plan)
+        case plan: ArrowEvalPythonExec =>
+          // When backend doesn't support ColumnarArrow or colunmnar arrow configuration not
+          // enabled, we will try offloading through EvalPythonExecTransformer
+          if (
+            !BackendsApiManager.getSettings.supportColumnarArrowUdf() ||
+            !GlutenConfig.getConf.enableColumnarArrowUDF
+          ) {
+            // Both CH and Velox will try using backend's built-in functions for calculate
+            val transformer = EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, plan.child)
+            transformer.doValidate().tagOnFallback(plan)
+          }
         case plan: TakeOrderedAndProjectExec =>
           val (limit, offset) =
             SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(plan)
@@ -525,7 +536,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           s"${e.getMessage}, original Spark plan is " +
             s"${plan.getClass}(${plan.children.toList.map(_.getClass)})")
         if (!e.isInstanceOf[GlutenNotSupportException]) {
-          logDebug("This exception may need to be fixed: " + e.getMessage)
+          logDebug("Just a warning. This exception perhaps needs to be fixed.", e)
         }
     }
   }

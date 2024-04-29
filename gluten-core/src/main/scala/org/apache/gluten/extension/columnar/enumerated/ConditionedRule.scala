@@ -37,31 +37,12 @@ object ConditionedRule {
     }
   }
 
-  trait PostCondition {
-    def apply(node: SparkPlan): Boolean
-  }
-
-  object PostCondition {
-    implicit class FromValidator(validator: Validator) extends PostCondition {
-      override def apply(node: SparkPlan): Boolean = {
-        validator.validate(node) match {
-          case Validator.Passed => true
-          case Validator.Failed(reason) => false
-        }
-      }
-    }
-  }
-
-  def wrap(
-      rule: RasRule[SparkPlan],
-      pre: ConditionedRule.PreCondition,
-      post: ConditionedRule.PostCondition): RasRule[SparkPlan] = {
+  def wrap(rule: RasRule[SparkPlan], cond: ConditionedRule.PreCondition): RasRule[SparkPlan] = {
     new RasRule[SparkPlan] {
       override def shift(node: SparkPlan): Iterable[SparkPlan] = {
         val out = List(node)
-          .filter(pre.apply)
+          .filter(cond.apply)
           .flatMap(rule.shift)
-          .filter(post.apply)
         out
       }
       override def shape(): Shape[SparkPlan] = rule.shape()

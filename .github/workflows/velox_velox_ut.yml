@@ -1,0 +1,66 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Velox backend Velox Unit test
+
+
+on:
+    pull_request:
+      paths:
+        - '.github/workflows/velox_velox_ut.yml'
+        - 'dev/**'
+        - 'ep/**' #get_velox change
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  run-velox-unit-test:
+    runs-on: ubuntu-20.04
+    env:
+      CCACHE_DIR: "${{ github.workspace }}/.ccache"
+    container: ghcr.io/facebookincubator/velox-dev:amd64-ubuntu-22.04-avx
+    steps:
+      - uses: actions/checkout@v2
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-ubuntu-release-default
+      - name: Ensure Cache Dirs Exists
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p '${{ env.CCACHE_DIR }}'
+      - name: Build Gluten velox third party
+        run: |
+          cd ep/build-velox/src && \
+          ./get_velox.sh 
+          cd ../build/velox_ep/
+          git reset --hard
+          make EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=ON -DVELOX_BUILD_TEST_UTILS=ON" 
+
+      - name: CCache after
+        run: |
+          ccache -vs
+
+      - uses: actions/cache/save@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-ubuntu-release-default
+
+      - name: Run Tests
+        run: |
+          cd ${GITHUB_WORKSPACE}/ep/build-velox/build/velox_ep/_build/release && ctest -E velox_cache_test -j 4 --output-on-failure --no-tests=error

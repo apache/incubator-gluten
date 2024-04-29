@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_04_25
+VELOX_BRANCH=2024_04_28
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
@@ -314,8 +314,6 @@ function setup_macos {
     echo "Unsupport s3"
     exit 1
   fi
-
-  sed -i '' $'/^  run_and_time install_double_conversion/a\\\n  run_and_time install_folly\\\n' scripts/setup-macos.sh
 }
 
 if [ $OS == 'Linux' ]; then

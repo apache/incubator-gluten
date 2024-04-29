@@ -92,6 +92,9 @@ object VeloxBackendSettings extends BackendSettingsApi {
         mapType.simpleString + " is forced to fallback."
       case StructField(_, structType: StructType, _, _) =>
         structType.simpleString + " is forced to fallback."
+      case StructField(_, timestampType: TimestampType, _, _)
+          if GlutenConfig.getConf.forceParquetTimestampTypeScanFallbackEnabled =>
+        timestampType.simpleString + " is forced to fallback."
     }
     val orcTypeValidatorWithComplexTypeFallback: PartialFunction[StructField, String] = {
       case StructField(_, arrayType: ArrayType, _, _) =>
@@ -122,6 +125,9 @@ object VeloxBackendSettings extends BackendSettingsApi {
           case StructField(_, mapType: MapType, _, _)
               if mapType.valueType.isInstanceOf[ArrayType] =>
             "ArrayType as Value in MapType"
+          case StructField(_, TimestampType, _, _)
+              if GlutenConfig.getConf.forceParquetTimestampTypeScanFallbackEnabled =>
+            "TimestampType"
         }
         if (!GlutenConfig.getConf.forceComplexTypeScanFallbackEnabled) {
           validateTypes(typeValidator)
@@ -296,7 +302,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
           def checkLimitations(swf: SpecifiedWindowFrame, orderSpec: Seq[SortOrder]): Unit = {
             def doCheck(bound: Expression, isUpperBound: Boolean): Unit = {
               bound match {
-                case _: Literal =>
+                case e if e.foldable =>
                   throw new GlutenNotSupportException(
                     "Window frame of type RANGE does" +
                       " not support constant arguments in velox backend")
@@ -498,4 +504,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
   }
 
   override def shouldRewriteCollect(): Boolean = true
+
+  override def supportColumnarArrowUdf(): Boolean = true
 }

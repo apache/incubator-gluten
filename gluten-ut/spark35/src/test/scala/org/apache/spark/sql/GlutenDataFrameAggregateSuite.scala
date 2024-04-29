@@ -18,7 +18,6 @@ package org.apache.spark.sql
 
 import org.apache.gluten.execution.HashAggregateExecBaseTransformer
 
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.execution.WholeStageCodegenExec
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.expressions.Aggregator
@@ -130,7 +129,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
 //      Row(new java.math.BigDecimal(2), new java.math.BigDecimal(6)) :: Nil)
   }
 
-  ignore(GLUTEN_TEST + "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate") {
+  ignoreGluten("SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate") {
     withTempView("view") {
       Seq(
         ("mithunr", Float.NaN),

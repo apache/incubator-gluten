@@ -86,11 +86,11 @@ std::unordered_set<std::shared_ptr<UdfLoader::UdfSignature>> UdfLoader::getRegis
         const auto& entry = udfEntries[i];
         auto dataType = toSubstraitTypeStr(entry.dataType);
         auto argTypes = toSubstraitTypeStr(entry.numArgs, entry.argTypes);
-        signatures_.insert(std::make_shared<UdfSignature>(entry.name, dataType, argTypes));
+        signatures_.insert(std::make_shared<UdfSignature>(entry.name, dataType, argTypes, entry.variableArity));
       }
       free(udfEntries);
     } else {
-      LOG(INFO) << "No UDFs found in " << libPath;
+      LOG(INFO) << "No UDF found in " << libPath;
     }
 
     // Handle UDAFs.
@@ -110,11 +110,12 @@ std::unordered_set<std::shared_ptr<UdfLoader::UdfSignature>> UdfLoader::getRegis
         auto dataType = toSubstraitTypeStr(entry.dataType);
         auto argTypes = toSubstraitTypeStr(entry.numArgs, entry.argTypes);
         auto intermediateType = toSubstraitTypeStr(entry.intermediateType);
-        signatures_.insert(std::make_shared<UdfSignature>(entry.name, dataType, argTypes, intermediateType));
+        signatures_.insert(
+            std::make_shared<UdfSignature>(entry.name, dataType, argTypes, intermediateType, entry.variableArity));
       }
       free(udafEntries);
     } else {
-      LOG(INFO) << "No UDAFs found in " << libPath;
+      LOG(INFO) << "No UDAF found in " << libPath;
     }
   }
   return signatures_;
@@ -149,6 +150,28 @@ void UdfLoader::registerUdf() {
 std::shared_ptr<UdfLoader> UdfLoader::getInstance() {
   static auto instance = std::make_shared<UdfLoader>();
   return instance;
+}
+
+std::string UdfLoader::toSubstraitTypeStr(const std::string& type) {
+  auto returnType = parser_.parse(type);
+  auto substraitType = convertor_.toSubstraitType(arena_, returnType);
+
+  std::string output;
+  substraitType.SerializeToString(&output);
+  return output;
+}
+
+std::string UdfLoader::toSubstraitTypeStr(int32_t numArgs, const char** args) {
+  std::vector<facebook::velox::TypePtr> argTypes;
+  argTypes.resize(numArgs);
+  for (auto i = 0; i < numArgs; ++i) {
+    argTypes[i] = parser_.parse(args[i]);
+  }
+  auto substraitType = convertor_.toSubstraitType(arena_, facebook::velox::ROW(std::move(argTypes)));
+
+  std::string output;
+  substraitType.SerializeToString(&output);
+  return output;
 }
 
 } // namespace gluten
