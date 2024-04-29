@@ -204,16 +204,18 @@ object HashAggregateExecBaseTransformer {
     // this kind of output schema or with those already be split to aggregation + post project
     // by PullOutPostProject, because of the restrictions from native libraries.
 
-    // All input keys should be included in output.
-    val isFullOutput =
-      agg.resultExpressions.size == agg.groupingExpressions.size + agg.aggregateAttributes.size
+    // All input keys should be attributes.
+    val areAllKeysAttributes = agg.groupingExpressions.forall {
+      case _: Attribute => true
+      case other => false
+    }
 
-    // All input keys should be on the LHS of output schema.
-    val keysOnLhs = agg.resultExpressions.sliding(2).forall {
-      case Seq(l, r) if !l.isInstanceOf[Attribute] && r.isInstanceOf[Attribute] =>
-        false
-      case _ =>
-        true
+    // All input keys should be included in output and on the LHS of output schema.
+    val areAllKeysIncludedInOutput = agg.groupingExpressions.zip(agg.resultExpressions).forall {
+      case (from: Attribute, to @ Alias(child: Attribute, name)) =>
+        from == child
+      case (from, to) =>
+        from == to
     }
 
     // Should not include nested expression in result expressions.
@@ -227,7 +229,7 @@ object HashAggregateExecBaseTransformer {
         false
     }
 
-    isFullOutput && keysOnLhs && isStraightforwardOutput
+    areAllKeysAttributes && areAllKeysIncludedInOutput && isStraightforwardOutput
   }
 }
 
