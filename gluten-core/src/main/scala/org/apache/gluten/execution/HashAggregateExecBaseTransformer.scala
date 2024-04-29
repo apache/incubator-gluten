@@ -173,29 +173,50 @@ abstract class HashAggregateExecBaseTransformer(
 }
 
 object HashAggregateExecBaseTransformer {
+
+  private def getInitialInputBufferOffset(agg: BaseAggregateExec): Int = agg match {
+    case a: HashAggregateExec => a.initialInputBufferOffset
+    case a: ObjectHashAggregateExec => a.initialInputBufferOffset
+    case a: SortAggregateExec => a.initialInputBufferOffset
+  }
+
   def from(agg: BaseAggregateExec)(
       childConverter: SparkPlan => SparkPlan = p => p): HashAggregateExecBaseTransformer = {
     assert(
       canOffload(agg),
-      s"Aggregate's schema should be arranged as keys + function outputs to offload")
+      s"Aggregate's schema should be arranged as keys + simple aggregate function " +
+        s"(without nesting) to offload")
     BackendsApiManager.getSparkPlanExecApiInstance
       .genHashAggregateExecTransformer(
         agg.requiredChildDistributionExpressions,
         agg.groupingExpressions,
         agg.aggregateExpressions,
         agg.aggregateAttributes,
-        agg.initialInputBufferOffset,
+        getInitialInputBufferOffset(agg),
         agg.resultExpressions,
         childConverter(agg.child)
       )
   }
 
   def canOffload(agg: BaseAggregateExec): Boolean = {
-    // Native libraries emits grouping keys + function values as output schema for aggregation
-    // execution. Usually we can only offload aggregations with this kind of output schema or
-    // those already be split to aggregation + post project by PullOutPostProject, because
-    // of the restrictions from native libraries.
-    val keysAtLhs = agg.resultExpressions.startsWith(agg.groupingExpressions.map(_.toAttribute))
+    // Native libraries emits grouping keys + simple function values (without nesting) as
+    // output schema for aggregation execution. Usually we can only offload aggregations with
+    // this kind of output schema or those already be split to aggregation + post project
+    // by PullOutPostProject, because of the restrictions from native libraries.
+
+    // All input keys should be included in output.
+    val isFullOutput =
+      agg.resultExpressions.size == agg.groupingExpressions.size + agg.aggregateAttributes.size
+
+    // All input keys should be on the LHS of output schema.
+    val keysOnLhs = agg.resultExpressions.sliding(2).forall {
+      case Seq(l, r) if !l.isInstanceOf[Attribute] && r.isInstanceOf[Attribute] =>
+        false
+      case _ =>
+        true
+    }
+
+    // Should not include nested expression in result expressions.
     val isStraightforwardOutput = agg.resultExpressions.forall {
       case _: Attribute => true
       case Alias(_: Attribute, _) => true
@@ -205,7 +226,8 @@ object HashAggregateExecBaseTransformer {
         // PullOutPostProject.
         false
     }
-    keysAtLhs && isStraightforwardOutput
+
+    isFullOutput && keysOnLhs && isStraightforwardOutput
   }
 }
 
