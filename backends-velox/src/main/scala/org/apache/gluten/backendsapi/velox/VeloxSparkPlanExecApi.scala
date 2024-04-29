@@ -50,7 +50,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
-import org.apache.spark.sql.execution.joins.BuildSideRelation
+import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.ExecUtil
 import org.apache.spark.sql.expression.{UDFExpression, UDFResolver, UserDefinedAggregateFunction}
@@ -575,6 +575,19 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     numOutputRows += serialized.map(_.getNumRows).sum
     dataSize += rawSize
     ColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized))
+  }
+
+  override def doCanonicalizeForBroadcastMode(mode: BroadcastMode): BroadcastMode = {
+    mode match {
+      case hash: HashedRelationBroadcastMode =>
+        // Node: It's different with vanilla Spark.
+        // Vanilla Spark build HashRelation at driver side, so it is build keys sensitive.
+        // But we broadcast byte array and build HashRelation at executor side,
+        // the build keys are actually meaningless for the broadcast value.
+        // This change allows us reuse broadcast exchange for different build keys with same table.
+        hash.copy(key = Seq.empty)
+      case _ => mode.canonicalized
+    }
   }
 
   /**
