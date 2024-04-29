@@ -19,7 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{GlutenQueryTestUtil, Row}
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, InputIteratorTransformer}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ReusedExchangeExec}
 
