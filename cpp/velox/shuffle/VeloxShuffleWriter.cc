@@ -340,21 +340,38 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb, int64
     START_TIMING(cpuWallTimingList_[CpuWallTimingFlattenRV]);
     rv = veloxColumnBatch->getFlattenedRowVector();
     END_TIMING();
-    if (partitioner_->hasPid()) {
-      auto pidArr = getFirstColumn(*rv);
-      START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
-      RETURN_NOT_OK(partitioner_->compute(pidArr, rv->size(), row2Partition_, partition2RowCount_));
-      END_TIMING();
-      auto strippedRv = getStrippedRowVector(*rv);
-      RETURN_NOT_OK(initFromRowVector(*strippedRv));
-      RETURN_NOT_OK(doSplit(*strippedRv, memLimit));
+    if (isExtremelyLargeBatch(rv)) {
+      auto numRows = rv->size();
+      int32_t offset = 0;
+      do {
+        auto length = std::min(maxBatchSize_, numRows);
+        auto slicedBatch = std::dynamic_pointer_cast<facebook::velox::RowVector>(rv->slice(offset, length));
+        RETURN_NOT_OK(partitioningAndDoSplit(std::move(slicedBatch), memLimit));
+        offset += length;
+        numRows -= length;
+      } while (numRows);
     } else {
-      RETURN_NOT_OK(initFromRowVector(*rv));
-      START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
-      RETURN_NOT_OK(partitioner_->compute(nullptr, rv->size(), row2Partition_, partition2RowCount_));
-      END_TIMING();
-      RETURN_NOT_OK(doSplit(*rv, memLimit));
+      RETURN_NOT_OK(partitioningAndDoSplit(std::move(rv), memLimit));
     }
+  }
+  return arrow::Status::OK();
+}
+
+arrow::Status VeloxShuffleWriter::partitioningAndDoSplit(facebook::velox::RowVectorPtr rv, int64_t memLimit) {
+  if (partitioner_->hasPid()) {
+    auto pidArr = getFirstColumn(*rv);
+    START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
+    RETURN_NOT_OK(partitioner_->compute(pidArr, rv->size(), row2Partition_, partition2RowCount_));
+    END_TIMING();
+    auto strippedRv = getStrippedRowVector(*rv);
+    RETURN_NOT_OK(initFromRowVector(*strippedRv));
+    RETURN_NOT_OK(doSplit(*strippedRv, memLimit));
+  } else {
+    RETURN_NOT_OK(initFromRowVector(*rv));
+    START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
+    RETURN_NOT_OK(partitioner_->compute(nullptr, rv->size(), row2Partition_, partition2RowCount_));
+    END_TIMING();
+    RETURN_NOT_OK(doSplit(*rv, memLimit));
   }
   return arrow::Status::OK();
 }
@@ -891,6 +908,8 @@ uint32_t VeloxShuffleWriter::calculatePartitionBufferSize(const facebook::velox:
   VS_PRINTLF(preAllocRowCnt);
 
   totalInputNumRows_ += numRows;
+
+  maxBatchSize_ = preAllocRowCnt == 0 ? numPartitions_ : preAllocRowCnt * numPartitions_;
 
   return (uint32_t)preAllocRowCnt;
 }
@@ -1474,4 +1493,9 @@ arrow::Status VeloxShuffleWriter::preAllocPartitionBuffers(uint32_t preAllocBuff
   }
   return arrow::Status::OK();
 }
+
+bool VeloxShuffleWriter::isExtremelyLargeBatch(facebook::velox::RowVectorPtr& rv) const {
+  return (rv->size() > maxBatchSize_ && maxBatchSize_ > 0);
+}
+
 } // namespace gluten
