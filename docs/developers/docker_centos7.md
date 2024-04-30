@@ -25,6 +25,7 @@ yum -y install \
     java-1.8.0-openjdk-devel \
     ninja-build \
     wget \
+    ca-certificates \
     sudo
 
 # gluten need maven version >=3.6.3
