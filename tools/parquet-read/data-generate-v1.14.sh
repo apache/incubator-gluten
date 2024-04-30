@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-path_to_gluten=/XX/XX/
 # install dependencies
 wget -nv http://archive.apache.org/dist/thrift/0.19.0/thrift-0.19.0.tar.gz
 tar xzf thrift-0.19.0.tar.gz
@@ -25,12 +24,7 @@ sudo make install
 # build parquet-mr, will need private branch after refine DataGenerator
 git clone https://github.com/apache/parquet-mr
 cd parquet-mr
-git checkout parquet-1.13.x
+git checkout parquet-1.14.x
 LC_ALL=C mvn clean package -DskipTests -Denforcer.skip=true -pl parquet-benchmarks -am
 # generate parquet files
 java -cp parquet-benchmarks/target/parquet-benchmarks.jar org.apache.parquet.benchmarks.DataGenerator generate
-# cp parquet files to gluten location so that UT can access them
-cp target/tests/ParquetBenchmarks/* ${path_to_gluten}/backends-velox/src/test/resources/parquet-for-read/
-cd ${path_to_gluten}/
-# verify parquet read leveraging gluten UT
-mvn clean test -Pspark-3.5 -Pspark-ut -Pbackends-velox -DargLine="-Dspark.test.home=/root/workspace/spark331/" -DwildcardSuites=org.apache.spark.sql.execution.VeloxParquetReadSuite
