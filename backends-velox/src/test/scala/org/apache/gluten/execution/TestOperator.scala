@@ -773,6 +773,21 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
                           |""".stripMargin)(_)
   }
 
+  test("test multi-generate") {
+    withTable("t") {
+      sql("CREATE TABLE t (col1 array<struct<a int, b string>>, col2 array<int>) using parquet")
+      sql("INSERT INTO t VALUES (array(struct(1, 'a'), struct(2, 'b')), array(1, 2))")
+      sql("INSERT INTO t VALUES (array(null, struct(3, 'c')), array(3, null))")
+
+      runQueryAndCompare("""SELECT c1, c2, c3 FROM t
+                           |LATERAL VIEW inline(col1) as c1, c2
+                           |LATERAL VIEW explode(col2) as c3
+                           |""".stripMargin) {
+        checkGlutenOperatorMatch[GenerateExecTransformer]
+      }
+    }
+  }
+
   test("test array functions") {
     withTable("t") {
       sql("CREATE TABLE t (c1 ARRAY<INT>, c2 ARRAY<INT>, c3 STRING) using parquet")
