@@ -71,22 +71,24 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
       .set("spark.memory.offHeap.size", "1024MB")
   }
 
-  // Disable for Spark3.5.
-  testWithSpecifiedSparkVersion("test udf", Some("3.2"), Some("3.4")) {
+  test("test udf") {
     val df = spark.sql("""select
-                         |  myudf1(1),
-                         |  myudf1(1L),
-                         |  myudf2(100L),
+                         |  myudf1(100L),
+                         |  myudf2(1),
+                         |  myudf2(1L),
+                         |  myudf3(),
+                         |  myudf3(1),
+                         |  myudf3(1, 2, 3),
+                         |  myudf3(1L),
+                         |  myudf3(1L, 2L, 3L),
                          |  mydate(cast('2024-03-25' as date), 5)
                          |""".stripMargin)
-    df.collect()
     assert(
       df.collect()
-        .sameElements(Array(Row(6, 6L, 105, Date.valueOf("2024-03-30")))))
+        .sameElements(Array(Row(105L, 6, 6L, 5, 6, 11, 6L, 11L, Date.valueOf("2024-03-30")))))
   }
 
-  // Disable for Spark3.5.
-  testWithSpecifiedSparkVersion("test udaf", Some("3.2"), Some("3.4")) {
+  test("test udaf") {
     val df = spark.sql("""select
                          |  myavg(1),
                          |  myavg(1L),

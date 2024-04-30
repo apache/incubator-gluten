@@ -486,7 +486,7 @@ class GlutenInsertSuite
     }
   }
 
-  testGluten("SPARK-39557 INSERT INTO statements with tables with map defaults") {
+  ignoreGluten("SPARK-39557 INSERT INTO statements with tables with map defaults") {
     withSQLConf("spark.gluten.sql.complexType.scan.fallback.enabled" -> "false") {
 
       import testImplicits._

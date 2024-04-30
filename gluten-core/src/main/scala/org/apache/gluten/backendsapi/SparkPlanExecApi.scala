@@ -350,6 +350,10 @@ trait SparkPlanExecApi {
       numOutputRows: SQLMetric,
       dataSize: SQLMetric): BuildSideRelation
 
+  def doCanonicalizeForBroadcastMode(mode: BroadcastMode): BroadcastMode = {
+    mode.canonicalized
+  }
+
   /** Create ColumnarWriteFilesExec */
   def createColumnarWriteFilesExec(
       child: SparkPlan,
@@ -358,6 +362,13 @@ trait SparkPlanExecApi {
       bucketSpec: Option[BucketSpec],
       options: Map[String, String],
       staticPartitions: TablePartitionSpec): SparkPlan
+
+  /** Create ColumnarArrowEvalPythonExec, for velox backend */
+  def createColumnarArrowEvalPythonExec(
+      udfs: Seq[PythonUDF],
+      resultAttrs: Seq[Attribute],
+      child: SparkPlan,
+      evalType: Int): SparkPlan
 
   /**
    * Generate extended DataSourceV2 Strategies. Currently only for ClickHouse backend.
@@ -414,13 +425,6 @@ trait SparkPlanExecApi {
    * @return
    */
   def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]]
-
-  def genDecimalRoundTransformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Round): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(child), original)
-  }
 
   def genGetStructFieldTransformer(
       substraitExprName: String,

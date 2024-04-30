@@ -53,6 +53,12 @@ trait GlutenTestsCommonTrait
       pos: Position): Unit = {
     test(GLUTEN_TEST + testName, testTag: _*)(testFun)
   }
+
+  protected def ignoreGluten(testName: String, testTag: Tag*)(testFun: => Any)(implicit
+      pos: Position): Unit = {
+    super.ignore(GLUTEN_TEST + testName, testTag: _*)(testFun)
+  }
+
   override protected def test(testName: String, testTags: Tag*)(testFun: => Any)(implicit
       pos: Position): Unit = {
     if (shouldRun(testName)) {

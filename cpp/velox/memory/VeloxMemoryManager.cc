@@ -92,8 +92,19 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
 
  private:
   uint64_t growPoolLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
+    // Since
+    // https://github.com/facebookincubator/velox/pull/9557/files#diff-436e44b7374032f8f5d7eb45869602add6f955162daa2798d01cc82f8725724dL812-L820,
+    // We should pass bytes as parameter "reservationBytes" when calling ::grow.
+    const uint64_t freeBytes = pool->freeBytes();
+    if (freeBytes >= bytes) {
+      bool reserved = pool->grow(0, bytes);
+      GLUTEN_CHECK(
+          reserved,
+          "Unexpected: Failed to reserve " + std::to_string(bytes) +
+              " bytes although there is enough space, free bytes: " + std::to_string(freeBytes));
+    }
     listener_->allocationChanged(bytes);
-    return pool->grow(bytes);
+    return pool->grow(bytes, bytes);
   }
 
   uint64_t releaseMemoryLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {

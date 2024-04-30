@@ -314,8 +314,6 @@ function setup_macos {
     echo "Unsupport s3"
     exit 1
   fi
-
-  sed -i '' $'/^  run_and_time install_double_conversion/a\\\n  run_and_time install_folly\\\n' scripts/setup-macos.sh
 }
 
 if [ $OS == 'Linux' ]; then

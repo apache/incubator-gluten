@@ -19,7 +19,7 @@ package org.apache.gluten.utils.velox
 import org.apache.gluten.utils.{BackendTestSettings, SQLQueryTestSettings}
 
 import org.apache.spark.sql._
-import org.apache.spark.sql.catalyst.expressions.{GlutenArithmeticExpressionSuite, GlutenBitwiseExpressionsSuite, GlutenCastSuite, GlutenCollectionExpressionsSuite, GlutenComplexTypeSuite, GlutenConditionalExpressionSuite, GlutenDateExpressionsSuite, GlutenDecimalExpressionSuite, GlutenHashExpressionsSuite, GlutenIntervalExpressionsSuite, GlutenLiteralExpressionSuite, GlutenMathExpressionsSuite, GlutenMiscExpressionsSuite, GlutenNondeterministicSuite, GlutenNullExpressionsSuite, GlutenPredicateSuite, GlutenRandomSuite, GlutenRegexpExpressionsSuite, GlutenSortOrderExpressionsSuite, GlutenStringExpressionsSuite}
+import org.apache.spark.sql.catalyst.expressions.{GlutenArithmeticExpressionSuite, GlutenBitwiseExpressionsSuite, GlutenCastSuite, GlutenCollectionExpressionsSuite, GlutenComplexTypeSuite, GlutenConditionalExpressionSuite, GlutenDateExpressionsSuite, GlutenDecimalExpressionSuite, GlutenHashExpressionsSuite, GlutenHigherOrderFunctionsSuite, GlutenIntervalExpressionsSuite, GlutenLiteralExpressionSuite, GlutenMathExpressionsSuite, GlutenMiscExpressionsSuite, GlutenNondeterministicSuite, GlutenNullExpressionsSuite, GlutenPredicateSuite, GlutenRandomSuite, GlutenRegexpExpressionsSuite, GlutenSortOrderExpressionsSuite, GlutenStringExpressionsSuite}
 import org.apache.spark.sql.connector._
 import org.apache.spark.sql.errors.{GlutenQueryCompilationErrorsDSv2Suite, GlutenQueryCompilationErrorsSuite, GlutenQueryExecutionErrorsSuite, GlutenQueryParsingErrorsSuite}
 import org.apache.spark.sql.execution._
@@ -57,8 +57,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite the following tests in GlutenDataSourceV2Suite.
     .exclude("partitioning reporting")
     .exclude("ordering and partitioning reporting")
-  // Disable for Spark3.5.
-  // enableSuite[GlutenDeleteFromTableSuite]
+  enableSuite[GlutenDeleteFromTableSuite]
   enableSuite[GlutenFileDataSourceV2FallBackSuite]
     // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
     .exclude("Fallback Parquet V2 to V1")
@@ -124,9 +123,10 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("from_unixtime")
   enableSuite[GlutenDecimalExpressionSuite]
   enableSuite[GlutenHashExpressionsSuite]
+  enableSuite[GlutenHigherOrderFunctionsSuite]
   enableSuite[GlutenIntervalExpressionsSuite]
   enableSuite[GlutenJsonFunctionsSuite]
-    // Disable for Spark3.5.
+    // * in get_json_object expression not supported in velox
     .exclude("SPARK-42782: Hive compatibility check for get_json_object")
     // Velox does not support single quotes in get_json_object function.
     .exclude("function get_json_object - support single quotes")

@@ -104,11 +104,15 @@ cd /path/to/gluten
 mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.2 -DskipTests
 # For spark3.3.x
 mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.3 -DskipTests
+# For spark3.4.x
+mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.4 -DskipTests
+# For spark3.5.x
+mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.5 -DskipTests
 ```
 
 notes：The compilation of `Velox` using the script of `build_velox.sh` may fail caused by `oom`, you can prevent this failure by using the user command of `export NUM_THREADS=4` before executing the above scripts.
 
-Once building successfully, the Jar file will be generated in the directory: package/target/\<gluten-jar\> for Spark 3.2.x/Spark 3.3.x.
+Once building successfully, the Jar file will be generated in the directory: package/target/\<gluten-jar\> for Spark 3.2.x/Spark 3.3.x/Spark 3.4.x/Spark 3.5.x.
 
 ## Dependency library deployment
 
@@ -190,6 +194,19 @@ Here are two steps to enable kerberos.
 ```
 
 The ticket cache file can be found by `klist`.
+
+## Azure Blob File System (ABFS) support
+
+Velox supports ABFS with the open source [Azure SDK for C++](https://github.com/Azure/azure-sdk-for-cpp) and Gluten uses the Velox ABFS connector to connect with ABFS.
+The build option for ABFS (enable_abfs) must be set to enable this feature as listed below.
+
+```
+cd /path/to/gluten
+./dev/buildbundle-veloxbe.sh --enable_abfs=ON
+```
+
+Please refer [Velox ABFS](VeloxABFS.md) part for more detailed configurations.
+
 
 ## AWS S3 support
 

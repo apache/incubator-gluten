@@ -22,7 +22,7 @@ on:
 
 concurrency:
   group: ${{ github.repository }}-${{ github.workflow }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   cache-native-lib:
@@ -33,10 +33,19 @@ jobs:
       - name: Generate cache key
         run: |
           echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './github/workflows/*') }} > cache-key
+      - name: Check existing caches
+        id: check-cache
+        uses: actions/cache/restore@v3
+        with:
+          lookup-only: true
+          path: ./cpp/build/releases/
+          key: cache-velox-build-${{ hashFiles('./cache-key') }}
       - name: Build Gluten Velox third party
+        if: steps.check-cache.outputs.cache-hit != 'true'
         run: |
           source dev/ci-velox-buildstatic.sh
       - name: Cache
+        if: steps.check-cache.outputs.cache-hit != 'true'
         id: cache
         uses: actions/cache/save@v3
         with:

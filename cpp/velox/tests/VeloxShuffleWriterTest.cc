@@ -258,6 +258,22 @@ TEST_P(HashPartitioningShuffleWriter, hashPart3Vectors) {
       {{blockPid2}, {blockPid1}});
 }
 
+TEST_P(HashPartitioningShuffleWriter, hashLargeVectors) {
+  const int32_t expectedMaxBatchSize = 8;
+  ASSERT_NOT_OK(initShuffleWriterOptions());
+  auto shuffleWriter = createShuffleWriter(defaultArrowMemoryPool().get());
+  // calculate maxBatchSize_
+  ASSERT_NOT_OK(splitRowVector(*shuffleWriter, hashInputVector1_));
+  VELOX_CHECK_EQ(shuffleWriter->maxBatchSize(), expectedMaxBatchSize);
+
+  auto blockPid2 = takeRows({inputVector1_, inputVector2_, inputVector1_}, {{1, 2, 3, 4, 8}, {0, 1}, {1, 2, 3, 4, 8}});
+  auto blockPid1 = takeRows({inputVector1_}, {{0, 5, 6, 7, 9, 0, 5, 6, 7, 9}});
+
+  VELOX_CHECK(hashInputVector1_->size() > expectedMaxBatchSize);
+  testShuffleWriteMultiBlocks(
+      *shuffleWriter, {hashInputVector2_, hashInputVector1_}, 2, inputVector1_->type(), {{blockPid2}, {blockPid1}});
+}
+
 TEST_P(RangePartitioningShuffleWriter, rangePartition) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
   auto shuffleWriter = createShuffleWriter(defaultArrowMemoryPool().get());

@@ -67,6 +67,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarWindow: Boolean = conf.getConf(COLUMNAR_WINDOW_ENABLED)
 
+  def enableColumnarWindowGroupLimit: Boolean = conf.getConf(COLUMNAR_WINDOW_GROUP_LIMIT_ENABLED)
+
   def veloxColumnarWindowType: String = conf.getConfString(COLUMNAR_VELOX_WINDOW_TYPE.key)
 
   def enableColumnarShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED)
@@ -111,6 +113,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def forceOrcCharTypeScanFallbackEnabled: Boolean =
     conf.getConf(VELOX_FORCE_ORC_CHAR_TYPE_SCAN_FALLBACK)
+
+  def forceParquetTimestampTypeScanFallbackEnabled: Boolean =
+    conf.getConf(VELOX_FORCE_PARQUET_TIMESTAMP_TYPE_SCAN_FALLBACK)
 
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
@@ -509,6 +514,8 @@ object GlutenConfig {
   // where deployed gluten jar is generated through static build (e.g., Gluten's release jar).
   val GLUTEN_LOAD_LIB_FROM_JAR = "spark.gluten.loadLibFromJar"
   val GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT = false
+  val GLUTEN_LOAD_LIB_OS = "spark.gluten.loadLibOS"
+  val GLUTEN_LOAD_LIB_OS_VERSION = "spark.gluten.loadLibOSVersion"
 
   // Expired time of execution with resource relation has cached
   val GLUTEN_RESOURCE_RELATION_EXPIRED_TIME = "spark.gluten.execution.resource.expired.time"
@@ -768,6 +775,13 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.window")
       .internal()
       .doc("Enable or disable columnar window.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_WINDOW_GROUP_LIMIT_ENABLED =
+    buildConf("spark.gluten.sql.columnar.window.group.limit")
+      .internal()
+      .doc("Enable or disable columnar window group limit.")
       .booleanConf
       .createWithDefault(true)
 
@@ -1794,6 +1808,13 @@ object GlutenConfig {
       .doc("Force fallback for orc char type scan.")
       .booleanConf
       .createWithDefault(true)
+
+  val VELOX_FORCE_PARQUET_TIMESTAMP_TYPE_SCAN_FALLBACK =
+    buildConf("spark.gluten.sql.parquet.timestampType.scan.fallback.enabled")
+      .internal()
+      .doc("Force fallback for parquet timestamp type scan.")
+      .booleanConf
+      .createWithDefault(false)
 
   val COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED =
     buildConf("spark.gluten.sql.columnar.cast.avg")

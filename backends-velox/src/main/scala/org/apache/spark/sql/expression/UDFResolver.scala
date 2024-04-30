@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.expression
 
-import org.apache.gluten.backendsapi.velox.BackendSettings
+import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.expression.{ConverterUtils, ExpressionTransformer, ExpressionType, Transformable}
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
@@ -32,6 +32,7 @@ import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, ExpressionInfo}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
+import org.apache.spark.sql.catalyst.types.DataTypeUtils
 import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.types.{DataType, StructField, StructType}
 import org.apache.spark.util.Utils
@@ -72,6 +73,25 @@ case class UserDefinedAggregateFunction(
   }
 }
 
+trait UDFSignatureBase {
+  val expressionType: ExpressionType
+  val children: Seq[DataType]
+  val variableArity: Boolean
+}
+
+case class UDFSignature(
+    expressionType: ExpressionType,
+    children: Seq[DataType],
+    variableArity: Boolean)
+  extends UDFSignatureBase
+
+case class UDAFSignature(
+    expressionType: ExpressionType,
+    children: Seq[DataType],
+    variableArity: Boolean,
+    intermediateAttrs: Seq[AttributeReference])
+  extends UDFSignatureBase
+
 case class UDFExpression(
     name: String,
     dataType: DataType,
@@ -109,31 +129,40 @@ case class UDFExpression(
 object UDFResolver extends Logging {
   private val UDFNames = mutable.HashSet[String]()
   // (udf_name, arg1, arg2, ...) => return type
-  private val UDFMap = mutable.HashMap[(String, Seq[DataType]), ExpressionType]()
+  private val UDFMap = mutable.HashMap[String, mutable.MutableList[UDFSignature]]()
 
   private val UDAFNames = mutable.HashSet[String]()
   // (udaf_name, arg1, arg2, ...) => return type, intermediate attributes
   private val UDAFMap =
-    mutable.HashMap[(String, Seq[DataType]), (ExpressionType, Seq[AttributeReference])]()
+    mutable.HashMap[String, mutable.MutableList[UDAFSignature]]()
 
   private val LIB_EXTENSION = ".so"
 
   // Called by JNI.
-  def registerUDF(name: String, returnType: Array[Byte], argTypes: Array[Byte]): Unit = {
+  def registerUDF(
+      name: String,
+      returnType: Array[Byte],
+      argTypes: Array[Byte],
+      variableArity: Boolean): Unit = {
     registerUDF(
       name,
       ConverterUtils.parseFromBytes(returnType),
-      ConverterUtils.parseFromBytes(argTypes))
+      ConverterUtils.parseFromBytes(argTypes),
+      variableArity)
   }
 
   private def registerUDF(
       name: String,
       returnType: ExpressionType,
-      argTypes: ExpressionType): Unit = {
+      argTypes: ExpressionType,
+      variableArity: Boolean): Unit = {
     assert(argTypes.dataType.isInstanceOf[StructType])
-    UDFMap.put(
-      (name, argTypes.dataType.asInstanceOf[StructType].fields.map(_.dataType)),
-      returnType)
+    val v =
+      UDFMap.getOrElseUpdate(name, mutable.MutableList[UDFSignature]())
+    v += UDFSignature(
+      returnType,
+      argTypes.dataType.asInstanceOf[StructType].fields.map(_.dataType),
+      variableArity)
     UDFNames += name
     logInfo(s"Registered UDF: $name($argTypes) -> $returnType")
   }
@@ -142,12 +171,14 @@ object UDFResolver extends Logging {
       name: String,
       returnType: Array[Byte],
       argTypes: Array[Byte],
-      intermediateTypes: Array[Byte]): Unit = {
+      intermediateTypes: Array[Byte],
+      variableArity: Boolean): Unit = {
     registerUDAF(
       name,
       ConverterUtils.parseFromBytes(returnType),
       ConverterUtils.parseFromBytes(argTypes),
-      ConverterUtils.parseFromBytes(intermediateTypes)
+      ConverterUtils.parseFromBytes(intermediateTypes),
+      variableArity
     )
   }
 
@@ -155,7 +186,8 @@ object UDFResolver extends Logging {
       name: String,
       returnType: ExpressionType,
       argTypes: ExpressionType,
-      intermediateTypes: ExpressionType): Unit = {
+      intermediateTypes: ExpressionType,
+      variableArity: Boolean): Unit = {
     assert(argTypes.dataType.isInstanceOf[StructType])
     assert(intermediateTypes.dataType.isInstanceOf[StructType])
 
@@ -164,10 +196,14 @@ object UDFResolver extends Logging {
         case (f, index) =>
           AttributeReference(s"inter_$index", f.dataType, f.nullable)()
       }
-    UDAFMap.put(
-      (name, argTypes.dataType.asInstanceOf[StructType].fields.map(_.dataType)),
-      (returnType, aggBufferAttributes)
-    )
+
+    val v =
+      UDAFMap.getOrElseUpdate(name, mutable.MutableList[UDAFSignature]())
+    v += UDAFSignature(
+      returnType,
+      argTypes.dataType.asInstanceOf[StructType].fields.map(_.dataType),
+      variableArity,
+      aggBufferAttributes)
     UDAFNames += name
     logInfo(s"Registered UDAF: $name($argTypes) -> $returnType")
   }
@@ -196,16 +232,16 @@ object UDFResolver extends Logging {
   def resolveUdfConf(sparkConf: SparkConf, isDriver: Boolean): Unit = {
     val udfLibPaths = if (isDriver) {
       sparkConf
-        .getOption(BackendSettings.GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS)
-        .orElse(sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS))
+        .getOption(VeloxBackendSettings.GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS)
+        .orElse(sparkConf.getOption(VeloxBackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS))
     } else {
-      sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)
+      sparkConf.getOption(VeloxBackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)
     }
 
     udfLibPaths match {
       case Some(paths) =>
         sparkConf.set(
-          BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS,
+          VeloxBackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS,
           getAllLibraries(sparkConf, isDriver, paths))
       case None =>
     }
@@ -294,7 +330,7 @@ object UDFResolver extends Logging {
   def getFunctionSignatures: Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
     val sparkContext = SparkContext.getActive.get
     val sparkConf = sparkContext.conf
-    val udfLibPaths = sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)
+    val udfLibPaths = sparkConf.getOption(VeloxBackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)
 
     udfLibPaths match {
       case None =>
@@ -319,30 +355,81 @@ object UDFResolver extends Logging {
   }
 
   private def getUdfExpression(name: String)(children: Seq[Expression]) = {
-    val expressionType =
-      UDFMap.getOrElse(
-        (name, children.map(_.dataType)),
-        throw new UnsupportedOperationException(
-          s"UDF $name -> ${children.map(_.dataType.simpleString).mkString(", ")} " +
-            s"is not registered.")
-      )
-    UDFExpression(name, expressionType.dataType, expressionType.nullable, children)
+    def errorMessage: String =
+      s"UDF $name -> ${children.map(_.dataType.simpleString).mkString(", ")} is not registered."
+
+    val signatures =
+      UDFMap.getOrElse(name, throw new UnsupportedOperationException(errorMessage));
+
+    signatures.find(sig => tryBind(sig, children.map(_.dataType))) match {
+      case Some(sig) =>
+        UDFExpression(name, sig.expressionType.dataType, sig.expressionType.nullable, children)
+      case None =>
+        throw new UnsupportedOperationException(errorMessage)
+    }
   }
 
   private def getUdafExpression(name: String)(children: Seq[Expression]) = {
-    val (expressionType, aggBufferAttributes) =
+    def errorMessage: String =
+      s"UDAF $name -> ${children.map(_.dataType.simpleString).mkString(", ")} is not registered."
+
+    val signatures =
       UDAFMap.getOrElse(
-        (name, children.map(_.dataType)),
-        throw new UnsupportedOperationException(
-          s"UDAF $name -> ${children.map(_.dataType.simpleString).mkString(", ")} " +
-            s"is not registered.")
+        name,
+        throw new UnsupportedOperationException(errorMessage)
       )
 
-    UserDefinedAggregateFunction(
-      name,
-      expressionType.dataType,
-      expressionType.nullable,
-      children,
-      aggBufferAttributes)
+    signatures.find(sig => tryBind(sig, children.map(_.dataType))) match {
+      case Some(sig) =>
+        UserDefinedAggregateFunction(
+          name,
+          sig.expressionType.dataType,
+          sig.expressionType.nullable,
+          children,
+          sig.intermediateAttrs)
+      case None =>
+        throw new UnsupportedOperationException(errorMessage)
+    }
+  }
+
+  // Returns true if required data types match the function signature.
+  // If the function signature is variable arity, the number of the last argument can be zero
+  // or more.
+  private def tryBind(sig: UDFSignatureBase, requiredDataTypes: Seq[DataType]): Boolean = {
+    if (!sig.variableArity) {
+      sig.children.size == requiredDataTypes.size &&
+      sig.children
+        .zip(requiredDataTypes)
+        .forall { case (candidate, required) => DataTypeUtils.sameType(candidate, required) }
+    } else {
+      // If variableArity is true, there must be at least one argument in the signature.
+      if (requiredDataTypes.size < sig.children.size - 1) {
+        false
+      } else if (requiredDataTypes.size == sig.children.size - 1) {
+        sig.children
+          .dropRight(1)
+          .zip(requiredDataTypes)
+          .forall { case (candidate, required) => DataTypeUtils.sameType(candidate, required) }
+      } else {
+        val varArgStartIndex = sig.children.size - 1
+        // First check all var args has the same type with the last argument of the signature.
+        if (
+          !requiredDataTypes
+            .drop(varArgStartIndex)
+            .forall(argType => DataTypeUtils.sameType(sig.children.last, argType))
+        ) {
+          false
+        } else if (varArgStartIndex == 0) {
+          // No fixed args.
+          true
+        } else {
+          // Whether fixed args matches.
+          sig.children
+            .dropRight(1)
+            .zip(requiredDataTypes.dropRight(1 + requiredDataTypes.size - sig.children.size))
+            .forall { case (candidate, required) => DataTypeUtils.sameType(candidate, required) }
+        }
+      }
+    }
   }
 }

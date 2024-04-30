@@ -35,6 +35,7 @@ import org.apache.spark.sql.execution.datasources.v2._
 import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
 import org.apache.spark.sql.execution.joins.{GlutenExistenceJoinSuite, GlutenInnerJoinSuite, GlutenOuterJoinSuite}
 import org.apache.spark.sql.extension.{GlutenCustomerExpressionTransformerSuite, GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
+import org.apache.spark.sql.hive.execution.GlutenHiveSQLQueryCHSuite
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.statistics.SparkFunctionStatistics
 
@@ -848,7 +849,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("atan2")
     .exclude("round/bround")
     .exclude("SPARK-37388: width_bucket")
-    .excludeGlutenTest("round/bround")
   enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
     .exclude("MonotonicallyIncreasingID")
@@ -2196,6 +2196,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SELECT structFieldComplex.Value.`value_(2)` FROM tableWithSchema")
   enableSuite[SparkFunctionStatistics]
   enableSuite[GlutenSparkSessionExtensionSuite]
+  enableSuite[GlutenHiveSQLQueryCHSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = ClickHouseSQLQueryTestSettings
 }

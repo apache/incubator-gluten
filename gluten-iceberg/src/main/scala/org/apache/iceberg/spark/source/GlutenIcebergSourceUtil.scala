@@ -16,6 +16,7 @@
  */
 package org.apache.iceberg.spark.source
 
+import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.substrait.rel.{IcebergLocalFilesBuilder, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
@@ -88,9 +89,9 @@ object GlutenIcebergSourceUtil {
             case _ =>
           }
       }
-      throw new UnsupportedOperationException("Iceberg Only support parquet and orc file format.")
+      throw new GlutenNotSupportException("Iceberg Only support parquet and orc file format.")
     case _ =>
-      throw new UnsupportedOperationException("Only support iceberg SparkBatchQueryScan.")
+      throw new GlutenNotSupportException("Only support iceberg SparkBatchQueryScan.")
   }
 
   def getPartitionSchema(sparkScan: Scan): StructType = sparkScan match {
@@ -156,6 +157,6 @@ object GlutenIcebergSourceUtil {
       case FileFormat.PARQUET => ReadFileFormat.ParquetReadFormat
       case FileFormat.ORC => ReadFileFormat.OrcReadFormat
       case _ =>
-        throw new UnsupportedOperationException("Iceberg Only support parquet and orc file format.")
+        throw new GlutenNotSupportException("Iceberg Only support parquet and orc file format.")
     }
 }

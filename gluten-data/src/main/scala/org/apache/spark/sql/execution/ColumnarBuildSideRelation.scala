@@ -74,6 +74,7 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
           ColumnarBatches.create(Runtimes.contextInstance(), handle)
         }
       })
+      .protectInvocationFlow()
       .recycleIterator {
         jniWrapper.close(serializeHandle)
       }

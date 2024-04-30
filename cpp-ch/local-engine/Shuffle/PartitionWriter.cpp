@@ -181,7 +181,7 @@ size_t LocalPartitionWriter::unsafeEvictPartitions(bool for_memory_spill, bool f
     if (for_memory_spill && options->throw_if_memory_exceed)
     {
         // escape memory track from current thread status; add untracked memory limit for create thread object, avoid trigger memory spill again
-        IgnoreMemoryTracker ignore(2 * 1024 * 1024);
+        IgnoreMemoryTracker ignore(settings.spill_memory_overhead);
         ThreadFromGlobalPool thread(spill_to_file);
         thread.join();
     }
@@ -282,6 +282,11 @@ void LocalPartitionWriter::unsafeStop()
     shuffle_writer->split_result.partition_lengths = offsets;
 }
 
+void PartitionWriterSettings::loadFromContext(DB::ContextPtr context)
+{
+    spill_memory_overhead = context->getConfigRef().getUInt64("spill_memory_overhead", 50 << 20);
+}
+
 PartitionWriter::PartitionWriter(CachedShuffleWriter * shuffle_writer_)
     : shuffle_writer(shuffle_writer_)
     , options(&shuffle_writer->options)
@@ -294,6 +299,7 @@ PartitionWriter::PartitionWriter(CachedShuffleWriter * shuffle_writer_)
         partition_block_buffer[partition_id] = std::make_shared<ColumnsBuffer>(options->split_size);
         partition_buffer[partition_id] = std::make_shared<Partition>();
     }
+    settings.loadFromContext(SerializedPlanParser::global_context);
 }
 
 size_t PartitionWriter::evictPartitions(bool for_memory_spill, bool flush_block_buffer)
@@ -358,7 +364,7 @@ void ExternalSortLocalPartitionWriter::write(const PartitionInfo & info, DB::Blo
 size_t ExternalSortLocalPartitionWriter::unsafeEvictPartitions(bool, bool)
 {
     // escape memory track
-    IgnoreMemoryTracker ignore(128 * 1024 * 1024);
+    IgnoreMemoryTracker ignore(settings.spill_memory_overhead);
     if (accumulated_blocks.empty())
         return 0;
     Stopwatch watch;
@@ -390,27 +396,33 @@ std::queue<Block> ExternalSortLocalPartitionWriter::mergeDataInMemory()
     return result;
 }
 
-void ExternalSortLocalPartitionWriter::unsafeStop()
+ExternalSortLocalPartitionWriter::MergeContext ExternalSortLocalPartitionWriter::prepareMerge()
 {
-    // escape memory track
-    IgnoreMemoryTracker ignore(512 * 1024 * 1024);
-    Stopwatch write_time_watch;
-    // no data to write
-    if (streams.empty() && accumulated_blocks.empty())
-        return;
+    MergeContext context;
     if (options->spill_firstly_before_stop)
         unsafeEvictPartitions(false, false);
     auto num_input = accumulated_blocks.empty() ? streams.size() : streams.size() + 1;
     std::unique_ptr<MergingSortedAlgorithm> algorithm = std::make_unique<MergingSortedAlgorithm>(
         sort_header, num_input, sort_description, max_merge_block_size, 0, SortingQueueStrategy::Batch);
-
-    WriteBufferFromFile output(options->data_file, options->io_buffer_size);
-    auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
-    CompressedWriteBuffer compressed_output(output, codec, shuffle_writer->options.io_buffer_size);
-    local_engine::NativeWriter native_writer(compressed_output, output_header);
-
+    context.codec = CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
     auto sorted_memory_data = mergeDataInMemory();
-    SortedPartitionDataMerger merger(std::move(algorithm), streams, sorted_memory_data, output_header);
+    context.merger = std::make_unique<SortedPartitionDataMerger>(std::move(algorithm), streams, sorted_memory_data, output_header);
+    return context;
+}
+
+void ExternalSortLocalPartitionWriter::unsafeStop()
+{
+    // escape memory track
+    IgnoreMemoryTracker ignore(settings.spill_memory_overhead);
+    Stopwatch write_time_watch;
+    // no data to write
+    if (streams.empty() && accumulated_blocks.empty())
+        return;
+    auto context = prepareMerge();
+    WriteBufferFromFile output(options->data_file, options->io_buffer_size);
+    CompressedWriteBuffer compressed_output(output, context.codec, shuffle_writer->options.io_buffer_size);
+    NativeWriter native_writer(compressed_output, output_header);
+
     std::vector<UInt64> partition_length(shuffle_writer->options.partition_num, 0);
     size_t current_file_size = 0;
     size_t current_partition_raw_size = 0;
@@ -427,9 +439,9 @@ void ExternalSortLocalPartitionWriter::unsafeStop()
             current_partition_raw_size = 0;
         }
     };
-    while (!merger.isFinished())
+    while (!context.merger->isFinished())
     {
-        auto result = merger.next();
+        auto result = context.merger->next();
         if (result.empty)
             break;
         for (auto & item : result.blocks)
@@ -447,6 +459,43 @@ void ExternalSortLocalPartitionWriter::unsafeStop()
     shuffle_writer->split_result.total_io_time += compressed_output.getWriteTime();
 }
 
+void ExternalSortCelebornPartitionWriter::unsafeStop()
+{
+    // escape memory track
+    IgnoreMemoryTracker ignore(settings.spill_memory_overhead);
+    Stopwatch write_time_watch;
+    // no data to write
+    if (streams.empty() && accumulated_blocks.empty())
+        return;
+    auto context = prepareMerge();
+
+    WriteBufferFromOwnString output;
+    CompressedWriteBuffer compressed_output(output, context.codec, shuffle_writer->options.io_buffer_size);
+    NativeWriter native_writer(compressed_output, output_header);
+    std::vector<UInt64> partition_length(shuffle_writer->options.partition_num, 0);
+
+    while (!context.merger->isFinished())
+    {
+        auto result = context.merger->next();
+        if (result.empty)
+            break;
+        for (auto & item : result.blocks)
+        {
+            shuffle_writer->split_result.raw_partition_lengths[item.second] += native_writer.write(item.first);
+            compressed_output.sync();
+            partition_length[item.second] += output.count();
+            Stopwatch push_time;
+            celeborn_client->pushPartitionData(item.second, output.str().data(), output.str().size());
+            shuffle_writer->split_result.total_io_time += push_time.elapsedNanoseconds();
+            output.restart();
+        }
+    }
+
+    shuffle_writer->split_result.partition_lengths = partition_length;
+    shuffle_writer->split_result.total_write_time += write_time_watch.elapsedNanoseconds();
+    shuffle_writer->split_result.total_compress_time += compressed_output.getCompressTime();
+    shuffle_writer->split_result.total_io_time += compressed_output.getWriteTime();
+}
 CelebornPartitionWriter::CelebornPartitionWriter(CachedShuffleWriter * shuffleWriter, std::unique_ptr<CelebornClient> celeborn_client_)
     : PartitionWriter(shuffleWriter), celeborn_client(std::move(celeborn_client_))
 {
@@ -512,7 +561,7 @@ size_t CelebornPartitionWriter::unsafeEvictSinglePartition(bool for_memory_spill
     if (for_memory_spill && options->throw_if_memory_exceed)
     {
         // escape memory track from current thread status; add untracked memory limit for create thread object, avoid trigger memory spill again
-        IgnoreMemoryTracker ignore(2 * 1024 * 1024);
+        IgnoreMemoryTracker ignore(settings.spill_memory_overhead);
         ThreadFromGlobalPool thread(spill_to_celeborn);
         thread.join();
     }

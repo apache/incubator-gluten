@@ -1903,7 +1903,7 @@ ASTPtr ASTParser::parseToAST(const Names & names, const substrait::Expression & 
 
         auto substrait_name = function_signature.substr(0, function_signature.find(':'));
         auto func_parser = FunctionParserFactory::instance().tryGet(substrait_name, plan_parser);
-        String function_name = func_parser ? func_parser->getCHFunctionName(scalar_function)
+        String function_name = func_parser ? func_parser->getName()
                                            : SerializedPlanParser::getFunctionName(function_signature, scalar_function);
 
         ASTs ast_args;

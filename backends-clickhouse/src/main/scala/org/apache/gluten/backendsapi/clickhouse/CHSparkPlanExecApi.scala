@@ -681,6 +681,14 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     throw new GlutenNotSupportException("ColumnarWriteFilesExec is not support in ch backend.")
   }
 
+  override def createColumnarArrowEvalPythonExec(
+      udfs: Seq[PythonUDF],
+      resultAttrs: Seq[Attribute],
+      child: SparkPlan,
+      evalType: Int): SparkPlan = {
+    throw new GlutenNotSupportException("ColumnarArrowEvalPythonExec is not support in ch backend.")
+  }
+
   /**
    * Define whether the join operator is fallback because of the join operator is not supported by
    * backend

@@ -31,18 +31,20 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{BloomFilterAggregate, RegrIntercept, RegrR2, RegrReplacement, RegrSlope, RegrSXY, TypedImperativeAggregate}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
+import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution, KeyGroupedPartitioning, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.types.DataTypeUtils
-import org.apache.spark.sql.catalyst.util.TimestampFormatter
+import org.apache.spark.sql.catalyst.util.{InternalRowComparableWrapper, TimestampFormatter}
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Scan}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
+import org.apache.spark.sql.execution.window.{WindowGroupLimitExec, WindowGroupLimitExecShim}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
@@ -250,6 +252,35 @@ class Spark35Shims extends SparkShims {
     (getLimit(plan.limit, plan.offset), plan.offset)
   }
 
+  override def isWindowGroupLimitExec(plan: SparkPlan): Boolean = plan match {
+    case _: WindowGroupLimitExec => true
+    case _ => false
+  }
+
+  override def getWindowGroupLimitExecShim(plan: SparkPlan): WindowGroupLimitExecShim = {
+    val windowGroupLimitPlan = plan.asInstanceOf[WindowGroupLimitExec]
+    WindowGroupLimitExecShim(
+      windowGroupLimitPlan.partitionSpec,
+      windowGroupLimitPlan.orderSpec,
+      windowGroupLimitPlan.rankLikeFunction,
+      windowGroupLimitPlan.limit,
+      windowGroupLimitPlan.mode,
+      windowGroupLimitPlan.child
+    )
+  }
+
+  override def getWindowGroupLimitExec(windowGroupLimitPlan: SparkPlan): SparkPlan = {
+    val windowGroupLimitExecShim = windowGroupLimitPlan.asInstanceOf[WindowGroupLimitExecShim]
+    WindowGroupLimitExec(
+      windowGroupLimitExecShim.partitionSpec,
+      windowGroupLimitExecShim.orderSpec,
+      windowGroupLimitExecShim.rankLikeFunction,
+      windowGroupLimitExecShim.limit,
+      windowGroupLimitExecShim.mode,
+      windowGroupLimitExecShim.child
+    )
+  }
+
   override def getLimitAndOffsetFromTopK(plan: TakeOrderedAndProjectExec): (Int, Int) = {
     (getLimit(plan.limit, plan.offset), plan.offset)
   }
@@ -352,12 +383,46 @@ class Spark35Shims extends SparkShims {
         None
     }
   }
+  override def getKeyGroupedPartitioning(batchScan: BatchScanExec): Option[Seq[Expression]] = {
+    batchScan.keyGroupedPartitioning
+  }
 
-  override def getKeyGroupedPartitioning(batchScan: BatchScanExec): Option[Seq[Expression]] = null
+  override def getCommonPartitionValues(
+      batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] = {
+    batchScan.spjParams.commonPartitionValues
+  }
 
-  override def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] =
-    null
-
+  override def orderPartitions(
+      scan: Scan,
+      keyGroupedPartitioning: Option[Seq[Expression]],
+      filteredPartitions: Seq[Seq[InputPartition]],
+      outputPartitioning: Partitioning): Seq[InputPartition] = {
+    scan match {
+      case _ if keyGroupedPartitioning.isDefined =>
+        var newPartitions = filteredPartitions
+        outputPartitioning match {
+          case p: KeyGroupedPartitioning =>
+            val partitionMapping = newPartitions
+              .map(
+                s =>
+                  InternalRowComparableWrapper(
+                    s.head.asInstanceOf[HasPartitionKey],
+                    p.expressions) -> s)
+              .toMap
+            newPartitions = p.partitionValues.map {
+              partValue =>
+                // Use empty partition for those partition values that are not present
+                partitionMapping.getOrElse(
+                  InternalRowComparableWrapper(partValue, p.expressions),
+                  Seq.empty)
+            }
+          case _ =>
+        }
+        newPartitions.flatten
+      case _ =>
+        filteredPartitions.flatten
+    }
+  }
   override def supportsRowBased(plan: SparkPlan): Boolean = plan.supportsRowBased
 
   override def withTryEvalMode(expr: Expression): Boolean = {

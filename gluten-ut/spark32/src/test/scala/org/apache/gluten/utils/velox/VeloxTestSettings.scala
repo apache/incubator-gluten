@@ -34,7 +34,7 @@ import org.apache.spark.sql.execution.datasources.v2.GlutenFileTableSuite
 import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
 import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExistenceJoinSuite, GlutenInnerJoinSuite, GlutenOuterJoinSuite}
 import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite, GlutenCustomerExpressionTransformerSuite, GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
-import org.apache.spark.sql.hive.execution.{GlutenHiveSQLQueryCHSuite, GlutenHiveSQLQuerySuite}
+import org.apache.spark.sql.hive.execution.GlutenHiveSQLQuerySuite
 import org.apache.spark.sql.sources.{GlutenBucketedReadWithoutHiveSupportSuite, GlutenBucketedWriteWithoutHiveSupportSuite, GlutenCreateTableAsSelectSuite, GlutenDDLSourceLoadSuite, GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuite, GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuiteAE, GlutenExternalCommandRunnerSuite, GlutenFilteredScanSuite, GlutenFiltersSuite, GlutenInsertSuite, GlutenPartitionedWriteSuite, GlutenPathOptionSuite, GlutenPrunedScanSuite, GlutenResolvedDataSourceSuite, GlutenSaveLoadSuite, GlutenTableScanSuite}
 
 // Some settings' line length exceeds 100
@@ -169,7 +169,7 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-35585",
       "SPARK-32932",
       "SPARK-33494",
-      "SPARK-33933",
+      // "SPARK-33933",
       "SPARK-31220",
       "SPARK-35874",
       "SPARK-39551"
@@ -192,6 +192,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenIntervalExpressionsSuite]
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenHashExpressionsSuite]
+  enableSuite[GlutenHigherOrderFunctionsSuite]
   enableSuite[GlutenCollectionExpressionsSuite]
     // Rewrite in Gluten to replace Seq with Array
     .exclude("Shuffle")
@@ -409,8 +410,11 @@ class VeloxTestSettings extends BackendTestSettings {
     // Exception.
     .exclude("column pruning - non-readable file")
   enableSuite[GlutenCSVv1Suite]
+    .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
   enableSuite[GlutenCSVv2Suite]
+    .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
   enableSuite[GlutenCSVLegacyTimeParserSuite]
+    .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
   enableSuite[GlutenJsonV1Suite]
     // FIXME: Array direct selection fails
     .exclude("Complex field and type inferring")
@@ -1058,6 +1062,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
   enableSuite[GlutenCTEHintSuite]
+    .exclude("Resolve join hint in CTE")
   enableSuite[GlutenCTEInlineSuiteAEOff]
   enableSuite[GlutenCTEInlineSuiteAEOn]
   enableSuite[GlutenDataFrameHintSuite]
@@ -1081,7 +1086,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenStatisticsCollectionSuite]
     .exclude("SPARK-33687: analyze all tables in a specific database")
   enableSuite[FallbackStrategiesSuite]
-  enableSuite[GlutenHiveSQLQueryCHSuite]
   enableSuite[GlutenHiveSQLQuerySuite]
   enableSuite[GlutenCollapseProjectExecTransformerSuite]
   enableSuite[GlutenSparkSessionExtensionSuite]

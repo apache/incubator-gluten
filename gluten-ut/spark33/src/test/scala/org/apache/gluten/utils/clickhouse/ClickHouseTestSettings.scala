@@ -37,6 +37,7 @@ import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
 import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExistenceJoinSuite, GlutenInnerJoinSuite, GlutenOuterJoinSuite}
 import org.apache.spark.sql.extension.{GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
 import org.apache.spark.sql.gluten.GlutenFallbackSuite
+import org.apache.spark.sql.hive.execution.GlutenHiveSQLQueryCHSuite
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.statistics.SparkFunctionStatistics
 
@@ -852,7 +853,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("unhex")
     .exclude("atan2")
     .exclude("round/bround/floor/ceil")
-    .excludeGlutenTest("round/bround/floor/ceil")
     .exclude("SPARK-36922: Support ANSI intervals for SIGN/SIGNUM")
     .exclude("SPARK-35926: Support YearMonthIntervalType in width-bucket function")
     .exclude("SPARK-35925: Support DayTimeIntervalType in width-bucket function")
@@ -2107,6 +2107,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeGlutenTest("fallbackSummary with cache")
     .excludeGlutenTest("fallbackSummary with cached data and shuffle")
   enableSuite[GlutenSparkSessionExtensionSuite]
+  enableSuite[GlutenHiveSQLQueryCHSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = ClickHouseSQLQueryTestSettings
 }

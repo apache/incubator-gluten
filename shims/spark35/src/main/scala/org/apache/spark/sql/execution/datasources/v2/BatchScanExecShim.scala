@@ -41,7 +41,18 @@ abstract class BatchScanExecShim(
     val commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None,
     val applyPartialClustering: Boolean = false,
     val replicatePartitions: Boolean = false)
-  extends AbstractBatchScanExec(output, scan, runtimeFilters, table = table) {
+  extends AbstractBatchScanExec(
+    output,
+    scan,
+    runtimeFilters,
+    ordering,
+    table,
+    StoragePartitionJoinParams(
+      keyGroupedPartitioning,
+      commonPartitionValues,
+      applyPartialClustering,
+      replicatePartitions)
+  ) {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] = Map()

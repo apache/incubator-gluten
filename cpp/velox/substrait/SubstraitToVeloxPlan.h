@@ -74,8 +74,11 @@ class SubstraitToVeloxPlanConverter {
   /// Used to convert Substrait GenerateRel into Velox PlanNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::GenerateRel& generateRel);
 
-  /// Used to convert Substrait SortRel into Velox PlanNode.
+  /// Used to convert Substrait WindowRel into Velox PlanNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::WindowRel& windowRel);
+
+  /// Used to convert Substrait WindowGroupLimitRel into Velox PlanNode.
+  core::PlanNodePtr toVeloxPlan(const ::substrait::WindowGroupLimitRel& windowGroupLimitRel);
 
   /// Used to convert Substrait JoinRel into Velox PlanNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::JoinRel& joinRel);

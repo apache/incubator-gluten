@@ -210,6 +210,13 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           }
 
           runQueryAndCompare(
+            "select max(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey" +
+              " RANGE BETWEEN 6 PRECEDING AND CURRENT ROW) from lineitem ") {
+            checkSparkOperatorMatch[WindowExec]
+          }
+
+          runQueryAndCompare(
             "select ntile(4) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
             checkGlutenOperatorMatch[WindowExecTransformer]
