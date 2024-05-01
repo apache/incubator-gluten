@@ -831,8 +831,8 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     withTempPath {
       path =>
         Seq(
-          (Timestamp.valueOf("2015-07-24 12:30:40.512")),
-          (Timestamp.valueOf("2024-05-01 09:12:32.216")),
+          Timestamp.valueOf("2015-07-24 12:30:40.512"),
+          Timestamp.valueOf("2024-05-01 09:12:32.216"),
         ).toDF("a")
           .write
           .parquet(path.getCanonicalPath)
