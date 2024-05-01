@@ -16,8 +16,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_04_28
+VELOX_REPO=https://github.com/acvictor/velox.git
+VELOX_BRANCH=acvictor/updateFileHandleGen
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
