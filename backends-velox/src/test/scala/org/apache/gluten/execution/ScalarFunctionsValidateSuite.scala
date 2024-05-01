@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.spark.sql.catalyst.expressions.{Literal, UnixMillis}
 import org.apache.spark.sql.types._
 
 import java.sql.Timestamp
@@ -826,4 +827,21 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("unix_millis") {
+    withTempPath {
+      path =>
+        Seq(
+          (Timestamp.valueOf("2015-07-24 12:30:40.512")),
+          (Timestamp.valueOf("2024-05-01 09:12:32.216")),
+        ).toDF("a")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+
+        runQueryAndCompare("SELECT unix_millis(a) from view") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
 }
