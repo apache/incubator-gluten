@@ -482,6 +482,9 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
   // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
   // FIXME this uses process-wise off-heap memory which is not for task
   try {
+    if (veloxCfg_->isValueExists(kDefaultSessionTimezone)) {
+      configs[velox::core::QueryConfig::kSessionTimezone] = veloxCfg_->get<std::string>(kDefaultSessionTimezone, "");
+    }
     if (veloxCfg_->isValueExists(kSessionTimezone)) {
       configs[velox::core::QueryConfig::kSessionTimezone] = veloxCfg_->get<std::string>(kSessionTimezone, "");
     }
