@@ -484,7 +484,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
   try {
     if (veloxCfg_->isValueExists(kSessionTimezone)) {
       configs[velox::core::QueryConfig::kSessionTimezone] = veloxCfg_->get<std::string>(kSessionTimezone, "");
-    }    
+    }
     // Adjust timestamp according to the above configured session timezone.
     configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = "true";
     // Align Velox size function with Spark.
