@@ -67,6 +67,7 @@ object ExecUtil {
           row
         }
       })
+      .protectInvocationFlow()
       .recycleIterator {
         jniWrapper.nativeClose(c2rHandle)
       }

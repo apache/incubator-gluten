@@ -47,6 +47,8 @@ In certain cases, Gluten result may be different from Vanilla spark.
 #### JSON functions
 Velox only supports double quotes surrounded strings, not single quotes, in JSON data. If single quotes are used, gluten will produce incorrect result.
 
+Velox doesn't support [*] in path when get_json_object function is called and returns null instead.
+
 #### Parquet read conf
 Gluten supports `spark.files.ignoreCorruptFiles` with default false, if true, the behavior is same as config false.
 Gluten ignores `spark.sql.parquet.datetimeRebaseModeInRead`, it only returns what write in parquet file. It does not consider the difference between legacy

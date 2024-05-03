@@ -747,11 +747,26 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
-  test("weekofyear") {
+  test("test array transform") {
+    withTable("t") {
+      sql("create table t (arr ARRAY<INT>) using parquet")
+      sql("insert into t values(array(1, 2, 3, null))")
+      runQueryAndCompare("select transform(arr, x -> x + 1) from t") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
+
+  test("extract date field") {
     withTable("t") {
       sql("create table t (dt date) using parquet")
       sql("insert into t values(date '2008-02-20')")
       runQueryAndCompare("select weekofyear(dt) from t") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+      runQueryAndCompare(
+        "SELECT date_part('yearofweek', dt), extract(yearofweek from dt)" +
+          " from t") {
         checkGlutenOperatorMatch[ProjectExecTransformer]
       }
     }
@@ -761,6 +776,52 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     runQueryAndCompare(
       "select try_add(cast(l_orderkey as int), 1), try_add(cast(l_orderkey as int), 2147483647)" +
         " from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("test array forall") {
+    withTempPath {
+      path =>
+        Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
+          .toDF("value")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare("select forall(value, x -> x % 2 == 1) as res from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+
+        runQueryAndCompare("select forall(value, x -> x is not null) as res from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("test array exists") {
+    withTempPath {
+      path =>
+        Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
+          .toDF("value")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare("select exists(value, x -> x % 2 == 1) as res from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+
+        runQueryAndCompare("select exists(value, x -> x is not null) as res from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("negative") {
+    runQueryAndCompare("select negative(l_orderkey) from lineitem") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }

@@ -127,7 +127,8 @@ WholeStageResultIterator::WholeStageResultIterator(
       fmt::format("Gluten_Stage_{}_TID_{}", std::to_string(taskInfo_.stageId), std::to_string(taskInfo_.taskId)),
       std::move(planFragment),
       0,
-      std::move(queryCtx));
+      std::move(queryCtx),
+      velox::exec::Task::ExecutionMode::kSerial);
   if (!task_->supportsSingleThreadedExecution()) {
     throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
   }
@@ -485,7 +486,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kSessionTimezone] =
         veloxCfg_->get<std::string>(kSessionTimezone, defaultTimezone);
     // Adjust timestamp according to the above configured session timezone.
-    configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = std::to_string(true);
+    configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = "true";
     // Align Velox size function with Spark.
     configs[velox::core::QueryConfig::kSparkLegacySizeOfNull] = std::to_string(veloxCfg_->get<bool>(kLegacySize, true));
 
@@ -504,7 +505,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
       configs[velox::core::QueryConfig::kAbandonPartialAggregationMinRows] =
           std::to_string(veloxCfg_->get<int32_t>(kAbandonPartialAggregationMinRows, 100000));
       // Spark's collect_set ignore nulls.
-      configs[velox::core::QueryConfig::kPrestoArrayAggIgnoreNulls] = std::to_string(true);
+      configs[velox::core::QueryConfig::kPrestoArrayAggIgnoreNulls] = "true";
     }
     // Spill configs
     if (spillStrategy_ == "none") {
@@ -520,7 +521,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         std::to_string(veloxCfg_->get<bool>(kOrderBySpillEnabled, true));
     configs[velox::core::QueryConfig::kMaxSpillLevel] = std::to_string(veloxCfg_->get<int32_t>(kMaxSpillLevel, 4));
     configs[velox::core::QueryConfig::kMaxSpillFileSize] =
-        std::to_string(veloxCfg_->get<uint64_t>(kMaxSpillFileSize, 20L * 1024 * 1024));
+        std::to_string(veloxCfg_->get<uint64_t>(kMaxSpillFileSize, 1L * 1024 * 1024 * 1024));
     configs[velox::core::QueryConfig::kMaxSpillRunRows] =
         std::to_string(veloxCfg_->get<uint64_t>(kMaxSpillRunRows, 12L * 1024 * 1024));
     configs[velox::core::QueryConfig::kMaxSpillBytes] =

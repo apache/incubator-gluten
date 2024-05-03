@@ -328,6 +328,15 @@ message WindowRel {
   }
 }
 
+message WindowGroupLimitRel {
+  RelCommon common = 1;
+  Rel input = 2;
+  repeated Expression partition_expressions = 3;
+  repeated SortField sorts = 4;
+  int32 limit = 5;
+  substrait.extensions.AdvancedExtension advanced_extension = 10;
+}
+
 // The relational operator capturing simple FILTERs (as in the WHERE clause of SQL)
 message FilterRel {
   RelCommon common = 1;
@@ -495,6 +504,7 @@ message Rel {
     GenerateRel generate = 17;
     WriteRel write = 18;
     TopNRel top_n = 19;
+    WindowGroupLimitRel windowGroupLimit = 20;
   }
 }
 

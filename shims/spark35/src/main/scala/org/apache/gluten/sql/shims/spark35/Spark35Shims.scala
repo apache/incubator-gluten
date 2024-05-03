@@ -16,11 +16,10 @@
  */
 package org.apache.gluten.sql.shims.spark35
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.expression.{ExpressionNames, Sig}
 import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
 
-import org.apache.spark.{ShuffleUtils, SparkContext, SparkContextUtils, SparkException, TaskContext, TaskContextUtils}
+import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.paths.SparkPath
@@ -30,20 +29,22 @@ import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.{ExtendedAnalysisException, InternalRow}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.BloomFilterAggregate
+import org.apache.spark.sql.catalyst.expressions.aggregate.{BloomFilterAggregate, RegrIntercept, RegrR2, RegrReplacement, RegrSlope, RegrSXY, TypedImperativeAggregate}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
+import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution, KeyGroupedPartitioning, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.types.DataTypeUtils
-import org.apache.spark.sql.catalyst.util.TimestampFormatter
+import org.apache.spark.sql.catalyst.util.{InternalRowComparableWrapper, TimestampFormatter}
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.execution.{FileSourceScanExec, GlobalLimitExec, GlutenFileFormatWriter, PartitionedFileUtil, SparkPlan, TakeOrderedAndProjectExec}
-import org.apache.spark.sql.execution.datasources.{BucketingUtils, FileFormat, FilePartition, FileScanRDD, FileStatusWithMetadata, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex, WriteJobDescription, WriteTaskResult}
+import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Scan}
+import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
+import org.apache.spark.sql.execution.window.{WindowGroupLimitExec, WindowGroupLimitExecShim}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
@@ -65,19 +66,22 @@ class Spark35Shims extends SparkShims {
   }
 
   override def scalarExpressionMappings: Seq[Sig] = {
-    val list = if (GlutenConfig.getConf.enableNativeBloomFilter) {
-      Seq(
-        Sig[BloomFilterMightContain](ExpressionNames.MIGHT_CONTAIN),
-        Sig[BloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG))
-    } else Seq.empty
-    list ++ Seq(
+    Seq(
       Sig[SplitPart](ExpressionNames.SPLIT_PART),
       Sig[Sec](ExpressionNames.SEC),
       Sig[Csc](ExpressionNames.CSC),
       Sig[Empty2Null](ExpressionNames.EMPTY2NULL))
   }
 
-  override def aggregateExpressionMappings: Seq[Sig] = Seq.empty
+  override def aggregateExpressionMappings: Seq[Sig] = {
+    Seq(
+      Sig[RegrR2](ExpressionNames.REGR_R2),
+      Sig[RegrSlope](ExpressionNames.REGR_SLOPE),
+      Sig[RegrIntercept](ExpressionNames.REGR_INTERCEPT),
+      Sig[RegrSXY](ExpressionNames.REGR_SXY),
+      Sig[RegrReplacement](ExpressionNames.REGR_REPLACEMENT)
+    )
+  }
 
   override def convertPartitionTransforms(
       partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {
@@ -142,22 +146,60 @@ class Spark35Shims extends SparkShims {
       @transient locations: Array[String] = Array.empty): PartitionedFile =
     PartitionedFile(partitionValues, SparkPath.fromPathString(filePath), start, length, locations)
 
-  override def hasBloomFilterAggregate(
-      agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec): Boolean = {
-    agg.aggregateExpressions.exists(
-      expr => expr.aggregateFunction.isInstanceOf[BloomFilterAggregate])
+  override def bloomFilterExpressionMappings(): Seq[Sig] = Seq(
+    Sig[BloomFilterMightContain](ExpressionNames.MIGHT_CONTAIN),
+    Sig[BloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG)
+  )
+
+  override def newBloomFilterAggregate[T](
+      child: Expression,
+      estimatedNumItemsExpression: Expression,
+      numBitsExpression: Expression,
+      mutableAggBufferOffset: Int,
+      inputAggBufferOffset: Int): TypedImperativeAggregate[T] = {
+    BloomFilterAggregate(
+      child,
+      estimatedNumItemsExpression,
+      numBitsExpression,
+      mutableAggBufferOffset,
+      inputAggBufferOffset).asInstanceOf[TypedImperativeAggregate[T]]
   }
 
-  override def extractSubPlanFromMightContain(expr: Expression): Option[SparkPlan] = {
-    expr match {
-      case mc @ BloomFilterMightContain(sub: org.apache.spark.sql.execution.ScalarSubquery, _) =>
-        Some(sub.plan)
-      case mc @ BloomFilterMightContain(
-            g @ GetStructField(sub: org.apache.spark.sql.execution.ScalarSubquery, _, _),
-            _) =>
-        Some(sub.plan)
-      case _ => None
-    }
+  override def newMightContain(
+      bloomFilterExpression: Expression,
+      valueExpression: Expression): BinaryExpression = {
+    BloomFilterMightContain(bloomFilterExpression, valueExpression)
+  }
+
+  override def replaceBloomFilterAggregate[T](
+      expr: Expression,
+      bloomFilterAggReplacer: (
+          Expression,
+          Expression,
+          Expression,
+          Int,
+          Int) => TypedImperativeAggregate[T]): Expression = expr match {
+    case BloomFilterAggregate(
+          child,
+          estimatedNumItemsExpression,
+          numBitsExpression,
+          mutableAggBufferOffset,
+          inputAggBufferOffset) =>
+      bloomFilterAggReplacer(
+        child,
+        estimatedNumItemsExpression,
+        numBitsExpression,
+        mutableAggBufferOffset,
+        inputAggBufferOffset)
+    case other => other
+  }
+
+  override def replaceMightContain[T](
+      expr: Expression,
+      mightContainReplacer: (Expression, Expression) => BinaryExpression): Expression = expr match {
+    case BloomFilterMightContain(bloomFilterExpression, valueExpression) =>
+      mightContainReplacer(bloomFilterExpression, valueExpression)
+    case other => other
   }
 
   override def generateMetadataColumns(
@@ -208,6 +250,35 @@ class Spark35Shims extends SparkShims {
 
   override def getLimitAndOffsetFromGlobalLimit(plan: GlobalLimitExec): (Int, Int) = {
     (getLimit(plan.limit, plan.offset), plan.offset)
+  }
+
+  override def isWindowGroupLimitExec(plan: SparkPlan): Boolean = plan match {
+    case _: WindowGroupLimitExec => true
+    case _ => false
+  }
+
+  override def getWindowGroupLimitExecShim(plan: SparkPlan): WindowGroupLimitExecShim = {
+    val windowGroupLimitPlan = plan.asInstanceOf[WindowGroupLimitExec]
+    WindowGroupLimitExecShim(
+      windowGroupLimitPlan.partitionSpec,
+      windowGroupLimitPlan.orderSpec,
+      windowGroupLimitPlan.rankLikeFunction,
+      windowGroupLimitPlan.limit,
+      windowGroupLimitPlan.mode,
+      windowGroupLimitPlan.child
+    )
+  }
+
+  override def getWindowGroupLimitExec(windowGroupLimitPlan: SparkPlan): SparkPlan = {
+    val windowGroupLimitExecShim = windowGroupLimitPlan.asInstanceOf[WindowGroupLimitExecShim]
+    WindowGroupLimitExec(
+      windowGroupLimitExecShim.partitionSpec,
+      windowGroupLimitExecShim.orderSpec,
+      windowGroupLimitExecShim.rankLikeFunction,
+      windowGroupLimitExecShim.limit,
+      windowGroupLimitExecShim.mode,
+      windowGroupLimitExecShim.child
+    )
   }
 
   override def getLimitAndOffsetFromTopK(plan: TakeOrderedAndProjectExec): (Int, Int) = {
@@ -312,12 +383,46 @@ class Spark35Shims extends SparkShims {
         None
     }
   }
+  override def getKeyGroupedPartitioning(batchScan: BatchScanExec): Option[Seq[Expression]] = {
+    batchScan.keyGroupedPartitioning
+  }
 
-  override def getKeyGroupedPartitioning(batchScan: BatchScanExec): Option[Seq[Expression]] = null
+  override def getCommonPartitionValues(
+      batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] = {
+    batchScan.spjParams.commonPartitionValues
+  }
 
-  override def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] =
-    null
-
+  override def orderPartitions(
+      scan: Scan,
+      keyGroupedPartitioning: Option[Seq[Expression]],
+      filteredPartitions: Seq[Seq[InputPartition]],
+      outputPartitioning: Partitioning): Seq[InputPartition] = {
+    scan match {
+      case _ if keyGroupedPartitioning.isDefined =>
+        var newPartitions = filteredPartitions
+        outputPartitioning match {
+          case p: KeyGroupedPartitioning =>
+            val partitionMapping = newPartitions
+              .map(
+                s =>
+                  InternalRowComparableWrapper(
+                    s.head.asInstanceOf[HasPartitionKey],
+                    p.expressions) -> s)
+              .toMap
+            newPartitions = p.partitionValues.map {
+              partValue =>
+                // Use empty partition for those partition values that are not present
+                partitionMapping.getOrElse(
+                  InternalRowComparableWrapper(partValue, p.expressions),
+                  Seq.empty)
+            }
+          case _ =>
+        }
+        newPartitions.flatten
+      case _ =>
+        filteredPartitions.flatten
+    }
+  }
   override def supportsRowBased(plan: SparkPlan): Boolean = plan.supportsRowBased
 
   override def withTryEvalMode(expr: Expression): Boolean = {

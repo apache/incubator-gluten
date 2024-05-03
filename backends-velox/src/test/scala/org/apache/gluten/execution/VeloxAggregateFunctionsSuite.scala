@@ -27,6 +27,8 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
 
+  import testImplicits._
+
   override def beforeAll(): Unit = {
     super.beforeAll()
     createTPCHNotNullTables()
@@ -184,6 +186,22 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
               plan => {
                 plan.isInstanceOf[HashAggregateExecTransformer]
               }) == 4)
+        }
+    }
+  }
+
+  test("min_by/max_by") {
+    withTempPath {
+      path =>
+        Seq((5: Integer, 6: Integer), (null: Integer, 11: Integer), (null: Integer, 5: Integer))
+          .toDF("a", "b")
+          .write
+          .parquet(path.getCanonicalPath)
+        spark.read
+          .parquet(path.getCanonicalPath)
+          .createOrReplaceTempView("test")
+        runQueryAndCompare("select min_by(a, b), max_by(a, b) from test") {
+          checkGlutenOperatorMatch[HashAggregateExecTransformer]
         }
     }
   }
@@ -371,8 +389,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     }
   }
 
-  // Disable for Spark3.5.
-  testWithSpecifiedSparkVersion("regr_r2", Some("3.3"), Some("3.4")) {
+  testWithSpecifiedSparkVersion("regr_r2", Some("3.3")) {
     runQueryAndCompare("""
                          |select regr_r2(l_partkey, l_suppkey) from lineitem;
                          |""".stripMargin) {
@@ -391,8 +408,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     }
   }
 
-  // Disable for Spark3.5.
-  testWithSpecifiedSparkVersion("regr_slope", Some("3.4"), Some("3.4")) {
+  testWithSpecifiedSparkVersion("regr_slope", Some("3.4")) {
     runQueryAndCompare("""
                          |select regr_slope(l_partkey, l_suppkey) from lineitem;
                          |""".stripMargin) {
@@ -411,8 +427,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     }
   }
 
-  // Disable for Sparke3.5.
-  testWithSpecifiedSparkVersion("regr_intercept", Some("3.4"), Some("3.4")) {
+  testWithSpecifiedSparkVersion("regr_intercept", Some("3.4")) {
     runQueryAndCompare("""
                          |select regr_intercept(l_partkey, l_suppkey) from lineitem;
                          |""".stripMargin) {
@@ -431,15 +446,46 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     }
   }
 
-  // Disable for Sparke3.5.
-  testWithSpecifiedSparkVersion("regr_sxy", Some("3.4"), Some("3.4")) {
+  testWithSpecifiedSparkVersion("regr_sxy regr_sxx regr_syy", Some("3.4")) {
     runQueryAndCompare("""
-                         |select regr_sxy(l_partkey, l_suppkey) from lineitem;
+                         |select regr_sxy(l_quantity, l_tax) from lineitem;
                          |""".stripMargin) {
       checkGlutenOperatorMatch[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
-      "select regr_sxy(l_partkey, l_suppkey), count(distinct l_orderkey) from lineitem") {
+      "select regr_sxy(l_quantity, l_tax), count(distinct l_orderkey) from lineitem") {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 4)
+        }
+    }
+    runQueryAndCompare("""
+                         |select regr_sxx(l_quantity, l_tax) from lineitem;
+                         |""".stripMargin) {
+      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+    }
+    runQueryAndCompare(
+      "select regr_sxx(l_quantity, l_tax), count(distinct l_orderkey) from lineitem") {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 4)
+        }
+    }
+    runQueryAndCompare("""
+                         |select regr_syy(l_quantity, l_tax) from lineitem;
+                         |""".stripMargin) {
+      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+    }
+    runQueryAndCompare(
+      "select regr_syy(l_quantity, l_tax), count(distinct l_orderkey) from lineitem") {
       df =>
         {
           assert(

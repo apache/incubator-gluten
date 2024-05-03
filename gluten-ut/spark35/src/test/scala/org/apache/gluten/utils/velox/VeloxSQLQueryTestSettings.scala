@@ -240,6 +240,8 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     // -- Aggregate with nulls.
     "group-by.sql",
     "udf/udf-group-by.sql",
+    // Overwrite some results of regr_intercept, regr_r2, corr.
+    "linear-regression.sql",
     // Exception string doesn't match for
     // SELECT (SELECT a FROM (SELECT 1 AS a UNION ALL SELECT 2 AS a) t) AS b
     "subquery/scalar-subquery/scalar-subquery-select.sql"

@@ -38,7 +38,7 @@ class Partitioner {
       const int32_t* pidArr,
       const int64_t numRows,
       std::vector<uint32_t>& row2partition,
-      std::vector<uint16_t>& partition2RowCount) = 0;
+      std::vector<uint32_t>& partition2RowCount) = 0;
 
  protected:
   Partitioner(int32_t numPartitions, bool hasPid) : numPartitions_(numPartitions), hasPid_(hasPid) {}

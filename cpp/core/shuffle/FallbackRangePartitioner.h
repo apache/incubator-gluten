@@ -29,7 +29,7 @@ class FallbackRangePartitioner final : public Partitioner {
       const int32_t* pidArr,
       const int64_t numRows,
       std::vector<uint32_t>& row2partition,
-      std::vector<uint16_t>& partition2RowCount) override;
+      std::vector<uint32_t>& partition2RowCount) override;
 };
 
 } // namespace gluten

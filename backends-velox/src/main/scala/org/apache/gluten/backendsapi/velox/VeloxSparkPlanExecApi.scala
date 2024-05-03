@@ -22,12 +22,15 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
+import org.apache.gluten.expression.aggregate.VeloxBloomFilterAggregate
+import org.apache.gluten.extension.BloomFilterMightContainJointRewriteRule
 import org.apache.gluten.extension.columnar.TransformHints
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode}
 import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializeResult}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
+import org.apache.spark.api.python.ColumnarArrowEvalPythonExec
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
@@ -37,17 +40,17 @@ import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FlushableHas
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
-import org.apache.spark.sql.catalyst.expressions.{Add, Alias, ArrayFilter, Ascending, Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, Generator, GetArrayItem, GetMapValue, GetStructField, If, IsNaN, LambdaFunction, Literal, Murmur3Hash, NamedExpression, NaNvl, PosExplode, Round, SortOrder, StringSplit, StringTrim, TryEval, Uuid}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, BroadcastMode, HashPartitioning, Partitioning, RoundRobinPartitioning}
+import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
+import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
-import org.apache.spark.sql.execution.joins.BuildSideRelation
+import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.ExecUtil
 import org.apache.spark.sql.expression.{UDFExpression, UDFResolver, UserDefinedAggregateFunction}
@@ -65,7 +68,7 @@ import java.util.{Map => JMap}
 
 import scala.collection.mutable.ListBuffer
 
-class SparkPlanExecApiImpl extends SparkPlanExecApi {
+class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
   /**
    * Transform GetArrayItem to Substrait.
@@ -202,6 +205,48 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
     }
   }
 
+  /** Transform array forall to Substrait. */
+  override def genArrayForAllTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArrayForAll): ExpressionTransformer = {
+    expr.function match {
+      case LambdaFunction(_, arguments, _) if arguments.size == 2 =>
+        throw new GlutenNotSupportException(
+          "forall on array with lambda using index argument is not supported yet")
+      case _ => GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
+    }
+  }
+
+  /** Transform array exists to Substrait */
+  override def genArrayExistsTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArrayExists): ExpressionTransformer = {
+    expr.function match {
+      case LambdaFunction(_, arguments, _) if arguments.size == 2 =>
+        throw new GlutenNotSupportException(
+          "exists on array with lambda using index argument is not supported yet")
+      case _ => GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
+    }
+  }
+
+  /** Transform array transform to Substrait. */
+  override def genArrayTransformTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArrayTransform): ExpressionTransformer = {
+    expr.function match {
+      case LambdaFunction(_, arguments, _) if arguments.size == 2 =>
+        throw new GlutenNotSupportException(
+          "transform on array with lambda using index argument is not supported yet")
+      case _ => GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
+    }
+  }
+
   /** Transform posexplode to Substrait. */
   override def genPosExplodeTransformer(
       substraitExprName: String,
@@ -261,7 +306,9 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
    */
   override def genFilterExecTransformer(
       condition: Expression,
-      child: SparkPlan): FilterExecTransformerBase = FilterExecTransformer(condition, child)
+      child: SparkPlan): FilterExecTransformerBase = {
+    FilterExecTransformer(condition, child)
+  }
 
   /** Generate HashAggregateExecTransformer. */
   override def genHashAggregateExecTransformer(
@@ -461,14 +508,22 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       partitionColumns: Seq[Attribute],
       bucketSpec: Option[BucketSpec],
       options: Map[String, String],
-      staticPartitions: TablePartitionSpec): WriteFilesExec = {
-    new VeloxColumnarWriteFilesExec(
+      staticPartitions: TablePartitionSpec): SparkPlan = {
+    VeloxColumnarWriteFilesExec(
       child,
       fileFormat,
       partitionColumns,
       bucketSpec,
       options,
       staticPartitions)
+  }
+
+  override def createColumnarArrowEvalPythonExec(
+      udfs: Seq[PythonUDF],
+      resultAttrs: Seq[Attribute],
+      child: SparkPlan,
+      evalType: Int): SparkPlan = {
+    new ColumnarArrowEvalPythonExec(udfs, resultAttrs, child, evalType)
   }
 
   /**
@@ -521,17 +576,22 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
     ColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized))
   }
 
+  override def doCanonicalizeForBroadcastMode(mode: BroadcastMode): BroadcastMode = {
+    mode match {
+      case hash: HashedRelationBroadcastMode =>
+        // Node: It's different with vanilla Spark.
+        // Vanilla Spark build HashRelation at driver side, so it is build keys sensitive.
+        // But we broadcast byte array and build HashRelation at executor side,
+        // the build keys are actually meaningless for the broadcast value.
+        // This change allows us reuse broadcast exchange for different build keys with same table.
+        hash.copy(key = Seq.empty)
+      case _ => mode.canonicalized
+    }
+  }
+
   /**
    * * Expressions.
    */
-
-  /** Generates a transformer for decimal round. */
-  override def genDecimalRoundTransformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Round): ExpressionTransformer = {
-    DecimalRoundTransformer(substraitExprName, child, original)
-  }
 
   /** Generate StringSplit transformer. */
   override def genStringSplitTransformer(
@@ -673,15 +733,18 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] =
-    List(AggregateFunctionRewriteRule)
+  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = List(
+    AggregateFunctionRewriteRule.apply
+  )
 
   /**
    * Generate extended columnar pre-rules, in the validation phase.
    *
    * @return
    */
-  override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] = List()
+  override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] = List(
+    BloomFilterMightContainJointRewriteRule.apply
+  )
 
   /**
    * Generate extended columnar pre-rules.
@@ -720,7 +783,9 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       Sig[HLLAdapter](ExpressionNames.APPROX_DISTINCT),
       Sig[UDFExpression](ExpressionNames.UDF_PLACEHOLDER),
       Sig[UserDefinedAggregateFunction](ExpressionNames.UDF_PLACEHOLDER),
-      Sig[NaNvl](ExpressionNames.NANVL)
+      Sig[NaNvl](ExpressionNames.NANVL),
+      Sig[VeloxBloomFilterMightContain](ExpressionNames.MIGHT_CONTAIN),
+      Sig[VeloxBloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG)
     )
   }
 

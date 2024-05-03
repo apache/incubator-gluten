@@ -56,7 +56,7 @@ class Substrait2VeloxPlanConversionTest : public exec::test::HiveConnectorTestBa
     splits.reserve(paths.size());
 
     for (int i = 0; i < paths.size(); i++) {
-      auto path = fmt::format("{}{}", tmpDir_->path, paths[i]);
+      auto path = fmt::format("{}{}", tmpDir_->getPath(), paths[i]);
       auto start = starts[i];
       auto length = lengths[i];
       auto split = facebook::velox::exec::test::HiveConnectorSplitBuilder(path)
@@ -225,7 +225,7 @@ TEST_F(Substrait2VeloxPlanConversionTest, q6) {
   vectors.emplace_back(makeFlatVector<std::string>(lCommentData));
 
   // Write data into an DWRF file.
-  writeToFile(tmpDir_->path + "/mock_lineitem.dwrf", {makeRowVector(type->names(), vectors)});
+  writeToFile(tmpDir_->getPath() + "/mock_lineitem.dwrf", {makeRowVector(type->names(), vectors)});
 
   // Find and deserialize Substrait plan json file.
   std::string subPlanPath = FilePathGenerator::getDataFilePath("q6_first_stage.json");

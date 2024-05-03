@@ -14,19 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.backendsapi.velox
+package org.apache.gluten.extension.columnar.validator
 
-import org.apache.gluten.backendsapi.BroadcastApi
+import org.apache.spark.sql.execution.SparkPlan
 
-import java.util
+trait Validator {
+  import Validator._
+  def validate(plan: SparkPlan): OutCome
 
-class BroadcastApiImpl extends BroadcastApi {
+  final def pass(): OutCome = {
+    Passed
+  }
 
-  override def collectExecutionBroadcastTableId(executionId: String, buildTableId: String): Unit =
-    super.collectExecutionBroadcastTableId(executionId, buildTableId)
+  final def fail(p: SparkPlan): OutCome = {
+    Validator.Failed(s"[${getClass.getSimpleName}] Validation failed on node ${p.nodeName}")
+  }
 
-  override def cleanExecutionBroadcastTable(
-      executionId: String,
-      broadcastTableIds: util.Set[String]): Unit =
-    super.cleanExecutionBroadcastTable(executionId, broadcastTableIds)
+  final def fail(reason: String): OutCome = {
+    Validator.Failed(reason)
+  }
+}
+
+object Validator {
+  sealed trait OutCome
+  case object Passed extends OutCome
+  case class Failed private (reason: String) extends OutCome
 }

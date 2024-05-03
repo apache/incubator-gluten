@@ -36,8 +36,8 @@ import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins._
-import org.apache.spark.sql.execution.python.EvalPythonExec
-import org.apache.spark.sql.execution.window.WindowExec
+import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BatchEvalPythonExec}
+import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
 sealed trait TransformSingleNode extends Logging {
@@ -132,22 +132,7 @@ case class TransformExchange() extends TransformSingleNode with LogLevelUtil {
 
 // Join transformation.
 case class TransformJoin() extends TransformSingleNode with LogLevelUtil {
-
-  /**
-   * Get the build side supported by the execution of vanilla Spark.
-   *
-   * @param plan
-   *   : shuffled hash join plan
-   * @return
-   *   the supported build side
-   */
-  private def getSparkSupportedBuildSide(plan: ShuffledHashJoinExec): BuildSide = {
-    plan.joinType match {
-      case LeftOuter | LeftSemi => BuildRight
-      case RightOuter => BuildLeft
-      case _ => plan.buildSide
-    }
-  }
+  import TransformJoin._
 
   override def impl(plan: SparkPlan): SparkPlan = {
     if (TransformHints.isNotTransformable(plan)) {
@@ -155,6 +140,7 @@ case class TransformJoin() extends TransformSingleNode with LogLevelUtil {
       plan match {
         case shj: ShuffledHashJoinExec =>
           if (BackendsApiManager.getSettings.recreateJoinExecOnFallback()) {
+            // Since https://github.com/apache/incubator-gluten/pull/408
             // Because we manually removed the build side limitation for LeftOuter, LeftSemi and
             // RightOuter, need to change the build side back if this join fallback into vanilla
             // Spark for execution.
@@ -235,6 +221,20 @@ case class TransformJoin() extends TransformSingleNode with LogLevelUtil {
     }
   }
 
+}
+
+object TransformJoin {
+  private def getSparkSupportedBuildSide(plan: ShuffledHashJoinExec): BuildSide = {
+    plan.joinType match {
+      case LeftOuter | LeftSemi => BuildRight
+      case RightOuter => BuildLeft
+      case _ => plan.buildSide
+    }
+  }
+
+  def isLegal(plan: ShuffledHashJoinExec): Boolean = {
+    plan.buildSide == getSparkSupportedBuildSide(plan)
+  }
 }
 
 // Filter transformation.
@@ -408,6 +408,18 @@ object TransformOthers {
             plan.partitionSpec,
             plan.orderSpec,
             plan.child)
+        case plan if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) =>
+          val windowGroupLimitPlan = SparkShimLoader.getSparkShims
+            .getWindowGroupLimitExecShim(plan)
+            .asInstanceOf[WindowGroupLimitExecShim]
+          WindowGroupLimitExecTransformer(
+            windowGroupLimitPlan.partitionSpec,
+            windowGroupLimitPlan.orderSpec,
+            windowGroupLimitPlan.rankLikeFunction,
+            windowGroupLimitPlan.limit,
+            windowGroupLimitPlan.mode,
+            windowGroupLimitPlan.child
+          )
         case plan: GlobalLimitExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           val child = plan.child
@@ -427,10 +439,24 @@ object TransformOthers {
             plan.outer,
             plan.generatorOutput,
             child)
-        case plan: EvalPythonExec =>
+        case plan: BatchEvalPythonExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           val child = plan.child
           EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, child)
+        case plan: ArrowEvalPythonExec =>
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          val child = plan.child
+          // For ArrowEvalPythonExec, CH supports it through EvalPythonExecTransformer while
+          // Velox backend uses ColumnarArrowEvalPythonExec.
+          if (!BackendsApiManager.getSettings.supportColumnarArrowUdf()) {
+            EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, child)
+          } else {
+            BackendsApiManager.getSparkPlanExecApiInstance.createColumnarArrowEvalPythonExec(
+              plan.udfs,
+              plan.resultAttrs,
+              child,
+              plan.evalType)
+          }
         case p if !p.isInstanceOf[GlutenPlan] =>
           logDebug(s"Transformation for ${p.getClass} is currently not supported.")
           val children = plan.children
@@ -439,6 +465,7 @@ object TransformOthers {
       }
     }
 
+    // Since https://github.com/apache/incubator-gluten/pull/2701
     private def applyScanNotTransformable(plan: SparkPlan): SparkPlan = plan match {
       case plan: FileSourceScanExec =>
         val newPartitionFilters =

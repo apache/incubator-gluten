@@ -67,6 +67,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarWindow: Boolean = conf.getConf(COLUMNAR_WINDOW_ENABLED)
 
+  def enableColumnarWindowGroupLimit: Boolean = conf.getConf(COLUMNAR_WINDOW_GROUP_LIMIT_ENABLED)
+
   def veloxColumnarWindowType: String = conf.getConfString(COLUMNAR_VELOX_WINDOW_TYPE.key)
 
   def enableColumnarShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED)
@@ -94,6 +96,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableRewriteDateTimestampComparison: Boolean =
     conf.getConf(ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON)
 
+  def enableCHRewriteDateConversion: Boolean =
+    conf.getConf(ENABLE_CH_REWRITE_DATE_CONVERSION)
+
   def enableCommonSubexpressionEliminate: Boolean =
     conf.getConf(ENABLE_COMMON_SUBEXPRESSION_ELIMINATE)
 
@@ -108,6 +113,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def forceOrcCharTypeScanFallbackEnabled: Boolean =
     conf.getConf(VELOX_FORCE_ORC_CHAR_TYPE_SCAN_FALLBACK)
+
+  def forceParquetTimestampTypeScanFallbackEnabled: Boolean =
+    conf.getConf(VELOX_FORCE_PARQUET_TIMESTAMP_TYPE_SCAN_FALLBACK)
 
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
@@ -283,6 +291,13 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def chColumnarFlushBlockBufferBeforeEvict: Boolean =
     conf.getConf(COLUMNAR_CH_FLUSH_BLOCK_BUFFER_BEFORE_EVICT)
+
+  def chColumnarMaxSortBufferSize: Long = conf.getConf(COLUMNAR_CH_MAX_SORT_BUFFER_SIZE)
+
+  def chColumnarSpillFirstlyBeforeStop: Boolean =
+    conf.getConf(COLUMNAR_CH_SPILL_FIRSTLY_BEFORE_STOP)
+
+  def chColumnarForceSortShuffle: Boolean = conf.getConf(COLUMNAR_CH_FORCE_SORT_SHUFFLE)
 
   def cartesianProductTransformerEnabled: Boolean =
     conf.getConf(CARTESIAN_PRODUCT_TRANSFORMER_ENABLED)
@@ -506,6 +521,8 @@ object GlutenConfig {
   // where deployed gluten jar is generated through static build (e.g., Gluten's release jar).
   val GLUTEN_LOAD_LIB_FROM_JAR = "spark.gluten.loadLibFromJar"
   val GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT = false
+  val GLUTEN_LOAD_LIB_OS = "spark.gluten.loadLibOS"
+  val GLUTEN_LOAD_LIB_OS_VERSION = "spark.gluten.loadLibOSVersion"
 
   // Expired time of execution with resource relation has cached
   val GLUTEN_RESOURCE_RELATION_EXPIRED_TIME = "spark.gluten.execution.resource.expired.time"
@@ -683,7 +700,7 @@ object GlutenConfig {
   val RAS_ENABLED =
     buildConf("spark.gluten.sql.ras.enabled")
       .doc(
-        "Experimental: Enables RAS (relation algebra selector) during physical " +
+        "Experimental: Enables RAS (relational algebra selector) during physical " +
           "planning to generate more efficient query plan. Note, this feature is still in " +
           "development and may not bring performance profits.")
       .booleanConf
@@ -767,6 +784,13 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.window")
       .internal()
       .doc("Enable or disable columnar window.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_WINDOW_GROUP_LIMIT_ENABLED =
+    buildConf("spark.gluten.sql.columnar.window.group.limit")
+      .internal()
+      .doc("Enable or disable columnar window group limit.")
       .booleanConf
       .createWithDefault(true)
 
@@ -1345,6 +1369,28 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
+  val COLUMNAR_CH_MAX_SORT_BUFFER_SIZE =
+    buildConf("spark.gluten.sql.columnar.backend.ch.maxSortBufferSize")
+      .internal()
+      .doc("The maximum size of sort shuffle buffer in CH backend.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("1GB")
+
+  val COLUMNAR_CH_SPILL_FIRSTLY_BEFORE_STOP =
+    buildConf("spark.gluten.sql.columnar.backend.ch.spillFirstlyBeforeStop")
+      .internal()
+      .doc("Whether to spill the sort buffers before stopping the shuffle writer.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_CH_FORCE_SORT_SHUFFLE =
+    buildConf("spark.gluten.sql.columnar.backend.ch.forceSortShuffle")
+      .internal()
+      .doc("Whether to force to use sort shuffle in CH backend. " +
+        "Sort shuffle will enable When partition num greater than 300.")
+      .booleanConf
+      .createWithDefault(false)
+
   val TRANSFORM_PLAN_LOG_LEVEL =
     buildConf("spark.gluten.sql.transform.logLevel")
       .internal()
@@ -1597,6 +1643,16 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val ENABLE_CH_REWRITE_DATE_CONVERSION =
+    buildConf("spark.gluten.sql.columnar.backend.ch.rewrite.dateConversion")
+      .internal()
+      .doc(
+        "Rewrite the conversion between date and string."
+          + "For example `to_date(from_unixtime(unix_timestamp(stringType, 'yyyyMMdd')))`"
+          + " will be rewritten to `to_date(stringType)`")
+      .booleanConf
+      .createWithDefault(true)
+
   val ENABLE_COLUMNAR_PROJECT_COLLAPSE =
     buildConf("spark.gluten.sql.columnar.project.collapse")
       .internal()
@@ -1761,6 +1817,13 @@ object GlutenConfig {
       .doc("Force fallback for orc char type scan.")
       .booleanConf
       .createWithDefault(true)
+
+  val VELOX_FORCE_PARQUET_TIMESTAMP_TYPE_SCAN_FALLBACK =
+    buildConf("spark.gluten.sql.parquet.timestampType.scan.fallback.enabled")
+      .internal()
+      .doc("Force fallback for parquet timestamp type scan.")
+      .booleanConf
+      .createWithDefault(false)
 
   val COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED =
     buildConf("spark.gluten.sql.columnar.cast.avg")

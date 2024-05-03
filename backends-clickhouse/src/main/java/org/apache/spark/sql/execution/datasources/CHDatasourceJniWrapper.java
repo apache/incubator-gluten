@@ -37,6 +37,8 @@ public class CHDatasourceJniWrapper {
       String partition_dir,
       String bucket_dir);
 
+  public static native String filterRangesOnDriver(byte[] plan, byte[] read);
+
   public native void write(long instanceId, long blockAddress);
 
   public native void writeToMergeTree(long instanceId, long blockAddress);

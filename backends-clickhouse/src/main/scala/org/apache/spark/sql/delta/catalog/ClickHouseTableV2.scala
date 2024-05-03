@@ -18,7 +18,7 @@ package org.apache.spark.sql.delta.catalog
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable}
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.catalog.TableCatalog
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
@@ -236,6 +236,36 @@ class ClickHouseTableV2(
   }
 
   cacheThis()
+
+  def primaryKey(): String = primaryKeyOption match {
+    case Some(keys) => keys.mkString(",")
+    case None => ""
+  }
+
+  def orderByKey(): String = orderByKeyOption match {
+    case Some(keys) => keys.mkString(",")
+    case None => "tuple()"
+  }
+
+  def lowCardKey(): String = lowCardKeyOption match {
+    case Some(keys) => keys.mkString(",")
+    case None => ""
+  }
+
+  def minmaxIndexKey(): String = minmaxIndexKeyOption match {
+    case Some(keys) => keys.mkString(",")
+    case None => ""
+  }
+
+  def bfIndexKey(): String = bfIndexKeyOption match {
+    case Some(keys) => keys.mkString(",")
+    case None => ""
+  }
+
+  def setIndexKey(): String = setIndexKeyOption match {
+    case Some(keys) => keys.mkString(",")
+    case None => ""
+  }
 }
 
 class TempClickHouseTableV2(
@@ -278,7 +308,8 @@ object ClickHouseTableV2 extends Logging {
       bucketedScan: Boolean,
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
-      disableBucketedScan: Boolean): Seq[InputPartition] = {
+      disableBucketedScan: Boolean,
+      filterExprs: Seq[Expression]): Seq[InputPartition] = {
     val tableV2 = ClickHouseTableV2.getTable(deltaLog)
 
     MergeTreePartsPartitionsUtil.getMergeTreePartsPartitions(
@@ -290,7 +321,8 @@ object ClickHouseTableV2 extends Logging {
       tableV2,
       optionalBucketSet,
       optionalNumCoalescedBuckets,
-      disableBucketedScan)
+      disableBucketedScan,
+      filterExprs)
 
   }
 }

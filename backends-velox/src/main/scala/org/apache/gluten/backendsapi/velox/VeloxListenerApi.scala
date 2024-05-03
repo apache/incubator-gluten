@@ -18,7 +18,6 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.ListenerApi
-import org.apache.gluten.backendsapi.velox.ListenerApiImpl.initializeNative
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.datasource.{GlutenOrcWriterInjects, GlutenParquetWriterInjects, GlutenRowSplitter}
 import org.apache.gluten.expression.UDFMappings
@@ -28,14 +27,17 @@ import org.apache.gluten.vectorized.{JniLibLoader, JniWorkspace}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.datasources.velox.{VeloxOrcWriterInjects, VeloxParquetWriterInjects, VeloxRowSplitter}
+import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.GlutenConfigUtil
 import org.apache.spark.sql.internal.StaticSQLConf
+import org.apache.spark.util.SparkDirectoryUtil
 
+import VeloxListenerApi.initializeNative
 import org.apache.commons.lang3.StringUtils
 
 import scala.sys.process._
 
-class ListenerApiImpl extends ListenerApi {
+class VeloxListenerApi extends ListenerApi {
   private val ARROW_VERSION = "1500"
 
   override def onDriverStart(conf: SparkConf): Unit = {
@@ -45,28 +47,24 @@ class ListenerApiImpl extends ListenerApi {
         StaticSQLConf.SPARK_CACHE_SERIALIZER.key,
         "org.apache.spark.sql.execution.ColumnarCachedBatchSerializer")
     }
+    UDFResolver.resolveUdfConf(conf, isDriver = true)
     initialize(conf)
   }
 
   override def onDriverShutdown(): Unit = shutdown()
 
-  override def onExecutorStart(conf: SparkConf): Unit = initialize(conf)
+  override def onExecutorStart(conf: SparkConf): Unit = {
+    UDFResolver.resolveUdfConf(conf, isDriver = false)
+    initialize(conf)
+  }
 
   override def onExecutorShutdown(): Unit = shutdown()
 
-  private def loadLibFromJar(load: JniLibLoader): Unit = {
-    val system = "cat /etc/os-release".!!
-    val systemNamePattern = "^NAME=\"?(.*)\"?".r
-    val systemVersionPattern = "^VERSION=\"?(.*)\"?".r
-    val systemInfoLines = system.stripMargin.split("\n")
-    val systemNamePattern(systemName) =
-      systemInfoLines.find(_.startsWith("NAME=")).getOrElse("")
-    val systemVersionPattern(systemVersion) =
-      systemInfoLines.find(_.startsWith("VERSION=")).getOrElse("")
-    if (systemName.isEmpty || systemVersion.isEmpty) {
-      throw new GlutenException("Failed to get OS name and version info.")
-    }
-    val loader = if (systemName.contains("Ubuntu") && systemVersion.startsWith("20.04")) {
+  private def getLibraryLoaderForOS(
+      systemName: String,
+      systemVersion: String,
+      system: String): SharedLibraryLoader = {
+    if (systemName.contains("Ubuntu") && systemVersion.startsWith("20.04")) {
       new SharedLibraryLoaderUbuntu2004
     } else if (systemName.contains("Ubuntu") && systemVersion.startsWith("22.04")) {
       new SharedLibraryLoaderUbuntu2204
@@ -94,10 +92,36 @@ class ListenerApiImpl extends ListenerApi {
       new SharedLibraryLoaderDebian12
     } else {
       throw new GlutenException(
-        "Found unsupported OS! Currently, Gluten's Velox backend" +
+        s"Found unsupported OS($systemName, $systemVersion)! Currently, Gluten's Velox backend" +
           " only supports Ubuntu 20.04/22.04, CentOS 7/8, " +
           "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 3.2, RedHat 7/8, " +
           "Debian 11/12.")
+    }
+  }
+
+  private def loadLibFromJar(load: JniLibLoader, conf: SparkConf): Unit = {
+    val systemName = conf.getOption(GlutenConfig.GLUTEN_LOAD_LIB_OS)
+    val loader = if (systemName.isDefined) {
+      val systemVersion = conf.getOption(GlutenConfig.GLUTEN_LOAD_LIB_OS_VERSION)
+      if (systemVersion.isEmpty) {
+        throw new GlutenException(
+          s"${GlutenConfig.GLUTEN_LOAD_LIB_OS_VERSION} must be specified when specifies the " +
+            s"${GlutenConfig.GLUTEN_LOAD_LIB_OS}")
+      }
+      getLibraryLoaderForOS(systemName.get, systemVersion.get, "")
+    } else {
+      val system = "cat /etc/os-release".!!
+      val systemNamePattern = "^NAME=\"?(.*)\"?".r
+      val systemVersionPattern = "^VERSION=\"?(.*)\"?".r
+      val systemInfoLines = system.stripMargin.split("\n")
+      val systemNamePattern(systemName) =
+        systemInfoLines.find(_.startsWith("NAME=")).getOrElse("")
+      val systemVersionPattern(systemVersion) =
+        systemInfoLines.find(_.startsWith("VERSION=")).getOrElse("")
+      if (systemName.isEmpty || systemVersion.isEmpty) {
+        throw new GlutenException("Failed to get OS name and version info.")
+      }
+      getLibraryLoaderForOS(systemName, systemVersion, system)
     }
     loader.loadLib(load)
   }
@@ -108,7 +132,7 @@ class ListenerApiImpl extends ListenerApi {
         GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR,
         GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT)
     ) {
-      loadLibFromJar(loader)
+      loadLibFromJar(loader, conf)
     }
     loader
       .newTransaction()
@@ -135,6 +159,7 @@ class ListenerApiImpl extends ListenerApi {
   }
 
   private def initialize(conf: SparkConf): Unit = {
+    SparkDirectoryUtil.init(conf)
     val debugJni = conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_MODE, defaultValue = false) &&
       conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_KEEP_JNI_WORKSPACE, defaultValue = false)
     if (debugJni) {
@@ -165,7 +190,8 @@ class ListenerApiImpl extends ListenerApi {
       loader.mapAndLoad(VeloxBackend.BACKEND_NAME, false)
     }
 
-    initializeNative(GlutenConfigUtil.parseConfig(conf.getAll.toMap))
+    val parsed = GlutenConfigUtil.parseConfig(conf.getAll.toMap)
+    initializeNative(parsed)
 
     // inject backend-specific implementations to override spark classes
     // FIXME: The following set instances twice in local mode?
@@ -179,7 +205,7 @@ class ListenerApiImpl extends ListenerApi {
   }
 }
 
-object ListenerApiImpl {
+object VeloxListenerApi {
   // Spark DriverPlugin/ExecutorPlugin will only invoke ContextInitializer#initialize method once
   // in its init method.
   // In cluster mode, ContextInitializer#initialize only will be invoked in different JVM.

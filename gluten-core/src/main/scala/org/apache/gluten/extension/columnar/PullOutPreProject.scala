@@ -17,6 +17,7 @@
 package org.apache.gluten.extension.columnar
 
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.PullOutProjectHelper
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -24,7 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ExpandExec, GenerateExec, ProjectExec, SortExec, SparkPlan, TakeOrderedAndProjectExec}
 import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, TypedAggregateExpression}
-import org.apache.spark.sql.execution.window.WindowExec
+import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
 
 import scala.collection.mutable
 
@@ -75,6 +76,12 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
             }
           case _ => false
         }.isDefined)
+      case plan if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) =>
+        val window = SparkShimLoader.getSparkShims
+          .getWindowGroupLimitExecShim(plan)
+          .asInstanceOf[WindowGroupLimitExecShim]
+        window.orderSpec.exists(o => isNotAttribute(o.child)) ||
+        window.partitionSpec.exists(isNotAttribute)
       case expand: ExpandExec => expand.projections.flatten.exists(isNotAttributeAndLiteral)
       case _ => false
     }
@@ -180,6 +187,32 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
       )
 
       ProjectExec(window.output, newWindow)
+
+    case plan
+        if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) && needsPreProject(plan) =>
+      val windowLimit = SparkShimLoader.getSparkShims
+        .getWindowGroupLimitExecShim(plan)
+        .asInstanceOf[WindowGroupLimitExecShim]
+      val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
+      // Handle orderSpec.
+      val newOrderSpec = getNewSortOrder(windowLimit.orderSpec, expressionMap)
+
+      // Handle partitionSpec.
+      val newPartitionSpec =
+        windowLimit.partitionSpec.map(replaceExpressionWithAttribute(_, expressionMap))
+
+      val newWindowLimitShim = windowLimit.copy(
+        orderSpec = newOrderSpec,
+        partitionSpec = newPartitionSpec,
+        child = ProjectExec(
+          eliminateProjectList(windowLimit.child.outputSet, expressionMap.values.toSeq),
+          windowLimit.child)
+      )
+
+      val newWindowLimit = SparkShimLoader.getSparkShims
+        .getWindowGroupLimitExec(newWindowLimitShim)
+
+      ProjectExec(plan.output, newWindowLimit)
 
     case expand: ExpandExec if needsPreProject(expand) =>
       val expressionMap = new mutable.HashMap[Expression, NamedExpression]()

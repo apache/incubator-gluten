@@ -17,13 +17,13 @@ function(add_velox_test TEST_EXEC)
   set(options)
   set(one_value_args)
   set(multi_value_args
-    SOURCES
-  )
+      SOURCES
+      )
   cmake_parse_arguments(ARG
-  "${options}"
-  "${one_value_args}"
-  "${multi_value_args}"
-  ${ARGN})
+      "${options}"
+      "${one_value_args}"
+      "${multi_value_args}"
+      ${ARGN})
 
   if(ARG_SOURCES)
     set(SOURCES ${ARG_SOURCES})
@@ -39,19 +39,25 @@ endfunction()
 add_velox_test(velox_shuffle_writer_test SOURCES VeloxShuffleWriterTest.cc)
 # TODO: ORC is not well supported.
 # add_velox_test(orc_test SOURCES OrcTest.cc)
-add_velox_test(velox_operators_test SOURCES VeloxColumnarToRowTest.cc VeloxRowToColumnarTest.cc VeloxColumnarBatchSerializerTest.cc)
 add_velox_test(
-  velox_plan_conversion_test
-  SOURCES
-  Substrait2VeloxPlanConversionTest.cc
-  Substrait2VeloxPlanValidatorTest.cc
-  Substrait2VeloxValuesNodeConversionTest.cc
-  SubstraitExtensionCollectorTest.cc
-  VeloxSubstraitRoundTripTest.cc
-  VeloxSubstraitSignatureTest.cc
-  VeloxToSubstraitTypeTest.cc
-  FunctionTest.cc
-  JsonToProtoConverter.cc
-  FilePathGenerator.cc)
+    velox_operators_test
+    SOURCES
+    VeloxColumnarToRowTest.cc
+    VeloxRowToColumnarTest.cc
+    VeloxColumnarBatchSerializerTest.cc
+    VeloxColumnarBatchTest.cc)
+add_velox_test(
+    velox_plan_conversion_test
+    SOURCES
+    Substrait2VeloxPlanConversionTest.cc
+    Substrait2VeloxPlanValidatorTest.cc
+    Substrait2VeloxValuesNodeConversionTest.cc
+    SubstraitExtensionCollectorTest.cc
+    VeloxSubstraitRoundTripTest.cc
+    VeloxSubstraitSignatureTest.cc
+    VeloxToSubstraitTypeTest.cc
+    FunctionTest.cc
+    JsonToProtoConverter.cc
+    FilePathGenerator.cc)
 add_velox_test(spark_functions_test SOURCES SparkFunctionTest.cc)
 add_velox_test(execution_ctx_test SOURCES RuntimeTest.cc)

@@ -52,6 +52,7 @@ object ExpressionNames {
   final val REGR_SLOPE = "regr_slope"
   final val REGR_INTERCEPT = "regr_intercept"
   final val REGR_SXY = "regr_sxy"
+  final val REGR_REPLACEMENT = "regr_replacement"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -137,6 +138,7 @@ object ExpressionNames {
   final val CEIL = "ceil"
   final val FLOOR = "floor"
   final val EXP = "exp"
+  final val EXPM1 = "expm1"
   final val POWER = "power"
   final val PMOD = "pmod"
   final val ROUND = "round"
@@ -245,6 +247,10 @@ object ExpressionNames {
   final val ARRAY_REPEAT = "array_repeat"
   final val ARRAY_REMOVE = "array_remove"
   final val FILTER = "filter"
+  final val FORALL = "forall"
+  final val EXISTS = "exists"
+  final val TRANSFORM = "transform"
+  final val SHUFFLE = "shuffle"
 
   // Map functions
   final val CREATE_MAP = "map"

@@ -339,6 +339,58 @@ jobs:
             --local --preset=velox --benchmark-type=ds --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
             --skip-data-gen  --random-kill-tasks
 
+  run-tpc-test-ubuntu-sf30:
+    needs: build-native-lib
+    strategy:
+      fail-fast: false
+      matrix:
+        spark: [ "spark-3.4" ]
+        shard: [ "1/4", "2/4", "3/4", "4/4" ]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Maximize build disk space
+        shell: bash
+        run: |
+          df -h
+          set -euo pipefail
+          echo "Removing unwanted software... "
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force > /dev/null
+          df -h
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Setup java and maven
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-8-jdk maven
+      - name: Set environment variables
+        run: |
+          echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
+      - name: Build for Spark ${{ matrix.spark }}
+        run: |
+          cd $GITHUB_WORKSPACE/ 
+          mvn -ntp clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          mvn -ntp clean install -P${{ matrix.spark }}
+          GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=h -s=30.0 --threads=12
+          GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
+      - name: TPC-H / TPC-DS SF30.0 Parquet local ${{ matrix.spark }}
+        run: |
+          cd tools/gluten-it \
+          && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
+            --skip-data-gen --shard=${{ matrix.shard }} \
+          && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
+            --skip-data-gen --shard=${{ matrix.shard }}
+
   run-tpc-test-centos8-uniffle:
     needs: build-native-lib
     strategy:
@@ -481,7 +533,11 @@ jobs:
           wget https://github.com/apache/spark/archive/refs/tags/v3.2.2.tar.gz && \
           tar --strip-components=1 -xf v3.2.2.tar.gz spark-3.2.2/sql/core/src/test/resources/  && \
           mkdir -p shims/spark32/spark_home/ && \
-          mv sql shims/spark32/spark_home/
+          mv sql shims/spark32/spark_home/ && \
+          dnf module -y install python39 && \
+          alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install pyspark==3.2.2 cython && \
+          pip3 install pandas pyarrow
       - name: Build and run unit test for Spark 3.2.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -572,7 +628,11 @@ jobs:
           wget https://github.com/apache/spark/archive/refs/tags/v3.3.1.tar.gz && \
           tar --strip-components=1 -xf v3.3.1.tar.gz spark-3.3.1/sql/core/src/test/resources/  && \
           mkdir -p shims/spark33/spark_home/ && \
-          mv sql shims/spark33/spark_home/
+          mv sql shims/spark33/spark_home/ && \
+          dnf module -y install python39 && \
+          alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install pyspark==3.3.1 cython && \
+          pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.3.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -659,7 +719,11 @@ jobs:
           wget https://github.com/apache/spark/archive/refs/tags/v3.4.2.tar.gz && \
           tar --strip-components=1 -xf v3.4.2.tar.gz spark-3.4.2/sql/core/src/test/resources/  && \
           mkdir -p shims/spark34/spark_home/ && \
-          mv sql shims/spark34/spark_home/
+          mv sql shims/spark34/spark_home/ && \
+          dnf module -y install python39 && \
+          alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install pyspark==3.4.2 cython && \
+          pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.4.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -746,7 +810,11 @@ jobs:
           wget https://github.com/apache/spark/archive/refs/tags/v3.5.1.tar.gz && \
           tar --strip-components=1 -xf v3.5.1.tar.gz spark-3.5.1/sql/core/src/test/resources/  && \
           mkdir -p shims/spark35/spark_home/ && \
-          mv sql shims/spark35/spark_home/
+          mv sql shims/spark35/spark_home/ && \
+          dnf module -y install python39 && \
+          alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install pyspark==3.5.1 cython && \
+          pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.5.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \

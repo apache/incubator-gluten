@@ -198,4 +198,8 @@ public class ExtensionTableNode implements SplitInfo {
   public List<String> getPartList() {
     return partList;
   }
+
+  public String getExtensionTableStr() {
+    return extensionTableStr.toString();
+  }
 }

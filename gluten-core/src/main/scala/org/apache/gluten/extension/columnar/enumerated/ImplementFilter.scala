@@ -17,18 +17,20 @@
 package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.columnar.TransformHints
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 
 import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 
 object ImplementFilter extends RasRule[SparkPlan] {
   override def shift(node: SparkPlan): Iterable[SparkPlan] = node match {
-    case plan if TransformHints.isNotTransformable(plan) => List.empty
     case FilterExec(condition, child) =>
-      List(
-        BackendsApiManager.getSparkPlanExecApiInstance
-          .genFilterExecTransformer(condition, child))
+      val out = BackendsApiManager.getSparkPlanExecApiInstance
+        .genFilterExecTransformer(condition, child)
+      if (!out.doValidate().isValid) {
+        List.empty
+      } else {
+        List(out)
+      }
     case _ =>
       List.empty
   }

@@ -23,7 +23,7 @@ import org.apache.gluten.substrait.expression.{BooleanLiteralNode, ExpressionBui
 import org.apache.gluten.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
@@ -49,7 +49,8 @@ class CHTransformerApi extends TransformerApi with Logging {
       bucketedScan: Boolean,
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
-      disableBucketedScan: Boolean): Seq[InputPartition] = {
+      disableBucketedScan: Boolean,
+      filterExprs: Seq[Expression]): Seq[InputPartition] = {
     relation.location match {
       case index: TahoeFileIndex
           if relation.fileFormat
@@ -64,7 +65,8 @@ class CHTransformerApi extends TransformerApi with Logging {
             bucketedScan,
             optionalBucketSet,
             optionalNumCoalescedBuckets,
-            disableBucketedScan
+            disableBucketedScan,
+            filterExprs
           )
       case _: TahoeFileIndex =>
         throw new UnsupportedOperationException("Does not support delta-parquet")

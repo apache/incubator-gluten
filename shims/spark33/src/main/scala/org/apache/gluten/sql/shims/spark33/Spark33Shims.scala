@@ -16,11 +16,9 @@
  */
 package org.apache.gluten.sql.shims.spark33
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.datasource.GlutenParquetWriterInjects
 import org.apache.gluten.expression.{ExpressionNames, Sig}
-import org.apache.gluten.expression.ExpressionNames.KNOWN_NULLABLE
-import org.apache.gluten.expression.ExpressionNames.TIMESTAMP_ADD
+import org.apache.gluten.expression.ExpressionNames.{CEIL, FLOOR, KNOWN_NULLABLE, TIMESTAMP_ADD}
 import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
 
 import org.apache.spark._
@@ -30,7 +28,7 @@ import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.{BloomFilterAggregate, RegrR2}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{BloomFilterAggregate, RegrR2, TypedImperativeAggregate}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -63,18 +61,15 @@ class Spark33Shims extends SparkShims {
   }
 
   override def scalarExpressionMappings: Seq[Sig] = {
-    val list = if (GlutenConfig.getConf.enableNativeBloomFilter) {
-      Seq(
-        Sig[BloomFilterMightContain](ExpressionNames.MIGHT_CONTAIN),
-        Sig[BloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG))
-    } else Seq.empty
-    list ++ Seq(
+    Seq(
       Sig[SplitPart](ExpressionNames.SPLIT_PART),
       Sig[Sec](ExpressionNames.SEC),
       Sig[Csc](ExpressionNames.CSC),
       Sig[KnownNullable](KNOWN_NULLABLE),
       Sig[Empty2Null](ExpressionNames.EMPTY2NULL),
-      Sig[TimestampAdd](TIMESTAMP_ADD)
+      Sig[TimestampAdd](TIMESTAMP_ADD),
+      Sig[RoundFloor](FLOOR),
+      Sig[RoundCeil](CEIL)
     )
   }
 
@@ -149,23 +144,62 @@ class Spark33Shims extends SparkShims {
       @transient locations: Array[String] = Array.empty): PartitionedFile =
     PartitionedFile(partitionValues, filePath, start, length, locations)
 
-  override def hasBloomFilterAggregate(
-      agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec): Boolean = {
-    agg.aggregateExpressions.exists(
-      expr => expr.aggregateFunction.isInstanceOf[BloomFilterAggregate])
+  override def bloomFilterExpressionMappings(): Seq[Sig] = Seq(
+    Sig[BloomFilterMightContain](ExpressionNames.MIGHT_CONTAIN),
+    Sig[BloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG)
+  )
+
+  override def newBloomFilterAggregate[T](
+      child: Expression,
+      estimatedNumItemsExpression: Expression,
+      numBitsExpression: Expression,
+      mutableAggBufferOffset: Int,
+      inputAggBufferOffset: Int): TypedImperativeAggregate[T] = {
+    BloomFilterAggregate(
+      child,
+      estimatedNumItemsExpression,
+      numBitsExpression,
+      mutableAggBufferOffset,
+      inputAggBufferOffset).asInstanceOf[TypedImperativeAggregate[T]]
   }
 
-  override def extractSubPlanFromMightContain(expr: Expression): Option[SparkPlan] = {
-    expr match {
-      case mc @ BloomFilterMightContain(sub: org.apache.spark.sql.execution.ScalarSubquery, _) =>
-        Some(sub.plan)
-      case mc @ BloomFilterMightContain(
-            g @ GetStructField(sub: org.apache.spark.sql.execution.ScalarSubquery, _, _),
-            _) =>
-        Some(sub.plan)
-      case _ => None
-    }
+  override def newMightContain(
+      bloomFilterExpression: Expression,
+      valueExpression: Expression): BinaryExpression = {
+    BloomFilterMightContain(bloomFilterExpression, valueExpression)
   }
+
+  override def replaceBloomFilterAggregate[T](
+      expr: Expression,
+      bloomFilterAggReplacer: (
+          Expression,
+          Expression,
+          Expression,
+          Int,
+          Int) => TypedImperativeAggregate[T]): Expression = expr match {
+    case BloomFilterAggregate(
+          child,
+          estimatedNumItemsExpression,
+          numBitsExpression,
+          mutableAggBufferOffset,
+          inputAggBufferOffset) =>
+      bloomFilterAggReplacer(
+        child,
+        estimatedNumItemsExpression,
+        numBitsExpression,
+        mutableAggBufferOffset,
+        inputAggBufferOffset)
+    case other => other
+  }
+
+  override def replaceMightContain[T](
+      expr: Expression,
+      mightContainReplacer: (Expression, Expression) => BinaryExpression): Expression = expr match {
+    case BloomFilterMightContain(bloomFilterExpression, valueExpression) =>
+      mightContainReplacer(bloomFilterExpression, valueExpression)
+    case other => other
+  }
+
   override def generateMetadataColumns(
       file: PartitionedFile,
       metadataColumnNames: Seq[String]): JMap[String, String] = {

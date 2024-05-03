@@ -38,7 +38,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{FileSourceScanExec, GenerateExec, LeafExecNode, SparkPlan}
-import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
+import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
@@ -252,6 +252,33 @@ trait SparkPlanExecApi {
     throw new GlutenNotSupportException("filter(on array) is not supported")
   }
 
+  /** Transform array forall to Substrait. */
+  def genArrayForAllTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArrayForAll): ExpressionTransformer = {
+    throw new GlutenNotSupportException("all_match is not supported")
+  }
+
+  /** Transform array exists to Substrait */
+  def genArrayExistsTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArrayExists): ExpressionTransformer = {
+    throw new GlutenNotSupportException("any_match is not supported")
+  }
+
+  /** Transform array transform to Substrait. */
+  def genArrayTransformTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArrayTransform): ExpressionTransformer = {
+    throw new GlutenNotSupportException("transform(on array) is not supported")
+  }
+
   /** Transform inline to Substrait. */
   def genInlineTransformer(
       substraitExprName: String,
@@ -323,6 +350,10 @@ trait SparkPlanExecApi {
       numOutputRows: SQLMetric,
       dataSize: SQLMetric): BuildSideRelation
 
+  def doCanonicalizeForBroadcastMode(mode: BroadcastMode): BroadcastMode = {
+    mode.canonicalized
+  }
+
   /** Create ColumnarWriteFilesExec */
   def createColumnarWriteFilesExec(
       child: SparkPlan,
@@ -330,7 +361,14 @@ trait SparkPlanExecApi {
       partitionColumns: Seq[Attribute],
       bucketSpec: Option[BucketSpec],
       options: Map[String, String],
-      staticPartitions: TablePartitionSpec): WriteFilesExec
+      staticPartitions: TablePartitionSpec): SparkPlan
+
+  /** Create ColumnarArrowEvalPythonExec, for velox backend */
+  def createColumnarArrowEvalPythonExec(
+      udfs: Seq[PythonUDF],
+      resultAttrs: Seq[Attribute],
+      child: SparkPlan,
+      evalType: Int): SparkPlan
 
   /**
    * Generate extended DataSourceV2 Strategies. Currently only for ClickHouse backend.
@@ -387,13 +425,6 @@ trait SparkPlanExecApi {
    * @return
    */
   def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]]
-
-  def genDecimalRoundTransformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Round): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(child), original)
-  }
 
   def genGetStructFieldTransformer(
       substraitExprName: String,

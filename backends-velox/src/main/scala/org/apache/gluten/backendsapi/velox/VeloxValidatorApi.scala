@@ -27,7 +27,7 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
 import org.apache.spark.util.TaskResources
 
-class ValidatorApiImpl extends ValidatorApi {
+class VeloxValidatorApi extends ValidatorApi {
 
   /** For velox backend, key validation is on native side. */
   override def doExprValidate(substraitExprName: String, expr: Expression): Boolean =

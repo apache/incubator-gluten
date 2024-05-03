@@ -272,6 +272,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
               }
             }
           })
+          .protectInvocationFlow()
           .recycleIterator {
             jniWrapper.close(deserializerHandle)
           }

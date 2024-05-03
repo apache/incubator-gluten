@@ -72,7 +72,8 @@ class ClickHouseDataSource extends DeltaDataSource {
       .getOrElse(Nil)
 
     val deltaLog = DeltaLog.forTable(sqlContext.sparkSession, path, parameters)
-    val configs = if (DeltaLogAdapter.snapshot(deltaLog).version < 0) {
+    // need to use the latest snapshot
+    val configs = if (deltaLog.update().version < 0) {
       // when creating table, save the clickhouse config to the delta metadata
       val clickHouseTableV2 = ClickHouseTableV2.getTable(deltaLog)
       clickHouseTableV2.properties().asScala.toMap ++ DeltaConfigs

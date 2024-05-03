@@ -49,7 +49,7 @@ import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
 
-class IteratorApiImpl extends IteratorApi with Logging {
+class VeloxIteratorApi extends IteratorApi with Logging {
 
   override def genSplitInfo(
       partition: InputPartition,
@@ -225,6 +225,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
 
     Iterators
       .wrap(nativeResultIterator.asScala)
+      .protectInvocationFlow()
       .recycleIterator {
         updateNativeMetrics(nativeResultIterator.getMetrics)
         nativeResultIterator.close()

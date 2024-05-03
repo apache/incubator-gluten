@@ -18,7 +18,7 @@ package org.apache.gluten.backendsapi
 
 import org.apache.gluten.substrait.expression.ExpressionNode
 
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
@@ -39,7 +39,8 @@ trait TransformerApi {
       bucketedScan: Boolean,
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
-      disableBucketedScan: Boolean): Seq[InputPartition]
+      disableBucketedScan: Boolean,
+      filterExprs: Seq[Expression] = Seq.empty): Seq[InputPartition]
 
   /**
    * Post process native config For example, for ClickHouse backend, sync 'spark.executor.cores' to

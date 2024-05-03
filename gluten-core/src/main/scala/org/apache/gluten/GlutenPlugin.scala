@@ -42,7 +42,6 @@ import java.util
 import java.util.{Collections, Objects}
 
 import scala.collection.mutable
-import scala.language.implicitConversions
 
 class GlutenPlugin extends SparkPlugin {
   override def driverPlugin(): DriverPlugin = {
@@ -281,25 +280,11 @@ private[gluten] class GlutenSessionExtensions extends (SparkSessionExtensions =>
   }
 }
 
-private[gluten] class SparkConfImplicits(conf: SparkConf) {
-  def enableGlutenPlugin(): SparkConf = {
-    if (conf.contains(GlutenPlugin.SPARK_SQL_PLUGINS_KEY)) {
-      throw new IllegalArgumentException(
-        "A Spark plugin is already specified before enabling " +
-          "Gluten plugin: " + conf.get(GlutenPlugin.SPARK_SQL_PLUGINS_KEY))
-    }
-    conf.set(GlutenPlugin.SPARK_SQL_PLUGINS_KEY, GlutenPlugin.GLUTEN_PLUGIN_NAME)
-  }
-}
-
 private[gluten] trait GlutenSparkExtensionsInjector {
   def inject(extensions: SparkSessionExtensions)
 }
 
 private[gluten] object GlutenPlugin {
-  // To enable GlutenPlugin in production, set "spark.plugins=org.apache.gluten.GlutenPlugin"
-  val SPARK_SQL_PLUGINS_KEY: String = "spark.plugins"
-  val GLUTEN_PLUGIN_NAME: String = Objects.requireNonNull(classOf[GlutenPlugin].getCanonicalName)
   val SPARK_SESSION_EXTS_KEY: String = StaticSQLConf.SPARK_SESSION_EXTENSIONS.key
   val GLUTEN_SESSION_EXTENSION_NAME: String =
     Objects.requireNonNull(classOf[GlutenSessionExtensions].getCanonicalName)
@@ -311,8 +296,4 @@ private[gluten] object GlutenPlugin {
     StrategyOverrides,
     OthersExtensionOverrides
   )
-
-  implicit def sparkConfImplicit(conf: SparkConf): SparkConfImplicits = {
-    new SparkConfImplicits(conf)
-  }
 }

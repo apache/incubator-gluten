@@ -20,6 +20,7 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.HashAggregateExecBaseTransformer
 
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.internal.SQLConf
 
@@ -68,7 +69,7 @@ class GlutenBloomFilterAggregateQuerySuite
       Row(null))
   }
 
-  testGluten("Test bloom_filter_agg fallback") {
+  testGluten("Test bloom_filter_agg filter fallback") {
     val table = "bloom_filter_test"
     val numEstimatedItems = 5000000L
     val numBits = GlutenConfig.getConf.veloxBloomFilterMaxNumBits
@@ -97,7 +98,7 @@ class GlutenBloomFilterAggregateQuerySuite
           df.queryExecution.executedPlan
         )
       }
-      if (BackendsApiManager.getSettings.enableBloomFilterAggFallbackRule()) {
+      if (BackendsApiManager.getSettings.requireBloomFilterAggMightContainJointFallback()) {
         withSQLConf(
           GlutenConfig.COLUMNAR_FILTER_ENABLED.key -> "false"
         ) {
@@ -106,7 +107,7 @@ class GlutenBloomFilterAggregateQuerySuite
           assert(
             collectWithSubqueries(df.queryExecution.executedPlan) {
               case h if h.isInstanceOf[HashAggregateExecBaseTransformer] => h
-            }.size == 0,
+            }.size == 2,
             df.queryExecution.executedPlan
           )
         }
@@ -114,7 +115,7 @@ class GlutenBloomFilterAggregateQuerySuite
     }
   }
 
-  testGluten("Test bloom_filter_agg fallback with might_contain offloaded") {
+  testGluten("Test bloom_filter_agg agg fallback") {
     val table = "bloom_filter_test"
     val numEstimatedItems = 5000000L
     val numBits = GlutenConfig.getConf.veloxBloomFilterMaxNumBits
@@ -145,5 +146,13 @@ class GlutenBloomFilterAggregateQuerySuite
         )
       }
     }
+  }
+}
+
+class GlutenBloomFilterAggregateQuerySuiteCGOff extends GlutenBloomFilterAggregateQuerySuite {
+  override def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.sql.codegen.wholeStage", "false")
+      .set("spark.sql.codegen.factoryMode", "NO_CODEGEN")
   }
 }

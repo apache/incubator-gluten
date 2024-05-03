@@ -21,11 +21,27 @@ import org.apache.spark.internal.config.ConfigReader
 import scala.collection.JavaConverters._
 
 object GlutenConfigUtil {
+  private def getConfString(reader: ConfigReader, key: String, value: String): String = {
+    Option(SQLConf.getConfigEntry(key))
+      .map {
+        _.readFrom(reader) match {
+          case o: Option[_] => o.map(_.toString).getOrElse(value)
+          case null => value
+          case v => v.toString
+        }
+      }
+      .getOrElse(value)
+  }
+
   def parseConfig(conf: Map[String, String]): Map[String, String] = {
-    val reader = new ConfigReader(conf.filter(_._1.contains("spark.gluten.")).asJava)
-    val glutenConfigEntries =
-      SQLConf.getConfigEntries().asScala.filter(e => e.key.contains("spark.gluten."))
-    val glutenConfig = glutenConfigEntries.map(e => (e.key, e.readFrom(reader).toString)).toMap
-    conf.map(e => (e._1, glutenConfig.getOrElse(e._1, e._2)))
+    val reader = new ConfigReader(conf.filter(_._1.startsWith("spark.gluten.")).asJava)
+    conf.map {
+      case (k, v) =>
+        if (k.startsWith("spark.gluten.")) {
+          (k, getConfString(reader, k, v))
+        } else {
+          (k, v)
+        }
+    }.toMap
   }
 }
