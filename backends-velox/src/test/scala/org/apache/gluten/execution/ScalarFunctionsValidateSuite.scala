@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.sql.catalyst.expressions.{Literal, UnixMillis}
 import org.apache.spark.sql.types._
 
 import java.sql.Timestamp
