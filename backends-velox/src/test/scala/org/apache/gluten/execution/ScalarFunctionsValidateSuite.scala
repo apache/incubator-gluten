@@ -362,7 +362,6 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
-
   test("to_utc_timestamp") {
     withTempPath {
       path =>
