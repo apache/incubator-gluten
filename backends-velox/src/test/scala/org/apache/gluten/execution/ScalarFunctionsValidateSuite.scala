@@ -347,6 +347,22 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("unix_seconds") {
+    withTempPath {
+      path =>
+        val t1 = Timestamp.valueOf("2024-08-22 10:10:10.010")
+        val t2 = Timestamp.valueOf("2014-12-31 00:00:00.012")
+        val t3 = Timestamp.valueOf("1968-12-31 23:59:59.001")
+        Seq(t1, t2, t3).toDF("t").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+        runQueryAndCompare("select unix_seconds(t) from view") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+
   test("to_utc_timestamp") {
     withTempPath {
       path =>
