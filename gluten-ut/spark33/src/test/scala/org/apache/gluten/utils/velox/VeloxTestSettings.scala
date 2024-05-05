@@ -121,6 +121,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeByPrefix("SPARK-36754")
     // Not supported case.
     .exclude("SPARK-36753: ArrayExcept should handle duplicated Double.NaN and Float.Nan")
+    // Rewrite.
+    .exclude("MapFromEntries")
   enableSuite[GlutenConditionalExpressionSuite]
   enableSuite[GlutenDateExpressionsSuite]
     // Has exception in fallback execution when we use resultDF.collect in evaluation.
