@@ -826,4 +826,46 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("unix_millis") {
+    withTempPath {
+      path =>
+        val t1 = Timestamp.valueOf("2015-07-22 10:00:00.012")
+        val t2 = Timestamp.valueOf("2014-12-31 23:59:59.012")
+        val t3 = Timestamp.valueOf("2014-12-31 23:59:59.001")
+        Seq(t1, t2, t3).toDF("t").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
+        runQueryAndCompare("select unix_millis(t) from time") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("unix_micros") {
+    withTempPath {
+      path =>
+        val t1 = Timestamp.valueOf("2015-07-22 10:00:00.012")
+        val t2 = Timestamp.valueOf("2014-12-31 23:59:59.012")
+        val t3 = Timestamp.valueOf("2014-12-31 23:59:59.001")
+        Seq(t1, t2, t3).toDF("t").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
+        runQueryAndCompare("select unix_micros(t) from time") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("timestamp_millis") {
+    runQueryAndCompare("select timestamp_millis(l_orderkey) from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("timestamp_micros") {
+    runQueryAndCompare("select timestamp_micros(l_orderkey) from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
 }

@@ -189,6 +189,10 @@ object ExpressionMappings {
     Sig[MakeYMInterval](MAKE_YM_INTERVAL),
     Sig[ToUTCTimestamp](TO_UTC_TIMESTAMP),
     Sig[FromUTCTimestamp](FROM_UTC_TIMESTAMP),
+    Sig[UnixMillis](UNIX_MILLIS),
+    Sig[UnixMicros](UNIX_MICROS),
+    Sig[MillisToTimestamp](TIMESTAMP_MILLIS),
+    Sig[MicrosToTimestamp](TIMESTAMP_MICROS),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),

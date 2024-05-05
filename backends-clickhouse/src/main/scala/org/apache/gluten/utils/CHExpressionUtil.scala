@@ -190,6 +190,10 @@ object CHExpressionUtil {
     REGR_INTERCEPT -> DefaultValidator(),
     REGR_SXY -> DefaultValidator(),
     TO_UTC_TIMESTAMP -> DefaultValidator(),
-    FROM_UTC_TIMESTAMP -> DefaultValidator()
+    FROM_UTC_TIMESTAMP -> DefaultValidator(),
+    UNIX_MILLIS -> DefaultValidator(),
+    UNIX_MICROS -> DefaultValidator(),
+    TIMESTAMP_MILLIS -> DefaultValidator(),
+    TIMESTAMP_MICROS -> DefaultValidator()
   )
 }
