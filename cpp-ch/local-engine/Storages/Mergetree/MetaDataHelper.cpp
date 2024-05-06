@@ -154,22 +154,18 @@ void saveFileStatus(
 
 std::vector<MergeTreeDataPartPtr> mergeParts(
     std::vector<DB::DataPartPtr> selected_parts,
+    std::unordered_map<String, String> & partition_values,
     const String & new_part_uuid,
     CustomStorageMergeTreePtr storage,
     const String  & partition_dir,
     const String & bucket_dir)
 {
-    // UUID tmp_table_uuid = UUIDHelpers::generateV4();
-    // auto storage = MergeTreeRelParser::parseStorage(
-    //     table, local_engine::SerializedPlanParser::global_context, tmp_table_uuid);
-
     auto future_part = std::make_shared<DB::FutureMergedMutatedPart>();
     future_part->uuid = UUIDHelpers::generateV4();
 
     future_part->assign(std::move(selected_parts));
 
     future_part->name = "";
-    std::unordered_map<String, String> partition_values;
     if(!partition_dir.empty())
     {
         future_part->name =  partition_dir + "/";

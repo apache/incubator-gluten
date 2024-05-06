@@ -160,14 +160,8 @@ std::vector<MergeTreeDataPartPtr> CustomStorageMergeTree::loadDataPartsWithNames
         data_parts.emplace_back(res.part);
     }
 
-    // if(getStorageID().hasUUID())
-    // {
-        // the following lines will modify storage's member.
-        // So when current storage is shared (when UUID is default Nil value),
-        // we should avoid modify because we don't have locks here
-
-        calculateColumnAndSecondaryIndexSizesImpl(); // without it "test mergetree optimize partitioned by one low card column" will log ERROR
-    // }
+    // without it "test mergetree optimize partitioned by one low card column" will log ERROR
+    calculateColumnAndSecondaryIndexSizesImpl();
     return data_parts;
 }
 

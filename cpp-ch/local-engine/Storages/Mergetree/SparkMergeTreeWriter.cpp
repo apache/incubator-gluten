@@ -67,13 +67,7 @@ SparkMergeTreeWriter::SparkMergeTreeWriter(
     , uuid(uuid_)
     , partition_dir(partition_dir_)
     , bucket_dir(bucket_dir_)
-    , thread_pool(
-          CurrentMetrics::LocalThread,
-          CurrentMetrics::LocalThreadActive,
-          CurrentMetrics::LocalThreadScheduled,
-          context->getSettings().max_threads,
-          context->getSettings().max_threads,
-          100000)
+    , thread_pool(CurrentMetrics::LocalThread, CurrentMetrics::LocalThreadActive, CurrentMetrics::LocalThreadScheduled, 1, 1, 100000)
 {
     const DB::Settings & settings = context->getSettingsRef();
     squashing_transform
@@ -453,7 +447,9 @@ void SparkMergeTreeWriter::checkAndMerge(bool force)
         for (const auto & prepare_merge_part : prepare_merge_parts)
             before_size += prepare_merge_part->getBytesOnDisk();
 
-        auto merged_parts = mergeParts(prepare_merge_parts, toString(UUIDHelpers::generateV4()), storage, partition_dir, bucket_dir);
+        std::unordered_map<String, String> partition_values;
+        auto merged_parts
+            = mergeParts(prepare_merge_parts, partition_values, toString(UUIDHelpers::generateV4()), storage, partition_dir, bucket_dir);
         for (const auto & merge_tree_data_part : merged_parts)
             after_size += merge_tree_data_part->getBytesOnDisk();
 

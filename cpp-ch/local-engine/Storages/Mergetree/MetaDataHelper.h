@@ -33,6 +33,7 @@ void saveFileStatus(
 
 std::vector<MergeTreeDataPartPtr> mergeParts(
     std::vector<DB::DataPartPtr> selected_parts,
+    std::unordered_map<String, String> & partition_values,
     const String & new_part_uuid,
     CustomStorageMergeTreePtr storage,
     const String & partition_dir,

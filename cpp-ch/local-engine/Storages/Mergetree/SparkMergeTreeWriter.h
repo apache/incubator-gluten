@@ -72,7 +72,6 @@ private:
     void safeAddPart(DB::MergeTreeDataPartPtr);
     void manualFreeMemory(size_t before_write_memory);
 
-
     String uuid;
     String partition_dir;
     String bucket_dir;
@@ -82,8 +81,6 @@ private:
     std::unique_ptr<DB::SquashingTransform> squashing_transform;
     int part_num = 1;
     ConcurrentDeque<DB::MergeTreeDataPartPtr> new_parts;
-
-
     std::unordered_map<String, String> partition_values;
     std::unordered_set<String> tmp_parts;
     DB::Block header;

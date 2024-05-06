@@ -32,8 +32,8 @@
 
 namespace local_engine
 {
-static const std::unordered_set<String> bool_value_settings{"mergetree.merge_after_insert"};
-static const std::unordered_set<String> long_value_settings{
+static const std::unordered_set<String> BOOL_VALUE_SETTINGS{"mergetree.merge_after_insert"};
+static const std::unordered_set<String> LONG_VALUE_SETTINGS{
     "optimize.maxfilesize", "optimize.minFileSize", "mergetree.max_num_part_per_merge_task"};
 
 class BlockUtil
@@ -127,7 +127,7 @@ class JNIUtils;
 class BackendInitializerUtil
 {
 public:
-    static DB::Field toField(String key, String value);
+    static DB::Field toField(const String key, const String value);
 
     /// Initialize two kinds of resources
     /// 1. global level resources like global_context/shared_context, notice that they can only be initialized once in process lifetime

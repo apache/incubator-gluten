@@ -566,11 +566,11 @@ void BackendInitializerUtil::initEnvs(DB::Context::ConfigurationPtr config)
         spark_user = spark_user_c_str;
 }
 
-DB::Field BackendInitializerUtil::toField(String key, String value)
+DB::Field BackendInitializerUtil::toField(const String key, const String value)
 {
-    if (bool_value_settings.contains(key))
+    if (BOOL_VALUE_SETTINGS.contains(key))
         return DB::Field(value == "true" || value == "1");
-    else if (long_value_settings.contains(key))
+    else if (LONG_VALUE_SETTINGS.contains(key))
         return DB::Field(std::strtoll(value.c_str(), NULL, 10));
     else
         return DB::Field(value);

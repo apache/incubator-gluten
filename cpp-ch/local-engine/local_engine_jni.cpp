@@ -1201,45 +1201,10 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     auto storage_factory = local_engine::StorageMergeTreeFactory::instance();
     std::vector<DB::DataPartPtr> selected_parts = storage_factory.getDataParts(table_id, merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
 
-    auto future_part = std::make_shared<DB::FutureMergedMutatedPart>();
-    future_part->uuid = DB::UUIDHelpers::generateV4();
-
-    future_part->assign(std::move(selected_parts));
-
-    future_part->name = "";
     std::unordered_map<String, String> partition_values;
-    if(!partition_dir.empty())
-    {
-        future_part->name =  partition_dir + "/";
-        Poco::StringTokenizer partitions(partition_dir, "/");
-        for (const auto & partition : partitions)
-        {
-            Poco::StringTokenizer key_value(partition, "=");
-            chassert(key_value.count() == 2);
-            partition_values.emplace(key_value[0], key_value[1]);
-        }
-    }
-    if(!bucket_dir.empty())
-    {
-        future_part->name = future_part->name + bucket_dir + "/";
-    }
-    future_part->name = future_part->name +  uuid_str + "-merged";
+    std::vector<MergeTreeDataPartPtr> loaded =
+        local_engine::mergeParts(selected_parts, partition_values, uuid_str, storage, partition_dir, bucket_dir);
 
-    auto entry = std::make_shared<DB::MergeMutateSelectedEntry>(future_part, DB::CurrentlyMergingPartsTaggerPtr{}, std::make_shared<DB::MutationCommands>());
-
-
-    // Copying a vector of columns `deduplicate by columns.
-    DB::IExecutableTask::TaskResultCallback f = [](bool) {};
-    auto task = std::make_shared<local_engine::MergeSparkMergeTreeTask>(
-        *storage, storage->getInMemoryMetadataPtr(), false,  std::vector<std::string>{}, false, entry,
-        DB::TableLockHolder{}, f);
-
-    task->setCurrentTransaction(DB::MergeTreeTransactionHolder{}, DB::MergeTreeTransactionPtr{});
-
-    executeHere(task);
-
-    std::unordered_set<std::string> to_load{future_part->name};
-    std::vector<MergeTreeDataPartPtr> loaded = storage->loadDataPartsWithNames(to_load);
     std::vector<local_engine::PartInfo> res;
     for (auto & partPtr : loaded)
     {
@@ -1248,10 +1213,8 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
             local_engine::SerializedPlanParser::global_context,
             partPtr->name,
             const_cast<IDataPartStorage &>(partPtr->getDataPartStorage()));
-        res.emplace_back(
-            local_engine::PartInfo{partPtr->name, partPtr->getMarksCount(), partPtr->getBytesOnDisk(), partPtr->rows_count,
-                                   /*partition_value*/ partition_values,
-                                   bucket_dir});
+        res.emplace_back(local_engine::PartInfo{
+            partPtr->name, partPtr->getMarksCount(), partPtr->getBytesOnDisk(), partPtr->rows_count, partition_values, bucket_dir});
     }
 
     auto json_info = local_engine::SparkMergeTreeWriter::partInfosToJson(res);
