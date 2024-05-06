@@ -14,19 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.spark.sql.catalyst.expressions
 
-class TableFunctionsValidateSuite extends FunctionsValidateTest {
-  disableFallbackCheck
-
-  test("Test json_tuple function") {
-    runQueryAndCompare(
-      "SELECT * from datatab lateral view json_tuple(string_field1, 'a', 'b') as fa, fb") {
-      checkGlutenOperatorMatch[GenerateExecTransformer]
-    }
-
-    runQueryAndCompare("SELECT l_orderkey, json_tuple('{\"a\":\"b\"}', 'a') from lineitem") {
-      checkGlutenOperatorMatch[GenerateExecTransformer]
-    }
-  }
+/** Used when transformed by JsonTuple. The behavior are the same with Explode. */
+case class JsonTupleExplode(child: Expression) extends ExplodeBase {
+  override val position: Boolean = false
+  override protected def withNewChildInternal(newChild: Expression): JsonTupleExplode =
+    copy(child = newChild)
 }

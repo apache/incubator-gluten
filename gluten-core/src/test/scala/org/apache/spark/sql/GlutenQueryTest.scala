@@ -342,6 +342,8 @@ object GlutenQueryTest extends Assertions {
       GlutenDriverEndpoint.invalidateResourceRelation(executionId)
     }
 
+    // scalastyle:off println
+    println(df.queryExecution)
     val sparkAnswer =
       try df.collect().toSeq
       catch {

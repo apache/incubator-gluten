@@ -156,15 +156,18 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
               generate.generator.withNewChildren(newGeneratorChildren).asInstanceOf[Generator],
             child = ProjectExec(generate.child.output ++ newGeneratorChildren, generate.child)
           )
-        case JsonTuple(children) =>
-          val jsonObj = children.head
-          val preGenerateExprs = Alias(
-            CreateArray(children.drop(1).map {
-              child => Alias(GetJsonObject(jsonObj, child), generatePreAliasName)()
-            }),
-            generatePreAliasName)()
-
-          val newGenerator = Explode(preGenerateExprs.toAttribute)
+        case JsonTuple(Seq(jsonObj, jsonPaths @ _*)) if jsonPaths.forall(_.foldable) =>
+          val preGenerateExprs =
+            Alias(
+              CreateArray(Seq(CreateStruct(jsonPaths.map {
+                case jsonPath =>
+                  GetJsonObject(jsonObj, Literal.create("$." + jsonPath.eval().toString))
+              }))),
+              generatePreAliasName
+            )()
+          // use JsonTupleExplode here instead of Explode so that we can distinguish
+          // JsonTuple and Explode, because JsonTuple has an extra post-projection
+          val newGenerator = JsonTupleExplode(preGenerateExprs.toAttribute)
           generate.copy(
             generator = newGenerator,
             child = ProjectExec(generate.child.output ++ Seq(preGenerateExprs), generate.child)
@@ -196,7 +199,7 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
           ProjectExec(
             (generate.requiredChildOutput :+ ordinal) ++ generate.generatorOutput.tail,
             newGenerate)
-        case Inline(_) =>
+        case Inline(_) | JsonTupleExplode(_) =>
           val unnestOutput = {
             val struct = CreateStruct(generate.generatorOutput)
             val alias = Alias(struct, generatePostAliasName)()

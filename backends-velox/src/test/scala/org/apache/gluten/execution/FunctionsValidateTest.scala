@@ -60,9 +60,9 @@ class FunctionsValidateTest extends WholeStageTransformerSuite {
         StructField("string_field1", StringType, true)
       ))
     val rowData = Seq(
-      Row(1.025, 1, "{\"a\":\"b\"}"),
-      Row(1.035, 2, null),
-      Row(1.045, 3, null)
+      Row(1.025, 1, "{\"a\":\"value1\"}"),
+      Row(1.035, 2, "{\"a\":\"value2\", \"b\":\"value2b\", \"c\":\"value2c\"}"),
+      Row(1.045, 3, "{\"b\":\"value3b\", \"c\":\"value3c\"}")
     )
 
     val dfParquet = spark.createDataFrame(rowData.asJava, schema)
