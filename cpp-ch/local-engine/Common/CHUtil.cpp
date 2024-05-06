@@ -323,34 +323,6 @@ std::string PlanUtil::explainPlan(DB::QueryPlan & plan)
     return plan_str;
 }
 
-std::vector<MergeTreeUtil::Path> MergeTreeUtil::getAllMergeTreeParts(const Path & storage_path)
-{
-    if (!fs::exists(storage_path))
-        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Invalid merge tree store path:{}", storage_path.string());
-
-    // TODO: May need to check the storage format version
-    std::vector<fs::path> res;
-    for (const auto & entry : fs::directory_iterator(storage_path))
-    {
-        auto filename = entry.path().filename();
-        if (filename == "format_version.txt" || filename == "detached" || filename == "_delta_log")
-            continue;
-        res.push_back(entry.path());
-    }
-    return res;
-}
-
-DB::NamesAndTypesList MergeTreeUtil::getSchemaFromMergeTreePart(const fs::path & part_path)
-{
-    DB::NamesAndTypesList names_types_list;
-    if (!fs::exists(part_path))
-        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Invalid merge tree store path:{}", part_path.string());
-    DB::ReadBufferFromFile readbuffer((part_path / "columns.txt").string());
-    names_types_list.readText(readbuffer);
-    return names_types_list;
-}
-
-
 NestedColumnExtractHelper::NestedColumnExtractHelper(const DB::Block & block_, bool case_insentive_)
     : block(block_), case_insentive(case_insentive_)
 {
@@ -594,10 +566,21 @@ void BackendInitializerUtil::initEnvs(DB::Context::ConfigurationPtr config)
         spark_user = spark_user_c_str;
 }
 
+DB::Field BackendInitializerUtil::toField(const String key, const String value)
+{
+    if (BOOL_VALUE_SETTINGS.contains(key))
+        return DB::Field(value == "true" || value == "1");
+    else if (LONG_VALUE_SETTINGS.contains(key))
+        return DB::Field(std::strtoll(value.c_str(), NULL, 10));
+    else
+        return DB::Field(value);
+}
+
 void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & backend_conf_map, DB::Settings & settings)
 {
     /// Initialize default setting.
     settings.set("date_time_input_format", "best_effort");
+    settings.set("mergetree.merge_after_insert", true);
 
     for (const auto & [key, value] : backend_conf_map)
     {
@@ -609,7 +592,8 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
         }
         else if (key.starts_with(CH_RUNTIME_SETTINGS_PREFIX))
         {
-            settings.set(key.substr(CH_RUNTIME_SETTINGS_PREFIX.size()), value);
+            auto k = key.substr(CH_RUNTIME_SETTINGS_PREFIX.size());
+            settings.set(k, toField(k, value));
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
         }
         else if (key.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX))
@@ -623,6 +607,12 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
             // 3. fs.s3a.bucket.bucket_name.endpoint
             // 4. fs.s3a.bucket.bucket_name.assumed.role.externalId (non hadoop official)
             settings.set(key.substr(SPARK_HADOOP_PREFIX.length()), value);
+        }
+        else if (key.starts_with(SPARK_DELTA_PREFIX))
+        {
+            auto k = key.substr(SPARK_DELTA_PREFIX.size());
+            settings.set(k, toField(k, value));
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
         }
     }
 

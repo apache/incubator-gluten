@@ -209,6 +209,10 @@ object ExpressionNames {
   final val MAKE_YM_INTERVAL = "make_ym_interval"
   final val TO_UTC_TIMESTAMP = "to_utc_timestamp"
   final val FROM_UTC_TIMESTAMP = "from_utc_timestamp"
+  final val UNIX_MILLIS = "unix_millis"
+  final val UNIX_MICROS = "unix_micros"
+  final val TIMESTAMP_MILLIS = "timestamp_millis"
+  final val TIMESTAMP_MICROS = "timestamp_micros"
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
@@ -246,6 +250,7 @@ object ExpressionNames {
   final val ARRAY_EXCEPT = "array_except"
   final val ARRAY_REPEAT = "array_repeat"
   final val ARRAY_REMOVE = "array_remove"
+  final val ARRAYS_ZIP = "arrays_zip"
   final val FILTER = "filter"
   final val FORALL = "forall"
   final val EXISTS = "exists"

@@ -33,8 +33,8 @@ class TpcdsDataGen(
     dir: String,
     typeModifiers: List[TypeModifier] = List(),
     val genPartitionedData: Boolean)
-  extends Serializable
-  with DataGen {
+    extends Serializable
+    with DataGen {
 
   def writeParquetTable(t: Table): Unit = {
     val name = t.getName
@@ -97,25 +97,23 @@ class TpcdsDataGen(
     val tablePath = dir + File.separator + tableName
     spark
       .range(0, partitions, 1L, partitions)
-      .mapPartitions {
-        itr =>
-          val id = itr.toArray
-          if (id.length != 1) {
-            throw new IllegalStateException()
-          }
-          val options = new Options()
-          options.scale = scale
-          options.parallelism = partitions
-          val session = options.toSession
-          val chunkSession = session.withChunkNumber(id(0).toInt + 1)
-          val results = Results.constructResults(t, chunkSession).asScala.toIterator
-          results.map {
-            parentAndChildRow =>
-              // Skip child table when generating parent table,
-              // we generate every table individually no matter it is parent or child.
-              val array: Array[String] = parentAndChildRow.get(0).asScala.toArray
-              Row(array: _*)
-          }
+      .mapPartitions { itr =>
+        val id = itr.toArray
+        if (id.length != 1) {
+          throw new IllegalStateException()
+        }
+        val options = new Options()
+        options.scale = scale
+        options.parallelism = partitions
+        val session = options.toSession
+        val chunkSession = session.withChunkNumber(id(0).toInt + 1)
+        val results = Results.constructResults(t, chunkSession).asScala.toIterator
+        results.map { parentAndChildRow =>
+          // Skip child table when generating parent table,
+          // we generate every table individually no matter it is parent or child.
+          val array: Array[String] = parentAndChildRow.get(0).asScala.toArray
+          Row(array: _*)
+        }
       }(ShimUtils.getExpressionEncoder(stringSchema))
       .select(columns: _*)
       .write
@@ -168,8 +166,7 @@ object TpcdsDataGen {
         StructField("cs_net_paid_inc_tax", DecimalType(7, 2)),
         StructField("cs_net_paid_inc_ship", DecimalType(7, 2)),
         StructField("cs_net_paid_inc_ship_tax", DecimalType(7, 2)),
-        StructField("cs_net_profit", DecimalType(7, 2))
-      ))
+        StructField("cs_net_profit", DecimalType(7, 2))))
   }
 
   private def catalogReturnsSchema = {
@@ -201,8 +198,7 @@ object TpcdsDataGen {
         StructField("cr_refunded_cash", DecimalType(7, 2)),
         StructField("cr_reversed_charge", DecimalType(7, 2)),
         StructField("cr_store_credit", DecimalType(7, 2)),
-        StructField("cr_net_loss", DecimalType(7, 2))
-      ))
+        StructField("cr_net_loss", DecimalType(7, 2))))
   }
 
   private def inventorySchema = {
@@ -211,8 +207,7 @@ object TpcdsDataGen {
         StructField("inv_date_sk", LongType),
         StructField("inv_item_sk", LongType),
         StructField("inv_warehouse_sk", LongType),
-        StructField("inv_quantity_on_hand", LongType)
-      ))
+        StructField("inv_quantity_on_hand", LongType)))
   }
 
   private def storeSalesSchema = {
@@ -240,8 +235,7 @@ object TpcdsDataGen {
         StructField("ss_coupon_amt", DecimalType(7, 2)),
         StructField("ss_net_paid", DecimalType(7, 2)),
         StructField("ss_net_paid_inc_tax", DecimalType(7, 2)),
-        StructField("ss_net_profit", DecimalType(7, 2))
-      ))
+        StructField("ss_net_profit", DecimalType(7, 2))))
   }
 
   private def storeReturnsSchema = {
@@ -266,8 +260,7 @@ object TpcdsDataGen {
         StructField("sr_refunded_cash", DecimalType(7, 2)),
         StructField("sr_reversed_charge", DecimalType(7, 2)),
         StructField("sr_store_credit", DecimalType(7, 2)),
-        StructField("sr_net_loss", DecimalType(7, 2))
-      ))
+        StructField("sr_net_loss", DecimalType(7, 2))))
   }
 
   private def webSalesSchema = {
@@ -306,8 +299,7 @@ object TpcdsDataGen {
         StructField("ws_net_paid_inc_tax", DecimalType(7, 2)),
         StructField("ws_net_paid_inc_ship", DecimalType(7, 2)),
         StructField("ws_net_paid_inc_ship_tax", DecimalType(7, 2)),
-        StructField("ws_net_profit", DecimalType(7, 2))
-      ))
+        StructField("ws_net_profit", DecimalType(7, 2))))
   }
 
   private def webReturnsSchema = {
@@ -336,8 +328,7 @@ object TpcdsDataGen {
         StructField("wr_refunded_cash", DecimalType(7, 2)),
         StructField("wr_reversed_charge", DecimalType(7, 2)),
         StructField("wr_account_credit", DecimalType(7, 2)),
-        StructField("wr_net_loss", DecimalType(7, 2))
-      ))
+        StructField("wr_net_loss", DecimalType(7, 2))))
   }
 
   private def callCenterSchema = {
@@ -373,8 +364,7 @@ object TpcdsDataGen {
         StructField("cc_zip", StringType),
         StructField("cc_country", StringType),
         StructField("cc_gmt_offset", DecimalType(5, 2)),
-        StructField("cc_tax_percentage", DecimalType(5, 2))
-      ))
+        StructField("cc_tax_percentage", DecimalType(5, 2))))
   }
 
   private def catalogPageSchema = {
@@ -388,8 +378,7 @@ object TpcdsDataGen {
         StructField("cp_catalog_number", LongType),
         StructField("cp_catalog_page_number", LongType),
         StructField("cp_description", StringType),
-        StructField("cp_type", StringType)
-      ))
+        StructField("cp_type", StringType)))
   }
 
   private def customerSchema = {
@@ -412,8 +401,7 @@ object TpcdsDataGen {
         StructField("c_birth_country", StringType),
         StructField("c_login", StringType),
         StructField("c_email_address", StringType),
-        StructField("c_last_review_date", StringType)
-      ))
+        StructField("c_last_review_date", StringType)))
   }
 
   private def customerAddressSchema = {
@@ -431,8 +419,7 @@ object TpcdsDataGen {
         StructField("ca_zip", StringType),
         StructField("ca_country", StringType),
         StructField("ca_gmt_offset", DecimalType(5, 2)),
-        StructField("ca_location_type", StringType)
-      ))
+        StructField("ca_location_type", StringType)))
   }
 
   private def customerDemographicsSchema = {
@@ -446,8 +433,7 @@ object TpcdsDataGen {
         StructField("cd_credit_rating", StringType),
         StructField("cd_dep_count", LongType),
         StructField("cd_dep_employed_count", LongType),
-        StructField("cd_dep_college_count", LongType)
-      ))
+        StructField("cd_dep_college_count", LongType)))
   }
 
   private def dateDimSchema = {
@@ -480,8 +466,7 @@ object TpcdsDataGen {
         StructField("d_current_week", StringType),
         StructField("d_current_month", StringType),
         StructField("d_current_quarter", StringType),
-        StructField("d_current_year", StringType)
-      ))
+        StructField("d_current_year", StringType)))
   }
 
   private def householdDemographicsSchema = {
@@ -491,8 +476,7 @@ object TpcdsDataGen {
         StructField("hd_income_band_sk", LongType),
         StructField("hd_buy_potential", StringType),
         StructField("hd_dep_count", LongType),
-        StructField("hd_vehicle_count", LongType)
-      ))
+        StructField("hd_vehicle_count", LongType)))
   }
 
   private def incomeBandSchema = {
@@ -500,8 +484,7 @@ object TpcdsDataGen {
       Seq(
         StructField("ib_income_band_sk", LongType),
         StructField("ib_lower_bound", LongType),
-        StructField("ib_upper_bound", LongType)
-      ))
+        StructField("ib_upper_bound", LongType)))
   }
 
   private def itemSchema = {
@@ -528,8 +511,7 @@ object TpcdsDataGen {
         StructField("i_units", StringType),
         StructField("i_container", StringType),
         StructField("i_manager_id", LongType),
-        StructField("i_product_name", StringType)
-      ))
+        StructField("i_product_name", StringType)))
   }
 
   private def promotionSchema = {
@@ -553,8 +535,7 @@ object TpcdsDataGen {
         StructField("p_channel_demo", StringType),
         StructField("p_channel_details", StringType),
         StructField("p_purpose", StringType),
-        StructField("p_discount_active", StringType)
-      ))
+        StructField("p_discount_active", StringType)))
   }
 
   private def reasonSchema = {
@@ -562,8 +543,7 @@ object TpcdsDataGen {
       Seq(
         StructField("r_reason_sk", LongType),
         StructField("r_reason_id", StringType),
-        StructField("r_reason_desc", StringType)
-      ))
+        StructField("r_reason_desc", StringType)))
   }
 
   private def shipModeSchema = {
@@ -574,8 +554,7 @@ object TpcdsDataGen {
         StructField("sm_type", StringType),
         StructField("sm_code", StringType),
         StructField("sm_carrier", StringType),
-        StructField("sm_contract", StringType)
-      ))
+        StructField("sm_contract", StringType)))
   }
 
   private def storeSchema = {
@@ -609,8 +588,7 @@ object TpcdsDataGen {
         StructField("s_zip", StringType),
         StructField("s_country", StringType),
         StructField("s_gmt_offset", DecimalType(5, 2)),
-        StructField("s_tax_precentage", DecimalType(5, 2))
-      ))
+        StructField("s_tax_precentage", DecimalType(5, 2))))
   }
 
   private def timeDimSchema = {
@@ -625,8 +603,7 @@ object TpcdsDataGen {
         StructField("t_am_pm", StringType),
         StructField("t_shift", StringType),
         StructField("t_sub_shift", StringType),
-        StructField("t_meal_time", StringType)
-      ))
+        StructField("t_meal_time", StringType)))
   }
 
   private def warehouseSchema = {
@@ -645,8 +622,7 @@ object TpcdsDataGen {
         StructField("w_state", StringType),
         StructField("w_zip", StringType),
         StructField("w_country", StringType),
-        StructField("w_gmt_offset", DecimalType(5, 2))
-      ))
+        StructField("w_gmt_offset", DecimalType(5, 2))))
   }
 
   private def webPageSchema = {
@@ -665,8 +641,7 @@ object TpcdsDataGen {
         StructField("wp_char_count", LongType),
         StructField("wp_link_count", LongType),
         StructField("wp_image_count", LongType),
-        StructField("wp_max_ad_count", LongType)
-      ))
+        StructField("wp_max_ad_count", LongType)))
   }
 
   private def webSiteSchema = {
@@ -697,7 +672,6 @@ object TpcdsDataGen {
         StructField("web_zip", StringType),
         StructField("web_country", StringType),
         StructField("web_gmt_offset", StringType),
-        StructField("web_tax_percentage", DecimalType(5, 2))
-      ))
+        StructField("web_tax_percentage", DecimalType(5, 2))))
   }
 }

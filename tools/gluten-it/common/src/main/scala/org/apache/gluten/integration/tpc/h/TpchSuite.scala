@@ -41,24 +41,23 @@ class TpchSuite(
     val disableWscg: Boolean,
     val shufflePartitions: Int,
     val minimumScanPartitions: Boolean)
-  extends TpcSuite(
-    masterUrl,
-    actions,
-    testConf,
-    baselineConf,
-    extraSparkConf,
-    logLevel,
-    errorOnMemLeak,
-    enableUi,
-    enableHsUi,
-    hsUiPort,
-    offHeapSize,
-    disableAqe,
-    disableBhj,
-    disableWscg,
-    shufflePartitions,
-    minimumScanPartitions
-  ) {
+    extends TpcSuite(
+      masterUrl,
+      actions,
+      testConf,
+      baselineConf,
+      extraSparkConf,
+      logLevel,
+      errorOnMemLeak,
+      enableUi,
+      enableHsUi,
+      hsUiPort,
+      offHeapSize,
+      disableAqe,
+      disableBhj,
+      disableWscg,
+      shufflePartitions,
+      minimumScanPartitions) {
 
   override protected def historyWritePath(): String = HISTORY_WRITE_PATH
 

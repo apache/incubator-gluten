@@ -18,7 +18,11 @@ package org.apache.gluten.integration.tpc.ds
 
 import org.apache.gluten.integration.tpc.{Constants, DataGen, TpcSuite, TypeModifier}
 import org.apache.gluten.integration.tpc.action.Action
-import org.apache.gluten.integration.tpc.ds.TpcdsSuite.{ALL_QUERY_IDS, HISTORY_WRITE_PATH, TPCDS_WRITE_PATH}
+import org.apache.gluten.integration.tpc.ds.TpcdsSuite.{
+  ALL_QUERY_IDS,
+  HISTORY_WRITE_PATH,
+  TPCDS_WRITE_PATH
+}
 
 import org.apache.spark.SparkConf
 
@@ -41,24 +45,23 @@ class TpcdsSuite(
     val disableWscg: Boolean,
     val shufflePartitions: Int,
     val minimumScanPartitions: Boolean)
-  extends TpcSuite(
-    masterUrl,
-    actions,
-    testConf,
-    baselineConf,
-    extraSparkConf,
-    logLevel,
-    errorOnMemLeak,
-    enableUi,
-    enableHsUi,
-    hsUiPort,
-    offHeapSize,
-    disableAqe,
-    disableBhj,
-    disableWscg,
-    shufflePartitions,
-    minimumScanPartitions
-  ) {
+    extends TpcSuite(
+      masterUrl,
+      actions,
+      testConf,
+      baselineConf,
+      extraSparkConf,
+      logLevel,
+      errorOnMemLeak,
+      enableUi,
+      enableHsUi,
+      hsUiPort,
+      offHeapSize,
+      disableAqe,
+      disableBhj,
+      disableWscg,
+      shufflePartitions,
+      minimumScanPartitions) {
 
   override protected def historyWritePath(): String = HISTORY_WRITE_PATH
 
@@ -191,7 +194,6 @@ object TpcdsSuite {
     "q96",
     "q97",
     "q98",
-    "q99"
-  )
+    "q99")
   private val HISTORY_WRITE_PATH = "/tmp/tpcds-history"
 }
