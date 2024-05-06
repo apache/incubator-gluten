@@ -238,6 +238,7 @@ object ExpressionMappings {
     Sig[ArrayForAll](FORALL),
     Sig[ArrayExists](EXISTS),
     Sig[Shuffle](SHUFFLE),
+    Sig[ZipWith](ZIP_WITH),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
@@ -245,6 +246,7 @@ object ExpressionMappings {
     Sig[MapValues](MAP_VALUES),
     Sig[MapFromArrays](MAP_FROM_ARRAYS),
     Sig[MapEntries](MAP_ENTRIES),
+    Sig[MapZipWith](MAP_ZIP_WITH),
     Sig[StringToMap](STR_TO_MAP),
     // Struct functions
     Sig[GetStructField](GET_STRUCT_FIELD),
