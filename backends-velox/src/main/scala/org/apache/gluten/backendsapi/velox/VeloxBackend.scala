@@ -479,7 +479,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportTransformWriteFiles: Boolean = true
 
-  override def allowDecimalArithmetic: Boolean = SQLConf.get.decimalOperationsAllowPrecisionLoss
+  override def allowDecimalArithmetic: Boolean = true
 
   override def enableNativeWriteFiles(): Boolean = {
     GlutenConfig.getConf.enableNativeWriter.getOrElse(
