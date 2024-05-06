@@ -229,16 +229,16 @@ object HashAggregateExecBaseTransformer {
         false
     }
 
+    // Check if aggregate expressions' output schema is identity with Velox's definition
+//    PulloutHel
+
     areAllKeysAttributes && areAllKeysIncludedInOutput && isStraightforwardOutput
   }
 }
 
-abstract class HashAggregateExecPullOutBaseHelper(
-    groupingExpressions: Seq[NamedExpression],
-    aggregateExpressions: Seq[AggregateExpression],
-    aggregateAttributes: Seq[Attribute]) {
+trait HashAggregateExecPullOutBaseHelper {
   // The direct outputs of Aggregation.
-  lazy val allAggregateResultAttributes: List[Attribute] =
+  def allAggregateResultAttributes(groupingExpressions: Seq[NamedExpression]): List[Attribute] =
     groupingExpressions.map(ConverterUtils.getAttrFromExpr(_)).toList :::
       getAttrForAggregateExprs
 

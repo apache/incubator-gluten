@@ -39,10 +39,10 @@ object PullOutPostProject extends RewriteSingleNode with PullOutProjectHelper {
       case agg: BaseAggregateExec =>
         val pullOutHelper =
           BackendsApiManager.getSparkPlanExecApiInstance.genHashAggregateExecPullOutHelper(
-            agg.groupingExpressions,
             agg.aggregateExpressions,
             agg.aggregateAttributes)
-        val allAggregateResultAttributes = pullOutHelper.allAggregateResultAttributes
+        val allAggregateResultAttributes =
+          pullOutHelper.allAggregateResultAttributes(agg.groupingExpressions)
         // If the result expressions has different size with output attribute,
         // post-projection is needed.
         agg.resultExpressions.size != allAggregateResultAttributes.size ||
@@ -75,10 +75,9 @@ object PullOutPostProject extends RewriteSingleNode with PullOutProjectHelper {
     case agg: BaseAggregateExec if supportedAggregate(agg) && needsPostProjection(agg) =>
       val pullOutHelper =
         BackendsApiManager.getSparkPlanExecApiInstance.genHashAggregateExecPullOutHelper(
-          agg.groupingExpressions,
           agg.aggregateExpressions,
           agg.aggregateAttributes)
-      val newResultExpressions = pullOutHelper.allAggregateResultAttributes
+      val newResultExpressions = pullOutHelper.allAggregateResultAttributes(agg.groupingExpressions)
       val newAgg = copyBaseAggregateExec(agg)(newResultExpressions = newResultExpressions)
       ProjectExec(agg.resultExpressions, newAgg)
 
