@@ -20,7 +20,6 @@ import org.apache.gluten.integration.stat.RamStat
 import org.apache.gluten.integration.tpc.{TpcRunner, TpcSuite}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.gluten.integration.tpc.action.Actions.QuerySelector
-import org.apache.gluten.integration.tpc.action.QueriesCompare.TestResultLine
 
 case class Queries(
     scale: Double,
