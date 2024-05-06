@@ -234,6 +234,7 @@ object ExpressionMappings {
     Sig[ArrayExcept](ARRAY_EXCEPT),
     Sig[ArrayRepeat](ARRAY_REPEAT),
     Sig[ArrayRemove](ARRAY_REMOVE),
+    Sig[ArraysZip](ARRAYS_ZIP),
     Sig[ArrayFilter](FILTER),
     Sig[ArrayForAll](FORALL),
     Sig[ArrayExists](EXISTS),
