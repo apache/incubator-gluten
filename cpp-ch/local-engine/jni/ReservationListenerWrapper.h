@@ -28,12 +28,16 @@ public:
     static jmethodID reservation_listener_reserve;
     static jmethodID reservation_listener_reserve_or_throw;
     static jmethodID reservation_listener_unreserve;
+    static jmethodID reservation_listener_currentMemory;
 
     explicit ReservationListenerWrapper(jobject listener);
     ~ReservationListenerWrapper();
     void reserve(int64_t size);
     void reserveOrThrow(int64_t size);
     void free(int64_t size);
+    size_t currentMemory();
+
+
 
 private:
     jobject listener;

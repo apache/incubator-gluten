@@ -24,6 +24,7 @@ jclass ReservationListenerWrapper::reservation_listener_class = nullptr;
 jmethodID ReservationListenerWrapper::reservation_listener_reserve = nullptr;
 jmethodID ReservationListenerWrapper::reservation_listener_reserve_or_throw = nullptr;
 jmethodID ReservationListenerWrapper::reservation_listener_unreserve = nullptr;
+jmethodID ReservationListenerWrapper::reservation_listener_currentMemory = nullptr;
 
 ReservationListenerWrapper::ReservationListenerWrapper(jobject listener_) : listener(listener_)
 {
@@ -54,6 +55,14 @@ void ReservationListenerWrapper::free(int64_t size)
 {
     GET_JNIENV(env)
     safeCallVoidMethod(env, listener, reservation_listener_unreserve, size);
+    CLEAN_JNIENV
+}
+
+size_t ReservationListenerWrapper::currentMemory()
+{
+    GET_JNIENV(env)
+    int64_t res = safeCallLongMethod(env, listener, reservation_listener_currentMemory);
+    return res;
     CLEAN_JNIENV
 }
 }

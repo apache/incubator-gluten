@@ -186,6 +186,9 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
         = local_engine::GetMethodID(env, local_engine::ReservationListenerWrapper::reservation_listener_class, "reserveOrThrow", "(J)V");
     local_engine::ReservationListenerWrapper::reservation_listener_unreserve
         = local_engine::GetMethodID(env, local_engine::ReservationListenerWrapper::reservation_listener_class, "unreserve", "(J)J");
+    local_engine::ReservationListenerWrapper::reservation_listener_currentMemory
+        = local_engine::GetMethodID(env, local_engine::ReservationListenerWrapper::reservation_listener_class, "currentMemory", "()J");
+
 
     native_metrics_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/metrics/NativeMetrics;");
     native_metrics_constructor = local_engine::GetMethodID(env, native_metrics_class, "<init>", "(Ljava/lang/String;)V");
@@ -997,9 +1000,26 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
 }
 
 JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_nativeInitMergeTreeWriterWrapper(
-    JNIEnv * env, jobject, jbyteArray plan_, jbyteArray split_info_, jstring uuid_, jstring task_id_, jstring partition_dir_, jstring bucket_dir_)
+    JNIEnv * env,
+    jobject,
+    jbyteArray plan_,
+    jbyteArray split_info_,
+    jstring uuid_,
+    jstring task_id_,
+    jstring partition_dir_,
+    jstring bucket_dir_,
+    jbyteArray conf_plan,
+    jlong allocator_id)
 {
     LOCAL_ENGINE_JNI_METHOD_START
+    auto query_context = local_engine::getAllocator(allocator_id)->query_context;
+    // by task update new configs ( in case of dynamic config update )
+    jsize conf_plan_buf_size = env->GetArrayLength(conf_plan);
+    jbyte * conf_plan_buf_addr = env->GetByteArrayElements(conf_plan, nullptr);
+    std::string conf_plan_str;
+    conf_plan_str.assign(reinterpret_cast<const char *>(conf_plan_buf_addr), conf_plan_buf_size);
+    local_engine::BackendInitializerUtil::updateConfig(query_context, &conf_plan_str);
+
     const auto uuid_str = jstring2string(env, uuid_);
     const auto task_id = jstring2string(env, task_id_);
     const auto partition_dir = jstring2string(env, partition_dir_);
@@ -1035,10 +1055,11 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
         extension_table, local_engine::SerializedPlanParser::global_context);
     auto uuid = uuid_str + "_" + task_id;
     auto * writer = new local_engine::SparkMergeTreeWriter(
-        *storage, storage->getInMemoryMetadataPtr(), local_engine::SerializedPlanParser::global_context, uuid, partition_dir, bucket_dir);
+        storage, storage->getInMemoryMetadataPtr(), query_context, uuid, partition_dir, bucket_dir);
 
     env->ReleaseByteArrayElements(plan_, plan_buf_addr, JNI_ABORT);
     env->ReleaseByteArrayElements(split_info_, split_info_addr, JNI_ABORT);
+    env->ReleaseByteArrayElements(conf_plan, conf_plan_buf_addr, JNI_ABORT);
     return reinterpret_cast<jlong>(writer);
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
@@ -1180,53 +1201,20 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     auto storage_factory = local_engine::StorageMergeTreeFactory::instance();
     std::vector<DB::DataPartPtr> selected_parts = storage_factory.getDataParts(table_id, merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
 
-    auto future_part = std::make_shared<DB::FutureMergedMutatedPart>();
-    future_part->uuid = DB::UUIDHelpers::generateV4();
-
-    future_part->assign(std::move(selected_parts));
-
-    future_part->name = "";
     std::unordered_map<String, String> partition_values;
-    if(!partition_dir.empty())
-    {
-        future_part->name =  partition_dir + "/";
-        Poco::StringTokenizer partitions(partition_dir, "/");
-        for (const auto & partition : partitions)
-        {
-            Poco::StringTokenizer key_value(partition, "=");
-            chassert(key_value.count() == 2);
-            partition_values.emplace(key_value[0], key_value[1]);
-        }
-    }
-    if(!bucket_dir.empty())
-    {
-        future_part->name = future_part->name + bucket_dir + "/";
-    }
-    future_part->name = future_part->name +  uuid_str + "-merged";
+    std::vector<MergeTreeDataPartPtr> loaded =
+        local_engine::mergeParts(selected_parts, partition_values, uuid_str, storage, partition_dir, bucket_dir);
 
-    auto entry = std::make_shared<DB::MergeMutateSelectedEntry>(future_part, DB::CurrentlyMergingPartsTaggerPtr{}, std::make_shared<DB::MutationCommands>());
-
-
-    // Copying a vector of columns `deduplicate by columns.
-    DB::IExecutableTask::TaskResultCallback f = [](bool) {};
-    auto task = std::make_shared<local_engine::MergeSparkMergeTreeTask>(
-        *storage, storage->getInMemoryMetadataPtr(), false,  std::vector<std::string>{}, false, entry,
-        DB::TableLockHolder{}, f);
-
-    task->setCurrentTransaction(DB::MergeTreeTransactionHolder{}, DB::MergeTreeTransactionPtr{});
-
-    executeHere(task);
-
-    std::unordered_set<std::string> to_load{future_part->name};
-    std::vector<std::shared_ptr<DB::IMergeTreeDataPart>> loaded = storage->loadDataPartsWithNames(to_load);
     std::vector<local_engine::PartInfo> res;
     for (auto & partPtr : loaded)
     {
-        local_engine::saveFileStatus(*storage, local_engine::SerializedPlanParser::global_context, partPtr->getDataPartStorage());
-        res.emplace_back(
-            local_engine::PartInfo{partPtr->name, partPtr->getMarksCount(), partPtr->getBytesOnDisk(), partPtr->rows_count,
-                                   /*partition_value*/ partition_values,
-                                   bucket_dir});
+        saveFileStatus(
+            *storage,
+            local_engine::SerializedPlanParser::global_context,
+            partPtr->name,
+            const_cast<IDataPartStorage &>(partPtr->getDataPartStorage()));
+        res.emplace_back(local_engine::PartInfo{
+            partPtr->name, partPtr->getMarksCount(), partPtr->getBytesOnDisk(), partPtr->rows_count, partition_values, bucket_dir});
     }
 
     auto json_info = local_engine::SparkMergeTreeWriter::partInfosToJson(res);
