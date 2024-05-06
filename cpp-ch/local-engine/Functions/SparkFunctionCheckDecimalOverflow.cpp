@@ -25,71 +25,6 @@
 #include <Functions/FunctionHelpers.h>
 #include <Functions/IFunction.h>
 
-//
-// #include <AggregateFunctions/IAggregateFunction.h>
-// #include <Columns/ColumnAggregateFunction.h>
-// #include <Columns/ColumnArray.h>
-// #include <Columns/ColumnConst.h>
-// #include <Columns/ColumnFixedString.h>
-// #include <Columns/ColumnLowCardinality.h>
-// #include <Columns/ColumnMap.h>
-// #include <Columns/ColumnNullable.h>
-// #include <Columns/ColumnObject.h>
-// #include <Columns/ColumnString.h>
-// #include <Columns/ColumnStringHelpers.h>
-// #include <Columns/ColumnTuple.h>
-// #include <Columns/ColumnVariant.h>
-// #include <Columns/ColumnsCommon.h>
-// #include <Core/AccurateComparison.h>
-// #include <Core/Types.h>
-// #include <DataTypes/DataTypeAggregateFunction.h>
-// #include <DataTypes/DataTypeArray.h>
-// #include <DataTypes/DataTypeDate.h>
-// #include <DataTypes/DataTypeDate32.h>
-// #include <DataTypes/DataTypeDateTime.h>
-// #include <DataTypes/DataTypeDateTime64.h>
-// #include <DataTypes/DataTypeEnum.h>
-// #include <DataTypes/DataTypeFactory.h>
-// #include <DataTypes/DataTypeFixedString.h>
-// #include <DataTypes/DataTypeIPv4andIPv6.h>
-// #include <DataTypes/DataTypeInterval.h>
-// #include <DataTypes/DataTypeLowCardinality.h>
-// #include <DataTypes/DataTypeMap.h>
-// #include <DataTypes/DataTypeNested.h>
-// #include <DataTypes/DataTypeNothing.h>
-// #include <DataTypes/DataTypeNullable.h>
-// #include <DataTypes/DataTypeObject.h>
-// #include <DataTypes/DataTypeString.h>
-// #include <DataTypes/DataTypeTuple.h>
-// #include <DataTypes/DataTypeUUID.h>
-// #include <DataTypes/DataTypeVariant.h>
-//
-// #include <DataTypes/DataTypesNumber.h>
-// #include <DataTypes/ObjectUtils.h>
-// #include <DataTypes/Serializations/SerializationDecimal.h>
-// #include <Formats/FormatSettings.h>
-// #include <Functions/CastOverloadResolver.h>
-// #include <Functions/DateTimeTransforms.h>
-// #include <Functions/FunctionFactory.h>
-// #include <Functions/FunctionHelpers.h>
-// #include <Functions/FunctionsCodingIP.h>
-// #include <Functions/IFunctionAdaptors.h>
-// #include <Functions/TransformDateTime64.h>
-// #include <Functions/castTypeToEither.h>
-// #include <Functions/toFixedString.h>
-// #include <IO/Operators.h>
-// #include <IO/ReadBufferFromMemory.h>
-// #include <IO/WriteBufferFromVector.h>
-// #include <IO/parseDateTimeBestEffort.h>
-// #include <Interpreters/Context.h>
-// #include <Common/Concepts.h>
-// #include <Common/CurrentThread.h>
-// #include <Common/Exception.h>
-// #include <Common/HashTable/HashMap.h>
-// #include <Common/IPv6ToBinary.h>
-// #include <Common/assert_cast.h>
-// #include <Common/quoteString.h>
-
 namespace DB
 {
 namespace ErrorCodes
@@ -309,9 +244,9 @@ private:
 
         // if constexpr (sizeof(FromFieldType) > sizeof(ToFieldType))
         // {
-            MaxNativeType pow10 = intExp10OfSize<MaxNativeType>(precision_to);
-            if (converted_value <= -pow10 || converted_value >= pow10)
-                return false_value();
+        MaxNativeType pow10 = intExp10OfSize<MaxNativeType>(precision_to);
+        if (converted_value <= -pow10 || converted_value >= pow10)
+            return false_value();
         // }
 
         result = static_cast<typename ToFieldType::NativeType>(converted_value);
