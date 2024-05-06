@@ -213,9 +213,9 @@ object HashAggregateExecBaseTransformer {
     // All input keys should be included in output and on the LHS of output schema.
     val areAllKeysIncludedInOutput = agg.groupingExpressions.zip(agg.resultExpressions).forall {
       case (from: Attribute, to @ Alias(child: Attribute, name)) =>
-        from == child
+        from.semanticEquals(child)
       case (from, to) =>
-        from == to
+        from.semanticEquals(to)
     }
 
     // Should not include nested expression in result expressions.
