@@ -36,26 +36,22 @@ class Parameterized(
     configDimensions: Seq[Dim],
     excludedCombinations: Seq[Set[DimKv]],
     metrics: Array[String])
-  extends Action {
+    extends Action {
 
   private def validateDims(configDimensions: Seq[Dim]): Unit = {
-    if (
-      configDimensions
-        .map(
-          dim => {
+    if (configDimensions
+          .map(dim => {
             dim.name
           })
-        .toSet
-        .size != configDimensions.size
-    ) {
+          .toSet
+          .size != configDimensions.size) {
       throw new IllegalStateException("Duplicated dimension name found")
     }
 
-    configDimensions.foreach {
-      dim =>
-        if (dim.dimValues.map(dimValue => dimValue.name).toSet.size != dim.dimValues.size) {
-          throw new IllegalStateException("Duplicated dimension value found")
-        }
+    configDimensions.foreach { dim =>
+      if (dim.dimValues.map(dimValue => dimValue.name).toSet.size != dim.dimValues.size) {
+        throw new IllegalStateException("Duplicated dimension value found")
+      }
     }
   }
 
@@ -70,26 +66,23 @@ class Parameterized(
         intermediateConf: Seq[(String, String)]): Unit = {
       if (dimOffset == dimCount) {
         // we got one coordinate
-        excludedCombinations.foreach {
-          ec: Set[DimKv] =>
-            if (ec.forall {
-              kv =>
+        excludedCombinations.foreach { ec: Set[DimKv] =>
+          if (ec.forall { kv =>
                 intermediateCoordinates.contains(kv.k) && intermediateCoordinates(kv.k) == kv.v
-            }) {
-              println(s"Coordinate ${Coordinate(intermediateCoordinates)} excluded by $ec.")
-              return
-            }
+              }) {
+            println(s"Coordinate ${Coordinate(intermediateCoordinates)} excluded by $ec.")
+            return
+          }
         }
         coordinateMap(Coordinate(intermediateCoordinates)) = intermediateConf
         return
       }
       val dim = configDimensions(dimOffset)
-      dim.dimValues.foreach {
-        dimValue =>
-          fillCoordinates(
-            dimOffset + 1,
-            intermediateCoordinates + (dim.name -> dimValue.name),
-            intermediateConf ++ dimValue.conf)
+      dim.dimValues.foreach { dimValue =>
+        fillCoordinates(
+          dimOffset + 1,
+          intermediateCoordinates + (dim.name -> dimValue.name),
+          intermediateConf ++ dimValue.conf)
       }
     }
 
@@ -110,45 +103,40 @@ class Parameterized(
       case (c, idx) =>
         println(s"  $idx: $c")
     }
-    coordinates.foreach {
-      entry =>
-        // register one session per coordinate
-        val coordinate = entry._1
-        val coordinateConf = entry._2
-        val conf = testConf.clone()
-        conf.setAllWarningOnOverriding(coordinateConf)
-        sessionSwitcher.registerSession(coordinate.toString, conf)
+    coordinates.foreach { entry =>
+      // register one session per coordinate
+      val coordinate = entry._1
+      val coordinateConf = entry._2
+      val conf = testConf.clone()
+      conf.setAllWarningOnOverriding(coordinateConf)
+      sessionSwitcher.registerSession(coordinate.toString, conf)
     }
 
     val runQueryIds = queries.select(tpcSuite)
 
     // warm up
-    (0 until warmupIterations).foreach {
-      _ =>
-        runQueryIds.foreach {
-          queryId => Parameterized.warmUp(queryId, tpcSuite.desc(), sessionSwitcher, runner)
-        }
+    (0 until warmupIterations).foreach { _ =>
+      runQueryIds.foreach { queryId =>
+        Parameterized.warmUp(queryId, tpcSuite.desc(), sessionSwitcher, runner)
+      }
     }
 
-    val results = coordinates.flatMap {
-      entry =>
-        val coordinate = entry._1
-        val coordinateResults = (0 until iterations).flatMap {
-          iteration =>
-            println(s"Running tests (iteration $iteration) with coordinate $coordinate...")
-            runQueryIds.map {
-              queryId =>
-                Parameterized.runTpcQuery(
-                  runner,
-                  sessionSwitcher,
-                  queryId,
-                  coordinate,
-                  tpcSuite.desc(),
-                  explain,
-                  metrics)
-            }
-        }.toList
-        coordinateResults
+    val results = coordinates.flatMap { entry =>
+      val coordinate = entry._1
+      val coordinateResults = (0 until iterations).flatMap { iteration =>
+        println(s"Running tests (iteration $iteration) with coordinate $coordinate...")
+        runQueryIds.map { queryId =>
+          Parameterized.runTpcQuery(
+            runner,
+            sessionSwitcher,
+            queryId,
+            coordinate,
+            tpcSuite.desc(),
+            explain,
+            metrics)
+        }
+      }.toList
+      coordinateResults
     }
 
     val dimNames = configDimensions.map(dim => dim.name)
@@ -164,8 +152,7 @@ class Parameterized(
       "RAM statistics: JVM Heap size: %d KiB (total %d KiB), Process RSS: %d KiB\n",
       RamStat.getJvmHeapUsed(),
       RamStat.getJvmHeapTotal(),
-      RamStat.getProcessRamUsed()
-    )
+      RamStat.getProcessRamUsed())
 
     println("")
     println("Test report: ")
@@ -225,25 +212,22 @@ case class TestResultLines(
     fields.append("Row Count")
     fields.append("Query Time (Millis)")
     printf(fmt, fields: _*)
-    lines.foreach {
-      line =>
-        val values = ArrayBuffer[Any](line.queryId, line.succeed)
-        dimNames.foreach {
-          dimName =>
-            val coordinate = line.coordinate.coordinate
-            if (!coordinate.contains(dimName)) {
-              throw new IllegalStateException("Dimension name not found" + dimName)
-            }
-            values.append(coordinate(dimName))
+    lines.foreach { line =>
+      val values = ArrayBuffer[Any](line.queryId, line.succeed)
+      dimNames.foreach { dimName =>
+        val coordinate = line.coordinate.coordinate
+        if (!coordinate.contains(dimName)) {
+          throw new IllegalStateException("Dimension name not found" + dimName)
         }
-        metricNames.foreach {
-          metricName =>
-            val metrics = line.metrics
-            values.append(metrics.getOrElse(metricName, "N/A"))
-        }
-        values.append(line.rowCount.getOrElse("N/A"))
-        values.append(line.executionTimeMillis.getOrElse("N/A"))
-        printf(fmt, values: _*)
+        values.append(coordinate(dimName))
+      }
+      metricNames.foreach { metricName =>
+        val metrics = line.metrics
+        values.append(metrics.getOrElse(metricName, "N/A"))
+      }
+      values.append(line.rowCount.getOrElse("N/A"))
+      values.append(line.executionTimeMillis.getOrElse("N/A"))
+      printf(fmt, values: _*)
     }
   }
 }
