@@ -34,7 +34,7 @@ import scala.collection.mutable.ArrayBuffer
  */
 object PullOutPostProject extends RewriteSingleNode with PullOutProjectHelper {
 
-  private def needsPostProjection(plan: SparkPlan): Boolean = {
+  def needsPostProjection(plan: SparkPlan): Boolean = {
     plan match {
       case agg: BaseAggregateExec =>
         val pullOutHelper =

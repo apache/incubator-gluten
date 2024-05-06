@@ -182,10 +182,6 @@ object HashAggregateExecBaseTransformer {
 
   def from(agg: BaseAggregateExec)(
       childConverter: SparkPlan => SparkPlan = p => p): HashAggregateExecBaseTransformer = {
-    assert(
-      canOffload(agg),
-      s"Aggregate's schema should be arranged as keys + simple aggregate function " +
-        s"(without nesting) to offload")
     BackendsApiManager.getSparkPlanExecApiInstance
       .genHashAggregateExecTransformer(
         agg.requiredChildDistributionExpressions,
@@ -196,43 +192,6 @@ object HashAggregateExecBaseTransformer {
         agg.resultExpressions,
         childConverter(agg.child)
       )
-  }
-
-  def canOffload(agg: BaseAggregateExec): Boolean = {
-    // Native libraries emits grouping keys + simple function values (without nesting) as
-    // output schema for aggregation execution. Usually we can only offload aggregations with
-    // this kind of output schema or with those already be split to aggregation + post project
-    // by PullOutPostProject, because of the restrictions from native libraries.
-
-    // All input keys should be attributes.
-    val areAllKeysAttributes = agg.groupingExpressions.forall {
-      case _: Attribute => true
-      case other => false
-    }
-
-    // All input keys should be included in output and on the LHS of output schema.
-    val areAllKeysIncludedInOutput = agg.groupingExpressions.zip(agg.resultExpressions).forall {
-      case (from: Attribute, to @ Alias(child: Attribute, name)) =>
-        from.semanticEquals(child)
-      case (from, to) =>
-        from.semanticEquals(to)
-    }
-
-    // Should not include nested expression in result expressions.
-    val isStraightforwardOutput = agg.resultExpressions.forall {
-      case _: Attribute => true
-      case Alias(_: Attribute, _) => true
-      case other =>
-        // Offloading of complex aggregate expressions is not expected since they are not
-        // supported by native libraries and should be split into aggregation + post project by
-        // PullOutPostProject.
-        false
-    }
-
-    // Check if aggregate expressions' output schema is identity with Velox's definition
-//    PulloutHel
-
-    areAllKeysAttributes && areAllKeysIncludedInOutput && isStraightforwardOutput
   }
 }
 

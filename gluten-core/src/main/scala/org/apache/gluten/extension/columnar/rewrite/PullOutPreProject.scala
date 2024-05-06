@@ -37,7 +37,7 @@ import scala.collection.mutable
  */
 object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
 
-  private def needsPreProject(plan: SparkPlan): Boolean = {
+  def needsPreProject(plan: SparkPlan): Boolean = {
     plan match {
       case sort: SortExec =>
         sort.sortOrder.exists(o => isNotAttribute(o.child))

@@ -29,9 +29,6 @@ object RasOffloadAggregate extends RasRule[SparkPlan] {
   }
 
   private def shiftAgg(agg: HashAggregateExec): Iterable[SparkPlan] = {
-    if (!HashAggregateExecBaseTransformer.canOffload(agg)) {
-      return List.empty
-    }
     val transformer = offload(agg)
     if (!transformer.doValidate().isValid) {
       return List.empty

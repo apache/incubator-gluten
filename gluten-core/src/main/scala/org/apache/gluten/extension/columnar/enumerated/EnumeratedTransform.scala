@@ -18,7 +18,7 @@ package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.{OffloadExchange, OffloadJoin, OffloadOthers, OffloadSingleNode}
-import org.apache.gluten.extension.columnar.rewrite.RewriteSingleNode
+import org.apache.gluten.extension.columnar.rewrite.{PullOutPostProject, PullOutPreProject, RewriteSingleNode}
 import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
 import org.apache.gluten.planner.GlutenOptimization
 import org.apache.gluten.planner.property.Conventions
@@ -42,6 +42,7 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
     .fallbackComplexExpressions()
     .fallbackByBackendSettings()
     .fallbackByUserOptions()
+    .fallbackRewritable()
     .build()
 
   private val rules = List(
@@ -108,6 +109,31 @@ object EnumeratedTransform {
     }
 
     override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)
+  }
+
+  private class FallbackRewritable() extends Validator {
+    override def validate(plan: SparkPlan): Validator.OutCome = {
+      val preProjectNeeded = PullOutPreProject.needsPreProject(plan)
+      val postProjectNeeded = PullOutPostProject.needsPostProjection(plan)
+      if (preProjectNeeded) {
+        return fail(s"Pre-project needed for plan: $plan")
+      }
+      if (postProjectNeeded) {
+        return fail(s"Post-project needed for plan: $plan")
+      }
+      pass()
+    }
+  }
+  implicit private class ValidatorBuilderImplicits(builder: Validators.Builder) {
+
+    /**
+     * Fails validation if rewriting is needed for a plan node. This could filter out candidates
+     * that need to be handled by RewriteSparkPlanRulesManager to run in native.
+     */
+    def fallbackRewritable(): Validators.Builder = {
+      builder.add(new FallbackRewritable())
+      builder
+    }
   }
 
   // TODO: Currently not in use. Prepared for future development.
