@@ -645,6 +645,7 @@ object GlutenConfig {
       ("spark.hadoop.input.write.timeout", "180000"),
       ("spark.hadoop.dfs.client.log.severity", "INFO"),
       ("spark.sql.orc.compression.codec", "snappy"),
+      ("spark.sql.decimalOperations.allowPrecisionLoss", "true"),
       (
         COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.key,
         COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.defaultValueString),
