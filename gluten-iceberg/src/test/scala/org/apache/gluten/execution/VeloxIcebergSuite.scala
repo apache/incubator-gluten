@@ -218,7 +218,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("iceberg bucketed join with partition filter") {
+  testWithSpecifiedSparkVersion("iceberg bucketed join with partition filter", Some("3.4")) {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
