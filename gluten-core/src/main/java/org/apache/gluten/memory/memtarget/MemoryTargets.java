@@ -54,6 +54,13 @@ public final class MemoryTargets {
     } else {
       factory = TreeMemoryConsumers.shared();
     }
-    return factory.newConsumer(tmm, name, spillers, virtualChildren);
+
+    final MemoryTarget memoryTarget = factory.newConsumer(tmm, name, spillers, virtualChildren);
+
+    if (GlutenConfig.getConf().dynamicOffHeapSizingEnabled()) {
+      return new DynamicOffHeapSizingMemoryTarget(memoryTarget);
+    }
+
+    return memoryTarget;
   }
 }

@@ -164,7 +164,6 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
 
     var onHeapSize: Long =
       if (conf.contains(GlutenConfig.GLUTEN_ONHEAP_SIZE_KEY)) {
-
         conf.getSizeAsBytes(GlutenConfig.GLUTEN_ONHEAP_SIZE_KEY)
       } else {
         // 1GB default
@@ -180,8 +179,16 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     var offHeapSize: Long =
       if (conf.getBoolean(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED, false)) {
         // Since when dynamic off-heap sizing is enabled, we commingle on-heap
-        // and off-heap memory, we set the off-heap size to the on-heap size.
-        onHeapSize
+        // and off-heap memory, we set the off-heap size to the usable on-heap size. We will
+        // size it using the same way that Spark sizes on-heap memory:
+        //
+        // spark.memory.fraction * (spark.executor.memory - 300MB).
+        //
+        // We will be careful to use the same configuration settings as Spark to ensure
+        // that we are sizing the off-heap memory in the same way as Spark sizes on-heap memory.
+        // The 300MB value, unfortunately, is hard-coded in Spark code.
+        ((onHeapSize - (300 * 1024 * 1024)) *
+          conf.getDouble("spark.memory.memoryFraction", 0.6d)).toLong
       } else if (conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
         // Optimistic off-heap sizes, assuming all storage memory can be borrowed into execution
         // memory pool, regardless of Spark option spark.memory.storageFraction.
@@ -201,19 +208,25 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     // officially.
     if (conf.getBoolean(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED, false)) {
       conf.set(GlutenConfig.GLUTEN_OFFHEAP_ENABLED, "true")
+
+      // We already sized the off-heap per task in a conservative manner, so we can just
+      // use it.
+      conf.set(
+        GlutenConfig.GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
+        offHeapPerTask.toString)
     } else {
       // Let's make sure this is set to false explicitly if it is not on as it
       // is looked up when throwing OOF exceptions.
       conf.set(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED, "false")
-    }
 
-    // Pessimistic off-heap sizes, with the assumption that all non-borrowable storage memory
-    // determined by spark.memory.storageFraction was used.
-    val fraction = 1.0d - conf.getDouble("spark.memory.storageFraction", 0.5d)
-    val conservativeOffHeapPerTask = (offHeapSize * fraction).toLong / taskSlots
-    conf.set(
-      GlutenConfig.GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
-      conservativeOffHeapPerTask.toString)
+      // Pessimistic off-heap sizes, with the assumption that all non-borrowable storage memory
+      // determined by spark.memory.storageFraction was used.
+      val fraction = 1.0d - conf.getDouble("spark.memory.storageFraction", 0.5d)
+      val conservativeOffHeapPerTask = (offHeapSize * fraction).toLong / taskSlots
+      conf.set(
+        GlutenConfig.GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
+        conservativeOffHeapPerTask.toString)
+    }
 
     // disable vanilla columnar readers, to prevent columnar-to-columnar conversions
     if (BackendsApiManager.getSettings.disableVanillaColumnarReaders(conf)) {

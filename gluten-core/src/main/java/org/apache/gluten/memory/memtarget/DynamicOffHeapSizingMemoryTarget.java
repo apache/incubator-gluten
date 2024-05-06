@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.memory.memtarget.spark;
+package org.apache.gluten.memory.memtarget;
 
 import org.apache.gluten.GlutenConfig;
 
@@ -23,25 +23,30 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-public final class DynamicOffHeapSizingPolicyChecker {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(DynamicOffHeapSizingPolicyChecker.class);
-  private final long maxOnHeapMemoryInBytes = GlutenConfig.getConf().onHeapMemorySize();
-  private final AtomicLong usedOffHeapBytes = new AtomicLong();
+public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget {
+  private static final Logger LOG = LoggerFactory.getLogger(DynamicOffHeapSizingMemoryTarget.class);
+  private final MemoryTarget delegated;
+  // When dynamic off-heap sizing is enabled, the off-heap should be sized for the total usable
+  // memory, so we can use it as the max memory we will use.
+  private static final long MAX_MEMORY_IN_BYTES = GlutenConfig.getConf().offHeapMemorySize();
+  private static final AtomicLong USED_OFFHEAP_BYTES = new AtomicLong();
 
-  DynamicOffHeapSizingPolicyChecker() {}
+  public DynamicOffHeapSizingMemoryTarget(MemoryTarget delegated) {
+    this.delegated = delegated;
+  }
 
-  public boolean canBorrow(long size) {
+  @Override
+  public long borrow(long size) {
     if (size == 0) {
-      return true;
+      return 0;
     }
 
     long totalMemory = Runtime.getRuntime().totalMemory();
     long freeMemory = Runtime.getRuntime().freeMemory();
     long usedOnHeapBytes = (totalMemory - freeMemory);
-    long usedOffHeapBytesNow = this.usedOffHeapBytes.get();
+    long usedOffHeapBytesNow = USED_OFFHEAP_BYTES.get();
 
-    if (size + usedOffHeapBytesNow + usedOnHeapBytes > maxOnHeapMemoryInBytes) {
+    if (size + usedOffHeapBytesNow + usedOnHeapBytes > MAX_MEMORY_IN_BYTES) {
       LOG.warn(
           String.format(
               "Failing allocation as unified memory is OOM. "
@@ -52,20 +57,39 @@ public final class DynamicOffHeapSizingPolicyChecker {
               usedOnHeapBytes,
               freeMemory,
               totalMemory,
-              maxOnHeapMemoryInBytes,
+              MAX_MEMORY_IN_BYTES,
               size));
 
-      return false;
+      return 0;
     }
 
-    return true;
+    long reserved = delegated.borrow(size);
+
+    USED_OFFHEAP_BYTES.addAndGet(reserved);
+
+    return reserved;
   }
 
-  public void borrow(long size) {
-    usedOffHeapBytes.addAndGet(size);
+  @Override
+  public long repay(long size) {
+    long unreserved = delegated.repay(size);
+
+    USED_OFFHEAP_BYTES.addAndGet(-unreserved);
+
+    return unreserved;
   }
 
-  public void repay(long size) {
-    usedOffHeapBytes.addAndGet(-size);
+  @Override
+  public long usedBytes() {
+    return delegated.usedBytes();
+  }
+
+  @Override
+  public <T> T accept(MemoryTargetVisitor<T> visitor) {
+    return visitor.visit(this);
+  }
+
+  public MemoryTarget delegated() {
+    return delegated;
   }
 }

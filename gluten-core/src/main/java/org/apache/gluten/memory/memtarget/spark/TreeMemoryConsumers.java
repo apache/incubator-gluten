@@ -64,14 +64,9 @@ public final class TreeMemoryConsumers {
 
     private static final ReferenceMap MAP = new ReferenceMap(ReferenceMap.WEAK, ReferenceMap.WEAK);
     private final long perTaskCapacity;
-    private final DynamicOffHeapSizingPolicyChecker dynamicOffHeapSizingPolicyChecker;
 
     private Factory(long perTaskCapacity) {
       this.perTaskCapacity = perTaskCapacity;
-      this.dynamicOffHeapSizingPolicyChecker =
-          GlutenConfig.getConf().dynamicOffHeapSizingEnabled()
-              ? new DynamicOffHeapSizingPolicyChecker()
-              : null;
     }
 
     @SuppressWarnings("unchecked")
@@ -81,9 +76,7 @@ public final class TreeMemoryConsumers {
             MAP.computeIfAbsent(
                 tmm,
                 m -> {
-                  TreeMemoryTarget tmc =
-                      new TreeMemoryConsumer(
-                          (TaskMemoryManager) m, this.dynamicOffHeapSizingPolicyChecker);
+                  TreeMemoryTarget tmc = new TreeMemoryConsumer((TaskMemoryManager) m);
                   return tmc.newChild(
                       "root", perTaskCapacity, Collections.emptyList(), Collections.emptyMap());
                 });

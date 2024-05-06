@@ -56,12 +56,9 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryTarg
   private final SimpleMemoryUsageRecorder recorder = new SimpleMemoryUsageRecorder();
   private final Map<String, TreeMemoryTarget> children = new HashMap<>();
   private final String name = MemoryTargetUtil.toUniqueName("Gluten.Tree");
-  private final DynamicOffHeapSizingPolicyChecker policyChecker;
 
-  TreeMemoryConsumer(
-      TaskMemoryManager taskMemoryManager, DynamicOffHeapSizingPolicyChecker policyChecker) {
+  TreeMemoryConsumer(TaskMemoryManager taskMemoryManager) {
     super(taskMemoryManager, taskMemoryManager.pageSizeBytes(), MemoryMode.OFF_HEAP);
-    this.policyChecker = policyChecker;
   }
 
   @Override
@@ -70,18 +67,8 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryTarg
       // or Spark complains about the zero size by throwing an error
       return 0;
     }
-
-    if (this.policyChecker != null && !this.policyChecker.canBorrow(size)) {
-      return 0;
-    }
-
     long acquired = acquireMemory(size);
     recorder.inc(acquired);
-
-    if (this.policyChecker != null) {
-      this.policyChecker.borrow(acquired);
-    }
-
     return acquired;
   }
 
@@ -94,11 +81,6 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryTarg
     freeMemory(toFree);
     Preconditions.checkArgument(getUsed() >= 0);
     recorder.inc(-toFree);
-
-    if (this.policyChecker != null) {
-      this.policyChecker.repay(toFree);
-    }
-
     return toFree;
   }
 

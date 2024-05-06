@@ -1834,7 +1834,17 @@ object GlutenConfig {
   val DYNAMIC_OFFHEAP_SIZING_ENABLED =
     buildConf(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED)
       .internal()
-      .doc("Enable using free on-heap memory as off-heap memory.")
+      .doc(
+        "Experimental: When set to true, the offheap config (spark.memory.offHeap.size) will" +
+          "be ignored and instead we will consider onheap and offheap memory in combination," +
+          "both counting towards the executor memory config (spark.executor.memory). We will" +
+          "make use of JVM APIs to determine how much onheap memory is use, alongside tracking" +
+          "offheap allocations made by Gluten. We will then proceed to enforcing a total memory" +
+          "quota, calculated by the sum of what memory is committed and in use in the Java heap." +
+          "Since the calculation of the total quota happens as offheap allocation happens and not" +
+          "as JVM heap memory is allocates, it is possible that we can oversubscribe memory." +
+          "Additionally, note that this change is experimental and may have performance " +
+          "implications.")
       .booleanConf
       .createWithDefault(false)
 
