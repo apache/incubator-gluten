@@ -161,15 +161,9 @@ object DecimalArithmeticUtil {
   }
 
   // Returns whether the input expression is a combination of PromotePrecision(Cast as DecimalType).
-  private def isPromoteCast(expr: Expression): Boolean = {
-    expr match {
-      case precision: PromotePrecision =>
-        precision.child match {
-          case cast: Cast if cast.dataType.isInstanceOf[DecimalType] => true
-          case _ => false
-        }
-      case _ => false
-    }
+  private def isPromoteCast(expr: Expression): Boolean = expr match {
+    case PromotePrecision(Cast(_, _: DecimalType, _, _)) => true
+    case _ => false
   }
 
   def rescaleCastForDecimal(left: Expression, right: Expression): (Expression, Expression) = {
