@@ -53,7 +53,7 @@ abstract class GenerateExecTransformerBase(
       target =>
         val childIndex = child.output.zipWithIndex
           .collectFirst {
-            case (attr, i) if attr.name == target.name => i
+            case (attr, i) if attr.exprId == target.exprId => i
           }
           .getOrElse(
             throw new GlutenException(s"Can't found column ${target.name} in child output"))
