@@ -820,6 +820,24 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("arrays_zip") {
+    withTempPath {
+      path =>
+        Seq[(Seq[Integer], Seq[Integer])](
+          (Seq(1, 2, 3), Seq(3, 4)),
+          (Seq(5, null), Seq(null, 1, 2)))
+          .toDF("v1", "v2")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare("select arrays_zip(v1, v2) from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("negative") {
     runQueryAndCompare("select negative(l_orderkey) from lineitem") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
