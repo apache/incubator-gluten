@@ -54,6 +54,9 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
+      .set(
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
+        "false")
   }
 
   override protected def beforeEach(): Unit = {

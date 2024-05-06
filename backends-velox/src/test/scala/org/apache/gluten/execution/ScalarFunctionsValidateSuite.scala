@@ -820,8 +820,68 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("arrays_zip") {
+    withTempPath {
+      path =>
+        Seq[(Seq[Integer], Seq[Integer])](
+          (Seq(1, 2, 3), Seq(3, 4)),
+          (Seq(5, null), Seq(null, 1, 2)))
+          .toDF("v1", "v2")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare("select arrays_zip(v1, v2) from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("negative") {
     runQueryAndCompare("select negative(l_orderkey) from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("unix_millis") {
+    withTempPath {
+      path =>
+        val t1 = Timestamp.valueOf("2015-07-22 10:00:00.012")
+        val t2 = Timestamp.valueOf("2014-12-31 23:59:59.012")
+        val t3 = Timestamp.valueOf("2014-12-31 23:59:59.001")
+        Seq(t1, t2, t3).toDF("t").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
+        runQueryAndCompare("select unix_millis(t) from time") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("unix_micros") {
+    withTempPath {
+      path =>
+        val t1 = Timestamp.valueOf("2015-07-22 10:00:00.012")
+        val t2 = Timestamp.valueOf("2014-12-31 23:59:59.012")
+        val t3 = Timestamp.valueOf("2014-12-31 23:59:59.001")
+        Seq(t1, t2, t3).toDF("t").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
+        runQueryAndCompare("select unix_micros(t) from time") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("timestamp_millis") {
+    runQueryAndCompare("select timestamp_millis(l_orderkey) from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("timestamp_micros") {
+    runQueryAndCompare("select timestamp_micros(l_orderkey) from lineitem") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }

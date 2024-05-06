@@ -161,6 +161,9 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
   }
 
   override def beforeAll(): Unit = {
+    // is not exist may cause some ut error
+    assert(new File("/data").exists())
+
     // prepare working paths
     val basePathDir = new File(basePath)
     if (basePathDir.exists()) {

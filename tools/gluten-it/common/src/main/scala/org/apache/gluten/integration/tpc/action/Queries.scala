@@ -27,24 +27,22 @@ case class Queries(
     explain: Boolean,
     iterations: Int,
     randomKillTasks: Boolean)
-  extends Action {
+    extends Action {
 
   override def execute(tpcSuite: TpcSuite): Boolean = {
     val runQueryIds = queries.select(tpcSuite)
     val runner: TpcRunner = new TpcRunner(tpcSuite.queryResource(), tpcSuite.dataWritePath(scale))
-    val results = (0 until iterations).flatMap {
-      iteration =>
-        println(s"Running tests (iteration $iteration)...")
-        runQueryIds.map {
-          queryId =>
-            Queries.runTpcQuery(
-              runner,
-              tpcSuite.sessionSwitcher,
-              queryId,
-              tpcSuite.desc(),
-              explain,
-              randomKillTasks)
-        }
+    val results = (0 until iterations).flatMap { iteration =>
+      println(s"Running tests (iteration $iteration)...")
+      runQueryIds.map { queryId =>
+        Queries.runTpcQuery(
+          runner,
+          tpcSuite.sessionSwitcher,
+          queryId,
+          tpcSuite.desc(),
+          explain,
+          randomKillTasks)
+      }
     }.toList
 
     val passedCount = results.count(l => l.testPassed)
@@ -58,8 +56,7 @@ case class Queries(
       "RAM statistics: JVM Heap size: %d KiB (total %d KiB), Process RSS: %d KiB\n",
       RamStat.getJvmHeapUsed(),
       RamStat.getJvmHeapTotal(),
-      RamStat.getProcessRamUsed()
-    )
+      RamStat.getProcessRamUsed())
 
     println("")
     println("Test report: ")
@@ -112,17 +109,14 @@ object Queries {
       "Query ID",
       "Was Passed",
       "Row Count",
-      "Query Time (Millis)"
-    )
-    results.foreach {
-      line =>
-        printf(
-          "|%15s|%15s|%30s|%30s|\n",
-          line.queryId,
-          line.testPassed,
-          line.rowCount.getOrElse("N/A"),
-          line.executionTimeMillis.getOrElse("N/A")
-        )
+      "Query Time (Millis)")
+    results.foreach { line =>
+      printf(
+        "|%15s|%15s|%30s|%30s|\n",
+        line.queryId,
+        line.testPassed,
+        line.rowCount.getOrElse("N/A"),
+        line.executionTimeMillis.getOrElse("N/A"))
     }
   }
 
@@ -131,19 +125,17 @@ object Queries {
       return Nil
     }
     List(
-      succeed.reduce(
-        (r1, r2) =>
-          TestResultLine(
-            name,
-            testPassed = true,
-            if (r1.rowCount.nonEmpty && r2.rowCount.nonEmpty)
-              Some(r1.rowCount.get + r2.rowCount.get)
-            else None,
-            if (r1.executionTimeMillis.nonEmpty && r2.executionTimeMillis.nonEmpty)
-              Some(r1.executionTimeMillis.get + r2.executionTimeMillis.get)
-            else None,
-            None
-          )))
+      succeed.reduce((r1, r2) =>
+        TestResultLine(
+          name,
+          testPassed = true,
+          if (r1.rowCount.nonEmpty && r2.rowCount.nonEmpty)
+            Some(r1.rowCount.get + r2.rowCount.get)
+          else None,
+          if (r1.executionTimeMillis.nonEmpty && r2.executionTimeMillis.nonEmpty)
+            Some(r1.executionTimeMillis.get + r2.executionTimeMillis.get)
+          else None,
+          None)))
   }
 
   private def runTpcQuery(

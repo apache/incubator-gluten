@@ -24,6 +24,8 @@ import io.delta.tables.ClickhouseTable
 
 import java.io.File
 
+import scala.concurrent.duration.DurationInt
+
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
 
@@ -54,6 +56,9 @@ class GlutenClickHouseMergeTreeOptimizeSuite
         "spark.databricks.delta.retentionDurationCheck.enabled",
         "false"
       ) // otherwise RETAIN 0 HOURS will fail
+      .set(
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
+        "false")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -425,6 +430,32 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
     val ret = spark.sql(s"select count(*) from clickhouse.`$dataPath`").collect()
     assert(ret.apply(0).get(0) == 600572)
+  }
+
+  test("test mergetree insert with optimize basic") {
+    withSQLConf(
+      ("spark.databricks.delta.optimize.minFileSize" -> "200000000"),
+      ("spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert" -> "true")
+    ) {
+      spark.sql(s"""
+                   |DROP TABLE IF EXISTS lineitem_mergetree_insert_optimize_basic;
+                   |""".stripMargin)
+
+      spark.sql(s"""
+                   |CREATE TABLE IF NOT EXISTS lineitem_mergetree_insert_optimize_basic
+                   |USING clickhouse
+                   |LOCATION '$basePath/lineitem_mergetree_insert_optimize_basic'
+                   | as select * from lineitem
+                   |""".stripMargin)
+
+      val ret = spark.sql("select count(*) from lineitem_mergetree_insert_optimize_basic").collect()
+      assert(ret.apply(0).get(0) == 600572)
+      eventually(timeout(60.seconds), interval(3.seconds)) {
+        assert(
+          new File(s"$basePath/lineitem_mergetree_insert_optimize_basic").listFiles().length == 2
+        )
+      }
+    }
   }
 }
 // scalastyle:off line.size.limit
