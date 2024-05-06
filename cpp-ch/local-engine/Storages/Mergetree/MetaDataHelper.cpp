@@ -169,13 +169,7 @@ std::vector<MergeTreeDataPartPtr> mergeParts(
     if(!partition_dir.empty())
     {
         future_part->name =  partition_dir + "/";
-        Poco::StringTokenizer partitions(partition_dir, "/");
-        for (const auto & partition : partitions)
-        {
-            Poco::StringTokenizer key_value(partition, "=");
-            chassert(key_value.count() == 2);
-            partition_values.emplace(key_value[0], key_value[1]);
-        }
+        extractPartitionValues(partition_dir, partition_values);
     }
     if(!bucket_dir.empty())
     {
@@ -198,5 +192,16 @@ std::vector<MergeTreeDataPartPtr> mergeParts(
     std::unordered_set<std::string> to_load{future_part->name};
     std::vector<MergeTreeDataPartPtr> merged = storage->loadDataPartsWithNames(to_load);
     return merged;
+}
+
+void extractPartitionValues(const String & partition_dir, std::unordered_map<String, String> & partition_values)
+{
+    Poco::StringTokenizer partitions(partition_dir, "/");
+    for (const auto & partition : partitions)
+    {
+        Poco::StringTokenizer key_value(partition, "=");
+        chassert(key_value.count() == 2);
+        partition_values.emplace(key_value[0], key_value[1]);
+    }
 }
 }

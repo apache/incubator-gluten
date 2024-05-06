@@ -74,13 +74,7 @@ SparkMergeTreeWriter::SparkMergeTreeWriter(
         = std::make_unique<DB::SquashingTransform>(settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes);
     if (!partition_dir.empty())
     {
-        Poco::StringTokenizer partitions(partition_dir, "/");
-        for (const auto & partition : partitions)
-        {
-            Poco::StringTokenizer key_value(partition, "=");
-            chassert(key_value.count() == 2);
-            partition_values.emplace(key_value[0], key_value[1]);
-        }
+        extractPartitionValues(partition_dir, partition_values);
     }
     header = metadata_snapshot->getSampleBlock();
 

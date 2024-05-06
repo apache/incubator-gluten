@@ -39,4 +39,5 @@ std::vector<MergeTreeDataPartPtr> mergeParts(
     const String & partition_dir,
     const String & bucket_dir);
 
+void extractPartitionValues(const String & partition_dir, std::unordered_map<String, String> & partition_values);
 }
