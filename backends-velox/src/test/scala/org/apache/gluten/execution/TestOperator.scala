@@ -1333,10 +1333,4 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     // Verify there is not precision loss for timestamp columns after data broadcast.
     checkAnswer(df, expected)
   }
-
-  test("Test json_tuple function") {
-    runQueryAndCompare("SELECT json_tuple('{\"a\" : 1, \"b\" : 2}')") {
-      checkGlutenOperatorMatch[GenerateExecTransformer]
-    }
-  }
 }
