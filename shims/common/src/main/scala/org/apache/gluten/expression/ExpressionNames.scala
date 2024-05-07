@@ -297,6 +297,7 @@ object ExpressionNames {
   final val PROMOTE_PRECISION = "promote_precision"
   final val SPARK_PARTITION_ID = "spark_partition_id"
   final val MONOTONICALLY_INCREASING_ID = "monotonically_increasing_id"
+  final val WIDTH_BUCKET = "width_bucket"
 
   // Directly use child expression transformer
   final val KNOWN_NULLABLE = "known_nullable"

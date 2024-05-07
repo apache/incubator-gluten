@@ -550,6 +550,13 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  testWithSpecifiedSparkVersion("Test width_bucket function", Some("3.4")) {
+    runQueryAndCompare("""SELECT width_bucket(2, 0, 4, 3), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   testWithSpecifiedSparkVersion("Test url_decode function", Some("3.4")) {
     withTempPath {
       path =>
