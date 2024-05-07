@@ -495,20 +495,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           expr)
 
       case CheckOverflow(b: BinaryArithmetic, decimalType, _)
-          if DecimalArithmeticUtil.isDecimalArithmetic(
-            b) && BackendsApiManager.getSettings.noCheckOverflow =>
-        /**
-         * `CheckOverflow(b: BinaryArithmetic, decimalType, _)` must be before `c: CheckOverflow`
-         * and `case b: BinaryArithmetic`. After https://github.com/apache/spark/pull/36698, every
-         * arithmetic should report the accurate result decimal type and no `CheckOverflow`, so
-         * after 36698, it's definitely not possible to execute it here.
-         *
-         * Regardless of whether there is 36698 or not, I want to unify the processing logic of the
-         * backend of the clickhouse. The basic idea is to add CheckOverflow to the backend by
-         * default for BinaryArithmetic calculations. Therefore, we need to obtain the correct
-         * result type. Before 36698, we obtain it through `CheckOverflow`, and then obtain it
-         * through the dataType of BinaryArithmetic.
-         */
+          if DecimalArithmeticUtil.isDecimalArithmetic(b) &&
+            BackendsApiManager.getSettings.dontTransformCheckOverflow =>
         DecimalArithmeticUtil.checkAllowDecimalArithmetic()
         val leftChild =
           replaceWithExpressionTransformerInternal(b.left, attributeSeq, expressionsMap)
@@ -529,7 +517,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
 
       case b: BinaryArithmetic if DecimalArithmeticUtil.isDecimalArithmetic(b) =>
         DecimalArithmeticUtil.checkAllowDecimalArithmetic()
-        if (BackendsApiManager.getSettings.noCheckOverflow) {
+        if (BackendsApiManager.getSettings.dontTransformCheckOverflow) {
           val leftChild =
             replaceWithExpressionTransformerInternal(b.left, attributeSeq, expressionsMap)
           val rightChild =
