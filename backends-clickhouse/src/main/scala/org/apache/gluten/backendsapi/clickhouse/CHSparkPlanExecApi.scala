@@ -194,12 +194,13 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       child: SparkPlan): HashAggregateExecBaseTransformer =
     CHHashAggregateExecTransformer(
       requiredChildDistributionExpressions,
-      groupingExpressions,
+      groupingExpressions.distinct,
       aggregateExpressions,
       aggregateAttributes,
       initialInputBufferOffset,
-      resultExpressions,
-      child)
+      resultExpressions.distinct,
+      child
+    )
 
   /** Generate HashAggregateExecPullOutHelper */
   override def genHashAggregateExecPullOutHelper(
