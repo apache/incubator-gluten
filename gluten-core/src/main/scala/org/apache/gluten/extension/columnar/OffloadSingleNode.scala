@@ -297,7 +297,15 @@ object OffloadOthers {
   class ReplaceSingleNode() extends LogLevelUtil with Logging {
 
     def doReplace(p: SparkPlan): SparkPlan = {
-      val plan = p
+      val plan = p match {
+        case plan: FileSourceScanExec
+            if plan.relation.fileFormat.getClass.getSimpleName == "ArrowCSVFileFormat" =>
+          val arrowScan = ArrowFileSourceScanExec(plan)
+          TransformHints.tagNotTransformable(arrowScan, "Arrow scan cannot transform")
+          return arrowScan
+        case p => p
+      }
+
       if (TransformHints.isNotTransformable(plan)) {
         logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
         plan match {

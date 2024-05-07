@@ -369,6 +369,48 @@ wait to attach....
 (gdb) c
 ```
 
+# Debug Memory leak
+## Arrow memory allocator leak
+If you receive error message like 
+
+```bash
+4/04/18 08:15:38 WARN ArrowBufferAllocators$ArrowBufferAllocatorManager: Detected leaked Arrow allocator [Default], size: 191, process accumulated leaked size: 191...
+24/04/18 08:15:38 WARN ArrowBufferAllocators$ArrowBufferAllocatorManager: Leaked allocator stack Allocator(ROOT) 0/191/319/9223372036854775807 (res/actual/peak/limit)
+```
+You can open the Arrow allocator debug config by add VP option `-Darrow.memory.debug.allocator=true`, then you can get more details like
+```bash
+child allocators: 0
+  ledgers: 7
+    ledger[10] allocator: ROOT), isOwning: , size: , references: 1, life: 10483701311283711..0, allocatorManager: [, life: ] holds 1 buffers. 
+        ArrowBuf[11], address:140100698555856, capacity:128
+     event log for: ArrowBuf[11]
+       10483701311362601 create()
+              at org.apache.arrow.memory.util.HistoricalLog$Event.<init>(HistoricalLog.java:175)
+              at org.apache.arrow.memory.util.HistoricalLog.recordEvent(HistoricalLog.java:83)
+              at org.apache.arrow.memory.ArrowBuf.<init>(ArrowBuf.java:97)
+              at org.apache.arrow.memory.BufferLedger.newArrowBuf(BufferLedger.java:271)
+              at org.apache.arrow.memory.BaseAllocator.bufferWithoutReservation(BaseAllocator.java:340)
+              at org.apache.arrow.memory.BaseAllocator.buffer(BaseAllocator.java:316)
+              at org.apache.arrow.memory.RootAllocator.buffer(RootAllocator.java:29)
+              at org.apache.arrow.memory.BaseAllocator.buffer(BaseAllocator.java:280)
+              at org.apache.arrow.memory.RootAllocator.buffer(RootAllocator.java:29)
+              at org.apache.arrow.c.ArrowArray.allocateNew(ArrowArray.java:116)
+              at org.apache.arrow.c.ArrayImporter.importArray(ArrayImporter.java:61)
+              at org.apache.arrow.c.Data.importIntoVector(Data.java:289)
+              at org.apache.arrow.c.Data.importIntoVectorSchemaRoot(Data.java:332)
+              at org.apache.arrow.dataset.jni.NativeScanner$NativeReader.loadNextBatch(NativeScanner.java:151)
+              at org.apache.gluten.datasource.ArrowFileFormat$$anon$1.hasNext(ArrowFileFormat.scala:99)
+              at org.apache.gluten.utils.IteratorCompleter.hasNext(Iterators.scala:69)
+              at org.apache.spark.memory.SparkMemoryUtil$UnsafeItr.hasNext(SparkMemoryUtil.scala:246)
+```
+## CPP code memory leak
+Sometimes you cannot get the coredump symbols, if you debug memory leak, you can write googletest to use valgrind to detect
+```
+apt install valgrind
+valgrind --leak-check=yes ./exec_backend_test
+```
+
+
 # Run TPC-H and TPC-DS
 
 We supply `<gluten_home>/tools/gluten-it` to execute these queries

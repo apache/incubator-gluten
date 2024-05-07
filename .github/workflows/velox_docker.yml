@@ -500,12 +500,20 @@ jobs:
     container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Build Gluten velox third party
+      - name: Setup java and maven
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget numactl-devel -y && \
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+          mv apache-maven-3.8.8 /usr/lib/maven  
+      - name: Build Gluten velox third party
+        run: |
+          export MAVEN_HOME=/usr/lib/maven 
+          export PATH=${PATH}:${MAVEN_HOME}/bin
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
+          ./build_arrow_deps_centos8.sh && \
           ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
       - name: Build Gluten CPP library
         run: |
@@ -516,11 +524,6 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/cpp/build && \
           ctest -V
-      - name: Setup java and maven
-        run: |
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
       - name: Prepare spark.test.home for Spark 3.2.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -563,23 +566,26 @@ jobs:
     container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
+      - name: Setup java and maven
+        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget numactl-devel -y && \
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+          mv apache-maven-3.8.8 /usr/lib/maven        
       - name: Build Gluten velox third party
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          export MAVEN_HOME=/usr/lib/maven 
+          export PATH=${PATH}:${MAVEN_HOME}/bin
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
+          ./build_arrow_deps_centos8.sh && \
           ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
       - name: Build Gluten CPP library
         run: |
           cd $GITHUB_WORKSPACE/cpp && \
           source /opt/rh/gcc-toolset-9/enable && \
           ./compile.sh --build_velox_backend=ON --build_protobuf=ON
-      - name: Setup java and maven
-        run: |
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
       - name: Prepare spark.test.home for Spark 3.2.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE// && \
@@ -599,23 +605,26 @@ jobs:
     container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Build Gluten velox third party
+      - name: Setup java and maven
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+          mv apache-maven-3.8.8 /usr/lib/maven        
+      - name: Build Gluten velox third party
+        run: |
+          export MAVEN_HOME=/usr/lib/maven 
+          export PATH=${PATH}:${MAVEN_HOME}/bin
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
+          ./build_arrow_deps_centos8.sh && \
           ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
       - name: Build Gluten CPP library
         run: |
           cd $GITHUB_WORKSPACE/cpp && \
           source /opt/rh/gcc-toolset-9/enable && \
           ./compile.sh --build_velox_backend=ON --build_protobuf=ON --build_tests=ON --build_examples=ON --build_benchmarks=ON
-      - name: Setup java and maven
-        run: |
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
       - name: Prepare spark.test.home for Spark 3.3.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -654,23 +663,26 @@ jobs:
     container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
+      - name: Setup java and maven
+        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget numactl-devel -y && \
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+          mv apache-maven-3.8.8 /usr/lib/maven        
       - name: Build Gluten velox third party
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          export MAVEN_HOME=/usr/lib/maven 
+          export PATH=${PATH}:${MAVEN_HOME}/bin
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
+          ./build_arrow_deps_centos8.sh && \
           ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
       - name: Build Gluten CPP library
         run: |
           cd $GITHUB_WORKSPACE/cpp && \
           source /opt/rh/gcc-toolset-9/enable && \
           ./compile.sh --build_velox_backend=ON --build_protobuf=ON
-      - name: Setup java and maven
-        run: |
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
       - name: Prepare spark.test.home for Spark 3.3.1 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE// && \
@@ -690,23 +702,26 @@ jobs:
     container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Build Gluten velox third party
+      - name: Setup java and maven
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+          mv apache-maven-3.8.8 /usr/lib/maven        
+      - name: Build Gluten velox third party
+        run: |
+          export MAVEN_HOME=/usr/lib/maven 
+          export PATH=${PATH}:${MAVEN_HOME}/bin
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
+          ./build_arrow_deps_centos8.sh && \
           ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
       - name: Build Gluten CPP library
         run: |
           cd $GITHUB_WORKSPACE/cpp && \
           source /opt/rh/gcc-toolset-9/enable && \
           ./compile.sh --build_velox_backend=ON --build_protobuf=ON --build_tests=ON --build_examples=ON --build_benchmarks=ON
-      - name: Setup java and maven
-        run: |
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
       - name: Prepare spark.test.home for Spark 3.4.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -745,23 +760,26 @@ jobs:
     container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Build Gluten velox third party
+      - name: Setup java and maven
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+          mv apache-maven-3.8.8 /usr/lib/maven        
+      - name: Build Gluten velox third party
+        run: |
+          export MAVEN_HOME=/usr/lib/maven 
+          export PATH=${PATH}:${MAVEN_HOME}/bin
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
+          ./build_arrow_deps_centos8.sh && \
           ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
       - name: Build Gluten CPP library
         run: |
           cd $GITHUB_WORKSPACE/cpp && \
           source /opt/rh/gcc-toolset-9/enable && \
           ./compile.sh --build_velox_backend=ON --build_protobuf=ON
-      - name: Setup java and maven
-        run: |
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
       - name: Prepare spark.test.home for Spark 3.4.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE// && \
@@ -781,23 +799,26 @@ jobs:
     container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Build Gluten velox third party
+      - name: Setup java and maven
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+          mv apache-maven-3.8.8 /usr/lib/maven                 
+      - name: Build Gluten velox third party
+        run: |
+          export MAVEN_HOME=/usr/lib/maven && \
+          export PATH=${PATH}:${MAVEN_HOME}/bin && \
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
+          ./build_arrow_deps_centos8.sh && \
           ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
       - name: Build Gluten CPP library
         run: |
           cd $GITHUB_WORKSPACE/cpp && \
           source /opt/rh/gcc-toolset-9/enable && \
           ./compile.sh --build_velox_backend=ON --build_protobuf=ON --build_tests=ON --build_examples=ON --build_benchmarks=ON
-      - name: Setup java and maven
-        run: |
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
       - name: Prepare spark.test.home for Spark 3.5.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -835,23 +856,26 @@ jobs:
     container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Build Gluten velox third party
+      - name: Setup java and maven
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+          mv apache-maven-3.8.8 /usr/lib/maven        
+      - name: Build Gluten velox third party
+        run: |
+          export MAVEN_HOME=/usr/lib/maven 
+          export PATH=${PATH}:${MAVEN_HOME}/bin
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
+          ./build_arrow_deps_centos8.sh && \
           ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
       - name: Build Gluten CPP library
         run: |
           cd $GITHUB_WORKSPACE/cpp && \
           source /opt/rh/gcc-toolset-9/enable && \
           ./compile.sh --build_velox_backend=ON --build_protobuf=ON --build_tests=ON --build_examples=ON --build_benchmarks=ON
-      - name: Setup java and maven
-        run: |
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
       - name: Prepare spark.test.home for Spark 3.5.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
