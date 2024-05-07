@@ -50,6 +50,8 @@ trait RasOffload extends RasRule[SparkPlan] {
           case Validator.Passed =>
             offload(from) match {
               case t: GlutenPlan if !t.doValidate().isValid =>
+                // 4. If native validation fails on the offloaded node, return the
+                // original one.
                 from
               case other =>
                 other
@@ -59,7 +61,7 @@ trait RasOffload extends RasRule[SparkPlan] {
         }
     }
 
-    // 4. Return the final tree.
+    // 5. Return the final tree.
     List(offloaded)
   }
 
