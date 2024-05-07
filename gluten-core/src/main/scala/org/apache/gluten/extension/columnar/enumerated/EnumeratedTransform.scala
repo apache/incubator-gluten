@@ -18,7 +18,7 @@ package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.{OffloadExchange, OffloadJoin, OffloadOthers, OffloadSingleNode}
-import org.apache.gluten.extension.columnar.rewrite.{PullOutPostProject, PullOutPreProject, RewriteSingleNode}
+import org.apache.gluten.extension.columnar.rewrite.RewriteSingleNode
 import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
 import org.apache.gluten.planner.GlutenOptimization
 import org.apache.gluten.planner.property.Conventions
@@ -42,17 +42,14 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
     .fallbackComplexExpressions()
     .fallbackByBackendSettings()
     .fallbackByUserOptions()
-    .fallbackRewritable()
     .build()
+
+  private val rewrites = RewriteSingleNode.allRules()
 
   private val rules = List(
     new PushFilterToScan(validator),
     RemoveFilter
   )
-
-  private val rewriteRules = RewriteSingleNode
-    .allRules()
-    .map(new AsRasRewrite(_))
 
   // TODO: Should obey ReplaceSingleNode#applyScanNotTransformable to select
   //  (vanilla) scan with cheaper sub-query plan through cost model.
@@ -63,8 +60,9 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
     RasOffloadAggregate,
     RasOffloadFilter
   ).map(_.withValidator(validator))
+    .map(_.withRewrites(rewrites))
 
-  private val optimization = GlutenOptimization(rules ++ rewriteRules ++ offloadRules)
+  private val optimization = GlutenOptimization(rules ++ offloadRules)
 
   private val reqConvention = Conventions.ANY
   private val altConventions =
@@ -106,54 +104,13 @@ object EnumeratedTransform {
     override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)
   }
 
-  /**
-   * Accepts a [[RewriteSingleNode]] rule to convert it into a RAS rule.
-   *
-   * In the RAS rule, the delegated [[RewriteSingleNode]] will be called to create a rewritten plan
-   * node, which will be then added into RAS memo.
-   */
-  private class AsRasRewrite(delegate: RewriteSingleNode) extends RasRule[SparkPlan] {
-    override def shift(node: SparkPlan): Iterable[SparkPlan] = {
-      val out = delegate.rewrite(node)
-      out match {
-        case same if same eq node =>
-          List.empty
-        case other =>
-          List(other)
-      }
-    }
-
-    override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)
-  }
-
-  private class FallbackRewritable() extends Validator {
-    override def validate(plan: SparkPlan): Validator.OutCome = {
-      val preProjectNeeded = PullOutPreProject.needsPreProject(plan)
-      val postProjectNeeded = PullOutPostProject.needsPostProjection(plan)
-      if (preProjectNeeded) {
-        return fail(s"Pre-project needed for plan: $plan")
-      }
-      if (postProjectNeeded) {
-        return fail(s"Post-project needed for plan: $plan")
-      }
-      pass()
-    }
-  }
-  implicit private class ValidatorBuilderImplicits(builder: Validators.Builder) {
-
-    /**
-     * Fails validation if rewriting is needed for a plan node. This could filter out candidates
-     * that need to be handled by RewriteSparkPlanRulesManager to run in native.
-     */
-    def fallbackRewritable(): Validators.Builder = {
-      builder.add(new FallbackRewritable())
-      builder
-    }
-  }
-
   implicit private class RasRuleImplicits(rasRule: RasRule[SparkPlan]) {
     def withValidator(v: Validator): RasRule[SparkPlan] = {
       ConditionedRule.wrap(rasRule, v)
+    }
+
+    def withRewrites(r: Seq[RewriteSingleNode]): RasRule[SparkPlan] = {
+      PreRewrittenRule.wrap(rasRule, r)
     }
   }
 }

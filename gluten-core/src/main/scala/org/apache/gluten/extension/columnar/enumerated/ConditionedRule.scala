@@ -22,13 +22,13 @@ import org.apache.gluten.ras.rule.{RasRule, Shape}
 import org.apache.spark.sql.execution.SparkPlan
 
 object ConditionedRule {
-  trait PreCondition {
-    def apply(node: SparkPlan): Boolean
+  trait Condition {
+    def accept(node: SparkPlan): Boolean
   }
 
-  object PreCondition {
-    implicit class FromValidator(validator: Validator) extends PreCondition {
-      override def apply(node: SparkPlan): Boolean = {
+  object Condition {
+    implicit class FromValidator(validator: Validator) extends Condition {
+      override def accept(node: SparkPlan): Boolean = {
         validator.validate(node) match {
           case Validator.Passed => true
           case Validator.Failed(reason) => false
@@ -37,11 +37,11 @@ object ConditionedRule {
     }
   }
 
-  def wrap(rule: RasRule[SparkPlan], cond: ConditionedRule.PreCondition): RasRule[SparkPlan] = {
+  def wrap(rule: RasRule[SparkPlan], cond: Condition): RasRule[SparkPlan] = {
     new RasRule[SparkPlan] {
       override def shift(node: SparkPlan): Iterable[SparkPlan] = {
         val out = List(node)
-          .filter(cond.apply)
+          .filter(cond.accept)
           .flatMap(rule.shift)
         out
       }

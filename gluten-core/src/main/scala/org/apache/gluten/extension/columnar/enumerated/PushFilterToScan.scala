@@ -26,6 +26,7 @@ import org.apache.gluten.ras.rule.Shapes._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 
+// TODO: Match on Vanilla filter + Gluten scan.
 class PushFilterToScan(validator: Validator) extends RasRule[SparkPlan] {
   override def shift(node: SparkPlan): Iterable[SparkPlan] = node match {
     case FilterAndScan(filter, scan) =>
