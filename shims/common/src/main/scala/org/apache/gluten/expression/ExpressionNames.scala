@@ -153,6 +153,7 @@ object ExpressionNames {
   final val BITWISE_OR = "bitwise_or"
   final val BITWISE_XOR = "bitwise_xor"
   final val BITWISE_GET = "bit_get"
+  final val GET_BIT = "getbit"
   final val BITWISE_COUNT = "bit_count"
   final val SHIFTLEFT = "shiftleft"
   final val SHIFTRIGHT = "shiftright"

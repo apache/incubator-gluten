@@ -41,6 +41,12 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("Test getbit function") {
+    runQueryAndCompare("SELECT getbit(l_partkey, 0) from lineitem limit 1") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("Test chr function") {
     runQueryAndCompare("SELECT chr(l_orderkey + 64) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
