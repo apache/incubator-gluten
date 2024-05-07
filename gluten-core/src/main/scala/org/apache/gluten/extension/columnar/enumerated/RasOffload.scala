@@ -58,7 +58,7 @@ trait RasOffload extends RasRule[SparkPlan] {
         }
     }
 
-    // 3. Return the final tree.
+    // 4. Return the final tree.
     List(offloaded)
   }
 
