@@ -45,13 +45,74 @@ class FunctionGetDateData : public DB::IFunction
 public:
     FunctionGetDateData() = default;
     ~FunctionGetDateData() override = default;
-    bool checkAndGetDateData(DB::ReadBuffer & buf, size_t buf_size, T &x, const DateLUTImpl & date_lut, UInt8 & can_be_parsed) const
+
+    DB::ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr & result_type, size_t) const override
+    {
+        if (arguments.size() != 1)
+            throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s arguments number must be 1.", getName());
+        
+        const DB::ColumnWithTypeAndName arg1 = arguments[0];
+        const auto * src_col = checkAndGetColumn<DB::ColumnString>(arg1.column.get());
+        size_t size = src_col->size();
+
+        if (!result_type->isNullable())
+            throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s return type must be nullable", getName());
+        
+        using ColVecTo = ColumnVector<T>;
+        typename ColVecTo::MutablePtr result_column = ColVecTo::create(size, 0);
+        typename ColVecTo::Container & result_container = result_column->getData();
+        DB::ColumnUInt8::MutablePtr null_map = DB::ColumnUInt8::create(size, 0);
+        typename DB::ColumnUInt8::Container & null_container = null_map->getData();
+        const DateLUTImpl * local_time_zone = &DateLUT::instance();
+        const DateLUTImpl * utc_time_zone = &DateLUT::instance("UTC");
+
+        for (size_t i = 0; i < size; ++i)
+        {
+            auto str = src_col->getDataAt(i);
+            if (str.size < 4)
+            {
+                null_container[i] = true;
+                continue;
+            }
+            else
+            {
+                DB::ReadBufferFromMemory buf(str.data, str.size);
+                while(!buf.eof() && *buf.position() == ' ')
+                {
+                    buf.position() ++;
+                }
+                if(buf.buffer().end() - buf.position() < 4)
+                {
+                    null_container[i] = true;
+                    continue;
+                }
+                bool can_be_parsed = true;
+                if (!checkAndGetDateData(buf, str.size, result_container[i], *local_time_zone, can_be_parsed))
+                {
+                    if (!can_be_parsed)
+                        null_container[i] = true;
+                    else
+                    {
+                        time_t tmp = 0;
+                        bool parsed = tryParseDateTimeBestEffort(tmp, buf, *local_time_zone, *utc_time_zone);
+                        if (get_date)
+                            result_container[i] = local_time_zone->toDayNum<time_t>(tmp);
+                        null_container[i] = !parsed;
+                    }
+                }
+            }
+        }
+        return DB::ColumnNullable::create(std::move(result_column), std::move(null_map));
+    }
+
+private:
+    bool checkAndGetDateData(DB::ReadBuffer & buf, size_t buf_size, T &x, const DateLUTImpl & date_lut, bool & can_be_parsed) const
     {
         auto checkNumbericASCII = [&](DB::ReadBuffer & rb, size_t start, size_t length) -> bool
         {
             for (size_t i = start; i < start + length; ++i)
             {
-                if (!isNumericASCII(*(rb.position() + i)))
+                if (i >= buf_size || !isNumericASCII(*(rb.position() + i)))
                 {
                     return false;
                 }
@@ -60,7 +121,7 @@ public:
         };
         auto checkDelimiter = [&](DB::ReadBuffer & rb, size_t pos) -> bool
         {
-            if (*(rb.position() + pos) != '-')
+            if (pos >= buf_size || *(rb.position() + pos) != '-')
                 return false;
             else
                 return true;
@@ -107,65 +168,6 @@ public:
                 }
             }
         }
-    }
-
-    DB::ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr & result_type, size_t) const override
-    {
-        if (arguments.size() != 1)
-            throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s arguments number must be 1.", getName());
-        
-        const DB::ColumnWithTypeAndName arg1 = arguments[0];
-        const auto * src_col = checkAndGetColumn<DB::ColumnString>(arg1.column.get());
-        size_t size = src_col->size();
-
-        if (!result_type->isNullable())
-            throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s return type must be nullable", getName());
-        
-        using ColVecTo = ColumnVector<T>;
-        typename ColVecTo::MutablePtr result_column = ColVecTo::create(size, 0);
-        typename ColVecTo::Container & result_container = result_column->getData();
-        DB::ColumnUInt8::MutablePtr null_map = DB::ColumnUInt8::create(size, 0);
-        typename DB::ColumnUInt8::Container & null_container = null_map->getData();
-        const DateLUTImpl * local_time_zone = &DateLUT::instance();
-        const DateLUTImpl * utc_time_zone = &DateLUT::instance("UTC");
-
-        for (size_t i = 0; i < size; ++i)
-        {
-            auto str = src_col->getDataAt(i);
-            if (str.size < 4)
-            {
-                null_container[i] = true;
-                continue;
-            }
-            else
-            {
-                DB::ReadBufferFromMemory buf(str.data, str.size);
-                while(!buf.eof() && *buf.position() == ' ')
-                {
-                    buf.position() ++;
-                }
-                if(buf.buffer().end() - buf.position() < 4)
-                {
-                    null_container[i] = true;
-                    continue;
-                }
-                UInt8 can_be_parsed = 1;
-                if (!checkAndGetDateData(buf, str.size, result_container[i], *local_time_zone, can_be_parsed))
-                {
-                    if (!can_be_parsed)
-                        null_container[i] = true;
-                    else
-                    {
-                        time_t tmp = 0;
-                        bool parsed = tryParseDateTimeBestEffort(tmp, buf, *local_time_zone, *utc_time_zone);
-                        if (get_date)
-                            result_container[i] = local_time_zone->toDayNum<time_t>(tmp);
-                        null_container[i] = !parsed;
-                    }
-                }
-            }
-        }
-        return DB::ColumnNullable::create(std::move(result_column), std::move(null_map));
     }
 };
 }
