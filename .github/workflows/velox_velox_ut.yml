@@ -46,6 +46,7 @@ jobs:
           mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Build Gluten velox third party
         run: |
+          rm -rf /opt/miniconda-for-velox/
           cd ep/build-velox/src && \
           ./get_velox.sh 
           cd ../build/velox_ep/
