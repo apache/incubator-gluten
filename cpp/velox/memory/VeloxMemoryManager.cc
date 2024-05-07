@@ -107,8 +107,9 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
               " bytes although there is enough space, free bytes: " + std::to_string(freeBytes));
       return 0;
     }
-    listener_->allocationChanged(bytes);
-    return pool->grow(bytes, bytes);
+    uint64_t growBytes = bytes - freeBytes;
+    listener_->allocationChanged(growBytes);
+    return pool->grow(growBytes, bytes);
   }
 
   uint64_t releaseMemoryLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
@@ -179,15 +180,22 @@ VeloxMemoryManager::VeloxMemoryManager(
 }
 
 namespace {
-MemoryUsageStats collectMemoryUsageStatsInternal(const velox::memory::MemoryPool* pool) {
+MemoryUsageStats collectVeloxMemoryUsageStats(const velox::memory::MemoryPool* pool) {
   MemoryUsageStats stats;
   stats.set_current(pool->currentBytes());
   stats.set_peak(pool->peakBytes());
   // walk down root and all children
   pool->visitChildren([&](velox::memory::MemoryPool* pool) -> bool {
-    stats.mutable_children()->emplace(pool->name(), collectMemoryUsageStatsInternal(pool));
+    stats.mutable_children()->emplace(pool->name(), collectVeloxMemoryUsageStats(pool));
     return true;
   });
+  return stats;
+}
+
+MemoryUsageStats collectGlutenAllocatorMemoryUsageStats(const MemoryAllocator* allocator) {
+  MemoryUsageStats stats;
+  stats.set_current(allocator->getBytes());
+  stats.set_peak(allocator->peakBytes());
   return stats;
 }
 
@@ -208,7 +216,12 @@ int64_t shrinkVeloxMemoryPool(velox::memory::MemoryManager* mm, velox::memory::M
 } // namespace
 
 const MemoryUsageStats VeloxMemoryManager::collectMemoryUsageStats() const {
-  return collectMemoryUsageStatsInternal(veloxAggregatePool_.get());
+  MemoryUsageStats stats;
+  stats.set_current(listener_->currentBytes());
+  stats.set_peak(listener_->peakBytes());
+  stats.mutable_children()->emplace("gluten_allocator", collectGlutenAllocatorMemoryUsageStats(glutenAlloc_.get()));
+  stats.mutable_children()->emplace(veloxAggregatePool_->name(), collectVeloxMemoryUsageStats(veloxAggregatePool_.get()));
+  return stats;
 }
 
 const int64_t VeloxMemoryManager::shrink(int64_t size) {
