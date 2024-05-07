@@ -36,13 +36,15 @@ trait RasOffload extends RasRule[SparkPlan] {
     // 1. Rewrite the node to form that native library supports.
     val rewritten = rewrites.foldLeft(node) {
       case (node, rewrite) =>
-        rewrite.rewrite(node)
+        node.transformUp {
+          case p =>
+            val out = rewrite.rewrite(p)
+            out
+        }
     }
 
     // 2. Walk the rewritten tree.
     val offloaded = rewritten.transformUp {
-      case g: GroupLeafExec =>
-        g
       case node =>
         // 3. Validate current node. If passed, offload it.
         validator.validate(node) match {
