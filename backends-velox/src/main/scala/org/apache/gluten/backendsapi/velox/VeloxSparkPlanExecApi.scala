@@ -330,10 +330,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
   /** Generate HashAggregateExecPullOutHelper */
   override def genHashAggregateExecPullOutHelper(
-      groupingExpressions: Seq[NamedExpression],
       aggregateExpressions: Seq[AggregateExpression],
       aggregateAttributes: Seq[Attribute]): HashAggregateExecPullOutBaseHelper =
-    HashAggregateExecPullOutHelper(groupingExpressions, aggregateExpressions, aggregateAttributes)
+    HashAggregateExecPullOutHelper(aggregateExpressions, aggregateAttributes)
 
   override def genColumnarShuffleExchange(
       shuffle: ShuffleExchangeExec,

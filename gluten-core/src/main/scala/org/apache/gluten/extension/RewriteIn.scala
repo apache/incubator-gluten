@@ -16,8 +16,9 @@
  */
 package org.apache.gluten.extension
 
+import org.apache.gluten.extension.columnar.rewrite.RewriteSingleNode
+
 import org.apache.spark.sql.catalyst.expressions.{EqualTo, Expression, In, Or}
-import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{FileSourceScanExec, FilterExec, SparkPlan}
 import org.apache.spark.sql.types.StructType
 
@@ -32,7 +33,7 @@ import org.apache.spark.sql.types.StructType
  *
  * TODO: Remove this rule once Velox support the list option in `In` is not literal.
  */
-object RewriteIn extends Rule[SparkPlan] {
+object RewriteIn extends RewriteSingleNode {
 
   private def shouldRewrite(e: Expression): Boolean = {
     e match {
@@ -58,7 +59,7 @@ object RewriteIn extends Rule[SparkPlan] {
     }
   }
 
-  override def apply(plan: SparkPlan): SparkPlan = {
+  override def rewrite(plan: SparkPlan): SparkPlan = {
     plan match {
       // TODO: Support datasource v2
       case scan: FileSourceScanExec if scan.dataFilters.exists(_.find(shouldRewrite).isDefined) =>

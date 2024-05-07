@@ -16,13 +16,10 @@
  */
 package org.apache.gluten.extension.columnar.enumerated
 
-import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.{TransformExchange, TransformJoin, TransformOthers, TransformSingleNode}
-import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
+import org.apache.gluten.extension.columnar.{OffloadExchange, OffloadJoin, OffloadOthers, OffloadSingleNode}
 import org.apache.gluten.planner.GlutenOptimization
 import org.apache.gluten.planner.property.Conventions
 import org.apache.gluten.ras.property.PropertySet
-import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 import org.apache.gluten.utils.LogLevelUtil
 
 import org.apache.spark.sql.SparkSession
@@ -34,31 +31,22 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
   with LogLevelUtil {
   import EnumeratedTransform._
 
-  private val validator = Validators
-    .builder()
-    .fallbackByHint()
-    .fallbackIfScanOnly()
-    .fallbackComplexExpressions()
-    .fallbackByBackendSettings()
-    .fallbackByUserOptions()
-    .build()
-
   private val rules = List(
-    PushFilterToScan,
-    FilterRemoveRule
+    new PushFilterToScan(RasOffload.validator),
+    RemoveFilter
   )
 
   // TODO: Should obey ReplaceSingleNode#applyScanNotTransformable to select
   //  (vanilla) scan with cheaper sub-query plan through cost model.
-  private val implRules = List(
-    AsRasImplement(TransformOthers()),
-    AsRasImplement(TransformExchange()),
-    AsRasImplement(TransformJoin()),
-    ImplementAggregate,
-    ImplementFilter
-  ).map(_.withValidator(validator))
+  private val offloadRules = List(
+    new AsRasOffload(OffloadOthers()),
+    new AsRasOffload(OffloadExchange()),
+    new AsRasOffload(OffloadJoin()),
+    RasOffloadAggregate,
+    RasOffloadFilter
+  )
 
-  private val optimization = GlutenOptimization(rules ++ implRules)
+  private val optimization = GlutenOptimization(rules ++ offloadRules)
 
   private val reqConvention = Conventions.ANY
   private val altConventions =
@@ -75,24 +63,12 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
 }
 
 object EnumeratedTransform {
-  private case class AsRasImplement(delegate: TransformSingleNode) extends RasRule[SparkPlan] {
-    override def shift(node: SparkPlan): Iterable[SparkPlan] = {
-      val out = delegate.impl(node)
-      out match {
-        case t: GlutenPlan if !t.doValidate().isValid =>
-          List.empty
-        case other =>
-          List(other)
-      }
-    }
 
-    override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)
-  }
-
-  // TODO: Currently not in use. Prepared for future development.
-  implicit private class RasRuleImplicits(rasRule: RasRule[SparkPlan]) {
-    def withValidator(v: Validator): RasRule[SparkPlan] = {
-      ConditionedRule.wrap(rasRule, v)
+  /** Accepts a [[OffloadSingleNode]] rule to convert it into a RAS offload rule. */
+  private class AsRasOffload(delegate: OffloadSingleNode) extends RasOffload {
+    override protected def offload(node: SparkPlan): SparkPlan = {
+      val out = delegate.offload(node)
+      out
     }
   }
 }

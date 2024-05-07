@@ -17,28 +17,31 @@
 package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.execution.{FilterHandler, TransformSupport}
-import org.apache.gluten.extension.columnar.TransformHints
+import org.apache.gluten.extension.columnar.validator.Validator
 import org.apache.gluten.ras.path.Pattern._
 import org.apache.gluten.ras.path.Pattern.Matchers._
 import org.apache.gluten.ras.rule.{RasRule, Shape}
 import org.apache.gluten.ras.rule.Shapes._
 
-import org.apache.spark.sql.execution.{ColumnarToRowExec, ColumnarToRowTransition, FileSourceScanExec, FilterExec, SparkPlan}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 
-object PushFilterToScan extends RasRule[SparkPlan] {
+// TODO: Match on Vanilla filter + Gluten scan.
+class PushFilterToScan(validator: Validator) extends RasRule[SparkPlan] {
   override def shift(node: SparkPlan): Iterable[SparkPlan] = node match {
     case FilterAndScan(filter, scan) =>
-      if (!TransformHints.isTransformable(scan)) {
-        return List.empty
-      }
-      val newScan =
-        FilterHandler.pushFilterToScan(filter.condition, scan)
-      newScan match {
-        case ts: TransformSupport if ts.doValidate().isValid =>
-          List(filter.withNewChildren(List(ts)))
-        case _ =>
+      validator.validate(scan) match {
+        case Validator.Failed(reason) =>
           List.empty
+        case Validator.Passed =>
+          val newScan =
+            FilterHandler.pushFilterToScan(filter.condition, scan)
+          newScan match {
+            case ts: TransformSupport if ts.doValidate().isValid =>
+              List(filter.withNewChildren(List(ts)))
+            case _ =>
+              List.empty
+          }
       }
     case _ =>
       List.empty

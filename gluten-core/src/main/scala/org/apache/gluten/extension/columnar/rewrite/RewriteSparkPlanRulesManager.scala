@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar
+package org.apache.gluten.extension.columnar.rewrite
 
-import org.apache.gluten.extension.{RewriteCollect, RewriteIn}
+import org.apache.gluten.extension.columnar.{AddTransformHintRule, TransformHint, TransformHints}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.rdd.RDD
@@ -44,7 +44,7 @@ case class RewrittenNodeWall(originalChild: SparkPlan) extends LeafExecNode {
  *
  * Note that, this rule does not touch and tag these operators who does not need to rewrite.
  */
-class RewriteSparkPlanRulesManager private (rewriteRules: Seq[Rule[SparkPlan]])
+class RewriteSparkPlanRulesManager private (rewriteRules: Seq[RewriteSingleNode])
   extends Rule[SparkPlan] {
 
   private def mayNeedRewrite(plan: SparkPlan): Boolean = {
@@ -83,7 +83,7 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[Rule[SparkPlan]])
           // Some rewrite rules may generate new parent plan node, we should use transform to
           // rewrite the original plan. For example, PullOutPreProject and PullOutPostProject
           // will generate post-project plan node.
-          plan.transformUp { case p => rule.apply(p) }
+          plan.transformUp { case p => rule.rewrite(p) }
       }
       (rewrittenPlan, None)
     } catch {
@@ -133,13 +133,6 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[Rule[SparkPlan]])
 
 object RewriteSparkPlanRulesManager {
   def apply(): Rule[SparkPlan] = {
-    val rewriteRules = Seq(
-      RewriteIn,
-      RewriteMultiChildrenCount,
-      RewriteCollect,
-      RewriteTypedImperativeAggregate,
-      PullOutPreProject,
-      PullOutPostProject)
-    new RewriteSparkPlanRulesManager(rewriteRules)
+    new RewriteSparkPlanRulesManager(RewriteSingleNode.allRules())
   }
 }

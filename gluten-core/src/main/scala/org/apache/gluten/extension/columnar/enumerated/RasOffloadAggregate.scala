@@ -16,36 +16,16 @@
  */
 package org.apache.gluten.extension.columnar.enumerated
 
-import org.apache.gluten.extension.columnar.validator.Validator
-import org.apache.gluten.ras.rule.{RasRule, Shape}
+import org.apache.gluten.execution.HashAggregateExecBaseTransformer
 
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 
-object ConditionedRule {
-  trait PreCondition {
-    def apply(node: SparkPlan): Boolean
-  }
-
-  object PreCondition {
-    implicit class FromValidator(validator: Validator) extends PreCondition {
-      override def apply(node: SparkPlan): Boolean = {
-        validator.validate(node) match {
-          case Validator.Passed => true
-          case Validator.Failed(reason) => false
-        }
-      }
-    }
-  }
-
-  def wrap(rule: RasRule[SparkPlan], cond: ConditionedRule.PreCondition): RasRule[SparkPlan] = {
-    new RasRule[SparkPlan] {
-      override def shift(node: SparkPlan): Iterable[SparkPlan] = {
-        val out = List(node)
-          .filter(cond.apply)
-          .flatMap(rule.shift)
-        out
-      }
-      override def shape(): Shape[SparkPlan] = rule.shape()
-    }
+object RasOffloadAggregate extends RasOffload {
+  override protected def offload(node: SparkPlan): SparkPlan = node match {
+    case agg: HashAggregateExec =>
+      val out = HashAggregateExecBaseTransformer.from(agg)()
+      out
+    case other => other
   }
 }

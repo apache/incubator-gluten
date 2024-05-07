@@ -40,13 +40,20 @@ import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BatchEvalPyth
 import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
-sealed trait TransformSingleNode extends Logging {
-  def impl(plan: SparkPlan): SparkPlan
+/**
+ * Converts a vanilla Spark plan node into Gluten plan node. Gluten plan is supposed to be executed
+ * in native, and the internals of execution is subject by backend's implementation.
+ *
+ * Note: Only the current plan node is supposed to be open to modification. Do not access or modify
+ * the children node. Tree-walking is done by caller of this trait.
+ */
+sealed trait OffloadSingleNode extends Logging {
+  def offload(plan: SparkPlan): SparkPlan
 }
 
 // Aggregation transformation.
-case class TransformAggregate() extends TransformSingleNode with LogLevelUtil {
-  override def impl(plan: SparkPlan): SparkPlan = plan match {
+case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
+  override def offload(plan: SparkPlan): SparkPlan = plan match {
     case plan if TransformHints.isNotTransformable(plan) =>
       plan
     case agg: HashAggregateExec =>
@@ -69,19 +76,6 @@ case class TransformAggregate() extends TransformSingleNode with LogLevelUtil {
 
     val aggChild = plan.child
 
-    def transformHashAggregate(): GlutenPlan = {
-      BackendsApiManager.getSparkPlanExecApiInstance
-        .genHashAggregateExecTransformer(
-          plan.requiredChildDistributionExpressions,
-          plan.groupingExpressions,
-          plan.aggregateExpressions,
-          plan.aggregateAttributes,
-          plan.initialInputBufferOffset,
-          plan.resultExpressions,
-          aggChild
-        )
-    }
-
     // If child's output is empty, fallback or offload both the child and aggregation.
     if (
       aggChild.output.isEmpty && BackendsApiManager.getSettings
@@ -91,9 +85,9 @@ case class TransformAggregate() extends TransformSingleNode with LogLevelUtil {
         case _: TransformSupport =>
           // If the child is transformable, transform aggregation as well.
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          transformHashAggregate()
+          HashAggregateExecBaseTransformer.from(plan)()
         case p: SparkPlan if PlanUtil.isGlutenTableCache(p) =>
-          transformHashAggregate()
+          HashAggregateExecBaseTransformer.from(plan)()
         case _ =>
           // If the child is not transformable, do not transform the agg.
           TransformHints.tagNotTransformable(plan, "child output schema is empty")
@@ -101,14 +95,14 @@ case class TransformAggregate() extends TransformSingleNode with LogLevelUtil {
       }
     } else {
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      transformHashAggregate()
+      HashAggregateExecBaseTransformer.from(plan)()
     }
   }
 }
 
 // Exchange transformation.
-case class TransformExchange() extends TransformSingleNode with LogLevelUtil {
-  override def impl(plan: SparkPlan): SparkPlan = plan match {
+case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
+  override def offload(plan: SparkPlan): SparkPlan = plan match {
     case plan if TransformHints.isNotTransformable(plan) =>
       plan
     case plan: ShuffleExchangeExec =>
@@ -131,10 +125,10 @@ case class TransformExchange() extends TransformSingleNode with LogLevelUtil {
 }
 
 // Join transformation.
-case class TransformJoin() extends TransformSingleNode with LogLevelUtil {
-  import TransformJoin._
+case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
+  import OffloadJoin._
 
-  override def impl(plan: SparkPlan): SparkPlan = {
+  override def offload(plan: SparkPlan): SparkPlan = {
     if (TransformHints.isNotTransformable(plan)) {
       logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
       plan match {
@@ -223,7 +217,7 @@ case class TransformJoin() extends TransformSingleNode with LogLevelUtil {
 
 }
 
-object TransformJoin {
+object OffloadJoin {
   private def getSparkSupportedBuildSide(plan: ShuffledHashJoinExec): BuildSide = {
     plan.joinType match {
       case LeftOuter | LeftSemi => BuildRight
@@ -238,11 +232,11 @@ object TransformJoin {
 }
 
 // Filter transformation.
-case class TransformFilter() extends TransformSingleNode with LogLevelUtil {
-  import TransformOthers._
+case class OffloadFilter() extends OffloadSingleNode with LogLevelUtil {
+  import OffloadOthers._
   private val replace = new ReplaceSingleNode()
 
-  override def impl(plan: SparkPlan): SparkPlan = plan match {
+  override def offload(plan: SparkPlan): SparkPlan = plan match {
     case filter: FilterExec =>
       genFilterExec(filter)
     case other => other
@@ -286,14 +280,14 @@ case class TransformFilter() extends TransformSingleNode with LogLevelUtil {
 }
 
 // Other transformations.
-case class TransformOthers() extends TransformSingleNode with LogLevelUtil {
-  import TransformOthers._
+case class OffloadOthers() extends OffloadSingleNode with LogLevelUtil {
+  import OffloadOthers._
   private val replace = new ReplaceSingleNode()
 
-  override def impl(plan: SparkPlan): SparkPlan = replace.doReplace(plan)
+  override def offload(plan: SparkPlan): SparkPlan = replace.doReplace(plan)
 }
 
-object TransformOthers {
+object OffloadOthers {
   // Utility to replace single node within transformed Gluten node.
   // Children will be preserved as they are as children of the output node.
   //
@@ -333,35 +327,16 @@ object TransformOthers {
           ProjectExecTransformer(plan.projectList, columnarChild)
         case plan: SortAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          BackendsApiManager.getSparkPlanExecApiInstance
-            .genHashAggregateExecTransformer(
-              plan.requiredChildDistributionExpressions,
-              plan.groupingExpressions,
-              plan.aggregateExpressions,
-              plan.aggregateAttributes,
-              plan.initialInputBufferOffset,
-              plan.resultExpressions,
-              plan.child match {
-                case sort: SortExecTransformer if !sort.global =>
-                  sort.child
-                case sort: SortExec if !sort.global =>
-                  sort.child
-                case _ => plan.child
-              }
-            )
+          HashAggregateExecBaseTransformer.from(plan) {
+            case sort: SortExecTransformer if !sort.global =>
+              sort.child
+            case sort: SortExec if !sort.global =>
+              sort.child
+            case other => other
+          }
         case plan: ObjectHashAggregateExec =>
-          val child = plan.child
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          BackendsApiManager.getSparkPlanExecApiInstance
-            .genHashAggregateExecTransformer(
-              plan.requiredChildDistributionExpressions,
-              plan.groupingExpressions,
-              plan.aggregateExpressions,
-              plan.aggregateAttributes,
-              plan.initialInputBufferOffset,
-              plan.resultExpressions,
-              child
-            )
+          HashAggregateExecBaseTransformer.from(plan)()
         case plan: UnionExec =>
           val children = plan.children
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
