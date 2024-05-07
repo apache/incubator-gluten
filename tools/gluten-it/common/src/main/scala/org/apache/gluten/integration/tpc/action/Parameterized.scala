@@ -25,7 +25,7 @@ import org.apache.gluten.integration.tpc.action.Actions.QuerySelector
 
 import scala.collection.immutable.Map
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 class Parameterized(
     scale: Double,
@@ -189,30 +189,15 @@ case class TestResultLine(
     succeed: Boolean,
     coordinate: Coordinate,
     rowCount: Option[Long],
+    planningTimeMillis: Option[Long],
     executionTimeMillis: Option[Long],
     metrics: Map[String, Long],
     errorMessage: Option[String])
 
-case class TestResultLines(
-    dimNames: Seq[String],
-    metricNames: Seq[String],
-    lines: Iterable[TestResultLine]) {
-  def print(): Unit = {
-    var fmt = "|%15s|%15s"
-    for (_ <- dimNames.indices) {
-      fmt = fmt + "|%20s"
-    }
-    for (_ <- metricNames.indices) {
-      fmt = fmt + "|%35s"
-    }
-    fmt = fmt + "|%30s|%30s|\n"
-    val fields = ArrayBuffer[String]("Query ID", "Succeed")
-    dimNames.foreach(dimName => fields.append(dimName))
-    metricNames.foreach(metricName => fields.append(metricName))
-    fields.append("Row Count")
-    fields.append("Query Time (Millis)")
-    printf(fmt, fields: _*)
-    lines.foreach { line =>
+object TestResultLine {
+  class Parser(dimNames: Seq[String], metricNames: Seq[String])
+      extends TableFormatter.RowParser[TestResultLine] {
+    override def parse(line: TestResultLine): Seq[Any] = {
       val values = ArrayBuffer[Any](line.queryId, line.succeed)
       dimNames.foreach { dimName =>
         val coordinate = line.coordinate.coordinate
@@ -226,9 +211,32 @@ case class TestResultLines(
         values.append(metrics.getOrElse(metricName, "N/A"))
       }
       values.append(line.rowCount.getOrElse("N/A"))
+      values.append(line.planningTimeMillis.getOrElse("N/A"))
       values.append(line.executionTimeMillis.getOrElse("N/A"))
-      printf(fmt, values: _*)
+      values
     }
+  }
+}
+
+case class TestResultLines(
+    dimNames: Seq[String],
+    metricNames: Seq[String],
+    lines: Iterable[TestResultLine]) {
+  def print(): Unit = {
+    val fields = ListBuffer[String]("Query ID", "Succeed")
+    dimNames.foreach(dimName => fields.append(dimName))
+    metricNames.foreach(metricName => fields.append(metricName))
+    fields.append("Row Count")
+    fields.append("Planning Time (Millis)")
+    fields.append("Query Time (Millis)")
+    val formatter = TableFormatter.create[TestResultLine](fields: _*)(
+      new TestResultLine.Parser(dimNames, metricNames))
+
+    lines.foreach { line =>
+      formatter.appendRow(line)
+    }
+
+    formatter.print(System.out)
   }
 }
 
@@ -257,6 +265,7 @@ object Parameterized {
         succeed = true,
         coordinate,
         Some(resultRows.length),
+        Some(result.planningTimeMillis),
         Some(result.executionTimeMillis),
         result.metrics,
         None)
@@ -266,7 +275,7 @@ object Parameterized {
         println(
           s"Error running query $id. " +
             s" Error: ${error.get}")
-        TestResultLine(id, succeed = false, coordinate, None, None, Map.empty, error)
+        TestResultLine(id, succeed = false, coordinate, None, None, None, Map.empty, error)
     }
   }
 
