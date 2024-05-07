@@ -996,76 +996,6 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
     return result_node;
 }
 
-bool SerializedPlanParser::convertBinaryArithmeticFunDecimalArgs(
-    ActionsDAGPtr actions_dag,
-    ActionsDAG::NodeRawConstPtrs & args,
-    const substrait::Expression_ScalarFunction & arithmeticFun)
-{
-    auto function_signature = function_mapping.at(std::to_string(arithmeticFun.function_reference()));
-    auto pos = function_signature.find(':');
-    auto func_name = function_signature.substr(0, pos);
-
-    if (func_name == "divide" || func_name == "multiply" || func_name == "plus" || func_name == "minus")
-    {
-        /// for divide/plus/minus, we need to convert first arg to result precision and scale
-        /// for multiply, we need to convert first arg to result precision, but keep scale
-        auto arg1_type = removeNullable(args[0]->result_type);
-        auto arg2_type = removeNullable(args[1]->result_type);
-        if (isDecimal(arg1_type) && isDecimal(arg2_type))
-        {
-            UInt32 p1 = getDecimalPrecision(*arg1_type);
-            UInt32 s1 = getDecimalScale(*arg1_type);
-            UInt32 p2 = getDecimalPrecision(*arg2_type);
-            UInt32 s2 = getDecimalScale(*arg2_type);
-
-            UInt32 precision;
-            UInt32 scale;
-
-            if (func_name == "plus" || func_name == "minus")
-            {
-                scale = s1;
-                precision = scale + std::max(p1 - s1, p2 - s2) + 1;
-            }
-            else if (func_name == "divide")
-            {
-                scale = std::max(static_cast<UInt32>(6), s1 + p2 + 1);
-                precision = p1 - s1 + s2 + scale;
-            }
-            else // multiply
-            {
-                scale = s1;
-                precision = p1 + p2 + 1;
-            }
-
-            UInt32 maxPrecision = DataTypeDecimal256::maxPrecision();
-            UInt32 maxScale = DataTypeDecimal128::maxPrecision();
-            precision = std::min(precision, maxPrecision);
-            scale = std::min(scale, maxScale);
-
-            ActionsDAG::NodeRawConstPtrs new_args;
-            new_args.reserve(args.size());
-
-            ActionsDAG::NodeRawConstPtrs cast_args;
-            cast_args.reserve(2);
-            cast_args.emplace_back(args[0]);
-            DataTypePtr ch_type = createDecimal<DataTypeDecimal>(precision, scale);
-            ch_type = wrapNullableType(arithmeticFun.output_type().decimal().nullability(), ch_type);
-            String type_name = ch_type->getName();
-            DataTypePtr str_type = std::make_shared<DataTypeString>();
-            const ActionsDAG::Node * type_node = &actions_dag->addColumn(
-                ColumnWithTypeAndName(str_type->createColumnConst(1, type_name), str_type, getUniqueName(type_name)));
-            cast_args.emplace_back(type_node);
-            const ActionsDAG::Node * cast_node = toFunctionNode(actions_dag, "CAST", cast_args);
-            actions_dag->addOrReplaceInOutputs(*cast_node);
-            new_args.emplace_back(cast_node);
-            new_args.emplace_back(args[1]);
-            args = std::move(new_args);
-            return true;
-        }
-    }
-    return false;
-}
-
 void SerializedPlanParser::parseFunctionArguments(
     ActionsDAGPtr & actions_dag,
     ActionsDAG::NodeRawConstPtrs & parsed_args,
@@ -1817,12 +1747,12 @@ QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
 
     auto res = parse(std::move(plan_ptr));
 
-// #ifndef NDEBUG
+#ifndef NDEBUG
     PlanUtil::checkOuputType(*res);
-// #endif
+#endif
 
     auto * logger = &Poco::Logger::get("SerializedPlanParser");
-    // if (logger->debug())
+    if (logger->debug())
     {
         auto out = PlanUtil::explainPlan(*res);
         LOG_ERROR(logger, "clickhouse plan:\n{}", out);

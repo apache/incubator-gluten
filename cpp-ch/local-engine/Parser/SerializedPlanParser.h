@@ -17,7 +17,6 @@
 #pragma once
 
 #include <Core/Block.h>
-#include <Core/ColumnWithTypeAndName.h>
 #include <Core/SortDescription.h>
 #include <DataTypes/DataTypeFactory.h>
 #include <DataTypes/Serializations/ISerialization.h>
@@ -25,14 +24,10 @@
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/RelMetric.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>
-#include <Processors/Formats/Impl/CHColumnToArrowColumn.h>
 #include <Processors/QueryPlan/ISourceStep.h>
 #include <Processors/QueryPlan/QueryPlan.h>
-#include <QueryPipeline/Pipe.h>
 #include <Storages/CustomStorageMergeTree.h>
-#include <Storages/IStorage.h>
 #include <Storages/SourceFromJavaIter.h>
-#include <arrow/ipc/writer.h>
 #include <base/types.h>
 #include <substrait/plan.pb.h>
 #include <Common/BlockIterator.h>
@@ -300,9 +295,6 @@ public:
     RelMetricPtr getMetric() { return metrics.empty() ? nullptr : metrics.at(0); }
 
     static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
-
-    bool convertBinaryArithmeticFunDecimalArgs(
-        ActionsDAGPtr actions_dag, ActionsDAG::NodeRawConstPtrs & args, const substrait::Expression_ScalarFunction & arithmeticFun);
 
     IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
 
