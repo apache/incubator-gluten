@@ -68,8 +68,8 @@ object DecimalArithmeticUtil {
             decDig -= diff / 2 + 1
             intDig = MAX_SCALE - decDig
           }
-          resultScale = intDig + decDig
-          resultPrecision = decDig
+          resultPrecision = intDig + decDig
+          resultScale = decDig
         }
       case OperationType.MOD =>
         resultScale = Math.max(type1.scale, type2.scale)
