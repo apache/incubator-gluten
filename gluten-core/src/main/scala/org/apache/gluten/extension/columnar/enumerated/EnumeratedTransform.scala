@@ -81,6 +81,15 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
 }
 
 object EnumeratedTransform {
+
+  /**
+   * Accepts a [[OffloadSingleNode]] rule to convert it into a RAS rule.
+   *
+   * In the RAS rule, the delegated [[OffloadSingleNode]] will be called to create a offloaded plan
+   * node, which will be immediately validated by calling its "doValidate" method to check if it's
+   * eligible to run in native. If yes, the offloaded plan node will be returned then added into RAS
+   * memo.
+   */
   private class AsRasOffload(delegate: OffloadSingleNode) extends RasRule[SparkPlan] {
     override def shift(node: SparkPlan): Iterable[SparkPlan] = {
       val out = delegate.offload(node)
@@ -97,6 +106,12 @@ object EnumeratedTransform {
     override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)
   }
 
+  /**
+   * Accepts a [[RewriteSingleNode]] rule to convert it into a RAS rule.
+   *
+   * In the RAS rule, the delegated [[RewriteSingleNode]] will be called to create a rewritten plan
+   * node, which will be then added into RAS memo.
+   */
   private class AsRasRewrite(delegate: RewriteSingleNode) extends RasRule[SparkPlan] {
     override def shift(node: SparkPlan): Iterable[SparkPlan] = {
       val out = delegate.rewrite(node)
@@ -136,7 +151,6 @@ object EnumeratedTransform {
     }
   }
 
-  // TODO: Currently not in use. Prepared for future development.
   implicit private class RasRuleImplicits(rasRule: RasRule[SparkPlan]) {
     def withValidator(v: Validator): RasRule[SparkPlan] = {
       ConditionedRule.wrap(rasRule, v)
