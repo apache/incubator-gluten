@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.memory.arrow.memory;
+package org.apache.gluten.memory.arrow.pool;
 
 import org.apache.arrow.dataset.jni.NativeMemoryPool;
 import org.apache.spark.util.TaskResource;
@@ -23,13 +23,13 @@ import org.apache.spark.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ArrowNativeMemoryManager implements TaskResource {
-  private static final Logger LOGGER = LoggerFactory.getLogger(ArrowNativeMemoryManager.class);
+public class ArrowNativeMemoryPool implements TaskResource {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ArrowNativeMemoryPool.class);
 
   private final NativeMemoryPool arrowPool;
   private final ArrowReservationListener listener;
 
-  public ArrowNativeMemoryManager() {
+  public ArrowNativeMemoryPool() {
     listener = new ArrowReservationListener(TaskResources.getSharedUsage());
     arrowPool = NativeMemoryPool.createListenable(listener);
   }

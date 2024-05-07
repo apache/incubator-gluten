@@ -18,6 +18,7 @@ package org.apache.spark.api.python
 
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.utils.Iterators
 import org.apache.gluten.vectorized.ArrowWritableColumnVector
 
@@ -41,7 +42,6 @@ import java.net.Socket
 import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.mutable.ArrayBuffer
-import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 
 class ColumnarArrowPythonRunner(
     funcs: Seq[ChainedPythonFunctions],

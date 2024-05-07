@@ -20,6 +20,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.exec.Runtimes
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.memory.nmm.NativeMemoryManagers
 import org.apache.gluten.utils.{ArrowAbiUtil, Iterators}
 import org.apache.gluten.vectorized._
@@ -41,7 +42,6 @@ import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.ArrowBuf
 
 import scala.collection.mutable.ListBuffer
-import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 
 case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBase(child = child) {
 

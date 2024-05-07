@@ -17,6 +17,7 @@
 package org.apache.spark.sql.utils
 
 import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -26,7 +27,6 @@ import org.apache.arrow.vector._
 import org.apache.arrow.vector.ipc.message.{ArrowFieldNode, ArrowRecordBatch}
 
 import scala.collection.JavaConverters.{asScalaBufferConverter, seqAsJavaListConverter}
-import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 
 object SparkVectorUtil {
 

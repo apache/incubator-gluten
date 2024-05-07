@@ -17,6 +17,7 @@
 package org.apache.gluten.utils
 
 import org.apache.gluten.datasource.DatasourceJniWrapper
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.memory.nmm.NativeMemoryManagers
 
 import org.apache.spark.sql.types.StructType
@@ -26,7 +27,6 @@ import org.apache.arrow.c.ArrowSchema
 import org.apache.hadoop.fs.FileStatus
 
 import java.util
-import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 
 object DatasourceUtil {
   def readSchema(files: Seq[FileStatus]): Option[StructType] = {

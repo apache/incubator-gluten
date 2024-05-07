@@ -18,7 +18,7 @@ package org.apache.gluten.memory.nmm;
 
 import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.memory.MemoryUsageRecorder;
-import org.apache.gluten.memory.arrow.memory.ArrowNativeMemoryManager;
+import org.apache.gluten.memory.arrow.pool.ArrowNativeMemoryPool;
 import org.apache.gluten.memory.memtarget.MemoryTarget;
 import org.apache.gluten.memory.memtarget.MemoryTargets;
 import org.apache.gluten.memory.memtarget.Spiller;
@@ -55,7 +55,7 @@ public final class NativeMemoryManagers {
       throw new IllegalStateException("This method must be called in a Spark task.");
     }
     String id = "ArrowNativeMemoryPool:" + name;
-    return TaskResources.addResourceIfNotRegistered(id, () -> createArrowNativeMemoryManager(name))
+    return TaskResources.addResourceIfNotRegistered(id, () -> createArrowNativeMemoryPool(name))
         .getArrowPool();
   }
 
@@ -167,7 +167,7 @@ public final class NativeMemoryManagers {
     return out.get();
   }
 
-  private static ArrowNativeMemoryManager createArrowNativeMemoryManager(String name) {
-    return new ArrowNativeMemoryManager();
+  private static ArrowNativeMemoryPool createArrowNativeMemoryPool(String name) {
+    return new ArrowNativeMemoryPool();
   }
 }

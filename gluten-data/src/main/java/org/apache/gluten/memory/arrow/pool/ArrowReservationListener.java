@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.memory.arrow.memory;
+package org.apache.gluten.memory.arrow.pool;
 
 import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
 
