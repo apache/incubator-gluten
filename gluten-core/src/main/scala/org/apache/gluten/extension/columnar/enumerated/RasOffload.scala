@@ -41,7 +41,8 @@ trait RasOffload extends RasRule[SparkPlan] {
 
     // 2. Walk the rewritten tree.
     val offloaded = rewritten.transformUp {
-      case g: GroupLeafExec => g
+      case g: GroupLeafExec =>
+        g
       case node =>
         // 3. Validate current node. If passed, offload it.
         validator.validate(node) match {
