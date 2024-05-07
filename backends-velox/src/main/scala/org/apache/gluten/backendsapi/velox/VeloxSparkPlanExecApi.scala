@@ -50,7 +50,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
-import org.apache.spark.sql.execution.joins.BuildSideRelation
+import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.ExecUtil
 import org.apache.spark.sql.expression.{UDFExpression, UDFResolver, UserDefinedAggregateFunction}
@@ -66,7 +66,6 @@ import javax.ws.rs.core.UriBuilder
 import java.lang.{Long => JLong}
 import java.util.{Map => JMap}
 
-import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 class VeloxSparkPlanExecApi extends SparkPlanExecApi {
@@ -577,6 +576,19 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     ColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized))
   }
 
+  override def doCanonicalizeForBroadcastMode(mode: BroadcastMode): BroadcastMode = {
+    mode match {
+      case hash: HashedRelationBroadcastMode =>
+        // Node: It's different with vanilla Spark.
+        // Vanilla Spark build HashRelation at driver side, so it is build keys sensitive.
+        // But we broadcast byte array and build HashRelation at executor side,
+        // the build keys are actually meaningless for the broadcast value.
+        // This change allows us reuse broadcast exchange for different build keys with same table.
+        hash.copy(key = Seq.empty)
+      case _ => mode.canonicalized
+    }
+  }
+
   /**
    * * Expressions.
    */
@@ -721,19 +733,18 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = {
-    val buf = mutable.ListBuffer[SparkSession => Rule[LogicalPlan]]()
-    buf += AggregateFunctionRewriteRule.apply
-    buf += BloomFilterMightContainJointRewriteRule.apply
-    buf.toList
-  }
+  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = List(
+    AggregateFunctionRewriteRule.apply
+  )
 
   /**
    * Generate extended columnar pre-rules, in the validation phase.
    *
    * @return
    */
-  override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] = List()
+  override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] = List(
+    BloomFilterMightContainJointRewriteRule.apply
+  )
 
   /**
    * Generate extended columnar pre-rules.

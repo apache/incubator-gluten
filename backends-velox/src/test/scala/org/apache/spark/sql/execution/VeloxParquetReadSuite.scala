@@ -16,13 +16,21 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.{BasicScanExecTransformer, VeloxWholeStageTransformerSuite}
+
+import org.apache.spark.SparkConf
 
 import java.io.File
 
 class VeloxParquetReadSuite extends VeloxWholeStageTransformerSuite {
   override protected val resourcePath: String = "/parquet-for-read"
   override protected val fileFormat: String = "parquet"
+
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set(GlutenConfig.LOAD_QUANTUM.key, "128m")
+  }
 
   testWithSpecifiedSparkVersion("read example parquet files", Some("3.5"), Some("3.5")) {
     withTable("test_table") {

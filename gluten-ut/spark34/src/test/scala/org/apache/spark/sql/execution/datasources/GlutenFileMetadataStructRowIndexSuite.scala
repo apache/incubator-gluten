@@ -14,28 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.sql.execution.datasources
 
-package org.apache.gluten.integration.tpc
+import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
-import org.apache.spark.sql.types.StructType
-
-object ShimUtils {
-
-  def getExpressionEncoder(schema: StructType): ExpressionEncoder[Row] = {
-    try {
-      RowEncoder.getClass
-        .getMethod("apply", classOf[StructType])
-        .invoke(RowEncoder, schema)
-        .asInstanceOf[ExpressionEncoder[Row]]
-    } catch {
-      case _: Exception =>
-        // to be compatible with Spark 3.5 and later
-        ExpressionEncoder.getClass
-          .getMethod("apply", classOf[StructType])
-          .invoke(ExpressionEncoder, schema)
-          .asInstanceOf[ExpressionEncoder[Row]]
-    }
-  }
-}
+class GlutenFileMetadataStructRowIndexSuite
+  extends FileMetadataStructRowIndexSuite
+  with GlutenSQLTestsBaseTrait {}

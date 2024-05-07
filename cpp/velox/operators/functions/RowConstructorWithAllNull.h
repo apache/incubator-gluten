@@ -15,27 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.gluten.integration.tpc
+#pragma once
 
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
-import org.apache.spark.sql.types.StructType
+#include "RowConstructorWithNull.h"
 
-object ShimUtils {
+namespace gluten {
+class RowConstructorWithAllNullCallToSpecialForm : public RowConstructorWithNullCallToSpecialForm {
+ public:
+  static constexpr const char* kRowConstructorWithAllNull = "row_constructor_with_all_null";
 
-  def getExpressionEncoder(schema: StructType): ExpressionEncoder[Row] = {
-    try {
-      RowEncoder.getClass
-        .getMethod("apply", classOf[StructType])
-        .invoke(RowEncoder, schema)
-        .asInstanceOf[ExpressionEncoder[Row]]
-    } catch {
-      case _: Exception =>
-        // to be compatible with Spark 3.5 and later
-        ExpressionEncoder.getClass
-          .getMethod("apply", classOf[StructType])
-          .invoke(ExpressionEncoder, schema)
-          .asInstanceOf[ExpressionEncoder[Row]]
-    }
+ protected:
+  facebook::velox::exec::ExprPtr constructSpecialForm(
+      const std::string& name,
+      const facebook::velox::TypePtr& type,
+      std::vector<facebook::velox::exec::ExprPtr>&& compiledChildren,
+      bool trackCpuUsage,
+      const facebook::velox::core::QueryConfig& config) {
+    return constructSpecialForm(kRowConstructorWithAllNull, type, std::move(compiledChildren), trackCpuUsage, config);
   }
-}
+};
+} // namespace gluten

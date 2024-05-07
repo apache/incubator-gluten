@@ -27,24 +27,22 @@ case class Queries(
     explain: Boolean,
     iterations: Int,
     randomKillTasks: Boolean)
-  extends Action {
+    extends Action {
 
   override def execute(tpcSuite: TpcSuite): Boolean = {
     val runQueryIds = queries.select(tpcSuite)
     val runner: TpcRunner = new TpcRunner(tpcSuite.queryResource(), tpcSuite.dataWritePath(scale))
-    val results = (0 until iterations).flatMap {
-      iteration =>
-        println(s"Running tests (iteration $iteration)...")
-        runQueryIds.map {
-          queryId =>
-            Queries.runTpcQuery(
-              runner,
-              tpcSuite.sessionSwitcher,
-              queryId,
-              tpcSuite.desc(),
-              explain,
-              randomKillTasks)
-        }
+    val results = (0 until iterations).flatMap { iteration =>
+      println(s"Running tests (iteration $iteration)...")
+      runQueryIds.map { queryId =>
+        Queries.runTpcQuery(
+          runner,
+          tpcSuite.sessionSwitcher,
+          queryId,
+          tpcSuite.desc(),
+          explain,
+          randomKillTasks)
+      }
     }.toList
 
     val passedCount = results.count(l => l.testPassed)
@@ -58,8 +56,7 @@ case class Queries(
       "RAM statistics: JVM Heap size: %d KiB (total %d KiB), Process RSS: %d KiB\n",
       RamStat.getJvmHeapUsed(),
       RamStat.getJvmHeapTotal(),
-      RamStat.getProcessRamUsed()
-    )
+      RamStat.getProcessRamUsed())
 
     println("")
     println("Test report: ")
@@ -103,27 +100,36 @@ object Queries {
       queryId: String,
       testPassed: Boolean,
       rowCount: Option[Long],
+      planningTimeMillis: Option[Long],
       executionTimeMillis: Option[Long],
       errorMessage: Option[String])
 
-  private def printResults(results: List[TestResultLine]): Unit = {
-    printf(
-      "|%15s|%15s|%30s|%30s|\n",
-      "Query ID",
-      "Was Passed",
-      "Row Count",
-      "Query Time (Millis)"
-    )
-    results.foreach {
-      line =>
-        printf(
-          "|%15s|%15s|%30s|%30s|\n",
+  object TestResultLine {
+    implicit object Parser extends TableFormatter.RowParser[TestResultLine] {
+      override def parse(line: TestResultLine): Seq[Any] = {
+        Seq(
           line.queryId,
           line.testPassed,
           line.rowCount.getOrElse("N/A"),
-          line.executionTimeMillis.getOrElse("N/A")
-        )
+          line.planningTimeMillis.getOrElse("N/A"),
+          line.executionTimeMillis.getOrElse("N/A"))
+      }
     }
+  }
+
+  private def printResults(results: List[TestResultLine]): Unit = {
+    val formatter = TableFormatter.create[TestResultLine](
+      "Query ID",
+      "Was Passed",
+      "Row Count",
+      "Plan Time (Millis)",
+      "Query Time (Millis)")
+
+    results.foreach { line =>
+      formatter.appendRow(line)
+    }
+
+    formatter.print(System.out)
   }
 
   private def aggregate(succeed: List[TestResultLine], name: String): List[TestResultLine] = {
@@ -131,19 +137,20 @@ object Queries {
       return Nil
     }
     List(
-      succeed.reduce(
-        (r1, r2) =>
-          TestResultLine(
-            name,
-            testPassed = true,
-            if (r1.rowCount.nonEmpty && r2.rowCount.nonEmpty)
-              Some(r1.rowCount.get + r2.rowCount.get)
-            else None,
-            if (r1.executionTimeMillis.nonEmpty && r2.executionTimeMillis.nonEmpty)
-              Some(r1.executionTimeMillis.get + r2.executionTimeMillis.get)
-            else None,
-            None
-          )))
+      succeed.reduce((r1, r2) =>
+        TestResultLine(
+          name,
+          testPassed = true,
+          if (r1.rowCount.nonEmpty && r2.rowCount.nonEmpty)
+            Some(r1.rowCount.get + r2.rowCount.get)
+          else None,
+          if (r1.planningTimeMillis.nonEmpty && r2.planningTimeMillis.nonEmpty)
+            Some(r1.planningTimeMillis.get + r2.planningTimeMillis.get)
+          else None,
+          if (r1.executionTimeMillis.nonEmpty && r2.executionTimeMillis.nonEmpty)
+            Some(r1.executionTimeMillis.get + r2.executionTimeMillis.get)
+          else None,
+          None)))
   }
 
   private def runTpcQuery(
@@ -172,6 +179,7 @@ object Queries {
         id,
         testPassed = true,
         Some(resultRows.length),
+        Some(result.planningTimeMillis),
         Some(result.executionTimeMillis),
         None)
     } catch {
@@ -180,7 +188,7 @@ object Queries {
         println(
           s"Error running query $id. " +
             s" Error: ${error.get}")
-        TestResultLine(id, testPassed = false, None, None, error)
+        TestResultLine(id, testPassed = false, None, None, None, error)
     }
   }
 }

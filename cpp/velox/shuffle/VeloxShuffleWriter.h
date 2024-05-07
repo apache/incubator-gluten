@@ -192,6 +192,10 @@ class VeloxShuffleWriter final : public ShuffleWriter {
     VS_PRINT_CONTAINER(input_has_null_);
   }
 
+  int32_t maxBatchSize() const {
+    return maxBatchSize_;
+  }
+
  private:
   VeloxShuffleWriter(
       uint32_t numPartitions,
@@ -305,6 +309,10 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   bool evictPartitionBuffersAfterSpill() const;
 
   arrow::Result<uint32_t> partitionBufferSizeAfterShrink(uint32_t partitionId) const;
+
+  bool isExtremelyLargeBatch(facebook::velox::RowVectorPtr& rv) const;
+
+  arrow::Status partitioningAndDoSplit(facebook::velox::RowVectorPtr rv, int64_t memLimit);
 
   SplitState splitState_{kInit};
 
@@ -466,6 +474,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   }
 
   facebook::velox::CpuWallTiming cpuWallTimingList_[CpuWallTimingNum];
+  int32_t maxBatchSize_{0};
 }; // class VeloxShuffleWriter
 
 } // namespace gluten

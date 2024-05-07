@@ -266,7 +266,7 @@ TEST(TestPrewhere, OptimizePrewhereCondition)
     SerializedPlanParser * parser = new SerializedPlanParser(context);
     parser->parseExtensions(plan_ptr->extensions());
 
-    MergeTreeRelParser mergeTreeParser(parser, context, parser->query_context, SerializedPlanParser::global_context);
+    MergeTreeRelParser mergeTreeParser(parser, SerializedPlanParser::global_context);
 
     mergeTreeParser.column_sizes["l_discount"] = 0;
     mergeTreeParser.column_sizes["l_quantity"] = 1;
