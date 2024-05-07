@@ -45,5 +45,7 @@ git clone https://github.com/apache/incubator-gluten.git
 cd incubator-gluten
 
 # To access HDFS or S3, you need to add the parameters `--enable_hdfs=ON` and `--enable_s3=ON`
-./dev/buildbundle-veloxbe.sh
+# It's suggested to build using static link, enabled by `--enable_vcpkg=ON`.
+./dev/vcpkg/setup-build-depends.sh
+./dev/buildbundle-veloxbe.sh --enable_vcpkg=ON
 ```
