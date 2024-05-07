@@ -178,6 +178,7 @@ object CHExpressionUtil {
     ARRAYS_ZIP -> DefaultValidator(),
     DATE_FROM_UNIX_DATE -> DefaultValidator(),
     UNIX_DATE -> DefaultValidator(),
+    UNIX_SECONDS -> DefaultValidator(),
     MONOTONICALLY_INCREASING_ID -> DefaultValidator(),
     SPARK_PARTITION_ID -> DefaultValidator(),
     URL_DECODE -> DefaultValidator(),
