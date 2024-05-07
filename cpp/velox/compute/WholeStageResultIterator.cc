@@ -149,6 +149,7 @@ WholeStageResultIterator::WholeStageResultIterator(
     const auto& paths = scanInfo->paths;
     const auto& starts = scanInfo->starts;
     const auto& lengths = scanInfo->lengths;
+    const auto& properties = scanInfo->properties;
     const auto& format = scanInfo->format;
     const auto& partitionColumns = scanInfo->partitionColumns;
     const auto& metadataColumns = scanInfo->metadataColumns;
@@ -171,6 +172,7 @@ WholeStageResultIterator::WholeStageResultIterator(
             format,
             starts[idx],
             lengths[idx],
+            properties[idx],
             partitionKeys,
             std::nullopt,
             customSplitInfo,
@@ -183,6 +185,7 @@ WholeStageResultIterator::WholeStageResultIterator(
             format,
             starts[idx],
             lengths[idx],
+						properties[idx],
             partitionKeys,
             std::nullopt,
             std::unordered_map<std::string, std::string>(),

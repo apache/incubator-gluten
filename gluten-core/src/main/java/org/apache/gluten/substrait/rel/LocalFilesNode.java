@@ -34,6 +34,8 @@ public class LocalFilesNode implements SplitInfo {
   private final List<String> paths = new ArrayList<>();
   private final List<Long> starts = new ArrayList<>();
   private final List<Long> lengths = new ArrayList<>();
+  private final List<Long> fileSizes = new ArrayList<>();
+  private final List<Long> modificationTimes = new ArrayList<>();
   private final List<Map<String, String>> partitionColumns = new ArrayList<>();
   private final List<Map<String, String>> metadataColumns = new ArrayList<>();
   private final List<String> preferredLocations = new ArrayList<>();
@@ -60,6 +62,8 @@ public class LocalFilesNode implements SplitInfo {
       List<String> paths,
       List<Long> starts,
       List<Long> lengths,
+      List<Long> fileSizes,
+      List<Long> modificationTimes,
       List<Map<String, String>> partitionColumns,
       List<Map<String, String>> metadataColumns,
       ReadFileFormat fileFormat,
@@ -68,6 +72,8 @@ public class LocalFilesNode implements SplitInfo {
     this.paths.addAll(paths);
     this.starts.addAll(starts);
     this.lengths.addAll(lengths);
+    this.fileSizes.addAll(fileSizes);
+    this.modificationTimes.addAll(modificationTimes);
     this.fileFormat = fileFormat;
     this.partitionColumns.addAll(partitionColumns);
     this.metadataColumns.addAll(metadataColumns);
@@ -153,6 +159,7 @@ public class LocalFilesNode implements SplitInfo {
       }
       fileBuilder.setLength(lengths.get(i));
       fileBuilder.setStart(starts.get(i));
+      fileBuilder.setFileProperties(fileSizes.get(i), modificationTimes.get(i));
       if (!metadataColumns.isEmpty()) {
         Map<String, String> metadataColumn = metadataColumns.get(i);
         if (!metadataColumn.isEmpty()) {
