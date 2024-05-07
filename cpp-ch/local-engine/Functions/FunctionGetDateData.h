@@ -87,7 +87,7 @@ public:
                     continue;
                 }
                 bool can_be_parsed = true;
-                if (!checkAndGetDateData(buf, str.size, result_container[i], *local_time_zone, can_be_parsed))
+                if (!checkAndGetDateData(buf, buf.buffer().end() - buf.position(), result_container[i], *local_time_zone, can_be_parsed))
                 {
                     if (!can_be_parsed)
                         null_container[i] = true;
