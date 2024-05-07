@@ -19,9 +19,11 @@ package org.apache.gluten.utils
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression.{CheckOverflowTransformer, ChildTransformer, DecimalArithmeticExpressionTransformer, ExpressionTransformer}
+import org.apache.gluten.expression.ExpressionConverter.conf
 
 import org.apache.spark.sql.catalyst.analysis.DecimalPrecision
 import org.apache.spark.sql.catalyst.expressions.{Add, BinaryArithmetic, Cast, Divide, Expression, Literal, Multiply, Pmod, PromotePrecision, Remainder, Subtract}
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{ByteType, Decimal, DecimalType, IntegerType, LongType, ShortType}
 
 import scala.annotation.tailrec
@@ -69,7 +71,7 @@ object DecimalArithmeticUtil {
   }
 
   // Returns the adjusted decimal type when the precision is larger the maximum.
-  def adjustScaleIfNeeded(precision: Int, scale: Int): DecimalType = {
+  private def adjustScaleIfNeeded(precision: Int, scale: Int): DecimalType = {
     var typePrecision = precision
     var typeScale = scale
     if (precision > MAX_PRECISION) {
@@ -265,5 +267,16 @@ object DecimalArithmeticUtil {
       wider: DecimalType): Boolean = {
     val widerType = DecimalPrecision.widerDecimalType(left, right)
     widerType.equals(wider)
+  }
+
+  def checkAllowDecimalArithmetic(): Unit = {
+    // PrecisionLoss=true: velox support / ch not support
+    // PrecisionLoss=false: velox not support / ch support
+    // TODO ch support PrecisionLoss=true
+    if (!BackendsApiManager.getSettings.allowDecimalArithmetic) {
+      throw new GlutenNotSupportException(
+        s"Not support ${SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key} " +
+          s"${conf.decimalOperationsAllowPrecisionLoss} mode")
+    }
   }
 }

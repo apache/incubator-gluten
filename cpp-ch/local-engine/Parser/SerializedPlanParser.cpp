@@ -867,8 +867,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
     auto pos = function_signature.find(':');
     auto func_name = function_signature.substr(0, pos);
 
-    auto func_parser = FunctionParserFactory::instance().tryGet(func_name, this);
-    if (func_parser)
+    if (auto func_parser = FunctionParserFactory::instance().tryGet(func_name, this))
     {
         LOG_DEBUG(
             &Poco::Logger::get("SerializedPlanParser"),
@@ -955,13 +954,12 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
         args = std::move(new_args);
     }
 
-    bool converted_decimal_args = convertBinaryArithmeticFunDecimalArgs(actions_dag, args, scalar_function);
     auto function_builder = FunctionFactory::instance().get(ch_func_name, context);
     std::string args_name = join(args, ',');
     result_name = ch_func_name + "(" + args_name + ")";
     const auto * function_node = &actions_dag->addFunction(function_builder, args, result_name);
     result_node = function_node;
-    if (!TypeParser::isTypeMatched(rel.scalar_function().output_type(), function_node->result_type) && !converted_decimal_args)
+    if (!TypeParser::isTypeMatched(rel.scalar_function().output_type(), function_node->result_type))
     {
         auto result_type = TypeParser::parseType(rel.scalar_function().output_type());
         if (isDecimalOrNullableDecimal(result_type))
@@ -1819,11 +1817,15 @@ QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
 
     auto res = parse(std::move(plan_ptr));
 
+// #ifndef NDEBUG
+    PlanUtil::checkOuputType(*res);
+// #endif
+
     auto * logger = &Poco::Logger::get("SerializedPlanParser");
-    if (logger->debug())
+    // if (logger->debug())
     {
         auto out = PlanUtil::explainPlan(*res);
-        LOG_DEBUG(logger, "clickhouse plan:\n{}", out);
+        LOG_ERROR(logger, "clickhouse plan:\n{}", out);
     }
     return res;
 }

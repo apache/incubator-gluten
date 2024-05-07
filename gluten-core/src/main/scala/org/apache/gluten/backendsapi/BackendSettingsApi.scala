@@ -97,6 +97,7 @@ trait BackendSettingsApi {
   def getBackendConfigPrefix: String
 
   def allowDecimalArithmetic: Boolean = true
+  def noCheckOverflow: Boolean = false
 
   def rescaleDecimalIntegralExpression(): Boolean = false
 

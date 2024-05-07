@@ -383,7 +383,6 @@ private:
     void wrapNullable(
         const std::vector<String> & columns, ActionsDAGPtr actions_dag, std::map<std::string, std::string> & nullable_measure_names);
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
-    const ActionsDAG::Node * addColumn(DB::ActionsDAGPtr actions_dag, const DataTypePtr & type, const Field & field);
 
     int name_no = 0;
     std::unordered_map<std::string, std::string> function_mapping;
@@ -395,6 +394,9 @@ private:
     // for parse rel node, collect steps from a rel node
     std::vector<IQueryPlanStep *> temp_step_collection;
     std::vector<RelMetricPtr> metrics;
+
+public:
+    const ActionsDAG::Node * addColumn(DB::ActionsDAGPtr actions_dag, const DataTypePtr & type, const Field & field);
 };
 
 struct SparkBuffer
