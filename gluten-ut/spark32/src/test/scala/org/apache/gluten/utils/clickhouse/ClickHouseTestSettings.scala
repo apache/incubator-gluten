@@ -561,7 +561,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-28322: IntegralDivide supports decimal type")
     .exclude("SPARK-33008: division by zero on divide-like operations returns incorrect result")
     .exclude("SPARK-34920: error class")
-  enableSuite[GlutenBitwiseExpressionsSuite].exclude("BitGet")
+  enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenCastSuite]
     .exclude("null cast")
     .exclude("cast string to date")
