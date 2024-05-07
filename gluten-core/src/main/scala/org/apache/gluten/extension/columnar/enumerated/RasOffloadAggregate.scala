@@ -17,28 +17,15 @@
 package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.execution.HashAggregateExecBaseTransformer
-import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 
-object RasOffloadAggregate extends RasRule[SparkPlan] {
-  override def shift(node: SparkPlan): Iterable[SparkPlan] = node match {
-    case agg: HashAggregateExec => shiftAgg(agg)
-    case _ => List.empty
+object RasOffloadAggregate extends RasOffload {
+  override protected def offload(node: SparkPlan): SparkPlan = node match {
+    case agg: HashAggregateExec =>
+      val out = HashAggregateExecBaseTransformer.from(agg)()
+      out
+    case other => other
   }
-
-  private def shiftAgg(agg: HashAggregateExec): Iterable[SparkPlan] = {
-    val transformer = offload(agg)
-    if (!transformer.doValidate().isValid) {
-      return List.empty
-    }
-    List(transformer)
-  }
-
-  private def offload(agg: HashAggregateExec): HashAggregateExecBaseTransformer = {
-    HashAggregateExecBaseTransformer.from(agg)()
-  }
-
-  override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)
 }

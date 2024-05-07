@@ -16,14 +16,10 @@
  */
 package org.apache.gluten.extension.columnar.enumerated
 
-import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.{OffloadExchange, OffloadJoin, OffloadOthers, OffloadSingleNode}
-import org.apache.gluten.extension.columnar.rewrite.RewriteSingleNode
-import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
 import org.apache.gluten.planner.GlutenOptimization
 import org.apache.gluten.planner.property.Conventions
 import org.apache.gluten.ras.property.PropertySet
-import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 import org.apache.gluten.utils.LogLevelUtil
 
 import org.apache.spark.sql.SparkSession
@@ -35,19 +31,8 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
   with LogLevelUtil {
   import EnumeratedTransform._
 
-  private val validator = Validators
-    .builder()
-    .fallbackByHint()
-    .fallbackIfScanOnly()
-    .fallbackComplexExpressions()
-    .fallbackByBackendSettings()
-    .fallbackByUserOptions()
-    .build()
-
-  private val rewrites = RewriteSingleNode.allRules()
-
   private val rules = List(
-    new PushFilterToScan(validator),
+    new PushFilterToScan(RasOffload.validator),
     RemoveFilter
   )
 
@@ -59,8 +44,7 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
     new AsRasOffload(OffloadJoin()),
     RasOffloadAggregate,
     RasOffloadFilter
-  ).map(_.withValidator(validator))
-    .map(_.withRewrites(rewrites))
+  )
 
   private val optimization = GlutenOptimization(rules ++ offloadRules)
 
@@ -80,37 +64,11 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
 
 object EnumeratedTransform {
 
-  /**
-   * Accepts a [[OffloadSingleNode]] rule to convert it into a RAS rule.
-   *
-   * In the RAS rule, the delegated [[OffloadSingleNode]] will be called to create a offloaded plan
-   * node, which will be immediately validated by calling its "doValidate" method to check if it's
-   * eligible to run in native. If yes, the offloaded plan node will be returned then added into RAS
-   * memo.
-   */
-  private class AsRasOffload(delegate: OffloadSingleNode) extends RasRule[SparkPlan] {
-    override def shift(node: SparkPlan): Iterable[SparkPlan] = {
+  /** Accepts a [[OffloadSingleNode]] rule to convert it into a RAS offload rule. */
+  private class AsRasOffload(delegate: OffloadSingleNode) extends RasOffload {
+    override protected def offload(node: SparkPlan): SparkPlan = {
       val out = delegate.offload(node)
-      out match {
-        case same if same eq node =>
-          List.empty
-        case t: GlutenPlan if !t.doValidate().isValid =>
-          List.empty
-        case other =>
-          List(other)
-      }
-    }
-
-    override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)
-  }
-
-  implicit private class RasRuleImplicits(rasRule: RasRule[SparkPlan]) {
-    def withValidator(v: Validator): RasRule[SparkPlan] = {
-      ConditionedRule.wrap(rasRule, v)
-    }
-
-    def withRewrites(r: Seq[RewriteSingleNode]): RasRule[SparkPlan] = {
-      PreRewrittenRule.wrap(rasRule, r)
+      out
     }
   }
 }

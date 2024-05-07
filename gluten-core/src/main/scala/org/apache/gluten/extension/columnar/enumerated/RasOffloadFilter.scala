@@ -17,22 +17,16 @@
 package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 
 import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 
-object RasOffloadFilter extends RasRule[SparkPlan] {
-  override def shift(node: SparkPlan): Iterable[SparkPlan] = node match {
+object RasOffloadFilter extends RasOffload {
+  override protected def offload(node: SparkPlan): SparkPlan = node match {
     case FilterExec(condition, child) =>
       val out = BackendsApiManager.getSparkPlanExecApiInstance
         .genFilterExecTransformer(condition, child)
-      if (!out.doValidate().isValid) {
-        List.empty
-      } else {
-        List(out)
-      }
-    case _ =>
-      List.empty
+      out
+    case other =>
+      other
   }
-  override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)
 }
