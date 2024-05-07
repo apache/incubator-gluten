@@ -19,7 +19,6 @@ package org.apache.gluten.extension.columnar.enumerated
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.rewrite.RewriteSingleNode
 import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
-import org.apache.gluten.planner.plan.GlutenPlanModel.GroupLeafExec
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 
 import org.apache.spark.sql.execution.SparkPlan
