@@ -278,7 +278,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("shuffle function - array for primitive type not containing null")
     .exclude("shuffle function - array for primitive type containing null")
     .exclude("shuffle function - array for non-primitive type")
-    // Velox sorts rows by key for primitive data types, which disrupts the original row sequence.
+    // Rewrite this test because Velox sorts rows by key for primitive data types, which disrupts the original row sequence.
     .exclude("map_zip_with function - map of primitive types")
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameSetOperationsSuite]
