@@ -34,6 +34,19 @@ public class ArrowNativeMemoryPool implements TaskResource {
     arrowPool = NativeMemoryPool.createListenable(listener);
   }
 
+  public static NativeMemoryPool arrowPool(String name) {
+    if (!TaskResources.inSparkTask()) {
+      throw new IllegalStateException("This method must be called in a Spark task.");
+    }
+    String id = "ArrowNativeMemoryPool:" + name;
+    return TaskResources.addResourceIfNotRegistered(id, () -> createArrowNativeMemoryPool(name))
+        .getArrowPool();
+  }
+
+  private static ArrowNativeMemoryPool createArrowNativeMemoryPool(String name) {
+    return new ArrowNativeMemoryPool();
+  }
+
   @Override
   public void release() throws Exception {
     if (arrowPool.getBytesAllocated() != 0) {
