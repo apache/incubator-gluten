@@ -15,7 +15,10 @@
  * limitations under the License.
  */
 
+#include <limits.h>
 #include <base/types.h>
+#include <base/wide_integer.h>
+#include <base/wide_integer_impl.h>
 #include <Functions/SparkFunctionCastFloatToInt.h>
 
 using namespace DB;
@@ -36,18 +39,18 @@ struct NameToInt64 { static constexpr auto name = "sparkCastFloatToInt64"; };
 struct NameToInt128 { static constexpr auto name = "sparkCastFloatToInt128"; };
 struct NameToInt256 { static constexpr auto name = "sparkCastFloatToInt256"; };
 
-using SparkFunctionCastFloatToInt8 = local_engine::SparkFunctionCastFloatToInt<Int8, NameToInt8>;
-using SparkFunctionCastFloatToInt16 = local_engine::SparkFunctionCastFloatToInt<Int16, NameToInt16>;
-using SparkFunctionCastFloatToInt32 = local_engine::SparkFunctionCastFloatToInt<Int32, NameToInt32>;
-using SparkFunctionCastFloatToInt64 = local_engine::SparkFunctionCastFloatToInt<Int64, NameToInt64>;
-using SparkFunctionCastFloatToInt128 = local_engine::SparkFunctionCastFloatToInt<Int128, NameToInt128>;
-using SparkFunctionCastFloatToInt256 = local_engine::SparkFunctionCastFloatToInt<Int256, NameToInt256>;
-using SparkFunctionCastFloatToUInt8 = local_engine::SparkFunctionCastFloatToInt<UInt8, NameToUInt8>;
-using SparkFunctionCastFloatToUInt16 = local_engine::SparkFunctionCastFloatToInt<UInt16, NameToUInt16>;
-using SparkFunctionCastFloatToUInt32 = local_engine::SparkFunctionCastFloatToInt<UInt32, NameToUInt32>;
-using SparkFunctionCastFloatToUInt64 = local_engine::SparkFunctionCastFloatToInt<UInt64, NameToUInt64>;
-using SparkFunctionCastFloatToUInt128 = local_engine::SparkFunctionCastFloatToInt<UInt128, NameToUInt128>;
-using SparkFunctionCastFloatToUInt256 = local_engine::SparkFunctionCastFloatToInt<UInt256, NameToUInt256>;
+using SparkFunctionCastFloatToInt8 = local_engine::SparkFunctionCastFloatToInt<Int8, NameToInt8, INT8_MAX, INT8_MIN>;
+using SparkFunctionCastFloatToInt16 = local_engine::SparkFunctionCastFloatToInt<Int16, NameToInt16, INT16_MAX, INT16_MIN>;
+using SparkFunctionCastFloatToInt32 = local_engine::SparkFunctionCastFloatToInt<Int32, NameToInt32, INT32_MAX, INT32_MIN>;
+using SparkFunctionCastFloatToInt64 = local_engine::SparkFunctionCastFloatToInt<Int64, NameToInt64, INT64_MAX, INT64_MIN>;
+using SparkFunctionCastFloatToInt128 = local_engine::SparkFunctionCastFloatToInt<Int128, NameToInt128, std::numeric_limits<Int128>::max(), std::numeric_limits<Int128>::min()>;
+using SparkFunctionCastFloatToInt256 = local_engine::SparkFunctionCastFloatToInt<Int256, NameToInt256, std::numeric_limits<Int256>::max(), std::numeric_limits<Int256>::min()>;
+using SparkFunctionCastFloatToUInt8 = local_engine::SparkFunctionCastFloatToInt<UInt8, NameToUInt8, UINT8_MAX, 0>;
+using SparkFunctionCastFloatToUInt16 = local_engine::SparkFunctionCastFloatToInt<UInt16, NameToUInt16, UINT16_MAX, 0>;
+using SparkFunctionCastFloatToUInt32 = local_engine::SparkFunctionCastFloatToInt<UInt32, NameToUInt32, UINT32_MAX, 0>;
+using SparkFunctionCastFloatToUInt64 = local_engine::SparkFunctionCastFloatToInt<UInt64, NameToUInt64, UINT64_MAX, 0>;
+using SparkFunctionCastFloatToUInt128 = local_engine::SparkFunctionCastFloatToInt<UInt128, NameToUInt128, std::numeric_limits<UInt128>::max(), 0>;
+using SparkFunctionCastFloatToUInt256 = local_engine::SparkFunctionCastFloatToInt<UInt256, NameToUInt256, std::numeric_limits<UInt256>::max(), 0>;
 
 REGISTER_FUNCTION(SparkFunctionCastToInt)
 {
