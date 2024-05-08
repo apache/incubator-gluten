@@ -106,6 +106,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
     }
   }
 
+  // java.lang.NullPointerException
   ignore("fallback final aggregate of collect_list") {
     withSQLConf(
       GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1",
