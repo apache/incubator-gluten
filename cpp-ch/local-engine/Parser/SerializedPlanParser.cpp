@@ -902,6 +902,22 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
         return &actions_dag->addAlias(actions_dag->findInOutputs(result_name), result_name);
     }
 
+    if (ch_func_name == "toYear")
+    {
+        const ActionsDAG::Node * arg_node = args[0];
+        const String & arg_func_name = arg_node->function ? arg_node->function->getName() : "";
+        if ((arg_func_name == "sparkToDate" || arg_func_name == "sparkToDateTime") && arg_node->children.size() > 0)
+        {
+            const ActionsDAG::Node * child_node = arg_node->children[0];
+            if (child_node && isString(removeNullable(child_node->result_type)))
+            {
+                auto extract_year_builder = FunctionFactory::instance().get("sparkExtractYear", context);
+                auto func_result_name = "sparkExtractYear(" + child_node->result_name + ")";
+                return &actions_dag->addFunction(extract_year_builder, {child_node}, func_result_name);
+            }
+        }
+    }
+
     const ActionsDAG::Node * result_node;
 
     if (ch_func_name == "splitByRegexp")
