@@ -106,6 +106,40 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
     }
   }
 
+  // java.lang.NullPointerException
+  ignore("fallback final aggregate of collect_list") {
+    withSQLConf(
+      GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1",
+      GlutenConfig.COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR.key -> "false",
+      GlutenConfig.EXPRESSION_BLACK_LIST.key -> "element_at"
+    ) {
+      runQueryAndCompare(
+        "SELECT sum(ele) FROM (SELECT c1, element_at(collect_list(c2), 1) as ele FROM tmp1 " +
+          "GROUP BY c1)") {
+        df =>
+          val columnarToRow = collectColumnarToRow(df.queryExecution.executedPlan)
+          assert(columnarToRow == 1)
+      }
+    }
+  }
+
+  // java.lang.NullPointerException
+  ignore("fallback final aggregate of collect_set") {
+    withSQLConf(
+      GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1",
+      GlutenConfig.COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR.key -> "false",
+      GlutenConfig.EXPRESSION_BLACK_LIST.key -> "element_at"
+    ) {
+      runQueryAndCompare(
+        "SELECT sum(ele) FROM (SELECT c1, element_at(collect_set(c2), 1) as ele FROM tmp1 " +
+          "GROUP BY c1)") {
+        df =>
+          val columnarToRow = collectColumnarToRow(df.queryExecution.executedPlan)
+          assert(columnarToRow == 1)
+      }
+    }
+  }
+
   test("fallback with AQE read") {
     runQueryAndCompare(
       """
