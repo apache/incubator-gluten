@@ -19,9 +19,9 @@ name: Velox backend Velox Unit test
 on:
     pull_request:
       paths:
-        - '.github/workflows/velox_velox_ut.yml'
-        - 'dev/**'
         # TODO: wait to fix
+        # - '.github/workflows/velox_velox_ut.yml'
+        - 'dev/**'
         # - 'ep/**' #get_velox change
 
 concurrency:
