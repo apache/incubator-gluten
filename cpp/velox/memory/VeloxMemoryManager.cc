@@ -40,11 +40,8 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
   uint64_t growCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
-    if (targetBytes == 0) {
-      return 0;
-    }
-    std::lock_guard<std::recursive_mutex> l(mutex_);
-    return growPoolLocked(pool, targetBytes);
+    VELOX_CHECK_EQ(targetBytes, 0, "Gluten has set MemoryManagerOptions.memoryPoolInitCapacity to 0")
+    return 0;
   }
 
   uint64_t shrinkCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
@@ -56,12 +53,11 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
       velox::memory::MemoryPool* pool,
       const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& candidatePools,
       uint64_t targetBytes) override {
-    GLUTEN_CHECK(candidatePools.size() == 1, "ListenableArbitrator should only be used within a single root pool");
+    VELOX_CHECK_EQ(candidatePools.size(), 1, "ListenableArbitrator should only be used within a single root pool")
     auto candidate = candidatePools.back();
-    GLUTEN_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator");
-    {
+    VELOX_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator") {
       std::lock_guard<std::recursive_mutex> l(mutex_);
-      growPoolLocked(pool, targetBytes);
+      growPoolLocked(pool->root(), targetBytes);
     }
     return true;
   }
@@ -72,7 +68,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
       bool allowSpill,
       bool allowAbort) override {
     facebook::velox::exec::MemoryReclaimer::Stats status;
-    GLUTEN_CHECK(pools.size() == 1, "Should shrink a single pool at a time");
+    VELOX_CHECK_EQ(pools.size(), 1, "Gluten only has one root pool");
     std::lock_guard<std::recursive_mutex> l(mutex_); // FIXME: Do we have recursive locking for this mutex?
     auto pool = pools.at(0);
     const uint64_t oldCapacity = pool->capacity();
@@ -107,9 +103,12 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
               " bytes although there is enough space, free bytes: " + std::to_string(freeBytes));
       return 0;
     }
-    uint64_t growBytes = bytes - freeBytes;
-    listener_->allocationChanged(growBytes);
-    return pool->grow(growBytes, bytes);
+    auto reclaimedFreeBytes = pool->shrink(0);
+    auto neededBytes = bytes - reclaimedFreeBytes;
+    listener_->allocationChanged(neededBytes);
+    auto ret = pool->grow(bytes, bytes);
+    VELOX_CHECK(ret, "{} failed to grow {} bytes", pool->name(), velox::succinctBytes(bytes))
+    return ret;
   }
 
   uint64_t releaseMemoryLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
@@ -220,7 +219,8 @@ const MemoryUsageStats VeloxMemoryManager::collectMemoryUsageStats() const {
   stats.set_current(listener_->currentBytes());
   stats.set_peak(listener_->peakBytes());
   stats.mutable_children()->emplace("gluten_allocator", collectGlutenAllocatorMemoryUsageStats(glutenAlloc_.get()));
-  stats.mutable_children()->emplace(veloxAggregatePool_->name(), collectVeloxMemoryUsageStats(veloxAggregatePool_.get()));
+  stats.mutable_children()->emplace(
+      veloxAggregatePool_->name(), collectVeloxMemoryUsageStats(veloxAggregatePool_.get()));
   return stats;
 }
 
