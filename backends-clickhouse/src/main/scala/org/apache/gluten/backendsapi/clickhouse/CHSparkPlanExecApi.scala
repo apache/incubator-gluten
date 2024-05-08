@@ -617,6 +617,10 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] =
     List(spark => NativeWritePostRule(spark))
 
+  override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = {
+    List()
+  }
+
   /**
    * Generate extended Strategies.
    *
