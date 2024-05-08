@@ -19,10 +19,9 @@ name: Velox backend Velox Unit test
 on:
     pull_request:
       paths:
-        # TODO: wait to fix
-        # - '.github/workflows/velox_velox_ut.yml'
+        - '.github/workflows/velox_velox_ut.yml'
         - 'dev/**'
-        # - 'ep/**' #get_velox change
+        - 'ep/**' #get_velox change
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
