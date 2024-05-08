@@ -495,8 +495,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           expr)
 
       case CheckOverflow(b: BinaryArithmetic, decimalType, _)
-          if DecimalArithmeticUtil.isDecimalArithmetic(b) &&
-            BackendsApiManager.getSettings.dontTransformCheckOverflow =>
+          if !BackendsApiManager.getSettings.transformCheckOverflow &&
+            DecimalArithmeticUtil.isDecimalArithmetic(b) =>
         DecimalArithmeticUtil.checkAllowDecimalArithmetic()
         val leftChild =
           replaceWithExpressionTransformerInternal(b.left, attributeSeq, expressionsMap)
@@ -517,7 +517,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
 
       case b: BinaryArithmetic if DecimalArithmeticUtil.isDecimalArithmetic(b) =>
         DecimalArithmeticUtil.checkAllowDecimalArithmetic()
-        if (BackendsApiManager.getSettings.dontTransformCheckOverflow) {
+        if (!BackendsApiManager.getSettings.transformCheckOverflow) {
           val leftChild =
             replaceWithExpressionTransformerInternal(b.left, attributeSeq, expressionsMap)
           val rightChild =

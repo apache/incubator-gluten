@@ -182,8 +182,11 @@ object DecimalArithmeticUtil {
     if (!BackendsApiManager.getSettings.rescaleDecimalIntegralExpression()) {
       (left, right)
     } else if (!isPromoteCast(left) && isPromoteCastIntegral(right)) {
+      // Have removed PromotePrecision(Cast(DecimalType)).
+      // Decimal * cast int.
       doScale(left, right)
     } else if (!isPromoteCast(right) && isPromoteCastIntegral(left)) {
+      // Cast int * decimal.
       val (r, l) = doScale(right, left)
       (l, r)
     } else {

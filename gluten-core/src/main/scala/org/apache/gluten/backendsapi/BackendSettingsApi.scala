@@ -101,11 +101,11 @@ trait BackendSettingsApi {
   /**
    * After https://github.com/apache/spark/pull/36698, every arithmetic should report the accurate
    * result decimal type and implement `CheckOverflow` by itself. <p/> Regardless of whether there
-   * is 36698 or not, This option is used to indicate whether to transform `CheckOverflow`. If true,
+   * is 36698 or not, This option is used to indicate whether to transform `CheckOverflow`. If false,
    * it means that the backend will default to implementing the logic of `CheckOverflow` and no need
    * to transform it
    */
-  def dontTransformCheckOverflow: Boolean = false
+  def transformCheckOverflow: Boolean = true
 
   def rescaleDecimalIntegralExpression(): Boolean = false
 
