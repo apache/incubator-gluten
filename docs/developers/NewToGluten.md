@@ -283,16 +283,16 @@ Search `update` in Manage->Settings to turn off update mode
 
 ### Clang format
 
-Now gluten uses clang-format 12 to format source files.
+Now gluten uses clang-format 15 to format source files.
 
 ```bash
-apt-get install clang-format-12
+apt-get install clang-format-15
 ```
 
 Set config in `settings.json`
 
 ```json
-"clang-format.executable": "clang-format-12",
+"clang-format.executable": "clang-format-15",
 "editor.formatOnSave": true,
 ```
 
