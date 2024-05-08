@@ -119,7 +119,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case i: StaticInvoke =>
         val objectName = i.staticObject.getName.stripSuffix("$")
         if (objectName.endsWith("UrlCodec")) {
-          val child = i.arguments(0)
+          val child = i.arguments.head
           i.functionName match {
             case "decode" =>
               return GenericExpressionTransformer(
@@ -150,7 +150,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case c: CreateArray =>
         val children =
           c.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap))
-        CreateArrayTransformer(substraitExprName, children, true, c)
+        CreateArrayTransformer(substraitExprName, children, useStringTypeWhenEmpty = true, c)
       case g: GetArrayItem =>
         GetArrayItemTransformer(
           substraitExprName,
@@ -451,7 +451,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             expressionsMap),
           arguments = lambdaFunction.arguments.map(
             replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
-          hidden = false,
           original = lambdaFunction
         )
       case j: JsonTuple =>
