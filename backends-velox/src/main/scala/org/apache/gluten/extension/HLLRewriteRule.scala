@@ -14,37 +14,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.catalyst
+package org.apache.gluten.extension
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.expression.aggregate.HLLAdapter
+import org.apache.gluten.utils.LogicalPlanSelector
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Literal
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter, HyperLogLogPlusPlus}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HyperLogLogPlusPlus}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.types._
 
-case class AggregateFunctionRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
-  override def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
-    case a: Aggregate =>
-      a.transformExpressions {
-        case hllExpr @ AggregateExpression(hll: HyperLogLogPlusPlus, _, _, _, _)
-            if GlutenConfig.getConf.enableNativeHyperLogLogAggregateFunction &&
-              GlutenConfig.getConf.enableColumnarHashAgg &&
-              !hasDistinctAggregateFunc(a) && isDataTypeSupported(hll.child.dataType) =>
-          AggregateExpression(
-            HLLAdapter(
-              hll.child,
-              Literal(hll.relativeSD),
-              hll.mutableAggBufferOffset,
-              hll.inputAggBufferOffset),
-            hllExpr.mode,
-            hllExpr.isDistinct,
-            hllExpr.filter,
-            hllExpr.resultId
-          )
-      }
+case class HLLRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
+  override def apply(plan: LogicalPlan): LogicalPlan = LogicalPlanSelector.maybe(spark, plan) {
+    plan.resolveOperatorsUp {
+      case a: Aggregate =>
+        a.transformExpressions {
+          case hllExpr @ AggregateExpression(hll: HyperLogLogPlusPlus, _, _, _, _)
+              if GlutenConfig.getConf.enableNativeHyperLogLogAggregateFunction &&
+                GlutenConfig.getConf.enableColumnarHashAgg &&
+                !hasDistinctAggregateFunc(a) && isDataTypeSupported(hll.child.dataType) =>
+            AggregateExpression(
+              HLLAdapter(
+                hll.child,
+                Literal(hll.relativeSD),
+                hll.mutableAggBufferOffset,
+                hll.inputAggBufferOffset),
+              hllExpr.mode,
+              hllExpr.isDistinct,
+              hllExpr.filter,
+              hllExpr.resultId
+            )
+        }
+    }
   }
 
   private def hasDistinctAggregateFunc(agg: Aggregate): Boolean = {

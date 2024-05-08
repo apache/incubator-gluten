@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.catalyst
+package org.apache.gluten.extension
 
 import org.apache.gluten.execution.{FlushableHashAggregateExecTransformer, HashAggregateExecTransformer, ProjectExecTransformer, RegularHashAggregateExecTransformer}
 
