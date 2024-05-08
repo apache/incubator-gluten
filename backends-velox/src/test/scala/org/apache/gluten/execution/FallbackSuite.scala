@@ -114,7 +114,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
       GlutenConfig.EXPRESSION_BLACK_LIST.key -> "element_at"
     ) {
       runQueryAndCompare(
-        "SELECT sum(ele) FROM (SELECT c1, element_at(collect_list(c2), 1) as ele FROM tmp1 group by c1)") {
+        "SELECT sum(ele) FROM (SELECT c1, element_at(collect_list(c2), 1) as ele FROM tmp1 GROUP BY c1)") {
         df =>
           val columnarToRow = collectColumnarToRow(df.queryExecution.executedPlan)
           assert(columnarToRow == 1)
@@ -130,7 +130,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
       GlutenConfig.EXPRESSION_BLACK_LIST.key -> "element_at"
     ) {
       runQueryAndCompare(
-        "SELECT sum(ele) FROM (SELECT c1, element_at(collect_set(c2), 1) as ele FROM tmp1 group by c1)") {
+        "SELECT sum(ele) FROM (SELECT c1, element_at(collect_set(c2), 1) as ele FROM tmp1 GROUP BY c1)") {
         df =>
           val columnarToRow = collectColumnarToRow(df.queryExecution.executedPlan)
           assert(columnarToRow == 1)
