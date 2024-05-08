@@ -20,6 +20,7 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, TransformPostOverrides, TransformPreOverrides}
+import org.apache.gluten.extension.columnar.rewrite.RewriteSparkPlanRulesManager
 import org.apache.gluten.extension.columnar.util.AdaptiveContext
 import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.gluten.utils.{LogLevelUtil, PhysicalPlanSelector}

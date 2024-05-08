@@ -57,6 +57,9 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .set(
         "spark.gluten.sql.columnar.backend.ch.runtime_settings.min_insert_block_size_rows",
         "100000")
+      .set(
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
+        "false")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -170,8 +173,8 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .format("clickhouse")
       .load(dataPath)
       .where("l_shipdate = date'1998-09-02'")
-      .collect()
-    assert(result.apply(0).get(0) == 110501)
+      .count()
+    assert(result == 183)
   }
 
   test("test mergetree path based write with dataframe api") {

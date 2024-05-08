@@ -45,6 +45,10 @@
 #include "operators/writer/VeloxParquetDatasourceGCS.h"
 #endif
 
+#ifdef ENABLE_ABFS
+#include "operators/writer/VeloxParquetDatasourceABFS.h"
+#endif
+
 using namespace facebook;
 
 namespace gluten {
@@ -218,6 +222,13 @@ std::shared_ptr<Datasource> VeloxRuntime::createDatasource(
 #else
     throw std::runtime_error(
         "The write path is GCS path but the GCS haven't been enabled when writing parquet data in velox runtime!");
+#endif
+  } else if (isSupportedABFSPath(filePath)) {
+#ifdef ENABLE_ABFS
+    return std::make_shared<VeloxParquetDatasourceABFS>(filePath, veloxPool, sinkPool, schema);
+#else
+    throw std::runtime_error(
+        "The write path is ABFS path but the ABFS haven't been enabled when writing parquet data in velox runtime!");
 #endif
   }
   return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, sinkPool, schema);

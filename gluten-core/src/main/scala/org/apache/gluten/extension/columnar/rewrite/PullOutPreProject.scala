@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar
+package org.apache.gluten.extension.columnar.rewrite
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -22,8 +22,7 @@ import org.apache.gluten.utils.PullOutProjectHelper
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete, Partial}
-import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ExpandExec, GenerateExec, ProjectExec, SortExec, SparkPlan, TakeOrderedAndProjectExec}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, TypedAggregateExpression}
 import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
 
@@ -36,7 +35,7 @@ import scala.collection.mutable
  * to transform the SparkPlan at the physical plan level, constructing a SparkPlan that supports
  * execution by the native engine.
  */
-object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
+object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
 
   private def needsPreProject(plan: SparkPlan): Boolean = {
     plan match {
@@ -118,7 +117,7 @@ object PullOutPreProject extends Rule[SparkPlan] with PullOutProjectHelper {
     }
   }
 
-  override def apply(plan: SparkPlan): SparkPlan = plan match {
+  override def rewrite(plan: SparkPlan): SparkPlan = plan match {
     case sort: SortExec if needsPreProject(sort) =>
       val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
       val newSortOrder = getNewSortOrder(sort.sortOrder, expressionMap)

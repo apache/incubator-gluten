@@ -128,6 +128,21 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     }
   }
 
+  test("Generate metrics") {
+    runQueryAndCompare("SELECT explode(array(c1, c2, 1)) FROM metrics_t1") {
+      df =>
+        val generate = find(df.queryExecution.executedPlan) {
+          case _: GenerateExecTransformer => true
+          case _ => false
+        }
+        assert(generate.isDefined)
+        val metrics = generate.get.metrics
+        assert(metrics("numOutputRows").value == 300)
+        assert(metrics("numOutputVectors").value > 0)
+        assert(metrics("numOutputBytes").value > 0)
+    }
+  }
+
   test("Write metrics") {
     if (SparkShimLoader.getSparkVersion.startsWith("3.4")) {
       withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {

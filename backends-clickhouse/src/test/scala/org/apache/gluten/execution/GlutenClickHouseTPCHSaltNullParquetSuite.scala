@@ -2094,13 +2094,15 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
-  test("GLUTEN-3149: Fix convert exception of Inf to int") {
-    val tbl_create_sql = "create table test_tbl_3149(a int, b int) using parquet";
-    val tbl_insert_sql = "insert into test_tbl_3149 values(1, 0)"
-    val select_sql = "select cast(a * 1.0f/b as int) as x from test_tbl_3149 where a = 1"
+  test("GLUTEN-3149/GLUTEN-5580: Fix convert float to int") {
+    val tbl_create_sql = "create table test_tbl_3149(a int, b bigint) using parquet";
+    val tbl_insert_sql = "insert into test_tbl_3149 values(1, 0), (2, 171396196666200)"
+    val select_sql_1 = "select cast(a * 1.0f/b as int) as x from test_tbl_3149 where a = 1"
+    val select_sql_2 = "select cast(b/100 as int) from test_tbl_3149 where a = 2"
     spark.sql(tbl_create_sql)
     spark.sql(tbl_insert_sql);
-    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(select_sql_1, true, { _ => })
+    compareResultsAgainstVanillaSpark(select_sql_2, true, { _ => })
     spark.sql("drop table test_tbl_3149")
   }
 

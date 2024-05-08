@@ -1230,9 +1230,14 @@ object GlutenConfig {
   val COLUMNAR_VELOX_CONNECTOR_IO_THREADS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
       .internal()
-      .doc("The IO threads for connector split preloading")
+      .doc("The Size of the IO thread pool in the Connector. This thread pool is used for split" +
+        " preloading and DirectBufferedInput.")
       .intConf
-      .createWithDefault(0)
+      .createWithDefaultFunction(
+        () =>
+          SQLConf.get.getConfString("spark.executor.cores", "1").toInt / SQLConf.get
+            .getConfString("spark.task.cpus", "1")
+            .toInt)
 
   val COLUMNAR_VELOX_ASYNC_TIMEOUT =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.asyncTimeoutOnTaskStopping")

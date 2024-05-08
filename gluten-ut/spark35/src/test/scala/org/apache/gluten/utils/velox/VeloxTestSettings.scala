@@ -1165,6 +1165,36 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenHiveSQLQuerySuite]
   enableSuite[GlutenCollapseProjectExecTransformerSuite]
   enableSuite[GlutenSparkSessionExtensionSuite]
+  enableSuite[GlutenGroupBasedDeleteFromTableSuite]
+  enableSuite[GlutenDeltaBasedDeleteFromTableSuite]
+  enableSuite[GlutenDataFrameToSchemaSuite]
+  enableSuite[GlutenDatasetUnpivotSuite]
+  enableSuite[GlutenLateralColumnAliasSuite]
+  enableSuite[GlutenParametersSuite]
+  enableSuite[GlutenResolveDefaultColumnsSuite]
+  enableSuite[GlutenSubqueryHintPropagationSuite]
+  enableSuite[GlutenUrlFunctionsSuite]
+  // Row index metadata column support in Velox isn't ready yet, refer velox-9147
+  // enableSuite[GlutenParquetRowIndexSuite]
+  enableSuite[GlutenBitmapExpressionsQuerySuite]
+  enableSuite[GlutenEmptyInSuite]
+  enableSuite[GlutenRuntimeNullChecksV2Writes]
+  enableSuite[GlutenTableOptionsConstantFoldingSuite]
+  enableSuite[GlutenDeltaBasedMergeIntoTableSuite]
+  enableSuite[GlutenDeltaBasedMergeIntoTableUpdateAsDeleteAndInsertSuite]
+  enableSuite[GlutenDeltaBasedUpdateAsDeleteAndInsertTableSuite]
+    // FIXME: complex type result mismatch
+    .exclude("update nested struct fields")
+    .exclude("update char/varchar columns")
+  enableSuite[GlutenDeltaBasedUpdateTableSuite]
+  enableSuite[GlutenGroupBasedMergeIntoTableSuite]
+  enableSuite[GlutenFileSourceCustomMetadataStructSuite]
+  enableSuite[GlutenParquetFileMetadataStructRowIndexSuite]
+    // Row index metadata column support in Velox isn't ready yet, refer velox-9147
+    .exclude("reading _tmp_metadata_row_index - not present in a table")
+    .exclude("reading _tmp_metadata_row_index - present in a table")
+  enableSuite[GlutenTableLocationSuite]
+  enableSuite[GlutenRemoveRedundantWindowGroupLimitsSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }

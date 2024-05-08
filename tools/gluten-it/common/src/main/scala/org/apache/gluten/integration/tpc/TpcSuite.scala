@@ -68,7 +68,9 @@ abstract class TpcSuite(
     .setWarningOnOverriding("spark.executor.metrics.pollingInterval", "0")
   sessionSwitcher.defaultConf().setWarningOnOverriding("spark.network.timeout", "3601s")
   sessionSwitcher.defaultConf().setWarningOnOverriding("spark.sql.broadcastTimeout", "1800")
-  sessionSwitcher.defaultConf().setWarningOnOverriding("spark.network.io.preferDirectBufs", "false")
+  sessionSwitcher
+    .defaultConf()
+    .setWarningOnOverriding("spark.network.io.preferDirectBufs", "false")
   sessionSwitcher
     .defaultConf()
     .setWarningOnOverriding("spark.unsafe.exceptionOnMemoryLeak", s"$errorOnMemLeak")
@@ -113,8 +115,8 @@ abstract class TpcSuite(
     sessionSwitcher.defaultConf().setWarningOnOverriding("spark.default.parallelism", "1")
   }
 
-  extraSparkConf.toStream.foreach {
-    kv => sessionSwitcher.defaultConf().setWarningOnOverriding(kv._1, kv._2)
+  extraSparkConf.toStream.foreach { kv =>
+    sessionSwitcher.defaultConf().setWarningOnOverriding(kv._1, kv._2)
   }
 
   // register sessions
@@ -134,10 +136,9 @@ abstract class TpcSuite(
   }
 
   def run(): Boolean = {
-    val succeed = actions.forall {
-      action =>
-        resetLogLevel() // to prevent log level from being set by unknown external codes
-        action.execute(this)
+    val succeed = actions.forall { action =>
+      resetLogLevel() // to prevent log level from being set by unknown external codes
+      action.execute(this)
     }
     succeed
   }

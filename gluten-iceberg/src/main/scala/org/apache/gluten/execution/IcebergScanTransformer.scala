@@ -48,7 +48,7 @@ case class IcebergScanTransformer(
 
   override def filterExprs(): Seq[Expression] = pushdownFilters.getOrElse(Seq.empty)
 
-  override def getPartitionSchema: StructType = GlutenIcebergSourceUtil.getPartitionSchema(scan)
+  override def getPartitionSchema: StructType = GlutenIcebergSourceUtil.getReadPartitionSchema(scan)
 
   override def getDataSchema: StructType = new StructType()
 
@@ -63,7 +63,7 @@ case class IcebergScanTransformer(
       filteredPartitions,
       outputPartitioning)
     groupedPartitions.zipWithIndex.map {
-      case (p, index) => GlutenIcebergSourceUtil.genSplitInfo(p, index)
+      case (p, index) => GlutenIcebergSourceUtil.genSplitInfo(p, index, getPartitionSchema)
     }
   }
 
