@@ -18,6 +18,7 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.SparkPlanExecApi
+import org.apache.gluten.datasource.ArrowConvertorRule
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
@@ -765,6 +766,10 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
     SparkShimLoader.getSparkShims.getExtendedColumnarPostRules() ::: List()
+  }
+
+  override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = {
+    List(ArrowConvertorRule)
   }
 
   /**

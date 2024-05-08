@@ -16,16 +16,27 @@
  */
 package org.apache.spark.sql.execution.datasources
 
+import org.apache.gluten.GlutenConfig
+
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.sql.internal.SQLConf
 
 import java.io.File
 
-class GlutenCSVReadSchemaSuite extends CSVReadSchemaSuite with GlutenSQLTestsBaseTrait {}
+class GlutenCSVReadSchemaSuite extends CSVReadSchemaSuite with GlutenSQLTestsBaseTrait {
 
-class GlutenHeaderCSVReadSchemaSuite
-  extends HeaderCSVReadSchemaSuite
-  with GlutenSQLTestsBaseTrait {}
+  override def sparkConf: SparkConf =
+    super.sparkConf
+      .set(GlutenConfig.NATIVE_ARROW_READER_ENABLED.key, "true")
+}
+
+class GlutenHeaderCSVReadSchemaSuite extends HeaderCSVReadSchemaSuite with GlutenSQLTestsBaseTrait {
+
+  override def sparkConf: SparkConf =
+    super.sparkConf
+      .set(GlutenConfig.NATIVE_ARROW_READER_ENABLED.key, "true")
+}
 
 class GlutenJsonReadSchemaSuite extends JsonReadSchemaSuite with GlutenSQLTestsBaseTrait {}
 
