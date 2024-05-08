@@ -39,11 +39,9 @@ class DynamicOffHeapSizingTest extends VeloxWholeStageTransformerSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-      .set("spark.executor.memory", "5GB")
+      .set("spark.executor.memory", "6GB")
+      .set("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction", "0.8")
       .set("spark.gluten.memory.dynamic.offHeap.sizing.enabled", "true")
-      .set("spark.driver.maxResultSize", "50GB")
-      .set("spark.gluten.sql.debug", "true")
-      .set("spark.gluten.sql.columnar.backend.velox.glogSeverityLevel", "0")
   }
 
   def getRootCause(e: Throwable): Throwable = {
@@ -57,7 +55,6 @@ class DynamicOffHeapSizingTest extends VeloxWholeStageTransformerSuite {
     System.gc()
     dataGenerator.generateRandomData(spark, Some(outputPath))
     spark.read.format("parquet").load(outputPath).createOrReplaceTempView("tbl")
-    val df = spark.sql(AGG_SQL)
-    df
+    spark.sql(AGG_SQL)
   }
 }

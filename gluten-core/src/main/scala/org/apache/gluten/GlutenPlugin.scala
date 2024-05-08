@@ -180,15 +180,17 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
       if (conf.getBoolean(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED, false)) {
         // Since when dynamic off-heap sizing is enabled, we commingle on-heap
         // and off-heap memory, we set the off-heap size to the usable on-heap size. We will
-        // size it using the same way that Spark sizes on-heap memory:
+        // size it with a memory fraction, which can be aggressively set, but the default
+        // is using the same way that Spark sizes on-heap memory:
         //
-        // spark.memory.fraction * (spark.executor.memory - 300MB).
+        // spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction *
+        //    (spark.executor.memory - 300MB).
         //
         // We will be careful to use the same configuration settings as Spark to ensure
         // that we are sizing the off-heap memory in the same way as Spark sizes on-heap memory.
         // The 300MB value, unfortunately, is hard-coded in Spark code.
         ((onHeapSize - (300 * 1024 * 1024)) *
-          conf.getDouble("spark.memory.memoryFraction", 0.6d)).toLong
+          conf.getDouble(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION, 0.6d)).toLong
       } else if (conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
         // Optimistic off-heap sizes, assuming all storage memory can be borrowed into execution
         // memory pool, regardless of Spark option spark.memory.storageFraction.

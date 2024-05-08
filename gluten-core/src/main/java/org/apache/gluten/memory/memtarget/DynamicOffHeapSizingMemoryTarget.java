@@ -50,8 +50,8 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget {
       LOG.warn(
           String.format(
               "Failing allocation as unified memory is OOM. "
-                  + "Used Off-heap: %d, Used On-Heap: %d,"
-                  + "Free On-heap: %d, Total On-heap: %d,"
+                  + "Used Off-heap: %d, Used On-Heap: %d, "
+                  + "Free On-heap: %d, Total On-heap: %d, "
                   + "Max On-heap: %d, Allocation: %d.",
               usedOffHeapBytesNow,
               usedOnHeapBytes,

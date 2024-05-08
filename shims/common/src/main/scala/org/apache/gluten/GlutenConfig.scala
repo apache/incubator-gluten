@@ -549,6 +549,8 @@ object GlutenConfig {
   val GLUTEN_UI_ENABLED = "spark.gluten.ui.enabled"
 
   val GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED = "spark.gluten.memory.dynamic.offHeap.sizing.enabled"
+  val GLUTEN_DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION =
+    "spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction"
 
   var ins: GlutenConfig = _
 
@@ -1835,18 +1837,29 @@ object GlutenConfig {
     buildConf(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED)
       .internal()
       .doc(
-        "Experimental: When set to true, the offheap config (spark.memory.offHeap.size) will" +
-          "be ignored and instead we will consider onheap and offheap memory in combination," +
-          "both counting towards the executor memory config (spark.executor.memory). We will" +
-          "make use of JVM APIs to determine how much onheap memory is use, alongside tracking" +
-          "offheap allocations made by Gluten. We will then proceed to enforcing a total memory" +
-          "quota, calculated by the sum of what memory is committed and in use in the Java heap." +
-          "Since the calculation of the total quota happens as offheap allocation happens and not" +
-          "as JVM heap memory is allocates, it is possible that we can oversubscribe memory." +
-          "Additionally, note that this change is experimental and may have performance " +
+        "Experimental: When set to true, the offheap config (spark.memory.offHeap.size) will " +
+          "be ignored and instead we will consider onheap and offheap memory in combination, " +
+          "both counting towards the executor memory config (spark.executor.memory). We will " +
+          "make use of JVM APIs to determine how much onheap memory is use, alongside tracking " +
+          "offheap allocations made by Gluten. We will then proceed to enforcing a total memory " +
+          "quota, calculated by the sum of what memory is committed and in use in the Java " +
+          "heap. Since the calculation of the total quota happens as offheap allocation happens " +
+          "and not as JVM heap memory is allocated, it is possible that we can oversubscribe " +
+          "memory. Additionally, note that this change is experimental and may have performance " +
           "implications.")
       .booleanConf
       .createWithDefault(false)
+
+  val DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION =
+    buildConf(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION)
+      .internal()
+      .doc(
+        "Experimental: Determines the memory fraction used to determine the total " +
+          "memory available for offheap and onheap allocations when the dynamic offheap " +
+          "sizing feature is enabled. The default is set to match spark.executor.memoryFraction.")
+      .doubleConf
+      .checkValue(v => v >= 0 && v <= 1, "offheap sizing memory fraction must between [0, 1]")
+      .createWithDefault(0.6)
 
   val COLUMNAR_ONHEAP_SIZE_IN_BYTES =
     buildConf(GlutenConfig.GLUTEN_ONHEAP_SIZE_IN_BYTES_KEY)
