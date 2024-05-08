@@ -156,12 +156,20 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
               generate.generator.withNewChildren(newGeneratorChildren).asInstanceOf[Generator],
             child = ProjectExec(generate.child.output ++ newGeneratorChildren, generate.child)
           )
-        case JsonTuple(Seq(jsonObj, jsonPaths @ _*)) if jsonPaths.forall(_.foldable) =>
+        case JsonTuple(Seq(jsonObj, jsonPaths @ _*)) =>
+          val foldableFieldNames: IndexedSeq[Option[String]] = {
+            jsonPaths.map {
+              case p if p.foldable => Option(p.eval()).map(_.toString)
+              case _ => null
+            }.toIndexedSeq
+          }
           val preGenerateExprs =
             Alias(
-              CreateArray(Seq(CreateStruct(jsonPaths.map {
-                case jsonPath =>
-                  GetJsonObject(jsonObj, Literal.create("$." + jsonPath.eval().toString))
+              CreateArray(Seq(CreateStruct(foldableFieldNames.map {
+                case Some(jsonPath) =>
+                  GetJsonObject(jsonObj, Literal.create("$." + jsonPath))
+                case _ =>
+                  Literal.create(null)
               }))),
               generatePreAliasName
             )()
