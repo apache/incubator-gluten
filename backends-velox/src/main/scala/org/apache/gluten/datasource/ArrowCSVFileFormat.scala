@@ -19,7 +19,7 @@ package org.apache.gluten.datasource
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.SchemaMismatchException
 import org.apache.gluten.execution.RowToVeloxColumnarExec
-import org.apache.gluten.memory.arrowalloc.ArrowBufferAllocators
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.utils.{ArrowUtil, Iterators}
 import org.apache.gluten.vectorized.ArrowWritableColumnVector
 

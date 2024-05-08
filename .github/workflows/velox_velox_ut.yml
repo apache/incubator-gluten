@@ -64,4 +64,5 @@ jobs:
 
       - name: Run Tests
         run: |
+          ccache -c
           cd ${GITHUB_WORKSPACE}/ep/build-velox/build/velox_ep/_build/release && ctest -E velox_cache_test -j 4 --output-on-failure --no-tests=error
