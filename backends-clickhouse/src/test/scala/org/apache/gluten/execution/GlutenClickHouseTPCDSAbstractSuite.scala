@@ -158,7 +158,6 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.sql.warehouse.dir", warehouse)
-      .set("spark.sql.decimalOperations.allowPrecisionLoss", "false")
     /* .set("spark.sql.catalogImplementation", "hive")
     .set("javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${
       metaStorePathAbsolute + "/metastore_db"};create=true") */
