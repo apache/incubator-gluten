@@ -19,10 +19,9 @@ name: Velox backend Velox Unit test
 on:
     pull_request:
       paths:
-        # TODO: wait to fix
-        # - '.github/workflows/velox_velox_ut.yml'
+        - '.github/workflows/velox_velox_ut.yml'
         - 'dev/**'
-        # - 'ep/**' #get_velox change
+        - 'ep/**' #get_velox change
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -65,5 +64,4 @@ jobs:
 
       - name: Run Tests
         run: |
-          ccache -c
-          cd ${GITHUB_WORKSPACE}/ep/build-velox/build/velox_ep/_build/release && ctest -E velox_cache_test -j 4 --output-on-failure --no-tests=error
+          cd ${GITHUB_WORKSPACE}/ep/build-velox/build/velox_ep/_build/release && ctest -E "velox_cache_test|velox_exec_test" -j 4 --output-on-failure --no-tests=error
