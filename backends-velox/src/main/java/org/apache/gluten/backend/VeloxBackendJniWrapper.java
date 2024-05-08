@@ -16,7 +16,19 @@
  */
 package org.apache.gluten.backend;
 
+import org.apache.spark.util.GlutenShutdownManager;
+
+import scala.runtime.BoxedUnit;
+
 public class VeloxBackendJniWrapper {
 
   public static native void shutdown();
+
+  static {
+    GlutenShutdownManager.addHook(
+        () -> {
+          shutdown();
+          return BoxedUnit.UNIT;
+        });
+  }
 }
