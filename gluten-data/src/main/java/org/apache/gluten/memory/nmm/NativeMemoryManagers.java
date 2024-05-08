@@ -24,7 +24,6 @@ import org.apache.gluten.memory.memtarget.Spiller;
 import org.apache.gluten.memory.memtarget.Spillers;
 import org.apache.gluten.proto.MemoryUsageStats;
 
-import org.apache.arrow.dataset.jni.NativeMemoryPool;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResources;
 
