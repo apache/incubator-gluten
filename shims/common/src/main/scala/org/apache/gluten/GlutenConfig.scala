@@ -435,6 +435,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def awsSdkLogLevel: String = conf.getConf(AWS_SDK_LOG_LEVEL)
 
+  def awsS3RetryMode: String = conf.getConf(AWS_S3_RETRY_MODE)
+
+  def awsConnectionTimeout: String = conf.getConf(AWS_S3_CONNECT_TIMEOUT)
+
   def enableCastAvgAggregateFunction: Boolean = conf.getConf(COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED)
 
   def enableGlutenCostEvaluator: Boolean = conf.getConf(COST_EVALUATOR_ENABLED)
@@ -487,6 +491,10 @@ object GlutenConfig {
   val SPARK_S3_IAM: String = HADOOP_PREFIX + S3_IAM_ROLE
   val S3_IAM_ROLE_SESSION_NAME = "fs.s3a.iam.role.session.name"
   val SPARK_S3_IAM_SESSION_NAME: String = HADOOP_PREFIX + S3_IAM_ROLE_SESSION_NAME
+  val S3_RETRY_MAX_ATTEMPTS = "fs.s3a.retry.limit"
+  val SPARK_S3_RETRY_MAX_ATTEMPTS: String = HADOOP_PREFIX + S3_RETRY_MAX_ATTEMPTS
+  val S3_CONNECTION_MAXIMUM = "fs.s3a.connection.maximum"
+  val SPARK_S3_CONNECTION_MAXIMUM: String = HADOOP_PREFIX + S3_CONNECTION_MAXIMUM
 
   // Hardware acceleraters backend
   val GLUTEN_SHUFFLE_CODEC_BACKEND = "spark.gluten.sql.columnar.shuffle.codecBackend"
@@ -641,6 +649,10 @@ object GlutenConfig {
       SPARK_S3_USE_INSTANCE_CREDENTIALS,
       SPARK_S3_IAM,
       SPARK_S3_IAM_SESSION_NAME,
+      SPARK_S3_RETRY_MAX_ATTEMPTS,
+      SPARK_S3_CONNECTION_MAXIMUM,
+      AWS_S3_CONNECT_TIMEOUT.key,
+      AWS_S3_RETRY_MODE.key,
       AWS_SDK_LOG_LEVEL.key,
       // gcs config
       SPARK_GCS_STORAGE_ROOT_URL,
@@ -692,6 +704,10 @@ object GlutenConfig {
       (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"),
       (SPARK_S3_IAM, ""),
       (SPARK_S3_IAM_SESSION_NAME, ""),
+      (SPARK_S3_RETRY_MAX_ATTEMPTS, "3"),
+      (SPARK_S3_CONNECTION_MAXIMUM, "96"),
+      (AWS_S3_CONNECT_TIMEOUT.key, AWS_S3_CONNECT_TIMEOUT.defaultValueString),
+      (AWS_S3_RETRY_MODE.key, AWS_S3_RETRY_MODE.defaultValueString),
       (
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
         conf.getOrElse(GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY, "-1")),
@@ -1931,6 +1947,20 @@ object GlutenConfig {
       .doc("Log granularity of AWS C++ SDK in velox.")
       .stringConf
       .createWithDefault("FATAL")
+
+  val AWS_S3_RETRY_MODE =
+    buildConf("spark.gluten.velox.fs.s3a.retry.mode")
+      .internal()
+      .doc("Retry mode for AWS s3 connection error.")
+      .stringConf
+      .createWithDefault("legacy")
+
+  val AWS_S3_CONNECT_TIMEOUT =
+    buildConf("spark.gluten.velox.fs.s3a.connect.timeout")
+      .internal()
+      .doc("Timeout for AWS s3 connection.")
+      .stringConf
+      .createWithDefault("1s")
 
   val VELOX_ORC_SCAN_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.orc.scan.enabled")
