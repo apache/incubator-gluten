@@ -510,4 +510,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def shouldRewriteCollect(): Boolean = true
 
   override def supportColumnarArrowUdf(): Boolean = true
+
+  override def generateHdfsConfForLibhdfs(): Boolean = true
 }
