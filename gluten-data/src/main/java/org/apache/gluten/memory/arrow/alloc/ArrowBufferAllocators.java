@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.memory.arrowalloc;
+package org.apache.gluten.memory.arrow.alloc;
 
 import org.apache.gluten.memory.memtarget.MemoryTargets;
 

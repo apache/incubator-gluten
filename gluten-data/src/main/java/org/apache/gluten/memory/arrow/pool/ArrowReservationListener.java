@@ -14,25 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.utils
+package org.apache.gluten.memory.arrow.pool;
 
-import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
-import org.apache.gluten.vectorized.ArrowWritableColumnVector
+import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
 
-import org.apache.spark.sql.vectorized.ColumnarBatch
+public class ArrowReservationListener implements org.apache.arrow.dataset.jni.ReservationListener {
+  private final SimpleMemoryUsageRecorder sharedUsage; // shared task metrics
 
-object ImplicitClass {
+  public ArrowReservationListener(SimpleMemoryUsageRecorder recorder) {
+    this.sharedUsage = recorder;
+  }
 
-  implicit class ArrowColumnarBatchRetainer(val cb: ColumnarBatch) {
-    def retain(): Unit = {
-      (0 until cb.numCols).toList.foreach(
-        i =>
-          ColumnarBatches
-            .ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
-            .column(i)
-            .asInstanceOf[ArrowWritableColumnVector]
-            .retain())
+  @Override
+  public void reserve(long size) {
+    synchronized (this) {
+      sharedUsage.inc(size);
+    }
+  }
+
+  @Override
+  public void unreserve(long size) {
+    synchronized (this) {
+      sharedUsage.inc(-size);
     }
   }
 }
