@@ -204,10 +204,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
 
   /** Generate HashAggregateExecPullOutHelper */
   override def genHashAggregateExecPullOutHelper(
-      groupingExpressions: Seq[NamedExpression],
       aggregateExpressions: Seq[AggregateExpression],
       aggregateAttributes: Seq[Attribute]): HashAggregateExecPullOutBaseHelper =
-    CHHashAggregateExecPullOutHelper(groupingExpressions, aggregateExpressions, aggregateAttributes)
+    CHHashAggregateExecPullOutHelper(aggregateExpressions, aggregateAttributes)
 
   /**
    * If there are expressions (not field reference) in the partitioning's children, add a projection

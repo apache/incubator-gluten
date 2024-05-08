@@ -20,7 +20,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
-import org.apache.gluten.extension.columnar.RewriteTypedImperativeAggregate
+import org.apache.gluten.extension.columnar.rewrite.RewriteTypedImperativeAggregate
 import org.apache.gluten.substrait.`type`.{TypeBuilder, TypeNode}
 import org.apache.gluten.substrait.{AggregationParams, SubstraitContext}
 import org.apache.gluten.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode, ScalarFunctionNode}
@@ -59,6 +59,12 @@ abstract class HashAggregateExecTransformer(
     initialInputBufferOffset,
     resultExpressions,
     child) {
+
+  override def output: Seq[Attribute] = {
+    // TODO: We should have a check to make sure the returned schema actually matches the output
+    //  data. Since "resultExpressions" is not actually in used by Velox.
+    super.output
+  }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
@@ -793,13 +799,9 @@ case class FlushableHashAggregateExecTransformer(
 }
 
 case class HashAggregateExecPullOutHelper(
-    groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
     aggregateAttributes: Seq[Attribute])
-  extends HashAggregateExecPullOutBaseHelper(
-    groupingExpressions,
-    aggregateExpressions,
-    aggregateAttributes) {
+  extends HashAggregateExecPullOutBaseHelper {
 
   /** This method calculates the output attributes of Aggregation. */
   override protected def getAttrForAggregateExprs: List[Attribute] = {

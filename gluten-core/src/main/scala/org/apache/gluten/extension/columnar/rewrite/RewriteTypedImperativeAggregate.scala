@@ -14,18 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar
+package org.apache.gluten.extension.columnar.rewrite
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.utils.PullOutProjectHelper
 
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate._
-import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 
-object RewriteTypedImperativeAggregate extends Rule[SparkPlan] with PullOutProjectHelper {
+object RewriteTypedImperativeAggregate extends RewriteSingleNode with PullOutProjectHelper {
   private lazy val shouldRewriteTypedImperativeAggregate =
     BackendsApiManager.getSettings.shouldRewriteTypedImperativeAggregate()
 
@@ -40,7 +39,7 @@ object RewriteTypedImperativeAggregate extends Rule[SparkPlan] with PullOutProje
     }
   }
 
-  override def apply(plan: SparkPlan): SparkPlan = {
+  override def rewrite(plan: SparkPlan): SparkPlan = {
     if (!shouldRewriteTypedImperativeAggregate) {
       return plan
     }
