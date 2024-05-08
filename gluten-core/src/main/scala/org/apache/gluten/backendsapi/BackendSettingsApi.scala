@@ -152,4 +152,6 @@ trait BackendSettingsApi {
   def shouldRewriteCollect(): Boolean = false
 
   def supportColumnarArrowUdf(): Boolean = false
+
+  def generateHdfsConfForLibhdfs(): Boolean = false
 }

@@ -26,7 +26,7 @@ import org.apache.gluten.extension.{ColumnarOverrides, OthersExtensionOverrides,
 import org.apache.gluten.test.TestStats
 import org.apache.gluten.utils.TaskListener
 
-import org.apache.spark.{SparkConf, SparkContext, TaskFailedReason}
+import org.apache.spark.{HdfsConfGenerator, SparkConf, SparkContext, TaskFailedReason}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.internal.Logging
 import org.apache.spark.listener.GlutenListenerFactory
@@ -68,6 +68,9 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     }
 
     setPredefinedConfigs(sc, conf)
+    if (BackendsApiManager.getSettings.generateHdfsConfForLibhdfs()) {
+      HdfsConfGenerator.addHdfsClientToSparkWorkDirectory(sc)
+    }
     // Initialize Backends API
     BackendsApiManager.initialize()
     BackendsApiManager.getListenerApiInstance.onDriverStart(conf)
