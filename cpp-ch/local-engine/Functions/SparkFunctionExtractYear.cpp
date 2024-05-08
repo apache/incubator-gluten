@@ -15,33 +15,32 @@
  * limitations under the License.
  */
 #include <Functions/FunctionGetDateData.h>
-#include <DataTypes/DataTypeDate32.h>
+#include <DataTypes/DataTypesNumber.h>
+
+using namespace DB;
 
 namespace local_engine
 {
-class SparkFunctionConvertToDate : public FunctionGetDateData<false, true, DB::DataTypeDate32::FieldType>
+class SparkFunctionExtractYear : public FunctionGetDateData<true, false, DataTypeInt32::FieldType>
 {
 public:
-    static constexpr auto name = "sparkToDate";
-    static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionConvertToDate>(); }
-    SparkFunctionConvertToDate() = default;
-    ~SparkFunctionConvertToDate() override = default;
-    bool isSuitableForShortCircuitArgumentsExecution(const DB::DataTypesWithConstInfo &) const override { return true; }
-    size_t getNumberOfArguments() const override { return 0; }
-    String getName() const override { return name; }
-    bool isVariadic() const override { return true; }
+    static constexpr auto name = "sparkExtractYear";
+    static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionExtractYear>(); }
+    SparkFunctionExtractYear() = default;
+    ~SparkFunctionExtractYear() override = default;
+    bool isSuitableForShortCircuitArgumentsExecution(const DataTypesWithConstInfo &) const override { return true; }
+    size_t getNumberOfArguments() const override { return 1; }
     bool useDefaultImplementationForConstants() const override { return true; }
+    String getName() const override { return name; }
 
-    DB::DataTypePtr getReturnTypeImpl(const DB::ColumnsWithTypeAndName &) const override
+    DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName &) const override
     {
-        auto data_type = std::make_shared<DB::DataTypeDate32>();
-        return makeNullable(data_type);
+        return makeNullable(std::make_shared<DataTypeInt32>());
     }
 };
 
-REGISTER_FUNCTION(SparkToDate)
+REGISTER_FUNCTION(SparkExtractYear)
 {
-    factory.registerFunction<SparkFunctionConvertToDate>();
+    factory.registerFunction<SparkFunctionExtractYear>();
 }
-
 }

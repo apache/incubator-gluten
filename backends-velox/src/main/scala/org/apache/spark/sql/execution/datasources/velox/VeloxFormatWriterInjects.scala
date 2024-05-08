@@ -20,7 +20,7 @@ import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.datasource.DatasourceJniWrapper
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.datasource.GlutenRowSplitter
-import org.apache.gluten.memory.arrowalloc.ArrowBufferAllocators
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.memory.nmm.NativeMemoryManagers
 import org.apache.gluten.utils.{ArrowAbiUtil, DatasourceUtil}
 

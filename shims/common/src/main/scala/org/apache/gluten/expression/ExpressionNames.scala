@@ -257,6 +257,7 @@ object ExpressionNames {
   final val EXISTS = "exists"
   final val TRANSFORM = "transform"
   final val SHUFFLE = "shuffle"
+  final val ZIP_WITH = "zip_with"
 
   // Map functions
   final val CREATE_MAP = "map"
@@ -265,6 +266,7 @@ object ExpressionNames {
   final val MAP_VALUES = "map_values"
   final val MAP_FROM_ARRAYS = "map_from_arrays"
   final val MAP_ENTRIES = "map_entries"
+  final val MAP_ZIP_WITH = "map_zip_with"
   final val STR_TO_MAP = "str_to_map"
 
   // struct functions

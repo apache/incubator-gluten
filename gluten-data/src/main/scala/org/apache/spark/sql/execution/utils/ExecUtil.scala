@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution.utils
 
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.memory.arrowalloc.ArrowBufferAllocators
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.memory.nmm.NativeMemoryManagers
 import org.apache.gluten.utils.Iterators
 import org.apache.gluten.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper, NativePartitioning}

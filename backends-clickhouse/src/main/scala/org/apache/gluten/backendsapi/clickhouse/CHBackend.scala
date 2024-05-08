@@ -257,6 +257,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   override def needOutputSchemaForPlan(): Boolean = true
 
   override def allowDecimalArithmetic: Boolean = !SQLConf.get.decimalOperationsAllowPrecisionLoss
+  override def transformCheckOverflow: Boolean = false
 
   override def requiredInputFilePaths(): Boolean = true
 

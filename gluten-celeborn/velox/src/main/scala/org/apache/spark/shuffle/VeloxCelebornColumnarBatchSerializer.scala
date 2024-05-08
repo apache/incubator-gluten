@@ -18,7 +18,7 @@ package org.apache.spark.shuffle
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.exec.Runtimes
-import org.apache.gluten.memory.arrowalloc.ArrowBufferAllocators
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.memory.nmm.NativeMemoryManagers
 import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.gluten.vectorized._

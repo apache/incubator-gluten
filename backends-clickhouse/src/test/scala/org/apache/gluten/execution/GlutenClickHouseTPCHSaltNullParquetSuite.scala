@@ -2508,11 +2508,14 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     spark.sql("drop table test_tbl_4279")
   }
 
-  test("GLUTEN-4997: Bug fix year diff") {
+  test("GLUTEN-4997/GLUTEN-5352: Bug fix year diff") {
     val tbl_create_sql = "create table test_tbl_4997(id bigint, data string) using parquet"
     val tbl_insert_sql =
       "insert into test_tbl_4997 values(1, '2024-01-03'), (2, '2024'), (3, '2024-'), (4, '2024-1')," +
-        "(5, '2024-1-'), (6, '2024-1-3'), (7, '2024-1-3T'), (8, '21-0'), (9, '12-9')";
+        "(5, '2024-1-'), (6, '2024-1-3'), (7, '2024-1-3T'), (8, '21-0'), (9, '12-9'), (10, '-1')," +
+        "(11, '999'), (12, '1000'), (13, '9999'), (15, '2024-04-19 00:00:00-12'), (16, '2024-04-19 00:00:00+12'), " +
+        "(17, '2024-04-19 23:59:59-12'), (18, '2024-04-19 23:59:59+12'), (19, '1899-12-01')," +
+        "(20, '2024:12'), (21, '2024ABC'), (22, NULL), (23, '0'), (24, '')"
     val select_sql = "select id, year(data) from test_tbl_4997 order by id"
     spark.sql(tbl_create_sql)
     spark.sql(tbl_insert_sql)
