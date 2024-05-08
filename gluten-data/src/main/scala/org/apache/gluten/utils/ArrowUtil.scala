@@ -18,7 +18,6 @@ package org.apache.gluten.utils
 
 import org.apache.gluten.exception.SchemaMismatchException
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
-import org.apache.gluten.memory.arrow.pool.ArrowNativeMemoryPool
 import org.apache.gluten.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.internal.Logging
@@ -31,14 +30,13 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.utils.{SparkArrowUtil, SparkSchemaUtil}
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
-
 import org.apache.arrow.c.{ArrowSchema, CDataDictionaryProvider, Data}
 import org.apache.arrow.dataset.file.{FileFormat, FileSystemDatasetFactory}
+import org.apache.arrow.dataset.jni.NativeMemoryPool
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
 import org.apache.hadoop.fs.FileStatus
-
 import java.net.URI
 import java.util
 
@@ -144,7 +142,7 @@ object ArrowUtil extends Logging {
     val allocator = ArrowBufferAllocators.contextInstance()
     val factory = new FileSystemDatasetFactory(
       allocator,
-      ArrowNativeMemoryPool.arrowPool("FileSystemDatasetFactory"), // TODO: wait to change
+      NativeMemoryPool.getDefault, // TODO: wait to change
       format,
       rewriteUri(encodedUri))
     factory

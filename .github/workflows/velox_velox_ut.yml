@@ -21,7 +21,8 @@ on:
       paths:
         - '.github/workflows/velox_velox_ut.yml'
         - 'dev/**'
-        - 'ep/**' #get_velox change
+        # TODO: wait to fix
+        # - 'ep/**' #get_velox change
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
