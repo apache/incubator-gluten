@@ -25,9 +25,13 @@ class TableFunctionsValidateSuite extends FunctionsValidateTest {
       checkGlutenOperatorMatch[GenerateExecTransformer]
     }
 
-    runQueryAndCompare("SELECT l_orderkey, " +
-      "json_tuple('{\"a\" : 1, \"b\" : 2}', CAST(NULL AS STRING), 'b', CAST(NULL AS STRING), 'a') " +
-      "from lineitem") {
+    runQueryAndCompare(
+      """
+        |SELECT
+        | l_orderkey,
+        | json_tuple('{"a" : 1, "b" : 2}', CAST(NULL AS STRING), 'b', CAST(NULL AS STRING), 'a')
+        |from lineitem
+        |""".stripMargin) {
       checkGlutenOperatorMatch[GenerateExecTransformer]
     }
   }
