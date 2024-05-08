@@ -517,6 +517,43 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("map_zip_with") {
+    withTempPath {
+      path =>
+        Seq((Map("a" -> 1, "b" -> 2), Map("a" -> 2, "b" -> 3)))
+          .toDF("m1", "m2")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
+
+        runQueryAndCompare(
+          "select map_zip_with(m1, m2, (k, v1, v2) -> k == v1 + v2) from map_tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("zip_with") {
+    withTempPath {
+      path =>
+        Seq[(Seq[Integer], Seq[Integer])](
+          (Seq(9001, 9002, 9003), Seq(4, 5, 6)),
+          (Seq(1, 2), Seq(3, 4)),
+          (Seq.empty, Seq.empty),
+          (null, null)
+        ).toDF("val1", "val2")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare("select zip_with(val1, val2, (x, y) -> x + y) from array_tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("Test isnan function") {
     runQueryAndCompare(
       "SELECT isnan(l_orderkey), isnan(cast('NaN' as double)), isnan(0.0F/0.0F)" +
