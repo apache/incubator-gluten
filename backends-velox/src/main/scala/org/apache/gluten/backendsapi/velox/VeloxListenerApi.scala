@@ -17,6 +17,7 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backend.VeloxBackendJniWrapper
 import org.apache.gluten.backendsapi.ListenerApi
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.datasource.{GlutenOrcWriterInjects, GlutenParquetWriterInjects, GlutenRowSplitter}
@@ -201,7 +202,7 @@ class VeloxListenerApi extends ListenerApi {
   }
 
   private def shutdown(): Unit = {
-    // TODO shutdown implementation in velox to release resources
+    VeloxBackendJniWrapper.shutdown()
   }
 }
 

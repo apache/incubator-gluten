@@ -238,6 +238,14 @@ JNIEXPORT jbyteArray JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWra
   JNI_METHOD_END(nullptr)
 }
 
+JNIEXPORT void JNICALL Java_org_apache_gluten_backend_VeloxBackendJniWrapper_shutdown( // NOLINT
+    JNIEnv* env,
+    jclass) {
+  JNI_METHOD_START
+  gluten::VeloxBackend::get()->tearDown();
+  JNI_METHOD_END()
+}
+
 #ifdef __cplusplus
 }
 #endif
