@@ -52,11 +52,11 @@ object HdfsConfGenerator extends Logging {
 
   private def hasLibHdfsConf(sc: SparkContext): Boolean = {
     sc.conf.getExecutorEnv.toMap.contains("LIBHDFS3_CONF") ||
-      sc.listFiles().exists(_.contains("hdfs-client.xml")) ||
-      sys.env
-        .get("SPARK_CONF_DIR")
-        .orElse(sys.env.get("SPARK_HOME").map(t => s"$t${File.separator}conf"))
-        .exists(conf => new File(s"$conf${File.separator}hdfs-client.xml").isFile)
+    sc.listFiles().exists(_.contains("hdfs-client.xml")) ||
+    sys.env
+      .get("SPARK_CONF_DIR")
+      .orElse(sys.env.get("SPARK_HOME").map(t => s"$t${File.separator}conf"))
+      .exists(conf => new File(s"$conf${File.separator}hdfs-client.xml").isFile)
   }
 
   def addHdfsClientToSparkWorkDirectory(sc: SparkContext): Unit = {
