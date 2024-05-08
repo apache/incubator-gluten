@@ -138,7 +138,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case _ =>
     }
 
-    val substraitExprName: String = getAdnCheckSubstraitName(expr, expressionsMap)
+    val substraitExprName: String = getAndCheckSubstraitName(expr, expressionsMap)
 
     expr match {
       case extendedExpr
@@ -502,7 +502,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         val rightChild =
           replaceWithExpressionTransformerInternal(b.right, attributeSeq, expressionsMap)
         DecimalArithmeticExpressionTransformer(
-          getAdnCheckSubstraitName(b, expressionsMap),
+          getAndCheckSubstraitName(b, expressionsMap),
           leftChild,
           rightChild,
           decimalType,
@@ -662,7 +662,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     }
   }
 
-  private def getAdnCheckSubstraitName(expr: Expression, expressionsMap: Map[Class[_], String]) = {
+  private def getAndCheckSubstraitName(expr: Expression, expressionsMap: Map[Class[_], String]) = {
     TestStats.addExpressionClassName(expr.getClass.getName)
     // Check whether Gluten supports this expression
     val substraitExprNameOpt = expressionsMap.get(expr.getClass)
