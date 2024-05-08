@@ -128,6 +128,7 @@ object GenerateExecTransformer {
 }
 
 object PullOutGenerateProjectHelper extends PullOutProjectHelper {
+  val JSON_PATH_PREFIX = "$."
   def pullOutPreProject(generate: GenerateExec): SparkPlan = {
     if (GenerateExecTransformer.supportsGenerate(generate.generator, generate.outer)) {
       generate.generator match {
@@ -157,20 +158,22 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
             child = ProjectExec(generate.child.output ++ newGeneratorChildren, generate.child)
           )
         case JsonTuple(Seq(jsonObj, jsonPaths @ _*)) =>
-          val foldableFieldNames: IndexedSeq[Option[String]] = {
+          val getJsons: IndexedSeq[Expression] = {
             jsonPaths.map {
-              case p if p.foldable => Option(p.eval()).map(_.toString)
-              case _ => null
+              case jsonPath if jsonPath.foldable =>
+                Option(jsonPath.eval()) match {
+                  case Some(path) =>
+                    GetJsonObject(jsonObj, Literal.create(JSON_PATH_PREFIX + path))
+                  case _ =>
+                    Literal.create(null)
+                }
+              case jsonPath =>
+                GetJsonObject(jsonObj, Concat(Seq(Literal.create(JSON_PATH_PREFIX), jsonPath)))
             }.toIndexedSeq
           }
           val preGenerateExprs =
             Alias(
-              CreateArray(Seq(CreateStruct(foldableFieldNames.map {
-                case Some(jsonPath) =>
-                  GetJsonObject(jsonObj, Literal.create("$." + jsonPath))
-                case _ =>
-                  Literal.create(null)
-              }))),
+              CreateArray(Seq(CreateStruct(getJsons))),
               generatePreAliasName
             )()
           // use JsonTupleExplode here instead of Explode so that we can distinguish
