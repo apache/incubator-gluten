@@ -51,6 +51,12 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
       .write
       .format("parquet")
       .saveAsTable("tmp2")
+    spark
+      .range(100)
+      .selectExpr("cast(id % 3 as int) as c1", "cast(id % 9 as int) as c2")
+      .write
+      .format("parquet")
+      .saveAsTable("tmp3")
   }
 
   override protected def afterAll(): Unit = {
@@ -110,7 +116,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
     withSQLConf(
       GlutenConfig.EXPRESSION_BLACK_LIST.key -> "collect_list"
     ) {
-      runQueryAndCompare("SELECT c2, collect_list(c1) FROM tmp1 GROUP BY c2") {
+      runQueryAndCompare("SELECT c1, collect_list(c2) FROM tmp3 GROUP BY c1") {
         df =>
           val plan = df.queryExecution.executedPlan
           assert(collect(plan) { case v: HashAggregateExecBaseTransformer => v }.isEmpty)
@@ -122,7 +128,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
     withSQLConf(
       GlutenConfig.EXPRESSION_BLACK_LIST.key -> "collect_set"
     ) {
-      runQueryAndCompare("SELECT c2, collect_set(c1) FROM tmp1 GROUP BY c2") {
+      runQueryAndCompare("SELECT c1, collect_set(c2) FROM tmp3 GROUP BY c1") {
         df =>
           val plan = df.queryExecution.executedPlan
           assert(collect(plan) { case v: HashAggregateExecBaseTransformer => v }.isEmpty)
@@ -137,8 +143,8 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
       GlutenConfig.EXPRESSION_BLACK_LIST.key -> "element_at"
     ) {
       runQueryAndCompare(
-        "SELECT sum(ele) FROM (SELECT c2, element_at(collect_list(c1), 1) as ele FROM tmp1 " +
-          "GROUP BY c2)") {
+        "SELECT sum(ele) FROM (SELECT c1, element_at(collect_list(c2), 1) as ele FROM tmp3 " +
+          "GROUP BY c1)") {
         df =>
           val columnarToRow = collectColumnarToRow(df.queryExecution.executedPlan)
           assert(columnarToRow == 1)
@@ -153,8 +159,8 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
       GlutenConfig.EXPRESSION_BLACK_LIST.key -> "element_at"
     ) {
       runQueryAndCompare(
-        "SELECT sum(ele) FROM (SELECT c2, element_at(collect_set(c1), 1) as ele FROM tmp1 " +
-          "GROUP BY c2)") {
+        "SELECT sum(ele) FROM (SELECT c1, element_at(collect_set(c2), 1) as ele FROM tmp3 " +
+          "GROUP BY c1)") {
         df =>
           val columnarToRow = collectColumnarToRow(df.queryExecution.executedPlan)
           assert(columnarToRow == 1)
@@ -221,26 +227,6 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
           GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1"
         ) {
           runQueryAndCompare("SELECT c2, collect_set(c1) FROM tmp1 GROUP BY c2") {
-            df =>
-              val plan = df.queryExecution.executedPlan
-              // fallback if not ignore row to columnar
-              assert(collect(plan) {
-                case g: GlutenPlan => g
-              }.nonEmpty == ignoreRowToColumnar.toBoolean)
-          }
-        }
-    }
-  }
-
-  ignore("test ignore row to columnar, mismatched array element order") {
-    Seq("true", "false").foreach {
-      ignoreRowToColumnar =>
-        withSQLConf(
-          GlutenConfig.COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR.key -> ignoreRowToColumnar,
-          GlutenConfig.EXPRESSION_BLACK_LIST.key -> "collect_set",
-          GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1"
-        ) {
-          runQueryAndCompare("SELECT c1, collect_set(c2) FROM tmp1 GROUP BY c1") {
             df =>
               val plan = df.queryExecution.executedPlan
               // fallback if not ignore row to columnar
