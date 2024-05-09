@@ -218,7 +218,8 @@ const MemoryUsageStats VeloxMemoryManager::collectMemoryUsageStats() const {
   MemoryUsageStats stats;
   stats.set_current(listener_->currentBytes());
   stats.set_peak(listener_->peakBytes());
-  stats.mutable_children()->emplace("gluten_allocator", collectGlutenAllocatorMemoryUsageStats(glutenAlloc_.get()));
+  stats.mutable_children()->emplace(
+      "gluten::MemoryAllocator", collectGlutenAllocatorMemoryUsageStats(glutenAlloc_.get()));
   stats.mutable_children()->emplace(
       veloxAggregatePool_->name(), collectVeloxMemoryUsageStats(veloxAggregatePool_.get()));
   return stats;
