@@ -22,9 +22,10 @@ import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.spark.util.GlutenShutdownManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.runtime.BoxedUnit;
 
 import java.util.Map;
+
+import scala.runtime.BoxedUnit;
 
 // Initialize native backend before calling any native methods from Java side.
 public final class NativeBackendInitializer {
