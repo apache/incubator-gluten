@@ -60,7 +60,6 @@
       "dependencies": [
         {
           "name": "aws-sdk-cpp",
-	  "version>=": "1.11.169",
           "features": [
             "identity-management",
             "s3",
