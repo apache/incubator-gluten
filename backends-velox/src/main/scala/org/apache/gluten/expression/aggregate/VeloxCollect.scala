@@ -16,55 +16,50 @@
  */
 package org.apache.gluten.expression.aggregate
 
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, Literal}
+import org.apache.spark.sql.catalyst.expressions.{ArrayAppend, ArrayDistinct, ArrayUnion, AttributeReference, Expression, Literal}
 import org.apache.spark.sql.catalyst.expressions.aggregate.DeclarativeAggregate
 import org.apache.spark.sql.catalyst.trees.UnaryLike
 import org.apache.spark.sql.types.{ArrayType, DataType}
 
 abstract class VeloxCollect extends DeclarativeAggregate with UnaryLike[Expression] {
+  protected lazy val buffer: AttributeReference = AttributeReference("buffer", dataType)()
+
+  override def dataType: DataType = ArrayType(child.dataType, false)
+
+  override def aggBufferAttributes: Seq[AttributeReference] = List(buffer)
+
+  override lazy val initialValues: Seq[Expression] = List(Literal.create(Seq.empty, dataType))
+
+  override lazy val updateExpressions: Seq[Expression] = List(
+    ArrayAppend(buffer, child)
+  )
+
+  override lazy val mergeExpressions: Seq[Expression] = List(
+    ArrayUnion(buffer.left, buffer.right)
+  )
 
   override def defaultResult: Option[Literal] = Option(Literal.create(Array(), dataType))
-
-  override lazy val initialValues: Seq[Expression] = {
-    throw new UnsupportedOperationException("Not yet implemented")
-  }
-  override lazy val updateExpressions: Seq[Expression] = {
-    throw new UnsupportedOperationException("Not yet implemented")
-  }
-  override lazy val mergeExpressions: Seq[Expression] = {
-    throw new UnsupportedOperationException("Not yet implemented")
-  }
-  override lazy val evaluateExpression: Expression = {
-    throw new UnsupportedOperationException("Not yet implemented")
-  }
 }
 
 case class VeloxCollectSet(override val child: Expression) extends VeloxCollect {
-  private lazy val set = AttributeReference("set", dataType)()
+  override def prettyName: String = "velox_collect_set"
 
   override def nullable: Boolean = true
 
-  override def dataType: DataType = ArrayType(child.dataType, false)
-
-  override def aggBufferAttributes: Seq[AttributeReference] = List(set)
-
   override protected def withNewChildInternal(newChild: Expression): Expression =
     copy(child = newChild)
 
-  override def prettyName: String = "velox_collect_set"
+  override lazy val evaluateExpression: Expression =
+    ArrayDistinct(buffer)
 }
 
 case class VeloxCollectList(override val child: Expression) extends VeloxCollect {
-  private lazy val list = AttributeReference("list", dataType)()
+  override def prettyName: String = "velox_collect_list"
 
   override def nullable: Boolean = false
-
-  override def dataType: DataType = ArrayType(child.dataType, false)
-
-  override def aggBufferAttributes: Seq[AttributeReference] = List(list)
 
   override protected def withNewChildInternal(newChild: Expression): Expression =
     copy(child = newChild)
 
-  override def prettyName: String = "velox_collect_list"
+  override val evaluateExpression: Expression = buffer
 }

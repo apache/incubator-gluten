@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.extension.columnar.rewrite
 
-import org.apache.gluten.extension.RewriteIn
-
 import org.apache.spark.sql.execution.SparkPlan
 
 /**

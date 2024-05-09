@@ -16,18 +16,15 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.expression.ExpressionMappings
 import org.apache.gluten.expression.aggregate.{VeloxCollectList, VeloxCollectSet}
 import org.apache.gluten.utils.LogicalPlanSelector
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.{And, Coalesce, Expression, IsNotNull, Literal}
+import org.apache.spark.sql.catalyst.expressions.{And, Coalesce, Expression, IsNotNull, Literal, WindowExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate._
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Window}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.types.ArrayType
-
-import scala.reflect.{classTag, ClassTag}
 
 /**
  * Velox's collect_list / collect_set use array as intermediate data type so aren't compatible with
@@ -35,10 +32,11 @@ import scala.reflect.{classTag, ClassTag}
  * distinguish.
  */
 case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
+  import CollectRewriteRule._
   override def apply(plan: LogicalPlan): LogicalPlan = LogicalPlanSelector.maybe(spark, plan) {
     val out = plan.transformUp {
       case node =>
-        val out = replaceFunctions(node)
+        val out = replaceCollectSet(replaceCollectList(node))
         out
     }
     if (out.fastEquals(plan)) {
@@ -48,27 +46,54 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
     out
   }
 
-  private def replaceFunctions(node: LogicalPlan): LogicalPlan = {
+  private def replaceCollectList(node: LogicalPlan): LogicalPlan = {
     node.transformExpressions {
-      case func @ AggregateExpression(l: CollectList, _, _, _, _) if has[VeloxCollectList] =>
+      case func @ AggregateExpression(l: CollectList, _, _, _, _) =>
         func.copy(VeloxCollectList(l.child))
-      case func @ AggregateExpression(s: CollectSet, _, _, filter, _) if has[VeloxCollectSet] =>
-        // 1. Replace null result from VeloxCollectSet with empty array to align with vanilla Spark.
-        // 2. Filter out null inputs from VeloxCollectSet to align with vanilla Spark.
-        //
-        // Since https://github.com/apache/incubator-gluten/pull/4805
-        val newFilter = (filter ++ Some(IsNotNull(s.child))).reduceOption(And)
-        val newFunc = func.copy(aggregateFunction = VeloxCollectSet(s.child), filter = newFilter)
-        val out =
-          Coalesce(List(newFunc, Literal.create(Seq.empty, s.dataType)))
-        assert(!out.nullable)
-        assert(!out.dataType.asInstanceOf[ArrayType].containsNull)
-        out
     }
   }
 
-  private def has[T <: Expression: ClassTag]: Boolean = {
-    val out = ExpressionMappings.expressionsMap.contains(classTag[T].runtimeClass)
+  private def replaceCollectSet(node: LogicalPlan): LogicalPlan = {
+    // 1. Replace null result from VeloxCollectSet with empty array to align with
+    //    vanilla Spark.
+    // 2. Filter out null inputs from VeloxCollectSet to align with vanilla Spark.
+    //
+    // Since https://github.com/apache/incubator-gluten/pull/4805
+    node match {
+      case agg: Aggregate =>
+        agg.transformExpressions {
+          case ToVeloxCollectSet(newAggFunc) =>
+            val out = ensureNonNull(newAggFunc)
+            out
+        }
+      case w: Window =>
+        w.transformExpressions {
+          case func @ WindowExpression(ToVeloxCollectSet(newAggFunc), _) =>
+            val out = ensureNonNull(func.copy(newAggFunc))
+            out
+        }
+      case other => other
+    }
+  }
+}
+
+object CollectRewriteRule {
+  private def ensureNonNull(expr: Expression): Expression = {
+    val out =
+      Coalesce(List(expr, Literal.create(Seq.empty, expr.dataType)))
+    assert(!out.nullable)
+    assert(!out.dataType.asInstanceOf[ArrayType].containsNull)
     out
+  }
+
+  private object ToVeloxCollectSet {
+    def unapply(expr: Expression): Option[Expression] = expr match {
+      case aggFunc @ AggregateExpression(s: CollectSet, _, _, filter, _) =>
+        val newFilter = (filter ++ Some(IsNotNull(s.child))).reduceOption(And)
+        val newAggFunc =
+          aggFunc.copy(aggregateFunction = VeloxCollectSet(s.child), filter = newFilter)
+        Some(newAggFunc)
+      case _ => None
+    }
   }
 }
