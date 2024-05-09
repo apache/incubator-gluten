@@ -108,7 +108,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
 
   test("is_null and is_not_null coexist") {
     val df = runQueryAndCompare(
-      "select l_orderkey from lineitem where l_comment is not null and l_comment is null") { _ => }
+      "select l_orderkey from lineitem where l_comment is null and l_comment is not null") { _ => }
     checkLengthAndPlan(df, 0)
   }
 
