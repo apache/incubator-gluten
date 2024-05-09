@@ -228,7 +228,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
           GlutenConfig.EXPRESSION_BLACK_LIST.key -> "collect_set",
           GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1"
         ) {
-          runQueryAndCompare("SELECT c2, collect_set(c1) FROM tmp1 GROUP BY c2") {
+          runQueryAndCompare("SELECT c1, collect_set(c2) FROM tmp1 GROUP BY c1") {
             df =>
               val plan = df.queryExecution.executedPlan
               // fallback if not ignore row to columnar
