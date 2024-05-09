@@ -95,16 +95,22 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     // Since
     // https://github.com/facebookincubator/velox/pull/9557/files#diff-436e44b7374032f8f5d7eb45869602add6f955162daa2798d01cc82f8725724dL812-L820,
     // We should pass bytes as parameter "reservationBytes" when calling ::grow.
-    auto reclaimedFreeBytes = pool->shrink(0);
-    if (reclaimedFreeBytes >= bytes) {
-      bool ret = pool->grow(reclaimedFreeBytes, bytes);
-      VELOX_CHECK(ret, "{} failed to grow {} bytes, current state {}", pool->name(), velox::succinctBytes(bytes), pool->toString())
-      return ret;
+    auto freeByes = pool->freeBytes();
+    if (freeByes > bytes) {
+      if (pool->grow(0, bytes)) {
+        return 1;
+      }
     }
+    auto reclaimedFreeBytes = pool->shrink(0);
     auto neededBytes = bytes - reclaimedFreeBytes;
     listener_->allocationChanged(neededBytes);
     auto ret = pool->grow(bytes, bytes);
-    VELOX_CHECK(ret, "{} failed to grow {} bytes, current state {}", pool->name(), velox::succinctBytes(bytes), pool->toString())
+    VELOX_CHECK(
+        ret,
+        "{} failed to grow {} bytes, current state {}",
+        pool->name(),
+        velox::succinctBytes(bytes),
+        pool->toString())
     return ret;
   }
 
