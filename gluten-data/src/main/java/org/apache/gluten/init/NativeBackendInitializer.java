@@ -19,13 +19,10 @@ package org.apache.gluten.init;
 import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.backendsapi.BackendsApiManager;
 
-import org.apache.spark.util.GlutenShutdownManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
-
-import scala.runtime.BoxedUnit;
 
 // Initialize native backend before calling any native methods from Java side.
 public final class NativeBackendInitializer {
@@ -46,15 +43,7 @@ public final class NativeBackendInitializer {
 
   private static native void initialize(byte[] configPlan);
 
-  private static native void shutdown();
-
-  static {
-    GlutenShutdownManager.addHook(
-        () -> {
-          shutdown();
-          return BoxedUnit.UNIT;
-        });
-  }
+  public static native void shutdown();
 
   private NativeBackendInitializer() {}
 }

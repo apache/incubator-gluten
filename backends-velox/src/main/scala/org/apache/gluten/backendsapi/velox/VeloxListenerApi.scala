@@ -201,7 +201,7 @@ class VeloxListenerApi extends ListenerApi {
   }
 
   private def shutdown(): Unit = {
-    // TODO shutdown implementation in velox to release resources
+    NativeBackendInitializer.shutdown()
   }
 }
 
