@@ -106,6 +106,17 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     checkLengthAndPlan(df, 6)
   }
 
+  test("is_null and is_not_null coexist") {
+    val data = Seq(Row(null), Row("data"), Row(null))
+    val schema = StructType(Array(StructField("col1", StringType, nullable = true)))
+    spark
+      .createDataFrame(JavaConverters.seqAsJavaList(data), schema)
+      .createOrReplaceTempView("temp_test_is_null")
+    val df = runQueryAndCompare(
+      "select * from temp_test_is_null where col1 is null and col1 is not null") { _ => }
+    checkLengthAndPlan(df, 2)
+  }
+
   test("and pushdown") {
     val df = runQueryAndCompare(
       "select l_orderkey from lineitem where l_orderkey > 2 " +
