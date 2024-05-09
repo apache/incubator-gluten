@@ -55,7 +55,8 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
       uint64_t targetBytes) override {
     VELOX_CHECK_EQ(candidatePools.size(), 1, "ListenableArbitrator should only be used within a single root pool")
     auto candidate = candidatePools.back();
-    VELOX_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator") {
+    VELOX_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator");
+    {
       std::lock_guard<std::recursive_mutex> l(mutex_);
       growPoolLocked(pool->root(), targetBytes);
     }
@@ -94,20 +95,16 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     // Since
     // https://github.com/facebookincubator/velox/pull/9557/files#diff-436e44b7374032f8f5d7eb45869602add6f955162daa2798d01cc82f8725724dL812-L820,
     // We should pass bytes as parameter "reservationBytes" when calling ::grow.
-    const uint64_t freeBytes = pool->freeBytes();
-    if (freeBytes >= bytes) {
-      bool reserved = pool->grow(0, bytes);
-      VELOX_CHECK(
-          reserved,
-          "Unexpected: Failed to reserve " + velox::succinctBytes(bytes) + " bytes although there is enough space, " +
-              pool->toString());
-      return 0;
-    }
     auto reclaimedFreeBytes = pool->shrink(0);
+    if (reclaimedFreeBytes >= bytes) {
+      bool ret = pool->grow(reclaimedFreeBytes, bytes);
+      VELOX_CHECK(ret, "{} failed to grow {} bytes, current state {}", pool->name(), velox::succinctBytes(bytes), pool->toString())
+      return ret;
+    }
     auto neededBytes = bytes - reclaimedFreeBytes;
     listener_->allocationChanged(neededBytes);
     auto ret = pool->grow(bytes, bytes);
-    VELOX_CHECK(ret, "{} failed to grow {} bytes", pool->name(), velox::succinctBytes(bytes))
+    VELOX_CHECK(ret, "{} failed to grow {} bytes, current state {}", pool->name(), velox::succinctBytes(bytes), pool->toString())
     return ret;
   }
 
