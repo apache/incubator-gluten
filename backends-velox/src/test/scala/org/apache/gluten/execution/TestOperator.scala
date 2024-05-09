@@ -113,8 +113,8 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       .createDataFrame(JavaConverters.seqAsJavaList(data), schema)
       .createOrReplaceTempView("temp_test_is_null")
     val df = runQueryAndCompare(
-      "select * from temp_test_is_null where col1 is null and col1 is not null") { _ => }
-    checkLengthAndPlan(df, 2)
+      "select * from temp_test_is_null where col1 is not null and col1 is null") { _ => }
+    checkLengthAndPlan(df, 0)
   }
 
   test("and pushdown") {
