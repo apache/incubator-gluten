@@ -97,10 +97,10 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     const uint64_t freeBytes = pool->freeBytes();
     if (freeBytes >= bytes) {
       bool reserved = pool->grow(0, bytes);
-      GLUTEN_CHECK(
+      VELOX_CHECK(
           reserved,
-          "Unexpected: Failed to reserve " + std::to_string(bytes) +
-              " bytes although there is enough space, free bytes: " + std::to_string(freeBytes));
+          "Unexpected: Failed to reserve " + velox::succinctBytes(bytes) + " bytes although there is enough space, " +
+              pool->toString());
       return 0;
     }
     auto reclaimedFreeBytes = pool->shrink(0);
