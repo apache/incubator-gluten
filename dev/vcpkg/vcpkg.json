@@ -62,12 +62,10 @@
           "name": "aws-sdk-cpp",
 	  "version>=": "1.11.169",
           "features": [
-            "config",
             "identity-management",
             "s3",
             "sts",
-            "cognito-identity",
-            "transfer"
+            "cognito-identity"
           ]
         }
       ]
