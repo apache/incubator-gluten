@@ -61,6 +61,7 @@ The below parameters can be set via `-P` for mvn.
 | rss                 | Build Gluten with Remote Shuffle Service, only applicable for Velox backend. | disabled       |
 | delta               | Build Gluten with Delta Lake support.                                        | disabled      |
 | iceberg             | Build Gluten with Iceberg support.                                           | disabled      |
+| hudi                | Build Gluten with Hudi support.                                              | disabled      |
 | spark-3.2           | Build Gluten for Spark 3.2.                                                  | enabled       |
 | spark-3.3           | Build Gluten for Spark 3.3.                                                  | disabled       |
 | spark-3.4           | Build Gluten for Spark 3.4.                                                  | disabled       |
