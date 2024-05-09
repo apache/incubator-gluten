@@ -630,7 +630,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
         }
         assert(wholeStageTransformers.size == 3)
         val nativePlanString = wholeStageTransformers.head.nativePlanString()
-        assert(nativePlanString.contains("Aggregation[SINGLE"))
+        assert(nativePlanString.contains("Aggregation[1][SINGLE"))
         assert(nativePlanString.contains("ValueStream"))
         assert(wholeStageTransformers(1).nativePlanString().contains("ValueStream"))
         assert(wholeStageTransformers.last.nativePlanString().contains("TableScan"))
