@@ -205,6 +205,7 @@ function process_setup_alinux3 {
   sed -i 's|^export CC=/opt/rh/gcc-toolset-9/root/bin/gcc|# &|' scripts/setup-centos8.sh
   sed -i 's|^export CXX=/opt/rh/gcc-toolset-9/root/bin/g++|# &|' scripts/setup-centos8.sh
   sed -i 's/python39 python39-devel python39-pip //g' scripts/setup-centos8.sh
+  sed -i 's/pip3.9/pip3.6/g' scripts/setup-centos8.sh
   sed -i "s/\${CMAKE_INSTALL_LIBDIR}/lib64/" third_party/CMakeLists.txt
 }
 
