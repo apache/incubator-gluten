@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-  "builtin-baseline": "a42af01b72c28a8e1d7b48107b33e4f286a55ef6",
+  "builtin-baseline": "a7b6122f6b6504d16d96117336a0562693579933",
   "dependencies": ["jemalloc"],
   "default-features": ["velox", "velox-s3", "velox-gcs", "velox-hdfs", "velox-abfs", "duckdb"],
   "features": {
@@ -60,7 +60,7 @@
       "dependencies": [
         {
           "name": "aws-sdk-cpp",
-	  "version>=": "1.11.172",
+	  "version>=": "1.11.169",
           "features": [
             "identity-management",
             "s3",
