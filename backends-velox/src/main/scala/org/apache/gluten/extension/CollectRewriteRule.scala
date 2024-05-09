@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.extension
 
+import org.apache.gluten.expression.ExpressionMappings
 import org.apache.gluten.expression.aggregate.{VeloxCollectList, VeloxCollectSet}
 import org.apache.gluten.utils.LogicalPlanSelector
 
@@ -25,6 +26,8 @@ import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Window}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.types.ArrayType
+
+import scala.reflect.{classTag, ClassTag}
 
 /**
  * Velox's collect_list / collect_set use array as intermediate data type so aren't compatible with
@@ -48,7 +51,7 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
 
   private def replaceCollectList(node: LogicalPlan): LogicalPlan = {
     node.transformExpressions {
-      case func @ AggregateExpression(l: CollectList, _, _, _, _) =>
+      case func @ AggregateExpression(l: CollectList, _, _, _, _) if has[VeloxCollectList] =>
         func.copy(VeloxCollectList(l.child))
     }
   }
@@ -88,12 +91,17 @@ object CollectRewriteRule {
 
   private object ToVeloxCollectSet {
     def unapply(expr: Expression): Option[Expression] = expr match {
-      case aggFunc @ AggregateExpression(s: CollectSet, _, _, filter, _) =>
+      case aggFunc @ AggregateExpression(s: CollectSet, _, _, filter, _) if has[VeloxCollectSet] =>
         val newFilter = (filter ++ Some(IsNotNull(s.child))).reduceOption(And)
         val newAggFunc =
           aggFunc.copy(aggregateFunction = VeloxCollectSet(s.child), filter = newFilter)
         Some(newAggFunc)
       case _ => None
     }
+  }
+
+  private def has[T <: Expression: ClassTag]: Boolean = {
+    val out = ExpressionMappings.expressionsMap.contains(classTag[T].runtimeClass)
+    out
   }
 }
