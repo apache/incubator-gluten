@@ -278,7 +278,14 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
     // Set batchSize to a large value to make all batches are merged by reader.
     auto deserializerFactory = std::make_unique<gluten::VeloxColumnarBatchDeserializerFactory>(
-        schema, std::move(codec), rowType, std::numeric_limits<int32_t>::max(), defaultArrowMemoryPool().get(), pool_);
+        schema,
+        std::move(codec),
+        options.compressionTypeStr,
+        rowType,
+        std::numeric_limits<int32_t>::max(),
+        defaultArrowMemoryPool().get(),
+        pool_,
+        options.shuffleWriterType);
     auto reader = std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
     auto iter = reader->readStream(in);
     while (iter->hasNext()) {
