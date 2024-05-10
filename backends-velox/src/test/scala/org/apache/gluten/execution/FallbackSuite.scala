@@ -117,11 +117,12 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
       GlutenConfig.EXPRESSION_BLACK_LIST.key -> "collect_list"
     ) {
       CollectRewriteRule.forceEnableAndRun {
-        runQueryAndCompare("SELECT c1, collect_list(c2) FROM tmp3 GROUP BY c1") {
-          df =>
-            val plan = df.queryExecution.executedPlan
-            assert(collect(plan) { case v: HashAggregateExecBaseTransformer => v }.isEmpty)
-        }
+        val df = spark.sql("SELECT c1, collect_list(c2) FROM tmp3 GROUP BY c1")
+        val result = df.collect()
+        assert(result.length == 3)
+        assert(result.map(_.getList[Int](1).size()).sum == 100)
+        val plan = df.queryExecution.executedPlan
+        assert(collect(plan) { case v: HashAggregateExecBaseTransformer => v }.isEmpty)
       }
     }
   }
@@ -131,11 +132,12 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
       GlutenConfig.EXPRESSION_BLACK_LIST.key -> "collect_set"
     ) {
       CollectRewriteRule.forceEnableAndRun {
-        runQueryAndCompare("SELECT c1, collect_set(c2) FROM tmp3 GROUP BY c1") {
-          df =>
-            val plan = df.queryExecution.executedPlan
-            assert(collect(plan) { case v: HashAggregateExecBaseTransformer => v }.isEmpty)
-        }
+        val df = spark.sql("SELECT c1, collect_set(c2) FROM tmp3 GROUP BY c1")
+        val result = df.collect()
+        assert(result.length == 3)
+        assert(result.map(_.getList[Int](1).size()).sum == 9)
+        val plan = df.queryExecution.executedPlan
+        assert(collect(plan) { case v: HashAggregateExecBaseTransformer => v }.isEmpty)
       }
     }
   }
