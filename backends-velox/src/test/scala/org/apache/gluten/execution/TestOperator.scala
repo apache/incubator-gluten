@@ -516,17 +516,19 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
   }
 
   test("insert into select from csv") {
-    val filePath = rootPath + "/datasource/csv/student.csv"
-    val df = spark.read
-      .format("csv")
-      .option("header", "true")
-      .load(filePath)
-    df.createOrReplaceTempView("student")
-    spark.sql("create table insert_csv_t(Name string, Language string) using parquet;")
-    runQueryAndCompare("""
-                         |insert into insert_csv_t select * from student;
-                         |""".stripMargin) {
-      checkGlutenOperatorMatch[ArrowFileSourceScanExec]
+    withTable("insert_csv_t") {
+      val filePath = rootPath + "/datasource/csv/student.csv"
+      val df = spark.read
+        .format("csv")
+        .option("header", "true")
+        .load(filePath)
+      df.createOrReplaceTempView("student")
+      spark.sql("create table insert_csv_t(Name string, Language string) using parquet;")
+      runQueryAndCompare("""
+                           |insert into insert_csv_t select * from student;
+                           |""".stripMargin) {
+        checkGlutenOperatorMatch[ArrowFileSourceScanExec]
+      }
     }
   }
 
