@@ -375,8 +375,6 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   std::optional<facebook::velox::TypePtr> rowType_;
 
-  facebook::velox::serializer::presto::PrestoVectorSerde::PrestoOptions serdeOptions_;
-
   std::unique_ptr<facebook::velox::VectorStreamGroup> batch_;
 
   // Row ID -> Partition ID
