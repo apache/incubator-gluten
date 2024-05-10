@@ -24,7 +24,6 @@ import com.google.common.collect.Iterators;
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.spark.*;
 import org.apache.spark.shuffle.*;
 import org.apache.spark.shuffle.celeborn.*;
