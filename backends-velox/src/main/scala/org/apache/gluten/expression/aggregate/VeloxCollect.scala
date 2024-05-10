@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.expression.aggregate
 
-import org.apache.spark.sql.catalyst.expressions.{ArrayDistinct, ArrayUnion, AttributeReference, CreateArray, Expression, Literal}
+import org.apache.spark.sql.catalyst.expressions.{ArrayDistinct, AttributeReference, Concat, CreateArray, Expression, Literal}
 import org.apache.spark.sql.catalyst.expressions.aggregate.DeclarativeAggregate
 import org.apache.spark.sql.catalyst.trees.UnaryLike
 import org.apache.spark.sql.types.{ArrayType, DataType}
@@ -31,11 +31,11 @@ abstract class VeloxCollect extends DeclarativeAggregate with UnaryLike[Expressi
   override lazy val initialValues: Seq[Expression] = List(Literal.create(Seq.empty, dataType))
 
   override lazy val updateExpressions: Seq[Expression] = List(
-    ArrayUnion(buffer, CreateArray(List(child), useStringTypeWhenEmpty = false))
+    Concat(List(buffer, CreateArray(List(child), useStringTypeWhenEmpty = false)))
   )
 
   override lazy val mergeExpressions: Seq[Expression] = List(
-    ArrayUnion(buffer.left, buffer.right)
+    Concat(List(buffer.left, buffer.right))
   )
 
   override def defaultResult: Option[Literal] = Option(Literal.create(Array(), dataType))
