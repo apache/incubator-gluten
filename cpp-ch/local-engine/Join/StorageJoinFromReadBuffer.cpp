@@ -98,11 +98,35 @@ DB::JoinPtr StorageJoinFromReadBuffer::getJoinLocked(std::shared_ptr<DB::TableJo
             storage_metadata_.comment);
 
     /// TODO: check key columns
+    const auto & join_on = analyzed_join->getOnlyClause();
+    if (join_on.on_filter_condition_left || join_on.on_filter_condition_right)
+        throw Exception(ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN, "ON section of JOIN with filter conditions is not implemented");
+
+    const auto & key_names_right = join_on.key_names_right;
+    const auto & key_names_left = join_on.key_names_left;
+    if (key_names_.size() != key_names_right.size() || key_names_.size() != key_names_left.size())
+        throw Exception(ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN,
+            "Number of keys in JOIN ON section ({}) doesn't match number of keys in Join engine ({})",
+            key_names_right.size(), key_names_.size());
 
     /// Set names qualifiers: table.column -> column
     /// It's required because storage join stores non-qualified names
     /// Qualifies will be added by join implementation (HashJoin)
+    Names left_key_names_resorted;
+    for (const auto & key_name : key_names_)
+    {
+        const auto & renamed_key = analyzed_join->renamedRightColumnNameWithAlias(key_name);
+        /// find position of renamed_key in key_names_right
+        auto it = std::find(key_names_right.begin(), key_names_right.end(), renamed_key);
+        if (it == key_names_right.end())
+            throw Exception(ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN,
+                "Key '{}' not found in JOIN ON section. Join engine key{} '{}' have to be used",
+                key_name, key_names_.size() > 1 ? "s" : "", fmt::join(key_names_, ", "));
+        const size_t key_position = std::distance(key_names_right.begin(), it);
+        left_key_names_resorted.push_back(key_names_left[key_position]);
+    }
     analyzed_join->setRightKeys(key_names_);
+    analyzed_join->setLeftKeys(left_key_names_resorted);
 
     HashJoinPtr join_clone = std::make_shared<HashJoin>(analyzed_join, right_sample_block_);
     join_clone->reuseJoinedData(static_cast<const HashJoin &>(*join_));

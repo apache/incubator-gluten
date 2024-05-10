@@ -17,8 +17,16 @@
 package org.apache.gluten.utils
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{AttributeSet, EqualTo, Expression, GreaterThan, GreaterThanOrEqual, In, LessThan, LessThanOrEqual, Not, Or}
+import org.apache.spark.sql.catalyst.expressions.{AttributeSet, Expression}
 import org.apache.spark.sql.catalyst.plans.JoinType
+
+trait JoinStrategy {
+  val joinType: JoinType
+}
+case class UnknownJoinStrategy(joinType: JoinType) extends JoinStrategy {}
+case class ShuffleHashJoinStrategy(joinType: JoinType) extends JoinStrategy {}
+case class BroadcastHashJoinStrategy(joinType: JoinType) extends JoinStrategy {}
+case class SortMergeJoinStrategy(joinType: JoinType) extends JoinStrategy {}
 
 /**
  * The logic here is that if it is not an equi-join spark will create BNLJ, which will fallback, if
@@ -34,78 +42,37 @@ object CHJoinValidateUtil extends Logging {
   def hasTwoTableColumn(
       leftOutputSet: AttributeSet,
       rightOutputSet: AttributeSet,
-      l: Expression,
-      r: Expression): Boolean = {
-    val allReferences = l.references ++ r.references
+      expr: Expression): Boolean = {
+    val allReferences = expr.references
     !(allReferences.subsetOf(leftOutputSet) || allReferences.subsetOf(rightOutputSet))
   }
 
   def shouldFallback(
-      joinType: JoinType,
+      joinStrategy: JoinStrategy,
       leftOutputSet: AttributeSet,
       rightOutputSet: AttributeSet,
-      condition: Option[Expression],
-      isSMJ: Boolean = false): Boolean = {
+      condition: Option[Expression]): Boolean = {
     var shouldFallback = false
+    val joinType = joinStrategy.joinType
     if (joinType.toString.contains("ExistenceJoin")) {
       return true
     }
-    if (joinType.sql.equals("INNER")) {
-      return shouldFallback
-    }
-    if (isSMJ) {
-      if (
-        joinType.sql.contains("SEMI")
-        || joinType.sql.contains("ANTI")
-      ) {
-        return true
+
+    if (condition.isDefined && hasTwoTableColumn(leftOutputSet, rightOutputSet, condition.get)) {
+      shouldFallback = joinStrategy match {
+        case BroadcastHashJoinStrategy(joinTy) => !joinTy.sql.contains("INNER")
+        case SortMergeJoinStrategy(_) => true
+        case ShuffleHashJoinStrategy(joinTy) =>
+          joinTy.sql.contains("SEMI") || joinTy.sql.contains("ANTI")
+        case UnknownJoinStrategy(joinTy) =>
+          joinTy.sql.contains("SEMI") || joinTy.sql.contains("ANTI")
       }
     }
-    if (condition.isDefined) {
-      condition.get.transform {
-        case Or(l, r) =>
-          if (hasTwoTableColumn(leftOutputSet, rightOutputSet, l, r)) {
-            shouldFallback = true
-          }
-          Or(l, r)
-        case Not(EqualTo(l, r)) =>
-          if (hasTwoTableColumn(leftOutputSet, rightOutputSet, l, r)) {
-            shouldFallback = true
-          }
-          Not(EqualTo(l, r))
-        case LessThan(l, r) =>
-          if (hasTwoTableColumn(leftOutputSet, rightOutputSet, l, r)) {
-            shouldFallback = true
-          }
-          LessThan(l, r)
-        case LessThanOrEqual(l, r) =>
-          if (hasTwoTableColumn(leftOutputSet, rightOutputSet, l, r)) {
-            shouldFallback = true
-          }
-          LessThanOrEqual(l, r)
-        case GreaterThan(l, r) =>
-          if (hasTwoTableColumn(leftOutputSet, rightOutputSet, l, r)) {
-            shouldFallback = true
-          }
-          GreaterThan(l, r)
-        case GreaterThanOrEqual(l, r) =>
-          if (hasTwoTableColumn(leftOutputSet, rightOutputSet, l, r)) {
-            shouldFallback = true
-          }
-          GreaterThanOrEqual(l, r)
-        case In(l, r) =>
-          r.foreach(
-            e => {
-              if (hasTwoTableColumn(leftOutputSet, rightOutputSet, l, e)) {
-                shouldFallback = true
-              }
-            })
-          In(l, r)
-        case EqualTo(l, r) =>
-          if (hasTwoTableColumn(leftOutputSet, rightOutputSet, l, r)) {
-            shouldFallback = true
-          }
-          EqualTo(l, r)
+    if (!shouldFallback) {
+      shouldFallback = joinStrategy match {
+        case SortMergeJoinStrategy(joinTy) =>
+          joinTy.sql.contains("SEMI") || joinTy.sql.contains("ANTI")
+        case _ => false
       }
     }
     shouldFallback
