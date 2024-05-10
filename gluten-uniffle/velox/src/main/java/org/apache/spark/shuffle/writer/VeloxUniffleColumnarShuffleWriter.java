@@ -145,6 +145,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   compressThreshold,
                   GlutenConfig.getConf().columnarShuffleCompressionMode(),
                   bufferSize,
+                  bufferSize,
                   partitionPusher,
                   NativeMemoryManagers.create(
                           "UniffleShuffleWriter",
@@ -180,6 +181,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   GlutenShuffleUtils.getStartPartitionId(
                       columnarDep.nativePartitioning(), partitionId),
                   "uniffle",
+                  "hash",
                   reallocThreshold);
         }
         long startTime = System.nanoTime();
