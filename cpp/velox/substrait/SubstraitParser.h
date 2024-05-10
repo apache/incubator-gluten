@@ -28,9 +28,12 @@
 
 #include <google/protobuf/wrappers.pb.h>
 
+#include "velox/connectors/hive/TableHandle.h"
 #include "velox/type/Type.h"
 
 namespace gluten {
+
+typedef ::facebook::velox::connector::hive::HiveColumnHandle::ColumnType ColumnType;
 
 /// This class contains some common functions used to parse Substrait
 /// components, and convert them into recognizable representations.
@@ -41,11 +44,10 @@ class SubstraitParser {
       const ::substrait::NamedStruct& namedStruct,
       bool asLowerCase = false);
 
-  /// Used to parse partition & metadata columns from Substrait NamedStruct.
-  static void parsePartitionAndMetadataColumns(
+  /// Used to parse column types from Substrait NamedStruct.
+  static void parseColumnTypes(
       const ::substrait::NamedStruct& namedStruct,
-      std::vector<bool>& isPartitionColumns,
-      std::vector<bool>& isMetadataColumns);
+      std::vector<ColumnType>& columnTypes);
 
   /// Parse Substrait Type to Velox type.
   static facebook::velox::TypePtr parseType(const ::substrait::Type& substraitType, bool asLowerCase = false);
