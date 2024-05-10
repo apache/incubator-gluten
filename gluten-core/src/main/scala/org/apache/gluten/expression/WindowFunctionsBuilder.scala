@@ -22,6 +22,7 @@ import org.apache.gluten.expression.ExpressionNames.{LAG, LEAD}
 import org.apache.gluten.substrait.expression.ExpressionBuilder
 
 import org.apache.spark.sql.catalyst.expressions.{EmptyRow, Expression, Lag, Lead, WindowExpression, WindowFunction}
+import org.apache.spark.sql.types.DataType
 
 import scala.util.control.Breaks.{break, breakable}
 
@@ -44,8 +45,13 @@ object WindowFunctionsBuilder {
         s"not currently supported: ${windowFunc.getClass.getName}.")
     }
 
+    val inputTypes: Seq[DataType] = windowFunc.children.map(child => child.dataType)
     val functionName =
-      ConverterUtils.makeFuncName(substraitFunc.get, Seq(windowFunc.dataType), FunctionConfig.OPT)
+      ConverterUtils.makeFuncName(
+        substraitFunc.get,
+        inputTypes,
+        if (inputTypes.isEmpty) FunctionConfig.NON else FunctionConfig.REQ)
+
     ExpressionBuilder.newScalarFunction(functionMap, functionName)
   }
 

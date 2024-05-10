@@ -614,8 +614,18 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
     auto types = SubstraitParser::sigToTypes(funcSpec);
     auto funcName = SubstraitParser::getNameBeforeDelimiter(funcSpec);
     auto signaturesOpt = exec::getWindowFunctionSignatures(funcName);
+    auto rankLikeNames = {"rank", "dense_rank", "percent_rank"};
+    auto leadLagNames = {"lead", "lag"};
     bool resolved = false;
     for (const auto& signature : signaturesOpt.value()) {
+      // The rank like functions don't need argument.
+      if (rankLikeNames.find(funcName) != rankLikeNames.end()) {
+        types.clear();
+      }
+      // The lead and lag argument only need the first element.
+      if (leadLagNames.find(funcName) != leadLagNames.end()) {
+        types.resize(1);
+      }
       exec::SignatureBinder binder(*signature, types);
       if (binder.tryBind()) {
         auto type = binder.tryResolveType(signature->returnType());
