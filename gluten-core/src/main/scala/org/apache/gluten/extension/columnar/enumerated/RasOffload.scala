@@ -78,6 +78,7 @@ object RasOffload {
     .fallbackComplexExpressions()
     .fallbackByBackendSettings()
     .fallbackByUserOptions()
+    .fallbackByTestInjects()
     .build()
 
   private val rewrites = RewriteSingleNode.allRules()
