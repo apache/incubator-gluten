@@ -82,7 +82,7 @@ object Validators {
       this
     }
 
-    def fallbackByTestInjects() = {
+    def fallbackByTestInjects(): Builder = {
       buffer += new FallbackByTestInjects()
       this
     }
