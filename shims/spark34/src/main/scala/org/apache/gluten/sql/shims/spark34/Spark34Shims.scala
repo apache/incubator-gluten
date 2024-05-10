@@ -325,6 +325,10 @@ class Spark34Shims extends SparkShims {
 
   def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] = partition.files
 
+  def findRowIndexColumnIndexInSchema(sparkSchema: StructType): Boolean = {
+    RowIndexUtil.findRowIndexColumnIndexInSchema(sparkSchema) >= 0
+  }
+
   def splitFiles(
       sparkSession: SparkSession,
       file: FileStatus,

@@ -192,6 +192,8 @@ trait SparkShims {
 
   def getFileStatus(partition: PartitionDirectory): Seq[FileStatus]
 
+  def findRowIndexColumnIndexInSchema(sparkSchema: StructType): Boolean
+
   def splitFiles(
       sparkSession: SparkSession,
       file: FileStatus,

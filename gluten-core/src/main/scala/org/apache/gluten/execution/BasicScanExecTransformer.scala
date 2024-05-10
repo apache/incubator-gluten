@@ -25,16 +25,15 @@ import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.plan.PlanBuilder
 import org.apache.gluten.substrait.rel.{RelBuilder, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.{BooleanType, StringType, StructField, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import com.google.common.collect.Lists
 import com.google.protobuf.StringValue
+import org.apache.spark.sql.execution.datasources.FileFormat
 
 import scala.collection.JavaConverters._
 
@@ -142,7 +141,11 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
         if (getPartitionSchema.exists(_.name.equals(attr.name))) {
           new ColumnTypeNode(1)
         } else if (attr.isMetadataCol) {
+          if (attr.name == FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME) {
+            new ColumnTypeNode(3)
+          } else {
           new ColumnTypeNode(2)
+          }
         } else {
           new ColumnTypeNode(0)
         }

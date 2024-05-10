@@ -238,5 +238,6 @@ message NamedStruct {
     NORMAL_COL = 0;
     PARTITION_COL = 1;
     METADATA_COL = 2;
+    ROWINDEX_COL = 3;
   }
 }

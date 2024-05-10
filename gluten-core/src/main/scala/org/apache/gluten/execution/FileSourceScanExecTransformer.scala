@@ -117,7 +117,8 @@ abstract class FileSourceScanExecTransformerBase(
       optionalBucketSet,
       optionalNumCoalescedBuckets,
       disableBucketedScan,
-      filterExprs())
+      filterExprs()
+    )
   }
 
   override def getPartitionSchema: StructType = relation.partitionSchema
