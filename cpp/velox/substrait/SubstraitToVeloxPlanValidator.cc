@@ -369,11 +369,10 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WriteRel& writeR
   // Validate partition key type.
   if (writeRel.has_table_schema()) {
     const auto& tableSchema = writeRel.table_schema();
-    std::vector<bool> isMetadataColumns;
-    std::vector<bool> isPartitionColumns;
-    SubstraitParser::parsePartitionAndMetadataColumns(tableSchema, isPartitionColumns, isMetadataColumns);
+    std::vector<ColumnType> columnTypes;
+    SubstraitParser::parseColumnTypes(tableSchema, columnTypes);
     for (auto i = 0; i < types.size(); i++) {
-      if (isPartitionColumns[i]) {
+      if (columnTypes[i] == ColumnType::kPartitionKey) {
         switch (types[i]->kind()) {
           case TypeKind::BOOLEAN:
           case TypeKind::TINYINT:
