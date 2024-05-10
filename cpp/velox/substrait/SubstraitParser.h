@@ -45,9 +45,7 @@ class SubstraitParser {
       bool asLowerCase = false);
 
   /// Used to parse column types from Substrait NamedStruct.
-  static void parseColumnTypes(
-      const ::substrait::NamedStruct& namedStruct,
-      std::vector<ColumnType>& columnTypes);
+  static void parseColumnTypes(const ::substrait::NamedStruct& namedStruct, std::vector<ColumnType>& columnTypes);
 
   /// Parse Substrait Type to Velox type.
   static facebook::velox::TypePtr parseType(const ::substrait::Type& substraitType, bool asLowerCase = false);
