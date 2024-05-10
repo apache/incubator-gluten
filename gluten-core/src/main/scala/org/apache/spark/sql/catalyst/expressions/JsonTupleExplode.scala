@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.catalyst.expressions
 
-/** Used when transformed by JsonTuple. The behavior are the same with Explode. */
+/** Used for transforming JsonTuple. The behavior is the same with Explode. */
 case class JsonTupleExplode(child: Expression) extends ExplodeBase {
   override val position: Boolean = false
   override protected def withNewChildInternal(newChild: Expression): JsonTupleExplode =

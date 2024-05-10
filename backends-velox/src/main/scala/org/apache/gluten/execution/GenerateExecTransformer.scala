@@ -168,6 +168,9 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
                     Literal.create(null)
                 }
               case jsonPath =>
+                // TODO: The prefix is just for adapting to GetJsonObject.
+                // Maybe, we can remove this handling in the future by
+                // making path without "$." recognized
                 GetJsonObject(jsonObj, Concat(Seq(Literal.create(JSON_PATH_PREFIX), jsonPath)))
             }.toIndexedSeq
           }

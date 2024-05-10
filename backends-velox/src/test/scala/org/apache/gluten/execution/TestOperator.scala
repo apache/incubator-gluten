@@ -1333,4 +1333,26 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     // Verify there is not precision loss for timestamp columns after data broadcast.
     checkAnswer(df, expected)
   }
+
+  test("Test json_tuple function") {
+    withTempView("t") {
+      Seq[(String)](("{\"a\":\"b\"}"), (null), ("{\"b\":\"a\"}"))
+        .toDF("json_field")
+        .createOrReplaceTempView("t")
+      runQueryAndCompare(
+        "SELECT * from t lateral view json_tuple(json_field, 'a', 'b') as fa, fb") {
+        checkGlutenOperatorMatch[GenerateExecTransformer]
+      }
+    }
+
+    runQueryAndCompare(
+      """
+        |SELECT
+        | l_orderkey,
+        | json_tuple('{"a" : 1, "b" : 2}', CAST(NULL AS STRING), 'b', CAST(NULL AS STRING), 'a')
+        |from lineitem
+        |""".stripMargin) {
+      checkGlutenOperatorMatch[GenerateExecTransformer]
+    }
+  }
 }
