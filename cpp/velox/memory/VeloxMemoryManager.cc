@@ -46,7 +46,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
 
   uint64_t shrinkCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
     std::lock_guard<std::recursive_mutex> l(mutex_);
-    return releaseMemoryLocked(pool, targetBytes);
+    return shrinkCapacityLocked(pool, targetBytes);
   }
 
   bool growCapacity(
@@ -56,10 +56,9 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     VELOX_CHECK_EQ(candidatePools.size(), 1, "ListenableArbitrator should only be used within a single root pool")
     auto candidate = candidatePools.back();
     VELOX_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator");
-    {
-      std::lock_guard<std::recursive_mutex> l(mutex_);
-      growPoolLocked(pool->root(), targetBytes);
-    }
+
+    std::lock_guard<std::recursive_mutex> l(mutex_);
+    growCapacityLocked(pool->root(), targetBytes);
     return true;
   }
 
@@ -91,14 +90,14 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
  private:
-  uint64_t growPoolLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
+  void growCapacityLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
     // Since
     // https://github.com/facebookincubator/velox/pull/9557/files#diff-436e44b7374032f8f5d7eb45869602add6f955162daa2798d01cc82f8725724dL812-L820,
     // We should pass bytes as parameter "reservationBytes" when calling ::grow.
     auto freeByes = pool->freeBytes();
     if (freeByes > bytes) {
       if (pool->grow(0, bytes)) {
-        return 1;
+        return;
       }
     }
     auto reclaimedFreeBytes = pool->shrink(0);
@@ -111,10 +110,9 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
         pool->name(),
         velox::succinctBytes(bytes),
         pool->toString())
-    return ret;
   }
 
-  uint64_t releaseMemoryLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
+  uint64_t shrinkCapacityLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
     uint64_t freeBytes = pool->shrink(bytes);
     listener_->allocationChanged(-freeBytes);
     return freeBytes;
