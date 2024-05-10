@@ -34,6 +34,8 @@ import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSet, GenericInternalRow}
 import org.apache.spark.sql.connector.write.WriterCommitMessage
 import org.apache.spark.sql.execution.datasources._
+import org.apache.spark.sql.execution.ui.{SparkPlanGraphEdge, SparkPlanGraphNodeWrapper, SparkPlanGraphWrapper}
+import org.apache.spark.sql.execution.ui.adjustment.PlanGraphAdjustment
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
@@ -273,6 +275,9 @@ case class VeloxColumnarWriteFilesExec private (
 
   val child: SparkPlan = left
 
+  // Make sure we hide the noop leaf from SQL UI.
+  HideNoopLeafFromVeloxColumnarWriteFiles.ensureRegistered()
+
   override lazy val references: AttributeSet = AttributeSet.empty
 
   override def supportsColumnar(): Boolean = true
@@ -377,6 +382,48 @@ object VeloxColumnarWriteFilesExec {
       throw new GlutenException(
         s"Internal Error ${this.getClass} has write support" +
           s" mismatch:\n${this}")
+    }
+  }
+
+  // Hide the noop leaf from SQL UI.
+  private object HideNoopLeafFromVeloxColumnarWriteFiles extends PlanGraphAdjustment {
+    override def apply(graph: SparkPlanGraphWrapper): SparkPlanGraphWrapper = {
+      val nodeLeafNodes = graph.nodes
+        .filter(_.node != null)
+        .filter(n => n.node.name == "NoopLeaf")
+      if (nodeLeafNodes.isEmpty) {
+        return graph
+      }
+      val nodesToRemove = mutable.ListBuffer[SparkPlanGraphNodeWrapper]()
+      val edgesToRemove = mutable.ListBuffer[SparkPlanGraphEdge]()
+
+      nodeLeafNodes.foreach {
+        node =>
+          nodesToRemove += node
+          keepFinding()
+          def keepFinding(): Unit = {
+            var tmp = node
+            for (_ <- graph.nodes.indices) {
+              val parent = findParent(graph, tmp)
+              if (parent.isEmpty) {
+                return
+              }
+              if (parent.get._1.node.name == "VeloxColumnarWriteFiles") {
+                edgesToRemove += parent.get._2
+                return
+              }
+              nodesToRemove += parent.get._1
+              edgesToRemove += parent.get._2
+              tmp = parent.get._1
+            }
+          }
+      }
+
+      new SparkPlanGraphWrapper(
+        graph.executionId,
+        (graph.nodes.toSet -- nodesToRemove).toSeq,
+        (graph.edges.toSet -- edgesToRemove).toSeq
+      )
     }
   }
 }
