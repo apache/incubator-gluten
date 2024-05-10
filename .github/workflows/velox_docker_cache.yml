@@ -74,7 +74,6 @@ jobs:
           cd ep/build-velox/src && \
           ./get_velox.sh
           cd ../build/velox_ep/
-          git reset --hard
           make EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=ON -DVELOX_BUILD_TEST_UTILS=ON" 
 
       - name: CCache after
@@ -114,7 +113,6 @@ jobs:
           ./get_velox.sh
           cd ../build/velox_ep/
           source /opt/rh/gcc-toolset-9/enable
-          git reset --hard
           make EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=ON -DVELOX_BUILD_TEST_UTILS=ON" 
 
       - name: CCache after
