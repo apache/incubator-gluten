@@ -1173,11 +1173,18 @@ object GlutenConfig {
       .createWithDefault(0.3d)
 
   val COLUMNAR_MEMORY_RESERVATION_BLOCK_SIZE =
-    buildConf("spark.gluten.memory.reservationBlockSize")
+    buildStaticConf("spark.gluten.memory.reservationBlockSize")
       .internal()
       .doc("Block size of native reservation listener reserve memory from Spark.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8MB")
+
+  val COLUMNAR_VELOX_MEM_INIT_CAPACITY =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.memInitCapacity")
+      .internal()
+      .doc("Velox memory pool initial capacity.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("0MB")
 
   // velox caching options
   val COLUMNAR_VELOX_CACHE_ENABLED =

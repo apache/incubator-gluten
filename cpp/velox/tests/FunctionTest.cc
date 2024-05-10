@@ -15,34 +15,33 @@
  * limitations under the License.
  */
 
+#include "FilePathGenerator.h"
 #include "JsonToProtoConverter.h"
 
-#include "memory/VeloxMemoryManager.h"
 #include "velox/common/base/Fs.h"
 #include "velox/common/base/tests/GTestUtils.h"
+#include "velox/core/QueryCtx.h"
 #include "velox/dwio/common/tests/utils/DataFiles.h"
+#include "velox/vector/tests/utils/VectorTestBase.h"
 
+#include "substrait/SubstraitParser.h"
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "substrait/TypeUtils.h"
 #include "substrait/VariantToVectorConverter.h"
 #include "substrait/VeloxToSubstraitType.h"
 
-#include "FilePathGenerator.h"
-
-#include "velox/core/QueryCtx.h"
-
-#include "substrait/SubstraitParser.h"
-
 using namespace facebook::velox;
 using namespace facebook::velox::test;
 
 namespace gluten {
-class FunctionTest : public ::testing::Test {
+class FunctionTest : public ::testing::Test, public test::VectorTestBase {
  protected:
-  std::shared_ptr<memory::MemoryPool> pool_ = gluten::defaultLeafVeloxMemoryPool();
+  static void SetUpTestCase() {
+    memory::MemoryManager::testingSetInstance({});
+  }
 
   std::shared_ptr<gluten::SubstraitToVeloxPlanConverter> planConverter_ =
-      std::make_shared<gluten::SubstraitToVeloxPlanConverter>(pool_.get());
+      std::make_shared<gluten::SubstraitToVeloxPlanConverter>(pool());
 };
 
 TEST_F(FunctionTest, makeNames) {

@@ -33,7 +33,9 @@ DEFINE_int32(iterations, 1, "The number of iterations to run this benchmark");
 
 namespace {
 
-std::unordered_map<std::string, std::string> bmConfMap = {{gluten::kSparkBatchSize, std::to_string(FLAGS_batch_size)}};
+std::unordered_map<std::string, std::string> bmConfMap = {
+    {gluten::kSparkBatchSize, std::to_string(FLAGS_batch_size)},
+    {gluten::kGlogSeverityLevel, std::to_string(0)}};
 
 } // namespace
 

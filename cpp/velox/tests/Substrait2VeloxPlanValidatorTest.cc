@@ -54,9 +54,6 @@ class Substrait2VeloxPlanValidatorTest : public exec::test::HiveConnectorTestBas
     auto planValidator = std::make_shared<SubstraitToVeloxPlanValidator>(pool_.get(), execCtx.get());
     return planValidator->validate(plan);
   }
-
- private:
-  std::shared_ptr<memory::MemoryPool> memoryPool_{gluten::defaultLeafVeloxMemoryPool()};
 };
 
 TEST_F(Substrait2VeloxPlanValidatorTest, group) {

@@ -17,35 +17,16 @@
 
 #pragma once
 
-#include <atomic>
-#include <cstdlib>
-#include <cstring>
-#include <memory>
-#include <utility>
-
 #include "memory/AllocationListener.h"
+#include "memory/MemoryAllocator.h"
 
 namespace gluten {
 
-class MemoryAllocator {
+class ListenableMemoryAllocator final : public MemoryAllocator {
  public:
-  virtual ~MemoryAllocator() = default;
+  explicit ListenableMemoryAllocator(MemoryAllocator* delegated, AllocationListener* listener, uint64_t blockSize)
+      : delegated_(delegated), listener_(listener), blockSize_(blockSize) {}
 
-  virtual bool allocate(int64_t size, void** out) = 0;
-  virtual bool allocateZeroFilled(int64_t nmemb, int64_t size, void** out) = 0;
-  virtual bool allocateAligned(uint64_t alignment, int64_t size, void** out) = 0;
-
-  virtual bool reallocate(void* p, int64_t size, int64_t newSize, void** out) = 0;
-  virtual bool reallocateAligned(void* p, uint64_t alignment, int64_t size, int64_t newSize, void** out) = 0;
-
-  virtual bool free(void* p, int64_t size) = 0;
-
-  virtual int64_t getBytes() const = 0;
-
-  virtual int64_t peakBytes() const = 0;
-};
-
-class StdMemoryAllocator final : public MemoryAllocator {
  public:
   bool allocate(int64_t size, void** out) override;
 
@@ -64,9 +45,14 @@ class StdMemoryAllocator final : public MemoryAllocator {
   int64_t peakBytes() const override;
 
  private:
-  std::atomic_int64_t bytes_{0};
-};
+  void updateReservation(int64_t size);
 
-std::shared_ptr<MemoryAllocator> defaultMemoryAllocator();
+  MemoryAllocator* delegated_;
+  AllocationListener* listener_;
+  uint64_t blockSize_{0L};
+  uint64_t usedBytes_{0L};
+  uint64_t peakBytes_{0L};
+  uint64_t reservationBytes_{0L};
+};
 
 } // namespace gluten

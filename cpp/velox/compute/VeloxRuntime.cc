@@ -256,7 +256,7 @@ std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerial
 }
 
 void VeloxRuntime::dumpConf(const std::string& path) {
-  auto backendConf = VeloxBackend::get()->getBackendConf();
+  auto backendConf = VeloxBackend::get()->getBackendConf()->valuesCopy();
   auto allConf = backendConf;
 
   for (const auto& pair : confMap_) {

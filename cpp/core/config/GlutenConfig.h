@@ -42,6 +42,9 @@ const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.byt
 
 const std::string kSparkTaskOffHeapMemory = "spark.gluten.memory.task.offHeap.size.in.bytes";
 
+const std::string kMemReservationBlockSize = "spark.gluten.memory.reservationBlockSize";
+const uint64_t kMemReservationBlockSizeDefault = 8 << 20;
+
 const std::string kSparkBatchSize = "spark.gluten.sql.columnar.maxBatchSize";
 
 const std::string kParquetBlockSize = "parquet.block.size";
@@ -67,6 +70,9 @@ const uint32_t kGlogVerboseLevelDefault = 0;
 const uint32_t kGlogVerboseLevelMaximum = 99;
 const std::string kGlogSeverityLevel = "spark.gluten.sql.columnar.backend.velox.glogSeverityLevel";
 const uint32_t kGlogSeverityLevelDefault = 1;
+
+const std::string kMemInitCapacity = "spark.gluten.sql.columnar.backend.velox.memInitCapacity";
+const uint64_t kMemInitCapacityDefault = 32 << 20;
 
 std::unordered_map<std::string, std::string>
 parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength);

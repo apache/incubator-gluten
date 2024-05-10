@@ -24,8 +24,6 @@
 #include "operators/plannodes/RowVectorStream.h"
 #include "utils/ConfigExtractor.h"
 
-#include "shuffle/VeloxShuffleReader.h"
-
 #ifdef GLUTEN_ENABLE_QAT
 #include "utils/qat/QatCodec.h"
 #endif
@@ -102,9 +100,6 @@ const uint64_t kMaxSpillFileSizeDefault = 1L * 1024 * 1024 * 1024;
 // backtrace allocation
 const std::string kBacktraceAllocation = "spark.gluten.backtrace.allocation";
 
-// VeloxShuffleReader print flag.
-const std::string kVeloxShuffleReaderPrintFlag = "spark.gluten.velox.shuffleReaderPrintFlag";
-
 const std::string kVeloxFileHandleCacheEnabled = "spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled";
 const bool kVeloxFileHandleCacheEnabledDefault = false;
 
@@ -127,26 +122,21 @@ gluten::Runtime* veloxRuntimeFactory(const std::unordered_map<std::string, std::
 }
 } // namespace
 
-void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
-  backendConf_ = conf;
-
+void VeloxBackend::init() {
   // Register Velox runtime factory
   gluten::Runtime::registerFactory(gluten::kVeloxRuntimeKind, veloxRuntimeFactory);
 
-  std::shared_ptr<const facebook::velox::Config> veloxcfg =
-      std::make_shared<facebook::velox::core::MemConfigMutable>(conf);
-
-  if (veloxcfg->get<bool>(kDebugModeEnabled, false)) {
-    LOG(INFO) << "VeloxBackend config:" << printConfig(veloxcfg->valuesCopy());
+  if (backendConf_->get<bool>(kDebugModeEnabled, false)) {
+    LOG(INFO) << "VeloxBackend config:" << printConfig(backendConf_->valuesCopy());
   }
 
   // Init glog and log level.
-  if (!veloxcfg->get<bool>(kDebugModeEnabled, false)) {
-    FLAGS_v = veloxcfg->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
-    FLAGS_minloglevel = veloxcfg->get<uint32_t>(kGlogSeverityLevel, kGlogSeverityLevelDefault);
+  if (!backendConf_->get<bool>(kDebugModeEnabled, false)) {
+    FLAGS_v = backendConf_->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
+    FLAGS_minloglevel = backendConf_->get<uint32_t>(kGlogSeverityLevel, kGlogSeverityLevelDefault);
   } else {
-    if (veloxcfg->isValueExists(kGlogVerboseLevel)) {
-      FLAGS_v = veloxcfg->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
+    if (backendConf_->isValueExists(kGlogVerboseLevel)) {
+      FLAGS_v = backendConf_->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
     } else {
       FLAGS_v = kGlogVerboseLevelMaximum;
     }
@@ -159,27 +149,27 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 
   // Set velox_exception_user_stacktrace_enabled.
   FLAGS_velox_exception_user_stacktrace_enabled =
-      veloxcfg->get<bool>(kEnableUserExceptionStacktrace, kEnableUserExceptionStacktraceDefault);
+      backendConf_->get<bool>(kEnableUserExceptionStacktrace, kEnableUserExceptionStacktraceDefault);
 
   // Set velox_exception_system_stacktrace_enabled.
   FLAGS_velox_exception_system_stacktrace_enabled =
-      veloxcfg->get<bool>(kEnableSystemExceptionStacktrace, kEnableSystemExceptionStacktraceDefault);
+      backendConf_->get<bool>(kEnableSystemExceptionStacktrace, kEnableSystemExceptionStacktraceDefault);
 
   // Set velox_memory_use_hugepages.
-  FLAGS_velox_memory_use_hugepages = veloxcfg->get<bool>(kMemoryUseHugePages, kMemoryUseHugePagesDefault);
+  FLAGS_velox_memory_use_hugepages = backendConf_->get<bool>(kMemoryUseHugePages, kMemoryUseHugePagesDefault);
 
   // Async timeout.
   FLAGS_gluten_velox_aysnc_timeout_on_task_stopping =
-      veloxcfg->get<int32_t>(kVeloxAsyncTimeoutOnTaskStopping, kVeloxAsyncTimeoutOnTaskStoppingDefault);
+      backendConf_->get<int32_t>(kVeloxAsyncTimeoutOnTaskStopping, kVeloxAsyncTimeoutOnTaskStoppingDefault);
 
   // Set backtrace_allocation
-  gluten::backtrace_allocation = veloxcfg->get<bool>(kBacktraceAllocation, false);
+  gluten::backtrace_allocation = backendConf_->get<bool>(kBacktraceAllocation, false);
 
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
-  initJolFilesystem(veloxcfg);
-  initCache(veloxcfg);
-  initConnector(veloxcfg);
+  initJolFilesystem();
+  initCache();
+  initConnector();
 
   // Register Velox functions
   registerAllFunctions();
@@ -189,7 +179,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   }
   velox::exec::Operator::registerOperator(std::make_unique<RowVectorStreamOperatorTranslator>());
 
-  initUdf(veloxcfg);
+  initUdf();
   registerSparkTokenizer();
 
   // initialize the global memory manager for current process
@@ -201,8 +191,8 @@ facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const 
 }
 
 // JNI-or-local filesystem, for spilling-to-heap if we have extra JVM heap spaces
-void VeloxBackend::initJolFilesystem(const std::shared_ptr<const facebook::velox::Config>& conf) {
-  int64_t maxSpillFileSize = conf->get<int64_t>(kMaxSpillFileSize, kMaxSpillFileSizeDefault);
+void VeloxBackend::initJolFilesystem() {
+  int64_t maxSpillFileSize = backendConf_->get<int64_t>(kMaxSpillFileSize, kMaxSpillFileSizeDefault);
 
   // FIXME It's known that if spill compression is disabled, the actual spill file size may
   //   in crease beyond this limit a little (maximum 64 rows which is by default
@@ -210,18 +200,18 @@ void VeloxBackend::initJolFilesystem(const std::shared_ptr<const facebook::velox
   gluten::registerJolFileSystem(maxSpillFileSize);
 }
 
-void VeloxBackend::initCache(const std::shared_ptr<const facebook::velox::Config>& conf) {
-  bool veloxCacheEnabled = conf->get<bool>(kVeloxCacheEnabled, false);
+void VeloxBackend::initCache() {
+  bool veloxCacheEnabled = backendConf_->get<bool>(kVeloxCacheEnabled, false);
   if (veloxCacheEnabled) {
     FLAGS_ssd_odirect = true;
 
-    FLAGS_ssd_odirect = conf->get<bool>(kVeloxSsdODirectEnabled, false);
+    FLAGS_ssd_odirect = backendConf_->get<bool>(kVeloxSsdODirectEnabled, false);
 
-    uint64_t memCacheSize = conf->get<uint64_t>(kVeloxMemCacheSize, kVeloxMemCacheSizeDefault);
-    uint64_t ssdCacheSize = conf->get<uint64_t>(kVeloxSsdCacheSize, kVeloxSsdCacheSizeDefault);
-    int32_t ssdCacheShards = conf->get<int32_t>(kVeloxSsdCacheShards, kVeloxSsdCacheShardsDefault);
-    int32_t ssdCacheIOThreads = conf->get<int32_t>(kVeloxSsdCacheIOThreads, kVeloxSsdCacheIOThreadsDefault);
-    std::string ssdCachePathPrefix = conf->get<std::string>(kVeloxSsdCachePath, kVeloxSsdCachePathDefault);
+    uint64_t memCacheSize = backendConf_->get<uint64_t>(kVeloxMemCacheSize, kVeloxMemCacheSizeDefault);
+    uint64_t ssdCacheSize = backendConf_->get<uint64_t>(kVeloxSsdCacheSize, kVeloxSsdCacheSizeDefault);
+    int32_t ssdCacheShards = backendConf_->get<int32_t>(kVeloxSsdCacheShards, kVeloxSsdCacheShardsDefault);
+    int32_t ssdCacheIOThreads = backendConf_->get<int32_t>(kVeloxSsdCacheIOThreads, kVeloxSsdCacheIOThreadsDefault);
+    std::string ssdCachePathPrefix = backendConf_->get<std::string>(kVeloxSsdCachePath, kVeloxSsdCachePathDefault);
 
     cachePathPrefix_ = ssdCachePathPrefix;
     cacheFilePrefix_ = getCacheFilePrefix();
@@ -257,17 +247,17 @@ void VeloxBackend::initCache(const std::shared_ptr<const facebook::velox::Config
   }
 }
 
-void VeloxBackend::initConnector(const std::shared_ptr<const facebook::velox::Config>& conf) {
+void VeloxBackend::initConnector() {
   // The configs below are used at process level.
-  auto mutableConf = std::make_shared<facebook::velox::core::MemConfigMutable>(conf->valuesCopy());
+  auto mutableConf = std::make_shared<facebook::velox::core::MemConfigMutable>(backendConf_->valuesCopy());
 
-  auto hiveConf = getHiveConfig(conf);
+  auto hiveConf = getHiveConfig(backendConf_);
   for (auto& [k, v] : hiveConf->valuesCopy()) {
     mutableConf->setValue(k, v);
   }
 
 #ifdef ENABLE_ABFS
-  const auto& confValue = conf->valuesCopy();
+  const auto& confValue = backendConf_->valuesCopy();
   for (auto& [k, v] : confValue) {
     if (k.find("fs.azure.account.key") == 0) {
       mutableConf->setValue(k, v);
@@ -280,29 +270,30 @@ void VeloxBackend::initConnector(const std::shared_ptr<const facebook::velox::Co
 
   mutableConf->setValue(
       velox::connector::hive::HiveConfig::kEnableFileHandleCache,
-      conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false");
+      backendConf_->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false");
 
   mutableConf->setValue(
       velox::connector::hive::HiveConfig::kMaxCoalescedBytes,
-      conf->get<std::string>(kMaxCoalescedBytes, "67108864")); // 64M
+      backendConf_->get<std::string>(kMaxCoalescedBytes, "67108864")); // 64M
   mutableConf->setValue(
       velox::connector::hive::HiveConfig::kMaxCoalescedDistanceBytes,
-      conf->get<std::string>(kMaxCoalescedDistanceBytes, "1048576")); // 1M
+      backendConf_->get<std::string>(kMaxCoalescedDistanceBytes, "1048576")); // 1M
   mutableConf->setValue(
-      velox::connector::hive::HiveConfig::kPrefetchRowGroups, conf->get<std::string>(kPrefetchRowGroups, "1"));
+      velox::connector::hive::HiveConfig::kPrefetchRowGroups, backendConf_->get<std::string>(kPrefetchRowGroups, "1"));
   mutableConf->setValue(
-      velox::connector::hive::HiveConfig::kLoadQuantum, conf->get<std::string>(kLoadQuantum, "268435456")); // 256M
+      velox::connector::hive::HiveConfig::kLoadQuantum,
+      backendConf_->get<std::string>(kLoadQuantum, "268435456")); // 256M
   mutableConf->setValue(
       velox::connector::hive::HiveConfig::kFooterEstimatedSize,
-      conf->get<std::string>(kDirectorySizeGuess, "32768")); // 32K
+      backendConf_->get<std::string>(kDirectorySizeGuess, "32768")); // 32K
   mutableConf->setValue(
       velox::connector::hive::HiveConfig::kFilePreloadThreshold,
-      conf->get<std::string>(kFilePreloadThreshold, "1048576")); // 1M
+      backendConf_->get<std::string>(kFilePreloadThreshold, "1048576")); // 1M
 
   // set cache_prefetch_min_pct default as 0 to force all loads are prefetched in DirectBufferInput.
-  FLAGS_cache_prefetch_min_pct = conf->get<int>(kCachePrefetchMinPct, 0);
+  FLAGS_cache_prefetch_min_pct = backendConf_->get<int>(kCachePrefetchMinPct, 0);
 
-  auto ioThreads = conf->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
+  auto ioThreads = backendConf_->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
   if (ioThreads > 0) {
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
   }
@@ -312,8 +303,8 @@ void VeloxBackend::initConnector(const std::shared_ptr<const facebook::velox::Co
       ioExecutor_.get()));
 }
 
-void VeloxBackend::initUdf(const std::shared_ptr<const facebook::velox::Config>& conf) {
-  auto got = conf->get<std::string>(kVeloxUdfLibraryPaths, "");
+void VeloxBackend::initUdf() {
+  auto got = backendConf_->get<std::string>(kVeloxUdfLibraryPaths, "");
   if (!got.empty()) {
     auto udfLoader = gluten::UdfLoader::getInstance();
     udfLoader->loadUdfLibraries(got);
@@ -335,7 +326,7 @@ VeloxBackend* VeloxBackend::get() {
   return instance_.get();
 }
 
-const std::unordered_map<std::string, std::string>& VeloxBackend::getBackendConf() const {
+const std::shared_ptr<const facebook::velox::Config> VeloxBackend::getBackendConf() const {
   return backendConf_;
 }
 
