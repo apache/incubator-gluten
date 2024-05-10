@@ -117,7 +117,7 @@ jobs:
 
       - name: CCache after
         run: |
-          ccache -vs
+          ccache -s
 
       - uses: actions/cache/save@v3
         with:
