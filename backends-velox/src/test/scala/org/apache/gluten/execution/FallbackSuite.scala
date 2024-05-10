@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.extension.{CollectRewriteRule, GlutenPlan}
+import org.apache.gluten.extension.GlutenPlan
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.SparkPlan
