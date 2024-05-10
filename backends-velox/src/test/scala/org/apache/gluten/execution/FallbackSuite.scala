@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.extension.{CollectRewriteRule, GlutenPlan}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.SparkPlan
@@ -116,10 +116,12 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
     withSQLConf(
       GlutenConfig.EXPRESSION_BLACK_LIST.key -> "collect_list"
     ) {
-      runQueryAndCompare("SELECT c1, collect_list(c2) FROM tmp3 GROUP BY c1") {
-        df =>
-          val plan = df.queryExecution.executedPlan
-          assert(collect(plan) { case v: HashAggregateExecBaseTransformer => v }.isEmpty)
+      CollectRewriteRule.forceEnableAndRun {
+        runQueryAndCompare("SELECT c1, collect_list(c2) FROM tmp3 GROUP BY c1") {
+          df =>
+            val plan = df.queryExecution.executedPlan
+            assert(collect(plan) { case v: HashAggregateExecBaseTransformer => v }.isEmpty)
+        }
       }
     }
   }
@@ -128,10 +130,12 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
     withSQLConf(
       GlutenConfig.EXPRESSION_BLACK_LIST.key -> "collect_set"
     ) {
-      runQueryAndCompare("SELECT c1, collect_set(c2) FROM tmp3 GROUP BY c1") {
-        df =>
-          val plan = df.queryExecution.executedPlan
-          assert(collect(plan) { case v: HashAggregateExecBaseTransformer => v }.isEmpty)
+      CollectRewriteRule.forceEnableAndRun {
+        runQueryAndCompare("SELECT c1, collect_set(c2) FROM tmp3 GROUP BY c1") {
+          df =>
+            val plan = df.queryExecution.executedPlan
+            assert(collect(plan) { case v: HashAggregateExecBaseTransformer => v }.isEmpty)
+        }
       }
     }
   }
