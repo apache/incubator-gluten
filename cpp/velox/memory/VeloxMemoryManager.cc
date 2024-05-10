@@ -53,6 +53,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
       velox::memory::MemoryPool* pool,
       const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& candidatePools,
       uint64_t targetBytes) override {
+    velox::memory::ScopedMemoryArbitrationContext ctx(pool);
     VELOX_CHECK_EQ(candidatePools.size(), 1, "ListenableArbitrator should only be used within a single root pool")
     auto candidate = candidatePools.back();
     VELOX_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator");
@@ -67,6 +68,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
       uint64_t targetBytes,
       bool allowSpill,
       bool allowAbort) override {
+    velox::memory::ScopedMemoryArbitrationContext ctx(nullptr);
     facebook::velox::exec::MemoryReclaimer::Stats status;
     VELOX_CHECK_EQ(pools.size(), 1, "Gluten only has one root pool");
     std::lock_guard<std::recursive_mutex> l(mutex_); // FIXME: Do we have recursive locking for this mutex?
