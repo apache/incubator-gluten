@@ -487,6 +487,10 @@ object VeloxBackendSettings extends BackendSettingsApi {
     )
   }
 
+  override def enableNativeArrowReadFiles(): Boolean = {
+    GlutenConfig.getConf.enableNativeArrowReader
+  }
+
   override def shouldRewriteCount(): Boolean = {
     // Velox backend does not support count if it has more that one child,
     // so we should rewrite it.
@@ -506,4 +510,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def shouldRewriteCollect(): Boolean = true
 
   override def supportColumnarArrowUdf(): Boolean = true
+
+  override def generateHdfsConfForLibhdfs(): Boolean = true
 }

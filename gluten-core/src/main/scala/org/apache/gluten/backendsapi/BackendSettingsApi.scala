@@ -138,6 +138,8 @@ trait BackendSettingsApi {
 
   def enableNativeWriteFiles(): Boolean
 
+  def enableNativeArrowReadFiles(): Boolean = false
+
   def shouldRewriteCount(): Boolean = false
 
   def supportCartesianProductExec(): Boolean = false
@@ -152,4 +154,6 @@ trait BackendSettingsApi {
   def shouldRewriteCollect(): Boolean = false
 
   def supportColumnarArrowUdf(): Boolean = false
+
+  def generateHdfsConfForLibhdfs(): Boolean = false
 }

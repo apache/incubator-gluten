@@ -929,7 +929,8 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
         }
     }
 
-    if (function_signature.find("check_overflow:", 0) != function_signature.npos)
+    /// TODO: FunctionParser for check_overflow and make_decimal
+    if (function_signature.find("check_overflow:", 0) != String::npos)
     {
         if (scalar_function.arguments().size() < 2)
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "check_overflow function requires at least two args.");

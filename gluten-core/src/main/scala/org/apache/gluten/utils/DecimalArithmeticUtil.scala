@@ -273,9 +273,7 @@ object DecimalArithmeticUtil {
   }
 
   def checkAllowDecimalArithmetic(): Unit = {
-    // PrecisionLoss=true: velox support / ch not support
-    // PrecisionLoss=false: velox not support / ch support
-    // TODO ch support PrecisionLoss=true
+    // PrecisionLoss=false: velox not support
     if (!BackendsApiManager.getSettings.allowDecimalArithmetic) {
       throw new GlutenNotSupportException(
         s"Not support ${SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key} " +

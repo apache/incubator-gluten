@@ -49,8 +49,6 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.gluten.supported.scala.udfs", "my_add")
-//      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "trace")
-//      .set("spark.sql.planChangeLog.level", "error")
   }
 
   override protected val createNullableTables = true
@@ -1271,8 +1269,15 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   }
 
   test("test 'to_date/to_timestamp'") {
-    val sql = "select to_date(concat('2022-01-0', cast(id+1 as String)), 'yyyy-MM-dd')," +
-      "to_timestamp(concat('2022-01-01 10:30:0', cast(id+1 as String)), 'yyyy-MM-dd HH:mm:ss') " +
+    val sql = "select to_date(concat('2022-01-0', cast(id+1 as String)), 'yyyy-MM-dd') as a1," +
+      "to_timestamp(concat('2022-01-01 10:30:0', cast(id+1 as String)), 'yyyy-MM-dd HH:mm:ss') as a2," +
+      "to_date(date_add(date'2024-05-07', cast(id as int)), 'yyyy-MM-dd') as a3, " +
+      "to_date(date_add(date'2024-05-07', cast(id as int)), 'yyyyMMdd') as a4, " +
+      "to_date(date_add(date'2024-05-07', cast(id as int)), 'yyyy-MM') as a5, " +
+      "to_date(date_add(date'2024-05-07', cast(id as int)), 'yyyy') as a6, " +
+      "to_date(to_timestamp(concat('2022-01-01 10:30:0', cast(id+1 as String))), 'yyyy-MM-dd HH:mm:ss') as a7, " +
+      "to_timestamp(date_add(date'2024-05-07', cast(id as int)), 'yyyy-MM') as a8, " +
+      "to_timestamp(to_timestamp(concat('2022-01-01 10:30:0', cast(id+1 as String))), 'yyyy-MM-dd HH:mm:ss') as a9 " +
       "from range(9)"
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }

@@ -45,122 +45,12 @@ public:
     Int32 scale;
 
 private:
-    static DecimalType bounded_to_spark(const Int32 precision, const Int32 scale)
-    {
-        return DecimalType(std::min(precision, spark_max_precision), std::min(scale, spark_max_scale));
-    }
     static DecimalType bounded_to_click_house(const Int32 precision, const Int32 scale)
     {
         return DecimalType(std::min(precision, chickhouse_max_precision), std::min(scale, chickhouse_max_scale));
     }
-    static void check_negative_scale(const Int32 scale)
-    {
-        /// only support spark.sql.legacy.allowNegativeScaleOfDecimal == false
-        if (scale < 0)
-            throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Negative scale is not supported");
-    }
-
-    static DecimalType adjust_precision_scale(const Int32 precision, const Int32 scale)
-    {
-        check_negative_scale(scale);
-        assert(precision >= scale);
-
-        if (precision <= spark_max_precision)
-        {
-            // Adjustment only needed when we exceed max precision
-            return DecimalType(precision, scale);
-        }
-        else if (scale < 0)
-        {
-            // Decimal can have negative scale (SPARK-24468). In this case, we cannot allow a precision
-            // loss since we would cause a loss of digits in the integer part.
-            // In this case, we are likely to meet an overflow.
-            return DecimalType(spark_max_precision, scale);
-        }
-        else
-        {
-            // Precision/scale exceed maximum precision. Result must be adjusted to MAX_PRECISION.
-            const int intDigits = precision - scale;
-
-            // If original scale is less than MINIMUM_ADJUSTED_SCALE, use original scale value; otherwise
-            // preserve at least MINIMUM_ADJUSTED_SCALE fractional digits
-            const int minScaleValue = std::min(scale, minimum_adjusted_scale);
-
-            // The resulting scale is the maximum between what is available without causing a loss of
-            // digits for the integer part of the decimal and the minimum guaranteed scale, which is
-            // computed above
-            const int adjusted_scale = std::max(spark_max_precision - intDigits, minScaleValue);
-            return DecimalType(spark_max_precision, adjusted_scale);
-        }
-    }
 
 public:
-    /// The formula follows Hive which is based on the SQL standard and MS SQL:
-    /// https://cwiki.apache.org/confluence/download/attachments/27362075/Hive_Decimal_Precision_Scale_Support.pdf
-    /// https://msdn.microsoft.com/en-us/library/ms190476.aspx
-    /// Result Precision: max(s1, s2) + max(p1-s1, p2-s2) + 1
-    /// Result Scale:     max(s1, s2)
-    ///  +, -
-    static DecimalType
-    resultAddSubstractDecimalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2, bool allowPrecisionLoss = true)
-    {
-        const Int32 scale = std::max(s1, s2);
-        const Int32 precision = std::max(p1 - s1, p2 - s2) + scale + 1;
-
-        if (allowPrecisionLoss)
-            return adjust_precision_scale(precision, scale);
-        else
-            return bounded_to_spark(precision, scale);
-    }
-
-    /// The formula follows Hive which is based on the SQL standard and MS SQL:
-    /// https://cwiki.apache.org/confluence/download/attachments/27362075/Hive_Decimal_Precision_Scale_Support.pdf
-    /// https://msdn.microsoft.com/en-us/library/ms190476.aspx
-    /// Result Precision: p1 - s1 + s2 + max(6, s1 + p2 + 1)
-    /// Result Scale:     max(6, s1 + p2 + 1)
-    static DecimalType
-    resultDivideDecimalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2, bool allowPrecisionLoss = true)
-    {
-        if (allowPrecisionLoss)
-        {
-            const Int32 Int32Dig = p1 - s1 + s2;
-            const Int32 scale = std::max(minimum_adjusted_scale, s1 + p2 + 1);
-            const Int32 prec = Int32Dig + scale;
-            return adjust_precision_scale(prec, scale);
-        }
-        else
-        {
-            Int32 Int32Dig = std::min(spark_max_scale, p1 - s1 + s2);
-            Int32 decDig = std::min(spark_max_scale, std::max(minimum_adjusted_scale, s1 + p2 + 1));
-            Int32 diff = (Int32Dig + decDig) - spark_max_scale;
-
-            if (diff > 0)
-            {
-                decDig -= diff / 2 + 1;
-                Int32Dig = spark_max_scale - decDig;
-            }
-
-            return bounded_to_spark(Int32Dig + decDig, decDig);
-        }
-    }
-
-    /// The formula follows Hive which is based on the SQL standard and MS SQL:
-    /// https://cwiki.apache.org/confluence/download/attachments/27362075/Hive_Decimal_Precision_Scale_Support.pdf
-    /// https://msdn.microsoft.com/en-us/library/ms190476.aspx
-    /// Result Precision: p1 + p2 + 1
-    /// Result Scale:     s1 + s2
-    static DecimalType
-    resultMultiplyDecimalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2, bool allowPrecisionLoss = true)
-    {
-        const Int32 scale = s1 + s2;
-        const Int32 precision = p1 + p2 + 1;
-
-        if (allowPrecisionLoss)
-            return adjust_precision_scale(precision, scale);
-        else
-            return bounded_to_spark(precision, scale);
-    }
-
     static DecimalType evalAddSubstractDecimalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2)
     {
         const Int32 scale = s1;
@@ -215,47 +105,27 @@ protected:
         return new_args;
     }
 
-    DecimalType getDecimalType(const DataTypePtr & left, const DataTypePtr & right, const bool resultType) const
+    DecimalType getDecimalType(const DataTypePtr & left, const DataTypePtr & right) const
     {
         assert(isDecimal(left) && isDecimal(right));
         const Int32 p1 = getDecimalPrecision(*left);
         const Int32 s1 = getDecimalScale(*left);
         const Int32 p2 = getDecimalPrecision(*right);
         const Int32 s2 = getDecimalScale(*right);
-        return resultType ? internalResultType(p1, s1, p2, s2) : internalEvalType(p1, s1, p2, s2);
+        return internalEvalType(p1, s1, p2, s2);
     }
 
-    virtual DecimalType internalResultType(Int32 p1, Int32 s1, Int32 p2, Int32 s2) const = 0;
     virtual DecimalType internalEvalType(Int32 p1, Int32 s1, Int32 p2, Int32 s2) const = 0;
 
     const ActionsDAG::Node *
     checkDecimalOverflow(ActionsDAGPtr & actions_dag, const ActionsDAG::Node * func_node, Int32 precision, Int32 scale) const
     {
+        //TODO: checkDecimalOverflowSpark throw exception per configuration
         const DB::ActionsDAG::NodeRawConstPtrs overflow_args
             = {func_node,
                plan_parser->addColumn(actions_dag, std::make_shared<DataTypeInt32>(), precision),
                plan_parser->addColumn(actions_dag, std::make_shared<DataTypeInt32>(), scale)};
         return toFunctionNode(actions_dag, "checkDecimalOverflowSparkOrNull", overflow_args);
-    }
-    const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
-        const substrait::Expression_ScalarFunction & substrait_func,
-        const DB::ActionsDAG::Node * func_node,
-        DB::ActionsDAGPtr & actions_dag) const override
-    {
-        const auto & substrait_type = substrait_func.output_type();
-        if (const auto result_type = TypeParser::parseType(substrait_type); isDecimalOrNullableDecimal(result_type))
-        {
-            const auto a = removeNullable(result_type);
-            const auto b = removeNullable(func_node->result_type);
-            if (a->equals(*b))
-                return func_node;
-
-            // as stated in isTypeMatched， currently we don't change nullability of the result type
-            const std::string type_name = func_node->result_type->isNullable() ? wrapNullableType(true, result_type)->getName()
-                                                                               : removeNullable(result_type)->getName();
-            return ActionsDAGUtil::convertNodeType(actions_dag, func_node, type_name, func_node->result_name, DB::CastType::accurateOrNull);
-        }
-        return FunctionParser::convertNodeTypeIfNeeded(substrait_func, func_node, actions_dag);
     }
 
     virtual const DB::ActionsDAG::Node *
@@ -280,7 +150,7 @@ public:
 
         if (converted)
         {
-            const DecimalType evalType = getDecimalType(left_type, right_type, false);
+            const DecimalType evalType = getDecimalType(left_type, right_type);
             parsed_args = convertBinaryArithmeticFunDecimalArgs(actions_dag, parsed_args, evalType, substrait_func);
         }
 
@@ -288,17 +158,20 @@ public:
 
         if (converted)
         {
-            const auto parsed_outputType = removeNullable(TypeParser::parseType(substrait_func.output_type()));
-            assert(isDecimal(parsed_outputType));
-            const Int32 parsed_precision = getDecimalPrecision(*parsed_outputType);
-            const Int32 parsed_scale = getDecimalScale(*parsed_outputType);
-
-#ifndef NDEBUG
-            const auto [precision, scale] = getDecimalType(left_type, right_type, true);
-            // assert(parsed_precision == precision);
-            // assert(parsed_scale == scale);
-#endif
+            const auto parsed_output_type = removeNullable(TypeParser::parseType(substrait_func.output_type()));
+            assert(isDecimal(parsed_output_type));
+            const Int32 parsed_precision = getDecimalPrecision(*parsed_output_type);
+            const Int32 parsed_scale = getDecimalScale(*parsed_output_type);
             func_node = checkDecimalOverflow(actions_dag, func_node, parsed_precision, parsed_scale);
+#ifndef NDEBUG
+            const auto output_type = removeNullable(func_node->result_type);
+            const Int32 output_precision = getDecimalPrecision(*output_type);
+            const Int32 output_scale = getDecimalScale(*output_type);
+            if (output_precision != parsed_precision || output_scale != parsed_scale)
+                throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Function {} has wrong output type", getName());
+#endif
+
+            return func_node;
         }
         return convertNodeTypeIfNeeded(substrait_func, func_node, actions_dag);
     }
@@ -313,10 +186,6 @@ public:
     String getName() const override { return name; }
 
 protected:
-    DecimalType internalResultType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override
-    {
-        return DecimalType::resultAddSubstractDecimalType(p1, s1, p2, s2);
-    }
     DecimalType internalEvalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override
     {
         return DecimalType::evalAddSubstractDecimalType(p1, s1, p2, s2);
@@ -332,10 +201,6 @@ public:
     String getName() const override { return name; }
 
 protected:
-    DecimalType internalResultType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override
-    {
-        return DecimalType::resultAddSubstractDecimalType(p1, s1, p2, s2);
-    }
     DecimalType internalEvalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override
     {
         return DecimalType::evalAddSubstractDecimalType(p1, s1, p2, s2);
@@ -350,10 +215,6 @@ public:
     String getName() const override { return name; }
 
 protected:
-    DecimalType internalResultType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override
-    {
-        return DecimalType::resultMultiplyDecimalType(p1, s1, p2, s2);
-    }
     DecimalType internalEvalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override
     {
         return DecimalType::evalMultiplyDecimalType(p1, s1, p2, s2);
@@ -368,10 +229,6 @@ public:
     String getName() const override { return name; }
 
 protected:
-    DecimalType internalResultType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override
-    {
-        return DecimalType::resultDivideDecimalType(p1, s1, p2, s2);
-    }
     DecimalType internalEvalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override
     {
         return DecimalType::evalDividetDecimalType(p1, s1, p2, s2);
@@ -386,8 +243,8 @@ protected:
 
         if (isDecimal(removeNullable(left_arg->result_type)) || isDecimal(removeNullable(right_arg->result_type)))
             return toFunctionNode(actions_dag, "sparkDivideDecimal", {left_arg, right_arg});
-        else
-            return toFunctionNode(actions_dag, "sparkDivide", {left_arg, right_arg});
+
+        return toFunctionNode(actions_dag, "sparkDivide", {left_arg, right_arg});
     }
 };
 

@@ -16,8 +16,10 @@
 
 set -exu
 
+
 VELOX_REPO=https://github.com/zhli1142015/velox
 VELOX_BRANCH=dynamic_row_vector_o
+
 VELOX_HOME=""
 
 #Set on run gluten on HDFS

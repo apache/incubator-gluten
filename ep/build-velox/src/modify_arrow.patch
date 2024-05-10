@@ -1,8 +1,8 @@
 diff --git a/cpp/cmake_modules/ThirdpartyToolchain.cmake b/cpp/cmake_modules/ThirdpartyToolchain.cmake
-index 94f926039..f7ebf9233 100644
+index a2627c190..e453512e6 100644
 --- a/cpp/cmake_modules/ThirdpartyToolchain.cmake
 +++ b/cpp/cmake_modules/ThirdpartyToolchain.cmake
-@@ -2501,13 +2501,9 @@ if(ARROW_WITH_ZSTD)
+@@ -2557,13 +2557,9 @@ if(ARROW_WITH_ZSTD)
    if(ZSTD_VENDORED)
      set(ARROW_ZSTD_LIBZSTD zstd::libzstd_static)
    else()
@@ -30,3 +30,15 @@ index a24f272fe..e25f78c85 100644
  #include <stdio.h>
  #include <stdlib.h>
  #include <string.h>
+diff --git a/java/pom.xml b/java/pom.xml
+index a8328576b..53a70fab8 100644
+--- a/java/pom.xml
++++ b/java/pom.xml
+@@ -1102,6 +1102,7 @@
+                     -DARROW_ORC=${ARROW_ORC}
+                     -DARROW_PARQUET=${ARROW_PARQUET}
+                     -DARROW_S3=ON
++                    -DARROW_HDFS=ON
+                     -DARROW_SUBSTRAIT=${ARROW_DATASET}
+                     -DARROW_USE_CCACHE=ON
+                     -DCMAKE_BUILD_TYPE=Release

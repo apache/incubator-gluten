@@ -50,6 +50,7 @@ object PlanUtil {
       case s: WholeStageCodegenExec => outputNativeColumnarData(s.child)
       case s: AdaptiveSparkPlanExec => outputNativeColumnarData(s.executedPlan)
       case i: InMemoryTableScanExec => PlanUtil.isGlutenTableCache(i)
+      case _: ArrowFileSourceScanExec => false
       case _: GlutenPlan => true
       case _ => false
     }
