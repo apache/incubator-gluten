@@ -15,13 +15,15 @@
  * limitations under the License.
  */
 #pragma once
+
 #include <Interpreters/Context.h>
 #include <Interpreters/SquashingTransform.h>
-#include <Storages/MergeTree/MergeTreeDataWriter.h>
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
+#include <Storages/MergeTree/MergeTreeDataWriter.h>
 #include <Storages/StorageMergeTreeFactory.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CHUtil.h>
+#include <Common/MergeTreeTool.h>
 
 namespace DB
 {
@@ -51,10 +53,9 @@ class SparkMergeTreeWriter
 public:
     static String partInfosToJson(const std::vector<PartInfo> & part_infos);
     SparkMergeTreeWriter(
-        CustomStorageMergeTreePtr storage_,
-        const DB::StorageMetadataPtr & metadata_snapshot_,
+        const MergeTreeTable & merge_tree_table,
         const DB::ContextPtr & context_,
-        const String & uuid_,
+        const String & part_name_prefix_,
         const String & partition_dir_ = "",
         const String & bucket_dir_ = "");
 
@@ -72,11 +73,15 @@ private:
     void safeAddPart(DB::MergeTreeDataPartPtr);
     void manualFreeMemory(size_t before_write_memory);
 
-    String uuid;
+    CustomStorageMergeTreePtr storage = nullptr;
+    CustomStorageMergeTreePtr dest_storage = nullptr;
+    CustomStorageMergeTreePtr temp_storage = nullptr;
+    DB::StorageMetadataPtr metadata_snapshot = nullptr;
+
+    String part_name_prefix;
     String partition_dir;
     String bucket_dir;
-    CustomStorageMergeTreePtr storage;
-    DB::StorageMetadataPtr metadata_snapshot;
+
     DB::ContextPtr context;
     std::unique_ptr<DB::SquashingTransform> squashing_transform;
     int part_num = 1;
@@ -89,6 +94,7 @@ private:
     size_t merge_min_size = 1024 * 1024 * 1024;
     size_t merge_limit_parts = 10;
     std::mutex memory_mutex;
+    bool isRemoteDisk = false;
 };
 
 }

@@ -41,9 +41,18 @@ class MergeTreeRelParser : public RelParser
 {
 public:
     static CustomStorageMergeTreePtr
-    parseStorage(const substrait::ReadRel::ExtensionTable & extension_table, ContextMutablePtr context, UUID uuid = UUIDHelpers::Nil);
+    parseStorage(const substrait::ReadRel::ExtensionTable & extension_table, ContextMutablePtr context);
+    static CustomStorageMergeTreePtr parseStorage(
+        const MergeTreeTable & merge_tree_table, ContextMutablePtr context, bool restore = false);
+
+    // Create random table name and table path and use default storage policy.
+    // In insert case, mergetree data can be upload after merges in default storage(Local Disk).
     static CustomStorageMergeTreePtr
-    parseStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context, UUID uuid = UUIDHelpers::Nil);
+    copyToDefaultPolicyStorage(MergeTreeTable merge_tree_table, ContextMutablePtr context);
+
+    // Use same table path and data path as the originial table.
+    static CustomStorageMergeTreePtr
+    copyToVirtualStorage(MergeTreeTable merge_tree_table, ContextMutablePtr context);
 
     static MergeTreeTable parseMergeTreeTable(const substrait::ReadRel::ExtensionTable & extension_table);
 
