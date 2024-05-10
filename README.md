@@ -1,3 +1,5 @@
+<img src="docs/image/gluten-logo.svg" alt="Gluten logo" width="50%" align="center" />
+
 # Apache Gluten (Incubating): A Middle Layer for Offloading JVM-based SQL Engines' Execution to Native Engines
 
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/8452/badge)](https://www.bestpractices.dev/projects/8452)
