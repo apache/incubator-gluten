@@ -10,6 +10,7 @@ vcpkg_from_github(
         fix-aws-root.patch
         lock-curl-http-and-tls-settings.patch
         fix-awsmigrationhub-build.patch
+        fix-header.patch
 )
 
 string(COMPARE EQUAL "${VCPKG_CRT_LINKAGE}" "dynamic" FORCE_SHARED_CRT)
