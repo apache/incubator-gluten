@@ -31,13 +31,15 @@ index a24f272fe..e25f78c85 100644
  #include <stdlib.h>
  #include <string.h>
 diff --git a/java/pom.xml b/java/pom.xml
-index a8328576b..53a70fab8 100644
+index a8328576b..57f282c6c 100644
 --- a/java/pom.xml
 +++ b/java/pom.xml
-@@ -1102,6 +1102,7 @@
+@@ -1101,7 +1101,8 @@
+                     -DARROW_JSON=${ARROW_DATASET}
                      -DARROW_ORC=${ARROW_ORC}
                      -DARROW_PARQUET=${ARROW_PARQUET}
-                     -DARROW_S3=ON
+-                    -DARROW_S3=ON
++                    -DARROW_S3=OFF
 +                    -DARROW_HDFS=ON
                      -DARROW_SUBSTRAIT=${ARROW_DATASET}
                      -DARROW_USE_CCACHE=ON
