@@ -101,23 +101,7 @@ object CollectRewriteRule {
   }
 
   private def has[T <: Expression: ClassTag]: Boolean = {
-    if (forceEnabled) {
-      return true
-    }
     val out = ExpressionMappings.expressionsMap.contains(classTag[T].runtimeClass)
     out
-  }
-
-  private var forceEnabled = false
-
-  // Visible for testing.
-  def forceEnableAndRun[T](func: => T): T = synchronized {
-    assert(!forceEnabled)
-    forceEnabled = true
-    try {
-      func
-    } finally {
-      forceEnabled = false
-    }
   }
 }
