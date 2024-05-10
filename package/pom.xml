@@ -25,13 +25,6 @@
   </parent>
 
   <dependencies>
-    <dependency>
-      <groupId>org.apache.gluten</groupId>
-      <artifactId>gluten-core</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-    </dependency>
-
     <!-- Do not remove the following. They are for enforcer plugin -->
     <dependency>
       <groupId>org.apache.spark</groupId>
@@ -71,11 +64,21 @@
       </dependencies>
     </profile>
     <profile>
-      <id>rss</id>
+      <id>celeborn</id>
       <dependencies>
         <dependency>
           <groupId>org.apache.gluten</groupId>
           <artifactId>gluten-celeborn-package</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>uniffle</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-uniffle-package</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>
@@ -145,10 +148,11 @@
                 <relocation>
                   <pattern>org.apache.arrow</pattern>
                   <shadedPattern>${gluten.shade.packageName}.org.apache.arrow</shadedPattern>
-                  <!--arrow's C wrapper refers to the original class path, so we should not relocate here-->
+                  <!--arrow's C and dataset wrapper refers to the original class path, so we should not relocate here-->
                   <excludes>
                     <exclude>org.apache.arrow.c.*</exclude>
                     <exclude>org.apache.arrow.c.jni.*</exclude>
+                    <exclude>org.apache.arrow.dataset.**</exclude>
                   </excludes>
                 </relocation>
                 <relocation>
@@ -156,6 +160,16 @@
                   <shadedPattern>${gluten.shade.packageName}.com.google.flatbuffers</shadedPattern>
                 </relocation>
               </relocations>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+              </filters>
             </configuration>
           </execution>
         </executions>

@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exec.Runtimes
-import org.apache.gluten.memory.arrowalloc.ArrowBufferAllocators
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.memory.nmm.NativeMemoryManagers
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.{ArrowAbiUtil, Iterators}
@@ -74,6 +74,7 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
           ColumnarBatches.create(Runtimes.contextInstance(), handle)
         }
       })
+      .protectInvocationFlow()
       .recycleIterator {
         jniWrapper.close(serializeHandle)
       }

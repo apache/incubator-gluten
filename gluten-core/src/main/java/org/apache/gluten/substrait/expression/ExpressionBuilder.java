@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.substrait.expression;
 
+import org.apache.gluten.exception.GlutenNotSupportException;
 import org.apache.gluten.expression.ConverterUtils;
 import org.apache.gluten.substrait.type.*;
 
@@ -204,7 +205,7 @@ public class ExpressionBuilder {
     if (typeNode instanceof StructNode) {
       return makeStructLiteral((InternalRow) obj, typeNode);
     }
-    throw new UnsupportedOperationException(
+    throw new GlutenNotSupportException(
         String.format(
             "Type not supported: %s, obj: %s, class: %s",
             typeNode.toString(), obj.toString(), obj.getClass().toString()));

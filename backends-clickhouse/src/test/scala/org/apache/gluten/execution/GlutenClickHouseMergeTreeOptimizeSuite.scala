@@ -17,9 +17,14 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
+import io.delta.tables.ClickhouseTable
+
 import java.io.File
+
+import scala.concurrent.duration.DurationInt
 
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
@@ -51,6 +56,9 @@ class GlutenClickHouseMergeTreeOptimizeSuite
         "spark.databricks.delta.retentionDurationCheck.enabled",
         "false"
       ) // otherwise RETAIN 0 HOURS will fail
+      .set(
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
+        "false")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -74,7 +82,6 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       val ret = spark.sql("select count(*) from lineitem_mergetree_optimize").collect()
       assert(ret.apply(0).get(0) == 600572)
 
-      spark.sql("optimize lineitem_mergetree_optimize")
       assert(
         countFiles(new File(s"$basePath/lineitem_mergetree_optimize")) == 462
       ) // many merged parts
@@ -148,7 +155,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     assert(ret.apply(0).get(0) == 600572)
 
     spark.sql("set spark.gluten.enabled=false")
-    assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 815)
+    assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 812)
     spark.sql("VACUUM lineitem_mergetree_optimize_p2 RETAIN 0 HOURS")
     assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 232)
     spark.sql("VACUUM lineitem_mergetree_optimize_p2 RETAIN 0 HOURS")
@@ -179,12 +186,9 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       assert(ret.apply(0).get(0) == 600572)
 
       spark.sql("set spark.gluten.enabled=false")
-      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 411)
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 398)
       spark.sql("VACUUM lineitem_mergetree_optimize_p3 RETAIN 0 HOURS")
-      // for tables with more than one layer of nested table (like partition + bucket, or two partition col
-      // the 'tmp_merge' folder is not guarantee to be removed, causing this file number to be unstable
-//      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 290)
-      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) > 270)
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 286)
       spark.sql("VACUUM lineitem_mergetree_optimize_p3 RETAIN 0 HOURS")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 270)
       spark.sql("set spark.gluten.enabled=true")
@@ -213,10 +217,9 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       assert(ret.apply(0).get(0) == 600572)
 
       spark.sql("set spark.gluten.enabled=false")
-      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 411)
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 398)
       spark.sql("VACUUM lineitem_mergetree_optimize_p4 RETAIN 0 HOURS")
-//      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 290)
-      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) > 270)
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 286)
       spark.sql("VACUUM lineitem_mergetree_optimize_p4 RETAIN 0 HOURS")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 270)
       spark.sql("set spark.gluten.enabled=true")
@@ -308,7 +311,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
     spark.sql("set spark.gluten.enabled=false")
     assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p6")) == {
-      if (sparkVersion.equals("3.2")) 940 else 1023
+      if (sparkVersion.equals("3.2")) 931 else 1014
     })
     spark.sql("VACUUM lineitem_mergetree_optimize_p6 RETAIN 0 HOURS")
     spark.sql("VACUUM lineitem_mergetree_optimize_p6 RETAIN 0 HOURS")
@@ -321,5 +324,138 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     assert(ret2.apply(0).get(0) == 600572)
   }
 
+  test("test skip index after optimize") {
+    withSQLConf(
+      "spark.databricks.delta.optimize.maxFileSize" -> "2000000",
+      "spark.sql.adaptive.enabled" -> "false") {
+      spark.sql(s"""
+                   |DROP TABLE IF EXISTS lineitem_mergetree_index;
+                   |""".stripMargin)
+
+      spark.sql(s"""
+                   |CREATE TABLE IF NOT EXISTS lineitem_mergetree_index
+                   |USING clickhouse
+                   |LOCATION '$basePath/lineitem_mergetree_index'
+                   |TBLPROPERTIES('bloomfilterIndexKey'='l_orderkey')
+                   | as select * from lineitem
+                   |""".stripMargin)
+
+      spark.sql("optimize lineitem_mergetree_index")
+      spark.sql("set spark.gluten.enabled=false")
+      spark.sql("vacuum lineitem_mergetree_index")
+      spark.sql("set spark.gluten.enabled=true")
+
+      val df = spark
+        .sql(s"""
+                |select count(*) from lineitem_mergetree_index  where l_orderkey = '600000'
+                |""".stripMargin)
+
+      val scanExec = collect(df.queryExecution.executedPlan) {
+        case f: FileSourceScanExecTransformer => f
+      }
+      assert(scanExec.size == 1)
+      val mergetreeScan = scanExec(0)
+      val ret = df.collect()
+      assert(ret.apply(0).get(0) == 2)
+      val marks = mergetreeScan.metrics("selectedMarks").value
+      assert(marks == 1)
+
+      val directory = new File(s"$basePath/lineitem_mergetree_index")
+      val partDir = directory.listFiles().filter(f => f.getName.endsWith("merged")).head
+      assert(
+        partDir.listFiles().exists(p => p.getName.contains("skp_idx__bloomfilter_l_orderkey.idx")))
+
+    }
+  }
+
+  test("test mergetree optimize with the path based table") {
+    val dataPath = s"$basePath/lineitem_mergetree_optimize_path_based"
+    clearDataPath(dataPath)
+    withSQLConf("spark.databricks.delta.optimize.minFileSize" -> "838000") {
+      // 3 from 37 parts are larger than this, so after optimize there should be 4 parts:
+      // 3 original parts and 1 merged part
+
+      val sourceDF = spark.sql(s"""
+                                  |select * from lineitem
+                                  |""".stripMargin)
+
+      sourceDF.write
+        .format("clickhouse")
+        .mode(SaveMode.Append)
+        .save(dataPath)
+
+      val clickhouseTable = ClickhouseTable.forPath(spark, dataPath)
+      clickhouseTable.optimize().executeCompaction()
+
+      spark.sql("set spark.gluten.enabled=false")
+      clickhouseTable.vacuum(0.0)
+      clickhouseTable.vacuum(0.0)
+      spark.sql("set spark.gluten.enabled=true")
+      assert(countFiles(new File(dataPath)) == 99)
+
+      val ret = spark.sql(s"select count(*) from clickhouse.`$dataPath`").collect()
+      assert(ret.apply(0).get(0) == 600572)
+    }
+
+    withSQLConf(
+      ("spark.databricks.delta.optimize.maxFileSize" -> "10000000"),
+      ("spark.databricks.delta.optimize.minFileSize" -> "838250")) {
+      // of the remaing 3 original parts, 2 are less than 838250, 1 is larger (size 838255)
+      // the merged part is ~27MB, so after optimize there should be 3 parts:
+      // 1 merged part from 2 original parts, 1 merged part from 34 original parts
+      // and 1 original part (size 838255)
+
+      val clickhouseTable = ClickhouseTable.forPath(spark, dataPath)
+      clickhouseTable.optimize().executeCompaction()
+
+      spark.sql("set spark.gluten.enabled=false")
+      clickhouseTable.vacuum(0.0)
+      clickhouseTable.vacuum(0.0)
+      spark.sql("set spark.gluten.enabled=true")
+      assert(countFiles(new File(dataPath)) == 93)
+
+      val ret = spark.sql(s"select count(*) from clickhouse.`$dataPath`").collect()
+      assert(ret.apply(0).get(0) == 600572)
+    }
+
+    // now merge all parts (testing merging from merged parts)
+    val clickhouseTable = ClickhouseTable.forPath(spark, dataPath)
+    clickhouseTable.optimize().executeCompaction()
+
+    spark.sql("set spark.gluten.enabled=false")
+    clickhouseTable.vacuum(0.0)
+    clickhouseTable.vacuum(0.0)
+    spark.sql("set spark.gluten.enabled=true")
+    assert(countFiles(new File(dataPath)) == 77)
+
+    val ret = spark.sql(s"select count(*) from clickhouse.`$dataPath`").collect()
+    assert(ret.apply(0).get(0) == 600572)
+  }
+
+  test("test mergetree insert with optimize basic") {
+    withSQLConf(
+      ("spark.databricks.delta.optimize.minFileSize" -> "200000000"),
+      ("spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert" -> "true")
+    ) {
+      spark.sql(s"""
+                   |DROP TABLE IF EXISTS lineitem_mergetree_insert_optimize_basic;
+                   |""".stripMargin)
+
+      spark.sql(s"""
+                   |CREATE TABLE IF NOT EXISTS lineitem_mergetree_insert_optimize_basic
+                   |USING clickhouse
+                   |LOCATION '$basePath/lineitem_mergetree_insert_optimize_basic'
+                   | as select * from lineitem
+                   |""".stripMargin)
+
+      val ret = spark.sql("select count(*) from lineitem_mergetree_insert_optimize_basic").collect()
+      assert(ret.apply(0).get(0) == 600572)
+      eventually(timeout(60.seconds), interval(3.seconds)) {
+        assert(
+          new File(s"$basePath/lineitem_mergetree_insert_optimize_basic").listFiles().length == 2
+        )
+      }
+    }
+  }
 }
 // scalastyle:off line.size.limit

@@ -32,22 +32,14 @@ public class QueriesCompare implements Callable<Integer> {
   @CommandLine.Mixin
   private DataGenMixin dataGenMixin;
 
-  @CommandLine.Option(names = {"--queries"}, description = "Set a comma-separated list of query IDs to run, run all queries if not specified. Example: --queries=q1,q6", split = ",")
-  private String[] queries = new String[0];
-
-  @CommandLine.Option(names = {"--excluded-queries"}, description = "Set a comma-separated list of query IDs to exclude. Example: --exclude-queries=q1,q6", split = ",")
-  private String[] excludedQueries = new String[0];
-
-  @CommandLine.Option(names = {"--explain"}, description = "Output explain result for queries", defaultValue = "false")
-  private boolean explain;
-
-  @CommandLine.Option(names = {"--iterations"}, description = "How many iterations to run", defaultValue = "1")
-  private int iterations;
+  @CommandLine.Mixin
+  private QueriesMixin queriesMixin;
 
   @Override
   public Integer call() throws Exception {
     org.apache.gluten.integration.tpc.action.QueriesCompare queriesCompare =
-        new org.apache.gluten.integration.tpc.action.QueriesCompare(dataGenMixin.getScale(), this.queries, this.excludedQueries, explain, iterations);
+        new org.apache.gluten.integration.tpc.action.QueriesCompare(dataGenMixin.getScale(), queriesMixin.queries(),
+            queriesMixin.explain(), queriesMixin.iterations());
     return mixin.runActions(ArrayUtils.addAll(dataGenMixin.makeActions(), queriesCompare));
   }
 }

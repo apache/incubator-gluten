@@ -169,7 +169,7 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-35585",
       "SPARK-32932",
       "SPARK-33494",
-      "SPARK-33933",
+      // "SPARK-33933",
       "SPARK-31220",
       "SPARK-35874",
       "SPARK-39551"
@@ -192,9 +192,11 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenIntervalExpressionsSuite]
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenHashExpressionsSuite]
+  enableSuite[GlutenHigherOrderFunctionsSuite]
   enableSuite[GlutenCollectionExpressionsSuite]
     // Rewrite in Gluten to replace Seq with Array
     .exclude("Shuffle")
+    .excludeGlutenTest("Shuffle")
     // TODO: ArrayDistinct should handle duplicated Double.NaN
     .excludeByPrefix("SPARK-36741")
     // TODO: ArrayIntersect should handle duplicated Double.NaN
@@ -273,6 +275,11 @@ class VeloxTestSettings extends BackendTestSettings {
     // blocked by Velox-5768
     .exclude("aggregate function - array for primitive type containing null")
     .exclude("aggregate function - array for non-primitive type")
+    .exclude("shuffle function - array for primitive type not containing null")
+    .exclude("shuffle function - array for primitive type containing null")
+    .exclude("shuffle function - array for non-primitive type")
+    // Rewrite this test because Velox sorts rows by key for primitive data types, which disrupts the original row sequence.
+    .exclude("map_zip_with function - map of primitive types")
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameSetOperationsSuite]
     // Result depends on the implementation for nondeterministic expression rand.
@@ -405,8 +412,31 @@ class VeloxTestSettings extends BackendTestSettings {
     // Exception.
     .exclude("column pruning - non-readable file")
   enableSuite[GlutenCSVv1Suite]
+    .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
+    // file cars.csv include null string, Arrow not support to read
+    .exclude("DDL test with schema")
+    .exclude("save csv")
+    .exclude("save csv with compression codec option")
+    .exclude("save csv with empty fields with user defined empty values")
+    .exclude("save csv with quote")
+    .exclude("SPARK-13543 Write the output as uncompressed via option()")
+    // Arrow not support corrupt record
+    .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
   enableSuite[GlutenCSVv2Suite]
+    .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
+    // file cars.csv include null string, Arrow not support to read
+    .exclude("DDL test with schema")
+    // file cars.csv include null string, Arrow not support to read
+    .exclude("old csv data source name works")
   enableSuite[GlutenCSVLegacyTimeParserSuite]
+    .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
+    // file cars.csv include null string, Arrow not support to read
+    .exclude("DDL test with schema")
+    .exclude("save csv")
+    .exclude("save csv with compression codec option")
+    .exclude("save csv with empty fields with user defined empty values")
+    .exclude("save csv with quote")
+    .exclude("SPARK-13543 Write the output as uncompressed via option()")
   enableSuite[GlutenJsonV1Suite]
     // FIXME: Array direct selection fails
     .exclude("Complex field and type inferring")
@@ -1054,6 +1084,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
   enableSuite[GlutenCTEHintSuite]
+    .exclude("Resolve join hint in CTE")
   enableSuite[GlutenCTEInlineSuiteAEOff]
   enableSuite[GlutenCTEInlineSuiteAEOn]
   enableSuite[GlutenDataFrameHintSuite]

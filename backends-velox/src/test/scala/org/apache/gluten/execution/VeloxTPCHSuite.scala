@@ -82,7 +82,7 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
 
   def subType(): String = ""
   def shouldCheckGoldenFiles(): Boolean = {
-    Seq("v1", "v1-bhj").contains(subType()) && (
+    Seq("v1", "v1-bhj", "v1-ras", "v1-bhj-ras").contains(subType()) && (
       formatSparkVersion match {
         case "32" => true
         case "33" => true
@@ -244,8 +244,27 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
       checkGoldenFile(_, 22)
     }
   }
+}
 
-  test("test 'order by limit'") {
+class VeloxTPCHDistinctSpillSuite extends VeloxTPCHTableSupport {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.memory.offHeap.size", "50m")
+      .set("spark.gluten.memory.overAcquiredMemoryRatio", "0.9") // to trigger distinct spill early
+  }
+
+  test("distinct spill") {
+    val df = spark.sql("select count(distinct *) from lineitem limit 1")
+    TestUtils.compareAnswers(df.collect(), Seq(Row(60175)))
+  }
+}
+
+class VeloxTPCHMiscSuite extends VeloxTPCHTableSupport {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+  }
+
+  test("order by limit") {
     val df = spark.sql(
       """
         |select n_nationkey from nation order by n_nationkey limit 5
@@ -256,21 +275,9 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
     }
     assert(sortExec.size == 1)
     val result = df.collect()
+    df.explain(true)
     val expectedResult = Seq(Row(0), Row(1), Row(2), Row(3), Row(4))
     TestUtils.compareAnswers(result, expectedResult)
-  }
-}
-
-class VeloxTPCHDistinctSpill extends VeloxTPCHTableSupport {
-  override protected def sparkConf: SparkConf = {
-    super.sparkConf
-      .set("spark.memory.offHeap.size", "50m")
-      .set("spark.gluten.memory.overAcquiredMemoryRatio", "0.9") // to trigger distinct spill early
-  }
-
-  test("distinct spill") {
-    val df = spark.sql("select count(distinct *) from lineitem limit 1")
-    TestUtils.compareAnswers(df.collect(), Seq(Row(60175)))
   }
 }
 
@@ -311,6 +318,28 @@ class VeloxTPCHV2BhjSuite extends VeloxTPCHSuite {
     super.sparkConf
       .set("spark.sql.sources.useV1SourceList", "")
       .set("spark.sql.autoBroadcastJoinThreshold", "30M")
+  }
+}
+
+class VeloxTPCHV1RasSuite extends VeloxTPCHSuite {
+  override def subType(): String = "v1-ras"
+
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.sql.sources.useV1SourceList", "parquet")
+      .set("spark.sql.autoBroadcastJoinThreshold", "-1")
+      .set("spark.gluten.sql.ras.enabled", "true")
+  }
+}
+
+class VeloxTPCHV1BhjRasSuite extends VeloxTPCHSuite {
+  override def subType(): String = "v1-bhj-ras"
+
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.sql.sources.useV1SourceList", "parquet")
+      .set("spark.sql.autoBroadcastJoinThreshold", "30M")
+      .set("spark.gluten.sql.ras.enabled", "true")
   }
 }
 

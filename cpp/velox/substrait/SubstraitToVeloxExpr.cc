@@ -276,7 +276,7 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toLambdaExpr(
         SubstraitParser::findVeloxFunction(functionMap_, arg.scalar_function().function_reference());
     CHECK_EQ(veloxFunction, "namedlambdavariable");
     argumentNames.emplace_back(arg.scalar_function().arguments(0).value().literal().string());
-    argumentTypes.emplace_back(SubstraitParser::parseType(substraitFunc.output_type()));
+    argumentTypes.emplace_back(SubstraitParser::parseType(arg.scalar_function().output_type()));
   }
   auto rowType = ROW(std::move(argumentNames), std::move(argumentTypes));
   // Arg[0] -> function.
@@ -623,6 +623,7 @@ std::unordered_map<std::string, std::string> SubstraitVeloxExprConverter::extrac
     {"MONTH", "month"},
     {"QUARTER", "quarter"},
     {"YEAR", "year"},
-    {"YEAR_OF_WEEK", "week_of_year"}};
+    {"WEEK_OF_YEAR", "week_of_year"},
+    {"YEAR_OF_WEEK", "year_of_week"}};
 
 } // namespace gluten

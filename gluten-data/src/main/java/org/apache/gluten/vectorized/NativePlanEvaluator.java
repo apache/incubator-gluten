@@ -90,7 +90,8 @@ public class NativePlanEvaluator {
     final long memoryManagerHandle = nmm.getNativeInstanceHandle();
 
     final String spillDirPath =
-        SparkDirectoryUtil.namespace("gluten-spill")
+        SparkDirectoryUtil.get()
+            .namespace("gluten-spill")
             .mkChildDirRoundRobin(UUID.randomUUID().toString())
             .getAbsolutePath();
 

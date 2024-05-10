@@ -18,34 +18,30 @@ package org.apache.gluten.integration.tpc.action
 
 import org.apache.gluten.integration.stat.RamStat
 import org.apache.gluten.integration.tpc.{TpcRunner, TpcSuite}
-
 import org.apache.spark.sql.{SparkSessionSwitcher, TestUtils}
-
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.apache.gluten.integration.tpc.action.Actions.QuerySelector
 
 case class QueriesCompare(
     scale: Double,
-    queryIds: Array[String],
-    excludedQueryIds: Array[String],
+    queries: QuerySelector,
     explain: Boolean,
     iterations: Int)
-  extends Action {
+    extends Action {
 
   override def execute(tpcSuite: TpcSuite): Boolean = {
     val runner: TpcRunner = new TpcRunner(tpcSuite.queryResource(), tpcSuite.dataWritePath(scale))
-    val runQueryIds = tpcSuite.selectQueryIds(queryIds, excludedQueryIds)
-    val results = (0 until iterations).flatMap {
-      iteration =>
-        println(s"Running tests (iteration $iteration)...")
-        runQueryIds.map {
-          queryId =>
-            QueriesCompare.runTpcQuery(
-              queryId,
-              explain,
-              tpcSuite.desc(),
-              tpcSuite.sessionSwitcher,
-              runner)
-        }
+    val runQueryIds = queries.select(tpcSuite)
+    val results = (0 until iterations).flatMap { iteration =>
+      println(s"Running tests (iteration $iteration)...")
+      runQueryIds.map { queryId =>
+        QueriesCompare.runTpcQuery(
+          queryId,
+          explain,
+          tpcSuite.desc(),
+          tpcSuite.sessionSwitcher,
+          runner)
+      }
     }.toList
 
     val passedCount = results.count(l => l.testPassed)
@@ -59,8 +55,7 @@ case class QueriesCompare(
       "RAM statistics: JVM Heap size: %d KiB (total %d KiB), Process RSS: %d KiB\n",
       RamStat.getJvmHeapUsed(),
       RamStat.getJvmHeapTotal(),
-      RamStat.getProcessRamUsed()
-    )
+      RamStat.getProcessRamUsed())
 
     println("")
     println("Test report: ")
@@ -75,7 +70,8 @@ case class QueriesCompare(
       println("No failed queries. ")
       println("")
     } else {
-      println("Failed queries (a failed query with correct row count indicates value mismatches): ")
+      println(
+        "Failed queries (a failed query with correct row count indicates value mismatches): ")
       println("")
       QueriesCompare.printResults(results.filter(!_.testPassed))
       println("")
@@ -105,42 +101,52 @@ object QueriesCompare {
       testPassed: Boolean,
       expectedRowCount: Option[Long],
       actualRowCount: Option[Long],
+      expectedPlanningTimeMillis: Option[Long],
+      actualPlanningTimeMillis: Option[Long],
       expectedExecutionTimeMillis: Option[Long],
       actualExecutionTimeMillis: Option[Long],
       errorMessage: Option[String])
 
-  private def printResults(results: List[TestResultLine]): Unit = {
-    printf(
-      "|%15s|%15s|%30s|%30s|%30s|%30s|%30s|\n",
-      "Query ID",
-      "Was Passed",
-      "Expected Row Count",
-      "Actual Row Count",
-      "Baseline Query Time (Millis)",
-      "Query Time (Millis)",
-      "Query Time Variation"
-    )
-    results.foreach {
-      line =>
+  object TestResultLine {
+    implicit object Parser extends TableFormatter.RowParser[TestResultLine] {
+      override def parse(line: TestResultLine): Seq[Any] = {
         val timeVariation =
-          if (
-            line.expectedExecutionTimeMillis.nonEmpty && line.actualExecutionTimeMillis.nonEmpty
-          ) {
+          if (line.expectedExecutionTimeMillis.nonEmpty && line.actualExecutionTimeMillis.nonEmpty) {
             Some(
               ((line.expectedExecutionTimeMillis.get - line.actualExecutionTimeMillis.get).toDouble
                 / line.actualExecutionTimeMillis.get.toDouble) * 100)
           } else None
-        printf(
-          "|%15s|%15s|%30s|%30s|%30s|%30s|%30s|\n",
+        Seq(
           line.queryId,
           line.testPassed,
           line.expectedRowCount.getOrElse("N/A"),
           line.actualRowCount.getOrElse("N/A"),
+          line.expectedPlanningTimeMillis.getOrElse("N/A"),
+          line.actualPlanningTimeMillis.getOrElse("N/A"),
           line.expectedExecutionTimeMillis.getOrElse("N/A"),
           line.actualExecutionTimeMillis.getOrElse("N/A"),
-          timeVariation.map("%15.2f%%".format(_)).getOrElse("N/A")
-        )
+          timeVariation.map("%15.2f%%".format(_)).getOrElse("N/A"))
+      }
     }
+  }
+
+  private def printResults(results: List[TestResultLine]): Unit = {
+    val formatter = TableFormatter.create[TestResultLine](
+      "Query ID",
+      "Was Passed",
+      "Expected Row Count",
+      "Actual Row Count",
+      "Baseline Planning Time (Millis)",
+      "Planning Time (Millis)",
+      "Baseline Query Time (Millis)",
+      "Query Time (Millis)",
+      "Query Time Variation")
+
+    results.foreach { line =>
+      formatter.appendRow(line)
+    }
+
+    formatter.print(System.out)
   }
 
   private def aggregate(succeed: List[TestResultLine], name: String): List[TestResultLine] = {
@@ -148,25 +154,29 @@ object QueriesCompare {
       return Nil
     }
     List(
-      succeed.reduce(
-        (r1, r2) =>
-          TestResultLine(
-            name,
-            testPassed = true,
-            if (r1.expectedRowCount.nonEmpty && r2.expectedRowCount.nonEmpty)
-              Some(r1.expectedRowCount.get + r2.expectedRowCount.get)
-            else None,
-            if (r1.actualRowCount.nonEmpty && r2.actualRowCount.nonEmpty)
-              Some(r1.actualRowCount.get + r2.actualRowCount.get)
-            else None,
-            if (r1.expectedExecutionTimeMillis.nonEmpty && r2.expectedExecutionTimeMillis.nonEmpty)
-              Some(r1.expectedExecutionTimeMillis.get + r2.expectedExecutionTimeMillis.get)
-            else None,
-            if (r1.actualExecutionTimeMillis.nonEmpty && r2.actualExecutionTimeMillis.nonEmpty)
-              Some(r1.actualExecutionTimeMillis.get + r2.actualExecutionTimeMillis.get)
-            else None,
-            None
-          )))
+      succeed.reduce((r1, r2) =>
+        TestResultLine(
+          name,
+          testPassed = true,
+          if (r1.expectedRowCount.nonEmpty && r2.expectedRowCount.nonEmpty)
+            Some(r1.expectedRowCount.get + r2.expectedRowCount.get)
+          else None,
+          if (r1.actualRowCount.nonEmpty && r2.actualRowCount.nonEmpty)
+            Some(r1.actualRowCount.get + r2.actualRowCount.get)
+          else None,
+          if (r1.expectedPlanningTimeMillis.nonEmpty && r2.expectedPlanningTimeMillis.nonEmpty)
+            Some(r1.expectedPlanningTimeMillis.get + r2.expectedPlanningTimeMillis.get)
+          else None,
+          if (r1.actualPlanningTimeMillis.nonEmpty && r2.actualPlanningTimeMillis.nonEmpty)
+            Some(r1.actualPlanningTimeMillis.get + r2.actualPlanningTimeMillis.get)
+          else None,
+          if (r1.expectedExecutionTimeMillis.nonEmpty && r2.expectedExecutionTimeMillis.nonEmpty)
+            Some(r1.expectedExecutionTimeMillis.get + r2.expectedExecutionTimeMillis.get)
+          else None,
+          if (r1.actualExecutionTimeMillis.nonEmpty && r2.actualExecutionTimeMillis.nonEmpty)
+            Some(r1.actualExecutionTimeMillis.get + r2.actualExecutionTimeMillis.get)
+          else None,
+          None)))
   }
 
   private[tpc] def runTpcQuery(
@@ -198,6 +208,8 @@ object QueriesCompare {
           testPassed = true,
           Some(expectedRows.length),
           Some(resultRows.length),
+          Some(expected.planningTimeMillis),
+          Some(result.planningTimeMillis),
           Some(expected.executionTimeMillis),
           Some(result.executionTimeMillis),
           None)
@@ -209,6 +221,8 @@ object QueriesCompare {
         testPassed = false,
         Some(expectedRows.length),
         Some(resultRows.length),
+        Some(expected.planningTimeMillis),
+        Some(result.planningTimeMillis),
         Some(expected.executionTimeMillis),
         Some(result.executionTimeMillis),
         error)
@@ -218,7 +232,7 @@ object QueriesCompare {
         println(
           s"Error running query $id. " +
             s" Error: ${error.get}")
-        TestResultLine(id, testPassed = false, None, None, None, None, error)
+        TestResultLine(id, testPassed = false, None, None, None, None, None, None, error)
     }
   }
 }

@@ -34,7 +34,7 @@ ENABLE_TESTS=OFF
 # Set to ON for gluten cpp test build.
 BUILD_TEST_UTILS=OFF
 RUN_SETUP_SCRIPT=ON
-COMPILE_ARROW_JAVA=OFF
+COMPILE_ARROW_JAVA=ON
 NUM_THREADS=""
 OTHER_ARGUMENTS=""
 
@@ -114,7 +114,8 @@ function compile {
     fi
   fi
 
-  COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF"
+  CXX_FLAGS='-Wno-missing-field-initializers'
+  COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF"
   if [ $BUILD_TEST_UTILS == "ON" ]; then
       COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TEST_UTILS=ON"
   fi
@@ -208,7 +209,7 @@ function check_commit {
     fi
   else
     # Branch-new build requires all untracked files to be deleted. We only need the source code.
-    git clean -dffx :/
+    sudo git clean -dffx :/
   fi
 
   if [ -f ${VELOX_HOME}/velox-build.cache ]; then
@@ -280,15 +281,25 @@ function compile_arrow_java_module() {
     ARROW_HOME="${VELOX_HOME}/_build/$COMPILE_TYPE/third_party/arrow_ep/src/arrow_ep"
     ARROW_INSTALL_DIR="${ARROW_HOME}/../../install"
 
-    # Arrow C Data Interface CPP libraries
     pushd $ARROW_HOME/java
-    mvn generate-resources -P generate-libs-cdata-all-os -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR -N
-    popd
+    
+    mvn clean install -pl maven/module-info-compiler-maven-plugin -am \
+          -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip
+
+    # Arrow C Data Interface CPP libraries
+    mvn generate-resources -P generate-libs-cdata-all-os -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR \
+      -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip -N
+
+    # Arrow JNI Date Interface CPP libraries
+    export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
+    mvn generate-resources -Pgenerate-libs-jni-macos-linux -N -Darrow.dataset.jni.dist.dir=$ARROW_INSTALL_DIR \
+      -DARROW_GANDIVA=OFF -DARROW_JAVA_JNI_ENABLE_GANDIVA=OFF -DARROW_ORC=OFF -DARROW_JAVA_JNI_ENABLE_ORC=OFF \
+	    -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip -N
 
     # Arrow Java libraries
-    pushd $ARROW_HOME/java
-    mvn clean install -P arrow-c-data -pl c -am -DskipTests -Dcheckstyle.skip \
-      -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Dmaven.gitcommitid.skip=true
+    mvn clean install  -Parrow-jni -P arrow-c-data -pl dataset,c -am \
+      -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Darrow.dataset.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib \
+      -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip
     popd
 }
 

@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution.datasources.parquet
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
-
 class GlutenParquetCompressionCodecPrecedenceSuite
   extends ParquetCompressionCodecPrecedenceSuite
   with GlutenSQLTestsBaseTrait {}

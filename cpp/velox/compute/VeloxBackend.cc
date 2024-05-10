@@ -97,7 +97,7 @@ const std::string kVeloxUdfLibraryPaths = "spark.gluten.sql.columnar.backend.vel
 
 // spill
 const std::string kMaxSpillFileSize = "spark.gluten.sql.columnar.backend.velox.maxSpillFileSize";
-const uint64_t kMaxSpillFileSizeDefault = 20L * 1024 * 1024;
+const uint64_t kMaxSpillFileSizeDefault = 1L * 1024 * 1024 * 1024;
 
 // backtrace allocation
 const std::string kBacktraceAllocation = "spark.gluten.backtrace.allocation";
@@ -258,8 +258,7 @@ void VeloxBackend::initCache(const std::shared_ptr<const facebook::velox::Config
 }
 
 void VeloxBackend::initConnector(const std::shared_ptr<const facebook::velox::Config>& conf) {
-  int32_t ioThreads = conf->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
-
+  // The configs below are used at process level.
   auto mutableConf = std::make_shared<facebook::velox::core::MemConfigMutable>(conf->valuesCopy());
 
   auto hiveConf = getHiveConfig(conf);
@@ -303,6 +302,7 @@ void VeloxBackend::initConnector(const std::shared_ptr<const facebook::velox::Co
   // set cache_prefetch_min_pct default as 0 to force all loads are prefetched in DirectBufferInput.
   FLAGS_cache_prefetch_min_pct = conf->get<int>(kCachePrefetchMinPct, 0);
 
+  auto ioThreads = conf->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
   if (ioThreads > 0) {
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
   }

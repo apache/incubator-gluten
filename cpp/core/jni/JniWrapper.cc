@@ -34,7 +34,7 @@
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/Utils.h"
-#include "shuffle/rss/CelebornPartitionWriter.h"
+#include "shuffle/rss/RssPartitionWriter.h"
 #include "utils/ArrowStatus.h"
 #include "utils/StringUtil.h"
 
@@ -449,7 +449,8 @@ JNIEXPORT jboolean JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIte
 
   auto iter = ctx->objectStore()->retrieve<ResultIterator>(iterHandle);
   if (iter == nullptr) {
-    std::string errorMessage = "failed to get batch iterator";
+    std::string errorMessage =
+        "When hasNext() is called on a closed iterator, an exception is thrown. To prevent this, consider using the protectInvocationFlow() method when creating the iterator in scala side. This will allow the hasNext() method to be called multiple times without issue.";
     throw gluten::GlutenException(errorMessage);
   }
   return iter->hasNext();
@@ -908,13 +909,29 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     if (env->GetJavaVM(&vm) != JNI_OK) {
       throw gluten::GlutenException("Unable to get JavaVM instance");
     }
-    std::shared_ptr<CelebornClient> celebornClient =
-        std::make_shared<CelebornClient>(vm, partitionPusher, celebornPushPartitionDataMethod);
-    partitionWriter = std::make_unique<CelebornPartitionWriter>(
+    std::shared_ptr<JavaRssClient> celebornClient =
+        std::make_shared<JavaRssClient>(vm, partitionPusher, celebornPushPartitionDataMethod);
+    partitionWriter = std::make_unique<RssPartitionWriter>(
         numPartitions,
         std::move(partitionWriterOptions),
         memoryManager->getArrowMemoryPool(),
         std::move(celebornClient));
+  } else if (partitionWriterType == "uniffle") {
+    jclass unifflePartitionPusherClass =
+        createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/writer/PartitionPusher;");
+    jmethodID unifflePushPartitionDataMethod =
+        getMethodIdOrError(env, unifflePartitionPusherClass, "pushPartitionData", "(I[BI)I");
+    JavaVM* vm;
+    if (env->GetJavaVM(&vm) != JNI_OK) {
+      throw gluten::GlutenException("Unable to get JavaVM instance");
+    }
+    std::shared_ptr<JavaRssClient> uniffleClient =
+        std::make_shared<JavaRssClient>(vm, partitionPusher, unifflePushPartitionDataMethod);
+    partitionWriter = std::make_unique<RssPartitionWriter>(
+        numPartitions,
+        std::move(partitionWriterOptions),
+        memoryManager->getArrowMemoryPool(),
+        std::move(uniffleClient));
   } else {
     throw gluten::GlutenException("Unrecognizable partition writer type: " + partitionWriterType);
   }

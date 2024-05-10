@@ -19,7 +19,6 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.extension.ValidationResult
-import org.apache.gluten.extension.columnar.TransformHints
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.`type`.TypeBuilder
 import org.apache.gluten.substrait.SubstraitContext
@@ -27,7 +26,7 @@ import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.{SortExec, SparkPlan}
+import org.apache.spark.sql.execution.SparkPlan
 
 import scala.collection.JavaConverters._
 
@@ -47,26 +46,9 @@ case class LimitTransformer(child: SparkPlan, offset: Long, count: Long)
     BackendsApiManager.getMetricsApiInstance.genLimitTransformerMetricsUpdater(metrics)
 
   override protected def doValidateInternal(): ValidationResult = {
-    child match {
-      case sort: SortExec if TransformHints.isTransformable(sort) && offset != 0 =>
-        return ValidationResult.notOk(s"Native TopK does not support offset: $offset")
-      case _ =>
-    }
-
     val context = new SubstraitContext
     val operatorId = context.nextOperatorId(this.nodeName)
-    val input = child match {
-      // For topK case
-      case c: TransformSupport => c.doTransform(context).root
-      case _ => null
-    }
-    // If RAS is enabled and is capable to move limit operators up and down among the plan nodes,
-    // It might become possible that an independent limit gets to be transited to a order-by-limit.
-    // In that case, we should tuning on the validation procedure. Either to move limit validation
-    // To RAS, or re-validate it in RAS, or add properties or rules in RAS to avoid such moves.
-    //
-    // It's not a issue for now since RAS doesn't do such moves.
-    val relNode = getRelNode(context, operatorId, offset, count, child.output, input, true)
+    val relNode = getRelNode(context, operatorId, offset, count, child.output, null, true)
 
     doNativeValidation(context, relNode)
   }

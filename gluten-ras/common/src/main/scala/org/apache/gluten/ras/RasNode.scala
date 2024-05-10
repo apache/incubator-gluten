@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.ras
 
-import org.apache.gluten.ras.Ras.UnsafeKey
+import org.apache.gluten.ras.Ras.UnsafeHashKey
 import org.apache.gluten.ras.property.PropertySet
 
 trait RasNode[T <: AnyRef] {
@@ -43,7 +43,7 @@ object RasNode {
       node.asInstanceOf[GroupNode[T]]
     }
 
-    def toUnsafeKey(): UnsafeKey[T] = node.ras().toUnsafeKey(node.self())
+    def toHashKey(): UnsafeHashKey[T] = node.ras().toHashKey(node.self())
   }
 }
 
@@ -131,16 +131,16 @@ object InGroupNode {
   private case class InGroupNodeImpl[T <: AnyRef](groupId: Int, can: CanonicalNode[T])
     extends InGroupNode[T]
 
-  trait HashKey extends Any
+  trait UniqueKey extends Any
 
   implicit class InGroupNodeImplicits[T <: AnyRef](n: InGroupNode[T]) {
     import InGroupNodeImplicits._
-    def toHashKey: HashKey =
-      InGroupNodeHashKeyImpl(n.groupId, System.identityHashCode(n.can))
+    def toUniqueKey: UniqueKey =
+      InGroupNodeUniqueKeyImpl(n.groupId, System.identityHashCode(n.can))
   }
 
   private object InGroupNodeImplicits {
-    private case class InGroupNodeHashKeyImpl(gid: Int, cid: Int) extends HashKey
+    private case class InGroupNodeUniqueKeyImpl(gid: Int, cid: Int) extends UniqueKey
   }
 }
 
@@ -159,15 +159,16 @@ object InClusterNode {
       can: CanonicalNode[T])
     extends InClusterNode[T]
 
-  trait HashKey extends Any
+  trait UniqueKey extends Any
 
   implicit class InClusterNodeImplicits[T <: AnyRef](n: InClusterNode[T]) {
     import InClusterNodeImplicits._
-    def toHashKey: HashKey =
-      InClusterNodeHashKeyImpl(n.clusterKey, System.identityHashCode(n.can))
+    def toUniqueKey: UniqueKey =
+      InClusterNodeUniqueKeyImpl(n.clusterKey, System.identityHashCode(n.can))
   }
 
   private object InClusterNodeImplicits {
-    private case class InClusterNodeHashKeyImpl(clusterKey: RasClusterKey, cid: Int) extends HashKey
+    private case class InClusterNodeUniqueKeyImpl(clusterKey: RasClusterKey, cid: Int)
+      extends UniqueKey
   }
 }

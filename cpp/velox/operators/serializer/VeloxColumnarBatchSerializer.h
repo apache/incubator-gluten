@@ -41,6 +41,7 @@ class VeloxColumnarBatchSerializer final : public ColumnarBatchSerializer {
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
   facebook::velox::RowTypePtr rowType_;
   std::unique_ptr<facebook::velox::serializer::presto::PrestoVectorSerde> serde_;
+  facebook::velox::serializer::presto::PrestoVectorSerde::PrestoOptions options_;
 };
 
 } // namespace gluten

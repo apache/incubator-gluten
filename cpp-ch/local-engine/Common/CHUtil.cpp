@@ -14,14 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#include "CHUtil.h"
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <unistd.h>
 #include <AggregateFunctions/Combinators/AggregateFunctionCombinatorFactory.h>
 #include <AggregateFunctions/registerAggregateFunctions.h>
 #include <Columns/ColumnArray.h>
 #include <Columns/ColumnConst.h>
-#include <Columns/ColumnMap.h>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnTuple.h>
 #include <Columns/IColumn.h>
@@ -30,14 +32,17 @@
 #include <Core/Defines.h>
 #include <Core/NamesAndTypes.h>
 #include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeMap.h>
+#include <DataTypes/DataTypeDateTime64.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
+#include <DataTypes/DataTypesDecimal.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/NestedUtils.h>
 #include <Disks/registerDisks.h>
+#include <Disks/registerGlutenDisks.h>
 #include <Functions/FunctionFactory.h>
+#include <Functions/FunctionHelpers.h>
 #include <Functions/registerFunctions.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/SharedThreadPools.h>
@@ -51,8 +56,11 @@
 #include <Storages/Output/WriteBufferBuilder.h>
 #include <Storages/StorageMergeTreeFactory.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <boost/algorithm/string/case_conv.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/wrappers.pb.h>
+#include <sys/resource.h>
 #include <Poco/Logger.h>
 #include <Poco/Util/MapConfiguration.h>
 #include <Common/BitHelpers.h>
@@ -63,20 +71,12 @@
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
 
-#include <boost/algorithm/string/case_conv.hpp>
-#include <boost/algorithm/string/predicate.hpp>
-
-#include "CHUtil.h"
-#include "Disks/registerGlutenDisks.h"
-
-#include <unistd.h>
-#include <sys/resource.h>
-
 namespace DB
 {
 namespace ErrorCodes
 {
 extern const int BAD_ARGUMENTS;
+extern const int UNKNOWN_TYPE;
 }
 }
 
@@ -311,45 +311,49 @@ size_t PODArrayUtil::adjustMemoryEfficientSize(size_t n)
 
 std::string PlanUtil::explainPlan(DB::QueryPlan & plan)
 {
-    std::string plan_str;
-    DB::QueryPlan::ExplainPlanOptions buf_opt{
+    constexpr DB::QueryPlan::ExplainPlanOptions buf_opt{
         .header = true,
         .actions = true,
         .indexes = true,
     };
     DB::WriteBufferFromOwnString buf;
     plan.explainPlan(buf, buf_opt);
-    plan_str = buf.str();
-    return plan_str;
+
+    return buf.str();
 }
 
-std::vector<MergeTreeUtil::Path> MergeTreeUtil::getAllMergeTreeParts(const Path & storage_path)
+void PlanUtil::checkOuputType(const DB::QueryPlan & plan)
 {
-    if (!fs::exists(storage_path))
-        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Invalid merge tree store path:{}", storage_path.string());
-
-    // TODO: May need to check the storage format version
-    std::vector<fs::path> res;
-    for (const auto & entry : fs::directory_iterator(storage_path))
+    // QueryPlan::checkInitialized is a private method, so we assume plan is initialized, otherwise there is a core dump here.
+    // It's okay, because it's impossible for us not to initialize where we call this method.
+    const auto & step = *plan.getRootNode()->step;
+    if (!step.hasOutputStream())
+        return;
+    if (!step.getOutputStream().header)
+        return;
+    for (const auto & elem : step.getOutputStream().header)
     {
-        auto filename = entry.path().filename();
-        if (filename == "format_version.txt" || filename == "detached" || filename == "_delta_log")
-            continue;
-        res.push_back(entry.path());
+        const DB::DataTypePtr & ch_type = elem.type;
+        const auto ch_type_without_nullable = DB::removeNullable(ch_type);
+        const DB::WhichDataType which(ch_type_without_nullable);
+        if (which.isDateTime64())
+        {
+            const auto * ch_type_datetime64 = checkAndGetDataType<DataTypeDateTime64>(ch_type_without_nullable.get());
+            if (ch_type_datetime64->getScale() != 6)
+                throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
+        }
+        else if (which.isDecimal())
+        {
+            if (which.isDecimal256())
+                throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
+
+            const auto scale = getDecimalScale(*ch_type_without_nullable);
+            const auto precision = getDecimalPrecision(*ch_type_without_nullable);
+            if (scale == 0 && precision == 0)
+                throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
+        }
     }
-    return res;
 }
-
-DB::NamesAndTypesList MergeTreeUtil::getSchemaFromMergeTreePart(const fs::path & part_path)
-{
-    DB::NamesAndTypesList names_types_list;
-    if (!fs::exists(part_path))
-        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Invalid merge tree store path:{}", part_path.string());
-    DB::ReadBufferFromFile readbuffer((part_path / "columns.txt").string());
-    names_types_list.readText(readbuffer);
-    return names_types_list;
-}
-
 
 NestedColumnExtractHelper::NestedColumnExtractHelper(const DB::Block & block_, bool case_insentive_)
     : block(block_), case_insentive(case_insentive_)
@@ -594,10 +598,21 @@ void BackendInitializerUtil::initEnvs(DB::Context::ConfigurationPtr config)
         spark_user = spark_user_c_str;
 }
 
+DB::Field BackendInitializerUtil::toField(const String key, const String value)
+{
+    if (BOOL_VALUE_SETTINGS.contains(key))
+        return DB::Field(value == "true" || value == "1");
+    else if (LONG_VALUE_SETTINGS.contains(key))
+        return DB::Field(std::strtoll(value.c_str(), NULL, 10));
+    else
+        return DB::Field(value);
+}
+
 void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & backend_conf_map, DB::Settings & settings)
 {
     /// Initialize default setting.
     settings.set("date_time_input_format", "best_effort");
+    settings.set("mergetree.merge_after_insert", true);
 
     for (const auto & [key, value] : backend_conf_map)
     {
@@ -609,7 +624,8 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
         }
         else if (key.starts_with(CH_RUNTIME_SETTINGS_PREFIX))
         {
-            settings.set(key.substr(CH_RUNTIME_SETTINGS_PREFIX.size()), value);
+            auto k = key.substr(CH_RUNTIME_SETTINGS_PREFIX.size());
+            settings.set(k, toField(k, value));
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
         }
         else if (key.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX))
@@ -623,6 +639,12 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
             // 3. fs.s3a.bucket.bucket_name.endpoint
             // 4. fs.s3a.bucket.bucket_name.assumed.role.externalId (non hadoop official)
             settings.set(key.substr(SPARK_HADOOP_PREFIX.length()), value);
+        }
+        else if (key.starts_with(SPARK_DELTA_PREFIX))
+        {
+            auto k = key.substr(SPARK_DELTA_PREFIX.size());
+            settings.set(k, toField(k, value));
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
         }
     }
 
@@ -723,7 +745,6 @@ void registerAllFunctions()
         auto & factory = AggregateFunctionCombinatorFactory::instance();
         registerAggregateFunctionCombinatorPartialMerge(factory);
     }
-
 }
 
 void registerGlutenDisks()

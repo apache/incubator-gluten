@@ -403,7 +403,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FetchRel& fetchR
     const auto& extension = fetchRel.advanced_extension();
     std::vector<TypePtr> types;
     if (!validateInputTypes(extension, types)) {
-      LOG_VALIDATION_MSG("Unsupported input types in ExpandRel.");
+      LOG_VALIDATION_MSG("Unsupported input types in FetchRel.");
       return false;
     }
 
@@ -421,22 +421,41 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FetchRel& fetchR
     return false;
   }
 
-  // Check the input of fetchRel, if it's sortRel, we need to check whether the sorting key is duplicated.
-  bool topNFlag = false;
-  if (fetchRel.has_input()) {
-    topNFlag = fetchRel.input().has_sort();
-    if (topNFlag) {
-      ::substrait::SortRel sortRel = fetchRel.input().sort();
-      auto [sortingKeys, sortingOrders] = planConverter_.processSortField(sortRel.sorts(), rowType);
-      folly::F14FastSet<std::string> sortingKeyNames;
-      for (const auto& sortingKey : sortingKeys) {
-        auto result = sortingKeyNames.insert(sortingKey->name());
-        if (!result.second) {
-          LOG_VALIDATION_MSG(
-              "If the input of fetchRel is a SortRel, we will convert it to a TopNNode. In Velox, it is important to ensure unique sorting keys. However, duplicate keys were found in this case.");
-          return false;
-        }
-      }
+  return true;
+}
+
+bool SubstraitToVeloxPlanValidator::validate(const ::substrait::TopNRel& topNRel) {
+  RowTypePtr rowType = nullptr;
+  // Get and validate the input types from extension.
+  if (topNRel.has_advanced_extension()) {
+    const auto& extension = topNRel.advanced_extension();
+    std::vector<TypePtr> types;
+    if (!validateInputTypes(extension, types)) {
+      LOG_VALIDATION_MSG("Unsupported input types in TopNRel.");
+      return false;
+    }
+
+    int32_t inputPlanNodeId = 0;
+    std::vector<std::string> names;
+    names.reserve(types.size());
+    for (auto colIdx = 0; colIdx < types.size(); colIdx++) {
+      names.emplace_back(SubstraitParser::makeNodeName(inputPlanNodeId, colIdx));
+    }
+    rowType = std::make_shared<RowType>(std::move(names), std::move(types));
+  }
+
+  if (topNRel.n() < 0) {
+    LOG_VALIDATION_MSG("N should be valid in TopNRel.");
+    return false;
+  }
+
+  auto [sortingKeys, sortingOrders] = planConverter_.processSortField(topNRel.sorts(), rowType);
+  folly::F14FastSet<std::string> sortingKeyNames;
+  for (const auto& sortingKey : sortingKeys) {
+    auto result = sortingKeyNames.insert(sortingKey->name());
+    if (!result.second) {
+      LOG_VALIDATION_MSG("Duplicate sort keys were found in TopNRel.");
+      return false;
     }
   }
 
@@ -624,7 +643,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
   }
 
   // Validate supported aggregate functions.
-  static const std::unordered_set<std::string> unsupportedFuncs = {"collect_list", "collect_set"};
+  static const std::unordered_set<std::string> unsupportedFuncs = {"collect_set"};
   for (const auto& funcSpec : funcSpecs) {
     auto funcName = SubstraitParser::getNameBeforeDelimiter(funcSpec);
     if (unsupportedFuncs.find(funcName) != unsupportedFuncs.end()) {
@@ -670,6 +689,76 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
       auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
       if (!exprField) {
         LOG_VALIDATION_MSG("in windowRel, the sorting key in Sort Operator only support field.");
+        return false;
+      }
+      exec::ExprSet exprSet({std::move(expression)}, execCtx_);
+    }
+  }
+
+  return true;
+}
+
+bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowGroupLimitRel& windowGroupLimitRel) {
+  if (windowGroupLimitRel.has_input() && !validate(windowGroupLimitRel.input())) {
+    LOG_VALIDATION_MSG("WindowGroupLimitRel input fails to validate.");
+    return false;
+  }
+
+  // Get and validate the input types from extension.
+  if (!windowGroupLimitRel.has_advanced_extension()) {
+    LOG_VALIDATION_MSG("Input types are expected in WindowGroupLimitRel.");
+    return false;
+  }
+  const auto& extension = windowGroupLimitRel.advanced_extension();
+  std::vector<TypePtr> types;
+  if (!validateInputTypes(extension, types)) {
+    LOG_VALIDATION_MSG("Validation failed for input types in WindowGroupLimitRel.");
+    return false;
+  }
+
+  int32_t inputPlanNodeId = 0;
+  std::vector<std::string> names;
+  names.reserve(types.size());
+  for (auto colIdx = 0; colIdx < types.size(); colIdx++) {
+    names.emplace_back(SubstraitParser::makeNodeName(inputPlanNodeId, colIdx));
+  }
+  auto rowType = std::make_shared<RowType>(std::move(names), std::move(types));
+  // Validate groupby expression
+  const auto& groupByExprs = windowGroupLimitRel.partition_expressions();
+  std::vector<core::TypedExprPtr> expressions;
+  expressions.reserve(groupByExprs.size());
+  for (const auto& expr : groupByExprs) {
+    auto expression = exprConverter_->toVeloxExpr(expr, rowType);
+    auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
+    if (exprField == nullptr) {
+      LOG_VALIDATION_MSG("Only field is supported for partition key in Window Group Limit Operator!");
+      return false;
+    } else {
+      expressions.emplace_back(expression);
+    }
+  }
+  // Try to compile the expressions. If there is any unregistered function or
+  // mismatched type, exception will be thrown.
+  exec::ExprSet exprSet(std::move(expressions), execCtx_);
+  // Validate Sort expression
+  const auto& sorts = windowGroupLimitRel.sorts();
+  for (const auto& sort : sorts) {
+    switch (sort.direction()) {
+      case ::substrait::SortField_SortDirection_SORT_DIRECTION_ASC_NULLS_FIRST:
+      case ::substrait::SortField_SortDirection_SORT_DIRECTION_ASC_NULLS_LAST:
+      case ::substrait::SortField_SortDirection_SORT_DIRECTION_DESC_NULLS_FIRST:
+      case ::substrait::SortField_SortDirection_SORT_DIRECTION_DESC_NULLS_LAST:
+        break;
+      default:
+        LOG_VALIDATION_MSG("in windowGroupLimitRel, unsupported Sort direction " + std::to_string(sort.direction()));
+        return false;
+    }
+
+    if (sort.has_expr()) {
+      auto expression = exprConverter_->toVeloxExpr(sort.expr(), rowType);
+      auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
+      if (!exprField) {
+        LOG_VALIDATION_MSG("in windowGroupLimitRel, the sorting key in Sort Operator only support field.");
         return false;
       }
       exec::ExprSet exprSet({std::move(expression)}, execCtx_);
@@ -1087,7 +1176,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
       "kurtosis",
       "regr_slope",
       "regr_intercept",
-      "regr_sxy"};
+      "regr_sxy",
+      "regr_replacement"};
 
   auto udfFuncs = UdfLoader::getInstance()->getRegisteredUdafNames();
 
@@ -1174,10 +1264,14 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Rel& rel) {
     return validate(rel.generate());
   } else if (rel.has_fetch()) {
     return validate(rel.fetch());
+  } else if (rel.has_top_n()) {
+    return validate(rel.top_n());
   } else if (rel.has_window()) {
     return validate(rel.window());
   } else if (rel.has_write()) {
     return validate(rel.write());
+  } else if (rel.has_windowgrouplimit()) {
+    return validate(rel.windowgrouplimit());
   } else {
     return false;
   }

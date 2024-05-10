@@ -61,6 +61,7 @@ object ExpressionMappings {
     Sig[Not](NOT),
     Sig[IsNaN](IS_NAN),
     Sig[NaNvl](NANVL),
+    Sig[TryEval](TRY_EVAL),
 
     // SparkSQL String functions
     Sig[Ascii](ASCII),
@@ -109,6 +110,7 @@ object ExpressionMappings {
     Sig[Ceil](CEIL),
     Sig[Floor](FLOOR),
     Sig[Exp](EXP),
+    Sig[Expm1](EXPM1),
     Sig[Pow](POWER),
     Sig[Pmod](PMOD),
     Sig[Round](ROUND),
@@ -187,6 +189,11 @@ object ExpressionMappings {
     Sig[MakeYMInterval](MAKE_YM_INTERVAL),
     Sig[ToUTCTimestamp](TO_UTC_TIMESTAMP),
     Sig[FromUTCTimestamp](FROM_UTC_TIMESTAMP),
+    Sig[UnixSeconds](UNIX_SECONDS),
+    Sig[UnixMillis](UNIX_MILLIS),
+    Sig[UnixMicros](UNIX_MICROS),
+    Sig[MillisToTimestamp](TIMESTAMP_MILLIS),
+    Sig[MicrosToTimestamp](TIMESTAMP_MICROS),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
@@ -201,6 +208,7 @@ object ExpressionMappings {
     Sig[Sha2](SHA2),
     Sig[Crc32](CRC32),
     // Array functions
+    Sig[ArrayTransform](TRANSFORM),
     Sig[Size](SIZE),
     Sig[Slice](SLICE),
     Sig[Sequence](SEQUENCE),
@@ -227,6 +235,12 @@ object ExpressionMappings {
     Sig[ArrayExcept](ARRAY_EXCEPT),
     Sig[ArrayRepeat](ARRAY_REPEAT),
     Sig[ArrayRemove](ARRAY_REMOVE),
+    Sig[ArraysZip](ARRAYS_ZIP),
+    Sig[ArrayFilter](FILTER),
+    Sig[ArrayForAll](FORALL),
+    Sig[ArrayExists](EXISTS),
+    Sig[Shuffle](SHUFFLE),
+    Sig[ZipWith](ZIP_WITH),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
@@ -234,11 +248,13 @@ object ExpressionMappings {
     Sig[MapValues](MAP_VALUES),
     Sig[MapFromArrays](MAP_FROM_ARRAYS),
     Sig[MapEntries](MAP_ENTRIES),
+    Sig[MapZipWith](MAP_ZIP_WITH),
     Sig[StringToMap](STR_TO_MAP),
     // Struct functions
     Sig[GetStructField](GET_STRUCT_FIELD),
     Sig[CreateNamedStruct](NAMED_STRUCT),
     // Directly use child expression transformer
+    Sig[KnownNotNull](KNOWN_NOT_NULL),
     Sig[KnownFloatingPointNormalized](KNOWN_FLOATING_POINT_NORMALIZED),
     Sig[NormalizeNaNAndZero](NORMALIZE_NANAND_ZERO),
     // Specific expression

@@ -30,12 +30,12 @@ object MiscColumnarRules {
   object TransformPreOverrides {
     def apply(): TransformPreOverrides = {
       TransformPreOverrides(
-        List(ImplementFilter()),
+        List(OffloadFilter()),
         List(
-          ImplementOthers(),
-          ImplementAggregate(),
-          ImplementExchange(),
-          ImplementJoin()
+          OffloadOthers(),
+          OffloadAggregate(),
+          OffloadExchange(),
+          OffloadJoin()
         )
       )
     }
@@ -43,17 +43,17 @@ object MiscColumnarRules {
 
   // This rule will conduct the conversion from Spark plan to the plan transformer.
   case class TransformPreOverrides(
-      topDownRules: Seq[ImplementSingleNode],
-      bottomUpRules: Seq[ImplementSingleNode])
+      topDownRules: Seq[OffloadSingleNode],
+      bottomUpRules: Seq[OffloadSingleNode])
     extends Rule[SparkPlan]
     with LogLevelUtil {
     @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
     def apply(plan: SparkPlan): SparkPlan = {
       val plan0 =
-        topDownRules.foldLeft(plan)((p, rule) => p.transformDown { case p => rule.impl(p) })
+        topDownRules.foldLeft(plan)((p, rule) => p.transformDown { case p => rule.offload(p) })
       val plan1 =
-        bottomUpRules.foldLeft(plan0)((p, rule) => p.transformUp { case p => rule.impl(p) })
+        bottomUpRules.foldLeft(plan0)((p, rule) => p.transformUp { case p => rule.offload(p) })
       planChangeLogger.logRule(ruleName, plan, plan1)
       plan1
     }

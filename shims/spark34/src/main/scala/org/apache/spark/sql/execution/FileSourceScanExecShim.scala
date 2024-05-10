@@ -18,7 +18,8 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.metrics.GlutenTimeMetric
 
-import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, Expression, FileSourceConstantMetadataAttribute, FileSourceGeneratedMetadataAttribute, FileSourceMetadataAttribute, PlanExpression, Predicate}
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
@@ -125,4 +126,27 @@ abstract class FileSourceScanExecShim(
     sendDriverMetrics()
     selected
   }
+}
+
+abstract class ArrowFileSourceScanLikeShim(original: FileSourceScanExec)
+  extends FileSourceScanLike {
+  override val nodeNamePrefix: String = "ArrowFile"
+
+  override def tableIdentifier: Option[TableIdentifier] = original.tableIdentifier
+
+  override def inputRDDs(): Seq[RDD[InternalRow]] = original.inputRDDs()
+
+  override def dataFilters: Seq[Expression] = original.dataFilters
+
+  override def disableBucketedScan: Boolean = original.disableBucketedScan
+
+  override def optionalBucketSet: Option[BitSet] = original.optionalBucketSet
+
+  override def optionalNumCoalescedBuckets: Option[Int] = original.optionalNumCoalescedBuckets
+
+  override def partitionFilters: Seq[Expression] = original.partitionFilters
+
+  override def relation: HadoopFsRelation = original.relation
+
+  override def requiredSchema: StructType = original.requiredSchema
 }

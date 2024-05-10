@@ -344,8 +344,7 @@ TEST(ParquetRead, ArrowRead)
         format_settings.date_time_overflow_behavior,
         format_settings.parquet.case_insensitive_column_matching);
 
-    Chunk chunk;
-    converter.arrowTableToCHChunk(chunk, table, table->num_rows());
+    Chunk chunk = converter.arrowTableToCHChunk(table, table->num_rows());
     Block res = header.cloneWithColumns(chunk.detachColumns());
     EXPECT_EQ(res.rows(), 20);
 

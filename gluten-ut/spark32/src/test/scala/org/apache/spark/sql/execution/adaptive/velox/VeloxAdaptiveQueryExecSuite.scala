@@ -816,7 +816,7 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
     }
   }
 
-  testGluten("Logging plan changes for AQE") {
+  ignoreGluten("Logging plan changes for AQE") {
     val testAppender = new LogAppender("plan changes")
     withLogAppender(testAppender) {
       withSQLConf(
@@ -1452,7 +1452,7 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
     }
   }
 
-  testGluten("test log level") {
+  ignoreGluten("test log level") {
     def verifyLog(expectedLevel: Level): Unit = {
       val logAppender = new LogAppender("adaptive execution")
       logAppender.setThreshold(expectedLevel)

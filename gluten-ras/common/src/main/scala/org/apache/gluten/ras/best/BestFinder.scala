@@ -57,17 +57,17 @@ object BestFinder {
 
     val bestPath = groupToCosts(group.id()).best()
     val winnerNodes = groupToCosts.map { case (id, g) => InGroupNode(id, g.bestNode) }.toSeq
-    val costsMap = mutable.Map[InGroupNode.HashKey, Cost]()
+    val costsMap = mutable.Map[InGroupNode.UniqueKey, Cost]()
     groupToCosts.foreach {
       case (gid, g) =>
         g.nodes.foreach {
           n =>
             val c = g.nodeToCost(n)
             if (c.nonEmpty) {
-              costsMap += (InGroupNode(gid, n).toHashKey -> c.get.cost)
+              costsMap += (InGroupNode(gid, n).toUniqueKey -> c.get.cost)
             }
         }
     }
-    Best(ras, group.id(), bestPath, winnerNodes, ign => costsMap.get(ign.toHashKey))
+    Best(ras, group.id(), bestPath, winnerNodes, ign => costsMap.get(ign.toUniqueKey))
   }
 }

@@ -16,20 +16,25 @@
  */
 #include "PartitionWriter.h"
 #include <filesystem>
+#include <format>
 #include <memory>
 #include <ostream>
 #include <vector>
-#include <Storages/IO/CompressedWriteBuffer.h>
-#include <boost/algorithm/string/case_conv.hpp>
-#include <Shuffle/CachedShuffleWriter.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/WriteBufferFromFile.h>
-#include <Common/Stopwatch.h>
-#include <Common/ThreadPool.h>
+#include <IO/WriteBufferFromString.h>
+#include <Processors/Merges/Algorithms/MergingSortedAlgorithm.h>
+#include <Shuffle/CachedShuffleWriter.h>
+#include <Shuffle/SortedPartitionDataMerger.h>
+#include <Storages/IO/AggregateSerializationUtils.h>
+#include <Storages/IO/CompressedWriteBuffer.h>
+#include <boost/algorithm/string/case_conv.hpp>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
-#include <IO/WriteBufferFromString.h>
-#include <format>
+#include <Common/Stopwatch.h>
+#include <Common/ThreadPool.h>
+
+#include <Processors/Transforms/SortingTransform.h>
 #include <Storages/IO/NativeWriter.h>
 
 
@@ -37,7 +42,7 @@ namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int LOGICAL_ERROR;
+extern const int LOGICAL_ERROR;
 }
 }
 
@@ -52,7 +57,7 @@ void PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & bl
         throw Exception(ErrorCodes::LOGICAL_ERROR, "PartitionWriter::write is invoked with evicting_or_writing being occupied");
 
     evicting_or_writing = true;
-    SCOPE_EXIT({evicting_or_writing = false;});
+    SCOPE_EXIT({ evicting_or_writing = false; });
 
     Stopwatch watch;
     size_t current_cached_bytes = bytes();
@@ -116,9 +121,7 @@ void PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & bl
 
     /// Only works for local partition writer
     if (!supportsEvictSinglePartition() && options->spill_threshold && current_cached_bytes >= options->spill_threshold)
-    {
         unsafeEvictPartitions(false, options->flush_block_buffer_before_evict);
-    }
 
     shuffle_writer->split_result.total_split_time += watch.elapsedNanoseconds();
 }
@@ -178,7 +181,7 @@ size_t LocalPartitionWriter::unsafeEvictPartitions(bool for_memory_spill, bool f
     if (for_memory_spill && options->throw_if_memory_exceed)
     {
         // escape memory track from current thread status; add untracked memory limit for create thread object, avoid trigger memory spill again
-        IgnoreMemoryTracker ignore(2 * 1024 * 1024);
+        IgnoreMemoryTracker ignore(settings.spill_memory_overhead);
         ThreadFromGlobalPool thread(spill_to_file);
         thread.join();
     }
@@ -191,7 +194,7 @@ size_t LocalPartitionWriter::unsafeEvictPartitions(bool for_memory_spill, bool f
     return res;
 }
 
-std::vector<UInt64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
+std::vector<UInt64> LocalPartitionWriter::mergeSpills(WriteBuffer & data_file)
 {
     auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
     CompressedWriteBuffer compressed_output(data_file, codec, shuffle_writer->options.io_buffer_size);
@@ -244,13 +247,12 @@ std::vector<UInt64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
     shuffle_writer->split_result.total_write_time += write_time_watch.elapsedNanoseconds();
     shuffle_writer->split_result.total_compress_time += compressed_output.getCompressTime();
     shuffle_writer->split_result.total_io_time += compressed_output.getWriteTime();
-    shuffle_writer->split_result.total_serialize_time = shuffle_writer->split_result.total_serialize_time - shuffle_writer->split_result.total_io_time - shuffle_writer->split_result.total_compress_time;
+    shuffle_writer->split_result.total_serialize_time = shuffle_writer->split_result.total_serialize_time
+        - shuffle_writer->split_result.total_io_time - shuffle_writer->split_result.total_compress_time;
     shuffle_writer->split_result.total_io_time += merge_io_time;
 
     for (const auto & spill : spill_infos)
-    {
         std::filesystem::remove(spill.spilled_file);
-    }
 
     return partition_length;
 }
@@ -280,6 +282,11 @@ void LocalPartitionWriter::unsafeStop()
     shuffle_writer->split_result.partition_lengths = offsets;
 }
 
+void PartitionWriterSettings::loadFromContext(DB::ContextPtr context)
+{
+    spill_memory_overhead = context->getConfigRef().getUInt64("spill_memory_overhead", 50 << 20);
+}
+
 PartitionWriter::PartitionWriter(CachedShuffleWriter * shuffle_writer_)
     : shuffle_writer(shuffle_writer_)
     , options(&shuffle_writer->options)
@@ -292,6 +299,7 @@ PartitionWriter::PartitionWriter(CachedShuffleWriter * shuffle_writer_)
         partition_block_buffer[partition_id] = std::make_shared<ColumnsBuffer>(options->split_size);
         partition_buffer[partition_id] = std::make_shared<Partition>();
     }
+    settings.loadFromContext(SerializedPlanParser::global_context);
 }
 
 size_t PartitionWriter::evictPartitions(bool for_memory_spill, bool flush_block_buffer)
@@ -300,7 +308,7 @@ size_t PartitionWriter::evictPartitions(bool for_memory_spill, bool flush_block_
         return 0;
 
     evicting_or_writing = true;
-    SCOPE_EXIT({evicting_or_writing = false;});
+    SCOPE_EXIT({ evicting_or_writing = false; });
     return unsafeEvictPartitions(for_memory_spill, flush_block_buffer);
 }
 
@@ -310,7 +318,7 @@ void PartitionWriter::stop()
         throw Exception(ErrorCodes::LOGICAL_ERROR, "PartitionWriter::stop is invoked with evicting_or_writing being occupied");
 
     evicting_or_writing = true;
-    SCOPE_EXIT({evicting_or_writing = false;});
+    SCOPE_EXIT({ evicting_or_writing = false; });
     return unsafeStop();
 }
 
@@ -327,6 +335,167 @@ size_t PartitionWriter::bytes() const
     return bytes;
 }
 
+void ExternalSortLocalPartitionWriter::write(const PartitionInfo & info, DB::Block & block)
+{
+    Stopwatch write_time_watch;
+    if (output_header.columns() == 0)
+        output_header = block.cloneEmpty();
+    static const String partition_column_name = "partition";
+    auto partition_column = ColumnUInt64::create();
+    partition_column->reserve(block.rows());
+    partition_column->getData().insert_assume_reserved(info.src_partition_num.begin(), info.src_partition_num.end());
+    block.insert({std::move(partition_column), std::make_shared<DataTypeUInt64>(), partition_column_name});
+    if (sort_header.columns() == 0)
+    {
+        sort_header = block.cloneEmpty();
+        sort_description.emplace_back(SortColumnDescription(partition_column_name));
+    }
+    // partial sort
+    sortBlock(block, sort_description);
+    Chunk chunk;
+    chunk.setColumns(block.getColumns(), block.rows());
+    accumulated_blocks.emplace_back(std::move(chunk));
+    current_accumulated_bytes += accumulated_blocks.back().allocatedBytes();
+    if (current_accumulated_bytes >= max_sort_buffer_size)
+        unsafeEvictPartitions(false, false);
+    shuffle_writer->split_result.total_write_time += write_time_watch.elapsedNanoseconds();
+}
+
+size_t ExternalSortLocalPartitionWriter::unsafeEvictPartitions(bool, bool)
+{
+    // escape memory track
+    IgnoreMemoryTracker ignore(settings.spill_memory_overhead);
+    if (accumulated_blocks.empty())
+        return 0;
+    Stopwatch watch;
+    MergeSorter sorter(sort_header, std::move(accumulated_blocks), sort_description, max_merge_block_size, 0);
+    streams.emplace_back(&tmp_data->createStream(sort_header));
+    while (auto data = sorter.read())
+    {
+        Block serialized_block = sort_header.cloneWithColumns(data.detachColumns());
+        streams.back()->write(serialized_block);
+    }
+    streams.back()->finishWriting();
+    auto result = current_accumulated_bytes;
+    current_accumulated_bytes = 0;
+    shuffle_writer->split_result.total_spill_time += watch.elapsedNanoseconds();
+    return result;
+}
+
+std::queue<Block> ExternalSortLocalPartitionWriter::mergeDataInMemory()
+{
+    if (accumulated_blocks.empty())
+        return {};
+    std::queue<Block> result;
+    MergeSorter sorter(sort_header, std::move(accumulated_blocks), sort_description, max_merge_block_size, 0);
+    while (auto data = sorter.read())
+    {
+        Block serialized_block = sort_header.cloneWithColumns(data.detachColumns());
+        result.push(serialized_block);
+    }
+    return result;
+}
+
+ExternalSortLocalPartitionWriter::MergeContext ExternalSortLocalPartitionWriter::prepareMerge()
+{
+    MergeContext context;
+    if (options->spill_firstly_before_stop)
+        unsafeEvictPartitions(false, false);
+    auto num_input = accumulated_blocks.empty() ? streams.size() : streams.size() + 1;
+    std::unique_ptr<MergingSortedAlgorithm> algorithm = std::make_unique<MergingSortedAlgorithm>(
+        sort_header, num_input, sort_description, max_merge_block_size, 0, SortingQueueStrategy::Batch);
+    context.codec = CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
+    auto sorted_memory_data = mergeDataInMemory();
+    context.merger = std::make_unique<SortedPartitionDataMerger>(std::move(algorithm), streams, sorted_memory_data, output_header);
+    return context;
+}
+
+void ExternalSortLocalPartitionWriter::unsafeStop()
+{
+    // escape memory track
+    IgnoreMemoryTracker ignore(settings.spill_memory_overhead);
+    Stopwatch write_time_watch;
+    // no data to write
+    if (streams.empty() && accumulated_blocks.empty())
+        return;
+    auto context = prepareMerge();
+    WriteBufferFromFile output(options->data_file, options->io_buffer_size);
+    CompressedWriteBuffer compressed_output(output, context.codec, shuffle_writer->options.io_buffer_size);
+    NativeWriter native_writer(compressed_output, output_header);
+
+    std::vector<UInt64> partition_length(shuffle_writer->options.partition_num, 0);
+    size_t current_file_size = 0;
+    size_t current_partition_raw_size = 0;
+    size_t current_partition_id = 0;
+    auto finish_partition_if_needed = [&]()
+    {
+        if (!partition_length[current_partition_id])
+        {
+            compressed_output.sync();
+            shuffle_writer->split_result.raw_partition_lengths[current_partition_id] = current_partition_raw_size;
+            partition_length[current_partition_id] = output.count() - current_file_size;
+            current_file_size = output.count();
+            current_partition_id++;
+            current_partition_raw_size = 0;
+        }
+    };
+    while (!context.merger->isFinished())
+    {
+        auto result = context.merger->next();
+        if (result.empty)
+            break;
+        for (auto & item : result.blocks)
+        {
+            while (item.second - current_partition_id > 1)
+                finish_partition_if_needed();
+            current_partition_raw_size += native_writer.write(item.first);
+        }
+    }
+    while (shuffle_writer->options.partition_num - current_partition_id > 0)
+        finish_partition_if_needed();
+    shuffle_writer->split_result.partition_lengths = partition_length;
+    shuffle_writer->split_result.total_write_time += write_time_watch.elapsedNanoseconds();
+    shuffle_writer->split_result.total_compress_time += compressed_output.getCompressTime();
+    shuffle_writer->split_result.total_io_time += compressed_output.getWriteTime();
+}
+
+void ExternalSortCelebornPartitionWriter::unsafeStop()
+{
+    // escape memory track
+    IgnoreMemoryTracker ignore(settings.spill_memory_overhead);
+    Stopwatch write_time_watch;
+    // no data to write
+    if (streams.empty() && accumulated_blocks.empty())
+        return;
+    auto context = prepareMerge();
+
+    WriteBufferFromOwnString output;
+    CompressedWriteBuffer compressed_output(output, context.codec, shuffle_writer->options.io_buffer_size);
+    NativeWriter native_writer(compressed_output, output_header);
+    std::vector<UInt64> partition_length(shuffle_writer->options.partition_num, 0);
+
+    while (!context.merger->isFinished())
+    {
+        auto result = context.merger->next();
+        if (result.empty)
+            break;
+        for (auto & item : result.blocks)
+        {
+            shuffle_writer->split_result.raw_partition_lengths[item.second] += native_writer.write(item.first);
+            compressed_output.sync();
+            partition_length[item.second] += output.count();
+            Stopwatch push_time;
+            celeborn_client->pushPartitionData(item.second, output.str().data(), output.str().size());
+            shuffle_writer->split_result.total_io_time += push_time.elapsedNanoseconds();
+            output.restart();
+        }
+    }
+
+    shuffle_writer->split_result.partition_lengths = partition_length;
+    shuffle_writer->split_result.total_write_time += write_time_watch.elapsedNanoseconds();
+    shuffle_writer->split_result.total_compress_time += compressed_output.getCompressTime();
+    shuffle_writer->split_result.total_io_time += compressed_output.getWriteTime();
+}
 CelebornPartitionWriter::CelebornPartitionWriter(CachedShuffleWriter * shuffleWriter, std::unique_ptr<CelebornClient> celeborn_client_)
     : PartitionWriter(shuffleWriter), celeborn_client(std::move(celeborn_client_))
 {
@@ -336,9 +505,7 @@ size_t CelebornPartitionWriter::unsafeEvictPartitions(bool for_memory_spill, boo
 {
     size_t res = 0;
     for (size_t partition_id = 0; partition_id < options->partition_num; ++partition_id)
-    {
         res += unsafeEvictSinglePartition(for_memory_spill, flush_block_buffer, partition_id);
-    }
     return res;
 }
 
@@ -394,7 +561,7 @@ size_t CelebornPartitionWriter::unsafeEvictSinglePartition(bool for_memory_spill
     if (for_memory_spill && options->throw_if_memory_exceed)
     {
         // escape memory track from current thread status; add untracked memory limit for create thread object, avoid trigger memory spill again
-        IgnoreMemoryTracker ignore(2 * 1024 * 1024);
+        IgnoreMemoryTracker ignore(settings.spill_memory_overhead);
         ThreadFromGlobalPool thread(spill_to_celeborn);
         thread.join();
     }
@@ -413,9 +580,7 @@ void CelebornPartitionWriter::unsafeStop()
     unsafeEvictPartitions(false, true);
 
     for (const auto & length : shuffle_writer->split_result.partition_lengths)
-    {
         shuffle_writer->split_result.total_bytes_written += length;
-    }
 }
 
 void Partition::addBlock(DB::Block block)
@@ -445,4 +610,3 @@ size_t Partition::spill(NativeWriter & writer)
 }
 
 }
-

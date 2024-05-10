@@ -162,6 +162,8 @@ object GlutenWriterColumnarRules {
         session.sparkContext.setLocalProperty(
           "staticPartitionWriteOnly",
           BackendsApiManager.getSettings.staticPartitionWriteOnly().toString)
+        // FIXME: We should only use context property if having no other approaches.
+        //  Should see if there is another way to pass these options.
         session.sparkContext.setLocalProperty("isNativeAppliable", format.isDefined.toString)
         session.sparkContext.setLocalProperty("nativeFormat", format.getOrElse(""))
         if (format.isDefined) {

@@ -173,6 +173,54 @@ class PatternSuite extends AnyFunSuite {
     assert(pattern2.matches(path, 3))
     assert(!pattern2.matches(path, 4))
   }
+
+  test("Match class") {
+    val ras =
+      Ras[TestNode](
+        PlanModelImpl,
+        CostModelImpl,
+        MetadataModelImpl,
+        PropertyModelImpl,
+        ExplainImpl,
+        RasRule.Factory.none())
+
+    val path = MockRasPath.mock(ras, Unary("n1", Leaf("n2", 1)))
+    assert(path.height() == 2)
+
+    val pattern1 = Pattern
+      .node[TestNode](
+        Pattern.Matchers.clazz(classOf[Unary]),
+        Pattern.node(Pattern.Matchers.clazz(classOf[Leaf])))
+      .build()
+    assert(pattern1.matches(path, 1))
+    assert(pattern1.matches(path, 2))
+
+    val pattern2 = Pattern
+      .leaf[TestNode](Pattern.Matchers.clazz(classOf[Leaf]))
+      .build()
+    assert(!pattern2.matches(path, 1))
+    assert(!pattern2.matches(path, 2))
+
+    val pattern3 = Pattern
+      .node[TestNode](
+        Pattern.Matchers
+          .or(Pattern.Matchers.clazz(classOf[Unary]), Pattern.Matchers.clazz(classOf[Leaf])),
+        Pattern.node(Pattern.Matchers.clazz(classOf[Leaf])))
+      .build()
+    assert(pattern3.matches(path, 1))
+    assert(pattern3.matches(path, 2))
+
+    val pattern4 = Pattern
+      .node[TestNode](
+        Pattern.Matchers
+          .or(Pattern.Matchers.clazz(classOf[Unary]), Pattern.Matchers.clazz(classOf[Leaf])),
+        Pattern.node(Pattern.Matchers
+          .or(Pattern.Matchers.clazz(classOf[Unary]), Pattern.Matchers.clazz(classOf[Unary])))
+      )
+      .build()
+    assert(pattern4.matches(path, 1))
+    assert(!pattern4.matches(path, 2))
+  }
 }
 
 object PatternSuite {

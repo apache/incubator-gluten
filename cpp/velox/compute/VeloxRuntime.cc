@@ -33,6 +33,22 @@
 #include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
 
+#ifdef ENABLE_HDFS
+#include "operators/writer/VeloxParquetDatasourceHDFS.h"
+#endif
+
+#ifdef ENABLE_S3
+#include "operators/writer/VeloxParquetDatasourceS3.h"
+#endif
+
+#ifdef ENABLE_GCS
+#include "operators/writer/VeloxParquetDatasourceGCS.h"
+#endif
+
+#ifdef ENABLE_ABFS
+#include "operators/writer/VeloxParquetDatasourceABFS.h"
+#endif
+
 using namespace facebook;
 
 namespace gluten {
@@ -185,10 +201,37 @@ std::shared_ptr<Datasource> VeloxRuntime::createDatasource(
   auto veloxPool = getAggregateVeloxPool(memoryManager)->addAggregateChild("datasource." + std::to_string(id++));
   // Pass a dedicate pool for S3 and GCS sinks as can't share veloxPool
   // with parquet writer.
-  auto s3SinkPool = getLeafVeloxPool(memoryManager);
-  auto gcsSinkPool = getLeafVeloxPool(memoryManager);
-
-  return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, s3SinkPool, gcsSinkPool, schema);
+  auto sinkPool = getLeafVeloxPool(memoryManager);
+  if (isSupportedHDFSPath(filePath)) {
+#ifdef ENABLE_HDFS
+    return std::make_shared<VeloxParquetDatasourceHDFS>(filePath, veloxPool, sinkPool, schema);
+#else
+    throw std::runtime_error(
+        "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox runtime!");
+#endif
+  } else if (isSupportedS3SdkPath(filePath)) {
+#ifdef ENABLE_S3
+    return std::make_shared<VeloxParquetDatasourceS3>(filePath, veloxPool, sinkPool, schema);
+#else
+    throw std::runtime_error(
+        "The write path is S3 path but the S3 haven't been enabled when writing parquet data in velox runtime!");
+#endif
+  } else if (isSupportedGCSPath(filePath)) {
+#ifdef ENABLE_GCS
+    return std::make_shared<VeloxParquetDatasourceGCS>(filePath, veloxPool, sinkPool, schema);
+#else
+    throw std::runtime_error(
+        "The write path is GCS path but the GCS haven't been enabled when writing parquet data in velox runtime!");
+#endif
+  } else if (isSupportedABFSPath(filePath)) {
+#ifdef ENABLE_ABFS
+    return std::make_shared<VeloxParquetDatasourceABFS>(filePath, veloxPool, sinkPool, schema);
+#else
+    throw std::runtime_error(
+        "The write path is ABFS path but the ABFS haven't been enabled when writing parquet data in velox runtime!");
+#endif
+  }
+  return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, sinkPool, schema);
 }
 
 std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(

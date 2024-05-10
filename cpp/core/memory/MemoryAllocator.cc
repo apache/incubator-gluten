@@ -29,6 +29,7 @@ bool ListenableMemoryAllocator::allocate(int64_t size, void** out) {
   }
   if (succeed) {
     bytes_ += size;
+    peakBytes_ = std::max(peakBytes_, bytes_.load());
   }
   return succeed;
 }
@@ -41,6 +42,7 @@ bool ListenableMemoryAllocator::allocateZeroFilled(int64_t nmemb, int64_t size, 
   }
   if (succeed) {
     bytes_ += size * nmemb;
+    peakBytes_ = std::max(peakBytes_, bytes_.load());
   }
   return succeed;
 }
@@ -53,6 +55,7 @@ bool ListenableMemoryAllocator::allocateAligned(uint64_t alignment, int64_t size
   }
   if (succeed) {
     bytes_ += size;
+    peakBytes_ = std::max(peakBytes_, bytes_.load());
   }
   return succeed;
 }
@@ -66,6 +69,7 @@ bool ListenableMemoryAllocator::reallocate(void* p, int64_t size, int64_t newSiz
   }
   if (succeed) {
     bytes_ += diff;
+    peakBytes_ = std::max(peakBytes_, bytes_.load());
   }
   return succeed;
 }
@@ -84,6 +88,7 @@ bool ListenableMemoryAllocator::reallocateAligned(
   }
   if (succeed) {
     bytes_ += diff;
+    peakBytes_ = std::max(peakBytes_, bytes_.load());
   }
   return succeed;
 }
@@ -102,6 +107,10 @@ bool ListenableMemoryAllocator::free(void* p, int64_t size) {
 
 int64_t ListenableMemoryAllocator::getBytes() const {
   return bytes_;
+}
+
+int64_t ListenableMemoryAllocator::peakBytes() const {
+  return peakBytes_;
 }
 
 bool StdMemoryAllocator::allocate(int64_t size, void** out) {
@@ -158,6 +167,10 @@ bool StdMemoryAllocator::free(void* p, int64_t size) {
 
 int64_t StdMemoryAllocator::getBytes() const {
   return bytes_;
+}
+
+int64_t StdMemoryAllocator::peakBytes() const {
+  return 0;
 }
 
 std::shared_ptr<MemoryAllocator> defaultMemoryAllocator() {

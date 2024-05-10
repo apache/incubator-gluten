@@ -27,6 +27,21 @@ trait Pattern[T <: AnyRef] {
 object Pattern {
   trait Matcher[T <: AnyRef] extends (T => Boolean)
 
+  object Matchers {
+    private case class Or[T <: AnyRef](matchers: Seq[Matcher[T]]) extends Matcher[T] {
+      override def apply(t: T): Boolean = {
+        matchers.exists(_(t))
+      }
+    }
+
+    private case class Clazz[T <: AnyRef](clazz: Class[_ <: T]) extends Matcher[T] {
+      override def apply(t: T): Boolean = clazz.isInstance(t)
+    }
+
+    def or[T <: AnyRef](matchers: Matcher[T]*): Matcher[T] = Or(matchers)
+    def clazz[T <: AnyRef](clazz: Class[_ <: T]): Matcher[T] = Clazz(clazz)
+  }
+
   trait Node[T <: AnyRef] {
     // If abort returns true, caller should make sure not to call further methods.
     // It provides a way to fast fail the matching before actually jumping

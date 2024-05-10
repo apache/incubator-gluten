@@ -913,6 +913,51 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
 }
 
+core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(
+    const ::substrait::WindowGroupLimitRel& windowGroupLimitRel) {
+  core::PlanNodePtr childNode;
+  if (windowGroupLimitRel.has_input()) {
+    childNode = toVeloxPlan(windowGroupLimitRel.input());
+  } else {
+    VELOX_FAIL("Child Rel is expected in WindowGroupLimitRel.");
+  }
+  const auto& inputType = childNode->outputType();
+  // Construct partitionKeys
+  std::vector<core::FieldAccessTypedExprPtr> partitionKeys;
+  std::unordered_set<std::string> keyNames;
+  const auto& partitions = windowGroupLimitRel.partition_expressions();
+  partitionKeys.reserve(partitions.size());
+  for (const auto& partition : partitions) {
+    auto expression = exprConverter_->toVeloxExpr(partition, inputType);
+    core::FieldAccessTypedExprPtr veloxPartitionKey =
+        std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression);
+    VELOX_USER_CHECK_NOT_NULL(veloxPartitionKey, "Window Group Limit Operator only supports field partition key.");
+    // Constructs unique partition keys.
+    if (keyNames.insert(veloxPartitionKey->name()).second) {
+      partitionKeys.emplace_back(veloxPartitionKey);
+    }
+  }
+  std::vector<core::FieldAccessTypedExprPtr> sortingKeys;
+  std::vector<core::SortOrder> sortingOrders;
+  const auto& [rawSortingKeys, rawSortingOrders] = processSortField(windowGroupLimitRel.sorts(), inputType);
+  for (vector_size_t i = 0; i < rawSortingKeys.size(); ++i) {
+    // Constructs unique sort keys and excludes keys overlapped with partition keys.
+    if (keyNames.insert(rawSortingKeys[i]->name()).second) {
+      sortingKeys.emplace_back(rawSortingKeys[i]);
+      sortingOrders.emplace_back(rawSortingOrders[i]);
+    }
+  }
+  const std::optional<std::string> rowNumberColumnName = std::nullopt;
+  return std::make_shared<core::TopNRowNumberNode>(
+      nextPlanNodeId(),
+      partitionKeys,
+      sortingKeys,
+      sortingOrders,
+      rowNumberColumnName,
+      (int32_t)windowGroupLimitRel.limit(),
+      childNode);
+}
+
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::SortRel& sortRel) {
   auto childNode = convertSingleInput<::substrait::SortRel>(sortRel);
   auto [sortingKeys, sortingOrders] = processSortField(sortRel.sorts(), childNode->outputType());
@@ -955,35 +1000,16 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::FetchRel& fetchRel) {
-  core::PlanNodePtr childNode;
-  // Check the input of fetchRel, if it's sortRel, convert them into
-  // topNNode. otherwise, to limitNode.
-  ::substrait::SortRel sortRel;
-  bool topNFlag;
-  if (fetchRel.has_input()) {
-    topNFlag = fetchRel.input().has_sort();
-    if (topNFlag) {
-      sortRel = fetchRel.input().sort();
-      childNode = toVeloxPlan(sortRel.input());
-    } else {
-      childNode = toVeloxPlan(fetchRel.input());
-    }
-  } else {
-    VELOX_FAIL("Child Rel is expected in FetchRel.");
-  }
+  auto childNode = convertSingleInput<::substrait::FetchRel>(fetchRel);
+  return std::make_shared<core::LimitNode>(
+      nextPlanNodeId(), (int32_t)fetchRel.offset(), (int32_t)fetchRel.count(), false /*isPartial*/, childNode);
+}
 
-  if (topNFlag) {
-    auto [sortingKeys, sortingOrders] = processSortField(sortRel.sorts(), childNode->outputType());
-
-    VELOX_CHECK_EQ(fetchRel.offset(), 0);
-
-    return std::make_shared<core::TopNNode>(
-        nextPlanNodeId(), sortingKeys, sortingOrders, (int32_t)fetchRel.count(), false /*isPartial*/, childNode);
-
-  } else {
-    return std::make_shared<core::LimitNode>(
-        nextPlanNodeId(), (int32_t)fetchRel.offset(), (int32_t)fetchRel.count(), false /*isPartial*/, childNode);
-  }
+core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::TopNRel& topNRel) {
+  auto childNode = convertSingleInput<::substrait::TopNRel>(topNRel);
+  auto [sortingKeys, sortingOrders] = processSortField(topNRel.sorts(), childNode->outputType());
+  return std::make_shared<core::TopNNode>(
+      nextPlanNodeId(), sortingKeys, sortingOrders, (int32_t)topNRel.n(), false /*isPartial*/, childNode);
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
@@ -1210,10 +1236,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     return toVeloxPlan(rel.generate());
   } else if (rel.has_fetch()) {
     return toVeloxPlan(rel.fetch());
+  } else if (rel.has_top_n()) {
+    return toVeloxPlan(rel.top_n());
   } else if (rel.has_window()) {
     return toVeloxPlan(rel.window());
   } else if (rel.has_write()) {
     return toVeloxPlan(rel.write());
+  } else if (rel.has_windowgrouplimit()) {
+    return toVeloxPlan(rel.windowgrouplimit());
   } else {
     VELOX_NYI("Substrait conversion not supported for Rel.");
   }

@@ -35,8 +35,10 @@ public:
     friend class PartitionWriter;
     friend class LocalPartitionWriter;
     friend class CelebornPartitionWriter;
+    friend class ExternalSortLocalPartitionWriter;
+    friend class ExternalSortCelebornPartitionWriter;
 
-    explicit CachedShuffleWriter(const String & short_name, const SplitOptions & options, jobject rss_pusher = nullptr);
+    explicit CachedShuffleWriter(const String & short_name, const SplitOptions & options,  jobject rss_pusher = nullptr);
     ~CachedShuffleWriter() override = default;
 
     void split(DB::Block & block) override;
@@ -53,6 +55,7 @@ private:
     std::unique_ptr<SelectorBuilder> partitioner;
     std::vector<size_t> output_columns_indicies;
     std::unique_ptr<PartitionWriter> partition_writer;
+    bool sort_shuffle = false;
 };
 }
 

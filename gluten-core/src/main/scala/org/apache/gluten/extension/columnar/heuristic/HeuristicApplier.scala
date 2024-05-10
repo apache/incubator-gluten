@@ -20,6 +20,7 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, TransformPostOverrides, TransformPreOverrides}
+import org.apache.gluten.extension.columnar.rewrite.RewriteSparkPlanRulesManager
 import org.apache.gluten.extension.columnar.util.AdaptiveContext
 import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.gluten.utils.{LogLevelUtil, PhysicalPlanSelector}
@@ -30,6 +31,10 @@ import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, GlutenFallbackReporter, SparkPlan}
 import org.apache.spark.util.SparkRuleUtil
 
+/**
+ * Columnar rule applier that optimizes, implements Spark plan into Gluten plan by heuristically
+ * applying columnar rules in fixed order.
+ */
 class HeuristicApplier(session: SparkSession)
   extends ColumnarRuleApplier
   with Logging
@@ -110,8 +115,7 @@ class HeuristicApplier(session: SparkSession)
       List(
         (spark: SparkSession) => MergeTwoPhasesHashBaseAggregate(spark),
         (_: SparkSession) => RewriteSparkPlanRulesManager(),
-        (_: SparkSession) => AddTransformHintRule(),
-        (_: SparkSession) => FallbackBloomFilterAggIfNeeded()
+        (_: SparkSession) => AddTransformHintRule()
       ) :::
       List((_: SparkSession) => TransformPreOverrides()) :::
       List(

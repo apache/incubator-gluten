@@ -45,6 +45,11 @@ object EnforcerRule {
     override def shape(): Shape[T] = rule.shape()
   }
 
+  // A built-in enforcer rule that does constraint propagation. The rule directly outputs
+  // whatever passed in, and memo will copy the output node in with the desired constraint.
+  // During witch children constraints will be derived through PropertyDef#getChildrenConstraints.
+  // When the children constraints do changed, the new node with changed children constraints will
+  // be persisted into memo.
   private class BuiltinEnforcerRule[T <: AnyRef](override val constraint: Property[T])
     extends EnforcerRule[T] {
     override def shift(node: T): Iterable[T] = List(node)
@@ -54,6 +59,7 @@ object EnforcerRule {
 
 trait EnforcerRuleSet[T <: AnyRef] {
   def rulesOf(constraintSet: PropertySet[T]): Seq[RuleApplier[T]]
+  def ruleShapesOf(constraintSet: PropertySet[T]): Seq[Shape[T]]
 }
 
 object EnforcerRuleSet {
@@ -73,21 +79,31 @@ object EnforcerRuleSet {
       mutable.Map[PropertyDef[T, _ <: Property[T]], EnforcerRuleFactory[T]]()
     private val buffer = mutable.Map[Property[T], Seq[RuleApplier[T]]]()
 
+    private val rulesBuffer = mutable.Map[PropertySet[T], Seq[RuleApplier[T]]]()
+    private val shapesBuffer = mutable.Map[PropertySet[T], Seq[Shape[T]]]()
+
     override def rulesOf(constraintSet: PropertySet[T]): Seq[RuleApplier[T]] = {
-      constraintSet.getMap.flatMap {
-        case (constraintDef, constraint) =>
-          buffer.getOrElseUpdate(
-            constraint, {
-              val factory =
-                factoryBuffer.getOrElseUpdate(
-                  constraintDef,
-                  newEnforcerRuleFactory(ras, constraintDef))
-              RuleApplier(ras, closure, EnforcerRule.builtin(constraint)) +: factory
-                .newEnforcerRules(constraint)
-                .map(rule => RuleApplier(ras, closure, EnforcerRule(rule, constraint)))
-            }
-          )
-      }.toSeq
+      rulesBuffer.getOrElseUpdate(
+        constraintSet,
+        constraintSet.getMap.flatMap {
+          case (constraintDef, constraint) =>
+            buffer.getOrElseUpdate(
+              constraint, {
+                val factory =
+                  factoryBuffer.getOrElseUpdate(
+                    constraintDef,
+                    newEnforcerRuleFactory(ras, constraintDef))
+                RuleApplier(ras, closure, EnforcerRule.builtin(constraint)) +: factory
+                  .newEnforcerRules(constraint)
+                  .map(rule => RuleApplier(ras, closure, EnforcerRule(rule, constraint)))
+              }
+            )
+        }.toSeq
+      )
+    }
+
+    override def ruleShapesOf(constraintSet: PropertySet[T]): Seq[Shape[T]] = {
+      shapesBuffer.getOrElseUpdate(constraintSet, rulesBuffer(constraintSet).map(_.shape()))
     }
   }
 }

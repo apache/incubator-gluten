@@ -22,7 +22,7 @@ on:
 
 concurrency:
   group: ${{ github.repository }}-${{ github.workflow }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   cache-native-lib:
@@ -33,12 +33,89 @@ jobs:
       - name: Generate cache key
         run: |
           echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './github/workflows/*') }} > cache-key
+      - name: Check existing caches
+        id: check-cache
+        uses: actions/cache/restore@v3
+        with:
+          lookup-only: true
+          path: ./cpp/build/releases/
+          key: cache-velox-build-${{ hashFiles('./cache-key') }}
       - name: Build Gluten Velox third party
+        if: steps.check-cache.outputs.cache-hit != 'true'
         run: |
           source dev/ci-velox-buildstatic.sh
       - name: Cache
+        if: steps.check-cache.outputs.cache-hit != 'true'
         id: cache
         uses: actions/cache/save@v3
         with:
           path: ./cpp/build/releases/
           key: cache-velox-build-${{ hashFiles('./cache-key') }}
+
+  ccache-native-lib-ubuntu-velox-ut:
+    runs-on: ubuntu-20.04
+    env:
+      CCACHE_DIR: "${{ github.workspace }}/.ccache"
+    container: ghcr.io/facebookincubator/velox-dev:amd64-ubuntu-22.04-avx
+    steps:
+      - uses: actions/checkout@v2
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-ubuntu-release-default
+      - name: Ensure Cache Dirs Exists
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p '${{ env.CCACHE_DIR }}'
+      - name: Build Gluten velox third party
+        run: |
+          rm -rf /opt/miniconda-for-velox/
+          cd ep/build-velox/src && \
+          ./get_velox.sh
+          cd ../build/velox_ep/
+          git reset --hard
+          make EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=ON -DVELOX_BUILD_TEST_UTILS=ON" 
+
+      - name: CCache after
+        run: |
+          ccache -vs
+
+      - uses: actions/cache/save@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-ubuntu-release-default
+  ccache-native-lib-centos-velox-ut:
+    runs-on: ubuntu-20.04
+    env:
+      CCACHE_DIR: "${{ github.workspace }}/.ccache"
+    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    steps:
+      - uses: actions/checkout@v2
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos-release-default
+      - name: Ensure Cache Dirs Exists
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p '${{ env.CCACHE_DIR }}'
+      - name: Build Gluten velox third party
+        run: |
+          rm -rf /opt/miniconda-for-velox/
+          cd ep/build-velox/src && \
+          ./get_velox.sh
+          cd ../build/velox_ep/
+          source /opt/rh/gcc-toolset-9/enable
+          git reset --hard
+          make EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=ON -DVELOX_BUILD_TEST_UTILS=ON" 
+
+      - name: CCache after
+        run: |
+          ccache -vs
+
+      - uses: actions/cache/save@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos-release-default

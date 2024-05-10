@@ -29,6 +29,8 @@ class GraphvizVisualizer[T <: AnyRef](ras: Ras[T], memoState: MemoState[T], best
   private val allGroups = memoState.allGroups()
   private val allClusters = memoState.clusterLookup()
 
+  private val nodeToId = mutable.Map[InGroupNode.UniqueKey, Int]()
+
   def format(): String = {
     val rootGroupId = best.rootGroupId()
     val bestPath = best.path()
@@ -153,12 +155,14 @@ class GraphvizVisualizer[T <: AnyRef](ras: Ras[T], memoState: MemoState[T], best
       costs: InGroupNode[T] => Option[Cost],
       group: RasGroup[T],
       node: CanonicalNode[T]): String = {
-    s"${describeGroup(group)}[Cost ${costs(InGroupNode(group.id(), node))
+    val ign = InGroupNode(group.id(), node)
+    val nodeId = nodeToId.getOrElseUpdate(ign.toUniqueKey, nodeToId.size)
+    s"[$nodeId][Cost ${costs(ign)
         .map {
           case c if ras.isInfCost(c) => "<INF>"
           case other => other
         }
-        .getOrElse("N/A")}]${ras.explain.describeNode(node.self())}"
+        .getOrElse("N/A")}] ${ras.explain.describeNode(node.self())}"
   }
 }
 

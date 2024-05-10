@@ -51,7 +51,17 @@ case class GenerateExecTransformer(
 
   @transient
   override lazy val metrics =
-    Map("numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
+    Map(
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "numOutputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "numOutputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of generate"),
+      "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+      "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
+      "numMemoryAllocations" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of memory allocations")
+    )
 
   override def metricsUpdater(): MetricsUpdater = new GenerateMetricsUpdater(metrics)
 

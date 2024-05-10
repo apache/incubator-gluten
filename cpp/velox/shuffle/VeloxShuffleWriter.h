@@ -143,7 +143,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   int64_t rawPartitionBytes() const;
 
   // For test only.
-  void setPartitionBufferSize(uint16_t newSize);
+  void setPartitionBufferSize(uint32_t newSize);
 
   // for debugging
   void printColumnsInfo() const {
@@ -192,6 +192,10 @@ class VeloxShuffleWriter final : public ShuffleWriter {
     VS_PRINT_CONTAINER(input_has_null_);
   }
 
+  int32_t maxBatchSize() const {
+    return maxBatchSize_;
+  }
+
  private:
   VeloxShuffleWriter(
       uint32_t numPartitions,
@@ -202,6 +206,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       : ShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), pool),
         veloxPool_(std::move(veloxPool)) {
     arenas_.resize(numPartitions);
+    serdeOptions_.useLosslessTimestamp = true;
   }
 
   arrow::Status init();
@@ -222,18 +227,18 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status doSplit(const facebook::velox::RowVector& rv, int64_t memLimit);
 
-  bool beyondThreshold(uint32_t partitionId, uint16_t newSize);
+  bool beyondThreshold(uint32_t partitionId, uint32_t newSize);
 
-  uint16_t calculatePartitionBufferSize(const facebook::velox::RowVector& rv, int64_t memLimit);
+  uint32_t calculatePartitionBufferSize(const facebook::velox::RowVector& rv, int64_t memLimit);
 
-  arrow::Status preAllocPartitionBuffers(uint16_t preAllocBufferSize);
+  arrow::Status preAllocPartitionBuffers(uint32_t preAllocBufferSize);
 
-  arrow::Status updateValidityBuffers(uint32_t partitionId, uint16_t newSize);
+  arrow::Status updateValidityBuffers(uint32_t partitionId, uint32_t newSize);
 
   arrow::Result<std::shared_ptr<arrow::ResizableBuffer>>
-  allocateValidityBuffer(uint32_t col, uint32_t partitionId, uint16_t newSize);
+  allocateValidityBuffer(uint32_t col, uint32_t partitionId, uint32_t newSize);
 
-  arrow::Status allocatePartitionBuffer(uint32_t partitionId, uint16_t newSize);
+  arrow::Status allocatePartitionBuffer(uint32_t partitionId, uint32_t newSize);
 
   arrow::Status splitFixedWidthValueBuffer(const facebook::velox::RowVector& rv);
 
@@ -289,11 +294,11 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   // Resize the partition buffer to newSize. If preserveData is true, it will keep the data in buffer.
   // Note when preserveData is false, and newSize is larger, this function can introduce unnecessary memory copy.
   // In this case, use allocatePartitionBuffer to free current buffers and allocate new buffers instead.
-  arrow::Status resizePartitionBuffer(uint32_t partitionId, uint16_t newSize, bool preserveData);
+  arrow::Status resizePartitionBuffer(uint32_t partitionId, uint32_t newSize, bool preserveData);
 
-  uint64_t valueBufferSizeForBinaryArray(uint32_t binaryIdx, uint16_t newSize);
+  uint64_t valueBufferSizeForBinaryArray(uint32_t binaryIdx, uint32_t newSize);
 
-  uint64_t valueBufferSizeForFixedWidthArray(uint32_t fixedWidthIndex, uint16_t newSize);
+  uint64_t valueBufferSizeForFixedWidthArray(uint32_t fixedWidthIndex, uint32_t newSize);
 
   void calculateSimpleColumnBytes();
 
@@ -304,6 +309,10 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   bool evictPartitionBuffersAfterSpill() const;
 
   arrow::Result<uint32_t> partitionBufferSizeAfterShrink(uint32_t partitionId) const;
+
+  bool isExtremelyLargeBatch(facebook::velox::RowVectorPtr& rv) const;
+
+  arrow::Status partitioningAndDoSplit(facebook::velox::RowVectorPtr rv, int64_t memLimit);
 
   SplitState splitState_{kInit};
 
@@ -362,7 +371,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   // subscript: Partition ID
   // value: How many rows does this partition have in the current input RowVector
   // Updated for each input RowVector.
-  std::vector<uint16_t> partition2RowCount_;
+  std::vector<uint32_t> partition2RowCount_;
 
   // Note: partition2RowOffsetBase_ and rowOffset2RowId_ are the optimization of flattening the 2-dimensional vector
   // into single dimension.
@@ -378,20 +387,20 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   // subscript: Partition ID
   // value: The base row offset of this Partition
   // Updated for each input RowVector.
-  std::vector<uint16_t> partition2RowOffsetBase_;
+  std::vector<uint32_t> partition2RowOffsetBase_;
 
   // Row offset -> Source row ID, elements num: input RowVector row num
   // subscript: Row offset
   // value: The index of row in the current input RowVector
   // Updated for each input RowVector.
-  std::vector<uint16_t> rowOffset2RowId_;
+  std::vector<uint32_t> rowOffset2RowId_;
 
   // Partition buffers are used for holding the intermediate data during split.
   // Partition ID -> Partition buffer size(unit is row)
-  std::vector<uint16_t> partitionBufferSize_;
+  std::vector<uint32_t> partitionBufferSize_;
 
   // The write position of partition buffer. Updated after split. Reset when partition buffers are reallocated.
-  std::vector<uint16_t> partitionBufferBase_;
+  std::vector<uint32_t> partitionBufferBase_;
 
   // Used by all simple types. Stores raw pointers of partition buffers.
   std::vector<std::vector<uint8_t*>> partitionValidityAddrs_;
@@ -409,6 +418,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
   std::vector<std::unique_ptr<facebook::velox::StreamArena>> arenas_;
   facebook::velox::serializer::presto::PrestoVectorSerde serde_;
+  facebook::velox::serializer::presto::PrestoVectorSerde::PrestoOptions serdeOptions_;
 
   // stat
   enum CpuWallTimingType {
@@ -464,6 +474,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   }
 
   facebook::velox::CpuWallTiming cpuWallTimingList_[CpuWallTimingNum];
+  int32_t maxBatchSize_{0};
 }; // class VeloxShuffleWriter
 
 } // namespace gluten

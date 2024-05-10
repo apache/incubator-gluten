@@ -84,7 +84,7 @@
     </dependency>
     <dependency>
       <groupId>io.delta</groupId>
-      <artifactId>delta-core_${scala.binary.version}</artifactId>
+      <artifactId>${delta.package.name}_${scala.binary.version}</artifactId>
       <scope>provided</scope>
     </dependency>
 
@@ -119,18 +119,22 @@
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
+      <version>${fasterxml.version}</version>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-annotations</artifactId>
+      <version>${fasterxml.version}</version>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-core</artifactId>
+      <version>${fasterxml.version}</version>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.module</groupId>
       <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
+      <version>${fasterxml.version}</version>
     </dependency>
     <dependency>
       <groupId>org.scalatestplus</groupId>

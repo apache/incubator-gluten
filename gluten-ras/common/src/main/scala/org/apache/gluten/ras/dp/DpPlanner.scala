@@ -21,7 +21,7 @@ import org.apache.gluten.ras.Best.KnownCostPath
 import org.apache.gluten.ras.best.BestFinder
 import org.apache.gluten.ras.dp.DpZipperAlgo.Adjustment.Panel
 import org.apache.gluten.ras.memo.{Memo, MemoTable}
-import org.apache.gluten.ras.path.{InClusterPath, PathFinder, RasPath}
+import org.apache.gluten.ras.path._
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.{EnforcerRuleSet, RuleApplier, Shape}
 
@@ -60,7 +60,7 @@ private class DpPlanner[T <: AnyRef] private (
   }
 
   private def findBest(memoTable: MemoTable[T], groupId: Int): Best[T] = {
-    val cKey = memoTable.allGroups()(groupId).clusterKey()
+    val cKey = memoTable.asGroupSupplier()(groupId).clusterKey()
     val algoDef = new DpExploreAlgoDef[T]
     val adjustment = new ExploreAdjustment(ras, memoTable, rules, enforcerRuleSet)
     DpClusterAlgo.resolve(memoTable, algoDef, adjustment, cKey)
@@ -99,10 +99,16 @@ object DpPlanner {
       rules: Seq[RuleApplier[T]],
       enforcerRuleSet: EnforcerRuleSet[T])
     extends DpClusterAlgo.Adjustment[T] {
+    import ExploreAdjustment._
+
+    private val ruleShapes: Seq[Shape[T]] = rules.map(_.shape())
 
     override def exploreChildX(
         panel: Panel[InClusterNode[T], RasClusterKey],
-        x: InClusterNode[T]): Unit = {}
+        x: InClusterNode[T]): Unit = {
+      applyRulesOnNode(panel, x.clusterKey, x.can)
+    }
+
     override def exploreChildY(
         panel: Panel[InClusterNode[T], RasClusterKey],
         y: RasClusterKey): Unit = {}
@@ -115,20 +121,24 @@ object DpPlanner {
         cKey: RasClusterKey): Unit = {
       memoTable.doExhaustively {
         applyEnforcerRules(panel, cKey)
-        applyRules(panel, cKey)
       }
     }
 
-    private def applyRules(
+    private def applyRulesOnNode(
         panel: Panel[InClusterNode[T], RasClusterKey],
-        cKey: RasClusterKey): Unit = {
+        cKey: RasClusterKey,
+        can: CanonicalNode[T]): Unit = {
       if (rules.isEmpty) {
         return
       }
       val dummyGroup = memoTable.getDummyGroup(cKey)
-      val shapes = rules.map(_.shape())
-      findPaths(GroupNode(ras, dummyGroup), shapes) {
-        path => rules.foreach(rule => applyRule(panel, cKey, rule, path))
+      findPaths(GroupNode(ras, dummyGroup), ruleShapes, List(new FromSingleNode[T](can))) {
+        path =>
+          val rootNode = path.node().self()
+          if (rootNode.isCanonical) {
+            assert(rootNode.asCanonical() eq can)
+          }
+          rules.foreach(rule => applyRule(panel, cKey, rule, path))
       }
     }
 
@@ -137,27 +147,34 @@ object DpPlanner {
         cKey: RasClusterKey): Unit = {
       val dummyGroup = memoTable.getDummyGroup(cKey)
       cKey.propSets(memoTable).foreach {
-        constraintSet =>
+        constraintSet: PropertySet[T] =>
           val enforcerRules = enforcerRuleSet.rulesOf(constraintSet)
           if (enforcerRules.nonEmpty) {
-            val shapes = enforcerRules.map(_.shape())
-            findPaths(GroupNode(ras, dummyGroup), shapes) {
+            val shapes = enforcerRuleSet.ruleShapesOf(constraintSet)
+            findPaths(GroupNode(ras, dummyGroup), shapes, List.empty) {
               path => enforcerRules.foreach(rule => applyRule(panel, cKey, rule, path))
             }
           }
       }
     }
 
-    private def findPaths(gn: GroupNode[T], shapes: Seq[Shape[T]])(
+    private def findPaths(gn: GroupNode[T], shapes: Seq[Shape[T]], filters: Seq[FilterWizard[T]])(
         onFound: RasPath[T] => Unit): Unit = {
-      val finder = shapes
+      val finderBuilder = shapes
         .foldLeft(
           PathFinder
             .builder(ras, memoTable)) {
           case (builder, shape) =>
             builder.output(shape.wizard())
         }
+
+      val finder = filters
+        .foldLeft(finderBuilder) {
+          case (builder, filter) =>
+            builder.filter(filter)
+        }
         .build()
+
       finder.find(gn).foreach(path => onFound(path))
     }
 
@@ -191,5 +208,22 @@ object DpPlanner {
     }
   }
 
-  private object ExploreAdjustment {}
+  private object ExploreAdjustment {
+    private class FromSingleNode[T <: AnyRef](from: CanonicalNode[T]) extends FilterWizard[T] {
+      override def omit(can: CanonicalNode[T]): FilterWizard.FilterAction[T] = {
+        if (can eq from) {
+          return FilterWizard.FilterAction.Continue(this)
+        }
+        FilterWizard.FilterAction.omit
+      }
+
+      override def omit(group: GroupNode[T]): FilterWizard.FilterAction[T] =
+        FilterWizard.FilterAction.Continue(this)
+
+      override def advance(offset: Int, count: Int): FilterWizard.FilterAdvanceAction[T] = {
+        // We only filter on nodes from the root group. So continue with a noop filter.
+        FilterWizard.FilterAdvanceAction.Continue(FilterWizards.none())
+      }
+    }
+  }
 }

@@ -48,7 +48,7 @@ class GlutenExpressionMappingSuite
     conf
   }
 
-  test("test expression blacklist") {
+  testWithSpecifiedSparkVersion("test expression blacklist", Some("3.2")) {
     val names = ExpressionMappings.expressionsMap.values.toSet
     assert(names.contains("regexp_replace"))
     assert(names.contains("regexp_extract"))
@@ -69,7 +69,7 @@ class GlutenExpressionMappingSuite
     }
   }
 
-  test("test blacklisting regexp expressions") {
+  testWithSpecifiedSparkVersion("test blacklisting regexp expressions", Some("3.2")) {
     val names = ExpressionMappings.expressionsMap.values.toSet
     assert(names.contains("rlike"))
     assert(names.contains("regexp_replace"))

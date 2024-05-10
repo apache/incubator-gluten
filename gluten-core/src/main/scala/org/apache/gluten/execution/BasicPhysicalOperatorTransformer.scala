@@ -152,6 +152,14 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
   }
 }
 
+object FilterExecTransformerBase {
+  implicit class FilterExecTransformerBaseImplicits(filter: FilterExecTransformerBase) {
+    def isNoop(): Boolean = {
+      filter.getRemainingCondition == null
+    }
+  }
+}
+
 case class ProjectExecTransformer private (projectList: Seq[NamedExpression], child: SparkPlan)
   extends UnaryTransformSupport
   with OrderPreservingNodeShim
@@ -361,12 +369,12 @@ object FilterHandler extends PredicateHelper {
 
   // Separate and compare the filter conditions in Scan and Filter.
   // Try to push down the remaining conditions in Filter into Scan.
-  def applyFilterPushdownToScan(filter: FilterExec): SparkPlan =
-    filter.child match {
+  def pushFilterToScan(condition: Expression, scan: SparkPlan): SparkPlan =
+    scan match {
       case fileSourceScan: FileSourceScanExec =>
         val pushDownFilters =
           BackendsApiManager.getSparkPlanExecApiInstance.postProcessPushDownFilter(
-            splitConjunctivePredicates(filter.condition),
+            splitConjunctivePredicates(condition),
             fileSourceScan)
         ScanTransformerFactory.createFileSourceScanTransformer(
           fileSourceScan,
@@ -374,7 +382,7 @@ object FilterHandler extends PredicateHelper {
       case batchScan: BatchScanExec =>
         val pushDownFilters =
           BackendsApiManager.getSparkPlanExecApiInstance.postProcessPushDownFilter(
-            splitConjunctivePredicates(filter.condition),
+            splitConjunctivePredicates(condition),
             batchScan)
         ScanTransformerFactory.createBatchScanTransformer(
           batchScan,

@@ -226,6 +226,7 @@ RangesInDataParts MergeTreeTable::extractRange(DataPartsVector parts_vector) con
             ranges_in_data_part.data_part = name_index.at(part.name);
             ranges_in_data_part.part_index_in_query = 0;
             ranges_in_data_part.ranges.emplace_back(MarkRange(part.begin, part.end));
+            ranges_in_data_part.alter_conversions = std::make_shared<AlterConversions>();
             return ranges_in_data_part;
         });
     return ranges_in_data_parts;

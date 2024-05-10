@@ -951,11 +951,14 @@ class GlutenClickHouseHiveTableSuite
     val select_sql_3 = "select id, get_json_object(data, '$.123.234') from test_tbl_3337"
     val select_sql_4 = "select id, get_json_object(data, '$.v111') from test_tbl_3337"
     val select_sql_5 = "select id, get_json_object(data, 'v112') from test_tbl_3337"
+    val select_sql_6 =
+      "select id, get_json_object(data, '$.id') from test_tbl_3337 where id = 123";
     compareResultsAgainstVanillaSpark(select_sql_1, compareResult = true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_2, compareResult = true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_3, compareResult = true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_4, compareResult = true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_5, compareResult = true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_6, compareResult = true, _ => {})
 
     spark.sql("DROP TABLE test_tbl_3337")
   }
@@ -1232,17 +1235,20 @@ class GlutenClickHouseHiveTableSuite
   }
 
   test("GLUTEN-3452: Bug fix decimal divide") {
-    withSQLConf((SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key, "false")) {
-      val table_create_sql =
-        """
-          | create table test_tbl_3452(d1 decimal(12,2), d2 decimal(15,3)) stored as parquet;
-          |""".stripMargin
-      val data_insert_sql = "insert into test_tbl_3452 values(13.0, 0),(11, NULL), (12.3, 200)"
-      val select_sql = "select d1/d2, d1/0, d1/cast(0 as decimal) from test_tbl_3452"
-      spark.sql(table_create_sql);
-      spark.sql(data_insert_sql)
-      compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
-      spark.sql("drop table test_tbl_3452")
+    val table_create_sql =
+      """
+        | create table test_tbl_3452(d1 decimal(12,2), d2 decimal(15,3)) stored as parquet;
+        |""".stripMargin
+    val data_insert_sql = "insert into test_tbl_3452 values(13.0, 0),(11, NULL), (12.3, 200)"
+    spark.sql(table_create_sql)
+    spark.sql(data_insert_sql)
+    Seq("true", "false").foreach {
+      s =>
+        withSQLConf((SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key, s)) {
+          val select_sql = "select d1/d2, d1/0, d1/cast(0 as decimal) from test_tbl_3452"
+          compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+        }
     }
+    spark.sql("drop table test_tbl_3452")
   }
 }

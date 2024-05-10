@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.ras
 
-import org.apache.gluten.ras.Ras.UnsafeKey
+import org.apache.gluten.ras.Ras.UnsafeHashKey
 import org.apache.gluten.ras.memo.MemoTable
 import org.apache.gluten.ras.property.PropertySet
 
@@ -55,16 +55,16 @@ object RasCluster {
         override val ras: Ras[T],
         metadata: Metadata)
       extends MutableRasCluster[T] {
-      private val deDup: mutable.Set[UnsafeKey[T]] = mutable.Set()
+      private val deDup: mutable.Set[UnsafeHashKey[T]] = mutable.Set()
       private val buffer: mutable.ListBuffer[CanonicalNode[T]] =
         mutable.ListBuffer()
 
       override def contains(t: CanonicalNode[T]): Boolean = {
-        deDup.contains(t.toUnsafeKey())
+        deDup.contains(t.toHashKey())
       }
 
       override def add(t: CanonicalNode[T]): Unit = {
-        val key = t.toUnsafeKey()
+        val key = t.toHashKey()
         assert(!deDup.contains(key))
         ras.metadataModel.verify(metadata, ras.metadataModel.metadataOf(t.self()))
         deDup += key
