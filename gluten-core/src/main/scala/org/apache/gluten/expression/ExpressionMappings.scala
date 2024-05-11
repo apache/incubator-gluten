@@ -214,6 +214,8 @@ object ExpressionMappings {
     Sig[Sequence](SEQUENCE),
     Sig[CreateArray](CREATE_ARRAY),
     Sig[Explode](EXPLODE),
+    // JsonTupleExplode' behavior are the same with Explode
+    Sig[JsonTupleExplode](EXPLODE),
     Sig[Inline](INLINE),
     Sig[ArrayAggregate](AGGREGATE),
     Sig[LambdaFunction](LAMBDAFUNCTION),
