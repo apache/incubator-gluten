@@ -194,6 +194,8 @@ trait SparkShims {
 
   def findRowIndexColumnIndexInSchema(sparkSchema: StructType): Boolean
 
+  def isRowIndexMetadataColumn(name: String): Boolean
+
   def splitFiles(
       sparkSession: SparkSession,
       file: FileStatus,

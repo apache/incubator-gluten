@@ -21,6 +21,7 @@ import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.functions.{asc, col, lit}
 import org.apache.spark.sql.types.{StructField, StructType}
+
 class GlutenFileMetadataStructRowIndexSuite
   extends FileMetadataStructRowIndexSuite
   with GlutenSQLTestsBaseTrait {
@@ -62,7 +63,7 @@ class GlutenFileMetadataStructRowIndexSuite
       df =>
         // Offload to native fix
         // (SPARK-40059): Allow users to include columns named
-        // FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME in their schemas.
+        // ROW_INDEX_TEMPORARY_COLUMN_NAME in their schemas.
         // This UX cover this case.
         assert(
           df

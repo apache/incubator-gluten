@@ -19,6 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
@@ -29,7 +30,6 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.{BooleanType, StringType, StructField, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -142,7 +142,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       attr =>
         if (getPartitionSchema.exists(_.name.equals(attr.name))) {
           new ColumnTypeNode(1)
-        } else if (attr.name == FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME) {
+        } else if (SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)) {
           new ColumnTypeNode(3)
         } else if (attr.isMetadataCol) {
           new ColumnTypeNode(2)

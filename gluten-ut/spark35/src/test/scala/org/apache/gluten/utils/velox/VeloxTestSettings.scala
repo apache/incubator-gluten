@@ -1212,8 +1212,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenGroupBasedMergeIntoTableSuite]
   enableSuite[GlutenFileSourceCustomMetadataStructSuite]
   enableSuite[GlutenParquetFileMetadataStructRowIndexSuite]
-    // Row index metadata column support in Velox isn't ready yet, refer velox-9147
-    .exclude("reading _tmp_metadata_row_index - not present in a table")
     .exclude("reading _tmp_metadata_row_index - present in a table")
   enableSuite[GlutenTableLocationSuite]
   enableSuite[GlutenRemoveRedundantWindowGroupLimitsSuite]
