@@ -22,7 +22,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.types.DecimalType
+import org.apache.spark.sql.types.{DataType, DecimalType}
 import org.apache.spark.util.collection.BitSet
 
 import com.google.protobuf.{Any, Message}
@@ -69,6 +69,7 @@ trait TransformerApi {
       args: java.lang.Object,
       substraitExprName: String,
       childNode: ExpressionNode,
+      childResultType: DataType,
       dataType: DecimalType,
       nullable: Boolean,
       nullOnOverflow: Boolean): ExpressionNode

@@ -529,13 +529,11 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           decimalType,
           b)
       case c: CheckOverflow =>
-        val child = replaceWithExpressionTransformerInternal(c.child, attributeSeq, expressionsMap)
-        child match {
-          case d: DecimalArithmeticExpressionTransformer if !d.resultType.equals(c.dataType) =>
-            // Velox add cast node in some cases
-            CheckOverflowTransformer(substraitExprName, child, c)
-          case _ => child
-        }
+        CheckOverflowTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(c.child, attributeSeq, expressionsMap),
+          c.child.dataType,
+          c)
       case b: BinaryArithmetic if DecimalArithmeticUtil.isDecimalArithmetic(b) =>
         DecimalArithmeticUtil.checkAllowDecimalArithmetic()
         if (!BackendsApiManager.getSettings.transformCheckOverflow) {

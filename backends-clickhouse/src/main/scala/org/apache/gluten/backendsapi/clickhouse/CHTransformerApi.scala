@@ -33,10 +33,8 @@ import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDi
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.types._
 import org.apache.spark.util.collection.BitSet
-
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, Message}
-
 import java.util
 
 class CHTransformerApi extends TransformerApi with Logging {
@@ -219,6 +217,7 @@ class CHTransformerApi extends TransformerApi with Logging {
       args: java.lang.Object,
       substraitExprName: String,
       childNode: ExpressionNode,
+      childResultType: DataType,
       dataType: DecimalType,
       nullable: Boolean,
       nullOnOverflow: Boolean): ExpressionNode = {
