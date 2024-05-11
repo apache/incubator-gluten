@@ -188,6 +188,7 @@ TypePtr VeloxSubstraitSignature::fromSubstraitSignature(const std::string& signa
         types.emplace_back(fromSubstraitSignature(typeStr));
         break;
       }
+      VELOX_CHECK(childrenTypes.at(typeEnd) == delimiter)
       std::string typeStr = childrenTypes.substr(typeStart, typeEnd - typeStart);
       types.emplace_back(fromSubstraitSignature(typeStr));
       typeStart = typeEnd + 1;

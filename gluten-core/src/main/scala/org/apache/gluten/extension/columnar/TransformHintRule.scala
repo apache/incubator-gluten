@@ -304,6 +304,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
     .fallbackComplexExpressions()
     .fallbackByBackendSettings()
     .fallbackByUserOptions()
+    .fallbackByTestInjects()
     .build()
 
   def apply(plan: SparkPlan): SparkPlan = {
