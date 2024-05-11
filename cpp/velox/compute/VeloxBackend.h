@@ -55,6 +55,13 @@ class VeloxBackend {
 
   const std::unordered_map<std::string, std::string>& getBackendConf() const;
 
+  void tearDown() {
+    // Destruct IOThreadPoolExecutor will join all threads.
+    // On threads exit, thread local variables can be constructed with referencing global variables.
+    // So, we need to destruct IOThreadPoolExecutor and stop the threads before global variables get destructed.
+    ioExecutor_.reset();
+  }
+
  private:
   explicit VeloxBackend(const std::unordered_map<std::string, std::string>& conf) {
     init(conf);
