@@ -110,16 +110,19 @@ class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
         checkGlutenOperatorMatch[WindowExecTransformer]
       }
 
-      runQueryAndCompare("""
-                           |SELECT
-                           | c1,
-                           | collect_set(c2) OVER (
-                           |   PARTITION BY c1
-                           | )
-                           |FROM
-                           | t
-                           |ORDER BY 1, 2;
-                           |""".stripMargin) {
+      runQueryAndCompare(
+        """
+          |SELECT
+          | c1,
+          | collect_set(c2) OVER (
+          |   PARTITION BY c1
+          | )
+          |FROM
+          | t
+          |ORDER BY 1, 2;
+          |""".stripMargin,
+        noFallBack = false
+      ) {
         // Velox window doesn't support collect_set
         checkSparkOperatorMatch[WindowExec]
       }
