@@ -1185,12 +1185,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenResolveDefaultColumnsSuite]
   enableSuite[GlutenSubqueryHintPropagationSuite]
   enableSuite[GlutenUrlFunctionsSuite]
-  enableSuite[GlutenFileMetadataStructRowIndexSuite]
-    // Row index metadata column support in Velox isn't ready yet, refer velox-9147
-    .exclude("reading _tmp_metadata_row_index - not present in a table")
-    .exclude("reading _tmp_metadata_row_index - present in a table")
-  // Row index metadata column support in Velox isn't ready yet, refer velox-9147
-  // enableSuite[GlutenParquetRowIndexSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }

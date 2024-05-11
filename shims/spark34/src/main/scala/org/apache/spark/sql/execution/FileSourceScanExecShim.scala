@@ -65,8 +65,6 @@ abstract class FileSourceScanExecShim(
 
   def hasUnsupportedColumns: Boolean = {
     val metadataColumnsNames = metadataColumns.map(_.name)
-    // row_index metadata is not support yet
-    metadataColumnsNames.contains(FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME) ||
     output
       .filterNot(metadataColumns.toSet)
       .exists(v => metadataColumnsNames.contains(v.name)) ||

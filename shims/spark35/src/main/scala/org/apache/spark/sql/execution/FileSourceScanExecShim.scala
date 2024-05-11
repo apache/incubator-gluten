@@ -67,7 +67,6 @@ abstract class FileSourceScanExecShim(
     // TODO, fallback if user define same name column due to we can't right now
     // detect which column is metadata column which is user defined column.
     val metadataColumnsNames = metadataColumns.map(_.name)
-    metadataColumnsNames.contains(ParquetFileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME) ||
     output
       .filterNot(metadataColumns.toSet)
       .exists(v => metadataColumnsNames.contains(v.name)) ||

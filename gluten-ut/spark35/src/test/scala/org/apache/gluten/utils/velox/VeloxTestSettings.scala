@@ -755,8 +755,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileFormatWriterSuite]
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenFileMetadataStructSuite]
-  enableSuite[GlutenFileMetadataStructRowIndexSuite]
-    .exclude("reading _tmp_metadata_row_index - present in a table")
   enableSuite[GlutenParquetV1AggregatePushDownSuite]
   enableSuite[GlutenParquetV2AggregatePushDownSuite]
   enableSuite[GlutenOrcV1AggregatePushDownSuite]

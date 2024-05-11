@@ -60,10 +60,10 @@ class GlutenFileMetadataStructRowIndexSuite
   test(s"$GLUTEN_TEST reading ${FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME} - present in a table") {
     withReadDataFrame("parquet", extraCol = FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME) {
       df =>
-        // The UT make sure we fix:
+        // Offload to native fix
         // (SPARK-40059): Allow users to include columns named
-        //                    FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME in their schemas.
-        // in current native implement.
+        // FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME in their schemas.
+        // This UX cover this case.
         assert(
           df
             .where(col(EXPECTED_EXTRA_COL) === col(FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME))
