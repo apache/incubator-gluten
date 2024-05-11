@@ -162,7 +162,6 @@ jobs:
           mv apache-maven-3.8.8 /usr/lib/maven
       - name: Set environment variables
         run: |
-          echo "MAVEN_HOME=/usr/lib/maven" >> $GITHUB_ENV
           echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
           if [ "${{ matrix.java }}" = "java-17" ]; then
             echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk" >> $GITHUB_ENV
@@ -500,16 +499,15 @@ jobs:
     container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Setup java and maven
+      - name: Setup build dependency
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget numactl-devel -y && \
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven  
+          mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
       - name: Build Gluten velox third party
         run: |
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
@@ -545,8 +543,6 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
           mvn -ntp clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Pceleborn -Piceberg -Pdelta -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark32/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags && \
           mvn -ntp test -Pspark-3.2 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None -DtagsToInclude=org.apache.gluten.tags.UDFTest
       - name: Upload golden files
@@ -566,16 +562,15 @@ jobs:
     container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Setup java and maven
+      - name: Setup build dependency
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget numactl-devel -y && \
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven        
+          mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
       - name: Build Gluten velox third party
         run: |
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
@@ -595,9 +590,7 @@ jobs:
           mv sql shims/spark32/spark_home/
       - name: Build and run unit test for Spark 3.2.2 (slow tests)
         run: |
-          cd $GITHUB_WORKSPACE/ && \
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
+          cd $GITHUB_WORKSPACE/
           mvn -ntp clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Pceleborn -Piceberg -Pdelta -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark32/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
 
   run-spark-test-spark33:
@@ -605,16 +598,15 @@ jobs:
     container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Setup java and maven
+      - name: Setup build dependency
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven        
+          mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
       - name: Build Gluten velox third party
         run: |
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
@@ -644,10 +636,8 @@ jobs:
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.3.1 (other tests)
         run: |
-          cd $GITHUB_WORKSPACE/ && \
-          export SPARK_SCALA_VERSION=2.12 && \
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
+          cd $GITHUB_WORKSPACE/
+          export SPARK_SCALA_VERSION=2.12
           mvn -ntp clean install -Pspark-3.3 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark33/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags && \
           mvn -ntp test -Pspark-3.3 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None -DtagsToInclude=org.apache.gluten.tags.UDFTest
       - name: Upload golden files
@@ -663,16 +653,15 @@ jobs:
     container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Setup java and maven
+      - name: Setup build dependency
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget numactl-devel -y && \
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven        
+          mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
       - name: Build Gluten velox third party
         run: |
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
@@ -692,9 +681,7 @@ jobs:
           mv sql shims/spark33/spark_home/
       - name: Build and Run unit test for Spark 3.3.1 (slow tests)
         run: |
-          cd $GITHUB_WORKSPACE/ && \
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
+          cd $GITHUB_WORKSPACE/
           mvn -ntp clean install -Pspark-3.3 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark33/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
 
   run-spark-test-spark34:
@@ -702,16 +689,15 @@ jobs:
     container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Setup java and maven
+      - name: Setup build dependency
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven        
+          mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
       - name: Build Gluten velox third party
         run: |
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
@@ -741,10 +727,8 @@ jobs:
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.4.2 (other tests)
         run: |
-          cd $GITHUB_WORKSPACE/ && \
-          export SPARK_SCALA_VERSION=2.12 && \
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
+          cd $GITHUB_WORKSPACE/
+          export SPARK_SCALA_VERSION=2.12
           mvn -ntp clean install -Pspark-3.4 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark34/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags && \
           mvn -ntp test -Pspark-3.4 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None -DtagsToInclude=org.apache.gluten.tags.UDFTest
       - name: Upload golden files
@@ -760,16 +744,15 @@ jobs:
     container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Setup java and maven
+      - name: Setup build dependency
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven        
+          mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
       - name: Build Gluten velox third party
         run: |
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
@@ -790,8 +773,6 @@ jobs:
       - name: Build and Run unit test for Spark 3.4.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          export MAVEN_HOME=/usr/lib/maven
-          export PATH=${PATH}:${MAVEN_HOME}/bin
           mvn -ntp clean install -Pspark-3.4 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark34/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
 
   run-spark-test-spark35:
@@ -799,16 +780,15 @@ jobs:
     container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Setup java and maven
+      - name: Setup build dependency
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven                 
+          mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
       - name: Build Gluten velox third party
         run: |
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
@@ -838,10 +818,8 @@ jobs:
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.5.1 (other tests)
         run: |
-          cd $GITHUB_WORKSPACE/ && \
-          export SPARK_SCALA_VERSION=2.12 && \
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
+          cd $GITHUB_WORKSPACE/
+          export SPARK_SCALA_VERSION=2.12
           mvn -ntp clean install -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags && \
           mvn -ntp test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None -DtagsToInclude=org.apache.gluten.tags.UDFTest
       - name: Upload golden files
@@ -856,16 +834,15 @@ jobs:
     container: ghcr.io/facebookincubator/velox-dev:circleci-avx
     steps:
       - uses: actions/checkout@v2
-      - name: Setup java and maven
+      - name: Setup build dependency
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven        
+          mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
       - name: Build Gluten velox third party
         run: |
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
           cd ep/build-velox/src && \
           ./get_velox.sh && \
           source /opt/rh/gcc-toolset-9/enable && \
@@ -892,6 +869,4 @@ jobs:
       - name: Build and Run unit test for Spark 3.5.1 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          export MAVEN_HOME=/usr/lib/maven
-          export PATH=${PATH}:${MAVEN_HOME}/bin
           mvn -ntp clean install -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest

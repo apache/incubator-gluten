@@ -40,3 +40,18 @@ jobs:
         run: |
           branchname=origin/pr/${{ github.event.issue.number }}/head
           curl --noproxy $JENKINS_HOST -L -X POST http://$JENKINS_HOST:$JENKINS_PORT/job/Gluten_Perf_Github_Action_Check/build --user $JENKINS_USER --data-urlencode json='{"parameter": [{"name":"sha1", "value":"'$branchname'"}]}'
+  velox-trigger-tpcds-on-comment:
+    # check the comment if it contains the keywords
+    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '/Benchmark Velox TPCDS') }}
+    runs-on: velox-self-hosted
+    container: ubuntu:22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: apt-get update && apt-get install ca-certificates -y && update-ca-certificates
+      - run: sed -i 's/http\:\/\/archive.ubuntu.com/https\:\/\/mirrors.ustc.edu.cn/g' /etc/apt/sources.list
+      - run: apt-get update
+      - run: apt-get install -y curl
+      - name: trigger_tpch_bench
+        run: |
+          branchname=origin/pr/${{ github.event.issue.number }}/head
+          curl --noproxy $JENKINS_HOST -L -X POST http://$JENKINS_HOST:$JENKINS_PORT/job/Gluten_Perf_DS_Github_Action_Check/build --user $JENKINS_USER --data-urlencode json='{"parameter": [{"name":"sha1", "value":"'$branchname'"}]}'

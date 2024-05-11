@@ -241,6 +241,7 @@ object ExpressionMappings {
     Sig[ArrayExists](EXISTS),
     Sig[Shuffle](SHUFFLE),
     Sig[ZipWith](ZIP_WITH),
+    Sig[Flatten](FLATTEN),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
