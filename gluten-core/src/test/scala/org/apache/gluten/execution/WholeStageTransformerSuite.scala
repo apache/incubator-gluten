@@ -22,7 +22,7 @@ import org.apache.gluten.utils.{Arm, FallbackUtil}
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row}
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{CommandResultExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, ShuffleQueryStageExec}
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.DoubleType
@@ -222,6 +222,8 @@ abstract class WholeStageTransformerSuite
     df.queryExecution.executedPlan match {
       case exec: AdaptiveSparkPlanExec =>
         getChildrenPlan(Seq(exec.executedPlan))
+      case cmd: CommandResultExec =>
+        getChildrenPlan(Seq(cmd.commandPhysicalPlan))
       case plan =>
         getChildrenPlan(Seq(plan))
     }

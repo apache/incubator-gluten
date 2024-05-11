@@ -30,15 +30,67 @@ index a24f272fe..e25f78c85 100644
  #include <stdio.h>
  #include <stdlib.h>
  #include <string.h>
+diff --git a/java/dataset/src/main/cpp/jni_wrapper.cc b/java/dataset/src/main/cpp/jni_wrapper.cc
+index d2d976677..d7dd01ecd 100644
+--- a/java/dataset/src/main/cpp/jni_wrapper.cc
++++ b/java/dataset/src/main/cpp/jni_wrapper.cc
+@@ -126,20 +126,14 @@ class ReserveFromJava : public arrow::dataset::jni::ReservationListener {
+       : vm_(vm), java_reservation_listener_(java_reservation_listener) {}
+ 
+   arrow::Status OnReservation(int64_t size) override {
+-    JNIEnv* env;
+-    if (vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
+-      return arrow::Status::Invalid("JNIEnv was not attached to current thread");
+-    }
++    JNIEnv* env = arrow::dataset::jni::GetEnvOrAttach(vm_);
+     env->CallObjectMethod(java_reservation_listener_, reserve_memory_method, size);
+     RETURN_NOT_OK(arrow::dataset::jni::CheckException(env));
+     return arrow::Status::OK();
+   }
+ 
+   arrow::Status OnRelease(int64_t size) override {
+-    JNIEnv* env;
+-    if (vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
+-      return arrow::Status::Invalid("JNIEnv was not attached to current thread");
+-    }
++    JNIEnv* env = arrow::dataset::jni::GetEnvOrAttach(vm_);
+     env->CallObjectMethod(java_reservation_listener_, unreserve_memory_method, size);
+     RETURN_NOT_OK(arrow::dataset::jni::CheckException(env));
+     return arrow::Status::OK();
 diff --git a/java/pom.xml b/java/pom.xml
-index a8328576b..53a70fab8 100644
+index a8328576b..57f282c6c 100644
 --- a/java/pom.xml
 +++ b/java/pom.xml
-@@ -1102,6 +1102,7 @@
+@@ -1101,7 +1101,8 @@
+                     -DARROW_JSON=${ARROW_DATASET}
                      -DARROW_ORC=${ARROW_ORC}
                      -DARROW_PARQUET=${ARROW_PARQUET}
-                     -DARROW_S3=ON
+-                    -DARROW_S3=ON
++                    -DARROW_S3=OFF
 +                    -DARROW_HDFS=ON
                      -DARROW_SUBSTRAIT=${ARROW_DATASET}
                      -DARROW_USE_CCACHE=ON
                      -DCMAKE_BUILD_TYPE=Release
+diff --git a/java/dataset/src/main/cpp/jni_wrapper.cc b/java/dataset/src/main/cpp/jni_wrapper.cc
+index d2d976677..eb4b6d1d2 100644
+--- a/java/dataset/src/main/cpp/jni_wrapper.cc
++++ b/java/dataset/src/main/cpp/jni_wrapper.cc
+@@ -27,7 +27,9 @@
+ #include "arrow/dataset/file_base.h"
+ #include "arrow/filesystem/localfs.h"
+ #include "arrow/filesystem/path_util.h"
++#ifdef ARROW_S3
+ #include "arrow/filesystem/s3fs.h"
++#endif
+ #include "arrow/engine/substrait/util.h"
+ #include "arrow/engine/substrait/serde.h"
+ #include "arrow/engine/substrait/relation.h"
+@@ -622,7 +624,9 @@ JNIEXPORT void JNICALL Java_org_apache_arrow_dataset_jni_JniWrapper_releaseBuffe
+ JNIEXPORT void JNICALL Java_org_apache_arrow_dataset_jni_JniWrapper_ensureS3Finalized(
+     JNIEnv* env, jobject) {
+   JNI_METHOD_START
++#ifdef ARROW_S3
+   JniAssertOkOrThrow(arrow::fs::EnsureS3Finalized());
++#endif
+   JNI_METHOD_END()
+ }
