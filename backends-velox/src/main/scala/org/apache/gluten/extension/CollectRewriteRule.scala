@@ -45,7 +45,6 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
     if (out.fastEquals(plan)) {
       return plan
     }
-    spark.sessionState.analyzer.checkAnalysis(out)
     out
   }
 

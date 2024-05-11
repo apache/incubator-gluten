@@ -47,6 +47,8 @@ abstract class VeloxCollect extends DeclarativeAggregate with UnaryLike[Expressi
 case class VeloxCollectSet(override val child: Expression) extends VeloxCollect {
   override def prettyName: String = "velox_collect_set"
 
+  // Velox's collect_set implementation allows null output. Thus we usually wrap
+  // the function to enforce non-null output. See CollectRewriteRule#ensureNonNull.
   override def nullable: Boolean = true
 
   override protected def withNewChildInternal(newChild: Expression): Expression =
