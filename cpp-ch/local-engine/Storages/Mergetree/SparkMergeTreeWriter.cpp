@@ -235,25 +235,24 @@ void SparkMergeTreeWriter::finalize()
     for (auto merge_tree_data_part : new_parts.unsafeGet())
         final_parts.emplace(merge_tree_data_part->name);
 
-    // TODO: delete before commit
-    // if (temp_storage)
-    // {
-    //     for (const auto & tmp_part : tmp_parts)
-    //     {
-    //         if (final_parts.contains(tmp_part))
-    //             continue;
-    //
-    //         GlobalThreadPool::instance().scheduleOrThrow(
-    //             [&]() -> void
-    //             {
-    //                 for (auto disk : storage->getDisks())
-    //                 {
-    //                     auto full_path = storage->getFullPathOnDisk(disk);
-    //                     disk->removeRecursive(full_path + "/" + tmp_part);
-    //                 }
-    //             });
-    //     }
-    // }
+    if (!temp_storage)
+    {
+        for (const auto & tmp_part : tmp_parts)
+        {
+            if (final_parts.contains(tmp_part))
+                continue;
+
+            GlobalThreadPool::instance().scheduleOrThrow(
+                [&]() -> void
+                {
+                    for (auto disk : storage->getDisks())
+                    {
+                        auto full_path = storage->getFullPathOnDisk(disk);
+                        disk->removeRecursive(full_path + "/" + tmp_part);
+                    }
+                });
+        }
+    }
 }
 
 DB::MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPartAndFinalize(
