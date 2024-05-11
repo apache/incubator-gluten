@@ -22,11 +22,11 @@ import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.spark.util.GlutenShutdownManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Function0;
-import scala.runtime.BoxedUnit;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import scala.runtime.BoxedUnit;
 
 // Initialize native backend before calling any native methods from Java side.
 public final class NativeBackendInitializer {
@@ -46,10 +46,11 @@ public final class NativeBackendInitializer {
       return;
     }
     initialize0(conf);
-    GlutenShutdownManager.addHook(() -> {
-      shutdown();
-      return BoxedUnit.UNIT;
-    });
+    GlutenShutdownManager.addHook(
+        () -> {
+          shutdown();
+          return BoxedUnit.UNIT;
+        });
   }
 
   private static void initialize0(scala.collection.Map<String, String> conf) {
@@ -68,6 +69,5 @@ public final class NativeBackendInitializer {
 
   private static native void shutdown();
 
-  private NativeBackendInitializer() {
-  }
+  private NativeBackendInitializer() {}
 }
