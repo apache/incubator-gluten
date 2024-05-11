@@ -27,6 +27,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.execution.joins.BaseJoinExec
+import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
 import org.apache.spark.sql.execution.window.WindowExec
 
 case class RewrittenNodeWall(originalChild: SparkPlan) extends LeafExecNode {
@@ -60,6 +61,7 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[RewriteSingleNode]
         case _: ExpandExec => true
         case _: GenerateExec => true
         case plan if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) => true
+        case _: ArrowEvalPythonExec => true
         case _ => false
       }
     }
