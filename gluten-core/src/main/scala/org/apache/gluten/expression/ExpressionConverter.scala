@@ -101,6 +101,28 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     }
   }
 
+  private def genRescaleDecimalTransformer(
+      substraitName: String,
+      b: BinaryArithmetic,
+      attributeSeq: Seq[Attribute],
+      expressionsMap: Map[Class[_], String]): DecimalArithmeticExpressionTransformer = {
+    val rescaleBinary = DecimalArithmeticUtil.rescaleLiteral(b)
+    val (left, right) = DecimalArithmeticUtil.rescaleCastForDecimal(
+      DecimalArithmeticUtil.removeCastForDecimal(rescaleBinary.left),
+      DecimalArithmeticUtil.removeCastForDecimal(rescaleBinary.right))
+    val resultType = DecimalArithmeticUtil.getResultType(
+      b,
+      left.dataType.asInstanceOf[DecimalType],
+      right.dataType.asInstanceOf[DecimalType]
+    )
+
+    val leftChild =
+      replaceWithExpressionTransformerInternal(left, attributeSeq, expressionsMap)
+    val rightChild =
+      replaceWithExpressionTransformerInternal(right, attributeSeq, expressionsMap)
+    DecimalArithmeticExpressionTransformer(substraitName, leftChild, rightChild, resultType, b)
+  }
+
   private def replaceWithExpressionTransformerInternal(
       expr: Expression,
       attributeSeq: Seq[Attribute],
@@ -492,7 +514,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           expr.children.map(
             replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
           expr)
-
       case CheckOverflow(b: BinaryArithmetic, decimalType, _)
           if !BackendsApiManager.getSettings.transformCheckOverflow &&
             DecimalArithmeticUtil.isDecimalArithmetic(b) =>
@@ -507,55 +528,27 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           rightChild,
           decimalType,
           b)
-
       case c: CheckOverflow =>
-        CheckOverflowTransformer(
-          substraitExprName,
-          replaceWithExpressionTransformerInternal(c.child, attributeSeq, expressionsMap),
-          c)
-
+        val child = replaceWithExpressionTransformerInternal(c.child, attributeSeq, expressionsMap)
+        child match {
+          case d: DecimalArithmeticExpressionTransformer if !d.resultType.equals(c.dataType) =>
+            // Velox add cast node in some cases
+            CheckOverflowTransformer(substraitExprName, child, c)
+          case _ => child
+        }
       case b: BinaryArithmetic if DecimalArithmeticUtil.isDecimalArithmetic(b) =>
         DecimalArithmeticUtil.checkAllowDecimalArithmetic()
         if (!BackendsApiManager.getSettings.transformCheckOverflow) {
-          val leftChild =
-            replaceWithExpressionTransformerInternal(b.left, attributeSeq, expressionsMap)
-          val rightChild =
-            replaceWithExpressionTransformerInternal(b.right, attributeSeq, expressionsMap)
-          DecimalArithmeticExpressionTransformer(
+          GenericExpressionTransformer(
             substraitExprName,
-            leftChild,
-            rightChild,
-            b.dataType.asInstanceOf[DecimalType],
-            b)
-        } else {
-          val rescaleBinary = if (BackendsApiManager.getSettings.rescaleDecimalLiteral) {
-            DecimalArithmeticUtil.rescaleLiteral(b)
-          } else {
-            b
-          }
-          val (left, right) = DecimalArithmeticUtil.rescaleCastForDecimal(
-            DecimalArithmeticUtil.removeCastForDecimal(rescaleBinary.left),
-            DecimalArithmeticUtil.removeCastForDecimal(rescaleBinary.right))
-          val leftChild =
-            replaceWithExpressionTransformerInternal(left, attributeSeq, expressionsMap)
-          val rightChild =
-            replaceWithExpressionTransformerInternal(right, attributeSeq, expressionsMap)
-
-          val resultType = DecimalArithmeticUtil.getResultTypeForOperation(
-            DecimalArithmeticUtil.getOperationType(b),
-            DecimalArithmeticUtil
-              .getResultType(leftChild)
-              .getOrElse(left.dataType.asInstanceOf[DecimalType]),
-            DecimalArithmeticUtil
-              .getResultType(rightChild)
-              .getOrElse(right.dataType.asInstanceOf[DecimalType])
+            expr.children.map(
+              replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
+            expr
           )
-          DecimalArithmeticExpressionTransformer(
-            substraitExprName,
-            leftChild,
-            rightChild,
-            resultType,
-            b)
+        } else {
+          // Without the rescale and remove cast, result is right for high version Spark,
+          // but performance regression in velox
+          genRescaleDecimalTransformer(substraitExprName, b, attributeSeq, expressionsMap)
         }
       case n: NaNvl =>
         BackendsApiManager.getSparkPlanExecApiInstance.genNaNvlTransformer(
