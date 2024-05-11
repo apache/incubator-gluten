@@ -125,9 +125,6 @@ object VeloxIntermediateData {
     aggregateFunc match {
       case _ @Type(veloxDataTypes: Seq[DataType]) =>
         Seq(StructType(veloxDataTypes.map(StructField("", _)).toArray))
-      case _: CollectList | _: CollectSet =>
-        // CollectList and CollectSet should use data type of agg function.
-        Seq(aggregateFunc.dataType)
       case _ =>
         // Not use StructType for single column agg intermediate data
         aggregateFunc.aggBufferAttributes.map(_.dataType)

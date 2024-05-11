@@ -14,10 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.catalyst.expressions.aggregate
+package org.apache.gluten.expression.aggregate
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.aggregate.{HyperLogLogPlusPlus, ImperativeAggregate, TypedImperativeAggregate}
 import org.apache.spark.sql.catalyst.trees.BinaryLike
 import org.apache.spark.sql.catalyst.util.HyperLogLogPlusPlusHelper
 import org.apache.spark.sql.types._
@@ -52,7 +53,7 @@ case class HLLAdapter(
 
   private lazy val row = new UnsafeRow(hllppHelper.numWords)
 
-  override def prettyName: String = "approx_count_distinct_velox"
+  override def prettyName: String = "velox_approx_count_distinct"
 
   override def withNewMutableAggBufferOffset(newMutableAggBufferOffset: Int): ImperativeAggregate =
     copy(mutableAggBufferOffset = newMutableAggBufferOffset)

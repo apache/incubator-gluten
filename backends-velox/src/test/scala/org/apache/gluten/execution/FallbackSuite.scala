@@ -51,6 +51,12 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
       .write
       .format("parquet")
       .saveAsTable("tmp2")
+    spark
+      .range(100)
+      .selectExpr("cast(id % 3 as int) as c1", "cast(id % 9 as int) as c2")
+      .write
+      .format("parquet")
+      .saveAsTable("tmp3")
   }
 
   override protected def afterAll(): Unit = {
@@ -106,15 +112,14 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
     }
   }
 
-  // java.lang.NullPointerException
-  ignore("fallback final aggregate of collect_list") {
+  test("fallback final aggregate of collect_list") {
     withSQLConf(
       GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1",
       GlutenConfig.COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR.key -> "false",
       GlutenConfig.EXPRESSION_BLACK_LIST.key -> "element_at"
     ) {
       runQueryAndCompare(
-        "SELECT sum(ele) FROM (SELECT c1, element_at(collect_list(c2), 1) as ele FROM tmp1 " +
+        "SELECT sum(ele) FROM (SELECT c1, element_at(collect_list(c2), 1) as ele FROM tmp3 " +
           "GROUP BY c1)") {
         df =>
           val columnarToRow = collectColumnarToRow(df.queryExecution.executedPlan)
@@ -123,7 +128,8 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
     }
   }
 
-  // java.lang.NullPointerException
+  // Elements in velox_collect_set's output set may be in different order. This is a benign bug
+  // until we can exactly align with vanilla Spark.
   ignore("fallback final aggregate of collect_set") {
     withSQLConf(
       GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1",
@@ -131,7 +137,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
       GlutenConfig.EXPRESSION_BLACK_LIST.key -> "element_at"
     ) {
       runQueryAndCompare(
-        "SELECT sum(ele) FROM (SELECT c1, element_at(collect_set(c2), 1) as ele FROM tmp1 " +
+        "SELECT sum(ele) FROM (SELECT c1, element_at(collect_set(c2), 1) as ele FROM tmp3 " +
           "GROUP BY c1)") {
         df =>
           val columnarToRow = collectColumnarToRow(df.queryExecution.executedPlan)

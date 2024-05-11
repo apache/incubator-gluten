@@ -501,14 +501,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportBroadcastNestedLoopJoinExec(): Boolean = true
 
-  override def shouldRewriteTypedImperativeAggregate(): Boolean = {
-    // The intermediate type of collect_list, collect_set in Velox backend is not consistent with
-    // vanilla Spark, we need to rewrite the aggregate to get the correct data type.
-    true
-  }
-
-  override def shouldRewriteCollect(): Boolean = true
-
   override def supportColumnarArrowUdf(): Boolean = true
 
   override def generateHdfsConfForLibhdfs(): Boolean = true

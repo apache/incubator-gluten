@@ -77,6 +77,14 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_init_NativeBackendInitializer_init
   JNI_METHOD_END()
 }
 
+JNIEXPORT void JNICALL Java_org_apache_gluten_init_NativeBackendInitializer_shutdown( // NOLINT
+    JNIEnv* env,
+    jclass) {
+  JNI_METHOD_START
+  gluten::VeloxBackend::get()->tearDown();
+  JNI_METHOD_END()
+}
+
 JNIEXPORT void JNICALL Java_org_apache_gluten_udf_UdfJniWrapper_getFunctionSignatures( // NOLINT
     JNIEnv* env,
     jclass) {

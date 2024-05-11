@@ -20,7 +20,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
-import org.apache.gluten.extension.columnar.rewrite.RewriteTypedImperativeAggregate
+import org.apache.gluten.expression.aggregate.HLLAdapter
 import org.apache.gluten.substrait.`type`.{TypeBuilder, TypeNode}
 import org.apache.gluten.substrait.{AggregationParams, SubstraitContext}
 import org.apache.gluten.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode, ScalarFunctionNode}
@@ -807,25 +807,14 @@ case class HashAggregateExecPullOutHelper(
   override protected def getAttrForAggregateExprs: List[Attribute] = {
     aggregateExpressions.zipWithIndex.flatMap {
       case (expr, index) =>
-        handleSpecialAggregateAttr
-          .lift(expr)
-          .getOrElse(expr.mode match {
-            case Partial | PartialMerge =>
-              expr.aggregateFunction.aggBufferAttributes
-            case Final =>
-              Seq(aggregateAttributes(index))
-            case other =>
-              throw new GlutenNotSupportException(s"Unsupported aggregate mode: $other.")
-          })
+        expr.mode match {
+          case Partial | PartialMerge =>
+            expr.aggregateFunction.aggBufferAttributes
+          case Final =>
+            Seq(aggregateAttributes(index))
+          case other =>
+            throw new GlutenNotSupportException(s"Unsupported aggregate mode: $other.")
+        }
     }.toList
-  }
-
-  private val handleSpecialAggregateAttr: PartialFunction[AggregateExpression, Seq[Attribute]] = {
-    case ae: AggregateExpression if RewriteTypedImperativeAggregate.shouldRewrite(ae) =>
-      val aggBufferAttr = ae.aggregateFunction.inputAggBufferAttributes.head
-      Seq(
-        aggBufferAttr.copy(dataType = ae.aggregateFunction.dataType)(
-          aggBufferAttr.exprId,
-          aggBufferAttr.qualifier))
   }
 }

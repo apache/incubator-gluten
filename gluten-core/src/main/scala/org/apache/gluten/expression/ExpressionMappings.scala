@@ -214,6 +214,8 @@ object ExpressionMappings {
     Sig[Sequence](SEQUENCE),
     Sig[CreateArray](CREATE_ARRAY),
     Sig[Explode](EXPLODE),
+    // JsonTupleExplode' behavior are the same with Explode
+    Sig[JsonTupleExplode](EXPLODE),
     Sig[Inline](INLINE),
     Sig[ArrayAggregate](AGGREGATE),
     Sig[LambdaFunction](LAMBDAFUNCTION),
@@ -288,8 +290,6 @@ object ExpressionMappings {
     Sig[MinBy](MIN_BY),
     Sig[StddevSamp](STDDEV_SAMP),
     Sig[StddevPop](STDDEV_POP),
-    Sig[CollectList](COLLECT_LIST),
-    Sig[CollectSet](COLLECT_SET),
     Sig[VarianceSamp](VAR_SAMP),
     Sig[VariancePop](VAR_POP),
     Sig[BitAndAgg](BIT_AND_AGG),
