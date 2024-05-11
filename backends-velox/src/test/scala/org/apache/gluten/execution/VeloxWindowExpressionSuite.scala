@@ -73,7 +73,7 @@ class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("collect_list") {
+  test("collect_list / collect_set") {
     withTable("t") {
       val data = Seq(
         Row(0, 1),
@@ -109,32 +109,6 @@ class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
                            |""".stripMargin) {
         checkGlutenOperatorMatch[WindowExecTransformer]
       }
-    }
-  }
-
-  test("collect_set") {
-    withTable("t") {
-      val data = Seq(
-        Row(0, 1),
-        Row(0, 2),
-        Row(1, 1),
-        Row(1, 2),
-        Row(1, 2),
-        Row(2, 2),
-        Row(2, 3),
-        Row(3, null),
-        Row(3, null),
-        Row(4, 1),
-        Row(4, null)
-      )
-      val schema = new StructType()
-        .add("c1", IntegerType)
-        .add("c2", IntegerType, nullable = true)
-      spark
-        .createDataFrame(spark.sparkContext.parallelize(data), schema)
-        .write
-        .format("parquet")
-        .saveAsTable("t")
 
       runQueryAndCompare("""
                            |SELECT
