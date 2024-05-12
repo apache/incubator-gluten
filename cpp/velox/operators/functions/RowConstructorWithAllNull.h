@@ -25,13 +25,14 @@ class RowConstructorWithAllNullCallToSpecialForm : public RowConstructorWithNull
   static constexpr const char* kRowConstructorWithAllNull = "row_constructor_with_all_null";
 
  protected:
-  facebook::velox::exec::ExprPtr constructSpecialForm(
+  facebook::velox::exec::ExprPtr constructSpecialFormWithName(
       const std::string& name,
       const facebook::velox::TypePtr& type,
       std::vector<facebook::velox::exec::ExprPtr>&& compiledChildren,
       bool trackCpuUsage,
       const facebook::velox::core::QueryConfig& config) {
-    return constructSpecialForm(kRowConstructorWithAllNull, type, std::move(compiledChildren), trackCpuUsage, config);
+    return RowConstructorWithNullCallToSpecialForm::constructSpecialFormWithName(
+        kRowConstructorWithAllNull, type, std::move(compiledChildren), trackCpuUsage, config);
   }
 };
 } // namespace gluten

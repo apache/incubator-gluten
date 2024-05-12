@@ -31,7 +31,7 @@ facebook::velox::TypePtr RowConstructorWithNullCallToSpecialForm::resolveType(
   return facebook::velox::ROW(std::move(names), std::move(types));
 }
 
-facebook::velox::exec::ExprPtr RowConstructorWithNullCallToSpecialForm::constructSpecialForm(
+facebook::velox::exec::ExprPtr RowConstructorWithNullCallToSpecialForm::constructSpecialFormWithName(
     const std::string& name,
     const facebook::velox::TypePtr& type,
     std::vector<facebook::velox::exec::ExprPtr>&& compiledChildren,
@@ -58,6 +58,7 @@ facebook::velox::exec::ExprPtr RowConstructorWithNullCallToSpecialForm::construc
     std::vector<facebook::velox::exec::ExprPtr>&& compiledChildren,
     bool trackCpuUsage,
     const facebook::velox::core::QueryConfig& config) {
-  return constructSpecialForm(kRowConstructorWithNull, type, std::move(compiledChildren), trackCpuUsage, config);
+  return constructSpecialFormWithName(
+      kRowConstructorWithNull, type, std::move(compiledChildren), trackCpuUsage, config);
 }
 } // namespace gluten

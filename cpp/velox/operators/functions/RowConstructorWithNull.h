@@ -34,7 +34,7 @@ class RowConstructorWithNullCallToSpecialForm : public facebook::velox::exec::Fu
   static constexpr const char* kRowConstructorWithNull = "row_constructor_with_null";
 
  protected:
-  facebook::velox::exec::ExprPtr constructSpecialForm(
+  facebook::velox::exec::ExprPtr constructSpecialFormWithName(
       const std::string& name,
       const facebook::velox::TypePtr& type,
       std::vector<facebook::velox::exec::ExprPtr>&& compiledChildren,

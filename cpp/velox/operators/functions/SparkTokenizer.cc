@@ -27,7 +27,7 @@ class SparkTokenizer : public facebook::velox::common::Tokenizer {
     state_ = State::kNotReady;
   }
 
-  bool hasNext() override {
+  bool hasNext() {
     if (state_ == State::kDone) {
       return false;
     } else if (state_ == State::kNotReady) {
@@ -36,7 +36,7 @@ class SparkTokenizer : public facebook::velox::common::Tokenizer {
     VELOX_FAIL("Illegal state.");
   }
 
-  std::unique_ptr<facebook::velox::common::Subfield::PathElement> next() override {
+  std::unique_ptr<facebook::velox::common::Subfield::PathElement> next() {
     if (!hasNext()) {
       VELOX_USER_FAIL("No more tokens.");
     }
