@@ -739,4 +739,6 @@ trait SparkPlanExecApi {
   def genPostProjectForGenerate(generate: GenerateExec): SparkPlan
 
   def maybeCollapseTakeOrderedAndProject(plan: SparkPlan): SparkPlan = plan
+
+  def outputNativeColumnarSparkCompatibleData(plan: SparkPlan): Boolean = false
 }

@@ -24,7 +24,7 @@ import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
-import org.apache.gluten.extension.{BloomFilterMightContainJointRewriteRule, CollectRewriteRule, FlushableHashAggregateRule, HLLRewriteRule}
+import org.apache.gluten.extension.{ArrowScanReplaceRule, BloomFilterMightContainJointRewriteRule, CollectRewriteRule, FlushableHashAggregateRule, HLLRewriteRule}
 import org.apache.gluten.extension.columnar.TransformHints
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode}
@@ -744,7 +744,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] = List(
-    BloomFilterMightContainJointRewriteRule.apply
+    BloomFilterMightContainJointRewriteRule.apply,
+    ArrowScanReplaceRule.apply
   )
 
   /**
@@ -848,5 +849,10 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         }
       case other => other
     }
+  }
+
+  override def outputNativeColumnarSparkCompatibleData(plan: SparkPlan): Boolean = plan match {
+    case _: ArrowFileSourceScanExec => true
+    case _ => false
   }
 }
