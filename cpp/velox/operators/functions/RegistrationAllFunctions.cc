@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 #include "operators/functions/RegistrationAllFunctions.h"
+
 #include "operators/functions/Arithmetic.h"
 #include "operators/functions/RowConstructorWithNull.h"
 #include "operators/functions/RowFunctionWithNull.h"
-
 #include "velox/expression/SpecialFormRegistry.h"
 #include "velox/expression/VectorFunction.h"
 #include "velox/functions/lib/RegistrationHelpers.h"
@@ -51,10 +51,9 @@ void registerFunctionOverwrite() {
       std::make_unique<RowFunctionWithNull</*allNull=*/false>>(),
       RowFunctionWithNull</*allNull=*/false>::metadata());
   velox::exec::registerFunctionCallToSpecialForm(
-      kRowConstructorWithNull,
-      std::make_unique<RowConstructorWithNullCallToSpecialForm>(kRowConstructorWithNull));
+      kRowConstructorWithNull, std::make_unique<RowConstructorWithNullCallToSpecialForm>(kRowConstructorWithNull));
 
-  auto kRowConstructorWithAllNull = RowConstructorWithNullCallToSpecialForm::kRowConstructorWithAllNull;    
+  auto kRowConstructorWithAllNull = RowConstructorWithNullCallToSpecialForm::kRowConstructorWithAllNull;
   velox::exec::registerVectorFunction(
       kRowConstructorWithAllNull,
       std::vector<std::shared_ptr<velox::exec::FunctionSignature>>{},
@@ -69,7 +68,8 @@ void registerFunctionOverwrite() {
 
 void registerAllFunctions() {
   // The registration order matters. Spark sql functions are registered after
-  // presto sql functions to overwrite the registration for same named functions.
+  // presto sql functions to overwrite the registration for same named
+  // functions.
   velox::functions::prestosql::registerAllScalarFunctions();
   velox::functions::sparksql::registerFunctions("");
   velox::aggregate::prestosql::registerAllAggregateFunctions(
@@ -78,7 +78,8 @@ void registerAllFunctions() {
       "", true /*registerCompanionFunctions*/, true /*overwrite*/);
   velox::window::prestosql::registerAllWindowFunctions();
   velox::functions::window::sparksql::registerWindowFunctions("");
-  // Using function overwrite to handle function names mismatch between Spark and Velox.
+  // Using function overwrite to handle function names mismatch between Spark
+  // and Velox.
   registerFunctionOverwrite();
 }
 

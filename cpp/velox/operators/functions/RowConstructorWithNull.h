@@ -23,7 +23,6 @@
 namespace gluten {
 class RowConstructorWithNullCallToSpecialForm : public facebook::velox::exec::FunctionCallToSpecialForm {
  public:
-
   RowConstructorWithNullCallToSpecialForm(const std::string& rowFunctionName) {
     this->rowFunctionName = rowFunctionName;
   }
