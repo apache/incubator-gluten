@@ -6,22 +6,20 @@ parent: Developer Overview
 ---
 Help users to debug and test with gluten.
 
-For intel internal developer, you could refer to internal wiki  [New Employee Guide](https://wiki.ith.intel.com/display/HPDA/New+Employee+Guide) to get more information such as proxy settings,
-Gluten has cpp code and java/scala code, we can use some useful IDE to read and debug.
-
 # Environment
 
 Now gluten supports Ubuntu20.04, Ubuntu22.04, centos8, centos7 and macOS.
 
-## Openjdk8
+## OpenJDK 8
 
-### Environment setting
+### Environment Setting
 
-For root user, the environment variables file is `/etc/profile`, it will make effect for all the users.
+For root user, the environment variables file is `/etc/profile`, it will take effect for all the users.
 
 For other user, you can set in `~/.bashrc`.
 
-### Guide for ubuntu
+### Guide for Ubuntu
+
 The default JDK version in ubuntu is java11, we need to set to java8.
 
 ```bash
@@ -43,9 +41,9 @@ export PATH="$PATH:$JAVA_HOME/bin"
 
 > Must set PATH with double quote in ubuntu.
 
-## Openjdk17
+## OpenJDK 17
 
-By defaults, Gluten compiles package using JDK8. Add maven profile `-Pjava-17` changing to use JDK17, and please make sure your JAVA_HOME points to jdk17.
+By default, Gluten compiles package using JDK8. Enable maven profile by `-Pjava-17` to use JDK17, and please make sure your JAVA_HOME points to jdk17.
 
 Apache Spark and Arrow requires setting java args `-Dio.netty.tryReflectionSetAccessible=true`, see [SPARK-29924](https://issues.apache.org/jira/browse/SPARK-29924) and [ARROW-6206](https://issues.apache.org/jira/browse/ARROW-6206).
 So please add following configs in `spark-defaults.conf`:
@@ -78,18 +76,18 @@ If you need to debug the tests in <gluten>/gluten-ut, You need to compile java c
 
 # Java/scala code development with Intellij
 
-## Linux intellij local debug
+## Linux IntelliJ local debug
 
-Install the linux intellij version, and debug code locally.
+Install the Linux IntelliJ version, and debug code locally.
 
 - Ask your linux maintainer to install the desktop, and then restart the server.
 - If you use Moba-XTerm to connect linux server, you don't need to install x11 server, If not (e.g. putty), please follow this guide:
 [X11 Forwarding: Setup Instructions for Linux and Mac](https://www.businessnewsdaily.com/11035-how-to-use-x11-forwarding.html)
 
-- Download [intellij linux community version](https://www.jetbrains.com/idea/download/?fromIDE=#section=linux) to linux server
+- Download [IntelliJ Linux community version](https://www.jetbrains.com/idea/download/?fromIDE=#section=linux) to Linux server
 - Start Idea, `bash <idea_dir>/idea.sh`
 
-Notes: Sometimes, your desktop may stop accidently, left idea running.
+Notes: Sometimes, your desktop may stop accidentally, left idea running, you need to kill its process explicitly:
 
 ```bash
 root@xx2:~bash idea-IC-221.5787.30/bin/idea.sh
@@ -100,9 +98,9 @@ root@xx2:kill -9 <pid>
 
 And then restart idea.
 
-## Windows/Mac intellij remote debug
+## Windows/macOS IntelliJ remote debug
 
-If you have Ultimate intellij, you can try to debug remotely.
+If you have IntelliJ Ultimate Edition, you can debug Gluten code remotely.
 
 ## Set up gluten project
 
@@ -113,8 +111,8 @@ If you have Ultimate intellij, you can try to debug remotely.
 
 ## Java/Scala code style
 
-Intellij IDE supports importing settings for Java/Scala code style. You can import [intellij-codestyle.xml](../../dev/intellij-codestyle.xml) to your IDE.
-See [Intellij guide](https://www.jetbrains.com/help/idea/configuring-code-style.html#import-code-style).
+IntelliJ supports importing settings for Java/Scala code style. You can import [intellij-codestyle.xml](../../dev/intellij-codestyle.xml) to your IDE.
+See [IntelliJ guide](https://www.jetbrains.com/help/idea/configuring-code-style.html#import-code-style).
 
 To generate a fix for Java/Scala code style, you can run one or more of the below commands according to the code modules involved in your PR.
 
@@ -161,7 +159,7 @@ VSCode support 2 ways to set user setting.
 
 ### Build by vscode
 
-VSCode will try to compile the debug version in <gluten_home>/build.
+VSCode will try to compile using debug mode in <gluten_home>/build.
 And we need to compile velox debug mode before, if you have compiled velox release mode, you just need to do.
 
 ```bash
@@ -259,14 +257,15 @@ Then you can create breakpoint and debug in `Run and Debug` section.
 
 ### Velox debug
 
-For some velox tests such as `ParquetReaderTest`, tests need to read the parquet file in `<velox_home>/velox/dwio/parquet/tests/examples`, you should let the screen on `ParquetReaderTest.cpp`, then click `Start Debuging`, otherwise you will raise No such file or directory exception
+For some velox tests such as `ParquetReaderTest`, tests need to read the parquet file in `<velox_home>/velox/dwio/parquet/tests/examples`, 
+you should let the screen on `ParquetReaderTest.cpp`, then click `Start Debuging`, otherwise `No such file or directory` exception will be raised.
 
-## Usefule notes
+## Useful notes
 
-### Upgrade vscode
+### Do not upgrade vscode
 
 No need to upgrade vscode version, if upgraded, will download linux server again, switch update mode to off
-Search `update` in Manage->Settings to turn off update mode
+Search `update` in Manage->Settings to turn off update mode.
 
 ### Colour setting
 
@@ -299,7 +298,7 @@ Set config in `settings.json`
 If exists multiple clang-format version, formatOnSave may not take effect, specify the default formatter
 Search `default formatter` in `Settings`, select Clang-Format.
 
-If your formatOnSave still make no effect, you can use shortcut `SHIFT+ALT+F` to format one file mannually.
+If your formatOnSave still make no effect, you can use shortcut `SHIFT+ALT+F` to format one file manually.
 
 # Debug cpp code with coredump
 
@@ -370,7 +369,9 @@ wait to attach....
 ```
 
 # Debug Memory leak
+
 ## Arrow memory allocator leak
+
 If you receive error message like 
 
 ```bash
@@ -378,6 +379,7 @@ If you receive error message like
 24/04/18 08:15:38 WARN ArrowBufferAllocators$ArrowBufferAllocatorManager: Leaked allocator stack Allocator(ROOT) 0/191/319/9223372036854775807 (res/actual/peak/limit)
 ```
 You can open the Arrow allocator debug config by add VP option `-Darrow.memory.debug.allocator=true`, then you can get more details like
+
 ```bash
 child allocators: 0
   ledgers: 7
@@ -403,9 +405,12 @@ child allocators: 0
               at org.apache.gluten.utils.IteratorCompleter.hasNext(Iterators.scala:69)
               at org.apache.spark.memory.SparkMemoryUtil$UnsafeItr.hasNext(SparkMemoryUtil.scala:246)
 ```
+
 ## CPP code memory leak
+
 Sometimes you cannot get the coredump symbols, if you debug memory leak, you can write googletest to use valgrind to detect
-```
+
+```bash
 apt install valgrind
 valgrind --leak-check=yes ./exec_backend_test
 ```
