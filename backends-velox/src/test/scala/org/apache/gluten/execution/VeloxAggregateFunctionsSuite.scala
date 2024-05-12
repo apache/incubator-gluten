@@ -46,6 +46,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.sources.useV1SourceList", "avro")
+      .set("spark.default.parallelism", "2")
   }
 
   test("count") {
@@ -194,18 +195,12 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
   }
 
   test("min_by/max_by") {
-    withTempPath {
-      path =>
-        Seq((5: Integer, 6: Integer), (null: Integer, 11: Integer), (null: Integer, 5: Integer))
-          .toDF("a", "b")
-          .write
-          .parquet(path.getCanonicalPath)
-        spark.read
-          .parquet(path.getCanonicalPath)
-          .createOrReplaceTempView("test")
-        runQueryAndCompare("select min_by(a, b), max_by(a, b) from test") {
-          checkGlutenOperatorMatch[HashAggregateExecTransformer]
-        }
+    withSQLConf(("spark.sql.leafNodeDefaultParallelism", "2")) {
+      runQueryAndCompare(
+        "select min_by(a, b), max_by(a, b) from " +
+          "values (5, 6), (null, 11), (null, 5) test(a, b)") {
+        checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      }
     }
   }
 
