@@ -35,6 +35,7 @@ case class InputPartitionsUtil(
   extends Logging {
 
   def genInputPartitionSeq(): Seq[InputPartition] = {
+    logInfo("test")
     if (bucketedScan) {
       genBucketedInputPartitionSeq()
     } else {
@@ -47,7 +48,7 @@ case class InputPartitionsUtil(
     val maxSplitBytes =
       FilePartition.maxSplitBytes(relation.sparkSession, selectedPartitions)
     logInfo(
-      s"Planning scan with bin packing, max size: $maxSplitBytes bytes, " +
+      s"Planning scan witsh bin packing, max size: $maxSplitBytes bytes, " +
         s"open cost is considered as scanning $openCostInBytes bytes.")
 
     val splitFiles = selectedPartitions
