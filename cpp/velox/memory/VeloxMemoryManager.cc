@@ -285,7 +285,8 @@ VeloxMemoryManager::VeloxMemoryManager(
       velox::memory::kMaxMemory, // the 3rd capacity
       facebook::velox::memory::MemoryReclaimer::create());
 
-  veloxLeafPool_ = veloxAggregatePool_->addLeafChild(name_ + "_default_leaf");
+  veloxLeafPool_ = veloxAggregatePool_->addLeafChild(
+      name_ + "_default_leaf", true, facebook::velox::memory::MemoryReclaimer::create());
 }
 
 namespace {
