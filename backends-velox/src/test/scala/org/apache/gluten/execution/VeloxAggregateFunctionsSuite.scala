@@ -46,7 +46,6 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.sources.useV1SourceList", "avro")
-      .set("spark.default.parallelism", "2")
   }
 
   test("count") {
