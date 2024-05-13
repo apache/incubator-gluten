@@ -34,8 +34,6 @@ import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSet, GenericInternalRow}
 import org.apache.spark.sql.connector.write.WriterCommitMessage
 import org.apache.spark.sql.execution.datasources._
-import org.apache.spark.sql.execution.ui.{SparkPlanGraphEdge, SparkPlanGraphNodeWrapper, SparkPlanGraphWrapper}
-import org.apache.spark.sql.execution.ui.adjustment.PlanGraphAdjustment
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
@@ -261,9 +259,8 @@ class VeloxColumnarWriteFilesRDD(
 // we need to expose a dummy child (as right child) with type "WriteFilesExec" to let Spark
 // choose the new write code path (version >= 3.4). The actual plan to write is the left child
 // of this operator.
-case class VeloxColumnarWriteFilesExec private (
-    override val left: SparkPlan,
-    override val right: SparkPlan,
+case class VeloxColumnarWriteFilesExec(
+    child: SparkPlan,
     fileFormat: FileFormat,
     partitionColumns: Seq[Attribute],
     bucketSpec: Option[BucketSpec],
@@ -273,11 +270,6 @@ case class VeloxColumnarWriteFilesExec private (
   with GlutenPlan
   with VeloxColumnarWriteFilesExec.ExecuteWriteCompatible {
   import VeloxColumnarWriteFilesExec._
-
-  val child: SparkPlan = left
-
-  // Make sure we hide the noop leaf from SQL UI.
-  HideNoopLeafFromVeloxColumnarWriteFiles.ensureRegistered()
 
   override lazy val references: AttributeSet = AttributeSet.empty
 
@@ -328,49 +320,28 @@ case class VeloxColumnarWriteFilesExec private (
       new VeloxColumnarWriteFilesRDD(rdd, writeFilesSpec, jobTrackerID)
     }
   }
+
+  override def left: SparkPlan = child
+
+  // This is a workaround for FileFormatWriter#write. Vanilla Spark (version >= 3.4) requires for
+  // a plan that has at least one node exactly of type `WriteFilesExec` that is a Scala case-class,
+  // to decide to choose new `#executeWrite` code path over the legacy `#execute` for write
+  // operation.
+  //
+  // So we add a no-op `WriteFilesExec` child to let Spark pick the new code path.
+  //
+  // See: FileFormatWriter#write
+  // See: V1Writes#getWriteFilesOpt
+  override val right: SparkPlan =
+    WriteFilesExec(NoopLeaf(), fileFormat, partitionColumns, bucketSpec, options, staticPartitions)
+
   override protected def withNewChildrenInternal(
       newLeft: SparkPlan,
       newRight: SparkPlan): SparkPlan =
-    copy(newLeft, newRight, fileFormat, partitionColumns, bucketSpec, options, staticPartitions)
+    copy(newLeft, fileFormat, partitionColumns, bucketSpec, options, staticPartitions)
 }
 
 object VeloxColumnarWriteFilesExec {
-
-  def apply(
-      child: SparkPlan,
-      fileFormat: FileFormat,
-      partitionColumns: Seq[Attribute],
-      bucketSpec: Option[BucketSpec],
-      options: Map[String, String],
-      staticPartitions: TablePartitionSpec): VeloxColumnarWriteFilesExec = {
-    // This is a workaround for FileFormatWriter#write. Vanilla Spark (version >= 3.4) requires for
-    // a plan that has at least one node exactly of type `WriteFilesExec` that is a Scala
-    // case-class, to decide to choose new `#executeWrite` code path over the legacy `#execute`
-    // for write operation.
-    //
-    // So we add a no-op `WriteFilesExec` child to let Spark pick the new code path.
-    //
-    // See: FileFormatWriter#write
-    // See: V1Writes#getWriteFilesOpt
-    val right: SparkPlan =
-      WriteFilesExec(
-        NoopLeaf(),
-        fileFormat,
-        partitionColumns,
-        bucketSpec,
-        options,
-        staticPartitions)
-
-    VeloxColumnarWriteFilesExec(
-      child,
-      right,
-      fileFormat,
-      partitionColumns,
-      bucketSpec,
-      options,
-      staticPartitions)
-  }
-
   private case class NoopLeaf() extends LeafExecNode {
     override protected def doExecute(): RDD[InternalRow] =
       throw new GlutenException(s"$nodeName does not support doExecute")
@@ -383,48 +354,6 @@ object VeloxColumnarWriteFilesExec {
       throw new GlutenException(
         s"Internal Error ${this.getClass} has write support" +
           s" mismatch:\n${this}")
-    }
-  }
-
-  // Hide the noop leaf from SQL UI.
-  private object HideNoopLeafFromVeloxColumnarWriteFiles extends PlanGraphAdjustment {
-    override def apply(graph: SparkPlanGraphWrapper): SparkPlanGraphWrapper = {
-      val nodeLeafNodes = graph.nodes
-        .filter(_.node != null)
-        .filter(n => n.node.name == "NoopLeaf")
-      if (nodeLeafNodes.isEmpty) {
-        return graph
-      }
-      val nodesToRemove = mutable.ListBuffer[SparkPlanGraphNodeWrapper]()
-      val edgesToRemove = mutable.ListBuffer[SparkPlanGraphEdge]()
-
-      nodeLeafNodes.foreach {
-        node =>
-          nodesToRemove += node
-          keepFinding()
-          def keepFinding(): Unit = {
-            var tmp = node
-            for (_ <- graph.nodes.indices) {
-              val parent = findParent(graph, tmp)
-              if (parent.isEmpty) {
-                return
-              }
-              if (parent.get._1.node.name == "VeloxColumnarWriteFiles") {
-                edgesToRemove += parent.get._2
-                return
-              }
-              nodesToRemove += parent.get._1
-              edgesToRemove += parent.get._2
-              tmp = parent.get._1
-            }
-          }
-      }
-
-      new SparkPlanGraphWrapper(
-        graph.executionId,
-        (graph.nodes.toSet -- nodesToRemove).toSeq,
-        (graph.edges.toSet -- edgesToRemove).toSeq
-      )
     }
   }
 }

@@ -21,7 +21,6 @@ import org.apache.gluten.events.{GlutenBuildInfoEvent, GlutenPlanFallbackEvent}
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler._
-import org.apache.spark.sql.execution.ui.adjustment.PlanGraphAdjustment
 import org.apache.spark.sql.internal.StaticSQLConf._
 import org.apache.spark.status.{ElementTrackingStore, KVUtils}
 
@@ -80,7 +79,6 @@ class GlutenSQLAppStatusListener(conf: SparkConf, kvstore: ElementTrackingStore)
   }
 
   private def onSQLExtensionEnd(event: SparkListenerSQLExecutionEnd): Unit = {
-    PlanGraphAdjustment.adjust(kvstore, event.executionId)
     executionIdToDescription.remove(event.executionId)
     executionIdToFallbackEvent.remove(event.executionId)
   }
