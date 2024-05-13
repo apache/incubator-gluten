@@ -1184,7 +1184,7 @@ object GlutenConfig {
       .internal()
       .doc("Velox memory pool initial capacity.")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("0MB")
+      .createWithDefaultString("8MB")
 
   // velox caching options
   val COLUMNAR_VELOX_CACHE_ENABLED =

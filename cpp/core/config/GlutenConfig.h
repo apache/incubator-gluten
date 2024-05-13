@@ -72,7 +72,7 @@ const std::string kGlogSeverityLevel = "spark.gluten.sql.columnar.backend.velox.
 const uint32_t kGlogSeverityLevelDefault = 1;
 
 const std::string kMemInitCapacity = "spark.gluten.sql.columnar.backend.velox.memInitCapacity";
-const uint64_t kMemInitCapacityDefault = 32 << 20;
+const uint64_t kMemInitCapacityDefault = 8 << 20;
 
 std::unordered_map<std::string, std::string>
 parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength);
