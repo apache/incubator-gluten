@@ -207,7 +207,7 @@ void SparkMergeTreeWriter::saveMetadata()
     if (!isRemoteStorage)
         return;
 
-    for (const auto merge_tree_data_part : new_parts.unsafeGet())
+    for (const auto & merge_tree_data_part : new_parts.unsafeGet())
     {
         auto part = dest_storage->loadDataPartsWithNames({merge_tree_data_part->name});
         if (part.empty())
@@ -220,7 +220,7 @@ void SparkMergeTreeWriter::saveMetadata()
         }
 
         saveFileStatus(
-                *dest_storage, context, merge_tree_data_part->name, const_cast<IDataPartStorage &>(part.at(0)->getDataPartStorage()));
+            *dest_storage, context, merge_tree_data_part->name, const_cast<IDataPartStorage &>(part.at(0)->getDataPartStorage()));
     }
 }
 
@@ -228,6 +228,9 @@ void SparkMergeTreeWriter::commitPartToRemoteStorage()
 {
     if (!isRemoteStorage)
         return;
+
+    LOG_DEBUG(
+        &Poco::Logger::get("SparkMergeTreeWriter"), "Begin upload to disk {}.", dest_storage->getStoragePolicy()->getAnyDisk()->getName());
 
     auto read_settings = context->getReadSettings();
     auto write_settings = context->getWriteSettings();
@@ -244,12 +247,17 @@ void SparkMergeTreeWriter::commitPartToRemoteStorage()
             read_settings,
             write_settings,
             nullptr);
+        LOG_DEBUG(
+            &Poco::Logger::get("SparkMergeTreeWriter"),
+            "Upload part {} to disk {} success.",
+            merge_tree_data_part->name,
+            dest_storage->getStoragePolicy()->getAnyDisk()->getName());
     }
     watch.stop();
     LOG_INFO(
         &Poco::Logger::get("SparkMergeTreeWriter"),
-        "Upload to disk {} success, total elapsed {} ms",
-        storage->getStoragePolicy()->getAnyDisk()->getName(),
+        "Upload to disk {} finished, total elapsed {} ms",
+        dest_storage->getStoragePolicy()->getAnyDisk()->getName(),
         watch.elapsedMilliseconds());
     StorageMergeTreeFactory::freeStorage(temp_storage->getStorageID());
     temp_storage->dropAllData();
@@ -259,7 +267,8 @@ void SparkMergeTreeWriter::commitPartToRemoteStorage()
 
 void SparkMergeTreeWriter::finalizeMerge()
 {
-    // wait all merge task end and do final merge
+    LOG_DEBUG(&Poco::Logger::get("SparkMergeTreeWriter"), "Waiting all merge task end and do final merge");
+    // waiting all merge task end and do final merge
     thread_pool.wait();
 
     size_t before_merge_size;
@@ -274,6 +283,7 @@ void SparkMergeTreeWriter::finalizeMerge()
     for (const auto & merge_tree_data_part : new_parts.unsafeGet())
         final_parts.emplace(merge_tree_data_part->name);
 
+    // default storage need clean temp.
     if (!temp_storage)
     {
         for (const auto & tmp_part : tmp_parts)
@@ -446,7 +456,6 @@ std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo()
         res.emplace_back(
             PartInfo{part->name, part->getMarksCount(), part->getBytesOnDisk(), part->rows_count, partition_values, bucket_dir});
     }
-
     return res;
 }
 
