@@ -43,6 +43,7 @@ abstract class VeloxTPCHTableSupport extends VeloxWholeStageTransformerSuite {
       .set("spark.sql.files.maxPartitionBytes", "1g")
       .set("spark.sql.shuffle.partitions", "1")
       .set("spark.memory.offHeap.size", "2g")
+      .set("spark.gluten.sql.columnar.backend.velox.memInitCapacity", "1m")
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
     // TODO Should enable this after fix the issue of native plan detail occasional disappearance
@@ -250,7 +251,6 @@ class VeloxTPCHDistinctSpillSuite extends VeloxTPCHTableSupport {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.memory.offHeap.size", "50m")
-      .set("spark.gluten.sql.columnar.backend.velox.memInitCapacity", "1m")
       .set("spark.gluten.memory.overAcquiredMemoryRatio", "0.9") // to trigger distinct spill early
   }
 
