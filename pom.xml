@@ -633,7 +633,7 @@
             <args>
               <arg>-Wconf:msg=While parsing annotations in:silent</arg>
               <arg>-Ywarn-unused:imports</arg>
-              <arg>-Xfatal-warnings</arg>
+              <arg>-Wconf:any:e</arg>
               <arg>-deprecation</arg>
               <arg>-feature</arg>
               <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
