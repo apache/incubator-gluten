@@ -407,20 +407,20 @@ VeloxShuffleReaderOutStreamWrapper::VeloxShuffleReaderOutStreamWrapper(
     const std::shared_ptr<facebook::velox::memory::MemoryPool>& veloxPool,
     const RowTypePtr& rowType,
     int32_t batchSize,
-    const std::string compressionTypeStr,
+    facebook::velox::common::CompressionKind veloxCompressionType,
     const std::function<void(int64_t)> decompressionTimeAccumulator,
     const std::function<void(int64_t)> deserializeTimeAccumulator,
     const std::shared_ptr<JavaInputStreamWrapper> in)
     : veloxPool_(veloxPool),
       rowType_(rowType),
       batchSize_(batchSize),
-      compressionTypeStr_(compressionTypeStr),
+      veloxCompressionType_(veloxCompressionType),
       decompressionTimeAccumulator_(decompressionTimeAccumulator),
       deserializeTimeAccumulator_(deserializeTimeAccumulator) {
   constexpr uint64_t kMaxReadBufferSize = (1 << 20) - AlignedBuffer::kPaddedSize;
   auto buffer = AlignedBuffer::allocate<char>(kMaxReadBufferSize, veloxPool_.get());
   in_ = std::make_unique<VeloxInputStream>(std::move(in), std::move(buffer));
-  serdeOptions_ = {false, facebook::velox::common::stringToCompressionKind(compressionTypeStr_)};
+  serdeOptions_ = {false, veloxCompressionType_};
   RowVectorPtr rowVector;
 }
 
@@ -456,7 +456,7 @@ std::unique_ptr<ColumnarBatchIterator> VeloxColumnarBatchDeserializerFactory::cr
       veloxPool_,
       rowType_,
       batchSize_,
-      compressionTypeStr_,
+      veloxCompressionType_,
       [this](int64_t decompressionTime) { this->decompressTime_ += decompressionTime; },
       [this](int64_t deserializeTime) { this->deserializeTime_ += deserializeTime; },
       in);
