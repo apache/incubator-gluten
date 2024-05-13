@@ -106,7 +106,7 @@ class VeloxColumnarBatchDeserializerFactory : public DeserializerFactory {
   VeloxColumnarBatchDeserializerFactory(
       const std::shared_ptr<arrow::Schema>& schema,
       const std::shared_ptr<arrow::util::Codec>& codec,
-      const std::string compressionTypeStr,
+      const facebook::velox::common::CompressionKind veloxCompressionType,
       const facebook::velox::RowTypePtr& rowType,
       int32_t batchSize,
       arrow::MemoryPool* memoryPool,
@@ -128,7 +128,7 @@ class VeloxColumnarBatchDeserializerFactory : public DeserializerFactory {
  private:
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::util::Codec> codec_;
-  std::string compressionTypeStr_;
+  facebook::velox::common::CompressionKind veloxCompressionType_;
   facebook::velox::RowTypePtr rowType_;
   int32_t batchSize_;
   arrow::MemoryPool* memoryPool_;

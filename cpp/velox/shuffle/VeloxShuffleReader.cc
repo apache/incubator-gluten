@@ -370,7 +370,7 @@ std::shared_ptr<ColumnarBatch> VeloxColumnarBatchDeserializer::next() {
 VeloxColumnarBatchDeserializerFactory::VeloxColumnarBatchDeserializerFactory(
     const std::shared_ptr<arrow::Schema>& schema,
     const std::shared_ptr<arrow::util::Codec>& codec,
-    const std::string compressionTypeStr,
+    const facebook::velox::common::CompressionKind veloxCompressionType,
     const RowTypePtr& rowType,
     int32_t batchSize,
     arrow::MemoryPool* memoryPool,
@@ -378,7 +378,7 @@ VeloxColumnarBatchDeserializerFactory::VeloxColumnarBatchDeserializerFactory(
     ShuffleWriterType shuffleWriterType)
     : schema_(schema),
       codec_(codec),
-      compressionTypeStr_(compressionTypeStr),
+      veloxCompressionType_(veloxCompressionType),
       rowType_(rowType),
       batchSize_(batchSize),
       memoryPool_(memoryPool),
