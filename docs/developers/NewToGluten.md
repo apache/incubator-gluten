@@ -87,17 +87,6 @@ Install the Linux IntelliJ version, and debug code locally.
 - Download [IntelliJ Linux community version](https://www.jetbrains.com/idea/download/?fromIDE=#section=linux) to Linux server
 - Start Idea, `bash <idea_dir>/idea.sh`
 
-Notes: Sometimes, your desktop may stop accidentally, left idea running, you need to kill its process explicitly:
-
-```bash
-root@xx2:~bash idea-IC-221.5787.30/bin/idea.sh
-Already running
-root@xx2:~ps ux | grep intellij
-root@xx2:kill -9 <pid>
-```
-
-And then restart idea.
-
 ## Windows/macOS IntelliJ remote debug
 
 If you have IntelliJ Ultimate Edition, you can debug Gluten code remotely.
