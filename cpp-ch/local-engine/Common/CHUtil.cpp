@@ -552,7 +552,11 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::map<std::s
         if (key.starts_with(CH_RUNTIME_CONFIG_PREFIX) && key != CH_RUNTIME_CONFIG_FILE)
         {
             // Apply spark.gluten.sql.columnar.backend.ch.runtime_config.* to config
-            config->setString(key.substr(CH_RUNTIME_CONFIG_PREFIX.size()), value);
+            const auto name = key.substr(CH_RUNTIME_CONFIG_PREFIX.size());
+            if ((name == "storage_configuration.disks.s3.metadata_path" || name == "path") && !value.ends_with("/"))
+                config->setString(name, value + "/");
+            else
+                config->setString(name, value);
         }
     }
 

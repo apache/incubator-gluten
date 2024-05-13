@@ -72,6 +72,9 @@ private:
     void safeEmplaceBackPart(DB::MergeTreeDataPartPtr);
     void safeAddPart(DB::MergeTreeDataPartPtr);
     void manualFreeMemory(size_t before_write_memory);
+    void saveMetadata();
+    void commitPartToRemoteStorage();
+    void finalizeMerge();
 
     CustomStorageMergeTreePtr storage = nullptr;
     CustomStorageMergeTreePtr dest_storage = nullptr;
@@ -94,7 +97,7 @@ private:
     size_t merge_min_size = 1024 * 1024 * 1024;
     size_t merge_limit_parts = 10;
     std::mutex memory_mutex;
-    bool isRemoteDisk = false;
+    bool isRemoteStorage = false;
 };
 
 }
