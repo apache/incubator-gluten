@@ -39,7 +39,6 @@ import java.{util => ju}
 
 import scala.collection.JavaConverters._
 
-@SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
 class ClickHouseTableV2(
     override val spark: SparkSession,
     override val path: Path,
@@ -269,7 +268,6 @@ class ClickHouseTableV2(
   }
 }
 
-@SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
 class TempClickHouseTableV2(
     override val spark: SparkSession,
     override val catalogTable: Option[CatalogTable] = None)

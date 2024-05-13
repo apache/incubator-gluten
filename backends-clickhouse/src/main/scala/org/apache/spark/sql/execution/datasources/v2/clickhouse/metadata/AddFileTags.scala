@@ -28,7 +28,6 @@ import java.util.{List => JList}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
-@SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
 class AddMergeTreeParts(
     val database: String,
     val table: String,

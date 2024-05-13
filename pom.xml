@@ -615,20 +615,6 @@
           <artifactId>scala-maven-plugin</artifactId>
           <version>${scala.compiler.version}</version>
           <configuration>
-            <compilerPlugins>
-              <compilerPlugin>
-                <groupId>org.wartremover</groupId>
-                <artifactId>wartremover_${scala.binary.version}</artifactId>
-                <version>3.1.6</version>
-              </compilerPlugin>
-            </compilerPlugins>
-            <dependencies>
-              <dependency>
-                <groupId>io.github.zhztheplayer.scalawarts</groupId>
-                <artifactId>scalawarts</artifactId>
-                <version>0.1.0</version>
-              </dependency>
-            </dependencies>
             <recompileMode>${scala.recompile.mode}</recompileMode>
             <args>
               <arg>-Wconf:msg=While parsing annotations in:silent</arg>
@@ -636,7 +622,6 @@
               <arg>-Xfatal-warnings</arg>
               <arg>-deprecation</arg>
               <arg>-feature</arg>
-              <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
             </args>
           </configuration>
           <executions>
