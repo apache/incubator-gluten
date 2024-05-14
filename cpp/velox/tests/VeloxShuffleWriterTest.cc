@@ -19,7 +19,7 @@
 #include <arrow/io/api.h>
 
 #include "shuffle/LocalPartitionWriter.h"
-#include "shuffle/VeloxShuffleWriter.h"
+#include "shuffle/VeloxHashBasedShuffleWriter.h"
 #include "shuffle/rss/RssPartitionWriter.h"
 #include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
