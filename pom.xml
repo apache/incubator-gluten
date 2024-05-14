@@ -631,9 +631,8 @@
             </dependencies>
             <recompileMode>${scala.recompile.mode}</recompileMode>
             <args>
-              <arg>-Wconf:msg=While parsing annotations in:silent</arg>
+              <arg>-Wconf:msg=While parsing annotations in:silent,any:e</arg>
               <arg>-Ywarn-unused:imports</arg>
-              <arg>-Wconf:any:e</arg>
               <arg>-deprecation</arg>
               <arg>-feature</arg>
               <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
