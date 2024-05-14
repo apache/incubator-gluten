@@ -179,7 +179,7 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
 
   arrow::Status splitRowVector(VeloxHashBasedShuffleWriter& shuffleWriter, facebook::velox::RowVectorPtr vector) {
     std::shared_ptr<ColumnarBatch> cb = std::make_shared<VeloxColumnarBatch>(vector);
-    return shuffleWriter.split(cb, ShuffleWriter::kMinMemLimit);
+    return shuffleWriter.write(cb, ShuffleWriter::kMinMemLimit);
   }
 
   // Create multiple local dirs and join with comma.
@@ -449,7 +449,7 @@ class RangePartitioningShuffleWriter : public MultiplePartitioningShuffleWriter 
       facebook::velox::TypePtr dataType,
       std::vector<std::vector<facebook::velox::RowVectorPtr>> expectedVectors) { /* blockId = pid, rowVector in block */
     for (auto& batch : batches) {
-      ASSERT_NOT_OK(shuffleWriter.split(batch, ShuffleWriter::kMinMemLimit));
+      ASSERT_NOT_OK(shuffleWriter.write(batch, ShuffleWriter::kMinMemLimit));
     }
     shuffleWriteReadMultiBlocks(shuffleWriter, expectPartitionLength, dataType, expectedVectors);
   }
