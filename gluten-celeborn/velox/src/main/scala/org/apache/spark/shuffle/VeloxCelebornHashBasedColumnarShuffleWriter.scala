@@ -139,7 +139,7 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
           )
         }
         val startTime = System.nanoTime()
-        jniWrapper.split(nativeShuffleWriter, cb.numRows, handle, availableOffHeapPerTask())
+        jniWrapper.write(nativeShuffleWriter, cb.numRows, handle, availableOffHeapPerTask())
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(cb.numRows)
         dep.metrics("inputBatches").add(1)

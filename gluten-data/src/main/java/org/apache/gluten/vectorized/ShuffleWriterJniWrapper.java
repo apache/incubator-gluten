@@ -195,7 +195,7 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
    *     allocator instead
    * @return batch bytes.
    */
-  public native long split(long shuffleWriterHandle, int numRows, long handler, long memLimit);
+  public native long write(long shuffleWriterHandle, int numRows, long handler, long memLimit);
 
   /**
    * Write the data remained in the buffers hold by native shuffle writer to each partition's

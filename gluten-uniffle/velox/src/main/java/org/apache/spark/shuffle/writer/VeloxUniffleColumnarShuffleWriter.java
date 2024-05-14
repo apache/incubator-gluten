@@ -186,8 +186,8 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
         }
         long startTime = System.nanoTime();
         long bytes =
-            jniWrapper.split(nativeShuffleWriter, cb.numRows(), handle, availableOffHeapPerTask());
-        LOG.debug("jniWrapper.split rows {}, split bytes {}", cb.numRows(), bytes);
+            jniWrapper.write(nativeShuffleWriter, cb.numRows(), handle, availableOffHeapPerTask());
+        LOG.debug("jniWrapper.write rows {}, split bytes {}", cb.numRows(), bytes);
         columnarDep.metrics().get("dataSize").get().add(bytes);
         // this metric replace part of uniffle shuffle write time
         columnarDep.metrics().get("splitTime").get().add(System.nanoTime() - startTime);
