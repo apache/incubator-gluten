@@ -36,7 +36,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SerializableConfiguration, TaskResources}
 
 import org.apache.arrow.dataset.file.FileFormat
-import org.apache.arrow.dataset.jni.NativeMemoryPool
 
 import java.net.URLDecoder
 
