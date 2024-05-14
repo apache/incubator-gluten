@@ -20,10 +20,10 @@ import org.apache.gluten.extension.GlutenPlan
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.connector.read.{Batch, InputPartition, PartitionReaderFactory, Scan}
-import org.apache.spark.sql.execution.datasources.v2.{ArrowBatchScanExecShim, BatchScanExec, DataSourceV2ScanExecBase}
+import org.apache.spark.sql.connector.read.{Batch, PartitionReaderFactory, Scan}
+import org.apache.spark.sql.execution.datasources.v2.{ArrowBatchScanExecShim, BatchScanExec}
 
 case class ArrowBatchScanExec(original: BatchScanExec)
   extends ArrowBatchScanExecShim(original)
