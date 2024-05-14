@@ -443,7 +443,7 @@ class DeltaLog private (
     val fileIndex =
       TahoeLogFileIndex(spark, this, dataPath, snapshotToUse, partitionFilters, isTimeTravelQuery)
     var bucketSpec: Option[BucketSpec] = ClickHouseTableV2.getTable(this).bucketOption
-    new HadoopFsRelation(
+    HadoopFsRelation(
       fileIndex,
       partitionSchema =
         DeltaColumnMapping.dropColumnMappingMetadata(snapshotToUse.metadata.partitionSchema),
