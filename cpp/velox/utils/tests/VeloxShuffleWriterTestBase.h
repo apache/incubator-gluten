@@ -276,11 +276,12 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     options.compressionType = compressionType;
     auto codec = createArrowIpcCodec(options.compressionType, CodecBackend::NONE);
     auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
+    auto veloxCompressionType = facebook::velox::common::stringToCompressionKind(options.compressionTypeStr);
     // Set batchSize to a large value to make all batches are merged by reader.
     auto deserializerFactory = std::make_unique<gluten::VeloxColumnarBatchDeserializerFactory>(
         schema,
         std::move(codec),
-        options.compressionTypeStr,
+        veloxCompressionType,
         rowType,
         std::numeric_limits<int32_t>::max(),
         defaultArrowMemoryPool().get(),
