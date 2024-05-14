@@ -1201,8 +1201,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenResolveDefaultColumnsSuite]
   enableSuite[GlutenSubqueryHintPropagationSuite]
   enableSuite[GlutenUrlFunctionsSuite]
-  // Row index metadata column support in Velox isn't ready yet, refer velox-9147
-  // enableSuite[GlutenParquetRowIndexSuite]
+  enableSuite[GlutenParquetRowIndexSuite]
+    .excludeByPrefix("row index generation")
+    .excludeByPrefix("invalid row index column type")
   enableSuite[GlutenBitmapExpressionsQuerySuite]
   enableSuite[GlutenEmptyInSuite]
   enableSuite[GlutenRuntimeNullChecksV2Writes]
