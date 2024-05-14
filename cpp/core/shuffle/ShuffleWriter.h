@@ -39,6 +39,13 @@ class ShuffleWriter : public Reclaimable {
 
   virtual arrow::Status write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) = 0;
 
+  // For test only.
+  virtual void setPartitionBufferSize(uint32_t newSize) {}
+  
+  virtual arrow::Status evictPartitionBuffers(uint32_t partitionId, bool reuseBuffers) {
+    return arrow::Status::OK();
+  }
+
   virtual arrow::Status evictRowVector(uint32_t partitionId) {
     return arrow::Status::OK();
   }

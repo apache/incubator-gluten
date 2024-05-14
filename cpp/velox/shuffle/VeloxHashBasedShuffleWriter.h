@@ -138,12 +138,12 @@ class VeloxHashBasedShuffleWriter : public ShuffleWriter {
 
   const uint64_t cachedPayloadSize() const override;
 
-  arrow::Status evictPartitionBuffers(uint32_t partitionId, bool reuseBuffers);
+  arrow::Status evictPartitionBuffers(uint32_t partitionId, bool reuseBuffers) override;
 
   int64_t rawPartitionBytes() const;
 
   // For test only.
-  void setPartitionBufferSize(uint32_t newSize);
+  void setPartitionBufferSize(uint32_t newSize) override;
 
   // for debugging
   void printColumnsInfo() const {

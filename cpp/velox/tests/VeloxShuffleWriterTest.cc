@@ -20,6 +20,7 @@
 
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxHashBasedShuffleWriter.h"
+#include "shuffle/VeloxSortBasedShuffleWriter.h"
 #include "shuffle/rss/RssPartitionWriter.h"
 #include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
@@ -70,10 +71,17 @@ std::vector<ShuffleTestParams> createShuffleTestParams() {
   for (const auto& compression : compressions) {
     for (const auto compressionThreshold : compressionThresholds) {
       for (const auto mergeBufferSize : mergeBufferSizes) {
-        params.push_back(
-            ShuffleTestParams{PartitionWriterType::kLocal, compression, compressionThreshold, mergeBufferSize});
+        params.push_back(ShuffleTestParams{
+            ShuffleWriterType::kHashShuffle,
+            PartitionWriterType::kLocal,
+            compression,
+            compressionThreshold,
+            mergeBufferSize});
       }
-      params.push_back(ShuffleTestParams{PartitionWriterType::kRss, compression, compressionThreshold, 0});
+      params.push_back(ShuffleTestParams{
+          ShuffleWriterType::kHashShuffle, PartitionWriterType::kRss, compression, compressionThreshold, 0});
+      params.push_back(ShuffleTestParams{
+          ShuffleWriterType::kSortShuffle, PartitionWriterType::kRss, compression, compressionThreshold, 0});
     }
   }
 
@@ -148,11 +156,7 @@ TEST_P(HashPartitioningShuffleWriter, hashPart1Vector) {
       makeFlatVector<int32_t>(
           4, [](vector_size_t row) { return row % 2; }, nullEvery(5), DATE()),
       makeFlatVector<Timestamp>(
-          4,
-          [](vector_size_t row) {
-            return Timestamp{row % 2, 0};
-          },
-          nullEvery(5)),
+          4, [](vector_size_t row) { return Timestamp{row % 2, 0}; }, nullEvery(5)),
   });
 
   auto dataVector = makeRowVector({
@@ -164,11 +168,7 @@ TEST_P(HashPartitioningShuffleWriter, hashPart1Vector) {
       makeFlatVector<int32_t>(
           4, [](vector_size_t row) { return row % 2; }, nullEvery(5), DATE()),
       makeFlatVector<Timestamp>(
-          4,
-          [](vector_size_t row) {
-            return Timestamp{row % 2, 0};
-          },
-          nullEvery(5)),
+          4, [](vector_size_t row) { return Timestamp{row % 2, 0}; }, nullEvery(5)),
   });
 
   auto firstBlock = makeRowVector({
