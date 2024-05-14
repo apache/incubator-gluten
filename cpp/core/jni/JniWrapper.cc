@@ -149,9 +149,9 @@ class JavaInputStreamAdaptor final : public arrow::io::InputStream {
   bool closed_ = false;
 };
 
-class JavaInputStreamAdapter final : public JavaInputStreamWrapper {
+class JavaVeloxInputStreamAdapter final : public JavaInputStreamWrapper {
  public:
-  JavaInputStreamAdapter(JNIEnv* env, jobject jniIn) {
+  JavaVeloxInputStreamAdapter(JNIEnv* env, jobject jniIn) {
     // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
     if (env->GetJavaVM(&vm_) != JNI_OK) {
       std::string errorMessage = "Unable to get JavaVM instance";
@@ -160,14 +160,14 @@ class JavaInputStreamAdapter final : public JavaInputStreamWrapper {
     jniIn_ = env->NewGlobalRef(jniIn);
   }
 
-  ~JavaInputStreamAdapter() {
+  ~JavaVeloxInputStreamAdapter() {
     try {
-      auto status = JavaInputStreamAdapter::close();
+      auto status = JavaVeloxInputStreamAdapter::close();
       if (!status.ok()) {
-        LOG(WARNING) << __func__ << " call JavaInputStreamAdapter::close() failed, status:" << status.ToString();
+        LOG(WARNING) << __func__ << " call JavaVeloxInputStreamAdapter::close() failed, status:" << status.ToString();
       }
     } catch (std::exception& e) {
-      LOG(WARNING) << __func__ << " call JavaInputStreamAdapter::close() got exception:" << e.what();
+      LOG(WARNING) << __func__ << " call JavaVeloxInputStreamAdapter::close() got exception:" << e.what();
     }
   }
 
@@ -1181,7 +1181,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrappe
         std::make_shared<JavaInputStreamAdaptor>(env, reader->getPool(), jniIn);
     outItr = reader->readStream(in);
   } else if (shuffleWriterType == kSortShuffle) {
-    std::shared_ptr<JavaInputStreamWrapper> in = std::make_shared<JavaInputStreamAdapter>(env, jniIn);
+    std::shared_ptr<JavaInputStreamWrapper> in = std::make_shared<JavaVeloxInputStreamAdapter>(env, jniIn);
     outItr = reader->readStream(in);
   } else {
     std::string errorMessage = "Invalid shuffle writer type " + std::to_string(shuffleWriterType);
