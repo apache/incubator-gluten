@@ -614,8 +614,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
     auto types = SubstraitParser::sigToTypes(funcSpec);
     auto funcName = SubstraitParser::getNameBeforeDelimiter(funcSpec);
     auto signaturesOpt = exec::getWindowFunctionSignatures(funcName);
-    auto rankLikeNames = {"rank", "dense_rank", "percent_rank"};
-    auto leadLagNames = {"lead", "lag"};
+    std::vector<std::string> rankLikeNames = {"rank", "dense_rank", "percent_rank"};
+    std::vector<std::string> leadLagNames = {"lead", "lag"};
     bool resolved = false;
     for (const auto& signature : signaturesOpt.value()) {
       // The rank like functions don't need argument.
