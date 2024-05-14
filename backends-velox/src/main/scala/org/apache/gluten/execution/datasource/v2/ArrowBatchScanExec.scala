@@ -23,15 +23,13 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.{Batch, InputPartition, PartitionReaderFactory, Scan}
-import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase}
+import org.apache.spark.sql.execution.datasources.v2.{ArrowBatchScanExecShim, BatchScanExec, DataSourceV2ScanExecBase}
 
 case class ArrowBatchScanExec(original: BatchScanExec)
-  extends DataSourceV2ScanExecBase
+  extends ArrowBatchScanExecShim(original)
   with GlutenPlan {
 
   @transient lazy val batch: Batch = original.batch
-
-  @transient override lazy val inputPartitions: Seq[InputPartition] = original.inputPartitions
 
   override lazy val readerFactory: PartitionReaderFactory = original.readerFactory
 
@@ -45,10 +43,6 @@ case class ArrowBatchScanExec(original: BatchScanExec)
     this.copy(original = original.doCanonicalize())
 
   override def nodeName: String = "Arrow" + original.nodeName
-
-  override def keyGroupedPartitioning: Option[Seq[Expression]] = original.keyGroupedPartitioning
-
-  override def ordering: Option[Seq[SortOrder]] = original.ordering
 
   override def output: Seq[Attribute] = original.output
 }
