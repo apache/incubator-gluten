@@ -733,8 +733,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   auto projNode = std::dynamic_pointer_cast<const core::ProjectNode>(childNode);
 
   if (projNode != nullptr && projNode->names().size() > requiredChildOutput.size()) {
-    // generator is a scalarfunction node -> explode(array(col, 'all'))
-    // use the last one, this is ensure by scala code
+    // Generator function's input is not a field reference, e.g. explode(array(1,2,3)), a sample
+    // input substrait plan is like the following(the plan structure is ensured by scala code):
+    //
+    //  Generate explode([1,2,3] AS _pre_0#129), false, [col#126]
+    //  +- Project [fake_column#128, [1,2,3] AS _pre_0#129]
+    //   +- RewrittenNodeWall Scan OneRowRelation[fake_column#128]
+    //
+    // The last projection column in GeneratorRel's child(Project) is the column we need to unnest
     auto innerName = projNode->names().back();
     auto innerExpr = projNode->projections().back();
 
@@ -743,9 +749,12 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     VELOX_CHECK_NOT_NULL(unnestFieldExpr, " the key in unnest Operator only support field");
     unnest.emplace_back(unnestFieldExpr);
   } else {
-    // generator should be a array column -> explode(col)
-    auto explodeFunc = generator.scalar_function();
-    auto unnestExpr = exprConverter_->toVeloxExpr(explodeFunc.arguments(0).value(), inputType);
+    // Generator function's input is a field reference, e.g. explode(col), generator
+    // function's first argument is the field reference we need to unnest.
+    // This assumption holds for all the supported generator function:
+    // explode, posexplode, inline.
+    auto generatorFunc = generator.scalar_function();
+    auto unnestExpr = exprConverter_->toVeloxExpr(generatorFunc.arguments(0).value(), inputType);
     auto unnestFieldExpr = std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(unnestExpr);
     VELOX_CHECK_NOT_NULL(unnestFieldExpr, " the key in unnest Operator only support field");
     unnest.emplace_back(unnestFieldExpr);
