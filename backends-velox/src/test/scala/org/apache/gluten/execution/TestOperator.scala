@@ -18,6 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.datasource.ArrowCSVFileFormat
+import org.apache.gluten.execution.datasource.v2.ArrowBatchScanExec
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
@@ -491,7 +492,6 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     runQueryAndCompare("select * from student") {
       df =>
         val plan = df.queryExecution.executedPlan
-        print(plan)
         assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
         assert(plan.find(_.isInstanceOf[ArrowFileSourceScanExec]).isDefined)
         val scan = plan.find(_.isInstanceOf[ArrowFileSourceScanExec]).toList.head
@@ -534,6 +534,26 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
                            |insert into insert_csv_t select * from student;
                            |""".stripMargin) {
         checkGlutenOperatorMatch[ArrowFileSourceScanExec]
+      }
+    }
+  }
+
+  test("csv scan datasource v2") {
+    withSQLConf("spark.sql.sources.useV1SourceList" -> "") {
+      val filePath = rootPath + "/datasource/csv/student.csv"
+      val df = spark.read
+        .format("csv")
+        .option("header", "true")
+        .load(filePath)
+      df.createOrReplaceTempView("student")
+      runQueryAndCompare("select * from student") {
+        checkGlutenOperatorMatch[ArrowBatchScanExec]
+      }
+      runQueryAndCompare("select * from student where Name = 'Peter'") {
+        df =>
+          val plan = df.queryExecution.executedPlan
+          assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isEmpty)
+          assert(plan.find(s => s.isInstanceOf[ArrowBatchScanExec]).isDefined)
       }
     }
   }
