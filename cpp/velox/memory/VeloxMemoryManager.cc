@@ -275,9 +275,6 @@ VeloxMemoryManager::VeloxMemoryManager(
       .memoryPoolInitCapacity = 0,
       .memoryPoolTransferCapacity = 32 << 20,
       .memoryReclaimWaitMs = 0};
-  if (name_ == "WholeStageIterator") {
-    mmOptions.arbitrationStateCheckCb = velox::exec::memoryArbitrationStateCheck;
-  }
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
 
   veloxAggregatePool_ = veloxMemoryManager_->addRootPool(
