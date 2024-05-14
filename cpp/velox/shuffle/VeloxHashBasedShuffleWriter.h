@@ -36,10 +36,10 @@
 #include <arrow/result.h>
 #include <arrow/type.h>
 
+#include "VeloxShuffleWriter.h"
 #include "memory/VeloxMemoryManager.h"
 #include "shuffle/PartitionWriter.h"
 #include "shuffle/Partitioner.h"
-#include "VeloxShuffleWriter.h"
 #include "shuffle/Utils.h"
 
 #include "utils/Print.h"
