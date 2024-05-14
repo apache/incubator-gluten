@@ -219,6 +219,7 @@ class CHTransformerApi extends TransformerApi with Logging {
       args: java.lang.Object,
       substraitExprName: String,
       childNode: ExpressionNode,
+      childResultType: DataType,
       dataType: DecimalType,
       nullable: Boolean,
       nullOnOverflow: Boolean): ExpressionNode = {

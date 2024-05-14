@@ -85,7 +85,7 @@ trait BackendSettingsApi {
   def supportShuffleWithProject(outputPartitioning: Partitioning, child: SparkPlan): Boolean = false
   def utilizeShuffledHashJoinHint(): Boolean = false
   def excludeScanExecFromCollapsedStage(): Boolean = false
-  def rescaleDecimalLiteral: Boolean = false
+  def rescaleDecimalArithmetic: Boolean = false
 
   /**
    * Whether to replace sort agg with hash agg., e.g., sort agg will be used in spark's planning for
@@ -105,8 +105,6 @@ trait BackendSettingsApi {
    * means the backend will implement `CheckOverflow` by default and no need to transform it.
    */
   def transformCheckOverflow: Boolean = true
-
-  def rescaleDecimalIntegralExpression(): Boolean = false
 
   def shuffleSupportedCodec(): Set[String]
 
