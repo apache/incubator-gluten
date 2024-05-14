@@ -15,11 +15,10 @@
  * limitations under the License.
  */
 #include "operators/functions/RegistrationAllFunctions.h"
+
 #include "operators/functions/Arithmetic.h"
-#include "operators/functions/RowConstructorWithAllNull.h"
 #include "operators/functions/RowConstructorWithNull.h"
 #include "operators/functions/RowFunctionWithNull.h"
-
 #include "velox/expression/SpecialFormRegistry.h"
 #include "velox/expression/VectorFunction.h"
 #include "velox/functions/lib/RegistrationHelpers.h"
@@ -45,29 +44,32 @@ void registerFunctionOverwrite() {
   velox::registerFunction<RoundFunction, double, double, int32_t>({"round"});
   velox::registerFunction<RoundFunction, float, float, int32_t>({"round"});
 
+  auto kRowConstructorWithNull = RowConstructorWithNullCallToSpecialForm::kRowConstructorWithNull;
   velox::exec::registerVectorFunction(
-      "row_constructor_with_null",
+      kRowConstructorWithNull,
       std::vector<std::shared_ptr<velox::exec::FunctionSignature>>{},
       std::make_unique<RowFunctionWithNull</*allNull=*/false>>(),
       RowFunctionWithNull</*allNull=*/false>::metadata());
   velox::exec::registerFunctionCallToSpecialForm(
-      RowConstructorWithNullCallToSpecialForm::kRowConstructorWithNull,
-      std::make_unique<RowConstructorWithNullCallToSpecialForm>());
+      kRowConstructorWithNull, std::make_unique<RowConstructorWithNullCallToSpecialForm>(kRowConstructorWithNull));
+
+  auto kRowConstructorWithAllNull = RowConstructorWithNullCallToSpecialForm::kRowConstructorWithAllNull;
   velox::exec::registerVectorFunction(
-      "row_constructor_with_all_null",
+      kRowConstructorWithAllNull,
       std::vector<std::shared_ptr<velox::exec::FunctionSignature>>{},
       std::make_unique<RowFunctionWithNull</*allNull=*/true>>(),
       RowFunctionWithNull</*allNull=*/true>::metadata());
   velox::exec::registerFunctionCallToSpecialForm(
-      RowConstructorWithAllNullCallToSpecialForm::kRowConstructorWithAllNull,
-      std::make_unique<RowConstructorWithAllNullCallToSpecialForm>());
+      kRowConstructorWithAllNull,
+      std::make_unique<RowConstructorWithNullCallToSpecialForm>(kRowConstructorWithAllNull));
   velox::functions::sparksql::registerBitwiseFunctions("spark_");
 }
 } // namespace
 
 void registerAllFunctions() {
   // The registration order matters. Spark sql functions are registered after
-  // presto sql functions to overwrite the registration for same named functions.
+  // presto sql functions to overwrite the registration for same named
+  // functions.
   velox::functions::prestosql::registerAllScalarFunctions();
   velox::functions::sparksql::registerFunctions("");
   velox::aggregate::prestosql::registerAllAggregateFunctions(
@@ -76,7 +78,8 @@ void registerAllFunctions() {
       "", true /*registerCompanionFunctions*/, true /*overwrite*/);
   velox::window::prestosql::registerAllWindowFunctions();
   velox::functions::window::sparksql::registerWindowFunctions("");
-  // Using function overwrite to handle function names mismatch between Spark and Velox.
+  // Using function overwrite to handle function names mismatch between Spark
+  // and Velox.
   registerFunctionOverwrite();
 }
 

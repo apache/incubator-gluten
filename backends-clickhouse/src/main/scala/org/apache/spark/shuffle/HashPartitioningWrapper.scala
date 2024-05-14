@@ -14,24 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.shuffle
 
-#pragma once
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 
-#include "RowConstructorWithNull.h"
+// A wrapper for HashPartitioning to remain original hash expressions.
+// Only used by CH backend when shuffle hash expressions contains non-field expression.
+@SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
+class HashPartitioningWrapper(
+    original: Seq[Expression],
+    newExpr: Seq[Expression],
+    override val numPartitions: Int)
+  extends HashPartitioning(original, numPartitions) {
 
-namespace gluten {
-class RowConstructorWithAllNullCallToSpecialForm : public RowConstructorWithNullCallToSpecialForm {
- public:
-  static constexpr const char* kRowConstructorWithAllNull = "row_constructor_with_all_null";
-
- protected:
-  facebook::velox::exec::ExprPtr constructSpecialForm(
-      const std::string& name,
-      const facebook::velox::TypePtr& type,
-      std::vector<facebook::velox::exec::ExprPtr>&& compiledChildren,
-      bool trackCpuUsage,
-      const facebook::velox::core::QueryConfig& config) {
-    return constructSpecialForm(kRowConstructorWithAllNull, type, std::move(compiledChildren), trackCpuUsage, config);
-  }
-};
-} // namespace gluten
+  def getNewExpr: Seq[Expression] = newExpr
+}

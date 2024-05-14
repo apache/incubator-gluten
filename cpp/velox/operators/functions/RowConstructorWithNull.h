@@ -23,6 +23,10 @@
 namespace gluten {
 class RowConstructorWithNullCallToSpecialForm : public facebook::velox::exec::FunctionCallToSpecialForm {
  public:
+  RowConstructorWithNullCallToSpecialForm(const std::string& rowFunctionName) {
+    this->rowFunctionName = rowFunctionName;
+  }
+
   facebook::velox::TypePtr resolveType(const std::vector<facebook::velox::TypePtr>& argTypes) override;
 
   facebook::velox::exec::ExprPtr constructSpecialForm(
@@ -32,6 +36,7 @@ class RowConstructorWithNullCallToSpecialForm : public facebook::velox::exec::Fu
       const facebook::velox::core::QueryConfig& config) override;
 
   static constexpr const char* kRowConstructorWithNull = "row_constructor_with_null";
+  static constexpr const char* kRowConstructorWithAllNull = "row_constructor_with_all_null";
 
  protected:
   facebook::velox::exec::ExprPtr constructSpecialForm(
@@ -40,5 +45,8 @@ class RowConstructorWithNullCallToSpecialForm : public facebook::velox::exec::Fu
       std::vector<facebook::velox::exec::ExprPtr>&& compiledChildren,
       bool trackCpuUsage,
       const facebook::velox::core::QueryConfig& config);
+
+ private:
+  std::string rowFunctionName;
 };
 } // namespace gluten

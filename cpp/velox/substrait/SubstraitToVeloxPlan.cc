@@ -2028,6 +2028,7 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
 
   bool nullAllowed = filterInfo.nullAllowed_;
   bool isNull = filterInfo.isNull_;
+  bool existIsNullAndIsNotNull = filterInfo.forbidsNullSet_ && filterInfo.isNullSet_;
   uint32_t rangeSize = std::max(filterInfo.lowerBounds_.size(), filterInfo.upperBounds_.size());
 
   if constexpr (KIND == facebook::velox::TypeKind::HUGEINT) {
@@ -2114,7 +2115,10 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
 
     // Handle null filtering.
     if (rangeSize == 0) {
-      if (!nullAllowed) {
+      // handle is not null and is null exists at same time
+      if (existIsNullAndIsNotNull) {
+        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::AlwaysFalse>());
+      } else if (!nullAllowed) {
         filters[common::Subfield(inputName)] = std::make_unique<common::IsNotNull>();
       } else if (isNull) {
         filters[common::Subfield(inputName)] = std::make_unique<common::IsNull>();

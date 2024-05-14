@@ -652,6 +652,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           a
         )
 
+      case s: Shuffle =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genShuffleTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(s.child, attributeSeq, expressionsMap),
+          s
+        )
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,

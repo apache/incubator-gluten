@@ -211,6 +211,13 @@ trait SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(), original)
   }
 
+  def genShuffleTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Shuffle): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(child), original)
+  }
+
   def genTryAddTransformer(
       substraitExprName: String,
       left: ExpressionTransformer,
@@ -739,4 +746,6 @@ trait SparkPlanExecApi {
   def genPostProjectForGenerate(generate: GenerateExec): SparkPlan
 
   def maybeCollapseTakeOrderedAndProject(plan: SparkPlan): SparkPlan = plan
+
+  def outputNativeColumnarSparkCompatibleData(plan: SparkPlan): Boolean = false
 }
