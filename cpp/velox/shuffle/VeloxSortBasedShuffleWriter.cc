@@ -20,16 +20,11 @@
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
 #include "shuffle/ShuffleSchema.h"
-#include "shuffle/Utils.h"
 #include "utils/Common.h"
 #include "utils/VeloxArrowUtils.h"
 #include "utils/macros.h"
-#include "velox/buffer/Buffer.h"
 #include "velox/common/base/Nulls.h"
-#include "velox/type/HugeInt.h"
-#include "velox/type/Timestamp.h"
 #include "velox/type/Type.h"
-#include "velox/vector/BaseVector.h"
 #include "velox/vector/ComplexVector.h"
 
 #if defined(__x86_64__)
@@ -61,63 +56,7 @@ namespace gluten {
 #define PREFETCHT2(ptr) __builtin_prefetch(ptr, 0, 1)
 #endif
 
-namespace {
-
-facebook::velox::RowVectorPtr getStrippedRowVector(const facebook::velox::RowVector& rv) {
-  // get new row type
-  auto rowType = rv.type()->asRow();
-  auto typeChildren = rowType.children();
-  typeChildren.erase(typeChildren.begin());
-  auto newRowType = facebook::velox::ROW(std::move(typeChildren));
-
-  // get length
-  auto length = rv.size();
-
-  // get children
-  auto children = rv.children();
-  children.erase(children.begin());
-
-  return std::make_shared<facebook::velox::RowVector>(
-      rv.pool(), newRowType, facebook::velox::BufferPtr(nullptr), length, std::move(children));
-}
-
-const int32_t* getFirstColumn(const facebook::velox::RowVector& rv) {
-  VELOX_CHECK(rv.childrenSize() > 0, "RowVector missing partition id column.");
-
-  auto& firstChild = rv.childAt(0);
-  VELOX_CHECK(firstChild->isFlatEncoding(), "Partition id (field 0) is not flat encoding.");
-  VELOX_CHECK(
-      firstChild->type()->isInteger(),
-      "Partition id (field 0) should be integer, but got {}",
-      firstChild->type()->toString());
-
-  // first column is partition key hash value or pid
-  return firstChild->asFlatVector<int32_t>()->rawValues();
-}
-
-class EvictGuard {
- public:
-  explicit EvictGuard(EvictState& evictState) : evictState_(evictState) {
-    evictState_ = EvictState::kUnevictable;
-  }
-
-  ~EvictGuard() {
-    evictState_ = EvictState::kEvictable;
-  }
-
-  // For safety and clarity.
-  EvictGuard(const EvictGuard&) = delete;
-  EvictGuard& operator=(const EvictGuard&) = delete;
-  EvictGuard(EvictGuard&&) = delete;
-  EvictGuard& operator=(EvictGuard&&) = delete;
-
- private:
-  EvictState& evictState_;
-};
-
-} // namespace
-
-arrow::Result<std::shared_ptr<VeloxSortBasedShuffleWriter>> VeloxSortBasedShuffleWriter::create(
+arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxSortBasedShuffleWriter::create(
     uint32_t numPartitions,
     std::unique_ptr<PartitionWriter> partitionWriter,
     ShuffleWriterOptions options,
@@ -297,10 +236,6 @@ arrow::Status VeloxSortBasedShuffleWriter::stop() {
   return arrow::Status::OK();
 }
 
-void VeloxSortBasedShuffleWriter::setSplitState(SplitState state) {
-  splitState_ = state;
-}
-
 arrow::Status VeloxSortBasedShuffleWriter::initFromRowVector(const facebook::velox::RowVector& rv) {
   rowType_ = rv.type();
   serdeOptions_ = {
@@ -344,6 +279,10 @@ void VeloxSortBasedShuffleWriter::stat() const {
     LOG(INFO) << oss.str();
   }
 #endif
+}
+
+void VeloxSortBasedShuffleWriter::setSplitState(SplitState state) {
+  splitState_ = state;
 }
 
 } // namespace gluten

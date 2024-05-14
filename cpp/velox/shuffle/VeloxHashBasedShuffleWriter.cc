@@ -70,58 +70,6 @@ bool vectorHasNull(const facebook::velox::VectorPtr& vp) {
   return vp->countNulls(vp->nulls(), vp->size()) != 0;
 }
 
-facebook::velox::RowVectorPtr getStrippedRowVector(const facebook::velox::RowVector& rv) {
-  // get new row type
-  auto rowType = rv.type()->asRow();
-  auto typeChildren = rowType.children();
-  typeChildren.erase(typeChildren.begin());
-  auto newRowType = facebook::velox::ROW(std::move(typeChildren));
-
-  // get length
-  auto length = rv.size();
-
-  // get children
-  auto children = rv.children();
-  children.erase(children.begin());
-
-  return std::make_shared<facebook::velox::RowVector>(
-      rv.pool(), newRowType, facebook::velox::BufferPtr(nullptr), length, std::move(children));
-}
-
-const int32_t* getFirstColumn(const facebook::velox::RowVector& rv) {
-  VELOX_CHECK(rv.childrenSize() > 0, "RowVector missing partition id column.");
-
-  auto& firstChild = rv.childAt(0);
-  VELOX_CHECK(firstChild->isFlatEncoding(), "Partition id (field 0) is not flat encoding.");
-  VELOX_CHECK(
-      firstChild->type()->isInteger(),
-      "Partition id (field 0) should be integer, but got {}",
-      firstChild->type()->toString());
-
-  // first column is partition key hash value or pid
-  return firstChild->asFlatVector<int32_t>()->rawValues();
-}
-
-class EvictGuard {
- public:
-  explicit EvictGuard(EvictState& evictState) : evictState_(evictState) {
-    evictState_ = EvictState::kUnevictable;
-  }
-
-  ~EvictGuard() {
-    evictState_ = EvictState::kEvictable;
-  }
-
-  // For safety and clarity.
-  EvictGuard(const EvictGuard&) = delete;
-  EvictGuard& operator=(const EvictGuard&) = delete;
-  EvictGuard(EvictGuard&&) = delete;
-  EvictGuard& operator=(EvictGuard&&) = delete;
-
- private:
-  EvictState& evictState_;
-};
-
 class BinaryArrayResizeGuard {
  public:
   explicit BinaryArrayResizeGuard(BinaryArrayResizeState& state) : state_(state) {
@@ -199,7 +147,7 @@ arrow::Status collectFlatVectorBuffer<facebook::velox::TypeKind::VARBINARY>(
 
 } // namespace
 
-arrow::Result<std::shared_ptr<VeloxHashBasedShuffleWriter>> VeloxHashBasedShuffleWriter::create(
+arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxHashBasedShuffleWriter::create(
     uint32_t numPartitions,
     std::unique_ptr<PartitionWriter> partitionWriter,
     ShuffleWriterOptions options,
@@ -751,7 +699,7 @@ arrow::Status VeloxHashBasedShuffleWriter::splitComplexType(const facebook::velo
       if (arenas_[partition] == nullptr) {
         arenas_[partition] = std::make_unique<facebook::velox::StreamArena>(veloxPool_.get());
       }
-      complexTypeData_[partition] = serde_.get()->createIterativeSerializer(
+      complexTypeData_[partition] = serde_.createIterativeSerializer(
           complexWriteType_, partition2RowCount_[partition], arenas_[partition].get(), &serdeOptions_);
     }
     rowIndexs[partition].emplace_back(facebook::velox::IndexRange{row, 1});

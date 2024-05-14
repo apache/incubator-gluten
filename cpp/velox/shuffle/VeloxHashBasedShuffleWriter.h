@@ -39,7 +39,7 @@
 #include "memory/VeloxMemoryManager.h"
 #include "shuffle/PartitionWriter.h"
 #include "shuffle/Partitioner.h"
-#include "shuffle/ShuffleWriter.h"
+#include "VeloxShuffleWriter.h"
 #include "shuffle/Utils.h"
 
 #include "utils/Print.h"
@@ -97,7 +97,7 @@ struct BinaryArrayResizeState {
       : inResize(false), partitionId(partitionId), binaryIdx(binaryIdx) {}
 };
 
-class VeloxHashBasedShuffleWriter : public ShuffleWriter {
+class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
   enum {
     kValidityBufferIndex = 0,
     kFixedWidthValueBufferIndex = 1,
@@ -120,7 +120,7 @@ class VeloxHashBasedShuffleWriter : public ShuffleWriter {
     uint64_t valueOffset;
   };
 
-  static arrow::Result<std::shared_ptr<VeloxHashBasedShuffleWriter>> create(
+  static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> create(
       uint32_t numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
       ShuffleWriterOptions options,
@@ -189,10 +189,6 @@ class VeloxHashBasedShuffleWriter : public ShuffleWriter {
     VS_PRINT_CONTAINER(input_has_null_);
   }
 
-  int32_t maxBatchSize() const {
-    return maxBatchSize_;
-  }
-
  private:
   VeloxHashBasedShuffleWriter(
       uint32_t numPartitions,
@@ -200,11 +196,7 @@ class VeloxHashBasedShuffleWriter : public ShuffleWriter {
       ShuffleWriterOptions options,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       arrow::MemoryPool* pool)
-      : ShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), pool),
-        veloxPool_(std::move(veloxPool)) {
-    arenas_.resize(numPartitions);
-    serdeOptions_.useLosslessTimestamp = true;
-  }
+      : VeloxShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), std::move(veloxPool), pool) {}
 
   arrow::Status init();
 
@@ -311,13 +303,7 @@ class VeloxHashBasedShuffleWriter : public ShuffleWriter {
 
   arrow::Status partitioningAndDoSplit(facebook::velox::RowVectorPtr rv, int64_t memLimit);
 
-  SplitState splitState_{kInit};
-
-  EvictState evictState_{kEvictable};
-
   BinaryArrayResizeState binaryArrayResizeState_{};
-
-  bool supportAvx512_ = false;
 
   bool hasComplexType_ = false;
   std::vector<bool> isValidityBuffer_;
@@ -412,66 +398,8 @@ class VeloxHashBasedShuffleWriter : public ShuffleWriter {
   std::vector<std::shared_ptr<arrow::ResizableBuffer>> complexTypeFlushBuffer_;
   std::shared_ptr<const facebook::velox::RowType> complexWriteType_;
 
-  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
   std::vector<std::unique_ptr<facebook::velox::StreamArena>> arenas_;
   facebook::velox::serializer::presto::PrestoVectorSerde serde_;
-  facebook::velox::serializer::presto::PrestoVectorSerde::PrestoOptions serdeOptions_;
-
-  // stat
-  enum CpuWallTimingType {
-    CpuWallTimingBegin = 0,
-    CpuWallTimingCompute = CpuWallTimingBegin,
-    CpuWallTimingBuildPartition,
-    CpuWallTimingEvictPartition,
-    CpuWallTimingHasNull,
-    CpuWallTimingCalculateBufferSize,
-    CpuWallTimingAllocateBuffer,
-    CpuWallTimingCreateRbFromBuffer,
-    CpuWallTimingMakeRB,
-    CpuWallTimingCacheRB,
-    CpuWallTimingFlattenRV,
-    CpuWallTimingSplitRV,
-    CpuWallTimingIteratePartitions,
-    CpuWallTimingStop,
-    CpuWallTimingEnd,
-    CpuWallTimingNum = CpuWallTimingEnd - CpuWallTimingBegin
-  };
-
-  static std::string CpuWallTimingName(CpuWallTimingType type) {
-    switch (type) {
-      case CpuWallTimingCompute:
-        return "CpuWallTimingCompute";
-      case CpuWallTimingBuildPartition:
-        return "CpuWallTimingBuildPartition";
-      case CpuWallTimingEvictPartition:
-        return "CpuWallTimingEvictPartition";
-      case CpuWallTimingHasNull:
-        return "CpuWallTimingHasNull";
-      case CpuWallTimingCalculateBufferSize:
-        return "CpuWallTimingCalculateBufferSize";
-      case CpuWallTimingAllocateBuffer:
-        return "CpuWallTimingAllocateBuffer";
-      case CpuWallTimingCreateRbFromBuffer:
-        return "CpuWallTimingCreateRbFromBuffer";
-      case CpuWallTimingMakeRB:
-        return "CpuWallTimingMakeRB";
-      case CpuWallTimingCacheRB:
-        return "CpuWallTimingCacheRB";
-      case CpuWallTimingFlattenRV:
-        return "CpuWallTimingFlattenRV";
-      case CpuWallTimingSplitRV:
-        return "CpuWallTimingSplitRV";
-      case CpuWallTimingIteratePartitions:
-        return "CpuWallTimingIteratePartitions";
-      case CpuWallTimingStop:
-        return "CpuWallTimingStop";
-      default:
-        return "CpuWallTimingUnknown";
-    }
-  }
-
-  facebook::velox::CpuWallTiming cpuWallTimingList_[CpuWallTimingNum];
-  int32_t maxBatchSize_{0};
 }; // class VeloxHashBasedShuffleWriter
 
 } // namespace gluten

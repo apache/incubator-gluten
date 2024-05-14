@@ -36,10 +36,10 @@
 #include <arrow/result.h>
 #include <arrow/type.h>
 
+#include "VeloxShuffleWriter.h"
 #include "memory/VeloxMemoryManager.h"
 #include "shuffle/PartitionWriter.h"
 #include "shuffle/Partitioner.h"
-#include "shuffle/ShuffleWriter.h"
 #include "shuffle/Utils.h"
 
 #include "utils/Print.h"
@@ -87,9 +87,9 @@ namespace gluten {
 
 #endif // end of VELOX_SHUFFLE_WRITER_PRINT
 
-class VeloxSortBasedShuffleWriter : public ShuffleWriter {
+class VeloxSortBasedShuffleWriter : public VeloxShuffleWriter {
  public:
-  static arrow::Result<std::shared_ptr<VeloxSortBasedShuffleWriter>> create(
+  static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> create(
       uint32_t numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
       ShuffleWriterOptions options,
@@ -117,11 +117,7 @@ class VeloxSortBasedShuffleWriter : public ShuffleWriter {
       ShuffleWriterOptions options,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       arrow::MemoryPool* pool)
-      : ShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), pool),
-        veloxPool_(std::move(veloxPool)) {
-    arenas_.resize(numPartitions);
-    serdeOptions_.useLosslessTimestamp = true;
-  }
+      : VeloxShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), std::move(veloxPool), pool) {}
 
   arrow::Status init();
 
@@ -132,12 +128,6 @@ class VeloxSortBasedShuffleWriter : public ShuffleWriter {
   arrow::Status doSort(facebook::velox::RowVectorPtr rv, int64_t memLimit);
 
   void stat() const;
-
-  SplitState splitState_{kInit};
-
-  EvictState evictState_{kEvictable};
-
-  bool supportAvx512_ = false;
 
   std::optional<facebook::velox::TypePtr> rowType_;
 
@@ -155,69 +145,11 @@ class VeloxSortBasedShuffleWriter : public ShuffleWriter {
 
   std::vector<facebook::velox::RowVectorPtr> batches_;
 
-  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
-
   std::unordered_map<int32_t, std::vector<int64_t>> rowVectorIndexMap_;
 
   std::unordered_map<int32_t, std::vector<int64_t>> rowVectorPartitionMap_;
 
   uint32_t currentInputColumnBytes_ = 0;
-  facebook::velox::serializer::presto::PrestoVectorSerde::PrestoOptions serdeOptions_;
-
-  // stat
-  enum CpuWallTimingType {
-    CpuWallTimingBegin = 0,
-    CpuWallTimingCompute = CpuWallTimingBegin,
-    CpuWallTimingBuildPartition,
-    CpuWallTimingEvictPartition,
-    CpuWallTimingHasNull,
-    CpuWallTimingCalculateBufferSize,
-    CpuWallTimingAllocateBuffer,
-    CpuWallTimingCreateRbFromBuffer,
-    CpuWallTimingMakeRB,
-    CpuWallTimingCacheRB,
-    CpuWallTimingFlattenRV,
-    CpuWallTimingSplitRV,
-    CpuWallTimingIteratePartitions,
-    CpuWallTimingStop,
-    CpuWallTimingEnd,
-    CpuWallTimingNum = CpuWallTimingEnd - CpuWallTimingBegin
-  };
-
-  static std::string CpuWallTimingName(CpuWallTimingType type) {
-    switch (type) {
-      case CpuWallTimingCompute:
-        return "CpuWallTimingCompute";
-      case CpuWallTimingBuildPartition:
-        return "CpuWallTimingBuildPartition";
-      case CpuWallTimingEvictPartition:
-        return "CpuWallTimingEvictPartition";
-      case CpuWallTimingHasNull:
-        return "CpuWallTimingHasNull";
-      case CpuWallTimingCalculateBufferSize:
-        return "CpuWallTimingCalculateBufferSize";
-      case CpuWallTimingAllocateBuffer:
-        return "CpuWallTimingAllocateBuffer";
-      case CpuWallTimingCreateRbFromBuffer:
-        return "CpuWallTimingCreateRbFromBuffer";
-      case CpuWallTimingMakeRB:
-        return "CpuWallTimingMakeRB";
-      case CpuWallTimingCacheRB:
-        return "CpuWallTimingCacheRB";
-      case CpuWallTimingFlattenRV:
-        return "CpuWallTimingFlattenRV";
-      case CpuWallTimingSplitRV:
-        return "CpuWallTimingSplitRV";
-      case CpuWallTimingIteratePartitions:
-        return "CpuWallTimingIteratePartitions";
-      case CpuWallTimingStop:
-        return "CpuWallTimingStop";
-      default:
-        return "CpuWallTimingUnknown";
-    }
-  }
-
-  facebook::velox::CpuWallTiming cpuWallTimingList_[CpuWallTimingNum];
 }; // class VeloxSortBasedShuffleWriter
 
 } // namespace gluten

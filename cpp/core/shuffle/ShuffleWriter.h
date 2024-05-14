@@ -33,25 +33,11 @@
 
 namespace gluten {
 
-enum SplitState { kInit, kPreAlloc, kSplit, kStop };
-enum EvictState { kEvictable, kUnevictable };
-
 class ShuffleWriter : public Reclaimable {
  public:
   static constexpr int64_t kMinMemLimit = 128LL * 1024 * 1024;
 
   virtual arrow::Status write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) = 0;
-
-  // For test only.
-  virtual void setPartitionBufferSize(uint32_t newSize) {}
-
-  virtual arrow::Status evictPartitionBuffers(uint32_t partitionId, bool reuseBuffers) {
-    return arrow::Status::OK();
-  }
-
-  virtual arrow::Status evictRowVector(uint32_t partitionId) {
-    return arrow::Status::OK();
-  }
 
   virtual arrow::Status stop() = 0;
 
@@ -97,10 +83,6 @@ class ShuffleWriter : public Reclaimable {
 
   const std::vector<int64_t>& rawPartitionLengths() const {
     return metrics_.rawPartitionLengths;
-  }
-
-  virtual const uint64_t cachedPayloadSize() const {
-    return 0;
   }
 
  protected:
