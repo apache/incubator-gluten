@@ -101,7 +101,6 @@ struct BinaryArrayResizeState {
 };
 
 class VeloxSortBasedShuffleWriter : public ShuffleWriter {
-
  public:
   static arrow::Result<std::shared_ptr<VeloxSortBasedShuffleWriter>> create(
       uint32_t numPartitions,

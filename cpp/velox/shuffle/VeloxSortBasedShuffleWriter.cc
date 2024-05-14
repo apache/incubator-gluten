@@ -123,8 +123,8 @@ arrow::Result<std::shared_ptr<VeloxSortBasedShuffleWriter>> VeloxSortBasedShuffl
     ShuffleWriterOptions options,
     std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
     arrow::MemoryPool* arrowPool) {
-  std::shared_ptr<VeloxSortBasedShuffleWriter> res(
-      new VeloxSortBasedShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool));
+  std::shared_ptr<VeloxSortBasedShuffleWriter> res(new VeloxSortBasedShuffleWriter(
+      numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool));
   RETURN_NOT_OK(res->init());
   return res;
 } // namespace gluten
@@ -307,9 +307,7 @@ arrow::Status VeloxSortBasedShuffleWriter::initFromRowVector(const facebook::vel
       false, facebook::velox::common::stringToCompressionKind(partitionWriter_->options().compressionTypeStr)};
   batch_ = std::make_unique<facebook::velox::VectorStreamGroup>(veloxPool_.get());
   batch_->createStreamTree(
-      std::static_pointer_cast<const facebook::velox::RowType>(rowType_.value()),
-      options_.bufferSize,
-      &serdeOptions_);
+      std::static_pointer_cast<const facebook::velox::RowType>(rowType_.value()), options_.bufferSize, &serdeOptions_);
   return arrow::Status::OK();
 }
 
