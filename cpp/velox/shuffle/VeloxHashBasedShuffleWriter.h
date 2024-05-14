@@ -87,9 +87,6 @@ namespace gluten {
 
 #endif // end of VELOX_SHUFFLE_WRITER_PRINT
 
-enum SplitState { kInit, kPreAlloc, kSplit, kStop };
-enum EvictState { kEvictable, kUnevictable };
-
 struct BinaryArrayResizeState {
   bool inResize;
   uint32_t partitionId;

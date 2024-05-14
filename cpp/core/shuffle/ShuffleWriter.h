@@ -33,6 +33,9 @@
 
 namespace gluten {
 
+enum SplitState { kInit, kPreAlloc, kSplit, kStop };
+enum EvictState { kEvictable, kUnevictable };
+
 class ShuffleWriter : public Reclaimable {
  public:
   static constexpr int64_t kMinMemLimit = 128LL * 1024 * 1024;

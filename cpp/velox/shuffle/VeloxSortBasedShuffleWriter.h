@@ -87,19 +87,6 @@ namespace gluten {
 
 #endif // end of VELOX_SHUFFLE_WRITER_PRINT
 
-enum SplitState { kInit, kPreAlloc, kSplit, kStop };
-enum EvictState { kEvictable, kUnevictable };
-
-struct BinaryArrayResizeState {
-  bool inResize;
-  uint32_t partitionId;
-  uint32_t binaryIdx;
-
-  BinaryArrayResizeState() : inResize(false) {}
-  BinaryArrayResizeState(uint32_t partitionId, uint32_t binaryIdx)
-      : inResize(false), partitionId(partitionId), binaryIdx(binaryIdx) {}
-};
-
 class VeloxSortBasedShuffleWriter : public ShuffleWriter {
  public:
   static arrow::Result<std::shared_ptr<VeloxSortBasedShuffleWriter>> create(
