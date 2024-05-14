@@ -28,8 +28,9 @@
 #include "compute/VeloxPlanConverter.h"
 #include "config/VeloxConfig.h"
 #include "operators/serializer/VeloxRowToColumnarConverter.h"
+#include "shuffle/VeloxHashBasedShuffleWriter.h"
 #include "shuffle/VeloxShuffleReader.h"
-#include "shuffle/VeloxShuffleWriter.h"
+#include "shuffle/VeloxSortBasedShuffleWriter.h"
 #include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
 
@@ -187,10 +188,19 @@ std::shared_ptr<ShuffleWriter> VeloxRuntime::createShuffleWriter(
     MemoryManager* memoryManager) {
   auto ctxPool = getLeafVeloxPool(memoryManager);
   auto arrowPool = memoryManager->getArrowMemoryPool();
-  GLUTEN_ASSIGN_OR_THROW(
-      auto shuffle_writer,
-      VeloxShuffleWriter::create(numPartitions, std::move(partitionWriter), std::move(options), ctxPool, arrowPool));
-  return shuffle_writer;
+  std::shared_ptr<ShuffleWriter> shuffleWriter;
+  if (options.shuffleWriterType == kHashShuffle) {
+    GLUTEN_ASSIGN_OR_THROW(
+        shuffleWriter,
+        VeloxHashBasedShuffleWriter::create(
+            numPartitions, std::move(partitionWriter), std::move(options), ctxPool, arrowPool));
+  } else if (options.shuffleWriterType == kSortShuffle) {
+    GLUTEN_ASSIGN_OR_THROW(
+        shuffleWriter,
+        VeloxSortBasedShuffleWriter::create(
+            numPartitions, std::move(partitionWriter), std::move(options), ctxPool, arrowPool));
+  }
+  return shuffleWriter;
 }
 
 std::shared_ptr<Datasource> VeloxRuntime::createDatasource(

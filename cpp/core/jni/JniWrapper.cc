@@ -1039,7 +1039,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
-JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_split( // NOLINT
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_write( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong shuffleWriterHandle,
@@ -1058,11 +1058,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
   // The column batch maybe VeloxColumnBatch or ArrowCStructColumnarBatch(FallbackRangeShuffleWriter)
   auto batch = ctx->objectStore()->retrieve<ColumnarBatch>(batchHandle);
   auto numBytes = batch->numBytes();
-  if (shuffleWriter->options().shuffleWriterType == kHashShuffle) {
-    gluten::arrowAssertOkOrThrow(shuffleWriter->split(batch, memLimit), "Native split: shuffle writer split failed");
-  } else if (shuffleWriter->options().shuffleWriterType == kSortShuffle) {
-    gluten::arrowAssertOkOrThrow(shuffleWriter->sort(batch, memLimit), "Native split: shuffle writer split failed");
-  }
+  gluten::arrowAssertOkOrThrow(shuffleWriter->write(batch, memLimit), "Native write: shuffle writer failed");
   return numBytes;
   JNI_METHOD_END(kInvalidResourceHandle)
 }
