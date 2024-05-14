@@ -41,7 +41,7 @@ class ShuffleWriter : public Reclaimable {
 
   // For test only.
   virtual void setPartitionBufferSize(uint32_t newSize) {}
-  
+
   virtual arrow::Status evictPartitionBuffers(uint32_t partitionId, bool reuseBuffers) {
     return arrow::Status::OK();
   }
