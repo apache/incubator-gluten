@@ -14,34 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.vectorized;
+package org.apache.spark.sql.utils
 
-public class ShuffleReaderMetrics {
-  private long decompressTime;
-  private long ipcTime;
-  private long deserializeTime;
+import org.apache.spark.sql.types.DecimalType
 
-  public void setDecompressTime(long decompressTime) {
-    this.decompressTime = decompressTime;
+object DecimalTypeUtil {
+  def adjustPrecisionScale(precision: Int, scale: Int): DecimalType = {
+    DecimalType.adjustPrecisionScale(precision, scale)
   }
 
-  public long getDecompressTime() {
-    return decompressTime;
-  }
-
-  public void setIpcTime(long ipcTime) {
-    this.ipcTime = ipcTime;
-  }
-
-  public long getIpcTime() {
-    return ipcTime;
-  }
-
-  public void setDeserializeTime(long deserializeTime) {
-    this.deserializeTime = deserializeTime;
-  }
-
-  public long getDeserializeTime() {
-    return deserializeTime;
-  }
 }

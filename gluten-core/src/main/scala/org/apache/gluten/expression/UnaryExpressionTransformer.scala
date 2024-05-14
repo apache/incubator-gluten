@@ -152,6 +152,7 @@ case class PosExplodeTransformer(
 case class CheckOverflowTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
+    childResultType: DataType,
     original: CheckOverflow)
   extends ExpressionTransformer {
 
@@ -160,6 +161,7 @@ case class CheckOverflowTransformer(
       args,
       substraitExprName,
       child.doTransform(args),
+      childResultType,
       original.dataType,
       original.nullable,
       original.nullOnOverflow)
