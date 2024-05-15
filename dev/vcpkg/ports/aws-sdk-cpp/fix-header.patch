@@ -1,0 +1,12 @@
+diff --git a/src/aws-cpp-sdk-core/include/aws/core/Aws.h b/src/aws-cpp-sdk-core/include/aws/core/Aws.h
+index 5c27e75a84c..d221af2039b 100644
+--- a/src/aws-cpp-sdk-core/include/aws/core/Aws.h
++++ b/src/aws-cpp-sdk-core/include/aws/core/Aws.h
+@@ -12,6 +12,7 @@
+ #include <aws/core/http/HttpClientFactory.h>
+ #include <aws/core/monitoring/MonitoringManager.h>
+ #include <aws/core/Core_EXPORTS.h>
++#include <aws/core/VersionConfig.h>
+ #include <aws/crt/io/Bootstrap.h>
+ #include <aws/crt/io/TlsOptions.h>
+ 

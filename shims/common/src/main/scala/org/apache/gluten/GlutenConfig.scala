@@ -373,6 +373,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // Please use `BackendsApiManager.getSettings.enableNativeWriteFiles()` instead
   def enableNativeWriter: Option[Boolean] = conf.getConf(NATIVE_WRITER_ENABLED)
 
+  def enableNativeArrowReader: Boolean = conf.getConf(NATIVE_ARROW_READER_ENABLED)
+
   def directorySizeGuess: Long =
     conf.getConf(DIRECTORY_SIZE_GUESS)
   def filePreloadThreshold: Long =
@@ -1238,9 +1240,14 @@ object GlutenConfig {
   val COLUMNAR_VELOX_CONNECTOR_IO_THREADS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
       .internal()
-      .doc("The IO threads for connector split preloading")
+      .doc("The Size of the IO thread pool in the Connector. This thread pool is used for split" +
+        " preloading and DirectBufferedInput.")
       .intConf
-      .createWithDefault(0)
+      .createWithDefaultFunction(
+        () =>
+          SQLConf.get.getConfString("spark.executor.cores", "1").toInt / SQLConf.get
+            .getConfString("spark.task.cpus", "1")
+            .toInt)
 
   val COLUMNAR_VELOX_ASYNC_TIMEOUT =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.asyncTimeoutOnTaskStopping")
@@ -1472,6 +1479,13 @@ object GlutenConfig {
       .doc("This is config to specify whether to enable the native columnar parquet/orc writer")
       .booleanConf
       .createOptional
+
+  val NATIVE_ARROW_READER_ENABLED =
+    buildConf("spark.gluten.sql.native.arrow.reader.enabled")
+      .internal()
+      .doc("This is config to specify whether to enable the native columnar csv reader")
+      .booleanConf
+      .createWithDefault(false)
 
   val NATIVE_WRITE_FILES_COLUMN_METADATA_EXCLUSION_LIST =
     buildConf("spark.gluten.sql.native.writeColumnMetadataExclusionList")

@@ -17,11 +17,12 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.datasource.ArrowCSVFileFormat
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, Row}
-import org.apache.spark.sql.execution.{FilterExec, GenerateExec, ProjectExec, RDDScanExec}
+import org.apache.spark.sql.execution.{ArrowFileSourceScanExec, ColumnarToRowExec, FilterExec, GenerateExec, ProjectExec, RDDScanExec}
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.functions.{avg, col, lit, to_date, udf}
 import org.apache.spark.sql.internal.SQLConf
@@ -52,7 +53,8 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       .set("spark.memory.offHeap.size", "2g")
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
-      .set("spark.sql.sources.useV1SourceList", "avro,parquet")
+      .set("spark.sql.sources.useV1SourceList", "avro,parquet,csv")
+      .set(GlutenConfig.NATIVE_ARROW_READER_ENABLED.key, "true")
   }
 
   test("simple_select") {
@@ -102,6 +104,12 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       "select l_orderkey from lineitem where l_comment is not null " +
         "and l_orderkey = 1") { _ => }
     checkLengthAndPlan(df, 6)
+  }
+
+  test("is_null and is_not_null coexist") {
+    val df = runQueryAndCompare(
+      "select l_orderkey from lineitem where l_comment is null and l_comment is not null") { _ => }
+    checkLengthAndPlan(df, 0)
   }
 
   test("and pushdown") {
@@ -473,6 +481,63 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     }
   }
 
+  test("csv scan") {
+    val filePath = rootPath + "/datasource/csv/student.csv"
+    val df = spark.read
+      .format("csv")
+      .option("header", "true")
+      .load(filePath)
+    df.createOrReplaceTempView("student")
+    runQueryAndCompare("select * from student") {
+      df =>
+        val plan = df.queryExecution.executedPlan
+        print(plan)
+        assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
+        assert(plan.find(_.isInstanceOf[ArrowFileSourceScanExec]).isDefined)
+        val scan = plan.find(_.isInstanceOf[ArrowFileSourceScanExec]).toList.head
+        assert(
+          scan
+            .asInstanceOf[ArrowFileSourceScanExec]
+            .relation
+            .fileFormat
+            .isInstanceOf[ArrowCSVFileFormat])
+    }
+  }
+
+  test("csv scan with filter") {
+    val filePath = rootPath + "/datasource/csv/student.csv"
+    val df = spark.read
+      .format("csv")
+      .option("header", "true")
+      .load(filePath)
+    df.createOrReplaceTempView("student")
+    runQueryAndCompare("select * from student where Name = 'Peter'") {
+      df =>
+        assert(df.queryExecution.executedPlan.find(s => s.isInstanceOf[ColumnarToRowExec]).isEmpty)
+        assert(
+          df.queryExecution.executedPlan
+            .find(s => s.isInstanceOf[ArrowFileSourceScanExec])
+            .isDefined)
+    }
+  }
+
+  test("insert into select from csv") {
+    withTable("insert_csv_t") {
+      val filePath = rootPath + "/datasource/csv/student.csv"
+      val df = spark.read
+        .format("csv")
+        .option("header", "true")
+        .load(filePath)
+      df.createOrReplaceTempView("student")
+      spark.sql("create table insert_csv_t(Name string, Language string) using parquet;")
+      runQueryAndCompare("""
+                           |insert into insert_csv_t select * from student;
+                           |""".stripMargin) {
+        checkGlutenOperatorMatch[ArrowFileSourceScanExec]
+      }
+    }
+  }
+
   test("test OneRowRelation") {
     val df = sql("SELECT 1")
     checkAnswer(df, Row(1))
@@ -588,7 +653,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
         }
         assert(wholeStageTransformers.size == 3)
         val nativePlanString = wholeStageTransformers.head.nativePlanString()
-        assert(nativePlanString.contains("Aggregation[SINGLE"))
+        assert(nativePlanString.contains("Aggregation[1][SINGLE"))
         assert(nativePlanString.contains("ValueStream"))
         assert(wholeStageTransformers(1).nativePlanString().contains("ValueStream"))
         assert(wholeStageTransformers.last.nativePlanString().contains("TableScan"))
@@ -1347,5 +1412,27 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
         " FROM left RIGHT OUTER JOIN right ON left.id = right.id")
     // Verify there is not precision loss for timestamp columns after data broadcast.
     checkAnswer(df, expected)
+  }
+
+  test("Test json_tuple function") {
+    withTempView("t") {
+      Seq[(String)](("{\"a\":\"b\"}"), (null), ("{\"b\":\"a\"}"))
+        .toDF("json_field")
+        .createOrReplaceTempView("t")
+      runQueryAndCompare(
+        "SELECT * from t lateral view json_tuple(json_field, 'a', 'b') as fa, fb") {
+        checkGlutenOperatorMatch[GenerateExecTransformer]
+      }
+    }
+
+    runQueryAndCompare(
+      """
+        |SELECT
+        | l_orderkey,
+        | json_tuple('{"a" : 1, "b" : 2}', CAST(NULL AS STRING), 'b', CAST(NULL AS STRING), 'a')
+        |from lineitem
+        |""".stripMargin) {
+      checkGlutenOperatorMatch[GenerateExecTransformer]
+    }
   }
 }

@@ -43,6 +43,9 @@
 #include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
 #include "velox/connectors/hive/storage_adapters/hdfs/HdfsUtil.h"
 #endif
+#ifdef ENABLE_ABFS
+#include "velox/connectors/hive/storage_adapters/abfs/AbfsFileSystem.h"
+#endif
 #include "velox/dwio/common/FileSink.h"
 #include "velox/dwio/common/Options.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
@@ -70,6 +73,10 @@ inline bool isSupportedGCSPath(const std::string& filePath) {
 
 inline bool isSupportedHDFSPath(const std::string& filePath) {
   return strncmp(filePath.c_str(), "hdfs:", 5) == 0;
+}
+
+inline bool isSupportedABFSPath(const std::string& filePath) {
+  return strncmp(filePath.c_str(), "abfs:", 5) == 0 || strncmp(filePath.c_str(), "abfss:", 6) == 0;
 }
 
 class VeloxParquetDatasource : public Datasource {

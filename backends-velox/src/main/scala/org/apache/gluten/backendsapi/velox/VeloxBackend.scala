@@ -449,13 +449,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def fallbackAggregateWithEmptyOutputChild(): Boolean = true
 
   override def recreateJoinExecOnFallback(): Boolean = true
-  override def rescaleDecimalLiteral(): Boolean = true
+  override def rescaleDecimalArithmetic(): Boolean = true
 
   /** Get the config prefix for each backend */
   override def getBackendConfigPrefix(): String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + VeloxBackend.BACKEND_NAME
-
-  override def rescaleDecimalIntegralExpression(): Boolean = true
 
   override def shuffleSupportedCodec(): Set[String] = SHUFFLE_SUPPORTED_CODEC
 
@@ -487,6 +485,10 @@ object VeloxBackendSettings extends BackendSettingsApi {
     )
   }
 
+  override def enableNativeArrowReadFiles(): Boolean = {
+    GlutenConfig.getConf.enableNativeArrowReader
+  }
+
   override def shouldRewriteCount(): Boolean = {
     // Velox backend does not support count if it has more that one child,
     // so we should rewrite it.
@@ -497,13 +499,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportBroadcastNestedLoopJoinExec(): Boolean = true
 
-  override def shouldRewriteTypedImperativeAggregate(): Boolean = {
-    // The intermediate type of collect_list, collect_set in Velox backend is not consistent with
-    // vanilla Spark, we need to rewrite the aggregate to get the correct data type.
-    true
-  }
-
-  override def shouldRewriteCollect(): Boolean = true
-
   override def supportColumnarArrowUdf(): Boolean = true
+
+  override def generateHdfsConfForLibhdfs(): Boolean = true
 }

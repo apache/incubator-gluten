@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.utils
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.GlutenPlan
 
 import org.apache.spark.sql.execution._
@@ -53,6 +54,10 @@ object PlanUtil {
       case _: GlutenPlan => true
       case _ => false
     }
+  }
+
+  def outputNativeColumnarSparkCompatibleData(plan: SparkPlan): Boolean = {
+    BackendsApiManager.getSparkPlanExecApiInstance.outputNativeColumnarSparkCompatibleData(plan)
   }
 
   def isVanillaColumnarOp(plan: SparkPlan): Boolean = {

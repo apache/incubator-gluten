@@ -115,4 +115,102 @@ class GlutenClickhouseCountDistinctSuite extends GlutenClickHouseWholeStageTrans
       "values (0, null,1), (0,null,1), (1, 1,1), (2, 2, 1) ,(2,2,2),(3,3,3) as data(a,b,c)"
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
+
+  test(
+    "Gluten-5618: [CH] Fix 'Position x is out of bound in Block' error " +
+      "when executing count distinct") {
+
+    withSQLConf(("spark.gluten.sql.countDistinctWithoutExpand", "false")) {
+      val sql =
+        """
+          |select count(distinct a, b, c)  from
+          |values (0, null, 1), (1, 1, 1), (2, 2, 1), (1, 2, 1) ,(2, 2, 2) as data(a,b,c) group by c
+          |""".stripMargin
+
+      compareResultsAgainstVanillaSpark(
+        sql,
+        true,
+        {
+          df =>
+            {
+
+              val planExecs = df.queryExecution.executedPlan.collect {
+                case aggTransformer: HashAggregateExecBaseTransformer => aggTransformer
+              }
+
+              planExecs.head.aggregateExpressions.foreach {
+                expr => assert(expr.toString().startsWith("count("))
+              }
+              planExecs(1).aggregateExpressions.foreach {
+                expr => assert(expr.toString().startsWith("partial_count("))
+              }
+            }
+        }
+      )
+    }
+
+    val sql =
+      """
+        |select count(distinct a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
+        |from values
+        |(0, null, 1, 0, null, 1, 0, 5, 1, 0),
+        |(null, 1, 1, null, 1, 1, null, 1, 1, 3),
+        |(2, 2, 1, 2, 2, 1, 2, 2, 1, 2),
+        |(1, 2, null, 1, 2, null, 1, 2, 3, 1),
+        |(2, 2, 2, 2, 2, 2, 2, 2, 2, 2)
+        |as data(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
+        |group by a10
+        |""".stripMargin
+
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      {
+        df =>
+          {
+
+            val planExecs = df.queryExecution.executedPlan.collect {
+              case aggTransformer: HashAggregateExecBaseTransformer => aggTransformer
+            }
+
+            planExecs.head.aggregateExpressions.foreach {
+              expr => assert(expr.toString().startsWith("count("))
+            }
+            planExecs(1).aggregateExpressions.foreach {
+              expr => assert(expr.toString().startsWith("partial_count("))
+            }
+          }
+      }
+    )
+
+    val sql1 =
+      """
+        |select count(distinct a, b, c)
+        |from
+        |values (0, null, 1), (1, 1, 1), (null, 2, 1), (1, 2, 1) ,(2, 2, null)
+        |as data(a,b,c)
+        |group by c
+        |""".stripMargin
+
+    compareResultsAgainstVanillaSpark(
+      sql1,
+      true,
+      {
+        df =>
+          {
+
+            val planExecs = df.queryExecution.executedPlan.collect {
+              case aggTransformer: HashAggregateExecBaseTransformer => aggTransformer
+            }
+
+            planExecs.head.aggregateExpressions.foreach {
+              expr => assert(expr.toString().startsWith("countdistinct("))
+            }
+            planExecs(1).aggregateExpressions.foreach {
+              expr => assert(expr.toString().startsWith("partial_countdistinct("))
+            }
+          }
+      }
+    )
+  }
 }

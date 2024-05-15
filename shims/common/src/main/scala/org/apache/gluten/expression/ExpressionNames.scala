@@ -209,6 +209,7 @@ object ExpressionNames {
   final val MAKE_YM_INTERVAL = "make_ym_interval"
   final val TO_UTC_TIMESTAMP = "to_utc_timestamp"
   final val FROM_UTC_TIMESTAMP = "from_utc_timestamp"
+  final val UNIX_SECONDS = "unix_seconds"
   final val UNIX_MILLIS = "unix_millis"
   final val UNIX_MICROS = "unix_micros"
   final val TIMESTAMP_MILLIS = "timestamp_millis"
@@ -256,6 +257,8 @@ object ExpressionNames {
   final val EXISTS = "exists"
   final val TRANSFORM = "transform"
   final val SHUFFLE = "shuffle"
+  final val ZIP_WITH = "zip_with"
+  final val FLATTEN = "flatten"
 
   // Map functions
   final val CREATE_MAP = "map"
@@ -264,6 +267,7 @@ object ExpressionNames {
   final val MAP_VALUES = "map_values"
   final val MAP_FROM_ARRAYS = "map_from_arrays"
   final val MAP_ENTRIES = "map_entries"
+  final val MAP_ZIP_WITH = "map_zip_with"
   final val STR_TO_MAP = "str_to_map"
 
   // struct functions

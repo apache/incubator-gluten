@@ -26,6 +26,7 @@
 
 #include "benchmarks/common/BenchmarkUtils.h"
 #include "benchmarks/common/FileReaderIterator.h"
+#include "compute/VeloxBackend.h"
 #include "compute/VeloxPlanConverter.h"
 #include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
@@ -260,6 +261,8 @@ auto BM_Generic = [](::benchmark::State& state,
       writerMetrics.splitTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
   state.counters["shuffle_compress_time"] = benchmark::Counter(
       writerMetrics.compressTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
+
+  gluten::VeloxBackend::get()->tearDown();
 };
 
 int main(int argc, char** argv) {

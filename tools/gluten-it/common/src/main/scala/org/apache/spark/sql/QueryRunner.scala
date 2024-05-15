@@ -89,9 +89,11 @@ object QueryRunner {
       if (explain) {
         df.explain(extended = true)
       }
-      val millis = (System.nanoTime() - prev) / 1000000L
+      val planMillis =
+        df.queryExecution.tracker.phases.values.map(p => p.endTimeMs - p.startTimeMs).sum
+      val totalMillis = (System.nanoTime() - prev) / 1000000L
       val collectedMetrics = metrics.map(name => (name, em.getMetricValue(name))).toMap
-      RunResult(rows, millis, collectedMetrics)
+      RunResult(rows, planMillis, totalMillis - planMillis, collectedMetrics)
     } finally {
       sc.removeSparkListener(metricsListener)
       killTaskListener.foreach(l => {
@@ -124,7 +126,11 @@ object QueryRunner {
 
 }
 
-case class RunResult(rows: Seq[Row], executionTimeMillis: Long, metrics: Map[String, Long])
+case class RunResult(
+    rows: Seq[Row],
+    planningTimeMillis: Long,
+    executionTimeMillis: Long,
+    metrics: Map[String, Long])
 
 class MetricsListener(em: ExecutorMetrics) extends SparkListener {
   override def onExecutorMetricsUpdate(

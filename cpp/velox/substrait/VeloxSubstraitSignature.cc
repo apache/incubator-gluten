@@ -72,6 +72,48 @@ std::string VeloxSubstraitSignature::toSubstraitSignature(const TypePtr& type) {
   }
 }
 
+namespace {
+using index = std::string::size_type;
+
+index findEnclosingPos(std::string text, index from, char left, char right) {
+  VELOX_CHECK(left != right)
+  VELOX_CHECK(text.at(from) == left)
+  int32_t stackedLeftChars = 0;
+  for (index idx = from; idx < text.size(); idx++) {
+    const char ch = text.at(idx);
+    if (ch == left) {
+      stackedLeftChars++;
+    }
+    if (ch == right) {
+      stackedLeftChars--;
+    }
+    if (stackedLeftChars == 0) {
+      return idx;
+    }
+  }
+  VELOX_FAIL("Unable to find enclose character from text: " + text)
+}
+
+index findSansNesting(std::string text, index from, char target, char left, char right) {
+  VELOX_CHECK(left != right)
+  VELOX_CHECK(target != left && target != right)
+  int32_t stackedLeftChars = 0;
+  for (index idx = from; idx < text.size(); idx++) {
+    const char ch = text.at(idx);
+    if (ch == left) {
+      stackedLeftChars++;
+    }
+    if (ch == right) {
+      stackedLeftChars--;
+    }
+    if (ch == target && stackedLeftChars == 0) {
+      return idx;
+    }
+  }
+  return std::string::npos;
+}
+} // namespace
+
 TypePtr VeloxSubstraitSignature::fromSubstraitSignature(const std::string& signature) {
   if (signature == "bool") {
     return BOOLEAN();
@@ -123,7 +165,7 @@ TypePtr VeloxSubstraitSignature::fromSubstraitSignature(const std::string& signa
 
   auto parseNestedTypeSignature = [&](const std::string& signature) -> std::vector<TypePtr> {
     auto start = signature.find_first_of('<');
-    auto end = signature.find_last_of('>');
+    auto end = findEnclosingPos(signature, start, '<', '>');
     VELOX_CHECK(
         end - start > 1,
         "Native validation failed due to: more information is needed to create nested type for {}",
@@ -132,30 +174,26 @@ TypePtr VeloxSubstraitSignature::fromSubstraitSignature(const std::string& signa
     std::string childrenTypes = signature.substr(start + 1, end - start - 1);
 
     // Split the types with delimiter.
-    std::string delimiter = ",";
-    std::size_t pos;
+    const char delimiter = ',';
     std::vector<TypePtr> types;
-    while ((pos = childrenTypes.find(delimiter)) != std::string::npos) {
-      auto typeStr = childrenTypes.substr(0, pos);
-      std::size_t endPos = pos;
-      if (startWith(typeStr, "dec") || startWith(typeStr, "struct") || startWith(typeStr, "map") ||
-          startWith(typeStr, "list")) {
-        endPos = childrenTypes.find(">") + 1;
-        if (endPos > pos) {
-          typeStr += childrenTypes.substr(pos, endPos - pos);
-        } else {
-          // For nested case, the end '>' could missing,
-          // so the last position is treated as end.
-          typeStr += childrenTypes.substr(pos);
-          endPos = childrenTypes.size();
-        }
+    size_t typeStart = 0;
+    while (true) {
+      if (typeStart == childrenTypes.size()) {
+        break;
       }
+      VELOX_CHECK(typeStart < childrenTypes.size())
+      const size_t typeEnd = findSansNesting(childrenTypes, typeStart, delimiter, '<', '>');
+      if (typeEnd == std::string::npos) {
+        std::string typeStr = childrenTypes.substr(typeStart);
+        types.emplace_back(fromSubstraitSignature(typeStr));
+        break;
+      }
+      VELOX_CHECK(childrenTypes.at(typeEnd) == delimiter)
+      std::string typeStr = childrenTypes.substr(typeStart, typeEnd - typeStart);
       types.emplace_back(fromSubstraitSignature(typeStr));
-      childrenTypes.erase(0, endPos + delimiter.length());
+      typeStart = typeEnd + 1;
     }
-    if (childrenTypes.size() > 0 && !startWith(childrenTypes, ">")) {
-      types.emplace_back(fromSubstraitSignature(childrenTypes));
-    }
+
     return types;
   };
 
@@ -172,6 +210,10 @@ TypePtr VeloxSubstraitSignature::fromSubstraitSignature(const std::string& signa
   if (startWith(signature, "struct")) {
     // Struct type name is in the format of struct<T1,T2,...,Tn>.
     auto types = parseNestedTypeSignature(signature);
+    if (types.empty()) {
+      VELOX_UNSUPPORTED(
+          "VeloxSubstraitSignature::fromSubstraitSignature: Unrecognizable struct type signature {}.", signature);
+    }
     std::vector<std::string> names(types.size());
     for (int i = 0; i < types.size(); i++) {
       names[i] = "";
@@ -183,22 +225,20 @@ TypePtr VeloxSubstraitSignature::fromSubstraitSignature(const std::string& signa
     // Map type name is in the format of map<T1,T2>.
     auto types = parseNestedTypeSignature(signature);
     if (types.size() != 2) {
-      VELOX_UNSUPPORTED("Substrait type signature conversion to Velox type not supported for {}.", signature);
+      VELOX_UNSUPPORTED(
+          "VeloxSubstraitSignature::fromSubstraitSignature: Unrecognizable map type signature {}.", signature);
     }
     return MAP(std::move(types)[0], std::move(types)[1]);
   }
 
   if (startWith(signature, "list")) {
-    auto listStart = signature.find_first_of('<');
-    auto listEnd = signature.find_last_of('>');
-    VELOX_CHECK(
-        listEnd - listStart > 1,
-        "Native validation failed due to: more information is needed to create ListType: {}",
-        signature);
-
-    auto elementTypeStr = signature.substr(listStart + 1, listEnd - listStart - 1);
-    auto elementType = fromSubstraitSignature(elementTypeStr);
-    return ARRAY(elementType);
+    // Array type name is in the format of list<T>.
+    auto types = parseNestedTypeSignature(signature);
+    if (types.size() != 1) {
+      VELOX_UNSUPPORTED(
+          "VeloxSubstraitSignature::fromSubstraitSignature: Unrecognizable list type signature {}.", signature);
+    }
+    return ARRAY(std::move(types)[0]);
   }
 
   VELOX_UNSUPPORTED("Substrait type signature conversion to Velox type not supported for {}.", signature);

@@ -339,6 +339,14 @@ class SparkAllocationListener final : public gluten::AllocationListener {
     updateReservation(size);
   }
 
+  int64_t currentBytes() override {
+    return bytesReserved_;
+  }
+
+  int64_t peakBytes() override {
+    return maxBytesReserved_;
+  }
+
  private:
   int64_t reserve(int64_t diff) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -352,9 +360,7 @@ class SparkAllocationListener final : public gluten::AllocationListener {
     }
     int64_t bytesGranted = (newBlockCount - blocksReserved_) * blockSize_;
     blocksReserved_ = newBlockCount;
-    if (bytesReserved_ > maxBytesReserved_) {
-      maxBytesReserved_ = bytesReserved_;
-    }
+    maxBytesReserved_ = std::max(maxBytesReserved_, bytesReserved_);
     return bytesGranted;
   }
 
@@ -368,10 +374,10 @@ class SparkAllocationListener final : public gluten::AllocationListener {
     if (granted < 0) {
       env->CallLongMethod(jListenerGlobalRef_, jUnreserveMethod_, -granted);
       checkException(env);
-      return;
+    } else {
+      env->CallLongMethod(jListenerGlobalRef_, jReserveMethod_, granted);
+      checkException(env);
     }
-    env->CallLongMethod(jListenerGlobalRef_, jReserveMethod_, granted);
-    checkException(env);
   }
 
   JavaVM* vm_;

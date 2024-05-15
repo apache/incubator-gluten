@@ -85,4 +85,8 @@ int64_t HbwMemoryAllocator::getBytes() const {
   return bytes_;
 }
 
+int64_t HbwMemoryAllocator::peakBytes() const {
+  return 0;
+}
+
 } // namespace gluten

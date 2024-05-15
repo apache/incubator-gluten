@@ -18,12 +18,13 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.SparkPlanExecApi
+import org.apache.gluten.datasource.ArrowConvertorRule
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
-import org.apache.gluten.expression.aggregate.VeloxBloomFilterAggregate
-import org.apache.gluten.extension.BloomFilterMightContainJointRewriteRule
+import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
+import org.apache.gluten.extension.{ArrowScanReplaceRule, BloomFilterMightContainJointRewriteRule, CollectRewriteRule, FlushableHashAggregateRule, HLLRewriteRule}
 import org.apache.gluten.extension.columnar.TransformHints
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode}
@@ -36,12 +37,12 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.ShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FlushableHashAggregateRule, FunctionIdentifier}
+import org.apache.spark.sql.catalyst.FunctionIdentifier
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -139,6 +140,16 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     GenericExpressionTransformer(
       substraitExprName,
       Seq(LiteralTransformer(Literal(original.randomSeed.get))),
+      original)
+  }
+
+  override def genShuffleTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Shuffle): ExpressionTransformer = {
+    GenericExpressionTransformer(
+      substraitExprName,
+      Seq(child, LiteralTransformer(Literal(original.randomSeed.get))),
       original)
   }
 
@@ -330,10 +341,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
   /** Generate HashAggregateExecPullOutHelper */
   override def genHashAggregateExecPullOutHelper(
-      groupingExpressions: Seq[NamedExpression],
       aggregateExpressions: Seq[AggregateExpression],
       aggregateAttributes: Seq[Attribute]): HashAggregateExecPullOutBaseHelper =
-    HashAggregateExecPullOutHelper(groupingExpressions, aggregateExpressions, aggregateAttributes)
+    HashAggregateExecPullOutHelper(aggregateExpressions, aggregateAttributes)
 
   override def genColumnarShuffleExchange(
       shuffle: ShuffleExchangeExec,
@@ -734,7 +744,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = List(
-    AggregateFunctionRewriteRule.apply
+    CollectRewriteRule.apply,
+    HLLRewriteRule.apply
   )
 
   /**
@@ -743,7 +754,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] = List(
-    BloomFilterMightContainJointRewriteRule.apply
+    BloomFilterMightContainJointRewriteRule.apply,
+    ArrowScanReplaceRule.apply
   )
 
   /**
@@ -768,6 +780,10 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     SparkShimLoader.getSparkShims.getExtendedColumnarPostRules() ::: List()
   }
 
+  override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = {
+    List(ArrowConvertorRule)
+  }
+
   /**
    * Generate extended Strategy.
    *
@@ -784,6 +800,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       Sig[UDFExpression](ExpressionNames.UDF_PLACEHOLDER),
       Sig[UserDefinedAggregateFunction](ExpressionNames.UDF_PLACEHOLDER),
       Sig[NaNvl](ExpressionNames.NANVL),
+      Sig[VeloxCollectList](ExpressionNames.COLLECT_LIST),
+      Sig[VeloxCollectSet](ExpressionNames.COLLECT_SET),
       Sig[VeloxBloomFilterMightContain](ExpressionNames.MIGHT_CONTAIN),
       Sig[VeloxBloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG)
     )
@@ -841,5 +859,10 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         }
       case other => other
     }
+  }
+
+  override def outputNativeColumnarSparkCompatibleData(plan: SparkPlan): Boolean = plan match {
+    case _: ArrowFileSourceScanExec => true
+    case _ => false
   }
 }

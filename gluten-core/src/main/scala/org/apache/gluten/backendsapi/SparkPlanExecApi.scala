@@ -102,7 +102,6 @@ trait SparkPlanExecApi {
 
   /** Generate HashAggregateExecPullOutHelper */
   def genHashAggregateExecPullOutHelper(
-      groupingExpressions: Seq[NamedExpression],
       aggregateExpressions: Seq[AggregateExpression],
       aggregateAttributes: Seq[Attribute]): HashAggregateExecPullOutBaseHelper
 
@@ -210,6 +209,13 @@ trait SparkPlanExecApi {
 
   def genUuidTransformer(substraitExprName: String, original: Uuid): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, Seq(), original)
+  }
+
+  def genShuffleTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Shuffle): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(child), original)
   }
 
   def genTryAddTransformer(
@@ -425,6 +431,8 @@ trait SparkPlanExecApi {
    * @return
    */
   def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]]
+
+  def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]]
 
   def genGetStructFieldTransformer(
       substraitExprName: String,
@@ -738,4 +746,6 @@ trait SparkPlanExecApi {
   def genPostProjectForGenerate(generate: GenerateExec): SparkPlan
 
   def maybeCollapseTakeOrderedAndProject(plan: SparkPlan): SparkPlan = plan
+
+  def outputNativeColumnarSparkCompatibleData(plan: SparkPlan): Boolean = false
 }

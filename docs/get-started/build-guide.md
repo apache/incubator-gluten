@@ -31,7 +31,7 @@ Please set them via `--`, e.g. `--build_type=Release`.
 | velox_home             | Specify your own Velox source path to build.                               | ""      |
 | build_velox_tests      | Build Velox tests.                                                         | OFF     |
 | build_velox_benchmarks | Build Velox benchmarks (velox_tests and connectors will be disabled if ON) | OFF     |
-| compile_arrow_java     | Compile arrow java for gluten build to use to fix invalid pointer issues.  | OFF     |
+| compile_arrow_java     | Compile arrow java for gluten build to use to fix invalid pointer issues.  | ON     |
 
 ### Velox build parameters for build_velox.sh
 Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
@@ -49,7 +49,7 @@ Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
 | build_test_utils   | Build Velox with cmake arg -DVELOX_BUILD_TEST_UTILS=ON if ON.           | OFF                                      |
 | build_tests        | Build Velox test.                                                       | OFF                                      |
 | build_benchmarks   | Build Velox benchmarks.                                                 | OFF                                      |
-| compile_arrow_java | Build arrow java for gluten build to use to fix invalid pointer issues. | OFF                                      |
+| compile_arrow_java | Build arrow java for gluten build to use to fix invalid pointer issues. | ON                                      |
 
 ### Maven build parameters
 The below parameters can be set via `-P` for mvn.

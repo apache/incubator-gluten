@@ -121,9 +121,9 @@ static void writeFixedLengthNullableValue(
     const std::vector<int64_t> & offsets,
     const MaskVector & masks = nullptr)
 {
-    const auto * nullable_column = checkAndGetColumn<ColumnNullable>(*col.column);
-    const auto & null_map = nullable_column->getNullMapData();
-    const auto & nested_column = nullable_column->getNestedColumn();
+    const auto & nullable_column = checkAndGetColumn<ColumnNullable>(*col.column);
+    const auto & null_map = nullable_column.getNullMapData();
+    const auto & nested_column = nullable_column.getNestedColumn();
     FixedLengthDataWriter writer(col.type);
 
     if (writer.getWhichDataType().isDecimal32())
@@ -215,9 +215,9 @@ static void writeVariableLengthNullableValue(
     std::vector<int64_t> & buffer_cursor,
     const MaskVector & masks = nullptr)
 {
-    const auto * nullable_column = checkAndGetColumn<ColumnNullable>(*col.column);
-    const auto & null_map = nullable_column->getNullMapData();
-    const auto & nested_column = nullable_column->getNestedColumn();
+    const auto & nullable_column = checkAndGetColumn<ColumnNullable>(*col.column);
+    const auto & null_map = nullable_column.getNullMapData();
+    const auto & nested_column = nullable_column.getNestedColumn();
     const auto type_without_nullable{removeNullable(col.type)};
     const bool use_raw_data = BackingDataLengthCalculator::isDataTypeSupportRawData(type_without_nullable);
     const bool big_endian = BackingDataLengthCalculator::isBigEndianInSparkRow(type_without_nullable);
@@ -331,8 +331,7 @@ SparkRowInfo::SparkRowInfo(
             if (BackingDataLengthCalculator::isDataTypeSupportRawData(type_without_nullable))
             {
                 auto column = col.column->convertToFullIfNeeded();
-                const auto * nullable_column = checkAndGetColumn<ColumnNullable>(*column);
-                if (nullable_column)
+                if (const auto * nullable_column = checkAndGetColumn<ColumnNullable>(&*column))
                 {
                     const auto & nested_column = nullable_column->getNestedColumn();
                     const auto & null_map = nullable_column->getNullMapData();

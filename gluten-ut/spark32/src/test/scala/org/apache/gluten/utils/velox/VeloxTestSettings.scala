@@ -54,7 +54,12 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate",
       // Replaced with another test.
       "SPARK-19471: AggregationIterator does not initialize the generated result projection" +
-        " before using it"
+        " before using it",
+      // Velox's collect_list / collect_set are by design declarative aggregate so plan check
+      // for ObjectHashAggregateExec will fail.
+      "SPARK-22223: ObjectHashAggregate should not introduce unnecessary shuffle",
+      "SPARK-31620: agg with subquery (whole-stage-codegen = true)",
+      "SPARK-31620: agg with subquery (whole-stage-codegen = false)"
     )
 
   enableSuite[GlutenCastSuite]
@@ -275,9 +280,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // blocked by Velox-5768
     .exclude("aggregate function - array for primitive type containing null")
     .exclude("aggregate function - array for non-primitive type")
-    .exclude("shuffle function - array for primitive type not containing null")
-    .exclude("shuffle function - array for primitive type containing null")
-    .exclude("shuffle function - array for non-primitive type")
+    // Rewrite this test because Velox sorts rows by key for primitive data types, which disrupts the original row sequence.
+    .exclude("map_zip_with function - map of primitive types")
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameSetOperationsSuite]
     // Result depends on the implementation for nondeterministic expression rand.
@@ -411,10 +415,30 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("column pruning - non-readable file")
   enableSuite[GlutenCSVv1Suite]
     .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
+    // file cars.csv include null string, Arrow not support to read
+    .exclude("DDL test with schema")
+    .exclude("save csv")
+    .exclude("save csv with compression codec option")
+    .exclude("save csv with empty fields with user defined empty values")
+    .exclude("save csv with quote")
+    .exclude("SPARK-13543 Write the output as uncompressed via option()")
+    // Arrow not support corrupt record
+    .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
   enableSuite[GlutenCSVv2Suite]
     .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
+    // file cars.csv include null string, Arrow not support to read
+    .exclude("DDL test with schema")
+    // file cars.csv include null string, Arrow not support to read
+    .exclude("old csv data source name works")
   enableSuite[GlutenCSVLegacyTimeParserSuite]
     .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
+    // file cars.csv include null string, Arrow not support to read
+    .exclude("DDL test with schema")
+    .exclude("save csv")
+    .exclude("save csv with compression codec option")
+    .exclude("save csv with empty fields with user defined empty values")
+    .exclude("save csv with quote")
+    .exclude("SPARK-13543 Write the output as uncompressed via option()")
   enableSuite[GlutenJsonV1Suite]
     // FIXME: Array direct selection fails
     .exclude("Complex field and type inferring")

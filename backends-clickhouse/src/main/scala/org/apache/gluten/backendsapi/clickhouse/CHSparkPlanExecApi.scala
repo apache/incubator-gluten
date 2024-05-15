@@ -40,7 +40,7 @@ import org.apache.spark.sql.catalyst.{CHAggregateFunctionRewriteRule, EqualToRew
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, CollectList, CollectSet}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -194,19 +194,19 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       child: SparkPlan): HashAggregateExecBaseTransformer =
     CHHashAggregateExecTransformer(
       requiredChildDistributionExpressions,
-      groupingExpressions,
+      groupingExpressions.distinct,
       aggregateExpressions,
       aggregateAttributes,
       initialInputBufferOffset,
-      resultExpressions,
-      child)
+      resultExpressions.distinct,
+      child
+    )
 
   /** Generate HashAggregateExecPullOutHelper */
   override def genHashAggregateExecPullOutHelper(
-      groupingExpressions: Seq[NamedExpression],
       aggregateExpressions: Seq[AggregateExpression],
       aggregateAttributes: Seq[Attribute]): HashAggregateExecPullOutBaseHelper =
-    CHHashAggregateExecPullOutHelper(groupingExpressions, aggregateExpressions, aggregateAttributes)
+    CHHashAggregateExecPullOutHelper(aggregateExpressions, aggregateAttributes)
 
   /**
    * If there are expressions (not field reference) in the partitioning's children, add a projection
@@ -617,6 +617,10 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] =
     List(spark => NativeWritePostRule(spark))
 
+  override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = {
+    List()
+  }
+
   /**
    * Generate extended Strategies.
    *
@@ -627,7 +631,11 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
 
   /** Define backend specfic expression mappings. */
   override def extraExpressionMappings: Seq[Sig] = {
-    SparkShimLoader.getSparkShims.bloomFilterExpressionMappings()
+    List(
+      Sig[CollectList](ExpressionNames.COLLECT_LIST),
+      Sig[CollectSet](ExpressionNames.COLLECT_SET)
+    ) ++
+      SparkShimLoader.getSparkShims.bloomFilterExpressionMappings()
   }
 
   override def genStringTranslateTransformer(

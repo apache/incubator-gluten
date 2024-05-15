@@ -17,7 +17,6 @@
 #pragma once
 
 #include <Core/Block.h>
-#include <Core/ColumnWithTypeAndName.h>
 #include <Core/SortDescription.h>
 #include <DataTypes/DataTypeFactory.h>
 #include <DataTypes/Serializations/ISerialization.h>
@@ -25,14 +24,10 @@
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/RelMetric.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>
-#include <Processors/Formats/Impl/CHColumnToArrowColumn.h>
 #include <Processors/QueryPlan/ISourceStep.h>
 #include <Processors/QueryPlan/QueryPlan.h>
-#include <QueryPipeline/Pipe.h>
 #include <Storages/CustomStorageMergeTree.h>
-#include <Storages/IStorage.h>
 #include <Storages/SourceFromJavaIter.h>
-#include <arrow/ipc/writer.h>
 #include <base/types.h>
 #include <substrait/plan.pb.h>
 #include <Common/BlockIterator.h>
@@ -301,9 +296,6 @@ public:
 
     static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
 
-    bool convertBinaryArithmeticFunDecimalArgs(
-        ActionsDAGPtr actions_dag, ActionsDAG::NodeRawConstPtrs & args, const substrait::Expression_ScalarFunction & arithmeticFun);
-
     IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
 
     static ContextMutablePtr global_context;
@@ -383,7 +375,6 @@ private:
     void wrapNullable(
         const std::vector<String> & columns, ActionsDAGPtr actions_dag, std::map<std::string, std::string> & nullable_measure_names);
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
-    const ActionsDAG::Node * addColumn(DB::ActionsDAGPtr actions_dag, const DataTypePtr & type, const Field & field);
 
     int name_no = 0;
     std::unordered_map<std::string, std::string> function_mapping;
@@ -395,6 +386,9 @@ private:
     // for parse rel node, collect steps from a rel node
     std::vector<IQueryPlanStep *> temp_step_collection;
     std::vector<RelMetricPtr> metrics;
+
+public:
+    const ActionsDAG::Node * addColumn(DB::ActionsDAGPtr actions_dag, const DataTypePtr & type, const Field & field);
 };
 
 struct SparkBuffer

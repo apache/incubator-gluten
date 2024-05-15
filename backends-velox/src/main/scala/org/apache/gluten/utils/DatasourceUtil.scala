@@ -17,7 +17,7 @@
 package org.apache.gluten.utils
 
 import org.apache.gluten.datasource.DatasourceJniWrapper
-import org.apache.gluten.memory.arrowalloc.ArrowBufferAllocators
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.memory.nmm.NativeMemoryManagers
 
 import org.apache.spark.sql.types.StructType

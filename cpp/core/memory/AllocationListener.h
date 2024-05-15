@@ -32,6 +32,14 @@ class AllocationListener {
   // Value of diff can be either positive or negative
   virtual void allocationChanged(int64_t diff) = 0;
 
+  virtual int64_t currentBytes() {
+    return 0;
+  }
+
+  virtual int64_t peakBytes() {
+    return 0;
+  }
+
  protected:
   AllocationListener() = default;
 };

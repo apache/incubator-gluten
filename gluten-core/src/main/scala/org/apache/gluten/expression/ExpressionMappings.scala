@@ -189,6 +189,7 @@ object ExpressionMappings {
     Sig[MakeYMInterval](MAKE_YM_INTERVAL),
     Sig[ToUTCTimestamp](TO_UTC_TIMESTAMP),
     Sig[FromUTCTimestamp](FROM_UTC_TIMESTAMP),
+    Sig[UnixSeconds](UNIX_SECONDS),
     Sig[UnixMillis](UNIX_MILLIS),
     Sig[UnixMicros](UNIX_MICROS),
     Sig[MillisToTimestamp](TIMESTAMP_MILLIS),
@@ -213,6 +214,8 @@ object ExpressionMappings {
     Sig[Sequence](SEQUENCE),
     Sig[CreateArray](CREATE_ARRAY),
     Sig[Explode](EXPLODE),
+    // JsonTupleExplode' behavior are the same with Explode
+    Sig[JsonTupleExplode](EXPLODE),
     Sig[Inline](INLINE),
     Sig[ArrayAggregate](AGGREGATE),
     Sig[LambdaFunction](LAMBDAFUNCTION),
@@ -239,6 +242,8 @@ object ExpressionMappings {
     Sig[ArrayForAll](FORALL),
     Sig[ArrayExists](EXISTS),
     Sig[Shuffle](SHUFFLE),
+    Sig[ZipWith](ZIP_WITH),
+    Sig[Flatten](FLATTEN),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
@@ -246,6 +251,7 @@ object ExpressionMappings {
     Sig[MapValues](MAP_VALUES),
     Sig[MapFromArrays](MAP_FROM_ARRAYS),
     Sig[MapEntries](MAP_ENTRIES),
+    Sig[MapZipWith](MAP_ZIP_WITH),
     Sig[StringToMap](STR_TO_MAP),
     // Struct functions
     Sig[GetStructField](GET_STRUCT_FIELD),
@@ -284,8 +290,6 @@ object ExpressionMappings {
     Sig[MinBy](MIN_BY),
     Sig[StddevSamp](STDDEV_SAMP),
     Sig[StddevPop](STDDEV_POP),
-    Sig[CollectList](COLLECT_LIST),
-    Sig[CollectSet](COLLECT_SET),
     Sig[VarianceSamp](VAR_SAMP),
     Sig[VariancePop](VAR_POP),
     Sig[BitAndAgg](BIT_AND_AGG),
