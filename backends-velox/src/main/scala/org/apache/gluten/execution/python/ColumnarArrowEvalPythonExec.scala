@@ -291,13 +291,12 @@ case class ColumnarArrowEvalPythonExec(
           input =>
             input.map {
               e =>
-                if (allInputs.exists(_.semanticEquals(e))) {
+                if (!e.isInstanceOf[AttributeReference]) {
+                  throw new GlutenException(
+                    "ColumnarArrowEvalPythonExec should only has [AttributeReference] inputs.")
+                } else if (allInputs.exists(_.semanticEquals(e))) {
                   allInputs.indexWhere(_.semanticEquals(e))
                 } else {
-                  if (!e.isInstanceOf[AttributeReference]) {
-                    throw new GlutenException(
-                      "ColumnarArrowEvalPythonExec should only has [AttributeReference] inputs.")
-                  }
                   var offset: Int = -1
                   offset = child.output.indexWhere(
                     _.exprId.equals(e.asInstanceOf[AttributeReference].exprId))
@@ -325,6 +324,7 @@ case class ColumnarArrowEvalPythonExec(
             ColumnarBatches.retain(inputCb)
             // 0. cache input for later merge
             inputCbCache += inputCb
+            // We only need to pass the referred cols data to python worker for evaluation.
             var colsForEval = new ArrayBuffer[ColumnVector]()
             for (i <- originalOffsets) {
               colsForEval += inputCb.column(i)
