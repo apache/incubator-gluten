@@ -170,8 +170,6 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
         1024 * 1024 * 1024
       }
 
-    conf.set(GlutenConfig.GLUTEN_ONHEAP_SIZE_IN_BYTES_KEY, onHeapSize.toString)
-
     // If dynamic off-heap sizing is enabled, the off-heap size is calculated based on the on-heap
     // size. Otherwise, the off-heap size is set to the value specified by the user (if any).
     // Note that this means that we will IGNORE the off-heap size specified by the user if the

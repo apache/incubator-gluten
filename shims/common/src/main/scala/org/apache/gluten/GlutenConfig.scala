@@ -394,8 +394,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableCastAvgAggregateFunction: Boolean = conf.getConf(COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED)
 
-  def onHeapMemorySize: Long = conf.getConf(COLUMNAR_ONHEAP_SIZE_IN_BYTES)
-
   def dynamicOffHeapSizingEnabled: Boolean =
     conf.getConf(DYNAMIC_OFFHEAP_SIZING_ENABLED)
 }
@@ -501,7 +499,6 @@ object GlutenConfig {
   val GLUTEN_DEBUG_KEEP_JNI_WORKSPACE = "spark.gluten.sql.debug.keepJniWorkspace"
 
   // Added back to Spark Conf during executor initialization
-  val GLUTEN_ONHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.onHeap.size.in.bytes"
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
   val GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.task.offHeap.size.in.bytes"
   val GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY =
@@ -1860,14 +1857,4 @@ object GlutenConfig {
       .doubleConf
       .checkValue(v => v >= 0 && v <= 1, "offheap sizing memory fraction must between [0, 1]")
       .createWithDefault(0.6)
-
-  val COLUMNAR_ONHEAP_SIZE_IN_BYTES =
-    buildConf(GlutenConfig.GLUTEN_ONHEAP_SIZE_IN_BYTES_KEY)
-      .internal()
-      .doc(
-        "Must provide default value since non-execution operations " +
-          "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
-          "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
-      .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("0")
 }
