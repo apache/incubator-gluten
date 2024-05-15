@@ -22,8 +22,6 @@ import org.apache.spark.sql.{SparkSessionSwitcher, TestUtils}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.gluten.integration.tpc.action.Actions.QuerySelector
 
-import java.util.Random
-
 case class QueriesCompare(
     scale: Double,
     queries: QuerySelector,
