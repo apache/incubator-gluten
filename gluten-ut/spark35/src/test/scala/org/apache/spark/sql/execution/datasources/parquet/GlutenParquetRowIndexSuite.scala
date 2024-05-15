@@ -164,6 +164,8 @@ class GlutenParquetRowIndexSuite extends ParquetRowIndexSuite with GlutenSQLTest
     }.mkString(", ")
 
     def sqlConfs: Seq[(String, String)] = Seq(
+      // TODO: remove this change after customized parquet options as `block_size`, `page_size`
+      // been fully supported.
       "spark.gluten.sql.native.writer.enabled" -> "false",
       SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> useVectorizedReader.toString,
       SQLConf.FILES_MAX_PARTITION_BYTES.key -> filesMaxPartitionBytes.toString
