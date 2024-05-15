@@ -619,13 +619,15 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
     bool resolved = false;
     for (const auto& signature : signaturesOpt.value()) {
       // The rank like functions don't need argument.
-      if (rankLikeNames.find(funcName) != rankLikeNames.end()) {
+      if (std::find(rankLikeNames.begin(), rankLikeNames.end(), funcName) != rankLikeNames.end()) {
         types.clear();
       }
+
       // The lead and lag argument only need the first element.
-      if (leadLagNames.find(funcName) != leadLagNames.end()) {
+      if (std::find(leadLagNames.begin(), leadLagNames.end(), funcName) != leadLagNames.end()) {
         types.resize(1);
       }
+
       exec::SignatureBinder binder(*signature, types);
       if (binder.tryBind()) {
         auto type = binder.tryResolveType(signature->returnType());
