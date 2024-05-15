@@ -108,7 +108,6 @@ arrow::Status VeloxSortBasedShuffleWriter::write(std::shared_ptr<ColumnarBatch> 
     auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
     VELOX_CHECK_NOT_NULL(veloxColumnBatch);
     auto rv = veloxColumnBatch->getFlattenedRowVector();
-    ;
     RETURN_NOT_OK(initFromRowVector(*rv.get()));
     RETURN_NOT_OK(doSort(rv, partitionWriter_.get()->options().sortBufferMaxSize));
   } else if (options_.partitioning == Partitioning::kRange) {
@@ -131,7 +130,6 @@ arrow::Status VeloxSortBasedShuffleWriter::write(std::shared_ptr<ColumnarBatch> 
     facebook::velox::RowVectorPtr rv;
     START_TIMING(cpuWallTimingList_[CpuWallTimingFlattenRV]);
     rv = veloxColumnBatch->getFlattenedRowVector();
-    ;
     END_TIMING();
     if (partitioner_->hasPid()) {
       auto pidArr = getFirstColumn(*rv);

@@ -70,7 +70,7 @@ struct ShuffleTestParams {
 
   std::string toString() const {
     std::ostringstream out;
-    out << "shuffleWriterType = " << shuffleWriterType << "partitionWriterType = " << partitionWriterType
+    out << "shuffleWriterType = " << shuffleWriterType << ", partitionWriterType = " << partitionWriterType
         << ", compressionType = " << compressionType << ", compressionThreshold = " << compressionThreshold
         << ", mergeBufferSize = " << mergeBufferSize;
     return out.str();
@@ -232,7 +232,21 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     RETURN_NOT_OK(VeloxShuffleWriterTestBase::initShuffleWriterOptions());
 
     ShuffleTestParams params = GetParam();
+    partitionWriterOptions_.sortBufferMaxSize = ShuffleWriter::kMinMemLimit;
     partitionWriterOptions_.compressionType = params.compressionType;
+    switch (partitionWriterOptions_.compressionType) {
+      case arrow::Compression::UNCOMPRESSED:
+        partitionWriterOptions_.compressionTypeStr = "none";
+        break;
+      case arrow::Compression::LZ4_FRAME:
+        partitionWriterOptions_.compressionTypeStr = "lz4";
+        break;
+      case arrow::Compression::ZSTD:
+        partitionWriterOptions_.compressionTypeStr = "zstd";
+        break;
+      default:
+        break;
+    };
     partitionWriterOptions_.compressionThreshold = params.compressionThreshold;
     partitionWriterOptions_.mergeBufferSize = params.mergeBufferSize;
     return arrow::Status::OK();
@@ -278,6 +292,19 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     options.compressionType = compressionType;
     auto codec = createArrowIpcCodec(options.compressionType, CodecBackend::NONE);
     auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
+    switch (options.compressionType) {
+      case arrow::Compression::type::UNCOMPRESSED:
+        options.compressionTypeStr = "none";
+        break;
+      case arrow::Compression::type::LZ4_FRAME:
+        options.compressionTypeStr = "lz4";
+        break;
+      case arrow::Compression::type::ZSTD:
+        options.compressionTypeStr = "zstd";
+        break;
+      default:
+        break;
+    };
     auto veloxCompressionType = facebook::velox::common::stringToCompressionKind(options.compressionTypeStr);
     if (!facebook::velox::isRegisteredVectorSerde()) {
       facebook::velox::serializer::presto::PrestoVectorSerde::registerVectorSerde();

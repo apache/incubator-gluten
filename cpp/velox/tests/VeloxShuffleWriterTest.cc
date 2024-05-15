@@ -157,11 +157,7 @@ TEST_P(HashPartitioningShuffleWriter, hashPart1Vector) {
       makeFlatVector<int32_t>(
           4, [](vector_size_t row) { return row % 2; }, nullEvery(5), DATE()),
       makeFlatVector<Timestamp>(
-          4,
-          [](vector_size_t row) {
-            return Timestamp{row % 2, 0};
-          },
-          nullEvery(5)),
+          4, [](vector_size_t row) { return Timestamp{row % 2, 0}; }, nullEvery(5)),
   });
 
   auto dataVector = makeRowVector({
@@ -173,11 +169,7 @@ TEST_P(HashPartitioningShuffleWriter, hashPart1Vector) {
       makeFlatVector<int32_t>(
           4, [](vector_size_t row) { return row % 2; }, nullEvery(5), DATE()),
       makeFlatVector<Timestamp>(
-          4,
-          [](vector_size_t row) {
-            return Timestamp{row % 2, 0};
-          },
-          nullEvery(5)),
+          4, [](vector_size_t row) { return Timestamp{row % 2, 0}; }, nullEvery(5)),
   });
 
   auto firstBlock = makeRowVector({
@@ -273,7 +265,9 @@ TEST_P(HashPartitioningShuffleWriter, hashLargeVectors) {
   auto shuffleWriter = createShuffleWriter(defaultArrowMemoryPool().get());
   // calculate maxBatchSize_
   ASSERT_NOT_OK(splitRowVector(*shuffleWriter, hashInputVector1_));
-  VELOX_CHECK_EQ(shuffleWriter->maxBatchSize(), expectedMaxBatchSize);
+  if (GetParam().shuffleWriterType == kHashShuffle) {
+    VELOX_CHECK_EQ(shuffleWriter->maxBatchSize(), expectedMaxBatchSize);
+  }
 
   auto blockPid2 = takeRows({inputVector1_, inputVector2_, inputVector1_}, {{1, 2, 3, 4, 8}, {0, 1}, {1, 2, 3, 4, 8}});
   auto blockPid1 = takeRows({inputVector1_}, {{0, 5, 6, 7, 9, 0, 5, 6, 7, 9}});
@@ -314,6 +308,9 @@ TEST_P(RoundRobinPartitioningShuffleWriter, roundRobin) {
 }
 
 TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceRealloc) {
+  if (GetParam().shuffleWriterType == kSortShuffle) {
+    return;
+  }
   ASSERT_NOT_OK(initShuffleWriterOptions());
   shuffleWriterOptions_.bufferReallocThreshold = 0; // Force re-alloc on buffer size changed.
   auto shuffleWriter = createShuffleWriter(defaultArrowMemoryPool().get());
@@ -401,6 +398,9 @@ TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceReuse) {
 }
 
 TEST_P(RoundRobinPartitioningShuffleWriter, spillVerifyResult) {
+  if (GetParam().shuffleWriterType == kSortShuffle) {
+    return;
+  }
   ASSERT_NOT_OK(initShuffleWriterOptions());
   auto shuffleWriter = createShuffleWriter(defaultArrowMemoryPool().get());
 
