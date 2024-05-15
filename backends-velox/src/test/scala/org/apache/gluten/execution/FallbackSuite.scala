@@ -62,6 +62,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
   override protected def afterAll(): Unit = {
     spark.sql("drop table tmp1")
     spark.sql("drop table tmp2")
+    spark.sql("drop table tmp3")
 
     super.afterAll()
   }
