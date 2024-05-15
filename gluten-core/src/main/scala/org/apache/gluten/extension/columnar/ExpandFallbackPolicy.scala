@@ -19,7 +19,7 @@ package org.apache.gluten.extension.columnar
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.BroadcastHashJoinExecTransformerBase
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPostOverrides
+import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, RowToColumnarLike, Transitions}
 import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.rdd.RDD
@@ -34,36 +34,24 @@ import org.apache.spark.sql.execution.exchange.Exchange
 
 // spotless:off
 /**
- * Note, this rule should only fallback to row-based plan if there is no harm.
- * The follow case should be handled carefully
+ * Note, this rule should only fallback to row-based plan if there is no harm. The follow case
+ * should be handled carefully
  *
- * 1. A BHJ and the previous broadcast exchange is columnar
- *    We should still make the BHJ columnar, otherwise it will fail if
- *    the vanilla BHJ accept a columnar broadcast exchange, e.g.,
+ *   1. A BHJ and the previous broadcast exchange is columnar We should still make the BHJ columnar,
+ *      otherwise it will fail if the vanilla BHJ accept a columnar broadcast exchange, e.g.,
  *
- *    Scan                Scan
- *      \                  |
- *        \     Columnar Broadcast Exchange
- *          \       /
- *             BHJ
- *              |
- *       VeloxColumnarToRow
- *              |
- *           Project (unsupport columnar)
+ * Scan Scan \ | \ Columnar Broadcast Exchange \ / BHJ \| VeloxColumnarToRow \| Project (unsupport
+ * columnar)
  *
- * 2. The previous shuffle exchange stage is a columnar shuffle exchange
- *    We should use VeloxColumnarToRow rather than vanilla Spark ColumnarToRowExec, e.g.,
+ * 2. The previous shuffle exchange stage is a columnar shuffle exchange We should use
+ * VeloxColumnarToRow rather than vanilla Spark ColumnarToRowExec, e.g.,
  *
- *             Scan
- *              |
- *    Columnar Shuffle Exchange
- *              |
- *       VeloxColumnarToRow
- *              |
- *           Project (unsupport columnar)
+ * Scan \| Columnar Shuffle Exchange \| VeloxColumnarToRow \| Project (unsupport columnar)
  *
- * @param isAdaptiveContext If is inside AQE
- * @param originalPlan The vanilla SparkPlan without apply gluten transform rules
+ * @param isAdaptiveContext
+ *   If is inside AQE
+ * @param originalPlan
+ *   The vanilla SparkPlan without apply gluten transform rules
  */
 // spotless:on
 case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkPlan)
@@ -78,7 +66,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
         case _: CommandResultExec | _: ExecutedCommandExec => // ignore
         // we plan exchange to columnar exchange in columnar rules and the exchange does not
         // support columnar, so the output columnar is always false in AQE postStageCreationRules
-        case ColumnarToRowExec(s: Exchange) if isAdaptiveContext =>
+        case ColumnarToRowLike(s: Exchange) if isAdaptiveContext =>
           countFallbackInternal(s)
         case u: UnaryExecNode
             if !PlanUtil.isGlutenColumnarOp(u) && PlanUtil.isGlutenTableCache(u.child) =>
@@ -86,15 +74,15 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
           // which is a kind of `ColumnarToRowExec`.
           transitionCost = transitionCost + 1
           countFallbackInternal(u.child)
-        case ColumnarToRowExec(p: GlutenPlan) =>
+        case ColumnarToRowLike(p: GlutenPlan) =>
           logDebug(s"Find a columnar to row for gluten plan:\n$p")
           transitionCost = transitionCost + 1
           countFallbackInternal(p)
-        case r: RowToColumnarExec =>
+        case RowToColumnarLike(child) =>
           if (!ignoreRowToColumnar) {
             transitionCost = transitionCost + 1
           }
-          countFallbackInternal(r.child)
+          countFallbackInternal(child)
         case leafPlan: LeafExecNode if PlanUtil.isGlutenTableCache(leafPlan) =>
         case leafPlan: LeafExecNode if !PlanUtil.isGlutenColumnarOp(leafPlan) =>
           // Possible fallback for leaf node.
@@ -116,26 +104,16 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
    *
    * Spark plan before applying fallback policy:
    *
-   *        ColumnarExchange
-   *  ----------- | --------------- last stage
-   *    HashAggregateTransformer
-   *              |
-   *        ColumnarToRow
-   *              |
-   *           Project
+   * ColumnarExchange
+   * ----------- | --------------- last stage HashAggregateTransformer \| ColumnarToRow \| Project
    *
-   * To illustrate the effect if cost is not taken into account, here is spark plan
-   * after applying whole stage fallback policy (threshold = 1):
+   * To illustrate the effect if cost is not taken into account, here is spark plan after applying
+   * whole stage fallback policy (threshold = 1):
    *
-   *        ColumnarExchange
-   *  -----------  | --------------- last stage
-   *         ColumnarToRow
-   *               |
-   *         HashAggregate
-   *               |
-   *            Project
+   * ColumnarExchange
+   * ----------- | --------------- last stage ColumnarToRow \| HashAggregate \| Project
    *
-   *  So by considering the cost, the fallback policy will not be applied.
+   * So by considering the cost, the fallback policy will not be applied.
    *
    * spotless:on
    */
@@ -236,9 +214,8 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
   }
 
   private def fallbackToRowBasedPlan(outputsColumnar: Boolean): SparkPlan = {
-    val transformPostOverrides = TransformPostOverrides()
-    val planWithTransitions = ColumnarTransitions.insertTransitions(originalPlan, outputsColumnar)
-    transformPostOverrides.apply(planWithTransitions)
+    val planWithTransitions = Transitions.insertTransitions(originalPlan, outputsColumnar)
+    planWithTransitions
   }
 
   private def countTransitionCostForVanillaSparkPlan(plan: SparkPlan): Int = {

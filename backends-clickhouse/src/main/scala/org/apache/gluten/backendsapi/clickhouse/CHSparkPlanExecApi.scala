@@ -25,6 +25,7 @@ import org.apache.gluten.expression.ConverterUtils.FunctionConfig
 import org.apache.gluten.extension.{CountDistinctWithoutExpand, FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage, RewriteToDateExpresstionRule}
 import org.apache.gluten.extension.columnar.AddTransformHintRule
 import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
+import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import org.apache.gluten.utils.CHJoinValidateUtil
@@ -71,6 +72,9 @@ import scala.collection.mutable.ArrayBuffer
 
 class CHSparkPlanExecApi extends SparkPlanExecApi {
 
+  /** The columnar-batch type this backend is using. */
+  override def batchType: Convention.BatchType = CHBatch
+
   /** Transform GetArrayItem to Substrait. */
   override def genGetArrayItemExpressionNode(
       substraitExprName: String,
@@ -87,26 +91,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       ExpressionBuilder.newScalarFunction(functionMap, functionName),
       exprNodes,
       ConverterUtils.getTypeNode(original.dataType, original.nullable))
-  }
-
-  /**
-   * Generate ColumnarToRowExecBase.
-   *
-   * @param child
-   * @return
-   */
-  override def genColumnarToRowExec(child: SparkPlan): ColumnarToRowExecBase = {
-    CHColumnarToRowExec(child)
-  }
-
-  /**
-   * Generate RowToColumnarExec.
-   *
-   * @param child
-   * @return
-   */
-  override def genRowToColumnarExec(child: SparkPlan): RowToColumnarExecBase = {
-    RowToCHNativeColumnarExec(child)
   }
 
   override def genProjectExecTransformer(

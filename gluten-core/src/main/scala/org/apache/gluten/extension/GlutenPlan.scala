@@ -20,6 +20,7 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression.TransformerState
+import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.plan.PlanBuilder
 import org.apache.gluten.substrait.rel.RelNode
@@ -83,6 +84,20 @@ trait GlutenPlan extends SparkPlan with LogLevelUtil {
     } finally {
       TransformerState.finishValidation
     }
+  }
+
+  final def batchType(): Convention.BatchType = {
+    if (!supportsColumnar) {
+      throw new UnsupportedOperationException(
+        s"Node $nodeName doesn't support columnar-batch processing")
+    }
+    val batchType = batchType0()
+    assert(batchType != Convention.BatchTypes.None)
+    batchType
+  }
+
+  protected def batchType0(): Convention.BatchType = {
+    BackendsApiManager.getSparkPlanExecApiInstance.batchType
   }
 
   protected def doValidateInternal(): ValidationResult = ValidationResult.ok

@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -38,6 +39,12 @@ case class ArrowFileSourceScanExec(original: FileSourceScanExec)
   override def supportsColumnar: Boolean = original.supportsColumnar
 
   override def doCanonicalize(): FileSourceScanExec = original.doCanonicalize()
+
+  override protected def batchType0(): Convention.BatchType = {
+    // Arrow scan is considered compatible with vanilla Spark's columnar processing
+    // since its output is guaranteed to be of Arrow format.
+    Convention.BatchTypes.VanillaBatch
+  }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val numOutputRows = longMetric("numOutputRows")

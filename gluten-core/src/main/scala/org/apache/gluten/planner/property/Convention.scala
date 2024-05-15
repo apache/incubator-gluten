@@ -16,9 +16,9 @@
  */
 package org.apache.gluten.planner.property
 
-import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.execution.RowToColumnarExecBase
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.ColumnarTransitions
+import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, RowToColumnarLike, Transitions}
 import org.apache.gluten.planner.plan.GlutenPlanModel.GroupLeafExec
 import org.apache.gluten.ras.{Property, PropertyDef}
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
@@ -62,8 +62,8 @@ object ConventionDef extends PropertyDef[SparkPlan, Convention] {
     case g: GroupLeafExec => g.propertySet.get(ConventionDef)
     case ColumnarToRowExec(child) => Conventions.ROW_BASED
     case RowToColumnarExec(child) => Conventions.VANILLA_COLUMNAR
-    case ColumnarTransitions.ColumnarToRowLike(child) => Conventions.ROW_BASED
-    case ColumnarTransitions.RowToColumnarLike(child) => Conventions.GLUTEN_COLUMNAR
+    case ColumnarToRowLike(child) => Conventions.ROW_BASED
+    case RowToColumnarLike(child) => Conventions.GLUTEN_COLUMNAR
     case q: QueryStageExec => conventionOf(q.plan)
     case r: ReusedExchangeExec => conventionOf(r.child)
     case a: AdaptiveSparkPlanExec => conventionOf(a.executedPlan)
@@ -82,8 +82,8 @@ object ConventionDef extends PropertyDef[SparkPlan, Convention] {
       constraint: Property[SparkPlan],
       plan: SparkPlan): Seq[Convention] = plan match {
     case ColumnarToRowExec(child) => Seq(Conventions.VANILLA_COLUMNAR)
-    case ColumnarTransitions.ColumnarToRowLike(child) => Seq(Conventions.GLUTEN_COLUMNAR)
-    case ColumnarTransitions.RowToColumnarLike(child) => Seq(Conventions.ROW_BASED)
+    case ColumnarToRowLike(child) => Seq(Conventions.GLUTEN_COLUMNAR)
+    case RowToColumnarLike(child) => Seq(Conventions.ROW_BASED)
     case p if canPropagateConvention(p) =>
       p.children.map(_ => constraint.asInstanceOf[Convention])
     case other =>
@@ -127,22 +127,18 @@ case class ConventionEnforcerRule(reqConv: Convention) extends RasRule[SparkPlan
       case (Conventions.ROW_BASED, Conventions.VANILLA_COLUMNAR) =>
         List(RowToColumnarExec(node))
       case (Conventions.GLUTEN_COLUMNAR, Conventions.ROW_BASED) =>
-        List(BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(node))
+        List(Transitions.toRowPlan(node))
       case (Conventions.ROW_BASED, Conventions.GLUTEN_COLUMNAR) =>
-        val attempt = BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(node)
-        if (attempt.doValidate().isValid) {
+        val attempt = Transitions.toBackendBatchPlan(node)
+        if (attempt.asInstanceOf[RowToColumnarExecBase].doValidate().isValid) {
           List(attempt)
         } else {
           List.empty
         }
       case (Conventions.VANILLA_COLUMNAR, Conventions.GLUTEN_COLUMNAR) =>
-        List(
-          BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(
-            ColumnarToRowExec(node)))
+        List(Transitions.toBackendBatchPlan(ColumnarToRowExec(node)))
       case (Conventions.GLUTEN_COLUMNAR, Conventions.VANILLA_COLUMNAR) =>
-        List(
-          RowToColumnarExec(
-            BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(node)))
+        List(RowToColumnarExec(Transitions.toRowPlan(node)))
       case _ => List.empty
     }
   }

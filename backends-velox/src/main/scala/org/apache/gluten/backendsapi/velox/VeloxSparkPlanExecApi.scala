@@ -25,8 +25,10 @@ import org.apache.gluten.execution.datasource.v2.ArrowBatchScanExec
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
-import org.apache.gluten.extension.{ArrowScanReplaceRule, BloomFilterMightContainJointRewriteRule, CollectRewriteRule, FlushableHashAggregateRule, HLLRewriteRule}
+import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar.TransformHints
+import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.extension.columnar.transition.ConventionFunc.BatchOverride
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode}
 import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializeResult}
@@ -50,6 +52,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
@@ -72,6 +75,22 @@ import java.util.{Map => JMap}
 import scala.collection.mutable.ListBuffer
 
 class VeloxSparkPlanExecApi extends SparkPlanExecApi {
+
+  /** The columnar-batch type this backend is using. */
+  override def batchType: Convention.BatchType = {
+    VeloxBatch
+  }
+
+  /**
+   * Override the [[org.apache.gluten.extension.columnar.transition.ConventionFunc]] Gluten is using
+   * to determine the convention (its row-based processing / columnar-batch processing support) of a
+   * plan with a user-defined function that accepts a plan then returns batch type it uses.
+   */
+  override def batchTypeFunc(): BatchOverride = {
+    case i: InMemoryTableScanExec
+        if i.relation.cacheBuilder.serializer.isInstanceOf[ColumnarCachedBatchSerializer] =>
+      VeloxBatch
+  }
 
   /**
    * Transform GetArrayItem to Substrait.
@@ -284,28 +303,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       expr: Expression): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, children, expr)
   }
-
-  /**
-   * * Plans.
-   */
-
-  /**
-   * Generate ColumnarToRowExecBase.
-   *
-   * @param child
-   * @return
-   */
-  override def genColumnarToRowExec(child: SparkPlan): ColumnarToRowExecBase =
-    VeloxColumnarToRowExec(child)
-
-  /**
-   * Generate RowToColumnarExec.
-   *
-   * @param child
-   * @return
-   */
-  override def genRowToColumnarExec(child: SparkPlan): RowToColumnarExecBase =
-    RowToVeloxColumnarExec(child)
 
   /**
    * Generate FilterExecTransformer.

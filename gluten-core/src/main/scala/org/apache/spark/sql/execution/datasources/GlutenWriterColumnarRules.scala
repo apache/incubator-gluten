@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution.datasources
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.ColumnarToRowExecBase
 import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.extension.columnar.transition.Transitions
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -68,7 +69,7 @@ case class FakeRowAdaptor(child: SparkPlan)
     if (child.supportsColumnar) {
       child.executeColumnar()
     } else {
-      val r2c = BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(child)
+      val r2c = Transitions.toBackendBatchPlan(child)
       r2c.executeColumnar()
     }
   }

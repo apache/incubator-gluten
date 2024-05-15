@@ -19,10 +19,10 @@ package org.apache.gluten.expression
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.execution.{ColumnarToRowExecBase, WholeStageTransformer}
+import org.apache.gluten.extension.columnar.transition.Transitions
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.test.TestStats
-import org.apache.gluten.utils.{DecimalArithmeticUtil, PlanUtil}
+import org.apache.gluten.utils.DecimalArithmeticUtil
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.{InternalRow, SQLConfHelper}
@@ -688,20 +688,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
 
     def convertBroadcastExchangeToColumnar(
         exchange: BroadcastExchangeExec): ColumnarBroadcastExchangeExec = {
-      val newChild = exchange.child match {
-        // get WholeStageTransformer directly
-        case c2r: ColumnarToRowExecBase => c2r.child
-        // in fallback case
-        case plan: UnaryExecNode if !PlanUtil.isGlutenColumnarOp(plan) =>
-          plan.child match {
-            case _: ColumnarToRowExec =>
-              val wholeStageTransformer = exchange.find(_.isInstanceOf[WholeStageTransformer])
-              wholeStageTransformer.getOrElse(
-                BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(plan))
-            case _ =>
-              BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(plan)
-          }
-      }
+      val newChild = Transitions.insertTransitions(exchange.child, outputsColumnar = true)
       ColumnarBroadcastExchangeExec(exchange.mode, newChild)
     }
 
