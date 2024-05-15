@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.catalyst.expressions
 
-import org.apache.gluten.expression.{AliasTransformer, ExpressionConverter, ExpressionTransformer, GenericExpressionTransformer, VeloxAliasTransformer}
+import org.apache.gluten.expression._
 
 import org.apache.spark.sql.GlutenTestsTrait
 import org.apache.spark.sql.catalyst.analysis.{Analyzer, EmptyFunctionRegistry, UnresolvedAttribute}
