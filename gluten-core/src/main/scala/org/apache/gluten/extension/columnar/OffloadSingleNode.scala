@@ -28,8 +28,6 @@ import org.apache.gluten.utils.{LogLevelUtil, PlanUtil}
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
@@ -126,34 +124,11 @@ case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
 
 // Join transformation.
 case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
-  import OffloadJoin._
 
   override def offload(plan: SparkPlan): SparkPlan = {
     if (TransformHints.isNotTransformable(plan)) {
       logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
-      plan match {
-        case shj: ShuffledHashJoinExec =>
-          if (BackendsApiManager.getSettings.recreateJoinExecOnFallback()) {
-            // Since https://github.com/apache/incubator-gluten/pull/408
-            // Because we manually removed the build side limitation for LeftOuter, LeftSemi and
-            // RightOuter, need to change the build side back if this join fallback into vanilla
-            // Spark for execution.
-            return ShuffledHashJoinExec(
-              shj.leftKeys,
-              shj.rightKeys,
-              shj.joinType,
-              getSparkSupportedBuildSide(shj),
-              shj.condition,
-              shj.left,
-              shj.right,
-              shj.isSkewJoin
-            )
-          } else {
-            return shj
-          }
-        case p =>
-          return p
-      }
+      return plan
     }
     plan match {
       case plan: ShuffledHashJoinExec =>
@@ -165,7 +140,7 @@ case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
             plan.leftKeys,
             plan.rightKeys,
             plan.joinType,
-            plan.buildSide,
+            TransformHints.getShuffleHashJoinBuildSide(plan),
             plan.condition,
             left,
             right,
@@ -215,20 +190,6 @@ case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
     }
   }
 
-}
-
-object OffloadJoin {
-  private def getSparkSupportedBuildSide(plan: ShuffledHashJoinExec): BuildSide = {
-    plan.joinType match {
-      case LeftOuter | LeftSemi => BuildRight
-      case RightOuter => BuildLeft
-      case _ => plan.buildSide
-    }
-  }
-
-  def isLegal(plan: ShuffledHashJoinExec): Boolean = {
-    plan.buildSide == getSparkSupportedBuildSide(plan)
-  }
 }
 
 // Filter transformation.
