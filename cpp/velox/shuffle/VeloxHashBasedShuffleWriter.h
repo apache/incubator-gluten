@@ -137,8 +137,6 @@ class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
 
   arrow::Status evictPartitionBuffers(uint32_t partitionId, bool reuseBuffers) override;
 
-  int64_t rawPartitionBytes() const;
-
   // For test only.
   void setPartitionBufferSize(uint32_t newSize) override;
 

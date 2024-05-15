@@ -85,6 +85,10 @@ class ShuffleWriter : public Reclaimable {
     return metrics_.rawPartitionLengths;
   }
 
+  const int64_t rawPartitionBytes() {
+    return std::accumulate(metrics_.rawPartitionLengths.begin(), metrics_.rawPartitionLengths.end(), 0LL);
+  }
+
  protected:
   ShuffleWriter(
       int32_t numPartitions,

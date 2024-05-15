@@ -208,10 +208,6 @@ arrow::Status VeloxHashBasedShuffleWriter::initPartitions() {
   return arrow::Status::OK();
 }
 
-int64_t VeloxHashBasedShuffleWriter::rawPartitionBytes() const {
-  return std::accumulate(metrics_.rawPartitionLengths.begin(), metrics_.rawPartitionLengths.end(), 0LL);
-}
-
 void VeloxHashBasedShuffleWriter::setPartitionBufferSize(uint32_t newSize) {
   options_.bufferSize = newSize;
 }
