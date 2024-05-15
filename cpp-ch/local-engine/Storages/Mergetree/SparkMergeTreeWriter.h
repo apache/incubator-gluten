@@ -73,8 +73,9 @@ private:
     void safeAddPart(DB::MergeTreeDataPartPtr);
     void manualFreeMemory(size_t before_write_memory);
     void saveMetadata();
-    void commitPartToRemoteStorage();
+    void commitPartToRemoteStorageIfNeeded();
     void finalizeMerge();
+    bool blockToPart(Block & block);
 
     CustomStorageMergeTreePtr storage = nullptr;
     CustomStorageMergeTreePtr dest_storage = nullptr;

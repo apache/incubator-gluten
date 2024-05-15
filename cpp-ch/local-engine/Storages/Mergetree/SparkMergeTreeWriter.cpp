@@ -110,13 +110,21 @@ void SparkMergeTreeWriter::write(DB::Block & block)
     auto new_block = removeColumnSuffix(block);
     if (auto converter = ActionsDAG::makeConvertingActions(
             new_block.getColumnsWithTypeAndName(), header.getColumnsWithTypeAndName(), DB::ActionsDAG::MatchColumnsMode::Position))
-    {
-        ExpressionActions do_convert = ExpressionActions(converter);
-        do_convert.execute(new_block);
-    }
+        ExpressionActions(converter).execute(new_block);
 
+    auto add_block = squashing_transform->add(new_block);
+    bool has_part = blockToPart(add_block);
+    if (has_part && merge_after_insert)
+        checkAndMerge();
+}
+
+bool SparkMergeTreeWriter::blockToPart(Block & block)
+{
     auto blocks_with_partition
-        = MergeTreeDataWriter::splitBlockIntoParts(squashing_transform->add(new_block), 10, metadata_snapshot, context);
+        = MergeTreeDataWriter::splitBlockIntoParts(std::move(block), 10, metadata_snapshot, context);
+
+    if (blocks_with_partition.empty())
+        return false;
 
     for (auto & item : blocks_with_partition)
     {
@@ -137,6 +145,8 @@ void SparkMergeTreeWriter::write(DB::Block & block)
         if (merge_after_insert)
             checkAndMerge();
     }
+
+    return true;
 }
 
 void SparkMergeTreeWriter::manualFreeMemory(size_t before_write_memory)
@@ -173,32 +183,12 @@ void SparkMergeTreeWriter::finalize()
 {
     auto block = squashing_transform->add({});
     if (block.rows())
-    {
-        auto blocks_with_partition = MergeTreeDataWriter::splitBlockIntoParts(std::move(block), 10, metadata_snapshot, context);
-        for (auto & item : blocks_with_partition)
-        {
-            size_t before_write_memory = 0;
-            if (auto * memory_tracker = CurrentThread::getMemoryTracker())
-            {
-                CurrentThread::flushUntrackedMemory();
-                before_write_memory = memory_tracker->get();
-            }
-
-            new_parts.emplace_back(writeTempPartAndFinalize(item, metadata_snapshot).part);
-            part_num++;
-            manualFreeMemory(before_write_memory);
-            /// Reset earlier to free memory
-            item.block.clear();
-            item.partition.clear();
-        }
-    }
+        blockToPart(block);
 
     if (merge_after_insert)
-    {
         finalizeMerge();
-    }
 
-    commitPartToRemoteStorage();
+    commitPartToRemoteStorageIfNeeded();
     saveMetadata();
 }
 
@@ -224,7 +214,7 @@ void SparkMergeTreeWriter::saveMetadata()
     }
 }
 
-void SparkMergeTreeWriter::commitPartToRemoteStorage()
+void SparkMergeTreeWriter::commitPartToRemoteStorageIfNeeded()
 {
     if (!isRemoteStorage)
         return;
