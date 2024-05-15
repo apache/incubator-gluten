@@ -123,7 +123,7 @@ class VeloxSortBasedShuffleWriter : public VeloxShuffleWriter {
 
   arrow::Status initFromRowVector(const facebook::velox::RowVector& rv);
 
-  void setSplitState(SplitState state);
+  void setShuffleState(ShuffleState state);
 
   arrow::Status doSort(facebook::velox::RowVectorPtr rv, int64_t memLimit);
 

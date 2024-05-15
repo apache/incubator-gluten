@@ -124,7 +124,7 @@ class VeloxShuffleWriter : public ShuffleWriter {
 
   int32_t maxBatchSize_{0};
 
-  enum SplitState { kInit, kPreAlloc, kSplit, kStop };
+  enum ShuffleState { kInit, kPreAlloc, kSplit, kSort, kStop };
   enum EvictState { kEvictable, kUnevictable };
 
   // stat
@@ -182,7 +182,7 @@ class VeloxShuffleWriter : public ShuffleWriter {
 
   facebook::velox::CpuWallTiming cpuWallTimingList_[CpuWallTimingNum];
 
-  SplitState splitState_{kInit};
+  ShuffleState shuffleState_{kInit};
 
   EvictState evictState_{kEvictable};
 

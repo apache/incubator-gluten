@@ -210,7 +210,7 @@ class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
 
   arrow::Status updateInputHasNull(const facebook::velox::RowVector& rv);
 
-  void setSplitState(SplitState state);
+  void setShuffleState(ShuffleState state);
 
   arrow::Status doSplit(const facebook::velox::RowVector& rv, int64_t memLimit);
 

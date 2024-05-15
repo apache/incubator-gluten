@@ -99,7 +99,7 @@ arrow::Status VeloxSortBasedShuffleWriter::doSort(facebook::velox::RowVectorPtr 
     batches_.clear();
     currentInputColumnBytes_ = 0;
   }
-  setSplitState(SplitState::kInit);
+  setShuffleState(ShuffleState::kInit);
   return arrow::Status::OK();
 }
 
@@ -118,6 +118,7 @@ arrow::Status VeloxSortBasedShuffleWriter::write(std::shared_ptr<ColumnarBatch> 
     auto pidBatch = VeloxColumnarBatch::from(veloxPool_.get(), batches[0]);
     auto pidArr = getFirstColumn(*(pidBatch->getRowVector()));
     START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
+    setShuffleState(ShuffleState::kSort);
     RETURN_NOT_OK(partitioner_->compute(pidArr, pidBatch->numRows(), batches_.size(), rowVectorIndexMap_));
     END_TIMING();
     auto rvBatch = VeloxColumnarBatch::from(veloxPool_.get(), batches[1]);
@@ -134,6 +135,7 @@ arrow::Status VeloxSortBasedShuffleWriter::write(std::shared_ptr<ColumnarBatch> 
     if (partitioner_->hasPid()) {
       auto pidArr = getFirstColumn(*rv);
       START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
+      setShuffleState(ShuffleState::kSort);
       RETURN_NOT_OK(partitioner_->compute(pidArr, rv->size(), batches_.size(), rowVectorIndexMap_));
       END_TIMING();
       auto strippedRv = getStrippedRowVector(*rv);
@@ -142,6 +144,7 @@ arrow::Status VeloxSortBasedShuffleWriter::write(std::shared_ptr<ColumnarBatch> 
     } else {
       RETURN_NOT_OK(initFromRowVector(*rv));
       START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
+      setShuffleState(ShuffleState::kSort);
       RETURN_NOT_OK(partitioner_->compute(nullptr, rv->size(), batches_.size(), rowVectorIndexMap_));
       END_TIMING();
       RETURN_NOT_OK(doSort(rv, partitionWriter_.get()->options().sortBufferMaxSize));
@@ -224,7 +227,7 @@ arrow::Status VeloxSortBasedShuffleWriter::stop() {
   currentInputColumnBytes_ = 0;
   {
     SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingStop]);
-    setSplitState(SplitState::kStop);
+    setShuffleState(ShuffleState::kStop);
     RETURN_NOT_OK(partitionWriter_->stop(&metrics_));
     partitionBuffers_.clear();
   }
@@ -255,7 +258,7 @@ arrow::Status VeloxSortBasedShuffleWriter::reclaimFixedSize(int64_t size, int64_
   }
   EvictGuard evictGuard{evictState_};
 
-  if (splitState_ == SplitState::kInit) {
+  if (shuffleState_ == ShuffleState::kInit) {
     for (auto pid = 0; pid < numPartitions(); ++pid) {
       RETURN_NOT_OK(evictRowVector(pid));
       partition2RowCount_[pid] = 0;
@@ -283,8 +286,8 @@ void VeloxSortBasedShuffleWriter::stat() const {
 #endif
 }
 
-void VeloxSortBasedShuffleWriter::setSplitState(SplitState state) {
-  splitState_ = state;
+void VeloxSortBasedShuffleWriter::setShuffleState(ShuffleState state) {
+  shuffleState_ = state;
 }
 
 } // namespace gluten
