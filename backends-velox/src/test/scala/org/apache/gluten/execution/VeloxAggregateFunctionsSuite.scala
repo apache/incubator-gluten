@@ -553,21 +553,15 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
   }
 
   test("approx_count_distinct") {
-    runQueryAndCompare("""
-                         |select approx_count_distinct(l_shipmode) from lineitem;
-                         |""".stripMargin) {
+    runQueryAndCompare(
+      """
+        |select approx_count_distinct(l_shipmode), approx_count_distinct(l_tax) from lineitem;
+        |""".stripMargin) {
       checkGlutenOperatorMatch[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
-      "select approx_count_distinct(l_partkey), count(distinct l_orderkey) from lineitem") {
-      df =>
-        {
-          assert(
-            getExecutedPlan(df).count(
-              plan => {
-                plan.isInstanceOf[HashAggregateExecTransformer]
-              }) == 0)
-        }
+      "select approx_count_distinct(l_shipmode), count(distinct l_orderkey) from lineitem") {
+      checkGlutenOperatorMatch[HashAggregateExecTransformer]
     }
   }
 
