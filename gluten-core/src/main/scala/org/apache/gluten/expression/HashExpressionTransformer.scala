@@ -25,7 +25,7 @@ case class HashExpressionTransformer(
     substraitExprName: String,
     exps: Seq[ExpressionTransformer],
     original: Expression)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val nodes = new java.util.ArrayList[ExpressionNode]()

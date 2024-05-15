@@ -32,7 +32,7 @@ case class InTransformer(
     list: Seq[Expression],
     valueType: DataType,
     original: Expression)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     assert(list.forall(_.foldable))
     // Stores the values in a List Literal.
@@ -46,7 +46,7 @@ case class InSetTransformer(
     hset: Set[Any],
     valueType: DataType,
     original: Expression)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     InExpressionTransformer.toTransformer(value.doTransform(args), hset, valueType)
   }
@@ -74,7 +74,7 @@ case class LikeTransformer(
     left: ExpressionTransformer,
     right: ExpressionTransformer,
     original: Expression)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val leftNode = left.doTransform(args)
     val rightNode = right.doTransform(args)
@@ -108,7 +108,7 @@ case class DecimalArithmeticExpressionTransformer(
     right: ExpressionTransformer,
     resultType: DecimalType,
     original: Expression)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val leftNode = left.doTransform(args)
     val rightNode = right.doTransform(args)

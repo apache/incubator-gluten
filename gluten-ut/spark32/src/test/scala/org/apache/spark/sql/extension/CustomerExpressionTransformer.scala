@@ -26,12 +26,12 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 
 import com.google.common.collect.Lists
 
-class CustomAddExpressionTransformer(
+case class CustomAddExpressionTransformer(
     substraitExprName: String,
     left: ExpressionTransformer,
     right: ExpressionTransformer,
     original: Expression)
-  extends ExpressionTransformer
+  extends ExpressionTransformerWithOrigin
   with Logging {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val leftNode = left.doTransform(args)

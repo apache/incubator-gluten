@@ -22,7 +22,8 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.{BaseSubqueryExec, ScalarSubquery}
 
 case class ScalarSubqueryTransformer(plan: BaseSubqueryExec, exprId: ExprId, query: ScalarSubquery)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
+  override def original: Expression = query
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // don't trigger collect when in validation phase

@@ -28,7 +28,7 @@ case class JsonTupleExpressionTransformer(
     substraitExprName: String,
     children: Seq[ExpressionTransformer],
     original: Expression)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: Object): ExpressionNode = {
     val jsonExpr = children.head
