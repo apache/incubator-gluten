@@ -14,18 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.shuffle
+package org.apache.gluten.extension
 
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
+import org.apache.gluten.datasource.ArrowCSVFileFormat
 
-// A wrapper for HashPartitioning to remain original hash expressions.
-// Only used by CH backend when shuffle hash expressions contains non-field expression.
-class HashPartitioningWrapper(
-    original: Seq[Expression],
-    newExpr: Seq[Expression],
-    override val numPartitions: Int)
-  extends HashPartitioning(original, numPartitions) {
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.{ArrowFileSourceScanExec, FileSourceScanExec, SparkPlan}
 
-  def getNewExpr: Seq[Expression] = newExpr
+case class ArrowScanReplaceRule(spark: SparkSession) extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = {
+    plan.transformUp {
+      case plan: FileSourceScanExec if plan.relation.fileFormat.isInstanceOf[ArrowCSVFileFormat] =>
+        ArrowFileSourceScanExec(plan)
+      case p => p
+    }
+
+  }
 }

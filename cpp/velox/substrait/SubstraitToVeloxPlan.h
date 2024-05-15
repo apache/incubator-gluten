@@ -316,6 +316,7 @@ class SubstraitToVeloxPlanConverter {
       if (!initialized_) {
         initialized_ = true;
       }
+      forbidsNullSet_ = true;
     }
 
     // Only null is allowed.
@@ -325,6 +326,7 @@ class SubstraitToVeloxPlanConverter {
       if (!initialized_) {
         initialized_ = true;
       }
+      isNullSet_ = true;
     }
 
     // Return the initialization status.
@@ -375,6 +377,8 @@ class SubstraitToVeloxPlanConverter {
 
     bool nullAllowed_ = false;
     bool isNull_ = false;
+    bool forbidsNullSet_ = false;
+    bool isNullSet_ = false;
 
     // If true, left bound will be exclusive.
     std::vector<bool> lowerExclusives_;

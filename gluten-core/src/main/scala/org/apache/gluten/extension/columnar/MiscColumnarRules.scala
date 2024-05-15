@@ -68,7 +68,9 @@ object MiscColumnarRules {
       case RowToColumnarExec(child) =>
         logDebug(s"ColumnarPostOverrides RowToColumnarExec(${child.getClass})")
         BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(child)
-      case c2r @ ColumnarToRowExec(child) if PlanUtil.outputNativeColumnarData(child) =>
+      case c2r @ ColumnarToRowExec(child)
+          if PlanUtil.outputNativeColumnarData(child) &&
+            !PlanUtil.outputNativeColumnarSparkCompatibleData(child) =>
         logDebug(s"ColumnarPostOverrides ColumnarToRowExec(${child.getClass})")
         val nativeC2r = BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child)
         if (nativeC2r.doValidate().isValid) {
