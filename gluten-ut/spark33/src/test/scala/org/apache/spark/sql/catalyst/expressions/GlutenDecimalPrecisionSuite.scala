@@ -54,10 +54,9 @@ class GlutenDecimalPrecisionSuite extends GlutenTestsTrait {
     assert(transformedExpr.dataType == expectedType)
   }
 
-  private def stripAlias(expr: ExpressionTransformer): ExpressionTransformer = {
+  private def stripAlias(expr: Expression): Expression = {
     expr match {
-      case a: AliasTransformer => stripAlias(a.child)
-      case a: VeloxAliasTransformer => stripAlias(a.child)
+      case a: Alias => stripAlias(a.child)
       case _ => expr
     }
   }
@@ -65,11 +64,11 @@ class GlutenDecimalPrecisionSuite extends GlutenTestsTrait {
   private def checkComparison(expression: Expression, expectedType: DataType): Unit = {
     val plan = analyzer.execute(Project(Alias(expression, "c")() :: Nil, relation))
     assert(plan.isInstanceOf[Project])
-    val expr = plan.asInstanceOf[Project].projectList.head
+    val expr = stripAlias(plan.asInstanceOf[Project].projectList.head)
     val transformedExpr =
       ExpressionConverter.replaceWithExpressionTransformer(expr, plan.inputSet.toSeq)
-    assert(stripAlias(transformedExpr).isInstanceOf[GenericExpressionTransformer])
-    val binaryComparison = stripAlias(transformedExpr).asInstanceOf[GenericExpressionTransformer]
+    assert(transformedExpr.isInstanceOf[GenericExpressionTransformer])
+    val binaryComparison = transformedExpr.asInstanceOf[GenericExpressionTransformer]
     assert(binaryComparison.original.isInstanceOf[BinaryComparison])
     assert(binaryComparison.children.size == 2)
     assert(binaryComparison.children.forall(_.dataType == expectedType))
