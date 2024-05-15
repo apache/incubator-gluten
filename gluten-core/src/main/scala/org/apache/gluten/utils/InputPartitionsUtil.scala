@@ -60,9 +60,7 @@ case class InputPartitionsUtil(
               // getPath() is very expensive so we only want to call it once in this block:
               val filePath = file.getPath
               val isSplitable =
-                relation.fileFormat
-                  .isSplitable(relation.sparkSession, relation.options, filePath) &&
-                  !SparkShimLoader.getSparkShims.findRowIndexColumnIndexInSchema(requiredSchema)
+                SparkShimLoader.getSparkShims.isFileSplittable(relation, filePath, requiredSchema)
               SparkShimLoader.getSparkShims.splitFiles(
                 sparkSession = relation.sparkSession,
                 file = file,

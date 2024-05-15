@@ -189,7 +189,10 @@ class Spark32Shims extends SparkShims {
 
   def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] = partition.files
 
-  def findRowIndexColumnIndexInSchema(sparkSchema: StructType): Boolean = false
+  def isFileSplittable(
+      relation: HadoopFsRelation,
+      filePath: Path,
+      sparkSchema: StructType): Boolean = true
 
   def isRowIndexMetadataColumn(name: String): Boolean = false
 
