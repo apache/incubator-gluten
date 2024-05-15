@@ -164,7 +164,7 @@ arrow::Status VeloxSortBasedShuffleWriter::evictBatch(
   batch_.reset();
   output->clear();
   output->str("");
-  batch_ = std::make_unique<facebook::velox::VectorStreamGroup>(veloxPool_.get());
+  batch_ = std::make_unique<facebook::velox::VectorStreamGroup>(veloxPool_.get(), serde_.get());
   batch_->createStreamTree(*rowTypePtr, options_.bufferSize, &serdeOptions_);
   return arrow::Status::OK();
 }
@@ -237,12 +237,16 @@ arrow::Status VeloxSortBasedShuffleWriter::stop() {
 }
 
 arrow::Status VeloxSortBasedShuffleWriter::initFromRowVector(const facebook::velox::RowVector& rv) {
-  rowType_ = rv.type();
-  serdeOptions_ = {
-      false, facebook::velox::common::stringToCompressionKind(partitionWriter_->options().compressionTypeStr)};
-  batch_ = std::make_unique<facebook::velox::VectorStreamGroup>(veloxPool_.get());
-  batch_->createStreamTree(
-      std::static_pointer_cast<const facebook::velox::RowType>(rowType_.value()), options_.bufferSize, &serdeOptions_);
+  if (!rowType_.has_value()) {
+    rowType_ = rv.type();
+    serdeOptions_ = {
+        false, facebook::velox::common::stringToCompressionKind(partitionWriter_->options().compressionTypeStr)};
+    batch_ = std::make_unique<facebook::velox::VectorStreamGroup>(veloxPool_.get(), serde_.get());
+    batch_->createStreamTree(
+        std::static_pointer_cast<const facebook::velox::RowType>(rowType_.value()),
+        options_.bufferSize,
+        &serdeOptions_);
+  }
   return arrow::Status::OK();
 }
 

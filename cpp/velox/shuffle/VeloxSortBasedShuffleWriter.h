@@ -139,7 +139,6 @@ class VeloxSortBasedShuffleWriter : public VeloxShuffleWriter {
   // Updated for each input RowVector.
   std::vector<uint32_t> partition2RowCount_;
 
-  std::vector<std::unique_ptr<facebook::velox::StreamArena>> arenas_;
   std::unique_ptr<facebook::velox::serializer::presto::PrestoVectorSerde> serde_ =
       std::make_unique<facebook::velox::serializer::presto::PrestoVectorSerde>();
 
