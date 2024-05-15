@@ -80,7 +80,7 @@ case class Queries(
     var all = Queries.aggregate(results, "all")
 
     if (passedCount != count) {
-      all = Queries.aggregate(succeed, "all succeed") ::: all
+      all = Queries.aggregate(succeed, "succeeded") ::: all
     }
 
     println("Overall: ")

@@ -22,6 +22,8 @@ import org.apache.spark.sql.{SparkSessionSwitcher, TestUtils}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.gluten.integration.tpc.action.Actions.QuerySelector
 
+import java.util.Random
+
 case class QueriesCompare(
     scale: Double,
     queries: QuerySelector,
@@ -80,7 +82,7 @@ case class QueriesCompare(
     var all = QueriesCompare.aggregate(results, "all")
 
     if (passedCount != count) {
-      all = QueriesCompare.aggregate(succeed, "all succeed") ::: all
+      all = QueriesCompare.aggregate(succeed, "succeeded") ::: all
     }
 
     println("Overall: ")
