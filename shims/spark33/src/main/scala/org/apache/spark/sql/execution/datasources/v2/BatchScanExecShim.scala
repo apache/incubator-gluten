@@ -129,4 +129,3 @@ abstract class ArrowBatchScanExecShim(original: BatchScanExec) extends DataSourc
 
   override def keyGroupedPartitioning: Option[Seq[Expression]] = original.keyGroupedPartitioning
 }
-
