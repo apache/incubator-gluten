@@ -135,7 +135,8 @@ std::pair<DB::JoinKind, DB::JoinStrictness> getJoinKindAndStrictness(substrait::
 std::shared_ptr<DB::TableJoin> createDefaultTableJoin(substrait::JoinRel_JoinType join_type)
 {
     auto & global_context = SerializedPlanParser::global_context;
-    auto table_join = std::make_shared<TableJoin>(global_context->getSettings(), global_context->getGlobalTemporaryVolume());
+    auto table_join = std::make_shared<TableJoin>(
+        global_context->getSettings(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
 
     std::pair<DB::JoinKind, DB::JoinStrictness> kind_and_strictness = getJoinKindAndStrictness(join_type);
     table_join->setKind(kind_and_strictness.first);
