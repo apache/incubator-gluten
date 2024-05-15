@@ -389,18 +389,28 @@ VeloxColumnarBatchDeserializerFactory::VeloxColumnarBatchDeserializerFactory(
 
 std::unique_ptr<ColumnarBatchIterator> VeloxColumnarBatchDeserializerFactory::createDeserializer(
     std::shared_ptr<arrow::io::InputStream> in) {
-  return std::make_unique<VeloxColumnarBatchDeserializer>(
-      std::move(in),
-      schema_,
-      codec_,
+  if (shuffleWriterType_ == kHashShuffle) {
+    return std::make_unique<VeloxColumnarBatchDeserializer>(
+        std::move(in),
+        schema_,
+        codec_,
+        rowType_,
+        batchSize_,
+        memoryPool_,
+        veloxPool_.get(),
+        &isValidityBuffer_,
+        hasComplexType_,
+        deserializeTime_,
+        decompressTime_);
+  }
+  return std::make_unique<VeloxShuffleReaderOutStreamWrapper>(
+      veloxPool_,
       rowType_,
       batchSize_,
-      memoryPool_,
-      veloxPool_.get(),
-      &isValidityBuffer_,
-      hasComplexType_,
-      deserializeTime_,
-      decompressTime_);
+      veloxCompressionType_,
+      [this](int64_t decompressionTime) { this->decompressTime_ += decompressionTime; },
+      [this](int64_t deserializeTime) { this->deserializeTime_ += deserializeTime; },
+      in);
 }
 
 VeloxShuffleReaderOutStreamWrapper::VeloxShuffleReaderOutStreamWrapper(
@@ -410,7 +420,7 @@ VeloxShuffleReaderOutStreamWrapper::VeloxShuffleReaderOutStreamWrapper(
     facebook::velox::common::CompressionKind veloxCompressionType,
     const std::function<void(int64_t)> decompressionTimeAccumulator,
     const std::function<void(int64_t)> deserializeTimeAccumulator,
-    const std::shared_ptr<JavaInputStreamWrapper> in)
+    const std::shared_ptr<arrow::io::InputStream> in)
     : veloxPool_(veloxPool),
       rowType_(rowType),
       batchSize_(batchSize),
@@ -448,18 +458,6 @@ std::shared_ptr<ColumnarBatch> VeloxShuffleReaderOutStreamWrapper::next() {
   decompressionTimeAccumulator_(decompressTime);
   deserializeTimeAccumulator_(deserializeTime);
   return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
-}
-
-std::unique_ptr<ColumnarBatchIterator> VeloxColumnarBatchDeserializerFactory::createDeserializer(
-    std::shared_ptr<JavaInputStreamWrapper> in) {
-  return std::make_unique<VeloxShuffleReaderOutStreamWrapper>(
-      veloxPool_,
-      rowType_,
-      batchSize_,
-      veloxCompressionType_,
-      [this](int64_t decompressionTime) { this->decompressTime_ += decompressionTime; },
-      [this](int64_t deserializeTime) { this->deserializeTime_ += deserializeTime; },
-      in);
 }
 
 arrow::MemoryPool* VeloxColumnarBatchDeserializerFactory::getPool() {
@@ -508,8 +506,8 @@ void VeloxColumnarBatchDeserializerFactory::initFromSchema() {
   }
 }
 
-VeloxInputStream::VeloxInputStream(std::shared_ptr<JavaInputStreamWrapper> input, facebook::velox::BufferPtr buffer)
-    : input_(std::move(input)), buffer_(std::move(buffer)) {
+VeloxInputStream::VeloxInputStream(std::shared_ptr<arrow::io::InputStream> input, facebook::velox::BufferPtr buffer)
+    : in_(std::move(input)), buffer_(std::move(buffer)) {
   next(true);
 }
 
@@ -526,7 +524,7 @@ bool VeloxInputStream::hasNext() {
 
 void VeloxInputStream::next(bool throwIfPastEnd) {
   const uint32_t readBytes = buffer_->capacity();
-  offset_ = input_->read(readBytes, buffer_->asMutable<char>());
+  offset_ = in_->Read(readBytes, buffer_->asMutable<char>()).ValueOr(0);
   if (offset_ > 0) {
     int32_t realBytes = offset_;
     VELOX_CHECK_LT(0, realBytes, "Reading past end of spill file");

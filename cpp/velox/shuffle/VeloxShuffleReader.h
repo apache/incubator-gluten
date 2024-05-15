@@ -63,13 +63,13 @@ class VeloxColumnarBatchDeserializer final : public ColumnarBatchIterator {
 
 class VeloxInputStream : public facebook::velox::ByteInputStream {
  public:
-  VeloxInputStream(std::shared_ptr<JavaInputStreamWrapper> input, facebook::velox::BufferPtr buffer);
+  VeloxInputStream(std::shared_ptr<arrow::io::InputStream> input, facebook::velox::BufferPtr buffer);
 
   bool hasNext();
 
   void next(bool throwIfPastEnd) override;
 
-  const std::shared_ptr<JavaInputStreamWrapper> input_;
+  std::shared_ptr<arrow::io::InputStream> in_;
   const facebook::velox::BufferPtr buffer_;
   uint64_t offset_ = -1;
 };
@@ -83,7 +83,7 @@ class VeloxShuffleReaderOutStreamWrapper : public ColumnarBatchIterator {
       const facebook::velox::common::CompressionKind veloxCompressionType,
       const std::function<void(int64_t)> decompressionTimeAccumulator,
       const std::function<void(int64_t)> deserializeTimeAccumulator,
-      const std::shared_ptr<JavaInputStreamWrapper> in);
+      const std::shared_ptr<arrow::io::InputStream> in);
 
   std::shared_ptr<ColumnarBatch> next();
 
@@ -114,8 +114,6 @@ class VeloxColumnarBatchDeserializerFactory : public DeserializerFactory {
       ShuffleWriterType shuffleWriterType);
 
   std::unique_ptr<ColumnarBatchIterator> createDeserializer(std::shared_ptr<arrow::io::InputStream> in) override;
-
-  std::unique_ptr<ColumnarBatchIterator> createDeserializer(std::shared_ptr<JavaInputStreamWrapper> in) override;
 
   arrow::MemoryPool* getPool() override;
 

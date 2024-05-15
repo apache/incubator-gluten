@@ -35,10 +35,6 @@ std::shared_ptr<ResultIterator> ShuffleReader::readStream(std::shared_ptr<arrow:
   return std::make_shared<ResultIterator>(factory_->createDeserializer(in));
 }
 
-std::shared_ptr<ResultIterator> ShuffleReader::readStream(std::shared_ptr<JavaInputStreamWrapper> in) {
-  return std::make_shared<ResultIterator>(factory_->createDeserializer(in));
-}
-
 arrow::Status ShuffleReader::close() {
   return arrow::Status::OK();
 }
