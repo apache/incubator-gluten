@@ -14,24 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.sql.utils
 
-#pragma once
+import org.apache.spark.sql.types.DecimalType
 
-#include "RowConstructorWithNull.h"
-
-namespace gluten {
-class RowConstructorWithAllNullCallToSpecialForm : public RowConstructorWithNullCallToSpecialForm {
- public:
-  static constexpr const char* kRowConstructorWithAllNull = "row_constructor_with_all_null";
-
- protected:
-  facebook::velox::exec::ExprPtr constructSpecialForm(
-      const std::string& name,
-      const facebook::velox::TypePtr& type,
-      std::vector<facebook::velox::exec::ExprPtr>&& compiledChildren,
-      bool trackCpuUsage,
-      const facebook::velox::core::QueryConfig& config) {
-    return constructSpecialForm(kRowConstructorWithAllNull, type, std::move(compiledChildren), trackCpuUsage, config);
+object DecimalTypeUtil {
+  def adjustPrecisionScale(precision: Int, scale: Int): DecimalType = {
+    DecimalType.adjustPrecisionScale(precision, scale)
   }
-};
-} // namespace gluten
+
+}

@@ -70,7 +70,10 @@ abstract class FileSourceScanExecShim(
     output
       .filterNot(metadataColumns.toSet)
       .exists(v => metadataColumnsNames.contains(v.name)) ||
-    output.exists(a => a.name == "$path" || a.name == "$bucket")
+    output.exists(
+      a =>
+        a.name == "$path" || a.name == "$bucket" ||
+          a.name == ParquetFileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME)
   }
 
   def isMetadataColumn(attr: Attribute): Boolean = metadataColumns.contains(attr)

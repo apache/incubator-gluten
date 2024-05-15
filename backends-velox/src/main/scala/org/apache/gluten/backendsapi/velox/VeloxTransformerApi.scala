@@ -82,11 +82,16 @@ class VeloxTransformerApi extends TransformerApi with Logging {
       args: java.lang.Object,
       substraitExprName: String,
       childNode: ExpressionNode,
+      childResultType: DataType,
       dataType: DecimalType,
       nullable: Boolean,
       nullOnOverflow: Boolean): ExpressionNode = {
-    val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
-    ExpressionBuilder.makeCast(typeNode, childNode, !nullOnOverflow)
+    if (childResultType.equals(dataType)) {
+      childNode
+    } else {
+      val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
+      ExpressionBuilder.makeCast(typeNode, childNode, !nullOnOverflow)
+    }
   }
 
   override def getNativePlanString(substraitPlan: Array[Byte], details: Boolean): String = {

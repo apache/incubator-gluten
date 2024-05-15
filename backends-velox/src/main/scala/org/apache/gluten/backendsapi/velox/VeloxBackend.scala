@@ -449,13 +449,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def fallbackAggregateWithEmptyOutputChild(): Boolean = true
 
   override def recreateJoinExecOnFallback(): Boolean = true
-  override def rescaleDecimalLiteral(): Boolean = true
+  override def rescaleDecimalArithmetic(): Boolean = true
 
   /** Get the config prefix for each backend */
   override def getBackendConfigPrefix(): String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + VeloxBackend.BACKEND_NAME
-
-  override def rescaleDecimalIntegralExpression(): Boolean = true
 
   override def shuffleSupportedCodec(): Set[String] = SHUFFLE_SUPPORTED_CODEC
 

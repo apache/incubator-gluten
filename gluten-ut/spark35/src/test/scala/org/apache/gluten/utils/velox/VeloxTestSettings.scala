@@ -986,9 +986,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // blocked by Velox-5768
     .exclude("aggregate function - array for primitive type containing null")
     .exclude("aggregate function - array for non-primitive type")
-    .exclude("shuffle function - array for primitive type not containing null")
-    .exclude("shuffle function - array for primitive type containing null")
-    .exclude("shuffle function - array for non-primitive type")
     // Rewrite this test because Velox sorts rows by key for primitive data types, which disrupts the original row sequence.
     .exclude("map_zip_with function - map of primitive types")
   enableSuite[GlutenDataFrameHintSuite]
@@ -1201,8 +1198,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenResolveDefaultColumnsSuite]
   enableSuite[GlutenSubqueryHintPropagationSuite]
   enableSuite[GlutenUrlFunctionsSuite]
-  // Row index metadata column support in Velox isn't ready yet, refer velox-9147
-  // enableSuite[GlutenParquetRowIndexSuite]
+  enableSuite[GlutenParquetRowIndexSuite]
+    .excludeByPrefix("row index generation")
+    .excludeByPrefix("invalid row index column type")
   enableSuite[GlutenBitmapExpressionsQuerySuite]
   enableSuite[GlutenEmptyInSuite]
   enableSuite[GlutenRuntimeNullChecksV2Writes]

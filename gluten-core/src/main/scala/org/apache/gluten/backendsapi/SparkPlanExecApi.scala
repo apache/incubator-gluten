@@ -211,6 +211,13 @@ trait SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(), original)
   }
 
+  def genShuffleTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Shuffle): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(child), original)
+  }
+
   def genTryAddTransformer(
       substraitExprName: String,
       left: ExpressionTransformer,

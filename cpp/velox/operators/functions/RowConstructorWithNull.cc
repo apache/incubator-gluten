@@ -32,11 +32,11 @@ facebook::velox::TypePtr RowConstructorWithNullCallToSpecialForm::resolveType(
 }
 
 facebook::velox::exec::ExprPtr RowConstructorWithNullCallToSpecialForm::constructSpecialForm(
-    const std::string& name,
     const facebook::velox::TypePtr& type,
     std::vector<facebook::velox::exec::ExprPtr>&& compiledChildren,
     bool trackCpuUsage,
     const facebook::velox::core::QueryConfig& config) {
+  auto name = this->rowFunctionName;
   auto [function, metadata] = facebook::velox::exec::vectorFunctionFactories().withRLock(
       [&config, &name](auto& functionMap) -> std::pair<
                                               std::shared_ptr<facebook::velox::exec::VectorFunction>,
@@ -51,13 +51,5 @@ facebook::velox::exec::ExprPtr RowConstructorWithNullCallToSpecialForm::construc
 
   return std::make_shared<facebook::velox::exec::Expr>(
       type, std::move(compiledChildren), function, metadata, name, trackCpuUsage);
-}
-
-facebook::velox::exec::ExprPtr RowConstructorWithNullCallToSpecialForm::constructSpecialForm(
-    const facebook::velox::TypePtr& type,
-    std::vector<facebook::velox::exec::ExprPtr>&& compiledChildren,
-    bool trackCpuUsage,
-    const facebook::velox::core::QueryConfig& config) {
-  return constructSpecialForm(kRowConstructorWithNull, type, std::move(compiledChildren), trackCpuUsage, config);
 }
 } // namespace gluten

@@ -46,6 +46,12 @@ object TableFormatter {
     }
 
     override def print(s: OutputStream): Unit = {
+      val printer = new PrintStream(s)
+      if (rows.isEmpty) {
+        printer.println("(N/A)")
+        printer.flush()
+        return
+      }
       val numFields = schema.fields.size
       val widths = (0 until numFields)
         .map { i =>
@@ -58,13 +64,11 @@ object TableFormatter {
         pBuilder ++= s"%${w}s|"
       }
       val pattern = pBuilder.toString()
-      val printer = new PrintStream(s)
       printer.println(String.format(pattern, schema.fields: _*))
       rows.foreach { r =>
         printer.println(String.format(pattern, r: _*))
       }
       printer.flush()
-      printer.close()
     }
   }
 
