@@ -47,7 +47,7 @@ object TableFormatter {
 
     override def print(s: OutputStream): Unit = {
       val printer = new PrintStream(s)
-      if(rows.isEmpty) {
+      if (rows.isEmpty) {
         printer.println("(N/A)")
         printer.flush()
         return
