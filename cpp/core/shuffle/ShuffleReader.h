@@ -24,7 +24,6 @@
 
 #include "Options.h"
 #include "compute/ResultIterator.h"
-#include "shuffle/JavaInputStreamWrapper.h"
 #include "utils/Compression.h"
 
 namespace gluten {

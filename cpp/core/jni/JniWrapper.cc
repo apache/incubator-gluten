@@ -29,7 +29,6 @@
 #include <optional>
 #include "memory/AllocationListener.h"
 #include "operators/serializer/ColumnarBatchSerializer.h"
-#include "shuffle/JavaInputStreamWrapper.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/Partitioning.h"
 #include "shuffle/ShuffleReader.h"

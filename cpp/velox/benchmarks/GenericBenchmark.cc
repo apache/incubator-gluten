@@ -369,11 +369,13 @@ int main(int argc, char** argv) {
     if (!errorMsg.empty()) {
       LOG(ERROR) << "Incorrect usage: " << errorMsg << std::endl
                  << "If simulating a first stage, the usage is:" << std::endl
-                 << "./generic_benchmark " << "--plan /absolute-path/to/substrait_json_file "
+                 << "./generic_benchmark "
+                 << "--plan /absolute-path/to/substrait_json_file "
                  << "--split /absolute-path/to/split_json_file_1,/abosolute-path/to/split_json_file_2,..."
                  << "--data /absolute-path/to/data_file_1,/absolute-path/to/data_file_2,..." << std::endl
                  << "If simulating a middle stage, the usage is:" << std::endl
-                 << "./generic_benchmark " << "--plan /absolute-path/to/substrait_json_file "
+                 << "./generic_benchmark "
+                 << "--plan /absolute-path/to/substrait_json_file "
                  << "--data /absolute-path/to/data_file_1,/absolute-path/to/data_file_2,...";
       LOG(ERROR) << "*** Please check docs/developers/MicroBenchmarks.md for the full usage. ***";
       ::benchmark::Shutdown();
