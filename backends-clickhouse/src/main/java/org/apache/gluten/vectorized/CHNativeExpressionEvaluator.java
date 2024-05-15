@@ -62,6 +62,10 @@ public class CHNativeExpressionEvaluator {
     jniWrapper.nativeFinalizeNative();
   }
 
+  public void onTerminate() {
+    jniWrapper.nativeOnTerminate();
+  }
+
   // Used to validate the Substrait plan in native compute engine.
   public boolean doValidate(byte[] subPlan) {
     return jniWrapper.nativeDoValidate(subPlan);

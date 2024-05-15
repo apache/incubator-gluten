@@ -61,6 +61,13 @@ public class JniLibLoader {
   private static final Set<String> REQUIRE_UNLOAD_LIBRARY_PATHS = new LinkedHashSet<>();
 
   static {
+    GlutenShutdownManager.addHook(
+        () -> {
+          CHNativeExpressionEvaluator kernel = new CHNativeExpressionEvaluator();
+          kernel.onTerminate();
+          return BoxedUnit.UNIT;
+        });
+
     GlutenShutdownManager.addHookForLibUnloading(
         () -> {
           forceUnloadAll();

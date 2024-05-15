@@ -29,6 +29,9 @@ public class ExpressionEvaluatorJniWrapper {
   /** Call finalizeNative to finalize native computing. */
   native void nativeFinalizeNative();
 
+  /** Call nativeOnTerminate to make native engine exiting gracelly. */
+  native void nativeOnTerminate();
+
   /**
    * Validate the Substrait plan in native compute engine.
    *

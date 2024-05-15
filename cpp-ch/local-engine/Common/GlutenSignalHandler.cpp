@@ -33,6 +33,7 @@
 #include <Common/config_version.h>
 #include <Common/getHashOfLoadedBinary.h>
 #include <Common/logger_useful.h>
+#include <Common/CHUtil.h>
 
 using namespace local_engine;
 
@@ -152,6 +153,15 @@ static void signalHandler(int sig, siginfo_t * info, void * context) noexcept
 
     errno = saved_errno;
 }
+
+
+/*
+static void terminateRequestedSignalHandler(int sig, siginfo_t *, void *)
+{
+    std::cout << "Capture signal " << sig << std::endl;
+    BackendFinalizerUtil::finalizeGlobally();
+}
+*/
 
 /// Avoid link time dependency on DB/Interpreters - will use this function only when linked.
 __attribute__((__weak__)) void
@@ -388,6 +398,7 @@ struct SignalHandler::Impl
     void initializeTerminationAndSignalProcessing()
     {
         addSignalHandler({SIGABRT, SIGSEGV, SIGILL, SIGBUS, SIGSYS, SIGFPE, SIGPIPE, SIGTSTP, SIGTRAP}, signalHandler, &handled_signals);
+        // addSignalHandler({SIGINT, SIGQUIT, SIGTERM}, terminateRequestedSignalHandler, &handled_signals);
 
         /// TODO:: Set up Poco ErrorHandler for Poco Threads.
         // static KillingErrorHandler killing_error_handler;

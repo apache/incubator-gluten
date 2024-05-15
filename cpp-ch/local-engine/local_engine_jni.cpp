@@ -240,6 +240,13 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
+JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeOnTerminate(JNIEnv * env)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    local_engine::BackendFinalizerUtil::finalizeGlobally();
+    LOCAL_ENGINE_JNI_METHOD_END(env, )
+}
+
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWithIterator(
     JNIEnv * env,
     jobject /*obj*/,
