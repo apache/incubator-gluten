@@ -17,8 +17,8 @@
 package org.apache.gluten.extension.columnar.transition
 
 /**
- * ConventionReq describes the requirement for [[Convention]]. This is mostly used in
- * determining the acceptable conventions for its children of a parent plan node.
+ * ConventionReq describes the requirement for [[Convention]]. This is mostly used in determining
+ * the acceptable conventions for its children of a parent plan node.
  */
 sealed trait ConventionReq {
   def requiredRowType: ConventionReq.RowType
