@@ -259,6 +259,7 @@ object ExpressionNames {
   final val SHUFFLE = "shuffle"
   final val ZIP_WITH = "zip_with"
   final val FLATTEN = "flatten"
+  final val ARRAY_INSERT = "array_insert"
 
   // Map functions
   final val CREATE_MAP = "map"

@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 import java.sql.Timestamp
@@ -983,6 +984,32 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
       "select length(c_comment), length(cast(c_comment as binary))" +
         " from customer limit 50") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  testWithSpecifiedSparkVersion("array insert", Some("3.4")) {
+    withTempPath {
+      path =>
+        Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
+          .toDF("value")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        Seq("true", "false").foreach { legacyNegativeIndex =>
+          withSQLConf(SQLConf.LEGACY_NEGATIVE_INDEX_IN_ARRAY_INSERT.key -> legacyNegativeIndex) {
+            runQueryAndCompare(
+              """
+                |select
+                |  array_insert(value, 1, 0), array_insert(value, 10, 0),
+                |  array_insert(value, -1, 0), array_insert(value, -10, 0)
+                |from array_tbl
+                |""".stripMargin) {
+              checkGlutenOperatorMatch[ProjectExecTransformer]
+            }
+          }
+        }
     }
   }
 }

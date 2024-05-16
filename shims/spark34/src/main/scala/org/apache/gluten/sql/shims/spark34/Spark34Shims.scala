@@ -71,7 +71,8 @@ class Spark34Shims extends SparkShims {
       Sig[Sec](ExpressionNames.SEC),
       Sig[Csc](ExpressionNames.CSC),
       Sig[KnownNullable](KNOWN_NULLABLE),
-      Sig[Empty2Null](ExpressionNames.EMPTY2NULL)
+      Sig[Empty2Null](ExpressionNames.EMPTY2NULL),
+      Sig[ArrayInsert](ExpressionNames.ARRAY_INSERT)
     )
   }
 
@@ -419,5 +420,10 @@ class Spark34Shims extends SparkShims {
     csvOptions.dateFormatInRead == default.dateFormatInRead &&
     csvOptions.timestampFormatInRead == default.timestampFormatInRead &&
     csvOptions.timestampNTZFormatInRead == default.timestampNTZFormatInRead
+  }
+
+  override def extractExpressionArrayInsert(arrayInsert: Expression): Seq[Expression] = {
+    val expr = arrayInsert.asInstanceOf[ArrayInsert]
+    Seq(expr.srcArrayExpr, expr.posExpr, expr.itemExpr, Literal(expr.legacyNegativeIndex))
   }
 }

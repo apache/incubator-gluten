@@ -634,7 +634,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.function, attributeSeq, expressionsMap),
           a
         )
-
       case a: ArrayExists =>
         BackendsApiManager.getSparkPlanExecApiInstance.genArrayExistsTransformer(
           substraitExprName,
@@ -642,7 +641,14 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.function, attributeSeq, expressionsMap),
           a
         )
-
+      case arrayInsert if arrayInsert.getClass.getSimpleName.equals("ArrayInsert") =>
+        // Since spark 3.4.0
+        val children = SparkShimLoader.getSparkShims.extractExpressionArrayInsert(arrayInsert)
+        GenericExpressionTransformer(
+          substraitExprName,
+          children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
+          arrayInsert
+        )
       case s: Shuffle =>
         BackendsApiManager.getSparkPlanExecApiInstance.genShuffleTransformer(
           substraitExprName,

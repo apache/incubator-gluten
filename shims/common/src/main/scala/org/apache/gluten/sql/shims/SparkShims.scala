@@ -224,6 +224,10 @@ trait SparkShims {
   def extractExpressionTimestampAddUnit(timestampAdd: Expression): Option[Seq[String]] =
     Option.empty
 
+  def extractExpressionArrayInsert(arrayInsert: Expression): Seq[Expression] = {
+    throw new UnsupportedOperationException("ArrayInsert not supported.")
+  }
+
   def supportsRowBased(plan: SparkPlan): Boolean = !plan.supportsColumnar
 
   def withTryEvalMode(expr: Expression): Boolean = false
