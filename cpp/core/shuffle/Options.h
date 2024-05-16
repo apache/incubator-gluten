@@ -26,6 +26,7 @@ namespace gluten {
 
 static constexpr int16_t kDefaultBatchSize = 4096;
 static constexpr int32_t kDefaultShuffleWriterBufferSize = 4096;
+static constexpr int64_t kDefaultSortBufferThreshold = 64000000000;
 static constexpr int64_t kDefaultPushMemoryThreshold = 4096;
 static constexpr int32_t kDefaultNumSubDirs = 64;
 static constexpr int32_t kDefaultCompressionThreshold = 100;
@@ -71,9 +72,9 @@ struct PartitionWriterOptions {
 
   int32_t numSubDirs = kDefaultNumSubDirs;
 
-  int64_t pushBufferMaxSize = kDefaultShuffleWriterBufferSize;
+  int64_t pushBufferMaxSize = kDefaultPushMemoryThreshold;
 
-  int64_t sortBufferMaxSize = kDefaultShuffleWriterBufferSize;
+  int64_t sortBufferMaxSize = kDefaultSortBufferThreshold;
 };
 
 struct ShuffleWriterMetrics {
