@@ -18,10 +18,12 @@ package org.apache.gluten.extension.columnar
 
 import org.apache.spark.sql.execution.{ColumnarToRowTransition, InputAdapter, RowToColumnarTransition, SparkPlan, WholeStageCodegenExec}
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
+import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
 package object transition {
 
   def canPropagateConvention(plan: SparkPlan): Boolean = plan match {
+    case p: ReusedExchangeExec => true
     case p: AQEShuffleReadExec => true
     case p: InputAdapter => true
     case p: WholeStageCodegenExec => true
