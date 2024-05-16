@@ -298,7 +298,7 @@ public class CelebornShuffleManager implements ShuffleManager {
         if (h.dependency() instanceof ColumnarShuffleDependency) {
           // columnar-based shuffle
           return writerFactory.createShuffleWriterInstance(
-              shuffleId, h, context, celebornConf, client, metrics);
+              shuffleId, h, context, celebornConf, shuffleClient, metrics);
         } else {
           // row-based shuffle
           return vanillaCelebornShuffleManager().getWriter(handle, mapId, context, metrics);
