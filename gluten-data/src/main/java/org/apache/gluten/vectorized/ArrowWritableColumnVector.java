@@ -345,6 +345,10 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     refCnt.getAndIncrement();
   }
 
+  public void resetRefCnt(long value) {
+    refCnt.set(value);
+  }
+
   public long refCnt() {
     return refCnt.get();
   }
