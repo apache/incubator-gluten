@@ -22,6 +22,9 @@ import org.apache.gluten.substrait.type.TypeNode;
 import com.google.protobuf.ByteString;
 import io.substrait.proto.Expression.Literal.Builder;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+
 public class BinaryLiteralNode extends LiteralNodeWithValue<byte[]> {
   public BinaryLiteralNode(byte[] value) {
     super(value, new BinaryTypeNode(true));
@@ -33,6 +36,14 @@ public class BinaryLiteralNode extends LiteralNodeWithValue<byte[]> {
 
   @Override
   protected void updateLiteralBuilder(Builder literalBuilder, byte[] value) {
-    literalBuilder.setBinary(ByteString.copyFrom(value));
+    ByteString byteValue;
+    try {
+      Method m = ByteString.class.getDeclaredMethod("wrap", byte[].class);
+      m.setAccessible(true);
+      byteValue = (ByteString) m.invoke(null, value);
+    } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+      throw new RuntimeException(e);
+    }
+    literalBuilder.setBinary(byteValue);
   }
 }
