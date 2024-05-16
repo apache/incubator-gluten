@@ -16,6 +16,7 @@
  */
 #include "StorageJoinFromReadBuffer.h"
 
+#include <DataTypes/DataTypeNullable.h>
 #include <Interpreters/Context.h>
 #include <Interpreters/HashJoin.h>
 #include <Interpreters/TableJoin.h>
@@ -40,18 +41,6 @@ extern const int DEADLOCK_AVOIDED;
 
 using namespace DB;
 
-void restore(DB::ReadBuffer & in, IJoin & join, const Block & sample_block)
-{
-    local_engine::NativeReader block_stream(in);
-    ProfileInfo info;
-    while (Block block = block_stream.read())
-    {
-        auto final_block = sample_block.cloneWithColumns(block.mutateColumns());
-        info.update(final_block);
-        join.addBlockToJoin(final_block, true);
-    }
-}
-
 DB::Block rightSampleBlock(bool use_nulls, const StorageInMemoryMetadata & storage_metadata_, JoinKind kind)
 {
     DB::Block block = storage_metadata_.getSampleBlock();
@@ -67,70 +56,97 @@ namespace local_engine
 StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
     DB::ReadBuffer & in,
     size_t row_count_,
-    const Names & key_names,
-    bool use_nulls,
+    const Names & key_names_,
+    bool use_nulls_,
     std::shared_ptr<DB::TableJoin> table_join,
     const ColumnsDescription & columns,
     const ConstraintsDescription & constraints,
     const String & comment,
-    const bool overwrite)
-    : key_names_(key_names), use_nulls_(use_nulls)
+    const bool overwrite_)
+    : key_names(key_names_), use_nulls(use_nulls_), row_count(row_count_), overwrite(overwrite_)
 {
-    storage_metadata_.setColumns(columns);
-    storage_metadata_.setConstraints(constraints);
-    storage_metadata_.setComment(comment);
+    storage_metadata.setColumns(columns);
+    storage_metadata.setConstraints(constraints);
+    storage_metadata.setComment(comment);
 
-    for (const auto & key : key_names)
-        if (!storage_metadata_.getColumns().hasPhysical(key))
+    for (const auto & key : key_names_)
+        if (!storage_metadata.getColumns().hasPhysical(key))
             throw Exception(ErrorCodes::NO_SUCH_COLUMN_IN_TABLE, "Key column ({}) does not exist in table declaration.", key);
-    right_sample_block_ = rightSampleBlock(use_nulls, storage_metadata_, table_join->kind());
-    join_ = std::make_shared<HashJoin>(table_join, right_sample_block_, overwrite, row_count_);
-    restore(in, *join_, storage_metadata_.getSampleBlock());
+    right_sample_block = rightSampleBlock(use_nulls, storage_metadata, table_join->kind());
+    readAllBlocksFromInput(in);
 }
 
-DB::JoinPtr StorageJoinFromReadBuffer::getJoinLocked(std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr /*context*/) const
+void StorageJoinFromReadBuffer::readAllBlocksFromInput(DB::ReadBuffer & in)
 {
-    if ((analyzed_join->forceNullableRight() && !use_nulls_)
-        || (!analyzed_join->forceNullableRight() && isLeftOrFull(analyzed_join->kind()) && use_nulls_))
+    local_engine::NativeReader block_stream(in);
+    ProfileInfo info;
+    while (Block block = block_stream.read())
+    {
+        input_blocks.push_back(block);
+    }
+}
+
+/// The column names may be different in two blocks.
+/// and the nullability also could be different, with TPCDS-Q1 as an example.
+static DB::ColumnWithTypeAndName convertColumnAsNecessary(const DB::ColumnWithTypeAndName & column, const DB::ColumnWithTypeAndName & sample_column)
+{
+    if (sample_column.type->equals(*column.type))
+        return {column.column, column.type, sample_column.name};
+    else if (
+        sample_column.type->isNullable() && !column.type->isNullable()
+        && DB::removeNullable(sample_column.type)->equals(*column.type))
+    {
+        auto nullable_column = column;
+        DB::JoinCommon::convertColumnToNullable(nullable_column);
+        return {nullable_column.column, sample_column.type, sample_column.name};
+    }
+    else
+        throw DB::Exception(
+            DB::ErrorCodes::LOGICAL_ERROR,
+            "Columns have different types. original:{} expected:{}",
+            column.dumpStructure(),
+            sample_column.dumpStructure());
+}
+
+DB::JoinPtr StorageJoinFromReadBuffer::buildJoin(const Block header, std::shared_ptr<DB::TableJoin> analyzed_join) const
+{
+    auto join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count);
+    if (input_blocks.empty())
+        return join;
+
+    for (const auto & block : input_blocks)
+    {
+        DB::ColumnsWithTypeAndName columns;
+        for (size_t i = 0; i < block.columns(); ++i)
+        {
+            const auto & column = block.getByPosition(i);
+            // columns.emplace_back(column.column, column.type, header.getByPosition(i).name);
+            columns.emplace_back(convertColumnAsNecessary(column, header.getByPosition(i)));
+        }
+        DB::Block final_block(columns);
+        join->addBlockToJoin(final_block, true);
+    }
+    return join;
+}
+
+/// The column names of 'rgiht_header' could be different from the ones in `input_blocks`, and we must
+/// use 'right_header' to build the HashJoin. Otherwise, it will cause exceptions with name mismatches.
+///
+/// In most cases, 'getJoinLocked' is called only once, and the input_blocks should not be too large.
+/// This is will be OK.
+DB::JoinPtr StorageJoinFromReadBuffer::getJoinLocked(const DB::Block & right_header, std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr /*context*/)
+{
+    if ((analyzed_join->forceNullableRight() && !use_nulls)
+        || (!analyzed_join->forceNullableRight() && isLeftOrFull(analyzed_join->kind()) && use_nulls))
         throw Exception(
             ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN,
             "Table {} needs the same join_use_nulls setting as present in LEFT or FULL JOIN",
-            storage_metadata_.comment);
+            storage_metadata.comment);
 
-    /// TODO: check key columns
-    const auto & join_on = analyzed_join->getOnlyClause();
-    if (join_on.on_filter_condition_left || join_on.on_filter_condition_right)
-        throw Exception(ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN, "ON section of JOIN with filter conditions is not implemented");
-
-    const auto & key_names_right = join_on.key_names_right;
-    const auto & key_names_left = join_on.key_names_left;
-    if (key_names_.size() != key_names_right.size() || key_names_.size() != key_names_left.size())
-        throw Exception(ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN,
-            "Number of keys in JOIN ON section ({}) doesn't match number of keys in Join engine ({})",
-            key_names_right.size(), key_names_.size());
-
-    /// Set names qualifiers: table.column -> column
-    /// It's required because storage join stores non-qualified names
-    /// Qualifies will be added by join implementation (HashJoin)
-    Names left_key_names_resorted;
-    for (const auto & key_name : key_names_)
-    {
-        const auto & renamed_key = analyzed_join->renamedRightColumnNameWithAlias(key_name);
-        /// find position of renamed_key in key_names_right
-        auto it = std::find(key_names_right.begin(), key_names_right.end(), renamed_key);
-        if (it == key_names_right.end())
-            throw Exception(ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN,
-                "Key '{}' not found in JOIN ON section. Join engine key{} '{}' have to be used",
-                key_name, key_names_.size() > 1 ? "s" : "", fmt::join(key_names_, ", "));
-        const size_t key_position = std::distance(key_names_right.begin(), it);
-        left_key_names_resorted.push_back(key_names_left[key_position]);
-    }
-    analyzed_join->setRightKeys(key_names_);
-    analyzed_join->setLeftKeys(left_key_names_resorted);
-
-    HashJoinPtr join_clone = std::make_shared<HashJoin>(analyzed_join, right_sample_block_);
-    join_clone->reuseJoinedData(static_cast<const HashJoin &>(*join_));
-
+    auto join = buildJoin(right_header, analyzed_join);
+    HashJoinPtr join_clone = std::make_shared<HashJoin>(analyzed_join, right_header);
+    /// reuseJoinedData will set the flag `HashJoin::from_storage_join` which is required by `FilledStep`
+    join_clone->reuseJoinedData(static_cast<const HashJoin &>(*join));
     return join_clone;
 }
 }

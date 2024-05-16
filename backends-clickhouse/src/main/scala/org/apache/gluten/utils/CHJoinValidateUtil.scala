@@ -57,18 +57,21 @@ object CHJoinValidateUtil extends Logging {
     if (joinType.toString.contains("ExistenceJoin")) {
       return true
     }
-
-    if (condition.isDefined && hasTwoTableColumn(leftOutputSet, rightOutputSet, condition.get)) {
+    if (joinType.sql.contains("INNER")) {
+      shouldFallback = false;
+    } else if (
+      condition.isDefined && hasTwoTableColumn(leftOutputSet, rightOutputSet, condition.get)
+    ) {
       shouldFallback = joinStrategy match {
-        case BroadcastHashJoinStrategy(joinTy) => !joinTy.sql.contains("INNER")
+        case BroadcastHashJoinStrategy(joinTy) =>
+          joinTy.sql.contains("SEMI") || joinTy.sql.contains("ANTI")
         case SortMergeJoinStrategy(_) => true
         case ShuffleHashJoinStrategy(joinTy) =>
           joinTy.sql.contains("SEMI") || joinTy.sql.contains("ANTI")
         case UnknownJoinStrategy(joinTy) =>
           joinTy.sql.contains("SEMI") || joinTy.sql.contains("ANTI")
       }
-    }
-    if (!shouldFallback) {
+    } else {
       shouldFallback = joinStrategy match {
         case SortMergeJoinStrategy(joinTy) =>
           joinTy.sql.contains("SEMI") || joinTy.sql.contains("ANTI")

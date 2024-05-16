@@ -55,12 +55,14 @@ private:
     void collectJoinKeys(
         TableJoin & table_join, const substrait::JoinRel & join_rel, const DB::Block & left_header, const DB::Block & right_header);
 
-    void applyJoinFilter(
+    bool applyJoinFilter(
         DB::TableJoin & table_join,
         const substrait::JoinRel & join_rel,
         DB::QueryPlan & left_plan,
         DB::QueryPlan & right_plan,
         bool allow_mixed_condition);
+
+    void addPostFilter(DB::QueryPlan & plan, const substrait::JoinRel & join);
 
     static std::unordered_set<DB::JoinTableSide> extractTableSidesFromExpression(
         const substrait::Expression & expr, const DB::Block & left_header, const DB::Block & right_header);

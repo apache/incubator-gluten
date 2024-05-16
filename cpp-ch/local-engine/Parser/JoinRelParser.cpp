@@ -31,6 +31,9 @@
 #include <Processors/QueryPlan/JoinStep.h>
 #include <google/protobuf/wrappers.pb.h>
 
+#include <Poco/Logger.h>
+#include <Common/logger_useful.h>
+
 
 namespace DB
 {
@@ -246,23 +249,8 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
     auto join_opt_info = parseJoinOptimizationInfo(join);
     auto storage_join = join_opt_info.is_broadcast ? BroadCastJoinBuilder::getJoin(join_opt_info.storage_join_key) : nullptr;
 
-    if (storage_join)
-    {
-        ActionsDAGPtr project = ActionsDAG::makeConvertingActions(
-            right->getCurrentDataStream().header.getColumnsWithTypeAndName(),
-            storage_join->getRightSampleBlock().getColumnsWithTypeAndName(),
-            ActionsDAG::MatchColumnsMode::Position);
-
-        if (project)
-        {
-            QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(right->getCurrentDataStream(), project);
-            project_step->setStepDescription("Rename Broadcast Table Name");
-            steps.emplace_back(project_step.get());
-            right->addStep(std::move(project_step));
-        }
-    }
-
     auto table_join = createDefaultTableJoin(join.type());
+    // rename right table's columns as necessary
     addConvertStep(*table_join, *left, *right);
     Names after_join_names;
     auto left_names = left->getCurrentDataStream().header.getNames();
@@ -286,19 +274,8 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
 
     if (storage_join)
     {
-        /// although broadcast_hash_join is a HashJoin, but FilledJoinStep works in a different way,
-        /// cannot support mixed join conditions.
-        if (join.has_post_join_filter())
-        {
-            auto table_sides = extractTableSidesFromExpression(join.post_join_filter(), left_header, right_header);
-            if (table_sides.size() > 1 && table_join->kind() != JoinKind::Inner)
-            {
-                throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Only inner join support Mixed join conditions in broadcast join");
-            }
-        }
-
         applyJoinFilter(*table_join, join, *left, *right, true);
-        auto broadcast_hash_join = storage_join->getJoinLocked(table_join, context);
+        auto broadcast_hash_join = storage_join->getJoinLocked(right_header, table_join, context);
 
         QueryPlanStepPtr join_step = std::make_unique<FilledJoinStep>(left->getCurrentDataStream(), broadcast_hash_join, 8192);
 
@@ -311,7 +288,17 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
     }
     else if (join_opt_info.is_smj)
     {
-        applyJoinFilter(*table_join, join, *left, *right, false);
+        bool need_post_filter = !applyJoinFilter(*table_join, join, *left, *right, false);
+
+        /// If applyJoinFilter returns false, it means there are mixed conditions in the post_join_filter.
+        /// It should be a inner join.
+        /// TODO: make smj support mixed conditions
+        if (need_post_filter && table_join->kind() != DB::JoinKind::Inner)
+        {
+            throw DB::Exception(
+                DB::ErrorCodes::LOGICAL_ERROR,
+                "Sort merge join doesn't support mixed join conditions, except inner join.");
+        }
 
         JoinPtr smj_join = std::make_shared<FullSortingMergeJoin>(table_join, right->getCurrentDataStream().header.cloneEmpty(), -1);
         MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef().join_algorithm;
@@ -326,6 +313,8 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
 
         query_plan = std::make_unique<QueryPlan>();
         query_plan->unitePlans(std::move(join_step), {std::move(plans)});
+        if (need_post_filter)
+            addPostFilter(*query_plan, join);
     }
     else
     {
@@ -457,6 +446,7 @@ void JoinRelParser::collectJoinKeys(
     expressions_stack.push_back(&expr);
     while (!expressions_stack.empty())
     {
+        /// Must handle the expressions in DF order. It matters in sort merge join.
         const auto * current_expr = expressions_stack.back();
         expressions_stack.pop_back();
         if (!current_expr->has_scalar_function())
@@ -493,10 +483,8 @@ void JoinRelParser::collectJoinKeys(
         }
         else if (*function_name == "and")
         {
-            for (const auto & arg : current_expr->scalar_function().arguments())
-            {
-                expressions_stack.push_back(&arg.value());
-            }
+            expressions_stack.push_back(&current_expr->scalar_function().arguments().at(1).value());
+            expressions_stack.push_back(&current_expr->scalar_function().arguments().at(0).value());
         }
         else
         {
@@ -505,14 +493,32 @@ void JoinRelParser::collectJoinKeys(
     }
 }
 
-void JoinRelParser::applyJoinFilter(
+bool JoinRelParser::applyJoinFilter(
     DB::TableJoin & table_join, const substrait::JoinRel & join_rel, DB::QueryPlan & left, DB::QueryPlan & right, bool allow_mixed_condition)
 {
     if (!join_rel.has_post_join_filter())
-        return;
+        return true;
     const auto & expr = join_rel.post_join_filter();
+
     const auto & left_header = left.getCurrentDataStream().header;
     const auto & right_header = right.getCurrentDataStream().header;
+    ColumnsWithTypeAndName mixed_columns;
+    std::unordered_set<String> added_column_name;
+    for (const auto & col : left_header.getColumnsWithTypeAndName())
+    {
+        mixed_columns.emplace_back(col);
+        added_column_name.insert(col.name);
+    }
+    for (const auto & col : right_header.getColumnsWithTypeAndName())
+    {
+        const auto & renamed_col_name = table_join.renamedRightColumnNameWithAlias(col.name);
+        if (added_column_name.find(col.name) != added_column_name.end())
+            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Right column's name conflict with left column: {}", col.name);
+        mixed_columns.emplace_back(col);
+        added_column_name.insert(col.name);
+    }
+    DB::Block mixed_header(mixed_columns);
+
     auto table_sides = extractTableSidesFromExpression(expr, left_header, right_header);
 
     auto get_input_expressions = [](const DB::Block & header)
@@ -548,11 +554,21 @@ void JoinRelParser::applyJoinFilter(
         }
         else
         {
-            auto input_exprs = get_input_expressions(right_header);
+            /// since the field reference in expr is the index of left_header ++ right_header, so we use
+            /// mixed_header to build the actions_dag
+            auto input_exprs = get_input_expressions(mixed_header);
             input_exprs.push_back(expr);
-            auto actions_dag = expressionsToActionsDAG(input_exprs, right_header);
+            auto actions_dag = expressionsToActionsDAG(input_exprs, mixed_header);
+
+            /// clear unused columns in actions_dag
+            for (const auto & col : left_header.getColumnsWithTypeAndName())
+            {
+                actions_dag->removeUnusedResult(col.name);
+            }
+            actions_dag->removeUnusedActions();
+
             table_join.getClauses().back().analyzer_right_filter_condition_column_name = actions_dag->getOutputs().back()->result_name;
-            QueryPlanStepPtr before_join_step = std::make_unique<ExpressionStep>(left.getCurrentDataStream(), actions_dag);
+            QueryPlanStepPtr before_join_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), actions_dag);
             before_join_step->setStepDescription("Before JOIN RIGHT");
             steps.emplace_back(before_join_step.get());
             right.addStep(std::move(before_join_step));
@@ -561,26 +577,7 @@ void JoinRelParser::applyJoinFilter(
     else if (table_sides.size() == 2)
     {
         if (!allow_mixed_condition)
-            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Mixed join condition is not allowed:{}", join_rel.DebugString());
-        ColumnsWithTypeAndName mixed_columns;
-        std::unordered_set<String> added_column_name;
-        for (const auto & col : left_header.getColumnsWithTypeAndName())
-        {
-            mixed_columns.emplace_back(col);
-            added_column_name.insert(col.name);
-        }
-        for (const auto & col : right_header.getColumnsWithTypeAndName())
-        {
-            if (added_column_name.find(col.name) == added_column_name.end())
-            {
-                mixed_columns.emplace_back(col);
-            }
-            else
-            {
-                mixed_columns.emplace_back(col.column, col.type, col.name + "_right");
-            }
-        }
-        DB::Block mixed_header(mixed_columns);
+            return false;
         auto mixed_join_expressions_actions = expressionsToActionsDAG({expr}, mixed_header);
         table_join.getMixedJoinExpression()
             = std::make_shared<DB::ExpressionActions>(mixed_join_expressions_actions, ExpressionActionsSettings::fromContext(context));
@@ -589,6 +586,27 @@ void JoinRelParser::applyJoinFilter(
     {
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Not any table column is used in the join condition.\n{}", join_rel.DebugString());
     }
+    return true;
+}
+
+void JoinRelParser::addPostFilter(DB::QueryPlan & query_plan, const substrait::JoinRel & join)
+{
+    std::string filter_name;
+    auto actions_dag = std::make_shared<ActionsDAG>(query_plan.getCurrentDataStream().header.getColumnsWithTypeAndName());
+    if (!join.post_join_filter().has_scalar_function())
+    {
+	// It may be singular_or_list
+        auto * in_node = getPlanParser()->parseExpression(actions_dag, join.post_join_filter());
+        filter_name = in_node->result_name;
+    }
+    else
+    {
+        getPlanParser()->parseFunction(query_plan.getCurrentDataStream().header, join.post_join_filter(), filter_name, actions_dag, true);
+    }
+    auto filter_step = std::make_unique<FilterStep>(query_plan.getCurrentDataStream(), actions_dag, filter_name, true);
+    filter_step->setStepDescription("Post Join Filter");
+    steps.emplace_back(filter_step.get());
+    query_plan.addStep(std::move(filter_step));
 }
 
 void registerJoinRelParser(RelParserFactory & factory)

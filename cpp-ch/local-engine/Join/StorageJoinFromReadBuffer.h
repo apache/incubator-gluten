@@ -33,7 +33,7 @@ class StorageJoinFromReadBuffer
 public:
     StorageJoinFromReadBuffer(
         DB::ReadBuffer & in_,
-        size_t row_count_,
+        size_t row_count,
         const DB::Names & key_names_,
         bool use_nulls_,
         std::shared_ptr<DB::TableJoin> table_join_,
@@ -42,14 +42,23 @@ public:
         const String & comment,
         bool overwrite_);
 
-    DB::JoinPtr getJoinLocked(std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr context) const;
-    const DB::Block & getRightSampleBlock() const { return right_sample_block_; }
+    /// The columns' names in right_header may be different from the names in the ColumnsDescription
+    /// in the constructor.
+    /// This should be called once.
+    DB::JoinPtr getJoinLocked(const DB::Block & right_header, std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr context);
+    const DB::Block & getRightSampleBlock() const { return right_sample_block; }
 
 private:
-    DB::StorageInMemoryMetadata storage_metadata_;
-    const DB::Names key_names_;
-    bool use_nulls_;
-    DB::JoinPtr join_;
-    DB::Block right_sample_block_;
+    DB::StorageInMemoryMetadata storage_metadata;
+    const DB::Names key_names;
+    bool use_nulls;
+    size_t row_count;
+    bool overwrite;
+    DB::Block right_sample_block;
+    /// This objects should not take too much memory since it'a broadcast join.
+    std::vector<DB::Block> input_blocks;
+
+    void readAllBlocksFromInput(DB::ReadBuffer & in);
+    DB::JoinPtr buildJoin(const DB::Block header, std::shared_ptr<DB::TableJoin> analyzed_join) const;
 };
 }
