@@ -37,6 +37,7 @@
 #include <arrow/type.h>
 
 #include "VeloxShuffleWriter.h"
+#include "memory/BufferOutputStream.h"
 #include "memory/VeloxMemoryManager.h"
 #include "shuffle/PartitionWriter.h"
 #include "shuffle/Partitioner.h"
@@ -65,11 +66,7 @@ class VeloxSortBasedShuffleWriter : public VeloxShuffleWriter {
 
   arrow::Status evictRowVector(uint32_t partitionId) override;
 
-  arrow::Status evictBatch(
-      uint32_t partitionId,
-      std::ostringstream* output,
-      facebook::velox::OStreamOutputStream* out,
-      facebook::velox::RowTypePtr* rowTypePtr);
+  arrow::Status evictBatch(uint32_t partitionId, facebook::velox::RowTypePtr* rowTypePtr);
 
  private:
   VeloxSortBasedShuffleWriter(
@@ -93,6 +90,7 @@ class VeloxSortBasedShuffleWriter : public VeloxShuffleWriter {
   std::optional<facebook::velox::TypePtr> rowType_;
 
   std::unique_ptr<facebook::velox::VectorStreamGroup> batch_;
+  std::unique_ptr<BufferOutputStream> bufferOutputStream_;
 
   // Partition ID -> Row Count
   // subscript: Partition ID

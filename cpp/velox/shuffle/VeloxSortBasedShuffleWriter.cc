@@ -153,18 +153,15 @@ arrow::Status VeloxSortBasedShuffleWriter::write(std::shared_ptr<ColumnarBatch> 
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxSortBasedShuffleWriter::evictBatch(
-    uint32_t partitionId,
-    std::ostringstream* output,
-    facebook::velox::OStreamOutputStream* out,
-    facebook::velox::RowTypePtr* rowTypePtr) {
+arrow::Status VeloxSortBasedShuffleWriter::evictBatch(uint32_t partitionId, facebook::velox::RowTypePtr* rowTypePtr) {
   int64_t rawSize = batch_->size();
-  batch_->flush(out);
-  const std::string& outputStr = output->str();
-  RETURN_NOT_OK(partitionWriter_->evict(partitionId, rawSize, outputStr.c_str(), outputStr.size()));
-  batch_.reset();
-  output->clear();
-  output->str("");
+  if (UNLIKELY(!bufferOutputStream_)) {
+    bufferOutputStream_ = std::make_unique<BufferOutputStream>(veloxPool_.get());
+  }
+  bufferOutputStream_->seekp(0);
+  batch_->flush(bufferOutputStream_.get());
+  auto buffer = bufferOutputStream_->getBuffer();
+  RETURN_NOT_OK(partitionWriter_->evict(partitionId, rawSize, buffer->as<char>(), buffer->size()));
   batch_ = std::make_unique<facebook::velox::VectorStreamGroup>(veloxPool_.get(), serde_.get());
   batch_->createStreamTree(*rowTypePtr, options_.bufferSize, &serdeOptions_);
   return arrow::Status::OK();
@@ -174,8 +171,6 @@ arrow::Status VeloxSortBasedShuffleWriter::evictRowVector(uint32_t partitionId) 
   int32_t rowNum = 0;
   const int32_t maxBatchNum = options_.bufferSize;
   auto rowTypePtr = std::static_pointer_cast<const facebook::velox::RowType>(rowType_.value());
-  std::ostringstream output;
-  facebook::velox::OStreamOutputStream out(&output);
 
   if (options_.partitioning != Partitioning::kSingle) {
     if (auto it = rowVectorIndexMap_.find(partitionId); it != rowVectorIndexMap_.end()) {
@@ -219,7 +214,7 @@ arrow::Status VeloxSortBasedShuffleWriter::evictRowVector(uint32_t partitionId) 
         rowNum += groupedSize[pair.first];
         if (rowNum >= maxBatchNum) {
           rowNum = 0;
-          RETURN_NOT_OK(evictBatch(partitionId, &output, &out, &rowTypePtr));
+          RETURN_NOT_OK(evictBatch(partitionId, &rowTypePtr));
         }
       }
 
@@ -231,13 +226,13 @@ arrow::Status VeloxSortBasedShuffleWriter::evictRowVector(uint32_t partitionId) 
       rowNum += rowVectorPtr->size();
       batch_->append(rowVectorPtr);
       if (rowNum >= maxBatchNum) {
-        RETURN_NOT_OK(evictBatch(partitionId, &output, &out, &rowTypePtr));
+        RETURN_NOT_OK(evictBatch(partitionId, &rowTypePtr));
         rowNum = 0;
       }
     }
   }
   if (rowNum > 0) {
-    RETURN_NOT_OK(evictBatch(partitionId, &output, &out, &rowTypePtr));
+    RETURN_NOT_OK(evictBatch(partitionId, &rowTypePtr));
   }
   return arrow::Status::OK();
 }
