@@ -435,7 +435,7 @@ class HashPartitioningShuffleWriter : public MultiplePartitioningShuffleWriter {
   }
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(arrow::MemoryPool* arrowPool) override {
-    if (shuffleWriterOptions_.shuffleWriterType == kHashShuffle) {
+    if (GetParam().shuffleWriterType == kHashShuffle) {
       shuffleWriterOptions_.bufferSize = 4;
     }
     shuffleWriterOptions_.partitioning = Partitioning::kHash;
@@ -481,7 +481,7 @@ class RangePartitioningShuffleWriter : public MultiplePartitioningShuffleWriter 
   }
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(arrow::MemoryPool* arrowPool) override {
-    if (shuffleWriterOptions_.shuffleWriterType == kHashShuffle) {
+    if (GetParam().shuffleWriterType == kHashShuffle) {
       shuffleWriterOptions_.bufferSize = 4;
     }
     shuffleWriterOptions_.partitioning = Partitioning::kRange;
@@ -523,7 +523,7 @@ class RangePartitioningShuffleWriter : public MultiplePartitioningShuffleWriter 
 class RoundRobinPartitioningShuffleWriter : public MultiplePartitioningShuffleWriter {
  protected:
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(arrow::MemoryPool* arrowPool) override {
-    if (shuffleWriterOptions_.shuffleWriterType == kHashShuffle) {
+    if (GetParam().shuffleWriterType == kHashShuffle) {
       shuffleWriterOptions_.bufferSize = 4;
     }
     static const uint32_t kNumPartitions = 2;
