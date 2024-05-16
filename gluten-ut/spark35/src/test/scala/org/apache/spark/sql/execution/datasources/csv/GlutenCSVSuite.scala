@@ -113,6 +113,7 @@ class GlutenCSVv2Suite extends GlutenCSVSuite {
   override def sparkConf: SparkConf =
     super.sparkConf
       .set(SQLConf.USE_V1_SOURCE_LIST, "")
+      .set(GlutenConfig.NATIVE_ARROW_READER_ENABLED.key, "true")
 
   override def testNameBlackList: Seq[String] = Seq(
     // overwritten with different test

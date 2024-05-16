@@ -19,7 +19,6 @@ package org.apache.gluten.columnarbatch;
 import org.apache.gluten.exception.GlutenException;
 import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.Runtimes;
-import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
 import org.apache.gluten.memory.nmm.NativeMemoryManager;
 import org.apache.gluten.utils.ArrowAbiUtil;
 import org.apache.gluten.utils.ArrowUtil;
@@ -221,8 +220,7 @@ public class ColumnarBatches {
     final Runtime runtime = Runtimes.contextInstance();
     try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
         ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
-      ArrowAbiUtil.exportFromSparkColumnarBatch(
-          ArrowBufferAllocators.contextInstance(), input, cSchema, cArray);
+      ArrowAbiUtil.exportFromSparkColumnarBatch(allocator, input, cSchema, cArray);
       long handle =
           ColumnarBatchJniWrapper.forRuntime(runtime)
               .createWithArrowArray(cSchema.memoryAddress(), cArray.memoryAddress());

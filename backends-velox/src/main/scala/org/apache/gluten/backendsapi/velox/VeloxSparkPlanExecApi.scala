@@ -21,6 +21,7 @@ import org.apache.gluten.backendsapi.SparkPlanExecApi
 import org.apache.gluten.datasource.ArrowConvertorRule
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
+import org.apache.gluten.execution.datasource.v2.ArrowBatchScanExec
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
@@ -869,6 +870,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
   override def outputNativeColumnarSparkCompatibleData(plan: SparkPlan): Boolean = plan match {
     case _: ArrowFileSourceScanExec => true
+    case _: ArrowBatchScanExec => true
     case _ => false
   }
 }

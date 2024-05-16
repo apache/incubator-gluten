@@ -17,8 +17,6 @@
 package org.apache.gluten.utils
 
 import org.apache.gluten.exception.SchemaMismatchException
-import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
-import org.apache.gluten.memory.arrow.pool.ArrowNativeMemoryPool
 import org.apache.gluten.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.internal.Logging
@@ -34,6 +32,7 @@ import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 import org.apache.arrow.c.{ArrowSchema, CDataDictionaryProvider, Data}
 import org.apache.arrow.dataset.file.{FileFormat, FileSystemDatasetFactory}
+import org.apache.arrow.dataset.jni.NativeMemoryPool
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
@@ -140,19 +139,22 @@ object ArrowUtil extends Logging {
     rewritten.toString
   }
 
-  def makeArrowDiscovery(encodedUri: String, format: FileFormat): FileSystemDatasetFactory = {
-    val allocator = ArrowBufferAllocators.contextInstance()
-    val factory = new FileSystemDatasetFactory(
-      allocator,
-      ArrowNativeMemoryPool.arrowPool("FileSystemDatasetFactory"),
-      format,
-      rewriteUri(encodedUri))
+  def makeArrowDiscovery(
+      encodedUri: String,
+      format: FileFormat,
+      allocator: BufferAllocator,
+      pool: NativeMemoryPool): FileSystemDatasetFactory = {
+    val factory = new FileSystemDatasetFactory(allocator, pool, format, rewriteUri(encodedUri))
     factory
   }
 
-  def readSchema(file: FileStatus, format: FileFormat): Option[StructType] = {
+  def readSchema(
+      file: FileStatus,
+      format: FileFormat,
+      allocator: BufferAllocator,
+      pool: NativeMemoryPool): Option[StructType] = {
     val factory: FileSystemDatasetFactory =
-      makeArrowDiscovery(file.getPath.toString, format)
+      makeArrowDiscovery(file.getPath.toString, format, allocator, pool)
     val schema = factory.inspect()
     try {
       Option(SparkSchemaUtil.fromArrowSchema(schema))
@@ -161,12 +163,16 @@ object ArrowUtil extends Logging {
     }
   }
 
-  def readSchema(files: Seq[FileStatus], format: FileFormat): Option[StructType] = {
+  def readSchema(
+      files: Seq[FileStatus],
+      format: FileFormat,
+      allocator: BufferAllocator,
+      pool: NativeMemoryPool): Option[StructType] = {
     if (files.isEmpty) {
       throw new IllegalArgumentException("No input file specified")
     }
 
-    readSchema(files.head, format)
+    readSchema(files.head, format, allocator, pool)
   }
 
   def compareStringFunc(caseSensitive: Boolean): (String, String) => Boolean = {
@@ -254,6 +260,7 @@ object ArrowUtil extends Logging {
   }
 
   def loadBatch(
+      allocator: BufferAllocator,
       input: ArrowRecordBatch,
       dataSchema: StructType,
       requiredSchema: StructType,
@@ -267,7 +274,7 @@ object ArrowUtil extends Logging {
           rowCount,
           SparkSchemaUtil.toArrowSchema(dataSchema),
           input,
-          ArrowBufferAllocators.contextInstance())
+          allocator)
       } finally {
         input.close()
       }
