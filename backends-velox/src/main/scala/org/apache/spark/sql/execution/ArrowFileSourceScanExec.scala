@@ -42,7 +42,7 @@ case class ArrowFileSourceScanExec(original: FileSourceScanExec)
 
   override protected def batchType0(): Convention.BatchType = {
     // Arrow scan is considered compatible with vanilla Spark's columnar processing
-    // since its output is guaranteed to be of Arrow format.
+    // since its output is guaranteed to be in Arrow format.
     Convention.BatchTypes.VanillaBatch
   }
 
