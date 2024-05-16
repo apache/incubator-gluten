@@ -82,7 +82,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   }
 
   /**
-   * Override the [[org.apache.gluten.extension.columnar.transition.ConventionFunc]] Gluten is using
+   * Overrides [[org.apache.gluten.extension.columnar.transition.ConventionFunc]] Gluten is using
    * to determine the convention (its row-based processing / columnar-batch processing support) of a
    * plan with a user-defined function that accepts a plan then returns batch type it uses.
    */
