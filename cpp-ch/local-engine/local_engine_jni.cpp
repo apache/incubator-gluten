@@ -201,6 +201,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
 
 JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
 {
+    LOG_INFO(&Poco::Logger::get("jni"), "start JNI_OnUnload");
     local_engine::BackendFinalizerUtil::finalizeGlobally();
 
     JNIEnv * env;
@@ -242,6 +243,7 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
 
 JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeOnTerminate(JNIEnv * env)
 {
+    LOG_INFO(&Poco::Logger::get("jni"), "start nativeOnTerminate");
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::BackendFinalizerUtil::finalizeGlobally();
     LOCAL_ENGINE_JNI_METHOD_END(env, )

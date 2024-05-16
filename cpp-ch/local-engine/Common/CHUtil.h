@@ -203,8 +203,6 @@ public:
 
     /// Release session level resources like StorageJoinBuilder. Invoked every time executor/driver shutdown.
     static void finalizeSessionally();
-
-    inline static Poco::Logger * logger = &Poco::Logger::get("ClickHouseBackend");
 };
 
 // Ignore memory track, memory should free before IgnoreMemoryTracker deconstruction

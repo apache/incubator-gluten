@@ -857,8 +857,6 @@ void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context,
 
 void BackendFinalizerUtil::finalizeGlobally()
 {
-    LOG_INFO(logger, "Finalize globally");
-
     // Make sure client caches release before ClientCacheRegistry
     ReadBufferBuilderFactory::instance().clean();
     StorageMergeTreeFactory::clear();

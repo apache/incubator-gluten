@@ -27,6 +27,7 @@ import org.apache.gluten.substrait.plan.PlanBuilder;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.internal.SQLConf;
+import org.apache.spark.util.GlutenShutdownManager;
 
 import java.util.Arrays;
 import java.util.List;
@@ -35,12 +36,22 @@ import java.util.stream.Collectors;
 
 import scala.Tuple2;
 import scala.collection.JavaConverters;
+import scala.runtime.BoxedUnit;
 
 public class CHNativeExpressionEvaluator {
   private final ExpressionEvaluatorJniWrapper jniWrapper;
 
   public CHNativeExpressionEvaluator() {
     jniWrapper = new ExpressionEvaluatorJniWrapper();
+  }
+
+  static {
+    GlutenShutdownManager.addHook(
+        () -> {
+          CHNativeExpressionEvaluator kernel = new CHNativeExpressionEvaluator();
+          kernel.onTerminate();
+          return BoxedUnit.UNIT;
+        });
   }
 
   // Used to initialize the native computing.
