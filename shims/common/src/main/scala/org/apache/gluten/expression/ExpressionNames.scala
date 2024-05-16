@@ -294,6 +294,7 @@ object ExpressionNames {
   final val AGGREGATE = "aggregate"
   final val LAMBDAFUNCTION = "lambdafunction"
   final val EXPLODE = "explode"
+  final val STACK = "stack"
   final val INLINE = "inline"
   final val POSEXPLODE = "posexplode"
   final val CHECK_OVERFLOW = "check_overflow"

@@ -200,6 +200,7 @@ object CHExpressionUtil {
     TIMESTAMP_MILLIS -> DefaultValidator(),
     TIMESTAMP_MICROS -> DefaultValidator(),
     FLATTEN -> DefaultValidator(),
-    RINT -> DefaultValidator()
+    RINT -> DefaultValidator(),
+    STACK -> DefaultValidator()
   )
 }
