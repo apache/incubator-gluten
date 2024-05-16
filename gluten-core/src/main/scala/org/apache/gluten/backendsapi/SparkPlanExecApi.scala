@@ -62,7 +62,7 @@ trait SparkPlanExecApi {
   /**
    * Overrides [[org.apache.gluten.extension.columnar.transition.ConventionFunc]] Gluten is using
    * to determine the convention (its row-based processing / columnar-batch processing support) of a
-   * plan with a user-defined function that accepts a plan then returns batch type it uses.
+   * plan with a user-defined function that accepts a plan then returns batch type it outputs.
    */
   def batchTypeFunc(): ConventionFunc.BatchOverride = PartialFunction.empty
 
