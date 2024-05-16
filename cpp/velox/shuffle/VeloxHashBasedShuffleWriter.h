@@ -87,6 +87,8 @@ namespace gluten {
 
 #endif // end of VELOX_SHUFFLE_WRITER_PRINT
 
+enum SplitState { kInit, kPreAlloc, kSplit, kStop };
+
 struct BinaryArrayResizeState {
   bool inResize;
   uint32_t partitionId;
@@ -210,7 +212,7 @@ class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
 
   arrow::Status updateInputHasNull(const facebook::velox::RowVector& rv);
 
-  void setShuffleState(ShuffleState state);
+  void setSplitState(SplitState state);
 
   arrow::Status doSplit(const facebook::velox::RowVector& rv, int64_t memLimit);
 
@@ -397,6 +399,8 @@ class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
   std::shared_ptr<const facebook::velox::RowType> complexWriteType_;
 
   facebook::velox::serializer::presto::PrestoVectorSerde serde_;
+
+  SplitState splitState_{kInit};
 }; // class VeloxHashBasedShuffleWriter
 
 } // namespace gluten

@@ -87,6 +87,8 @@ namespace gluten {
 
 #endif // end of VELOX_SHUFFLE_WRITER_PRINT
 
+enum SortState { kSortInit, kSort, kSortStop };
+
 class VeloxSortBasedShuffleWriter : public VeloxShuffleWriter {
  public:
   static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> create(
@@ -123,7 +125,7 @@ class VeloxSortBasedShuffleWriter : public VeloxShuffleWriter {
 
   arrow::Status initFromRowVector(const facebook::velox::RowVector& rv);
 
-  void setShuffleState(ShuffleState state);
+  void setSortState(SortState state);
 
   arrow::Status doSort(facebook::velox::RowVectorPtr rv, int64_t memLimit);
 
@@ -149,6 +151,8 @@ class VeloxSortBasedShuffleWriter : public VeloxShuffleWriter {
   std::unordered_map<int32_t, std::vector<int64_t>> rowVectorPartitionMap_;
 
   uint32_t currentInputColumnBytes_ = 0;
+
+  SortState sortState_{kSortInit};
 }; // class VeloxSortBasedShuffleWriter
 
 } // namespace gluten
