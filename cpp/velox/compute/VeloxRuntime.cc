@@ -26,7 +26,7 @@
 #include "compute/ResultIterator.h"
 #include "compute/Runtime.h"
 #include "compute/VeloxPlanConverter.h"
-#include "config/GlutenConfig.h"
+#include "config/VeloxConfig.h"
 #include "operators/serializer/VeloxRowToColumnarConverter.h"
 #include "shuffle/VeloxShuffleReader.h"
 #include "shuffle/VeloxShuffleWriter.h"
@@ -256,7 +256,7 @@ std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerial
 }
 
 void VeloxRuntime::dumpConf(const std::string& path) {
-  auto backendConf = VeloxBackend::get()->getBackendConf();
+  auto backendConf = VeloxBackend::get()->getBackendConf()->valuesCopy();
   auto allConf = backendConf;
 
   for (const auto& pair : confMap_) {
