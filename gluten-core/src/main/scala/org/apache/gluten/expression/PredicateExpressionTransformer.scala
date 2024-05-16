@@ -109,6 +109,7 @@ case class DecimalArithmeticExpressionTransformer(
     resultType: DecimalType,
     original: Expression)
   extends ExpressionTransformerWithOrigin {
+  override def dataType: DataType = resultType
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val leftNode = left.doTransform(args)
     val rightNode = right.doTransform(args)
