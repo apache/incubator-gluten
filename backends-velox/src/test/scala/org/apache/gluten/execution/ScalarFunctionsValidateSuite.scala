@@ -977,4 +977,12 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         }
     }
   }
+
+  test("length") {
+    runQueryAndCompare(
+      "select length(c_comment), length(cast(c_comment as binary))" +
+        " from customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
 }
