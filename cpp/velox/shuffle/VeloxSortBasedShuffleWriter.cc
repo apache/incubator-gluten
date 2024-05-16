@@ -186,16 +186,40 @@ arrow::Status VeloxSortBasedShuffleWriter::evictRowVector(uint32_t partitionId) 
       const int32_t outputSize = rowVectorIndex.size();
 
       std::unordered_map<int32_t, std::vector<facebook::velox::IndexRange>> groupedIndices;
+      std::unordered_map<int32_t, int64_t> groupedSize;
 
+      int32_t tempVectorIndex = -1;
+      int32_t baseRowIndex = -1;
+      int32_t tempRowIndex = -1;
+      int32_t size = 1;
       for (int start = 0; start < outputSize; start++) {
-        const int32_t vectorIndex = static_cast<int32_t>(rowVectorIndex.at(start) >> 32);
-        const int32_t rowIndex = static_cast<int32_t>(rowVectorIndex.at(start) & 0xFFFFFFFFLL);
-        groupedIndices[vectorIndex].push_back({rowIndex, 1});
+        const int64_t rowVector = rowVectorIndex[start];
+        const int32_t vectorIndex = static_cast<int32_t>(rowVector >> 32);
+        const int32_t rowIndex = static_cast<int32_t>(rowVector & 0xFFFFFFFFLL);
+        if (tempVectorIndex == -1) {
+          tempVectorIndex = vectorIndex;
+          baseRowIndex = rowIndex;
+          tempRowIndex = rowIndex;
+        } else {
+          if (vectorIndex == tempVectorIndex && rowIndex == tempRowIndex + 1) {
+            size += 1;
+            tempRowIndex = rowIndex;
+          } else {
+            groupedIndices[tempVectorIndex].push_back({baseRowIndex, size});
+            groupedSize[tempVectorIndex] += size;
+            size = 1;
+            tempVectorIndex = vectorIndex;
+            baseRowIndex = rowIndex;
+            tempRowIndex = rowIndex;
+          }
+        }
       }
+      groupedIndices[tempVectorIndex].push_back({baseRowIndex, size});
+      groupedSize[tempVectorIndex] += size;
 
       for (auto& pair : groupedIndices) {
         batch_->append(batches_[pair.first], pair.second);
-        rowNum += pair.second.size();
+        rowNum += groupedSize[pair.first];
         if (rowNum >= maxBatchNum) {
           rowNum = 0;
           RETURN_NOT_OK(evictBatch(partitionId, &output, &out, &rowTypePtr));
