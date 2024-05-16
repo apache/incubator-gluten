@@ -116,16 +116,26 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
    *
    * Spark plan before applying fallback policy:
    *
-   * ColumnarExchange
-   * ----------- | --------------- last stage HashAggregateTransformer \| ColumnarToRow \| Project
+   *        ColumnarExchange
+   *  ----------- | --------------- last stage
+   *    HashAggregateTransformer
+   *              |
+   *        ColumnarToRow
+   *              |
+   *           Project
    *
-   * To illustrate the effect if cost is not taken into account, here is spark plan after applying
-   * whole stage fallback policy (threshold = 1):
+   * To illustrate the effect if cost is not taken into account, here is spark plan
+   * after applying whole stage fallback policy (threshold = 1):
    *
-   * ColumnarExchange
-   * ----------- | --------------- last stage ColumnarToRow \| HashAggregate \| Project
+   *        ColumnarExchange
+   *  -----------  | --------------- last stage
+   *         ColumnarToRow
+   *               |
+   *         HashAggregate
+   *               |
+   *            Project
    *
-   * So by considering the cost, the fallback policy will not be applied.
+   *  So by considering the cost, the fallback policy will not be applied.
    *
    * spotless:on
    */
