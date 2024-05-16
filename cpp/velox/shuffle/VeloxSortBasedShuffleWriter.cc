@@ -89,9 +89,12 @@ arrow::Status VeloxSortBasedShuffleWriter::init() {
 }
 
 arrow::Status VeloxSortBasedShuffleWriter::doSort(facebook::velox::RowVectorPtr rv, int64_t memLimit) {
+  std::cout << "currentInputColumnBytes_:" << currentInputColumnBytes_
+            << ", rv->estimateFlatSize():" << rv->estimateFlatSize() << ", memLimit:" << memLimit << std::endl;
   currentInputColumnBytes_ += rv->estimateFlatSize();
   batches_.push_back(rv);
   if (currentInputColumnBytes_ > memLimit) {
+    std::cout << "currentInputColumnBytes_ > memLimit:" << currentInputColumnBytes_ << std::endl;
     for (auto pid = 0; pid < numPartitions(); ++pid) {
       RETURN_NOT_OK(evictRowVector(pid));
       partition2RowCount_[pid] = 0;
