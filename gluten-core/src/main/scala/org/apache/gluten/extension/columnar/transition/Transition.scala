@@ -23,6 +23,12 @@ import org.apache.spark.sql.execution.SparkPlan
 
 import scala.collection.mutable
 
+/**
+ * Transition is a simple function to convert a query plan to interested [[ConventionReq]].
+ *
+ * Transitions can be registered through the utility APIs in
+ * [[org.apache.gluten.extension.columnar.transition.Convention.BatchType]]'s definition.
+ */
 trait Transition {
   def apply(plan: SparkPlan): SparkPlan
 }
