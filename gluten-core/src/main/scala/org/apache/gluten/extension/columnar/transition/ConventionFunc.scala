@@ -26,7 +26,7 @@ import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, QueryStag
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
 /**
- * ConventionFunc is a utility to derive [[Convention]] from an input query plan.
+ * ConventionFunc is a utility to derive [[Convention]] from a query plan.
  */
 trait ConventionFunc {
   def conventionOf(plan: SparkPlan): Convention
