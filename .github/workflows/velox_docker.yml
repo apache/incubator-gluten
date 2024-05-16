@@ -508,15 +508,22 @@ jobs:
         with:
           path: ./cpp/build/releases/
           key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
+      - name: Setup build dependency
+        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz && mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
       - name: Build Gluten Velox third party
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
-          yum install sudo patch -y
-          cd ep/build-velox/src && \
-          ./get_velox.sh && \
-          source /opt/rh/gcc-toolset-9/enable && \
-          ./build_arrow_deps_centos8.sh && \
-          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON && \
+          cd ep/build-velox/src
+          ./get_velox.sh
+          source /opt/rh/gcc-toolset-9/enable
+          ./build_arrow_deps_centos8.sh
+          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
+          cd $GITHUB_WORKSPACE/cpp
           ./compile.sh --build_velox_backend=ON --build_protobuf=ON --build_tests=ON --build_examples=ON --build_benchmarks=ON
       - uses: actions/upload-artifact@v2
         with:
@@ -538,7 +545,7 @@ jobs:
           path: ./cpp/build/releases
       - name: Setup build dependency
         run: |
-          yum install sudo java-1.8.0-openjdk-devel wget -y
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
