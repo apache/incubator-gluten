@@ -745,6 +745,4 @@ trait SparkPlanExecApi {
     arrowEvalPythonExec
 
   def maybeCollapseTakeOrderedAndProject(plan: SparkPlan): SparkPlan = plan
-
-  def outputNativeColumnarSparkCompatibleData(plan: SparkPlan): Boolean = false
 }
