@@ -435,15 +435,13 @@ class HashPartitioningShuffleWriter : public MultiplePartitioningShuffleWriter {
   }
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(arrow::MemoryPool* arrowPool) override {
-    if (GetParam().shuffleWriterType == kHashShuffle) {
-      shuffleWriterOptions_.bufferSize = 4;
-    }
     shuffleWriterOptions_.partitioning = Partitioning::kHash;
     static const uint32_t kNumPartitions = 2;
     auto partitionWriter = createPartitionWriter(
         GetParam().partitionWriterType, kNumPartitions, dataFile_, localDirs_, partitionWriterOptions_, arrowPool);
     std::shared_ptr<VeloxShuffleWriter> shuffleWriter;
     if (GetParam().shuffleWriterType == kHashShuffle) {
+      shuffleWriterOptions_.bufferSize = 4;
       GLUTEN_ASSIGN_OR_THROW(
           shuffleWriter,
           VeloxHashBasedShuffleWriter::create(
@@ -481,15 +479,13 @@ class RangePartitioningShuffleWriter : public MultiplePartitioningShuffleWriter 
   }
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(arrow::MemoryPool* arrowPool) override {
-    if (GetParam().shuffleWriterType == kHashShuffle) {
-      shuffleWriterOptions_.bufferSize = 4;
-    }
     shuffleWriterOptions_.partitioning = Partitioning::kRange;
     static const uint32_t kNumPartitions = 2;
     auto partitionWriter = createPartitionWriter(
         GetParam().partitionWriterType, kNumPartitions, dataFile_, localDirs_, partitionWriterOptions_, arrowPool);
     std::shared_ptr<VeloxShuffleWriter> shuffleWriter;
     if (GetParam().shuffleWriterType == kHashShuffle) {
+      shuffleWriterOptions_.bufferSize = 4;
       GLUTEN_ASSIGN_OR_THROW(
           shuffleWriter,
           VeloxHashBasedShuffleWriter::create(
@@ -523,14 +519,12 @@ class RangePartitioningShuffleWriter : public MultiplePartitioningShuffleWriter 
 class RoundRobinPartitioningShuffleWriter : public MultiplePartitioningShuffleWriter {
  protected:
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(arrow::MemoryPool* arrowPool) override {
-    if (GetParam().shuffleWriterType == kHashShuffle) {
-      shuffleWriterOptions_.bufferSize = 4;
-    }
     static const uint32_t kNumPartitions = 2;
     auto partitionWriter = createPartitionWriter(
         GetParam().partitionWriterType, kNumPartitions, dataFile_, localDirs_, partitionWriterOptions_, arrowPool);
     std::shared_ptr<VeloxShuffleWriter> shuffleWriter;
     if (GetParam().shuffleWriterType == kHashShuffle) {
+      shuffleWriterOptions_.bufferSize = 4;
       GLUTEN_ASSIGN_OR_THROW(
           shuffleWriter,
           VeloxHashBasedShuffleWriter::create(
