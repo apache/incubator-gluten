@@ -18,6 +18,10 @@ package org.apache.gluten.extension.columnar.transition
 
 import org.apache.spark.sql.execution.{ColumnarToRowExec, RowToColumnarExec, SparkPlan}
 
+/**
+ * Convention of a query plan consists of the row data type and columnar data type it supports to
+ * output.
+ */
 sealed trait Convention {
   def rowType: Convention.RowType
   def batchType: Convention.BatchType
@@ -43,6 +47,7 @@ object Convention {
   sealed trait RowType
 
   object RowTypes {
+    // None indicates that the plan doesn't support row-based processing.
     final case object None extends RowType
     final case object VanillaRow extends RowType
   }
@@ -68,6 +73,7 @@ object Convention {
   }
 
   object BatchTypes {
+    // None indicates that the plan doesn't support batch-based processing.
     final case object None extends BatchType
     final case object VanillaBatch extends BatchType {
       fromRow(
