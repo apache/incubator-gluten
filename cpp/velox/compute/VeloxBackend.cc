@@ -61,13 +61,13 @@ gluten::Runtime* veloxRuntimeFactory(const std::unordered_map<std::string, std::
 } // namespace
 
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
-  backendConf_ = std::make_shared<facebook::velox::core::MemConfigMutable>(conf);
+  backendConf_ = std::make_shared<facebook::velox::core::MemConfig>(conf);
 
   // Register Velox runtime factory
   gluten::Runtime::registerFactory(gluten::kVeloxRuntimeKind, veloxRuntimeFactory);
 
   if (backendConf_->get<bool>(kDebugModeEnabled, false)) {
-    LOG(INFO) << "VeloxBackend config:" << printConfig(backendConf_->valuesCopy());
+    LOG(INFO) << "VeloxBackend config:" << printConfig(backendConf_->values());
   }
 
   // Init glog and log level.
@@ -188,46 +188,39 @@ void VeloxBackend::initCache() {
 
 void VeloxBackend::initConnector() {
   // The configs below are used at process level.
-  auto connectorConf = std::make_shared<facebook::velox::core::MemConfigMutable>(backendConf_->valuesCopy());
+  std::unordered_map<std::string, std::string> connectorConfMap = backendConf_->values();
 
   auto hiveConf = getHiveConfig(backendConf_);
   for (auto& [k, v] : hiveConf->valuesCopy()) {
-    connectorConf->setValue(k, v);
+    connectorConfMap[k] = v;
   }
 
 #ifdef ENABLE_ABFS
-  const auto& confValue = backendConf_->valuesCopy();
+  const auto& confValue = backendConf_->values();
   for (auto& [k, v] : confValue) {
     if (k.find("fs.azure.account.key") == 0) {
-      connectorConf->setValue(k, v);
+      connectorConfMap[k] = v;
     } else if (k.find("spark.hadoop.fs.azure.account.key") == 0) {
       constexpr int32_t accountKeyPrefixLength = 13;
-      connectorConf->setValue(k.substr(accountKeyPrefixLength), v);
+      connectorConfMap[k.substr(accountKeyPrefixLength)] = v;
     }
   }
 #endif
+  connectorConfMap[velox::connector::hive::HiveConfig::kEnableFileHandleCache] =
+      backendConf_->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false";
 
-  connectorConf->setValue(
-      velox::connector::hive::HiveConfig::kEnableFileHandleCache,
-      backendConf_->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false");
-
-  connectorConf->setValue(
-      velox::connector::hive::HiveConfig::kMaxCoalescedBytes,
-      backendConf_->get<std::string>(kMaxCoalescedBytes, "67108864")); // 64M
-  connectorConf->setValue(
-      velox::connector::hive::HiveConfig::kMaxCoalescedDistanceBytes,
-      backendConf_->get<std::string>(kMaxCoalescedDistanceBytes, "1048576")); // 1M
-  connectorConf->setValue(
-      velox::connector::hive::HiveConfig::kPrefetchRowGroups, backendConf_->get<std::string>(kPrefetchRowGroups, "1"));
-  connectorConf->setValue(
-      velox::connector::hive::HiveConfig::kLoadQuantum,
-      backendConf_->get<std::string>(kLoadQuantum, "268435456")); // 256M
-  connectorConf->setValue(
-      velox::connector::hive::HiveConfig::kFooterEstimatedSize,
-      backendConf_->get<std::string>(kDirectorySizeGuess, "32768")); // 32K
-  connectorConf->setValue(
-      velox::connector::hive::HiveConfig::kFilePreloadThreshold,
-      backendConf_->get<std::string>(kFilePreloadThreshold, "1048576")); // 1M
+  connectorConfMap[velox::connector::hive::HiveConfig::kMaxCoalescedBytes] =
+      backendConf_->get<std::string>(kMaxCoalescedBytes, "67108864"); // 64M
+  connectorConfMap[velox::connector::hive::HiveConfig::kMaxCoalescedDistanceBytes] =
+      backendConf_->get<std::string>(kMaxCoalescedDistanceBytes, "1048576"); // 1M
+  connectorConfMap[velox::connector::hive::HiveConfig::kPrefetchRowGroups] =
+      backendConf_->get<std::string>(kPrefetchRowGroups, "1");
+  connectorConfMap[velox::connector::hive::HiveConfig::kLoadQuantum] =
+      backendConf_->get<std::string>(kLoadQuantum, "268435456"); // 256M
+  connectorConfMap[velox::connector::hive::HiveConfig::kFooterEstimatedSize] =
+      backendConf_->get<std::string>(kDirectorySizeGuess, "32768"); // 32K
+  connectorConfMap[velox::connector::hive::HiveConfig::kFilePreloadThreshold] =
+      backendConf_->get<std::string>(kFilePreloadThreshold, "1048576"); // 1M
 
   // set cache_prefetch_min_pct default as 0 to force all loads are prefetched in DirectBufferInput.
   FLAGS_cache_prefetch_min_pct = backendConf_->get<int>(kCachePrefetchMinPct, 0);
@@ -238,7 +231,7 @@ void VeloxBackend::initConnector() {
   }
   velox::connector::registerConnector(std::make_shared<velox::connector::hive::HiveConnector>(
       kHiveConnectorId,
-      std::make_shared<facebook::velox::core::MemConfig>(connectorConf->valuesCopy()),
+      std::make_shared<facebook::velox::core::MemConfig>(std::move(connectorConfMap)),
       ioExecutor_.get()));
 }
 
@@ -263,10 +256,6 @@ VeloxBackend* VeloxBackend::get() {
     throw GlutenException("VeloxBackend instance is null.");
   }
   return instance_.get();
-}
-
-const std::shared_ptr<const facebook::velox::Config> VeloxBackend::getBackendConf() const {
-  return backendConf_;
 }
 
 } // namespace gluten

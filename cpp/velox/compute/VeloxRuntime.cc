@@ -56,7 +56,7 @@ namespace gluten {
 
 VeloxRuntime::VeloxRuntime(const std::unordered_map<std::string, std::string>& confMap) : Runtime(confMap) {
   // Refresh session config.
-  veloxCfg_ = std::make_shared<const facebook::velox::core::MemConfigMutable>(confMap_);
+  veloxCfg_ = std::make_shared<facebook::velox::core::MemConfig>(confMap_);
   debugModeEnabled_ = veloxCfg_->get<bool>(kDebugModeEnabled, false);
   FLAGS_minloglevel = veloxCfg_->get<uint32_t>(kGlogSeverityLevel, FLAGS_minloglevel);
   FLAGS_v = veloxCfg_->get<uint32_t>(kGlogVerboseLevel, FLAGS_v);
@@ -275,11 +275,11 @@ std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerial
 }
 
 void VeloxRuntime::dumpConf(const std::string& path) {
-  auto backendConf = VeloxBackend::get()->getBackendConf()->valuesCopy();
-  auto allConf = backendConf;
+  const auto& backendConfMap = VeloxBackend::get()->getBackendConf()->values();
+  auto allConfMap = backendConfMap;
 
   for (const auto& pair : confMap_) {
-    allConf.insert_or_assign(pair.first, pair.second);
+    allConfMap.insert_or_assign(pair.first, pair.second);
   }
 
   // Open file "velox.conf" for writing, automatically creating it if it doesn't exist,
@@ -292,13 +292,13 @@ void VeloxRuntime::dumpConf(const std::string& path) {
 
   // Calculate the maximum key length for alignment.
   size_t maxKeyLength = 0;
-  for (const auto& pair : allConf) {
+  for (const auto& pair : allConfMap) {
     maxKeyLength = std::max(maxKeyLength, pair.first.length());
   }
 
   // Write each key-value pair to the file with adjusted spacing for alignment
   outFile << "[Backend Conf]" << std::endl;
-  for (const auto& pair : backendConf) {
+  for (const auto& pair : backendConfMap) {
     outFile << std::left << std::setw(maxKeyLength + 1) << pair.first << ' ' << pair.second << std::endl;
   }
   outFile << std::endl << "[Session Conf]" << std::endl;

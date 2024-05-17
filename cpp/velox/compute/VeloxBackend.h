@@ -53,7 +53,9 @@ class VeloxBackend {
 
   facebook::velox::cache::AsyncDataCache* getAsyncDataCache() const;
 
-  const std::shared_ptr<const facebook::velox::Config> getBackendConf() const;
+  std::shared_ptr<facebook::velox::Config> getBackendConf() const {
+    return backendConf_;
+  }
 
   void tearDown() {
     // Destruct IOThreadPoolExecutor will join all threads.
@@ -90,7 +92,7 @@ class VeloxBackend {
   std::string cachePathPrefix_;
   std::string cacheFilePrefix_;
 
-  std::shared_ptr<const facebook::velox::Config> backendConf_;
+  std::shared_ptr<facebook::velox::Config> backendConf_;
 };
 
 } // namespace gluten
