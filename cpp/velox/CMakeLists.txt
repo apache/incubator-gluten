@@ -47,6 +47,7 @@ if (NOT DEFINED VELOX_HOME)
   message(STATUS "Set VELOX_HOME to ${VELOX_HOME}")
 endif()
 
+# Keep same compile option with Velox.
 execute_process(
     COMMAND
     bash -c
