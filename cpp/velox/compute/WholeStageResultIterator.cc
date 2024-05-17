@@ -62,7 +62,7 @@ WholeStageResultIterator::WholeStageResultIterator(
     const std::unordered_map<std::string, std::string>& confMap,
     const SparkTaskInfo& taskInfo)
     : memoryManager_(memoryManager),
-      veloxCfg_(std::make_shared<const facebook::velox::core::MemConfigMutable>(confMap)),
+      veloxCfg_(std::make_shared<facebook::velox::core::MemConfig>(confMap)),
       taskInfo_(taskInfo),
       veloxPlan_(planNode),
       scanNodeIds_(scanNodeIds),

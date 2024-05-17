@@ -1076,9 +1076,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   std::vector<TypePtr> veloxTypeList;
   std::vector<ColumnType> columnTypes;
   // Convert field names into lower case when not case-sensitive.
-  std::shared_ptr<const facebook::velox::Config> veloxCfg =
-      std::make_shared<const facebook::velox::core::MemConfigMutable>(confMap_);
-  bool asLowerCase = !veloxCfg->get<bool>(kCaseSensitive, false);
+  facebook::velox::core::MemConfig veloxCfg(confMap_);
+  bool asLowerCase = !veloxCfg.get<bool>(kCaseSensitive, false);
   if (readRel.has_base_schema()) {
     const auto& baseSchema = readRel.base_schema();
     colNameList.reserve(baseSchema.names().size());

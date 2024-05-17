@@ -90,7 +90,7 @@ class VeloxBackend {
   std::string cachePathPrefix_;
   std::string cacheFilePrefix_;
 
-  std::shared_ptr<const facebook::velox::Config> backendConf_;
+  std::shared_ptr<facebook::velox::Config> backendConf_;
 };
 
 } // namespace gluten

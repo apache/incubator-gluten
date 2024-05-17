@@ -103,7 +103,7 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   VeloxMemoryManager* memoryManager_;
 
   /// Config, task and plan.
-  const std::shared_ptr<const Config> veloxCfg_;
+  std::shared_ptr<Config> veloxCfg_;
   const SparkTaskInfo taskInfo_;
   std::shared_ptr<facebook::velox::exec::Task> task_;
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;

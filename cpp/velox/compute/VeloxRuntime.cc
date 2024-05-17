@@ -55,7 +55,7 @@ namespace gluten {
 
 VeloxRuntime::VeloxRuntime(const std::unordered_map<std::string, std::string>& confMap) : Runtime(confMap) {
   // Refresh session config.
-  veloxCfg_ = std::make_shared<const facebook::velox::core::MemConfigMutable>(confMap_);
+  veloxCfg_ = std::make_shared<facebook::velox::core::MemConfig>(confMap_);
   debugModeEnabled_ = veloxCfg_->get<bool>(kDebugModeEnabled, false);
   FLAGS_minloglevel = veloxCfg_->get<uint32_t>(kGlogSeverityLevel, FLAGS_minloglevel);
   FLAGS_v = veloxCfg_->get<uint32_t>(kGlogVerboseLevel, FLAGS_v);
@@ -256,7 +256,7 @@ std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerial
 }
 
 void VeloxRuntime::dumpConf(const std::string& path) {
-  auto backendConf = VeloxBackend::get()->getBackendConf()->valuesCopy();
+  const auto& backendConf = VeloxBackend::get()->getBackendConf()->values();
   auto allConf = backendConf;
 
   for (const auto& pair : confMap_) {
