@@ -11,7 +11,7 @@ index acf16c0..3a49fb4 100644
              if(NOT CURL_FOUND)
                  message(FATAL_ERROR "Could not find curl")
 +            else()
-+                set(CURL_LIBRARIES CURL::libcurl) 
++                message(STATUS "  Curl library: ${CURL_LIBRARIES}")
              endif()
 -
 -            # When built from source using cmake, curl does not include
