@@ -49,6 +49,7 @@ object Convention {
       Convention.of(rowType(), batchType())
     }
   }
+
   private case class Impl(override val rowType: RowType, override val batchType: BatchType)
     extends Convention
 

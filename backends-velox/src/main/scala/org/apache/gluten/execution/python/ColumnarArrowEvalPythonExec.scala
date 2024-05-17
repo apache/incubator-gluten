@@ -293,7 +293,7 @@ case class ColumnarArrowEvalPythonExec(
               e =>
                 if (!e.isInstanceOf[AttributeReference]) {
                   throw new GlutenException(
-                    "ColumnarArrowEvalPythonExec should only has [AttributeReference] inputs.")
+                    "ColumnarArrowEvalPythonExec should only have [AttributeReference] inputs.")
                 } else if (allInputs.exists(_.semanticEquals(e))) {
                   allInputs.indexWhere(_.semanticEquals(e))
                 } else {

@@ -75,7 +75,17 @@ object ConventionFunc {
         }
       case q: QueryStageExec => conventionOf0(q.plan)
       case r: ReusedExchangeExec => conventionOf0(r.child)
-      case a: AdaptiveSparkPlanExec => conventionOf0(a.executedPlan)
+      case a: AdaptiveSparkPlanExec =>
+        val rowType = rowTypeOf(a)
+        val batchType = if (a.supportsColumnar) {
+          // By default, we execute columnar AQE with backend batch output.
+          // See org.apache.gluten.extension.columnar.transition.InsertTransitions.apply
+          BackendsApiManager.getSparkPlanExecApiInstance.batchType
+        } else {
+          BatchType.None
+        }
+        val conv = Convention.of(rowType, batchType)
+        conv
       case other =>
         val conv = Convention.of(rowTypeOf(other), batchTypeOf(other))
         conv
