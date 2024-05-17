@@ -18,7 +18,7 @@ package org.apache.gluten.extension.columnar.transition
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.transition.Convention.{BatchType, BatchTypes, RowType, RowTypes}
+import org.apache.gluten.extension.columnar.transition.Convention.{BatchType, RowType}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.execution.SparkPlan
@@ -84,21 +84,21 @@ object ConventionFunc {
 
     private def rowTypeOf(plan: SparkPlan): RowType = {
       if (!SparkShimLoader.getSparkShims.supportsRowBased(plan)) {
-        return RowTypes.None
+        return RowType.None
       }
-      RowTypes.VanillaRow
+      RowType.VanillaRow
     }
 
     private def batchTypeOf(plan: SparkPlan): BatchType = {
       if (!plan.supportsColumnar) {
-        return BatchTypes.None
+        return BatchType.None
       }
       o.applyOrElse(
         plan,
         (p: SparkPlan) =>
           p match {
             case g: GlutenPlan => g.batchType()
-            case _ => BatchTypes.VanillaBatch
+            case _ => BatchType.VanillaBatch
           }
       )
     }

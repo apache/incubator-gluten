@@ -30,7 +30,7 @@ sealed trait Convention {
 object Convention {
   implicit class ConventionOps(val conv: Convention) extends AnyVal {
     def isNone: Boolean = {
-      conv.rowType == RowTypes.None && conv.batchType == BatchTypes.None
+      conv.rowType == RowType.None && conv.batchType == BatchType.None
     }
 
     def &&(other: Convention): Convention = {
@@ -38,13 +38,13 @@ object Convention {
         if (conv.rowType == other.rowType) {
           return conv.rowType
         }
-        RowTypes.None
+        RowType.None
       }
       def batchType(): BatchType = {
         if (conv.batchType == other.batchType) {
           return conv.batchType
         }
-        BatchTypes.None
+        BatchType.None
       }
       Convention.of(rowType(), batchType())
     }
@@ -62,7 +62,7 @@ object Convention {
 
   sealed trait RowType
 
-  object RowTypes {
+  object RowType {
     // None indicates that the plan doesn't support row-based processing.
     final case object None extends RowType
     final case object VanillaRow extends RowType
@@ -88,7 +88,7 @@ object Convention {
     }
   }
 
-  object BatchTypes {
+  object BatchType {
     // None indicates that the plan doesn't support batch-based processing.
     final case object None extends BatchType
     final case object VanillaBatch extends BatchType {

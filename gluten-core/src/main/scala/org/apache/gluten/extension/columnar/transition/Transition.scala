@@ -17,7 +17,6 @@
 package org.apache.gluten.extension.columnar.transition
 
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.extension.columnar.transition.Convention.{BatchTypes, RowTypes}
 
 import org.apache.spark.sql.execution.SparkPlan
 
@@ -134,7 +133,7 @@ object Transition {
             }
           case (ConventionReq.RowType.Is(toRowType), ConventionReq.BatchType.Any) =>
             from.rowType match {
-              case RowTypes.None =>
+              case Convention.RowType.None =>
                 toRowTransitions.get(from.batchType).map(_.create()).getOrElse(orElse)
               case fromRowType =>
                 // We have only one single built-in row type.
@@ -143,7 +142,7 @@ object Transition {
             }
           case (ConventionReq.RowType.Any, ConventionReq.BatchType.Is(toBatchType)) =>
             from.batchType match {
-              case BatchTypes.None =>
+              case Convention.BatchType.None =>
                 fromRowTransitions.get(toBatchType).map(_.create()).getOrElse(orElse)
               case fromBatchType =>
                 if (toBatchType == fromBatchType) {

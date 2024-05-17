@@ -40,7 +40,7 @@ object PlanUtil {
   }
 
   def isVanillaColumnarOp(plan: SparkPlan): Boolean = {
-    Convention.get(plan).batchType == Convention.BatchTypes.VanillaBatch
+    Convention.get(plan).batchType == Convention.BatchType.VanillaBatch
   }
 
   def isGlutenColumnarOp(plan: SparkPlan): Boolean = {

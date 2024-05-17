@@ -31,7 +31,7 @@ object ConventionReq {
   object RowType {
     final case object Any extends RowType
     final case class Is(t: Convention.RowType) extends RowType {
-      assert(t != Convention.RowTypes.None)
+      assert(t != Convention.RowType.None)
     }
   }
 
@@ -40,7 +40,7 @@ object ConventionReq {
   object BatchType {
     final case object Any extends BatchType
     final case class Is(t: Convention.BatchType) extends BatchType {
-      assert(t != Convention.BatchTypes.None)
+      assert(t != Convention.BatchType.None)
     }
   }
 

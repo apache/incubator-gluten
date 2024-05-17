@@ -92,7 +92,7 @@ trait GlutenPlan extends SparkPlan with LogLevelUtil {
         s"Node $nodeName doesn't support columnar-batch processing")
     }
     val batchType = batchType0()
-    assert(batchType != Convention.BatchTypes.None)
+    assert(batchType != Convention.BatchType.None)
     batchType
   }
 

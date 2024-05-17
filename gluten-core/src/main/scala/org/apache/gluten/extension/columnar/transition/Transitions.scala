@@ -17,11 +17,10 @@
 package org.apache.gluten.extension.columnar.transition
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.columnar.transition.Convention.RowTypes
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{SparkPlan, UnionExec}
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 
 case class InsertTransitions(outputsColumnar: Boolean) extends Rule[SparkPlan] {
@@ -74,6 +73,12 @@ case class InsertTransitions(outputsColumnar: Boolean) extends Rule[SparkPlan] {
     case write: DataWritingCommandExec if SparkShimLoader.getSparkShims.isPlannedV1Write(write) =>
       // To align with ApplyColumnarRulesAndInsertTransitions#insertTransitions
       ConventionReq.any
+    case u: UnionExec =>
+      // We force vanilla union to output row data to get best compatibility with vanilla Spark.
+      // As a result it's a common practice to rewrite it with GlutenPlan for offloading.
+      ConventionReq.of(
+        ConventionReq.RowType.Is(Convention.RowType.VanillaRow),
+        ConventionReq.BatchType.Any)
     case other =>
       // In the normal case, children's convention should follow parent node's convention.
       // Note, we don't have consider C2R / R2C here since they are already removed by
@@ -87,12 +92,12 @@ object InsertTransitions {
   implicit private class ConventionOps(conv: Convention) {
     def asReq(): ConventionReq = {
       val rowTypeReq = conv.rowType match {
-        case RowTypes.None => ConventionReq.RowType.Any
+        case Convention.RowType.None => ConventionReq.RowType.Any
         case r => ConventionReq.RowType.Is(r)
       }
 
       val batchTypeReq = conv.batchType match {
-        case Convention.BatchTypes.None => ConventionReq.BatchType.Any
+        case Convention.BatchType.None => ConventionReq.BatchType.Any
         case b => ConventionReq.BatchType.Is(b)
       }
       ConventionReq.of(rowTypeReq, batchTypeReq)
@@ -117,7 +122,7 @@ object Transitions {
   def toRowPlan(plan: SparkPlan): SparkPlan = {
     val convFunc = ConventionFunc.create()
     val req = ConventionReq.of(
-      ConventionReq.RowType.Is(Convention.RowTypes.VanillaRow),
+      ConventionReq.RowType.Is(Convention.RowType.VanillaRow),
       ConventionReq.BatchType.Any)
     val transition = Transition.factory.findTransition(
       convFunc.conventionOf(plan),
@@ -134,7 +139,7 @@ object Transitions {
   }
 
   def toVanillaBatchPlan(plan: SparkPlan): SparkPlan = {
-    val out = toBatchPlan(plan, Convention.BatchTypes.VanillaBatch)
+    val out = toBatchPlan(plan, Convention.BatchType.VanillaBatch)
     out
   }
 
