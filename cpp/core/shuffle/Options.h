@@ -30,6 +30,7 @@ static constexpr int64_t kDefaultSortBufferThreshold = 64000000000;
 static constexpr int64_t kDefaultPushMemoryThreshold = 4096;
 static constexpr int32_t kDefaultNumSubDirs = 64;
 static constexpr int32_t kDefaultCompressionThreshold = 100;
+static const std::string kDefaultCompressionTypeStr = "lz4";
 static constexpr int32_t kDefaultBufferAlignment = 64;
 static constexpr double kDefaultBufferReallocThreshold = 0.25;
 static constexpr double kDefaultMergeBufferThreshold = 0.25;
@@ -60,10 +61,9 @@ struct ShuffleWriterOptions {
 struct PartitionWriterOptions {
   int32_t mergeBufferSize = kDefaultShuffleWriterBufferSize;
   double mergeThreshold = kDefaultMergeBufferThreshold;
-
   int32_t compressionThreshold = kDefaultCompressionThreshold;
   arrow::Compression::type compressionType = arrow::Compression::LZ4_FRAME;
-  std::string compressionTypeStr = "lz4";
+  std::string compressionTypeStr = kDefaultCompressionTypeStr;
   CodecBackend codecBackend = CodecBackend::NONE;
   int32_t compressionLevel = arrow::util::kUseDefaultCompressionLevel;
   CompressionMode compressionMode = CompressionMode::BUFFER;

@@ -542,7 +542,7 @@ arrow::Status LocalPartitionWriter::evict(
 }
 
 arrow::Status LocalPartitionWriter::evict(uint32_t partitionId, int64_t rawSize, const char* data, int64_t length) {
-  return arrow::Status::OK();
+  return arrow::Status::NotImplemented("Invalid code path for local shuffle writer: sort based is not supported.");
 }
 
 arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actual) {

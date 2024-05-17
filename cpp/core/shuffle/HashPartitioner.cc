@@ -16,7 +16,6 @@
  */
 
 #include "shuffle/HashPartitioner.h"
-#include <iostream>
 
 namespace gluten {
 

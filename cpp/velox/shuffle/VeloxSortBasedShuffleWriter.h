@@ -46,47 +46,6 @@
 
 namespace gluten {
 
-// set 1 to open print
-#define VELOX_SHUFFLE_WRITER_PRINT 0
-
-#if VELOX_SHUFFLE_WRITER_PRINT
-
-#define VsPrint Print
-#define VsPrintLF PrintLF
-#define VsPrintSplit PrintSplit
-#define VsPrintSplitLF PrintSplitLF
-#define VsPrintVectorRange PrintVectorRange
-#define VS_PRINT PRINT
-#define VS_PRINTLF PRINTLF
-#define VS_PRINT_FUNCTION_NAME PRINT_FUNCTION_NAME
-#define VS_PRINT_FUNCTION_SPLIT_LINE PRINT_FUNCTION_SPLIT_LINE
-#define VS_PRINT_CONTAINER PRINT_CONTAINER
-#define VS_PRINT_CONTAINER_TO_STRING PRINT_CONTAINER_TO_STRING
-#define VS_PRINT_CONTAINER_2_STRING PRINT_CONTAINER_2_STRING
-#define VS_PRINT_VECTOR_TO_STRING PRINT_VECTOR_TO_STRING
-#define VS_PRINT_VECTOR_2_STRING PRINT_VECTOR_2_STRING
-#define VS_PRINT_VECTOR_MAPPING PRINT_VECTOR_MAPPING
-
-#else // VELOX_SHUFFLE_WRITER_PRINT
-
-#define VsPrint(...) // NOLINT
-#define VsPrintLF(...) // NOLINT
-#define VsPrintSplit(...) // NOLINT
-#define VsPrintSplitLF(...) // NOLINT
-#define VsPrintVectorRange(...) // NOLINT
-#define VS_PRINT(a)
-#define VS_PRINTLF(a)
-#define VS_PRINT_FUNCTION_NAME()
-#define VS_PRINT_FUNCTION_SPLIT_LINE()
-#define VS_PRINT_CONTAINER(c)
-#define VS_PRINT_CONTAINER_TO_STRING(c)
-#define VS_PRINT_CONTAINER_2_STRING(c)
-#define VS_PRINT_VECTOR_TO_STRING(v)
-#define VS_PRINT_VECTOR_2_STRING(v)
-#define VS_PRINT_VECTOR_MAPPING(v)
-
-#endif // end of VELOX_SHUFFLE_WRITER_PRINT
-
 enum SortState { kSortInit, kSort, kSortStop };
 
 class VeloxSortBasedShuffleWriter : public VeloxShuffleWriter {

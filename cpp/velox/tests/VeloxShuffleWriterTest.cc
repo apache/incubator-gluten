@@ -70,8 +70,7 @@ std::vector<ShuffleTestParams> createShuffleTestParams() {
   std::vector<int32_t> mergeBufferSizes = {0, 3, 4, 10, 4096};
 
   for (const auto& compression : compressions) {
-    params.push_back(ShuffleTestParams{
-        ShuffleWriterType::kSortShuffle, PartitionWriterType::kRss, compression, 0, 0});
+    params.push_back(ShuffleTestParams{ShuffleWriterType::kSortShuffle, PartitionWriterType::kRss, compression, 0, 0});
     for (const auto compressionThreshold : compressionThresholds) {
       for (const auto mergeBufferSize : mergeBufferSizes) {
         params.push_back(ShuffleTestParams{
