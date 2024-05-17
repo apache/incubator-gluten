@@ -532,6 +532,10 @@ jobs:
           path: ./cpp/build/releases/
       - uses: actions/upload-artifact@v2
         with:
+          name: udf-example-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/velox/udf/examples/
+      - uses: actions/upload-artifact@v2
+        with:
           name: arrow-jars-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
 
@@ -548,6 +552,11 @@ jobs:
         with:
           name: velox-native-lib-centos-8-${{github.sha}}
           path: ./cpp/build/releases
+      - name: Download UDF Example Lib
+        uses: actions/download-artifact@v2
+        with:
+          name: udf-example-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/velox/udf/examples/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v2
         with:
@@ -667,6 +676,11 @@ jobs:
         with:
           name: velox-native-lib-centos-8-${{github.sha}}
           path: ./cpp/build/releases
+      - name: Download UDF Example Lib
+        uses: actions/download-artifact@v2
+        with:
+          name: udf-example-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/velox/udf/examples/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v2
         with:
@@ -778,6 +792,11 @@ jobs:
         with:
           name: velox-native-lib-centos-8-${{github.sha}}
           path: ./cpp/build/releases
+      - name: Download UDF Example Lib
+        uses: actions/download-artifact@v2
+        with:
+          name: udf-example-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/velox/udf/examples/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v2
         with:
@@ -889,6 +908,11 @@ jobs:
         with:
           name: velox-native-lib-centos-8-${{github.sha}}
           path: ./cpp/build/releases
+      - name: Download UDF Example Lib
+        uses: actions/download-artifact@v2
+        with:
+          name: udf-example-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/velox/udf/examples/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v2
         with:
