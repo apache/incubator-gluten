@@ -186,6 +186,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // FIXME: Not clear: MIN or MAX ?
   def maxBatchSize: Int = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
 
+  def columnarToRowMemThreshold: Long =
+    conf.getConf(GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD)
+
   def shuffleWriterBufferSize: Int = conf
     .getConf(SHUFFLE_WRITER_BUFFER_SIZE)
     .getOrElse(maxBatchSize)
@@ -562,6 +565,9 @@ object GlutenConfig {
   // Batch size.
   val GLUTEN_MAX_BATCH_SIZE_KEY = "spark.gluten.sql.columnar.maxBatchSize"
 
+  val GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY =
+    "spark.gluten.sql.columnarToRowMemoryThreshold"
+
   // Shuffle Writer buffer size.
   val GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE = "spark.gluten.shuffleWriter.bufferSize"
 
@@ -631,6 +637,7 @@ object GlutenConfig {
       GLUTEN_SAVE_DIR,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_MAX_BATCH_SIZE_KEY,
+      GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY,
       GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE,
       SQLConf.SESSION_LOCAL_TIMEZONE.key,
       GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY,
@@ -1082,6 +1089,12 @@ object GlutenConfig {
       .intConf
       .checkValue(_ > 0, s"$GLUTEN_MAX_BATCH_SIZE_KEY must be positive.")
       .createWithDefault(4096)
+
+  val GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD =
+    buildConf(GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY)
+      .internal()
+      .longConf
+      .createWithDefault(256 * 1024 * 1024)
 
   // if not set, use COLUMNAR_MAX_BATCH_SIZE instead
   val SHUFFLE_WRITER_BUFFER_SIZE =
