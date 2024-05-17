@@ -21,12 +21,11 @@ import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
 package object transition {
-  // These 4 plan operators (as of Spark 3.5) are operators that have the
+  // These 3 plan operators (as of Spark 3.5) are operators that have the
   // same convention with their children.
   //
-  // Extend this list in shim layer once we have more.
+  // Extend this list in shim layer once Spark has more.
   def canPropagateConvention(plan: SparkPlan): Boolean = plan match {
-    case p: ReusedExchangeExec => true
     case p: AQEShuffleReadExec => true
     case p: InputAdapter => true
     case p: WholeStageCodegenExec => true
