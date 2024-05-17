@@ -22,7 +22,6 @@ namespace gluten {
 
 int32_t computePid(const int32_t* pidArr, int64_t i, int32_t numPartitions) {
   auto pid = pidArr[i] % numPartitions;
-  std::cout << "value:" << pidArr[i] << ", pid:" << pid << std::endl;
 #if defined(__x86_64__)
   // force to generate ASM
   __asm__(
