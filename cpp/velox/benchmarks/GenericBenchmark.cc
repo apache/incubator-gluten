@@ -64,6 +64,7 @@ DEFINE_string(
 DEFINE_string(data, "", "Path to input data files in parquet format, used for shuffle read.");
 DEFINE_string(conf, "", "Path to the configuration file.");
 DEFINE_string(write_path, "/tmp", "Path to save the output from write tasks.");
+DEFINE_int64(memory_limit, std::numeric_limits<int64_t>::max(), "Memory limit used to trigger spill.");
 
 struct WriterMetrics {
   int64_t splitTime;
@@ -149,7 +150,11 @@ auto BM_Generic = [](::benchmark::State& state,
     setCpu(state.thread_index());
   }
   memory::MemoryManager::testingSetInstance({});
-  auto memoryManager = getDefaultMemoryManager();
+
+  auto memoryManager = std::make_unique<gluten::VeloxMemoryManager>(
+      "generic_benchmark",
+      gluten::defaultMemoryAllocator(),
+      std::make_unique<BenchmarkAllocationListener>(FLAGS_memory_limit));
   auto runtime = Runtime::create(kVeloxRuntimeKind, conf);
   auto plan = getPlanFromFile("Plan", planFile);
   std::vector<std::string> splits{};
@@ -182,6 +187,9 @@ auto BM_Generic = [](::benchmark::State& state,
     }
     auto resultIter =
         runtime->createResultIterator(memoryManager.get(), "/tmp/test-spill", std::move(inputIters), conf);
+    if (auto listener = dynamic_cast<BenchmarkAllocationListener*>(memoryManager->getListener())) {
+      listener->setIterator(resultIter.get());
+    }
     auto veloxPlan = dynamic_cast<gluten::VeloxRuntime*>(runtime)->getVeloxPlan();
     if (FLAGS_with_shuffle) {
       int64_t shuffleWriteTime;
