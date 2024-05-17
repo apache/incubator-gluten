@@ -49,6 +49,6 @@ object ConventionReq {
       override val requiredBatchType: BatchType
   ) extends ConventionReq
 
-  val any: ConventionReq = new Impl(RowType.Any, BatchType.Any)
+  val any: ConventionReq = Impl(RowType.Any, BatchType.Any)
   def of(rowType: RowType, batchType: BatchType): ConventionReq = new Impl(rowType, batchType)
 }
