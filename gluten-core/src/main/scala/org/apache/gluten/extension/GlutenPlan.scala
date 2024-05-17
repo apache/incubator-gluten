@@ -51,7 +51,7 @@ object ValidationResult {
 }
 
 /** Every Gluten Operator should extend this trait. */
-trait GlutenPlan extends SparkPlan with LogLevelUtil {
+trait GlutenPlan extends SparkPlan with Convention.KnownBatchType with LogLevelUtil {
 
   private lazy val validationLogLevel = glutenConf.validationLogLevel
   private lazy val printStackOnValidationFailure = glutenConf.printStackOnValidationFailure
@@ -86,7 +86,7 @@ trait GlutenPlan extends SparkPlan with LogLevelUtil {
     }
   }
 
-  final def batchType(): Convention.BatchType = {
+  final override def batchType(): Convention.BatchType = {
     if (!supportsColumnar) {
       throw new UnsupportedOperationException(
         s"Node $nodeName doesn't support columnar-batch processing")

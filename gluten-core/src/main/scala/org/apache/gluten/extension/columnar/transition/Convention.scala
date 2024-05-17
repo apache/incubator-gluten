@@ -105,4 +105,8 @@ object Convention {
           })
     }
   }
+
+  trait KnownBatchType {
+    def batchType(): BatchType
+  }
 }

@@ -17,7 +17,6 @@
 package org.apache.gluten.extension.columnar.transition
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.transition.Convention.{BatchType, RowType}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -97,7 +96,7 @@ object ConventionFunc {
         plan,
         (p: SparkPlan) =>
           p match {
-            case g: GlutenPlan => g.batchType()
+            case g: Convention.KnownBatchType => g.batchType()
             case _ => BatchType.VanillaBatch
           }
       )
