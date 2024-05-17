@@ -66,8 +66,6 @@ class VeloxSortBasedShuffleWriter : public VeloxShuffleWriter {
 
   arrow::Status evictRowVector(uint32_t partitionId) override;
 
-  arrow::Status evictBatch(uint32_t partitionId, facebook::velox::RowTypePtr* rowTypePtr);
-
  private:
   VeloxSortBasedShuffleWriter(
       uint32_t numPartitions,
@@ -85,9 +83,11 @@ class VeloxSortBasedShuffleWriter : public VeloxShuffleWriter {
 
   arrow::Status doSort(facebook::velox::RowVectorPtr rv, int64_t memLimit);
 
+  arrow::Status evictBatch(uint32_t partitionId);
+
   void stat() const;
 
-  std::optional<facebook::velox::TypePtr> rowType_;
+  facebook::velox::RowTypePtr rowType_;
 
   std::unique_ptr<facebook::velox::VectorStreamGroup> batch_;
   std::unique_ptr<BufferOutputStream> bufferOutputStream_;
