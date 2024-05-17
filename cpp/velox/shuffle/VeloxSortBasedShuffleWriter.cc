@@ -185,8 +185,8 @@ arrow::Status VeloxSortBasedShuffleWriter::evictRowVector(uint32_t partitionId) 
       auto rowVectorIndex = it->second;
       const int32_t outputSize = rowVectorIndex.size();
 
-      std::unordered_map<int32_t, std::vector<facebook::velox::IndexRange>> groupedIndices;
-      std::unordered_map<int32_t, int64_t> groupedSize;
+      std::map<int32_t, std::vector<facebook::velox::IndexRange>> groupedIndices;
+      std::map<int32_t, int64_t> groupedSize;
 
       int32_t tempVectorIndex = -1;
       int32_t baseRowIndex = -1;
