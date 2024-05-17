@@ -258,8 +258,4 @@ VeloxBackend* VeloxBackend::get() {
   return instance_.get();
 }
 
-std::shared_ptr<facebook::velox::Config> VeloxBackend::getBackendConf() const {
-  return backendConf_;
-}
-
 } // namespace gluten
