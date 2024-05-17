@@ -259,7 +259,7 @@ public class CelebornShuffleManager implements ShuffleManager {
         }
         @SuppressWarnings("unchecked")
         CelebornShuffleHandle<K, V, V> h = ((CelebornShuffleHandle<K, V, V>) handle);
-        ShuffleClient client =
+        shuffleClient =
             CelebornUtils.getShuffleClient(
                 h.appUniqueId(),
                 h.lifecycleManagerHost(),
@@ -279,7 +279,7 @@ public class CelebornShuffleManager implements ShuffleManager {
                   ShuffleClient.class,
                   CelebornShuffleHandle.class,
                   TaskContext.class,
-                  boolean.class);
+                  Boolean.class);
           shuffleId = (int) celebornShuffleIdMethod.invoke(null, shuffleClient, h, context, true);
 
           Method trackMethod =
@@ -298,7 +298,7 @@ public class CelebornShuffleManager implements ShuffleManager {
         if (h.dependency() instanceof ColumnarShuffleDependency) {
           // columnar-based shuffle
           return writerFactory.createShuffleWriterInstance(
-              shuffleId, h, context, celebornConf, client, metrics);
+              shuffleId, h, context, celebornConf, shuffleClient, metrics);
         } else {
           // row-based shuffle
           return vanillaCelebornShuffleManager().getWriter(handle, mapId, context, metrics);
