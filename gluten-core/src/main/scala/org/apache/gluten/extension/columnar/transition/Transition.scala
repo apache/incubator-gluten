@@ -36,6 +36,10 @@ trait TransitionDef {
   def create(): Transition
 }
 
+object TransitionDef {
+  val empty: TransitionDef = () => Transition.empty
+}
+
 object Transition {
   val empty: Transition = (plan: SparkPlan) => plan
   val factory: Factory = Factory.newBuiltin()
