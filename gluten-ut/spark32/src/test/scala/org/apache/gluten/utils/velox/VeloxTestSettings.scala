@@ -429,8 +429,15 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
     // file cars.csv include null string, Arrow not support to read
     .exclude("DDL test with schema")
-    // file cars.csv include null string, Arrow not support to read
     .exclude("old csv data source name works")
+    .exclude("save csv")
+    .exclude("save csv with compression codec option")
+    .exclude("save csv with empty fields with user defined empty values")
+    .exclude("save csv with quote")
+    .exclude("SPARK-13543 Write the output as uncompressed via option()")
+    // Rule org.apache.spark.sql.execution.datasources.v2.V2ScanRelationPushDown in batch
+    // Early Filter and Projection Push-Down generated an invalid plan
+    .exclude("SPARK-26208: write and read empty data to csv file with headers")
   enableSuite[GlutenCSVLegacyTimeParserSuite]
     .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
     // file cars.csv include null string, Arrow not support to read

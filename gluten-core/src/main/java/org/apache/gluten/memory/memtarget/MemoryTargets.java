@@ -43,6 +43,14 @@ public final class MemoryTargets {
     return new OverAcquire(target, overTarget, overAcquiredRatio);
   }
 
+  public static MemoryTarget dynamicOffHeapSizingIfEnabled(MemoryTarget memoryTarget) {
+    if (GlutenConfig.getConf().dynamicOffHeapSizingEnabled()) {
+      return new DynamicOffHeapSizingMemoryTarget(memoryTarget);
+    }
+
+    return memoryTarget;
+  }
+
   public static MemoryTarget newConsumer(
       TaskMemoryManager tmm,
       String name,
@@ -54,6 +62,7 @@ public final class MemoryTargets {
     } else {
       factory = TreeMemoryConsumers.shared();
     }
-    return factory.newConsumer(tmm, name, spillers, virtualChildren);
+
+    return dynamicOffHeapSizingIfEnabled(factory.newConsumer(tmm, name, spillers, virtualChildren));
   }
 }

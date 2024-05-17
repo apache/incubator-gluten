@@ -31,6 +31,7 @@
 #include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 #include "shuffle/LocalPartitionWriter.h"
+#include "shuffle/VeloxHashBasedShuffleWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "shuffle/rss/RssPartitionWriter.h"
 #include "utils/StringUtil.h"
@@ -111,7 +112,7 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
   options.partitioning = gluten::toPartitioning(FLAGS_partitioning);
   GLUTEN_ASSIGN_OR_THROW(
       auto shuffleWriter,
-      VeloxShuffleWriter::create(
+      VeloxHashBasedShuffleWriter::create(
           FLAGS_shuffle_partitions,
           std::move(partitionWriter),
           std::move(options),
@@ -191,7 +192,7 @@ auto BM_Generic = [](::benchmark::State& state,
       GLUTEN_THROW_NOT_OK(setLocalDirsAndDataFileFromEnv(dataFile, localDirs, isFromEnv));
       const auto& shuffleWriter = createShuffleWriter(memoryManager.get(), dataFile, localDirs);
       while (resultIter->hasNext()) {
-        GLUTEN_THROW_NOT_OK(shuffleWriter->split(resultIter->next(), ShuffleWriter::kMinMemLimit));
+        GLUTEN_THROW_NOT_OK(shuffleWriter->write(resultIter->next(), ShuffleWriter::kMinMemLimit));
       }
       GLUTEN_THROW_NOT_OK(shuffleWriter->stop());
       TIME_NANO_END(shuffleWriteTime);

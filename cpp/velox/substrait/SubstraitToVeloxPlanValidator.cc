@@ -191,12 +191,6 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
     return validateRound(scalarFunction, inputType);
   } else if (name == "extract") {
     return validateExtractExpr(params);
-  } else if (name == "char_length") {
-    VELOX_CHECK(types.size() == 1);
-    if (types[0] == "vbin") {
-      LOG_VALIDATION_MSG("Binary type is not supported in " + name);
-      return false;
-    }
   } else if (name == "map_from_arrays") {
     LOG_VALIDATION_MSG("map_from_arrays is not supported.");
     return false;

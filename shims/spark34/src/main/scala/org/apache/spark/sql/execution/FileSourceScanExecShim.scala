@@ -66,7 +66,10 @@ abstract class FileSourceScanExecShim(
       .filterNot(metadataColumns.toSet)
       .exists(v => metadataColumnsNames.contains(v.name)) ||
     // Below name has special meaning in Velox.
-    output.exists(a => a.name == "$path" || a.name == "$bucket")
+    output.exists(
+      a =>
+        a.name == "$path" || a.name == "$bucket" ||
+          a.name == FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME)
   }
 
   def isMetadataColumn(attr: Attribute): Boolean = metadataColumns.contains(attr)

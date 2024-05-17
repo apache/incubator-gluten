@@ -80,7 +80,7 @@ case class QueriesCompare(
     var all = QueriesCompare.aggregate(results, "all")
 
     if (passedCount != count) {
-      all = QueriesCompare.aggregate(succeed, "all succeed") ::: all
+      all = QueriesCompare.aggregate(succeed, "succeeded") ::: all
     }
 
     println("Overall: ")
