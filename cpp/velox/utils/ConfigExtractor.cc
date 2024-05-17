@@ -141,8 +141,8 @@ std::shared_ptr<facebook::velox::core::MemConfig> getHiveConfig(std::shared_ptr<
   }
 #endif
 
-  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kEnableFileHandleCache] = 
-      conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false");
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kEnableFileHandleCache] =
+      conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false";
 
   return std::make_shared<facebook::velox::core::MemConfig>(std::move(hiveConfMap));
 }
