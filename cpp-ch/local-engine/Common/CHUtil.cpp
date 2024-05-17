@@ -555,6 +555,12 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::map<std::s
             config->setString(key.substr(CH_RUNTIME_CONFIG_PREFIX.size()), value);
         }
     }
+
+    if (backend_conf_map.contains(GLUTEN_TASK_OFFHEAP))
+    {
+        config->setString(CH_TASK_MEMORY, backend_conf_map.at(GLUTEN_TASK_OFFHEAP));
+    }
+
     return config;
 }
 
@@ -672,6 +678,26 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("function_json_value_return_type_allow_complex", true);
     settings.set("function_json_value_return_type_allow_nullable", true);
     settings.set("precise_float_parsing", true);
+    if (backend_conf_map.contains(GLUTEN_TASK_OFFHEAP))
+    {
+        auto task_memory = std::stoull(backend_conf_map.at(GLUTEN_TASK_OFFHEAP));
+        if (!backend_conf_map.contains(CH_RUNTIME_SETTINGS + "max_bytes_before_external_sort"))
+        {
+            double mem_size_gb = static_cast<double>(task_memory) / 1024 / 1024 / 1024;
+            // settings.max_bytes_before_external_sort = static_cast<size_t>(std::min(1 / (4.1 * mem_size_gb - 1.5) + 0.42, 0.8) *
+            //     task_memory);
+            settings.max_bytes_before_external_sort = static_cast<size_t>(0.8 *
+    task_memory);
+        }
+        if (!backend_conf_map.contains(CH_RUNTIME_SETTINGS + "prefer_external_sort_block_bytes"))
+        {
+            auto mem_ratio = task_memory / static_cast<double>(4_GiB);
+            // 50(0.9x)^2+18x, Heuristics calculate the block size of external sort
+            settings.prefer_external_sort_block_bytes = std::min(
+                static_cast<size_t>((50 * pow((mem_ratio * 0.8), 2) + 18 * mem_ratio) * 1024 * 1024),
+                50_MiB);
+        }
+    }
 }
 
 void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)

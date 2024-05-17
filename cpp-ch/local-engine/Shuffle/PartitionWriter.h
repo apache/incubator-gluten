@@ -146,6 +146,7 @@ public:
     {
         max_merge_block_size = options->split_size;
         max_sort_buffer_size = options->max_sort_buffer_size;
+        max_merge_block_bytes = SerializedPlanParser::global_context->getSettings().prefer_external_sort_block_bytes;
         tmp_data = std::make_unique<TemporaryDataOnDisk>(SerializedPlanParser::global_context->getTempDataOnDisk());
     }
 
@@ -163,7 +164,9 @@ protected:
 
     size_t max_sort_buffer_size = 1_GiB;
     size_t max_merge_block_size = DB::DEFAULT_BLOCK_SIZE;
+    size_t max_merge_block_bytes = 0;
     size_t current_accumulated_bytes = 0;
+    size_t current_accumulated_rows = 0;
     DB::Chunks accumulated_blocks;
     DB::Block output_header;
     DB::Block sort_header;

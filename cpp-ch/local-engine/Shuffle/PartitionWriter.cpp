@@ -356,7 +356,8 @@ void ExternalSortLocalPartitionWriter::write(const PartitionInfo & info, DB::Blo
     chunk.setColumns(block.getColumns(), block.rows());
     accumulated_blocks.emplace_back(std::move(chunk));
     current_accumulated_bytes += accumulated_blocks.back().allocatedBytes();
-    if (current_accumulated_bytes >= max_sort_buffer_size)
+    current_accumulated_rows += accumulated_blocks.back().getNumRows();
+    if (max_sort_buffer_size && current_accumulated_bytes >= max_sort_buffer_size)
         unsafeEvictPartitions(false, false);
     shuffle_writer->split_result.total_write_time += write_time_watch.elapsedNanoseconds();
 }
@@ -367,6 +368,10 @@ size_t ExternalSortLocalPartitionWriter::unsafeEvictPartitions(bool, bool)
     IgnoreMemoryTracker ignore(settings.spill_memory_overhead);
     if (accumulated_blocks.empty())
         return 0;
+    if (max_merge_block_bytes)
+    {
+        max_merge_block_size = std::max(max_merge_block_bytes / (current_accumulated_bytes / current_accumulated_rows), 128UL);
+    }
     Stopwatch watch;
     MergeSorter sorter(sort_header, std::move(accumulated_blocks), sort_description, max_merge_block_size, 0);
     streams.emplace_back(&tmp_data->createStream(sort_header));
@@ -378,6 +383,7 @@ size_t ExternalSortLocalPartitionWriter::unsafeEvictPartitions(bool, bool)
     streams.back()->finishWriting();
     auto result = current_accumulated_bytes;
     current_accumulated_bytes = 0;
+    current_accumulated_rows = 0;
     shuffle_writer->split_result.total_spill_time += watch.elapsedNanoseconds();
     return result;
 }

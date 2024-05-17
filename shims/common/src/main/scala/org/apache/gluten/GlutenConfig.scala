@@ -1416,7 +1416,7 @@ object GlutenConfig {
       .internal()
       .doc("The maximum size of sort shuffle buffer in CH backend.")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("1GB")
+      .createWithDefaultString("0")
 
   val COLUMNAR_CH_SPILL_FIRSTLY_BEFORE_STOP =
     buildConf("spark.gluten.sql.columnar.backend.ch.spillFirstlyBeforeStop")

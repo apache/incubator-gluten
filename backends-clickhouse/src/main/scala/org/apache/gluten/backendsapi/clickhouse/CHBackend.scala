@@ -127,7 +127,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   val GLUTEN_MAX_SHUFFLE_READ_BYTES: String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
       ".runtime_config.max_source_concatenate_bytes"
-  val GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT = -1
+  val GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT = GLUTEN_MAX_BLOCK_SIZE_DEFAULT * 256
 
   def affinityMode: String = {
     SparkEnv.get.conf
