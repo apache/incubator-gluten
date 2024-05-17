@@ -124,10 +124,14 @@ object Transition {
           "#findTransition called with on a plan that doesn't support either row or columnar " +
             "output")
         val out = (to.requiredRowType, to.requiredBatchType) match {
-          case (_: ConventionReq.RowType.Is, _: ConventionReq.BatchType.Is) =>
-            throw new UnsupportedOperationException(
-              "Transiting to plan that both have row and columnar-batch output is not yet " +
-                "supported")
+          case (ConventionReq.RowType.Is(toRowType), ConventionReq.BatchType.Is(toBatchType)) =>
+            if (from.rowType == toRowType && from.batchType == toBatchType) {
+              return Transition.empty
+            } else {
+              throw new UnsupportedOperationException(
+                "Transiting to plan that both have row and columnar-batch output is not yet " +
+                  "supported")
+            }
           case (ConventionReq.RowType.Is(toRowType), ConventionReq.BatchType.Any) =>
             from.rowType match {
               case RowTypes.None =>
