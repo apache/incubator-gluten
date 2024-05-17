@@ -41,7 +41,8 @@ public class ShuffleReaderJniWrapper implements RuntimeAware {
       long memoryManagerHandle,
       String compressionType,
       String compressionCodecBackend,
-      int batchSize);
+      int batchSize,
+      String shuffleWriterType);
 
   public native long readStream(long shuffleReaderHandle, JniByteInputStream jniIn);
 

@@ -69,6 +69,12 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
     }
   }
 
+  private val memoryLimit: Long = if ("sort".equals(shuffleWriterType)) {
+    Math.min(clientSortMemoryMaxSize, clientPushBufferMaxSize * numPartitions)
+  } else {
+    availableOffHeapPerTask()
+  }
+
   private def availableOffHeapPerTask(): Long = {
     val perTask =
       SparkMemoryUtil.getCurrentAvailableOffHeapMemory / SparkResourceUtil.getTaskSlots(conf)
@@ -97,6 +103,7 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
             bufferCompressThreshold,
             GlutenConfig.getConf.columnarShuffleCompressionMode,
             clientPushBufferMaxSize,
+            clientPushSortMemoryThreshold,
             celebornPartitionPusher,
             NativeMemoryManagers
               .create(
@@ -127,11 +134,12 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
             context.taskAttemptId(),
             GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, context.partitionId),
             "celeborn",
+            shuffleWriterType,
             GlutenConfig.getConf.columnarShuffleReallocThreshold
           )
         }
         val startTime = System.nanoTime()
-        jniWrapper.split(nativeShuffleWriter, cb.numRows, handle, availableOffHeapPerTask())
+        jniWrapper.write(nativeShuffleWriter, cb.numRows, handle, availableOffHeapPerTask())
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(cb.numRows)
         dep.metrics("inputBatches").add(1)

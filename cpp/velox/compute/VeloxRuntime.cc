@@ -28,8 +28,9 @@
 #include "compute/VeloxPlanConverter.h"
 #include "config/VeloxConfig.h"
 #include "operators/serializer/VeloxRowToColumnarConverter.h"
+#include "shuffle/VeloxHashBasedShuffleWriter.h"
 #include "shuffle/VeloxShuffleReader.h"
-#include "shuffle/VeloxShuffleWriter.h"
+#include "shuffle/VeloxSortBasedShuffleWriter.h"
 #include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
 
@@ -187,10 +188,19 @@ std::shared_ptr<ShuffleWriter> VeloxRuntime::createShuffleWriter(
     MemoryManager* memoryManager) {
   auto ctxPool = getLeafVeloxPool(memoryManager);
   auto arrowPool = memoryManager->getArrowMemoryPool();
-  GLUTEN_ASSIGN_OR_THROW(
-      auto shuffle_writer,
-      VeloxShuffleWriter::create(numPartitions, std::move(partitionWriter), std::move(options), ctxPool, arrowPool));
-  return shuffle_writer;
+  std::shared_ptr<ShuffleWriter> shuffleWriter;
+  if (options.shuffleWriterType == kHashShuffle) {
+    GLUTEN_ASSIGN_OR_THROW(
+        shuffleWriter,
+        VeloxHashBasedShuffleWriter::create(
+            numPartitions, std::move(partitionWriter), std::move(options), ctxPool, arrowPool));
+  } else if (options.shuffleWriterType == kSortShuffle) {
+    GLUTEN_ASSIGN_OR_THROW(
+        shuffleWriter,
+        VeloxSortBasedShuffleWriter::create(
+            numPartitions, std::move(partitionWriter), std::move(options), ctxPool, arrowPool));
+  }
+  return shuffleWriter;
 }
 
 std::shared_ptr<Datasource> VeloxRuntime::createDatasource(
@@ -242,9 +252,18 @@ std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
   auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
   auto codec = gluten::createArrowIpcCodec(options.compressionType, options.codecBackend);
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
+  auto veloxCompressionType = facebook::velox::common::stringToCompressionKind(options.compressionTypeStr);
   auto deserializerFactory = std::make_unique<gluten::VeloxColumnarBatchDeserializerFactory>(
-      schema, std::move(codec), rowType, options.batchSize, pool, ctxVeloxPool);
-  return std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
+      schema,
+      std::move(codec),
+      veloxCompressionType,
+      rowType,
+      options.batchSize,
+      pool,
+      ctxVeloxPool,
+      options.shuffleWriterType);
+  auto reader = std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
+  return reader;
 }
 
 std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerializer(

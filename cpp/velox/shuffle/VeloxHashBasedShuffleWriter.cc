@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "VeloxShuffleWriter.h"
+#include "VeloxHashBasedShuffleWriter.h"
 #include "memory/ArrowMemory.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
@@ -69,58 +69,6 @@ bool vectorHasNull(const facebook::velox::VectorPtr& vp) {
   }
   return vp->countNulls(vp->nulls(), vp->size()) != 0;
 }
-
-facebook::velox::RowVectorPtr getStrippedRowVector(const facebook::velox::RowVector& rv) {
-  // get new row type
-  auto rowType = rv.type()->asRow();
-  auto typeChildren = rowType.children();
-  typeChildren.erase(typeChildren.begin());
-  auto newRowType = facebook::velox::ROW(std::move(typeChildren));
-
-  // get length
-  auto length = rv.size();
-
-  // get children
-  auto children = rv.children();
-  children.erase(children.begin());
-
-  return std::make_shared<facebook::velox::RowVector>(
-      rv.pool(), newRowType, facebook::velox::BufferPtr(nullptr), length, std::move(children));
-}
-
-const int32_t* getFirstColumn(const facebook::velox::RowVector& rv) {
-  VELOX_CHECK(rv.childrenSize() > 0, "RowVector missing partition id column.");
-
-  auto& firstChild = rv.childAt(0);
-  VELOX_CHECK(firstChild->isFlatEncoding(), "Partition id (field 0) is not flat encoding.");
-  VELOX_CHECK(
-      firstChild->type()->isInteger(),
-      "Partition id (field 0) should be integer, but got {}",
-      firstChild->type()->toString());
-
-  // first column is partition key hash value or pid
-  return firstChild->asFlatVector<int32_t>()->rawValues();
-}
-
-class EvictGuard {
- public:
-  explicit EvictGuard(EvictState& evictState) : evictState_(evictState) {
-    evictState_ = EvictState::kUnevictable;
-  }
-
-  ~EvictGuard() {
-    evictState_ = EvictState::kEvictable;
-  }
-
-  // For safety and clarity.
-  EvictGuard(const EvictGuard&) = delete;
-  EvictGuard& operator=(const EvictGuard&) = delete;
-  EvictGuard(EvictGuard&&) = delete;
-  EvictGuard& operator=(EvictGuard&&) = delete;
-
- private:
-  EvictState& evictState_;
-};
 
 class BinaryArrayResizeGuard {
  public:
@@ -199,19 +147,19 @@ arrow::Status collectFlatVectorBuffer<facebook::velox::TypeKind::VARBINARY>(
 
 } // namespace
 
-arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
+arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxHashBasedShuffleWriter::create(
     uint32_t numPartitions,
     std::unique_ptr<PartitionWriter> partitionWriter,
     ShuffleWriterOptions options,
     std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
     arrow::MemoryPool* arrowPool) {
-  std::shared_ptr<VeloxShuffleWriter> res(
-      new VeloxShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool));
+  std::shared_ptr<VeloxHashBasedShuffleWriter> res(new VeloxHashBasedShuffleWriter(
+      numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool));
   RETURN_NOT_OK(res->init());
   return res;
 } // namespace gluten
 
-arrow::Status VeloxShuffleWriter::init() {
+arrow::Status VeloxHashBasedShuffleWriter::init() {
 #if defined(__x86_64__)
   supportAvx512_ = __builtin_cpu_supports("avx512bw");
 #else
@@ -235,7 +183,7 @@ arrow::Status VeloxShuffleWriter::init() {
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::initPartitions() {
+arrow::Status VeloxHashBasedShuffleWriter::initPartitions() {
   auto simpleColumnCount = simpleColumnIndices_.size();
 
   partitionValidityAddrs_.resize(simpleColumnCount);
@@ -260,15 +208,11 @@ arrow::Status VeloxShuffleWriter::initPartitions() {
   return arrow::Status::OK();
 }
 
-int64_t VeloxShuffleWriter::rawPartitionBytes() const {
-  return std::accumulate(metrics_.rawPartitionLengths.begin(), metrics_.rawPartitionLengths.end(), 0LL);
-}
-
-void VeloxShuffleWriter::setPartitionBufferSize(uint32_t newSize) {
+void VeloxHashBasedShuffleWriter::setPartitionBufferSize(uint32_t newSize) {
   options_.bufferSize = newSize;
 }
 
-arrow::Result<std::shared_ptr<arrow::Buffer>> VeloxShuffleWriter::generateComplexTypeBuffers(
+arrow::Result<std::shared_ptr<arrow::Buffer>> VeloxHashBasedShuffleWriter::generateComplexTypeBuffers(
     facebook::velox::RowVectorPtr vector) {
   auto arena = std::make_unique<facebook::velox::StreamArena>(veloxPool_.get());
   auto serializer =
@@ -291,7 +235,7 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> VeloxShuffleWriter::generateComple
   return valueBuffer;
 }
 
-arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) {
+arrow::Status VeloxHashBasedShuffleWriter::write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) {
   if (options_.partitioning == Partitioning::kSingle) {
     auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
     VELOX_CHECK_NOT_NULL(veloxColumnBatch);
@@ -357,7 +301,7 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb, int64
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::partitioningAndDoSplit(facebook::velox::RowVectorPtr rv, int64_t memLimit) {
+arrow::Status VeloxHashBasedShuffleWriter::partitioningAndDoSplit(facebook::velox::RowVectorPtr rv, int64_t memLimit) {
   if (partitioner_->hasPid()) {
     auto pidArr = getFirstColumn(*rv);
     START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
@@ -376,7 +320,7 @@ arrow::Status VeloxShuffleWriter::partitioningAndDoSplit(facebook::velox::RowVec
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::stop() {
+arrow::Status VeloxHashBasedShuffleWriter::stop() {
   if (options_.partitioning != Partitioning::kSingle) {
     for (auto pid = 0; pid < numPartitions_; ++pid) {
       RETURN_NOT_OK(evictPartitionBuffers(pid, false));
@@ -394,7 +338,7 @@ arrow::Status VeloxShuffleWriter::stop() {
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::buildPartition2Row(uint32_t rowNum) {
+arrow::Status VeloxHashBasedShuffleWriter::buildPartition2Row(uint32_t rowNum) {
   SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingBuildPartition]);
 
   // calc partition2RowOffsetBase_
@@ -427,7 +371,7 @@ arrow::Status VeloxShuffleWriter::buildPartition2Row(uint32_t rowNum) {
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::updateInputHasNull(const facebook::velox::RowVector& rv) {
+arrow::Status VeloxHashBasedShuffleWriter::updateInputHasNull(const facebook::velox::RowVector& rv) {
   SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingHasNull]);
 
   for (size_t col = 0; col < simpleColumnIndices_.size(); ++col) {
@@ -444,11 +388,11 @@ arrow::Status VeloxShuffleWriter::updateInputHasNull(const facebook::velox::RowV
   return arrow::Status::OK();
 }
 
-void VeloxShuffleWriter::setSplitState(SplitState state) {
+void VeloxHashBasedShuffleWriter::setSplitState(SplitState state) {
   splitState_ = state;
 }
 
-arrow::Status VeloxShuffleWriter::doSplit(const facebook::velox::RowVector& rv, int64_t memLimit) {
+arrow::Status VeloxHashBasedShuffleWriter::doSplit(const facebook::velox::RowVector& rv, int64_t memLimit) {
   auto rowNum = rv.size();
   RETURN_NOT_OK(buildPartition2Row(rowNum));
   RETURN_NOT_OK(updateInputHasNull(rv));
@@ -472,7 +416,7 @@ arrow::Status VeloxShuffleWriter::doSplit(const facebook::velox::RowVector& rv, 
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::splitRowVector(const facebook::velox::RowVector& rv) {
+arrow::Status VeloxHashBasedShuffleWriter::splitRowVector(const facebook::velox::RowVector& rv) {
   SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingSplitRV]);
 
   // now start to split the RowVector
@@ -489,7 +433,7 @@ arrow::Status VeloxShuffleWriter::splitRowVector(const facebook::velox::RowVecto
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::velox::RowVector& rv) {
+arrow::Status VeloxHashBasedShuffleWriter::splitFixedWidthValueBuffer(const facebook::velox::RowVector& rv) {
   for (auto col = 0; col < fixedWidthColumnCount_; ++col) {
     auto colIdx = simpleColumnIndices_[col];
     auto& column = rv.childAt(colIdx);
@@ -543,7 +487,9 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::splitBoolType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
+arrow::Status VeloxHashBasedShuffleWriter::splitBoolType(
+    const uint8_t* srcAddr,
+    const std::vector<uint8_t*>& dstAddrs) {
   // assume batch size = 32k; reducer# = 4K; row/reducer = 8
   for (auto& pid : partitionUsed_) {
     // set the last byte
@@ -632,7 +578,7 @@ arrow::Status VeloxShuffleWriter::splitBoolType(const uint8_t* srcAddr, const st
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::splitValidityBuffer(const facebook::velox::RowVector& rv) {
+arrow::Status VeloxHashBasedShuffleWriter::splitValidityBuffer(const facebook::velox::RowVector& rv) {
   for (size_t col = 0; col < simpleColumnIndices_.size(); ++col) {
     auto colIdx = simpleColumnIndices_[col];
     auto& column = rv.childAt(colIdx);
@@ -660,7 +606,7 @@ arrow::Status VeloxShuffleWriter::splitValidityBuffer(const facebook::velox::Row
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::splitBinaryType(
+arrow::Status VeloxHashBasedShuffleWriter::splitBinaryType(
     uint32_t binaryIdx,
     const facebook::velox::FlatVector<facebook::velox::StringView>& src,
     std::vector<BinaryBuf>& dst) {
@@ -723,7 +669,7 @@ arrow::Status VeloxShuffleWriter::splitBinaryType(
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::splitBinaryArray(const facebook::velox::RowVector& rv) {
+arrow::Status VeloxHashBasedShuffleWriter::splitBinaryArray(const facebook::velox::RowVector& rv) {
   for (auto col = fixedWidthColumnCount_; col < simpleColumnIndices_.size(); ++col) {
     auto binaryIdx = col - fixedWidthColumnCount_;
     auto& dstAddrs = partitionBinaryAddrs_[binaryIdx];
@@ -734,7 +680,7 @@ arrow::Status VeloxShuffleWriter::splitBinaryArray(const facebook::velox::RowVec
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::splitComplexType(const facebook::velox::RowVector& rv) {
+arrow::Status VeloxHashBasedShuffleWriter::splitComplexType(const facebook::velox::RowVector& rv) {
   if (complexColumnIndices_.size() == 0) {
     return arrow::Status::OK();
   }
@@ -773,7 +719,7 @@ arrow::Status VeloxShuffleWriter::splitComplexType(const facebook::velox::RowVec
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::initColumnTypes(const facebook::velox::RowVector& rv) {
+arrow::Status VeloxHashBasedShuffleWriter::initColumnTypes(const facebook::velox::RowVector& rv) {
   schema_ = toArrowSchema(rv.type(), veloxPool_.get());
   for (size_t i = 0; i < rv.childrenSize(); ++i) {
     veloxColumnTypes_.push_back(rv.childAt(i)->type());
@@ -837,7 +783,7 @@ arrow::Status VeloxShuffleWriter::initColumnTypes(const facebook::velox::RowVect
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::initFromRowVector(const facebook::velox::RowVector& rv) {
+arrow::Status VeloxHashBasedShuffleWriter::initFromRowVector(const facebook::velox::RowVector& rv) {
   if (veloxColumnTypes_.empty()) {
     RETURN_NOT_OK(initColumnTypes(rv));
     RETURN_NOT_OK(initPartitions());
@@ -846,13 +792,13 @@ arrow::Status VeloxShuffleWriter::initFromRowVector(const facebook::velox::RowVe
   return arrow::Status::OK();
 }
 
-inline bool VeloxShuffleWriter::beyondThreshold(uint32_t partitionId, uint32_t newSize) {
+inline bool VeloxHashBasedShuffleWriter::beyondThreshold(uint32_t partitionId, uint32_t newSize) {
   auto currentBufferSize = partitionBufferSize_[partitionId];
   return newSize > (1 + options_.bufferReallocThreshold) * currentBufferSize ||
       newSize < (1 - options_.bufferReallocThreshold) * currentBufferSize;
 }
 
-void VeloxShuffleWriter::calculateSimpleColumnBytes() {
+void VeloxHashBasedShuffleWriter::calculateSimpleColumnBytes() {
   fixedWidthBufferBytes_ = 0;
   for (size_t col = 0; col < fixedWidthColumnCount_; ++col) {
     auto colIdx = simpleColumnIndices_[col];
@@ -862,7 +808,9 @@ void VeloxShuffleWriter::calculateSimpleColumnBytes() {
   fixedWidthBufferBytes_ += kSizeOfBinaryArrayLengthBuffer * binaryColumnIndices_.size();
 }
 
-uint32_t VeloxShuffleWriter::calculatePartitionBufferSize(const facebook::velox::RowVector& rv, int64_t memLimit) {
+uint32_t VeloxHashBasedShuffleWriter::calculatePartitionBufferSize(
+    const facebook::velox::RowVector& rv,
+    int64_t memLimit) {
   auto bytesPerRow = fixedWidthBufferBytes_;
 
   SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingCalculateBufferSize]);
@@ -915,7 +863,7 @@ uint32_t VeloxShuffleWriter::calculatePartitionBufferSize(const facebook::velox:
 }
 
 arrow::Result<std::shared_ptr<arrow::ResizableBuffer>>
-VeloxShuffleWriter::allocateValidityBuffer(uint32_t col, uint32_t partitionId, uint32_t newSize) {
+VeloxHashBasedShuffleWriter::allocateValidityBuffer(uint32_t col, uint32_t partitionId, uint32_t newSize) {
   if (inputHasNull_[col]) {
     ARROW_ASSIGN_OR_RAISE(
         auto validityBuffer,
@@ -929,7 +877,7 @@ VeloxShuffleWriter::allocateValidityBuffer(uint32_t col, uint32_t partitionId, u
   return nullptr;
 }
 
-arrow::Status VeloxShuffleWriter::updateValidityBuffers(uint32_t partitionId, uint32_t newSize) {
+arrow::Status VeloxHashBasedShuffleWriter::updateValidityBuffers(uint32_t partitionId, uint32_t newSize) {
   for (auto i = 0; i < simpleColumnIndices_.size(); ++i) {
     // If the validity buffer is not yet allocated, allocate and fill 0xff based on inputHasNull_.
     if (partitionValidityAddrs_[i][partitionId] == nullptr) {
@@ -940,7 +888,7 @@ arrow::Status VeloxShuffleWriter::updateValidityBuffers(uint32_t partitionId, ui
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::allocatePartitionBuffer(uint32_t partitionId, uint32_t newSize) {
+arrow::Status VeloxHashBasedShuffleWriter::allocatePartitionBuffer(uint32_t partitionId, uint32_t newSize) {
   SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingAllocateBuffer]);
 
   for (auto i = 0; i < simpleColumnIndices_.size(); ++i) {
@@ -987,7 +935,7 @@ arrow::Status VeloxShuffleWriter::allocatePartitionBuffer(uint32_t partitionId, 
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::evictBuffers(
+arrow::Status VeloxHashBasedShuffleWriter::evictBuffers(
     uint32_t partitionId,
     uint32_t numRows,
     std::vector<std::shared_ptr<arrow::Buffer>> buffers,
@@ -1000,7 +948,7 @@ arrow::Status VeloxShuffleWriter::evictBuffers(
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::evictPartitionBuffers(uint32_t partitionId, bool reuseBuffers) {
+arrow::Status VeloxHashBasedShuffleWriter::evictPartitionBuffers(uint32_t partitionId, bool reuseBuffers) {
   auto numRows = partitionBufferBase_[partitionId];
   if (numRows > 0) {
     ARROW_ASSIGN_OR_RAISE(auto buffers, assembleBuffers(partitionId, reuseBuffers));
@@ -1009,7 +957,7 @@ arrow::Status VeloxShuffleWriter::evictPartitionBuffers(uint32_t partitionId, bo
   return arrow::Status::OK();
 }
 
-arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> VeloxShuffleWriter::assembleBuffers(
+arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> VeloxHashBasedShuffleWriter::assembleBuffers(
     uint32_t partitionId,
     bool reuseBuffers) {
   SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingCreateRbFromBuffer]);
@@ -1150,7 +1098,7 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> VeloxShuffleWriter::a
   return allBuffers;
 }
 
-arrow::Status VeloxShuffleWriter::reclaimFixedSize(int64_t size, int64_t* actual) {
+arrow::Status VeloxHashBasedShuffleWriter::reclaimFixedSize(int64_t size, int64_t* actual) {
   if (evictState_ == EvictState::kUnevictable) {
     *actual = 0;
     return arrow::Status::OK();
@@ -1174,7 +1122,7 @@ arrow::Status VeloxShuffleWriter::reclaimFixedSize(int64_t size, int64_t* actual
   return arrow::Status::OK();
 }
 
-arrow::Result<int64_t> VeloxShuffleWriter::evictCachedPayload(int64_t size) {
+arrow::Result<int64_t> VeloxHashBasedShuffleWriter::evictCachedPayload(int64_t size) {
   SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingEvictPartition]);
   int64_t actual;
   auto before = partitionBufferPool_->bytes_allocated();
@@ -1188,7 +1136,7 @@ arrow::Result<int64_t> VeloxShuffleWriter::evictCachedPayload(int64_t size) {
   return actual;
 }
 
-arrow::Status VeloxShuffleWriter::resetValidityBuffer(uint32_t partitionId) {
+arrow::Status VeloxHashBasedShuffleWriter::resetValidityBuffer(uint32_t partitionId) {
   std::for_each(partitionBuffers_.begin(), partitionBuffers_.end(), [partitionId](auto& bufs) {
     if (bufs[partitionId].size() != 0 && bufs[partitionId][kValidityBufferIndex] != nullptr) {
       // initialize all true once allocated
@@ -1199,7 +1147,8 @@ arrow::Status VeloxShuffleWriter::resetValidityBuffer(uint32_t partitionId) {
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::resizePartitionBuffer(uint32_t partitionId, uint32_t newSize, bool preserveData) {
+arrow::Status
+VeloxHashBasedShuffleWriter::resizePartitionBuffer(uint32_t partitionId, uint32_t newSize, bool preserveData) {
   for (auto i = 0; i < simpleColumnIndices_.size(); ++i) {
     auto columnType = schema_->field(simpleColumnIndices_[i])->type()->id();
     auto& buffers = partitionBuffers_[i][partitionId];
@@ -1278,7 +1227,7 @@ arrow::Status VeloxShuffleWriter::resizePartitionBuffer(uint32_t partitionId, ui
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::shrinkPartitionBuffer(uint32_t partitionId) {
+arrow::Status VeloxHashBasedShuffleWriter::shrinkPartitionBuffer(uint32_t partitionId) {
   auto bufferSize = partitionBufferSize_[partitionId];
   if (bufferSize == 0) {
     return arrow::Status::OK();
@@ -1301,11 +1250,11 @@ arrow::Status VeloxShuffleWriter::shrinkPartitionBuffer(uint32_t partitionId) {
   return resizePartitionBuffer(partitionId, newSize, /*preserveData=*/true);
 }
 
-uint64_t VeloxShuffleWriter::valueBufferSizeForBinaryArray(uint32_t binaryIdx, uint32_t newSize) {
+uint64_t VeloxHashBasedShuffleWriter::valueBufferSizeForBinaryArray(uint32_t binaryIdx, uint32_t newSize) {
   return (binaryArrayTotalSizeBytes_[binaryIdx] + totalInputNumRows_ - 1) / totalInputNumRows_ * newSize + 1024;
 }
 
-uint64_t VeloxShuffleWriter::valueBufferSizeForFixedWidthArray(uint32_t fixedWidthIndex, uint32_t newSize) {
+uint64_t VeloxHashBasedShuffleWriter::valueBufferSizeForFixedWidthArray(uint32_t fixedWidthIndex, uint32_t newSize) {
   uint64_t valueBufferSize = 0;
   auto columnIdx = simpleColumnIndices_[fixedWidthIndex];
   if (arrowColumnTypes_[columnIdx]->id() == arrow::BooleanType::type_id) {
@@ -1320,7 +1269,7 @@ uint64_t VeloxShuffleWriter::valueBufferSizeForFixedWidthArray(uint32_t fixedWid
   return valueBufferSize;
 }
 
-void VeloxShuffleWriter::stat() const {
+void VeloxHashBasedShuffleWriter::stat() const {
 #if VELOX_SHUFFLE_WRITER_LOG_FLAG
   for (int i = CpuWallTimingBegin; i != CpuWallTimingEnd; ++i) {
     std::ostringstream oss;
@@ -1336,7 +1285,7 @@ void VeloxShuffleWriter::stat() const {
 #endif
 }
 
-arrow::Status VeloxShuffleWriter::resetPartitionBuffer(uint32_t partitionId) {
+arrow::Status VeloxHashBasedShuffleWriter::resetPartitionBuffer(uint32_t partitionId) {
   // Reset fixed-width partition buffers
   for (auto i = 0; i < fixedWidthColumnCount_; ++i) {
     partitionValidityAddrs_[i][partitionId] = nullptr;
@@ -1356,11 +1305,11 @@ arrow::Status VeloxShuffleWriter::resetPartitionBuffer(uint32_t partitionId) {
   return arrow::Status::OK();
 }
 
-const uint64_t VeloxShuffleWriter::cachedPayloadSize() const {
+const uint64_t VeloxHashBasedShuffleWriter::cachedPayloadSize() const {
   return partitionWriter_->cachedPayloadSize();
 }
 
-arrow::Result<int64_t> VeloxShuffleWriter::shrinkPartitionBuffersMinSize(int64_t size) {
+arrow::Result<int64_t> VeloxHashBasedShuffleWriter::shrinkPartitionBuffersMinSize(int64_t size) {
   // Sort partition buffers by (partitionBufferSize_ - partitionBufferBase_)
   std::vector<std::pair<uint32_t, uint32_t>> pidToSize;
   for (auto pid = 0; pid < numPartitions_; ++pid) {
@@ -1388,7 +1337,7 @@ arrow::Result<int64_t> VeloxShuffleWriter::shrinkPartitionBuffersMinSize(int64_t
   return shrunken;
 }
 
-arrow::Result<int64_t> VeloxShuffleWriter::evictPartitionBuffersMinSize(int64_t size) {
+arrow::Result<int64_t> VeloxHashBasedShuffleWriter::evictPartitionBuffersMinSize(int64_t size) {
   // Evict partition buffers, only when splitState_ == SplitState::kInit, and space freed from
   // shrinking is not enough. In this case partitionBufferSize_ == partitionBufferBase_
   int64_t beforeEvict = partitionBufferPool_->bytes_allocated();
@@ -1415,7 +1364,7 @@ arrow::Result<int64_t> VeloxShuffleWriter::evictPartitionBuffersMinSize(int64_t 
   return evicted;
 }
 
-bool VeloxShuffleWriter::shrinkPartitionBuffersAfterSpill() const {
+bool VeloxHashBasedShuffleWriter::shrinkPartitionBuffersAfterSpill() const {
   // If OOM happens during SplitState::kSplit, it is triggered by binary buffers resize.
   // Or during SplitState::kInit, it is triggered by other operators.
   // The reclaim order is spill->shrink, because the partition buffers can be reused.
@@ -1424,13 +1373,13 @@ bool VeloxShuffleWriter::shrinkPartitionBuffersAfterSpill() const {
       (splitState_ == SplitState::kSplit || splitState_ == SplitState::kInit);
 }
 
-bool VeloxShuffleWriter::evictPartitionBuffersAfterSpill() const {
+bool VeloxHashBasedShuffleWriter::evictPartitionBuffersAfterSpill() const {
   // If OOM triggered by other operators, the splitState_ is SplitState::kInit.
   // The last resort is to evict the partition buffers to reclaim more space.
   return options_.partitioning != Partitioning::kSingle && splitState_ == SplitState::kInit;
 }
 
-arrow::Result<uint32_t> VeloxShuffleWriter::partitionBufferSizeAfterShrink(uint32_t partitionId) const {
+arrow::Result<uint32_t> VeloxHashBasedShuffleWriter::partitionBufferSizeAfterShrink(uint32_t partitionId) const {
   if (splitState_ == SplitState::kSplit) {
     return partitionBufferBase_[partitionId] + partition2RowCount_[partitionId];
   }
@@ -1440,7 +1389,7 @@ arrow::Result<uint32_t> VeloxShuffleWriter::partitionBufferSizeAfterShrink(uint3
   return arrow::Status::Invalid("Cannot shrink partition buffers in SplitState: " + std::to_string(splitState_));
 }
 
-arrow::Status VeloxShuffleWriter::preAllocPartitionBuffers(uint32_t preAllocBufferSize) {
+arrow::Status VeloxHashBasedShuffleWriter::preAllocPartitionBuffers(uint32_t preAllocBufferSize) {
   for (auto& pid : partitionUsed_) {
     auto newSize = std::max(preAllocBufferSize, partition2RowCount_[pid]);
     VLOG_IF(9, partitionBufferSize_[pid] != newSize)
@@ -1494,7 +1443,7 @@ arrow::Status VeloxShuffleWriter::preAllocPartitionBuffers(uint32_t preAllocBuff
   return arrow::Status::OK();
 }
 
-bool VeloxShuffleWriter::isExtremelyLargeBatch(facebook::velox::RowVectorPtr& rv) const {
+bool VeloxHashBasedShuffleWriter::isExtremelyLargeBatch(facebook::velox::RowVectorPtr& rv) const {
   return (rv->size() > maxBatchSize_ && maxBatchSize_ > 0);
 }
 
