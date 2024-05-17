@@ -16,8 +16,11 @@
  */
 
 #include "VeloxColumnarToRowConverter.h"
+#include <velox/common/base/SuccinctPrinter.h>
+#include <cstdint>
 
 #include "memory/VeloxColumnarBatch.h"
+#include "utils/exception.h"
 #include "velox/row/UnsafeRowDeserializers.h"
 #include "velox/row/UnsafeRowFast.h"
 
@@ -25,37 +28,54 @@ using namespace facebook;
 
 namespace gluten {
 
-void VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr rowVector) {
-  numRows_ = rowVector->size();
+void VeloxColumnarToRowConverter::refreshStates(
+    facebook::velox::RowVectorPtr rowVector,
+    int64_t rowId,
+    int64_t memoryThreshold) {
+  auto vectorLength = rowVector->size();
   numCols_ = rowVector->childrenSize();
 
   fast_ = std::make_unique<velox::row::UnsafeRowFast>(rowVector);
 
   size_t totalMemorySize = 0;
   if (auto fixedRowSize = velox::row::UnsafeRowFast::fixedRowSize(velox::asRowType(rowVector->type()))) {
-    totalMemorySize += fixedRowSize.value() * numRows_;
-  } else {
-    for (auto i = 0; i < numRows_; ++i) {
-      totalMemorySize += fast_->rowSize(i);
+    if (memoryThreshold < fixedRowSize.value()) {
+      memoryThreshold = fixedRowSize.value();
+      LOG(ERROR) << "spark.gluten.sql.columnarToRowMemoryThreshold(" + velox::succinctBytes(memoryThreshold) +
+              ") is too small, it can't hold even one row(" + velox::succinctBytes(fixedRowSize.value()) + ")";
     }
+    auto rowSize = fixedRowSize.value();
+    numRows_ = std::min<int64_t>(memoryThreshold / rowSize, vectorLength - rowId);
+    totalMemorySize = rowSize * numRows_;
+  } else {
+    int64_t i = rowId;
+    for (; i < vectorLength; ++i) {
+      auto rowSize = fast_->rowSize(i);
+      if (UNLIKELY(totalMemorySize + rowSize > memoryThreshold)) {
+        if (i == rowId) {
+          memoryThreshold = rowSize;
+          LOG(ERROR) << "spark.gluten.sql.columnarToRowMemoryThreshold(" + velox::succinctBytes(memoryThreshold) +
+                  ") is too small, it can't hold even one row(" + velox::succinctBytes(rowSize) + ")";
+        }
+        break;
+      } else {
+        totalMemorySize += rowSize;
+      }
+    }
+    numRows_ = i - rowId;
   }
 
   if (veloxBuffers_ == nullptr) {
-    // First allocate memory
-    veloxBuffers_ = velox::AlignedBuffer::allocate<uint8_t>(totalMemorySize, veloxPool_.get());
-  }
-
-  if (veloxBuffers_->capacity() < totalMemorySize) {
-    velox::AlignedBuffer::reallocate<uint8_t>(&veloxBuffers_, totalMemorySize);
+    veloxBuffers_ = velox::AlignedBuffer::allocate<uint8_t>(memoryThreshold, veloxPool_.get());
   }
 
   bufferAddress_ = veloxBuffers_->asMutable<uint8_t>();
   memset(bufferAddress_, 0, sizeof(int8_t) * totalMemorySize);
 }
 
-void VeloxColumnarToRowConverter::convert(std::shared_ptr<ColumnarBatch> cb) {
+void VeloxColumnarToRowConverter::convert(std::shared_ptr<ColumnarBatch> cb, int64_t rowId, int64_t memoryThreshold) {
   auto veloxBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
-  refreshStates(veloxBatch->getRowVector());
+  refreshStates(veloxBatch->getRowVector(), rowId, memoryThreshold);
 
   // Initialize the offsets_ , lengths_
   lengths_.clear();
@@ -64,11 +84,11 @@ void VeloxColumnarToRowConverter::convert(std::shared_ptr<ColumnarBatch> cb) {
   offsets_.resize(numRows_, 0);
 
   size_t offset = 0;
-  for (auto rowIdx = 0; rowIdx < numRows_; ++rowIdx) {
-    auto rowSize = fast_->serialize(rowIdx, (char*)(bufferAddress_ + offset));
-    lengths_[rowIdx] = rowSize;
-    if (rowIdx > 0) {
-      offsets_[rowIdx] = offsets_[rowIdx - 1] + lengths_[rowIdx - 1];
+  for (auto i = 0; i < numRows_; ++i) {
+    auto rowSize = fast_->serialize(rowId + i, (char*)(bufferAddress_ + offset));
+    lengths_[i] = rowSize;
+    if (i > 0) {
+      offsets_[i] = offsets_[i - 1] + lengths_[i - 1];
     }
     offset += rowSize;
   }

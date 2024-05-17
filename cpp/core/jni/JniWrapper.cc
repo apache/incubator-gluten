@@ -16,6 +16,8 @@
  */
 
 #include <jni.h>
+#include <algorithm>
+#include <cstdint>
 #include <filesystem>
 
 #include "compute/Runtime.h"
@@ -27,6 +29,7 @@
 
 #include <arrow/c/bridge.h>
 #include <optional>
+#include <string>
 #include "memory/AllocationListener.h"
 #include "operators/serializer/ColumnarBatchSerializer.h"
 #include "shuffle/LocalPartitionWriter.h"
@@ -530,16 +533,27 @@ Java_org_apache_gluten_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarTo
     JNIEnv* env,
     jobject wrapper,
     jlong c2rHandle,
-    jlong batchHandle) {
+    jlong batchHandle,
+    jlong rowId) {
   JNI_METHOD_START
   auto columnarToRowConverter = ObjectStore::retrieve<ColumnarToRowConverter>(c2rHandle);
   auto cb = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
   columnarToRowConverter->convert(cb);
 
+  auto& conf = ctx->getConfMap();
+  int64_t column2RowMemThreshold = 256 * 1024 * 1024;
+  if (auto it = conf.find(kColumnToRowMemoryThreshold); it != conf.end()) {
+    if (std::all_of(it->second.begin(), it->second.end(), [](unsigned char c) { return std::isdigit(c); })) {
+      column2RowMemThreshold = std::stoll(it->second);
+    }
+  }
+
+  columnarToRowConverter->convert(cb, rowId, column2RowMemThreshold);
+
   const auto& offsets = columnarToRowConverter->getOffsets();
   const auto& lengths = columnarToRowConverter->getLengths();
 
-  auto numRows = cb->numRows();
+  auto numRows = columnarToRowConverter->numRows();
 
   auto offsetsArr = env->NewIntArray(numRows);
   auto offsetsSrc = reinterpret_cast<const jint*>(offsets.data());

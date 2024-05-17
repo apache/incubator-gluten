@@ -32,10 +32,10 @@ class VeloxColumnarToRowConverter final : public ColumnarToRowConverter {
   explicit VeloxColumnarToRowConverter(std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool)
       : ColumnarToRowConverter(), veloxPool_(veloxPool) {}
 
-  void convert(std::shared_ptr<ColumnarBatch> cb) override;
+  void convert(std::shared_ptr<ColumnarBatch> cb, int64_t rowId = 0, int64_t memoryThreshold = INT64_MAX) override;
 
  private:
-  void refreshStates(facebook::velox::RowVectorPtr rowVector);
+  void refreshStates(facebook::velox::RowVectorPtr rowVector, int64_t rowId, int64_t memoryThreshold);
 
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
   std::shared_ptr<facebook::velox::row::UnsafeRowFast> fast_;
