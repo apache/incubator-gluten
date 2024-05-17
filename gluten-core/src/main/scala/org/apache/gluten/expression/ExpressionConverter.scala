@@ -174,11 +174,10 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           c.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap))
         CreateArrayTransformer(substraitExprName, children, useStringTypeWhenEmpty = true, c)
       case g: GetArrayItem =>
-        GetArrayItemTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genGetArrayItemTransformer(
           substraitExprName,
           replaceWithExpressionTransformerInternal(g.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(g.right, attributeSeq, expressionsMap),
-          g.failOnError,
           g
         )
       case c: CreateMap =>

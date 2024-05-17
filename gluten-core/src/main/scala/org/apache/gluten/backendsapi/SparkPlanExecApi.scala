@@ -187,12 +187,11 @@ trait SparkPlanExecApi {
   }
 
   /** Transform GetArrayItem to Substrait. */
-  def genGetArrayItemExpressionNode(
+  def genGetArrayItemTransformer(
       substraitExprName: String,
-      functionMap: JMap[String, JLong],
-      leftNode: ExpressionNode,
-      rightNode: ExpressionNode,
-      original: GetArrayItem): ExpressionNode
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Expression): ExpressionTransformer
 
   /** Transform NaNvl to Substrait. */
   def genNaNvlTransformer(

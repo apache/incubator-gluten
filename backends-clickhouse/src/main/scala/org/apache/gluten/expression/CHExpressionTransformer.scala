@@ -222,3 +222,44 @@ case class CHRegExpReplaceTransformer(
       .doTransform(args)
   }
 }
+
+case class GetArrayItemTransformer(
+    substraitExprName: String,
+    left: ExpressionTransformer,
+    right: ExpressionTransformer,
+    original: Expression)
+  extends ExpressionTransformerWithOrigin {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    // Ignore failOnError for clickhouse backend
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val leftNode = left.doTransform(args)
+    var rightNode = right.doTransform(args)
+
+    val getArrayItem = original.asInstanceOf[GetArrayItem]
+
+    // In Spark, the index of getarrayitem starts from 0
+    // But in CH, the index of arrayElement starts from 1, besides index argument must
+    // So we need to do transform: rightNode = add(rightNode, 1)
+    val addFunctionName = ConverterUtils.makeFuncName(
+      ExpressionNames.ADD,
+      Seq(IntegerType, getArrayItem.right.dataType),
+      FunctionConfig.OPT)
+    val addFunctionId = ExpressionBuilder.newScalarFunction(functionMap, addFunctionName)
+    val literalNode = ExpressionBuilder.makeLiteral(1.toInt, IntegerType, false)
+    rightNode = ExpressionBuilder.makeScalarFunction(
+      addFunctionId,
+      Lists.newArrayList(literalNode, rightNode),
+      ConverterUtils.getTypeNode(getArrayItem.right.dataType, getArrayItem.right.nullable))
+
+    val functionName = ConverterUtils.makeFuncName(
+      substraitExprName,
+      Seq(getArrayItem.left.dataType, getArrayItem.right.dataType),
+      FunctionConfig.OPT)
+    val exprNodes = Lists.newArrayList(leftNode, rightNode)
+    ExpressionBuilder.makeScalarFunction(
+      ExpressionBuilder.newScalarFunction(functionMap, functionName),
+      exprNodes,
+      ConverterUtils.getTypeNode(getArrayItem.dataType, getArrayItem.nullable))
+  }
+}
