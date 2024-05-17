@@ -68,6 +68,9 @@ object ConventionFunc {
     private def conventionOf0(plan: SparkPlan): Convention = plan match {
       case p if canPropagateConvention(p) =>
         val childrenConventions = p.children.map(conventionOf0).distinct
+        if (childrenConventions.size > 1) {
+          childrenConventions.reduce(_ && _)
+        }
         assert(childrenConventions.size == 1)
         childrenConventions.head
       case q: QueryStageExec => conventionOf0(q.plan)

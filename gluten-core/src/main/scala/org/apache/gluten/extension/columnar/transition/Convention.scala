@@ -28,9 +28,25 @@ sealed trait Convention {
 }
 
 object Convention {
-  implicit class ConventionOps(val convention: Convention) extends AnyVal {
+  implicit class ConventionOps(val conv: Convention) extends AnyVal {
     def isNone: Boolean = {
-      convention.rowType == RowTypes.None && convention.batchType == BatchTypes.None
+      conv.rowType == RowTypes.None && conv.batchType == BatchTypes.None
+    }
+
+    def &&(other: Convention): Convention = {
+      def rowType(): RowType = {
+        if (conv.rowType == other.rowType) {
+          return conv.rowType
+        }
+        RowTypes.None
+      }
+      def batchType(): BatchType = {
+        if (conv.batchType == other.batchType) {
+          return conv.batchType
+        }
+        BatchTypes.None
+      }
+      Convention.of(rowType(), batchType())
     }
   }
   private case class Impl(override val rowType: RowType, override val batchType: BatchType)
