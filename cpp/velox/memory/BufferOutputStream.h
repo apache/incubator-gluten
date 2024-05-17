@@ -34,7 +34,7 @@ class BufferOutputStream : public facebook::velox::OutputStream {
 
   void seekp(std::streampos pos);
 
-  facebook::velox::BufferPtr getBuffer();
+  facebook::velox::BufferPtr getBuffer() const;
 
  private:
   facebook::velox::BufferPtr buffer_;

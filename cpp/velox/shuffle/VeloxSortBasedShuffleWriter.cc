@@ -84,6 +84,7 @@ arrow::Status VeloxSortBasedShuffleWriter::init() {
   for (auto pid = 0; pid < numPartitions_; ++pid) {
     rowVectorIndexMap_[pid].reserve(options_.bufferSize);
   }
+  bufferOutputStream_ = std::make_unique<BufferOutputStream>(veloxPool_.get());
 
   return arrow::Status::OK();
 }
@@ -155,9 +156,6 @@ arrow::Status VeloxSortBasedShuffleWriter::write(std::shared_ptr<ColumnarBatch> 
 
 arrow::Status VeloxSortBasedShuffleWriter::evictBatch(uint32_t partitionId, facebook::velox::RowTypePtr* rowTypePtr) {
   int64_t rawSize = batch_->size();
-  if (UNLIKELY(!bufferOutputStream_)) {
-    bufferOutputStream_ = std::make_unique<BufferOutputStream>(veloxPool_.get());
-  }
   bufferOutputStream_->seekp(0);
   batch_->flush(bufferOutputStream_.get());
   auto buffer = bufferOutputStream_->getBuffer();

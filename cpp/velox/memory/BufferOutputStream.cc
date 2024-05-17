@@ -39,7 +39,7 @@ void BufferOutputStream::seekp(std::streampos pos) {
   buffer_->setSize(pos);
 }
 
-facebook::velox::BufferPtr BufferOutputStream::getBuffer() {
+facebook::velox::BufferPtr BufferOutputStream::getBuffer() const {
   return buffer_;
 }
 } // namespace gluten
