@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.datasource.v2
 
+import org.apache.gluten.columnarbatch.ArrowBatch
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.transition.Convention
 
@@ -33,9 +34,7 @@ case class ArrowBatchScanExec(original: BatchScanExec)
   @transient lazy val batch: Batch = original.batch
 
   override protected def batchType0(): Convention.BatchType = {
-    // Arrow scan is considered compatible with vanilla Spark's columnar processing
-    // since its output is guaranteed to be in Arrow format.
-    Convention.BatchType.VanillaBatch
+    ArrowBatch
   }
 
   override lazy val readerFactory: PartitionReaderFactory = original.readerFactory

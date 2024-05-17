@@ -17,9 +17,9 @@
 
 package org.apache.gluten.columnarbatch
 
-import org.apache.gluten.extension.columnar.transition.{Convention, TransitionDef}
+import org.apache.gluten.extension.columnar.transition.Convention
 
-import org.apache.spark.sql.execution.{ColumnarToRowExec, RowToColumnarExec, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan}
 
 /**
  * ArrowBatch stands for Gluten's Arrow-based columnar batch implementation. Vanilla Spark's
@@ -28,21 +28,14 @@ import org.apache.spark.sql.execution.{ColumnarToRowExec, RowToColumnarExec, Spa
  *
  * As of now, ArrowBatch should have [[org.apache.gluten.vectorized.ArrowWritableColumnVector]]s
  * populated in it. ArrowBatch can be loaded from / offloaded to native to C++ ArrowColumnarBatch
- * through API in [[ColumnarBatches]].
+ * through API in [[ColumnarBatches]]. After being offloaded, ArrowBatch is no longer considered a
+ * legal ArrowBatch and cannot be accepted by trivial ColumnarToRowExec. To follow that rule, Any
+ * plan with this batch type should promise it emits loaded batch only.
  */
 object ArrowBatch extends Convention.BatchType {
-  fromRow(
-    () =>
-      (plan: SparkPlan) => {
-        RowToColumnarExec(plan)
-      })
-
   toRow(
     () =>
       (plan: SparkPlan) => {
         ColumnarToRowExec(plan)
       })
-
-  // Arrow batch is considered on-way compatible with Vanilla batch.
-  toBatch(Convention.BatchType.VanillaBatch, TransitionDef.empty)
 }

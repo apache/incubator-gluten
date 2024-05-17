@@ -16,8 +16,9 @@
  */
 package org.apache.gluten.backendsapi
 
+import org.apache.gluten.columnarbatch.ArrowBatch
 import org.apache.gluten.execution.{RowToVeloxColumnarExec, VeloxColumnarToRowExec}
-import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.extension.columnar.transition.{Convention, TransitionDef}
 
 import org.apache.spark.sql.execution.SparkPlan
 
@@ -34,5 +35,9 @@ package object velox {
         (plan: SparkPlan) => {
           VeloxColumnarToRowExec(plan)
         })
+
+    // Velox batch is considered one-way compatible with Arrow batch.
+    // This is practically achieved by utilizing C++ API VeloxColumnarBatch::from at runtime.
+    fromBatch(ArrowBatch, TransitionDef.empty)
   }
 }
