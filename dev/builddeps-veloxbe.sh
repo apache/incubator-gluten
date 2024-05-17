@@ -32,6 +32,7 @@ VELOX_BRANCH=""
 VELOX_HOME=""
 VELOX_PARAMETER=""
 COMPILE_ARROW_JAVA=ON
+SPARK_VERSION=ALL
 
 # set default number of threads as cpu cores minus 2
 if [[ "$(uname)" == "Darwin" ]]; then
@@ -143,6 +144,10 @@ do
         NUM_THREADS=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
+        --spark_version=*)
+        SPARK_VERSION=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
 	      *)
         OTHER_ARGUMENTS+=("$1")
         shift # Remove generic argument from processing
@@ -171,6 +176,15 @@ if [ "$ENABLE_VCPKG" = "ON" ]; then
     # vcpkg will install static depends and init build environment
     envs="$("$GLUTEN_DIR/dev/vcpkg/init.sh")"
     eval "$envs"
+fi
+
+if [ "$SPARK_VERSION" = "3.2" ] || [ "$SPARK_VERSION" = "3.3" ] \
+  || [ "$SPARK_VERSION" = "3.4" ] || [ "$SPARK_VERSION" = "3.5" ] \
+  || [ "$SPARK_VERSION" = "ALL" ]; then
+  echo "Building for Spark $SPARK_VERSION"
+else
+  echo "Invalid Spark version: $SPARK_VERSION"
+  exit 1
 fi
 
 concat_velox_param
