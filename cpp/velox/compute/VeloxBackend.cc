@@ -191,7 +191,9 @@ void VeloxBackend::initConnector() {
   std::unordered_map<std::string, std::string> connectorConfMap = backendConf_->values();
 
   auto hiveConf = getHiveConfig(backendConf_);
-  connectorConfMap.insert(hiveConf.values().begin(), hiveConf.values().end());
+  for (auto& [k, v] : hiveConf->valuesCopy()) {
+    connectorConfMap[k] = v;
+  }
 
 #ifdef ENABLE_ABFS
   const auto& confValue = backendConf_->values();
