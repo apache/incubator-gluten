@@ -70,9 +70,10 @@ object ConventionFunc {
         val childrenConventions = p.children.map(conventionOf0).distinct
         if (childrenConventions.size > 1) {
           childrenConventions.reduce(_ && _)
+        } else {
+          assert(childrenConventions.size == 1)
+          childrenConventions.head
         }
-        assert(childrenConventions.size == 1)
-        childrenConventions.head
       case q: QueryStageExec => conventionOf0(q.plan)
       case r: ReusedExchangeExec => conventionOf0(r.child)
       case a: AdaptiveSparkPlanExec => conventionOf0(a.executedPlan)
