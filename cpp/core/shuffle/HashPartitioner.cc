@@ -31,7 +31,7 @@ int32_t computePid(const int32_t* pidArr, int64_t i, int32_t numPartitions) {
       : [num_partitions] "r"(numPartitions), [tmp] "r"(0));
 #else
   if (pid < 0) {
-    pid += numPartitions_;
+    pid += numPartitions;
   }
 #endif
   return pid;

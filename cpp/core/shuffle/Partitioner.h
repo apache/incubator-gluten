@@ -18,7 +18,6 @@
 #pragma once
 
 #include <arrow/result.h>
-#include <folly/container/F14Map.h>
 
 #include <memory>
 #include <unordered_map>
