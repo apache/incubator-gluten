@@ -415,13 +415,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           ),
           r
         )
-      case equal: EqualNullSafe =>
-        BackendsApiManager.getSparkPlanExecApiInstance.genEqualNullSafeTransformer(
-          substraitExprName,
-          replaceWithExpressionTransformerInternal(equal.left, attributeSeq, expressionsMap),
-          replaceWithExpressionTransformerInternal(equal.right, attributeSeq, expressionsMap),
-          equal
-        )
       case md5: Md5 =>
         BackendsApiManager.getSparkPlanExecApiInstance.genMd5Transformer(
           substraitExprName,

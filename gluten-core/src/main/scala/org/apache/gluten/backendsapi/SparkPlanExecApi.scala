@@ -451,14 +451,6 @@ trait SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, children, original)
   }
 
-  def genEqualNullSafeTransformer(
-      substraitExprName: String,
-      left: ExpressionTransformer,
-      right: ExpressionTransformer,
-      original: EqualNullSafe): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
-  }
-
   def genMd5Transformer(
       substraitExprName: String,
       child: ExpressionTransformer,

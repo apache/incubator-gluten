@@ -20,7 +20,7 @@ import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.expression.{ConverterUtils, ExpressionTransformer, ExpressionType, Transformable}
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
-import org.apache.gluten.substrait.expression.ExpressionBuilder
+import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.udf.UdfJniWrapper
 import org.apache.gluten.vectorized.JniWorkspace
 
@@ -110,18 +110,24 @@ case class UDFExpression(
         this.getClass.getSimpleName +
           ": getTransformer called before children transformer initialized.")
     }
-    (args: Object) => {
-      val transformers = childrenTransformers.map(_.doTransform(args))
-      val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-      val functionId = ExpressionBuilder.newScalarFunction(
-        functionMap,
-        ConverterUtils.makeFuncName(name, children.map(_.dataType), FunctionConfig.REQ))
 
-      val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
-      ExpressionBuilder.makeScalarFunction(
-        functionId,
-        Lists.newArrayList(transformers: _*),
-        typeNode)
+    val localDataType = dataType
+    new ExpressionTransformer {
+      override def doTransform(args: Object): ExpressionNode = {
+        val transformers = childrenTransformers.map(_.doTransform(args))
+        val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+        val functionId = ExpressionBuilder.newScalarFunction(
+          functionMap,
+          ConverterUtils.makeFuncName(name, children.map(_.dataType), FunctionConfig.REQ))
+
+        val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
+        ExpressionBuilder.makeScalarFunction(
+          functionId,
+          Lists.newArrayList(transformers: _*),
+          typeNode)
+      }
+
+      override def dataType: DataType = localDataType
     }
   }
 }

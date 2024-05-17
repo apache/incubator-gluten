@@ -18,6 +18,15 @@ package org.apache.gluten.expression
 
 import org.apache.gluten.substrait.expression.ExpressionNode
 
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.types.DataType
+
 trait ExpressionTransformer {
   def doTransform(args: java.lang.Object): ExpressionNode
+  def dataType: DataType
+}
+
+trait ExpressionTransformerWithOrigin extends ExpressionTransformer {
+  def original: Expression
+  def dataType: DataType = original.dataType
 }

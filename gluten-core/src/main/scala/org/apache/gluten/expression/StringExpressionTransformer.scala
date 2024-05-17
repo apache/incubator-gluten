@@ -28,7 +28,7 @@ case class String2TrimExpressionTransformer(
     trimStr: Option[ExpressionTransformer],
     srcStr: ExpressionTransformer,
     original: Expression)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val trimStrNode = trimStr.map(_.doTransform(args))

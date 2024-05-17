@@ -29,7 +29,7 @@ case class GetStructFieldTransformer(
     childTransformer: ExpressionTransformer,
     ordinal: Int,
     original: GetStructField)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childNode = childTransformer.doTransform(args)
