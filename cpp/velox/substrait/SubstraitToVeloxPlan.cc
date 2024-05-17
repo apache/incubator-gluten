@@ -747,12 +747,17 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     replicated.emplace_back(std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression));
   }
 
-  auto projNode = std::dynamic_pointer_cast<const core::ProjectNode>(childNode);
+  auto injectedProject = generateRel.has_advanced_extension() &&
+      SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "injectedProject=");
 
-  bool isStack = generateRel.has_advanced_extension() &&
-      SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isStack=");
+  if (injectedProject) {
+    auto projNode = std::dynamic_pointer_cast<const core::ProjectNode>(childNode);
+    VELOX_CHECK(
+        projNode != nullptr && projNode->names().size() > requiredChildOutput.size(),
+        "injectedProject is true, but the Project is missing or does not have the corresponding projection field")
 
-  if (projNode != nullptr && projNode->names().size() > requiredChildOutput.size()) {
+    bool isStack = generateRel.has_advanced_extension() &&
+        SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isStack=");
     // Generator function's input is NOT a field reference.
     if (!isStack) {
       // For generator function which is not stack, e.g. explode(array(1,2,3)), a sample

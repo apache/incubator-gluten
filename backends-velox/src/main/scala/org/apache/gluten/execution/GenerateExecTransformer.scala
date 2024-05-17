@@ -95,6 +95,21 @@ case class GenerateExecTransformer(
       operatorId)
   }
 
+  /**
+   * Is the specified expression an Attribute reference?
+   * @param expr
+   * @param replaceBoundReference
+   * @return
+   */
+  private def isAttributeReference(
+      expr: Expression,
+      replaceBoundReference: Boolean = false): Boolean =
+    expr match {
+      case _: Attribute => true
+      case _: BoundReference if !replaceBoundReference => true
+      case _ => false
+    }
+
   private def getExtensionNode(validation: Boolean): AdvancedExtensionNode = {
     if (!validation) {
       // Start with "GenerateParameters:"
@@ -111,14 +126,26 @@ case class GenerateExecTransformer(
         .append("\n")
 
       // isStack: 1 for Stack, 0 for others.
-      val isStack = if (generator.isInstanceOf[Stack]) {
-        "1"
-      } else {
-        "0"
-      }
+      val isStack = generator.isInstanceOf[Stack]
       parametersStr
         .append("isStack=")
-        .append(isStack)
+        .append(if (isStack) "1" else "0")
+        .append("\n")
+
+      val injectProject = if (isStack) {
+        // We always need to inject a Project for stack because we organize
+        // stack's flat params into arrays, e.g. stack(2, 1, 2, 3) is
+        // organized into two arrays: [1, 2] and [3, null].
+        true
+      } else {
+        // Other generator function only have one param, so we just check whether
+        // the only param(generator.children.head) is attribute reference or not.
+        !isAttributeReference(generator.children.head, true);
+      }
+
+      parametersStr
+        .append("injectedProject=")
+        .append(if (injectProject) "1" else "0")
         .append("\n")
 
       val message = StringValue
@@ -158,27 +185,27 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
           val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
           // The new child should be either the original Attribute,
           // or an Alias to other expressions.
-          val generatorAttr = replaceExpressionWithAttribute(
+          replaceExpressionWithAttribute(
             generate.generator.asInstanceOf[UnaryExpression].child,
             expressionMap,
             replaceBoundReference = true)
-          val newGeneratorChild = if (expressionMap.isEmpty) {
-            // generator.child is Attribute
-            generatorAttr.asInstanceOf[Attribute]
-          } else {
-            // generator.child is other expression, e.g Literal/CreateArray/CreateMap
-            expressionMap.values.head
-          }
-          val newGeneratorChildren = Seq(newGeneratorChild)
 
-          // Avoid using eliminateProjectList to create the project list
-          // because newGeneratorChild can be a duplicated Attribute in generate.child.output.
-          // The native side identifies the last field of projection as generator's input.
-          generate.copy(
-            generator =
-              generate.generator.withNewChildren(newGeneratorChildren).asInstanceOf[Generator],
-            child = ProjectExec(generate.child.output ++ newGeneratorChildren, generate.child)
-          )
+          if (!expressionMap.isEmpty) {
+            // generator.child is not an Attribute reference, e.g Literal/CreateArray/CreateMap.
+            // We plug in a Project to make it an Attribute reference.
+            // NOTE: DO NOT use eliminateProjectList to create the project list because
+            // newGeneratorChild can be a duplicated Attribute in generate.child.output. The native
+            // side identifies the last field of projection as generator's input.
+            val newGeneratorChildren = Seq(expressionMap.values.head)
+            generate.copy(
+              generator =
+                generate.generator.withNewChildren(newGeneratorChildren).asInstanceOf[Generator],
+              child = ProjectExec(generate.child.output ++ newGeneratorChildren, generate.child)
+            )
+          } else {
+            // generator.child is Attribute, no need to introduce a Project.
+            generate
+          }
         case stack: Stack =>
           val numRows = stack.children.head.eval().asInstanceOf[Int]
           val numFields = Math.ceil((stack.children.size - 1.0) / numRows).toInt
