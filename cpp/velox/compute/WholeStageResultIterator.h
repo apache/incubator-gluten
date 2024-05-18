@@ -110,6 +110,7 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
 
   /// Spill.
   std::string spillStrategy_;
+  std::shared_ptr<folly::Executor> spillExecutor_ = nullptr;
 
   /// Metrics
   std::unique_ptr<Metrics> metrics_{};
