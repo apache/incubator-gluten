@@ -688,7 +688,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
 
     def convertBroadcastExchangeToColumnar(
         exchange: BroadcastExchangeExec): ColumnarBroadcastExchangeExec = {
-      val newChild = Transitions.insertTransitions(exchange.child, outputsColumnar = true)
+      val newChild = Transitions.toBackendBatchPlan(exchange.child)
       ColumnarBroadcastExchangeExec(exchange.mode, newChild)
     }
 

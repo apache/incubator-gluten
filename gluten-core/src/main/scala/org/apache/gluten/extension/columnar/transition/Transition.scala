@@ -105,6 +105,7 @@ object Transition {
         assert(!fromRowTransitions.contains(to))
         fromRowTransitions += to -> transitionDef
       }
+
       override def defineToRowTransition(
           from: Convention.BatchType,
           transitionDef: TransitionDef): Unit = {

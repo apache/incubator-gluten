@@ -18,10 +18,11 @@ package org.apache.gluten.extension.columnar.transition
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.sql.shims.SparkShimLoader
-
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{SparkPlan, UnionExec}
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
+
+import scala.annotation.tailrec
 
 case class InsertTransitions(outputsColumnar: Boolean) extends Rule[SparkPlan] {
   import InsertTransitions._
@@ -106,10 +107,14 @@ object InsertTransitions {
 }
 
 object RemoveTransitions extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
+  override def apply(plan: SparkPlan): SparkPlan = plan.transformDown { case p => removeForNode(p) }
+
+  @tailrec
+  private[transition] def removeForNode(plan: SparkPlan): SparkPlan = plan match {
     // TODO: Consider C2C transitions as well when we have some.
-    case ColumnarToRowLike(child) => child
-    case RowToColumnarLike(child) => child
+    case ColumnarToRowLike(child) => removeForNode(child)
+    case RowToColumnarLike(child) => removeForNode(child)
+    case other => other
   }
 }
 
@@ -124,11 +129,12 @@ object Transitions {
     val req = ConventionReq.of(
       ConventionReq.RowType.Is(Convention.RowType.VanillaRow),
       ConventionReq.BatchType.Any)
+    val removed = RemoveTransitions.removeForNode(plan)
     val transition = Transition.factory.findTransition(
-      convFunc.conventionOf(plan),
+      convFunc.conventionOf(removed),
       req,
-      Transition.notFound(plan, req))
-    val out = transition.apply(plan)
+      Transition.notFound(removed, req))
+    val out = transition.apply(removed)
     out
   }
 
@@ -146,11 +152,12 @@ object Transitions {
   private def toBatchPlan(plan: SparkPlan, toBatchType: Convention.BatchType): SparkPlan = {
     val convFunc = ConventionFunc.create()
     val req = ConventionReq.of(ConventionReq.RowType.Any, ConventionReq.BatchType.Is(toBatchType))
+    val removed = RemoveTransitions.removeForNode(plan)
     val transition = Transition.factory.findTransition(
-      convFunc.conventionOf(plan),
+      convFunc.conventionOf(removed),
       req,
-      Transition.notFound(plan, req))
-    val out = transition.apply(plan)
+      Transition.notFound(removed, req))
+    val out = transition.apply(removed)
     out
   }
 }
