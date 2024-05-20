@@ -17,17 +17,18 @@
 package org.apache.spark.api.python
 
 import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
-import org.apache.gluten.utils.Iterators
+import org.apache.gluten.utils.{Iterators, PullOutProjectHelper}
 import org.apache.gluten.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.{ContextAwareIterator, SparkEnv, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.python.{BasePythonRunnerShim, EvalPythonExec, PythonUDFRunner}
+import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
+import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BasePythonRunnerShim, EvalPythonExec, PythonUDFRunner}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DataType, StructField, StructType}
 import org.apache.spark.sql.utils.{SparkArrowUtil, SparkSchemaUtil, SparkVectorUtil}
@@ -41,6 +42,7 @@ import java.io.{DataInputStream, DataOutputStream}
 import java.net.Socket
 import java.util.concurrent.atomic.AtomicBoolean
 
+import scala.collection.{mutable, Seq}
 import scala.collection.mutable.ArrayBuffer
 
 class ColumnarArrowPythonRunner(
@@ -207,7 +209,6 @@ case class ColumnarArrowEvalPythonExec(
   extends EvalPythonExec
   with GlutenPlan {
   override def supportsColumnar: Boolean = true
-  // TODO: add additional projection support by pre-project
   // FIXME: incorrect metrics updater
 
   override protected def evaluate(
@@ -221,6 +222,7 @@ case class ColumnarArrowEvalPythonExec(
   }
 
   private val sessionLocalTimeZone = conf.sessionLocalTimeZone
+
   private def getPythonRunnerConfMap(conf: SQLConf): Map[String, String] = {
     val timeZoneConf = Seq(SQLConf.SESSION_LOCAL_TIMEZONE.key -> conf.sessionLocalTimeZone)
     val pandasColsByName = Seq(
@@ -231,6 +233,7 @@ case class ColumnarArrowEvalPythonExec(
         conf.arrowSafeTypeConversion.toString)
     Map(timeZoneConf ++ pandasColsByName ++ arrowSafeTypeCheck: _*)
   }
+
   private val pythonRunnerConf = getPythonRunnerConfMap(conf)
 
   protected def evaluateColumnar(
@@ -279,16 +282,29 @@ case class ColumnarArrowEvalPythonExec(
       iter =>
         val context = TaskContext.get()
         val (pyFuncs, inputs) = udfs.map(collectFunctions).unzip
-        // flatten all the arguments
+        // We only write the referred cols by UDFs to python worker. So we need
+        // get corresponding offsets
         val allInputs = new ArrayBuffer[Expression]
         val dataTypes = new ArrayBuffer[DataType]
+        val originalOffsets = new ArrayBuffer[Int]
         val argOffsets = inputs.map {
           input =>
             input.map {
               e =>
-                if (allInputs.exists(_.semanticEquals(e))) {
+                if (!e.isInstanceOf[AttributeReference]) {
+                  throw new GlutenException(
+                    "ColumnarArrowEvalPythonExec should only has [AttributeReference] inputs.")
+                } else if (allInputs.exists(_.semanticEquals(e))) {
                   allInputs.indexWhere(_.semanticEquals(e))
                 } else {
+                  var offset: Int = -1
+                  offset = child.output.indexWhere(
+                    _.exprId.equals(e.asInstanceOf[AttributeReference].exprId))
+                  if (offset == -1) {
+                    throw new GlutenException(
+                      "ColumnarArrowEvalPythonExec can't find referred input col.")
+                  }
+                  originalOffsets += offset
                   allInputs += e
                   dataTypes += e.dataType
                   allInputs.length - 1
@@ -299,15 +315,21 @@ case class ColumnarArrowEvalPythonExec(
           case (dt, i) =>
             StructField(s"_$i", dt)
         }.toSeq)
+
         val contextAwareIterator = new ContextAwareIterator(context, iter)
         val inputCbCache = new ArrayBuffer[ColumnarBatch]()
         val inputBatchIter = contextAwareIterator.map {
           inputCb =>
             ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance, inputCb)
-            // 0. cache input for later merge
             ColumnarBatches.retain(inputCb)
+            // 0. cache input for later merge
             inputCbCache += inputCb
-            inputCb
+            // We only need to pass the referred cols data to python worker for evaluation.
+            var colsForEval = new ArrayBuffer[ColumnVector]()
+            for (i <- originalOffsets) {
+              colsForEval += inputCb.column(i)
+            }
+            new ColumnarBatch(colsForEval.toArray, inputCb.numRows())
         }
 
         val outputColumnarBatchIterator =
@@ -335,6 +357,65 @@ case class ColumnarArrowEvalPythonExec(
           .create()
     }
   }
+
   override protected def withNewChildInternal(newChild: SparkPlan): ColumnarArrowEvalPythonExec =
     copy(udfs, resultAttrs, newChild)
+}
+
+object PullOutArrowEvalPythonPreProjectHelper extends PullOutProjectHelper {
+  private def collectFunctions(udf: PythonUDF): (ChainedPythonFunctions, Seq[Expression]) = {
+    udf.children match {
+      case Seq(u: PythonUDF) =>
+        val (chained, children) = collectFunctions(u)
+        (ChainedPythonFunctions(chained.funcs ++ Seq(udf.func)), children)
+      case children =>
+        (ChainedPythonFunctions(Seq(udf.func)), udf.children)
+    }
+  }
+
+  private def rewriteUDF(
+      udf: PythonUDF,
+      expressionMap: mutable.HashMap[Expression, NamedExpression]): PythonUDF = {
+    udf.children match {
+      case Seq(u: PythonUDF) =>
+        udf
+          .withNewChildren(udf.children.toIndexedSeq.map {
+            func => rewriteUDF(func.asInstanceOf[PythonUDF], expressionMap)
+          })
+          .asInstanceOf[PythonUDF]
+      case children =>
+        val newUDFChildren = udf.children.map {
+          case literal: Literal => literal
+          case other => replaceExpressionWithAttribute(other, expressionMap)
+        }
+        udf.withNewChildren(newUDFChildren).asInstanceOf[PythonUDF]
+    }
+  }
+
+  def pullOutPreProject(arrowEvalPythonExec: ArrowEvalPythonExec): SparkPlan = {
+    // pull out preproject
+    val (_, inputs) = arrowEvalPythonExec.udfs.map(collectFunctions).unzip
+    val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
+    // flatten all the arguments
+    val allInputs = new ArrayBuffer[Expression]
+    for (input <- inputs) {
+      input.map {
+        e =>
+          if (!allInputs.exists(_.semanticEquals(e))) {
+            allInputs += e
+            replaceExpressionWithAttribute(e, expressionMap)
+          }
+      }
+    }
+    if (!expressionMap.isEmpty) {
+      // Need preproject.
+      val preProject = ProjectExec(
+        eliminateProjectList(arrowEvalPythonExec.child.outputSet, expressionMap.values.toSeq),
+        arrowEvalPythonExec.child)
+      val newUDFs = arrowEvalPythonExec.udfs.map(f => rewriteUDF(f, expressionMap))
+      arrowEvalPythonExec.copy(udfs = newUDFs, child = preProject)
+    } else {
+      arrowEvalPythonExec
+    }
+  }
 }

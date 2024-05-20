@@ -44,6 +44,7 @@ import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.{LongType, NullType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -210,13 +211,6 @@ trait SparkPlanExecApi {
 
   def genUuidTransformer(substraitExprName: String, original: Uuid): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, Seq(), original)
-  }
-
-  def genShuffleTransformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Shuffle): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(child), original)
   }
 
   def genTryAddTransformer(
@@ -449,14 +443,6 @@ trait SparkPlanExecApi {
       original: CreateNamedStruct,
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, children, original)
-  }
-
-  def genEqualNullSafeTransformer(
-      substraitExprName: String,
-      left: ExpressionTransformer,
-      right: ExpressionTransformer,
-      original: EqualNullSafe): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
   }
 
   def genMd5Transformer(
@@ -751,6 +737,9 @@ trait SparkPlanExecApi {
   def genPreProjectForGenerate(generate: GenerateExec): SparkPlan
 
   def genPostProjectForGenerate(generate: GenerateExec): SparkPlan
+
+  def genPreProjectForArrowEvalPythonExec(arrowEvalPythonExec: ArrowEvalPythonExec): SparkPlan =
+    arrowEvalPythonExec
 
   def maybeCollapseTakeOrderedAndProject(plan: SparkPlan): SparkPlan = plan
 

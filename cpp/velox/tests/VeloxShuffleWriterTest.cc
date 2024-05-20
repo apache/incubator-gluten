@@ -19,7 +19,9 @@
 #include <arrow/io/api.h>
 
 #include "shuffle/LocalPartitionWriter.h"
+#include "shuffle/VeloxHashBasedShuffleWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
+#include "shuffle/VeloxSortBasedShuffleWriter.h"
 #include "shuffle/rss/RssPartitionWriter.h"
 #include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
@@ -68,12 +70,18 @@ std::vector<ShuffleTestParams> createShuffleTestParams() {
   std::vector<int32_t> mergeBufferSizes = {0, 3, 4, 10, 4096};
 
   for (const auto& compression : compressions) {
+    params.push_back(ShuffleTestParams{ShuffleWriterType::kSortShuffle, PartitionWriterType::kRss, compression, 0, 0});
     for (const auto compressionThreshold : compressionThresholds) {
       for (const auto mergeBufferSize : mergeBufferSizes) {
-        params.push_back(
-            ShuffleTestParams{PartitionWriterType::kLocal, compression, compressionThreshold, mergeBufferSize});
+        params.push_back(ShuffleTestParams{
+            ShuffleWriterType::kHashShuffle,
+            PartitionWriterType::kLocal,
+            compression,
+            compressionThreshold,
+            mergeBufferSize});
       }
-      params.push_back(ShuffleTestParams{PartitionWriterType::kRss, compression, compressionThreshold, 0});
+      params.push_back(ShuffleTestParams{
+          ShuffleWriterType::kHashShuffle, PartitionWriterType::kRss, compression, compressionThreshold, 0});
     }
   }
 
@@ -264,7 +272,9 @@ TEST_P(HashPartitioningShuffleWriter, hashLargeVectors) {
   auto shuffleWriter = createShuffleWriter(defaultArrowMemoryPool().get());
   // calculate maxBatchSize_
   ASSERT_NOT_OK(splitRowVector(*shuffleWriter, hashInputVector1_));
-  VELOX_CHECK_EQ(shuffleWriter->maxBatchSize(), expectedMaxBatchSize);
+  if (GetParam().shuffleWriterType == kHashShuffle) {
+    VELOX_CHECK_EQ(shuffleWriter->maxBatchSize(), expectedMaxBatchSize);
+  }
 
   auto blockPid2 = takeRows({inputVector1_, inputVector2_, inputVector1_}, {{1, 2, 3, 4, 8}, {0, 1}, {1, 2, 3, 4, 8}});
   auto blockPid1 = takeRows({inputVector1_}, {{0, 5, 6, 7, 9, 0, 5, 6, 7, 9}});
@@ -305,6 +315,9 @@ TEST_P(RoundRobinPartitioningShuffleWriter, roundRobin) {
 }
 
 TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceRealloc) {
+  if (GetParam().shuffleWriterType == kSortShuffle) {
+    return;
+  }
   ASSERT_NOT_OK(initShuffleWriterOptions());
   shuffleWriterOptions_.bufferReallocThreshold = 0; // Force re-alloc on buffer size changed.
   auto shuffleWriter = createShuffleWriter(defaultArrowMemoryPool().get());
@@ -392,6 +405,9 @@ TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceReuse) {
 }
 
 TEST_P(RoundRobinPartitioningShuffleWriter, spillVerifyResult) {
+  if (GetParam().shuffleWriterType == kSortShuffle) {
+    return;
+  }
   ASSERT_NOT_OK(initShuffleWriterOptions());
   auto shuffleWriter = createShuffleWriter(defaultArrowMemoryPool().get());
 

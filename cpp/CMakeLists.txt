@@ -16,6 +16,9 @@
 cmake_minimum_required(VERSION 3.16)
 message(STATUS "Building using CMake version: ${CMAKE_VERSION}")
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # The set(CACHE) command does not remove any normal variable of the same name from the current scope
 # https://cmake.org/cmake/help/latest/policy/CMP0126.html
 if(POLICY CMP0126)
@@ -82,45 +85,58 @@ else ()
   message(STATUS "Add definition NDEBUG")
 endif()
 
-add_compile_options(-Wall)
-add_compile_options(-Wno-sign-compare)
-add_compile_options(-Wno-comment)
-
-add_compile_options(-Werror)
-add_compile_options(-Wno-error=parentheses)
-add_compile_options(-Wno-error=unused-function)
-add_compile_options(-Wno-error=unused-variable)
-add_compile_options(-Wno-strict-aliasing)
+set(KNOWN_WARNINGS
+    "-Wall \
+       -Wno-sign-compare \
+       -Wno-comment \
+       -Werror \
+       -Wno-error=parentheses \
+       -Wno-error=unused-function \
+       -Wno-error=unused-variable \
+       -Wno-strict-aliasing \
+       -Wno-ignored-qualifiers")
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-  add_compile_options(-Wno-error=unused-but-set-variable)
+  set(KNOWN_WARNINGS
+      "-Wno-error=unused-but-set-variable \
+      ${KNOWN_WARNINGS}")
   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
-    add_compile_options(-Wno-error=maybe-uninitialized)
+    set(KNOWN_WARNINGS
+        "-Wno-error=maybe-uninitialized \
+      ${KNOWN_WARNINGS}")
   endif()
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   # Experimental
-  add_compile_options(-Wno-implicit-int-float-conversion)
-  add_compile_options(-Wno-nullability-completeness)
-  add_compile_options(-Wno-mismatched-tags)
+  set(KNOWN_WARNINGS
+      "-Wno-implicit-int-float-conversion \
+      -Wno-nullability-completeness \
+      -Wno-mismatched-tags \
+      ${KNOWN_WARNINGS}")
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
   # Experimental
-  add_compile_options(-Wno-implicit-int-float-conversion)
-  add_compile_options(-Wno-nullability-completeness)
-  add_compile_options(-Wno-mismatched-tags)
+  set(KNOWN_WARNINGS
+      "-Wno-implicit-int-float-conversion \
+      -Wno-nullability-completeness \
+      -Wno-mismatched-tags \
+      ${KNOWN_WARNINGS}")
 else()
   message(FATAL_ERROR "Unsupported compiler ID: ${CMAKE_CXX_COMPILER_ID}")
 endif()
 
 # see https://issues.apache.org/jira/browse/ARROW-4665
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-  add_compile_options(-Wno-macro-redefined)
-  add_compile_options(-Wno-nullability-completeness)
-  add_compile_options(-Wno-pessimizing-move)
-  add_compile_options(-Wno-mismatched-tags)
+  set(KNOWN_WARNINGS
+      "-Wno-macro-redefined \
+      -Wno-nullability-completeness \
+      -Wno-pessimizing-move \
+      -Wno-mismatched-tags \
+      ${KNOWN_WARNINGS}")
   # Specific definition for an issue with boost/stacktrace when building on macOS.
   # See https://github.com/boostorg/stacktrace/issues/88 and comments therein.
   add_compile_definitions(_GNU_SOURCE)
 endif()
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${KNOWN_WARNINGS}")
 
 #
 # Dependencies

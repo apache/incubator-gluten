@@ -60,6 +60,10 @@ class VeloxMemoryManager final : public MemoryManager {
 
   void hold() override;
 
+  AllocationListener* getListener() const {
+    return listener_.get();
+  }
+
  private:
   bool tryDestructSafe();
 

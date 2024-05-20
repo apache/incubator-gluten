@@ -280,6 +280,20 @@ static inline arrow::Compression::type getCompressionType(JNIEnv* env, jstring c
   return compressionType;
 }
 
+static inline const std::string getCompressionTypeStr(JNIEnv* env, jstring codecJstr) {
+  if (codecJstr == NULL) {
+    return "none";
+  }
+  auto codec = env->GetStringUTFChars(codecJstr, JNI_FALSE);
+
+  // Convert codec string into lowercase.
+  std::string codecLower;
+  std::transform(codec, codec + std::strlen(codec), std::back_inserter(codecLower), ::tolower);
+
+  env->ReleaseStringUTFChars(codecJstr, codec);
+  return codecLower;
+}
+
 static inline gluten::CodecBackend getCodecBackend(JNIEnv* env, jstring codecJstr) {
   if (codecJstr == nullptr) {
     return gluten::CodecBackend::NONE;
@@ -444,7 +458,7 @@ class JavaRssClient : public RssClient {
     env->DeleteGlobalRef(array_);
   }
 
-  int32_t pushPartitionData(int32_t partitionId, char* bytes, int64_t size) override {
+  int32_t pushPartitionData(int32_t partitionId, const char* bytes, int64_t size) override {
     JNIEnv* env;
     if (vm_->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
       throw gluten::GlutenException("JNIEnv was not attached to current thread");
@@ -457,7 +471,7 @@ class JavaRssClient : public RssClient {
       array_ = env->NewByteArray(size);
       array_ = static_cast<jbyteArray>(env->NewGlobalRef(array_));
     }
-    env->SetByteArrayRegion(array_, 0, size, reinterpret_cast<jbyte*>(bytes));
+    env->SetByteArrayRegion(array_, 0, size, (jbyte*)bytes);
     jint javaBytesSize = env->CallIntMethod(javaRssShuffleWriter_, javaPushPartitionData_, partitionId, array_, size);
     checkException(env);
     return static_cast<int32_t>(javaBytesSize);

@@ -35,7 +35,7 @@ case class VeloxAliasTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
     original: Expression)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     child.doTransform(args)
@@ -46,7 +46,7 @@ case class VeloxNamedStructTransformer(
     substraitExprName: String,
     original: CreateNamedStruct,
     attributeSeq: Seq[Attribute])
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
   override def doTransform(args: Object): ExpressionNode = {
     val expressionNodes = Lists.newArrayList[ExpressionNode]()
     original.valExprs.foreach(
@@ -67,7 +67,7 @@ case class VeloxGetStructFieldTransformer(
     childTransformer: ExpressionTransformer,
     ordinal: Int,
     original: GetStructField)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
   override def doTransform(args: Object): ExpressionNode = {
     val childNode = childTransformer.doTransform(args)
     childNode match {
@@ -86,7 +86,7 @@ case class VeloxHashExpressionTransformer(
     substraitExprName: String,
     exps: Seq[ExpressionTransformer],
     original: Expression)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // As of Spark 3.3, there are 3 kinds of HashExpression.
     // HiveHash is not supported in native backend and will fail native validation.
@@ -121,7 +121,7 @@ case class VeloxStringSplitTransformer(
     regexExpr: ExpressionTransformer,
     limitExpr: ExpressionTransformer,
     original: StringSplit)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     if (

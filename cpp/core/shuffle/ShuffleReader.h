@@ -39,6 +39,8 @@ class DeserializerFactory {
   virtual int64_t getDecompressTime() = 0;
 
   virtual int64_t getDeserializeTime() = 0;
+
+  virtual ShuffleWriterType getShuffleWriterType() = 0;
 };
 
 class ShuffleReader {
@@ -60,13 +62,15 @@ class ShuffleReader {
 
   arrow::MemoryPool* getPool() const;
 
+  ShuffleWriterType getShuffleWriterType() const;
+
  protected:
   arrow::MemoryPool* pool_;
   int64_t decompressTime_ = 0;
   int64_t ipcTime_ = 0;
   int64_t deserializeTime_ = 0;
 
-  ShuffleReaderOptions options_;
+  ShuffleWriterType shuffleWriterType_;
 
  private:
   std::shared_ptr<arrow::Schema> schema_;

@@ -39,6 +39,7 @@ import org.apache.celeborn.client.read.CelebornInputStream
 
 import java.io._
 import java.nio.ByteBuffer
+import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -83,6 +84,8 @@ private class CelebornColumnarBatchSerializerInstance(
       }
     val compressionCodecBackend =
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
+    val shuffleWriterType =
+      conf.get("spark.celeborn.client.spark.shuffle.writer", "hash").toLowerCase(Locale.ROOT)
     val jniWrapper = ShuffleReaderJniWrapper.create()
     val batchSize = GlutenConfig.getConf.maxBatchSize
     val handle = jniWrapper
@@ -91,7 +94,8 @@ private class CelebornColumnarBatchSerializerInstance(
         nmm.getNativeInstanceHandle,
         compressionCodec,
         compressionCodecBackend,
-        batchSize
+        batchSize,
+        shuffleWriterType
       )
     // Close shuffle reader instance as lately as the end of task processing,
     // since the native reader could hold a reference to memory pool that

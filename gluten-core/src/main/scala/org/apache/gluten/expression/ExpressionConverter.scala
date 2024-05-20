@@ -415,13 +415,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           ),
           r
         )
-      case equal: EqualNullSafe =>
-        BackendsApiManager.getSparkPlanExecApiInstance.genEqualNullSafeTransformer(
-          substraitExprName,
-          replaceWithExpressionTransformerInternal(equal.left, attributeSeq, expressionsMap),
-          replaceWithExpressionTransformerInternal(equal.right, attributeSeq, expressionsMap),
-          equal
-        )
       case md5: Md5 =>
         BackendsApiManager.getSparkPlanExecApiInstance.genMd5Transformer(
           substraitExprName,
@@ -634,7 +627,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.function, attributeSeq, expressionsMap),
           a
         )
-
       case a: ArrayExists =>
         BackendsApiManager.getSparkPlanExecApiInstance.genArrayExistsTransformer(
           substraitExprName,
@@ -642,13 +634,13 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.function, attributeSeq, expressionsMap),
           a
         )
-
       case s: Shuffle =>
-        BackendsApiManager.getSparkPlanExecApiInstance.genShuffleTransformer(
+        GenericExpressionTransformer(
           substraitExprName,
-          replaceWithExpressionTransformerInternal(s.child, attributeSeq, expressionsMap),
-          s
-        )
+          Seq(
+            replaceWithExpressionTransformerInternal(s.child, attributeSeq, expressionsMap),
+            LiteralTransformer(Literal(s.randomSeed.get))),
+          s)
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,

@@ -181,7 +181,7 @@ class ColumnarShuffleWriter[K, V](
           )
         }
         val startTime = System.nanoTime()
-        jniWrapper.split(nativeShuffleWriter, rows, handle, availableOffHeapPerTask())
+        jniWrapper.write(nativeShuffleWriter, rows, handle, availableOffHeapPerTask())
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(rows)
         dep.metrics("inputBatches").add(1)

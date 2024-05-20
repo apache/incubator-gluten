@@ -27,7 +27,7 @@ case class LambdaFunctionTransformer(
     arguments: Seq[ExpressionTransformer],
     hidden: Boolean = false,
     original: LambdaFunction)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: Object): ExpressionNode = {
     // Need to fallback when hidden be true as it's not supported in Velox
