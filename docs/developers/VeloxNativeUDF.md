@@ -137,7 +137,16 @@ You can also specify the local or HDFS URIs to the UDF libraries or archives. Lo
 ## Try the example
 
 We provided Velox UDF examples in file [MyUDF.cc](../../cpp/velox/udf/examples/MyUDF.cc) and UDAF examples in file [MyUDAF.cc](../../cpp/velox/udf/examples/MyUDAF.cc).
-After building gluten cpp, you can find the example libraries at /path/to/gluten/cpp/build/velox/udf/examples/
+You need to build the gluten cpp project with `--build_example=ON` to get the example libraries.
+
+```shell
+## compile Gluten cpp module
+cd /path/to/gluten/cpp
+## if you use custom velox_home, make sure specified here by --velox_home
+./compile.sh --build_velox_backend=ON --build_examples=ON
+```
+
+Then, you can find the example libraries at /path/to/gluten/cpp/build/velox/udf/examples/
 
 Start spark-shell or spark-sql with below configuration
 
@@ -157,7 +166,7 @@ or
 Run query. The functions `myudf1` and `myudf2` increment the input value by a constant of 5
 
 ```
-select myudf1(1), myudf2(100L)
+select myudf1(100L), myudf2(1)
 ```
 
 The output from spark-shell will be like
@@ -166,7 +175,7 @@ The output from spark-shell will be like
 +----------------+------------------+
 |udfexpression(1)|udfexpression(100)|
 +----------------+------------------+
-|               6|               105|
+|             105|                 6|
 +----------------+------------------+
 ```
 
