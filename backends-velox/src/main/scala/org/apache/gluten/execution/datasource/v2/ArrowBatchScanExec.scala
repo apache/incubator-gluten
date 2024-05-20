@@ -16,7 +16,9 @@
  */
 package org.apache.gluten.execution.datasource.v2
 
+import org.apache.gluten.columnarbatch.ArrowBatch
 import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -30,6 +32,10 @@ case class ArrowBatchScanExec(original: BatchScanExec)
   with GlutenPlan {
 
   @transient lazy val batch: Batch = original.batch
+
+  override protected def batchType0(): Convention.BatchType = {
+    ArrowBatch
+  }
 
   override lazy val readerFactory: PartitionReaderFactory = original.readerFactory
 

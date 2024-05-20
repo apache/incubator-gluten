@@ -17,7 +17,8 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.utils.{Arm, FallbackUtil}
+import org.apache.gluten.test.FallbackUtil
+import org.apache.gluten.utils.Arm
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
