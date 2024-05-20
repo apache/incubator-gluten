@@ -71,11 +71,17 @@ class PushFilterToScan(validator: Validator) extends RasRule[SparkPlan] {
   private object FilterAndScan {
     def unapply(node: SparkPlan): Option[(FilterExec, SparkPlan)] = node match {
       case f @ FilterExec(cond, ColumnarToRowExec(scan)) =>
+        ensureScan(scan)
         Some(f, scan)
       case f @ FilterExec(cond, scan) =>
+        ensureScan(scan)
         Some(f, scan)
       case _ =>
         None
+    }
+
+    private def ensureScan(node: SparkPlan): Unit = {
+      assert(node.isInstanceOf[FileSourceScanExec] || node.isInstanceOf[BatchScanExec])
     }
   }
 }

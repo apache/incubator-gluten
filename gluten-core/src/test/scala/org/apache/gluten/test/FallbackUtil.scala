@@ -14,7 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.utils
+package org.apache.gluten.test
+
+import org.apache.gluten.extension.GlutenPlan
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution._
@@ -66,12 +68,12 @@ object FallbackUtil extends Logging with AdaptiveSparkPlanHelper {
     var fallbackOperator: Seq[SparkPlan] = null
     if (plan.isInstanceOf[AdaptiveSparkPlanExec]) {
       fallbackOperator = collectWithSubqueries(plan) {
-        case plan if !PlanUtil.isGlutenColumnarOp(plan) && !skip(plan) =>
+        case plan if !plan.isInstanceOf[GlutenPlan] && !skip(plan) =>
           plan
       }
     } else {
       fallbackOperator = plan.collectWithSubqueries {
-        case plan if !PlanUtil.isGlutenColumnarOp(plan) && !skip(plan) =>
+        case plan if !plan.isInstanceOf[GlutenPlan] && !skip(plan) =>
           plan
       }
     }

@@ -16,8 +16,7 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.columnar.ColumnarTransitions.ColumnarToRowLike
+import org.apache.gluten.extension.columnar.transition.ColumnarToRowLike
 import org.apache.gluten.utils.{LogLevelUtil, PlanUtil}
 
 import org.apache.spark.sql.SparkSession
@@ -56,35 +55,6 @@ object MiscColumnarRules {
         bottomUpRules.foldLeft(plan0)((p, rule) => p.transformUp { case p => rule.offload(p) })
       planChangeLogger.logRule(ruleName, plan, plan1)
       plan1
-    }
-  }
-
-  // This rule will try to convert the row-to-columnar and columnar-to-row
-  // into native implementations.
-  case class TransformPostOverrides() extends Rule[SparkPlan] {
-    @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
-
-    def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan.transformDown {
-      case RowToColumnarExec(child) =>
-        logDebug(s"ColumnarPostOverrides RowToColumnarExec(${child.getClass})")
-        BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(child)
-      case c2r @ ColumnarToRowExec(child)
-          if PlanUtil.outputNativeColumnarData(child) &&
-            !PlanUtil.outputNativeColumnarSparkCompatibleData(child) =>
-        logDebug(s"ColumnarPostOverrides ColumnarToRowExec(${child.getClass})")
-        val nativeC2r = BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child)
-        if (nativeC2r.doValidate().isValid) {
-          nativeC2r
-        } else {
-          c2r
-        }
-    }
-
-    // apply for the physical not final plan
-    def apply(plan: SparkPlan): SparkPlan = {
-      val newPlan = replaceWithTransformerPlan(plan)
-      planChangeLogger.logRule(ruleName, plan, newPlan)
-      newPlan
     }
   }
 

@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution._
+import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.rel.RelBuilder
@@ -158,16 +159,18 @@ case class ColumnarCollapseTransformStages(
   }
 }
 
-case class ColumnarInputAdapter(child: SparkPlan) extends UnaryExecNode {
+case class ColumnarInputAdapter(child: SparkPlan)
+  extends UnaryExecNode
+  with Convention.KnownBatchType {
   override def output: Seq[Attribute] = child.output
-  override def supportsColumnar: Boolean = child.supportsColumnar
-  override protected def doExecute(): RDD[InternalRow] =
-    child.execute()
+  override def supportsColumnar: Boolean = true
+  override def batchType(): Convention.BatchType =
+    BackendsApiManager.getSparkPlanExecApiInstance.batchType
+  override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = child.executeColumnar()
   override def outputPartitioning: Partitioning = child.outputPartitioning
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
-  override def vectorTypes: Option[Seq[String]] = child.vectorTypes
-  override protected[sql] def doExecuteBroadcast[T](): Broadcast[T] = child.executeBroadcast()
+  override protected[sql] def doExecuteBroadcast[T](): Broadcast[T] = child.doExecuteBroadcast()
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
     copy(child = newChild)
   // Node name's required to be "InputAdapter" to correctly draw UI graph.
