@@ -175,6 +175,7 @@ object ExpressionNames {
   final val REMAINDER = "modulus"
   final val FACTORIAL = "factorial"
   final val RAND = "rand"
+  final val RINT = "rint"
 
   // PrestoSQL Math functions
   final val ACOS = "acos"
