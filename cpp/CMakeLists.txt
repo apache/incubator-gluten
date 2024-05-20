@@ -118,6 +118,8 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
       "-Wno-implicit-int-float-conversion \
       -Wno-nullability-completeness \
       -Wno-mismatched-tags \
+      -Wno-error=unused-private-field \
+      -Wno-error=pessimizing-move \
       ${KNOWN_WARNINGS}")
 else()
   message(FATAL_ERROR "Unsupported compiler ID: ${CMAKE_CXX_COMPILER_ID}")
