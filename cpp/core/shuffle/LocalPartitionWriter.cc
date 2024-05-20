@@ -45,10 +45,9 @@ class LocalPartitionWriter::LocalSpiller {
 
   arrow::Status spill(uint32_t partitionId, std::unique_ptr<BlockPayload> payload) {
     // Check spill Type.
-    if (payload->type() != Payload::kUncompressed) {
-      return arrow::Status::Invalid(
-          "Cannot spill payload of type: " + payload->toString() + ", must be Payload::kUncompressed.");
-    }
+    ARROW_RETURN_IF(
+        payload->type() != Payload::kUncompressed && payload->type() != Payload::kRaw,
+        arrow::Status::Invalid("Cannot spill payload of type: " + payload->toString()));
 
     if (!opened_) {
       opened_ = true;
@@ -63,6 +62,10 @@ class LocalPartitionWriter::LocalSpiller {
     ARROW_ASSIGN_OR_RAISE(auto end, os_->Tell());
     DLOG(INFO) << "LocalSpiller: Spilled partition " << partitionId << " file start: " << start << ", file end: " << end
                << ", file: " << spillFile_;
+    if (payload->type() == Payload::kRaw) {
+      diskSpill_->insertPayload(partitionId, Payload::kRaw, 0, nullptr, end - start, pool_, nullptr);
+      return arrow::Status::OK();
+    }
 
     auto payloadType = codec_ != nullptr && payload->numRows() >= compressionThreshold_ ? Payload::kToBeCompressed
                                                                                         : Payload::kUncompressed;
@@ -542,7 +545,20 @@ arrow::Status LocalPartitionWriter::evict(
 }
 
 arrow::Status LocalPartitionWriter::evict(uint32_t partitionId, int64_t rawSize, const char* data, int64_t length) {
-  return arrow::Status::NotImplemented("Invalid code path for local shuffle writer: sort based is not supported.");
+  rawPartitionLengths_[partitionId] += rawSize;
+
+  if (partitionId <= lastEvictPid_) {
+    RETURN_NOT_OK(finishSpill());
+  }
+  lastEvictPid_ = partitionId;
+
+  RETURN_NOT_OK(requestSpill());
+  auto buffer = std::make_shared<arrow::Buffer>(reinterpret_cast<const uint8_t*>(data), length);
+  ARROW_ASSIGN_OR_RAISE(
+      auto payload, BlockPayload::fromBuffers(Payload::kRaw, 0, {std::move(buffer)}, nullptr, nullptr, nullptr));
+  RETURN_NOT_OK(spiller_->spill(partitionId, std::move(payload)));
+
+  return arrow::Status::OK();
 }
 
 arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actual) {
