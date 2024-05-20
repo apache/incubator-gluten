@@ -18,6 +18,7 @@ package org.apache.gluten.utils.velox
 
 import org.apache.gluten.utils.{BackendTestSettings, SQLQueryTestSettings}
 
+import org.apache.spark.GlutenSortShuffleSuite
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.{GlutenDataSourceV2DataFrameSessionCatalogSuite, GlutenDataSourceV2DataFrameSuite, GlutenDataSourceV2FunctionSuite, GlutenDataSourceV2SQLSessionCatalogSuite, GlutenDataSourceV2SQLSuite, GlutenDataSourceV2Suite, GlutenFileDataSourceV2FallBackSuite, GlutenLocalScanSuite, GlutenSupportsCatalogOptionsSuite, GlutenTableCapabilityCheckSuite, GlutenWriteDistributionAndOrderingSuite}
@@ -235,6 +236,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // Spark round UT for round(3.1415,3) is not correct.
     .exclude("round/bround")
   enableSuite[GlutenMathFunctionsSuite]
+  enableSuite[GlutenSortShuffleSuite]
   enableSuite[GlutenSortOrderExpressionsSuite]
   enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenStringExpressionsSuite]
