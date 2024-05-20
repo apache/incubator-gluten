@@ -322,13 +322,8 @@ static inline gluten::CompressionMode getCompressionMode(JNIEnv* env, jstring co
 
 class SparkAllocationListener final : public gluten::AllocationListener {
  public:
-  SparkAllocationListener(
-      JavaVM* vm,
-      jobject jListenerLocalRef,
-      jmethodID jReserveMethod,
-      jmethodID jUnreserveMethod,
-      int64_t blockSize)
-      : vm_(vm), jReserveMethod_(jReserveMethod), jUnreserveMethod_(jUnreserveMethod), blockSize_(blockSize) {
+  SparkAllocationListener(JavaVM* vm, jobject jListenerLocalRef, jmethodID jReserveMethod, jmethodID jUnreserveMethod)
+      : vm_(vm), jReserveMethod_(jReserveMethod), jUnreserveMethod_(jUnreserveMethod) {
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm_, &env);
     jListenerGlobalRef_ = env->NewGlobalRef(jListenerLocalRef);
@@ -350,7 +345,20 @@ class SparkAllocationListener final : public gluten::AllocationListener {
   }
 
   void allocationChanged(int64_t size) override {
-    updateReservation(size);
+    if (size == 0) {
+      return;
+    }
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
+    if (size < 0) {
+      env->CallLongMethod(jListenerGlobalRef_, jUnreserveMethod_, -size);
+      checkException(env);
+    } else {
+      env->CallLongMethod(jListenerGlobalRef_, jReserveMethod_, size);
+      checkException(env);
+    }
+    bytesReserved_ += size;
+    maxBytesReserved_ = std::max(bytesReserved_, maxBytesReserved_);
   }
 
   int64_t currentBytes() override {
@@ -362,47 +370,12 @@ class SparkAllocationListener final : public gluten::AllocationListener {
   }
 
  private:
-  int64_t reserve(int64_t diff) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    bytesReserved_ += diff;
-    int64_t newBlockCount;
-    if (bytesReserved_ == 0) {
-      newBlockCount = 0;
-    } else {
-      // ceil to get the required block number
-      newBlockCount = (bytesReserved_ - 1) / blockSize_ + 1;
-    }
-    int64_t bytesGranted = (newBlockCount - blocksReserved_) * blockSize_;
-    blocksReserved_ = newBlockCount;
-    maxBytesReserved_ = std::max(maxBytesReserved_, bytesReserved_);
-    return bytesGranted;
-  }
-
-  void updateReservation(int64_t diff) {
-    int64_t granted = reserve(diff);
-    if (granted == 0) {
-      return;
-    }
-    JNIEnv* env;
-    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
-    if (granted < 0) {
-      env->CallLongMethod(jListenerGlobalRef_, jUnreserveMethod_, -granted);
-      checkException(env);
-    } else {
-      env->CallLongMethod(jListenerGlobalRef_, jReserveMethod_, granted);
-      checkException(env);
-    }
-  }
-
   JavaVM* vm_;
   jobject jListenerGlobalRef_;
   jmethodID jReserveMethod_;
   jmethodID jUnreserveMethod_;
-  int64_t blockSize_;
-  int64_t blocksReserved_ = 0L;
   int64_t bytesReserved_ = 0L;
   int64_t maxBytesReserved_ = 0L;
-  std::mutex mutex_;
 };
 
 class BacktraceAllocationListener final : public gluten::AllocationListener {
