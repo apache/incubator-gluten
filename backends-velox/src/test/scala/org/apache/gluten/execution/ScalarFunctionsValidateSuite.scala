@@ -985,4 +985,16 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
+
+  test("rint") {
+    withTempPath {
+      path =>
+        Seq(1.2, 1.5, 1.9).toDF("d").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("double")
+        runQueryAndCompare("select rint(d) from double") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
 }

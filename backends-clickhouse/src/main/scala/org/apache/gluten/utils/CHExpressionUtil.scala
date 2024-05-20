@@ -199,6 +199,7 @@ object CHExpressionUtil {
     UNIX_MICROS -> DefaultValidator(),
     TIMESTAMP_MILLIS -> DefaultValidator(),
     TIMESTAMP_MICROS -> DefaultValidator(),
-    FLATTEN -> DefaultValidator()
+    FLATTEN -> DefaultValidator(),
+    RINT -> DefaultValidator()
   )
 }
