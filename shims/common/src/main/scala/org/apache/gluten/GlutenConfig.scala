@@ -1207,6 +1207,13 @@ object GlutenConfig {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1GB")
 
+  val COLUMNAR_VELOX_MEM_INIT_CAPACITY =
+    buildConf("spark.gluten.sql.columnar.backend.velox.memInitCapacity")
+      .internal()
+      .doc("The initial memory capacity.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8MB")
+
   val COLUMNAR_VELOX_SSD_CACHE_PATH =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCachePath")
       .internal()
