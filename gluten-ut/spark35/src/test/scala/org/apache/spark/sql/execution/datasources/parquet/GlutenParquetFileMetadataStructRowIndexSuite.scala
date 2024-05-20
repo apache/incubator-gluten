@@ -16,68 +16,8 @@
  */
 package org.apache.spark.sql.execution.datasources.parquet
 
-import org.apache.spark.sql.{AnalysisException, DataFrame}
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
-import org.apache.spark.sql.execution.datasources.{FileFormat => CommonFileFormat}
-import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat => FileFormat}
-import org.apache.spark.sql.functions.{asc, col, lit}
-import org.apache.spark.sql.types.{StructField, StructType}
 
 class GlutenParquetFileMetadataStructRowIndexSuite
   extends ParquetFileMetadataStructRowIndexSuite
-  with GlutenSQLTestsBaseTrait {
-  import testImplicits._
-  override def withReadDataFrame(
-      format: String,
-      partitionCol: String = null,
-      extraCol: String = "ec",
-      extraSchemaFields: Seq[StructField] = Seq.empty)(f: DataFrame => Unit): Unit = {
-    withTempPath {
-      path =>
-        val baseDf = spark
-          .range(0, NUM_ROWS, 1, 1)
-          .toDF("id")
-          .withColumn(extraCol, $"id" + lit(1000 * 1000))
-          .withColumn(EXPECTED_EXTRA_COL, col(extraCol))
-        val writeSchema: StructType = if (partitionCol != null) {
-          val writeDf = baseDf
-            .withColumn(partitionCol, ($"id" / 10).cast("int") + lit(1000))
-            .withColumn(EXPECTED_PARTITION_COL, col(partitionCol))
-            .withColumn(EXPECTED_ROW_ID_COL, $"id" % 10)
-            .orderBy(col(partitionCol), asc("id"))
-          writeDf.write.format(format).partitionBy(partitionCol).save(path.getAbsolutePath)
-          writeDf.schema
-        } else {
-          val writeDf = baseDf
-            .withColumn(EXPECTED_ROW_ID_COL, $"id")
-          writeDf.write.format(format).save(path.getAbsolutePath)
-          writeDf.schema
-        }
-        val readSchema: StructType = new StructType(writeSchema.fields ++ extraSchemaFields)
-        val readDf = spark.read.format(format).schema(readSchema).load(path.getAbsolutePath)
-        f(readDf)
-    }
-  }
-
-  test(s"$GLUTEN_TEST reading ${FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME} - present in a table") {
-    withReadDataFrame("parquet", extraCol = FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME) {
-      df =>
-        // Offload to native fix
-        // (SPARK-40059): Allow users to include columns named
-        // ROW_INDEX_TEMPORARY_COLUMN_NAME in their schemas.
-        // This UX cover this case.
-        assert(
-          df
-            .where(col(EXPECTED_EXTRA_COL) === col(FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME))
-            .count == NUM_ROWS)
-
-        // Column cannot be read in combination with _metadata.row_index.
-        intercept[AnalysisException](df.select("*", CommonFileFormat.METADATA_NAME).collect())
-        intercept[AnalysisException](
-          df
-            .select("*", s"${CommonFileFormat.METADATA_NAME}.${FileFormat.ROW_INDEX}")
-            .collect())
-    }
-  }
-}
+  with GlutenSQLTestsBaseTrait {}

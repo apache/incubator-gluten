@@ -39,10 +39,6 @@ import scala.collection.JavaConverters._
 
 class GlutenParquetRowIndexSuite extends ParquetRowIndexSuite with GlutenSQLTestsBaseTrait {
   import testImplicits._
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    sparkContext.setLogLevel("info")
-  }
 
   private def readRowGroupRowCounts(path: String): Seq[Long] = {
     ParquetFooterReader
@@ -315,10 +311,9 @@ class GlutenParquetRowIndexSuite extends ParquetRowIndexSuite with GlutenSQLTest
               // When there is no filter, the rowIdx values should be in range
               // [0-`numRecordsPerFile`].
               val expectedRowIdxValues = List.range(0, numRecordsPerFile)
-              assert(
-                dfToAssert
-                  .filter(col(rowIndexColName).isin(expectedRowIdxValues: _*))
-                  .count() == conf.numRows)
+              val df = dfToAssert
+                .select($"id").filter(col(rowIndexColName).isin(expectedRowIdxValues: _*))
+              assert(df.collect().size == conf.numRows)
             }
         }
       }

@@ -221,7 +221,6 @@ class GlutenParquetRowIndexSuite extends ParquetRowIndexSuite with GlutenSQLTest
               df.schema.add(rowIndexColName, LongType, nullable = true)
             }
 
-            logInfo(s"gyytest schemaWithRowIndex $schemaWithRowIdx")
 
             df.write
               .format(conf.writeFormat)
@@ -323,10 +322,9 @@ class GlutenParquetRowIndexSuite extends ParquetRowIndexSuite with GlutenSQLTest
               // When there is no filter, the rowIdx values should be in range
               // [0-`numRecordsPerFile`].
               val expectedRowIdxValues = List.range(0, numRecordsPerFile)
-              assert(
-                dfToAssert
-                  .filter(col(rowIndexColName).isin(expectedRowIdxValues: _*))
-                  .count() == conf.numRows)
+              val df = dfToAssert
+                .select($"id").filter(col(rowIndexColName).isin(expectedRowIdxValues: _*))
+              assert(df.collect().size == conf.numRows)
             }
         }
       }

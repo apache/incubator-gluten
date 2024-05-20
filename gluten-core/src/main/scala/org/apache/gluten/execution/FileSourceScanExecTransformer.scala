@@ -19,6 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.rdd.RDD
@@ -134,6 +135,13 @@ abstract class FileSourceScanExecTransformerBase(
       !metadataColumns.isEmpty && !BackendsApiManager.getSettings.supportNativeMetadataColumns()
     ) {
       return ValidationResult.notOk(s"Unsupported metadata columns scan in native.")
+    }
+
+    if (
+      SparkShimLoader.getSparkShims.findRowIndexColumnIndexInSchema(schema) > 0 &&
+      !BackendsApiManager.getSettings.supportNativeRowIndexColumn()
+    ) {
+      return ValidationResult.notOk("Unsupported row index column scan in native.")
     }
 
     if (hasUnsupportedColumns) {

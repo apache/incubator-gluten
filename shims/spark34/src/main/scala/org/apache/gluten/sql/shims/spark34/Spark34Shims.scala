@@ -45,7 +45,7 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
-import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.types.{IntegerType, LongType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
@@ -336,6 +336,22 @@ class Spark34Shims extends SparkShims {
 
   def isRowIndexMetadataColumn(name: String): Boolean = {
     name == FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME
+  }
+
+  def findRowIndexColumnIndexInSchema(sparkSchema: StructType): Int = {
+    sparkSchema.fields.zipWithIndex.find {
+      case (field: StructField, _: Int) =>
+        field.name == FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME
+    } match {
+      case Some((field: StructField, idx: Int)) =>
+        if (field.dataType != LongType && field.dataType != IntegerType) {
+          throw new RuntimeException(
+            s"${FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME} " +
+              s"must be of LongType or IntegerType")
+        }
+        idx
+      case _ => -1
+    }
   }
 
   def splitFiles(

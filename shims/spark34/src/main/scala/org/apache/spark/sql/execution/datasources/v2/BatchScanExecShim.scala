@@ -65,14 +65,10 @@ abstract class BatchScanExecShim(
     // TODO, fallback if user define same name column due to we can't right now
     // detect which column is metadata column which is user defined column.
     val metadataColumnsNames = metadataColumns.map(_.name)
-    metadataColumnsNames.contains(FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME) ||
     output
       .filterNot(metadataColumns.toSet)
       .exists(v => metadataColumnsNames.contains(v.name)) ||
-    output.exists(
-      a =>
-        a.name == "$path" || a.name == "$bucket" ||
-          a.name == FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME)
+    output.exists(a => a.name == "$path" || a.name == "$bucket")
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {

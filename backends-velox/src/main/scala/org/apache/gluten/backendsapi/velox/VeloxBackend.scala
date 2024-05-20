@@ -272,6 +272,10 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportNativeMetadataColumns(): Boolean = true
 
+  override def supportNativeRowIndexColumn(): Boolean = {
+    GlutenConfig.getConf.enableNativeRowIndexColumn
+  }
+
   override def supportExpandExec(): Boolean = true
 
   override def supportSortExec(): Boolean = true

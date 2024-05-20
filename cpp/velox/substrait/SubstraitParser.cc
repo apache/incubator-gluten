@@ -131,6 +131,9 @@ void SubstraitParser::parseColumnTypes(
       case ::substrait::NamedStruct::METADATA_COL:
         columnTypes.push_back(ColumnType::kSynthesized);
         break;
+      case ::substrait::NamedStruct::ROWINDEX_COL:
+        columnTypes.push_back(ColumnType::kRowIndex);
+        break;
       default:
         VELOX_FAIL("Unspecified column type.");
     }

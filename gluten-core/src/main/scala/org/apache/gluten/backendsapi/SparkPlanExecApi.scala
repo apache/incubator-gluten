@@ -19,6 +19,7 @@ package org.apache.gluten.backendsapi
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 
 import org.apache.spark.ShuffleDependency
@@ -715,15 +716,21 @@ trait SparkPlanExecApi {
       sparkExecNode: LeafExecNode): Seq[Expression] = {
     sparkExecNode match {
       case fileSourceScan: FileSourceScanExec =>
-        fileSourceScan.dataFilters ++ FilterHandler.getRemainingFilters(
-          fileSourceScan.dataFilters,
-          extraFilters)
+        val dataFilters = fileSourceScan.dataFilters
+        dataFilters ++ FilterHandler.getRemainingFilters(dataFilters, extraFilters)
+        dataFilters.filterNot(_.references.exists {
+          attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
+        })
       case batchScan: BatchScanExec =>
         batchScan.scan match {
           case fileScan: FileScan =>
-            fileScan.dataFilters ++ FilterHandler.getRemainingFilters(
-              fileScan.dataFilters,
-              extraFilters)
+            val dataFilters = fileScan.dataFilters.filterNot(_.references.exists {
+              attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
+            })
+            dataFilters ++ FilterHandler.getRemainingFilters(dataFilters, extraFilters)
+            dataFilters.filterNot(_.references.exists {
+              attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
+            })
           case _ =>
             // TODO: For data lake format use pushedFilters in SupportsPushDownFilters
             extraFilters

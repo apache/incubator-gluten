@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.metrics.GlutenTimeMetric
+import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
@@ -57,10 +58,7 @@ abstract class FileSourceScanExecShim(
   }
 
   def dataFiltersInScan: Seq[Expression] = dataFilters.filterNot(_.references.exists {
-    case attr: Attribute if (attr.name == "_tmp_metadata_row_index") => true
-    case FileSourceMetadataAttribute(_) => true
-    case FileSourceGeneratedMetadataAttribute(_) => true
-    case _ => false
+    attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
   })
 
   def hasUnsupportedColumns: Boolean = {
@@ -69,10 +67,7 @@ abstract class FileSourceScanExecShim(
       .filterNot(metadataColumns.toSet)
       .exists(v => metadataColumnsNames.contains(v.name)) ||
     // Below name has special meaning in Velox.
-    output.exists(
-      a =>
-        a.name == "$path" || a.name == "$bucket" ||
-          a.name == FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME)
+    output.exists(a => a.name == "$path" || a.name == "$bucket")
   }
 
   def isMetadataColumn(attr: Attribute): Boolean = metadataColumns.contains(attr)

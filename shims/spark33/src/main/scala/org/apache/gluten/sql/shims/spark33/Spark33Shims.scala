@@ -280,6 +280,8 @@ class Spark33Shims extends SparkShims {
 
   def isRowIndexMetadataColumn(name: String): Boolean = false
 
+  def findRowIndexColumnIndexInSchema(sparkSchema: StructType): Int = -1
+
   def splitFiles(
       sparkSession: SparkSession,
       file: FileStatus,
