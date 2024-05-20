@@ -49,9 +49,12 @@ class ColumnarBatchSerializer(
     numOutputRows: SQLMetric,
     decompressTime: SQLMetric,
     ipcTime: SQLMetric,
-    deserializeTime: SQLMetric)
+    deserializeTime: SQLMetric,
+    isSort: Boolean)
   extends Serializer
   with Serializable {
+
+  private val shuffleWriterType = if (isSort) "sort" else "hash"
 
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {
@@ -61,7 +64,8 @@ class ColumnarBatchSerializer(
       numOutputRows,
       decompressTime,
       ipcTime,
-      deserializeTime)
+      deserializeTime,
+      shuffleWriterType)
   }
 
   override def supportsRelocationOfSerializedObjects: Boolean = true
@@ -73,7 +77,8 @@ private class ColumnarBatchSerializerInstance(
     numOutputRows: SQLMetric,
     decompressTime: SQLMetric,
     ipcTime: SQLMetric,
-    deserializeTime: SQLMetric)
+    deserializeTime: SQLMetric,
+    shuffleWriterType: String)
   extends SerializerInstance
   with Logging {
 
@@ -103,7 +108,7 @@ private class ColumnarBatchSerializerInstance(
       compressionCodec,
       compressionCodecBackend,
       batchSize,
-      "hash"
+      shuffleWriterType
     )
     // Close shuffle reader instance as lately as the end of task processing,
     // since the native reader could hold a reference to memory pool that

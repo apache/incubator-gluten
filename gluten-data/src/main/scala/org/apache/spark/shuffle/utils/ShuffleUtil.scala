@@ -27,6 +27,7 @@ object ShuffleUtil {
         parameters.shuffleBlockResolver,
         parameters.columnarShuffleHandle,
         parameters.mapId,
-        parameters.metrics))
+        parameters.metrics,
+        parameters.isSort))
   }
 }

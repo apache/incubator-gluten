@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.ValidationResult
@@ -82,7 +83,8 @@ case class ColumnarShuffleExchangeExec(
       outputPartitioning,
       serializer,
       writeMetrics,
-      metrics)
+      metrics,
+      isSortBasedShuffle)
   }
 
   // 'shuffleDependency' is only needed when enable AQE.
@@ -101,9 +103,12 @@ case class ColumnarShuffleExchangeExec(
       override val shuffleHandle: ShuffleHandle = columnarShuffleDependency.shuffleHandle
     }
 
+  lazy val isSortBasedShuffle: Boolean =
+    outputPartitioning.numPartitions > GlutenConfig.getConf.columnarShuffleSortThreshold
+
   // super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
   val serializer: Serializer = BackendsApiManager.getSparkPlanExecApiInstance
-    .createColumnarBatchSerializer(schema, metrics)
+    .createColumnarBatchSerializer(schema, metrics, isSortBasedShuffle)
 
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
@@ -190,7 +195,8 @@ object ColumnarShuffleExchangeExec extends Logging {
       newPartitioning: Partitioning,
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
-      metrics: Map[String, SQLMetric])
+      metrics: Map[String, SQLMetric],
+      isSortBasedShuffle: Boolean)
   // scalastyle:on argcount
       : ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     BackendsApiManager.getSparkPlanExecApiInstance.genShuffleDependency(
@@ -200,7 +206,8 @@ object ColumnarShuffleExchangeExec extends Logging {
       newPartitioning: Partitioning,
       serializer: Serializer,
       writeMetrics,
-      metrics)
+      metrics,
+      isSortBasedShuffle)
   }
 
   class DummyPairRDDWithPartitions(@transient private val sc: SparkContext, numPartitions: Int)

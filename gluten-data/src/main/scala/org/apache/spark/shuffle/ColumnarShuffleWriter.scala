@@ -38,7 +38,8 @@ class ColumnarShuffleWriter[K, V](
     shuffleBlockResolver: IndexShuffleBlockResolver,
     handle: BaseShuffleHandle[K, V, V],
     mapId: Long,
-    writeMetrics: ShuffleWriteMetricsReporter)
+    writeMetrics: ShuffleWriteMetricsReporter,
+    isSort: Boolean)
   extends ShuffleWriter[K, V]
   with Logging {
 
@@ -106,6 +107,8 @@ class ColumnarShuffleWriter[K, V](
   private var partitionLengths: Array[Long] = _
 
   private val taskContext: TaskContext = TaskContext.get()
+
+  private val shuffleWriterType: String = if (isSort) "sort" else "hash"
 
   private def availableOffHeapPerTask(): Long = {
     val perTask =
@@ -177,7 +180,8 @@ class ColumnarShuffleWriter[K, V](
             reallocThreshold,
             handle,
             taskContext.taskAttemptId(),
-            GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, taskContext.partitionId)
+            GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, taskContext.partitionId),
+            shuffleWriterType
           )
         }
         val startTime = System.nanoTime()
