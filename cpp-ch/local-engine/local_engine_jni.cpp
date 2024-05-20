@@ -201,6 +201,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
 
 JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
 {
+    LOG_INFO(&Poco::Logger::get("jni"), "start jni onUnload");
     local_engine::BackendFinalizerUtil::finalizeGlobally();
 
     JNIEnv * env;
