@@ -294,7 +294,7 @@ case class CHHashAggregateExecTransformer(
             ._1
             .get
         } else {
-          AggregateFunctionsBuilder.getSubstraitFunctionName(aggregateFunc).get
+          AggregateFunctionsBuilder.getSubstraitFunctionName(aggregateFunc)
         }
       ConverterUtils.genColumnNameWithExprId(resultAttr) + "#Partial#" + aggFunctionName
     }
