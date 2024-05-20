@@ -16,6 +16,7 @@
 
 set -exu
 
+
 VELOX_REPO=https://github.com/marin-ma/velox-oap.git
 VELOX_BRANCH=oap-sparksql-complex-hash
 VELOX_HOME=""

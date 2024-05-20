@@ -145,16 +145,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       original)
   }
 
-  override def genShuffleTransformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Shuffle): ExpressionTransformer = {
-    GenericExpressionTransformer(
-      substraitExprName,
-      Seq(child, LiteralTransformer(Literal(original.randomSeed.get))),
-      original)
-  }
-
   override def genTryAddTransformer(
       substraitExprName: String,
       left: ExpressionTransformer,

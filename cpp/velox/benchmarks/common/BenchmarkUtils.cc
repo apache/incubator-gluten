@@ -180,3 +180,18 @@ void cleanupShuffleOutput(const std::string& dataFile, const std::vector<std::st
     }
   }
 }
+
+void BenchmarkAllocationListener::allocationChanged(int64_t diff) {
+  if (usedBytes_ + diff >= limit_) {
+    LOG(INFO) << fmt::format(
+        "reach hard limit {} when need {}, current used {}.",
+        velox::succinctBytes(limit_),
+        velox::succinctBytes(diff),
+        velox::succinctBytes(usedBytes_));
+    auto neededBytes = usedBytes_ + diff - limit_;
+    auto spilledBytes = iterator_->spillFixedSize(neededBytes);
+    LOG(INFO) << fmt::format("spill finish, got {}.", velox::succinctBytes(spilledBytes));
+  } else {
+    usedBytes_ += diff;
+  }
+}

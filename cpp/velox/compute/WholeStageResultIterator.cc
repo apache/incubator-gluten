@@ -72,6 +72,11 @@ WholeStageResultIterator::WholeStageResultIterator(
   gluten::updateHdfsTokens(veloxCfg_.get());
 #endif
   spillStrategy_ = veloxCfg_->get<std::string>(kSpillStrategy, kSpillStrategyDefaultValue);
+  auto spillThreadNum = veloxCfg_->get<uint32_t>(kSpillThreadNum, kSpillThreadNumDefaultValue);
+  if (spillThreadNum > 0) {
+    spillExecutor_ = std::make_shared<folly::CPUThreadPoolExecutor>(spillThreadNum);
+  }
+
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
 
   // Create task instance.
@@ -164,18 +169,13 @@ std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQ
   std::unordered_map<std::string, std::shared_ptr<velox::Config>> connectorConfigs;
   connectorConfigs[kHiveConnectorId] = createConnectorConfig();
 
-  auto spillThreadNum = veloxCfg_->get<uint32_t>(kSpillThreadNum, kSpillThreadNumDefaultValue);
-  std::shared_ptr<folly::Executor> spillExecutor = nullptr;
-  if (spillThreadNum > 0) {
-    spillExecutor = std::make_shared<folly::CPUThreadPoolExecutor>(spillThreadNum);
-  }
   std::shared_ptr<velox::core::QueryCtx> ctx = std::make_shared<velox::core::QueryCtx>(
       nullptr,
       facebook::velox::core::QueryConfig{getQueryContextConf()},
       connectorConfigs,
       gluten::VeloxBackend::get()->getAsyncDataCache(),
       memoryManager_->getAggregateMemoryPool(),
-      std::move(spillExecutor),
+      spillExecutor_.get(),
       "");
   return ctx;
 }
