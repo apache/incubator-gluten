@@ -36,22 +36,27 @@ struct PartitionInfo
 {
     DB::IColumn::Selector partition_selector;
     std::vector<size_t> partition_start_points;
+    // for sort partition
+    DB::IColumn::Selector src_partition_num;
     size_t partition_num;
 
-    static PartitionInfo fromSelector(DB::IColumn::Selector selector, size_t partition_num);
+    static PartitionInfo fromSelector(DB::IColumn::Selector selector, size_t partition_num, bool use_external_sort_shuffle);
 };
 
 class SelectorBuilder
 {
 public:
+    explicit SelectorBuilder(bool use_external_sort_shuffle) : use_external_sort_shuffle(use_external_sort_shuffle) { }
     virtual ~SelectorBuilder() = default;
     virtual PartitionInfo build(DB::Block & block) = 0;
+protected:
+    bool use_external_sort_shuffle = false;
 };
 
 class RoundRobinSelectorBuilder : public SelectorBuilder
 {
 public:
-    explicit RoundRobinSelectorBuilder(size_t parts_num_) : parts_num(parts_num_) { }
+    explicit RoundRobinSelectorBuilder(size_t parts_num_, bool use_external_sort_shuffle = false) : SelectorBuilder(use_external_sort_shuffle), parts_num(parts_num_) { }
     ~RoundRobinSelectorBuilder() override = default;
     PartitionInfo build(DB::Block & block) override;
 
@@ -63,7 +68,7 @@ private:
 class HashSelectorBuilder : public SelectorBuilder
 {
 public:
-    explicit HashSelectorBuilder(UInt32 parts_num_, const std::vector<size_t> & exprs_index_, const std::string & hash_function_name_);
+    explicit HashSelectorBuilder(UInt32 parts_num_, const std::vector<size_t> & exprs_index_, const std::string & hash_function_name_, bool use_external_sort_shuffle = false);
     ~HashSelectorBuilder() override = default;
     PartitionInfo build(DB::Block & block) override;
 
@@ -77,7 +82,7 @@ private:
 class RangeSelectorBuilder : public SelectorBuilder
 {
 public:
-    explicit RangeSelectorBuilder(const std::string & options_, const size_t partition_num_);
+    explicit RangeSelectorBuilder(const std::string & options_, const size_t partition_num_, bool use_external_sort_shuffle = false);
     ~RangeSelectorBuilder() override = default;
     PartitionInfo build(DB::Block & block) override;
 

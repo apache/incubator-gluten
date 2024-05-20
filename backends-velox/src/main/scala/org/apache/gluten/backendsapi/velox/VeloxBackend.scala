@@ -36,7 +36,6 @@ import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
 import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
@@ -46,21 +45,21 @@ class VeloxBackend extends Backend {
   override def name(): String = VeloxBackend.BACKEND_NAME
   override def buildInfo(): BackendBuildInfo =
     BackendBuildInfo("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
-  override def iteratorApi(): IteratorApi = new IteratorApiImpl
-  override def sparkPlanExecApi(): SparkPlanExecApi = new SparkPlanExecApiImpl
-  override def transformerApi(): TransformerApi = new TransformerApiImpl
-  override def validatorApi(): ValidatorApi = new ValidatorApiImpl
-  override def metricsApi(): MetricsApi = new MetricsApiImpl
-  override def listenerApi(): ListenerApi = new ListenerApiImpl
-  override def broadcastApi(): BroadcastApi = new BroadcastApiImpl
-  override def settings(): BackendSettingsApi = BackendSettings
+  override def iteratorApi(): IteratorApi = new VeloxIteratorApi
+  override def sparkPlanExecApi(): SparkPlanExecApi = new VeloxSparkPlanExecApi
+  override def transformerApi(): TransformerApi = new VeloxTransformerApi
+  override def validatorApi(): ValidatorApi = new VeloxValidatorApi
+  override def metricsApi(): MetricsApi = new VeloxMetricsApi
+  override def listenerApi(): ListenerApi = new VeloxListenerApi
+  override def broadcastApi(): BroadcastApi = new VeloxBroadcastApi
+  override def settings(): BackendSettingsApi = VeloxBackendSettings
 }
 
 object VeloxBackend {
   val BACKEND_NAME = "velox"
 }
 
-object BackendSettings extends BackendSettingsApi {
+object VeloxBackendSettings extends BackendSettingsApi {
 
   val SHUFFLE_SUPPORTED_CODEC = Set("lz4", "zstd")
 
@@ -93,9 +92,11 @@ object BackendSettings extends BackendSettingsApi {
         mapType.simpleString + " is forced to fallback."
       case StructField(_, structType: StructType, _, _) =>
         structType.simpleString + " is forced to fallback."
+      case StructField(_, timestampType: TimestampType, _, _)
+          if GlutenConfig.getConf.forceParquetTimestampTypeScanFallbackEnabled =>
+        timestampType.simpleString + " is forced to fallback."
     }
     val orcTypeValidatorWithComplexTypeFallback: PartialFunction[StructField, String] = {
-      case StructField(_, ByteType, _, _) => "ByteType not support"
       case StructField(_, arrayType: ArrayType, _, _) =>
         arrayType.simpleString + " is forced to fallback."
       case StructField(_, mapType: MapType, _, _) =>
@@ -124,6 +125,9 @@ object BackendSettings extends BackendSettingsApi {
           case StructField(_, mapType: MapType, _, _)
               if mapType.valueType.isInstanceOf[ArrayType] =>
             "ArrayType as Value in MapType"
+          case StructField(_, TimestampType, _, _)
+              if GlutenConfig.getConf.forceParquetTimestampTypeScanFallbackEnabled =>
+            "TimestampType"
         }
         if (!GlutenConfig.getConf.forceComplexTypeScanFallbackEnabled) {
           validateTypes(typeValidator)
@@ -136,7 +140,6 @@ object BackendSettings extends BackendSettingsApi {
           ValidationResult.notOk(s"Velox ORC scan is turned off.")
         } else {
           val typeValidator: PartialFunction[StructField, String] = {
-            case StructField(_, ByteType, _, _) => "ByteType not support"
             case StructField(_, arrayType: ArrayType, _, _)
                 if arrayType.elementType.isInstanceOf[StructType] =>
               "StructType as element in ArrayType"
@@ -182,10 +185,10 @@ object BackendSettings extends BackendSettingsApi {
 
     def validateCompressionCodec(): Option[String] = {
       // Velox doesn't support brotli and lzo.
-      val unSupportedCompressions = Set("brotli, lzo")
+      val unSupportedCompressions = Set("brotli", "lzo", "lz4raw", "lz4_raw")
       val compressionCodec = WriteFilesExecTransformer.getCompressionCodec(options)
       if (unSupportedCompressions.contains(compressionCodec)) {
-        Some("Brotli or lzo compression codec is unsupported in Velox backend.")
+        Some("Brotli, lzo, lz4raw and lz4_raw compression codec is unsupported in Velox backend.")
       } else {
         None
       }
@@ -277,6 +280,13 @@ object BackendSettings extends BackendSettingsApi {
     GlutenConfig.getConf.enableColumnarSortMergeJoin
   }
 
+  override def supportWindowGroupLimitExec(rankLikeFunction: Expression): Boolean = {
+    rankLikeFunction match {
+      case _: RowNumber => true
+      case _ => false
+    }
+  }
+
   override def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
     var allSupported = true
     breakable {
@@ -292,6 +302,10 @@ object BackendSettings extends BackendSettingsApi {
           def checkLimitations(swf: SpecifiedWindowFrame, orderSpec: Seq[SortOrder]): Unit = {
             def doCheck(bound: Expression, isUpperBound: Boolean): Unit = {
               bound match {
+                case e if e.foldable =>
+                  throw new GlutenNotSupportException(
+                    "Window frame of type RANGE does" +
+                      " not support constant arguments in velox backend")
                 case _: SpecialFrameBoundary =>
                 case e if e.foldable =>
                   orderSpec.foreach(
@@ -349,7 +363,8 @@ object BackendSettings extends BackendSettingsApi {
 
   override def supportColumnarShuffleExec(): Boolean = {
     GlutenConfig.getConf.isUseColumnarShuffleManager ||
-    GlutenConfig.getConf.isUseCelebornShuffleManager
+    GlutenConfig.getConf.isUseCelebornShuffleManager ||
+    GlutenConfig.getConf.isUseUniffleShuffleManager
   }
 
   override def enableJoinKeysRewrite(): Boolean = false
@@ -434,20 +449,15 @@ object BackendSettings extends BackendSettingsApi {
   override def fallbackAggregateWithEmptyOutputChild(): Boolean = true
 
   override def recreateJoinExecOnFallback(): Boolean = true
-  override def rescaleDecimalLiteral(): Boolean = true
+  override def rescaleDecimalArithmetic(): Boolean = true
 
   /** Get the config prefix for each backend */
   override def getBackendConfigPrefix(): String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + VeloxBackend.BACKEND_NAME
 
-  override def rescaleDecimalIntegralExpression(): Boolean = true
-
   override def shuffleSupportedCodec(): Set[String] = SHUFFLE_SUPPORTED_CODEC
 
-  override def resolveNativeConf(nativeConf: java.util.Map[String, String]): Unit = {
-    checkMaxBatchSize(nativeConf)
-    UDFResolver.resolveUdfConf(nativeConf)
-  }
+  override def resolveNativeConf(nativeConf: java.util.Map[String, String]): Unit = {}
 
   override def insertPostProjectForGenerate(): Boolean = true
 
@@ -475,15 +485,8 @@ object BackendSettings extends BackendSettingsApi {
     )
   }
 
-  private def checkMaxBatchSize(nativeConf: java.util.Map[String, String]): Unit = {
-    if (nativeConf.containsKey(GlutenConfig.GLUTEN_MAX_BATCH_SIZE_KEY)) {
-      val maxBatchSize = nativeConf.get(GlutenConfig.GLUTEN_MAX_BATCH_SIZE_KEY).toInt
-      if (maxBatchSize > MAXIMUM_BATCH_SIZE) {
-        throw new IllegalArgumentException(
-          s"The maximum value of ${GlutenConfig.GLUTEN_MAX_BATCH_SIZE_KEY}" +
-            s" is $MAXIMUM_BATCH_SIZE for Velox backend.")
-      }
-    }
+  override def enableNativeArrowReadFiles(): Boolean = {
+    GlutenConfig.getConf.enableNativeArrowReader
   }
 
   override def shouldRewriteCount(): Boolean = {
@@ -496,11 +499,7 @@ object BackendSettings extends BackendSettingsApi {
 
   override def supportBroadcastNestedLoopJoinExec(): Boolean = true
 
-  override def shouldRewriteTypedImperativeAggregate(): Boolean = {
-    // The intermediate type of collect_list, collect_set in Velox backend is not consistent with
-    // vanilla Spark, we need to rewrite the aggregate to get the correct data type.
-    true
-  }
+  override def supportColumnarArrowUdf(): Boolean = true
 
-  override def shouldRewriteCollect(): Boolean = true
+  override def generateHdfsConfForLibhdfs(): Boolean = true
 }

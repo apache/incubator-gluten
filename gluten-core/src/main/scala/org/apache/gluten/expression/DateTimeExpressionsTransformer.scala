@@ -36,7 +36,7 @@ case class ExtractDateTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
     original: Expression)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childNode = child.doTransform(args)
@@ -65,7 +65,7 @@ case class DateDiffTransformer(
     endDate: ExpressionTransformer,
     startDate: ExpressionTransformer,
     original: DateDiff)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val endDateNode = endDate.doTransform(args)
@@ -99,7 +99,7 @@ case class ToUnixTimestampTransformer(
     timeZoneId: Option[String],
     failOnError: Boolean,
     original: ToUnixTimestamp)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val dataTypes = Seq(original.timeExp.dataType, StringType)
@@ -124,7 +124,7 @@ case class TruncTimestampTransformer(
     timestamp: ExpressionTransformer,
     timeZoneId: Option[String] = None,
     original: TruncTimestamp)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val timestampNode = timestamp.doTransform(args)
@@ -160,7 +160,7 @@ case class MonthsBetweenTransformer(
     roundOff: ExpressionTransformer,
     timeZoneId: Option[String] = None,
     original: MonthsBetween)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val date1Node = date1.doTransform(args)

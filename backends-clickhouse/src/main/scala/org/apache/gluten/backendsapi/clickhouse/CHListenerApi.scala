@@ -27,6 +27,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.sql.execution.datasources.v1._
+import org.apache.spark.util.SparkDirectoryUtil
 
 import org.apache.commons.lang3.StringUtils
 
@@ -43,6 +44,7 @@ class CHListenerApi extends ListenerApi with Logging {
   override def onExecutorShutdown(): Unit = shutdown()
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
+    SparkDirectoryUtil.init(conf)
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
     if (StringUtils.isBlank(libPath)) {
       throw new IllegalArgumentException(

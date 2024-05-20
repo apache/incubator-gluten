@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.delta
 
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.execution.ColumnarToRowExecBase
 
 import org.apache.spark.SparkException
@@ -109,7 +110,7 @@ class ClickhouseOptimisticTransaction(
 
       // Retain only a minimal selection of Spark writer options to avoid any potential
       // compatibility issues
-      val options = writeOptions match {
+      var options = writeOptions match {
         case None => Map.empty[String, String]
         case Some(writeOptions) =>
           writeOptions.options.filterKeys {
@@ -118,6 +119,16 @@ class ClickhouseOptimisticTransaction(
               key.equalsIgnoreCase(DeltaOptions.COMPRESSION)
           }.toMap
       }
+
+      spark.conf.getAll.foreach(
+        entry => {
+          if (
+            entry._1.startsWith(s"${CHBackendSettings.getBackendConfigPrefix}.runtime_settings")
+            || entry._1.equalsIgnoreCase(DeltaSQLConf.DELTA_OPTIMIZE_MIN_FILE_SIZE.key)
+          ) {
+            options += (entry._1 -> entry._2)
+          }
+        })
 
       try {
         val tableV2 = ClickHouseTableV2.getTable(deltaLog)

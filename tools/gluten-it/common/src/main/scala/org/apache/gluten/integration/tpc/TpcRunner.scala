@@ -48,20 +48,19 @@ class TpcRunner(val queryResourceFolder: String, val dataPath: String) {
 object TpcRunner {
   def createTables(spark: SparkSession, dataPath: String): Unit = {
     val files = new File(dataPath).listFiles()
-    files.foreach(
-      file => {
-        if (spark.catalog.tableExists(file.getName)) {
-          println("Table exists: " + file.getName)
-        } else {
-          println("Creating catalog table: " + file.getName)
-          spark.catalog.createTable(file.getName, file.getAbsolutePath, "parquet")
-          try {
-            spark.catalog.recoverPartitions(file.getName)
-          } catch {
-            case _: AnalysisException =>
-          }
+    files.foreach(file => {
+      if (spark.catalog.tableExists(file.getName)) {
+        println("Table exists: " + file.getName)
+      } else {
+        println("Creating catalog table: " + file.getName)
+        spark.catalog.createTable(file.getName, file.getAbsolutePath, "parquet")
+        try {
+          spark.catalog.recoverPartitions(file.getName)
+        } catch {
+          case _: AnalysisException =>
         }
-      })
+      }
+    })
   }
 
   private def delete(path: String): Unit = {

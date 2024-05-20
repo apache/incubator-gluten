@@ -18,8 +18,9 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.memory.arrowalloc.ArrowBufferAllocators
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.{Partition, SparkException, TaskContext, TaskOutputFileAlreadyExistException}
@@ -32,7 +33,7 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSet, GenericInternalRow}
 import org.apache.spark.sql.connector.write.WriterCommitMessage
-import org.apache.spark.sql.execution.datasources.{BasicWriteTaskStats, DynamicPartitionDataSingleWriter, EmptyDirectoryDataWriter, ExecutedWriteSummary, FileFormat, PartitioningUtils, SingleDirectoryDataWriter, WriteFilesExec, WriteFilesSpec, WriteTaskResult}
+import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
@@ -254,19 +255,33 @@ class VeloxColumnarWriteFilesRDD(
   }
 }
 
-class VeloxColumnarWriteFilesExec(
-    child: SparkPlan,
+// The class inherits from "BinaryExecNode" instead of "UnaryExecNode" because
+// we need to expose a dummy child (as right child) with type "WriteFilesExec" to let Spark
+// choose the new write code path (version >= 3.4). The actual plan to write is the left child
+// of this operator.
+case class VeloxColumnarWriteFilesExec private (
+    override val left: SparkPlan,
+    override val right: SparkPlan,
     fileFormat: FileFormat,
     partitionColumns: Seq[Attribute],
     bucketSpec: Option[BucketSpec],
     options: Map[String, String],
     staticPartitions: TablePartitionSpec)
-  extends WriteFilesExec(child, fileFormat, partitionColumns, bucketSpec, options, staticPartitions)
-  with GlutenPlan {
+  extends BinaryExecNode
+  with GlutenPlan
+  with VeloxColumnarWriteFilesExec.ExecuteWriteCompatible {
+
+  val child: SparkPlan = left
 
   override lazy val references: AttributeSet = AttributeSet.empty
 
   override def supportsColumnar(): Boolean = true
+
+  override def output: Seq[Attribute] = Seq.empty
+
+  override protected def doExecute(): RDD[InternalRow] = {
+    throw new GlutenException(s"$nodeName does not support doExecute")
+  }
 
   /** Fallback to use vanilla Spark write files to generate an empty file for metadata only. */
   private def writeFilesForEmptyRDD(
@@ -307,13 +322,61 @@ class VeloxColumnarWriteFilesExec(
       new VeloxColumnarWriteFilesRDD(rdd, writeFilesSpec, jobTrackerID)
     }
   }
+  override protected def withNewChildrenInternal(
+      newLeft: SparkPlan,
+      newRight: SparkPlan): SparkPlan =
+    copy(newLeft, newRight, fileFormat, partitionColumns, bucketSpec, options, staticPartitions)
+}
 
-  override protected def withNewChildInternal(newChild: SparkPlan): WriteFilesExec =
-    new VeloxColumnarWriteFilesExec(
-      newChild,
+object VeloxColumnarWriteFilesExec {
+
+  def apply(
+      child: SparkPlan,
+      fileFormat: FileFormat,
+      partitionColumns: Seq[Attribute],
+      bucketSpec: Option[BucketSpec],
+      options: Map[String, String],
+      staticPartitions: TablePartitionSpec): VeloxColumnarWriteFilesExec = {
+    // This is a workaround for FileFormatWriter#write. Vanilla Spark (version >= 3.4) requires for
+    // a plan that has at least one node exactly of type `WriteFilesExec` that is a Scala
+    // case-class, to decide to choose new `#executeWrite` code path over the legacy `#execute`
+    // for write operation.
+    //
+    // So we add a no-op `WriteFilesExec` child to let Spark pick the new code path.
+    //
+    // See: FileFormatWriter#write
+    // See: V1Writes#getWriteFilesOpt
+    val right: SparkPlan =
+      WriteFilesExec(
+        NoopLeaf(),
+        fileFormat,
+        partitionColumns,
+        bucketSpec,
+        options,
+        staticPartitions)
+
+    VeloxColumnarWriteFilesExec(
+      child,
+      right,
       fileFormat,
       partitionColumns,
       bucketSpec,
       options,
       staticPartitions)
+  }
+
+  private case class NoopLeaf() extends LeafExecNode {
+    override protected def doExecute(): RDD[InternalRow] =
+      throw new GlutenException(s"$nodeName does not support doExecute")
+    override def output: Seq[Attribute] = Seq.empty
+  }
+
+  sealed trait ExecuteWriteCompatible {
+    // To be compatible with Spark (version < 3.4)
+    protected def doExecuteWrite(writeFilesSpec: WriteFilesSpec): RDD[WriterCommitMessage] = {
+      throw new GlutenException(
+        s"Internal Error ${this.getClass} has write support" +
+          s" mismatch:\n${this}")
+    }
+  }
 }

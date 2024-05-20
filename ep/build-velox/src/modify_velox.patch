@@ -36,12 +36,12 @@ index d49115f12..1aaa8e532 100644
 +  endif()
  endif()
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 82fed089f..91e4cc0df 100644
+index 53aaf4391..90aba6916 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -249,10 +249,15 @@ if(VELOX_ENABLE_ABFS)
+@@ -243,10 +243,15 @@ if(VELOX_ENABLE_ABFS)
  endif()
- 
+
  if(VELOX_ENABLE_HDFS)
 -  find_library(
 -    LIBHDFS3
@@ -58,12 +58,12 @@ index 82fed089f..91e4cc0df 100644
 +  endif()
    add_definitions(-DVELOX_ENABLE_HDFS3)
  endif()
- 
-@@ -399,7 +404,7 @@ resolve_dependency(Boost 1.66.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
+
+@@ -386,7 +391,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
  # for reference. find_package(range-v3)
- 
+
  set_source(gflags)
--resolve_dependency(gflags COMPONENTS shared)
+-resolve_dependency(gflags COMPONENTS ${VELOX_GFLAGS_TYPE})
 +resolve_dependency(gflags)
  if(NOT TARGET gflags::gflags)
    # This is a bit convoluted, but we want to be able to use gflags::gflags as a
@@ -92,12 +92,12 @@ index ce4c24dbe..785a2acc6 100644
      SOURCE_SUBDIR cpp
      CMAKE_ARGS ${ARROW_CMAKE_ARGS}
 diff --git a/velox/common/process/tests/CMakeLists.txt b/velox/common/process/tests/CMakeLists.txt
-index 2fce354e3..64cfcb2ab 100644
+index 6797697a1..3e241f8f7 100644
 --- a/velox/common/process/tests/CMakeLists.txt
 +++ b/velox/common/process/tests/CMakeLists.txt
-@@ -19,4 +19,4 @@ add_executable(
+@@ -18,4 +18,4 @@ add_executable(velox_process_test ProfilerTest.cpp ThreadLocalRegistryTest.cpp
  add_test(velox_process_test velox_process_test)
- 
+
  target_link_libraries(velox_process_test PRIVATE velox_process fmt::fmt gtest
 -                                                 velox_time gtest_main)
 +                                                 velox_time gtest_main glog::glog gflags::gflags)
@@ -106,7 +106,7 @@ index e2a638df6..e383cf205 100644
 --- a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
 +++ b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
 @@ -38,7 +38,6 @@ std::shared_ptr<FileSystem> abfsFileSystemGenerator(
- 
+
  void registerAbfsFileSystem() {
  #ifdef VELOX_ENABLE_ABFS
 -  LOG(INFO) << "Register ABFS";
@@ -125,12 +125,12 @@ index 10ee508ba..027a58ecc 100644
 +  hadoopHomeDirectory.remove_filename().remove_filename();
    setupEnvironment(hadoopHomeDirectory.string());
  }
- 
+
 diff --git a/velox/dwio/common/CMakeLists.txt b/velox/dwio/common/CMakeLists.txt
-index 25e8bb56a..5b2aa526b 100644
+index 9b6574d6e..61abddb59 100644
 --- a/velox/dwio/common/CMakeLists.txt
 +++ b/velox/dwio/common/CMakeLists.txt
-@@ -76,4 +76,5 @@ target_link_libraries(
+@@ -77,4 +77,5 @@ target_link_libraries(
    velox_memory
    Boost::regex
    Folly::folly

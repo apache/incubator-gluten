@@ -125,9 +125,6 @@ object VeloxIntermediateData {
     aggregateFunc match {
       case _ @Type(veloxDataTypes: Seq[DataType]) =>
         Seq(StructType(veloxDataTypes.map(StructField("", _)).toArray))
-      case _: CollectList | _: CollectSet =>
-        // CollectList and CollectSet should use data type of agg function.
-        Seq(aggregateFunc.dataType)
       case _ =>
         // Not use StructType for single column agg intermediate data
         aggregateFunc.aggBufferAttributes.map(_.dataType)
@@ -159,7 +156,13 @@ object VeloxIntermediateData {
    * row_constructor_with_null.
    */
   def getRowConstructFuncName(aggFunc: AggregateFunction): String = aggFunc match {
-    case _: Average | _: Sum if aggFunc.dataType.isInstanceOf[DecimalType] => "row_constructor"
+    case _: Average | _: Sum if aggFunc.dataType.isInstanceOf[DecimalType] =>
+      "row_constructor"
+    // For agg function min_by/max_by, it needs to keep rows with null value but non-null
+    // comparison, such as <null, 5>. So we set the struct to null when all of the arguments
+    // are null
+    case _: MaxMinBy =>
+      "row_constructor_with_all_null"
     case _ => "row_constructor_with_null"
   }
 

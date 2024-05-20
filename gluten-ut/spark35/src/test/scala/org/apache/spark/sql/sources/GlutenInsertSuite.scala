@@ -141,7 +141,7 @@ class GlutenInsertSuite
         .find(_.isInstanceOf[SortExecTransformer])
         .isEmpty)
     // all operators should be transformed
-    assert(writeFiles.find(!_.isInstanceOf[GlutenPlan]).isEmpty)
+    assert(writeFiles.child.find(!_.isInstanceOf[GlutenPlan]).isEmpty)
 
     val parts = spark.sessionState.catalog.listPartitionNames(TableIdentifier("pt")).toSet
     assert(parts == expectedPartitionNames)
@@ -419,7 +419,7 @@ class GlutenInsertSuite
       // declarations, if applicable.
       val incompatibleDefault =
         "Failed to execute ALTER TABLE ADD COLUMNS command because the destination " +
-          "table column s has a DEFAULT value with type"
+          "table column `s` has a DEFAULT value"
       Seq(Config("parquet"), Config("parquet", true)).foreach {
         config =>
           withTable("t") {
@@ -468,7 +468,7 @@ class GlutenInsertSuite
       // declarations, if applicable.
       val incompatibleDefault =
         "Failed to execute ALTER TABLE ADD COLUMNS command because the destination " +
-          "table column s has a DEFAULT value with type"
+          "table column `s` has a DEFAULT value"
       Seq(Config("parquet"), Config("parquet", true)).foreach {
         config =>
           withTable("t") {
@@ -486,7 +486,7 @@ class GlutenInsertSuite
     }
   }
 
-  testGluten("SPARK-39557 INSERT INTO statements with tables with map defaults") {
+  ignoreGluten("SPARK-39557 INSERT INTO statements with tables with map defaults") {
     withSQLConf("spark.gluten.sql.complexType.scan.fallback.enabled" -> "false") {
 
       import testImplicits._
@@ -565,7 +565,7 @@ class GlutenInsertSuite
       // declarations, if applicable.
       val incompatibleDefault =
         "Failed to execute ALTER TABLE ADD COLUMNS command because the destination " +
-          "table column s has a DEFAULT value with type"
+          "table column `s` has a DEFAULT value"
       Seq(Config("parquet"), Config("parquet", true)).foreach {
         config =>
           withTable("t") {

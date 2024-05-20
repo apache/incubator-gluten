@@ -16,18 +16,25 @@
  */
 package org.apache.spark.sql.execution.datasources.csv
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.exception.GlutenException
 
 import org.apache.spark.{SparkConf, SparkException}
-import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, Row}
+import org.apache.spark.sql.{AnalysisException, GlutenSQLTestsBaseTrait, Row}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DateType, IntegerType, StructType, TimestampType}
+import org.apache.spark.sql.types.{DateType, IntegerType, StringType, StructType, TimestampType}
 
 import org.scalatest.exceptions.TestFailedException
 
 import java.sql.{Date, Timestamp}
 
+import scala.collection.JavaConverters.seqAsJavaListConverter
+
 class GlutenCSVSuite extends CSVSuite with GlutenSQLTestsBaseTrait {
+
+  override def sparkConf: SparkConf =
+    super.sparkConf
+      .set(GlutenConfig.NATIVE_ARROW_READER_ENABLED.key, "true")
 
   /** Returns full path to the given file in the resource folder */
   override protected def testFile(fileName: String): String = {
@@ -36,9 +43,68 @@ class GlutenCSVSuite extends CSVSuite with GlutenSQLTestsBaseTrait {
 }
 
 class GlutenCSVv1Suite extends GlutenCSVSuite {
+  import testImplicits._
   override def sparkConf: SparkConf =
     super.sparkConf
       .set(SQLConf.USE_V1_SOURCE_LIST, "csv")
+
+  testGluten("SPARK-23786: Ignore column name case if spark.sql.caseSensitive is false") {
+    withSQLConf(SQLConf.CASE_SENSITIVE.key -> "false") {
+      withTempPath {
+        path =>
+          val oschema = new StructType().add("A", StringType)
+          // change the row content 0 to string bbb in  Gluten for test
+          val odf = spark.createDataFrame(List(Row("bbb")).asJava, oschema)
+          odf.write.option("header", true).csv(path.getCanonicalPath)
+          val ischema = new StructType().add("a", StringType)
+          val idf = spark.read
+            .schema(ischema)
+            .option("header", true)
+            .option("enforceSchema", false)
+            .csv(path.getCanonicalPath)
+          checkAnswer(idf, odf)
+      }
+    }
+  }
+
+  testGluten("case sensitivity of filters references") {
+    Seq(true, false).foreach {
+      filterPushdown =>
+        withSQLConf(SQLConf.CSV_FILTER_PUSHDOWN_ENABLED.key -> filterPushdown.toString) {
+          withTempPath {
+            path =>
+              Seq("""aaa,BBB""", """0,1""", """2,3""")
+                .toDF()
+                .repartition(1)
+                .write
+                .text(path.getCanonicalPath)
+              withSQLConf(SQLConf.CASE_SENSITIVE.key -> "false") {
+                // change the schema to Arrow schema to support read in Gluten
+                val readback = spark.read
+                  .schema("aaa long, BBB long")
+                  .option("header", true)
+                  .csv(path.getCanonicalPath)
+                checkAnswer(readback, Seq(Row(2, 3), Row(0, 1)))
+                checkAnswer(readback.filter($"AAA" === 2 && $"bbb" === 3), Seq(Row(2, 3)))
+              }
+              withSQLConf(SQLConf.CASE_SENSITIVE.key -> "true") {
+                val readback = spark.read
+                  .schema("aaa long, BBB long")
+                  .option("header", true)
+                  .csv(path.getCanonicalPath)
+                checkAnswer(readback, Seq(Row(2, 3), Row(0, 1)))
+                checkError(
+                  exception = intercept[AnalysisException] {
+                    readback.filter($"AAA" === 2 && $"bbb" === 3).collect()
+                  },
+                  errorClass = "UNRESOLVED_COLUMN.WITH_SUGGESTION",
+                  parameters = Map("objectName" -> "`AAA`", "proposal" -> "`BBB`, `aaa`")
+                )
+              }
+          }
+        }
+    }
+  }
 }
 
 class GlutenCSVv2Suite extends GlutenCSVSuite {
@@ -47,6 +113,7 @@ class GlutenCSVv2Suite extends GlutenCSVSuite {
   override def sparkConf: SparkConf =
     super.sparkConf
       .set(SQLConf.USE_V1_SOURCE_LIST, "")
+      .set(GlutenConfig.NATIVE_ARROW_READER_ENABLED.key, "true")
 
   override def testNameBlackList: Seq[String] = Seq(
     // overwritten with different test

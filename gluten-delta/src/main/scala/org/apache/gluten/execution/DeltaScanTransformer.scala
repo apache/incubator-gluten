@@ -52,7 +52,11 @@ case class DeltaScanTransformer(
   override lazy val fileFormat: ReadFileFormat = ReadFileFormat.ParquetReadFormat
 
   override protected def doValidateInternal(): ValidationResult = {
-    if (requiredSchema.fields.exists(_.name == "__delta_internal_is_row_deleted")) {
+    if (
+      requiredSchema.fields.exists(
+        _.name == "__delta_internal_is_row_deleted") || requiredSchema.fields.exists(
+        _.name == "__delta_internal_row_index")
+    ) {
       return ValidationResult.notOk(s"Deletion vector is not supported in native.")
     }
 

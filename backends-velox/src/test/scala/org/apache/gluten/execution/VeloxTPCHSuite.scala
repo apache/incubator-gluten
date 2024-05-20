@@ -244,8 +244,27 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
       checkGoldenFile(_, 22)
     }
   }
+}
 
-  test("test 'order by limit'") {
+class VeloxTPCHDistinctSpillSuite extends VeloxTPCHTableSupport {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.memory.offHeap.size", "50m")
+      .set("spark.gluten.memory.overAcquiredMemoryRatio", "0.9") // to trigger distinct spill early
+  }
+
+  test("distinct spill") {
+    val df = spark.sql("select count(distinct *) from lineitem limit 1")
+    TestUtils.compareAnswers(df.collect(), Seq(Row(60175)))
+  }
+}
+
+class VeloxTPCHMiscSuite extends VeloxTPCHTableSupport {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+  }
+
+  test("order by limit") {
     val df = spark.sql(
       """
         |select n_nationkey from nation order by n_nationkey limit 5
@@ -256,21 +275,9 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
     }
     assert(sortExec.size == 1)
     val result = df.collect()
+    df.explain(true)
     val expectedResult = Seq(Row(0), Row(1), Row(2), Row(3), Row(4))
     TestUtils.compareAnswers(result, expectedResult)
-  }
-}
-
-class VeloxTPCHDistinctSpill extends VeloxTPCHTableSupport {
-  override protected def sparkConf: SparkConf = {
-    super.sparkConf
-      .set("spark.memory.offHeap.size", "50m")
-      .set("spark.gluten.memory.overAcquiredMemoryRatio", "0.9") // to trigger distinct spill early
-  }
-
-  test("distinct spill") {
-    val df = spark.sql("select count(distinct *) from lineitem limit 1")
-    TestUtils.compareAnswers(df.collect(), Seq(Row(60175)))
   }
 }
 

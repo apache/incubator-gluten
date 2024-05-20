@@ -299,7 +299,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("iceberg: time travel") {
+  testWithSpecifiedSparkVersion("iceberg: time travel") {
     withTable("iceberg_tm") {
       spark.sql(s"""
                    |create table iceberg_tm (id int, name string) using iceberg

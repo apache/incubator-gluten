@@ -32,17 +32,18 @@ case class ChildTransformer(child: ExpressionTransformer) extends ExpressionTran
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     child.doTransform(args)
   }
+  override def dataType: DataType = child.dataType
 }
 
 case class CastTransformer(
     child: ExpressionTransformer,
-    datatype: DataType,
+    dataType: DataType,
     timeZoneId: Option[String],
     original: Cast)
   extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val typeNode = ConverterUtils.getTypeNode(datatype, original.nullable)
+    val typeNode = ConverterUtils.getTypeNode(dataType, original.nullable)
     ExpressionBuilder.makeCast(typeNode, child.doTransform(args), original.ansiEnabled)
   }
 }
@@ -51,7 +52,7 @@ case class ExplodeTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
     original: Explode)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childNode: ExpressionNode = child.doTransform(args)
@@ -79,7 +80,7 @@ case class PosExplodeTransformer(
     child: ExpressionTransformer,
     original: PosExplode,
     attributeSeq: Seq[Attribute])
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childNode: ExpressionNode = child.doTransform(args)
@@ -152,14 +153,16 @@ case class PosExplodeTransformer(
 case class CheckOverflowTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
+    childResultType: DataType,
     original: CheckOverflow)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     BackendsApiManager.getTransformerApiInstance.createCheckOverflowExprNode(
       args,
       substraitExprName,
       child.doTransform(args),
+      childResultType,
       original.dataType,
       original.nullable,
       original.nullOnOverflow)
@@ -170,7 +173,7 @@ case class MakeDecimalTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
     original: MakeDecimal)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childNode = child.doTransform(args)
@@ -200,7 +203,7 @@ case class RandTransformer(
     substraitExprName: String,
     explicitSeed: ExpressionTransformer,
     original: Rand)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     if (!original.hideSeed) {
@@ -224,7 +227,7 @@ case class GetArrayStructFieldsTransformer(
     numFields: Int,
     containsNull: Boolean,
     original: GetArrayStructFields)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]

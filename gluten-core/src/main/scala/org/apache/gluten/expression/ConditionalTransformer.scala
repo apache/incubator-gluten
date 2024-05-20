@@ -27,7 +27,7 @@ case class CaseWhenTransformer(
     branches: Seq[(ExpressionTransformer, ExpressionTransformer)],
     elseValue: Option[ExpressionTransformer],
     original: Expression)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // generate branches nodes
@@ -52,7 +52,7 @@ case class IfTransformer(
     trueValue: ExpressionTransformer,
     falseValue: ExpressionTransformer,
     original: Expression)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val ifNodes = new JArrayList[ExpressionNode]

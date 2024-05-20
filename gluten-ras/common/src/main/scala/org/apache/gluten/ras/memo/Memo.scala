@@ -17,8 +17,7 @@
 package org.apache.gluten.ras.memo
 
 import org.apache.gluten.ras._
-import org.apache.gluten.ras.Ras.UnsafeKey
-import org.apache.gluten.ras.RasCluster.ImmutableRasCluster
+import org.apache.gluten.ras.Ras.UnsafeHashKey
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.vis.GraphvizVisualizer
 
@@ -78,7 +77,7 @@ object Memo {
       memoTable.getDummyGroup(clusterKey)
     }
 
-    private def toCacheKeyUnsafe(n: T): MemoCacheKey[T] = {
+    private def toCacheKey(n: T): MemoCacheKey[T] = {
       MemoCacheKey(ras, n)
     }
 
@@ -90,11 +89,11 @@ object Memo {
 
       val childrenPrepares = ras.planModel.childrenOf(n).map(child => prepareInsert(child))
 
-      val canUnsafe = ras.withNewChildren(
+      val keyUnsafe = ras.withNewChildren(
         n,
         childrenPrepares.map(childPrepare => dummyGroupOf(childPrepare.clusterKey()).self()))
 
-      val cacheKey = toCacheKeyUnsafe(canUnsafe)
+      val cacheKey = toCacheKey(keyUnsafe)
 
       val clusterKey = clusterOfUnsafe(ras.metadataModel.metadataOf(n), cacheKey)
 
@@ -144,13 +143,13 @@ object Memo {
         val childrenPrepares =
           ras.planModel.childrenOf(node).map(child => parent.prepareInsert(child))
 
-        val canUnsafe = ras.withNewChildren(
+        val keyUnsafe = ras.withNewChildren(
           node,
           childrenPrepares.map {
             childPrepare => parent.dummyGroupOf(childPrepare.clusterKey()).self()
           })
 
-        val cacheKey = parent.toCacheKeyUnsafe(canUnsafe)
+        val cacheKey = parent.toCacheKey(keyUnsafe)
 
         if (!parent.cache.contains(cacheKey)) {
           // The new node was not added to memo yet. Add it to the target cluster.
@@ -237,11 +236,11 @@ object Memo {
   private object MemoCacheKey {
     def apply[T <: AnyRef](ras: Ras[T], self: T): MemoCacheKey[T] = {
       assert(ras.isCanonical(self))
-      MemoCacheKey[T](ras.toUnsafeKey(self))
+      MemoCacheKey[T](ras.toHashKey(self))
     }
   }
 
-  private case class MemoCacheKey[T <: AnyRef] private (delegate: UnsafeKey[T])
+  private case class MemoCacheKey[T <: AnyRef] private (delegate: UnsafeHashKey[T])
 }
 
 trait MemoStore[T <: AnyRef] {
@@ -267,39 +266,7 @@ trait MemoState[T <: AnyRef] extends MemoStore[T] {
 }
 
 object MemoState {
-  def apply[T <: AnyRef](
-      ras: Ras[T],
-      clusterLookup: Map[RasClusterKey, ImmutableRasCluster[T]],
-      clusterDummyGroupLookup: Map[RasClusterKey, RasGroup[T]],
-      allGroups: Seq[RasGroup[T]],
-      allDummyGroups: Seq[RasGroup[T]]): MemoState[T] = {
-    MemoStateImpl(ras, clusterLookup, clusterDummyGroupLookup, allGroups, allDummyGroups)
-  }
-
-  private case class MemoStateImpl[T <: AnyRef](
-      override val ras: Ras[T],
-      override val clusterLookup: Map[RasClusterKey, ImmutableRasCluster[T]],
-      override val clusterDummyGroupLookup: Map[RasClusterKey, RasGroup[T]],
-      override val allGroups: Seq[RasGroup[T]],
-      allDummyGroups: Seq[RasGroup[T]])
-    extends MemoState[T] {
-    private val allClustersCopy = clusterLookup.values
-
-    override def getCluster(key: RasClusterKey): RasCluster[T] = clusterLookup(key)
-    override def getDummyGroup(key: RasClusterKey): RasGroup[T] = clusterDummyGroupLookup(key)
-    override def getGroup(id: Int): RasGroup[T] = {
-      if (id < 0) {
-        val out = allDummyGroups((-id - 1))
-        assert(out.id() == id)
-        return out
-      }
-      allGroups(id)
-    }
-    override def allClusters(): Iterable[RasCluster[T]] = allClustersCopy
-  }
-
   implicit class MemoStateImplicits[T <: AnyRef](state: MemoState[T]) {
-
     def formatGraphvizWithBest(best: Best[T]): String = {
       GraphvizVisualizer(state.ras(), state, best).format()
     }

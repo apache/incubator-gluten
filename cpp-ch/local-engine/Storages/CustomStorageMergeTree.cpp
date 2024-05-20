@@ -26,11 +26,62 @@ namespace DB
 namespace ErrorCodes
 {
 extern const int DUPLICATE_DATA_PART;
+extern const int NO_SUCH_DATA_PART;
+
 }
 }
 
 namespace local_engine
 {
+
+
+void CustomStorageMergeTree::analysisPartsByRanges(DB::ReadFromMergeTree & source, DB::RangesInDataParts ranges_in_data_parts)
+{
+    ReadFromMergeTree::AnalysisResult result;
+    result.column_names_to_read = source.getAllColumnNames();
+    /// If there are only virtual columns in the query, you must request at least one non-virtual one.
+    if (result.column_names_to_read.empty())
+    {
+        NamesAndTypesList available_real_columns = source.getStorageMetadata()->getColumns().getAllPhysical();
+        result.column_names_to_read.push_back(ExpressionActions::getSmallestColumn(available_real_columns).name);
+    }
+
+    result.sampling = MergeTreeDataSelectSamplingData();
+    result.parts_with_ranges = ranges_in_data_parts;
+
+    size_t sum_marks = 0;
+    size_t sum_ranges = 0;
+    size_t sum_rows = 0;
+    size_t total_marks_pk = 0;
+    size_t sum_marks_pk = 0;
+
+    for (const auto & part : result.parts_with_ranges)
+    {
+        sum_ranges += part.ranges.size();
+        sum_marks += part.getMarksCount();
+        sum_rows += part.getRowsCount();
+        total_marks_pk += part.data_part->index_granularity.getMarksCountWithoutFinal();
+
+        for (auto range : part.ranges)
+            sum_marks_pk += range.getNumberOfMarks();
+    }
+
+    result.total_parts = ranges_in_data_parts.size();
+    result.parts_before_pk = ranges_in_data_parts.size();
+    result.selected_parts = ranges_in_data_parts.size();
+    result.selected_ranges = sum_ranges;
+    result.selected_marks = sum_marks;
+    result.selected_marks_pk = sum_marks_pk;
+    result.total_marks_pk = total_marks_pk;
+    result.selected_rows = sum_rows;
+
+    if (source.getQueryInfo().input_order_info)
+        result.read_type = (source.getQueryInfo().input_order_info->direction > 0)
+            ? MergeTreeReadType::InOrder
+            : MergeTreeReadType::InReverseOrder;
+
+    source.setAnalyzedResult(std::make_shared<ReadFromMergeTree::AnalysisResult>(std::move(result)));
+}
 
 void CustomStorageMergeTree::wrapRangesInDataParts(DB::ReadFromMergeTree & source, DB::RangesInDataParts ranges)
 {
@@ -97,9 +148,9 @@ CustomStorageMergeTree::CustomStorageMergeTree(
 
 std::atomic<int> CustomStorageMergeTree::part_num;
 
-DataPartsVector CustomStorageMergeTree::loadDataPartsWithNames(std::unordered_set<std::string> parts)
+std::vector<MergeTreeDataPartPtr> CustomStorageMergeTree::loadDataPartsWithNames(std::unordered_set<std::string> parts)
 {
-    DataPartsVector data_parts;
+    std::vector<MergeTreeDataPartPtr> data_parts;
     const auto disk = getStoragePolicy()->getDisks().at(0);
     for (const auto& name : parts)
     {
@@ -109,14 +160,8 @@ DataPartsVector CustomStorageMergeTree::loadDataPartsWithNames(std::unordered_se
         data_parts.emplace_back(res.part);
     }
 
-    if(getStorageID().hasUUID())
-    {
-        // the following lines will modify storage's member.
-        // So when current storage is shared (when UUID is default Nil value),
-        // we should avoid modify because we don't have locks here
-
-        calculateColumnAndSecondaryIndexSizesImpl(); // without it "test mergetree optimize partitioned by one low card column" will log ERROR
-    }
+    // without it "test mergetree optimize partitioned by one low card column" will log ERROR
+    calculateColumnAndSecondaryIndexSizesImpl();
     return data_parts;
 }
 
@@ -195,6 +240,38 @@ MergeTreeData::LoadPartResult CustomStorageMergeTree::loadDataPart(
 
     LOG_TRACE(log, "Finished loading {} part {} on disk {}", magic_enum::enum_name(to_state), part_name, part_disk_ptr->getName());
     return res;
+}
+
+void CustomStorageMergeTree::removePartFromMemory(const MergeTreeData::DataPartPtr & part_to_detach)
+{
+    auto lock = lockParts();
+    bool removed_active_part = false;
+    bool restored_active_part = false;
+
+    auto it_part = data_parts_by_info.find(part_to_detach->info);
+    if (it_part == data_parts_by_info.end())
+    {
+        LOG_DEBUG(log, "No such data part {}", part_to_detach->getNameWithState());
+        return;
+    }
+
+    /// What if part_to_detach is a reference to *it_part? Make a new owner just in case.
+    /// Important to own part pointer here (not const reference), because it will be removed from data_parts_indexes
+    /// few lines below.
+    DataPartPtr part = *it_part; // NOLINT
+
+    if (part->getState() == DataPartState::Active)
+    {
+        removePartContributionToColumnAndSecondaryIndexSizes(part);
+        removed_active_part = true;
+    }
+
+    modifyPartState(it_part, DataPartState::Deleting);
+    LOG_TEST(log, "removePartFromMemory: removing {} from data_parts_indexes", part->getNameWithState());
+    data_parts_indexes.erase(it_part);
+
+    if (removed_active_part || restored_active_part)
+        resetObjectColumnsFromActiveParts(lock);
 }
 
 void CustomStorageMergeTree::dropPartNoWaitNoThrow(const String & /*part_name*/)

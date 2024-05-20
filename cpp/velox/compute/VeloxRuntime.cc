@@ -26,12 +26,29 @@
 #include "compute/ResultIterator.h"
 #include "compute/Runtime.h"
 #include "compute/VeloxPlanConverter.h"
-#include "config/GlutenConfig.h"
+#include "config/VeloxConfig.h"
 #include "operators/serializer/VeloxRowToColumnarConverter.h"
+#include "shuffle/VeloxHashBasedShuffleWriter.h"
 #include "shuffle/VeloxShuffleReader.h"
-#include "shuffle/VeloxShuffleWriter.h"
+#include "shuffle/VeloxSortBasedShuffleWriter.h"
 #include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
+
+#ifdef ENABLE_HDFS
+#include "operators/writer/VeloxParquetDatasourceHDFS.h"
+#endif
+
+#ifdef ENABLE_S3
+#include "operators/writer/VeloxParquetDatasourceS3.h"
+#endif
+
+#ifdef ENABLE_GCS
+#include "operators/writer/VeloxParquetDatasourceGCS.h"
+#endif
+
+#ifdef ENABLE_ABFS
+#include "operators/writer/VeloxParquetDatasourceABFS.h"
+#endif
 
 using namespace facebook;
 
@@ -39,7 +56,7 @@ namespace gluten {
 
 VeloxRuntime::VeloxRuntime(const std::unordered_map<std::string, std::string>& confMap) : Runtime(confMap) {
   // Refresh session config.
-  veloxCfg_ = std::make_shared<const facebook::velox::core::MemConfigMutable>(confMap_);
+  veloxCfg_ = std::make_shared<facebook::velox::core::MemConfig>(confMap_);
   debugModeEnabled_ = veloxCfg_->get<bool>(kDebugModeEnabled, false);
   FLAGS_minloglevel = veloxCfg_->get<uint32_t>(kGlogSeverityLevel, FLAGS_minloglevel);
   FLAGS_v = veloxCfg_->get<uint32_t>(kGlogVerboseLevel, FLAGS_v);
@@ -171,10 +188,19 @@ std::shared_ptr<ShuffleWriter> VeloxRuntime::createShuffleWriter(
     MemoryManager* memoryManager) {
   auto ctxPool = getLeafVeloxPool(memoryManager);
   auto arrowPool = memoryManager->getArrowMemoryPool();
-  GLUTEN_ASSIGN_OR_THROW(
-      auto shuffle_writer,
-      VeloxShuffleWriter::create(numPartitions, std::move(partitionWriter), std::move(options), ctxPool, arrowPool));
-  return shuffle_writer;
+  std::shared_ptr<ShuffleWriter> shuffleWriter;
+  if (options.shuffleWriterType == kHashShuffle) {
+    GLUTEN_ASSIGN_OR_THROW(
+        shuffleWriter,
+        VeloxHashBasedShuffleWriter::create(
+            numPartitions, std::move(partitionWriter), std::move(options), ctxPool, arrowPool));
+  } else if (options.shuffleWriterType == kSortShuffle) {
+    GLUTEN_ASSIGN_OR_THROW(
+        shuffleWriter,
+        VeloxSortBasedShuffleWriter::create(
+            numPartitions, std::move(partitionWriter), std::move(options), ctxPool, arrowPool));
+  }
+  return shuffleWriter;
 }
 
 std::shared_ptr<Datasource> VeloxRuntime::createDatasource(
@@ -185,10 +211,37 @@ std::shared_ptr<Datasource> VeloxRuntime::createDatasource(
   auto veloxPool = getAggregateVeloxPool(memoryManager)->addAggregateChild("datasource." + std::to_string(id++));
   // Pass a dedicate pool for S3 and GCS sinks as can't share veloxPool
   // with parquet writer.
-  auto s3SinkPool = getLeafVeloxPool(memoryManager);
-  auto gcsSinkPool = getLeafVeloxPool(memoryManager);
-
-  return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, s3SinkPool, gcsSinkPool, schema);
+  auto sinkPool = getLeafVeloxPool(memoryManager);
+  if (isSupportedHDFSPath(filePath)) {
+#ifdef ENABLE_HDFS
+    return std::make_shared<VeloxParquetDatasourceHDFS>(filePath, veloxPool, sinkPool, schema);
+#else
+    throw std::runtime_error(
+        "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox runtime!");
+#endif
+  } else if (isSupportedS3SdkPath(filePath)) {
+#ifdef ENABLE_S3
+    return std::make_shared<VeloxParquetDatasourceS3>(filePath, veloxPool, sinkPool, schema);
+#else
+    throw std::runtime_error(
+        "The write path is S3 path but the S3 haven't been enabled when writing parquet data in velox runtime!");
+#endif
+  } else if (isSupportedGCSPath(filePath)) {
+#ifdef ENABLE_GCS
+    return std::make_shared<VeloxParquetDatasourceGCS>(filePath, veloxPool, sinkPool, schema);
+#else
+    throw std::runtime_error(
+        "The write path is GCS path but the GCS haven't been enabled when writing parquet data in velox runtime!");
+#endif
+  } else if (isSupportedABFSPath(filePath)) {
+#ifdef ENABLE_ABFS
+    return std::make_shared<VeloxParquetDatasourceABFS>(filePath, veloxPool, sinkPool, schema);
+#else
+    throw std::runtime_error(
+        "The write path is ABFS path but the ABFS haven't been enabled when writing parquet data in velox runtime!");
+#endif
+  }
+  return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, sinkPool, schema);
 }
 
 std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
@@ -199,9 +252,18 @@ std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
   auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
   auto codec = gluten::createArrowIpcCodec(options.compressionType, options.codecBackend);
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
+  auto veloxCompressionType = facebook::velox::common::stringToCompressionKind(options.compressionTypeStr);
   auto deserializerFactory = std::make_unique<gluten::VeloxColumnarBatchDeserializerFactory>(
-      schema, std::move(codec), rowType, options.batchSize, pool, ctxVeloxPool);
-  return std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
+      schema,
+      std::move(codec),
+      veloxCompressionType,
+      rowType,
+      options.batchSize,
+      pool,
+      ctxVeloxPool,
+      options.shuffleWriterType);
+  auto reader = std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
+  return reader;
 }
 
 std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerializer(
@@ -213,11 +275,11 @@ std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerial
 }
 
 void VeloxRuntime::dumpConf(const std::string& path) {
-  auto backendConf = VeloxBackend::get()->getBackendConf();
-  auto allConf = backendConf;
+  const auto& backendConfMap = VeloxBackend::get()->getBackendConf()->values();
+  auto allConfMap = backendConfMap;
 
   for (const auto& pair : confMap_) {
-    allConf.insert_or_assign(pair.first, pair.second);
+    allConfMap.insert_or_assign(pair.first, pair.second);
   }
 
   // Open file "velox.conf" for writing, automatically creating it if it doesn't exist,
@@ -230,13 +292,13 @@ void VeloxRuntime::dumpConf(const std::string& path) {
 
   // Calculate the maximum key length for alignment.
   size_t maxKeyLength = 0;
-  for (const auto& pair : allConf) {
+  for (const auto& pair : allConfMap) {
     maxKeyLength = std::max(maxKeyLength, pair.first.length());
   }
 
   // Write each key-value pair to the file with adjusted spacing for alignment
   outFile << "[Backend Conf]" << std::endl;
-  for (const auto& pair : backendConf) {
+  for (const auto& pair : backendConfMap) {
     outFile << std::left << std::setw(maxKeyLength + 1) << pair.first << ' ' << pair.second << std::endl;
   }
   outFile << std::endl << "[Session Conf]" << std::endl;

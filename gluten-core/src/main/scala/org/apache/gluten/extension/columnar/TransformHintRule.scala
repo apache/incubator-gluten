@@ -20,15 +20,15 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
-import org.apache.gluten.expression.ExpressionUtils.getExpressionTreeDepth
 import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
 import org.apache.gluten.extension.columnar.TransformHints.EncodeTransformableTagImplicits
+import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression}
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution._
@@ -38,8 +38,8 @@ import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
-import org.apache.spark.sql.execution.python.EvalPythonExec
-import org.apache.spark.sql.execution.window.WindowExec
+import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BatchEvalPythonExec}
+import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.StringType
 
@@ -290,94 +290,22 @@ case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
   }
 }
 
-/**
- * Velox BloomFilter's implementation is different from Spark's. So if might_contain falls back, we
- * need fall back related bloom filter agg.
- */
-case class FallbackBloomFilterAggIfNeeded() extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan =
-    if (
-      GlutenConfig.getConf.enableNativeBloomFilter &&
-      BackendsApiManager.getSettings.enableBloomFilterAggFallbackRule()
-    ) {
-      plan.transformDown {
-        case p if TransformHints.isNotTransformable(p) =>
-          handleBloomFilterFallback(p)
-          p
-      }
-    } else {
-      plan
-    }
-
-  object SubPlanFromBloomFilterMightContain {
-    def unapply(expr: Expression): Option[SparkPlan] =
-      SparkShimLoader.getSparkShims.extractSubPlanFromMightContain(expr)
-  }
-
-  private def handleBloomFilterFallback(plan: SparkPlan): Unit = {
-    def tagNotTransformableRecursive(p: SparkPlan): Unit = {
-      p match {
-        case agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec
-            if SparkShimLoader.getSparkShims.hasBloomFilterAggregate(agg) =>
-          TransformHints.tagNotTransformable(agg, "related BloomFilterMightContain falls back")
-          tagNotTransformableRecursive(agg.child)
-        case a: org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec =>
-          tagNotTransformableRecursive(a.executedPlan)
-        case _ =>
-          p.children.map(tagNotTransformableRecursive)
-      }
-    }
-
-    plan.transformExpressions {
-      case expr @ SubPlanFromBloomFilterMightContain(p: SparkPlan) =>
-        tagNotTransformableRecursive(p)
-        expr
-    }
-  }
-}
-
 // This rule will try to convert a plan into plan transformer.
 // The doValidate function will be called to check if the conversion is supported.
 // If false is returned or any unsupported exception is thrown, a row guard will
 // be added on the top of that plan to prevent actual conversion.
 case class AddTransformHintRule() extends Rule[SparkPlan] {
-  val columnarConf: GlutenConfig = GlutenConfig.getConf
-  val scanOnly: Boolean = columnarConf.enableScanOnly
-  val enableColumnarShuffle: Boolean =
-    !scanOnly && BackendsApiManager.getSettings.supportColumnarShuffleExec()
-  val enableColumnarSort: Boolean = !scanOnly && columnarConf.enableColumnarSort
-  val enableColumnarWindow: Boolean = !scanOnly && columnarConf.enableColumnarWindow
-  val enableColumnarSortMergeJoin: Boolean = !scanOnly &&
-    BackendsApiManager.getSettings.supportSortMergeJoinExec()
-  val enableColumnarBatchScan: Boolean = columnarConf.enableColumnarBatchScan
-  val enableColumnarFileScan: Boolean = columnarConf.enableColumnarFileScan
-  val enableColumnarHiveTableScan: Boolean = columnarConf.enableColumnarHiveTableScan
-  val enableColumnarProject: Boolean = !scanOnly && columnarConf.enableColumnarProject
-  val enableColumnarFilter: Boolean = columnarConf.enableColumnarFilter
-  val fallbackExpressionsThreshold: Int = columnarConf.fallbackExpressionsThreshold
-  val enableColumnarHashAgg: Boolean = !scanOnly && columnarConf.enableColumnarHashAgg
-  val enableColumnarUnion: Boolean = !scanOnly && columnarConf.enableColumnarUnion
-  val enableColumnarExpand: Boolean = !scanOnly && columnarConf.enableColumnarExpand
-  val enableColumnarShuffledHashJoin: Boolean =
-    !scanOnly && columnarConf.enableColumnarShuffledHashJoin
-  val enableColumnarBroadcastExchange: Boolean = !scanOnly &&
-    columnarConf.enableColumnarBroadcastExchange
-  val enableColumnarBroadcastJoin: Boolean = !scanOnly &&
-    columnarConf.enableColumnarBroadcastJoin
-  val enableColumnarLimit: Boolean = !scanOnly && columnarConf.enableColumnarLimit
-  val enableColumnarGenerate: Boolean = !scanOnly && columnarConf.enableColumnarGenerate
-  val enableColumnarCoalesce: Boolean = !scanOnly && columnarConf.enableColumnarCoalesce
-  val enableTakeOrderedAndProject: Boolean =
-    !scanOnly && columnarConf.enableTakeOrderedAndProject &&
-      enableColumnarSort && enableColumnarLimit && enableColumnarShuffle && enableColumnarProject
-  val enableColumnarWrite: Boolean = BackendsApiManager.getSettings.enableNativeWriteFiles()
-  val enableCartesianProduct: Boolean =
-    BackendsApiManager.getSettings.supportCartesianProductExec() &&
-      columnarConf.cartesianProductTransformerEnabled
-  val enableBroadcastNestedLoopJoin: Boolean =
-    BackendsApiManager.getSettings.supportBroadcastNestedLoopJoinExec() &&
-      columnarConf.broadcastNestedLoopJoinTransformerTransformerEnabled &&
-      enableColumnarBroadcastJoin
+  import AddTransformHintRule._
+  private val glutenConf: GlutenConfig = GlutenConfig.getConf
+  private val validator = Validators
+    .builder()
+    .fallbackByHint()
+    .fallbackIfScanOnlyWithFilterPushed(glutenConf.enableScanOnly)
+    .fallbackComplexExpressions()
+    .fallbackByBackendSettings()
+    .fallbackByUserOptions()
+    .fallbackByTestInjects()
+    .build()
 
   def apply(plan: SparkPlan): SparkPlan = {
     addTransformableTags(plan)
@@ -392,346 +320,186 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
   }
 
   private def addTransformableTag(plan: SparkPlan): Unit = {
-    if (TransformHints.isNotTransformable(plan)) {
-      logDebug(
-        s"Skip adding transformable tag, since plan already tagged as " +
-          s"${TransformHints.getHint(plan)}: ${plan.toString()}")
-      return
+    val outcome = validator.validate(plan)
+    outcome match {
+      case Validator.Failed(reason) =>
+        TransformHints.tagNotTransformable(plan, reason)
+        return
+      case Validator.Passed =>
     }
+
     try {
       plan match {
         case plan: BatchScanExec =>
-          if (!enableColumnarBatchScan) {
-            TransformHints.tagNotTransformable(plan, "columnar BatchScan is disabled")
-          } else {
-            // IF filter expressions aren't empty, we need to transform the inner operators.
-            if (plan.runtimeFilters.isEmpty) {
-              val transformer =
-                ScanTransformerFactory
-                  .createBatchScanTransformer(plan, validation = true)
-                  .asInstanceOf[BasicScanExecTransformer]
-              transformer.doValidate().tagOnFallback(plan)
-            }
+          // If filter expressions aren't empty, we need to transform the inner operators.
+          if (plan.runtimeFilters.isEmpty) {
+            val transformer =
+              ScanTransformerFactory
+                .createBatchScanTransformer(plan, validation = true)
+                .asInstanceOf[BasicScanExecTransformer]
+            transformer.doValidate().tagOnFallback(plan)
           }
         case plan: FileSourceScanExec =>
-          if (!enableColumnarFileScan) {
-            TransformHints.tagNotTransformable(
-              plan,
-              "columnar FileScan is not enabled in FileSourceScanExec")
-          } else {
-            // IF filter expressions aren't empty, we need to transform the inner operators.
-            if (plan.partitionFilters.isEmpty) {
-              val transformer =
-                ScanTransformerFactory.createFileSourceScanTransformer(plan, validation = true)
-              transformer.doValidate().tagOnFallback(plan)
-            }
+          // If filter expressions aren't empty, we need to transform the inner operators.
+          if (plan.partitionFilters.isEmpty) {
+            val transformer =
+              ScanTransformerFactory.createFileSourceScanTransformer(plan, validation = true)
+            transformer.doValidate().tagOnFallback(plan)
           }
         case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
-          if (!enableColumnarHiveTableScan) {
-            TransformHints.tagNotTransformable(plan, "columnar hive table scan is disabled")
-          } else {
-            HiveTableScanExecTransformer.validate(plan).tagOnFallback(plan)
-          }
+          HiveTableScanExecTransformer.validate(plan).tagOnFallback(plan)
         case plan: ProjectExec =>
-          if (!enableColumnarProject) {
-            TransformHints.tagNotTransformable(plan, "columnar project is disabled")
-          } else if (
-            plan.projectList.size > 0 && plan.projectList
-              .map(getExpressionTreeDepth(_))
-              .max >= fallbackExpressionsThreshold
-          ) {
-            TransformHints.tagNotTransformable(
-              plan,
-              "Fall back project plan because its" +
-                " max nested expressions number reaches the configured threshold")
-          } else {
-            val transformer = ProjectExecTransformer(plan.projectList, plan.child)
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer = ProjectExecTransformer(plan.projectList, plan.child)
+          transformer.doValidate().tagOnFallback(plan)
         case plan: FilterExec =>
-          val childIsScan = plan.child.isInstanceOf[FileSourceScanExec] ||
-            plan.child.isInstanceOf[BatchScanExec]
-          if (!enableColumnarFilter) {
-            TransformHints.tagNotTransformable(plan, "columnar Filter is not enabled in FilterExec")
-          } else if (getExpressionTreeDepth(plan.condition) >= fallbackExpressionsThreshold) {
-            TransformHints.tagNotTransformable(
-              plan,
-              "Fall back filter plan because its" +
-                " nested expressions number reaches the configured threshold")
-          } else if (scanOnly && !childIsScan) {
-            // When scanOnly is enabled, filter after scan will be offloaded.
-            TransformHints.tagNotTransformable(
-              plan,
-              "ScanOnly enabled and plan child is not Scan in FilterExec")
-          } else {
-            val transformer = BackendsApiManager.getSparkPlanExecApiInstance
-              .genFilterExecTransformer(plan.condition, plan.child)
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+            .genFilterExecTransformer(plan.condition, plan.child)
+          transformer.doValidate().tagOnFallback(plan)
         case plan: HashAggregateExec =>
-          if (!enableColumnarHashAgg) {
-            TransformHints.tagNotTransformable(
-              plan,
-              "columnar HashAggregate is not enabled in HashAggregateExec")
-          } else {
-            val transformer = BackendsApiManager.getSparkPlanExecApiInstance
-              .genHashAggregateExecTransformer(
-                plan.requiredChildDistributionExpressions,
-                plan.groupingExpressions,
-                plan.aggregateExpressions,
-                plan.aggregateAttributes,
-                plan.initialInputBufferOffset,
-                plan.resultExpressions,
-                plan.child
-              )
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer = HashAggregateExecBaseTransformer.from(plan)()
+          transformer.doValidate().tagOnFallback(plan)
         case plan: SortAggregateExec =>
-          if (!BackendsApiManager.getSettings.replaceSortAggWithHashAgg) {
-            TransformHints.tagNotTransformable(plan, "replaceSortAggWithHashAgg is not enabled")
-          } else if (!enableColumnarHashAgg) {
-            TransformHints.tagNotTransformable(
-              plan,
-              "columnar HashAgg is not enabled in SortAggregateExec")
-          } else {
-            val transformer = BackendsApiManager.getSparkPlanExecApiInstance
-              .genHashAggregateExecTransformer(
-                plan.requiredChildDistributionExpressions,
-                plan.groupingExpressions,
-                plan.aggregateExpressions,
-                plan.aggregateAttributes,
-                plan.initialInputBufferOffset,
-                plan.resultExpressions,
-                plan.child
-              )
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer = HashAggregateExecBaseTransformer.from(plan)()
+          transformer.doValidate().tagOnFallback(plan)
         case plan: ObjectHashAggregateExec =>
-          if (!enableColumnarHashAgg) {
-            TransformHints.tagNotTransformable(
-              plan,
-              "columnar HashAgg is not enabled in ObjectHashAggregateExec")
-          } else {
-            val transformer = BackendsApiManager.getSparkPlanExecApiInstance
-              .genHashAggregateExecTransformer(
-                plan.requiredChildDistributionExpressions,
-                plan.groupingExpressions,
-                plan.aggregateExpressions,
-                plan.aggregateAttributes,
-                plan.initialInputBufferOffset,
-                plan.resultExpressions,
-                plan.child
-              )
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer = HashAggregateExecBaseTransformer.from(plan)()
+          transformer.doValidate().tagOnFallback(plan)
         case plan: UnionExec =>
-          if (!enableColumnarUnion) {
-            TransformHints.tagNotTransformable(plan, "columnar Union is not enabled in UnionExec")
-          } else {
-            val transformer = ColumnarUnionExec(plan.children)
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer = ColumnarUnionExec(plan.children)
+          transformer.doValidate().tagOnFallback(plan)
         case plan: ExpandExec =>
-          if (!enableColumnarExpand) {
-            TransformHints.tagNotTransformable(plan, "columnar Expand is not enabled in ExpandExec")
-          } else {
-            val transformer = ExpandExecTransformer(plan.projections, plan.output, plan.child)
-            transformer.doValidate().tagOnFallback(plan)
-          }
-
+          val transformer = ExpandExecTransformer(plan.projections, plan.output, plan.child)
+          transformer.doValidate().tagOnFallback(plan)
         case plan: WriteFilesExec =>
-          if (!enableColumnarWrite || !BackendsApiManager.getSettings.supportTransformWriteFiles) {
-            TransformHints.tagNotTransformable(
-              plan,
-              "columnar Write is not enabled in WriteFilesExec")
-          } else {
-            val transformer = WriteFilesExecTransformer(
-              plan.child,
-              plan.fileFormat,
-              plan.partitionColumns,
-              plan.bucketSpec,
-              plan.options,
-              plan.staticPartitions)
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer = WriteFilesExecTransformer(
+            plan.child,
+            plan.fileFormat,
+            plan.partitionColumns,
+            plan.bucketSpec,
+            plan.options,
+            plan.staticPartitions)
+          transformer.doValidate().tagOnFallback(plan)
         case plan: SortExec =>
-          if (!enableColumnarSort) {
-            TransformHints.tagNotTransformable(plan, "columnar Sort is not enabled in SortExec")
-          } else {
-            val transformer =
-              SortExecTransformer(plan.sortOrder, plan.global, plan.child, plan.testSpillFrequency)
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer =
+            SortExecTransformer(plan.sortOrder, plan.global, plan.child, plan.testSpillFrequency)
+          transformer.doValidate().tagOnFallback(plan)
         case plan: ShuffleExchangeExec =>
-          if (!enableColumnarShuffle) {
-            TransformHints.tagNotTransformable(
-              plan,
-              "columnar Shuffle is not enabled in ShuffleExchangeExec")
-          } else {
-            val transformer = ColumnarShuffleExchangeExec(plan, plan.child, plan.child.output)
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer = ColumnarShuffleExchangeExec(plan, plan.child, plan.child.output)
+          transformer.doValidate().tagOnFallback(plan)
         case plan: ShuffledHashJoinExec =>
-          if (!enableColumnarShuffledHashJoin) {
-            TransformHints.tagNotTransformable(
-              plan,
-              "columnar shufflehashjoin is not enabled in ShuffledHashJoinExec")
-          } else {
-            val transformer = BackendsApiManager.getSparkPlanExecApiInstance
-              .genShuffledHashJoinExecTransformer(
-                plan.leftKeys,
-                plan.rightKeys,
-                plan.joinType,
-                plan.buildSide,
-                plan.condition,
-                plan.left,
-                plan.right,
-                plan.isSkewJoin)
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+            .genShuffledHashJoinExecTransformer(
+              plan.leftKeys,
+              plan.rightKeys,
+              plan.joinType,
+              plan.buildSide,
+              plan.condition,
+              plan.left,
+              plan.right,
+              plan.isSkewJoin)
+          transformer.doValidate().tagOnFallback(plan)
         case plan: BroadcastExchangeExec =>
-          // columnar broadcast is enabled only when columnar bhj is enabled.
-          if (!enableColumnarBroadcastExchange) {
-            TransformHints.tagNotTransformable(
-              plan,
-              "columnar BroadcastExchange is not enabled in BroadcastExchangeExec")
-          } else {
-            val transformer = ColumnarBroadcastExchangeExec(plan.mode, plan.child)
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer = ColumnarBroadcastExchangeExec(plan.mode, plan.child)
+          transformer.doValidate().tagOnFallback(plan)
         case bhj: BroadcastHashJoinExec =>
-          if (!enableColumnarBroadcastJoin) {
-            TransformHints.tagNotTransformable(
-              bhj,
-              "columnar BroadcastJoin is not enabled in BroadcastHashJoinExec")
-          } else {
-            val transformer = BackendsApiManager.getSparkPlanExecApiInstance
-              .genBroadcastHashJoinExecTransformer(
-                bhj.leftKeys,
-                bhj.rightKeys,
-                bhj.joinType,
-                bhj.buildSide,
-                bhj.condition,
-                bhj.left,
-                bhj.right,
-                isNullAwareAntiJoin = bhj.isNullAwareAntiJoin)
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+            .genBroadcastHashJoinExecTransformer(
+              bhj.leftKeys,
+              bhj.rightKeys,
+              bhj.joinType,
+              bhj.buildSide,
+              bhj.condition,
+              bhj.left,
+              bhj.right,
+              isNullAwareAntiJoin = bhj.isNullAwareAntiJoin)
+          transformer.doValidate().tagOnFallback(plan)
         case plan: SortMergeJoinExec =>
-          if (!enableColumnarSortMergeJoin) {
-            TransformHints.tagNotTransformable(plan, "columnar sort merge join is not enabled")
-          } else {
-            val transformer = BackendsApiManager.getSparkPlanExecApiInstance
-              .genSortMergeJoinExecTransformer(
-                plan.leftKeys,
-                plan.rightKeys,
-                plan.joinType,
-                plan.condition,
-                plan.left,
-                plan.right,
-                plan.isSkewJoin)
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+            .genSortMergeJoinExecTransformer(
+              plan.leftKeys,
+              plan.rightKeys,
+              plan.joinType,
+              plan.condition,
+              plan.left,
+              plan.right,
+              plan.isSkewJoin)
+          transformer.doValidate().tagOnFallback(plan)
         case plan: CartesianProductExec =>
-          if (!enableCartesianProduct) {
-            TransformHints.tagNotTransformable(
-              plan,
-              "conversion to CartesianProductTransformer is not enabled.")
-          } else {
-            val transformer = BackendsApiManager.getSparkPlanExecApiInstance
-              .genCartesianProductExecTransformer(plan.left, plan.right, plan.condition)
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+            .genCartesianProductExecTransformer(plan.left, plan.right, plan.condition)
+          transformer.doValidate().tagOnFallback(plan)
         case plan: BroadcastNestedLoopJoinExec =>
-          if (!enableBroadcastNestedLoopJoin) {
-            TransformHints.tagNotTransformable(
-              plan,
-              "conversion to BroadcastNestedLoopJoinTransformer is not enabled.")
-          } else {
-            val transformer = BackendsApiManager.getSparkPlanExecApiInstance
-              .genBroadcastNestedLoopJoinExecTransformer(
-                plan.left,
-                plan.right,
-                plan.buildSide,
-                plan.joinType,
-                plan.condition)
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+            .genBroadcastNestedLoopJoinExecTransformer(
+              plan.left,
+              plan.right,
+              plan.buildSide,
+              plan.joinType,
+              plan.condition)
+          transformer.doValidate().tagOnFallback(plan)
         case plan: WindowExec =>
-          if (!enableColumnarWindow) {
-            TransformHints.tagNotTransformable(plan, "columnar window is not enabled in WindowExec")
-          } else {
-            val transformer = WindowExecTransformer(
-              plan.windowExpression,
-              plan.partitionSpec,
-              plan.orderSpec,
-              plan.child)
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer = WindowExecTransformer(
+            plan.windowExpression,
+            plan.partitionSpec,
+            plan.orderSpec,
+            plan.child)
+          transformer.doValidate().tagOnFallback(plan)
+        case plan if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) =>
+          val windowGroupLimitPlan = SparkShimLoader.getSparkShims
+            .getWindowGroupLimitExecShim(plan)
+            .asInstanceOf[WindowGroupLimitExecShim]
+          val transformer = WindowGroupLimitExecTransformer(
+            windowGroupLimitPlan.partitionSpec,
+            windowGroupLimitPlan.orderSpec,
+            windowGroupLimitPlan.rankLikeFunction,
+            windowGroupLimitPlan.limit,
+            windowGroupLimitPlan.mode,
+            windowGroupLimitPlan.child
+          )
+          transformer.doValidate().tagOnFallback(plan)
         case plan: CoalesceExec =>
-          if (!enableColumnarCoalesce) {
-            TransformHints.tagNotTransformable(
-              plan,
-              "columnar coalesce is not enabled in CoalesceExec")
-          } else {
-            val transformer = CoalesceExecTransformer(plan.numPartitions, plan.child)
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer = CoalesceExecTransformer(plan.numPartitions, plan.child)
+          transformer.doValidate().tagOnFallback(plan)
         case plan: GlobalLimitExec =>
-          if (!enableColumnarLimit) {
-            TransformHints.tagNotTransformable(
-              plan,
-              "columnar limit is not enabled in GlobalLimitExec")
-          } else {
-            val (limit, offset) =
-              SparkShimLoader.getSparkShims.getLimitAndOffsetFromGlobalLimit(plan)
-            val transformer = LimitTransformer(plan.child, offset, limit)
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val (limit, offset) =
+            SparkShimLoader.getSparkShims.getLimitAndOffsetFromGlobalLimit(plan)
+          val transformer = LimitTransformer(plan.child, offset, limit)
+          transformer.doValidate().tagOnFallback(plan)
         case plan: LocalLimitExec =>
-          if (!enableColumnarLimit) {
-            TransformHints.tagNotTransformable(
-              plan,
-              "columnar limit is not enabled in LocalLimitExec")
-          } else {
-            val transformer = LimitTransformer(plan.child, 0L, plan.limit)
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer = LimitTransformer(plan.child, 0L, plan.limit)
+          transformer.doValidate().tagOnFallback(plan)
         case plan: GenerateExec =>
-          if (!enableColumnarGenerate) {
-            TransformHints.tagNotTransformable(
-              plan,
-              "columnar generate is not enabled in GenerateExec")
-          } else {
-            val transformer = BackendsApiManager.getSparkPlanExecApiInstance.genGenerateTransformer(
-              plan.generator,
-              plan.requiredChildOutput,
-              plan.outer,
-              plan.generatorOutput,
-              plan.child)
-            transformer.doValidate().tagOnFallback(plan)
-          }
-        case plan: EvalPythonExec =>
+          val transformer = BackendsApiManager.getSparkPlanExecApiInstance.genGenerateTransformer(
+            plan.generator,
+            plan.requiredChildOutput,
+            plan.outer,
+            plan.generatorOutput,
+            plan.child)
+          transformer.doValidate().tagOnFallback(plan)
+        case plan: BatchEvalPythonExec =>
           val transformer = EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, plan.child)
           transformer.doValidate().tagOnFallback(plan)
-        case _: AQEShuffleReadExec =>
-        // Considered transformable by default.
-        case plan: TakeOrderedAndProjectExec =>
-          if (!enableTakeOrderedAndProject) {
-            TransformHints.tagNotTransformable(
-              plan,
-              "columnar topK is not enabled in TakeOrderedAndProjectExec")
-          } else {
-            val (limit, offset) =
-              SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(plan)
-            val transformer = TakeOrderedAndProjectExecTransformer(
-              limit,
-              plan.sortOrder,
-              plan.projectList,
-              plan.child,
-              offset)
+        case plan: ArrowEvalPythonExec =>
+          // When backend doesn't support ColumnarArrow or colunmnar arrow configuration not
+          // enabled, we will try offloading through EvalPythonExecTransformer
+          if (
+            !BackendsApiManager.getSettings.supportColumnarArrowUdf() ||
+            !GlutenConfig.getConf.enableColumnarArrowUDF
+          ) {
+            // Both CH and Velox will try using backend's built-in functions for calculate
+            val transformer = EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, plan.child)
             transformer.doValidate().tagOnFallback(plan)
           }
+        case plan: TakeOrderedAndProjectExec =>
+          val (limit, offset) =
+            SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(plan)
+          val transformer = TakeOrderedAndProjectExecTransformer(
+            limit,
+            plan.sortOrder,
+            plan.projectList,
+            plan.child,
+            offset)
+          transformer.doValidate().tagOnFallback(plan)
         case _ =>
         // Currently we assume a plan to be transformable by default.
       }
@@ -742,8 +510,46 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           s"${e.getMessage}, original Spark plan is " +
             s"${plan.getClass}(${plan.children.toList.map(_.getClass)})")
         if (!e.isInstanceOf[GlutenNotSupportException]) {
-          logDebug("This exception may need to be fixed: " + e.getMessage)
+          logDebug("Just a warning. This exception perhaps needs to be fixed.", e)
         }
+    }
+  }
+}
+
+object AddTransformHintRule {
+  implicit private class ValidatorBuilderImplicits(builder: Validators.Builder) {
+
+    /**
+     * Fails validation on non-scan plan nodes if Gluten is running as scan-only mode. Also, passes
+     * validation on filter for the exception that filter + scan is detected. Because filters can be
+     * pushed into scan then the filter conditions will be processed only in scan.
+     */
+    def fallbackIfScanOnlyWithFilterPushed(scanOnly: Boolean): Validators.Builder = {
+      builder.add(new FallbackIfScanOnlyWithFilterPushed(scanOnly))
+      builder
+    }
+  }
+
+  private class FallbackIfScanOnlyWithFilterPushed(scanOnly: Boolean) extends Validator {
+    override def validate(plan: SparkPlan): Validator.OutCome = {
+      if (!scanOnly) {
+        return pass()
+      }
+      // Scan-only mode
+      plan match {
+        case _: BatchScanExec => pass()
+        case _: FileSourceScanExec => pass()
+        case p if HiveTableScanExecTransformer.isHiveTableScan(p) => pass()
+        case filter: FilterExec =>
+          val childIsScan = filter.child.isInstanceOf[FileSourceScanExec] ||
+            filter.child.isInstanceOf[BatchScanExec]
+          if (childIsScan) {
+            pass()
+          } else {
+            fail(filter)
+          }
+        case other => fail(other)
+      }
     }
   }
 }

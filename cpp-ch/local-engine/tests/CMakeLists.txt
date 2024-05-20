@@ -81,6 +81,7 @@ if (ENABLE_BENCHMARKS)
         benchmark_unix_timestamp_function.cpp
         benchmark_spark_floor_function.cpp
         benchmark_cast_float_function.cpp
-        benchmark_to_datetime_function.cpp)
+        benchmark_to_datetime_function.cpp
+        benchmark_spark_divide_function.cpp)
     target_link_libraries(benchmark_local_engine PRIVATE gluten_clickhouse_backend_libs ch_contrib::gbenchmark_all loggers ch_parquet)
 endif()

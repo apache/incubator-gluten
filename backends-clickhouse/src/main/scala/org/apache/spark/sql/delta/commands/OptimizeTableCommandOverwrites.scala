@@ -25,7 +25,7 @@ import org.apache.spark.internal.io.SparkHadoopWriterUtils
 import org.apache.spark.shuffle.FetchFailedException
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
-import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaErrors, DeltaLog, DeltaTableIdentifier, OptimisticTransaction}
+import org.apache.spark.sql.delta._
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.errors.QueryExecutionErrors
@@ -33,6 +33,7 @@ import org.apache.spark.sql.execution.datasources.CHDatasourceJniWrapper
 import org.apache.spark.sql.execution.datasources.v1.CHMergeTreeWriterInjects
 import org.apache.spark.sql.execution.datasources.v1.clickhouse._
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.{AddFileTags, AddMergeTreeParts}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.CHDataSourceUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.{SerializableConfiguration, SystemClock, Utils}
@@ -264,12 +265,21 @@ object OptimizeTableCommandOverwrites extends Logging {
       operationName: String,
       hadoopConf: Map[String, String] = Map.empty): DeltaLog = {
     val tablePath =
-      if (tableIdentifier.nonEmpty && isDeltaTable(spark, tableIdentifier.get)) {
+      if (path.nonEmpty) {
+        new Path(path.get)
+      } else if (tableIdentifier.nonEmpty) {
         val sessionCatalog = spark.sessionState.catalog
         lazy val metadata = sessionCatalog.getTableMetadata(tableIdentifier.get)
-        new Path(metadata.location)
+
+        if (CHDataSourceUtils.isClickhousePath(spark, tableIdentifier.get)) {
+          new Path(tableIdentifier.get.table)
+        } else if (CHDataSourceUtils.isClickHouseTable(spark, tableIdentifier.get)) {
+          new Path(metadata.location)
+        } else {
+          throw DeltaErrors.notADeltaTableException(operationName)
+        }
       } else {
-        throw new UnsupportedOperationException("OPTIMIZE is ony supported for clickhouse tables")
+        throw DeltaErrors.missingTableIdentifierException(operationName)
       }
 
     val startTime = Some(System.currentTimeMillis)

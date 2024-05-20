@@ -17,6 +17,9 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.execution.window.WindowExec
+import org.apache.spark.sql.types._
 
 class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
 
@@ -67,6 +70,62 @@ class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
         " (partition by l_suppkey order by l_orderkey " +
         "rows between unbounded preceding and 3 following) from lineitem ") {
       checkGlutenOperatorMatch[WindowExecTransformer]
+    }
+  }
+
+  test("collect_list / collect_set") {
+    withTable("t") {
+      val data = Seq(
+        Row(0, 1),
+        Row(0, 2),
+        Row(1, 1),
+        Row(1, 2),
+        Row(1, 2),
+        Row(2, 2),
+        Row(2, 3),
+        Row(3, null),
+        Row(3, null),
+        Row(4, 1),
+        Row(4, null)
+      )
+      val schema = new StructType()
+        .add("c1", IntegerType)
+        .add("c2", IntegerType, nullable = true)
+      spark
+        .createDataFrame(spark.sparkContext.parallelize(data), schema)
+        .write
+        .format("parquet")
+        .saveAsTable("t")
+
+      runQueryAndCompare("""
+                           |SELECT
+                           | c1,
+                           | collect_list(c2) OVER (
+                           |   PARTITION BY c1
+                           | )
+                           |FROM
+                           | t
+                           |ORDER BY 1, 2;
+                           |""".stripMargin) {
+        checkGlutenOperatorMatch[WindowExecTransformer]
+      }
+
+      runQueryAndCompare(
+        """
+          |SELECT
+          | c1,
+          | collect_set(c2) OVER (
+          |   PARTITION BY c1
+          | )
+          |FROM
+          | t
+          |ORDER BY 1, 2;
+          |""".stripMargin,
+        noFallBack = false
+      ) {
+        // Velox window doesn't support collect_set
+        checkSparkOperatorMatch[WindowExec]
+      }
     }
   }
 }

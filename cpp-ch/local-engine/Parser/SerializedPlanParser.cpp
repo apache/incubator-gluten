@@ -335,36 +335,6 @@ IQueryPlanStep * SerializedPlanParser::addRemoveNullableStep(QueryPlan & plan, c
     return step_ptr;
 }
 
-PrewhereInfoPtr SerializedPlanParser::parsePreWhereInfo(const substrait::Expression & rel, Block & input)
-{
-    auto prewhere_info = std::make_shared<PrewhereInfo>();
-    prewhere_info->prewhere_actions = std::make_shared<ActionsDAG>(input.getNamesAndTypesList());
-    std::string filter_name;
-    // for in function
-    if (rel.has_singular_or_list())
-    {
-        const auto * in_node = parseExpression(prewhere_info->prewhere_actions, rel);
-        prewhere_info->prewhere_actions->addOrReplaceInOutputs(*in_node);
-        filter_name = in_node->result_name;
-    }
-    else
-    {
-        parseFunctionWithDAG(rel, filter_name, prewhere_info->prewhere_actions, true);
-    }
-    prewhere_info->prewhere_column_name = filter_name;
-    prewhere_info->need_filter = true;
-    prewhere_info->remove_prewhere_column = true;
-    auto cols = prewhere_info->prewhere_actions->getRequiredColumnsNames();
-    // Keep it the same as the input.
-    prewhere_info->prewhere_actions->removeUnusedActions(Names{filter_name}, false, true);
-    prewhere_info->prewhere_actions->projectInput(false);
-    for (const auto & name : input.getNames())
-    {
-        prewhere_info->prewhere_actions->tryRestoreColumn(name);
-    }
-    return prewhere_info;
-}
-
 DataTypePtr wrapNullableType(substrait::Type_Nullability nullable, DataTypePtr nested_type)
 {
     return wrapNullableType(nullable == substrait::Type_Nullability_NULLABILITY_NULLABLE, nested_type);
@@ -534,9 +504,8 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
                 else
                     extension_table = parseExtensionTable(split_infos.at(nextSplitInfoIndex()));
 
-                MergeTreeRelParser mergeTreeParser(this, context, query_context, global_context);
-                std::list<const substrait::Rel *> stack;
-                query_plan = mergeTreeParser.parseReadRel(std::make_unique<QueryPlan>(), read, extension_table, stack);
+                MergeTreeRelParser mergeTreeParser(this, context);
+                query_plan = mergeTreeParser.parseReadRel(std::make_unique<QueryPlan>(), read, extension_table);
                 steps = mergeTreeParser.getSteps();
             }
             break;
@@ -898,8 +867,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
     auto pos = function_signature.find(':');
     auto func_name = function_signature.substr(0, pos);
 
-    auto func_parser = FunctionParserFactory::instance().tryGet(func_name, this);
-    if (func_parser)
+    if (auto func_parser = FunctionParserFactory::instance().tryGet(func_name, this))
     {
         LOG_DEBUG(
             &Poco::Logger::get("SerializedPlanParser"),
@@ -933,6 +901,22 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
         return &actions_dag->addAlias(actions_dag->findInOutputs(result_name), result_name);
     }
 
+    if (ch_func_name == "toYear")
+    {
+        const ActionsDAG::Node * arg_node = args[0];
+        const String & arg_func_name = arg_node->function ? arg_node->function->getName() : "";
+        if ((arg_func_name == "sparkToDate" || arg_func_name == "sparkToDateTime") && arg_node->children.size() > 0)
+        {
+            const ActionsDAG::Node * child_node = arg_node->children[0];
+            if (child_node && isString(removeNullable(child_node->result_type)))
+            {
+                auto extract_year_builder = FunctionFactory::instance().get("sparkExtractYear", context);
+                auto func_result_name = "sparkExtractYear(" + child_node->result_name + ")";
+                return &actions_dag->addFunction(extract_year_builder, {child_node}, func_result_name);
+            }
+        }
+    }
+
     const ActionsDAG::Node * result_node;
 
     if (ch_func_name == "splitByRegexp")
@@ -945,7 +929,8 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
         }
     }
 
-    if (function_signature.find("check_overflow:", 0) != function_signature.npos)
+    /// TODO: FunctionParser for check_overflow and make_decimal
+    if (function_signature.find("check_overflow:", 0) != String::npos)
     {
         if (scalar_function.arguments().size() < 2)
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "check_overflow function requires at least two args.");
@@ -986,13 +971,12 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
         args = std::move(new_args);
     }
 
-    bool converted_decimal_args = convertBinaryArithmeticFunDecimalArgs(actions_dag, args, scalar_function);
     auto function_builder = FunctionFactory::instance().get(ch_func_name, context);
     std::string args_name = join(args, ',');
     result_name = ch_func_name + "(" + args_name + ")";
     const auto * function_node = &actions_dag->addFunction(function_builder, args, result_name);
     result_node = function_node;
-    if (!TypeParser::isTypeMatched(rel.scalar_function().output_type(), function_node->result_type) && !converted_decimal_args)
+    if (!TypeParser::isTypeMatched(rel.scalar_function().output_type(), function_node->result_type))
     {
         auto result_type = TypeParser::parseType(rel.scalar_function().output_type());
         if (isDecimalOrNullableDecimal(result_type))
@@ -1027,76 +1011,6 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
         actions_dag->addOrReplaceInOutputs(*result_node);
 
     return result_node;
-}
-
-bool SerializedPlanParser::convertBinaryArithmeticFunDecimalArgs(
-    ActionsDAGPtr actions_dag,
-    ActionsDAG::NodeRawConstPtrs & args,
-    const substrait::Expression_ScalarFunction & arithmeticFun)
-{
-    auto function_signature = function_mapping.at(std::to_string(arithmeticFun.function_reference()));
-    auto pos = function_signature.find(':');
-    auto func_name = function_signature.substr(0, pos);
-
-    if (func_name == "divide" || func_name == "multiply" || func_name == "plus" || func_name == "minus")
-    {
-        /// for divide/plus/minus, we need to convert first arg to result precision and scale
-        /// for multiply, we need to convert first arg to result precision, but keep scale
-        auto arg1_type = removeNullable(args[0]->result_type);
-        auto arg2_type = removeNullable(args[1]->result_type);
-        if (isDecimal(arg1_type) && isDecimal(arg2_type))
-        {
-            UInt32 p1 = getDecimalPrecision(*arg1_type);
-            UInt32 s1 = getDecimalScale(*arg1_type);
-            UInt32 p2 = getDecimalPrecision(*arg2_type);
-            UInt32 s2 = getDecimalScale(*arg2_type);
-
-            UInt32 precision;
-            UInt32 scale;
-
-            if (func_name == "plus" || func_name == "minus")
-            {
-                scale = s1;
-                precision = scale + std::max(p1 - s1, p2 - s2) + 1;
-            }
-            else if (func_name == "divide")
-            {
-                scale = std::max(static_cast<UInt32>(6), s1 + p2 + 1);
-                precision = p1 - s1 + s2 + scale;
-            }
-            else // multiply
-            {
-                scale = s1;
-                precision = p1 + p2 + 1;
-            }
-
-            UInt32 maxPrecision = DataTypeDecimal256::maxPrecision();
-            UInt32 maxScale = DataTypeDecimal128::maxPrecision();
-            precision = std::min(precision, maxPrecision);
-            scale = std::min(scale, maxScale);
-
-            ActionsDAG::NodeRawConstPtrs new_args;
-            new_args.reserve(args.size());
-
-            ActionsDAG::NodeRawConstPtrs cast_args;
-            cast_args.reserve(2);
-            cast_args.emplace_back(args[0]);
-            DataTypePtr ch_type = createDecimal<DataTypeDecimal>(precision, scale);
-            ch_type = wrapNullableType(arithmeticFun.output_type().decimal().nullability(), ch_type);
-            String type_name = ch_type->getName();
-            DataTypePtr str_type = std::make_shared<DataTypeString>();
-            const ActionsDAG::Node * type_node = &actions_dag->addColumn(
-                ColumnWithTypeAndName(str_type->createColumnConst(1, type_name), str_type, getUniqueName(type_name)));
-            cast_args.emplace_back(type_node);
-            const ActionsDAG::Node * cast_node = toFunctionNode(actions_dag, "CAST", cast_args);
-            actions_dag->addOrReplaceInOutputs(*cast_node);
-            new_args.emplace_back(cast_node);
-            new_args.emplace_back(args[1]);
-            args = std::move(new_args);
-            return true;
-        }
-    }
-    return false;
 }
 
 void SerializedPlanParser::parseFunctionArguments(
@@ -1850,11 +1764,15 @@ QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
 
     auto res = parse(std::move(plan_ptr));
 
+#ifndef NDEBUG
+    PlanUtil::checkOuputType(*res);
+#endif
+
     auto * logger = &Poco::Logger::get("SerializedPlanParser");
     if (logger->debug())
     {
         auto out = PlanUtil::explainPlan(*res);
-        LOG_DEBUG(logger, "clickhouse plan:\n{}", out);
+        LOG_ERROR(logger, "clickhouse plan:\n{}", out);
     }
     return res;
 }
@@ -1934,7 +1852,7 @@ ASTPtr ASTParser::parseToAST(const Names & names, const substrait::Expression & 
 
         auto substrait_name = function_signature.substr(0, function_signature.find(':'));
         auto func_parser = FunctionParserFactory::instance().tryGet(substrait_name, plan_parser);
-        String function_name = func_parser ? func_parser->getCHFunctionName(scalar_function)
+        String function_name = func_parser ? func_parser->getName()
                                            : SerializedPlanParser::getFunctionName(function_signature, scalar_function);
 
         ASTs ast_args;
@@ -2256,9 +2174,8 @@ Block & LocalExecutor::getHeader()
     return header;
 }
 
-LocalExecutor::LocalExecutor(QueryContext & _query_context, ContextPtr context_)
-    : query_context(_query_context)
-    , context(context_)
+LocalExecutor::LocalExecutor(ContextPtr context_)
+    : context(context_)
 {
 }
 

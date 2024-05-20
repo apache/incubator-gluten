@@ -19,7 +19,7 @@ package org.apache.gluten.extension.columnar
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.BroadcastHashJoinExecTransformerBase
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPostOverrides
+import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, RowToColumnarLike, Transitions}
 import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.rdd.RDD
@@ -78,7 +78,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
         case _: CommandResultExec | _: ExecutedCommandExec => // ignore
         // we plan exchange to columnar exchange in columnar rules and the exchange does not
         // support columnar, so the output columnar is always false in AQE postStageCreationRules
-        case ColumnarToRowExec(s: Exchange) if isAdaptiveContext =>
+        case ColumnarToRowLike(s: Exchange) if isAdaptiveContext =>
           countFallbackInternal(s)
         case u: UnaryExecNode
             if !PlanUtil.isGlutenColumnarOp(u) && PlanUtil.isGlutenTableCache(u.child) =>
@@ -86,15 +86,15 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
           // which is a kind of `ColumnarToRowExec`.
           transitionCost = transitionCost + 1
           countFallbackInternal(u.child)
-        case ColumnarToRowExec(p: GlutenPlan) =>
+        case ColumnarToRowLike(p: GlutenPlan) =>
           logDebug(s"Find a columnar to row for gluten plan:\n$p")
           transitionCost = transitionCost + 1
           countFallbackInternal(p)
-        case r: RowToColumnarExec =>
+        case RowToColumnarLike(child) =>
           if (!ignoreRowToColumnar) {
             transitionCost = transitionCost + 1
           }
-          countFallbackInternal(r.child)
+          countFallbackInternal(child)
         case leafPlan: LeafExecNode if PlanUtil.isGlutenTableCache(leafPlan) =>
         case leafPlan: LeafExecNode if !PlanUtil.isGlutenColumnarOp(leafPlan) =>
           // Possible fallback for leaf node.
@@ -236,9 +236,8 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
   }
 
   private def fallbackToRowBasedPlan(outputsColumnar: Boolean): SparkPlan = {
-    val transformPostOverrides = TransformPostOverrides()
-    val planWithTransitions = ColumnarTransitions.insertTransitions(originalPlan, outputsColumnar)
-    transformPostOverrides.apply(planWithTransitions)
+    val planWithTransitions = Transitions.insertTransitions(originalPlan, outputsColumnar)
+    planWithTransitions
   }
 
   private def countTransitionCostForVanillaSparkPlan(plan: SparkPlan): Int = {

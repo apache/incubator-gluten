@@ -30,7 +30,7 @@ case class CreateMapTransformer(
     children: Seq[ExpressionTransformer],
     useStringTypeWhenEmpty: Boolean,
     original: CreateMap)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // If children is empty,
@@ -64,7 +64,7 @@ case class GetMapValueTransformer(
     key: ExpressionTransformer,
     failOnError: Boolean,
     original: GetMapValue)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     if (BackendsApiManager.getSettings.alwaysFailOnMapExpression()) {

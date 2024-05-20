@@ -18,7 +18,7 @@ package org.apache.gluten.vectorized
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.exec.Runtimes
-import org.apache.gluten.memory.arrowalloc.ArrowBufferAllocators
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.memory.nmm.NativeMemoryManagers
 import org.apache.gluten.utils.ArrowAbiUtil
 
@@ -102,7 +102,9 @@ private class ColumnarBatchSerializerInstance(
       nmm.getNativeInstanceHandle,
       compressionCodec,
       compressionCodecBackend,
-      batchSize)
+      batchSize,
+      "hash"
+    )
     // Close shuffle reader instance as lately as the end of task processing,
     // since the native reader could hold a reference to memory pool that
     // was used to create all buffers read from shuffle reader. The pool

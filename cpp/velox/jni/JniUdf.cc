@@ -41,8 +41,8 @@ void gluten::initVeloxJniUDF(JNIEnv* env) {
   udfResolverClass = createGlobalClassReferenceOrError(env, kUdfResolverClassPath.c_str());
 
   // methods
-  registerUDFMethod = getMethodIdOrError(env, udfResolverClass, "registerUDF", "(Ljava/lang/String;[B[B)V");
-  registerUDAFMethod = getMethodIdOrError(env, udfResolverClass, "registerUDAF", "(Ljava/lang/String;[B[B[B)V");
+  registerUDFMethod = getMethodIdOrError(env, udfResolverClass, "registerUDF", "(Ljava/lang/String;[B[BZ)V");
+  registerUDAFMethod = getMethodIdOrError(env, udfResolverClass, "registerUDAF", "(Ljava/lang/String;[B[B[BZ)V");
 }
 
 void gluten::finalizeVeloxJniUDF(JNIEnv* env) {
@@ -70,9 +70,10 @@ void gluten::jniGetFunctionSignatures(JNIEnv* env) {
           0,
           signature->intermediateType.length(),
           reinterpret_cast<const jbyte*>(signature->intermediateType.c_str()));
-      env->CallVoidMethod(instance, registerUDAFMethod, name, returnType, argTypes, intermediateType);
+      env->CallVoidMethod(
+          instance, registerUDAFMethod, name, returnType, argTypes, intermediateType, signature->variableArity);
     } else {
-      env->CallVoidMethod(instance, registerUDFMethod, name, returnType, argTypes);
+      env->CallVoidMethod(instance, registerUDFMethod, name, returnType, argTypes, signature->variableArity);
     }
     checkException(env);
   }

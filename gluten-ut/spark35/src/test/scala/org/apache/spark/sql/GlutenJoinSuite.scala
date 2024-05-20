@@ -39,6 +39,8 @@ class GlutenJoinSuite extends JoinSuite with GlutenSQLTestsTrait {
     "SPARK-34593: Preserve broadcast nested loop join partitioning and ordering",
     "SPARK-35984: Config to force applying shuffled hash join",
     "test SortMergeJoin (with spill)",
+    "SPARK-36612: Support left outer join build left or right" +
+      " outer join build right in shuffled hash join",
     // NaN is not supported currently, just skip.
     "NaN and -0.0 in join keys"
   )

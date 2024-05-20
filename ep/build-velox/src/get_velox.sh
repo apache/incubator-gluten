@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_04_10
+VELOX_BRANCH=2024_05_20
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
@@ -137,7 +137,7 @@ function process_setup_centos8 {
   sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_openssl' scripts/setup-centos8.sh
 
   if [ $ENABLE_HDFS == "ON" ]; then
-    sed -i '/^function install_gflags.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master\n cd ..\n cmake_install libhdfs3\n}\n' scripts/setup-centos8.sh
+    sed -i '/^function install_gflags.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master\n cmake_install\n}\n' scripts/setup-centos8.sh
     sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_libhdfs3' scripts/setup-centos8.sh
     sed -i '/^  dnf_install ninja-build/a\  dnf_install yasm\' scripts/setup-centos8.sh
   fi
@@ -199,12 +199,15 @@ function process_setup_centos7 {
 function process_setup_alinux3 {
   process_setup_centos8
   sed -i "s/.*dnf_install epel-release/#&/" scripts/setup-centos8.sh
+  sed -i "s/.*run_and_time install_conda/#&/" scripts/setup-centos8.sh
   sed -i "s/.*dnf config-manager --set-enabled powertools/#&/" scripts/setup-centos8.sh
   sed -i "s/gcc-toolset-9 //" scripts/setup-centos8.sh
   sed -i "s/.*source \/opt\/rh\/gcc-toolset-9\/enable/#&/" scripts/setup-centos8.sh
   sed -i 's|^export CC=/opt/rh/gcc-toolset-9/root/bin/gcc|# &|' scripts/setup-centos8.sh
   sed -i 's|^export CXX=/opt/rh/gcc-toolset-9/root/bin/g++|# &|' scripts/setup-centos8.sh
   sed -i 's/python39 python39-devel python39-pip //g' scripts/setup-centos8.sh
+  sed -i "s/.*pip.* install/#&/" scripts/setup-centos8.sh
+  sed -i 's/ADDITIONAL_FLAGS=""/ADDITIONAL_FLAGS="-Wno-stringop-overflow"/g' scripts/setup-helper-functions.sh
   sed -i "s/\${CMAKE_INSTALL_LIBDIR}/lib64/" third_party/CMakeLists.txt
 }
 
@@ -314,8 +317,6 @@ function setup_macos {
     echo "Unsupport s3"
     exit 1
   fi
-
-  sed -i '' $'/^  run_and_time install_double_conversion/a\\\n  run_and_time install_folly\\\n' scripts/setup-macos.sh
 }
 
 if [ $OS == 'Linux' ]; then

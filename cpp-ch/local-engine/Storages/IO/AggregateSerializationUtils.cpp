@@ -51,7 +51,7 @@ bool isFixedSizeAggregateFunction(const DB::AggregateFunctionPtr& function)
 
 DB::ColumnWithTypeAndName convertAggregateStateToFixedString(const DB::ColumnWithTypeAndName& col)
 {
-    const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(*col.column);
+    const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(&*col.column);
     if (!aggregate_col)
     {
         return col;
@@ -75,7 +75,7 @@ DB::ColumnWithTypeAndName convertAggregateStateToFixedString(const DB::ColumnWit
 
 DB::ColumnWithTypeAndName convertAggregateStateToString(const DB::ColumnWithTypeAndName& col)
 {
-    const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(*col.column);
+    const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(&*col.column);
     if (!aggregate_col)
     {
         return col;
@@ -130,7 +130,7 @@ DB::Block convertAggregateStateInBlock(DB::Block& block)
     {
         if (WhichDataType(item.type).isAggregateFunction())
         {
-            const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(*item.column);
+            const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(&*item.column);
             if (isFixedSizeAggregateFunction(aggregate_col->getAggregateFunction()))
                 columns.emplace_back(convertAggregateStateToFixedString(item));
             else

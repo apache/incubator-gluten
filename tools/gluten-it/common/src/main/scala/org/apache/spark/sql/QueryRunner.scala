@@ -18,7 +18,12 @@ package org.apache.spark.sql
 
 import org.apache.spark.{SparkContext, Success, TaskKilled}
 import org.apache.spark.executor.ExecutorMetrics
-import org.apache.spark.scheduler.{SparkListener, SparkListenerExecutorMetricsUpdate, SparkListenerTaskEnd, SparkListenerTaskStart}
+import org.apache.spark.scheduler.{
+  SparkListener,
+  SparkListenerExecutorMetricsUpdate,
+  SparkListenerTaskEnd,
+  SparkListenerTaskStart
+}
 import org.apache.spark.sql.KillTaskListener.INIT_WAIT_TIME_MS
 
 import com.google.common.base.Preconditions
@@ -45,8 +50,7 @@ object QueryRunner {
     "ProcessTreePythonVMemory",
     "ProcessTreePythonRSSMemory",
     "ProcessTreeOtherVMemory",
-    "ProcessTreeOtherRSSMemory"
-  )
+    "ProcessTreeOtherRSSMemory")
 
   def runTpcQuery(
       spark: SparkSession,
@@ -85,17 +89,18 @@ object QueryRunner {
       if (explain) {
         df.explain(extended = true)
       }
-      val millis = (System.nanoTime() - prev) / 1000000L
+      val planMillis =
+        df.queryExecution.tracker.phases.values.map(p => p.endTimeMs - p.startTimeMs).sum
+      val totalMillis = (System.nanoTime() - prev) / 1000000L
       val collectedMetrics = metrics.map(name => (name, em.getMetricValue(name))).toMap
-      RunResult(rows, millis, collectedMetrics)
+      RunResult(rows, planMillis, totalMillis - planMillis, collectedMetrics)
     } finally {
       sc.removeSparkListener(metricsListener)
-      killTaskListener.foreach(
-        l => {
-          sc.removeSparkListener(l)
-          println(s"Successful kill rate ${"%.2f%%".format(
-              100 * l.successfulKillRate())} during execution of app: ${sc.applicationId}")
-        })
+      killTaskListener.foreach(l => {
+        sc.removeSparkListener(l)
+        println(s"Successful kill rate ${"%.2f%%"
+          .format(100 * l.successfulKillRate())} during execution of app: ${sc.applicationId}")
+      })
       sc.setJobDescription(null)
     }
   }
@@ -121,7 +126,11 @@ object QueryRunner {
 
 }
 
-case class RunResult(rows: Seq[Row], executionTimeMillis: Long, metrics: Map[String, Long])
+case class RunResult(
+    rows: Seq[Row],
+    planningTimeMillis: Long,
+    executionTimeMillis: Long,
+    metrics: Map[String, Long])
 
 class MetricsListener(em: ExecutorMetrics) extends SparkListener {
   override def onExecutorMetricsUpdate(
@@ -156,8 +165,8 @@ class KillTaskListener(val sc: SparkContext) extends SparkListener {
             sync.synchronized {
               val total = Math.min(
                 stageKillMaxWaitTimeLookup.computeIfAbsent(taskStart.stageId, _ => Long.MaxValue),
-                stageKillWaitTimeLookup.computeIfAbsent(taskStart.stageId, _ => INIT_WAIT_TIME_MS)
-              )
+                stageKillWaitTimeLookup
+                  .computeIfAbsent(taskStart.stageId, _ => INIT_WAIT_TIME_MS))
               val elapsed = System.currentTimeMillis() - startMs
               val remaining = total - elapsed
               if (remaining <= 0L) {

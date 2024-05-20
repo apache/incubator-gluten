@@ -50,6 +50,10 @@ struct SplitOptions
     bool throw_if_memory_exceed = true;
     /// Whether to flush partition_block_buffer in PartitionWriter before evict.
     bool flush_block_buffer_before_evict = false;
+    size_t max_sort_buffer_size = 1_GiB;
+    // Whether to spill firstly before stop external sort shuffle.
+    bool spill_firstly_before_stop = true;
+    bool force_sort = true;
 };
 
 class ColumnsBuffer

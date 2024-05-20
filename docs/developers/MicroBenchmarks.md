@@ -36,8 +36,8 @@ generate example input files:
 cd /path/to/gluten/
 ./dev/buildbundle-veloxbe.sh --build_tests=ON --build_benchmarks=ON
 
-# Run test to generate input data files. If you are using spark 3.3, replace -Pspark-3.2 with -Pspark-3.3
-mvn test -Pspark-3.2 -Pbackends-velox -Prss -pl backends-velox -am \
+# Run test to generate input data files. If you are using spark 3.3, replace -Pspark-3.2 with -Pspark-3.3, If you are using uniffle, replace -Pceleborn with -Puniffle
+mvn test -Pspark-3.2 -Pbackends-velox -Pcelenborn -pl backends-velox -am \
 -DtagsToInclude="org.apache.gluten.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Dexec.skip
 ```
 
@@ -279,6 +279,10 @@ setup, build and enable these features in Gluten. For QAT support, please
 check [Intel® QuickAssist Technology (QAT) support](../get-started/Velox.md#intel-quickassist-technology-qat-support).
 For IAA support, please
 check [Intel® In-memory Analytics Accelerator (IAA/IAX) support](../get-started/Velox.md#intel-in-memory-analytics-accelerator-iaaiax-support)
+
+## Simulate task spilling
+
+You can simulate task spilling by specify memory hard limit from `--memory_limit`.
 
 ## Simulate Spark with multiple processes and threads
 

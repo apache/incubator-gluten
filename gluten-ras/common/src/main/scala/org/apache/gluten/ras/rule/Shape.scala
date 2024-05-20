@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.ras.rule
 
-import org.apache.gluten.ras.path.{OutputWizard, OutputWizards, RasPath}
+import org.apache.gluten.ras.path.{OutputWizard, OutputWizards, PathKey, RasPath}
 
 // Shape is an abstraction for all inputs the rule can accept.
 // Shape can be specification on pattern, height, or mask
@@ -41,10 +41,15 @@ object Shapes {
     new None()
   }
 
+  def anyOf[T <: AnyRef](shapes: Shape[T]*): Shape[T] = {
+    new AnyOf[T](shapes)
+  }
+
   private class Pattern[T <: AnyRef](pattern: org.apache.gluten.ras.path.Pattern[T])
     extends Shape[T] {
-    override def wizard(): OutputWizard[T] = OutputWizards.withPattern(pattern)
-    override def identify(path: RasPath[T]): Boolean = pattern.matches(path, path.height())
+    private val key = PathKey.random()
+    override def wizard(): OutputWizard[T] = OutputWizards.withPattern(pattern).withPathKey(key)
+    override def identify(path: RasPath[T]): Boolean = path.keys().keys().contains(key)
   }
 
   private class FixedHeight[T <: AnyRef](height: Int) extends Shape[T] {
@@ -55,5 +60,10 @@ object Shapes {
   private class None[T <: AnyRef]() extends Shape[T] {
     override def wizard(): OutputWizard[T] = OutputWizards.none()
     override def identify(path: RasPath[T]): Boolean = false
+  }
+
+  private class AnyOf[T <: AnyRef](shapes: Seq[Shape[T]]) extends Shape[T] {
+    override def wizard(): OutputWizard[T] = OutputWizards.union(shapes.map(_.wizard()))
+    override def identify(path: RasPath[T]): Boolean = shapes.exists(_.identify(path))
   }
 }

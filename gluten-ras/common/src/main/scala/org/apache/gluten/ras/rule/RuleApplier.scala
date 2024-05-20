@@ -17,7 +17,7 @@
 package org.apache.gluten.ras.rule
 
 import org.apache.gluten.ras._
-import org.apache.gluten.ras.Ras.UnsafeKey
+import org.apache.gluten.ras.Ras.UnsafeHashKey
 import org.apache.gluten.ras.memo.Closure
 import org.apache.gluten.ras.path.InClusterPath
 import org.apache.gluten.ras.property.PropertySet
@@ -43,14 +43,14 @@ object RuleApplier {
 
   private class RegularRuleApplier[T <: AnyRef](ras: Ras[T], closure: Closure[T], rule: RasRule[T])
     extends RuleApplier[T] {
-    private val deDup = mutable.Map[RasClusterKey, mutable.Set[UnsafeKey[T]]]()
+    private val deDup = mutable.Map[RasClusterKey, mutable.Set[UnsafeHashKey[T]]]()
 
     override def apply(icp: InClusterPath[T]): Unit = {
       val cKey = icp.cluster()
       val path = icp.path()
       val plan = path.plan()
       val appliedPlans = deDup.getOrElseUpdate(cKey, mutable.Set())
-      val pKey = ras.toUnsafeKey(plan)
+      val pKey = ras.toHashKey(plan)
       if (appliedPlans.contains(pKey)) {
         return
       }
@@ -76,7 +76,7 @@ object RuleApplier {
       closure: Closure[T],
       rule: EnforcerRule[T])
     extends RuleApplier[T] {
-    private val deDup = mutable.Map[RasClusterKey, mutable.Set[UnsafeKey[T]]]()
+    private val deDup = mutable.Map[RasClusterKey, mutable.Set[UnsafeHashKey[T]]]()
     private val constraint = rule.constraint()
     private val constraintDef = constraint.definition()
 
@@ -88,7 +88,7 @@ object RuleApplier {
         return
       }
       val plan = path.plan()
-      val pKey = ras.toUnsafeKey(plan)
+      val pKey = ras.toHashKey(plan)
       val appliedPlans = deDup.getOrElseUpdate(cKey, mutable.Set())
       if (appliedPlans.contains(pKey)) {
         return

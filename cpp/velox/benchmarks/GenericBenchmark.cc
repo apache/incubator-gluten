@@ -26,12 +26,14 @@
 
 #include "benchmarks/common/BenchmarkUtils.h"
 #include "benchmarks/common/FileReaderIterator.h"
+#include "compute/VeloxBackend.h"
 #include "compute/VeloxPlanConverter.h"
 #include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 #include "shuffle/LocalPartitionWriter.h"
+#include "shuffle/VeloxHashBasedShuffleWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
-#include "shuffle/rss/CelebornPartitionWriter.h"
+#include "shuffle/rss/RssPartitionWriter.h"
 #include "utils/StringUtil.h"
 #include "utils/VeloxArrowUtils.h"
 #include "utils/exception.h"
@@ -46,7 +48,7 @@ DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_string(save_output, "", "Path to parquet file for saving the task output iterator");
 DEFINE_bool(with_shuffle, false, "Add shuffle split at end.");
 DEFINE_string(partitioning, "rr", "Short partitioning name. Valid options are rr, hash, range, single");
-DEFINE_bool(celeborn, false, "Mocking celeborn shuffle.");
+DEFINE_bool(rss, false, "Mocking rss.");
 DEFINE_bool(zstd, false, "Use ZSTD as shuffle compression codec");
 DEFINE_bool(qat_gzip, false, "Use QAT GZIP as shuffle compression codec");
 DEFINE_bool(qat_zstd, false, "Use QAT ZSTD as shuffle compression codec");
@@ -62,6 +64,7 @@ DEFINE_string(
 DEFINE_string(data, "", "Path to input data files in parquet format, used for shuffle read.");
 DEFINE_string(conf, "", "Path to the configuration file.");
 DEFINE_string(write_path, "/tmp", "Path to save the output from write tasks.");
+DEFINE_int64(memory_limit, std::numeric_limits<int64_t>::max(), "Memory limit used to trigger spill.");
 
 struct WriterMetrics {
   int64_t splitTime;
@@ -90,9 +93,9 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
   }
 
   std::unique_ptr<PartitionWriter> partitionWriter;
-  if (FLAGS_celeborn) {
+  if (FLAGS_rss) {
     auto rssClient = std::make_unique<LocalRssClient>(dataFile);
-    partitionWriter = std::make_unique<CelebornPartitionWriter>(
+    partitionWriter = std::make_unique<RssPartitionWriter>(
         FLAGS_shuffle_partitions,
         std::move(partitionWriterOptions),
         memoryManager->getArrowMemoryPool(),
@@ -110,7 +113,7 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
   options.partitioning = gluten::toPartitioning(FLAGS_partitioning);
   GLUTEN_ASSIGN_OR_THROW(
       auto shuffleWriter,
-      VeloxShuffleWriter::create(
+      VeloxHashBasedShuffleWriter::create(
           FLAGS_shuffle_partitions,
           std::move(partitionWriter),
           std::move(options),
@@ -147,7 +150,11 @@ auto BM_Generic = [](::benchmark::State& state,
     setCpu(state.thread_index());
   }
   memory::MemoryManager::testingSetInstance({});
-  auto memoryManager = getDefaultMemoryManager();
+
+  auto memoryManager = std::make_unique<gluten::VeloxMemoryManager>(
+      "generic_benchmark",
+      gluten::defaultMemoryAllocator(),
+      std::make_unique<BenchmarkAllocationListener>(FLAGS_memory_limit));
   auto runtime = Runtime::create(kVeloxRuntimeKind, conf);
   auto plan = getPlanFromFile("Plan", planFile);
   std::vector<std::string> splits{};
@@ -180,6 +187,9 @@ auto BM_Generic = [](::benchmark::State& state,
     }
     auto resultIter =
         runtime->createResultIterator(memoryManager.get(), "/tmp/test-spill", std::move(inputIters), conf);
+    if (auto listener = dynamic_cast<BenchmarkAllocationListener*>(memoryManager->getListener())) {
+      listener->setIterator(resultIter.get());
+    }
     auto veloxPlan = dynamic_cast<gluten::VeloxRuntime*>(runtime)->getVeloxPlan();
     if (FLAGS_with_shuffle) {
       int64_t shuffleWriteTime;
@@ -190,7 +200,7 @@ auto BM_Generic = [](::benchmark::State& state,
       GLUTEN_THROW_NOT_OK(setLocalDirsAndDataFileFromEnv(dataFile, localDirs, isFromEnv));
       const auto& shuffleWriter = createShuffleWriter(memoryManager.get(), dataFile, localDirs);
       while (resultIter->hasNext()) {
-        GLUTEN_THROW_NOT_OK(shuffleWriter->split(resultIter->next(), ShuffleWriter::kMinMemLimit));
+        GLUTEN_THROW_NOT_OK(shuffleWriter->write(resultIter->next(), ShuffleWriter::kMinMemLimit));
       }
       GLUTEN_THROW_NOT_OK(shuffleWriter->stop());
       TIME_NANO_END(shuffleWriteTime);
@@ -260,6 +270,8 @@ auto BM_Generic = [](::benchmark::State& state,
       writerMetrics.splitTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
   state.counters["shuffle_compress_time"] = benchmark::Counter(
       writerMetrics.compressTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
+
+  gluten::VeloxBackend::get()->tearDown();
 };
 
 int main(int argc, char** argv) {

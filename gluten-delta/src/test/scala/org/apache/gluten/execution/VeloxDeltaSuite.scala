@@ -42,7 +42,7 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
   }
 
   // IdMapping is supported in Delta 2.2 (related to Spark3.3.1)
-  testWithSpecifiedSparkVersion("column mapping mode = id", Some("3.3.1")) {
+  testWithSpecifiedSparkVersion("column mapping mode = id", Some("3.3")) {
     withTable("delta_cm1") {
       spark.sql(s"""
                    |create table delta_cm1 (id int, name string) using delta
@@ -62,7 +62,7 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
   }
 
   // NameMapping is supported in Delta 2.0 (related to Spark3.2.0)
-  testWithSpecifiedSparkVersion("column mapping mode = name", Some("3.2.0")) {
+  testWithSpecifiedSparkVersion("column mapping mode = name", Some("3.2")) {
     withTable("delta_cm2") {
       spark.sql(s"""
                    |create table delta_cm2 (id int, name string) using delta
@@ -81,7 +81,7 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("delta: time travel", Some("3.3.1")) {
+  testWithSpecifiedSparkVersion("delta: time travel", Some("3.3")) {
     withTable("delta_tm") {
       spark.sql(s"""
                    |create table delta_tm (id int, name string) using delta
@@ -106,7 +106,7 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("delta: partition filters") {
+  testWithSpecifiedSparkVersion("delta: partition filters", Some("3.2")) {
     withTable("delta_pf") {
       spark.sql(s"""
                    |create table delta_pf (id int, name string) using delta partitioned by (name)
@@ -125,7 +125,7 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("basic test with stats.skipping disabled") {
+  testWithSpecifiedSparkVersion("basic test with stats.skipping disabled", Some("3.2")) {
     withTable("delta_test2") {
       withSQLConf("spark.databricks.delta.stats.skipping" -> "false") {
         spark.sql(s"""
@@ -145,7 +145,7 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("column mapping with complex type") {
+  testWithSpecifiedSparkVersion("column mapping with complex type", Some("3.2")) {
     withTable("t1") {
       val simpleNestedSchema = new StructType()
         .add("a", StringType, true)
@@ -195,7 +195,7 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("deletion vector", Some("3.4.2")) {
+  testWithSpecifiedSparkVersion("deletion vector", Some("3.4")) {
     withTempPath {
       p =>
         import testImplicits._

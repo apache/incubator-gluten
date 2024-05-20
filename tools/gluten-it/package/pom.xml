@@ -95,7 +95,7 @@
 
   <profiles>
     <profile>
-      <id>rss</id>
+      <id>celeborn</id>
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
@@ -115,6 +115,20 @@
               <artifactId>celeborn-spark-${spark.major.version}-columnar-shuffle_${scala.binary.version}</artifactId>
             </exclusion>
           </exclusions>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>uniffle</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.uniffle</groupId>
+          <artifactId>rss-client-spark${spark.major.version}-shaded</artifactId>
+          <version>${uniffle.version}</version>
+          <scope>runtime</scope>
         </dependency>
       </dependencies>
     </profile>

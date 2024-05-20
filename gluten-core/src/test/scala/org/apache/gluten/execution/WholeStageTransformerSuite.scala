@@ -17,12 +17,13 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.utils.{Arm, FallbackUtil}
+import org.apache.gluten.test.FallbackUtil
+import org.apache.gluten.utils.Arm
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row}
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{CommandResultExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, ShuffleQueryStageExec}
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.DoubleType
@@ -222,6 +223,8 @@ abstract class WholeStageTransformerSuite
     df.queryExecution.executedPlan match {
       case exec: AdaptiveSparkPlanExec =>
         getChildrenPlan(Seq(exec.executedPlan))
+      case cmd: CommandResultExec =>
+        getChildrenPlan(Seq(cmd.commandPhysicalPlan))
       case plan =>
         getChildrenPlan(Seq(plan))
     }
@@ -240,8 +243,8 @@ abstract class WholeStageTransformerSuite
     val executedPlan = getExecutedPlan(df)
     assert(
       executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)),
-      s"Expect ${tag.runtimeClass.getClass.getSimpleName} exists " +
-        s"in executedPlan:\n $executedPlan"
+      s"Expect ${tag.runtimeClass.getSimpleName} exists " +
+        s"in executedPlan:\n ${executedPlan.last}"
     )
   }
 

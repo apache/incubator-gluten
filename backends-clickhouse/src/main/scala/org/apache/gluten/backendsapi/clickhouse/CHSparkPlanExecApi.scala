@@ -22,9 +22,11 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
-import org.apache.gluten.extension.{CountDistinctWithoutExpand, FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage}
+import org.apache.gluten.extension.{CountDistinctWithoutExpand, FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage, RewriteToDateExpresstionRule}
 import org.apache.gluten.extension.columnar.AddTransformHintRule
 import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
+import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import org.apache.gluten.utils.CHJoinValidateUtil
 import org.apache.gluten.vectorized.CHColumnarBatchSerializer
@@ -35,11 +37,11 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper, HashPartitioningWrapper}
 import org.apache.spark.shuffle.utils.CHShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.CHAggregateFunctionRewriteRule
+import org.apache.spark.sql.catalyst.{CHAggregateFunctionRewriteRule, EqualToRewrite}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, CollectList, CollectSet}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -48,7 +50,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
-import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, WriteFilesExec}
+import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation}
 import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules.NativeWritePostRule
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
@@ -70,6 +72,9 @@ import scala.collection.mutable.ArrayBuffer
 
 class CHSparkPlanExecApi extends SparkPlanExecApi {
 
+  /** The columnar-batch type this backend is using. */
+  override def batchType: Convention.BatchType = CHBatch
+
   /** Transform GetArrayItem to Substrait. */
   override def genGetArrayItemExpressionNode(
       substraitExprName: String,
@@ -86,26 +91,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       ExpressionBuilder.newScalarFunction(functionMap, functionName),
       exprNodes,
       ConverterUtils.getTypeNode(original.dataType, original.nullable))
-  }
-
-  /**
-   * Generate ColumnarToRowExecBase.
-   *
-   * @param child
-   * @return
-   */
-  override def genColumnarToRowExec(child: SparkPlan): ColumnarToRowExecBase = {
-    CHColumnarToRowExec(child)
-  }
-
-  /**
-   * Generate RowToColumnarExec.
-   *
-   * @param child
-   * @return
-   */
-  override def genRowToColumnarExec(child: SparkPlan): RowToColumnarExecBase = {
-    RowToCHNativeColumnarExec(child)
   }
 
   override def genProjectExecTransformer(
@@ -193,19 +178,19 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       child: SparkPlan): HashAggregateExecBaseTransformer =
     CHHashAggregateExecTransformer(
       requiredChildDistributionExpressions,
-      groupingExpressions,
+      groupingExpressions.distinct,
       aggregateExpressions,
       aggregateAttributes,
       initialInputBufferOffset,
-      resultExpressions,
-      child)
+      resultExpressions.distinct,
+      child
+    )
 
   /** Generate HashAggregateExecPullOutHelper */
   override def genHashAggregateExecPullOutHelper(
-      groupingExpressions: Seq[NamedExpression],
       aggregateExpressions: Seq[AggregateExpression],
       aggregateAttributes: Seq[Attribute]): HashAggregateExecPullOutBaseHelper =
-    CHHashAggregateExecPullOutHelper(groupingExpressions, aggregateExpressions, aggregateAttributes)
+    CHHashAggregateExecPullOutHelper(aggregateExpressions, aggregateAttributes)
 
   /**
    * If there are expressions (not field reference) in the partitioning's children, add a projection
@@ -473,6 +458,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       val constructor =
         clazz.getConstructor(classOf[SQLMetric], classOf[SQLMetric], classOf[SQLMetric])
       constructor.newInstance(readBatchNumRows, numOutputRows, dataSize).asInstanceOf[Serializer]
+    } else if (GlutenConfig.getConf.isUseUniffleShuffleManager) {
+      throw new UnsupportedOperationException("temporarily uniffle not support ch ")
     } else {
       new CHColumnarBatchSerializer(readBatchNumRows, numOutputRows, dataSize)
     }
@@ -571,7 +558,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]] = {
-    List(spark => new RewriteDateTimestampComparisonRule(spark, spark.sessionState.conf))
+    List(
+      spark => new RewriteToDateExpresstionRule(spark, spark.sessionState.conf),
+      spark => new RewriteDateTimestampComparisonRule(spark, spark.sessionState.conf))
   }
 
   /**
@@ -583,7 +572,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     List(
       spark => new CommonSubexpressionEliminateRule(spark, spark.sessionState.conf),
       spark => CHAggregateFunctionRewriteRule(spark),
-      _ => CountDistinctWithoutExpand
+      _ => CountDistinctWithoutExpand,
+      _ => EqualToRewrite
     )
   }
 
@@ -611,6 +601,10 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] =
     List(spark => NativeWritePostRule(spark))
 
+  override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = {
+    List()
+  }
+
   /**
    * Generate extended Strategies.
    *
@@ -618,6 +612,15 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def genExtendedStrategies(): List[SparkSession => Strategy] =
     List()
+
+  /** Define backend specfic expression mappings. */
+  override def extraExpressionMappings: Seq[Sig] = {
+    List(
+      Sig[CollectList](ExpressionNames.COLLECT_LIST),
+      Sig[CollectSet](ExpressionNames.COLLECT_SET)
+    ) ++
+      SparkShimLoader.getSparkShims.bloomFilterExpressionMappings()
+  }
 
   override def genStringTranslateTransformer(
       substraitExprName: String,
@@ -666,8 +669,16 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       partitionColumns: Seq[Attribute],
       bucketSpec: Option[BucketSpec],
       options: Map[String, String],
-      staticPartitions: TablePartitionSpec): WriteFilesExec = {
+      staticPartitions: TablePartitionSpec): SparkPlan = {
     throw new GlutenNotSupportException("ColumnarWriteFilesExec is not support in ch backend.")
+  }
+
+  override def createColumnarArrowEvalPythonExec(
+      udfs: Seq[PythonUDF],
+      resultAttrs: Seq[Attribute],
+      child: SparkPlan,
+      evalType: Int): SparkPlan = {
+    throw new GlutenNotSupportException("ColumnarArrowEvalPythonExec is not support in ch backend.")
   }
 
   /**

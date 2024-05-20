@@ -52,6 +52,7 @@ object ExpressionNames {
   final val REGR_SLOPE = "regr_slope"
   final val REGR_INTERCEPT = "regr_intercept"
   final val REGR_SXY = "regr_sxy"
+  final val REGR_REPLACEMENT = "regr_replacement"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -81,6 +82,8 @@ object ExpressionNames {
   final val NOT = "not"
   final val IS_NAN = "isnan"
   final val NANVL = "nanvl"
+  final val TRY_EVAL = "try"
+  final val TRY_ADD = "try_add"
 
   // SparkSQL String functions
   final val ASCII = "ascii"
@@ -135,6 +138,7 @@ object ExpressionNames {
   final val CEIL = "ceil"
   final val FLOOR = "floor"
   final val EXP = "exp"
+  final val EXPM1 = "expm1"
   final val POWER = "power"
   final val PMOD = "pmod"
   final val ROUND = "round"
@@ -171,6 +175,7 @@ object ExpressionNames {
   final val REMAINDER = "modulus"
   final val FACTORIAL = "factorial"
   final val RAND = "rand"
+  final val RINT = "rint"
 
   // PrestoSQL Math functions
   final val ACOS = "acos"
@@ -205,6 +210,11 @@ object ExpressionNames {
   final val MAKE_YM_INTERVAL = "make_ym_interval"
   final val TO_UTC_TIMESTAMP = "to_utc_timestamp"
   final val FROM_UTC_TIMESTAMP = "from_utc_timestamp"
+  final val UNIX_SECONDS = "unix_seconds"
+  final val UNIX_MILLIS = "unix_millis"
+  final val UNIX_MICROS = "unix_micros"
+  final val TIMESTAMP_MILLIS = "timestamp_millis"
+  final val TIMESTAMP_MICROS = "timestamp_micros"
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
@@ -242,7 +252,14 @@ object ExpressionNames {
   final val ARRAY_EXCEPT = "array_except"
   final val ARRAY_REPEAT = "array_repeat"
   final val ARRAY_REMOVE = "array_remove"
+  final val ARRAYS_ZIP = "arrays_zip"
   final val FILTER = "filter"
+  final val FORALL = "forall"
+  final val EXISTS = "exists"
+  final val TRANSFORM = "transform"
+  final val SHUFFLE = "shuffle"
+  final val ZIP_WITH = "zip_with"
+  final val FLATTEN = "flatten"
 
   // Map functions
   final val CREATE_MAP = "map"
@@ -251,6 +268,7 @@ object ExpressionNames {
   final val MAP_VALUES = "map_values"
   final val MAP_FROM_ARRAYS = "map_from_arrays"
   final val MAP_ENTRIES = "map_entries"
+  final val MAP_ZIP_WITH = "map_zip_with"
   final val STR_TO_MAP = "str_to_map"
 
   // struct functions
@@ -285,6 +303,8 @@ object ExpressionNames {
   final val MONOTONICALLY_INCREASING_ID = "monotonically_increasing_id"
 
   // Directly use child expression transformer
+  final val KNOWN_NULLABLE = "known_nullable"
+  final val KNOWN_NOT_NULL = "known_not_null"
   final val KNOWN_FLOATING_POINT_NORMALIZED = "known_floating_point_normalized"
   final val NORMALIZE_NANAND_ZERO = "normalize_nanand_zero"
 
@@ -304,4 +324,5 @@ object ExpressionNames {
 
   // A placeholder for native UDF functions
   final val UDF_PLACEHOLDER = "udf_placeholder"
+  final val UDAF_PLACEHOLDER = "udaf_placeholder"
 }

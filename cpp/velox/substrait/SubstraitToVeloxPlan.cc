@@ -595,20 +595,19 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   std::vector<std::string> tableColumnNames;
   std::vector<std::string> partitionedKey;
-  std::vector<bool> isPartitionColumns;
-  std::vector<bool> isMetadataColumns;
+  std::vector<ColumnType> columnTypes;
   tableColumnNames.reserve(writeRel.table_schema().names_size());
 
   VELOX_CHECK(writeRel.has_table_schema(), "WriteRel should have the table schema to store the column information");
   const auto& tableSchema = writeRel.table_schema();
-  SubstraitParser::parsePartitionAndMetadataColumns(tableSchema, isPartitionColumns, isMetadataColumns);
+  SubstraitParser::parseColumnTypes(tableSchema, columnTypes);
 
   for (const auto& name : tableSchema.names()) {
     tableColumnNames.emplace_back(name);
   }
 
   for (int i = 0; i < tableSchema.names_size(); i++) {
-    if (isPartitionColumns[i]) {
+    if (columnTypes[i] == ColumnType::kPartitionKey) {
       partitionedKey.emplace_back(tableColumnNames[i]);
     }
   }
@@ -734,8 +733,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   auto projNode = std::dynamic_pointer_cast<const core::ProjectNode>(childNode);
 
   if (projNode != nullptr && projNode->names().size() > requiredChildOutput.size()) {
-    // generator is a scalarfunction node -> explode(array(col, 'all'))
-    // use the last one, this is ensure by scala code
+    // Generator function's input is not a field reference, e.g. explode(array(1,2,3)), a sample
+    // input substrait plan is like the following(the plan structure is ensured by scala code):
+    //
+    //  Generate explode([1,2,3] AS _pre_0#129), false, [col#126]
+    //  +- Project [fake_column#128, [1,2,3] AS _pre_0#129]
+    //   +- RewrittenNodeWall Scan OneRowRelation[fake_column#128]
+    //
+    // The last projection column in GeneratorRel's child(Project) is the column we need to unnest
     auto innerName = projNode->names().back();
     auto innerExpr = projNode->projections().back();
 
@@ -744,9 +749,12 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     VELOX_CHECK_NOT_NULL(unnestFieldExpr, " the key in unnest Operator only support field");
     unnest.emplace_back(unnestFieldExpr);
   } else {
-    // generator should be a array column -> explode(col)
-    auto explodeFunc = generator.scalar_function();
-    auto unnestExpr = exprConverter_->toVeloxExpr(explodeFunc.arguments(0).value(), inputType);
+    // Generator function's input is a field reference, e.g. explode(col), generator
+    // function's first argument is the field reference we need to unnest.
+    // This assumption holds for all the supported generator function:
+    // explode, posexplode, inline.
+    auto generatorFunc = generator.scalar_function();
+    auto unnestExpr = exprConverter_->toVeloxExpr(generatorFunc.arguments(0).value(), inputType);
     auto unnestFieldExpr = std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(unnestExpr);
     VELOX_CHECK_NOT_NULL(unnestFieldExpr, " the key in unnest Operator only support field");
     unnest.emplace_back(unnestFieldExpr);
@@ -913,6 +921,51 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
 }
 
+core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(
+    const ::substrait::WindowGroupLimitRel& windowGroupLimitRel) {
+  core::PlanNodePtr childNode;
+  if (windowGroupLimitRel.has_input()) {
+    childNode = toVeloxPlan(windowGroupLimitRel.input());
+  } else {
+    VELOX_FAIL("Child Rel is expected in WindowGroupLimitRel.");
+  }
+  const auto& inputType = childNode->outputType();
+  // Construct partitionKeys
+  std::vector<core::FieldAccessTypedExprPtr> partitionKeys;
+  std::unordered_set<std::string> keyNames;
+  const auto& partitions = windowGroupLimitRel.partition_expressions();
+  partitionKeys.reserve(partitions.size());
+  for (const auto& partition : partitions) {
+    auto expression = exprConverter_->toVeloxExpr(partition, inputType);
+    core::FieldAccessTypedExprPtr veloxPartitionKey =
+        std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression);
+    VELOX_USER_CHECK_NOT_NULL(veloxPartitionKey, "Window Group Limit Operator only supports field partition key.");
+    // Constructs unique partition keys.
+    if (keyNames.insert(veloxPartitionKey->name()).second) {
+      partitionKeys.emplace_back(veloxPartitionKey);
+    }
+  }
+  std::vector<core::FieldAccessTypedExprPtr> sortingKeys;
+  std::vector<core::SortOrder> sortingOrders;
+  const auto& [rawSortingKeys, rawSortingOrders] = processSortField(windowGroupLimitRel.sorts(), inputType);
+  for (vector_size_t i = 0; i < rawSortingKeys.size(); ++i) {
+    // Constructs unique sort keys and excludes keys overlapped with partition keys.
+    if (keyNames.insert(rawSortingKeys[i]->name()).second) {
+      sortingKeys.emplace_back(rawSortingKeys[i]);
+      sortingOrders.emplace_back(rawSortingOrders[i]);
+    }
+  }
+  const std::optional<std::string> rowNumberColumnName = std::nullopt;
+  return std::make_shared<core::TopNRowNumberNode>(
+      nextPlanNodeId(),
+      partitionKeys,
+      sortingKeys,
+      sortingOrders,
+      rowNumberColumnName,
+      (int32_t)windowGroupLimitRel.limit(),
+      childNode);
+}
+
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::SortRel& sortRel) {
   auto childNode = convertSingleInput<::substrait::SortRel>(sortRel);
   auto [sortingKeys, sortingOrders] = processSortField(sortRel.sorts(), childNode->outputType());
@@ -955,35 +1008,16 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::FetchRel& fetchRel) {
-  core::PlanNodePtr childNode;
-  // Check the input of fetchRel, if it's sortRel, convert them into
-  // topNNode. otherwise, to limitNode.
-  ::substrait::SortRel sortRel;
-  bool topNFlag;
-  if (fetchRel.has_input()) {
-    topNFlag = fetchRel.input().has_sort();
-    if (topNFlag) {
-      sortRel = fetchRel.input().sort();
-      childNode = toVeloxPlan(sortRel.input());
-    } else {
-      childNode = toVeloxPlan(fetchRel.input());
-    }
-  } else {
-    VELOX_FAIL("Child Rel is expected in FetchRel.");
-  }
+  auto childNode = convertSingleInput<::substrait::FetchRel>(fetchRel);
+  return std::make_shared<core::LimitNode>(
+      nextPlanNodeId(), (int32_t)fetchRel.offset(), (int32_t)fetchRel.count(), false /*isPartial*/, childNode);
+}
 
-  if (topNFlag) {
-    auto [sortingKeys, sortingOrders] = processSortField(sortRel.sorts(), childNode->outputType());
-
-    VELOX_CHECK_EQ(fetchRel.offset(), 0);
-
-    return std::make_shared<core::TopNNode>(
-        nextPlanNodeId(), sortingKeys, sortingOrders, (int32_t)fetchRel.count(), false /*isPartial*/, childNode);
-
-  } else {
-    return std::make_shared<core::LimitNode>(
-        nextPlanNodeId(), (int32_t)fetchRel.offset(), (int32_t)fetchRel.count(), false /*isPartial*/, childNode);
-  }
+core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::TopNRel& topNRel) {
+  auto childNode = convertSingleInput<::substrait::TopNRel>(topNRel);
+  auto [sortingKeys, sortingOrders] = processSortField(topNRel.sorts(), childNode->outputType());
+  return std::make_shared<core::TopNNode>(
+      nextPlanNodeId(), sortingKeys, sortingOrders, (int32_t)topNRel.n(), false /*isPartial*/, childNode);
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
@@ -1040,11 +1074,9 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   // Get output names and types.
   std::vector<std::string> colNameList;
   std::vector<TypePtr> veloxTypeList;
-  std::vector<bool> isPartitionColumns;
-  std::vector<bool> isMetadataColumns;
+  std::vector<ColumnType> columnTypes;
   // Convert field names into lower case when not case-sensitive.
-  std::shared_ptr<const facebook::velox::Config> veloxCfg =
-      std::make_shared<const facebook::velox::core::MemConfigMutable>(confMap_);
+  std::unique_ptr<facebook::velox::Config> veloxCfg = std::make_unique<facebook::velox::core::MemConfig>(confMap_);
   bool asLowerCase = !veloxCfg->get<bool>(kCaseSensitive, false);
   if (readRel.has_base_schema()) {
     const auto& baseSchema = readRel.base_schema();
@@ -1057,7 +1089,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       colNameList.emplace_back(fieldName);
     }
     veloxTypeList = SubstraitParser::parseNamedStruct(baseSchema, asLowerCase);
-    SubstraitParser::parsePartitionAndMetadataColumns(baseSchema, isPartitionColumns, isMetadataColumns);
+    SubstraitParser::parseColumnTypes(baseSchema, columnTypes);
   }
 
   // Do not hard-code connector ID and allow for connectors other than Hive.
@@ -1112,13 +1144,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   std::unordered_map<std::string, std::shared_ptr<connector::ColumnHandle>> assignments;
   for (int idx = 0; idx < colNameList.size(); idx++) {
     auto outName = SubstraitParser::makeNodeName(planNodeId_, idx);
-    auto columnType = connector::hive::HiveColumnHandle::ColumnType::kRegular;
-    if (isPartitionColumns[idx]) {
-      columnType = connector::hive::HiveColumnHandle::ColumnType::kPartitionKey;
-    }
-    if (isMetadataColumns[idx]) {
-      columnType = connector::hive::HiveColumnHandle::ColumnType::kSynthesized;
-    }
+    auto columnType = columnTypes[idx];
     assignments[outName] = std::make_shared<connector::hive::HiveColumnHandle>(
         colNameList[idx], columnType, veloxTypeList[idx], veloxTypeList[idx]);
     outNames.emplace_back(outName);
@@ -1210,10 +1236,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     return toVeloxPlan(rel.generate());
   } else if (rel.has_fetch()) {
     return toVeloxPlan(rel.fetch());
+  } else if (rel.has_top_n()) {
+    return toVeloxPlan(rel.top_n());
   } else if (rel.has_window()) {
     return toVeloxPlan(rel.window());
   } else if (rel.has_write()) {
     return toVeloxPlan(rel.write());
+  } else if (rel.has_windowgrouplimit()) {
+    return toVeloxPlan(rel.windowgrouplimit());
   } else {
     VELOX_NYI("Substrait conversion not supported for Rel.");
   }
@@ -2006,6 +2036,7 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
 
   bool nullAllowed = filterInfo.nullAllowed_;
   bool isNull = filterInfo.isNull_;
+  bool existIsNullAndIsNotNull = filterInfo.forbidsNullSet_ && filterInfo.isNullSet_;
   uint32_t rangeSize = std::max(filterInfo.lowerBounds_.size(), filterInfo.upperBounds_.size());
 
   if constexpr (KIND == facebook::velox::TypeKind::HUGEINT) {
@@ -2092,7 +2123,10 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
 
     // Handle null filtering.
     if (rangeSize == 0) {
-      if (!nullAllowed) {
+      // handle is not null and is null exists at same time
+      if (existIsNullAndIsNotNull) {
+        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::AlwaysFalse>());
+      } else if (!nullAllowed) {
         filters[common::Subfield(inputName)] = std::make_unique<common::IsNotNull>();
       } else if (isNull) {
         filters[common::Subfield(inputName)] = std::make_unique<common::IsNull>();
@@ -2124,8 +2158,8 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
       upperBound = getMax<NativeType>();
     }
 
-    bool lowerUnbounded = true;
-    bool upperUnbounded = true;
+    [[maybe_unused]] bool lowerUnbounded = true;
+    [[maybe_unused]] bool upperUnbounded = true;
     bool lowerExclusive = false;
     bool upperExclusive = false;
 

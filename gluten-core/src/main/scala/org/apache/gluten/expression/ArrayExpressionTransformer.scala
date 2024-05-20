@@ -33,7 +33,7 @@ case class CreateArrayTransformer(
     children: Seq[ExpressionTransformer],
     useStringTypeWhenEmpty: Boolean,
     original: CreateArray)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // If children is empty,
@@ -62,7 +62,7 @@ case class GetArrayItemTransformer(
     right: ExpressionTransformer,
     failOnError: Boolean,
     original: GetArrayItem)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // Ignore failOnError for clickhouse backend

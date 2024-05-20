@@ -171,7 +171,7 @@ class Ras[T <: AnyRef] private (
 
   private[ras] def isInfCost(cost: Cost) = costModel.costComparator().equiv(cost, infCost)
 
-  private[ras] def toUnsafeKey(node: T): UnsafeKey[T] = UnsafeKey(this, node)
+  private[ras] def toHashKey(node: T): UnsafeHashKey[T] = UnsafeHashKey(this, node)
 }
 
 object Ras {
@@ -251,15 +251,17 @@ object Ras {
     }
   }
 
-  trait UnsafeKey[T]
+  trait UnsafeHashKey[T]
 
-  private object UnsafeKey {
-    def apply[T <: AnyRef](ras: Ras[T], self: T): UnsafeKey[T] = new UnsafeKeyImpl(ras, self)
-    private class UnsafeKeyImpl[T <: AnyRef](ras: Ras[T], val self: T) extends UnsafeKey[T] {
+  private object UnsafeHashKey {
+    def apply[T <: AnyRef](ras: Ras[T], self: T): UnsafeHashKey[T] =
+      new UnsafeHashKeyImpl(ras, self)
+    private class UnsafeHashKeyImpl[T <: AnyRef](ras: Ras[T], val self: T)
+      extends UnsafeHashKey[T] {
       override def hashCode(): Int = ras.planModel.hashCode(self)
       override def equals(other: Any): Boolean = {
         other match {
-          case that: UnsafeKeyImpl[T] => ras.planModel.equals(self, that.self)
+          case that: UnsafeHashKeyImpl[T] => ras.planModel.equals(self, that.self)
           case _ => false
         }
       }

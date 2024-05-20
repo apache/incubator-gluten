@@ -20,6 +20,7 @@ import org.apache.gluten.{GlutenConfig, GlutenSparkExtensionsInjector}
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.enumerated.EnumeratedApplier
 import org.apache.gluten.extension.columnar.heuristic.HeuristicApplier
+import org.apache.gluten.extension.columnar.transition.Transitions
 import org.apache.gluten.utils.LogLevelUtil
 
 import org.apache.spark.broadcast.Broadcast
@@ -115,13 +116,14 @@ case class ColumnarOverrideRules(session: SparkSession)
   override def postColumnarTransitions: Rule[SparkPlan] = plan => {
     val outputsColumnar = OutputsColumnarTester.inferOutputsColumnar(plan)
     val unwrapped = OutputsColumnarTester.unwrap(plan)
-    val vanillaPlan = ColumnarTransitions.insertTransitions(unwrapped, outputsColumnar)
+    val vanillaPlan = Transitions.insertTransitions(unwrapped, outputsColumnar)
     val applier: ColumnarRuleApplier = if (GlutenConfig.getConf.enableRas) {
       new EnumeratedApplier(session)
     } else {
       new HeuristicApplier(session)
     }
-    applier.apply(vanillaPlan, outputsColumnar)
+    val out = applier.apply(vanillaPlan, outputsColumnar)
+    out
   }
 
 }

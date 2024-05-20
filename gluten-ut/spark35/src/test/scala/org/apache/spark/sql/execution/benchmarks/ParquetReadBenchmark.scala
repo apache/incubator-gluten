@@ -17,8 +17,8 @@
 package org.apache.spark.sql.execution.benchmarks
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, WholeStageTransformer}
+import org.apache.gluten.extension.columnar.transition.Transitions
 import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}
 import org.apache.gluten.vectorized.JniLibLoader
 
@@ -124,8 +124,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
     val newWholeStage = wholeStageTransform.withNewChildren(Seq(fileScan))
 
     // generate ColumnarToRow
-    val columnarToRowPlan =
-      BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(newWholeStage)
+    val columnarToRowPlan = Transitions.toRowPlan(newWholeStage)
 
     val newWholeStageRDD = newWholeStage.executeColumnar()
     val newColumnarToRowRDD = columnarToRowPlan.execute()

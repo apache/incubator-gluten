@@ -294,7 +294,7 @@ case class CHHashAggregateExecTransformer(
             ._1
             .get
         } else {
-          AggregateFunctionsBuilder.getSubstraitFunctionName(aggregateFunc).get
+          AggregateFunctionsBuilder.getSubstraitFunctionName(aggregateFunc)
         }
       ConverterUtils.genColumnNameWithExprId(resultAttr) + "#Partial#" + aggFunctionName
     }
@@ -411,13 +411,9 @@ case class CHHashAggregateExecTransformer(
 }
 
 case class CHHashAggregateExecPullOutHelper(
-    groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
     aggregateAttributes: Seq[Attribute])
-  extends HashAggregateExecPullOutBaseHelper(
-    groupingExpressions,
-    aggregateExpressions,
-    aggregateAttributes) {
+  extends HashAggregateExecPullOutBaseHelper {
 
   /** This method calculates the output attributes of Aggregation. */
   override protected def getAttrForAggregateExprs: List[Attribute] = {

@@ -212,22 +212,20 @@ public:
 private:
     DB::ContextPtr context;
 
-    void parseAbnormalJson(char * dst, std::string_view & json) const
+    size_t normalizeJson(std::string_view & json, char * dst) const
     {
         const char * json_chars = json.data();
         const size_t json_size = json.size();
-        UInt8 NULL_CHAR = 0x0000;
-        UInt8 SPACE_CHAR = 0x0020;
         std::stack<char> tmp;
-        size_t cursor = 0;
+        size_t new_json_size = 0;
         for (size_t i = 0; i <= json_size; ++i)
         {
-            if (*(json_chars + i) > NULL_CHAR && *(json_chars + i) < SPACE_CHAR)
+            if ((*(json_chars + i) >= 0x00 && *(json_chars + i) <= 0x1F) || *(json_chars + i) == 0x7F)
                 continue;
             else
             {
                 char ch = *(json_chars + i);
-                dst[cursor++] = ch;
+                dst[new_json_size++] = ch;
                 if (ch == '{')
                     tmp.push('{');
                 else if (ch == '}')
@@ -239,8 +237,7 @@ private:
                     break;
             }
         }
-        std::string_view result{dst, cursor};
-        json = result;
+        return new_json_size;
     }
 
     template <typename JSONParser, typename Impl>
@@ -323,8 +320,8 @@ private:
             if (!document_ok)
             {
                 char dst[json.size()];
-                parseAbnormalJson(dst, json);
-                document_ok = parser.parse(json, document);
+                size_t size = normalizeJson(json, dst);
+                document_ok = parser.parse(std::string_view(dst, size), document);
             }
         }
 
@@ -345,8 +342,8 @@ private:
                 if (!document_ok)
                 {
                     char dst[json.size()];
-                    parseAbnormalJson(dst, json);
-                    document_ok = parser.parse(json, document);
+                    size_t size = normalizeJson(json, dst);
+                    document_ok = parser.parse(std::string_view(dst, size), document);
                 }
             }
             if (document_ok)

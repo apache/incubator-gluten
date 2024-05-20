@@ -33,7 +33,6 @@ std::string getConfigValue(
     const std::string& key,
     const std::optional<std::string>& fallbackValue);
 
-std::shared_ptr<facebook::velox::core::MemConfigMutable> getHiveConfig(
-    const std::shared_ptr<const facebook::velox::Config>& conf);
+std::shared_ptr<facebook::velox::core::MemConfig> getHiveConfig(std::shared_ptr<facebook::velox::Config> conf);
 
 } // namespace gluten

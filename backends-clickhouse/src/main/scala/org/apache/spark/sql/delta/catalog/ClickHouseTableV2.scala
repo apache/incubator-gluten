@@ -16,23 +16,20 @@
  */
 package org.apache.spark.sql.delta.catalog
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.catalog.TableCatalog
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
-import org.apache.spark.sql.delta.{ClickhouseSnapshot, ColumnWithDefaultExprUtils, DeltaColumnMapping, DeltaErrors, DeltaLog, DeltaTableIdentifier, DeltaTimeTravelSpec, Snapshot}
+import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaErrors, DeltaLog, DeltaTimeTravelSpec}
 import org.apache.spark.sql.delta.actions.Metadata
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2.deltaLog2Table
-import org.apache.spark.sql.delta.files.TahoeLogFileIndex
-import org.apache.spark.sql.delta.schema.SchemaUtils
 import org.apache.spark.sql.delta.sources.DeltaDataSource
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.utils.MergeTreePartsPartitionsUtil
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.{ClickHouseConfig, DeltaLogAdapter}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
-import org.apache.spark.sql.sources.{BaseRelation, InsertableRelation}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.util.collection.BitSet
 
@@ -40,6 +37,9 @@ import org.apache.hadoop.fs.Path
 
 import java.{util => ju}
 
+import scala.collection.JavaConverters._
+
+@SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
 class ClickHouseTableV2(
     override val spark: SparkSession,
     override val path: Path,
@@ -47,7 +47,8 @@ class ClickHouseTableV2(
     override val tableIdentifier: Option[String] = None,
     override val timeTravelOpt: Option[DeltaTimeTravelSpec] = None,
     override val options: Map[String, String] = Map.empty,
-    override val cdcOptions: CaseInsensitiveStringMap = CaseInsensitiveStringMap.empty())
+    override val cdcOptions: CaseInsensitiveStringMap = CaseInsensitiveStringMap.empty(),
+    val clickhouseExtensionOptions: Map[String, String] = Map.empty)
   extends DeltaTableV2(
     spark,
     path,
@@ -83,6 +84,11 @@ class ClickHouseTableV2(
   override def properties(): ju.Map[String, String] = {
     val ret = super.properties()
     ret.put(TableCatalog.PROP_PROVIDER, ClickHouseConfig.NAME)
+
+    // for file path based write
+    if (snapshot.version < 0 && clickhouseExtensionOptions.nonEmpty) {
+      ret.putAll(clickhouseExtensionOptions.asJava)
+    }
     ret
   }
 
@@ -92,11 +98,11 @@ class ClickHouseTableV2(
 
   lazy val dataBaseName = catalogTable
     .map(_.identifier.database.getOrElse("default"))
-    .getOrElse("default")
+    .getOrElse("clickhouse")
 
   lazy val tableName = catalogTable
     .map(_.identifier.table)
-    .getOrElse("")
+    .getOrElse(path.toUri.getPath)
 
   lazy val bucketOption: Option[BucketSpec] = {
     val tableProperties = properties()
@@ -104,8 +110,8 @@ class ClickHouseTableV2(
       val numBuckets = tableProperties.get("numBuckets").trim.toInt
       val bucketColumnNames: Seq[String] =
         tableProperties.get("bucketColumnNames").split(",").map(_.trim).toSeq
-      val sortColumnNames: Seq[String] = if (tableProperties.containsKey("sortColumnNames")) {
-        tableProperties.get("sortColumnNames").split(",").map(_.trim).toSeq
+      val sortColumnNames: Seq[String] = if (tableProperties.containsKey("orderByKey")) {
+        tableProperties.get("orderByKey").split(",").map(_.trim).toSeq
       } else Seq.empty[String]
       Some(BucketSpec(numBuckets, bucketColumnNames, sortColumnNames))
     } else {
@@ -210,66 +216,6 @@ class ClickHouseTableV2(
     configs.toMap
   }
 
-  /**
-   * Creates a V1 BaseRelation from this Table to allow read APIs to go through V1 DataSource code
-   * paths.
-   */
-  override def toBaseRelation: BaseRelation = {
-    snapshot
-    if (!deltaLog.tableExists) {
-      val id = catalogTable
-        .map(ct => DeltaTableIdentifier(table = Some(ct.identifier)))
-        .getOrElse(DeltaTableIdentifier(path = Some(path.toString)))
-      throw DeltaErrors.notADeltaTableException(id)
-    }
-    val partitionPredicates =
-      DeltaDataSource.verifyAndCreatePartitionFilters(path.toString, snapshot, partitionFilters)
-
-    createV1Relation(partitionPredicates, Some(snapshot), timeTravelSpec.isDefined, cdcOptions)
-  }
-
-  /** Create ClickHouseFileIndex and HadoopFsRelation for DS V1. */
-  def createV1Relation(
-      partitionFilters: Seq[Expression] = Nil,
-      snapshotToUseOpt: Option[Snapshot] = None,
-      isTimeTravelQuery: Boolean = false,
-      cdcOptions: CaseInsensitiveStringMap = CaseInsensitiveStringMap.empty): BaseRelation = {
-    val snapshotToUse = snapshotToUseOpt.getOrElse(DeltaLogAdapter.snapshot(deltaLog))
-    if (snapshotToUse.version < 0) {
-      // A negative version here means the dataPath is an empty directory. Read query should error
-      // out in this case.
-      throw DeltaErrors.pathNotExistsException(deltaLog.dataPath.toString)
-    }
-    val fileIndex =
-      new TahoeLogFileIndex(spark, deltaLog, deltaLog.dataPath, snapshotToUse, partitionFilters)
-    val fileFormat: DeltaMergeTreeFileFormat = getFileFormat(getMetadata)
-    new HadoopFsRelation(
-      fileIndex,
-      partitionSchema =
-        DeltaColumnMapping.dropColumnMappingMetadata(snapshotToUse.metadata.partitionSchema),
-      // We pass all table columns as `dataSchema` so that Spark will preserve the partition column
-      // locations. Otherwise, for any partition columns not in `dataSchema`, Spark would just
-      // append them to the end of `dataSchema`
-      dataSchema = DeltaColumnMapping.dropColumnMappingMetadata(
-        ColumnWithDefaultExprUtils.removeDefaultExpressions(
-          SchemaUtils.dropNullTypeColumns(snapshotToUse.metadata.schema))),
-      bucketSpec = bucketOption,
-      fileFormat,
-      // `metadata.format.options` is not set today. Even if we support it in future, we shouldn't
-      // store any file system options since they may contain credentials. Hence, it will never
-      // conflict with `DeltaLog.options`.
-      snapshotToUse.metadata.format.options ++ options
-    )(
-      spark
-    ) with InsertableRelation {
-      def insert(data: DataFrame, overwrite: Boolean): Unit = {
-        throw new UnsupportedOperationException()
-//        val mode = if (overwrite) SaveMode.Overwrite else SaveMode.Append
-        // Insert MergeTree data through DataSource V1
-      }
-    }
-  }
-
   def getFileFormat(meta: Metadata): DeltaMergeTreeFileFormat = {
     new DeltaMergeTreeFileFormat(
       meta,
@@ -291,8 +237,39 @@ class ClickHouseTableV2(
   }
 
   cacheThis()
+
+  def primaryKey(): String = primaryKeyOption match {
+    case Some(keys) => keys.mkString(",")
+    case None => ""
+  }
+
+  def orderByKey(): String = orderByKeyOption match {
+    case Some(keys) => keys.mkString(",")
+    case None => "tuple()"
+  }
+
+  def lowCardKey(): String = lowCardKeyOption match {
+    case Some(keys) => keys.mkString(",")
+    case None => ""
+  }
+
+  def minmaxIndexKey(): String = minmaxIndexKeyOption match {
+    case Some(keys) => keys.mkString(",")
+    case None => ""
+  }
+
+  def bfIndexKey(): String = bfIndexKeyOption match {
+    case Some(keys) => keys.mkString(",")
+    case None => ""
+  }
+
+  def setIndexKey(): String = setIndexKeyOption match {
+    case Some(keys) => keys.mkString(",")
+    case None => ""
+  }
 }
 
+@SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
 class TempClickHouseTableV2(
     override val spark: SparkSession,
     override val catalogTable: Option[CatalogTable] = None)
@@ -333,7 +310,8 @@ object ClickHouseTableV2 extends Logging {
       bucketedScan: Boolean,
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
-      disableBucketedScan: Boolean): Seq[InputPartition] = {
+      disableBucketedScan: Boolean,
+      filterExprs: Seq[Expression]): Seq[InputPartition] = {
     val tableV2 = ClickHouseTableV2.getTable(deltaLog)
 
     MergeTreePartsPartitionsUtil.getMergeTreePartsPartitions(
@@ -345,7 +323,8 @@ object ClickHouseTableV2 extends Logging {
       tableV2,
       optionalBucketSet,
       optionalNumCoalescedBuckets,
-      disableBucketedScan)
+      disableBucketedScan,
+      filterExprs)
 
   }
 }

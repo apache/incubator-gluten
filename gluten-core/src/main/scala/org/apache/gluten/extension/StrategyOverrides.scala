@@ -58,7 +58,6 @@ case class JoinSelectionOverrides(session: SparkSession)
       hint: JoinHint,
       forceShuffledHashJoin: Boolean): Seq[SparkPlan] = {
     if (isBroadcastStage(left) || isBroadcastStage(right)) {
-      // equal condition
       val buildSide = if (isBroadcastStage(left)) BuildLeft else BuildRight
       Seq(
         BroadcastHashJoinExec(
@@ -70,7 +69,6 @@ case class JoinSelectionOverrides(session: SparkSession)
           planLater(left),
           planLater(right)))
     } else {
-      // non equal condition
       // Generate BHJ here, avoid to do match in `JoinSelection` again.
       val isHintEmpty = hint.leftHint.isEmpty && hint.rightHint.isEmpty
       val buildSide = getBroadcastBuildSide(left, right, joinType, hint, !isHintEmpty, conf)

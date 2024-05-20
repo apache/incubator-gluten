@@ -37,7 +37,7 @@ public class ShuffleReaderMetrics {
     return ipcTime;
   }
 
-  public void setDeserializeTime(long ipcTime) {
+  public void setDeserializeTime(long deserializeTime) {
     this.deserializeTime = deserializeTime;
   }
 

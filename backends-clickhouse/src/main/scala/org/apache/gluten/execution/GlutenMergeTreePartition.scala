@@ -18,6 +18,19 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.substrait.plan.PlanBuilder
 
+case class MergeTreePartRange(
+    name: String,
+    dirName: String,
+    targetNode: String,
+    bucketNum: String,
+    start: Long,
+    marks: Long,
+    size: Long) {
+  override def toString: String = {
+    s"part name: $name, range: $start-${start + marks}"
+  }
+}
+
 case class MergeTreePartSplit(
     name: String,
     dirName: String,

@@ -20,6 +20,8 @@
 #include "velox/common/memory/MemoryPool.h"
 #include "velox/exec/MemoryReclaimer.h"
 
+#include "compute/VeloxBackend.h"
+#include "config/VeloxConfig.h"
 #include "memory/ArrowMemoryPool.h"
 #include "utils/exception.h"
 
@@ -40,36 +42,37 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
   uint64_t growCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
-    std::lock_guard<std::recursive_mutex> l(mutex_);
-    return growPoolLocked(pool, targetBytes);
+    VELOX_CHECK_EQ(targetBytes, 0, "Gluten has set MemoryManagerOptions.memoryPoolInitCapacity to 0")
+    return 0;
   }
 
   uint64_t shrinkCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
     std::lock_guard<std::recursive_mutex> l(mutex_);
-    return releaseMemoryLocked(pool, targetBytes);
+    return shrinkCapacityLocked(pool, targetBytes);
   }
 
   bool growCapacity(
       velox::memory::MemoryPool* pool,
       const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& candidatePools,
       uint64_t targetBytes) override {
-    GLUTEN_CHECK(candidatePools.size() == 1, "ListenableArbitrator should only be used within a single root pool");
+    velox::memory::ScopedMemoryArbitrationContext ctx(pool);
+    VELOX_CHECK_EQ(candidatePools.size(), 1, "ListenableArbitrator should only be used within a single root pool")
     auto candidate = candidatePools.back();
-    GLUTEN_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator");
-    {
-      std::lock_guard<std::recursive_mutex> l(mutex_);
-      growPoolLocked(pool, targetBytes);
-    }
+    VELOX_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator");
+
+    std::lock_guard<std::recursive_mutex> l(mutex_);
+    growCapacityLocked(pool->root(), targetBytes);
     return true;
   }
 
   uint64_t shrinkCapacity(
       const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& pools,
       uint64_t targetBytes,
-      bool allowSpill = true,
-      bool allowAbort = false) override {
+      bool allowSpill,
+      bool allowAbort) override {
+    velox::memory::ScopedMemoryArbitrationContext ctx(nullptr);
     facebook::velox::exec::MemoryReclaimer::Stats status;
-    GLUTEN_CHECK(pools.size() == 1, "Should shrink a single pool at a time");
+    VELOX_CHECK_EQ(pools.size(), 1, "Gluten only has one root pool");
     std::lock_guard<std::recursive_mutex> l(mutex_); // FIXME: Do we have recursive locking for this mutex?
     auto pool = pools.at(0);
     const uint64_t oldCapacity = pool->capacity();
@@ -91,13 +94,30 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
  private:
-  uint64_t growPoolLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
-    listener_->allocationChanged(bytes);
-    return pool->grow(bytes);
+  void growCapacityLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
+    // Since
+    // https://github.com/facebookincubator/velox/pull/9557/files#diff-436e44b7374032f8f5d7eb45869602add6f955162daa2798d01cc82f8725724dL812-L820,
+    // We should pass bytes as parameter "reservationBytes" when calling ::grow.
+    auto freeByes = pool->freeBytes();
+    if (freeByes > bytes) {
+      if (pool->grow(0, bytes)) {
+        return;
+      }
+    }
+    auto reclaimedFreeBytes = pool->shrink(0);
+    auto neededBytes = velox::bits::roundUp(bytes - reclaimedFreeBytes, memoryPoolTransferCapacity_);
+    listener_->allocationChanged(neededBytes);
+    auto ret = pool->grow(reclaimedFreeBytes + neededBytes, bytes);
+    VELOX_CHECK(
+        ret,
+        "{} failed to grow {} bytes, current state {}",
+        pool->name(),
+        velox::succinctBytes(bytes),
+        pool->toString())
   }
 
-  uint64_t releaseMemoryLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
-    uint64_t freeBytes = pool->shrink(0);
+  uint64_t shrinkCapacityLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
+    uint64_t freeBytes = pool->shrink(bytes);
     listener_->allocationChanged(-freeBytes);
     return freeBytes;
   }
@@ -138,8 +158,11 @@ VeloxMemoryManager::VeloxMemoryManager(
     std::shared_ptr<MemoryAllocator> allocator,
     std::unique_ptr<AllocationListener> listener)
     : MemoryManager(), name_(name), listener_(std::move(listener)) {
-  glutenAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), listener_.get());
-  arrowPool_ = std::make_unique<ArrowMemoryPool>(glutenAlloc_.get());
+  auto reservationBlockSize = VeloxBackend::get()->getBackendConf()->get<uint64_t>(
+      kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
+  blockListener_ = std::make_unique<BlockAllocationListener>(listener_.get(), reservationBlockSize);
+  listenableAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), blockListener_.get());
+  arrowPool_ = std::make_unique<ArrowMemoryPool>(listenableAlloc_.get());
 
   ArbitratorFactoryRegister afr(listener_.get());
   velox::memory::MemoryManagerOptions mmOptions{
@@ -151,7 +174,7 @@ VeloxMemoryManager::VeloxMemoryManager(
       .allocatorCapacity = velox::memory::kMaxMemory,
       .arbitratorKind = afr.getKind(),
       .memoryPoolInitCapacity = 0,
-      .memoryPoolTransferCapacity = 32 << 20,
+      .memoryPoolTransferCapacity = reservationBlockSize,
       .memoryReclaimWaitMs = 0};
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
 
@@ -164,15 +187,22 @@ VeloxMemoryManager::VeloxMemoryManager(
 }
 
 namespace {
-MemoryUsageStats collectMemoryUsageStatsInternal(const velox::memory::MemoryPool* pool) {
+MemoryUsageStats collectVeloxMemoryUsageStats(const velox::memory::MemoryPool* pool) {
   MemoryUsageStats stats;
   stats.set_current(pool->currentBytes());
   stats.set_peak(pool->peakBytes());
   // walk down root and all children
   pool->visitChildren([&](velox::memory::MemoryPool* pool) -> bool {
-    stats.mutable_children()->emplace(pool->name(), collectMemoryUsageStatsInternal(pool));
+    stats.mutable_children()->emplace(pool->name(), collectVeloxMemoryUsageStats(pool));
     return true;
   });
+  return stats;
+}
+
+MemoryUsageStats collectGlutenAllocatorMemoryUsageStats(const MemoryAllocator* allocator) {
+  MemoryUsageStats stats;
+  stats.set_current(allocator->getBytes());
+  stats.set_peak(allocator->peakBytes());
   return stats;
 }
 
@@ -193,7 +223,14 @@ int64_t shrinkVeloxMemoryPool(velox::memory::MemoryManager* mm, velox::memory::M
 } // namespace
 
 const MemoryUsageStats VeloxMemoryManager::collectMemoryUsageStats() const {
-  return collectMemoryUsageStatsInternal(veloxAggregatePool_.get());
+  MemoryUsageStats stats;
+  stats.set_current(listener_->currentBytes());
+  stats.set_peak(listener_->peakBytes());
+  stats.mutable_children()->emplace(
+      "gluten::MemoryAllocator", collectGlutenAllocatorMemoryUsageStats(listenableAlloc_.get()));
+  stats.mutable_children()->emplace(
+      veloxAggregatePool_->name(), collectVeloxMemoryUsageStats(veloxAggregatePool_.get()));
+  return stats;
 }
 
 const int64_t VeloxMemoryManager::shrink(int64_t size) {

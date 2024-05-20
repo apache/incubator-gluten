@@ -16,11 +16,10 @@
  */
 package org.apache.gluten.extension.columnar.enumerated
 
-import org.apache.gluten.extension.columnar.{ImplementExchange, ImplementJoin, ImplementOthers, ImplementSingleNode}
+import org.apache.gluten.extension.columnar.{OffloadExchange, OffloadJoin, OffloadOthers, OffloadSingleNode}
 import org.apache.gluten.planner.GlutenOptimization
 import org.apache.gluten.planner.property.Conventions
 import org.apache.gluten.ras.property.PropertySet
-import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 import org.apache.gluten.utils.LogLevelUtil
 
 import org.apache.spark.sql.SparkSession
@@ -32,14 +31,22 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
   with LogLevelUtil {
   import EnumeratedTransform._
 
-  private val rasRules = List(
-    AsRasImplement(ImplementOthers()),
-    AsRasImplement(ImplementExchange()),
-    AsRasImplement(ImplementJoin()),
-    RasImplementAggregate
+  private val rules = List(
+    new PushFilterToScan(RasOffload.validator),
+    RemoveFilter
   )
 
-  private val optimization = GlutenOptimization(rasRules)
+  // TODO: Should obey ReplaceSingleNode#applyScanNotTransformable to select
+  //  (vanilla) scan with cheaper sub-query plan through cost model.
+  private val offloadRules = List(
+    new AsRasOffload(OffloadOthers()),
+    new AsRasOffload(OffloadExchange()),
+    new AsRasOffload(OffloadJoin()),
+    RasOffloadAggregate,
+    RasOffloadFilter
+  )
+
+  private val optimization = GlutenOptimization(rules ++ offloadRules)
 
   private val reqConvention = Conventions.ANY
   private val altConventions =
@@ -56,12 +63,12 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
 }
 
 object EnumeratedTransform {
-  private case class AsRasImplement(delegate: ImplementSingleNode) extends RasRule[SparkPlan] {
-    override def shift(node: SparkPlan): Iterable[SparkPlan] = {
-      val out = List(delegate.impl(node))
+
+  /** Accepts a [[OffloadSingleNode]] rule to convert it into a RAS offload rule. */
+  private class AsRasOffload(delegate: OffloadSingleNode) extends RasOffload {
+    override protected def offload(node: SparkPlan): SparkPlan = {
+      val out = delegate.offload(node)
       out
     }
-
-    override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)
   }
 }

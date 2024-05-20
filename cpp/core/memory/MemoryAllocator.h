@@ -41,6 +41,8 @@ class MemoryAllocator {
   virtual bool free(void* p, int64_t size) = 0;
 
   virtual int64_t getBytes() const = 0;
+
+  virtual int64_t peakBytes() const = 0;
 };
 
 class ListenableMemoryAllocator final : public MemoryAllocator {
@@ -63,10 +65,14 @@ class ListenableMemoryAllocator final : public MemoryAllocator {
 
   int64_t getBytes() const override;
 
+  int64_t peakBytes() const override;
+
  private:
+  void updateUsage(int64_t size);
   MemoryAllocator* delegated_;
   AllocationListener* listener_;
-  std::atomic_int64_t bytes_{0};
+  uint64_t usedBytes_{0L};
+  uint64_t peakBytes_{0L};
 };
 
 class StdMemoryAllocator final : public MemoryAllocator {
@@ -84,6 +90,8 @@ class StdMemoryAllocator final : public MemoryAllocator {
   bool free(void* p, int64_t size) override;
 
   int64_t getBytes() const override;
+
+  int64_t peakBytes() const override;
 
  private:
   std::atomic_int64_t bytes_{0};

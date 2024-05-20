@@ -73,7 +73,7 @@ object DpClusterAlgo {
       clusterAlgoDef: DpClusterAlgoDef[T, NodeOutput, ClusterOutput])
     extends DpZipperAlgoDef[InClusterNode[T], RasClusterKey, NodeOutput, ClusterOutput] {
     override def idOfX(x: InClusterNode[T]): Any = {
-      x.toHashKey
+      x.toUniqueKey
     }
 
     override def idOfY(y: RasClusterKey): Any = {
@@ -81,7 +81,7 @@ object DpClusterAlgo {
     }
 
     override def browseX(x: InClusterNode[T]): Iterable[RasClusterKey] = {
-      val allGroups = memoTable.allGroups()
+      val allGroups = memoTable.asGroupSupplier()
       x.can
         .getChildrenGroups(allGroups)
         .map(gn => allGroups(gn.groupId()).clusterKey())

@@ -19,7 +19,8 @@ package org.apache.gluten.extension.columnar.enumerated
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.columnar._
-import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, TransformPostOverrides, TransformPreOverrides}
+import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow}
+import org.apache.gluten.extension.columnar.transition.{InsertTransitions, RemoveTransitions}
 import org.apache.gluten.extension.columnar.util.AdaptiveContext
 import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.gluten.utils.{LogLevelUtil, PhysicalPlanSelector}
@@ -118,14 +119,8 @@ class EnumeratedApplier(session: SparkSession)
       (_: SparkSession) => FallbackEmptySchemaRelation()
     ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarValidationRules() :::
+      List((spark: SparkSession) => MergeTwoPhasesHashBaseAggregate(spark)) :::
       List(
-        (spark: SparkSession) => MergeTwoPhasesHashBaseAggregate(spark),
-        (_: SparkSession) => RewriteSparkPlanRulesManager(),
-        (_: SparkSession) => AddTransformHintRule(),
-        (_: SparkSession) => FallbackBloomFilterAggIfNeeded()
-      ) :::
-      List(
-        (_: SparkSession) => TransformPreOverrides(List(ImplementFilter()), List.empty),
         (session: SparkSession) => EnumeratedTransform(session, outputsColumnar),
         (_: SparkSession) => RemoveTransitions
       ) :::
@@ -157,10 +152,7 @@ class EnumeratedApplier(session: SparkSession)
    */
   private def postRules(): List[SparkSession => Rule[SparkPlan]] =
     List(
-      (_: SparkSession) => TransformPostOverrides(),
-      (s: SparkSession) => InsertColumnarToColumnarTransitions(s),
-      (s: SparkSession) => RemoveTopmostColumnarToRow(s, adaptiveContext.isAdaptiveContext())
-    ) :::
+      (s: SparkSession) => RemoveTopmostColumnarToRow(s, adaptiveContext.isAdaptiveContext())) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
       List((_: SparkSession) => ColumnarCollapseTransformStages(GlutenConfig.getConf)) :::
       SparkRuleUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPostRules)

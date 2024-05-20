@@ -23,11 +23,6 @@ include(GNUInstallDirs)
 include(CheckCXXCompilerFlag)
 include(FindPackageHandleStandardArgs)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx -mavx2")
-endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
 if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-class-memaccess")
@@ -51,6 +46,20 @@ if (NOT DEFINED VELOX_HOME)
   set(VELOX_HOME ${GLUTEN_HOME}/ep/build-velox/build/velox_ep)
   message(STATUS "Set VELOX_HOME to ${VELOX_HOME}")
 endif()
+
+# Keep same compile option with Velox.
+execute_process(
+    COMMAND
+    bash -c
+    "( source ${VELOX_HOME}/scripts/setup-helper-functions.sh && echo -n $(get_cxx_flags $ENV{CPU_TARGET}))"
+    OUTPUT_VARIABLE SCRIPT_CXX_FLAGS
+    RESULT_VARIABLE COMMAND_STATUS)
+if(COMMAND_STATUS EQUAL "1")
+    message(FATAL_ERROR "Unable to determine compiler flags!")
+endif()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SCRIPT_CXX_FLAGS}")
+
+message("Velox module final CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 
 # User can specify VELOX_BUILD_PATH, if Velox are built elsewhere.
 if(NOT DEFINED VELOX_BUILD_PATH)
@@ -94,19 +103,7 @@ endmacro()
 macro(add_duckdb)
   find_package(DuckDB)
   if(NOT DuckDB_FOUND)
-    message(STATUS "Use duckdb provided by Velox.")
-    set(VELOX_BUILD_DUCKDB_PATH "${VELOX_BUILD_PATH}/_deps/duckdb-build")
-    add_velox_dependency(duckdb::static "${VELOX_BUILD_DUCKDB_PATH}/src/libduckdb_static.a")
-    add_velox_dependency(duckdb::jemalloc "${VELOX_BUILD_DUCKDB_PATH}/extension/jemalloc/libjemalloc_extension.a")
-    add_velox_dependency(duckdb::fmt "${VELOX_BUILD_DUCKDB_PATH}/third_party/fmt/libduckdb_fmt.a")
-    add_velox_dependency(duckdb::query "${VELOX_BUILD_DUCKDB_PATH}/third_party/libpg_query/libduckdb_pg_query.a")
-    add_velox_dependency(duckdb::re2 "${VELOX_BUILD_DUCKDB_PATH}/third_party/re2/libduckdb_re2.a")
-    add_velox_dependency(duckdb::miniz "${VELOX_BUILD_DUCKDB_PATH}/third_party/miniz/libduckdb_miniz.a")
-    add_velox_dependency(duckdb::utf8 "${VELOX_BUILD_DUCKDB_PATH}/third_party/utf8proc/libduckdb_utf8proc.a")
-    add_velox_dependency(duckdb::hyperloglog "${VELOX_BUILD_DUCKDB_PATH}/third_party/hyperloglog/libduckdb_hyperloglog.a")
-    add_velox_dependency(duckdb::fastpforlib "${VELOX_BUILD_DUCKDB_PATH}/third_party/fastpforlib/libduckdb_fastpforlib.a")
-    add_velox_dependency(duckdb::mbedtls "${VELOX_BUILD_DUCKDB_PATH}/third_party/mbedtls/libduckdb_mbedtls.a")
-    add_velox_dependency(duckdb::fsst "${VELOX_BUILD_DUCKDB_PATH}/third_party/fsst/libduckdb_fsst.a")
+    message(FATAL_ERROR "Cannot find DuckDB.")
   else()
     message(STATUS "Found DuckDB library from ${DuckDB_DIR}")
     target_link_libraries(velox PUBLIC duckdb_static)
@@ -137,7 +134,7 @@ macro(ADD_VELOX_DEPENDENCIES)
     add_velox_dependency(dwio::common::test::utils "${VELOX_COMPONENTS_PATH}/dwio/common/tests/utils/libvelox_dwio_common_test_utils.a")
   endif()
   add_velox_dependency(exec "${VELOX_COMPONENTS_PATH}/exec/libvelox_exec.a")
-  
+
   if(BUILD_TESTS)
     add_velox_dependency(parse::parser "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_parser.a")
     add_velox_dependency(duckdb::parser "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_parser.a")
@@ -174,7 +171,7 @@ macro(ADD_VELOX_DEPENDENCIES)
     add_velox_dependency(parquet::reader::duckdb_conversion "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_conversion.a")
 
     add_duckdb()
-    
+
     add_velox_dependency(tpch::gen "${VELOX_COMPONENTS_PATH}/tpch/gen/libvelox_tpch_gen.a")
     add_velox_dependency(dbgen "${VELOX_COMPONENTS_PATH}/tpch/gen/dbgen/libvelox_dbgen.a")
   endif()
@@ -215,6 +212,9 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(core::config "${VELOX_COMPONENTS_PATH}/core/libvelox_config.a")
   add_velox_dependency(common::encode "${VELOX_COMPONENTS_PATH}/common/encode/libvelox_encode.a")
   add_velox_dependency(common::time "${VELOX_COMPONENTS_PATH}/common/time/libvelox_time.a")
+  if(BUILD_TESTS)
+    add_velox_dependency(common::file::test "${VELOX_COMPONENTS_PATH}/common/file/tests/libvelox_file_test_utils.a")
+  endif()
   add_velox_dependency(common::file "${VELOX_COMPONENTS_PATH}/common/file/libvelox_file.a")
   add_velox_dependency(common::process "${VELOX_COMPONENTS_PATH}/common/process/libvelox_process.a")
 
@@ -300,6 +300,7 @@ set(VELOX_SRCS
     jni/VeloxJniWrapper.cc
     jni/JniFileSystem.cc
     jni/JniUdf.cc
+    memory/BufferOutputStream.cc
     memory/VeloxColumnarBatch.cc
     memory/VeloxMemoryManager.cc
     operators/functions/RegistrationAllFunctions.cc
@@ -310,7 +311,8 @@ set(VELOX_SRCS
     operators/serializer/VeloxRowToColumnarConverter.cc
     operators/writer/VeloxParquetDatasource.cc
     shuffle/VeloxShuffleReader.cc
-    shuffle/VeloxShuffleWriter.cc
+    shuffle/VeloxHashBasedShuffleWriter.cc
+    shuffle/VeloxSortBasedShuffleWriter.cc
     substrait/SubstraitParser.cc
     substrait/SubstraitToVeloxExpr.cc
     substrait/SubstraitToVeloxPlan.cc
@@ -379,6 +381,13 @@ target_link_libraries(velox PUBLIC Arrow::arrow Arrow::parquet)
 target_link_libraries(velox PUBLIC Folly::folly)
 find_re2()
 target_link_libraries(velox PUBLIC ${RE2_LIBRARY})
+
+# since https://github.com/facebookincubator/velox/commit/47970417ac92135e862c0fde350d4d60fa2f1423
+if(Stemmer_FOUND)
+  target_link_libraries(velox PUBLIC stemmer::stemmer)
+else()
+  add_velox_dependency(velox "${VELOX_BUILD_PATH}/_deps/libstemmer/src/libstemmer/libstemmer.a")
+endif()
 
 if(ENABLE_GLUTEN_VCPKG)
   find_package(Thrift CONFIG)

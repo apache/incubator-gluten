@@ -430,11 +430,21 @@ VectorPtr SubstraitVeloxExprConverter::literalsToVector(
     }
     case ::substrait::Expression_Literal::LiteralTypeCase::kIntervalDayToSecond:
       return constructFlatVector<TypeKind::BIGINT>(elementAtFunc, childSize, INTERVAL_DAY_TIME(), pool_);
+    // Handle EmptyList and List together since the children could be either case.
+    case ::substrait::Expression_Literal::LiteralTypeCase::kEmptyList:
     case ::substrait::Expression_Literal::LiteralTypeCase::kList: {
       ArrayVectorPtr elements;
       for (int i = 0; i < childSize; i++) {
-        auto element = elementAtFunc(i);
-        ArrayVectorPtr grandVector = literalsToArrayVector(element);
+        auto child = elementAtFunc(i);
+        auto childType = child.literal_type_case();
+        ArrayVectorPtr grandVector;
+
+        if (childType == ::substrait::Expression_Literal::LiteralTypeCase::kEmptyList) {
+          auto elementType = SubstraitParser::parseType(child.empty_list().type());
+          grandVector = makeEmptyArrayVector(pool_, elementType);
+        } else {
+          grandVector = literalsToArrayVector(child);
+        }
         if (!elements) {
           elements = grandVector;
         } else {
@@ -443,11 +453,22 @@ VectorPtr SubstraitVeloxExprConverter::literalsToVector(
       }
       return elements;
     }
+    // Handle EmptyMap and Map together since the children could be either case.
+    case ::substrait::Expression_Literal::LiteralTypeCase::kEmptyMap:
     case ::substrait::Expression_Literal::LiteralTypeCase::kMap: {
       MapVectorPtr mapVector;
       for (int i = 0; i < childSize; i++) {
-        auto element = elementAtFunc(i);
-        MapVectorPtr grandVector = literalsToMapVector(element);
+        auto child = elementAtFunc(i);
+        auto childType = child.literal_type_case();
+        MapVectorPtr grandVector;
+
+        if (childType == ::substrait::Expression_Literal::LiteralTypeCase::kEmptyMap) {
+          auto keyType = SubstraitParser::parseType(child.empty_map().key());
+          auto valueType = SubstraitParser::parseType(child.empty_map().value());
+          grandVector = makeEmptyMapVector(pool_, keyType, valueType);
+        } else {
+          grandVector = literalsToMapVector(child);
+        }
         if (!mapVector) {
           mapVector = grandVector;
         } else {
@@ -468,15 +489,6 @@ VectorPtr SubstraitVeloxExprConverter::literalsToVector(
         }
       }
       return rowVector;
-    }
-    case ::substrait::Expression_Literal::LiteralTypeCase::kEmptyList: {
-      auto elementType = SubstraitParser::parseType(childLiteral.empty_list().type());
-      return BaseVector::wrapInConstant(1, 0, makeEmptyArrayVector(pool_, elementType));
-    }
-    case ::substrait::Expression_Literal::LiteralTypeCase::kEmptyMap: {
-      auto keyType = SubstraitParser::parseType(childLiteral.empty_map().key());
-      auto valueType = SubstraitParser::parseType(childLiteral.empty_map().value());
-      return BaseVector::wrapInConstant(1, 0, makeEmptyMapVector(pool_, keyType, valueType));
     }
     default:
       auto veloxType = getScalarType(elementAtFunc(0));
@@ -623,6 +635,7 @@ std::unordered_map<std::string, std::string> SubstraitVeloxExprConverter::extrac
     {"MONTH", "month"},
     {"QUARTER", "quarter"},
     {"YEAR", "year"},
-    {"YEAR_OF_WEEK", "week_of_year"}};
+    {"WEEK_OF_YEAR", "week_of_year"},
+    {"YEAR_OF_WEEK", "year_of_week"}};
 
 } // namespace gluten

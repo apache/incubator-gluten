@@ -52,9 +52,8 @@ std::string getConfigValue(
   return got->second;
 }
 
-std::shared_ptr<facebook::velox::core::MemConfigMutable> getHiveConfig(
-    const std::shared_ptr<const facebook::velox::Config>& conf) {
-  auto hiveConf = std::make_shared<facebook::velox::core::MemConfigMutable>();
+std::shared_ptr<facebook::velox::core::MemConfig> getHiveConfig(std::shared_ptr<facebook::velox::Config> conf) {
+  std::unordered_map<std::string, std::string> hiveConfMap;
 
 #ifdef ENABLE_S3
   std::string awsAccessKey = conf->get<std::string>("spark.hadoop.fs.s3a.access.key", "");
@@ -82,24 +81,23 @@ std::shared_ptr<facebook::velox::core::MemConfigMutable> getHiveConfig(
   }
 
   if (useInstanceCredentials) {
-    hiveConf->setValue(facebook::velox::connector::hive::HiveConfig::kS3UseInstanceCredentials, "true");
+    hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3UseInstanceCredentials] = "true";
   } else if (!iamRole.empty()) {
-    hiveConf->setValue(facebook::velox::connector::hive::HiveConfig::kS3IamRole, iamRole);
+    hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3IamRole] = iamRole;
     if (!iamRoleSessionName.empty()) {
-      hiveConf->setValue(facebook::velox::connector::hive::HiveConfig::kS3IamRoleSessionName, iamRoleSessionName);
+      hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3IamRoleSessionName] = iamRoleSessionName;
     }
   } else {
-    hiveConf->setValue(facebook::velox::connector::hive::HiveConfig::kS3AwsAccessKey, awsAccessKey);
-    hiveConf->setValue(facebook::velox::connector::hive::HiveConfig::kS3AwsSecretKey, awsSecretKey);
+    hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3AwsAccessKey] = awsAccessKey;
+    hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3AwsSecretKey] = awsSecretKey;
   }
   // Only need to set s3 endpoint when not use instance credentials.
   if (!useInstanceCredentials) {
-    hiveConf->setValue(facebook::velox::connector::hive::HiveConfig::kS3Endpoint, awsEndpoint);
+    hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3Endpoint] = awsEndpoint;
   }
-  hiveConf->setValue(facebook::velox::connector::hive::HiveConfig::kS3SSLEnabled, sslEnabled ? "true" : "false");
-  hiveConf->setValue(
-      facebook::velox::connector::hive::HiveConfig::kS3PathStyleAccess, pathStyleAccess ? "true" : "false");
-  hiveConf->setValue(facebook::velox::connector::hive::HiveConfig::kS3LogLevel, awsSdkLogLevel);
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3SSLEnabled] = sslEnabled ? "true" : "false";
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3PathStyleAccess] = pathStyleAccess ? "true" : "false";
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3LogLevel] = awsSdkLogLevel;
 #endif
 
 #ifdef ENABLE_GCS
@@ -118,8 +116,8 @@ std::shared_ptr<facebook::velox::core::MemConfigMutable> getHiveConfig(
     }
 
     if (!gcsEndpoint.empty() && !gcsScheme.empty()) {
-      hiveConf->setValue(facebook::velox::connector::hive::HiveConfig::kGCSScheme, gcsScheme);
-      hiveConf->setValue(facebook::velox::connector::hive::HiveConfig::kGCSEndpoint, gcsEndpoint);
+      hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSScheme] = gcsScheme;
+      hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSEndpoint] = gcsEndpoint;
     }
   }
 
@@ -133,7 +131,7 @@ std::shared_ptr<facebook::velox::core::MemConfigMutable> getHiveConfig(
         auto stream = std::ifstream(gsAuthServiceAccountJsonKeyfile.value());
         stream.exceptions(std::ios::badbit);
         std::string gsAuthServiceAccountJson = std::string(std::istreambuf_iterator<char>(stream.rdbuf()), {});
-        hiveConf->setValue(facebook::velox::connector::hive::HiveConfig::kGCSCredentials, gsAuthServiceAccountJson);
+        hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSCredentials] = gsAuthServiceAccountJson;
       } else {
         LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
                         "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
@@ -143,11 +141,10 @@ std::shared_ptr<facebook::velox::core::MemConfigMutable> getHiveConfig(
   }
 #endif
 
-  hiveConf->setValue(
-      facebook::velox::connector::hive::HiveConfig::kEnableFileHandleCache,
-      conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false");
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kEnableFileHandleCache] =
+      conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false";
 
-  return hiveConf;
+  return std::make_shared<facebook::velox::core::MemConfig>(std::move(hiveConfMap));
 }
 
 } // namespace gluten

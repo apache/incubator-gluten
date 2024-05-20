@@ -65,7 +65,8 @@ RUN if [ "$BUILD_BACKEND_TYPE" == "velox" ]; \
                            --build_type=$GLUTEN_BUILD_TYPE --enable_ep_cache=ON"; \
       EXTRA_MAVEN_OPTIONS="-Pspark-3.2 \
                            -Pbackends-velox \
-                           -Prss \
+                           -Pceleborn \
+                           -Puniffle \
                            -Piceberg \
                            -Pdelta \
                            -DskipTests \

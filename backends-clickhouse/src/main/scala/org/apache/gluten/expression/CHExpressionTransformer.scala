@@ -34,7 +34,7 @@ case class CHSizeExpressionTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
     original: Size)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // Pass legacyLiteral as second argument in substrait function
@@ -51,7 +51,7 @@ case class CHTruncTimestampTransformer(
     timestamp: ExpressionTransformer,
     timeZoneId: Option[String] = None,
     original: TruncTimestamp)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // The format must be constant string in the function date_trunc of ch.
@@ -126,7 +126,7 @@ case class CHStringTranslateTransformer(
     matchingExpr: ExpressionTransformer,
     replaceExpr: ExpressionTransformer,
     original: StringTranslate)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // In CH, translateUTF8 requires matchingExpr and replaceExpr argument have the same length
@@ -158,7 +158,7 @@ case class CHPosExplodeTransformer(
     child: ExpressionTransformer,
     original: PosExplode,
     attributeSeq: Seq[Attribute])
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childNode: ExpressionNode = child.doTransform(args)
@@ -202,7 +202,7 @@ case class CHRegExpReplaceTransformer(
     substraitExprName: String,
     children: Seq[ExpressionTransformer],
     original: RegExpReplace)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // In CH: replaceRegexpAll(subject, regexp, rep), which is equivalent

@@ -27,7 +27,7 @@ case class GenericExpressionTransformer(
     substraitExprName: String,
     children: Seq[ExpressionTransformer],
     original: Expression)
-  extends ExpressionTransformer {
+  extends ExpressionTransformerWithOrigin {
   override def doTransform(args: Object): ExpressionNode = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(

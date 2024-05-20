@@ -22,7 +22,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.NamedExpression
+import org.apache.spark.sql.catalyst.expressions.{Expression, NamedExpression}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
@@ -47,6 +47,9 @@ trait BackendSettingsApi {
   def supportSortExec(): Boolean = false
   def supportSortMergeJoinExec(): Boolean = true
   def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
+    false
+  }
+  def supportWindowGroupLimitExec(rankLikeFunction: Expression): Boolean = {
     false
   }
   def supportColumnarShuffleExec(): Boolean = {
@@ -82,7 +85,7 @@ trait BackendSettingsApi {
   def supportShuffleWithProject(outputPartitioning: Partitioning, child: SparkPlan): Boolean = false
   def utilizeShuffledHashJoinHint(): Boolean = false
   def excludeScanExecFromCollapsedStage(): Boolean = false
-  def rescaleDecimalLiteral: Boolean = false
+  def rescaleDecimalArithmetic: Boolean = false
 
   /**
    * Whether to replace sort agg with hash agg., e.g., sort agg will be used in spark's planning for
@@ -95,7 +98,13 @@ trait BackendSettingsApi {
 
   def allowDecimalArithmetic: Boolean = true
 
-  def rescaleDecimalIntegralExpression(): Boolean = false
+  /**
+   * After https://github.com/apache/spark/pull/36698, every arithmetic should report the accurate
+   * result decimal type and implement `CheckOverflow` by itself. <p/> Regardless of whether there
+   * is 36698 or not, this option is used to indicate whether to transform `CheckOverflow`. `false`
+   * means the backend will implement `CheckOverflow` by default and no need to transform it.
+   */
+  def transformCheckOverflow: Boolean = true
 
   def shuffleSupportedCodec(): Set[String]
 
@@ -114,15 +123,20 @@ trait BackendSettingsApi {
 
   def requiredChildOrderingForWindow(): Boolean = false
 
+  def requiredChildOrderingForWindowGroupLimit(): Boolean = false
+
   def staticPartitionWriteOnly(): Boolean = false
 
   def supportTransformWriteFiles: Boolean = false
 
   def requiredInputFilePaths(): Boolean = false
 
-  def enableBloomFilterAggFallbackRule(): Boolean = true
+  // TODO: Move this to test settings as used in UT only.
+  def requireBloomFilterAggMightContainJointFallback(): Boolean = true
 
   def enableNativeWriteFiles(): Boolean
+
+  def enableNativeArrowReadFiles(): Boolean = false
 
   def shouldRewriteCount(): Boolean = false
 
@@ -133,7 +147,7 @@ trait BackendSettingsApi {
   /** Merge two phases hash based aggregate if need */
   def mergeTwoPhasesHashBaseAggregateIfNeed(): Boolean = false
 
-  def shouldRewriteTypedImperativeAggregate(): Boolean = false
+  def supportColumnarArrowUdf(): Boolean = false
 
-  def shouldRewriteCollect(): Boolean = false
+  def generateHdfsConfForLibhdfs(): Boolean = false
 }

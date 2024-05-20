@@ -16,18 +16,16 @@
  */
 package org.apache.gluten.utils
 
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
-import org.apache.spark.sql.execution.exchange._
 
 object PlanUtil {
   private def isGlutenTableCacheInternal(i: InMemoryTableScanExec): Boolean = {
-    // `ColumnarCachedBatchSerializer` is at velox module, so use class name here
-    i.relation.cacheBuilder.serializer.getClass.getSimpleName == "ColumnarCachedBatchSerializer" &&
-    i.supportsColumnar
+    Convention.get(i).batchType == BackendsApiManager.getSparkPlanExecApiInstance.batchType
   }
 
   def isGlutenTableCache(plan: SparkPlan): Boolean = {
@@ -41,40 +39,11 @@ object PlanUtil {
     }
   }
 
-  def outputNativeColumnarData(plan: SparkPlan): Boolean = {
-    plan match {
-      case a: AQEShuffleReadExec => outputNativeColumnarData(a.child)
-      case s: QueryStageExec => outputNativeColumnarData(s.plan)
-      case s: ReusedExchangeExec => outputNativeColumnarData(s.child)
-      case s: InputAdapter => outputNativeColumnarData(s.child)
-      case s: WholeStageCodegenExec => outputNativeColumnarData(s.child)
-      case s: AdaptiveSparkPlanExec => outputNativeColumnarData(s.executedPlan)
-      case i: InMemoryTableScanExec => PlanUtil.isGlutenTableCache(i)
-      case _: GlutenPlan => true
-      case _ => false
-    }
-  }
-
   def isVanillaColumnarOp(plan: SparkPlan): Boolean = {
-    plan match {
-      case i: InMemoryTableScanExec =>
-        if (PlanUtil.isGlutenTableCache(i)) {
-          // `InMemoryTableScanExec` do not need extra RowToColumnar or ColumnarToRow
-          false
-        } else {
-          !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
-        }
-      case a: AQEShuffleReadExec => isVanillaColumnarOp(a.child)
-      case s: QueryStageExec => isVanillaColumnarOp(s.plan)
-      case _: RowToColumnarExec => false
-      case _: InputAdapter => false
-      case _: WholeStageCodegenExec => false
-      case r: ReusedExchangeExec => isVanillaColumnarOp(r.child)
-      case _ => !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
-    }
+    Convention.get(plan).batchType == Convention.BatchType.VanillaBatch
   }
 
   def isGlutenColumnarOp(plan: SparkPlan): Boolean = {
-    plan.isInstanceOf[GlutenPlan]
+    Convention.get(plan).batchType == BackendsApiManager.getSparkPlanExecApiInstance.batchType
   }
 }

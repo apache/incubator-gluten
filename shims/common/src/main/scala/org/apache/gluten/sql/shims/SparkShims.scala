@@ -26,15 +26,20 @@ import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.csv.CSVOptions
+import org.apache.spark.sql.catalyst.expressions.{Attribute, BinaryExpression, Expression}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{ImperativeAggregate, TypedImperativeAggregate}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.Distribution
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.catalyst.trees.TernaryLike
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
-import org.apache.spark.sql.execution.{FileSourceScanExec, GlobalLimitExec, SparkPlan, TakeOrderedAndProjectExec}
+import org.apache.spark.sql.execution.{FileSourceScanExec, FilterExec, GlobalLimitExec, SparkPlan, TakeOrderedAndProjectExec}
+import org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec
+import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex, WriteJobDescription, WriteTaskResult}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
@@ -100,10 +105,37 @@ trait SparkShims {
       length: Long,
       @transient locations: Array[String] = Array.empty): PartitionedFile
 
-  def hasBloomFilterAggregate(
-      agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec): Boolean
+  def bloomFilterExpressionMappings(): Seq[Sig]
 
-  def extractSubPlanFromMightContain(expr: Expression): Option[SparkPlan]
+  def newBloomFilterAggregate[T](
+      child: Expression,
+      estimatedNumItemsExpression: Expression,
+      numBitsExpression: Expression,
+      mutableAggBufferOffset: Int,
+      inputAggBufferOffset: Int): TypedImperativeAggregate[T]
+
+  def newMightContain(
+      bloomFilterExpression: Expression,
+      valueExpression: Expression): BinaryExpression
+
+  def replaceBloomFilterAggregate[T](
+      expr: Expression,
+      bloomFilterAggReplacer: (
+          Expression,
+          Expression,
+          Expression,
+          Int,
+          Int) => TypedImperativeAggregate[T]): Expression;
+
+  def replaceMightContain[T](
+      expr: Expression,
+      mightContainReplacer: (Expression, Expression) => BinaryExpression): Expression
+
+  def isWindowGroupLimitExec(plan: SparkPlan): Boolean = false
+
+  def getWindowGroupLimitExecShim(plan: SparkPlan): SparkPlan = null
+
+  def getWindowGroupLimitExec(windowGroupLimitPlan: SparkPlan): SparkPlan = null
 
   def getLimitAndOffsetFromGlobalLimit(plan: GlobalLimitExec): (Int, Int) = (plan.limit, 0)
 
@@ -195,4 +227,11 @@ trait SparkShims {
 
   def supportsRowBased(plan: SparkPlan): Boolean = !plan.supportsColumnar
 
+  def withTryEvalMode(expr: Expression): Boolean = false
+
+  def withAnsiEvalMode(expr: Expression): Boolean = false
+
+  def dateTimestampFormatInReadIsDefaultValue(csvOptions: CSVOptions, timeZone: String): Boolean
+
+  def isPlannedV1Write(write: DataWritingCommandExec): Boolean = false
 }

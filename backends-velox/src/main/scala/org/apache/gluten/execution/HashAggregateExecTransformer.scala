@@ -20,7 +20,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
-import org.apache.gluten.extension.columnar.RewriteTypedImperativeAggregate
+import org.apache.gluten.expression.aggregate.HLLAdapter
 import org.apache.gluten.substrait.`type`.{TypeBuilder, TypeNode}
 import org.apache.gluten.substrait.{AggregationParams, SubstraitContext}
 import org.apache.gluten.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode, ScalarFunctionNode}
@@ -31,7 +31,6 @@ import org.apache.gluten.utils.VeloxIntermediateData
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.expression.UserDefinedAggregateFunction
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
@@ -59,6 +58,12 @@ abstract class HashAggregateExecTransformer(
     initialInputBufferOffset,
     resultExpressions,
     child) {
+
+  override def output: Seq[Attribute] = {
+    // TODO: We should have a check to make sure the returned schema actually matches the output
+    //  data. Since "resultExpressions" is not actually in used by Velox.
+    super.output
+  }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
@@ -700,27 +705,13 @@ object VeloxAggregateFunctionsBuilder {
       aggregateFunc: AggregateFunction,
       mode: AggregateMode): Long = {
     val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
-
-    var sigName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
-    if (sigName.isEmpty) {
-      throw new GlutenNotSupportException(s"not currently supported: $aggregateFunc.")
-    }
-
-    aggregateFunc match {
-      case First(_, ignoreNulls) =>
-        if (ignoreNulls) sigName = Some(ExpressionNames.FIRST_IGNORE_NULL)
-      case Last(_, ignoreNulls) =>
-        if (ignoreNulls) sigName = Some(ExpressionNames.LAST_IGNORE_NULL)
-      case UserDefinedAggregateFunction(name, _, _, _, _) =>
-        sigName = Some(name)
-      case _ =>
-    }
+    val sigName = AggregateFunctionsBuilder.getSubstraitFunctionName(aggregateFunc)
 
     ExpressionBuilder.newScalarFunction(
       functionMap,
       ConverterUtils.makeFuncName(
         // Substrait-to-Velox procedure will choose appropriate companion function if needed.
-        sigName.get,
+        sigName,
         VeloxIntermediateData.getInputTypes(aggregateFunc, mode == PartialMerge || mode == Final),
         FunctionConfig.REQ
       )
@@ -793,37 +784,22 @@ case class FlushableHashAggregateExecTransformer(
 }
 
 case class HashAggregateExecPullOutHelper(
-    groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
     aggregateAttributes: Seq[Attribute])
-  extends HashAggregateExecPullOutBaseHelper(
-    groupingExpressions,
-    aggregateExpressions,
-    aggregateAttributes) {
+  extends HashAggregateExecPullOutBaseHelper {
 
   /** This method calculates the output attributes of Aggregation. */
   override protected def getAttrForAggregateExprs: List[Attribute] = {
     aggregateExpressions.zipWithIndex.flatMap {
       case (expr, index) =>
-        handleSpecialAggregateAttr
-          .lift(expr)
-          .getOrElse(expr.mode match {
-            case Partial | PartialMerge =>
-              expr.aggregateFunction.aggBufferAttributes
-            case Final =>
-              Seq(aggregateAttributes(index))
-            case other =>
-              throw new GlutenNotSupportException(s"Unsupported aggregate mode: $other.")
-          })
+        expr.mode match {
+          case Partial | PartialMerge =>
+            expr.aggregateFunction.aggBufferAttributes
+          case Final =>
+            Seq(aggregateAttributes(index))
+          case other =>
+            throw new GlutenNotSupportException(s"Unsupported aggregate mode: $other.")
+        }
     }.toList
-  }
-
-  private val handleSpecialAggregateAttr: PartialFunction[AggregateExpression, Seq[Attribute]] = {
-    case ae: AggregateExpression if RewriteTypedImperativeAggregate.shouldRewrite(ae) =>
-      val aggBufferAttr = ae.aggregateFunction.inputAggBufferAttributes.head
-      Seq(
-        aggBufferAttr.copy(dataType = ae.aggregateFunction.dataType)(
-          aggBufferAttr.exprId,
-          aggBufferAttr.qualifier))
   }
 }

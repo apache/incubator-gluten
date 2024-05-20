@@ -256,11 +256,11 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   override def shuffleSupportedCodec(): Set[String] = GLUTEN_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC
   override def needOutputSchemaForPlan(): Boolean = true
 
-  override def allowDecimalArithmetic: Boolean = !SQLConf.get.decimalOperationsAllowPrecisionLoss
+  override def transformCheckOverflow: Boolean = false
 
   override def requiredInputFilePaths(): Boolean = true
 
-  override def enableBloomFilterAggFallbackRule(): Boolean = false
+  override def requireBloomFilterAggMightContainJointFallback(): Boolean = false
 
   def maxShuffleReadRows(): Long = {
     SparkEnv.get.conf

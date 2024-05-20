@@ -18,7 +18,14 @@ package org.apache.gluten.integration.tpc
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.TypeUtils
-import org.apache.spark.sql.types.{DateType, DecimalType, DoubleType, IntegerType, LongType, StringType}
+import org.apache.spark.sql.types.{
+  DateType,
+  DecimalType,
+  DoubleType,
+  IntegerType,
+  LongType,
+  StringType
+}
 
 import java.sql.Date
 
@@ -33,16 +40,15 @@ object Constants {
     .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
     .set("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")
     .set("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "0")
-    .set(
-      "spark.gluten.sql.columnar.physicalJoinOptimizeEnable",
-      "false"
-    ) // q72 slow if false, q64 fails if true
+    .set("spark.gluten.sql.columnar.physicalJoinOptimizeEnable", "false") // q72 slow if false, q64 fails if true
 
   val VELOX_WITH_CELEBORN_CONF: SparkConf = new SparkConf(false)
     .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")
     .set("spark.sql.parquet.enableVectorizedReader", "true")
     .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
-    .set("spark.shuffle.manager", "org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager")
+    .set(
+      "spark.shuffle.manager",
+      "org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager")
     .set("spark.celeborn.shuffle.writer", "hash")
     .set("spark.celeborn.push.replicate.enabled", "false")
     .set("spark.celeborn.client.shuffle.compression.codec", "none")
@@ -51,12 +57,25 @@ object Constants {
     .set("spark.dynamicAllocation.enabled", "false")
     .set("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")
     .set("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "0")
-    .set(
-      "spark.gluten.sql.columnar.physicalJoinOptimizeEnable",
-      "false"
-    ) // q72 slow if false, q64 fails if true
+    .set("spark.gluten.sql.columnar.physicalJoinOptimizeEnable", "false") // q72 slow if false, q64 fails if true
     .set("spark.celeborn.push.data.timeout", "600s")
     .set("spark.celeborn.push.limit.inFlight.timeout", "1200s")
+
+  val VELOX_WITH_UNIFFLE_CONF: SparkConf = new SparkConf(false)
+    .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")
+    .set("spark.sql.parquet.enableVectorizedReader", "true")
+    .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
+    .set("spark.shuffle.manager", "org.apache.spark.shuffle.gluten.uniffle.UniffleShuffleManager")
+    .set("spark.rss.coordinator.quorum", "localhost:19999")
+    .set("spark.rss.storage.type", "MEMORY_LOCALFILE")
+    .set("spark.rss.client.type", "GRPC_NETTY")
+    .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+    .set("spark.shuffle.service.enabled", "false")
+    .set("spark.sql.adaptive.localShuffleReader.enabled", "false")
+    .set("spark.dynamicAllocation.enabled", "false")
+    .set("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")
+    .set("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "0")
+    .set("spark.gluten.sql.columnar.physicalJoinOptimizeEnable", "false")
 
   @deprecated
   val TYPE_MODIFIER_DATE_AS_DOUBLE: TypeModifier =

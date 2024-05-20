@@ -17,13 +17,27 @@
 
 #pragma once
 
-#include <Common/MergeTreeTool.h>
 #include <Storages/StorageMergeTreeFactory.h>
+#include <Common/MergeTreeTool.h>
 
 namespace local_engine
 {
 
-void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable & mergeTreeTable, ContextPtr & context);
+void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable & mergeTreeTable, const Context & context);
 
+void saveFileStatus(
+    const DB::MergeTreeData & storage,
+    const DB::ContextPtr& context,
+    const String & part_name,
+    IDataPartStorage & data_part_storage);
+
+std::vector<MergeTreeDataPartPtr> mergeParts(
+    std::vector<DB::DataPartPtr> selected_parts,
+    std::unordered_map<String, String> & partition_values,
+    const String & new_part_uuid,
+    CustomStorageMergeTreePtr storage,
+    const String & partition_dir,
+    const String & bucket_dir);
+
+void extractPartitionValues(const String & partition_dir, std::unordered_map<String, String> & partition_values);
 }
-

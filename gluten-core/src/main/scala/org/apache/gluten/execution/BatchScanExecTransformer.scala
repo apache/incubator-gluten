@@ -136,6 +136,11 @@ abstract class BatchScanExecTransformerBase(
     if (pushedAggregate.nonEmpty) {
       return ValidationResult.notOk(s"Unsupported aggregation push down for $scan.")
     }
+
+    if (hasUnsupportedColumns) {
+      return ValidationResult.notOk(s"Unsupported columns scan in native.")
+    }
+
     super.doValidateInternal()
   }
 

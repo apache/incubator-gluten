@@ -54,6 +54,9 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
+      .set(
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
+        "false")
   }
 
   override protected def beforeEach(): Unit = {
@@ -460,7 +463,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  |USING clickhouse
                  |PARTITIONED BY (l_returnflag)
                  |CLUSTERED BY (l_orderkey)
-                 |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_orderkey)"} INTO 4 BUCKETS
+                 |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_partkey)"} INTO 4 BUCKETS
                  |LOCATION '$HDFS_URL/test/lineitem_mergetree_bucket_hdfs'
                  |TBLPROPERTIES (storage_policy='__hdfs_main')
                  |""".stripMargin)
@@ -517,7 +520,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
               .orderByKeyOption
               .get
               .mkString(",")
-              .equals("l_orderkey"))
+              .equals("l_partkey"))
         }
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.isEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size == 1)
@@ -534,5 +537,87 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
     spark.sql("drop table lineitem_mergetree_bucket_hdfs")
   }
 
+  ignore("test mergetree write with the path based") {
+    val dataPath = s"$HDFS_URL/test/lineitem_mergetree_bucket_hdfs"
+
+    val sourceDF = spark.sql(s"""
+                                |select * from lineitem
+                                |""".stripMargin)
+
+    sourceDF.write
+      .format("clickhouse")
+      .mode(SaveMode.Append)
+      .partitionBy("l_returnflag")
+      .option("clickhouse.orderByKey", "l_orderkey")
+      .option("clickhouse.primaryKey", "l_orderkey")
+      .option("clickhouse.numBuckets", "4")
+      .option("clickhouse.bucketColumnNames", "l_orderkey")
+      .option("clickhouse.storage_policy", "__hdfs_main")
+      .save(dataPath)
+
+    val sqlStr =
+      s"""
+         |SELECT
+         |    l_returnflag,
+         |    l_linestatus,
+         |    sum(l_quantity) AS sum_qty,
+         |    sum(l_extendedprice) AS sum_base_price,
+         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
+         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
+         |    avg(l_quantity) AS avg_qty,
+         |    avg(l_extendedprice) AS avg_price,
+         |    avg(l_discount) AS avg_disc,
+         |    count(*) AS count_order
+         |FROM
+         |    clickhouse.`$dataPath`
+         |WHERE
+         |    l_shipdate <= date'1998-09-02' - interval 1 day
+         |GROUP BY
+         |    l_returnflag,
+         |    l_linestatus
+         |ORDER BY
+         |    l_returnflag,
+         |    l_linestatus;
+         |
+         |""".stripMargin
+    runTPCHQueryBySQL(1, sqlStr) {
+      df =>
+        val scanExec = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer => f
+        }
+        assert(scanExec.size == 1)
+
+        val mergetreeScan = scanExec(0)
+        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+
+        val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
+        assert(!ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
+        assert(
+          ClickHouseTableV2
+            .getTable(fileIndex.deltaLog)
+            .orderByKeyOption
+            .get
+            .mkString(",")
+            .equals("l_orderkey"))
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.nonEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size == 1)
+        assert(
+          ClickHouseTableV2
+            .getTable(fileIndex.deltaLog)
+            .partitionColumns(0)
+            .equals("l_returnflag"))
+        val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
+
+        assert(addFiles.size == 12)
+        assert(addFiles.map(_.rows).sum == 600572)
+    }
+
+    val result = spark.read
+      .format("clickhouse")
+      .load(dataPath)
+      .count()
+    assert(result == 600572)
+  }
 }
 // scalastyle:off line.size.limit
