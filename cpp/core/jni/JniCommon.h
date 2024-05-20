@@ -31,6 +31,7 @@
 #include "utils/exception.h"
 
 static jint jniVersion = JNI_VERSION_1_8;
+static map<int, string> type2sig = buildTypeMapping();
 
 static inline std::string jStringToCString(JNIEnv* env, jstring string) {
   int32_t jlen, clen;
@@ -100,6 +101,41 @@ static inline jmethodID getStaticMethodIdOrError(JNIEnv* env, jclass thisClass, 
     throw gluten::GlutenException(errorMessage);
   }
   return ret;
+}
+
+static inline map<int, string>& buildTypeMapping(){
+  map<int,string> type2sig;
+
+  type2sig[typeid(jint).hash_code()] = "I";
+  type2sig[typeid(jboolean).hash_code()] = "Z";
+  type2sig[typeid(jlong).hash_code()] = "J";
+  type2sig[typeid(byte).hash_code()] = "B";
+  type2sig[typeid(char).hash_code()] = "C";
+  type2sig[typeid(double).hash_code()] = "D";
+  type2sig[typeid(jstring).hash_code()] = "Ljava/lang/String;";
+  type2sig[typeid(jthrowable).hash_code()] = "Ljava/lang/Throwable;";
+  return type2sig;
+}
+
+template<typename T>
+static inline string& getSig(T t){
+  return type2sig[typeid(t).hash_code()];
+}
+
+template <typename T, typename... Args>
+static string& getSignature(T returnValue, Args... args){
+  string returnSign = getSig(returnValue);
+  return "("+ getParameterSignature(args) +")" + returnSign;
+}
+
+template <typename T, typename... Args>
+static string& getParameterSignature(T t, Args... args){
+  return getSig(t) + getParameterSignature(args);
+}
+
+template <typename T>
+static string& getParameterSignature(T t){
+  return getSig(t);
 }
 
 static inline void attachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) {
