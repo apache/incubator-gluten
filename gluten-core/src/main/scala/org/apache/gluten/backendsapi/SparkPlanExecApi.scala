@@ -709,7 +709,8 @@ trait SparkPlanExecApi {
             extraFilters
         }
       case _ =>
-        throw new GlutenNotSupportException(s"${sparkExecNode.getClass.toString} is not supported test.")
+        logWarning("test")
+        throw new GlutenNotSupportException(s"${sparkExecNode.getClass.toString} is not supported.")
     }
   }
 
