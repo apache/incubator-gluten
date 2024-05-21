@@ -1210,7 +1210,7 @@ object GlutenConfig {
   val COLUMNAR_VELOX_MEM_INIT_CAPACITY =
     buildConf("spark.gluten.sql.columnar.backend.velox.memInitCapacity")
       .internal()
-      .doc("The initial memory capacity.")
+      .doc("The initial memory capacity to reserve for a newly created Velox query memory pool.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8MB")
 
