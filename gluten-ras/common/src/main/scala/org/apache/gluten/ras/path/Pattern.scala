@@ -52,7 +52,7 @@ object Pattern {
     def children(count: Int): Seq[Node[T]]
   }
 
-  private case class Any[T <: AnyRef]() extends Node[Null] {
+  private case class Any private () extends Node[Null] {
     override def skip(): Boolean = false
     override def abort(node: CanonicalNode[Null]): Boolean = false
     override def matches(node: CanonicalNode[Null]): Boolean = true
@@ -60,12 +60,12 @@ object Pattern {
   }
 
   private object Any {
-    val INSTANCE: Any[Null] = Any[Null]()
+    val INSTANCE: Node[Null] = new Any()
     // Enclose default constructor.
-    private def apply[T <: AnyRef](): Any[T] = new Any()
+    private def apply(): Node[Null] = throw new UnsupportedOperationException()
   }
 
-  private case class Ignore[T <: AnyRef]() extends Node[Null] {
+  private case class Ignore private () extends Node[Null] {
     override def skip(): Boolean = true
     override def abort(node: CanonicalNode[Null]): Boolean = false
     override def matches(node: CanonicalNode[Null]): Boolean =
@@ -74,10 +74,17 @@ object Pattern {
   }
 
   private object Ignore {
-    val INSTANCE: Ignore[Null] = Ignore[Null]()
+    val INSTANCE: Node[Null] = new Ignore()
 
     // Enclose default constructor.
-    private def apply[T <: AnyRef](): Ignore[T] = new Ignore()
+    private def apply(): Node[Null] = throw new UnsupportedOperationException()
+  }
+
+  private case class Single[T <: AnyRef](matcher: Matcher[T]) extends Node[T] {
+    override def skip(): Boolean = false
+    override def abort(node: CanonicalNode[T]): Boolean = false
+    override def matches(node: CanonicalNode[T]): Boolean = matcher(node.self())
+    override def children(count: Int): Seq[Node[T]] = (0 until count).map(_ => ignore[T])
   }
 
   private case class Branch[T <: AnyRef](matcher: Matcher[T], children: Seq[Node[T]])
@@ -93,7 +100,8 @@ object Pattern {
 
   def any[T <: AnyRef]: Node[T] = Any.INSTANCE.asInstanceOf[Node[T]]
   def ignore[T <: AnyRef]: Node[T] = Ignore.INSTANCE.asInstanceOf[Node[T]]
-  def node[T <: AnyRef](matcher: Matcher[T], children: Node[T]*): Node[T] =
+  def node[T <: AnyRef](matcher: Matcher[T]): Node[T] = Single(matcher)
+  def branch[T <: AnyRef](matcher: Matcher[T], children: Node[T]*): Node[T] =
     Branch(matcher, children.toSeq)
   def leaf[T <: AnyRef](matcher: Matcher[T]): Node[T] = Branch(matcher, List.empty)
 

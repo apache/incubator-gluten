@@ -42,7 +42,7 @@ object RemoveFilter extends RasRule[SparkPlan] {
 
   override def shape(): Shape[SparkPlan] =
     pattern(
-      node[SparkPlan](
+      branch[SparkPlan](
         clazz(classOf[FilterExecTransformerBase]),
         leaf(clazz(classOf[BasicScanExecTransformer]))
       ).build())

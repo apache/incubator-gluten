@@ -50,16 +50,16 @@ class PushFilterToScan(validator: Validator) extends RasRule[SparkPlan] {
   override def shape(): Shape[SparkPlan] =
     anyOf(
       pattern(
-        node[SparkPlan](
+        branch[SparkPlan](
           clazz(classOf[FilterExec]),
           leaf(
             or(clazz(classOf[FileSourceScanExec]), clazz(classOf[BatchScanExec]))
           )
         ).build()),
       pattern(
-        node[SparkPlan](
+        branch[SparkPlan](
           clazz(classOf[FilterExec]),
-          node(
+          branch(
             clazz(classOf[ColumnarToRowTransition]),
             leaf(
               or(clazz(classOf[FileSourceScanExec]), clazz(classOf[BatchScanExec]))
