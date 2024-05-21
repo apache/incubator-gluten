@@ -404,12 +404,7 @@ std::unique_ptr<ColumnarBatchIterator> VeloxColumnarBatchDeserializerFactory::cr
         decompressTime_);
   }
   return std::make_unique<VeloxShuffleReaderOutStreamWrapper>(
-      veloxPool_,
-      rowType_,
-      batchSize_,
-      veloxCompressionType_,
-      deserializeTime_,
-      std::move(in));
+      veloxPool_, rowType_, batchSize_, veloxCompressionType_, deserializeTime_, std::move(in));
 }
 
 VeloxShuffleReaderOutStreamWrapper::VeloxShuffleReaderOutStreamWrapper(
