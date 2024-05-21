@@ -401,6 +401,7 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"forall", "all_match"},
     {"exists", "any_match"},
     {"negative", "unaryminus"},
+    {"get_array_item", "get"},
     {"arrays_zip", "zip"}};
 
 const std::unordered_map<std::string, std::string> SubstraitParser::typeMap_ = {
