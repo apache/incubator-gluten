@@ -454,9 +454,9 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           m
         )
       case rand: Rand =>
-        BackendsApiManager.getSparkPlanExecApiInstance.genRandTransformer(
+        GenericExpressionTransformer(
           substraitExprName,
-          replaceWithExpressionTransformerInternal(rand.child, attributeSeq, expressionsMap),
+          Seq(replaceWithExpressionTransformerInternal(rand.child, attributeSeq, expressionsMap)),
           rand)
       case _: NormalizeNaNAndZero | _: PromotePrecision | _: TaggingExpression =>
         ChildTransformer(

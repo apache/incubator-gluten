@@ -91,28 +91,6 @@ case class CheckOverflowTransformer(
   }
 }
 
-/**
- * User can specify a seed for this function. If lacked, spark will generate a random number as
- * seed. We also need to pass a unique partitionIndex provided by framework to native library for
- * each thread. Then, seed plus partitionIndex will be the actual seed for generator, similar to
- * vanilla spark. This is based on the fact that partitioning is deterministic and one partition is
- * corresponding to one task thread.
- */
-case class RandTransformer(
-    substraitExprName: String,
-    explicitSeed: ExpressionTransformer,
-    original: Rand)
-  extends LeafExpressionTransformer {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    if (!original.hideSeed) {
-      // TODO: for user-specified seed, we need to pass partition index to native engine.
-      throw new GlutenNotSupportException("User-specified seed is not supported.")
-    }
-    super.doTransform(args)
-  }
-}
-
 case class GetStructFieldTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,

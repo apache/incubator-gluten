@@ -449,3 +449,5 @@ Gluten supports 199 functions. (Drag to right to see all data types)
 | stack                         |                        |                       |        |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
 | xxhash64                      | xxhash64               | xxhash64              |        |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
 | uuid                          | uuid                   | uuid                  | S      |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
+| rand                          | rand                   | rand                  | S      |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
+
