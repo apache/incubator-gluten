@@ -67,7 +67,6 @@ class ShuffleReader {
  protected:
   arrow::MemoryPool* pool_;
   int64_t decompressTime_ = 0;
-  int64_t ipcTime_ = 0;
   int64_t deserializeTime_ = 0;
 
   ShuffleWriterType shuffleWriterType_;

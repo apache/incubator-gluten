@@ -513,11 +513,14 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       schema: StructType,
       metrics: Map[String, SQLMetric],
       isSort: Boolean): Serializer = {
-    val readBatchNumRows = metrics("avgReadBatchNumRows")
     val numOutputRows = metrics("numOutputRows")
-    val decompressTime = metrics("decompressTime")
-    val ipcTime = metrics("ipcTime")
     val deserializeTime = metrics("deserializeTime")
+    val readBatchNumRows = metrics("avgReadBatchNumRows")
+    val decompressTime: Option[SQLMetric] = if (!isSort) {
+      Some(metrics("decompressTime"))
+    } else {
+      None
+    }
     if (GlutenConfig.getConf.isUseCelebornShuffleManager) {
       val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CelebornColumnarBatchSerializer")
       val constructor =
@@ -528,9 +531,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         schema,
         readBatchNumRows,
         numOutputRows,
-        decompressTime,
-        ipcTime,
         deserializeTime,
+        decompressTime,
         isSort)
     }
   }

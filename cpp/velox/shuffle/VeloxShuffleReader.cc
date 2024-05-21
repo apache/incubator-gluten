@@ -408,9 +408,8 @@ std::unique_ptr<ColumnarBatchIterator> VeloxColumnarBatchDeserializerFactory::cr
       rowType_,
       batchSize_,
       veloxCompressionType_,
-      [this](int64_t decompressionTime) { this->decompressTime_ += decompressionTime; },
-      [this](int64_t deserializeTime) { this->deserializeTime_ += deserializeTime; },
-      in);
+      deserializeTime_,
+      std::move(in));
 }
 
 VeloxShuffleReaderOutStreamWrapper::VeloxShuffleReaderOutStreamWrapper(
@@ -418,26 +417,25 @@ VeloxShuffleReaderOutStreamWrapper::VeloxShuffleReaderOutStreamWrapper(
     const RowTypePtr& rowType,
     int32_t batchSize,
     facebook::velox::common::CompressionKind veloxCompressionType,
-    const std::function<void(int64_t)> decompressionTimeAccumulator,
-    const std::function<void(int64_t)> deserializeTimeAccumulator,
-    const std::shared_ptr<arrow::io::InputStream> in)
+    int64_t& deserializeTime,
+    std::shared_ptr<arrow::io::InputStream> in)
     : veloxPool_(veloxPool),
       rowType_(rowType),
       batchSize_(batchSize),
       veloxCompressionType_(veloxCompressionType),
-      decompressionTimeAccumulator_(decompressionTimeAccumulator),
-      deserializeTimeAccumulator_(deserializeTimeAccumulator) {
+      deserializeTime_(deserializeTime) {
   constexpr uint64_t kMaxReadBufferSize = (1 << 20) - AlignedBuffer::kPaddedSize;
   auto buffer = AlignedBuffer::allocate<char>(kMaxReadBufferSize, veloxPool_.get());
   in_ = std::make_unique<VeloxInputStream>(std::move(in), std::move(buffer));
   serdeOptions_ = {false, veloxCompressionType_};
-  RowVectorPtr rowVector;
 }
 
 std::shared_ptr<ColumnarBatch> VeloxShuffleReaderOutStreamWrapper::next() {
   if (!in_->hasNext()) {
     return nullptr;
   }
+
+  ScopedTimer timer(&deserializeTime_);
 
   RowVectorPtr rowVector;
   VectorStreamGroup::read(in_.get(), veloxPool_.get(), rowType_, &rowVector, &serdeOptions_);
@@ -452,11 +450,6 @@ std::shared_ptr<ColumnarBatch> VeloxShuffleReaderOutStreamWrapper::next() {
     rowVector->append(rowVectorTemp.get());
   }
 
-  int64_t decompressTime = 0LL;
-  int64_t deserializeTime = 0LL;
-
-  decompressionTimeAccumulator_(decompressTime);
-  deserializeTimeAccumulator_(deserializeTime);
   return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
 }
 
@@ -527,7 +520,7 @@ void VeloxInputStream::next(bool throwIfPastEnd) {
   offset_ = in_->Read(readBytes, buffer_->asMutable<char>()).ValueOr(0);
   if (offset_ > 0) {
     int32_t realBytes = offset_;
-    VELOX_CHECK_LT(0, realBytes, "Reading past end of spill file");
+    VELOX_CHECK_LT(0, realBytes, "Reading past end of file.");
     setRange({buffer_->asMutable<uint8_t>(), realBytes, 0});
   }
 }
