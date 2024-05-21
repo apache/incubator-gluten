@@ -709,8 +709,8 @@ trait SparkPlanExecApi {
             extraFilters
         }
       case _ =>
-        logWarning("test")
-        throw new GlutenNotSupportException(s"${sparkExecNode.getClass.toString} is not supported.")
+        val className = sparkExecNode.getClass.toString
+        throw new GlutenNotSupportException(s"$className is not supported.")
     }
   }
 
