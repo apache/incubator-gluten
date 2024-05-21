@@ -371,6 +371,15 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       right,
       isNullAwareAntiJoin)
 
+  override def genSampleExecTransformer(
+      lowerBound: Double,
+      upperBound: Double,
+      withReplacement: Boolean,
+      seed: Long,
+      child: SparkPlan): SampleExecTransformer = {
+    SampleExecTransformer(lowerBound, upperBound, withReplacement, seed, child)
+  }
+
   override def genSortMergeJoinExecTransformer(
       leftKeys: Seq[Expression],
       rightKeys: Seq[Expression],

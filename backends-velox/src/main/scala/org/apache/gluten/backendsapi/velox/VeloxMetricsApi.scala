@@ -534,4 +534,20 @@ class VeloxMetricsApi extends MetricsApi with Logging {
 
   override def genNestedLoopJoinTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new NestedLoopJoinMetricsUpdater(metrics)
+
+  override def genSampleTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
+    Map(
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of sample"),
+      "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+      "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
+      "numMemoryAllocations" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of memory allocations")
+    )
+
+  override def genSampleTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
+    new SampleMetricsUpdater(metrics)
 }

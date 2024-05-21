@@ -360,6 +360,17 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       s"NestedLoopJoinTransformer metrics update is not supported in CH backend")
   }
 
+  override def genSampleTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] = {
+    throw new UnsupportedOperationException(
+      s"SampleTransformer metrics update is not supported in CH backend")
+  }
+
+  override def genSampleTransformerMetricsUpdater(
+      metrics: Map[String, SQLMetric]): MetricsUpdater = {
+    throw new UnsupportedOperationException(
+      s"SampleTransformer metrics update is not supported in CH backend")
+  }
+
   def genWriteFilesTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] = {
     throw new UnsupportedOperationException(
       s"WriteFilesTransformer metrics update is not supported in CH backend")

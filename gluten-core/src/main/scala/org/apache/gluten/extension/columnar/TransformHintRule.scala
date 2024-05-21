@@ -500,6 +500,15 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             plan.child,
             offset)
           transformer.doValidate().tagOnFallback(plan)
+        case plan: SampleExec =>
+          val transformer = BackendsApiManager.getSparkPlanExecApiInstance.genSampleExecTransformer(
+            plan.lowerBound,
+            plan.upperBound,
+            plan.withReplacement,
+            plan.seed,
+            plan.child
+          )
+          transformer.doValidate().tagOnFallback(plan)
         case _ =>
         // Currently we assume a plan to be transformable by default.
       }

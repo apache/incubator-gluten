@@ -991,6 +991,18 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     }
   }
 
+  test("Test sample op") {
+    withSQLConf("spark.gluten.sql.columnarSampleEnabled" -> "true") {
+      withTable("t") {
+        sql("create table t (id int, b boolean) using parquet")
+        sql("insert into t values (1, true), (2, false), (3, null), (4, true), (5, false)")
+        runQueryAndCompare("select * from t TABLESAMPLE(20 PERCENT)", false) {
+          checkGlutenOperatorMatch[SampleExecTransformer]
+        }
+      }
+    }
+  }
+
   test("test cross join") {
     withTable("t1", "t2") {
       sql("""

@@ -87,6 +87,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarBroadcastJoin: Boolean = conf.getConf(COLUMNAR_BROADCAST_JOIN_ENABLED)
 
+  def enableColumnarSample: Boolean = conf.getConf(COLUMNAR_SAMPLE_ENABLED)
+
   def enableColumnarArrowUDF: Boolean = conf.getConf(COLUMNAR_ARROW_UDF_ENABLED)
 
   def enableColumnarCoalesce: Boolean = conf.getConf(COLUMNAR_COALESCE_ENABLED)
@@ -1742,6 +1744,13 @@ object GlutenConfig {
       .doc("Config to enable BroadcastNestedLoopJoinExecTransformer.")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_SAMPLE_ENABLED =
+    buildConf("spark.gluten.sql.columnarSampleEnabled")
+      .internal()
+      .doc("Disable or enable columnar sample.")
+      .booleanConf
+      .createWithDefault(false)
 
   val CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT =
     buildConf("spark.gluten.sql.cacheWholeStageTransformerContext")
