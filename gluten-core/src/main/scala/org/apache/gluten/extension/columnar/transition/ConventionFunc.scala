@@ -49,14 +49,18 @@ object ConventionFunc {
   }
 
   def create(): ConventionFunc = {
+    val batchOverride = newOverride()
+    new BuiltinFunc(batchOverride)
+  }
+
+  private def newOverride(): BatchOverride = {
     synchronized {
       if (ignoreBackend) {
         // For testing
-        return new BuiltinFunc(PartialFunction.empty)
+        return PartialFunction.empty
       }
     }
-    val batchOverride = BackendsApiManager.getSparkPlanExecApiInstance.batchTypeFunc()
-    new BuiltinFunc(batchOverride)
+    BackendsApiManager.getSparkPlanExecApiInstance.batchTypeFunc()
   }
 
   private class BuiltinFunc(o: BatchOverride) extends ConventionFunc {
@@ -94,24 +98,37 @@ object ConventionFunc {
     }
 
     private def rowTypeOf(plan: SparkPlan): Convention.RowType = {
-      if (!SparkShimLoader.getSparkShims.supportsRowBased(plan)) {
-        return Convention.RowType.None
+      val out = plan match {
+        case k: Convention.KnownRowType =>
+          k.rowType()
+        case _ if !SparkShimLoader.getSparkShims.supportsRowBased(plan) =>
+          Convention.RowType.None
+        case _ =>
+          Convention.RowType.VanillaRow
       }
-      Convention.RowType.VanillaRow
+      if (out != Convention.RowType.None) {
+        assert(SparkShimLoader.getSparkShims.supportsRowBased(plan))
+      }
+      out
     }
 
     private def batchTypeOf(plan: SparkPlan): Convention.BatchType = {
-      if (!plan.supportsColumnar) {
-        return Convention.BatchType.None
-      }
-      o.applyOrElse(
+      val out = o.applyOrElse(
         plan,
         (p: SparkPlan) =>
           p match {
-            case g: Convention.KnownBatchType => g.batchType()
-            case _ => Convention.BatchType.VanillaBatch
+            case k: Convention.KnownBatchType =>
+              k.batchType()
+            case _ if !plan.supportsColumnar =>
+              Convention.BatchType.None
+            case _ =>
+              Convention.BatchType.VanillaBatch
           }
       )
+      if (out != Convention.BatchType.None) {
+        assert(plan.supportsColumnar)
+      }
+      out
     }
 
     override def conventionReqOf(plan: SparkPlan): ConventionReq = {

@@ -46,6 +46,10 @@ object Conv {
   def of(conv: Convention): Conv = Prop(conv)
   def req(req: ConventionReq): Conv = Req(req)
 
+  def get(plan: SparkPlan): Conv = {
+    Conv.of(Convention.get(plan))
+  }
+
   def findTransition(from: Conv, to: Conv): Transition = {
     val prop = from.asInstanceOf[Prop]
     val req = to.asInstanceOf[Req]
@@ -71,7 +75,7 @@ object ConvDef extends PropertyDef[SparkPlan, Conv] {
   }
 
   private def conventionOf(plan: SparkPlan): Conv = {
-    val out = Conv.of(Convention.get(plan))
+    val out = Conv.get(plan)
     out
   }
 
@@ -91,7 +95,7 @@ case class ConvEnforcerRule(reqConv: Conv) extends RasRule[SparkPlan] {
       // Disable transitions for node that has output with empty schema.
       return List.empty
     }
-    val conv = Conv.of(Convention.get(node))
+    val conv = Conv.get(node)
     if (conv.satisfies(reqConv)) {
       return List.empty
     }

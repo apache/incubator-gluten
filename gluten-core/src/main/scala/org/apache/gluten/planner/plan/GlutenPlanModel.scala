@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.planner.plan
 
-import org.apache.gluten.extension.columnar.transition.ConventionReq.BatchType
-import org.apache.gluten.extension.columnar.transition.ConventionReq.RowType
+import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
+import org.apache.gluten.extension.columnar.transition.Convention.{KnownBatchType, KnownRowType}
 import org.apache.gluten.planner.metadata.GlutenMetadata
 import org.apache.gluten.planner.property.{Conv, ConvDef}
 import org.apache.gluten.ras.{Metadata, PlanModel}
@@ -39,16 +39,37 @@ object GlutenPlanModel {
       groupId: Int,
       metadata: GlutenMetadata,
       propertySet: PropertySet[SparkPlan])
-    extends LeafExecNode {
-    val conv: Conv.Req = propertySet.get(ConvDef).asInstanceOf[Conv.Req]
+    extends LeafExecNode
+    with KnownBatchType
+    with KnownRowType {
+    private val req: Conv.Req = propertySet.get(ConvDef).asInstanceOf[Conv.Req]
 
     override protected def doExecute(): RDD[InternalRow] = throw new IllegalStateException()
     override def output: Seq[Attribute] = metadata.schema().output
-    override val supportsColumnar: Boolean = {
-      (conv.req.requiredRowType, conv.req.requiredBatchType) match {
-        case (RowType.Is(_), BatchType.Any) => false
-        case _ => true
+
+    override def supportsColumnar(): Boolean = {
+      // GroupLeafExec's supportsColumnar isn't actually used since it implements `KnownBatchType`
+      // which takes higher precedence than this method in Gluten.
+      //
+      // However we need this to set to true to avoid AssertionError then as child of
+      // ColumnarToRowExec.
+      true
+    }
+
+    override val batchType: Convention.BatchType = {
+      val out = req.req.requiredBatchType match {
+        case ConventionReq.BatchType.Any => Convention.BatchType.None
+        case ConventionReq.BatchType.Is(b) => b
       }
+      out
+    }
+
+    override val rowType: Convention.RowType = {
+      val out = req.req.requiredRowType match {
+        case ConventionReq.RowType.Any => Convention.RowType.None
+        case ConventionReq.RowType.Is(r) => r
+      }
+      out
     }
   }
 
