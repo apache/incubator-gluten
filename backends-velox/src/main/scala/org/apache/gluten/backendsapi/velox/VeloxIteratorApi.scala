@@ -45,7 +45,6 @@ import java.lang.{Long => JLong}
 import java.nio.charset.StandardCharsets
 import java.time.ZoneOffset
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap}
-import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
 
@@ -177,7 +176,6 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         splitInfoByteArray,
         columnarNativeIterators,
         partitionIndex)
-    pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
 
     Iterators
       .wrap(resIter.asScala)
