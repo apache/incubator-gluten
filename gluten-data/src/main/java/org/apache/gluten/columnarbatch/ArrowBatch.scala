@@ -17,7 +17,8 @@
 
 package org.apache.gluten.columnarbatch
 
-import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.extension.columnar.transition.{Convention, TransitionDef}
+import org.apache.gluten.extension.columnar.transition.Convention.BatchType.VanillaBatch
 
 import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan}
 
@@ -38,4 +39,8 @@ object ArrowBatch extends Convention.BatchType {
       (plan: SparkPlan) => {
         ColumnarToRowExec(plan)
       })
+
+  // Arrow batch is one-way compatible with vanilla batch since it provides valid
+  // #get<type>(...) implementations.
+  toBatch(VanillaBatch, TransitionDef.empty)
 }
