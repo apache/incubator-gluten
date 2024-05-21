@@ -19,7 +19,6 @@
 
 #include <filesystem>
 #include "compute/VeloxPlanConverter.h"
-#include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "velox/common/base/tests/GTestUtils.h"
 #include "velox/dwio/common/tests/utils/DataFiles.h"
@@ -72,7 +71,7 @@ class Substrait2VeloxPlanConversionTest : public exec::test::HiveConnectorTestBa
   std::shared_ptr<exec::test::TempDirectoryPath> tmpDir_{exec::test::TempDirectoryPath::create()};
   std::shared_ptr<VeloxPlanConverter> planConverter_ = std::make_shared<VeloxPlanConverter>(
       std::vector<std::shared_ptr<ResultIterator>>(),
-      gluten::defaultLeafVeloxMemoryPool().get(),
+      pool(),
       std::unordered_map<std::string, std::string>());
 };
 

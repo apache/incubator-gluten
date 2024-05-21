@@ -53,6 +53,7 @@ case class UserDefinedAggregateFunction(
     children: Seq[Expression],
     override val aggBufferAttributes: Seq[AttributeReference])
   extends AggregateFunction {
+  override def prettyName: String = name
 
   override def aggBufferSchema: StructType =
     StructType(

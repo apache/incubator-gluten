@@ -24,12 +24,9 @@ using namespace facebook::velox;
 namespace gluten {
 class VeloxColumnarBatchTest : public ::testing::Test, public test::VectorTestBase {
  protected:
-  // Velox requires the mem manager to be instanced.
   static void SetUpTestCase() {
     memory::MemoryManager::testingSetInstance({});
   }
-
-  std::shared_ptr<memory::MemoryPool> veloxPool_ = defaultLeafVeloxMemoryPool();
 };
 
 TEST_F(VeloxColumnarBatchTest, flattenTruncatedVector) {
@@ -43,7 +40,7 @@ TEST_F(VeloxColumnarBatchTest, flattenTruncatedVector) {
   // First, make a row vector with the mapKeys and mapValues as children.
   // Make the row vector size less than the children size.
   auto input = std::make_shared<RowVector>(
-      veloxPool_.get(),
+      pool(),
       ROW({INTEGER(), BIGINT(), MAP(INTEGER(), BIGINT())}),
       nullptr,
       inputSize,
@@ -54,7 +51,7 @@ TEST_F(VeloxColumnarBatchTest, flattenTruncatedVector) {
 
   // Allocate a dummy indices and wrap the original mapVector with it as a dictionary, to force it get decoded in
   // flattenVector.
-  auto indices = allocateIndices(childSize, veloxPool_.get());
+  auto indices = allocateIndices(childSize, pool());
   auto* rawIndices = indices->asMutable<vector_size_t>();
   for (vector_size_t i = 0; i < childSize; i++) {
     rawIndices[i] = i;

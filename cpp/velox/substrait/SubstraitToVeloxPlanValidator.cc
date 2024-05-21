@@ -194,9 +194,6 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   } else if (name == "map_from_arrays") {
     LOG_VALIDATION_MSG("map_from_arrays is not supported.");
     return false;
-  } else if (name == "get_array_item") {
-    LOG_VALIDATION_MSG("get_array_item is not supported.");
-    return false;
   } else if (name == "concat") {
     for (const auto& type : types) {
       if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos ||

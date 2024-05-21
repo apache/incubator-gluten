@@ -42,6 +42,9 @@ const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.byt
 
 const std::string kSparkTaskOffHeapMemory = "spark.gluten.memory.task.offHeap.size.in.bytes";
 
+const std::string kMemoryReservationBlockSize = "spark.gluten.memory.reservationBlockSize";
+const uint64_t kMemoryReservationBlockSizeDefault = 8 << 20;
+
 const std::string kSparkBatchSize = "spark.gluten.sql.columnar.maxBatchSize";
 
 const std::string kParquetBlockSize = "parquet.block.size";

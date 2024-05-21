@@ -22,14 +22,12 @@ import org.apache.gluten.datasource.ArrowConvertorRule
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
-import org.apache.gluten.expression.ConverterUtils.FunctionConfig
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar.TransformHints
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.extension.columnar.transition.ConventionFunc.BatchOverride
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode}
 import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializeResult}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
@@ -63,13 +61,9 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import com.google.common.collect.Lists
 import org.apache.commons.lang3.ClassUtils
 
 import javax.ws.rs.core.UriBuilder
-
-import java.lang.{Long => JLong}
-import java.util.{Map => JMap}
 
 import scala.collection.mutable.ListBuffer
 
@@ -91,49 +85,13 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       VeloxBatch
   }
 
-  /**
-   * Transform GetArrayItem to Substrait.
-   *
-   * arrCol[index] => IF(index < 0, null, ElementAt(arrCol, index + 1))
-   */
-  override def genGetArrayItemExpressionNode(
+  /** Transform GetArrayItem to Substrait. */
+  override def genGetArrayItemTransformer(
       substraitExprName: String,
-      functionMap: JMap[String, JLong],
-      leftNode: ExpressionNode,
-      rightNode: ExpressionNode,
-      original: GetArrayItem): ExpressionNode = {
-    if (original.dataType.isInstanceOf[DecimalType]) {
-      val decimalType = original.dataType.asInstanceOf[DecimalType]
-      val precision = decimalType.precision
-      if (precision > 18) {
-        throw new GlutenNotSupportException(
-          "GetArrayItem not support decimal precision more than 18")
-      }
-    }
-    // ignore origin substraitExprName
-    val functionName = ConverterUtils.makeFuncName(
-      ExpressionMappings.expressionsMap(classOf[ElementAt]),
-      Seq(original.dataType),
-      FunctionConfig.OPT)
-    val exprNodes = Lists.newArrayList(leftNode, rightNode)
-    val resultNode = ExpressionBuilder.makeScalarFunction(
-      ExpressionBuilder.newScalarFunction(functionMap, functionName),
-      exprNodes,
-      ConverterUtils.getTypeNode(original.dataType, original.nullable))
-    val nullNode = ExpressionBuilder.makeLiteral(null, original.dataType, false)
-    val lessThanFuncId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName(
-        ExpressionNames.LESS_THAN,
-        Seq(original.right.dataType, IntegerType),
-        FunctionConfig.OPT))
-    // right node already add 1
-    val literalNode = ExpressionBuilder.makeLiteral(1.toInt, IntegerType, false)
-    val lessThanFuncNode = ExpressionBuilder.makeScalarFunction(
-      lessThanFuncId,
-      Lists.newArrayList(rightNode, literalNode),
-      ConverterUtils.getTypeNode(BooleanType, true))
-    new IfThenNode(Lists.newArrayList(lessThanFuncNode), Lists.newArrayList(nullNode), resultNode)
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Expression): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
   }
 
   /** Transform NaNvl to Substrait. */
@@ -521,7 +479,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       resultAttrs: Seq[Attribute],
       child: SparkPlan,
       evalType: Int): SparkPlan = {
-    new ColumnarArrowEvalPythonExec(udfs, resultAttrs, child, evalType)
+    ColumnarArrowEvalPythonExec(udfs, resultAttrs, child, evalType)
   }
 
   /**
@@ -786,7 +744,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     Seq(
       Sig[HLLAdapter](ExpressionNames.APPROX_DISTINCT),
       Sig[UDFExpression](ExpressionNames.UDF_PLACEHOLDER),
-      Sig[UserDefinedAggregateFunction](ExpressionNames.UDF_PLACEHOLDER),
+      Sig[UserDefinedAggregateFunction](ExpressionNames.UDAF_PLACEHOLDER),
       Sig[NaNvl](ExpressionNames.NANVL),
       Sig[VeloxCollectList](ExpressionNames.COLLECT_LIST),
       Sig[VeloxCollectSet](ExpressionNames.COLLECT_SET),
