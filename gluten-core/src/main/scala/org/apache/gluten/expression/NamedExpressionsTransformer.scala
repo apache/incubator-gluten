@@ -16,67 +16,29 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.expression.ConverterUtils.FunctionConfig
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types._
-
-import com.google.common.collect.Lists
 
 case class AliasTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
     original: Expression)
-  extends ExpressionTransformerWithOrigin {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val childNode = child.doTransform(args)
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName(
-        substraitExprName,
-        original.children.map(_.dataType),
-        FunctionConfig.REQ))
-    val expressionNodes = Lists.newArrayList(childNode)
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
-  }
-}
-
-case class NamedLambdaVariableTransformer(
-    substraitExprName: String,
-    name: String,
-    dataType: DataType,
-    nullable: Boolean,
-    exprId: ExprId)
-  extends ExpressionTransformer {
-  override def doTransform(args: Object): ExpressionNode = {
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val namedLambdaVarFunctionName =
-      ConverterUtils.makeFuncName(substraitExprName, Seq(dataType), FunctionConfig.OPT)
-    val arrayAggFunctionId =
-      ExpressionBuilder.newScalarFunction(functionMap, namedLambdaVarFunctionName)
-    val exprNodes = Lists.newArrayList(
-      ExpressionBuilder.makeLiteral(name, StringType, false).asInstanceOf[ExpressionNode])
-    val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
-    // namedlambdavariable('acc')-> <Integer, notnull>
-    ExpressionBuilder.makeScalarFunction(arrayAggFunctionId, exprNodes, typeNode)
-  }
-}
+  extends UnaryExpressionTransformer {}
 
 case class AttributeReferenceTransformer(
-    name: String,
-    ordinal: Int,
-    dataType: DataType,
-    nullable: Boolean = true,
-    exprId: ExprId,
-    qualifier: Seq[String],
-    metadata: Metadata = Metadata.empty)
-  extends ExpressionTransformer {
-
+    substraitExprName: String,
+    original: AttributeReference,
+    bound: BoundReference)
+  extends LeafExpressionTransformer {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    ExpressionBuilder.makeSelection(ordinal.asInstanceOf[java.lang.Integer])
+    ExpressionBuilder.makeSelection(bound.ordinal.asInstanceOf[java.lang.Integer])
+  }
+}
+
+case class BoundReferenceTransformer(substraitExprName: String, original: BoundReference)
+  extends LeafExpressionTransformer {
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    ExpressionBuilder.makeSelection(original.ordinal.asInstanceOf[java.lang.Integer])
   }
 }
