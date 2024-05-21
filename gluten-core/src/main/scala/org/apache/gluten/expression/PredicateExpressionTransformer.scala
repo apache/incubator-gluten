@@ -16,39 +16,33 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.expression.ConverterUtils.FunctionConfig
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
 
-import com.google.common.collect.Lists
-
 import scala.collection.JavaConverters._
 
-case class InTransformer(
-    value: ExpressionTransformer,
-    list: Seq[Expression],
-    valueType: DataType,
-    original: Expression)
-  extends ExpressionTransformerWithOrigin {
+case class InTransformer(substraitExprName: String, child: ExpressionTransformer, original: In)
+  extends UnaryExpressionTransformer {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    assert(list.forall(_.foldable))
+    assert(original.list.forall(_.foldable))
     // Stores the values in a List Literal.
-    val values: Set[Any] = list.map(_.eval()).toSet
-    InExpressionTransformer.toTransformer(value.doTransform(args), values, valueType)
+    val values: Set[Any] = original.list.map(_.eval()).toSet
+    InExpressionTransformer.toTransformer(child.doTransform(args), values, child.dataType)
   }
 }
 
 case class InSetTransformer(
-    value: ExpressionTransformer,
-    hset: Set[Any],
-    valueType: DataType,
-    original: Expression)
-  extends ExpressionTransformerWithOrigin {
+    substraitExprName: String,
+    child: ExpressionTransformer,
+    original: InSet)
+  extends UnaryExpressionTransformer {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    InExpressionTransformer.toTransformer(value.doTransform(args), hset, valueType)
+    InExpressionTransformer.toTransformer(
+      child.doTransform(args),
+      original.hset,
+      original.child.dataType)
   }
 }
 
@@ -69,60 +63,12 @@ object InExpressionTransformer {
   }
 }
 
-case class LikeTransformer(
-    substraitExprName: String,
-    left: ExpressionTransformer,
-    right: ExpressionTransformer,
-    original: Expression)
-  extends ExpressionTransformerWithOrigin {
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val leftNode = left.doTransform(args)
-    val rightNode = right.doTransform(args)
-    val escapeCharNode = ExpressionBuilder.makeLiteral(
-      original.asInstanceOf[Like].escapeChar.toString,
-      StringType,
-      false)
-
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName(
-        substraitExprName,
-        original.children.map(_.dataType),
-        FunctionConfig.OPT))
-
-    // CH backend does not support escapeChar, so skip it here.
-    val expressionNodes =
-      BackendsApiManager.getTransformerApiInstance.createLikeParamList(
-        leftNode,
-        rightNode,
-        escapeCharNode)
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes.toList.asJava, typeNode)
-  }
-}
-
 case class DecimalArithmeticExpressionTransformer(
     substraitExprName: String,
     left: ExpressionTransformer,
     right: ExpressionTransformer,
     resultType: DecimalType,
     original: Expression)
-  extends ExpressionTransformerWithOrigin {
+  extends BinaryExpressionTransformer {
   override def dataType: DataType = resultType
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val leftNode = left.doTransform(args)
-    val rightNode = right.doTransform(args)
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName(
-        substraitExprName,
-        original.children.map(_.dataType),
-        FunctionConfig.OPT))
-
-    val expressionNodes = Lists.newArrayList(leftNode, rightNode)
-    val typeNode = ConverterUtils.getTypeNode(resultType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
-  }
 }

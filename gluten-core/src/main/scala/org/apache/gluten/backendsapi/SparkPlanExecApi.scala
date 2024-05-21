@@ -214,7 +214,7 @@ trait SparkPlanExecApi {
     throw new GlutenNotSupportException("try_add is not supported")
   }
 
-  def genTryAddTransformer(
+  def genTryEvalTransformer(
       substraitExprName: String,
       child: ExpressionTransformer,
       original: TryEval): ExpressionTransformer = {
@@ -286,9 +286,7 @@ trait SparkPlanExecApi {
       substraitExprName: String,
       child: ExpressionTransformer,
       original: PosExplode,
-      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
-    PosExplodeTransformer(substraitExprName, child, original, attributeSeq)
-  }
+      attributeSeq: Seq[Attribute]): ExpressionTransformer
 
   /** Transform make_timestamp to Substrait. */
   def genMakeTimestampTransformer(
@@ -427,7 +425,7 @@ trait SparkPlanExecApi {
       childTransformer: ExpressionTransformer,
       ordinal: Int,
       original: GetStructField): ExpressionTransformer = {
-    GetStructFieldTransformer(substraitExprName, childTransformer, ordinal, original)
+    GetStructFieldTransformer(substraitExprName, childTransformer, original)
   }
 
   def genNamedStructTransformer(
@@ -436,13 +434,6 @@ trait SparkPlanExecApi {
       original: CreateNamedStruct,
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, children, original)
-  }
-
-  def genMd5Transformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Md5): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(child), original)
   }
 
   def genStringTranslateTransformer(
@@ -457,44 +448,18 @@ trait SparkPlanExecApi {
       original)
   }
 
-  def genStringLocateTransformer(
-      substraitExprName: String,
-      first: ExpressionTransformer,
-      second: ExpressionTransformer,
-      third: ExpressionTransformer,
-      original: StringLocate): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(first, second, third), original)
-  }
-
-  /**
-   * Generate an ExpressionTransformer to transform Sha2 expression. Sha2Transformer is the default
-   * implementation.
-   */
-  def genSha2Transformer(
-      substraitExprName: String,
-      left: ExpressionTransformer,
-      right: ExpressionTransformer,
-      original: Sha2): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
-  }
-
-  /**
-   * Generate an ExpressionTransformer to transform Sha1 expression. Sha1Transformer is the default
-   * implementation.
-   */
-  def genSha1Transformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Sha1): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(child), original)
-  }
-
   def genSizeExpressionTransformer(
       substraitExprName: String,
       child: ExpressionTransformer,
       original: Size): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, Seq(child), original)
   }
+
+  def genLikeTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Like): ExpressionTransformer
 
   /**
    * Generate an ExpressionTransformer to transform TruncTimestamp expression.
@@ -506,30 +471,22 @@ trait SparkPlanExecApi {
       timestamp: ExpressionTransformer,
       timeZoneId: Option[String] = None,
       original: TruncTimestamp): ExpressionTransformer = {
-    TruncTimestampTransformer(substraitExprName, format, timestamp, timeZoneId, original)
+    TruncTimestampTransformer(substraitExprName, format, timestamp, original)
   }
+
+  def genDateDiffTransformer(
+      substraitExprName: String,
+      endDate: ExpressionTransformer,
+      startDate: ExpressionTransformer,
+      original: DateDiff): ExpressionTransformer
 
   def genCastWithNewChild(c: Cast): Cast = c
 
   def genHashExpressionTransformer(
       substraitExprName: String,
       exprs: Seq[ExpressionTransformer],
-      original: Expression): ExpressionTransformer = {
-    HashExpressionTransformer(substraitExprName, exprs, original)
-  }
-
-  def genUnixTimestampTransformer(
-      substraitExprName: String,
-      timeExp: ExpressionTransformer,
-      format: ExpressionTransformer,
-      original: ToUnixTimestamp): ExpressionTransformer = {
-    ToUnixTimestampTransformer(
-      substraitExprName,
-      timeExp,
-      format,
-      original.timeZoneId,
-      original.failOnError,
-      original)
+      original: HashExpression[_]): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, exprs, original)
   }
 
   /** Define backend specfic expression mappings. */

@@ -627,6 +627,15 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHSizeExpressionTransformer(substraitExprName, child, original)
   }
 
+  override def genLikeTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Like): ExpressionTransformer = {
+    // CH backend does not support escapeChar, so skip it here.
+    GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
+  }
+
   /** Generate an ExpressionTransformer to transform TruncTimestamp expression for CH. */
   override def genTruncTimestampTransformer(
       substraitExprName: String,
@@ -635,6 +644,17 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       timeZoneId: Option[String],
       original: TruncTimestamp): ExpressionTransformer = {
     CHTruncTimestampTransformer(substraitExprName, format, timestamp, timeZoneId, original)
+  }
+
+  override def genDateDiffTransformer(
+      substraitExprName: String,
+      endDate: ExpressionTransformer,
+      startDate: ExpressionTransformer,
+      original: DateDiff): ExpressionTransformer = {
+    GenericExpressionTransformer(
+      substraitExprName,
+      Seq(LiteralTransformer("day"), startDate, endDate),
+      original)
   }
 
   override def genPosExplodeTransformer(
