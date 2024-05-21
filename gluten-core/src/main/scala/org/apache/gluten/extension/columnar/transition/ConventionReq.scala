@@ -57,7 +57,7 @@ object ConventionReq {
   val row: ConventionReq = Impl(RowType.Is(Convention.RowType.VanillaRow), BatchType.Any)
   val vanillaBatch: ConventionReq =
     Impl(RowType.Any, BatchType.Is(Convention.BatchType.VanillaBatch))
-  val backendBatch: ConventionReq =
+  lazy val backendBatch: ConventionReq =
     Impl(RowType.Any, BatchType.Is(BackendsApiManager.getSparkPlanExecApiInstance.batchType))
 
   def get(plan: SparkPlan): ConventionReq = ConventionFunc.create().conventionReqOf(plan)
