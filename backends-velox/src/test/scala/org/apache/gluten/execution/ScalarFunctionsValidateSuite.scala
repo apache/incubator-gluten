@@ -588,6 +588,10 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
                          | from lineitem limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
+    runQueryAndCompare("""SELECT spark_partition_id()
+                         |from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
   }
 
   testWithSpecifiedSparkVersion("Test url_decode function", Some("3.4")) {
