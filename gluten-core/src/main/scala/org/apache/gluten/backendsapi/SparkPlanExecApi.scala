@@ -697,18 +697,18 @@ trait SparkPlanExecApi {
     sparkExecNode match {
       case fileSourceScan: FileSourceScanExec =>
         val dataFilters = fileSourceScan.dataFilters
-        dataFilters ++ FilterHandler.getRemainingFilters(dataFilters, extraFilters)
-        dataFilters.filterNot(_.references.exists {
+        val pushedFilters =
+          dataFilters ++ FilterHandler.getRemainingFilters(dataFilters, extraFilters)
+        pushedFilters.filterNot(_.references.exists {
           attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
         })
       case batchScan: BatchScanExec =>
         batchScan.scan match {
           case fileScan: FileScan =>
-            val dataFilters = fileScan.dataFilters.filterNot(_.references.exists {
-              attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
-            })
-            dataFilters ++ FilterHandler.getRemainingFilters(dataFilters, extraFilters)
-            dataFilters.filterNot(_.references.exists {
+            val dataFilters = fileScan.dataFilters
+            val pushedFilters =
+              dataFilters ++ FilterHandler.getRemainingFilters(dataFilters, extraFilters)
+            pushedFilters.filterNot(_.references.exists {
               attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
             })
           case _ =>
