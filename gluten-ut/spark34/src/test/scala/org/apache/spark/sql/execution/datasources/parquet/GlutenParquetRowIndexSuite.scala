@@ -312,7 +312,8 @@ class GlutenParquetRowIndexSuite extends ParquetRowIndexSuite with GlutenSQLTest
               // [0-`numRecordsPerFile`].
               val expectedRowIdxValues = List.range(0, numRecordsPerFile)
               val df = dfToAssert
-                .select($"id").filter(col(rowIndexColName).isin(expectedRowIdxValues: _*))
+                .select($"id")
+                .filter(col(rowIndexColName).isin(expectedRowIdxValues: _*))
               assert(df.collect().size == conf.numRows)
             }
         }

@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution.datasources
 
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, FilterExecTransformer}
 import org.apache.gluten.utils.BackendTestUtils
+
 import org.apache.spark.sql.{Column, DataFrame, Row}
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.sql.execution.FileSourceScanExec
@@ -26,6 +27,7 @@ import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructFiel
 
 import java.io.File
 import java.sql.Timestamp
+
 import scala.reflect.ClassTag
 
 class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenSQLTestsBaseTrait {
@@ -51,13 +53,24 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
 
   private def getMetadataRow(f: Map[String, Any]): Row = f(FILE_FORMAT) match {
     case "parquet" =>
-      Row(f(METADATA_FILE_PATH), f(METADATA_FILE_NAME),
-        f(METADATA_FILE_SIZE), f(METADATA_FILE_BLOCK_START), f(METADATA_FILE_BLOCK_LENGTH),
-        f(METADATA_FILE_MODIFICATION_TIME), f(METADATA_ROW_INDEX))
+      Row(
+        f(METADATA_FILE_PATH),
+        f(METADATA_FILE_NAME),
+        f(METADATA_FILE_SIZE),
+        f(METADATA_FILE_BLOCK_START),
+        f(METADATA_FILE_BLOCK_LENGTH),
+        f(METADATA_FILE_MODIFICATION_TIME),
+        f(METADATA_ROW_INDEX)
+      )
     case _ =>
-      Row(f(METADATA_FILE_PATH), f(METADATA_FILE_NAME),
-        f(METADATA_FILE_SIZE), f(METADATA_FILE_BLOCK_START), f(METADATA_FILE_BLOCK_LENGTH),
-        f(METADATA_FILE_MODIFICATION_TIME))
+      Row(
+        f(METADATA_FILE_PATH),
+        f(METADATA_FILE_NAME),
+        f(METADATA_FILE_SIZE),
+        f(METADATA_FILE_BLOCK_START),
+        f(METADATA_FILE_BLOCK_LENGTH),
+        f(METADATA_FILE_MODIFICATION_TIME)
+      )
   }
 
   private def getMetadataForFile(f: File): Map[String, Any] = {
@@ -177,107 +190,136 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
       checkOperatorMatch[FilterExecTransformer](filterDF)
   }
 
-  metadataColumnsNativeTest("select only metadata", schema) { (df, f0, f1) =>
-    checkAnswer(
-      df.select(METADATA_FILE_NAME, METADATA_FILE_PATH,
-        METADATA_FILE_SIZE, METADATA_FILE_BLOCK_START, METADATA_FILE_BLOCK_LENGTH,
-        METADATA_FILE_MODIFICATION_TIME),
-      Seq(
-        Row(f0(METADATA_FILE_NAME), f0(METADATA_FILE_PATH),
-          f0(METADATA_FILE_SIZE), f0(METADATA_FILE_BLOCK_START), f0(METADATA_FILE_BLOCK_LENGTH),
-          f0(METADATA_FILE_MODIFICATION_TIME)),
-        Row(f1(METADATA_FILE_NAME), f1(METADATA_FILE_PATH),
-          f1(METADATA_FILE_SIZE), f1(METADATA_FILE_BLOCK_START), f1(METADATA_FILE_BLOCK_LENGTH),
-          f1(METADATA_FILE_MODIFICATION_TIME))
+  metadataColumnsNativeTest("select only metadata", schema) {
+    (df, f0, f1) =>
+      checkAnswer(
+        df.select(
+          METADATA_FILE_NAME,
+          METADATA_FILE_PATH,
+          METADATA_FILE_SIZE,
+          METADATA_FILE_BLOCK_START,
+          METADATA_FILE_BLOCK_LENGTH,
+          METADATA_FILE_MODIFICATION_TIME),
+        Seq(
+          Row(
+            f0(METADATA_FILE_NAME),
+            f0(METADATA_FILE_PATH),
+            f0(METADATA_FILE_SIZE),
+            f0(METADATA_FILE_BLOCK_START),
+            f0(METADATA_FILE_BLOCK_LENGTH),
+            f0(METADATA_FILE_MODIFICATION_TIME)
+          ),
+          Row(
+            f1(METADATA_FILE_NAME),
+            f1(METADATA_FILE_PATH),
+            f1(METADATA_FILE_SIZE),
+            f1(METADATA_FILE_BLOCK_START),
+            f1(METADATA_FILE_BLOCK_LENGTH),
+            f1(METADATA_FILE_MODIFICATION_TIME)
+          )
+        )
       )
-    )
-    checkAnswer(
-      df.select("name", "_metadata"),
-      Seq(
-        Row("jack", getMetadataRow(f0)),
-        Row("lily", getMetadataRow(f1))
+      checkAnswer(
+        df.select("name", "_metadata"),
+        Seq(
+          Row("jack", getMetadataRow(f0)),
+          Row("lily", getMetadataRow(f1))
+        )
       )
-    )
   }
 
   testGluten("SPARK-41896: Filter on constant and generated metadata attributes at the same time") {
-    withTempPath { dir =>
-      val idColumnName = "id"
-      val partitionColumnName = "partition"
-      val numFiles = 4
-      val totalNumRows = 40
+    withTempPath {
+      dir =>
+        val idColumnName = "id"
+        val partitionColumnName = "partition"
+        val numFiles = 4
+        val totalNumRows = 40
 
-      spark.range(end = totalNumRows)
-        .toDF(idColumnName)
-        .withColumn(partitionColumnName, col(idColumnName).mod(lit(numFiles)))
-        .write
-        .partitionBy(partitionColumnName)
-        .format("parquet")
-        .save(dir.getAbsolutePath)
+        spark
+          .range(end = totalNumRows)
+          .toDF(idColumnName)
+          .withColumn(partitionColumnName, col(idColumnName).mod(lit(numFiles)))
+          .write
+          .partitionBy(partitionColumnName)
+          .format("parquet")
+          .save(dir.getAbsolutePath)
 
-      // Get one file path.
-      val randomTableFilePath = spark.read.load(dir.getAbsolutePath)
-        .select(METADATA_FILE_PATH).collect().head.getString(0)
+        // Get one file path.
+        val randomTableFilePath = spark.read
+          .load(dir.getAbsolutePath)
+          .select(METADATA_FILE_PATH)
+          .collect()
+          .head
+          .getString(0)
 
-      // Select half the rows from one file.
-      val halfTheNumberOfRowsPerFile = totalNumRows / (numFiles * 2)
-      val collectedRows = spark.read.load(dir.getAbsolutePath)
-        .select("id", METADATA_FILE_PATH, METADATA_ROW_INDEX)
-        .where(col(METADATA_FILE_PATH).equalTo(lit(randomTableFilePath)))
-        .where(col(METADATA_ROW_INDEX).leq(lit(halfTheNumberOfRowsPerFile)))
-        .collect()
+        // Select half the rows from one file.
+        val halfTheNumberOfRowsPerFile = totalNumRows / (numFiles * 2)
+        val collectedRows = spark.read
+          .load(dir.getAbsolutePath)
+          .select("id", METADATA_FILE_PATH, METADATA_ROW_INDEX)
+          .where(col(METADATA_FILE_PATH).equalTo(lit(randomTableFilePath)))
+          .where(col(METADATA_ROW_INDEX).leq(lit(halfTheNumberOfRowsPerFile)))
+          .collect()
 
-      // Assert we only select rows from one file.
-      assert(collectedRows.map(_.getString(1)).distinct.length === 1)
-      // Assert we filtered by row index.
-      assert(collectedRows.forall(row => row.getLong(2) < halfTheNumberOfRowsPerFile))
-      assert(collectedRows.length === halfTheNumberOfRowsPerFile)
+        // Assert we only select rows from one file.
+        assert(collectedRows.map(_.getString(1)).distinct.length === 1)
+        // Assert we filtered by row index.
+        assert(collectedRows.forall(row => row.getLong(2) < halfTheNumberOfRowsPerFile))
+        assert(collectedRows.length === halfTheNumberOfRowsPerFile)
     }
   }
 
   testGluten("SPARK-43450: Filter on full _metadata column struct") {
-    withTempPath { dir =>
-      val numRows = 10
-      spark.range(end = numRows)
-        .toDF()
-        .write
-        .format("parquet")
-        .save(dir.getAbsolutePath)
+    withTempPath {
+      dir =>
+        val numRows = 10
+        spark
+          .range(end = numRows)
+          .toDF()
+          .write
+          .format("parquet")
+          .save(dir.getAbsolutePath)
 
-      // Get the metadata of a random row. The metadata is unique per row because of row_index.
-      val metadataColumnRow = spark.read.load(dir.getAbsolutePath)
-        .select("id", "_metadata")
-        .collect()
-        .head
-        .getStruct(1)
+        // Get the metadata of a random row. The metadata is unique per row because of row_index.
+        val metadataColumnRow = spark.read
+          .load(dir.getAbsolutePath)
+          .select("id", "_metadata")
+          .collect()
+          .head
+          .getStruct(1)
 
-      // Transform the result into a literal that can be used in an expression.
-      val metadataColumnFields = metadataColumnRow.schema.fields
-        .map(field => lit(metadataColumnRow.getAs[Any](field.name)).as(field.name))
-      val metadataColumnStruct = struct(metadataColumnFields: _*)
+        // Transform the result into a literal that can be used in an expression.
+        val metadataColumnFields = metadataColumnRow.schema.fields
+          .map(field => lit(metadataColumnRow.getAs[Any](field.name)).as(field.name))
+        val metadataColumnStruct = struct(metadataColumnFields: _*)
 
-      val selectSingleRowDf = spark.read.load(dir.getAbsolutePath)
-        .where(col("_metadata").equalTo(lit(metadataColumnStruct)))
+        val selectSingleRowDf = spark.read
+          .load(dir.getAbsolutePath)
+          .where(col("_metadata").equalTo(lit(metadataColumnStruct)))
 
-      assert(selectSingleRowDf.collect().size === 1)
+        assert(selectSingleRowDf.collect().size === 1)
     }
   }
 
   testGluten("SPARK-43450: Filter on aliased _metadata.row_index") {
-    withTempPath { dir =>
-      val numRows = 10
-      spark.range(start = 0, end = numRows, step = 1, numPartitions = 1)
-        .toDF()
-        .write
-        .format("parquet")
-        .save(dir.getAbsolutePath)
+    withTempPath {
+      dir =>
+        val numRows = 10
+        spark
+          .range(start = 0, end = numRows, step = 1, numPartitions = 1)
+          .toDF()
+          .write
+          .format("parquet")
+          .save(dir.getAbsolutePath)
 
-      // There is only one file, so row_index is unique.
-      val selectSingleRowDf = spark.read.load(dir.getAbsolutePath)
-        .select(col("id"), col("_metadata"), col("_metadata.row_index").as("renamed_row_index"))
-        .where(col("renamed_row_index").equalTo(lit(0)))
+        // There is only one file, so row_index is unique.
+        val selectSingleRowDf = spark.read
+          .load(dir.getAbsolutePath)
+          .select(col("id"), col("_metadata"), col("_metadata.row_index").as("renamed_row_index"))
+          .where(col("renamed_row_index").equalTo(lit(0)))
 
-      assert(selectSingleRowDf.collect().size === 1)
+        assert(selectSingleRowDf.collect().size === 1)
     }
   }
 }
