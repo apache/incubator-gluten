@@ -17,38 +17,16 @@
 package org.apache.spark.sql.extension
 
 import org.apache.gluten.expression._
-import org.apache.gluten.expression.ConverterUtils.FunctionConfig
 import org.apache.gluten.extension.ExpressionExtensionTrait
-import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-
-import com.google.common.collect.Lists
 
 case class CustomAddExpressionTransformer(
     substraitExprName: String,
     left: ExpressionTransformer,
     right: ExpressionTransformer,
     original: Expression)
-  extends ExpressionTransformerWithOrigin
-  with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val leftNode = left.doTransform(args)
-    val rightNode = right.doTransform(args)
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName(
-        substraitExprName,
-        original.children.map(_.dataType),
-        FunctionConfig.OPT))
-
-    val expressionNodes = Lists.newArrayList(leftNode, rightNode)
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
-  }
-}
+  extends BinaryExpressionTransformer
 
 case class CustomerExpressionTransformer() extends ExpressionExtensionTrait {
 
@@ -65,7 +43,7 @@ case class CustomerExpressionTransformer() extends ExpressionExtensionTrait {
       expr: Expression,
       attributeSeq: Seq[Attribute]): ExpressionTransformer = expr match {
     case custom: CustomAdd =>
-      new CustomAddExpressionTransformer(
+      CustomAddExpressionTransformer(
         substraitExprName,
         ExpressionConverter.replaceWithExpressionTransformer(custom.left, attributeSeq),
         ExpressionConverter.replaceWithExpressionTransformer(custom.right, attributeSeq),

@@ -65,19 +65,6 @@ class VeloxTransformerApi extends TransformerApi with Logging {
     // TODO: IMPLEMENT SPECIAL PROCESS FOR VELOX BACKEND
   }
 
-  override def createDateDiffParamList(
-      start: ExpressionNode,
-      end: ExpressionNode): Iterable[ExpressionNode] = {
-    List(end, start)
-  }
-
-  override def createLikeParamList(
-      left: ExpressionNode,
-      right: ExpressionNode,
-      escapeChar: ExpressionNode): Iterable[ExpressionNode] = {
-    List(left, right, escapeChar)
-  }
-
   override def createCheckOverflowExprNode(
       args: java.lang.Object,
       substraitExprName: String,

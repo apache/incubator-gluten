@@ -59,13 +59,6 @@ trait TransformerApi {
     plan.output
   }
 
-  def createDateDiffParamList(start: ExpressionNode, end: ExpressionNode): Iterable[ExpressionNode]
-
-  def createLikeParamList(
-      left: ExpressionNode,
-      right: ExpressionNode,
-      escapeChar: ExpressionNode): Iterable[ExpressionNode]
-
   def createCheckOverflowExprNode(
       args: java.lang.Object,
       substraitExprName: String,

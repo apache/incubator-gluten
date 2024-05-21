@@ -32,17 +32,12 @@ import java.util.Locale
 
 case class CHSizeExpressionTransformer(
     substraitExprName: String,
-    child: ExpressionTransformer,
+    expr: ExpressionTransformer,
     original: Size)
-  extends ExpressionTransformerWithOrigin {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    // Pass legacyLiteral as second argument in substrait function
-    val legacyLiteral = new Literal(original.legacySizeOfNull, BooleanType)
-    val legacyTransformer = new LiteralTransformer(legacyLiteral)
-    GenericExpressionTransformer(substraitExprName, Seq(child, legacyTransformer), original)
-      .doTransform(args)
-  }
+  extends BinaryExpressionTransformer {
+  override def left: ExpressionTransformer = expr
+  // Pass legacyLiteral as second argument in substrait function
+  override def right: ExpressionTransformer = LiteralTransformer(original.legacySizeOfNull)
 }
 
 case class CHTruncTimestampTransformer(
@@ -51,7 +46,8 @@ case class CHTruncTimestampTransformer(
     timestamp: ExpressionTransformer,
     timeZoneId: Option[String] = None,
     original: TruncTimestamp)
-  extends ExpressionTransformerWithOrigin {
+  extends ExpressionTransformer {
+  override def children: Seq[ExpressionTransformer] = format :: timestamp :: Nil
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // The format must be constant string in the function date_trunc of ch.
@@ -126,7 +122,8 @@ case class CHStringTranslateTransformer(
     matchingExpr: ExpressionTransformer,
     replaceExpr: ExpressionTransformer,
     original: StringTranslate)
-  extends ExpressionTransformerWithOrigin {
+  extends ExpressionTransformer {
+  override def children: Seq[ExpressionTransformer] = srcExpr :: matchingExpr :: replaceExpr :: Nil
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // In CH, translateUTF8 requires matchingExpr and replaceExpr argument have the same length
@@ -145,11 +142,7 @@ case class CHStringTranslateTransformer(
       throw new GlutenNotSupportException(s"$original not supported yet.")
     }
 
-    GenericExpressionTransformer(
-      substraitExprName,
-      Seq(srcExpr, matchingExpr, replaceExpr),
-      original)
-      .doTransform(args)
+    super.doTransform(args)
   }
 }
 
@@ -158,7 +151,7 @@ case class CHPosExplodeTransformer(
     child: ExpressionTransformer,
     original: PosExplode,
     attributeSeq: Seq[Attribute])
-  extends ExpressionTransformerWithOrigin {
+  extends UnaryExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childNode: ExpressionNode = child.doTransform(args)
@@ -200,14 +193,15 @@ case class CHPosExplodeTransformer(
 
 case class CHRegExpReplaceTransformer(
     substraitExprName: String,
-    children: Seq[ExpressionTransformer],
+    childrenWithPos: Seq[ExpressionTransformer],
     original: RegExpReplace)
-  extends ExpressionTransformerWithOrigin {
+  extends ExpressionTransformer {
+  override def children: Seq[ExpressionTransformer] = childrenWithPos.dropRight(1)
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // In CH: replaceRegexpAll(subject, regexp, rep), which is equivalent
     // In Spark: regexp_replace(subject, regexp, rep, pos=1)
-    val posNode = children(3).doTransform(args)
+    val posNode = childrenWithPos(3).doTransform(args)
     if (
       !posNode.isInstanceOf[IntLiteralNode] ||
       posNode.asInstanceOf[IntLiteralNode].getValue != 1
@@ -215,11 +209,7 @@ case class CHRegExpReplaceTransformer(
       throw new UnsupportedOperationException(s"$original not supported yet.")
     }
 
-    GenericExpressionTransformer(
-      substraitExprName,
-      Seq(children(0), children(1), children(2)),
-      original)
-      .doTransform(args)
+    super.doTransform(args)
   }
 }
 
@@ -228,7 +218,7 @@ case class GetArrayItemTransformer(
     left: ExpressionTransformer,
     right: ExpressionTransformer,
     original: Expression)
-  extends ExpressionTransformerWithOrigin {
+  extends BinaryExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // Ignore failOnError for clickhouse backend

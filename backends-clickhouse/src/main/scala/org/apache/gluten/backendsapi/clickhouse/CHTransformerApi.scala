@@ -205,18 +205,6 @@ class CHTransformerApi extends TransformerApi with Logging {
 
   }
 
-  override def createDateDiffParamList(
-      start: ExpressionNode,
-      end: ExpressionNode): Iterable[ExpressionNode] = {
-    List(ExpressionBuilder.makeStringLiteral("day"), start, end)
-  }
-
-  override def createLikeParamList(
-      left: ExpressionNode,
-      right: ExpressionNode,
-      escapeChar: ExpressionNode): Iterable[ExpressionNode] =
-    List(left, right)
-
   override def createCheckOverflowExprNode(
       args: java.lang.Object,
       substraitExprName: String,

@@ -104,6 +104,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     val condFuncName = ExpressionMappings.expressionsMap(classOf[IsNaN])
     val newExpr = If(condExpr, original.right, original.left)
     IfTransformer(
+      substraitExprName,
       GenericExpressionTransformer(condFuncName, Seq(left), condExpr),
       right,
       left,
@@ -117,7 +118,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       original: Uuid): ExpressionTransformer = {
     GenericExpressionTransformer(
       substraitExprName,
-      Seq(LiteralTransformer(Literal(original.randomSeed.get))),
+      Seq(LiteralTransformer(original.randomSeed.get)),
       original)
   }
 
@@ -243,12 +244,31 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(child), expr)
   }
 
+  override def genLikeTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Like): ExpressionTransformer = {
+    GenericExpressionTransformer(
+      substraitExprName,
+      Seq(left, right, LiteralTransformer(original.escapeChar)),
+      original)
+  }
+
   /** Transform make_timestamp to Substrait. */
   override def genMakeTimestampTransformer(
       substraitExprName: String,
       children: Seq[ExpressionTransformer],
       expr: Expression): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, children, expr)
+  }
+
+  override def genDateDiffTransformer(
+      substraitExprName: String,
+      endDate: ExpressionTransformer,
+      startDate: ExpressionTransformer,
+      original: DateDiff): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(endDate, startDate), original)
   }
 
   /**
@@ -419,7 +439,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   override def genHashExpressionTransformer(
       substraitExprName: String,
       exprs: Seq[ExpressionTransformer],
-      original: Expression): ExpressionTransformer = {
+      original: HashExpression[_]): ExpressionTransformer = {
     VeloxHashExpressionTransformer(substraitExprName, exprs, original)
   }
 
@@ -612,7 +632,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       childTransformer: ExpressionTransformer,
       ordinal: Int,
       original: GetStructField): ExpressionTransformer = {
-    VeloxGetStructFieldTransformer(substraitExprName, childTransformer, ordinal, original)
+    VeloxGetStructFieldTransformer(substraitExprName, childTransformer, original)
   }
 
   /**
