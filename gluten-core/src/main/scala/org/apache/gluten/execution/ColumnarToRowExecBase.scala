@@ -18,6 +18,8 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.extension.columnar.transition.ConventionReq
+import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildrenConventions
 
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -28,7 +30,8 @@ import org.apache.spark.sql.execution.{ColumnarToRowTransition, SparkPlan}
 
 abstract class ColumnarToRowExecBase(child: SparkPlan)
   extends ColumnarToRowTransition
-  with GlutenPlan {
+  with GlutenPlan
+  with KnownChildrenConventions {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -50,4 +53,9 @@ abstract class ColumnarToRowExecBase(child: SparkPlan)
   override def doExecute(): RDD[InternalRow] = {
     doExecuteInternal()
   }
+
+  override def requiredChildrenConventions(): Seq[ConventionReq] = {
+    List(ConventionReq.backendBatch)
+  }
+
 }

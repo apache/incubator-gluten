@@ -27,7 +27,7 @@ object MockRasPath {
 
   def mock[T <: AnyRef](ras: Ras[T], node: T, keys: PathKeySet): RasPath[T] = {
     val memo = Memo(ras)
-    val g = memo.memorize(node, ras.propSetOf(node))
+    val g = memo.memorize(node, ras.anyPropSet())
     val state = memo.newState()
     val groupSupplier = state.asGroupSupplier()
     assert(g.nodes(state).size == 1)

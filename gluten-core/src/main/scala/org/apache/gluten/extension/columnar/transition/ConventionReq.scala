@@ -16,6 +16,10 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
+import org.apache.gluten.backendsapi.BackendsApiManager
+
+import org.apache.spark.sql.execution.SparkPlan
+
 /**
  * ConventionReq describes the requirement for [[Convention]]. This is mostly used in determining
  * the acceptable conventions for its children of a parent plan node.
@@ -50,5 +54,16 @@ object ConventionReq {
   ) extends ConventionReq
 
   val any: ConventionReq = Impl(RowType.Any, BatchType.Any)
-  def of(rowType: RowType, batchType: BatchType): ConventionReq = new Impl(rowType, batchType)
+  val row: ConventionReq = Impl(RowType.Is(Convention.RowType.VanillaRow), BatchType.Any)
+  val vanillaBatch: ConventionReq =
+    Impl(RowType.Any, BatchType.Is(Convention.BatchType.VanillaBatch))
+  val backendBatch: ConventionReq =
+    Impl(RowType.Any, BatchType.Is(BackendsApiManager.getSparkPlanExecApiInstance.batchType))
+
+  def get(plan: SparkPlan): ConventionReq = ConventionFunc.create().conventionReqOf(plan)
+  def of(rowType: RowType, batchType: BatchType): ConventionReq = Impl(rowType, batchType)
+
+  trait KnownChildrenConventions {
+    def requiredChildrenConventions(): Seq[ConventionReq]
+  }
 }

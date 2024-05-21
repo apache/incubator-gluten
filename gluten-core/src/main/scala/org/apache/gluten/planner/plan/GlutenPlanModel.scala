@@ -16,8 +16,10 @@
  */
 package org.apache.gluten.planner.plan
 
+import org.apache.gluten.extension.columnar.transition.ConventionReq.BatchType
+import org.apache.gluten.extension.columnar.transition.ConventionReq.RowType
 import org.apache.gluten.planner.metadata.GlutenMetadata
-import org.apache.gluten.planner.property.{ConventionDef, Conventions}
+import org.apache.gluten.planner.property.{Conv, ConvDef}
 import org.apache.gluten.ras.{Metadata, PlanModel}
 import org.apache.gluten.ras.property.PropertySet
 
@@ -38,15 +40,16 @@ object GlutenPlanModel {
       metadata: GlutenMetadata,
       propertySet: PropertySet[SparkPlan])
     extends LeafExecNode {
+    val conv: Conv.Req = propertySet.get(ConvDef).asInstanceOf[Conv.Req]
+
     override protected def doExecute(): RDD[InternalRow] = throw new IllegalStateException()
     override def output: Seq[Attribute] = metadata.schema().output
-    override def supportsColumnar: Boolean =
-      propertySet.get(ConventionDef) match {
-        case Conventions.ROW_BASED => false
-        case Conventions.VANILLA_COLUMNAR => true
-        case Conventions.GLUTEN_COLUMNAR => true
-        case Conventions.ANY => true
+    override val supportsColumnar: Boolean = {
+      (conv.req.requiredRowType, conv.req.requiredBatchType) match {
+        case (RowType.Is(_), BatchType.Any) => false
+        case _ => true
       }
+    }
   }
 
   private object PlanModelImpl extends PlanModel[SparkPlan] {

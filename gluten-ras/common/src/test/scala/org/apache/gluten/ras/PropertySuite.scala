@@ -72,7 +72,7 @@ abstract class PropertySuite extends AnyFunSuite {
     memo.memorize(ras, PassNodeType(1, PassNodeType(1, PassNodeType(1, TypedLeaf(TypeB, 1)))))
     val state = memo.newState()
     assert(state.allClusters().size == 4)
-    assert(state.getGroupCount() == 8)
+    assert(state.getGroupCount() == 4)
   }
 
   test(s"Get property") {
