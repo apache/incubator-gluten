@@ -706,6 +706,23 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   return std::make_shared<core::ExpandNode>(nextPlanNodeId(), projectSetExprs, std::move(names), childNode);
 }
 
+namespace {
+
+void extractUnnestFieldExpr(
+    std::shared_ptr<const core::ProjectNode> projNode,
+    int32_t index,
+    std::vector<core::FieldAccessTypedExprPtr>& unnestFields) {
+  auto name = projNode->names()[index];
+  auto expr = projNode->projections()[index];
+  auto type = expr->type();
+
+  auto unnestFieldExpr = std::make_shared<core::FieldAccessTypedExpr>(type, name);
+  VELOX_CHECK_NOT_NULL(unnestFieldExpr, " the key in unnest Operator only support field");
+  unnestFields.emplace_back(unnestFieldExpr);
+}
+
+} // namespace
+
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::GenerateRel& generateRel) {
   core::PlanNodePtr childNode;
   if (generateRel.has_input()) {
@@ -732,22 +749,39 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   auto projNode = std::dynamic_pointer_cast<const core::ProjectNode>(childNode);
 
-  if (projNode != nullptr && projNode->names().size() > requiredChildOutput.size()) {
-    // Generator function's input is not a field reference, e.g. explode(array(1,2,3)), a sample
-    // input substrait plan is like the following(the plan structure is ensured by scala code):
-    //
-    //  Generate explode([1,2,3] AS _pre_0#129), false, [col#126]
-    //  +- Project [fake_column#128, [1,2,3] AS _pre_0#129]
-    //   +- RewrittenNodeWall Scan OneRowRelation[fake_column#128]
-    //
-    // The last projection column in GeneratorRel's child(Project) is the column we need to unnest
-    auto innerName = projNode->names().back();
-    auto innerExpr = projNode->projections().back();
+  bool isStack = generateRel.has_advanced_extension() &&
+      SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isStack=");
 
-    auto innerType = innerExpr->type();
-    auto unnestFieldExpr = std::make_shared<core::FieldAccessTypedExpr>(innerType, innerName);
-    VELOX_CHECK_NOT_NULL(unnestFieldExpr, " the key in unnest Operator only support field");
-    unnest.emplace_back(unnestFieldExpr);
+  if (projNode != nullptr && projNode->names().size() > requiredChildOutput.size()) {
+    // Generator function's input is NOT a field reference.
+    if (!isStack) {
+      // For generator function which is not stack, e.g. explode(array(1,2,3)), a sample
+      // input substrait plan is like the following:
+      //
+      //  Generate explode([1,2,3] AS _pre_0#129), false, [col#126]
+      //  +- Project [fake_column#128, [1,2,3] AS _pre_0#129]
+      //   +- RewrittenNodeWall Scan OneRowRelation[fake_column#128]
+      // The last projection column in GeneratorRel's child(Project) is the column we need to unnest
+      extractUnnestFieldExpr(projNode, projNode->projections().size() - 1, unnest);
+    } else {
+      // For stack function, e.g. stack(2, 1,2,3), a sample
+      // input substrait plan is like the following:
+      //
+      // Generate stack(2, id#122, name#123, id1#124, name1#125), false, [col0#137, col1#138]
+      // +- Project [id#122, name#123, id1#124, name1#125, array(id#122, id1#124) AS _pre_0#141, array(name#123,
+      // name1#125) AS _pre_1#142]
+      //   +- RewrittenNodeWall LocalTableScan [id#122, name#123, id1#124, name1#125]
+      //
+      // The last `numFields` projections are the fields we want to unnest.
+      auto generatorFunc = generator.scalar_function();
+      auto numRows = SubstraitParser::getLiteralValue<int32_t>(generatorFunc.arguments(0).value().literal());
+      auto numFields = static_cast<int32_t>(std::ceil((generatorFunc.arguments_size() - 1.0) / numRows));
+      auto totalProjectCount = projNode->names().size();
+
+      for (auto i = totalProjectCount - numFields; i < totalProjectCount; ++i) {
+        extractUnnestFieldExpr(projNode, i, unnest);
+      }
+    }
   } else {
     // Generator function's input is a field reference, e.g. explode(col), generator
     // function's first argument is the field reference we need to unnest.
@@ -760,15 +794,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     unnest.emplace_back(unnestFieldExpr);
   }
 
-  // TODO(yuan): get from generator output
   std::vector<std::string> unnestNames;
   int unnestIndex = 0;
   for (const auto& variable : unnest) {
     if (variable->type()->isArray()) {
-      unnestNames.emplace_back(fmt::format("C{}", unnestIndex++));
+      unnestNames.emplace_back(SubstraitParser::makeNodeName(planNodeId_, unnestIndex++));
     } else if (variable->type()->isMap()) {
-      unnestNames.emplace_back(fmt::format("C{}", unnestIndex++));
-      unnestNames.emplace_back(fmt::format("C{}", unnestIndex++));
+      unnestNames.emplace_back(SubstraitParser::makeNodeName(planNodeId_, unnestIndex++));
+      unnestNames.emplace_back(SubstraitParser::makeNodeName(planNodeId_, unnestIndex++));
     } else {
       VELOX_FAIL(
           "Unexpected type of unnest variable. Expected ARRAY or MAP, but got {}.", variable->type()->toString());

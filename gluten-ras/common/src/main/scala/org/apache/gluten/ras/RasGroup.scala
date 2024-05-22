@@ -22,7 +22,7 @@ import org.apache.gluten.ras.property.PropertySet
 trait RasGroup[T <: AnyRef] {
   def id(): Int
   def clusterKey(): RasClusterKey
-  def propSet(): PropertySet[T]
+  def constraintSet(): PropertySet[T]
   def self(): T
   def nodes(store: MemoStore[T]): Iterable[CanonicalNode[T]]
 }
@@ -40,17 +40,17 @@ object RasGroup {
       ras: Ras[T],
       clusterKey: RasClusterKey,
       override val id: Int,
-      override val propSet: PropertySet[T])
+      override val constraintSet: PropertySet[T])
     extends RasGroup[T] {
-    private val groupLeaf: T = ras.planModel.newGroupLeaf(id, clusterKey.metadata, propSet)
+    private val groupLeaf: T = ras.planModel.newGroupLeaf(id, clusterKey.metadata, constraintSet)
 
     override def clusterKey(): RasClusterKey = clusterKey
     override def self(): T = groupLeaf
     override def nodes(store: MemoStore[T]): Iterable[CanonicalNode[T]] = {
-      store.getCluster(clusterKey).nodes().filter(n => n.propSet().satisfies(propSet))
+      store.getCluster(clusterKey).nodes().filter(n => n.propSet().satisfies(constraintSet))
     }
     override def toString(): String = {
-      s"RasGroup(id=$id, clusterKey=$clusterKey, propSet=$propSet))"
+      s"RasGroup(id=$id, clusterKey=$clusterKey, constraintSet=$constraintSet))"
     }
   }
 }

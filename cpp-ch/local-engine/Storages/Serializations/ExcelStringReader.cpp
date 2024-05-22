@@ -19,7 +19,7 @@
 #include <IO/PeekableReadBuffer.h>
 #include <base/hex.h>
 #include <Common/PODArray.h>
-#include <Common/StringUtils/StringUtils.h>
+#include <Common/StringUtils.h>
 #include <Common/memcpySmall.h>
 
 #include "ExcelStringReader.h"

@@ -411,9 +411,12 @@ object OperationSuite {
       equalsCount += 1
       delegated.equals(one, other)
     }
-    override def newGroupLeaf(groupId: Int, metadata: Metadata, propSet: PropertySet[T]): T = {
+    override def newGroupLeaf(
+        groupId: Int,
+        metadata: Metadata,
+        constraintSet: PropertySet[T]): T = {
       newGroupLeafCount += 1
-      delegated.newGroupLeaf(groupId, metadata, propSet)
+      delegated.newGroupLeaf(groupId, metadata, constraintSet)
     }
     override def isGroupLeaf(node: T): Boolean = {
       isGroupLeafCount += 1

@@ -18,9 +18,7 @@
 #include <memory>
 #include <AggregateFunctions/Combinators/AggregateFunctionIf.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
-#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeTuple.h>
-#include <DataTypes/IDataType.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
 #include <Operator/DefaultHashAggregateResult.h>
@@ -31,8 +29,6 @@
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/MergingAggregatedStep.h>
 #include <Common/CHUtil.h>
-#include "Common/PODArray.h"
-#include <Common/StringUtils/StringUtils.h>
 
 namespace DB
 {

@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "StringUtils.h"
+#include "GlutenStringUtils.h"
 #include <filesystem>
 #include <boost/algorithm/string.hpp>
 #include <Poco/StringTokenizer.h>
 
 namespace local_engine
 {
-PartitionValues StringUtils::parsePartitionTablePath(const std::string & file)
+PartitionValues GlutenStringUtils::parsePartitionTablePath(const std::string & file)
 {
     PartitionValues result;
     Poco::StringTokenizer path(file, "/");
@@ -35,7 +35,7 @@ PartitionValues StringUtils::parsePartitionTablePath(const std::string & file)
     }
     return result;
 }
-bool StringUtils::isNullPartitionValue(const std::string & value)
+bool GlutenStringUtils::isNullPartitionValue(const std::string & value)
 {
     return value == "__HIVE_DEFAULT_PARTITION__";
 }

@@ -17,8 +17,9 @@
 package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.extension.columnar.{OffloadExchange, OffloadJoin, OffloadOthers, OffloadSingleNode}
+import org.apache.gluten.extension.columnar.transition.ConventionReq
 import org.apache.gluten.planner.GlutenOptimization
-import org.apache.gluten.planner.property.Conventions
+import org.apache.gluten.planner.property.Conv
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.utils.LogLevelUtil
 
@@ -48,9 +49,13 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
 
   private val optimization = GlutenOptimization(rules ++ offloadRules)
 
-  private val reqConvention = Conventions.ANY
-  private val altConventions =
-    Seq(Conventions.GLUTEN_COLUMNAR, Conventions.ROW_BASED)
+  private val reqConvention = Conv.any
+
+  private val altConventions = {
+    val rowBased: Conv = Conv.req(ConventionReq.row)
+    val backendBatchBased: Conv = Conv.req(ConventionReq.backendBatch)
+    Seq(rowBased, backendBatchBased)
+  }
 
   override def apply(plan: SparkPlan): SparkPlan = {
     val constraintSet = PropertySet(List(reqConvention))
