@@ -23,7 +23,7 @@ namespace local_engine
 using PartitionValue = std::pair<std::string, std::string>;
 using PartitionValues = std::vector<PartitionValue>;
 
-class StringUtils
+class GlutenStringUtils
 {
 public:
     static PartitionValues parsePartitionTablePath(const std::string & file);
