@@ -26,7 +26,8 @@ import org.apache.gluten.ras.property.PropertySet
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.{LeafExecNode, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarToRowExec, LeafExecNode, SparkPlan}
+import org.apache.spark.util.TaskResources
 
 import java.util.Objects
 
@@ -38,22 +39,17 @@ object GlutenPlanModel {
   case class GroupLeafExec(
       groupId: Int,
       metadata: GlutenMetadata,
-      propertySet: PropertySet[SparkPlan])
+      constraintSet: PropertySet[SparkPlan])
     extends LeafExecNode
     with KnownBatchType
     with KnownRowType {
-    private val req: Conv.Req = propertySet.get(ConvDef).asInstanceOf[Conv.Req]
+    private val req: Conv.Req = constraintSet.get(ConvDef).asInstanceOf[Conv.Req]
 
     override protected def doExecute(): RDD[InternalRow] = throw new IllegalStateException()
     override def output: Seq[Attribute] = metadata.schema().output
 
     override def supportsColumnar(): Boolean = {
-      // GroupLeafExec's supportsColumnar isn't actually used since it implements `KnownBatchType`
-      // which takes higher precedence than this method in Gluten.
-      //
-      // However we need this to set to true to avoid AssertionError then as child of
-      // ColumnarToRowExec.
-      true
+      batchType != Convention.BatchType.None
     }
 
     override val batchType: Convention.BatchType = {
@@ -76,9 +72,16 @@ object GlutenPlanModel {
   private object PlanModelImpl extends PlanModel[SparkPlan] {
     override def childrenOf(node: SparkPlan): Seq[SparkPlan] = node.children
 
-    override def withNewChildren(node: SparkPlan, children: Seq[SparkPlan]): SparkPlan = {
-      node.withNewChildren(children)
-    }
+    override def withNewChildren(node: SparkPlan, children: Seq[SparkPlan]): SparkPlan =
+      node match {
+        case c2r: ColumnarToRowExec =>
+          // To workaround the assertion in ColumnarToRowExec's code if child is a group leaf.
+          TaskResources.runUnsafe {
+            c2r.withNewChildren(children)
+          }
+        case other =>
+          other.withNewChildren(children)
+      }
 
     override def hashCode(node: SparkPlan): Int = Objects.hashCode(node)
 
@@ -87,8 +90,8 @@ object GlutenPlanModel {
     override def newGroupLeaf(
         groupId: Int,
         metadata: Metadata,
-        propSet: PropertySet[SparkPlan]): SparkPlan =
-      GroupLeafExec(groupId, metadata.asInstanceOf[GlutenMetadata], propSet)
+        constraintSet: PropertySet[SparkPlan]): SparkPlan =
+      GroupLeafExec(groupId, metadata.asInstanceOf[GlutenMetadata], constraintSet)
 
     override def isGroupLeaf(node: SparkPlan): Boolean = node match {
       case _: GroupLeafExec => true

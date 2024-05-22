@@ -17,7 +17,6 @@
 package org.apache.gluten.planner.property
 
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq, Transition}
-import org.apache.gluten.planner.plan.GlutenPlanModel.GroupLeafExec
 import org.apache.gluten.ras.{Property, PropertyDef}
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 
@@ -69,9 +68,8 @@ object Conv {
 object ConvDef extends PropertyDef[SparkPlan, Conv] {
   // TODO: Should the convention-transparent ops (e.g., aqe shuffle read) support
   //  convention-propagation. Probably need to refactor getChildrenPropertyRequirements.
-  override def getProperty(plan: SparkPlan): Conv = plan match {
-    case _: GroupLeafExec => throw new IllegalStateException()
-    case other => conventionOf(other)
+  override def getProperty(plan: SparkPlan): Conv = {
+    conventionOf(plan)
   }
 
   private def conventionOf(plan: SparkPlan): Conv = {

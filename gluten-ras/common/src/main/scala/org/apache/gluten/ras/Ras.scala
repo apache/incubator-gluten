@@ -111,15 +111,6 @@ class Ras[T <: AnyRef] private (
       // Node groups don't have user-defined cost, expect exception here.
       metadataModel.metadataOf(dummyGroup)
     }
-    propertyModel.propertyDefs.foreach {
-      propDef =>
-        // Node groups don't have user-defined property, expect exception here.
-        assertThrows(
-          "Group is not allowed to return its property directly to optimizer (optimizer already" +
-            " knew that). It's expected to throw an exception when getting its property but not") {
-          propDef.getProperty(dummyGroup)
-        }
-    }
   }
 
   override def newPlanner(
