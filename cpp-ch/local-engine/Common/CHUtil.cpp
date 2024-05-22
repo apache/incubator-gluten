@@ -691,11 +691,10 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
         }
         if (!backend_conf_map.contains(CH_RUNTIME_SETTINGS + "prefer_external_sort_block_bytes"))
         {
-            auto mem_ratio = task_memory / static_cast<double>(4_GiB);
-            // 50(0.9x)^2+18x, Heuristics calculate the block size of external sort
-            settings.prefer_external_sort_block_bytes = std::min(
-                static_cast<size_t>((50 * pow((mem_ratio * 0.8), 2) + 18 * mem_ratio) * 1024 * 1024),
-                50_MiB);
+            auto mem_gb = task_memory / static_cast<double>(1_GiB);
+            // 2.8x+5, Heuristics calculate the block size of external sort, [8,16]
+            settings.prefer_external_sort_block_bytes = std::max(std::min(
+                static_cast<size_t>(2.8*mem_gb + 5), 16ul), 8ul) * 1024 * 1024;
         }
     }
 }
