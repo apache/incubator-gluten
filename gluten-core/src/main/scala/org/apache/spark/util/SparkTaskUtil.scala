@@ -14,29 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.planner.property
+package org.apache.spark.util
 
-import org.apache.gluten.ras._
+import org.apache.spark.TaskContext
 
-import org.apache.spark.sql.execution._
-
-object GlutenPropertyModel {
-
-  def apply(): PropertyModel[SparkPlan] = {
-    PropertyModelImpl
+object SparkTaskUtil {
+  def setTaskContext(taskContext: TaskContext): Unit = {
+    TaskContext.setTaskContext(taskContext)
   }
 
-  private object PropertyModelImpl extends PropertyModel[SparkPlan] {
-    override def propertyDefs: Seq[PropertyDef[SparkPlan, _ <: Property[SparkPlan]]] =
-      Seq(ConvDef)
-
-    override def newEnforcerRuleFactory(
-        propertyDef: PropertyDef[SparkPlan, _ <: Property[SparkPlan]])
-        : EnforcerRuleFactory[SparkPlan] = (reqProp: Property[SparkPlan]) => {
-      propertyDef match {
-        case ConvDef =>
-          Seq(ConvEnforcerRule(reqProp.asInstanceOf[Conv]))
-      }
-    }
+  def unsetTaskContext(): Unit = {
+    TaskContext.unset()
   }
 }

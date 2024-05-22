@@ -251,6 +251,7 @@ object DistributedSuite {
 
   private object DistributionDef extends PropertyDef[TestNode, Distribution] {
     override def getProperty(plan: TestNode): Distribution = plan match {
+      case g: Group => g.constraintSet.get(this)
       case d: DNode => d.getDistribution()
       case _ =>
         throw new UnsupportedOperationException()
@@ -308,6 +309,7 @@ object DistributedSuite {
   // FIXME: Handle non-ordering as well as non-distribution
   private object OrderingDef extends PropertyDef[TestNode, Ordering] {
     override def getProperty(plan: TestNode): Ordering = plan match {
+      case g: Group => g.constraintSet.get(this)
       case d: DNode => d.getOrdering()
       case _ => throw new UnsupportedOperationException()
     }
@@ -383,7 +385,7 @@ object DistributedSuite {
     with UnaryLike {
     override def getDistribution(): Distribution = {
       val childDistribution = child match {
-        case g: Group => g.propSet.get(DistributionDef)
+        case g: Group => g.constraintSet.get(DistributionDef)
         case other => DistributionDef.getProperty(other)
       }
       if (childDistribution == NoneDistribution) {
@@ -415,7 +417,7 @@ object DistributedSuite {
     extends DNode
     with UnaryLike {
     override def getDistribution(): Distribution = child match {
-      case g: Group => g.propSet.get(DistributionDef)
+      case g: Group => g.constraintSet.get(DistributionDef)
       case other => DistributionDef.getProperty(other)
     }
 
@@ -433,7 +435,7 @@ object DistributedSuite {
     with UnaryLike {
     override def getDistribution(): Distribution = {
       val childDistribution = child match {
-        case g: Group => g.propSet.get(DistributionDef)
+        case g: Group => g.constraintSet.get(DistributionDef)
         case other => DistributionDef.getProperty(other)
       }
       if (childDistribution == NoneDistribution) {
@@ -463,12 +465,12 @@ object DistributedSuite {
 
   case class DProject(override val child: TestNode) extends DNode with UnaryLike {
     override def getDistribution(): Distribution = child match {
-      case g: Group => g.propSet.get(DistributionDef)
+      case g: Group => g.constraintSet.get(DistributionDef)
       case other => DistributionDef.getProperty(other)
     }
     override def getDistributionConstraints(req: Distribution): Seq[Distribution] = List(req)
     override def getOrdering(): Ordering = child match {
-      case g: Group => g.propSet.get(OrderingDef)
+      case g: Group => g.constraintSet.get(OrderingDef)
       case other => OrderingDef.getProperty(other)
     }
     override def getOrderingConstraints(req: Ordering): Seq[Ordering] = List(req)
@@ -482,7 +484,7 @@ object DistributedSuite {
     with UnaryLike {
     override def getDistribution(): Distribution = {
       val childDistribution = child match {
-        case g: Group => g.propSet.get(DistributionDef)
+        case g: Group => g.constraintSet.get(DistributionDef)
         case other => DistributionDef.getProperty(other)
       }
       if (childDistribution == NoneDistribution) {
@@ -501,13 +503,13 @@ object DistributedSuite {
 
   case class DSort(keys: Seq[String], override val child: TestNode) extends DNode with UnaryLike {
     override def getDistribution(): Distribution = child match {
-      case g: Group => g.propSet.get(DistributionDef)
+      case g: Group => g.constraintSet.get(DistributionDef)
       case other => DistributionDef.getProperty(other)
     }
     override def getDistributionConstraints(req: Distribution): Seq[Distribution] = List(req)
     override def getOrdering(): Ordering = {
       val childOrdering = child match {
-        case g: Group => g.propSet.get(OrderingDef)
+        case g: Group => g.constraintSet.get(OrderingDef)
         case other => OrderingDef.getProperty(other)
       }
       if (childOrdering.satisfies(SimpleOrdering(keys))) {

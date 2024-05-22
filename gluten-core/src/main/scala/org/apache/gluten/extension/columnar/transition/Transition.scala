@@ -29,7 +29,21 @@ import scala.collection.mutable
  * [[org.apache.gluten.extension.columnar.transition.Convention.BatchType]]'s definition.
  */
 trait Transition {
-  def apply(plan: SparkPlan): SparkPlan
+  final def apply(plan: SparkPlan): SparkPlan = {
+    val out = apply0(plan)
+    if (out.fastEquals(plan)) {
+      assert(
+        this == Transition.empty,
+        "TransitionDef.empty / Transition.empty should be used when defining an empty transition.")
+    }
+    out
+  }
+
+  final def isEmpty: Boolean = {
+    this == Transition.empty
+  }
+
+  protected def apply0(plan: SparkPlan): SparkPlan
 }
 
 trait TransitionDef {
@@ -53,12 +67,15 @@ object Transition {
   }
 
   private class ChainedTransition(first: Transition, second: Transition) extends Transition {
-    override def apply(plan: SparkPlan): SparkPlan = {
+    override def apply0(plan: SparkPlan): SparkPlan = {
       second(first(plan))
     }
   }
 
   private def chain(first: Transition, second: Transition): Transition = {
+    if (first.isEmpty && second.isEmpty) {
+      return Transition.empty
+    }
     new ChainedTransition(first, second)
   }
 
@@ -70,6 +87,15 @@ object Transition {
       findTransition(from, to) {
         throw otherwise
       }
+    }
+
+    final def satisfies(conv: Convention, req: ConventionReq): Boolean = {
+      val none = new Transition {
+        override protected def apply0(plan: SparkPlan): SparkPlan =
+          throw new UnsupportedOperationException()
+      }
+      val transition = findTransition(conv, req)(none)
+      transition.isEmpty
     }
 
     protected def findTransition(from: Convention, to: ConventionReq)(
