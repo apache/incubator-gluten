@@ -359,7 +359,7 @@ case class ColumnarArrowEvalPythonExec(
               // so we do a hard reset here.
               (0 until joinedVectors.length).foreach(
                 i => {
-                  joinedVectors(i).asInstanceOf[ArrowWritableColumnVector].getRefCntObj().set(1)
+                  adjustRefCnt(joinedVectors(i).asInstanceOf[ArrowWritableColumnVector], 1)
                 })
               val numRows = inputCb.numRows
               numOutputBatches += 1
@@ -379,6 +379,23 @@ case class ColumnarArrowEvalPythonExec(
           .recyclePayload(_.close())
           .create()
     }
+  }
+
+  private def adjustRefCnt(vector: ArrowWritableColumnVector, to: Long): Unit = {
+    val from = vector.refCnt()
+    if (from == to) {
+      return
+    }
+    if (from > to) {
+      do {
+        vector.close()
+      } while (vector.refCnt() == to)
+      return
+    }
+    // from < to
+    do {
+      vector.retain()
+    } while (vector.refCnt() == to)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): ColumnarArrowEvalPythonExec =
