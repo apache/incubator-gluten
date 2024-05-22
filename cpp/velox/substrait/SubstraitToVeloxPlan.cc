@@ -760,15 +760,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     unnest.emplace_back(unnestFieldExpr);
   }
 
-  // TODO(yuan): get from generator output
   std::vector<std::string> unnestNames;
   int unnestIndex = 0;
   for (const auto& variable : unnest) {
     if (variable->type()->isArray()) {
-      unnestNames.emplace_back(fmt::format("C{}", unnestIndex++));
+      unnestNames.emplace_back(SubstraitParser::makeNodeName(planNodeId_, unnestIndex++));
     } else if (variable->type()->isMap()) {
-      unnestNames.emplace_back(fmt::format("C{}", unnestIndex++));
-      unnestNames.emplace_back(fmt::format("C{}", unnestIndex++));
+      unnestNames.emplace_back(SubstraitParser::makeNodeName(planNodeId_, unnestIndex++));
+      unnestNames.emplace_back(SubstraitParser::makeNodeName(planNodeId_, unnestIndex++));
     } else {
       VELOX_FAIL(
           "Unexpected type of unnest variable. Expected ARRAY or MAP, but got {}.", variable->type()->toString());
