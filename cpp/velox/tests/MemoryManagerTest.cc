@@ -17,7 +17,7 @@
 
 #include "benchmarks/common/BenchmarkUtils.h"
 #include "compute/VeloxBackend.h"
-#include "config/GlutenConfig.h"
+#include "config/VeloxConfig.h"
 #include "memory/VeloxMemoryManager.h"
 #include "velox/common/base/tests/GTestUtils.h"
 
@@ -48,7 +48,8 @@ class MemoryManagerTest : public ::testing::Test {
  protected:
   static void SetUpTestCase() {
     std::unordered_map<std::string, std::string> conf = {
-        {kMemoryReservationBlockSize, std::to_string(kMemoryReservationBlockSizeDefault)}};
+        {kMemoryReservationBlockSize, std::to_string(kMemoryReservationBlockSizeDefault)},
+        {kVeloxMemInitCapacity, std::to_string(kVeloxMemInitCapacityDefault)}};
     initVeloxBackend(conf);
   }
 
@@ -93,6 +94,8 @@ TEST_F(MemoryManagerTest, memoryPoolWithBlockReseravtion) {
 }
 
 TEST_F(MemoryManagerTest, memoryAllocatorWithBlockReservation) {
+  auto initBytes = listener_->currentBytes();
+
   std::vector<Allocation> allocations;
   std::vector<uint64_t> sizes{
       kMemoryReservationBlockSizeDefault - 1 * kMB, kMemoryReservationBlockSizeDefault - 2 * kMB};
@@ -105,7 +108,7 @@ TEST_F(MemoryManagerTest, memoryAllocatorWithBlockReservation) {
 
     EXPECT_EQ(allocator_->getBytes(), currentBytes + size);
     EXPECT_EQ(allocator_->peakBytes(), allocator_->getBytes());
-    EXPECT_EQ(listener_->currentBytes(), (i + 1) * kMemoryReservationBlockSizeDefault);
+    EXPECT_EQ(listener_->currentBytes(), (i + 1) * kMemoryReservationBlockSizeDefault + initBytes);
     EXPECT_EQ(listener_->peakBytes(), listener_->currentBytes());
   }
 
@@ -114,14 +117,14 @@ TEST_F(MemoryManagerTest, memoryAllocatorWithBlockReservation) {
   allocations.pop_back();
   allocator_->free(allocation.buffer, allocation.size);
   EXPECT_EQ(allocator_->getBytes(), currentBytes - allocation.size);
-  EXPECT_EQ(listener_->currentBytes(), kMemoryReservationBlockSizeDefault);
+  EXPECT_EQ(listener_->currentBytes(), kMemoryReservationBlockSizeDefault + initBytes);
 
   currentBytes = allocator_->getBytes();
   allocation = allocations.back();
   allocations.pop_back();
   allocator_->free(allocation.buffer, allocation.size);
   EXPECT_EQ(allocator_->getBytes(), currentBytes - allocation.size);
-  EXPECT_EQ(listener_->currentBytes(), 0);
+  EXPECT_EQ(listener_->currentBytes(), initBytes);
 
   ASSERT_EQ(allocator_->getBytes(), 0);
 }
