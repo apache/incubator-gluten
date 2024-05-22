@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.vectorized;
 
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -44,7 +46,6 @@ import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
 import org.apache.spark.sql.catalyst.util.DateTimeUtils;
 import org.apache.spark.sql.execution.vectorized.WritableColumnVector;
 import org.apache.spark.sql.execution.vectorized.WritableColumnVectorShim;
@@ -627,8 +628,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
   }
 
   @Override
-  public void putFloatsLittleEndian(int rowId, int count, byte[] src, int srcIndex) {
-  }
+  public void putFloatsLittleEndian(int rowId, int count, byte[] src, int srcIndex) {}
 
   @Override
   public float getFloat(int rowId) {
@@ -660,8 +660,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
   }
 
   @Override
-  public void putDoublesLittleEndian(int rowId, int count, byte[] src, int srcIndex) {
-  }
+  public void putDoublesLittleEndian(int rowId, int count, byte[] src, int srcIndex) {}
 
   @Override
   public void putDoubles(int rowId, int count, byte[] src, int srcIndex) {
