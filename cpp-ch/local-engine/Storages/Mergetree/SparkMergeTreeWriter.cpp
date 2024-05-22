@@ -141,9 +141,6 @@ bool SparkMergeTreeWriter::blockToPart(Block & block)
         /// Reset earlier to free memory
         item.block.clear();
         item.partition.clear();
-
-        if (merge_after_insert)
-            checkAndMerge();
     }
 
     return true;
