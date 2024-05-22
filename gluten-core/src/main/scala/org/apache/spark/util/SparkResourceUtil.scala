@@ -14,9 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.spark.util
 
-import org.apache.spark.{SparkConf, SparkMasterRegex, TaskContext}
+import org.apache.spark.{SparkConf, SparkMasterRegex}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
@@ -75,13 +76,5 @@ object SparkResourceUtil extends Logging {
     val executorCores = SparkResourceUtil.getExecutorCores(conf)
     val taskCores = conf.getInt("spark.task.cpus", 1)
     executorCores / taskCores
-  }
-
-  def setTaskContext(taskContext: TaskContext): Unit = {
-    TaskContext.setTaskContext(taskContext)
-  }
-
-  def unsetTaskContext(): Unit = {
-    TaskContext.unset()
   }
 }

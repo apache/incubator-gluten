@@ -28,7 +28,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{ColumnarToRowExec, LeafExecNode, SparkPlan}
-import org.apache.spark.util.SparkResourceUtil
+import org.apache.spark.util.SparkTaskUtil
 
 import java.util.Objects
 
@@ -73,11 +73,11 @@ object GlutenPlanModel {
   private object PlanModelImpl extends PlanModel[SparkPlan] {
     private val fakeTc = SparkShimLoader.getSparkShims.createTestTaskContext()
     private def fakeTc[T](body: => T): T = {
-      SparkResourceUtil.setTaskContext(fakeTc)
+      SparkTaskUtil.setTaskContext(fakeTc)
       try {
         body
       } finally {
-        SparkResourceUtil.unsetTaskContext()
+        SparkTaskUtil.unsetTaskContext()
       }
     }
 
