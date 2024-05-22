@@ -671,7 +671,8 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
     jboolean flush_block_buffer_before_evict,
     jlong max_sort_buffer_size,
     jboolean spill_firstly_before_stop,
-    jboolean force_sort)
+    jboolean force_external_sort,
+    jboolean force_memory_sort)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     std::string hash_exprs;
@@ -718,7 +719,8 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
         .flush_block_buffer_before_evict = static_cast<bool>(flush_block_buffer_before_evict),
         .max_sort_buffer_size = static_cast<size_t>(max_sort_buffer_size),
         .spill_firstly_before_stop = static_cast<bool>(spill_firstly_before_stop),
-        .force_sort = static_cast<bool>(force_sort)
+        .force_external_sort = static_cast<bool>(force_external_sort),
+        .force_mermory_sort = static_cast<bool>(force_memory_sort)
     };
     auto name = jstring2string(env, short_name);
     local_engine::SplitterHolder * splitter;

@@ -37,7 +37,8 @@ public class CHShuffleSplitterJniWrapper {
       boolean flushBlockBufferBeforeEvict,
       long maxSortBufferSize,
       boolean spillFirstlyBeforeStop,
-      boolean forceSort) {
+      boolean forceExternalSort,
+      boolean forceMemorySort) {
     return nativeMake(
         part.getShortName(),
         part.getNumPartitions(),
@@ -57,7 +58,8 @@ public class CHShuffleSplitterJniWrapper {
         flushBlockBufferBeforeEvict,
         maxSortBufferSize,
         spillFirstlyBeforeStop,
-        forceSort);
+        forceExternalSort,
+        forceMemorySort);
   }
 
   public long makeForRSS(
@@ -106,7 +108,8 @@ public class CHShuffleSplitterJniWrapper {
       boolean flushBlockBufferBeforeEvict,
       long maxSortBufferSize,
       boolean spillFirstlyBeforeStop,
-      boolean forceSort);
+      boolean forceSort,
+      boolean forceMemorySort);
 
   public native long nativeMakeForRSS(
       String shortName,
