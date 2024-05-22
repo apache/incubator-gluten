@@ -175,6 +175,7 @@ object ExpressionNames {
   final val REMAINDER = "modulus"
   final val FACTORIAL = "factorial"
   final val RAND = "rand"
+  final val RINT = "rint"
 
   // PrestoSQL Math functions
   final val ACOS = "acos"
@@ -293,6 +294,7 @@ object ExpressionNames {
   final val AGGREGATE = "aggregate"
   final val LAMBDAFUNCTION = "lambdafunction"
   final val EXPLODE = "explode"
+  final val STACK = "stack"
   final val INLINE = "inline"
   final val POSEXPLODE = "posexplode"
   final val CHECK_OVERFLOW = "check_overflow"
@@ -323,4 +325,5 @@ object ExpressionNames {
 
   // A placeholder for native UDF functions
   final val UDF_PLACEHOLDER = "udf_placeholder"
+  final val UDAF_PLACEHOLDER = "udaf_placeholder"
 }

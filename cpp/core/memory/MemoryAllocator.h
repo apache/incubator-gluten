@@ -68,10 +68,11 @@ class ListenableMemoryAllocator final : public MemoryAllocator {
   int64_t peakBytes() const override;
 
  private:
+  void updateUsage(int64_t size);
   MemoryAllocator* delegated_;
   AllocationListener* listener_;
-  std::atomic_int64_t bytes_{0};
-  int64_t peakBytes_{0};
+  uint64_t usedBytes_{0L};
+  uint64_t peakBytes_{0L};
 };
 
 class StdMemoryAllocator final : public MemoryAllocator {

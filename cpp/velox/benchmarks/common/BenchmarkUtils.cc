@@ -18,7 +18,7 @@
 #include "BenchmarkUtils.h"
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxRuntime.h"
-#include "config/GlutenConfig.h"
+#include "config/VeloxConfig.h"
 #include "shuffle/Utils.h"
 #include "utils/StringUtil.h"
 #include "velox/dwio/common/Options.h"
@@ -38,6 +38,7 @@ std::unordered_map<std::string, std::string> bmConfMap = {{gluten::kSparkBatchSi
 } // namespace
 
 void initVeloxBackend(std::unordered_map<std::string, std::string>& conf) {
+  conf[gluten::kGlogSeverityLevel] = "0";
   gluten::VeloxBackend::create(conf);
 }
 

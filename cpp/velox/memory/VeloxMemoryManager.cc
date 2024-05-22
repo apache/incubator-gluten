@@ -20,6 +20,8 @@
 #include "velox/common/memory/MemoryPool.h"
 #include "velox/exec/MemoryReclaimer.h"
 
+#include "compute/VeloxBackend.h"
+#include "config/VeloxConfig.h"
 #include "memory/ArrowMemoryPool.h"
 #include "utils/exception.h"
 
@@ -40,8 +42,12 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
   uint64_t growCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
-    VELOX_CHECK_EQ(targetBytes, 0, "Gluten has set MemoryManagerOptions.memoryPoolInitCapacity to 0")
-    return 0;
+    std::lock_guard<std::recursive_mutex> l(mutex_);
+    listener_->allocationChanged(targetBytes);
+    if (!pool->grow(targetBytes, 0)) {
+      VELOX_FAIL("Failed to grow root pool's capacity for {}", velox::succinctBytes(targetBytes));
+    }
+    return targetBytes;
   }
 
   uint64_t shrinkCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
@@ -103,9 +109,9 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
       }
     }
     auto reclaimedFreeBytes = pool->shrink(0);
-    auto neededBytes = bytes - reclaimedFreeBytes;
+    auto neededBytes = velox::bits::roundUp(bytes - reclaimedFreeBytes, memoryPoolTransferCapacity_);
     listener_->allocationChanged(neededBytes);
-    auto ret = pool->grow(bytes, bytes);
+    auto ret = pool->grow(reclaimedFreeBytes + neededBytes, bytes);
     VELOX_CHECK(
         ret,
         "{} failed to grow {} bytes, current state {}",
@@ -156,8 +162,13 @@ VeloxMemoryManager::VeloxMemoryManager(
     std::shared_ptr<MemoryAllocator> allocator,
     std::unique_ptr<AllocationListener> listener)
     : MemoryManager(), name_(name), listener_(std::move(listener)) {
-  glutenAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), listener_.get());
-  arrowPool_ = std::make_unique<ArrowMemoryPool>(glutenAlloc_.get());
+  auto reservationBlockSize = VeloxBackend::get()->getBackendConf()->get<uint64_t>(
+      kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
+  auto memInitCapacity =
+      VeloxBackend::get()->getBackendConf()->get<uint64_t>(kVeloxMemInitCapacity, kVeloxMemInitCapacityDefault);
+  blockListener_ = std::make_unique<BlockAllocationListener>(listener_.get(), reservationBlockSize);
+  listenableAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), blockListener_.get());
+  arrowPool_ = std::make_unique<ArrowMemoryPool>(listenableAlloc_.get());
 
   ArbitratorFactoryRegister afr(listener_.get());
   velox::memory::MemoryManagerOptions mmOptions{
@@ -168,8 +179,8 @@ VeloxMemoryManager::VeloxMemoryManager(
       .coreOnAllocationFailureEnabled = false,
       .allocatorCapacity = velox::memory::kMaxMemory,
       .arbitratorKind = afr.getKind(),
-      .memoryPoolInitCapacity = 0,
-      .memoryPoolTransferCapacity = 32 << 20,
+      .memoryPoolInitCapacity = memInitCapacity,
+      .memoryPoolTransferCapacity = reservationBlockSize,
       .memoryReclaimWaitMs = 0};
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
 
@@ -222,7 +233,7 @@ const MemoryUsageStats VeloxMemoryManager::collectMemoryUsageStats() const {
   stats.set_current(listener_->currentBytes());
   stats.set_peak(listener_->peakBytes());
   stats.mutable_children()->emplace(
-      "gluten::MemoryAllocator", collectGlutenAllocatorMemoryUsageStats(glutenAlloc_.get()));
+      "gluten::MemoryAllocator", collectGlutenAllocatorMemoryUsageStats(listenableAlloc_.get()));
   stats.mutable_children()->emplace(
       veloxAggregatePool_->name(), collectVeloxMemoryUsageStats(veloxAggregatePool_.get()));
   return stats;

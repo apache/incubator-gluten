@@ -803,6 +803,43 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     }
   }
 
+  test("test stack function") {
+    withTempView("t1") {
+      sql("""SELECT * from values
+            |  (1, "james", 10, "lucy"),
+            |  (2, "bond", 20, "lily")
+            |as tbl(id, name, id1, name1)
+         """.stripMargin).createOrReplaceTempView("t1")
+
+      // Stack function with attributes as params.
+      // Stack 4 attributes, no nulls need to be padded.
+      runQueryAndCompare(s"""
+                            |SELECT stack(2, id, name, id1, name1) from t1;
+                            |""".stripMargin) {
+        checkGlutenOperatorMatch[GenerateExecTransformer]
+      }
+
+      // Stack 3 attributes: there will be nulls.
+      runQueryAndCompare(s"""
+                            |SELECT stack(2, id, name, id1) from t1;
+                            |""".stripMargin) {
+        checkGlutenOperatorMatch[GenerateExecTransformer]
+      }
+
+      // Stack function with literals as params.
+      runQueryAndCompare("SELECT stack(2, 1, 2, 3);") {
+        checkGlutenOperatorMatch[GenerateExecTransformer]
+      }
+
+      // Stack function with params mixed with attributes and literals.
+      runQueryAndCompare(s"""
+                            |SELECT stack(2, id, name, 1) from t1;
+                            |""".stripMargin) {
+        checkGlutenOperatorMatch[GenerateExecTransformer]
+      }
+    }
+  }
+
   test("test inline function") {
     // Literal: func(literal)
     runQueryAndCompare(s"""

@@ -18,9 +18,7 @@ package org.apache.spark.sql.expression
 
 import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.expression.{ConverterUtils, ExpressionTransformer, ExpressionType, Transformable}
-import org.apache.gluten.expression.ConverterUtils.FunctionConfig
-import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
+import org.apache.gluten.expression.{ConverterUtils, ExpressionTransformer, ExpressionType, GenericExpressionTransformer, Transformable}
 import org.apache.gluten.udf.UdfJniWrapper
 import org.apache.gluten.vectorized.JniWorkspace
 
@@ -37,8 +35,6 @@ import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.types.{DataType, StructField, StructType}
 import org.apache.spark.util.Utils
 
-import com.google.common.collect.Lists
-
 import java.io.File
 import java.net.URI
 import java.nio.file.{Files, FileVisitOption, Paths}
@@ -53,6 +49,7 @@ case class UserDefinedAggregateFunction(
     children: Seq[Expression],
     override val aggBufferAttributes: Seq[AttributeReference])
   extends AggregateFunction {
+  override def prettyName: String = name
 
   override def aggBufferSchema: StructType =
     StructType(
@@ -111,24 +108,7 @@ case class UDFExpression(
           ": getTransformer called before children transformer initialized.")
     }
 
-    val localDataType = dataType
-    new ExpressionTransformer {
-      override def doTransform(args: Object): ExpressionNode = {
-        val transformers = childrenTransformers.map(_.doTransform(args))
-        val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-        val functionId = ExpressionBuilder.newScalarFunction(
-          functionMap,
-          ConverterUtils.makeFuncName(name, children.map(_.dataType), FunctionConfig.REQ))
-
-        val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
-        ExpressionBuilder.makeScalarFunction(
-          functionId,
-          Lists.newArrayList(transformers: _*),
-          typeNode)
-      }
-
-      override def dataType: DataType = localDataType
-    }
+    GenericExpressionTransformer(name, childrenTransformers, this)
   }
 }
 

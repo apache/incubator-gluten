@@ -109,6 +109,18 @@ case class GenerateExecTransformer(
         .append("isPosExplode=")
         .append(isPosExplode)
         .append("\n")
+
+      // isStack: 1 for Stack, 0 for others.
+      val isStack = if (generator.isInstanceOf[Stack]) {
+        "1"
+      } else {
+        "0"
+      }
+      parametersStr
+        .append("isStack=")
+        .append(isStack)
+        .append("\n")
+
       val message = StringValue
         .newBuilder()
         .setValue(parametersStr.toString)
@@ -128,7 +140,7 @@ object GenerateExecTransformer {
       false
     } else {
       generator match {
-        case _: Inline | _: ExplodeBase | _: JsonTuple =>
+        case _: Inline | _: ExplodeBase | _: JsonTuple | _: Stack =>
           true
         case _ =>
           false
@@ -159,13 +171,43 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
           }
           val newGeneratorChildren = Seq(newGeneratorChild)
 
-          // Avoid using elimainateProjectList to create the project list
+          // Avoid using eliminateProjectList to create the project list
           // because newGeneratorChild can be a duplicated Attribute in generate.child.output.
           // The native side identifies the last field of projection as generator's input.
           generate.copy(
             generator =
               generate.generator.withNewChildren(newGeneratorChildren).asInstanceOf[Generator],
             child = ProjectExec(generate.child.output ++ newGeneratorChildren, generate.child)
+          )
+        case stack: Stack =>
+          val numRows = stack.children.head.eval().asInstanceOf[Int]
+          val numFields = Math.ceil((stack.children.size - 1.0) / numRows).toInt
+
+          val newProjections = mutable.Buffer[NamedExpression]()
+          val args = stack.children.tail
+
+          // We organize stack's params as `numFields` arrays which will be feed
+          // to Unnest operator on native side.
+          for (field <- 0 until numFields) {
+            val fieldArray = mutable.Buffer[Expression]()
+
+            for (row <- 0 until numRows) {
+              val index = row * numFields + field
+              if (index < args.size) {
+                fieldArray += args(index)
+              } else {
+                // Append nulls.
+                fieldArray += Literal(null, args(field).dataType)
+              }
+            }
+
+            newProjections += Alias(CreateArray(fieldArray), generatePreAliasName)()
+          }
+
+          // Plug in a Project between Generate and its child.
+          generate.copy(
+            generator = generate.generator,
+            child = ProjectExec(generate.child.output ++ newProjections, generate.child)
           )
         case JsonTuple(Seq(jsonObj, jsonPaths @ _*)) =>
           val getJsons: IndexedSeq[Expression] = {
