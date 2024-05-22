@@ -359,7 +359,7 @@ case class ColumnarArrowEvalPythonExec(
               // so we do a hard reset here.
               (0 until joinedVectors.length).foreach(
                 i => {
-                  joinedVectors(i).asInstanceOf[ArrowWritableColumnVector].resetRefCnt(1)
+                  joinedVectors(i).asInstanceOf[ArrowWritableColumnVector].getRefCntObj().set(1)
                 })
               val numRows = inputCb.numRows
               numOutputBatches += 1
