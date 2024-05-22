@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.test.FallbackUtil
 import org.apache.gluten.utils.Arm
@@ -320,7 +321,7 @@ abstract class WholeStageTransformerSuite
       noFallBack)
 
   protected def vanillaSparkConfs(): Seq[(String, String)] = {
-    List(("spark.gluten.enabled", "false"))
+    List((GlutenConfig.GLUTEN_ENABLED.key, "false"))
   }
 
   protected def checkDataFrame(

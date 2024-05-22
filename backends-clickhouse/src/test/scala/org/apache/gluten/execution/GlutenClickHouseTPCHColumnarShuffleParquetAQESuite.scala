@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.GlutenPlan
 
 import org.apache.spark.SparkConf
@@ -298,7 +299,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
   }
 
   test("Test 'spark.gluten.enabled' false") {
-    withSQLConf(("spark.gluten.enabled", "false")) {
+    withSQLConf((GlutenConfig.GLUTEN_ENABLED.key, "false")) {
       runTPCHQuery(2, noFallBack = false) {
         df =>
           val glutenPlans = collect(df.queryExecution.executedPlan) {
