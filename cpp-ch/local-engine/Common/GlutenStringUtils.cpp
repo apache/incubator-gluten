@@ -14,19 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
-#include <string>
-#include <vector>
+#include "GlutenStringUtils.h"
+#include <filesystem>
+#include <boost/algorithm/string.hpp>
+#include <Poco/StringTokenizer.h>
 
 namespace local_engine
 {
-using PartitionValue = std::pair<std::string, std::string>;
-using PartitionValues = std::vector<PartitionValue>;
-
-class StringUtils
+PartitionValues GlutenStringUtils::parsePartitionTablePath(const std::string & file)
 {
-public:
-    static PartitionValues parsePartitionTablePath(const std::string & file);
-    static bool isNullPartitionValue(const std::string & value);
-};
+    PartitionValues result;
+    Poco::StringTokenizer path(file, "/");
+    for (const auto & item : path)
+    {
+        auto position = item.find('=');
+        if (position != std::string::npos)
+        {
+            result.emplace_back(PartitionValue(boost::algorithm::to_lower_copy(item.substr(0, position)), item.substr(position + 1)));
+        }
+    }
+    return result;
+}
+bool GlutenStringUtils::isNullPartitionValue(const std::string & value)
+{
+    return value == "__HIVE_DEFAULT_PARTITION__";
+}
 }

@@ -42,6 +42,7 @@ import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Sca
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources._
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
@@ -354,6 +355,10 @@ class Spark35Shims extends SparkShims {
 
   def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] =
     partition.files.map(_.fileStatus)
+
+  def isRowIndexMetadataColumn(name: String): Boolean = {
+    name == ParquetFileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME
+  }
 
   def splitFiles(
       sparkSession: SparkSession,

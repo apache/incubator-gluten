@@ -850,19 +850,6 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
       .startPartitionId = startPartitionId,
   };
 
-  jclass cls = env->FindClass("java/lang/Thread");
-  jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
-  jobject thread = env->CallStaticObjectMethod(cls, mid);
-  checkException(env);
-  if (thread == NULL) {
-    LOG(WARNING) << "Thread.currentThread() return NULL";
-  } else {
-    jmethodID midGetid = getMethodIdOrError(env, cls, "getId", "()J");
-    jlong sid = env->CallLongMethod(thread, midGetid);
-    checkException(env);
-    shuffleWriterOptions.threadId = (int64_t)sid;
-  }
-
   auto partitionWriterOptions = PartitionWriterOptions{
       .mergeBufferSize = mergeBufferSize,
       .mergeThreshold = mergeThreshold,

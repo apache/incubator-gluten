@@ -276,7 +276,9 @@ object ExpressionMappings {
     Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID),
     Sig[SparkPartitionID](SPARK_PARTITION_ID),
     // Decimal
-    Sig[UnscaledValue](UNSCALED_VALUE)
+    Sig[UnscaledValue](UNSCALED_VALUE),
+    // Generator function
+    Sig[Stack](STACK)
   ) ++ SparkShimLoader.getSparkShims.scalarExpressionMappings
 
   /** Mapping Spark aggregate expression to Substrait function name */
