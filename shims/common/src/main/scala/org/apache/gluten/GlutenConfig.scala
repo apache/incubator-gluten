@@ -911,7 +911,7 @@ object GlutenConfig {
       .doc("The threshold to determine whether to use sort-based columnar shuffle. Sort-based " +
         "shuffle will be used if the number of partitions is greater than this threshold.")
       .intConf
-      .createWithDefault(0)
+      .createWithDefault(100000)
 
   val COLUMNAR_PREFER_ENABLED =
     buildConf("spark.gluten.sql.columnar.preferColumnar")
