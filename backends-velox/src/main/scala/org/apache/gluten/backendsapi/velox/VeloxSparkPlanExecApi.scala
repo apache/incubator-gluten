@@ -87,7 +87,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def batchTypeFunc(): BatchOverride = {
     case i: InMemoryTableScanExec
-        if i.relation.cacheBuilder.serializer.isInstanceOf[ColumnarCachedBatchSerializer] =>
+        if i.supportsColumnar && i.relation.cacheBuilder.serializer
+          .isInstanceOf[ColumnarCachedBatchSerializer] =>
       VeloxBatch
   }
 
