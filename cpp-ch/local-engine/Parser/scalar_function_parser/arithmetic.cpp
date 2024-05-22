@@ -65,6 +65,14 @@ public:
         return bounded_to_click_house(precision, scale);
     }
 
+    static DecimalType evalModuloDecimalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2)
+    {
+
+        const Int32 scale = std::max(s1, s2);
+        const Int32 precision = std::min(p1 - s1, p2 - s2) + scale;
+        return bounded_to_click_house(precision, scale);
+    }
+
     static DecimalType evalMultiplyDecimalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2)
     {
         const Int32 scale = s1;
@@ -221,6 +229,20 @@ protected:
     }
 };
 
+class FunctionParserModulo final : public FunctionParserBinaryArithmetic
+{
+public:
+    explicit FunctionParserModulo(SerializedPlanParser * plan_parser_) : FunctionParserBinaryArithmetic(plan_parser_) { }
+    static constexpr auto name = "modulus";
+    String getName() const override { return name; }
+
+protected:
+    DecimalType internalEvalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override
+    {
+        return DecimalType::evalModuloDecimalType(p1, s1, p2, s2);
+    }
+};
+
 class FunctionParserDivide final : public FunctionParserBinaryArithmetic
 {
 public:
@@ -252,5 +274,6 @@ static FunctionParserRegister<FunctionParserPlus> register_plus;
 static FunctionParserRegister<FunctionParserMinus> register_minus;
 static FunctionParserRegister<FunctionParserMultiply> register_mltiply;
 static FunctionParserRegister<FunctionParserDivide> register_divide;
+static FunctionParserRegister<FunctionParserModulo> register_modulo;
 
 }
