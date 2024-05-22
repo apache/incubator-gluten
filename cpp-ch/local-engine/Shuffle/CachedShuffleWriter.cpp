@@ -136,8 +136,8 @@ void CachedShuffleWriter::lazyInitPartitionWriter(Block & input_sample)
     auto avg_row_size = input_sample.allocatedBytes() / input_sample.rows();
     auto overhead_memory = std::max(avg_row_size, input_sample.columns() * 16) * options.split_size * options.partition_num;
     auto use_sort_shuffle = overhead_memory > options.spill_threshold * 0.5 || options.partition_num >= 300;
-    auto use_external_sort_shuffle = options.force_external_sort || use_sort_shuffle;
-    auto use_memory_sort_shuffle = options.force_mermory_sort;
+    auto use_external_sort_shuffle = options.force_external_sort;
+    auto use_memory_sort_shuffle = options.force_mermory_sort || use_sort_shuffle;
     sort_shuffle = use_memory_sort_shuffle || use_external_sort_shuffle;
     if (celeborn_client)
     {
