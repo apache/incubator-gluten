@@ -22,12 +22,13 @@ import org.apache.gluten.planner.metadata.GlutenMetadata
 import org.apache.gluten.planner.property.{Conv, ConvDef}
 import org.apache.gluten.ras.{Metadata, PlanModel}
 import org.apache.gluten.ras.property.PropertySet
+import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{ColumnarToRowExec, LeafExecNode, SparkPlan}
-import org.apache.spark.util.TaskResources
+import org.apache.spark.util.SparkResourceUtil
 
 import java.util.Objects
 
@@ -70,13 +71,24 @@ object GlutenPlanModel {
   }
 
   private object PlanModelImpl extends PlanModel[SparkPlan] {
+    private val fakeTc = SparkShimLoader.getSparkShims.createTestTaskContext()
+    private def fakeTc[T](body: => T): T = {
+      SparkResourceUtil.setTaskContext(fakeTc)
+      try {
+        body
+      } finally {
+        SparkResourceUtil.unsetTaskContext()
+      }
+    }
+
     override def childrenOf(node: SparkPlan): Seq[SparkPlan] = node.children
 
     override def withNewChildren(node: SparkPlan, children: Seq[SparkPlan]): SparkPlan =
       node match {
         case c2r: ColumnarToRowExec =>
-          // To workaround the assertion in ColumnarToRowExec's code if child is a group leaf.
-          TaskResources.runUnsafe {
+          // Workaround: To bypass the assertion in ColumnarToRowExec's code if child is
+          // a group leaf.
+          fakeTc {
             c2r.withNewChildren(children)
           }
         case other =>
