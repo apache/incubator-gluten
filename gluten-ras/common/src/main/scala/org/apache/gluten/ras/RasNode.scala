@@ -95,7 +95,11 @@ trait GroupNode[T <: AnyRef] extends RasNode[T] {
 
 object GroupNode {
   def apply[T <: AnyRef](ras: Ras[T], group: RasGroup[T]): GroupNode[T] = {
-    new GroupNodeImpl[T](ras, group.self(), group.propSet(), group.id())
+    val self = group.self()
+    // Re-derive property set of group leaf. User should define an appropriate conversion
+    // from group constraints to its output properties in property model or plan model.
+    val propSet = ras.propSetOf(self)
+    new GroupNodeImpl[T](ras, self, propSet, group.id())
   }
 
   private class GroupNodeImpl[T <: AnyRef](

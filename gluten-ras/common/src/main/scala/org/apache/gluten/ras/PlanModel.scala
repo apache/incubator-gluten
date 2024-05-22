@@ -26,7 +26,7 @@ trait PlanModel[T <: AnyRef] {
   def equals(one: T, other: T): Boolean
 
   // Group operations.
-  def newGroupLeaf(groupId: Int, meta: Metadata, propSet: PropertySet[T]): T
+  def newGroupLeaf(groupId: Int, meta: Metadata, constraintSet: PropertySet[T]): T
   def isGroupLeaf(node: T): Boolean
   def getGroupId(node: T): Int
 }
