@@ -734,6 +734,17 @@ size_t CelebornPartitionWriter::unsafeEvictPartitions(bool for_memory_spill, boo
 
 size_t CelebornPartitionWriter::unsafeEvictSinglePartition(bool for_memory_spill, bool flush_block_buffer, size_t partition_id)
 {
+    /*
+    auto old_before_alloc = CurrentMemoryTracker::before_alloc;
+    auto old_before_free = CurrentMemoryTracker::before_free;
+    CurrentMemoryTracker::before_alloc = nullptr;
+    CurrentMemoryTracker::before_free = nullptr;
+    SCOPE_EXIT({
+        CurrentMemoryTracker::before_alloc = old_before_alloc;
+        CurrentMemoryTracker::before_free = old_before_free;
+    });
+    */
+
     size_t res = 0;
     size_t spilled_bytes = 0;
     auto spill_to_celeborn = [this, for_memory_spill, flush_block_buffer, partition_id, &res, &spilled_bytes]()
