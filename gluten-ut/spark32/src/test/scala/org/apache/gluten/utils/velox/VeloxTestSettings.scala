@@ -202,12 +202,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite in Gluten to replace Seq with Array
     .exclude("Shuffle")
     .excludeGlutenTest("Shuffle")
-    // TODO: ArrayDistinct should handle duplicated Double.NaN
-    .excludeByPrefix("SPARK-36741")
-    // TODO: ArrayIntersect should handle duplicated Double.NaN
-    .excludeByPrefix("SPARK-36754")
-    // Not supported case.
-    .exclude("SPARK-36753: ArrayExcept should handle duplicated Double.NaN and Float.Nan")
   enableSuite[GlutenDateExpressionsSuite]
     // Rewrite because Spark collect causes long overflow.
     .exclude("TIMESTAMP_MICROS")
