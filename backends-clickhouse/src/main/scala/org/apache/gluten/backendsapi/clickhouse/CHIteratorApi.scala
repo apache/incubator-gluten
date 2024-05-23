@@ -213,6 +213,11 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         inBatchIters,
         false)
 
+    context.addTaskFailureListener((ctx, _) => {
+      if (ctx.isInterrupted()) {
+        resIter.cancel()
+      }
+    })
     context.addTaskCompletionListener[Unit](_ => resIter.close())
     val iter = new Iterator[Any] {
       private val inputMetrics = context.taskMetrics().inputMetrics
@@ -304,6 +309,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       }
     }
     var closed = false
+    val cancelled = false
 
     def close(): Unit = {
       closed = true
@@ -311,6 +317,16 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       // relationHolder.clear()
     }
 
+    def cancel(): Unit = {
+      nativeIterator.cancel()
+    }
+
+
+    context.addTaskFailureListener((ctx, _) => {
+      if (ctx.isInterrupted()) {
+        cancel()
+      }
+    })
     context.addTaskCompletionListener[Unit](_ => close())
     new CloseableCHColumnBatchIterator(resIter, Some(pipelineTime))
   }

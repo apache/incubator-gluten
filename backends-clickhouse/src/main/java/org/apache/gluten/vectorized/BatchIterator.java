@@ -46,6 +46,8 @@ public class BatchIterator extends GeneralOutIterator {
 
   private native void nativeClose(long nativeHandle);
 
+  private native void nativeCancel(long nativeHandle);
+
   private native IMetrics nativeFetchMetrics(long nativeHandle);
 
   @Override
@@ -75,5 +77,10 @@ public class BatchIterator extends GeneralOutIterator {
   @Override
   public void closeInternal() {
     nativeClose(handle);
+  }
+
+  @Override
+  protected void cancelInternal() {
+    nativeCancel(handle);
   }
 }

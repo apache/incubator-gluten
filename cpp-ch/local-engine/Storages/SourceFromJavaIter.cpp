@@ -74,7 +74,7 @@ SourceFromJavaIter::SourceFromJavaIter(
 
 DB::Chunk SourceFromJavaIter::generate()
 {
-    if (is_stopped)
+    if (isCancelled())
         return {};
 
     GET_JNIENV(env)
@@ -154,11 +154,6 @@ void SourceFromJavaIter::convertNullable(DB::Chunk & chunk)
     chunk.setColumns(columns, rows);
 }
 
-
-void SourceFromJavaIter::onCancel()
-{
-    is_stopped = true;
-}
 
 DB::ColumnPtr SourceFromJavaIter::convertNestedNullable(const DB::ColumnPtr & column, const DB::DataTypePtr & target_type)
 {

@@ -58,6 +58,11 @@ class NativeFileScanColumnarRDD(
           false
         )
     }
+    TaskContext.get().addTaskFailureListener((ctx, _) => {
+      if (ctx.isInterrupted()) {
+        resIter.cancel()
+      }
+    })
     TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
     val iter: Iterator[ColumnarBatch] = new Iterator[ColumnarBatch] {
       var scanTotalTime = 0L

@@ -43,8 +43,6 @@ private:
     void convertNullable(DB::Chunk & chunk);
     DB::ColumnPtr convertNestedNullable(const DB::ColumnPtr & column, const DB::DataTypePtr & target_type);
 
-    void onCancel();
-
     DB::ContextPtr context;
     DB::Block original_header;
     jobject java_iter;
@@ -52,8 +50,6 @@ private:
 
     /// The first block read from java iteration to decide exact types of columns, especially for AggregateFunctions with parameters.
     DB::Block * first_block = nullptr;
-
-    std::atomic_bool is_stopped{false};
 };
 
 }
