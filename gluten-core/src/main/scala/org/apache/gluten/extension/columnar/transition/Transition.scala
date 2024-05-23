@@ -31,7 +31,7 @@ import scala.collection.mutable
 trait Transition {
   final def apply(plan: SparkPlan): SparkPlan = {
     val out = apply0(plan)
-    if (out.fastEquals(plan)) {
+    if (out eq plan) {
       assert(
         this == Transition.empty,
         "TransitionDef.empty / Transition.empty should be used when defining an empty transition.")

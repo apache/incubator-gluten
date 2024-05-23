@@ -198,18 +198,18 @@ class WizardSuite extends AnyFunSuite {
       findWithPatterns(
         List(
           Pattern
-            .node[TestNode](
+            .branch[TestNode](
               _ => true,
-              Pattern.node(_ => true, Pattern.ignore),
-              Pattern.node(_ => true, Pattern.ignore))
+              Pattern.branch(_ => true, Pattern.ignore),
+              Pattern.branch(_ => true, Pattern.ignore))
             .build())) == List(Binary(n1, Unary(n2, Group(3)), Unary(n3, Group(4)))))
 
     // Pattern pruning should emit all results
     val pattern1 = Pattern
-      .node[TestNode](_ => true, Pattern.node(_ => true, Pattern.ignore), Pattern.ignore)
+      .branch[TestNode](_ => true, Pattern.branch(_ => true, Pattern.ignore), Pattern.ignore)
       .build()
     val pattern2 = Pattern
-      .node[TestNode](_ => true, Pattern.ignore, Pattern.node(_ => true, Pattern.ignore))
+      .branch[TestNode](_ => true, Pattern.ignore, Pattern.branch(_ => true, Pattern.ignore))
       .build()
 
     assert(
@@ -219,10 +219,10 @@ class WizardSuite extends AnyFunSuite {
 
     // Distinguish between ignore and any
     val pattern3 = Pattern
-      .node[TestNode](_ => true, Pattern.node(_ => true, Pattern.any), Pattern.ignore)
+      .branch[TestNode](_ => true, Pattern.branch(_ => true, Pattern.any), Pattern.ignore)
       .build()
     val pattern4 = Pattern
-      .node[TestNode](_ => true, Pattern.ignore, Pattern.node(_ => true, Pattern.any))
+      .branch[TestNode](_ => true, Pattern.ignore, Pattern.branch(_ => true, Pattern.any))
       .build()
 
     assert(
@@ -231,6 +231,13 @@ class WizardSuite extends AnyFunSuite {
         Binary(n1, Group(1), Unary(n3, Leaf(n6, 1))),
         Binary(n1, Unary(n2, Leaf(n4, 1)), Group(2))))
 
+    // Single
+    val pattern5 = Pattern.node[TestNode](_ => true).build()
+    assert(findWithPatterns(List(pattern5)) == List(Binary(n1, Group(1), Group(2))))
+    val pattern6 = Pattern.node[TestNode](_.isInstanceOf[Binary]).build()
+    assert(findWithPatterns(List(pattern6)) == List(Binary(n1, Group(1), Group(2))))
+    val pattern7 = Pattern.node[TestNode](_.isInstanceOf[Leaf]).build()
+    assert(findWithPatterns(List(pattern7)).isEmpty)
   }
 
   test("Prune by mask") {
