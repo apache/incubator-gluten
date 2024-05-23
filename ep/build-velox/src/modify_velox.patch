@@ -83,11 +83,12 @@ index ce4c24dbe..785a2acc6 100644
        -DARROW_WITH_THRIFT=ON
        -DARROW_WITH_LZ4=ON
        -DARROW_WITH_SNAPPY=ON
-@@ -69,6 +71,7 @@ if(VELOX_ENABLE_ARROW)
+@@ -69,6 +71,8 @@ if(VELOX_ENABLE_ARROW)
      arrow_ep
      PREFIX ${ARROW_PREFIX}
      URL ${VELOX_ARROW_SOURCE_URL}
 +    PATCH_COMMAND patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/modify_arrow.patch
++    COMMAND patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/modify_arrow_dataset_scan_option.patch
      URL_HASH ${VELOX_ARROW_BUILD_SHA256_CHECKSUM}
      SOURCE_SUBDIR cpp
      CMAKE_ARGS ${ARROW_CMAKE_ARGS}

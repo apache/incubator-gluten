@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.datasource.v2
 
-import org.apache.gluten.datasource.ArrowCSVFileFormat
+import org.apache.gluten.datasource.{ArrowCSVFileFormat, ArrowCSVOptionConverter}
 import org.apache.gluten.exception.SchemaMismatchException
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.memory.arrow.pool.ArrowNativeMemoryPool
@@ -31,15 +31,17 @@ import org.apache.spark.sql.execution.datasources.PartitionedFile
 import org.apache.spark.sql.execution.datasources.v2.FilePartitionReaderFactory
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SerializableConfiguration, TaskResources}
 
-import org.apache.arrow.dataset.file.FileFormat
+import org.apache.arrow.c.ArrowSchema
+import org.apache.arrow.vector.types.pojo.Schema
 
 import java.net.URLDecoder
+import java.util.Optional
 
-import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.JavaConverters.asJavaIterableConverter
 
 case class ArrowCSVPartitionReaderFactory(
     sqlConf: SQLConf,
@@ -53,8 +55,9 @@ case class ArrowCSVPartitionReaderFactory(
   with Logging {
 
   private val batchSize = sqlConf.parquetVectorizedReaderBatchSize
-  private val caseSensitive: Boolean = sqlConf.caseSensitiveAnalysis
   private val csvColumnPruning: Boolean = sqlConf.csvColumnPruning
+  private val fileFormat = org.apache.arrow.dataset.file.FileFormat.CSV
+  var fallback = false
 
   override def supportColumnarReads(partition: InputPartition): Boolean = true
 
@@ -67,12 +70,12 @@ case class ArrowCSVPartitionReaderFactory(
       partitionedFile: PartitionedFile): PartitionReader[ColumnarBatch] = {
     val actualDataSchema = StructType(
       dataSchema.filterNot(_.name == options.columnNameOfCorruptRecord))
-    val actualReadDataSchema = StructType(
+    val actualRequiredSchema = StructType(
       readDataSchema.filterNot(_.name == options.columnNameOfCorruptRecord))
     ArrowCSVFileFormat.checkHeader(
       partitionedFile,
       actualDataSchema,
-      actualReadDataSchema,
+      actualRequiredSchema,
       options,
       filters,
       broadcastedConf.value.value)
@@ -87,29 +90,54 @@ case class ArrowCSVPartitionReaderFactory(
         ArrowBufferAllocators.contextInstance(),
         ArrowNativeMemoryPool.arrowPool("FileSystemFactory"))
     }
-    val factory = ArrowUtil.makeArrowDiscovery(
-      URLDecoder.decode(partitionedFile.filePath.toString(), "UTF-8"),
-      FileFormat.CSV,
-      allocator,
-      pool)
-    val parquetFileFields = factory.inspect().getFields.asScala
+    val arrowConfig = ArrowCSVOptionConverter.convert(options)
+    val fileNames = ArrowUtil
+      .readArrowFileColumnNames(
+        URLDecoder.decode(partitionedFile.filePath.toString, "UTF-8"),
+        fileFormat,
+        arrowConfig,
+        ArrowBufferAllocators.contextInstance(),
+        pool)
+    val tokenIndexArr =
+      actualRequiredSchema.map(f => java.lang.Integer.valueOf(actualDataSchema.indexOf(f))).toArray
+    val fileIndex = tokenIndexArr.filter(_ < fileNames.length)
+    val requestSchema = new StructType(
+      fileIndex
+        .map(index => StructField(fileNames(index), actualDataSchema(index).dataType)))
+    val missingIndex = tokenIndexArr.filter(_ >= fileNames.length)
+    val missingSchema = new StructType(missingIndex.map(actualDataSchema(_)))
+    // TODO: support array/map/struct types in out-of-order schema reading.
+    val cSchema: ArrowSchema = ArrowSchema.allocateNew(allocator)
+    val cSchema2: ArrowSchema = ArrowSchema.allocateNew(allocator)
     // TODO: support array/map/struct types in out-of-order schema reading.
     val iter =
       try {
-        val actualReadFields =
-          ArrowUtil.getRequestedField(readDataSchema, parquetFileFields, caseSensitive)
-        ArrowCSVFileFormat.readArrow(
-          allocator,
-          partitionedFile,
-          actualReadFields,
-          caseSensitive,
-          readDataSchema,
-          readPartitionSchema,
-          factory,
-          batchSize)
+        ArrowCSVOptionConverter.schema(requestSchema, cSchema, allocator, arrowConfig)
+        val factory =
+          ArrowUtil.makeArrowDiscovery(
+            URLDecoder.decode(partitionedFile.filePath.toString, "UTF-8"),
+            fileFormat,
+            Optional.of(arrowConfig),
+            ArrowBufferAllocators.contextInstance(),
+            pool)
+        val fields = factory.inspect().getFields
+        val actualReadFields = new Schema(
+          fileIndex.map(index => fields.get(index)).toIterable.asJava)
+        ArrowCSVOptionConverter.schema(requestSchema, cSchema2, allocator, arrowConfig)
+        ArrowCSVFileFormat
+          .readArrow(
+            ArrowBufferAllocators.contextInstance(),
+            partitionedFile,
+            actualReadFields,
+            missingSchema,
+            readPartitionSchema,
+            factory,
+            batchSize,
+            arrowConfig)
       } catch {
         case e: SchemaMismatchException =>
           logWarning(e.getMessage)
+          fallback = true
           val iter = ArrowCSVFileFormat.fallbackReadVanilla(
             dataSchema,
             readDataSchema,
@@ -125,6 +153,9 @@ case class ArrowCSVPartitionReaderFactory(
             partitionedFile)
           ArrowCSVFileFormat.rowToColumn(schema, batchSize, rows)
         case d: Exception => throw d
+      } finally {
+        cSchema.close()
+        cSchema2.close()
       }
 
     new PartitionReader[ColumnarBatch] {
