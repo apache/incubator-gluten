@@ -2044,8 +2044,6 @@ SharedContextHolder SerializedPlanParser::shared_context;
 
 LocalExecutor::~LocalExecutor()
 {
-    cancel();
-
     if (context->getConfigRef().getBool("dump_pipeline", false))
         LOG_INFO(&Poco::Logger::get("LocalExecutor"), "Dump pipeline:\n{}", dumpPipeline());
 
