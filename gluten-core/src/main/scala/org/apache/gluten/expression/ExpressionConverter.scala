@@ -453,11 +453,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             LiteralTransformer(m.nullOnOverflow)),
           m
         )
-      case rand: Rand =>
-        GenericExpressionTransformer(
-          substraitExprName,
-          Seq(replaceWithExpressionTransformerInternal(rand.child, attributeSeq, expressionsMap)),
-          rand)
       case _: NormalizeNaNAndZero | _: PromotePrecision | _: TaggingExpression =>
         ChildTransformer(
           substraitExprName,
