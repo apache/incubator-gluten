@@ -16,15 +16,16 @@
  */
 package org.apache.gluten.planner
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.columnar.transition.ConventionReq
+import org.apache.gluten.planner.cost.GlutenCostModel
 import org.apache.gluten.planner.property.Conv
 import org.apache.gluten.ras.Best.BestNotFoundException
-import org.apache.gluten.ras.Ras
+import org.apache.gluten.ras.{Cost, CostModel, Ras}
 import org.apache.gluten.ras.RasSuiteBase._
 import org.apache.gluten.ras.path.RasPath
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
@@ -117,15 +118,40 @@ class VeloxRasSuite extends SharedSparkSession {
       planner2.plan()
     }
   }
+
+  test("User cost model") {
+    withSQLConf(GlutenConfig.RAS_COST_MODEL.key -> classOf[UserCostModel1].getName) {
+      val in = RowUnary(RowLeaf(TRIVIAL_SCHEMA))
+      val planner = newRas(List(RowUnaryToColumnarUnary)).newPlanner(in)
+      val out = planner.plan()
+      assert(out == ColumnarUnary(RowToColumnarExec(RowLeaf(TRIVIAL_SCHEMA))))
+    }
+    withSQLConf(GlutenConfig.RAS_COST_MODEL.key -> classOf[UserCostModel2].getName) {
+      val in = RowUnary(RowLeaf(TRIVIAL_SCHEMA))
+      val planner = newRas(List(RowUnaryToColumnarUnary)).newPlanner(in)
+      val out = planner.plan()
+      assert(out == RowUnary(RowLeaf(TRIVIAL_SCHEMA)))
+    }
+  }
 }
 
 object VeloxRasSuite {
   def newRas(): Ras[SparkPlan] = {
-    GlutenOptimization(List()).asInstanceOf[Ras[SparkPlan]]
+    GlutenOptimization
+      .builder()
+      .costModel(GlutenCostModel.find())
+      .addRules(List())
+      .create()
+      .asInstanceOf[Ras[SparkPlan]]
   }
 
   def newRas(RasRules: Seq[RasRule[SparkPlan]]): Ras[SparkPlan] = {
-    GlutenOptimization(RasRules).asInstanceOf[Ras[SparkPlan]]
+    GlutenOptimization
+      .builder()
+      .costModel(GlutenCostModel.find())
+      .addRules(RasRules)
+      .create()
+      .asInstanceOf[Ras[SparkPlan]]
   }
 
   val TRIVIAL_SCHEMA: Seq[AttributeReference] = List(AttributeReference("value", StringType)())
@@ -151,5 +177,33 @@ object VeloxRasSuite {
     override def output: Seq[Attribute] = child.output
     override protected def withNewChildInternal(newChild: SparkPlan): ColumnarUnary =
       copy(child = newChild)
+  }
+
+  object RowUnaryToColumnarUnary extends RasRule[SparkPlan] {
+    override def shift(node: SparkPlan): Iterable[SparkPlan] = node match {
+      case RowUnary(child) => List(ColumnarUnary(child))
+      case _ => List.empty
+    }
+    override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)
+  }
+
+  class UserCostModel1 extends CostModel[SparkPlan] {
+    private val base = GlutenCostModel.rough()
+    override def costOf(node: SparkPlan): Cost = node match {
+      case _: RowUnary => base.makeInfCost()
+      case other => base.costOf(other)
+    }
+    override def costComparator(): Ordering[Cost] = base.costComparator()
+    override def makeInfCost(): Cost = base.makeInfCost()
+  }
+
+  class UserCostModel2 extends CostModel[SparkPlan] {
+    private val base = GlutenCostModel.rough()
+    override def costOf(node: SparkPlan): Cost = node match {
+      case _: ColumnarUnary => base.makeInfCost()
+      case other => base.costOf(other)
+    }
+    override def costComparator(): Ordering[Cost] = base.costComparator()
+    override def makeInfCost(): Cost = base.makeInfCost()
   }
 }

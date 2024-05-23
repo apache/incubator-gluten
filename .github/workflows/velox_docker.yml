@@ -189,10 +189,10 @@ jobs:
           cd $GITHUB_WORKSPACE/tools/gluten-it
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-            --extra-conf=spark.gluten.sql.ras.enabled=true \
+            --extra-conf=spark.gluten.ras.enabled=true \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-            --extra-conf=spark.gluten.sql.ras.enabled=true 
+            --extra-conf=spark.gluten.ras.enabled=true 
 
   run-tpc-test-ubuntu-oom:
     needs: build-native-lib-centos-7
