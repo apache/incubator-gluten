@@ -40,11 +40,13 @@ class HeuristicApplier(session: SparkSession)
   extends ColumnarRuleApplier
   with Logging
   with LogLevelUtil {
+  // This is an empirical value, may need to be changed for supporting other versions of spark.
+  private val aqeStackTraceIndex = 19
 
   private lazy val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
   private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
-  private val adaptiveContext = AdaptiveContext(session)
+  private val adaptiveContext = AdaptiveContext(session, aqeStackTraceIndex)
 
   override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan =
     withTransformRules(transformRules(outputsColumnar)).apply(plan)
