@@ -724,6 +724,12 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("Test rand function") {
+    runQueryAndCompare("""SELECT rand() from lineitem limit 100""".stripMargin, false) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("regexp_replace") {
     runQueryAndCompare(
       "SELECT regexp_replace(c_comment, '\\w', 'something') FROM customer limit 50") {
