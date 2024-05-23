@@ -88,7 +88,7 @@ jobs:
 #    runs-on: ubuntu-20.04
 #    env:
 #      CCACHE_DIR: "${{ github.workspace }}/.ccache"
-#    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+#    container: ghcr.io/facebookincubator/velox-dev:centos8
 #    steps:
 #      - uses: actions/checkout@v2
 #      - name: Setup java and maven
