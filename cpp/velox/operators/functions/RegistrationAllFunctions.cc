@@ -27,6 +27,7 @@
 #include "velox/functions/prestosql/window/WindowFunctionsRegistration.h"
 #include "velox/functions/sparksql/Bitwise.h"
 #include "velox/functions/sparksql/Hash.h"
+#include "velox/functions/sparksql/Rand.h"
 #include "velox/functions/sparksql/Register.h"
 #include "velox/functions/sparksql/aggregates/Register.h"
 #include "velox/functions/sparksql/window/WindowFunctionsRegistration.h"
@@ -43,6 +44,9 @@ void registerFunctionOverwrite() {
   velox::registerFunction<RoundFunction, int64_t, int64_t, int32_t>({"round"});
   velox::registerFunction<RoundFunction, double, double, int32_t>({"round"});
   velox::registerFunction<RoundFunction, float, float, int32_t>({"round"});
+  // TODO: the below rand function registry can be removed after presto function registry is removed.
+  velox::registerFunction<velox::functions::sparksql::RandFunction, double, velox::Constant<int32_t>>({"spark_rand"});
+  velox::registerFunction<velox::functions::sparksql::RandFunction, double, velox::Constant<int64_t>>({"spark_rand"});
 
   auto kRowConstructorWithNull = RowConstructorWithNullCallToSpecialForm::kRowConstructorWithNull;
   velox::exec::registerVectorFunction(
