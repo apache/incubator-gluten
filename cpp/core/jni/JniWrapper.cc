@@ -128,6 +128,9 @@ class JavaInputStreamAdaptor final : public arrow::io::InputStream {
   arrow::Result<int64_t> Read(int64_t nbytes, void* out) override {
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm_, &env);
+    jlong read;
+    signature = getParameterSignature(read, reinterpret_cast<jlong>(out), nbytes);
+    jniByteInputStreamRead = getMethodIdOrError(env, jniByteInputStreamClass, "read", "(JJ)J");
     jlong read = env->CallLongMethod(jniIn_, jniByteInputStreamRead, reinterpret_cast<jlong>(out), nbytes);
     checkException(env);
     return read;
@@ -237,7 +240,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   byteArrayClass = createGlobalClassReferenceOrError(env, "[B");
 
   jniByteInputStreamClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/JniByteInputStream;");
-  jniByteInputStreamRead = getMethodIdOrError(env, jniByteInputStreamClass, "read", "(JJ)J");
   jniByteInputStreamTell = getMethodIdOrError(env, jniByteInputStreamClass, "tell", "()J");
   jniByteInputStreamClose = getMethodIdOrError(env, jniByteInputStreamClass, "close", "()V");
 
