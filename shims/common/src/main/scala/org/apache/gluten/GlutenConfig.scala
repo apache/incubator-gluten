@@ -163,6 +163,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   @deprecated def broadcastCacheTimeout: Int = conf.getConf(COLUMNAR_BROADCAST_CACHE_TIMEOUT)
 
+  def columnarShuffleSortThreshold: Int = conf.getConf(COLUMNAR_SHUFFLE_SORT_THRESHOLD)
+
   def columnarShuffleReallocThreshold: Double = conf.getConf(COLUMNAR_SHUFFLE_REALLOC_THRESHOLD)
 
   def columnarShuffleMergeThreshold: Double = conf.getConf(SHUFFLE_WRITER_MERGE_THRESHOLD)
@@ -902,6 +904,14 @@ object GlutenConfig {
       .doc("Enable or disable columnar shuffle.")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_SHUFFLE_SORT_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.shuffle.sort.threshold")
+      .internal()
+      .doc("The threshold to determine whether to use sort-based columnar shuffle. Sort-based " +
+        "shuffle will be used if the number of partitions is greater than this threshold.")
+      .intConf
+      .createWithDefault(100000)
 
   val COLUMNAR_PREFER_ENABLED =
     buildConf("spark.gluten.sql.columnar.preferColumnar")

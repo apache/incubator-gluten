@@ -112,5 +112,7 @@ class LocalPartitionWriter : public PartitionWriter {
   int64_t totalBytesWritten_{0};
   std::vector<int64_t> partitionLengths_;
   std::vector<int64_t> rawPartitionLengths_;
+
+  uint32_t lastEvictPid_{0};
 };
 } // namespace gluten

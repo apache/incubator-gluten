@@ -70,7 +70,6 @@ static jmethodID nativeColumnarToRowInfoConstructor;
 
 static jclass shuffleReaderMetricsClass;
 static jmethodID shuffleReaderMetricsSetDecompressTime;
-static jmethodID shuffleReaderMetricsSetIpcTime;
 static jmethodID shuffleReaderMetricsSetDeserializeTime;
 
 static jclass block_stripes_class;
@@ -278,7 +277,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ShuffleReaderMetrics;");
   shuffleReaderMetricsSetDecompressTime =
       getMethodIdOrError(env, shuffleReaderMetricsClass, "setDecompressTime", "(J)V");
-  shuffleReaderMetricsSetIpcTime = getMethodIdOrError(env, shuffleReaderMetricsClass, "setIpcTime", "(J)V");
   shuffleReaderMetricsSetDeserializeTime =
       getMethodIdOrError(env, shuffleReaderMetricsClass, "setDeserializeTime", "(J)V");
 
@@ -1108,7 +1106,6 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrapper
 
   auto reader = ctx->objectStore()->retrieve<ShuffleReader>(shuffleReaderHandle);
   env->CallVoidMethod(metrics, shuffleReaderMetricsSetDecompressTime, reader->getDecompressTime());
-  env->CallVoidMethod(metrics, shuffleReaderMetricsSetIpcTime, reader->getIpcTime());
   env->CallVoidMethod(metrics, shuffleReaderMetricsSetDeserializeTime, reader->getDeserializeTime());
 
   checkException(env);

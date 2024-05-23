@@ -18,7 +18,6 @@ package org.apache.gluten.vectorized;
 
 public class ShuffleReaderMetrics {
   private long decompressTime;
-  private long ipcTime;
   private long deserializeTime;
 
   public void setDecompressTime(long decompressTime) {
@@ -27,14 +26,6 @@ public class ShuffleReaderMetrics {
 
   public long getDecompressTime() {
     return decompressTime;
-  }
-
-  public void setIpcTime(long ipcTime) {
-    this.ipcTime = ipcTime;
-  }
-
-  public long getIpcTime() {
-    return ipcTime;
   }
 
   public void setDeserializeTime(long deserializeTime) {

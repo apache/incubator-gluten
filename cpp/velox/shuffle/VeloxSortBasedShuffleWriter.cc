@@ -53,9 +53,6 @@ arrow::Status VeloxSortBasedShuffleWriter::init() {
   DLOG(INFO) << "Create partitioning type: " << std::to_string(options_.partitioning);
 
   rowVectorIndexMap_.reserve(numPartitions_);
-  for (auto pid = 0; pid < numPartitions_; ++pid) {
-    rowVectorIndexMap_[pid].reserve(options_.bufferSize);
-  }
   bufferOutputStream_ = std::make_unique<BufferOutputStream>(veloxPool_.get());
 
   return arrow::Status::OK();
