@@ -32,7 +32,8 @@ public class TreeMemoryConsumerTest {
   @Test
   public void testIsolated() {
     final SQLConf conf = new SQLConf();
-    conf.setConfString(GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(), "100");
+    conf.setConfString(GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(),
+        "100");
     test(conf, () -> {
       final TreeMemoryConsumers.Factory factory = TreeMemoryConsumers.isolated();
       final TreeMemoryTarget consumer = factory.newConsumer(TaskContext.get().taskMemoryManager(),
@@ -49,7 +50,8 @@ public class TreeMemoryConsumerTest {
   @Test
   public void testShared() {
     final SQLConf conf = new SQLConf();
-    conf.setConfString(GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(), "100");
+    conf.setConfString(GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(),
+        "100");
     test(conf, () -> {
       final TreeMemoryConsumers.Factory factory = TreeMemoryConsumers.shared();
       final TreeMemoryTarget consumer = factory.newConsumer(TaskContext.get().taskMemoryManager(),
@@ -66,14 +68,17 @@ public class TreeMemoryConsumerTest {
   @Test
   public void testIsolatedAndShared() {
     final SQLConf conf = new SQLConf();
-    conf.setConfString(GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(), "100");
+    conf.setConfString(GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(),
+        "100");
     test(conf, () -> {
-      final TreeMemoryTarget shared = TreeMemoryConsumers.shared().newConsumer(TaskContext.get().taskMemoryManager(),
+      final TreeMemoryTarget shared = TreeMemoryConsumers.shared().newConsumer(
+          TaskContext.get().taskMemoryManager(),
           "FOO",
           Collections.emptyList(),
           Collections.emptyMap());
       Assert.assertEquals(110, shared.borrow(110));
-      final TreeMemoryTarget isolated = TreeMemoryConsumers.isolated().newConsumer(TaskContext.get().taskMemoryManager(),
+      final TreeMemoryTarget isolated = TreeMemoryConsumers.isolated().newConsumer(
+          TaskContext.get().taskMemoryManager(),
           "FOO",
           Collections.emptyList(),
           Collections.emptyMap());
