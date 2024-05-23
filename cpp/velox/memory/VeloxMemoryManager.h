@@ -60,6 +60,15 @@ class VeloxMemoryManager final : public MemoryManager {
 
   void hold() override;
 
+  /// Test only
+  MemoryAllocator* allocator() const {
+    return listenableAlloc_.get();
+  }
+
+  AllocationListener* getListener() const {
+    return listener_.get();
+  }
+
  private:
   bool tryDestructSafe();
 
@@ -70,8 +79,9 @@ class VeloxMemoryManager final : public MemoryManager {
 #endif
 
   // This is a listenable allocator used for arrow.
-  std::unique_ptr<MemoryAllocator> glutenAlloc_;
+  std::unique_ptr<MemoryAllocator> listenableAlloc_;
   std::unique_ptr<AllocationListener> listener_;
+  std::unique_ptr<AllocationListener> blockListener_;
   std::unique_ptr<arrow::MemoryPool> arrowPool_;
 
   std::unique_ptr<facebook::velox::memory::MemoryManager> veloxMemoryManager_;

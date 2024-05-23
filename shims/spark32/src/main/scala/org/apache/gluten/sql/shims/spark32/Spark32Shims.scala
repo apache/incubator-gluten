@@ -26,11 +26,13 @@ import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
+import org.apache.spark.sql.catalyst.csv.CSVOptions
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BinaryExpression, Expression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.TypedImperativeAggregate
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{Distribution, HashClusteredDistribution}
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
@@ -187,6 +189,8 @@ class Spark32Shims extends SparkShims {
 
   def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] = partition.files
 
+  def isRowIndexMetadataColumn(name: String): Boolean = false
+
   def splitFiles(
       sparkSession: SparkSession,
       file: FileStatus,
@@ -226,4 +230,12 @@ class Spark32Shims extends SparkShims {
 
   override def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] =
     null
+
+  override def dateTimestampFormatInReadIsDefaultValue(
+      csvOptions: CSVOptions,
+      timeZone: String): Boolean = {
+    val default = new CSVOptions(CaseInsensitiveMap(Map()), csvOptions.columnPruning, timeZone)
+    csvOptions.dateFormat == default.dateFormat &&
+    csvOptions.timestampFormat == default.timestampFormat
+  }
 }

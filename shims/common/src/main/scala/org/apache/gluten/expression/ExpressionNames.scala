@@ -175,6 +175,7 @@ object ExpressionNames {
   final val REMAINDER = "modulus"
   final val FACTORIAL = "factorial"
   final val RAND = "rand"
+  final val RINT = "rint"
 
   // PrestoSQL Math functions
   final val ACOS = "acos"
@@ -257,6 +258,8 @@ object ExpressionNames {
   final val EXISTS = "exists"
   final val TRANSFORM = "transform"
   final val SHUFFLE = "shuffle"
+  final val ZIP_WITH = "zip_with"
+  final val FLATTEN = "flatten"
 
   // Map functions
   final val CREATE_MAP = "map"
@@ -265,6 +268,7 @@ object ExpressionNames {
   final val MAP_VALUES = "map_values"
   final val MAP_FROM_ARRAYS = "map_from_arrays"
   final val MAP_ENTRIES = "map_entries"
+  final val MAP_ZIP_WITH = "map_zip_with"
   final val STR_TO_MAP = "str_to_map"
 
   // struct functions
@@ -290,6 +294,7 @@ object ExpressionNames {
   final val AGGREGATE = "aggregate"
   final val LAMBDAFUNCTION = "lambdafunction"
   final val EXPLODE = "explode"
+  final val STACK = "stack"
   final val INLINE = "inline"
   final val POSEXPLODE = "posexplode"
   final val CHECK_OVERFLOW = "check_overflow"
@@ -321,4 +326,5 @@ object ExpressionNames {
 
   // A placeholder for native UDF functions
   final val UDF_PLACEHOLDER = "udf_placeholder"
+  final val UDAF_PLACEHOLDER = "udaf_placeholder"
 }

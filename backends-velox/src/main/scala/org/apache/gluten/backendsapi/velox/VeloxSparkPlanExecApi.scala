@@ -18,101 +18,81 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.SparkPlanExecApi
+import org.apache.gluten.datasource.ArrowConvertorRule
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
-import org.apache.gluten.expression.ConverterUtils.FunctionConfig
-import org.apache.gluten.expression.aggregate.VeloxBloomFilterAggregate
-import org.apache.gluten.extension.BloomFilterMightContainJointRewriteRule
+import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
+import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar.TransformHints
+import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.extension.columnar.transition.ConventionFunc.BatchOverride
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode}
 import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializeResult}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
-import org.apache.spark.api.python.ColumnarArrowEvalPythonExec
+import org.apache.spark.api.python.{ColumnarArrowEvalPythonExec, PullOutArrowEvalPythonPreProjectHelper}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.ShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FlushableHashAggregateRule, FunctionIdentifier}
+import org.apache.spark.sql.catalyst.FunctionIdentifier
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
 import org.apache.spark.sql.execution.utils.ExecUtil
 import org.apache.spark.sql.expression.{UDFExpression, UDFResolver, UserDefinedAggregateFunction}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import com.google.common.collect.Lists
 import org.apache.commons.lang3.ClassUtils
 
 import javax.ws.rs.core.UriBuilder
-
-import java.lang.{Long => JLong}
-import java.util.{Map => JMap}
 
 import scala.collection.mutable.ListBuffer
 
 class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
+  /** The columnar-batch type this backend is using. */
+  override def batchType: Convention.BatchType = {
+    VeloxBatch
+  }
+
   /**
-   * Transform GetArrayItem to Substrait.
-   *
-   * arrCol[index] => IF(index < 0, null, ElementAt(arrCol, index + 1))
+   * Overrides [[org.apache.gluten.extension.columnar.transition.ConventionFunc]] Gluten is using to
+   * determine the convention (its row-based processing / columnar-batch processing support) of a
+   * plan with a user-defined function that accepts a plan then returns batch type it outputs.
    */
-  override def genGetArrayItemExpressionNode(
+  override def batchTypeFunc(): BatchOverride = {
+    case i: InMemoryTableScanExec
+        if i.supportsColumnar && i.relation.cacheBuilder.serializer
+          .isInstanceOf[ColumnarCachedBatchSerializer] =>
+      VeloxBatch
+  }
+
+  /** Transform GetArrayItem to Substrait. */
+  override def genGetArrayItemTransformer(
       substraitExprName: String,
-      functionMap: JMap[String, JLong],
-      leftNode: ExpressionNode,
-      rightNode: ExpressionNode,
-      original: GetArrayItem): ExpressionNode = {
-    if (original.dataType.isInstanceOf[DecimalType]) {
-      val decimalType = original.dataType.asInstanceOf[DecimalType]
-      val precision = decimalType.precision
-      if (precision > 18) {
-        throw new GlutenNotSupportException(
-          "GetArrayItem not support decimal precision more than 18")
-      }
-    }
-    // ignore origin substraitExprName
-    val functionName = ConverterUtils.makeFuncName(
-      ExpressionMappings.expressionsMap(classOf[ElementAt]),
-      Seq(original.dataType),
-      FunctionConfig.OPT)
-    val exprNodes = Lists.newArrayList(leftNode, rightNode)
-    val resultNode = ExpressionBuilder.makeScalarFunction(
-      ExpressionBuilder.newScalarFunction(functionMap, functionName),
-      exprNodes,
-      ConverterUtils.getTypeNode(original.dataType, original.nullable))
-    val nullNode = ExpressionBuilder.makeLiteral(null, original.dataType, false)
-    val lessThanFuncId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName(
-        ExpressionNames.LESS_THAN,
-        Seq(original.right.dataType, IntegerType),
-        FunctionConfig.OPT))
-    // right node already add 1
-    val literalNode = ExpressionBuilder.makeLiteral(1.toInt, IntegerType, false)
-    val lessThanFuncNode = ExpressionBuilder.makeScalarFunction(
-      lessThanFuncId,
-      Lists.newArrayList(rightNode, literalNode),
-      ConverterUtils.getTypeNode(BooleanType, true))
-    new IfThenNode(Lists.newArrayList(lessThanFuncNode), Lists.newArrayList(nullNode), resultNode)
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Expression): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
   }
 
   /** Transform NaNvl to Substrait. */
@@ -125,6 +105,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     val condFuncName = ExpressionMappings.expressionsMap(classOf[IsNaN])
     val newExpr = If(condExpr, original.right, original.left)
     IfTransformer(
+      substraitExprName,
       GenericExpressionTransformer(condFuncName, Seq(left), condExpr),
       right,
       left,
@@ -138,7 +119,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       original: Uuid): ExpressionTransformer = {
     GenericExpressionTransformer(
       substraitExprName,
-      Seq(LiteralTransformer(Literal(original.randomSeed.get))),
+      Seq(LiteralTransformer(original.randomSeed.get)),
       original)
   }
 
@@ -264,6 +245,17 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(child), expr)
   }
 
+  override def genLikeTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Like): ExpressionTransformer = {
+    GenericExpressionTransformer(
+      substraitExprName,
+      Seq(left, right, LiteralTransformer(original.escapeChar)),
+      original)
+  }
+
   /** Transform make_timestamp to Substrait. */
   override def genMakeTimestampTransformer(
       substraitExprName: String,
@@ -272,27 +264,13 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, children, expr)
   }
 
-  /**
-   * * Plans.
-   */
-
-  /**
-   * Generate ColumnarToRowExecBase.
-   *
-   * @param child
-   * @return
-   */
-  override def genColumnarToRowExec(child: SparkPlan): ColumnarToRowExecBase =
-    VeloxColumnarToRowExec(child)
-
-  /**
-   * Generate RowToColumnarExec.
-   *
-   * @param child
-   * @return
-   */
-  override def genRowToColumnarExec(child: SparkPlan): RowToColumnarExecBase =
-    RowToVeloxColumnarExec(child)
+  override def genDateDiffTransformer(
+      substraitExprName: String,
+      endDate: ExpressionTransformer,
+      startDate: ExpressionTransformer,
+      original: DateDiff): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(endDate, startDate), original)
+  }
 
   /**
    * Generate FilterExecTransformer.
@@ -462,7 +440,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   override def genHashExpressionTransformer(
       substraitExprName: String,
       exprs: Seq[ExpressionTransformer],
-      original: Expression): ExpressionTransformer = {
+      original: HashExpression[_]): ExpressionTransformer = {
     VeloxHashExpressionTransformer(substraitExprName, exprs, original)
   }
 
@@ -479,7 +457,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       newPartitioning: Partitioning,
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
-      metrics: Map[String, SQLMetric]): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
+      metrics: Map[String, SQLMetric],
+      isSort: Boolean): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
     ExecUtil.genShuffleDependency(
       rdd,
@@ -487,7 +466,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       newPartitioning,
       serializer,
       writeMetrics,
-      metrics)
+      metrics,
+      isSort)
   }
   // scalastyle:on argcount
 
@@ -522,7 +502,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       resultAttrs: Seq[Attribute],
       child: SparkPlan,
       evalType: Int): SparkPlan = {
-    new ColumnarArrowEvalPythonExec(udfs, resultAttrs, child, evalType)
+    ColumnarArrowEvalPythonExec(udfs, resultAttrs, child, evalType)
   }
 
   /**
@@ -532,12 +512,16 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def createColumnarBatchSerializer(
       schema: StructType,
-      metrics: Map[String, SQLMetric]): Serializer = {
-    val readBatchNumRows = metrics("avgReadBatchNumRows")
+      metrics: Map[String, SQLMetric],
+      isSort: Boolean): Serializer = {
     val numOutputRows = metrics("numOutputRows")
-    val decompressTime = metrics("decompressTime")
-    val ipcTime = metrics("ipcTime")
     val deserializeTime = metrics("deserializeTime")
+    val readBatchNumRows = metrics("avgReadBatchNumRows")
+    val decompressTime: Option[SQLMetric] = if (!isSort) {
+      Some(metrics("decompressTime"))
+    } else {
+      None
+    }
     if (GlutenConfig.getConf.isUseCelebornShuffleManager) {
       val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CelebornColumnarBatchSerializer")
       val constructor =
@@ -548,9 +532,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         schema,
         readBatchNumRows,
         numOutputRows,
+        deserializeTime,
         decompressTime,
-        ipcTime,
-        deserializeTime)
+        isSort)
     }
   }
 
@@ -655,7 +639,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       childTransformer: ExpressionTransformer,
       ordinal: Int,
       original: GetStructField): ExpressionTransformer = {
-    VeloxGetStructFieldTransformer(substraitExprName, childTransformer, ordinal, original)
+    VeloxGetStructFieldTransformer(substraitExprName, childTransformer, original)
   }
 
   /**
@@ -733,7 +717,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = List(
-    AggregateFunctionRewriteRule.apply
+    CollectRewriteRule.apply,
+    HLLRewriteRule.apply
   )
 
   /**
@@ -742,7 +727,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] = List(
-    BloomFilterMightContainJointRewriteRule.apply
+    BloomFilterMightContainJointRewriteRule.apply,
+    ArrowScanReplaceRule.apply
   )
 
   /**
@@ -767,6 +753,10 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     SparkShimLoader.getSparkShims.getExtendedColumnarPostRules() ::: List()
   }
 
+  override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = {
+    List(ArrowConvertorRule)
+  }
+
   /**
    * Generate extended Strategy.
    *
@@ -781,8 +771,10 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     Seq(
       Sig[HLLAdapter](ExpressionNames.APPROX_DISTINCT),
       Sig[UDFExpression](ExpressionNames.UDF_PLACEHOLDER),
-      Sig[UserDefinedAggregateFunction](ExpressionNames.UDF_PLACEHOLDER),
+      Sig[UserDefinedAggregateFunction](ExpressionNames.UDAF_PLACEHOLDER),
       Sig[NaNvl](ExpressionNames.NANVL),
+      Sig[VeloxCollectList](ExpressionNames.COLLECT_LIST),
+      Sig[VeloxCollectSet](ExpressionNames.COLLECT_SET),
       Sig[VeloxBloomFilterMightContain](ExpressionNames.MIGHT_CONTAIN),
       Sig[VeloxBloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG)
     )
@@ -825,6 +817,11 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
   override def genPostProjectForGenerate(generate: GenerateExec): SparkPlan = {
     PullOutGenerateProjectHelper.pullOutPostProject(generate)
+  }
+
+  override def genPreProjectForArrowEvalPythonExec(
+      arrowEvalPythonExec: ArrowEvalPythonExec): SparkPlan = {
+    PullOutArrowEvalPythonPreProjectHelper.pullOutPreProject(arrowEvalPythonExec)
   }
 
   override def maybeCollapseTakeOrderedAndProject(plan: SparkPlan): SparkPlan = {

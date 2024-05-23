@@ -201,6 +201,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
 
 JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
 {
+    LOG_INFO(&Poco::Logger::get("jni"), "start jni onUnload");
     local_engine::BackendFinalizerUtil::finalizeGlobally();
 
     JNIEnv * env;
@@ -398,7 +399,7 @@ Java_org_apache_gluten_vectorized_CHColumnVector_nativeHasNull(JNIEnv * env, job
     }
     else
     {
-        const auto * nullable = checkAndGetColumn<DB::ColumnNullable>(*col.column);
+        const auto * nullable = checkAndGetColumn<DB::ColumnNullable>(&*col.column);
         size_t num_nulls = std::accumulate(nullable->getNullMapData().begin(), nullable->getNullMapData().end(), 0);
         return num_nulls < block->rows();
     }
@@ -416,7 +417,7 @@ Java_org_apache_gluten_vectorized_CHColumnVector_nativeNumNulls(JNIEnv * env, jo
     }
     else
     {
-        const auto * nullable = checkAndGetColumn<DB::ColumnNullable>(*col.column);
+        const auto * nullable = checkAndGetColumn<DB::ColumnNullable>(&*col.column);
         return std::accumulate(nullable->getNullMapData().begin(), nullable->getNullMapData().end(), 0);
     }
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)

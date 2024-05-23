@@ -53,7 +53,16 @@ class VeloxBackend {
 
   facebook::velox::cache::AsyncDataCache* getAsyncDataCache() const;
 
-  const std::unordered_map<std::string, std::string>& getBackendConf() const;
+  std::shared_ptr<facebook::velox::Config> getBackendConf() const {
+    return backendConf_;
+  }
+
+  void tearDown() {
+    // Destruct IOThreadPoolExecutor will join all threads.
+    // On threads exit, thread local variables can be constructed with referencing global variables.
+    // So, we need to destruct IOThreadPoolExecutor and stop the threads before global variables get destructed.
+    ioExecutor_.reset();
+  }
 
  private:
   explicit VeloxBackend(const std::unordered_map<std::string, std::string>& conf) {
@@ -61,11 +70,11 @@ class VeloxBackend {
   }
 
   void init(const std::unordered_map<std::string, std::string>& conf);
-  void initCache(const std::shared_ptr<const facebook::velox::Config>& conf);
-  void initConnector(const std::shared_ptr<const facebook::velox::Config>& conf);
-  void initUdf(const std::shared_ptr<const facebook::velox::Config>& conf);
+  void initCache();
+  void initConnector();
+  void initUdf();
 
-  void initJolFilesystem(const std::shared_ptr<const facebook::velox::Config>& conf);
+  void initJolFilesystem();
 
   std::string getCacheFilePrefix() {
     return "cache." + boost::lexical_cast<std::string>(boost::uuids::random_generator()()) + ".";
@@ -83,7 +92,7 @@ class VeloxBackend {
   std::string cachePathPrefix_;
   std::string cacheFilePrefix_;
 
-  std::unordered_map<std::string, std::string> backendConf_{};
+  std::shared_ptr<facebook::velox::Config> backendConf_;
 };
 
 } // namespace gluten

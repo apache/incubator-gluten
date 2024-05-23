@@ -18,31 +18,31 @@ package org.apache.gluten.expression
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.expression.ConverterUtils.FunctionConfig
 import org.apache.gluten.substrait.`type`.ListNode
 import org.apache.gluten.substrait.`type`.MapNode
-import org.apache.gluten.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode, IntLiteralNode}
+import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, StructLiteralNode}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
 
 import com.google.common.collect.Lists
 
-case class ChildTransformer(child: ExpressionTransformer) extends ExpressionTransformer {
+case class ChildTransformer(
+    substraitExprName: String,
+    child: ExpressionTransformer,
+    original: Expression)
+  extends UnaryExpressionTransformer {
+  override def dataType: DataType = child.dataType
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     child.doTransform(args)
   }
 }
 
-case class CastTransformer(
-    child: ExpressionTransformer,
-    datatype: DataType,
-    timeZoneId: Option[String],
-    original: Cast)
-  extends ExpressionTransformer {
-
+case class CastTransformer(substraitExprName: String, child: ExpressionTransformer, original: Cast)
+  extends UnaryExpressionTransformer {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val typeNode = ConverterUtils.getTypeNode(datatype, original.nullable)
+    val typeNode = ConverterUtils.getTypeNode(dataType, original.nullable)
     ExpressionBuilder.makeCast(typeNode, child.doTransform(args), original.ansiEnabled)
   }
 }
@@ -51,7 +51,7 @@ case class ExplodeTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
     original: Explode)
-  extends ExpressionTransformer {
+  extends UnaryExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childNode: ExpressionNode = child.doTransform(args)
@@ -74,118 +74,20 @@ case class ExplodeTransformer(
   }
 }
 
-case class PosExplodeTransformer(
-    substraitExprName: String,
-    child: ExpressionTransformer,
-    original: PosExplode,
-    attributeSeq: Seq[Attribute])
-  extends ExpressionTransformer {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val childNode: ExpressionNode = child.doTransform(args)
-
-    // sequence(1, size(array_or_map))
-    val startExpr = new Literal(1, IntegerType)
-    val stopExpr = new Size(Size(original.child, false))
-    val stepExpr = new Literal(1, IntegerType)
-    val sequenceExpr = new Sequence(startExpr, stopExpr, stepExpr)
-    val sequenceExprNode = ExpressionConverter
-      .replaceWithExpressionTransformer(sequenceExpr, attributeSeq)
-      .doTransform(args)
-
-    val funcMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-
-    val mapFromArraysFuncId = ExpressionBuilder.newScalarFunction(
-      funcMap,
-      ConverterUtils.makeFuncName(
-        ExpressionNames.MAP_FROM_ARRAYS,
-        Seq(sequenceExpr.dataType, original.child.dataType),
-        FunctionConfig.OPT))
-
-    val keyType = IntegerType
-    val (valType, valContainsNull) = original.child.dataType match {
-      case a: ArrayType => (a.elementType, a.containsNull)
-      case _ =>
-        throw new GlutenNotSupportException(
-          s"posexplode(${original.child.dataType}) not supported yet.")
-    }
-    val outputType = MapType(keyType, valType, valContainsNull)
-    val mapFromArraysExprNode = ExpressionBuilder.makeScalarFunction(
-      mapFromArraysFuncId,
-      Lists.newArrayList(sequenceExprNode, childNode),
-      ConverterUtils.getTypeNode(outputType, original.child.nullable))
-
-    // posexplode(map_from_arrays(sequence(1, size(array_or_map)), array_or_map))
-    val funcId = ExpressionBuilder.newScalarFunction(
-      funcMap,
-      ConverterUtils.makeFuncName(ExpressionNames.POSEXPLODE, Seq(outputType), FunctionConfig.OPT))
-
-    val childType = original.child.dataType
-    childType match {
-      case a: ArrayType =>
-        // Output pos, col when input is array
-        val structType = StructType(
-          Array(
-            StructField("pos", IntegerType, false),
-            StructField("col", a.elementType, a.containsNull)))
-        ExpressionBuilder.makeScalarFunction(
-          funcId,
-          Lists.newArrayList(mapFromArraysExprNode),
-          ConverterUtils.getTypeNode(structType, false))
-      case m: MapType =>
-        // Output pos, key, value when input is map
-        val structType = StructType(
-          Array(
-            StructField("pos", IntegerType, false),
-            StructField("key", m.keyType, false),
-            StructField("value", m.valueType, m.valueContainsNull)))
-        ExpressionBuilder.makeScalarFunction(
-          funcId,
-          Lists.newArrayList(mapFromArraysExprNode),
-          ConverterUtils.getTypeNode(structType, false))
-      case _ =>
-        throw new GlutenNotSupportException(s"posexplode($childType) not supported yet.")
-    }
-  }
-}
-
 case class CheckOverflowTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
     original: CheckOverflow)
-  extends ExpressionTransformer {
-
+  extends UnaryExpressionTransformer {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     BackendsApiManager.getTransformerApiInstance.createCheckOverflowExprNode(
       args,
       substraitExprName,
       child.doTransform(args),
+      original.child.dataType,
       original.dataType,
       original.nullable,
       original.nullOnOverflow)
-  }
-}
-
-case class MakeDecimalTransformer(
-    substraitExprName: String,
-    child: ExpressionTransformer,
-    original: MakeDecimal)
-  extends ExpressionTransformer {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val childNode = child.doTransform(args)
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName(
-        substraitExprName,
-        Seq(original.dataType, BooleanType),
-        FunctionConfig.OPT))
-
-    val expressionNodes =
-      Lists.newArrayList(childNode, new BooleanLiteralNode(original.nullOnOverflow))
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
@@ -200,43 +102,32 @@ case class RandTransformer(
     substraitExprName: String,
     explicitSeed: ExpressionTransformer,
     original: Rand)
-  extends ExpressionTransformer {
+  extends LeafExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     if (!original.hideSeed) {
       // TODO: for user-specified seed, we need to pass partition index to native engine.
       throw new GlutenNotSupportException("User-specified seed is not supported.")
     }
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName(substraitExprName, Seq(original.child.dataType)))
-    val inputNodes = Lists.newArrayList[ExpressionNode]()
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, inputNodes, typeNode)
+    super.doTransform(args)
   }
 }
 
-case class GetArrayStructFieldsTransformer(
+case class GetStructFieldTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
-    ordinal: Int,
-    numFields: Int,
-    containsNull: Boolean,
-    original: GetArrayStructFields)
-  extends ExpressionTransformer {
+    original: GetStructField)
+  extends BinaryExpressionTransformer {
+  override def left: ExpressionTransformer = child
+  override def right: ExpressionTransformer = LiteralTransformer(original.ordinal)
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName(
-        substraitExprName,
-        Seq(original.child.dataType, IntegerType),
-        FunctionConfig.OPT))
-    val inputNodes =
-      Lists.newArrayList(child.doTransform(args), new IntLiteralNode(ordinal))
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, inputNodes, typeNode)
+    val childNode = child.doTransform(args)
+    childNode match {
+      case node: StructLiteralNode =>
+        node.getFieldLiteral(original.ordinal)
+      case _ =>
+        super.doTransform(args)
+    }
   }
 }

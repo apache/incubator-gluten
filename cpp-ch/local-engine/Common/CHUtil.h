@@ -16,19 +16,21 @@
  */
 #pragma once
 #include <filesystem>
-#include <Columns/IColumn.h>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
 #include <Core/NamesAndTypes.h>
-#include <DataTypes/Serializations/ISerialization.h>
 #include <Functions/CastOverloadResolver.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/Context.h>
 #include <Processors/Chunk.h>
-#include <Storages/IStorage.h>
 #include <base/types.h>
 #include <Common/CurrentThread.h>
-#include <Common/logger_useful.h>
+
+namespace DB
+{
+class QueryPipeline;
+class QueryPlan;
+}
 
 namespace local_engine
 {
@@ -96,10 +98,10 @@ private:
     const DB::ColumnWithTypeAndName * findColumn(const DB::Block & block, const std::string & name) const;
 };
 
-class PlanUtil
+namespace PlanUtil
 {
-public:
-    static std::string explainPlan(DB::QueryPlan & plan);
+std::string explainPlan(DB::QueryPlan & plan);
+void checkOuputType(const DB::QueryPlan & plan);
 };
 
 class ActionsDAGUtil

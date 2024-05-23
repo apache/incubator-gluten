@@ -17,8 +17,11 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.extension.columnar.validator.FallbackInjects
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.catalyst.expressions.aggregate.{Final, Partial}
+import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.internal.SQLConf
 
 abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSuite {
@@ -191,18 +194,12 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
   }
 
   test("min_by/max_by") {
-    withTempPath {
-      path =>
-        Seq((5: Integer, 6: Integer), (null: Integer, 11: Integer), (null: Integer, 5: Integer))
-          .toDF("a", "b")
-          .write
-          .parquet(path.getCanonicalPath)
-        spark.read
-          .parquet(path.getCanonicalPath)
-          .createOrReplaceTempView("test")
-        runQueryAndCompare("select min_by(a, b), max_by(a, b) from test") {
-          checkGlutenOperatorMatch[HashAggregateExecTransformer]
-        }
+    withSQLConf(("spark.sql.leafNodeDefaultParallelism", "2")) {
+      runQueryAndCompare(
+        "select min_by(a, b), max_by(a, b) from " +
+          "values (5, 6), (null, 11), (null, 5) test(a, b)") {
+        checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      }
     }
   }
 
@@ -975,6 +972,82 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
           }
       }
     }
+  }
+
+  // Used for testing aggregate fallback
+  sealed trait FallbackMode
+  case object Offload extends FallbackMode
+  case object FallbackPartial extends FallbackMode
+  case object FallbackFinal extends FallbackMode
+  case object FallbackAll extends FallbackMode
+
+  List(Offload, FallbackPartial, FallbackFinal, FallbackAll).foreach {
+    mode =>
+      test(s"test fallback collect_set/collect_list with null, $mode") {
+        mode match {
+          case Offload => doTest()
+          case FallbackPartial =>
+            FallbackInjects.fallbackOn {
+              case agg: BaseAggregateExec =>
+                agg.aggregateExpressions.exists(_.mode == Partial)
+            } {
+              doTest()
+            }
+          case FallbackFinal =>
+            FallbackInjects.fallbackOn {
+              case agg: BaseAggregateExec =>
+                agg.aggregateExpressions.exists(_.mode == Final)
+            } {
+              doTest()
+            }
+          case FallbackAll =>
+            FallbackInjects.fallbackOn { case _: BaseAggregateExec => true } {
+              doTest()
+            }
+        }
+
+        def doTest(): Unit = {
+          withTempView("collect_tmp") {
+            Seq((1, null), (1, "a"), (2, null), (3, null), (3, null), (4, "b"))
+              .toDF("c1", "c2")
+              .createOrReplaceTempView("collect_tmp")
+
+            // basic test
+            runQueryAndCompare(
+              "SELECT collect_set(c2), collect_list(c2) FROM collect_tmp GROUP BY c1") { _ => }
+
+            // test pre project and post project
+            runQueryAndCompare("""
+                                 |SELECT
+                                 |size(collect_set(if(c2 = 'a', 'x', 'y'))) as x,
+                                 |size(collect_list(if(c2 = 'a', 'x', 'y'))) as y
+                                 |FROM collect_tmp GROUP BY c1
+                                 |""".stripMargin) { _ => }
+
+            // test distinct
+            runQueryAndCompare(
+              "SELECT collect_set(c2), collect_list(distinct c2) FROM collect_tmp GROUP BY c1") {
+              _ =>
+            }
+
+            // test distinct + pre project and post project
+            runQueryAndCompare("""
+                                 |SELECT
+                                 |size(collect_set(if(c2 = 'a', 'x', 'y'))),
+                                 |size(collect_list(distinct if(c2 = 'a', 'x', 'y')))
+                                 |FROM collect_tmp GROUP BY c1
+                                 |""".stripMargin) { _ => }
+
+            // test cast array to string
+            runQueryAndCompare("""
+                                 |SELECT
+                                 |cast(collect_set(c2) as string),
+                                 |cast(collect_list(c2) as string)
+                                 |FROM collect_tmp GROUP BY c1
+                                 |""".stripMargin) { _ => }
+          }
+        }
+      }
   }
 
   test("count(1)") {

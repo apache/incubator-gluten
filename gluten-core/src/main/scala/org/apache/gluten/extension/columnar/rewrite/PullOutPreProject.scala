@@ -24,6 +24,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete, Partial}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, TypedAggregateExpression}
+import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
 import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
 
 import scala.collection.mutable
@@ -225,6 +226,10 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
 
     case generate: GenerateExec =>
       BackendsApiManager.getSparkPlanExecApiInstance.genPreProjectForGenerate(generate)
+
+    case arrowEvalPythonExec: ArrowEvalPythonExec =>
+      BackendsApiManager.getSparkPlanExecApiInstance.genPreProjectForArrowEvalPythonExec(
+        arrowEvalPythonExec)
 
     case _ => plan
   }

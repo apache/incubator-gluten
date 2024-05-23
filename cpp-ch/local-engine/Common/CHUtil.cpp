@@ -14,14 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#include "CHUtil.h"
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <unistd.h>
 #include <AggregateFunctions/Combinators/AggregateFunctionCombinatorFactory.h>
 #include <AggregateFunctions/registerAggregateFunctions.h>
 #include <Columns/ColumnArray.h>
 #include <Columns/ColumnConst.h>
-#include <Columns/ColumnMap.h>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnTuple.h>
 #include <Columns/IColumn.h>
@@ -30,14 +32,17 @@
 #include <Core/Defines.h>
 #include <Core/NamesAndTypes.h>
 #include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeMap.h>
+#include <DataTypes/DataTypeDateTime64.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
+#include <DataTypes/DataTypesDecimal.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/NestedUtils.h>
 #include <Disks/registerDisks.h>
+#include <Disks/registerGlutenDisks.h>
 #include <Functions/FunctionFactory.h>
+#include <Functions/FunctionHelpers.h>
 #include <Functions/registerFunctions.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/SharedThreadPools.h>
@@ -51,8 +56,11 @@
 #include <Storages/Output/WriteBufferBuilder.h>
 #include <Storages/StorageMergeTreeFactory.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <boost/algorithm/string/case_conv.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/wrappers.pb.h>
+#include <sys/resource.h>
 #include <Poco/Logger.h>
 #include <Poco/Util/MapConfiguration.h>
 #include <Common/BitHelpers.h>
@@ -63,20 +71,12 @@
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
 
-#include <boost/algorithm/string/case_conv.hpp>
-#include <boost/algorithm/string/predicate.hpp>
-
-#include "CHUtil.h"
-#include "Disks/registerGlutenDisks.h"
-
-#include <unistd.h>
-#include <sys/resource.h>
-
 namespace DB
 {
 namespace ErrorCodes
 {
 extern const int BAD_ARGUMENTS;
+extern const int UNKNOWN_TYPE;
 }
 }
 
@@ -311,16 +311,48 @@ size_t PODArrayUtil::adjustMemoryEfficientSize(size_t n)
 
 std::string PlanUtil::explainPlan(DB::QueryPlan & plan)
 {
-    std::string plan_str;
-    DB::QueryPlan::ExplainPlanOptions buf_opt{
+    constexpr DB::QueryPlan::ExplainPlanOptions buf_opt{
         .header = true,
         .actions = true,
         .indexes = true,
     };
     DB::WriteBufferFromOwnString buf;
     plan.explainPlan(buf, buf_opt);
-    plan_str = buf.str();
-    return plan_str;
+
+    return buf.str();
+}
+
+void PlanUtil::checkOuputType(const DB::QueryPlan & plan)
+{
+    // QueryPlan::checkInitialized is a private method, so we assume plan is initialized, otherwise there is a core dump here.
+    // It's okay, because it's impossible for us not to initialize where we call this method.
+    const auto & step = *plan.getRootNode()->step;
+    if (!step.hasOutputStream())
+        return;
+    if (!step.getOutputStream().header)
+        return;
+    for (const auto & elem : step.getOutputStream().header)
+    {
+        const DB::DataTypePtr & ch_type = elem.type;
+        const auto ch_type_without_nullable = DB::removeNullable(ch_type);
+        const DB::WhichDataType which(ch_type_without_nullable);
+        if (which.isDateTime64())
+        {
+            const auto * ch_type_datetime64 = checkAndGetDataType<DataTypeDateTime64>(ch_type_without_nullable.get());
+            if (ch_type_datetime64->getScale() != 6)
+                throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
+        }
+        else if (which.isDecimal())
+        {
+            if (which.isDecimal256())
+                throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
+
+            const auto scale = getDecimalScale(*ch_type_without_nullable);
+            const auto precision = getDecimalPrecision(*ch_type_without_nullable);
+            if (scale == 0 && precision == 0)
+                throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
+        }
+    }
 }
 
 NestedColumnExtractHelper::NestedColumnExtractHelper(const DB::Block & block_, bool case_insentive_)
@@ -713,7 +745,6 @@ void registerAllFunctions()
         auto & factory = AggregateFunctionCombinatorFactory::instance();
         registerAggregateFunctionCombinatorPartialMerge(factory);
     }
-
 }
 
 void registerGlutenDisks()

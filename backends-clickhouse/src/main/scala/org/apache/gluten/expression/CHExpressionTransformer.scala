@@ -32,17 +32,12 @@ import java.util.Locale
 
 case class CHSizeExpressionTransformer(
     substraitExprName: String,
-    child: ExpressionTransformer,
+    expr: ExpressionTransformer,
     original: Size)
-  extends ExpressionTransformer {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    // Pass legacyLiteral as second argument in substrait function
-    val legacyLiteral = new Literal(original.legacySizeOfNull, BooleanType)
-    val legacyTransformer = new LiteralTransformer(legacyLiteral)
-    GenericExpressionTransformer(substraitExprName, Seq(child, legacyTransformer), original)
-      .doTransform(args)
-  }
+  extends BinaryExpressionTransformer {
+  override def left: ExpressionTransformer = expr
+  // Pass legacyLiteral as second argument in substrait function
+  override def right: ExpressionTransformer = LiteralTransformer(original.legacySizeOfNull)
 }
 
 case class CHTruncTimestampTransformer(
@@ -52,6 +47,7 @@ case class CHTruncTimestampTransformer(
     timeZoneId: Option[String] = None,
     original: TruncTimestamp)
   extends ExpressionTransformer {
+  override def children: Seq[ExpressionTransformer] = format :: timestamp :: Nil
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // The format must be constant string in the function date_trunc of ch.
@@ -127,6 +123,7 @@ case class CHStringTranslateTransformer(
     replaceExpr: ExpressionTransformer,
     original: StringTranslate)
   extends ExpressionTransformer {
+  override def children: Seq[ExpressionTransformer] = srcExpr :: matchingExpr :: replaceExpr :: Nil
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // In CH, translateUTF8 requires matchingExpr and replaceExpr argument have the same length
@@ -145,11 +142,7 @@ case class CHStringTranslateTransformer(
       throw new GlutenNotSupportException(s"$original not supported yet.")
     }
 
-    GenericExpressionTransformer(
-      substraitExprName,
-      Seq(srcExpr, matchingExpr, replaceExpr),
-      original)
-      .doTransform(args)
+    super.doTransform(args)
   }
 }
 
@@ -158,7 +151,7 @@ case class CHPosExplodeTransformer(
     child: ExpressionTransformer,
     original: PosExplode,
     attributeSeq: Seq[Attribute])
-  extends ExpressionTransformer {
+  extends UnaryExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childNode: ExpressionNode = child.doTransform(args)
@@ -200,14 +193,15 @@ case class CHPosExplodeTransformer(
 
 case class CHRegExpReplaceTransformer(
     substraitExprName: String,
-    children: Seq[ExpressionTransformer],
+    childrenWithPos: Seq[ExpressionTransformer],
     original: RegExpReplace)
   extends ExpressionTransformer {
+  override def children: Seq[ExpressionTransformer] = childrenWithPos.dropRight(1)
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // In CH: replaceRegexpAll(subject, regexp, rep), which is equivalent
     // In Spark: regexp_replace(subject, regexp, rep, pos=1)
-    val posNode = children(3).doTransform(args)
+    val posNode = childrenWithPos(3).doTransform(args)
     if (
       !posNode.isInstanceOf[IntLiteralNode] ||
       posNode.asInstanceOf[IntLiteralNode].getValue != 1
@@ -215,10 +209,47 @@ case class CHRegExpReplaceTransformer(
       throw new UnsupportedOperationException(s"$original not supported yet.")
     }
 
-    GenericExpressionTransformer(
+    super.doTransform(args)
+  }
+}
+
+case class GetArrayItemTransformer(
+    substraitExprName: String,
+    left: ExpressionTransformer,
+    right: ExpressionTransformer,
+    original: Expression)
+  extends BinaryExpressionTransformer {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    // Ignore failOnError for clickhouse backend
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val leftNode = left.doTransform(args)
+    var rightNode = right.doTransform(args)
+
+    val getArrayItem = original.asInstanceOf[GetArrayItem]
+
+    // In Spark, the index of getarrayitem starts from 0
+    // But in CH, the index of arrayElement starts from 1, besides index argument must
+    // So we need to do transform: rightNode = add(rightNode, 1)
+    val addFunctionName = ConverterUtils.makeFuncName(
+      ExpressionNames.ADD,
+      Seq(IntegerType, getArrayItem.right.dataType),
+      FunctionConfig.OPT)
+    val addFunctionId = ExpressionBuilder.newScalarFunction(functionMap, addFunctionName)
+    val literalNode = ExpressionBuilder.makeLiteral(1.toInt, IntegerType, false)
+    rightNode = ExpressionBuilder.makeScalarFunction(
+      addFunctionId,
+      Lists.newArrayList(literalNode, rightNode),
+      ConverterUtils.getTypeNode(getArrayItem.right.dataType, getArrayItem.right.nullable))
+
+    val functionName = ConverterUtils.makeFuncName(
       substraitExprName,
-      Seq(children(0), children(1), children(2)),
-      original)
-      .doTransform(args)
+      Seq(getArrayItem.left.dataType, getArrayItem.right.dataType),
+      FunctionConfig.OPT)
+    val exprNodes = Lists.newArrayList(leftNode, rightNode)
+    ExpressionBuilder.makeScalarFunction(
+      ExpressionBuilder.newScalarFunction(functionMap, functionName),
+      exprNodes,
+      ConverterUtils.getTypeNode(getArrayItem.dataType, getArrayItem.nullable))
   }
 }

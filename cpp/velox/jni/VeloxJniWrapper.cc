@@ -77,6 +77,14 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_init_NativeBackendInitializer_init
   JNI_METHOD_END()
 }
 
+JNIEXPORT void JNICALL Java_org_apache_gluten_init_NativeBackendInitializer_shutdown( // NOLINT
+    JNIEnv* env,
+    jclass) {
+  JNI_METHOD_START
+  gluten::VeloxBackend::get()->tearDown();
+  JNI_METHOD_END()
+}
+
 JNIEXPORT void JNICALL Java_org_apache_gluten_udf_UdfJniWrapper_getFunctionSignatures( // NOLINT
     JNIEnv* env,
     jclass) {
@@ -112,10 +120,10 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFail
   // A query context with dummy configs. Used for function validation.
   std::unordered_map<std::string, std::string> configs{
       {velox::core::QueryConfig::kSparkPartitionId, "0"}, {velox::core::QueryConfig::kSessionTimezone, "GMT"}};
-  velox::core::QueryCtx queryCtx(nullptr, velox::core::QueryConfig(configs));
+  auto queryCtx = velox::core::QueryCtx::create(nullptr, velox::core::QueryConfig(configs));
   auto pool = gluten::defaultLeafVeloxMemoryPool().get();
   // An execution context used for function validation.
-  velox::core::ExecCtx execCtx(pool, &queryCtx);
+  velox::core::ExecCtx execCtx(pool, queryCtx.get());
 
   gluten::SubstraitToVeloxPlanValidator planValidator(pool, &execCtx);
   jclass infoCls = env->FindClass("Lorg/apache/gluten/validate/NativePlanValidationInfo;");

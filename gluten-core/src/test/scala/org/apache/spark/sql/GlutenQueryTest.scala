@@ -60,13 +60,13 @@ abstract class GlutenQueryTest extends PlanTest {
       minSparkVersion: Option[String] = None,
       maxSparkVersion: Option[String] = None): Boolean = {
     var shouldRun = true
-    if (!minSparkVersion.isEmpty) {
+    if (minSparkVersion.isDefined) {
       shouldRun = isSparkVersionGE(minSparkVersion.get)
-      if (!maxSparkVersion.isEmpty) {
+      if (maxSparkVersion.isDefined) {
         shouldRun = shouldRun && isSparkVersionLE(maxSparkVersion.get)
       }
     } else {
-      if (!maxSparkVersion.isEmpty) {
+      if (maxSparkVersion.isDefined) {
         shouldRun = isSparkVersionLE(maxSparkVersion.get)
       }
     }

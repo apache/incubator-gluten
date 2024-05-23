@@ -130,7 +130,7 @@ object ExhaustivePlanner {
     private def applyEnforcerRules(): Unit = {
       allGroups.foreach {
         group =>
-          val constraintSet = group.propSet()
+          val constraintSet = group.constraintSet()
           val enforcerRules = enforcerRuleSet.rulesOf(constraintSet)
           if (enforcerRules.nonEmpty) {
             val shapes = enforcerRules.map(_.shape())

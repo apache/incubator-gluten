@@ -29,21 +29,24 @@ import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
+import org.apache.spark.sql.catalyst.csv.CSVOptions
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution, KeyGroupedPartitioning, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.util.{InternalRowComparableWrapper, TimestampFormatter}
+import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, InternalRowComparableWrapper, TimestampFormatter}
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Scan}
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
@@ -324,6 +327,10 @@ class Spark34Shims extends SparkShims {
 
   def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] = partition.files
 
+  def isRowIndexMetadataColumn(name: String): Boolean = {
+    name == FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME
+  }
+
   def splitFiles(
       sparkSession: SparkSession,
       file: FileStatus,
@@ -409,5 +416,18 @@ class Spark34Shims extends SparkShims {
       case a: Add => a.evalMode == EvalMode.ANSI
       case _ => false
     }
+  }
+
+  override def dateTimestampFormatInReadIsDefaultValue(
+      csvOptions: CSVOptions,
+      timeZone: String): Boolean = {
+    val default = new CSVOptions(CaseInsensitiveMap(Map()), csvOptions.columnPruning, timeZone)
+    csvOptions.dateFormatInRead == default.dateFormatInRead &&
+    csvOptions.timestampFormatInRead == default.timestampFormatInRead &&
+    csvOptions.timestampNTZFormatInRead == default.timestampNTZFormatInRead
+  }
+
+  override def isPlannedV1Write(write: DataWritingCommandExec): Boolean = {
+    write.cmd.isInstanceOf[V1WriteCommand] && SQLConf.get.plannedWriteEnabled
   }
 }

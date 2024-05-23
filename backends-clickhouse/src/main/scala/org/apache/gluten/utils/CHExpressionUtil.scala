@@ -186,6 +186,8 @@ object CHExpressionUtil {
     SKEWNESS -> DefaultValidator(),
     BIT_LENGTH -> DefaultValidator(),
     MAKE_YM_INTERVAL -> DefaultValidator(),
+    MAP_ZIP_WITH -> DefaultValidator(),
+    ZIP_WITH -> DefaultValidator(),
     KURTOSIS -> DefaultValidator(),
     REGR_R2 -> DefaultValidator(),
     REGR_SLOPE -> DefaultValidator(),
@@ -196,6 +198,9 @@ object CHExpressionUtil {
     UNIX_MILLIS -> DefaultValidator(),
     UNIX_MICROS -> DefaultValidator(),
     TIMESTAMP_MILLIS -> DefaultValidator(),
-    TIMESTAMP_MICROS -> DefaultValidator()
+    TIMESTAMP_MICROS -> DefaultValidator(),
+    FLATTEN -> DefaultValidator(),
+    RINT -> DefaultValidator(),
+    STACK -> DefaultValidator()
   )
 }

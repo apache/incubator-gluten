@@ -24,8 +24,6 @@ import org.apache.gluten.substrait.expression._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types.{IntegerType, LongType}
 
-import com.google.common.collect.Lists
-
 import java.lang.{Integer => JInteger, Long => JLong}
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap}
 
@@ -35,7 +33,7 @@ case class VeloxAliasTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
     original: Expression)
-  extends ExpressionTransformer {
+  extends UnaryExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     child.doTransform(args)
@@ -47,35 +45,24 @@ case class VeloxNamedStructTransformer(
     original: CreateNamedStruct,
     attributeSeq: Seq[Attribute])
   extends ExpressionTransformer {
-  override def doTransform(args: Object): ExpressionNode = {
-    val expressionNodes = Lists.newArrayList[ExpressionNode]()
-    original.valExprs.foreach(
-      child =>
-        expressionNodes.add(
-          replaceWithExpressionTransformer(child, attributeSeq).doTransform(args)))
-    val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
-    val functionName = ConverterUtils
-      .makeFuncName(substraitExprName, Seq(original.dataType), FunctionConfig.OPT)
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  override def children: Seq[ExpressionTransformer] = {
+    original.valExprs.map(replaceWithExpressionTransformer(_, attributeSeq))
   }
 }
 
 case class VeloxGetStructFieldTransformer(
     substraitExprName: String,
-    childTransformer: ExpressionTransformer,
-    ordinal: Int,
+    child: ExpressionTransformer,
     original: GetStructField)
-  extends ExpressionTransformer {
+  extends UnaryExpressionTransformer {
   override def doTransform(args: Object): ExpressionNode = {
-    val childNode = childTransformer.doTransform(args)
+    val childNode = child.doTransform(args)
     childNode match {
       case node: StructLiteralNode =>
-        node.getFieldLiteral(ordinal)
+        node.getFieldLiteral(original.ordinal)
       case node: SelectionNode =>
         // Append the nested index to selection node.
-        node.addNestedChildIdx(JInteger.valueOf(ordinal))
+        node.addNestedChildIdx(JInteger.valueOf(original.ordinal))
       case other =>
         throw new GlutenNotSupportException(s"$other is not supported.")
     }
@@ -84,9 +71,10 @@ case class VeloxGetStructFieldTransformer(
 
 case class VeloxHashExpressionTransformer(
     substraitExprName: String,
-    exps: Seq[ExpressionTransformer],
-    original: Expression)
+    children: Seq[ExpressionTransformer],
+    original: HashExpression[_])
   extends ExpressionTransformer {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // As of Spark 3.3, there are 3 kinds of HashExpression.
     // HiveHash is not supported in native backend and will fail native validation.
@@ -101,7 +89,7 @@ case class VeloxHashExpressionTransformer(
     val nodes = new JArrayList[ExpressionNode]()
     // Seed as the first argument
     nodes.add(seedNode)
-    exps.foreach(
+    children.foreach(
       expression => {
         nodes.add(expression.doTransform(args))
       })
@@ -122,6 +110,8 @@ case class VeloxStringSplitTransformer(
     limitExpr: ExpressionTransformer,
     original: StringSplit)
   extends ExpressionTransformer {
+  // TODO: split function support limit arg
+  override def children: Seq[ExpressionTransformer] = srcExpr :: regexExpr :: Nil
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     if (
@@ -139,8 +129,6 @@ case class VeloxStringSplitTransformer(
         s"$original supported single-length regex and negative limit, but given $limit and $regex")
     }
 
-    // TODO: split function support limit arg
-    GenericExpressionTransformer(substraitExprName, Seq(srcExpr, regexExpr), original)
-      .doTransform(args)
+    super.doTransform(args)
   }
 }

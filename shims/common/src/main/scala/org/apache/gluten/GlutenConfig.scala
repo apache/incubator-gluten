@@ -134,6 +134,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
       .getConfString("spark.shuffle.manager", "sort")
       .contains("UniffleShuffleManager")
 
+  def isSortBasedCelebornShuffle: Boolean =
+    conf
+      .getConfString("spark.celeborn.client.spark.shuffle.writer", "hash")
+      .equals("sort")
+
   def enableColumnarShuffle: Boolean = conf.getConf(COLUMNAR_SHUFFLE_ENABLED)
 
   def enablePreferColumnar: Boolean = conf.getConf(COLUMNAR_PREFER_ENABLED)
@@ -157,6 +162,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def tmpFile: Option[String] = conf.getConf(COLUMNAR_TEMP_DIR)
 
   @deprecated def broadcastCacheTimeout: Int = conf.getConf(COLUMNAR_BROADCAST_CACHE_TIMEOUT)
+
+  def columnarShuffleSortThreshold: Int = conf.getConf(COLUMNAR_SHUFFLE_SORT_THRESHOLD)
 
   def columnarShuffleReallocThreshold: Double = conf.getConf(COLUMNAR_SHUFFLE_REALLOC_THRESHOLD)
 
@@ -373,6 +380,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // Please use `BackendsApiManager.getSettings.enableNativeWriteFiles()` instead
   def enableNativeWriter: Option[Boolean] = conf.getConf(NATIVE_WRITER_ENABLED)
 
+  def enableNativeArrowReader: Boolean = conf.getConf(NATIVE_ARROW_READER_ENABLED)
+
   def directorySizeGuess: Long =
     conf.getConf(DIRECTORY_SIZE_GUESS)
   def filePreloadThreshold: Long =
@@ -393,6 +402,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def awsSdkLogLevel: String = conf.getConf(AWS_SDK_LOG_LEVEL)
 
   def enableCastAvgAggregateFunction: Boolean = conf.getConf(COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED)
+
+  def dynamicOffHeapSizingEnabled: Boolean =
+    conf.getConf(DYNAMIC_OFFHEAP_SIZING_ENABLED)
 }
 
 object GlutenConfig {
@@ -464,6 +476,7 @@ object GlutenConfig {
   val GLUTEN_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend."
 
   // Private Spark configs.
+  val GLUTEN_ONHEAP_SIZE_KEY = "spark.executor.memory"
   val GLUTEN_OFFHEAP_SIZE_KEY = "spark.memory.offHeap.size"
   val GLUTEN_OFFHEAP_ENABLED = "spark.memory.offHeap.enabled"
 
@@ -540,6 +553,10 @@ object GlutenConfig {
   val GLUTEN_UGI_TOKENS = "spark.gluten.ugi.tokens"
 
   val GLUTEN_UI_ENABLED = "spark.gluten.ui.enabled"
+
+  val GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED = "spark.gluten.memory.dynamic.offHeap.sizing.enabled"
+  val GLUTEN_DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION =
+    "spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction"
 
   var ins: GlutenConfig = _
 
@@ -888,6 +905,14 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val COLUMNAR_SHUFFLE_SORT_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.shuffle.sort.threshold")
+      .internal()
+      .doc("The threshold to determine whether to use sort-based columnar shuffle. Sort-based " +
+        "shuffle will be used if the number of partitions is greater than this threshold.")
+      .intConf
+      .createWithDefault(100000)
+
   val COLUMNAR_PREFER_ENABLED =
     buildConf("spark.gluten.sql.columnar.preferColumnar")
       .internal()
@@ -1192,6 +1217,13 @@ object GlutenConfig {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1GB")
 
+  val COLUMNAR_VELOX_MEM_INIT_CAPACITY =
+    buildConf("spark.gluten.sql.columnar.backend.velox.memInitCapacity")
+      .internal()
+      .doc("The initial memory capacity to reserve for a newly created Velox query memory pool.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8MB")
+
   val COLUMNAR_VELOX_SSD_CACHE_PATH =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCachePath")
       .internal()
@@ -1230,9 +1262,14 @@ object GlutenConfig {
   val COLUMNAR_VELOX_CONNECTOR_IO_THREADS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
       .internal()
-      .doc("The IO threads for connector split preloading")
+      .doc("The Size of the IO thread pool in the Connector. This thread pool is used for split" +
+        " preloading and DirectBufferedInput.")
       .intConf
-      .createWithDefault(0)
+      .createWithDefaultFunction(
+        () =>
+          SQLConf.get.getConfString("spark.executor.cores", "1").toInt / SQLConf.get
+            .getConfString("spark.task.cpus", "1")
+            .toInt)
 
   val COLUMNAR_VELOX_ASYNC_TIMEOUT =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.asyncTimeoutOnTaskStopping")
@@ -1464,6 +1501,13 @@ object GlutenConfig {
       .doc("This is config to specify whether to enable the native columnar parquet/orc writer")
       .booleanConf
       .createOptional
+
+  val NATIVE_ARROW_READER_ENABLED =
+    buildConf("spark.gluten.sql.native.arrow.reader.enabled")
+      .internal()
+      .doc("This is config to specify whether to enable the native columnar csv reader")
+      .booleanConf
+      .createWithDefault(false)
 
   val NATIVE_WRITE_FILES_COLUMN_METADATA_EXCLUSION_LIST =
     buildConf("spark.gluten.sql.native.writeColumnMetadataExclusionList")
@@ -1821,4 +1865,32 @@ object GlutenConfig {
       .internal()
       .booleanConf
       .createWithDefault(true)
+
+  val DYNAMIC_OFFHEAP_SIZING_ENABLED =
+    buildConf(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED)
+      .internal()
+      .doc(
+        "Experimental: When set to true, the offheap config (spark.memory.offHeap.size) will " +
+          "be ignored and instead we will consider onheap and offheap memory in combination, " +
+          "both counting towards the executor memory config (spark.executor.memory). We will " +
+          "make use of JVM APIs to determine how much onheap memory is use, alongside tracking " +
+          "offheap allocations made by Gluten. We will then proceed to enforcing a total memory " +
+          "quota, calculated by the sum of what memory is committed and in use in the Java " +
+          "heap. Since the calculation of the total quota happens as offheap allocation happens " +
+          "and not as JVM heap memory is allocated, it is possible that we can oversubscribe " +
+          "memory. Additionally, note that this change is experimental and may have performance " +
+          "implications.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION =
+    buildConf(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION)
+      .internal()
+      .doc(
+        "Experimental: Determines the memory fraction used to determine the total " +
+          "memory available for offheap and onheap allocations when the dynamic offheap " +
+          "sizing feature is enabled. The default is set to match spark.executor.memoryFraction.")
+      .doubleConf
+      .checkValue(v => v >= 0 && v <= 1, "offheap sizing memory fraction must between [0, 1]")
+      .createWithDefault(0.6)
 }

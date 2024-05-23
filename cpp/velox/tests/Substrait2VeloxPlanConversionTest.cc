@@ -19,7 +19,6 @@
 
 #include <filesystem>
 #include "compute/VeloxPlanConverter.h"
-#include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "velox/common/base/tests/GTestUtils.h"
 #include "velox/dwio/common/tests/utils/DataFiles.h"
@@ -72,7 +71,7 @@ class Substrait2VeloxPlanConversionTest : public exec::test::HiveConnectorTestBa
   std::shared_ptr<exec::test::TempDirectoryPath> tmpDir_{exec::test::TempDirectoryPath::create()};
   std::shared_ptr<VeloxPlanConverter> planConverter_ = std::make_shared<VeloxPlanConverter>(
       std::vector<std::shared_ptr<ResultIterator>>(),
-      gluten::defaultLeafVeloxMemoryPool().get(),
+      pool(),
       std::unordered_map<std::string, std::string>());
 };
 
@@ -258,8 +257,8 @@ TEST_F(Substrait2VeloxPlanConversionTest, ifthenTest) {
   // Convert to Velox PlanNode.
   auto planNode = planConverter_->toVeloxPlan(substraitPlan, std::vector<::substrait::ReadRel_LocalFiles>{split});
   ASSERT_EQ(
-      "-- Project[expressions: ] -> \n  "
-      "-- TableScan[table: hive_table, range filters: [(hd_demo_sk, Filter(IsNotNull, deterministic, null not allowed)),"
+      "-- Project[1][expressions: ] -> \n  "
+      "-- TableScan[0][table: hive_table, range filters: [(hd_demo_sk, Filter(IsNotNull, deterministic, null not allowed)),"
       " (hd_vehicle_count, BigintRange: [1, 9223372036854775807] no nulls)], remaining filter: "
       "(and(or(equalto(\"hd_buy_potential\",\">10000\"),equalto(\"hd_buy_potential\",\"unknown\")),"
       "if(greaterthan(\"hd_vehicle_count\",0),greaterthan(divide(cast \"hd_dep_count\" as DOUBLE,"
@@ -279,7 +278,7 @@ TEST_F(Substrait2VeloxPlanConversionTest, filterUpper) {
   // Convert to Velox PlanNode.
   auto planNode = planConverter_->toVeloxPlan(substraitPlan, std::vector<::substrait::ReadRel_LocalFiles>{split});
   ASSERT_EQ(
-      "-- Project[expressions: ] -> \n  -- TableScan[table: hive_table, range filters: "
+      "-- Project[1][expressions: ] -> \n  -- TableScan[0][table: hive_table, range filters: "
       "[(key, BigintRange: [-2147483648, 2] no nulls)]] -> n0_0:INTEGER\n",
       planNode->toString(true, true));
 }

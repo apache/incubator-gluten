@@ -17,12 +17,10 @@
 #include "WholeStageResultIterator.h"
 #include "VeloxBackend.h"
 #include "VeloxRuntime.h"
-#include "config/GlutenConfig.h"
+#include "config/VeloxConfig.h"
 #include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
-
-#include "utils/ConfigExtractor.h"
 
 #ifdef ENABLE_HDFS
 #include "utils/HdfsUtils.h"
@@ -33,49 +31,6 @@ using namespace facebook;
 namespace gluten {
 
 namespace {
-// Velox configs
-const std::string kHiveConnectorId = "test-hive";
-
-// memory
-const std::string kSpillStrategy = "spark.gluten.sql.columnar.backend.velox.spillStrategy";
-const std::string kSpillStrategyDefaultValue = "auto";
-const std::string kSpillThreadNum = "spark.gluten.sql.columnar.backend.velox.spillThreadNum";
-const uint32_t kSpillThreadNumDefaultValue = 0;
-const std::string kAggregationSpillEnabled = "spark.gluten.sql.columnar.backend.velox.aggregationSpillEnabled";
-const std::string kJoinSpillEnabled = "spark.gluten.sql.columnar.backend.velox.joinSpillEnabled";
-const std::string kOrderBySpillEnabled = "spark.gluten.sql.columnar.backend.velox.orderBySpillEnabled";
-
-// spill config
-// refer to
-// https://github.com/facebookincubator/velox/blob/95f3e80e77d046c12fbc79dc529366be402e9c2b/velox/docs/configs.rst#spilling
-const std::string kMaxSpillLevel = "spark.gluten.sql.columnar.backend.velox.maxSpillLevel";
-const std::string kMaxSpillFileSize = "spark.gluten.sql.columnar.backend.velox.maxSpillFileSize";
-const std::string kSpillStartPartitionBit = "spark.gluten.sql.columnar.backend.velox.spillStartPartitionBit";
-const std::string kSpillPartitionBits = "spark.gluten.sql.columnar.backend.velox.spillPartitionBits";
-const std::string kMaxSpillRunRows = "spark.gluten.sql.columnar.backend.velox.MaxSpillRunRows";
-const std::string kMaxSpillBytes = "spark.gluten.sql.columnar.backend.velox.MaxSpillBytes";
-const std::string kSpillWriteBufferSize = "spark.gluten.sql.columnar.backend.velox.spillWriteBufferSize";
-
-const std::string kSpillableReservationGrowthPct =
-    "spark.gluten.sql.columnar.backend.velox.spillableReservationGrowthPct";
-const std::string kSpillCompressionKind = "spark.io.compression.codec";
-const std::string kMaxPartialAggregationMemoryRatio =
-    "spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio";
-const std::string kMaxExtendedPartialAggregationMemoryRatio =
-    "spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio";
-const std::string kAbandonPartialAggregationMinPct =
-    "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct";
-const std::string kAbandonPartialAggregationMinRows =
-    "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows";
-
-// execution
-const std::string kBloomFilterExpectedNumItems = "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems";
-const std::string kBloomFilterNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits";
-const std::string kBloomFilterMaxNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits";
-const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver";
-
-// write fies
-const std::string kMaxPartitions = "spark.gluten.sql.columnar.backend.velox.maxPartitionsPerWritersSession";
 
 // metrics
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
@@ -107,7 +62,7 @@ WholeStageResultIterator::WholeStageResultIterator(
     const std::unordered_map<std::string, std::string>& confMap,
     const SparkTaskInfo& taskInfo)
     : memoryManager_(memoryManager),
-      veloxCfg_(std::make_shared<const facebook::velox::core::MemConfigMutable>(confMap)),
+      veloxCfg_(std::make_shared<facebook::velox::core::MemConfig>(confMap)),
       taskInfo_(taskInfo),
       veloxPlan_(planNode),
       scanNodeIds_(scanNodeIds),
@@ -117,6 +72,11 @@ WholeStageResultIterator::WholeStageResultIterator(
   gluten::updateHdfsTokens(veloxCfg_.get());
 #endif
   spillStrategy_ = veloxCfg_->get<std::string>(kSpillStrategy, kSpillStrategyDefaultValue);
+  auto spillThreadNum = veloxCfg_->get<uint32_t>(kSpillThreadNum, kSpillThreadNumDefaultValue);
+  if (spillThreadNum > 0) {
+    spillExecutor_ = std::make_shared<folly::CPUThreadPoolExecutor>(spillThreadNum);
+  }
+
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
 
   // Create task instance.
@@ -209,18 +169,13 @@ std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQ
   std::unordered_map<std::string, std::shared_ptr<velox::Config>> connectorConfigs;
   connectorConfigs[kHiveConnectorId] = createConnectorConfig();
 
-  auto spillThreadNum = veloxCfg_->get<uint32_t>(kSpillThreadNum, kSpillThreadNumDefaultValue);
-  std::shared_ptr<folly::Executor> spillExecutor = nullptr;
-  if (spillThreadNum > 0) {
-    spillExecutor = std::make_shared<folly::CPUThreadPoolExecutor>(spillThreadNum);
-  }
-  std::shared_ptr<velox::core::QueryCtx> ctx = std::make_shared<velox::core::QueryCtx>(
+  std::shared_ptr<velox::core::QueryCtx> ctx = velox::core::QueryCtx::create(
       nullptr,
       facebook::velox::core::QueryConfig{getQueryContextConf()},
       connectorConfigs,
       gluten::VeloxBackend::get()->getAsyncDataCache(),
       memoryManager_->getAggregateMemoryPool(),
-      std::move(spillExecutor),
+      spillExecutor_.get(),
       "");
   return ctx;
 }

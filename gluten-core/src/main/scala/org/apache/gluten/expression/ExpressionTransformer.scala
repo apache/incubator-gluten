@@ -16,8 +16,74 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.substrait.expression.ExpressionNode
+import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
+import org.apache.spark.sql.catalyst.expressions.{Expression, Literal}
+import org.apache.spark.sql.types.DataType
+
+import scala.collection.JavaConverters._
+
+// ==== Expression transformer basic interface start ====
 
 trait ExpressionTransformer {
-  def doTransform(args: java.lang.Object): ExpressionNode
+  def substraitExprName: String
+  def children: Seq[ExpressionTransformer]
+  def original: Expression
+  def dataType: DataType = original.dataType
+  def nullable: Boolean = original.nullable
+
+  def doTransform(args: java.lang.Object): ExpressionNode = {
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    // TODO: the funcName seems can be simplified to `substraitExprName`
+    val funcName: String =
+      ConverterUtils.makeFuncName(substraitExprName, original.children.map(_.dataType))
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, funcName)
+    val childNodes = children.map(_.doTransform(args)).asJava
+    val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, childNodes, typeNode)
+  }
+}
+
+trait LeafExpressionTransformer extends ExpressionTransformer {
+  final override def children: Seq[ExpressionTransformer] = Nil
+}
+
+trait UnaryExpressionTransformer extends ExpressionTransformer {
+  def child: ExpressionTransformer
+  final override def children: Seq[ExpressionTransformer] = child :: Nil
+}
+
+trait BinaryExpressionTransformer extends ExpressionTransformer {
+  def left: ExpressionTransformer
+  def right: ExpressionTransformer
+  final override def children: Seq[ExpressionTransformer] = left :: right :: Nil
+}
+
+// ==== Expression transformer basic interface end ====
+
+case class GenericExpressionTransformer(
+    substraitExprName: String,
+    children: Seq[ExpressionTransformer],
+    original: Expression)
+  extends ExpressionTransformer
+
+object GenericExpressionTransformer {
+  def apply(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Expression): GenericExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, child :: Nil, original)
+  }
+}
+
+case class LiteralTransformer(original: Literal) extends LeafExpressionTransformer {
+  override def substraitExprName: String = "literal"
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    ExpressionBuilder.makeLiteral(original.value, original.dataType, original.nullable)
+  }
+}
+object LiteralTransformer {
+  def apply(v: Any): LiteralTransformer = {
+    LiteralTransformer(Literal(v))
+  }
 }

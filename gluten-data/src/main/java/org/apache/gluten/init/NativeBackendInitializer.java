@@ -19,17 +19,41 @@ package org.apache.gluten.init;
 import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.backendsapi.BackendsApiManager;
 
+import org.apache.spark.util.GlutenShutdownManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import scala.runtime.BoxedUnit;
 
 // Initialize native backend before calling any native methods from Java side.
 public final class NativeBackendInitializer {
-
   private static final Logger LOG = LoggerFactory.getLogger(NativeBackendInitializer.class);
+  private static final AtomicBoolean initialized = new AtomicBoolean(false);
 
+  // Spark DriverPlugin/ExecutorPlugin will only invoke NativeBackendInitializer#initializeBackend
+  // method once in its init method.
+  // In cluster mode, NativeBackendInitializer#initializeBackend only will be invoked in different
+  // JVM.
+  // In local mode, NativeBackendInitializer#initializeBackend will be invoked twice in same
+  // thread, driver first then executor, initialized flag ensure only invoke initializeBackend once,
+  // so there are no race condition here.
   public static void initializeBackend(scala.collection.Map<String, String> conf) {
+    if (!initialized.compareAndSet(false, true)) {
+      // Already called.
+      return;
+    }
+    initialize0(conf);
+    GlutenShutdownManager.addHook(
+        () -> {
+          shutdown();
+          return BoxedUnit.UNIT;
+        });
+  }
+
+  private static void initialize0(scala.collection.Map<String, String> conf) {
     try {
       String prefix = BackendsApiManager.getSettings().getBackendConfigPrefix();
       Map<String, String> nativeConfMap = GlutenConfig.getNativeBackendConf(prefix, conf);
@@ -42,6 +66,8 @@ public final class NativeBackendInitializer {
   }
 
   private static native void initialize(byte[] configPlan);
+
+  private static native void shutdown();
 
   private NativeBackendInitializer() {}
 }

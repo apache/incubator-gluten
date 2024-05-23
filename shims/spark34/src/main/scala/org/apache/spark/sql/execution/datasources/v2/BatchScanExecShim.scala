@@ -26,6 +26,7 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Scan}
 import org.apache.spark.sql.connector.read.SupportsRuntimeV2Filtering
+import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.v2.orc.OrcScan
 import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -54,6 +55,25 @@ abstract class BatchScanExecShim(
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] = Map()
+
+  lazy val metadataColumns: Seq[AttributeReference] = output.collect {
+    case FileSourceConstantMetadataAttribute(attr) => attr
+    case FileSourceGeneratedMetadataAttribute(attr) => attr
+  }
+
+  def hasUnsupportedColumns: Boolean = {
+    // TODO, fallback if user define same name column due to we can't right now
+    // detect which column is metadata column which is user defined column.
+    val metadataColumnsNames = metadataColumns.map(_.name)
+    metadataColumnsNames.contains(FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME) ||
+    output
+      .filterNot(metadataColumns.toSet)
+      .exists(v => metadataColumnsNames.contains(v.name)) ||
+    output.exists(
+      a =>
+        a.name == "$path" || a.name == "$bucket" ||
+          a.name == FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME)
+  }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException("Need to implement this method")
@@ -129,4 +149,12 @@ abstract class BatchScanExecShim(
       case _ => None
     }
   }
+}
+
+abstract class ArrowBatchScanExecShim(original: BatchScanExec) extends DataSourceV2ScanExecBase {
+  @transient override lazy val inputPartitions: Seq[InputPartition] = original.inputPartitions
+
+  override def keyGroupedPartitioning: Option[Seq[Expression]] = original.keyGroupedPartitioning
+
+  override def ordering: Option[Seq[SortOrder]] = original.ordering
 }

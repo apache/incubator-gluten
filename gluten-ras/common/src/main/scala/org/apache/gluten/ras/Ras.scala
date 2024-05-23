@@ -30,9 +30,7 @@ trait Optimization[T <: AnyRef] {
       plan: T,
       constraintSet: PropertySet[T],
       altConstraintSets: Seq[PropertySet[T]]): RasPlanner[T]
-
-  def propSetOf(plan: T): PropertySet[T]
-
+  def anyPropSet(): PropertySet[T]
   def withNewConfig(confFunc: RasConfig => RasConfig): Optimization[T]
 }
 
@@ -49,7 +47,7 @@ object Optimization {
 
   implicit class OptimizationImplicits[T <: AnyRef](opt: Optimization[T]) {
     def newPlanner(plan: T): RasPlanner[T] = {
-      opt.newPlanner(plan, opt.propSetOf(plan), List.empty)
+      opt.newPlanner(plan, opt.anyPropSet(), List.empty)
     }
     def newPlanner(plan: T, constraintSet: PropertySet[T]): RasPlanner[T] = {
       opt.newPlanner(plan, constraintSet, List.empty)
@@ -113,15 +111,6 @@ class Ras[T <: AnyRef] private (
       // Node groups don't have user-defined cost, expect exception here.
       metadataModel.metadataOf(dummyGroup)
     }
-    propertyModel.propertyDefs.foreach {
-      propDef =>
-        // Node groups don't have user-defined property, expect exception here.
-        assertThrows(
-          "Group is not allowed to return its property directly to optimizer (optimizer already" +
-            " knew that). It's expected to throw an exception when getting its property but not") {
-          propDef.getProperty(dummyGroup)
-        }
-    }
   }
 
   override def newPlanner(
@@ -131,7 +120,12 @@ class Ras[T <: AnyRef] private (
     RasPlanner(this, altConstraintSets, constraintSet, plan)
   }
 
-  override def propSetOf(plan: T): PropertySet[T] = propertySetFactory().get(plan)
+  override def anyPropSet(): PropertySet[T] = propertySetFactory().any()
+
+  private[ras] def propSetOf(plan: T): PropertySet[T] = {
+    val out = propertySetFactory().get(plan)
+    out
+  }
 
   private[ras] def withNewChildren(node: T, newChildren: Seq[T]): T = {
     val oldChildren = planModel.childrenOf(node)

@@ -95,6 +95,21 @@ case class GenerateExecTransformer(
       operatorId)
   }
 
+  /**
+   * Is the specified expression an Attribute reference?
+   * @param expr
+   * @param replaceBoundReference
+   * @return
+   */
+  private def isAttributeReference(
+      expr: Expression,
+      replaceBoundReference: Boolean = false): Boolean =
+    expr match {
+      case _: Attribute => true
+      case _: BoundReference if !replaceBoundReference => true
+      case _ => false
+    }
+
   private def getExtensionNode(validation: Boolean): AdvancedExtensionNode = {
     if (!validation) {
       // Start with "GenerateParameters:"
@@ -109,6 +124,30 @@ case class GenerateExecTransformer(
         .append("isPosExplode=")
         .append(isPosExplode)
         .append("\n")
+
+      // isStack: 1 for Stack, 0 for others.
+      val isStack = generator.isInstanceOf[Stack]
+      parametersStr
+        .append("isStack=")
+        .append(if (isStack) "1" else "0")
+        .append("\n")
+
+      val injectProject = if (isStack) {
+        // We always need to inject a Project for stack because we organize
+        // stack's flat params into arrays, e.g. stack(2, 1, 2, 3) is
+        // organized into two arrays: [1, 2] and [3, null].
+        true
+      } else {
+        // Other generator function only have one param, so we just check whether
+        // the only param(generator.children.head) is attribute reference or not.
+        !isAttributeReference(generator.children.head, true);
+      }
+
+      parametersStr
+        .append("injectedProject=")
+        .append(if (injectProject) "1" else "0")
+        .append("\n")
+
       val message = StringValue
         .newBuilder()
         .setValue(parametersStr.toString)
@@ -128,7 +167,7 @@ object GenerateExecTransformer {
       false
     } else {
       generator match {
-        case _: Inline | _: ExplodeBase =>
+        case _: Inline | _: ExplodeBase | _: JsonTuple | _: Stack =>
           true
         case _ =>
           false
@@ -138,38 +177,100 @@ object GenerateExecTransformer {
 }
 
 object PullOutGenerateProjectHelper extends PullOutProjectHelper {
+  val JSON_PATH_PREFIX = "$."
   def pullOutPreProject(generate: GenerateExec): SparkPlan = {
     if (GenerateExecTransformer.supportsGenerate(generate.generator, generate.outer)) {
-      val newGeneratorChildren = generate.generator match {
+      generate.generator match {
         case _: Inline | _: ExplodeBase =>
           val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
           // The new child should be either the original Attribute,
           // or an Alias to other expressions.
-          val generatorAttr = replaceExpressionWithAttribute(
+          replaceExpressionWithAttribute(
             generate.generator.asInstanceOf[UnaryExpression].child,
             expressionMap,
             replaceBoundReference = true)
-          val newGeneratorChild = if (expressionMap.isEmpty) {
-            // generator.child is Attribute
-            generatorAttr.asInstanceOf[Attribute]
+
+          if (!expressionMap.isEmpty) {
+            // generator.child is not an Attribute reference, e.g Literal/CreateArray/CreateMap.
+            // We plug in a Project to make it an Attribute reference.
+            // NOTE: DO NOT use eliminateProjectList to create the project list because
+            // newGeneratorChild can be a duplicated Attribute in generate.child.output. The native
+            // side identifies the last field of projection as generator's input.
+            val newGeneratorChildren = Seq(expressionMap.values.head)
+            generate.copy(
+              generator =
+                generate.generator.withNewChildren(newGeneratorChildren).asInstanceOf[Generator],
+              child = ProjectExec(generate.child.output ++ newGeneratorChildren, generate.child)
+            )
           } else {
-            // generator.child is other expression, e.g Literal/CreateArray/CreateMap
-            expressionMap.values.head
+            // generator.child is Attribute, no need to introduce a Project.
+            generate
           }
-          Seq(newGeneratorChild)
+        case stack: Stack =>
+          val numRows = stack.children.head.eval().asInstanceOf[Int]
+          val numFields = Math.ceil((stack.children.size - 1.0) / numRows).toInt
+
+          val newProjections = mutable.Buffer[NamedExpression]()
+          val args = stack.children.tail
+
+          // We organize stack's params as `numFields` arrays which will be feed
+          // to Unnest operator on native side.
+          for (field <- 0 until numFields) {
+            val fieldArray = mutable.Buffer[Expression]()
+
+            for (row <- 0 until numRows) {
+              val index = row * numFields + field
+              if (index < args.size) {
+                fieldArray += args(index)
+              } else {
+                // Append nulls.
+                fieldArray += Literal(null, args(field).dataType)
+              }
+            }
+
+            newProjections += Alias(CreateArray(fieldArray), generatePreAliasName)()
+          }
+
+          // Plug in a Project between Generate and its child.
+          generate.copy(
+            generator = generate.generator,
+            child = ProjectExec(generate.child.output ++ newProjections, generate.child)
+          )
+        case JsonTuple(Seq(jsonObj, jsonPaths @ _*)) =>
+          val getJsons: IndexedSeq[Expression] = {
+            jsonPaths.map {
+              case jsonPath if jsonPath.foldable =>
+                Option(jsonPath.eval()) match {
+                  case Some(path) =>
+                    GetJsonObject(jsonObj, Literal.create(JSON_PATH_PREFIX + path))
+                  case _ =>
+                    Literal.create(null)
+                }
+              case jsonPath =>
+                // TODO: The prefix is just for adapting to GetJsonObject.
+                // Maybe, we can remove this handling in the future by
+                // making path without "$." recognized
+                GetJsonObject(jsonObj, Concat(Seq(Literal.create(JSON_PATH_PREFIX), jsonPath)))
+            }.toIndexedSeq
+          }
+          val preGenerateExprs =
+            Alias(
+              CreateArray(Seq(CreateStruct(getJsons))),
+              generatePreAliasName
+            )()
+          // use JsonTupleExplode here instead of Explode so that we can distinguish
+          // JsonTuple and Explode, because JsonTuple has an extra post-projection
+          val newGenerator = JsonTupleExplode(preGenerateExprs.toAttribute)
+          generate.copy(
+            generator = newGenerator,
+            child = ProjectExec(generate.child.output ++ Seq(preGenerateExprs), generate.child)
+          )
         case _ =>
           // Unreachable.
           throw new IllegalStateException(
             s"Generator ${generate.generator.getClass.getSimpleName} is not supported.")
       }
-      // Avoid using elimainateProjectList to create the project list
-      // because newGeneratorChild can be a duplicated Attribute in generate.child.output.
-      // The native side identifies the last field of projection as generator's input.
-      generate.copy(
-        generator =
-          generate.generator.withNewChildren(newGeneratorChildren).asInstanceOf[Generator],
-        child = ProjectExec(generate.child.output ++ newGeneratorChildren, generate.child)
-      )
+
     } else {
       generate
     }
@@ -191,7 +292,7 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
           ProjectExec(
             (generate.requiredChildOutput :+ ordinal) ++ generate.generatorOutput.tail,
             newGenerate)
-        case Inline(_) =>
+        case Inline(_) | JsonTupleExplode(_) =>
           val unnestOutput = {
             val struct = CreateStruct(generate.generatorOutput)
             val alias = Alias(struct, generatePostAliasName)()

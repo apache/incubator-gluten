@@ -191,17 +191,8 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
     return validateRound(scalarFunction, inputType);
   } else if (name == "extract") {
     return validateExtractExpr(params);
-  } else if (name == "char_length") {
-    VELOX_CHECK(types.size() == 1);
-    if (types[0] == "vbin") {
-      LOG_VALIDATION_MSG("Binary type is not supported in " + name);
-      return false;
-    }
   } else if (name == "map_from_arrays") {
     LOG_VALIDATION_MSG("map_from_arrays is not supported.");
-    return false;
-  } else if (name == "get_array_item") {
-    LOG_VALIDATION_MSG("get_array_item is not supported.");
     return false;
   } else if (name == "concat") {
     for (const auto& type : types) {
@@ -369,11 +360,10 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WriteRel& writeR
   // Validate partition key type.
   if (writeRel.has_table_schema()) {
     const auto& tableSchema = writeRel.table_schema();
-    std::vector<bool> isMetadataColumns;
-    std::vector<bool> isPartitionColumns;
-    SubstraitParser::parsePartitionAndMetadataColumns(tableSchema, isPartitionColumns, isMetadataColumns);
+    std::vector<ColumnType> columnTypes;
+    SubstraitParser::parseColumnTypes(tableSchema, columnTypes);
     for (auto i = 0; i < types.size(); i++) {
-      if (isPartitionColumns[i]) {
+      if (columnTypes[i] == ColumnType::kPartitionKey) {
         switch (types[i]->kind()) {
           case TypeKind::BOOLEAN:
           case TypeKind::TINYINT:

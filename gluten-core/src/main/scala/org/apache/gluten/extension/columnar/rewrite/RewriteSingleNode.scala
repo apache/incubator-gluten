@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.extension.columnar.rewrite
 
-import org.apache.gluten.extension.RewriteIn
-
 import org.apache.spark.sql.execution.SparkPlan
 
 /**
@@ -37,12 +35,6 @@ trait RewriteSingleNode {
 
 object RewriteSingleNode {
   def allRules(): Seq[RewriteSingleNode] = {
-    Seq(
-      RewriteIn,
-      RewriteMultiChildrenCount,
-      RewriteCollect,
-      RewriteTypedImperativeAggregate,
-      PullOutPreProject,
-      PullOutPostProject)
+    Seq(RewriteIn, RewriteMultiChildrenCount, PullOutPreProject, PullOutPostProject)
   }
 }

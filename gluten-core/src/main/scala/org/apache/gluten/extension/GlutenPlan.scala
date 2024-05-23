@@ -20,6 +20,7 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression.TransformerState
+import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.plan.PlanBuilder
 import org.apache.gluten.substrait.rel.RelNode
@@ -50,7 +51,7 @@ object ValidationResult {
 }
 
 /** Every Gluten Operator should extend this trait. */
-trait GlutenPlan extends SparkPlan with LogLevelUtil {
+trait GlutenPlan extends SparkPlan with Convention.KnownBatchType with LogLevelUtil {
 
   private lazy val validationLogLevel = glutenConf.validationLogLevel
   private lazy val printStackOnValidationFailure = glutenConf.printStackOnValidationFailure
@@ -83,6 +84,19 @@ trait GlutenPlan extends SparkPlan with LogLevelUtil {
     } finally {
       TransformerState.finishValidation
     }
+  }
+
+  final override def batchType(): Convention.BatchType = {
+    if (!supportsColumnar) {
+      return Convention.BatchType.None
+    }
+    val batchType = batchType0()
+    assert(batchType != Convention.BatchType.None)
+    batchType
+  }
+
+  protected def batchType0(): Convention.BatchType = {
+    BackendsApiManager.getSparkPlanExecApiInstance.batchType
   }
 
   protected def doValidateInternal(): ValidationResult = ValidationResult.ok

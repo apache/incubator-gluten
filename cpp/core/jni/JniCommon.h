@@ -280,6 +280,20 @@ static inline arrow::Compression::type getCompressionType(JNIEnv* env, jstring c
   return compressionType;
 }
 
+static inline const std::string getCompressionTypeStr(JNIEnv* env, jstring codecJstr) {
+  if (codecJstr == NULL) {
+    return "none";
+  }
+  auto codec = env->GetStringUTFChars(codecJstr, JNI_FALSE);
+
+  // Convert codec string into lowercase.
+  std::string codecLower;
+  std::transform(codec, codec + std::strlen(codec), std::back_inserter(codecLower), ::tolower);
+
+  env->ReleaseStringUTFChars(codecJstr, codec);
+  return codecLower;
+}
+
 static inline gluten::CodecBackend getCodecBackend(JNIEnv* env, jstring codecJstr) {
   if (codecJstr == nullptr) {
     return gluten::CodecBackend::NONE;
@@ -308,13 +322,8 @@ static inline gluten::CompressionMode getCompressionMode(JNIEnv* env, jstring co
 
 class SparkAllocationListener final : public gluten::AllocationListener {
  public:
-  SparkAllocationListener(
-      JavaVM* vm,
-      jobject jListenerLocalRef,
-      jmethodID jReserveMethod,
-      jmethodID jUnreserveMethod,
-      int64_t blockSize)
-      : vm_(vm), jReserveMethod_(jReserveMethod), jUnreserveMethod_(jUnreserveMethod), blockSize_(blockSize) {
+  SparkAllocationListener(JavaVM* vm, jobject jListenerLocalRef, jmethodID jReserveMethod, jmethodID jUnreserveMethod)
+      : vm_(vm), jReserveMethod_(jReserveMethod), jUnreserveMethod_(jUnreserveMethod) {
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm_, &env);
     jListenerGlobalRef_ = env->NewGlobalRef(jListenerLocalRef);
@@ -336,53 +345,37 @@ class SparkAllocationListener final : public gluten::AllocationListener {
   }
 
   void allocationChanged(int64_t size) override {
-    updateReservation(size);
-  }
-
- private:
-  int64_t reserve(int64_t diff) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    bytesReserved_ += diff;
-    int64_t newBlockCount;
-    if (bytesReserved_ == 0) {
-      newBlockCount = 0;
-    } else {
-      // ceil to get the required block number
-      newBlockCount = (bytesReserved_ - 1) / blockSize_ + 1;
-    }
-    int64_t bytesGranted = (newBlockCount - blocksReserved_) * blockSize_;
-    blocksReserved_ = newBlockCount;
-    if (bytesReserved_ > maxBytesReserved_) {
-      maxBytesReserved_ = bytesReserved_;
-    }
-    return bytesGranted;
-  }
-
-  void updateReservation(int64_t diff) {
-    int64_t granted = reserve(diff);
-    if (granted == 0) {
+    if (size == 0) {
       return;
     }
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm_, &env);
-    if (granted < 0) {
-      env->CallLongMethod(jListenerGlobalRef_, jUnreserveMethod_, -granted);
+    if (size < 0) {
+      env->CallLongMethod(jListenerGlobalRef_, jUnreserveMethod_, -size);
       checkException(env);
-      return;
+    } else {
+      env->CallLongMethod(jListenerGlobalRef_, jReserveMethod_, size);
+      checkException(env);
     }
-    env->CallLongMethod(jListenerGlobalRef_, jReserveMethod_, granted);
-    checkException(env);
+    bytesReserved_ += size;
+    maxBytesReserved_ = std::max(bytesReserved_, maxBytesReserved_);
   }
 
+  int64_t currentBytes() override {
+    return bytesReserved_;
+  }
+
+  int64_t peakBytes() override {
+    return maxBytesReserved_;
+  }
+
+ private:
   JavaVM* vm_;
   jobject jListenerGlobalRef_;
   jmethodID jReserveMethod_;
   jmethodID jUnreserveMethod_;
-  int64_t blockSize_;
-  int64_t blocksReserved_ = 0L;
   int64_t bytesReserved_ = 0L;
   int64_t maxBytesReserved_ = 0L;
-  std::mutex mutex_;
 };
 
 class BacktraceAllocationListener final : public gluten::AllocationListener {
@@ -438,7 +431,7 @@ class JavaRssClient : public RssClient {
     env->DeleteGlobalRef(array_);
   }
 
-  int32_t pushPartitionData(int32_t partitionId, char* bytes, int64_t size) override {
+  int32_t pushPartitionData(int32_t partitionId, const char* bytes, int64_t size) override {
     JNIEnv* env;
     if (vm_->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
       throw gluten::GlutenException("JNIEnv was not attached to current thread");
@@ -451,7 +444,7 @@ class JavaRssClient : public RssClient {
       array_ = env->NewByteArray(size);
       array_ = static_cast<jbyteArray>(env->NewGlobalRef(array_));
     }
-    env->SetByteArrayRegion(array_, 0, size, reinterpret_cast<jbyte*>(bytes));
+    env->SetByteArrayRegion(array_, 0, size, (jbyte*)bytes);
     jint javaBytesSize = env->CallIntMethod(javaRssShuffleWriter_, javaPushPartitionData_, partitionId, array_, size);
     checkException(env);
     return static_cast<int32_t>(javaBytesSize);

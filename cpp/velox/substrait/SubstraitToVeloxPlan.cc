@@ -595,20 +595,19 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   std::vector<std::string> tableColumnNames;
   std::vector<std::string> partitionedKey;
-  std::vector<bool> isPartitionColumns;
-  std::vector<bool> isMetadataColumns;
+  std::vector<ColumnType> columnTypes;
   tableColumnNames.reserve(writeRel.table_schema().names_size());
 
   VELOX_CHECK(writeRel.has_table_schema(), "WriteRel should have the table schema to store the column information");
   const auto& tableSchema = writeRel.table_schema();
-  SubstraitParser::parsePartitionAndMetadataColumns(tableSchema, isPartitionColumns, isMetadataColumns);
+  SubstraitParser::parseColumnTypes(tableSchema, columnTypes);
 
   for (const auto& name : tableSchema.names()) {
     tableColumnNames.emplace_back(name);
   }
 
   for (int i = 0; i < tableSchema.names_size(); i++) {
-    if (isPartitionColumns[i]) {
+    if (columnTypes[i] == ColumnType::kPartitionKey) {
       partitionedKey.emplace_back(tableColumnNames[i]);
     }
   }
@@ -707,6 +706,23 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   return std::make_shared<core::ExpandNode>(nextPlanNodeId(), projectSetExprs, std::move(names), childNode);
 }
 
+namespace {
+
+void extractUnnestFieldExpr(
+    std::shared_ptr<const core::ProjectNode> projNode,
+    int32_t index,
+    std::vector<core::FieldAccessTypedExprPtr>& unnestFields) {
+  auto name = projNode->names()[index];
+  auto expr = projNode->projections()[index];
+  auto type = expr->type();
+
+  auto unnestFieldExpr = std::make_shared<core::FieldAccessTypedExpr>(type, name);
+  VELOX_CHECK_NOT_NULL(unnestFieldExpr, " the key in unnest Operator only support field");
+  unnestFields.emplace_back(unnestFieldExpr);
+}
+
+} // namespace
+
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::GenerateRel& generateRel) {
   core::PlanNodePtr childNode;
   if (generateRel.has_input()) {
@@ -731,36 +747,66 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     replicated.emplace_back(std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression));
   }
 
-  auto projNode = std::dynamic_pointer_cast<const core::ProjectNode>(childNode);
+  auto injectedProject = generateRel.has_advanced_extension() &&
+      SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "injectedProject=");
 
-  if (projNode != nullptr && projNode->names().size() > requiredChildOutput.size()) {
-    // generator is a scalarfunction node -> explode(array(col, 'all'))
-    // use the last one, this is ensure by scala code
-    auto innerName = projNode->names().back();
-    auto innerExpr = projNode->projections().back();
+  if (injectedProject) {
+    auto projNode = std::dynamic_pointer_cast<const core::ProjectNode>(childNode);
+    VELOX_CHECK(
+        projNode != nullptr && projNode->names().size() > requiredChildOutput.size(),
+        "injectedProject is true, but the Project is missing or does not have the corresponding projection field")
 
-    auto innerType = innerExpr->type();
-    auto unnestFieldExpr = std::make_shared<core::FieldAccessTypedExpr>(innerType, innerName);
-    VELOX_CHECK_NOT_NULL(unnestFieldExpr, " the key in unnest Operator only support field");
-    unnest.emplace_back(unnestFieldExpr);
+    bool isStack = generateRel.has_advanced_extension() &&
+        SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isStack=");
+    // Generator function's input is NOT a field reference.
+    if (!isStack) {
+      // For generator function which is not stack, e.g. explode(array(1,2,3)), a sample
+      // input substrait plan is like the following:
+      //
+      //  Generate explode([1,2,3] AS _pre_0#129), false, [col#126]
+      //  +- Project [fake_column#128, [1,2,3] AS _pre_0#129]
+      //   +- RewrittenNodeWall Scan OneRowRelation[fake_column#128]
+      // The last projection column in GeneratorRel's child(Project) is the column we need to unnest
+      extractUnnestFieldExpr(projNode, projNode->projections().size() - 1, unnest);
+    } else {
+      // For stack function, e.g. stack(2, 1,2,3), a sample
+      // input substrait plan is like the following:
+      //
+      // Generate stack(2, id#122, name#123, id1#124, name1#125), false, [col0#137, col1#138]
+      // +- Project [id#122, name#123, id1#124, name1#125, array(id#122, id1#124) AS _pre_0#141, array(name#123,
+      // name1#125) AS _pre_1#142]
+      //   +- RewrittenNodeWall LocalTableScan [id#122, name#123, id1#124, name1#125]
+      //
+      // The last `numFields` projections are the fields we want to unnest.
+      auto generatorFunc = generator.scalar_function();
+      auto numRows = SubstraitParser::getLiteralValue<int32_t>(generatorFunc.arguments(0).value().literal());
+      auto numFields = static_cast<int32_t>(std::ceil((generatorFunc.arguments_size() - 1.0) / numRows));
+      auto totalProjectCount = projNode->names().size();
+
+      for (auto i = totalProjectCount - numFields; i < totalProjectCount; ++i) {
+        extractUnnestFieldExpr(projNode, i, unnest);
+      }
+    }
   } else {
-    // generator should be a array column -> explode(col)
-    auto explodeFunc = generator.scalar_function();
-    auto unnestExpr = exprConverter_->toVeloxExpr(explodeFunc.arguments(0).value(), inputType);
+    // Generator function's input is a field reference, e.g. explode(col), generator
+    // function's first argument is the field reference we need to unnest.
+    // This assumption holds for all the supported generator function:
+    // explode, posexplode, inline.
+    auto generatorFunc = generator.scalar_function();
+    auto unnestExpr = exprConverter_->toVeloxExpr(generatorFunc.arguments(0).value(), inputType);
     auto unnestFieldExpr = std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(unnestExpr);
     VELOX_CHECK_NOT_NULL(unnestFieldExpr, " the key in unnest Operator only support field");
     unnest.emplace_back(unnestFieldExpr);
   }
 
-  // TODO(yuan): get from generator output
   std::vector<std::string> unnestNames;
   int unnestIndex = 0;
   for (const auto& variable : unnest) {
     if (variable->type()->isArray()) {
-      unnestNames.emplace_back(fmt::format("C{}", unnestIndex++));
+      unnestNames.emplace_back(SubstraitParser::makeNodeName(planNodeId_, unnestIndex++));
     } else if (variable->type()->isMap()) {
-      unnestNames.emplace_back(fmt::format("C{}", unnestIndex++));
-      unnestNames.emplace_back(fmt::format("C{}", unnestIndex++));
+      unnestNames.emplace_back(SubstraitParser::makeNodeName(planNodeId_, unnestIndex++));
+      unnestNames.emplace_back(SubstraitParser::makeNodeName(planNodeId_, unnestIndex++));
     } else {
       VELOX_FAIL(
           "Unexpected type of unnest variable. Expected ARRAY or MAP, but got {}.", variable->type()->toString());
@@ -1066,11 +1112,9 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   // Get output names and types.
   std::vector<std::string> colNameList;
   std::vector<TypePtr> veloxTypeList;
-  std::vector<bool> isPartitionColumns;
-  std::vector<bool> isMetadataColumns;
+  std::vector<ColumnType> columnTypes;
   // Convert field names into lower case when not case-sensitive.
-  std::shared_ptr<const facebook::velox::Config> veloxCfg =
-      std::make_shared<const facebook::velox::core::MemConfigMutable>(confMap_);
+  std::unique_ptr<facebook::velox::Config> veloxCfg = std::make_unique<facebook::velox::core::MemConfig>(confMap_);
   bool asLowerCase = !veloxCfg->get<bool>(kCaseSensitive, false);
   if (readRel.has_base_schema()) {
     const auto& baseSchema = readRel.base_schema();
@@ -1083,7 +1127,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       colNameList.emplace_back(fieldName);
     }
     veloxTypeList = SubstraitParser::parseNamedStruct(baseSchema, asLowerCase);
-    SubstraitParser::parsePartitionAndMetadataColumns(baseSchema, isPartitionColumns, isMetadataColumns);
+    SubstraitParser::parseColumnTypes(baseSchema, columnTypes);
   }
 
   // Do not hard-code connector ID and allow for connectors other than Hive.
@@ -1138,13 +1182,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   std::unordered_map<std::string, std::shared_ptr<connector::ColumnHandle>> assignments;
   for (int idx = 0; idx < colNameList.size(); idx++) {
     auto outName = SubstraitParser::makeNodeName(planNodeId_, idx);
-    auto columnType = connector::hive::HiveColumnHandle::ColumnType::kRegular;
-    if (isPartitionColumns[idx]) {
-      columnType = connector::hive::HiveColumnHandle::ColumnType::kPartitionKey;
-    }
-    if (isMetadataColumns[idx]) {
-      columnType = connector::hive::HiveColumnHandle::ColumnType::kSynthesized;
-    }
+    auto columnType = columnTypes[idx];
     assignments[outName] = std::make_shared<connector::hive::HiveColumnHandle>(
         colNameList[idx], columnType, veloxTypeList[idx], veloxTypeList[idx]);
     outNames.emplace_back(outName);
@@ -2036,6 +2074,7 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
 
   bool nullAllowed = filterInfo.nullAllowed_;
   bool isNull = filterInfo.isNull_;
+  bool existIsNullAndIsNotNull = filterInfo.forbidsNullSet_ && filterInfo.isNullSet_;
   uint32_t rangeSize = std::max(filterInfo.lowerBounds_.size(), filterInfo.upperBounds_.size());
 
   if constexpr (KIND == facebook::velox::TypeKind::HUGEINT) {
@@ -2122,7 +2161,10 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
 
     // Handle null filtering.
     if (rangeSize == 0) {
-      if (!nullAllowed) {
+      // handle is not null and is null exists at same time
+      if (existIsNullAndIsNotNull) {
+        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::AlwaysFalse>());
+      } else if (!nullAllowed) {
         filters[common::Subfield(inputName)] = std::make_unique<common::IsNotNull>();
       } else if (isNull) {
         filters[common::Subfield(inputName)] = std::make_unique<common::IsNull>();
@@ -2154,8 +2196,8 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
       upperBound = getMax<NativeType>();
     }
 
-    bool lowerUnbounded = true;
-    bool upperUnbounded = true;
+    [[maybe_unused]] bool lowerUnbounded = true;
+    [[maybe_unused]] bool upperUnbounded = true;
     bool lowerExclusive = false;
     bool upperExclusive = false;
 

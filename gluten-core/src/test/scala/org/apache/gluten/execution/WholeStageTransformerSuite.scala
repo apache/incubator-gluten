@@ -16,13 +16,15 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.utils.{Arm, FallbackUtil}
+import org.apache.gluten.test.FallbackUtil
+import org.apache.gluten.utils.Arm
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row}
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{CommandResultExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, ShuffleQueryStageExec}
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.DoubleType
@@ -222,6 +224,8 @@ abstract class WholeStageTransformerSuite
     df.queryExecution.executedPlan match {
       case exec: AdaptiveSparkPlanExec =>
         getChildrenPlan(Seq(exec.executedPlan))
+      case cmd: CommandResultExec =>
+        getChildrenPlan(Seq(cmd.commandPhysicalPlan))
       case plan =>
         getChildrenPlan(Seq(plan))
     }
@@ -240,14 +244,42 @@ abstract class WholeStageTransformerSuite
     val executedPlan = getExecutedPlan(df)
     assert(
       executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)),
-      s"Expect ${tag.runtimeClass.getClass.getSimpleName} exists " +
-        s"in executedPlan:\n $executedPlan"
+      s"Expect ${tag.runtimeClass.getSimpleName} exists " +
+        s"in executedPlan:\n ${executedPlan.last}"
     )
   }
 
   def checkSparkOperatorMatch[T <: SparkPlan](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
     val executedPlan = getExecutedPlan(df)
     assert(executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)))
+  }
+
+  /**
+   * Check whether the executed plan of a dataframe contains the expected plan chain.
+   *
+   * @param df
+   *   : the input dataframe.
+   * @param tag
+   *   : class of the expected plan.
+   * @param childTag
+   *   : class of the expected plan's child.
+   * @tparam T
+   *   : type of the expected plan.
+   * @tparam PT
+   *   : type of the expected plan's child.
+   */
+  def checkSparkOperatorChainMatch[T <: UnaryExecNode, PT <: UnaryExecNode](
+      df: DataFrame)(implicit tag: ClassTag[T], childTag: ClassTag[PT]): Unit = {
+    val executedPlan = getExecutedPlan(df)
+    assert(
+      executedPlan.exists(
+        plan =>
+          tag.runtimeClass.isInstance(plan)
+            && childTag.runtimeClass.isInstance(plan.children.head)),
+      s"Expect an operator chain of [${tag.runtimeClass.getSimpleName} ->"
+        + s"${childTag.runtimeClass.getSimpleName}] exists in executedPlan: \n"
+        + s"${executedPlan.last}"
+    )
   }
 
   /**
@@ -317,7 +349,7 @@ abstract class WholeStageTransformerSuite
       noFallBack)
 
   protected def vanillaSparkConfs(): Seq[(String, String)] = {
-    List(("spark.gluten.enabled", "false"))
+    List((GlutenConfig.GLUTEN_ENABLED.key, "false"))
   }
 
   protected def checkDataFrame(

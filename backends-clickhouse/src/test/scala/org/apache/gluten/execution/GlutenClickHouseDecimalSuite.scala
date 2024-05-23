@@ -20,6 +20,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.functions.{col, rand, when}
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 import java.io.File
@@ -53,7 +54,6 @@ class GlutenClickHouseDecimalSuite
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      .set("spark.sql.decimalOperations.allowPrecisionLoss", "false")
   }
 
   override def beforeAll(): Unit = {
@@ -300,35 +300,45 @@ class GlutenClickHouseDecimalSuite
       customCheck = customCheck,
       noFallBack = noFallBack)
   }
+  Seq("true", "false").foreach {
+    allowPrecisionLoss =>
+      Range
+        .inclusive(1, 22)
+        .foreach {
+          sql_num =>
+            {
+              decimalTPCHTables.foreach {
+                dt =>
+                  {
+                    val decimalType = dt._1
+                    test(s"""TPCH Decimal(${decimalType.precision},${decimalType.scale})
+                            | Q$sql_num[allowPrecisionLoss=$allowPrecisionLoss]""".stripMargin) {
+                      var noFallBack = true
+                      var compareResult = true
+                      if (sql_num == 16 || sql_num == 21) {
+                        noFallBack = false
+                      }
 
-  Range
-    .inclusive(1, 22)
-    .foreach(
-      sql_num => {
-        decimalTPCHTables.foreach(
-          dt => {
-            val decimalType = dt._1
-            test(s"TPCH Decimal(${decimalType.precision},${decimalType.scale}) Q$sql_num") {
-              var noFallBack = true
-              var compareResult = true
-              if (sql_num == 16 || sql_num == 21) {
-                noFallBack = false
+                      if (dt._2.contains(sql_num)) {
+                        compareResult = false
+                      }
+
+                      spark.sql(s"use decimal_${decimalType.precision}_${decimalType.scale}")
+                      withSQLConf(
+                        (SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key, allowPrecisionLoss)) {
+                        runTPCHQuery(
+                          sql_num,
+                          tpchQueries,
+                          compareResult = compareResult,
+                          noFallBack = noFallBack) { _ => {} }
+                      }
+                      spark.sql(s"use default")
+                    }
+                  }
               }
-
-              if (dt._2.contains(sql_num)) {
-                compareResult = false
-              }
-
-              spark.sql(s"use decimal_${decimalType.precision}_${decimalType.scale}")
-              runTPCHQuery(
-                sql_num,
-                tpchQueries,
-                compareResult = compareResult,
-                noFallBack = noFallBack) { _ => {} }
-              spark.sql(s"use default")
             }
-          })
-      })
+        }
+  }
 
   test("fix decimal precision overflow") {
     val sql =

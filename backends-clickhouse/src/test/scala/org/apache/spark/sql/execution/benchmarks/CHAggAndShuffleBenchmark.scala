@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.benchmarks
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, ProjectExecTransformer, WholeStageTransformer}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -303,7 +304,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchma
       // Get the file partitions for generating the `FileScanRDD`
       val filePartitions = fileScan.getPartitions
         .map(_.asInstanceOf[FilePartition])
-      spark.conf.set("spark.gluten.enabled", "false")
+      spark.conf.set(GlutenConfig.GLUTEN_ENABLED.key, "false")
       val sparkExecutedPlan = allStages.queryExecution.executedPlan
 
       // Get the `FileSourceScanExec`

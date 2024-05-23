@@ -121,7 +121,7 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
   test("test uuid - write and read") {
     withSQLConf(
       ("spark.gluten.sql.native.writer.enabled", "true"),
-      ("spark.gluten.enabled", "true")) {
+      (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
 
       spark.sql("drop table if exists uuid_test")
       spark.sql("create table if not exists uuid_test (id string) stored as parquet")

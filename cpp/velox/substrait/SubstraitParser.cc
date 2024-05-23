@@ -107,35 +107,29 @@ std::vector<TypePtr> SubstraitParser::parseNamedStruct(const ::substrait::NamedS
   return typeList;
 }
 
-void SubstraitParser::parsePartitionAndMetadataColumns(
+void SubstraitParser::parseColumnTypes(
     const ::substrait::NamedStruct& namedStruct,
-    std::vector<bool>& isPartitionColumns,
-    std::vector<bool>& isMetadataColumns) {
+    std::vector<ColumnType>& columnTypes) {
   const auto& columnsTypes = namedStruct.column_types();
   if (columnsTypes.size() == 0) {
     // Regard all columns as regular columns.
-    isPartitionColumns.resize(namedStruct.names().size(), false);
-    isMetadataColumns.resize(namedStruct.names().size(), false);
+    columnTypes.resize(namedStruct.names().size(), ColumnType::kRegular);
     return;
   } else {
     VELOX_CHECK_EQ(columnsTypes.size(), namedStruct.names().size(), "Wrong size for column types and column names.");
   }
 
-  isPartitionColumns.reserve(columnsTypes.size());
-  isMetadataColumns.reserve(columnsTypes.size());
+  columnTypes.reserve(columnsTypes.size());
   for (const auto& columnType : columnsTypes) {
     switch (columnType) {
       case ::substrait::NamedStruct::NORMAL_COL:
-        isPartitionColumns.emplace_back(false);
-        isMetadataColumns.emplace_back(false);
+        columnTypes.push_back(ColumnType::kRegular);
         break;
       case ::substrait::NamedStruct::PARTITION_COL:
-        isPartitionColumns.emplace_back(true);
-        isMetadataColumns.emplace_back(false);
+        columnTypes.push_back(ColumnType::kPartitionKey);
         break;
       case ::substrait::NamedStruct::METADATA_COL:
-        isPartitionColumns.emplace_back(false);
-        isMetadataColumns.emplace_back(true);
+        columnTypes.push_back(ColumnType::kSynthesized);
         break;
       default:
         VELOX_FAIL("Unspecified column type.");
@@ -407,6 +401,7 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"forall", "all_match"},
     {"exists", "any_match"},
     {"negative", "unaryminus"},
+    {"get_array_item", "get"},
     {"arrays_zip", "zip"}};
 
 const std::unordered_map<std::string, std::string> SubstraitParser::typeMap_ = {

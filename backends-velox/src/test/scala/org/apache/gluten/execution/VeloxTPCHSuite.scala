@@ -42,6 +42,7 @@ abstract class VeloxTPCHTableSupport extends VeloxWholeStageTransformerSuite {
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.sql.files.maxPartitionBytes", "1g")
       .set("spark.sql.shuffle.partitions", "1")
+      .set("spark.gluten.sql.columnar.backend.velox.memInitCapacity", "1m")
       .set("spark.memory.offHeap.size", "2g")
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")

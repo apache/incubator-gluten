@@ -16,7 +16,8 @@
  */
 package org.apache.gluten.planner.cost
 
-import org.apache.gluten.extension.columnar.{ColumnarTransitions, OffloadJoin}
+import org.apache.gluten.extension.columnar.OffloadJoin
+import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.planner.plan.GlutenPlanModel.GroupLeafExec
 import org.apache.gluten.ras.{Cost, CostModel}
 import org.apache.gluten.utils.PlanUtil
@@ -63,8 +64,8 @@ object GlutenCostModel {
           infLongCost
         case ColumnarToRowExec(child) => 3L
         case RowToColumnarExec(child) => 3L
-        case ColumnarTransitions.ColumnarToRowLike(child) => 3L
-        case ColumnarTransitions.RowToColumnarLike(child) => 3L
+        case ColumnarToRowLike(child) => 3L
+        case RowToColumnarLike(child) => 3L
         case p if PlanUtil.isGlutenColumnarOp(p) => 2L
         case p if PlanUtil.isVanillaColumnarOp(p) => 3L
         // Other row ops. Usually a vanilla row op.

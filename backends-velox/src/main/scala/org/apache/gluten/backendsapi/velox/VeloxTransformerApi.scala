@@ -63,28 +63,20 @@ class VeloxTransformerApi extends TransformerApi with Logging {
     // TODO: IMPLEMENT SPECIAL PROCESS FOR VELOX BACKEND
   }
 
-  override def createDateDiffParamList(
-      start: ExpressionNode,
-      end: ExpressionNode): Iterable[ExpressionNode] = {
-    List(end, start)
-  }
-
-  override def createLikeParamList(
-      left: ExpressionNode,
-      right: ExpressionNode,
-      escapeChar: ExpressionNode): Iterable[ExpressionNode] = {
-    List(left, right, escapeChar)
-  }
-
   override def createCheckOverflowExprNode(
       args: java.lang.Object,
       substraitExprName: String,
       childNode: ExpressionNode,
+      childResultType: DataType,
       dataType: DecimalType,
       nullable: Boolean,
       nullOnOverflow: Boolean): ExpressionNode = {
-    val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
-    ExpressionBuilder.makeCast(typeNode, childNode, !nullOnOverflow)
+    if (childResultType.equals(dataType)) {
+      childNode
+    } else {
+      val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
+      ExpressionBuilder.makeCast(typeNode, childNode, !nullOnOverflow)
+    }
   }
 
   override def getNativePlanString(substraitPlan: Array[Byte], details: Boolean): String = {
