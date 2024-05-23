@@ -840,6 +840,14 @@ const core::WindowNode::Frame SubstraitToVeloxPlanConverter::createWindowFrame(
       VELOX_FAIL("the window type only support ROWS and RANGE, and the input type is ", std::to_string(type));
   }
 
+  auto specifiedBound = [&](bool hasOffset, int64_t offset, const ::substrait::Expression& columnRef) -> core::TypedExprPtr {
+    if (hasOffset) {
+      return std::make_shared<core::ConstantTypedExpr>(BIGINT(), variant(offset));
+    } else {
+      return exprConverter_->toVeloxExpr(columnRef, inputType);
+    }
+  };
+
   auto boundTypeConversion = [&](::substrait::Expression_WindowFunction_Bound boundType)
       -> std::tuple<core::WindowNode::BoundType, core::TypedExprPtr> {
     if (boundType.has_current_row()) {
@@ -849,25 +857,15 @@ const core::WindowNode::Frame SubstraitToVeloxPlanConverter::createWindowFrame(
     } else if (boundType.has_unbounded_preceding()) {
       return std::make_tuple(core::WindowNode::BoundType::kUnboundedPreceding, nullptr);
     } else if (boundType.has_following()) {
-      if (boundType.following().has_offset()) {
-        return std::make_tuple(
+      auto following = boundType.following();
+      return std::make_tuple(
             core::WindowNode::BoundType::kFollowing,
-            std::make_shared<core::ConstantTypedExpr>(BIGINT(), variant(boundType.following().offset())));
-      } else {
-        return std::make_tuple(
-            core::WindowNode::BoundType::kFollowing,
-            exprConverter_->toVeloxExpr(boundType.following().ref(), inputType));
-      }
+            specifiedBound(following.has_offset(), following.offset(), following.ref()));
     } else if (boundType.has_preceding()) {
-      if (boundType.preceding().has_offset()) {
-        return std::make_tuple(
+      auto preceding = boundType.preceding();
+      return std::make_tuple(
             core::WindowNode::BoundType::kPreceding,
-            std::make_shared<core::ConstantTypedExpr>(BIGINT(), variant(boundType.preceding().offset())));
-      } else {
-        return std::make_tuple(
-            core::WindowNode::BoundType::kPreceding,
-            exprConverter_->toVeloxExpr(boundType.preceding().ref(), inputType));
-      }
+            specifiedBound(preceding.has_offset(), preceding.offset(), preceding.ref()));
     } else {
       VELOX_FAIL("The BoundType is not supported.");
     }
