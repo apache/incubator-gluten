@@ -50,6 +50,7 @@ public class ArrowNativeMemoryPool implements TaskResource {
   @Override
   public void release() throws Exception {
     if (arrowPool.getBytesAllocated() != 0) {
+      LOGGER.warn("peak memory " + listener.peak());
       LOGGER.warn(
           String.format(
               "Arrow pool still reserved non-zero bytes, "

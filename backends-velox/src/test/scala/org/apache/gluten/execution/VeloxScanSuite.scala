@@ -74,4 +74,15 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
       }
     }
   }
+
+  test("tmp") {
+    val filePath = "/mnt/DP_disk2/tpch/csvdata/part-00102-38af2ab9-2ba4-466e-8989-0f93ff94b01e-c000.csv"
+    val df = spark.read
+      .format("csv")
+      .option("header", "true")
+      .load(filePath)
+    df.createOrReplaceTempView("student")
+    spark.sql("select * from student").collect()
+    val plan = df.queryExecution.executedPlan
+  }
 }

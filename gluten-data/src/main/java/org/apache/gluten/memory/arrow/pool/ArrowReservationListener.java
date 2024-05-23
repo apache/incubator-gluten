@@ -38,4 +38,8 @@ public class ArrowReservationListener implements org.apache.arrow.dataset.jni.Re
       sharedUsage.inc(-size);
     }
   }
+
+  public long peak() {
+    return sharedUsage.peak();
+  }
 }
