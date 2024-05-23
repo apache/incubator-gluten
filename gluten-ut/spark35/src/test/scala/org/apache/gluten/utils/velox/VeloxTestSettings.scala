@@ -1132,6 +1132,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-41017: filter pushdown with nondeterministic predicates")
   enableSuite[GlutenFileScanSuite]
   enableSuite[GlutenGeneratorFunctionSuite]
+    .exclude("SPARK-45171: Handle evaluated nondeterministic expression")
   enableSuite[GlutenInjectRuntimeFilterSuite]
     // FIXME: yan
     .exclude("Merge runtime bloom filters")
