@@ -73,7 +73,9 @@ trait MetricsApi extends Serializable {
 
   def genCustomExpandMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 
-  def genColumnarShuffleExchangeMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
+  def genColumnarShuffleExchangeMetrics(
+      sparkContext: SparkContext,
+      isSort: Boolean): Map[String, SQLMetric]
 
   def genWindowTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 

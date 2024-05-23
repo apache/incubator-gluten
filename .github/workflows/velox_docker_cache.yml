@@ -27,7 +27,7 @@ concurrency:
 jobs:
   cache-native-lib:
     runs-on: ubuntu-20.04
-    container: inteldpo/gluten-centos-packaging:latest # centos7 with dependencies installed
+    container: apache/gluten:gluten-vcpkg-builder_2024_05_22 # centos7 with dependencies installed
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key
@@ -88,7 +88,7 @@ jobs:
 #    runs-on: ubuntu-20.04
 #    env:
 #      CCACHE_DIR: "${{ github.workspace }}/.ccache"
-#    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+#    container: ghcr.io/facebookincubator/velox-dev:centos8
 #    steps:
 #      - uses: actions/checkout@v2
 #      - name: Setup java and maven

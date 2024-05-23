@@ -395,13 +395,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       original: GetMapValue): ExpressionTransformer =
     GetMapValueTransformer(substraitExprName, left, right, original.failOnError, original)
 
-  override def genRandTransformer(
-      substraitExprName: String,
-      explicitSeed: ExpressionTransformer,
-      original: Rand): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(explicitSeed), original)
-  }
-
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
    *
@@ -415,7 +408,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       newPartitioning: Partitioning,
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
-      metrics: Map[String, SQLMetric]
+      metrics: Map[String, SQLMetric],
+      isSort: Boolean
   ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     CHExecUtil.genShuffleDependency(
       rdd,
@@ -446,7 +440,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def createColumnarBatchSerializer(
       schema: StructType,
-      metrics: Map[String, SQLMetric]): Serializer = {
+      metrics: Map[String, SQLMetric],
+      isSort: Boolean): Serializer = {
     val readBatchNumRows = metrics("avgReadBatchNumRows")
     val numOutputRows = metrics("numOutputRows")
     val dataSize = metrics("dataSize")
@@ -635,6 +630,15 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHSizeExpressionTransformer(substraitExprName, child, original)
   }
 
+  override def genLikeTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Like): ExpressionTransformer = {
+    // CH backend does not support escapeChar, so skip it here.
+    GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
+  }
+
   /** Generate an ExpressionTransformer to transform TruncTimestamp expression for CH. */
   override def genTruncTimestampTransformer(
       substraitExprName: String,
@@ -643,6 +647,17 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       timeZoneId: Option[String],
       original: TruncTimestamp): ExpressionTransformer = {
     CHTruncTimestampTransformer(substraitExprName, format, timestamp, timeZoneId, original)
+  }
+
+  override def genDateDiffTransformer(
+      substraitExprName: String,
+      endDate: ExpressionTransformer,
+      startDate: ExpressionTransformer,
+      original: DateDiff): ExpressionTransformer = {
+    GenericExpressionTransformer(
+      substraitExprName,
+      Seq(LiteralTransformer("day"), startDate, endDate),
+      original)
   }
 
   override def genPosExplodeTransformer(

@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.ValidationResult
@@ -52,10 +53,15 @@ case class ColumnarShuffleExchangeExec(
   private[sql] lazy val readMetrics =
     SQLColumnarShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
 
+  val isSortBasedShuffle: Boolean =
+    outputPartitioning.numPartitions > GlutenConfig.getConf.columnarShuffleSortThreshold
+
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance
-      .genColumnarShuffleExchangeMetrics(sparkContext) ++ readMetrics ++ writeMetrics
+      .genColumnarShuffleExchangeMetrics(
+        sparkContext,
+        isSortBasedShuffle) ++ readMetrics ++ writeMetrics
 
   @transient lazy val inputColumnarRDD: RDD[ColumnarBatch] = child.executeColumnar()
 
@@ -82,7 +88,8 @@ case class ColumnarShuffleExchangeExec(
       outputPartitioning,
       serializer,
       writeMetrics,
-      metrics)
+      metrics,
+      isSortBasedShuffle)
   }
 
   // 'shuffleDependency' is only needed when enable AQE.
@@ -103,7 +110,7 @@ case class ColumnarShuffleExchangeExec(
 
   // super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
   val serializer: Serializer = BackendsApiManager.getSparkPlanExecApiInstance
-    .createColumnarBatchSerializer(schema, metrics)
+    .createColumnarBatchSerializer(schema, metrics, isSortBasedShuffle)
 
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
@@ -190,7 +197,8 @@ object ColumnarShuffleExchangeExec extends Logging {
       newPartitioning: Partitioning,
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
-      metrics: Map[String, SQLMetric])
+      metrics: Map[String, SQLMetric],
+      isSortBasedShuffle: Boolean)
   // scalastyle:on argcount
       : ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     BackendsApiManager.getSparkPlanExecApiInstance.genShuffleDependency(
@@ -200,7 +208,8 @@ object ColumnarShuffleExchangeExec extends Logging {
       newPartitioning: Partitioning,
       serializer: Serializer,
       writeMetrics,
-      metrics)
+      metrics,
+      isSortBasedShuffle)
   }
 
   class DummyPairRDDWithPartitions(@transient private val sc: SparkContext, numPartitions: Int)

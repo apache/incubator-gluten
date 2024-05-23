@@ -33,7 +33,7 @@
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
-#include <Common/StringUtils.h>
+#include <Common/GlutenStringUtils.h>
 #include <Common/typeid_cast.h>
 #include "DataTypes/DataTypesDecimal.h"
 
@@ -152,7 +152,7 @@ DB::ColumnPtr FileReaderWrapper::createConstColumn(DB::DataTypePtr data_type, co
 
 DB::ColumnPtr FileReaderWrapper::createColumn(const String & value, DB::DataTypePtr type, size_t rows)
 {
-    if (StringUtils::isNullPartitionValue(value))
+    if (GlutenStringUtils::isNullPartitionValue(value))
     {
         if (!type->isNullable())
             throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Partition column is null value,but column data type is not nullable.");

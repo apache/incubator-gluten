@@ -179,3 +179,48 @@ The output from spark-shell will be like
 +------------------+----------------+
 ```
 
+# Pandas UDFs (a.k.a. Vectorized UDFs)
+
+## Introduction
+
+Pandas UDFs are user defined functions that are executed by Spark using Arrow to transfer data and Pandas to work with the data, which allows vectorized operations. A Pandas UDF is defined using the pandas_udf() as a decorator or to wrap the function, and no additional configuration is required.
+A Pandas UDF behaves as a regular PySpark function API in general. For more details, you can refer [doc](https://spark.apache.org/docs/latest/api/python/user_guide/sql/arrow_pandas.html).
+
+## Using Pandas UDFs in Gluten with Velox Backend
+
+Similar as in vanilla Spark, user needs to set up pyspark/arrow dependencies properly first. You may can refer following steps:
+
+```
+pip3 install pyspark==$SPARK_VERSION cython
+pip3 install pandas pyarrow
+```
+
+Gluten provides a config to control enable `ColumnarArrowEvalPython` or not, with `true` as defalt.
+
+```
+spark.gluten.sql.columnar.arrowUdf
+```
+
+Then take following `PySpark` code for example:
+
+```
+from pyspark.sql.functions import pandas_udf, PandasUDFType
+import pyspark.sql.functions as F
+import os
+@pandas_udf('long')
+def pandas_plus_one(v):
+    return (v + 1)
+df = spark.read.orc("path_to_file").select("quantity").withColumn("processed_quantity", pandas_plus_one("quantity")).select("quantity")
+```
+
+The expected physical plan will be:
+
+```
+== Physical Plan ==
+VeloxColumnarToRowExec
++- ^(2) ProjectExecTransformer [pythonUDF0#45L AS processed_quantity#41L]
+   +- ^(2) InputIteratorTransformer[quantity#2L, pythonUDF0#45L]
+      +- ^(2) InputAdapter
+         +- ^(2) ColumnarArrowEvalPython [pandas_plus_one(quantity#2L)#40L], [pythonUDF0#45L], 200
+            +- ^(1) NativeFileScan orc [quantity#2L] Batched: true, DataFilters: [], Format: ORC, Location: InMemoryFileIndex(1 paths)[file:/***], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<quantity:bigint>
+```

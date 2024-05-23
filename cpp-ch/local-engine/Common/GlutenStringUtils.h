@@ -14,16 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.expression
+#pragma once
+#include <string>
+#include <vector>
 
-import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
+namespace local_engine
+{
+using PartitionValue = std::pair<std::string, std::string>;
+using PartitionValues = std::vector<PartitionValue>;
 
-import org.apache.spark.sql.types._
-
-case class BoundReferenceTransformer(ordinal: Int, dataType: DataType, nullable: Boolean)
-  extends ExpressionTransformer {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    ExpressionBuilder.makeSelection(ordinal.asInstanceOf[java.lang.Integer])
-  }
+class GlutenStringUtils
+{
+public:
+    static PartitionValues parsePartitionTablePath(const std::string & file);
+    static bool isNullPartitionValue(const std::string & value);
+};
 }

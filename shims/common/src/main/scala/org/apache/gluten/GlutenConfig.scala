@@ -165,6 +165,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   @deprecated def broadcastCacheTimeout: Int = conf.getConf(COLUMNAR_BROADCAST_CACHE_TIMEOUT)
 
+  def columnarShuffleSortThreshold: Int = conf.getConf(COLUMNAR_SHUFFLE_SORT_THRESHOLD)
+
   def columnarShuffleReallocThreshold: Double = conf.getConf(COLUMNAR_SHUFFLE_REALLOC_THRESHOLD)
 
   def columnarShuffleMergeThreshold: Double = conf.getConf(SHUFFLE_WRITER_MERGE_THRESHOLD)
@@ -905,6 +907,14 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val COLUMNAR_SHUFFLE_SORT_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.shuffle.sort.threshold")
+      .internal()
+      .doc("The threshold to determine whether to use sort-based columnar shuffle. Sort-based " +
+        "shuffle will be used if the number of partitions is greater than this threshold.")
+      .intConf
+      .createWithDefault(100000)
+
   val COLUMNAR_PREFER_ENABLED =
     buildConf("spark.gluten.sql.columnar.preferColumnar")
       .internal()
@@ -1208,6 +1218,13 @@ object GlutenConfig {
       .doc("The memory cache size")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1GB")
+
+  val COLUMNAR_VELOX_MEM_INIT_CAPACITY =
+    buildConf("spark.gluten.sql.columnar.backend.velox.memInitCapacity")
+      .internal()
+      .doc("The initial memory capacity to reserve for a newly created Velox query memory pool.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8MB")
 
   val COLUMNAR_VELOX_SSD_CACHE_PATH =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCachePath")

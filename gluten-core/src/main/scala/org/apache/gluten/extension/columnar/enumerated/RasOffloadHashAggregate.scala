@@ -14,19 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gluten.extension.columnar.enumerated
 
-#pragma once
+import org.apache.gluten.execution.HashAggregateExecBaseTransformer
 
-#include "shuffle/PartitionWriter.h"
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 
-#include <arrow/memory_pool.h>
+object RasOffloadHashAggregate extends RasOffload {
+  override def offload(node: SparkPlan): SparkPlan = node match {
+    case agg: HashAggregateExec =>
+      val out = HashAggregateExecBaseTransformer.from(agg)()
+      out
+    case other => other
+  }
 
-namespace gluten {
-
-class RemotePartitionWriter : public PartitionWriter {
- public:
-  explicit RemotePartitionWriter(uint32_t numPartitions, PartitionWriterOptions options, arrow::MemoryPool* pool)
-      : PartitionWriter(numPartitions, std::move(options), pool) {}
-};
-
-} // namespace gluten
+  override def typeIdentifier(): RasOffload.TypeIdentifier =
+    RasOffload.TypeIdentifier.of[HashAggregateExec]
+}

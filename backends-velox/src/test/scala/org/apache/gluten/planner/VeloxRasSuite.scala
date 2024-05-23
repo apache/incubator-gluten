@@ -16,7 +16,8 @@
  */
 package org.apache.gluten.planner
 
-import org.apache.gluten.planner.property.Conventions
+import org.apache.gluten.extension.columnar.transition.ConventionReq
+import org.apache.gluten.planner.property.Conv
 import org.apache.gluten.ras.Best.BestNotFoundException
 import org.apache.gluten.ras.Ras
 import org.apache.gluten.ras.RasSuiteBase._
@@ -44,7 +45,7 @@ class VeloxRasSuite extends SharedSparkSession {
   test("C2R, R2C - explicitly requires any properties") {
     val in = RowUnary(RowLeaf(TRIVIAL_SCHEMA))
     val planner =
-      newRas().newPlanner(in, PropertySet(List(Conventions.ANY)))
+      newRas().newPlanner(in, PropertySet(List(Conv.any)))
     val out = planner.plan()
     assert(out == RowUnary(RowLeaf(TRIVIAL_SCHEMA)))
   }
@@ -52,7 +53,7 @@ class VeloxRasSuite extends SharedSparkSession {
   test("C2R, R2C - requires columnar output") {
     val in = RowUnary(RowLeaf(TRIVIAL_SCHEMA))
     val planner =
-      newRas().newPlanner(in, PropertySet(List(Conventions.VANILLA_COLUMNAR)))
+      newRas().newPlanner(in, PropertySet(List(Conv.req(ConventionReq.vanillaBatch))))
     val out = planner.plan()
     assert(out == RowToColumnarExec(RowUnary(RowLeaf(TRIVIAL_SCHEMA))))
   }
@@ -63,7 +64,7 @@ class VeloxRasSuite extends SharedSparkSession {
         RowUnary(
           RowUnary(ColumnarUnary(RowUnary(RowUnary(ColumnarUnary(RowLeaf(TRIVIAL_SCHEMA))))))))
     val planner =
-      newRas().newPlanner(in, PropertySet(List(Conventions.ROW_BASED)))
+      newRas().newPlanner(in, PropertySet(List(Conv.req(ConventionReq.row))))
     val out = planner.plan()
     assert(
       out == ColumnarToRowExec(
@@ -91,7 +92,7 @@ class VeloxRasSuite extends SharedSparkSession {
           RowUnary(ColumnarUnary(RowUnary(RowUnary(ColumnarUnary(RowLeaf(TRIVIAL_SCHEMA))))))))
     val planner =
       newRas(List(ConvertRowUnaryToColumnar))
-        .newPlanner(in, PropertySet(List(Conventions.ROW_BASED)))
+        .newPlanner(in, PropertySet(List(Conv.req(ConventionReq.row))))
     val out = planner.plan()
     assert(out == ColumnarToRowExec(ColumnarUnary(ColumnarUnary(ColumnarUnary(ColumnarUnary(
       ColumnarUnary(ColumnarUnary(ColumnarUnary(RowToColumnarExec(RowLeaf(TRIVIAL_SCHEMA)))))))))))
@@ -104,7 +105,7 @@ class VeloxRasSuite extends SharedSparkSession {
     val in = RowUnary(RowLeaf(EMPTY_SCHEMA))
 
     val planner =
-      newRas().newPlanner(in, PropertySet(List(Conventions.ANY)))
+      newRas().newPlanner(in, PropertySet(List(Conv.any)))
     val out = planner.plan()
     assert(out == RowUnary(RowLeaf(EMPTY_SCHEMA)))
 
@@ -112,7 +113,7 @@ class VeloxRasSuite extends SharedSparkSession {
       // Could not optimize to columnar output since R2C transitions for empty schema node
       // is not allowed.
       val planner2 =
-        newRas().newPlanner(in, PropertySet(List(Conventions.VANILLA_COLUMNAR)))
+        newRas().newPlanner(in, PropertySet(List(Conv.req(ConventionReq.vanillaBatch))))
       planner2.plan()
     }
   }

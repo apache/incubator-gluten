@@ -266,6 +266,10 @@ arrow::Status BlockPayload::serialize(arrow::io::OutputStream* outputStream) {
       RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
       RETURN_NOT_OK(outputStream->Write(std::move(buffers_[0])));
     } break;
+    case Type::kRaw: {
+      ScopedTimer timer(&writeTime_);
+      RETURN_NOT_OK(outputStream->Write(std::move(buffers_[0])));
+    } break;
   }
   buffers_.clear();
   return arrow::Status::OK();

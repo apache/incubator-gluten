@@ -23,9 +23,9 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, Row}
-import org.apache.spark.sql.execution.{ArrowFileSourceScanExec, ColumnarToRowExec, FilterExec, GenerateExec, ProjectExec, RDDScanExec}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.window.WindowExec
-import org.apache.spark.sql.functions.{avg, col, lit, to_date, udf}
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DecimalType, StringType, StructField, StructType}
 
@@ -787,7 +787,8 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           runQueryAndCompare(s"""
                                 |SELECT $func(a) from t2;
                                 |""".stripMargin) {
-            checkGlutenOperatorMatch[GenerateExecTransformer]
+            // No ProjectExecTransformer is introduced.
+            checkSparkOperatorChainMatch[GenerateExecTransformer, FilterExecTransformer]
           }
           sql("""select * from values
                 |  map(1, 'a', 2, 'b', 3, null),
@@ -797,9 +798,47 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           runQueryAndCompare(s"""
                                 |SELECT $func(a) from t2;
                                 |""".stripMargin) {
-            checkGlutenOperatorMatch[GenerateExecTransformer]
+            // No ProjectExecTransformer is introduced.
+            checkSparkOperatorChainMatch[GenerateExecTransformer, FilterExecTransformer]
           }
         }
+    }
+  }
+
+  test("test stack function") {
+    withTempView("t1") {
+      sql("""SELECT * from values
+            |  (1, "james", 10, "lucy"),
+            |  (2, "bond", 20, "lily")
+            |as tbl(id, name, id1, name1)
+         """.stripMargin).createOrReplaceTempView("t1")
+
+      // Stack function with attributes as params.
+      // Stack 4 attributes, no nulls need to be padded.
+      runQueryAndCompare(s"""
+                            |SELECT stack(2, id, name, id1, name1) from t1;
+                            |""".stripMargin) {
+        checkGlutenOperatorMatch[GenerateExecTransformer]
+      }
+
+      // Stack 3 attributes: there will be nulls.
+      runQueryAndCompare(s"""
+                            |SELECT stack(2, id, name, id1) from t1;
+                            |""".stripMargin) {
+        checkGlutenOperatorMatch[GenerateExecTransformer]
+      }
+
+      // Stack function with literals as params.
+      runQueryAndCompare("SELECT stack(2, 1, 2, 3);") {
+        checkGlutenOperatorMatch[GenerateExecTransformer]
+      }
+
+      // Stack function with params mixed with attributes and literals.
+      runQueryAndCompare(s"""
+                            |SELECT stack(2, id, name, 1) from t1;
+                            |""".stripMargin) {
+        checkGlutenOperatorMatch[GenerateExecTransformer]
+      }
     }
   }
 
@@ -869,6 +908,26 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
                            |LATERAL VIEW explode(col2) as c3
                            |""".stripMargin) {
         checkGlutenOperatorMatch[GenerateExecTransformer]
+      }
+    }
+
+    // More complex case which might cause projection name conflict.
+    withTempView("script_trans") {
+      sql("""SELECT * FROM VALUES
+            |(1, 2, 3),
+            |(4, 5, 6),
+            |(7, 8, 9)
+            |AS script_trans(a, b, c)
+         """.stripMargin).createOrReplaceTempView("script_trans")
+      runQueryAndCompare(s"""SELECT TRANSFORM(b, MAX(a), CAST(SUM(c) AS STRING), myCol, myCol2)
+                            |  USING 'cat' AS (a STRING, b STRING, c STRING, d ARRAY<INT>, e STRING)
+                            |FROM script_trans
+                            |LATERAL VIEW explode(array(array(1,2,3))) myTable AS myCol
+                            |LATERAL VIEW explode(myTable.myCol) myTable2 AS myCol2
+                            |WHERE a <= 4
+                            |GROUP BY b, myCol, myCol2
+                            |HAVING max(a) > 1""".stripMargin) {
+        checkSparkOperatorChainMatch[GenerateExecTransformer, FilterExecTransformer]
       }
     }
   }

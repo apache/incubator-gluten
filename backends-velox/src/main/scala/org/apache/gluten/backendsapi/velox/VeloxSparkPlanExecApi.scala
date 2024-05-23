@@ -81,7 +81,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def batchTypeFunc(): BatchOverride = {
     case i: InMemoryTableScanExec
-        if i.relation.cacheBuilder.serializer.isInstanceOf[ColumnarCachedBatchSerializer] =>
+        if i.supportsColumnar && i.relation.cacheBuilder.serializer
+          .isInstanceOf[ColumnarCachedBatchSerializer] =>
       VeloxBatch
   }
 
@@ -104,6 +105,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     val condFuncName = ExpressionMappings.expressionsMap(classOf[IsNaN])
     val newExpr = If(condExpr, original.right, original.left)
     IfTransformer(
+      substraitExprName,
       GenericExpressionTransformer(condFuncName, Seq(left), condExpr),
       right,
       left,
@@ -117,7 +119,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       original: Uuid): ExpressionTransformer = {
     GenericExpressionTransformer(
       substraitExprName,
-      Seq(LiteralTransformer(Literal(original.randomSeed.get))),
+      Seq(LiteralTransformer(original.randomSeed.get)),
       original)
   }
 
@@ -243,12 +245,31 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(child), expr)
   }
 
+  override def genLikeTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Like): ExpressionTransformer = {
+    GenericExpressionTransformer(
+      substraitExprName,
+      Seq(left, right, LiteralTransformer(original.escapeChar)),
+      original)
+  }
+
   /** Transform make_timestamp to Substrait. */
   override def genMakeTimestampTransformer(
       substraitExprName: String,
       children: Seq[ExpressionTransformer],
       expr: Expression): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, children, expr)
+  }
+
+  override def genDateDiffTransformer(
+      substraitExprName: String,
+      endDate: ExpressionTransformer,
+      startDate: ExpressionTransformer,
+      original: DateDiff): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(endDate, startDate), original)
   }
 
   /**
@@ -428,7 +449,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   override def genHashExpressionTransformer(
       substraitExprName: String,
       exprs: Seq[ExpressionTransformer],
-      original: Expression): ExpressionTransformer = {
+      original: HashExpression[_]): ExpressionTransformer = {
     VeloxHashExpressionTransformer(substraitExprName, exprs, original)
   }
 
@@ -445,7 +466,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       newPartitioning: Partitioning,
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
-      metrics: Map[String, SQLMetric]): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
+      metrics: Map[String, SQLMetric],
+      isSort: Boolean): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
     ExecUtil.genShuffleDependency(
       rdd,
@@ -453,7 +475,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       newPartitioning,
       serializer,
       writeMetrics,
-      metrics)
+      metrics,
+      isSort)
   }
   // scalastyle:on argcount
 
@@ -498,12 +521,16 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def createColumnarBatchSerializer(
       schema: StructType,
-      metrics: Map[String, SQLMetric]): Serializer = {
-    val readBatchNumRows = metrics("avgReadBatchNumRows")
+      metrics: Map[String, SQLMetric],
+      isSort: Boolean): Serializer = {
     val numOutputRows = metrics("numOutputRows")
-    val decompressTime = metrics("decompressTime")
-    val ipcTime = metrics("ipcTime")
     val deserializeTime = metrics("deserializeTime")
+    val readBatchNumRows = metrics("avgReadBatchNumRows")
+    val decompressTime: Option[SQLMetric] = if (!isSort) {
+      Some(metrics("decompressTime"))
+    } else {
+      None
+    }
     if (GlutenConfig.getConf.isUseCelebornShuffleManager) {
       val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CelebornColumnarBatchSerializer")
       val constructor =
@@ -514,9 +541,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         schema,
         readBatchNumRows,
         numOutputRows,
+        deserializeTime,
         decompressTime,
-        ipcTime,
-        deserializeTime)
+        isSort)
     }
   }
 
@@ -621,7 +648,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       childTransformer: ExpressionTransformer,
       ordinal: Int,
       original: GetStructField): ExpressionTransformer = {
-    VeloxGetStructFieldTransformer(substraitExprName, childTransformer, ordinal, original)
+    VeloxGetStructFieldTransformer(substraitExprName, childTransformer, original)
   }
 
   /**

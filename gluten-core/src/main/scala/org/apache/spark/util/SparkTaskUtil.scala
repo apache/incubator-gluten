@@ -14,19 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
-#include <string>
-#include <vector>
+package org.apache.spark.util
 
-namespace local_engine
-{
-using PartitionValue = std::pair<std::string, std::string>;
-using PartitionValues = std::vector<PartitionValue>;
+import org.apache.spark.TaskContext
 
-class StringUtils
-{
-public:
-    static PartitionValues parsePartitionTablePath(const std::string & file);
-    static bool isNullPartitionValue(const std::string & value);
-};
+object SparkTaskUtil {
+  def setTaskContext(taskContext: TaskContext): Unit = {
+    TaskContext.setTaskContext(taskContext)
+  }
+
+  def unsetTaskContext(): Unit = {
+    TaskContext.unset()
+  }
 }

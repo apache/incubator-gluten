@@ -62,10 +62,13 @@ void Spill::insertPayload(
                payloadType, numRows, isValidityBuffer, rawIs_, rawSize, pool, codec)});
       break;
     case Payload::Type::kCompressed:
+    case Payload::Type::kRaw:
       partitionPayloads_.push_back(
           {partitionId,
            std::make_unique<CompressedDiskBlockPayload>(numRows, isValidityBuffer, rawIs_, rawSize, pool)});
       break;
+    default:
+      throw GlutenException("Unreachable.");
   }
 }
 

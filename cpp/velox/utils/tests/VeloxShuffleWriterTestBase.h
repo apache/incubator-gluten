@@ -264,8 +264,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
           shuffleWriter,
           VeloxHashBasedShuffleWriter::create(
               numPartitions, std::move(partitionWriter), std::move(shuffleWriterOptions), pool_, arrowPool));
-    } else if (
-        GetParam().shuffleWriterType == kSortShuffle && GetParam().partitionWriterType == PartitionWriterType::kRss) {
+    } else if (GetParam().shuffleWriterType == kSortShuffle) {
       GLUTEN_ASSIGN_OR_THROW(
           shuffleWriter,
           VeloxSortBasedShuffleWriter::create(

@@ -49,7 +49,7 @@ namespace gluten {
 
 enum SortState { kSortInit, kSort, kSortStop };
 
-class VeloxSortBasedShuffleWriter : public VeloxShuffleWriter {
+class VeloxSortBasedShuffleWriter final : public VeloxShuffleWriter {
  public:
   static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> create(
       uint32_t numPartitions,
@@ -81,7 +81,7 @@ class VeloxSortBasedShuffleWriter : public VeloxShuffleWriter {
 
   void setSortState(SortState state);
 
-  arrow::Status doSort(facebook::velox::RowVectorPtr rv, int64_t memLimit);
+  arrow::Status doSort(facebook::velox::RowVectorPtr rv, int64_t /* memLimit */);
 
   arrow::Status evictBatch(uint32_t partitionId);
 
@@ -92,20 +92,12 @@ class VeloxSortBasedShuffleWriter : public VeloxShuffleWriter {
   std::unique_ptr<facebook::velox::VectorStreamGroup> batch_;
   std::unique_ptr<BufferOutputStream> bufferOutputStream_;
 
-  // Partition ID -> Row Count
-  // subscript: Partition ID
-  // value: How many rows does this partition have in the current input RowVector
-  // Updated for each input RowVector.
-  std::vector<uint32_t> partition2RowCount_;
-
   std::unique_ptr<facebook::velox::serializer::presto::PrestoVectorSerde> serde_ =
       std::make_unique<facebook::velox::serializer::presto::PrestoVectorSerde>();
 
   std::vector<facebook::velox::RowVectorPtr> batches_;
 
   std::unordered_map<int32_t, std::vector<int64_t>> rowVectorIndexMap_;
-
-  std::unordered_map<int32_t, std::vector<int64_t>> rowVectorPartitionMap_;
 
   uint32_t currentInputColumnBytes_ = 0;
 

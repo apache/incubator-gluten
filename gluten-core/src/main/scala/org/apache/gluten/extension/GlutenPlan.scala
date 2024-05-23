@@ -88,8 +88,7 @@ trait GlutenPlan extends SparkPlan with Convention.KnownBatchType with LogLevelU
 
   final override def batchType(): Convention.BatchType = {
     if (!supportsColumnar) {
-      throw new UnsupportedOperationException(
-        s"Node $nodeName doesn't support columnar-batch processing")
+      return Convention.BatchType.None
     }
     val batchType = batchType0()
     assert(batchType != Convention.BatchType.None)

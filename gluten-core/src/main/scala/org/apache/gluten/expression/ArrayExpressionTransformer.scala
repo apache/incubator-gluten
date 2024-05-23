@@ -17,37 +17,24 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.expression.ConverterUtils.FunctionConfig
-import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
+import org.apache.gluten.substrait.expression.ExpressionNode
 
 import org.apache.spark.sql.catalyst.expressions._
-
-import scala.collection.JavaConverters._
 
 case class CreateArrayTransformer(
     substraitExprName: String,
     children: Seq[ExpressionTransformer],
-    useStringTypeWhenEmpty: Boolean,
     original: CreateArray)
-  extends ExpressionTransformerWithOrigin {
+  extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // If children is empty,
     // transformation is only supported when useStringTypeWhenEmpty is false
     // because ClickHouse and Velox currently doesn't support this config.
-    if (useStringTypeWhenEmpty && children.isEmpty) {
+    if (original.useStringTypeWhenEmpty && children.isEmpty) {
       throw new GlutenNotSupportException(s"$original not supported yet.")
     }
 
-    val childNodes = children.map(_.doTransform(args)).asJava
-
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(
-      substraitExprName,
-      original.children.map(_.dataType),
-      FunctionConfig.OPT)
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, childNodes, typeNode)
+    super.doTransform(args)
   }
 }
