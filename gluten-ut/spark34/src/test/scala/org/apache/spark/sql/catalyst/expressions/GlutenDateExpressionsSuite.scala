@@ -381,6 +381,9 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
               FromUnixTime(Literal(-1000L), Literal(fmt2), timeZoneId),
               sdf2.format(new Timestamp(-1000000)))
             checkEvaluation(
+              FromUnixTime(Literal(Long.MAX_VALUE / 1000), Literal(fmt2), timeZoneId),
+              sdf2.format(new Timestamp(Long.MAX_VALUE)))
+            checkEvaluation(
               FromUnixTime(
                 Literal.create(null, LongType),
                 Literal.create(null, StringType),
