@@ -161,14 +161,18 @@ index e9df0c8d7..ecec3a771 100644
  ARROW_UCX_BUILD_SHA256_CHECKSUM=9bef31aed0e28bf1973d28d74d9ac4f8926c43ca3b7010bd22a084e164e31b71
  ARROW_UTF8PROC_BUILD_VERSION=v2.7.0
 diff --git a/java/dataset/pom.xml b/java/dataset/pom.xml
-index d4d3e2c0f..fdb53255f 100644
+index d4d3e2c0f..ce72eaa1f 100644
 --- a/java/dataset/pom.xml
 +++ b/java/dataset/pom.xml
-@@ -28,6 +28,7 @@
-         <protobuf.version>2.5.0</protobuf.version>
+@@ -25,9 +25,10 @@
+     <packaging>jar</packaging>
+     <properties>
+         <arrow.cpp.build.dir>../../../cpp/release-build/</arrow.cpp.build.dir>
+-        <protobuf.version>2.5.0</protobuf.version>
          <parquet.version>1.11.0</parquet.version>
          <avro.version>1.11.3</avro.version>
 +        <substrait.version>0.31.0</substrait.version>
++        <protobuf.version>3.25.3</protobuf.version>
      </properties>
  
      <dependencies>
