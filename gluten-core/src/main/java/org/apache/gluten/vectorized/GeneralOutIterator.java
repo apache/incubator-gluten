@@ -71,7 +71,7 @@ public abstract class GeneralOutIterator
 
   protected abstract void closeInternal();
 
-  protected abstract void cancelInternal();
+  protected void cancelInternal() {}
 
   protected abstract boolean hasNextInternal() throws Exception;
 
