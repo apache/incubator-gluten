@@ -28,6 +28,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
+import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BasePythonRunnerShim, EvalPythonExec, PythonUDFRunner}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DataType, StructField, StructType}
@@ -209,7 +210,13 @@ case class ColumnarArrowEvalPythonExec(
   extends EvalPythonExec
   with GlutenPlan {
   override def supportsColumnar: Boolean = true
-  // FIXME: incorrect metrics updater
+
+  override lazy val metrics = Map(
+    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
+    "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_arrow_udf")
+  )
 
   override protected def evaluate(
       funcs: Seq[ChainedPythonFunctions],
@@ -277,6 +284,10 @@ case class ColumnarArrowEvalPythonExec(
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    val numOutputRows = longMetric("numOutputRows")
+    val numOutputBatches = longMetric("numOutputBatches")
+    val numInputRows = longMetric("numInputRows")
+    val procTime = longMetric("processTime")
     val inputRDD = child.executeColumnar()
     inputRDD.mapPartitions {
       iter =>
@@ -318,12 +329,15 @@ case class ColumnarArrowEvalPythonExec(
 
         val contextAwareIterator = new ContextAwareIterator(context, iter)
         val inputCbCache = new ArrayBuffer[ColumnarBatch]()
+        var start_time: Long = 0
         val inputBatchIter = contextAwareIterator.map {
           inputCb =>
+            start_time = System.nanoTime()
             ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance, inputCb)
             ColumnarBatches.retain(inputCb)
             // 0. cache input for later merge
             inputCbCache += inputCb
+            numInputRows += inputCb.numRows
             // We only need to pass the referred cols data to python worker for evaluation.
             var colsForEval = new ArrayBuffer[ColumnVector]()
             for (i <- originalOffsets) {
@@ -341,11 +355,20 @@ case class ColumnarArrowEvalPythonExec(
               val joinedVectors = (0 until inputCb.numCols).toArray.map(
                 i => inputCb.column(i)) ++ (0 until outputCb.numCols).toArray.map(
                 i => outputCb.column(i))
+              // Columns in outputCb has random 0 or 1 refCnt and will fail checks in ensureOffload,
+              // so we do a hard reset here.
+              (0 until joinedVectors.length).foreach(
+                i => {
+                  adjustRefCnt(joinedVectors(i).asInstanceOf[ArrowWritableColumnVector], 1)
+                })
               val numRows = inputCb.numRows
+              numOutputBatches += 1
+              numOutputRows += numRows
               val batch = new ColumnarBatch(joinedVectors, numRows)
               val offloaded =
                 ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
               ColumnarBatches.release(outputCb)
+              procTime += (System.nanoTime() - start_time) / 1000000
               offloaded
           }
         Iterators
@@ -356,6 +379,23 @@ case class ColumnarArrowEvalPythonExec(
           .recyclePayload(_.close())
           .create()
     }
+  }
+
+  private def adjustRefCnt(vector: ArrowWritableColumnVector, to: Long): Unit = {
+    val from = vector.refCnt()
+    if (from == to) {
+      return
+    }
+    if (from > to) {
+      do {
+        vector.close()
+      } while (vector.refCnt() == to)
+      return
+    }
+    // from < to
+    do {
+      vector.retain()
+    } while (vector.refCnt() == to)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): ColumnarArrowEvalPythonExec =
