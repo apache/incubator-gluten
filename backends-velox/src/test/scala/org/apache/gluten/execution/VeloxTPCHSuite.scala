@@ -329,7 +329,7 @@ class VeloxTPCHV1RasSuite extends VeloxTPCHSuite {
     super.sparkConf
       .set("spark.sql.sources.useV1SourceList", "parquet")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
-      .set("spark.gluten.sql.ras.enabled", "true")
+      .set("spark.gluten.ras.enabled", "true")
   }
 }
 
@@ -340,7 +340,7 @@ class VeloxTPCHV1BhjRasSuite extends VeloxTPCHSuite {
     super.sparkConf
       .set("spark.sql.sources.useV1SourceList", "parquet")
       .set("spark.sql.autoBroadcastJoinThreshold", "30M")
-      .set("spark.gluten.sql.ras.enabled", "true")
+      .set("spark.gluten.ras.enabled", "true")
   }
 }
 
