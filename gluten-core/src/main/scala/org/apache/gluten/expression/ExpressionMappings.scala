@@ -275,6 +275,7 @@ object ExpressionMappings {
     Sig[PromotePrecision](PROMOTE_PRECISION),
     Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID),
     Sig[SparkPartitionID](SPARK_PARTITION_ID),
+    Sig[WidthBucket](WIDTH_BUCKET),
     // Decimal
     Sig[UnscaledValue](UNSCALED_VALUE),
     // Generator function
