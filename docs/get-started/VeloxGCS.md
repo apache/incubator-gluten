@@ -37,3 +37,17 @@ For cases when a GCS mock is used, an optional endpoint can be provided:
 ```sh
 spark.hadoop.fs.gs.storage.root.url  // url to the mock gcs service including starting with http or https
 ```
+
+## Configuring GCS max retry count
+
+For cases when a transient server error is detected, GCS can be configured to keep retrying until a number of transient error is detected.
+```sh
+spark.hadoop.fs.gs.http.max.retry // number of times to keep retrying unless a non-transient error is detected
+```
+
+## Configuring GCS max retry time
+
+For cases when a transient server error is detected, GCS can be configured to keep retrying until the retry loop exceeds a prescribed duration.
+```sh
+spark.hadoop.fs.gs.http.max.retry-time // a string representing the time keep retring (10s, 1m, etc).
+```

@@ -121,6 +121,19 @@ std::shared_ptr<facebook::velox::core::MemConfig> getHiveConfig(std::shared_ptr<
     }
   }
 
+  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#http-transport-configuration
+  // https://cloud.google.com/cpp/docs/reference/storage/latest/classgoogle_1_1cloud_1_1storage_1_1LimitedErrorCountRetryPolicy
+  auto gsMaxRetryCount = conf->get("spark.hadoop.fs.gs.http.max.retry");
+  if (gsMaxRetryCount.hasValue()) {
+    hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSMaxRetryCount] = gsMaxRetryCount.value();
+  }
+
+  // https://cloud.google.com/cpp/docs/reference/storage/latest/classgoogle_1_1cloud_1_1storage_1_1LimitedTimeRetryPolicy
+  auto gsMaxRetryTime = conf->get("spark.hadoop.fs.gs.http.max.retry-time");
+  if (gsMaxRetryTime.hasValue()) {
+    hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSMaxRetryTime] = gsMaxRetryTime.value();
+  }
+
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#authentication
   auto gsAuthType = conf->get("spark.hadoop.fs.gs.auth.type");
   if (gsAuthType.hasValue()) {
