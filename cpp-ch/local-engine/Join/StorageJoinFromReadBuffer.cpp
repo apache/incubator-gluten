@@ -24,6 +24,9 @@
 #include <Storages/IO/NativeReader.h>
 #include <Common/Exception.h>
 
+#include <Poco/Logger.h>
+#include <Common/logger_useful.h>
+
 namespace DB
 {
 class HashJoin;
@@ -41,13 +44,23 @@ extern const int DEADLOCK_AVOIDED;
 
 using namespace DB;
 
-DB::Block rightSampleBlock(bool use_nulls, const StorageInMemoryMetadata & storage_metadata_, JoinKind kind)
+static size_t unique_storage_join_id = 0;
+
+DB::Block rightSampleBlock(const std::string & id, bool use_nulls, const StorageInMemoryMetadata & storage_metadata_, JoinKind kind)
 {
+    DB::ColumnsWithTypeAndName new_cols;
     DB::Block block = storage_metadata_.getSampleBlock();
-    if (use_nulls && isLeftOrFull(kind))
-        for (auto & col : block)
-            DB::JoinCommon::convertColumnToNullable(col);
-    return block;
+    for (const auto & col : block)
+    {
+        // Add a prefix to avoid column name conflicts with left table.
+        new_cols.emplace_back(col.column, col.type, "broadcast_join_right_" + id + "." + col.name);
+        if (use_nulls && isLeftOrFull(kind))
+        {
+            auto & new_col = new_cols.back();
+            DB::JoinCommon::convertColumnToNullable(new_col);
+        }
+    }
+    return DB::Block(new_cols);
 }
 
 namespace local_engine
@@ -58,7 +71,7 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
     size_t row_count_,
     const Names & key_names_,
     bool use_nulls_,
-    std::shared_ptr<DB::TableJoin> table_join,
+    DB::JoinKind kind,
     const ColumnsDescription & columns,
     const ConstraintsDescription & constraints,
     const String & comment,
@@ -72,7 +85,7 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
     for (const auto & key : key_names_)
         if (!storage_metadata.getColumns().hasPhysical(key))
             throw Exception(ErrorCodes::NO_SUCH_COLUMN_IN_TABLE, "Key column ({}) does not exist in table declaration.", key);
-    right_sample_block = rightSampleBlock(use_nulls, storage_metadata, table_join->kind());
+    right_sample_block = rightSampleBlock(std::to_string(unique_storage_join_id++), use_nulls, storage_metadata, kind);
     readAllBlocksFromInput(in);
 }
 
@@ -108,11 +121,19 @@ static DB::ColumnWithTypeAndName convertColumnAsNecessary(const DB::ColumnWithTy
             sample_column.dumpStructure());
 }
 
-DB::JoinPtr StorageJoinFromReadBuffer::buildJoin(const Block header, std::shared_ptr<DB::TableJoin> analyzed_join) const
+void StorageJoinFromReadBuffer::buildJoin(const Block header, std::shared_ptr<DB::TableJoin> analyzed_join)
 {
-    auto join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count);
+    {
+        std::shared_lock lock(join_mutex);
+        if (join)
+            return;
+    }
+    std::unique_lock lock(join_mutex);
+    if (join)
+        return;
+    join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count);
     if (input_blocks.empty())
-        return join;
+        return;
 
     for (const auto & block : input_blocks)
     {
@@ -120,13 +141,12 @@ DB::JoinPtr StorageJoinFromReadBuffer::buildJoin(const Block header, std::shared
         for (size_t i = 0; i < block.columns(); ++i)
         {
             const auto & column = block.getByPosition(i);
-            // columns.emplace_back(column.column, column.type, header.getByPosition(i).name);
             columns.emplace_back(convertColumnAsNecessary(column, header.getByPosition(i)));
         }
         DB::Block final_block(columns);
         join->addBlockToJoin(final_block, true);
     }
-    return join;
+    input_blocks.clear();
 }
 
 /// The column names of 'rgiht_header' could be different from the ones in `input_blocks`, and we must
@@ -134,7 +154,7 @@ DB::JoinPtr StorageJoinFromReadBuffer::buildJoin(const Block header, std::shared
 ///
 /// In most cases, 'getJoinLocked' is called only once, and the input_blocks should not be too large.
 /// This is will be OK.
-DB::JoinPtr StorageJoinFromReadBuffer::getJoinLocked(const DB::Block & right_header, std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr /*context*/)
+DB::JoinPtr StorageJoinFromReadBuffer::getJoinLocked(std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr /*context*/)
 {
     if ((analyzed_join->forceNullableRight() && !use_nulls)
         || (!analyzed_join->forceNullableRight() && isLeftOrFull(analyzed_join->kind()) && use_nulls))
@@ -143,8 +163,8 @@ DB::JoinPtr StorageJoinFromReadBuffer::getJoinLocked(const DB::Block & right_hea
             "Table {} needs the same join_use_nulls setting as present in LEFT or FULL JOIN",
             storage_metadata.comment);
 
-    auto join = buildJoin(right_header, analyzed_join);
-    HashJoinPtr join_clone = std::make_shared<HashJoin>(analyzed_join, right_header);
+    buildJoin(right_sample_block, analyzed_join);
+    HashJoinPtr join_clone = std::make_shared<HashJoin>(analyzed_join, right_sample_block);
     /// reuseJoinedData will set the flag `HashJoin::from_storage_join` which is required by `FilledStep`
     join_clone->reuseJoinedData(static_cast<const HashJoin &>(*join));
     return join_clone;

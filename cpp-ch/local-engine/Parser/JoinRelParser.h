@@ -29,6 +29,8 @@ class TableJoin;
 namespace local_engine
 {
 
+class StorageJoinFromReadBuffer;
+
 std::pair<DB::JoinKind, DB::JoinStrictness> getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type);
 
 class JoinRelParser : public RelParser
@@ -51,6 +53,7 @@ private:
 
 
     DB::QueryPlanPtr parseJoin(const substrait::JoinRel & join, DB::QueryPlanPtr left, DB::QueryPlanPtr right);
+    void renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & right, const StorageJoinFromReadBuffer & storage_join);
     void addConvertStep(TableJoin & table_join, DB::QueryPlan & left, DB::QueryPlan & right);
     void collectJoinKeys(
         TableJoin & table_join, const substrait::JoinRel & join_rel, const DB::Block & left_header, const DB::Block & right_header);

@@ -244,14 +244,75 @@ std::unordered_set<DB::JoinTableSide> JoinRelParser::extractTableSidesFromExpres
     return table_sides;
 }
 
+
+void JoinRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & right, const StorageJoinFromReadBuffer & storage_join)
+{
+    /// To support mixed join conditions, we must make sure that the column names in the right be the same as
+    /// storage_join's right sample block.
+    ActionsDAGPtr project = ActionsDAG::makeConvertingActions(
+        right.getCurrentDataStream().header.getColumnsWithTypeAndName(),
+        storage_join.getRightSampleBlock().getColumnsWithTypeAndName(),
+        ActionsDAG::MatchColumnsMode::Position);
+
+    if (project)
+    {
+        QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), project);
+        project_step->setStepDescription("Rename Broadcast Table Name");
+        steps.emplace_back(project_step.get());
+        right.addStep(std::move(project_step));
+    }
+
+    /// If the columns name in right table is duplicated with left table, we need to rename the left table's columns,
+    /// avoid the columns name in the right table be changed in `addConvertStep`.
+    /// This could happen in tpc-ds q44.
+    DB::ColumnsWithTypeAndName new_left_cols;
+    const auto & right_header = right.getCurrentDataStream().header;
+    auto left_prefix = getUniqueName("left");
+    for (const auto & col : left.getCurrentDataStream().header)
+    {
+        if (right_header.has(col.name))
+        {
+            new_left_cols.emplace_back(col.column, col.type, left_prefix + col.name);
+        }
+        else
+        {
+            new_left_cols.emplace_back(col.column, col.type, col.name);
+        }
+    }
+    project = ActionsDAG::makeConvertingActions(
+        left.getCurrentDataStream().header.getColumnsWithTypeAndName(),
+        new_left_cols,
+        ActionsDAG::MatchColumnsMode::Position);
+
+    if (project)
+    {
+        QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(left.getCurrentDataStream(), project);
+        project_step->setStepDescription("Rename Left Table Name for broadcast join");
+        steps.emplace_back(project_step.get());
+        left.addStep(std::move(project_step));
+    }
+}
+
 DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::QueryPlanPtr left, DB::QueryPlanPtr right)
 {
     auto join_opt_info = parseJoinOptimizationInfo(join);
     auto storage_join = join_opt_info.is_broadcast ? BroadCastJoinBuilder::getJoin(join_opt_info.storage_join_key) : nullptr;
+    if (storage_join)
+    {
+        renamePlanColumns(*left, *right, *storage_join);
+    }
 
     auto table_join = createDefaultTableJoin(join.type());
-    // rename right table's columns as necessary
+    DB::Block right_header_before_convert_step = right->getCurrentDataStream().header;
     addConvertStep(*table_join, *left, *right);
+
+    // Add a check to find error easily.
+    if (storage_join)
+    {
+        std::string msg = "For broadcast join, we must not change the columns name in the right table.";
+        assertBlocksHaveEqualStructure(right_header_before_convert_step, right->getCurrentDataStream().header, msg);
+    }
+
     Names after_join_names;
     auto left_names = left->getCurrentDataStream().header.getNames();
     after_join_names.insert(after_join_names.end(), left_names.begin(), left_names.end());
@@ -274,8 +335,9 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
 
     if (storage_join)
     {
+
         applyJoinFilter(*table_join, join, *left, *right, true);
-        auto broadcast_hash_join = storage_join->getJoinLocked(right_header, table_join, context);
+        auto broadcast_hash_join = storage_join->getJoinLocked(table_join, context);
 
         QueryPlanStepPtr join_step = std::make_unique<FilledJoinStep>(left->getCurrentDataStream(), broadcast_hash_join, 8192);
 
@@ -361,19 +423,10 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
 
 void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left, DB::QueryPlan & right)
 {
-
-    /// After https://github.com/ClickHouse/ClickHouse/pull/61216, We will failed at tryPushDownFilter() in filterPushDown.cpp
-    /// Here is a workaround, refer to chooseJoinAlgorithm() in PlannerJoins.cpp, it always call TableJoin::setRename to
-    /// create aliases for columns in the right table
-    /// By using right table header name sets, so TableJoin::deduplicateAndQualifyColumnNames can do same thing as chooseJoinAlgorithm()
-    ///
-    /// Affected UT fixed bh this workaround:
-    ///    GlutenClickHouseTPCHParquetRFSuite:TPCH Q17, Q19, Q20, Q21
+    /// If the columns name in right table is duplicated with left table, we need to rename the right table's columns.
     NameSet left_columns_set;
-    for (const auto & col : right.getCurrentDataStream().header.getNames())
-    {
+    for (const auto & col : left.getCurrentDataStream().header.getNames())
         left_columns_set.emplace(col);
-    }
     table_join.setColumnsFromJoinedTable(
         right.getCurrentDataStream().header.getNamesAndTypesList(), left_columns_set, getUniqueName("right") + ".");
 

@@ -17,12 +17,15 @@
 #pragma once
 #include <Interpreters/JoinUtils.h>
 #include <Storages/StorageInMemoryMetadata.h>
+#include <shared_mutex>
+
 
 namespace DB
 {
 class TableJoin;
 class IJoin;
 using JoinPtr = std::shared_ptr<IJoin>;
+class HashJoin;
 }
 
 namespace local_engine
@@ -36,7 +39,7 @@ public:
         size_t row_count,
         const DB::Names & key_names_,
         bool use_nulls_,
-        std::shared_ptr<DB::TableJoin> table_join_,
+        DB::JoinKind kind,
         const DB::ColumnsDescription & columns_,
         const DB::ConstraintsDescription & constraints_,
         const String & comment,
@@ -45,7 +48,7 @@ public:
     /// The columns' names in right_header may be different from the names in the ColumnsDescription
     /// in the constructor.
     /// This should be called once.
-    DB::JoinPtr getJoinLocked(const DB::Block & right_header, std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr context);
+    DB::JoinPtr getJoinLocked(std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr context);
     const DB::Block & getRightSampleBlock() const { return right_sample_block; }
 
 private:
@@ -56,9 +59,12 @@ private:
     bool overwrite;
     DB::Block right_sample_block;
     /// This objects should not take too much memory since it'a broadcast join.
+    std::shared_mutex join_mutex;
     std::vector<DB::Block> input_blocks;
+    /// join is initialized lazily. Because it may rely on the realy TableJoin in the future.
+    std::shared_ptr<DB::HashJoin> join = nullptr;
 
     void readAllBlocksFromInput(DB::ReadBuffer & in);
-    DB::JoinPtr buildJoin(const DB::Block header, std::shared_ptr<DB::TableJoin> analyzed_join) const;
+    void buildJoin(const DB::Block header, std::shared_ptr<DB::TableJoin> analyzed_join);
 };
 }

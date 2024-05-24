@@ -103,7 +103,7 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
         row_count,
         key_names,
         true,
-        std::make_shared<DB::TableJoin>(SizeLimits(), true, kind, strictness, key_names),
+        kind,
         columns_description,
         ConstraintsDescription(),
         key,
