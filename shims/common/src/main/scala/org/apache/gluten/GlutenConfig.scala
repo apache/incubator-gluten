@@ -1197,7 +1197,7 @@ object GlutenConfig {
       .createWithDefault(false)
 
   val RAS_COST_MODEL =
-    buildConf("spark.gluten.ras.user.costModel")
+    buildConf("spark.gluten.ras.costModel")
       .doc(
         "Experimental: The classpath of user-defined cost model that will be used by RAS. " +
           "If not specified, a rough built-in cost model will be used.")
