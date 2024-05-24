@@ -698,6 +698,7 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
                 static_cast<size_t>(2.8*mem_gb + 5), 16ul), 8ul) * 1024 * 1024;
         }
     }
+    settings.set("session_timezone", "UTC");
 }
 
 void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
