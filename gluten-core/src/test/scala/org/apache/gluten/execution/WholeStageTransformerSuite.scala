@@ -320,8 +320,8 @@ abstract class WholeStageTransformerSuite
   }
 
   /**
-   * Some rule on LogicalPlan will not only apply in select query,
-   * the total df.load() should in spark environment with gluten disabled config.
+   * Some rule on LogicalPlan will not only apply in select query, the total df.load() should in
+   * spark environment with gluten disabled config.
    *
    * @param sql
    * @param f
