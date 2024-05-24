@@ -251,7 +251,10 @@ object FileFormatWriter extends Logging {
     } else {
       requiredOrdering.zip(actualOrdering).forall {
         case (requiredOrder, childOutputOrder) =>
-          requiredOrder.semanticEquals(childOutputOrder)
+          requiredOrder
+            .asInstanceOf[AttributeReference]
+            .name
+            .equals(childOutputOrder.asInstanceOf[AttributeReference].name)
       }
     }
 
