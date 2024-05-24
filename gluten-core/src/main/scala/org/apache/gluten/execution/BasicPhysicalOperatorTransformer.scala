@@ -129,8 +129,8 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
     doNativeValidation(substraitContext, relNode)
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
+    val childCtx = child.asInstanceOf[TransformSupport].executeTransform(context)
     val remainingCondition = getRemainingCondition
     val operatorId = context.nextOperatorId(this.nodeName)
     if (remainingCondition == null) {
@@ -190,7 +190,7 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
     BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetricsUpdater(metrics)
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
+    val childCtx = child.asInstanceOf[TransformSupport].executeTransform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
     if ((projectList == null || projectList.isEmpty) && childCtx != null) {
       // The computing for this project is not needed.

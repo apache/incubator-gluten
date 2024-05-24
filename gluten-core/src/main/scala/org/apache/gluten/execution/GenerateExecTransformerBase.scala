@@ -76,8 +76,8 @@ abstract class GenerateExecTransformerBase(
     doNativeValidation(context, relNode)
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
+    val childCtx = child.asInstanceOf[TransformSupport].executeTransform(context)
     val relNode = getRelNode(context, childCtx.root, getGeneratorNode(context), validation = false)
     TransformContext(child.output, output, relNode)
   }

@@ -65,8 +65,8 @@ abstract class HashAggregateExecTransformer(
     super.output
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
+    val childCtx = child.asInstanceOf[TransformSupport].executeTransform(context)
 
     val aggParams = new AggregationParams
     val operatorId = context.nextOperatorId(this.nodeName)

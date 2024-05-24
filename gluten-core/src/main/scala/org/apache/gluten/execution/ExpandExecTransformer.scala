@@ -110,8 +110,8 @@ case class ExpandExecTransformer(
     doNativeValidation(substraitContext, relNode)
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
+    val childCtx = child.asInstanceOf[TransformSupport].executeTransform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
     if (projections == null || projections.isEmpty) {
       // The computing for this Expand is not needed.

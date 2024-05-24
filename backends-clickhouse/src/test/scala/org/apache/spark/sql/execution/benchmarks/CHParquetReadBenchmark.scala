@@ -104,7 +104,7 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
     val scanTime = chFileScan.longMetric("scanTime")
     // Generate Substrait plan
     val substraitContext = new SubstraitContext
-    val transformContext = chFileScan.doTransform(substraitContext)
+    val transformContext = chFileScan.executeTransform(substraitContext)
     val outNames = new java.util.ArrayList[String]()
     for (attr <- outputAttrs) {
       outNames.add(ConverterUtils.genColumnNameWithExprId(attr))

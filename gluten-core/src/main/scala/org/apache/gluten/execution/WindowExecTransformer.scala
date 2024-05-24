@@ -179,8 +179,8 @@ case class WindowExecTransformer(
     doNativeValidation(substraitContext, relNode)
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
+    val childCtx = child.asInstanceOf[TransformSupport].executeTransform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
     if (windowExpression == null || windowExpression.isEmpty) {
       // The computing for this operator is not needed.

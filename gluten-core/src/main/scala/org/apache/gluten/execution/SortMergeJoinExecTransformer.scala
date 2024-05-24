@@ -191,12 +191,12 @@ abstract class SortMergeJoinExecTransformerBase(
     doNativeValidation(substraitContext, relNode)
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val streamedPlanContext = streamedPlan.asInstanceOf[TransformSupport].doTransform(context)
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
+    val streamedPlanContext = streamedPlan.asInstanceOf[TransformSupport].executeTransform(context)
     val (inputStreamedRelNode, inputStreamedOutput) =
       (streamedPlanContext.root, streamedPlanContext.outputAttributes)
 
-    val bufferedPlanContext = bufferedPlan.asInstanceOf[TransformSupport].doTransform(context)
+    val bufferedPlanContext = bufferedPlan.asInstanceOf[TransformSupport].executeTransform(context)
     val (inputBuildRelNode, inputBuildOutput) =
       (bufferedPlanContext.root, bufferedPlanContext.outputAttributes)
 
