@@ -208,6 +208,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("DDL test with tab separated file")
     .exclude("DDL test parsing decimal type")
     .exclude("test with tab delimiter and double quote")
+    // Arrow not support corrupt record
+    .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
   enableSuite[GlutenCSVLegacyTimeParserSuite]
     // file cars.csv include null string, Arrow not support to read
     .exclude("DDL test with schema")

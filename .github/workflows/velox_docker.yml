@@ -59,7 +59,9 @@ jobs:
         id: cache
         uses: actions/cache/restore@v3
         with:
-          path: ./cpp/build/releases/
+          path: |
+            ./cpp/build/releases/
+            ~/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
           key: cache-velox-build-${{ hashFiles('./cache-key') }}
       - name: Build Gluten Velox third party
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
@@ -67,7 +69,9 @@ jobs:
           source dev/ci-velox-buildstatic.sh
       - uses: actions/upload-artifact@v2
         with:
-          path: ./cpp/build/releases/
+          path: |
+            ./cpp/build/releases/
+            ~/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
           name: velox-native-lib-centos-7-${{github.sha}}
 
   run-tpc-test-ubuntu:
@@ -96,7 +100,9 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: |
+            ./cpp/build/releases/
+            ~/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
       - name: Setup java and maven
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
