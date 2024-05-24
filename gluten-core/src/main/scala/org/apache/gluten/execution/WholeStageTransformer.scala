@@ -70,7 +70,7 @@ trait TransformSupport extends GlutenPlan {
 
   final def executeTransform(context: SubstraitContext): TransformContext = {
     if (isCanonicalizedPlan) {
-      throw SparkException.internalError(
+      throw new IllegalStateException(
         "A canonicalized plan is not supposed to be executed transform.")
     }
     if (TransformerState.underValidationState) {
