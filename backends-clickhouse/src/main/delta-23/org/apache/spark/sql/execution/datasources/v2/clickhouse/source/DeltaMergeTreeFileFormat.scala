@@ -25,6 +25,7 @@ import org.apache.spark.sql.types.StructType
 
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 
+@SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
 class DeltaMergeTreeFileFormat(metadata: Metadata) extends DeltaParquetFileFormat(metadata) {
 
   protected var database = ""
@@ -75,7 +76,10 @@ class DeltaMergeTreeFileFormat(metadata: Metadata) extends DeltaParquetFileForma
   override def equals(other: Any): Boolean = {
     other match {
       case ff: DeltaMergeTreeFileFormat =>
-        ff.columnMappingMode == columnMappingMode && ff.referenceSchema == referenceSchema
+        ff.columnMappingMode == columnMappingMode &&
+        ff.referenceSchema == referenceSchema &&
+        ff.isSplittable == isSplittable &&
+        ff.disablePushDowns == disablePushDowns
       case _ => false
     }
   }

@@ -19,7 +19,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.connector.catalog.TableCatalog
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
 import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaErrors, DeltaLog, DeltaTimeTravelSpec}
@@ -28,7 +27,6 @@ import org.apache.spark.sql.delta.catalog.ClickHouseTableV2.deltaLog2Table
 import org.apache.spark.sql.delta.sources.DeltaDataSource
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.utils.MergeTreePartsPartitionsUtil
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.util.collection.BitSet
@@ -83,7 +81,6 @@ class ClickHouseTableV2(
 
   override def properties(): ju.Map[String, String] = {
     val ret = super.properties()
-    ret.put(TableCatalog.PROP_PROVIDER, ClickHouseConfig.NAME)
 
     // for file path based write
     if (snapshot.version < 0 && clickhouseExtensionOptions.nonEmpty) {
@@ -232,6 +229,7 @@ class ClickHouseTableV2(
       partitionColumns
     )
   }
+
   def cacheThis(): Unit = {
     deltaLog2Table.put(deltaLog, this)
   }
