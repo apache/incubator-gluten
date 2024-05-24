@@ -132,6 +132,12 @@ class VeloxRasSuite extends SharedSparkSession {
       val out = planner.plan()
       assert(out == RowUnary(RowLeaf(TRIVIAL_SCHEMA)))
     }
+    withSQLConf(GlutenConfig.RAS_COST_MODEL.key -> "user.dummy.CostModel") {
+      val in = RowUnary(RowLeaf(TRIVIAL_SCHEMA))
+      assertThrows[ClassNotFoundException] {
+        newRas(List(RowUnaryToColumnarUnary)).newPlanner(in)
+      }
+    }
   }
 }
 
