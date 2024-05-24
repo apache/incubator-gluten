@@ -80,8 +80,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // NEW SUITE: disable as it expects exception which doesn't happen when offloaded to gluten
     .exclude(
       "INCONSISTENT_BEHAVIOR_CROSS_VERSION: compatibility with Spark 2.4/3.2 in reading/writing dates")
-    // gluten throws different exception
-    .excludeByPrefix("SCALAR_SUBQUERY_TOO_MANY_ROWS:")
     // Doesn't support unhex with failOnError=true.
     .exclude("CONVERSION_INVALID_INPUT: to_binary conversion function hex")
   enableSuite[GlutenQueryParsingErrorsSuite]
