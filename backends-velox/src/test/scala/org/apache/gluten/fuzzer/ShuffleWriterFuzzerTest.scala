@@ -68,7 +68,7 @@ class ShuffleWriterFuzzerTest extends FuzzerTestBase {
         logWarning(
           s"==============================> " +
             s"Started reproduction (seed: ${dataGenerator.getSeed})")
-        val result = defaultRunner(testShuffle(sql))
+        val result = defaultRunner(testShuffle(sql))()
         assert(result.isInstanceOf[Successful], s"Failed to run 'reproduce' with seed: $seed")
     }
   }

@@ -35,7 +35,7 @@ abstract class FuzzerTestBase extends VeloxWholeStageTransformerSuite {
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
-      .set("spark.memory.offHeap.size", "512MB")
+      .set("spark.memory.offHeap.size", "4g")
       .set("spark.driver.memory", "4g")
       .set("spark.driver.maxResultSize", "4g")
   }
