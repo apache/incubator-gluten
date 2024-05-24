@@ -66,7 +66,7 @@ object RemoveFilter extends RasRule[SparkPlan] {
   // example, redundant broadcast exchanges may be added by EnsureRequirements because the
   // broadcast join detects that its join keys' nullabilities have been changed. Then AQE
   // re-optimization could be broken by ValidateSparkPlan so that AQE could completely
-  // have no effect as if it's off. This case can be observed by explicitly setting an higher
+  // have no effect as if it's off. This case can be observed by explicitly setting a higher
   // AQE logger level to make sure the validation log doesn't get suppressed, e.g.,
   // spark.sql.adaptive.logLevel=ERROR.
   case class NoopFilter(override val child: SparkPlan, override val output: Seq[Attribute])
