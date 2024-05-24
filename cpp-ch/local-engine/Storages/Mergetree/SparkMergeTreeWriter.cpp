@@ -112,10 +112,12 @@ void SparkMergeTreeWriter::write(DB::Block & block)
             new_block.getColumnsWithTypeAndName(), header.getColumnsWithTypeAndName(), DB::ActionsDAG::MatchColumnsMode::Position))
         ExpressionActions(converter).execute(new_block);
 
-    auto add_block = squashing_transform->add(new_block);
-    bool has_part = blockToPart(add_block);
-    if (has_part && merge_after_insert)
-        checkAndMerge();
+    if (auto add_block = squashing_transform->add(new_block))
+    {
+        bool has_part = blockToPart(add_block);
+        if (has_part && merge_after_insert)
+            checkAndMerge();
+    }
 }
 
 bool SparkMergeTreeWriter::blockToPart(Block & block)
@@ -178,9 +180,11 @@ void SparkMergeTreeWriter::manualFreeMemory(size_t before_write_memory)
 
 void SparkMergeTreeWriter::finalize()
 {
-    auto block = squashing_transform->add({});
-    if (block.rows())
-        blockToPart(block);
+    if (auto block = squashing_transform->add({}))
+    {
+        if (block.rows())
+            blockToPart(block);
+    }
 
     if (merge_after_insert)
         finalizeMerge();
