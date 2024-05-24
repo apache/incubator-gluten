@@ -17,24 +17,20 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.expression.ConverterUtils.FunctionConfig
-import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types.{DataType, DecimalType}
-
-import com.google.common.collect.Lists
 
 case class DecimalRoundTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
     original: Round)
-  extends ExpressionTransformer {
+  extends BinaryExpressionTransformer {
 
   val toScale: Int = original.scale.eval(EmptyRow).asInstanceOf[Int]
 
   // Use the same result type for different Spark versions.
-  val dataType: DataType = original.child.dataType match {
+  override val dataType: DataType = original.child.dataType match {
     case decimalType: DecimalType =>
       val p = decimalType.precision
       val s = decimalType.scale
@@ -57,21 +53,6 @@ case class DecimalRoundTransformer(
         s"Decimal type is expected but received ${original.child.dataType.typeName}.")
   }
 
-  override def doTransform(args: Object): ExpressionNode = {
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName(
-        substraitExprName,
-        Seq(original.child.dataType),
-        FunctionConfig.OPT))
-
-    ExpressionBuilder.makeScalarFunction(
-      functionId,
-      Lists.newArrayList[ExpressionNode](
-        child.doTransform(args),
-        ExpressionBuilder.makeIntLiteral(toScale)),
-      ConverterUtils.getTypeNode(dataType, original.nullable)
-    )
-  }
+  override def left: ExpressionTransformer = child
+  override def right: ExpressionTransformer = LiteralTransformer(toScale)
 }

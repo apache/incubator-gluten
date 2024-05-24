@@ -19,10 +19,10 @@ package org.apache.gluten.expression
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.execution.{BaseSubqueryExec, ScalarSubquery}
+import org.apache.spark.sql.execution.ScalarSubquery
 
-case class ScalarSubqueryTransformer(plan: BaseSubqueryExec, exprId: ExprId, query: ScalarSubquery)
-  extends ExpressionTransformerWithOrigin {
+case class ScalarSubqueryTransformer(substraitExprName: String, query: ScalarSubquery)
+  extends LeafExpressionTransformer {
   override def original: Expression = query
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
