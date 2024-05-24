@@ -20,12 +20,13 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.columnar.transition.ConventionReq
 import org.apache.gluten.planner.cost.GlutenCostModel
 import org.apache.gluten.planner.property.Conv
-import org.apache.gluten.ras.Best.BestNotFoundException
 import org.apache.gluten.ras.{Cost, CostModel, Ras}
+import org.apache.gluten.ras.Best.BestNotFoundException
 import org.apache.gluten.ras.RasSuiteBase._
 import org.apache.gluten.ras.path.RasPath
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
