@@ -73,6 +73,7 @@ case class HLLRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
       case LongType => true
       case ShortType => true
       case StringType => true
+      case _: DecimalType => true
       case _ => false
     }
   }
