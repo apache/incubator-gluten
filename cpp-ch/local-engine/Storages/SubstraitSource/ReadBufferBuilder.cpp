@@ -35,9 +35,9 @@
 #include <Interpreters/Cache/FileCacheFactory.h>
 #include <Interpreters/Cache/FileCacheSettings.h>
 #include <Interpreters/Context_fwd.h>
-#include <Storages/HDFS/AsynchronousReadBufferFromHDFS.h>
-#include <Storages/HDFS/HDFSCommon.h>
-#include <Storages/HDFS/ReadBufferFromHDFS.h>
+#include <Storages/ObjectStorage/HDFS/AsynchronousReadBufferFromHDFS.h>
+#include <Storages/ObjectStorage/HDFS/HDFSCommon.h>
+#include <Storages/ObjectStorage/HDFS/ReadBufferFromHDFS.h>
 #include <Storages/StorageS3Settings.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
