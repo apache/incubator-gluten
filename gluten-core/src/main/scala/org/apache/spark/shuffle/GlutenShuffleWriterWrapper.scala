@@ -26,7 +26,8 @@ case class GenShuffleWriterParameters[K, V](
     shuffleBlockResolver: IndexShuffleBlockResolver,
     columnarShuffleHandle: ColumnarShuffleHandle[K, V],
     mapId: Long,
-    metrics: ShuffleWriteMetricsReporter)
+    metrics: ShuffleWriteMetricsReporter,
+    isSort: Boolean = false)
 
 object GlutenShuffleWriterWrapper {
 
@@ -34,9 +35,17 @@ object GlutenShuffleWriterWrapper {
       shuffleBlockResolver: IndexShuffleBlockResolver,
       columnarShuffleHandle: ColumnarShuffleHandle[K, V],
       mapId: Long,
-      metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] =
+      metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
+    val isSort =
+      columnarShuffleHandle.dependency.asInstanceOf[ColumnarShuffleDependency[K, V, V]].isSort
     BackendsApiManager.getSparkPlanExecApiInstance
       .genColumnarShuffleWriter(
-        GenShuffleWriterParameters(shuffleBlockResolver, columnarShuffleHandle, mapId, metrics))
+        GenShuffleWriterParameters(
+          shuffleBlockResolver,
+          columnarShuffleHandle,
+          mapId,
+          metrics,
+          isSort))
       .shuffleWriter
+  }
 }

@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.SparkSession.{getActiveSession, getDefaultSession}
@@ -248,9 +250,9 @@ class GlutenClickHouseTableAfterRestart
 
     restartSpark()
 
-    spark.sql("set spark.gluten.enabled=false")
+    spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
     spark.sql("vacuum table_restart_vacuum")
-    spark.sql("set spark.gluten.enabled=true")
+    spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
     assert(spark.sql("select count(*) from table_restart_vacuum").collect().apply(0).get(0) == 4)
   }

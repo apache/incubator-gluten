@@ -387,13 +387,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       original: GetMapValue): ExpressionTransformer =
     GetMapValueTransformer(substraitExprName, left, right, original.failOnError, original)
 
-  override def genRandTransformer(
-      substraitExprName: String,
-      explicitSeed: ExpressionTransformer,
-      original: Rand): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(explicitSeed), original)
-  }
-
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
    *
@@ -407,7 +400,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       newPartitioning: Partitioning,
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
-      metrics: Map[String, SQLMetric]
+      metrics: Map[String, SQLMetric],
+      isSort: Boolean
   ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     CHExecUtil.genShuffleDependency(
       rdd,
@@ -438,7 +432,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def createColumnarBatchSerializer(
       schema: StructType,
-      metrics: Map[String, SQLMetric]): Serializer = {
+      metrics: Map[String, SQLMetric],
+      isSort: Boolean): Serializer = {
     val readBatchNumRows = metrics("avgReadBatchNumRows")
     val numOutputRows = metrics("numOutputRows")
     val dataSize = metrics("dataSize")

@@ -42,8 +42,12 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
   uint64_t growCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
-    VELOX_CHECK_EQ(targetBytes, 0, "Gluten has set MemoryManagerOptions.memoryPoolInitCapacity to 0")
-    return 0;
+    std::lock_guard<std::recursive_mutex> l(mutex_);
+    listener_->allocationChanged(targetBytes);
+    if (!pool->grow(targetBytes, 0)) {
+      VELOX_FAIL("Failed to grow root pool's capacity for {}", velox::succinctBytes(targetBytes));
+    }
+    return targetBytes;
   }
 
   uint64_t shrinkCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
@@ -160,6 +164,8 @@ VeloxMemoryManager::VeloxMemoryManager(
     : MemoryManager(), name_(name), listener_(std::move(listener)) {
   auto reservationBlockSize = VeloxBackend::get()->getBackendConf()->get<uint64_t>(
       kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
+  auto memInitCapacity =
+      VeloxBackend::get()->getBackendConf()->get<uint64_t>(kVeloxMemInitCapacity, kVeloxMemInitCapacityDefault);
   blockListener_ = std::make_unique<BlockAllocationListener>(listener_.get(), reservationBlockSize);
   listenableAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), blockListener_.get());
   arrowPool_ = std::make_unique<ArrowMemoryPool>(listenableAlloc_.get());
@@ -173,7 +179,7 @@ VeloxMemoryManager::VeloxMemoryManager(
       .coreOnAllocationFailureEnabled = false,
       .allocatorCapacity = velox::memory::kMaxMemory,
       .arbitratorKind = afr.getKind(),
-      .memoryPoolInitCapacity = 0,
+      .memoryPoolInitCapacity = memInitCapacity,
       .memoryPoolTransferCapacity = reservationBlockSize,
       .memoryReclaimWaitMs = 0};
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);

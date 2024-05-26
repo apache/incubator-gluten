@@ -392,6 +392,9 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"bitwise_not", "spark_bitwise_not"},
     {"bitwise_or", "spark_bitwise_or"},
     {"bitwise_xor", "spark_bitwise_xor"},
+    // TODO: the below registry for rand functions can be removed
+    // after presto function registry is removed.
+    {"rand", "spark_rand"},
     {"murmur3hash", "hash_with_seed"},
     {"xxhash64", "xxhash64_with_seed"},
     {"modulus", "remainder"},

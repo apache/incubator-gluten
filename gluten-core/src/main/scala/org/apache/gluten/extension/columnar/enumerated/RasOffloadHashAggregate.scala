@@ -14,19 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
-#include <string>
-#include <vector>
+package org.apache.gluten.extension.columnar.enumerated
 
-namespace local_engine
-{
-using PartitionValue = std::pair<std::string, std::string>;
-using PartitionValues = std::vector<PartitionValue>;
+import org.apache.gluten.execution.HashAggregateExecBaseTransformer
 
-class StringUtils
-{
-public:
-    static PartitionValues parsePartitionTablePath(const std::string & file);
-    static bool isNullPartitionValue(const std::string & value);
-};
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+
+object RasOffloadHashAggregate extends RasOffload {
+  override def offload(node: SparkPlan): SparkPlan = node match {
+    case agg: HashAggregateExec =>
+      val out = HashAggregateExecBaseTransformer.from(agg)()
+      out
+    case other => other
+  }
+
+  override def typeIdentifier(): RasOffload.TypeIdentifier =
+    RasOffload.TypeIdentifier.of[HashAggregateExec]
 }

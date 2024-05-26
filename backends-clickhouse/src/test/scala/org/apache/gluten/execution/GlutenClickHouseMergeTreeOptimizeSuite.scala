@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
@@ -122,11 +124,11 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     val ret = spark.sql("select count(*) from lineitem_mergetree_optimize_p").collect()
     assert(ret.apply(0).get(0) == 600572)
 
-    spark.sql("set spark.gluten.enabled=false")
+    spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
     assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p")) == 22728)
     spark.sql("VACUUM lineitem_mergetree_optimize_p RETAIN 0 HOURS")
     assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p")) == 22728)
-    spark.sql("set spark.gluten.enabled=true")
+    spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
     val ret2 = spark.sql("select count(*) from lineitem_mergetree_optimize_p").collect()
     assert(ret2.apply(0).get(0) == 600572)
@@ -154,14 +156,14 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     val ret = spark.sql("select count(*) from lineitem_mergetree_optimize_p2").collect()
     assert(ret.apply(0).get(0) == 600572)
 
-    spark.sql("set spark.gluten.enabled=false")
+    spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
     assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 812)
     spark.sql("VACUUM lineitem_mergetree_optimize_p2 RETAIN 0 HOURS")
     assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 232)
     spark.sql("VACUUM lineitem_mergetree_optimize_p2 RETAIN 0 HOURS")
     // the second VACUUM will remove some empty folders
     assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 220)
-    spark.sql("set spark.gluten.enabled=true")
+    spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
     val ret2 = spark.sql("select count(*) from lineitem_mergetree_optimize_p2").collect()
     assert(ret2.apply(0).get(0) == 600572)
@@ -185,13 +187,13 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       val ret = spark.sql("select count(*) from lineitem_mergetree_optimize_p3").collect()
       assert(ret.apply(0).get(0) == 600572)
 
-      spark.sql("set spark.gluten.enabled=false")
+      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 398)
       spark.sql("VACUUM lineitem_mergetree_optimize_p3 RETAIN 0 HOURS")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 286)
       spark.sql("VACUUM lineitem_mergetree_optimize_p3 RETAIN 0 HOURS")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 270)
-      spark.sql("set spark.gluten.enabled=true")
+      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
       val ret2 = spark.sql("select count(*) from lineitem_mergetree_optimize_p3").collect()
       assert(ret2.apply(0).get(0) == 600572)
@@ -216,13 +218,13 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       val ret = spark.sql("select count(*) from lineitem_mergetree_optimize_p4").collect()
       assert(ret.apply(0).get(0) == 600572)
 
-      spark.sql("set spark.gluten.enabled=false")
+      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 398)
       spark.sql("VACUUM lineitem_mergetree_optimize_p4 RETAIN 0 HOURS")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 286)
       spark.sql("VACUUM lineitem_mergetree_optimize_p4 RETAIN 0 HOURS")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 270)
-      spark.sql("set spark.gluten.enabled=true")
+      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
       val ret2 = spark.sql("select count(*) from lineitem_mergetree_optimize_p4").collect()
       assert(ret2.apply(0).get(0) == 600572)
@@ -246,11 +248,11 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
       spark.sql("optimize lineitem_mergetree_optimize_p5")
 
-      spark.sql("set spark.gluten.enabled=false")
+      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
       spark.sql("VACUUM lineitem_mergetree_optimize_p5 RETAIN 0 HOURS")
       spark.sql("VACUUM lineitem_mergetree_optimize_p5 RETAIN 0 HOURS")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p5")) == 99)
-      spark.sql("set spark.gluten.enabled=true")
+      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
       val ret = spark.sql("select count(*) from lineitem_mergetree_optimize_p5").collect()
       assert(ret.apply(0).get(0) == 600572)
@@ -266,11 +268,11 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
       spark.sql("optimize lineitem_mergetree_optimize_p5")
 
-      spark.sql("set spark.gluten.enabled=false")
+      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
       spark.sql("VACUUM lineitem_mergetree_optimize_p5 RETAIN 0 HOURS")
       spark.sql("VACUUM lineitem_mergetree_optimize_p5 RETAIN 0 HOURS")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p5")) == 93)
-      spark.sql("set spark.gluten.enabled=true")
+      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
       val ret = spark.sql("select count(*) from lineitem_mergetree_optimize_p5").collect()
       assert(ret.apply(0).get(0) == 600572)
@@ -279,11 +281,11 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     // now merge all parts (testing merging from merged parts)
     spark.sql("optimize lineitem_mergetree_optimize_p5")
 
-    spark.sql("set spark.gluten.enabled=false")
+    spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
     spark.sql("VACUUM lineitem_mergetree_optimize_p5 RETAIN 0 HOURS")
     spark.sql("VACUUM lineitem_mergetree_optimize_p5 RETAIN 0 HOURS")
     assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p5")) == 77)
-    spark.sql("set spark.gluten.enabled=true")
+    spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
     val ret = spark.sql("select count(*) from lineitem_mergetree_optimize_p5").collect()
     assert(ret.apply(0).get(0) == 600572)
@@ -309,7 +311,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     val ret = spark.sql("select count(*) from lineitem_mergetree_optimize_p6").collect()
     assert(ret.apply(0).get(0) == 600572)
 
-    spark.sql("set spark.gluten.enabled=false")
+    spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
     assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p6")) == {
       if (sparkVersion.equals("3.2")) 931 else 1014
     })
@@ -318,7 +320,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p6")) == {
       if (sparkVersion.equals("3.2")) 439 else 445
     })
-    spark.sql("set spark.gluten.enabled=true")
+    spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
     val ret2 = spark.sql("select count(*) from lineitem_mergetree_optimize_p6").collect()
     assert(ret2.apply(0).get(0) == 600572)
@@ -341,9 +343,9 @@ class GlutenClickHouseMergeTreeOptimizeSuite
                    |""".stripMargin)
 
       spark.sql("optimize lineitem_mergetree_index")
-      spark.sql("set spark.gluten.enabled=false")
+      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
       spark.sql("vacuum lineitem_mergetree_index")
-      spark.sql("set spark.gluten.enabled=true")
+      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
       val df = spark
         .sql(s"""
@@ -387,10 +389,10 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       val clickhouseTable = ClickhouseTable.forPath(spark, dataPath)
       clickhouseTable.optimize().executeCompaction()
 
-      spark.sql("set spark.gluten.enabled=false")
+      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
       clickhouseTable.vacuum(0.0)
       clickhouseTable.vacuum(0.0)
-      spark.sql("set spark.gluten.enabled=true")
+      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
       assert(countFiles(new File(dataPath)) == 99)
 
       val ret = spark.sql(s"select count(*) from clickhouse.`$dataPath`").collect()
@@ -408,10 +410,10 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       val clickhouseTable = ClickhouseTable.forPath(spark, dataPath)
       clickhouseTable.optimize().executeCompaction()
 
-      spark.sql("set spark.gluten.enabled=false")
+      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
       clickhouseTable.vacuum(0.0)
       clickhouseTable.vacuum(0.0)
-      spark.sql("set spark.gluten.enabled=true")
+      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
       assert(countFiles(new File(dataPath)) == 93)
 
       val ret = spark.sql(s"select count(*) from clickhouse.`$dataPath`").collect()
@@ -422,10 +424,10 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     val clickhouseTable = ClickhouseTable.forPath(spark, dataPath)
     clickhouseTable.optimize().executeCompaction()
 
-    spark.sql("set spark.gluten.enabled=false")
+    spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
     clickhouseTable.vacuum(0.0)
     clickhouseTable.vacuum(0.0)
-    spark.sql("set spark.gluten.enabled=true")
+    spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
     assert(countFiles(new File(dataPath)) == 77)
 
     val ret = spark.sql(s"select count(*) from clickhouse.`$dataPath`").collect()

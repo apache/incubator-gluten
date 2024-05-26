@@ -208,7 +208,8 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
     Map("numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
 
   override def genColumnarShuffleExchangeMetrics(
-      sparkContext: SparkContext): Map[String, SQLMetric] =
+      sparkContext: SparkContext,
+      isSort: Boolean): Map[String, SQLMetric] =
     Map(
       "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
       "bytesSpilled" -> SQLMetrics.createSizeMetric(sparkContext, "shuffle bytes spilled"),

@@ -49,7 +49,7 @@ concurrency:
 jobs:
   build-native-lib-centos-7:
     runs-on: ubuntu-20.04
-    container: apache/gluten:gluten-vcpkg-builder_2024_03_17 # centos7 with dependencies installed
+    container: apache/gluten:gluten-vcpkg-builder_2024_05_22 # centos7 with dependencies installed
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key
@@ -496,7 +496,7 @@ jobs:
 
   build-native-lib-centos-8:
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key
@@ -542,7 +542,7 @@ jobs:
   run-spark-test-spark32:
     needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -597,6 +597,7 @@ jobs:
           mv sql shims/spark32/spark_home/ && \
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install setuptools && \
           pip3 install pyspark==3.2.2 cython && \
           pip3 install pandas pyarrow
       - name: Build and run unit test for Spark 3.2.2 (other tests)
@@ -620,7 +621,7 @@ jobs:
   run-spark-test-spark32-slow:
     needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -666,7 +667,7 @@ jobs:
   run-spark-test-spark33:
     needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -717,6 +718,7 @@ jobs:
           mv sql shims/spark33/spark_home/ && \
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install setuptools && \
           pip3 install pyspark==3.3.1 cython && \
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.3.1 (other tests)
@@ -736,7 +738,7 @@ jobs:
   run-spark-test-spark33-slow:
     needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -782,7 +784,7 @@ jobs:
   run-spark-test-spark34:
     needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -833,6 +835,7 @@ jobs:
           mv sql shims/spark34/spark_home/ && \
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install setuptools && \
           pip3 install pyspark==3.4.2 cython && \
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.4.2 (other tests)
@@ -852,7 +855,7 @@ jobs:
   run-spark-test-spark34-slow:
     needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -898,7 +901,7 @@ jobs:
   run-spark-test-spark35:
     needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -949,6 +952,7 @@ jobs:
           mv sql shims/spark35/spark_home/ && \
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install setuptools && \
           pip3 install pyspark==3.5.1 cython && \
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.5.1 (other tests)
@@ -967,7 +971,7 @@ jobs:
   run-spark-test-spark35-slow:
     needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
