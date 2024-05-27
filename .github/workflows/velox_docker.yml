@@ -109,7 +109,8 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: velox-arrow-jar-centos-7-${{github.sha}}
-          path: /root//.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
+          path: /root/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
+        run: ls -l /root/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
       - name: Setup java and maven
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
