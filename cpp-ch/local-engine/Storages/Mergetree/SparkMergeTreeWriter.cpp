@@ -352,7 +352,7 @@ void SparkMergeTreeWriter::writeTempPart(MergeTreeDataWriter::TemporaryPart & te
     /// This effectively chooses minimal compression method:
     ///  either default lz4 or compression method with zero thresholds on absolute and relative part size.
     auto compression_codec = storage->getContext()->chooseCompressionCodec(0, 0);
-
+    auto txn = context->getCurrentTransaction();
     auto out = std::make_unique<MergedBlockOutputStream>(
         new_data_part,
         metadata_snapshot,
@@ -360,7 +360,7 @@ void SparkMergeTreeWriter::writeTempPart(MergeTreeDataWriter::TemporaryPart & te
         indices,
         MergeTreeStatisticsFactory::instance().getMany(metadata_snapshot->getColumns()),
         compression_codec,
-        context->getCurrentTransaction(),
+        txn ? txn->tid : Tx::PrehistoricTID,
         false,
         false,
         context->getWriteSettings());
