@@ -544,7 +544,12 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIterat
   auto ctx = gluten::getRuntime(env, wrapper);
 
   auto it = ctx->objectStore()->retrieve<ResultIterator>(iterHandle);
-  return it->spillFixedSize(size);
+  if (it == nullptr) {
+    LOG(WARNING) << "Try to spill on a closed iterator!";
+    return 0L;
+  } else {
+    return it->spillFixedSize(size);
+  }
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
