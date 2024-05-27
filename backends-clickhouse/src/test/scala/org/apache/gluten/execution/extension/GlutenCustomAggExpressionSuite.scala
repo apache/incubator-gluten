@@ -91,7 +91,7 @@ class GlutenCustomAggExpressionSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(planExecs(3).isInstanceOf[HashAggregateExec])
 
     val substraitContext = new SubstraitContext
-    planExecs(2).asInstanceOf[CHHashAggregateExecTransformer].executeTransform(substraitContext)
+    planExecs(2).asInstanceOf[CHHashAggregateExecTransformer].transform(substraitContext)
 
     // Check the functions
     assert(substraitContext.registeredFunction.containsKey("custom_sum_double:req_fp64"))

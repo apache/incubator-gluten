@@ -102,7 +102,7 @@ case class SortExecTransformer(
   }
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].executeTransform(context)
+    val childCtx = child.asInstanceOf[TransformSupport].transform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
     if (sortOrder == null || sortOrder.isEmpty) {
       // The computing for this project is not needed.

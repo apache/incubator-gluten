@@ -111,7 +111,7 @@ case class ExpandExecTransformer(
   }
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].executeTransform(context)
+    val childCtx = child.asInstanceOf[TransformSupport].transform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
     if (projections == null || projections.isEmpty) {
       // The computing for this Expand is not needed.

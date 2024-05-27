@@ -78,11 +78,11 @@ case class CartesianProductExecTransformer(
   }
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
-    val leftPlanContext = left.asInstanceOf[TransformSupport].executeTransform(context)
+    val leftPlanContext = left.asInstanceOf[TransformSupport].transform(context)
     val (inputLeftRelNode, inputLeftOutput) =
       (leftPlanContext.root, leftPlanContext.outputAttributes)
 
-    val rightPlanContext = right.asInstanceOf[TransformSupport].executeTransform(context)
+    val rightPlanContext = right.asInstanceOf[TransformSupport].transform(context)
     val (inputRightRelNode, inputRightOutput) =
       (rightPlanContext.root, rightPlanContext.outputAttributes)
 

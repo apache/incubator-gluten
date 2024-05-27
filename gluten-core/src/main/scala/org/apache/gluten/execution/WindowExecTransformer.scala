@@ -180,7 +180,7 @@ case class WindowExecTransformer(
   }
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].executeTransform(context)
+    val childCtx = child.asInstanceOf[TransformSupport].transform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
     if (windowExpression == null || windowExpression.isEmpty) {
       // The computing for this operator is not needed.

@@ -68,7 +68,7 @@ trait TransformSupport extends GlutenPlan {
    */
   def columnarInputRDDs: Seq[RDD[ColumnarBatch]]
 
-  final def executeTransform(context: SubstraitContext): TransformContext = {
+  final def transform(context: SubstraitContext): TransformContext = {
     if (isCanonicalizedPlan) {
       throw new IllegalStateException(
         "A canonicalized plan is not supposed to be executed transform.")
@@ -197,7 +197,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     val substraitContext = new SubstraitContext
     val childCtx = child
       .asInstanceOf[TransformSupport]
-      .executeTransform(substraitContext)
+      .transform(substraitContext)
     if (childCtx == null) {
       throw new NullPointerException(s"WholeStageTransformer can't do Transform on $child")
     }

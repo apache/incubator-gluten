@@ -54,7 +54,7 @@ case class LimitTransformer(child: SparkPlan, offset: Long, count: Long)
   }
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].executeTransform(context)
+    val childCtx = child.asInstanceOf[TransformSupport].transform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
     val relNode = getRelNode(context, operatorId, offset, count, child.output, childCtx.root, false)
     TransformContext(child.output, child.output, relNode)
