@@ -43,13 +43,16 @@ namespace {
 const int32_t kGzipWindowBits4k = 12;
 }
 
-void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
+void initSink(const std::unordered_map<std::string, std::string>& /** sparkConfs */) {
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
     sink_ = dwio::common::FileSink::create(filePath_, {.pool = pool_.get()});
   } else {
     throw std::runtime_error("The file path is not local when writing data with parquet format in velox runtime!");
   }
+}
 
+void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
+  initSink(sparkConfs);
   ArrowSchema cSchema{};
   arrow::Status status = arrow::ExportSchema(*(schema_.get()), &cSchema);
   if (!status.ok()) {

@@ -41,13 +41,12 @@ class VeloxParquetDatasourceABFS final : public VeloxParquetDatasource {
       std::shared_ptr<facebook::velox::memory::MemoryPool> sinkPool,
       std::shared_ptr<arrow::Schema> schema)
       : VeloxParquetDatasource(filePath, veloxPool, sinkPool, schema) {}
-  void init(const std::unordered_map<std::string, std::string>& sparkConfs) override {
+  void initSink(const std::unordered_map<std::string, std::string>& sparkConfs) override {
     auto hiveConf = getHiveConfig(std::make_shared<facebook::velox::core::MemConfig>(sparkConfs));
     auto fileSystem = filesystems::getFileSystem(filePath_, hiveConf);
     auto* abfsFileSystem = dynamic_cast<filesystems::abfs::AbfsFileSystem*>(fileSystem.get());
     sink_ = std::make_unique<dwio::common::WriteFileSink>(
         abfsFileSystem->openFileForWrite(filePath_, {{}, sinkPool_.get()}), filePath_);
-    VeloxParquetDatasource::init(sparkConfs);
   }
 };
 } // namespace gluten
