@@ -40,7 +40,8 @@ class VeloxParquetDatasourceGCS final : public VeloxParquetDatasource {
       std::shared_ptr<facebook::velox::memory::MemoryPool> sinkPool,
       std::shared_ptr<arrow::Schema> schema)
       : VeloxParquetDatasource(filePath, veloxPool, sinkPool, schema) {}
-  void initSink(const std::unordered_map<std::string, std::string>& /** sparkConfs*/) override {
+
+  void initSink(const std::unordered_map<std::string, std::string>& /* sparkConfs */) override {
     auto fileSystem = filesystems::getFileSystem(filePath_, nullptr);
     auto* gcsFileSystem = dynamic_cast<filesystems::GCSFileSystem*>(fileSystem.get());
     sink_ = std::make_unique<dwio::common::WriteFileSink>(
