@@ -67,12 +67,16 @@ jobs:
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
           source dev/ci-velox-buildstatic.sh
+      - name: 'Upload Artifact Native'
       - uses: actions/upload-artifact@v2
         with:
-          path: |
-            ./cpp/build/releases/
-            ~/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
+          path: ./cpp/build/releases/
           name: velox-native-lib-centos-7-${{github.sha}}
+      - name: 'Upload Artifact Arrow jar'
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ~/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
+          name: velox-arrow-jar-centos-7-${{github.sha}}
 
   run-tpc-test-ubuntu:
     needs: build-native-lib-centos-7
@@ -96,13 +100,16 @@ jobs:
     container: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
-      - name: Download All Artifacts
+      - name: Download All Native Artifacts
         uses: actions/download-artifact@v2
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: |
-            ./cpp/build/releases/
-            ~/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
+          path: ./cpp/build/releases/
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-arrow-jar-centos-7-${{github.sha}}
+          path: ~/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
       - name: Setup java and maven
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
