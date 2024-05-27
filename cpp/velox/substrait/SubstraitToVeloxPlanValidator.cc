@@ -68,7 +68,6 @@ static const std::unordered_set<std::string> kBlackList = {
     "repeat",
     "trunc",
     "sequence",
-    "arrays_overlap",
     "approx_percentile",
     "get_array_struct_fields"};
 
