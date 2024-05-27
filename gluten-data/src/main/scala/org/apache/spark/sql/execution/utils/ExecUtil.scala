@@ -81,7 +81,8 @@ object ExecUtil {
       newPartitioning: Partitioning,
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
-      metrics: Map[String, SQLMetric]): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
+      metrics: Map[String, SQLMetric],
+      isSort: Boolean): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     metrics("numPartitions").set(newPartitioning.numPartitions)
     val executionId = rdd.sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
     SQLMetrics.postDriverMetricUpdates(
@@ -200,7 +201,8 @@ object ExecUtil {
         serializer,
         shuffleWriterProcessor = ShuffleExchangeExec.createShuffleWriteProcessor(writeMetrics),
         nativePartitioning = nativePartitioning,
-        metrics = metrics
+        metrics = metrics,
+        isSort = isSort
       )
 
     dependency

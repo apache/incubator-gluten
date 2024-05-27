@@ -33,7 +33,7 @@ public:
             const String & hdfs_root_path_,
             SettingsPtr settings_,
             const Poco::Util::AbstractConfiguration & config_)
-        : HDFSObjectStorage(hdfs_root_path_, std::move(settings_), config_), config(config_)
+        : HDFSObjectStorage(hdfs_root_path_, std::move(settings_), config_, /* lazy_initialize */true), config(config_)
     {
     }
     std::unique_ptr<DB::ReadBufferFromFileBase> readObject( /// NOLINT

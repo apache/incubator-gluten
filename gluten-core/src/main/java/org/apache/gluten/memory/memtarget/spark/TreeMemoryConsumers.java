@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class TreeMemoryConsumers {
-
   private static final Map<Long, Factory> FACTORIES = new ConcurrentHashMap<>();
 
   private TreeMemoryConsumers() {}
@@ -61,8 +60,7 @@ public final class TreeMemoryConsumers {
   }
 
   public static class Factory {
-
-    private static final ReferenceMap MAP = new ReferenceMap(ReferenceMap.WEAK, ReferenceMap.WEAK);
+    private final ReferenceMap map = new ReferenceMap(ReferenceMap.WEAK, ReferenceMap.WEAK);
     private final long perTaskCapacity;
 
     private Factory(long perTaskCapacity) {
@@ -71,9 +69,9 @@ public final class TreeMemoryConsumers {
 
     @SuppressWarnings("unchecked")
     private TreeMemoryTarget getSharedAccount(TaskMemoryManager tmm) {
-      synchronized (MAP) {
+      synchronized (map) {
         return (TreeMemoryTarget)
-            MAP.computeIfAbsent(
+            map.computeIfAbsent(
                 tmm,
                 m -> {
                   TreeMemoryTarget tmc = new TreeMemoryConsumer((TaskMemoryManager) m);
@@ -88,7 +86,7 @@ public final class TreeMemoryConsumers {
         String name,
         List<Spiller> spillers,
         Map<String, MemoryUsageStatsBuilder> virtualChildren) {
-      TreeMemoryTarget account = getSharedAccount(tmm);
+      final TreeMemoryTarget account = getSharedAccount(tmm);
       return account.newChild(
           name, TreeMemoryConsumer.CAPACITY_UNLIMITED, spillers, virtualChildren);
     }

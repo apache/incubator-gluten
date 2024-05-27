@@ -14,7 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "GlutenStringUtils.h"
+#include <filesystem>
+#include <boost/algorithm/string.hpp>
+#include <Poco/StringTokenizer.h>
 
-#include "RemotePartitionWriter.h"
-
-namespace gluten {} // namespace gluten
+namespace local_engine
+{
+PartitionValues GlutenStringUtils::parsePartitionTablePath(const std::string & file)
+{
+    PartitionValues result;
+    Poco::StringTokenizer path(file, "/");
+    for (const auto & item : path)
+    {
+        auto position = item.find('=');
+        if (position != std::string::npos)
+        {
+            result.emplace_back(PartitionValue(boost::algorithm::to_lower_copy(item.substr(0, position)), item.substr(position + 1)));
+        }
+    }
+    return result;
+}
+bool GlutenStringUtils::isNullPartitionValue(const std::string & value)
+{
+    return value == "__HIVE_DEFAULT_PARTITION__";
+}
+}

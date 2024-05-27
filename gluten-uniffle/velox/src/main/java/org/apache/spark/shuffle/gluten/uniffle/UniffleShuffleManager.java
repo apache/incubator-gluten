@@ -59,6 +59,8 @@ public class UniffleShuffleManager extends RssShuffleManager {
     }
     RssShuffleHandle<K, V, V> rssHandle = (RssShuffleHandle<K, V, V>) handle;
     if (rssHandle.getDependency() instanceof ColumnarShuffleDependency) {
+      ColumnarShuffleDependency<K, V, V> dependency =
+          (ColumnarShuffleDependency<K, V, V>) rssHandle.getDependency();
       setPusherAppId(rssHandle);
       String taskId = "" + context.taskAttemptId() + "_" + context.attemptNumber();
       ShuffleWriteMetrics writeMetrics;
@@ -79,7 +81,8 @@ public class UniffleShuffleManager extends RssShuffleManager {
           shuffleWriteClient,
           rssHandle,
           this::markFailedTask,
-          context);
+          context,
+          dependency.isSort());
     } else {
       return super.getWriter(handle, mapId, context, metrics);
     }

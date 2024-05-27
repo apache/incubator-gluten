@@ -21,7 +21,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 
 object RasOffloadFilter extends RasOffload {
-  override protected def offload(node: SparkPlan): SparkPlan = node match {
+  override def offload(node: SparkPlan): SparkPlan = node match {
     case FilterExec(condition, child) =>
       val out = BackendsApiManager.getSparkPlanExecApiInstance
         .genFilterExecTransformer(condition, child)
@@ -29,4 +29,7 @@ object RasOffloadFilter extends RasOffload {
     case other =>
       other
   }
+
+  override def typeIdentifier(): RasOffload.TypeIdentifier =
+    RasOffload.TypeIdentifier.of[FilterExec]
 }

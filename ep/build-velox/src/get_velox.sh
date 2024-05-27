@@ -16,8 +16,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/gaoyangxiaozhu/velox.git
-VELOX_BRANCH=gayangya/row_index_test
+VELOX_REPO=https://github.com/oap-project/velox.git
+VELOX_BRANCH=2024_05_24
 VELOX_HOME=""
 
 #Set on run gluten on HDFS

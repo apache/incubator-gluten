@@ -14,18 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar.enumerated
+package org.apache.spark.sql.utils
 
-import org.apache.gluten.execution.HashAggregateExecBaseTransformer
+import org.apache.spark.util.Utils
 
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
-
-object RasOffloadAggregate extends RasOffload {
-  override protected def offload(node: SparkPlan): SparkPlan = node match {
-    case agg: HashAggregateExec =>
-      val out = HashAggregateExecBaseTransformer.from(agg)()
-      out
-    case other => other
+object ReflectionUtil {
+  def classForName[C](
+      className: String,
+      initialize: Boolean = true,
+      noSparkClassLoader: Boolean = false): Class[C] = {
+    Utils.classForName(className, initialize, noSparkClassLoader)
   }
 }

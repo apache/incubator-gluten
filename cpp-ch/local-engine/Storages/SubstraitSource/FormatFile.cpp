@@ -18,9 +18,9 @@
 
 #include <memory>
 #include <IO/ReadBufferFromFile.h>
-#include "Common/CHUtil.h"
+#include <Common/CHUtil.h>
 #include <Common/Exception.h>
-#include <Common/StringUtils.h>
+#include <Common/GlutenStringUtils.h>
 #include <Common/logger_useful.h>
 
 #if USE_PARQUET
@@ -53,7 +53,7 @@ FormatFile::FormatFile(
     const ReadBufferBuilderPtr & read_buffer_builder_)
     : context(context_), file_info(file_info_), read_buffer_builder(read_buffer_builder_)
 {
-    PartitionValues part_vals = StringUtils::parsePartitionTablePath(file_info.uri_file());
+    PartitionValues part_vals = GlutenStringUtils::parsePartitionTablePath(file_info.uri_file());
     String partition_values_str = "[";
     for (size_t i = 0; i < part_vals.size(); ++i)
     {

@@ -52,11 +52,7 @@ arrow::Status VeloxSortBasedShuffleWriter::init() {
       partitioner_, Partitioner::make(options_.partitioning, numPartitions_, options_.startPartitionId));
   DLOG(INFO) << "Create partitioning type: " << std::to_string(options_.partitioning);
 
-  partition2RowCount_.resize(numPartitions_);
   rowVectorIndexMap_.reserve(numPartitions_);
-  for (auto pid = 0; pid < numPartitions_; ++pid) {
-    rowVectorIndexMap_[pid].reserve(options_.bufferSize);
-  }
   bufferOutputStream_ = std::make_unique<BufferOutputStream>(veloxPool_.get());
 
   return arrow::Status::OK();
@@ -68,7 +64,6 @@ arrow::Status VeloxSortBasedShuffleWriter::doSort(facebook::velox::RowVectorPtr 
   if (currentInputColumnBytes_ > memLimit) {
     for (auto pid = 0; pid < numPartitions(); ++pid) {
       RETURN_NOT_OK(evictRowVector(pid));
-      partition2RowCount_[pid] = 0;
     }
     batches_.clear();
     currentInputColumnBytes_ = 0;
@@ -77,7 +72,7 @@ arrow::Status VeloxSortBasedShuffleWriter::doSort(facebook::velox::RowVectorPtr 
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxSortBasedShuffleWriter::write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) {
+arrow::Status VeloxSortBasedShuffleWriter::write(std::shared_ptr<ColumnarBatch> cb, int64_t /* memLimit */) {
   if (options_.partitioning == Partitioning::kSingle) {
     auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
     VELOX_CHECK_NOT_NULL(veloxColumnBatch);
@@ -199,7 +194,6 @@ arrow::Status VeloxSortBasedShuffleWriter::evictRowVector(uint32_t partitionId) 
 arrow::Status VeloxSortBasedShuffleWriter::stop() {
   for (auto pid = 0; pid < numPartitions(); ++pid) {
     RETURN_NOT_OK(evictRowVector(pid));
-    partition2RowCount_[pid] = 0;
   }
   batches_.clear();
   currentInputColumnBytes_ = 0;
@@ -236,7 +230,6 @@ arrow::Status VeloxSortBasedShuffleWriter::reclaimFixedSize(int64_t size, int64_
   if (sortState_ == SortState::kSortInit) {
     for (auto pid = 0; pid < numPartitions(); ++pid) {
       RETURN_NOT_OK(evictRowVector(pid));
-      partition2RowCount_[pid] = 0;
     }
     batches_.clear();
     *actual = currentInputColumnBytes_;

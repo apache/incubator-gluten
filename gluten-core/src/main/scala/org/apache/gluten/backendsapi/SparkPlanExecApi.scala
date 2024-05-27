@@ -166,13 +166,6 @@ trait SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
   }
 
-  def genRandTransformer(
-      substraitExprName: String,
-      explicitSeed: ExpressionTransformer,
-      original: Rand): ExpressionTransformer = {
-    RandTransformer(substraitExprName, explicitSeed, original)
-  }
-
   /** Generate an expression transformer to transform GetMapValue to Substrait. */
   def genGetMapValueTransformer(
       substraitExprName: String,
@@ -319,7 +312,8 @@ trait SparkPlanExecApi {
       newPartitioning: Partitioning,
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
-      metrics: Map[String, SQLMetric]): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch]
+      metrics: Map[String, SQLMetric],
+      isSort: Boolean): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch]
 
   /**
    * Generate ColumnarShuffleWriter for ColumnarShuffleManager.
@@ -334,7 +328,10 @@ trait SparkPlanExecApi {
    *
    * @return
    */
-  def createColumnarBatchSerializer(schema: StructType, metrics: Map[String, SQLMetric]): Serializer
+  def createColumnarBatchSerializer(
+      schema: StructType,
+      metrics: Map[String, SQLMetric],
+      isSort: Boolean): Serializer
 
   /** Create broadcast relation for BroadcastExchangeExec */
   def createBroadcastRelation(

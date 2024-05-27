@@ -33,12 +33,10 @@ sealed trait AdaptiveContext {
 }
 
 object AdaptiveContext {
-  def apply(session: SparkSession): AdaptiveContext = new AdaptiveContextImpl(session)
+  def apply(session: SparkSession, aqeStackTraceIndex: Int): AdaptiveContext =
+    new AdaptiveContextImpl(session, aqeStackTraceIndex)
 
   private val GLUTEN_IS_ADAPTIVE_CONTEXT = "gluten.isAdaptiveContext"
-
-  // This is an empirical value, may need to be changed for supporting other versions of spark.
-  private val aqeStackTraceIndex = 19
 
   // Holds the original plan for possible entire fallback.
   private val localOriginalPlans: ThreadLocal[ListBuffer[SparkPlan]] =
@@ -46,7 +44,8 @@ object AdaptiveContext {
   private val localIsAdaptiveContextFlags: ThreadLocal[ListBuffer[Boolean]] =
     ThreadLocal.withInitial(() => ListBuffer.empty[Boolean])
 
-  private class AdaptiveContextImpl(session: SparkSession) extends AdaptiveContext {
+  private class AdaptiveContextImpl(session: SparkSession, aqeStackTraceIndex: Int)
+    extends AdaptiveContext {
     // Just for test use.
     override def enableAdaptiveContext(): Unit = {
       session.sparkContext.setLocalProperty(GLUTEN_IS_ADAPTIVE_CONTEXT, "true")

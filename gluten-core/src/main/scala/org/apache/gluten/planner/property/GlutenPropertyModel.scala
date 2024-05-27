@@ -28,14 +28,14 @@ object GlutenPropertyModel {
 
   private object PropertyModelImpl extends PropertyModel[SparkPlan] {
     override def propertyDefs: Seq[PropertyDef[SparkPlan, _ <: Property[SparkPlan]]] =
-      Seq(ConventionDef)
+      Seq(ConvDef)
 
     override def newEnforcerRuleFactory(
         propertyDef: PropertyDef[SparkPlan, _ <: Property[SparkPlan]])
         : EnforcerRuleFactory[SparkPlan] = (reqProp: Property[SparkPlan]) => {
       propertyDef match {
-        case ConventionDef =>
-          Seq(ConventionEnforcerRule(reqProp.asInstanceOf[Convention]))
+        case ConvDef =>
+          Seq(ConvEnforcerRule(reqProp.asInstanceOf[Conv]))
       }
     }
   }

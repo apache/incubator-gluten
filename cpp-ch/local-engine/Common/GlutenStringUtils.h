@@ -14,19 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #pragma once
+#include <string>
+#include <vector>
 
-#include "shuffle/PartitionWriter.h"
+namespace local_engine
+{
+using PartitionValue = std::pair<std::string, std::string>;
+using PartitionValues = std::vector<PartitionValue>;
 
-#include <arrow/memory_pool.h>
-
-namespace gluten {
-
-class RemotePartitionWriter : public PartitionWriter {
- public:
-  explicit RemotePartitionWriter(uint32_t numPartitions, PartitionWriterOptions options, arrow::MemoryPool* pool)
-      : PartitionWriter(numPartitions, std::move(options), pool) {}
+class GlutenStringUtils
+{
+public:
+    static PartitionValues parsePartitionTablePath(const std::string & file);
+    static bool isNullPartitionValue(const std::string & value);
 };
-
-} // namespace gluten
+}

@@ -17,20 +17,22 @@
 package org.apache.gluten.extension.columnar.transition
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.columnar.transition.Convention.{BatchType, RowType}
+import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildrenConventions
 import org.apache.gluten.sql.shims.SparkShimLoader
 
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan, UnionExec}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, QueryStageExec}
+import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
-/** ConventionFunc is a utility to derive [[Convention]] from a query plan. */
+/** ConventionFunc is a utility to derive [[Convention]] or [[ConventionReq]] from a query plan. */
 trait ConventionFunc {
   def conventionOf(plan: SparkPlan): Convention
+  def conventionReqOf(plan: SparkPlan): ConventionReq
 }
 
 object ConventionFunc {
-  type BatchOverride = PartialFunction[SparkPlan, BatchType]
+  type BatchOverride = PartialFunction[SparkPlan, Convention.BatchType]
 
   // For testing, to make things work without a backend loaded.
   private var ignoreBackend: Boolean = false
@@ -47,18 +49,22 @@ object ConventionFunc {
   }
 
   def create(): ConventionFunc = {
-    synchronized {
-      if (ignoreBackend) {
-        // For testing
-        return new BuiltinFunc(PartialFunction.empty)
-      }
-    }
-    val batchOverride = BackendsApiManager.getSparkPlanExecApiInstance.batchTypeFunc()
+    val batchOverride = newOverride()
     new BuiltinFunc(batchOverride)
   }
 
-  private class BuiltinFunc(o: BatchOverride) extends ConventionFunc {
+  private def newOverride(): BatchOverride = {
+    synchronized {
+      if (ignoreBackend) {
+        // For testing
+        return PartialFunction.empty
+      }
+    }
+    BackendsApiManager.getSparkPlanExecApiInstance.batchTypeFunc()
+  }
 
+  private class BuiltinFunc(o: BatchOverride) extends ConventionFunc {
+    import BuiltinFunc._
     override def conventionOf(plan: SparkPlan): Convention = {
       val conv = conventionOf0(plan)
       conv
@@ -82,7 +88,7 @@ object ConventionFunc {
           // See org.apache.gluten.extension.columnar.transition.InsertTransitions.apply
           BackendsApiManager.getSparkPlanExecApiInstance.batchType
         } else {
-          BatchType.None
+          Convention.BatchType.None
         }
         val conv = Convention.of(rowType, batchType)
         conv
@@ -91,25 +97,94 @@ object ConventionFunc {
         conv
     }
 
-    private def rowTypeOf(plan: SparkPlan): RowType = {
-      if (!SparkShimLoader.getSparkShims.supportsRowBased(plan)) {
-        return RowType.None
+    private def rowTypeOf(plan: SparkPlan): Convention.RowType = {
+      val out = plan match {
+        case k: Convention.KnownRowType =>
+          k.rowType()
+        case _ if !SparkShimLoader.getSparkShims.supportsRowBased(plan) =>
+          Convention.RowType.None
+        case _ =>
+          Convention.RowType.VanillaRow
       }
-      RowType.VanillaRow
+      if (out != Convention.RowType.None) {
+        assert(SparkShimLoader.getSparkShims.supportsRowBased(plan))
+      }
+      out
     }
 
-    private def batchTypeOf(plan: SparkPlan): BatchType = {
-      if (!plan.supportsColumnar) {
-        return BatchType.None
-      }
-      o.applyOrElse(
+    private def batchTypeOf(plan: SparkPlan): Convention.BatchType = {
+      val out = o.applyOrElse(
         plan,
         (p: SparkPlan) =>
           p match {
-            case g: Convention.KnownBatchType => g.batchType()
-            case _ => BatchType.VanillaBatch
+            case k: Convention.KnownBatchType =>
+              k.batchType()
+            case _ if !plan.supportsColumnar =>
+              Convention.BatchType.None
+            case _ =>
+              Convention.BatchType.VanillaBatch
           }
       )
+      if (out != Convention.BatchType.None) {
+        assert(plan.supportsColumnar)
+      }
+      out
+    }
+
+    override def conventionReqOf(plan: SparkPlan): ConventionReq = {
+      val out = conventionReqOf0(plan)
+      out
+    }
+
+    private def conventionReqOf0(plan: SparkPlan): ConventionReq = plan match {
+      case k: KnownChildrenConventions =>
+        val reqs = k.requiredChildrenConventions().distinct
+        // This can be a temporary restriction.
+        assert(
+          reqs.size == 1,
+          "KnownChildrenConventions#requiredChildrenConventions should output the same element" +
+            " for all children")
+        reqs.head
+      case RowToColumnarLike(_) =>
+        ConventionReq.of(
+          ConventionReq.RowType.Is(Convention.RowType.VanillaRow),
+          ConventionReq.BatchType.Any)
+      case ColumnarToRowExec(_) =>
+        ConventionReq.of(
+          ConventionReq.RowType.Any,
+          ConventionReq.BatchType.Is(Convention.BatchType.VanillaBatch))
+      case write: DataWritingCommandExec if SparkShimLoader.getSparkShims.isPlannedV1Write(write) =>
+        // To align with ApplyColumnarRulesAndInsertTransitions#insertTransitions
+        ConventionReq.any
+      case u: UnionExec =>
+        // We force vanilla union to output row data to get best compatibility with vanilla Spark.
+        // As a result it's a common practice to rewrite it with GlutenPlan for offloading.
+        ConventionReq.of(
+          ConventionReq.RowType.Is(Convention.RowType.VanillaRow),
+          ConventionReq.BatchType.Any)
+      case other =>
+        // In the normal case, children's convention should follow parent node's convention.
+        // Note, we don't have consider C2R / R2C here since they are already removed by
+        // RemoveTransitions.
+        val thisConv = conventionOf0(other)
+        thisConv.asReq()
+    }
+  }
+
+  private object BuiltinFunc {
+    implicit private class ConventionOps(conv: Convention) {
+      def asReq(): ConventionReq = {
+        val rowTypeReq = conv.rowType match {
+          case Convention.RowType.None => ConventionReq.RowType.Any
+          case r => ConventionReq.RowType.Is(r)
+        }
+
+        val batchTypeReq = conv.batchType match {
+          case Convention.BatchType.None => ConventionReq.BatchType.Any
+          case b => ConventionReq.BatchType.Is(b)
+        }
+        ConventionReq.of(rowTypeReq, batchTypeReq)
+      }
     }
   }
 }

@@ -69,7 +69,8 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
       double reallocThreshold,
       long handle,
       long taskAttemptId,
-      int startPartitionId) {
+      int startPartitionId,
+      String shuffleWriterType) {
     return nativeMake(
         part.getShortName(),
         part.getNumPartitions(),
@@ -93,7 +94,7 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
         0,
         null,
         "local",
-        "hash");
+        shuffleWriterType);
   }
 
   /**

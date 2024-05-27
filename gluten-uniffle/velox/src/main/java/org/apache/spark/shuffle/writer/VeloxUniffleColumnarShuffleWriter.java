@@ -72,6 +72,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
   private int nativeBufferSize = GlutenConfig.getConf().maxBatchSize();
   private int bufferSize;
   private PartitionPusher partitionPusher;
+  private Boolean isSort;
 
   private final ColumnarShuffleDependency<K, V, V> columnarDep;
   private final SparkConf sparkConf;
@@ -93,7 +94,8 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
       ShuffleWriteClient shuffleWriteClient,
       RssShuffleHandle<K, V, V> rssHandle,
       Function<String, Boolean> taskFailureCallback,
-      TaskContext context) {
+      TaskContext context,
+      Boolean isSort) {
     super(
         appId,
         shuffleId,
@@ -109,6 +111,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
     columnarDep = (ColumnarShuffleDependency<K, V, V>) rssHandle.getDependency();
     this.partitionId = partitionId;
     this.sparkConf = sparkConf;
+    this.isSort = isSort;
     bufferSize =
         (int)
             sparkConf.getSizeAsBytes(
@@ -181,7 +184,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   GlutenShuffleUtils.getStartPartitionId(
                       columnarDep.nativePartitioning(), partitionId),
                   "uniffle",
-                  "hash",
+                  isSort ? "sort" : "hash",
                   reallocThreshold);
         }
         long startTime = System.nanoTime();
