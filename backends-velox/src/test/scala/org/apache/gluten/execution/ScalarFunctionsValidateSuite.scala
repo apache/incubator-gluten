@@ -643,6 +643,12 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("soundex") {
+    runQueryAndCompare("select soundex(c_comment) from customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("Test make_timestamp function") {
     withTempPath {
       path =>

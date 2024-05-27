@@ -76,6 +76,7 @@ object ExpressionMappings {
     Sig[Length](LENGTH),
     Sig[Lower](LOWER),
     Sig[Upper](UPPER),
+    Sig[SoundEx](SOUNDEX),
     Sig[StringLocate](LOCATE),
     Sig[StringTrimLeft](LTRIM),
     Sig[StringTrimRight](RTRIM),

@@ -113,6 +113,7 @@ object ExpressionNames {
   final val LEFT = "left"
   final val REPEAT = "repeat"
   final val TRANSLATE = "translate"
+  final val SOUNDEX = "soundex"
   final val SPACE = "space"
   final val EMPTY2NULL = "empty2null"
   final val INITCAP = "initcap"
