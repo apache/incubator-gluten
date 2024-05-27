@@ -32,6 +32,19 @@ import org.apache.spark.sql.types.DoubleType
 
 import scala.collection.JavaConverters._
 
+/**
+ * SampleExec supports two sampling methods: with replacement and without replacement. This
+ * transformer currently supports only sampling without replacement. For sampling without
+ * replacement, sampleExec uses `seed + partitionId` as the seed for each partition. The `upperBound
+ * \- lowerBound` value is used as the fraction, and the XORShiftRandom number generator is
+ * employed. Each row undergoes a Bernoulli trial, and if the generated random number falls within
+ * the range [lowerBound, upperBound), the row is included; otherwise, it is skipped.
+ *
+ * This transformer converts sampleExec to a Substrait Filter relation, achieving a similar sampling
+ * effect through the filter op with rand sampling expression. Specifically, the `upperBound -
+ * lowerBound` value is used as the fraction, and the node be translated to `filter(rand(seed +
+ * partitionId) < fraction)` for random sampling.
+ */
 case class SampleExecTransformer(
     lowerBound: Double,
     upperBound: Double,
