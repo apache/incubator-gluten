@@ -42,8 +42,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableGluten: Boolean = conf.getConf(GLUTEN_ENABLED)
 
-  def enableRas: Boolean = conf.getConf(RAS_ENABLED)
-
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   def enableNativeValidation: Boolean = conf.getConf(NATIVE_VALIDATION_ENABLED)
 
@@ -250,6 +248,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def conservativeTaskOffHeapMemorySize: Long =
     conf.getConf(COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES)
+
+  // Options used by RAS.
+  def enableRas: Boolean = conf.getConf(RAS_ENABLED)
+
+  def rasCostModel: String = conf.getConf(RAS_COST_MODEL)
 
   def enableVeloxCache: Boolean = conf.getConf(COLUMNAR_VELOX_CACHE_ENABLED)
 
@@ -704,15 +707,6 @@ object GlutenConfig {
         " Recommend to enable/disable Gluten through the setting for spark.plugins.")
       .booleanConf
       .createWithDefault(GLUTEN_ENABLE_BY_DEFAULT)
-
-  val RAS_ENABLED =
-    buildConf("spark.gluten.sql.ras.enabled")
-      .doc(
-        "Experimental: Enables RAS (relational algebra selector) during physical " +
-          "planning to generate more efficient query plan. Note, this feature is still in " +
-          "development and may not bring performance profits.")
-      .booleanConf
-      .createWithDefault(false)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   val NATIVE_VALIDATION_ENABLED =
@@ -1202,7 +1196,25 @@ object GlutenConfig {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8MB")
 
-  // velox caching options
+  // Options used by RAS.
+  val RAS_ENABLED =
+    buildConf("spark.gluten.ras.enabled")
+      .doc(
+        "Experimental: Enables RAS (relational algebra selector) during physical " +
+          "planning to generate more efficient query plan. Note, this feature is still in " +
+          "development and may not bring performance profits.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val RAS_COST_MODEL =
+    buildConf("spark.gluten.ras.costModel")
+      .doc(
+        "Experimental: The classpath of user-defined cost model that will be used by RAS. " +
+          "If not specified, a rough built-in cost model will be used.")
+      .stringConf
+      .createWithDefaultString("rough")
+
+  // velox caching options.
   val COLUMNAR_VELOX_CACHE_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.cacheEnabled")
       .internal()

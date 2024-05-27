@@ -19,6 +19,7 @@ package org.apache.gluten.extension.columnar.enumerated
 import org.apache.gluten.extension.columnar.{OffloadExchange, OffloadJoin, OffloadOthers}
 import org.apache.gluten.extension.columnar.transition.ConventionReq
 import org.apache.gluten.planner.GlutenOptimization
+import org.apache.gluten.planner.cost.GlutenCostModel
 import org.apache.gluten.planner.property.Conv
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -79,7 +80,13 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
     RasOffload.from[EvalPythonExec](OffloadOthers()).toRule
   )
 
-  private val optimization = GlutenOptimization(rules ++ offloadRules)
+  private val optimization = {
+    GlutenOptimization
+      .builder()
+      .costModel(GlutenCostModel.find())
+      .addRules(rules ++ offloadRules)
+      .create()
+  }
 
   private val reqConvention = Conv.any
 

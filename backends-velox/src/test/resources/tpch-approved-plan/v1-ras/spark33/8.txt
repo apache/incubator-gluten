@@ -1,158 +1,166 @@
 == Physical Plan ==
-AdaptiveSparkPlan (169)
+AdaptiveSparkPlan (177)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (117)
-   +- ^ SortExecTransformer (115)
-      +- ^ InputIteratorTransformer (114)
-         +- ^ InputAdapter (113)
-            +- ^ ShuffleQueryStage (112), Statistics(X)
-               +- ColumnarExchange (111)
-                  +- ^ ProjectExecTransformer (109)
-                     +- ^ RegularHashAggregateExecTransformer (108)
-                        +- ^ InputIteratorTransformer (107)
-                           +- ^ InputAdapter (106)
-                              +- ^ ShuffleQueryStage (105), Statistics(X)
-                                 +- ColumnarExchange (104)
-                                    +- ^ ProjectExecTransformer (102)
-                                       +- ^ FlushableHashAggregateExecTransformer (101)
-                                          +- ^ ProjectExecTransformer (100)
-                                             +- ^ ShuffledHashJoinExecTransformer Inner (99)
-                                                :- ^ InputIteratorTransformer (91)
-                                                :  +- ^ InputAdapter (90)
-                                                :     +- ^ ShuffleQueryStage (89), Statistics(X)
-                                                :        +- ColumnarExchange (88)
-                                                :           +- ^ ProjectExecTransformer (86)
-                                                :              +- ^ ShuffledHashJoinExecTransformer Inner (85)
-                                                :                 :- ^ InputIteratorTransformer (77)
-                                                :                 :  +- ^ InputAdapter (76)
-                                                :                 :     +- ^ ShuffleQueryStage (75), Statistics(X)
-                                                :                 :        +- ColumnarExchange (74)
-                                                :                 :           +- ^ ProjectExecTransformer (72)
-                                                :                 :              +- ^ ShuffledHashJoinExecTransformer Inner (71)
-                                                :                 :                 :- ^ InputIteratorTransformer (63)
-                                                :                 :                 :  +- ^ InputAdapter (62)
-                                                :                 :                 :     +- ^ ShuffleQueryStage (61), Statistics(X)
-                                                :                 :                 :        +- ColumnarExchange (60)
-                                                :                 :                 :           +- ^ ProjectExecTransformer (58)
-                                                :                 :                 :              +- ^ ShuffledHashJoinExecTransformer Inner (57)
-                                                :                 :                 :                 :- ^ InputIteratorTransformer (49)
-                                                :                 :                 :                 :  +- ^ InputAdapter (48)
-                                                :                 :                 :                 :     +- ^ ShuffleQueryStage (47), Statistics(X)
-                                                :                 :                 :                 :        +- ColumnarExchange (46)
-                                                :                 :                 :                 :           +- ^ ProjectExecTransformer (44)
-                                                :                 :                 :                 :              +- ^ ShuffledHashJoinExecTransformer Inner (43)
-                                                :                 :                 :                 :                 :- ^ InputIteratorTransformer (35)
-                                                :                 :                 :                 :                 :  +- ^ InputAdapter (34)
-                                                :                 :                 :                 :                 :     +- ^ ShuffleQueryStage (33), Statistics(X)
-                                                :                 :                 :                 :                 :        +- ColumnarExchange (32)
-                                                :                 :                 :                 :                 :           +- ^ ProjectExecTransformer (30)
-                                                :                 :                 :                 :                 :              +- ^ ShuffledHashJoinExecTransformer Inner (29)
-                                                :                 :                 :                 :                 :                 :- ^ InputIteratorTransformer (21)
-                                                :                 :                 :                 :                 :                 :  +- ^ InputAdapter (20)
-                                                :                 :                 :                 :                 :                 :     +- ^ ShuffleQueryStage (19), Statistics(X)
-                                                :                 :                 :                 :                 :                 :        +- ColumnarExchange (18)
-                                                :                 :                 :                 :                 :                 :           +- ^ ProjectExecTransformer (16)
-                                                :                 :                 :                 :                 :                 :              +- ^ ShuffledHashJoinExecTransformer Inner (15)
-                                                :                 :                 :                 :                 :                 :                 :- ^ InputIteratorTransformer (7)
-                                                :                 :                 :                 :                 :                 :                 :  +- ^ InputAdapter (6)
-                                                :                 :                 :                 :                 :                 :                 :     +- ^ ShuffleQueryStage (5), Statistics(X)
-                                                :                 :                 :                 :                 :                 :                 :        +- ColumnarExchange (4)
-                                                :                 :                 :                 :                 :                 :                 :           +- ^ ProjectExecTransformer (2)
-                                                :                 :                 :                 :                 :                 :                 :              +- ^ Scan parquet (1)
-                                                :                 :                 :                 :                 :                 :                 +- ^ InputIteratorTransformer (14)
-                                                :                 :                 :                 :                 :                 :                    +- ^ InputAdapter (13)
-                                                :                 :                 :                 :                 :                 :                       +- ^ ShuffleQueryStage (12), Statistics(X)
-                                                :                 :                 :                 :                 :                 :                          +- ColumnarExchange (11)
-                                                :                 :                 :                 :                 :                 :                             +- ^ ProjectExecTransformer (9)
-                                                :                 :                 :                 :                 :                 :                                +- ^ Scan parquet (8)
-                                                :                 :                 :                 :                 :                 +- ^ InputIteratorTransformer (28)
-                                                :                 :                 :                 :                 :                    +- ^ InputAdapter (27)
-                                                :                 :                 :                 :                 :                       +- ^ ShuffleQueryStage (26), Statistics(X)
-                                                :                 :                 :                 :                 :                          +- ColumnarExchange (25)
-                                                :                 :                 :                 :                 :                             +- ^ ProjectExecTransformer (23)
-                                                :                 :                 :                 :                 :                                +- ^ Scan parquet (22)
-                                                :                 :                 :                 :                 +- ^ InputIteratorTransformer (42)
-                                                :                 :                 :                 :                    +- ^ InputAdapter (41)
-                                                :                 :                 :                 :                       +- ^ ShuffleQueryStage (40), Statistics(X)
-                                                :                 :                 :                 :                          +- ColumnarExchange (39)
-                                                :                 :                 :                 :                             +- ^ ProjectExecTransformer (37)
-                                                :                 :                 :                 :                                +- ^ Scan parquet (36)
-                                                :                 :                 :                 +- ^ InputIteratorTransformer (56)
-                                                :                 :                 :                    +- ^ InputAdapter (55)
-                                                :                 :                 :                       +- ^ ShuffleQueryStage (54), Statistics(X)
-                                                :                 :                 :                          +- ColumnarExchange (53)
-                                                :                 :                 :                             +- ^ ProjectExecTransformer (51)
-                                                :                 :                 :                                +- ^ Scan parquet (50)
-                                                :                 :                 +- ^ InputIteratorTransformer (70)
-                                                :                 :                    +- ^ InputAdapter (69)
-                                                :                 :                       +- ^ ShuffleQueryStage (68), Statistics(X)
-                                                :                 :                          +- ColumnarExchange (67)
-                                                :                 :                             +- ^ ProjectExecTransformer (65)
-                                                :                 :                                +- ^ Scan parquet (64)
-                                                :                 +- ^ InputIteratorTransformer (84)
-                                                :                    +- ^ InputAdapter (83)
-                                                :                       +- ^ ShuffleQueryStage (82), Statistics(X)
-                                                :                          +- ColumnarExchange (81)
-                                                :                             +- ^ ProjectExecTransformer (79)
-                                                :                                +- ^ Scan parquet (78)
-                                                +- ^ InputIteratorTransformer (98)
-                                                   +- ^ InputAdapter (97)
-                                                      +- ^ ShuffleQueryStage (96), Statistics(X)
-                                                         +- ColumnarExchange (95)
-                                                            +- ^ ProjectExecTransformer (93)
-                                                               +- ^ Scan parquet (92)
+   VeloxColumnarToRowExec (125)
+   +- ^ SortExecTransformer (123)
+      +- ^ InputIteratorTransformer (122)
+         +- ^ InputAdapter (121)
+            +- ^ ShuffleQueryStage (120), Statistics(X)
+               +- ColumnarExchange (119)
+                  +- ^ ProjectExecTransformer (117)
+                     +- ^ RegularHashAggregateExecTransformer (116)
+                        +- ^ InputIteratorTransformer (115)
+                           +- ^ InputAdapter (114)
+                              +- ^ ShuffleQueryStage (113), Statistics(X)
+                                 +- ColumnarExchange (112)
+                                    +- ^ ProjectExecTransformer (110)
+                                       +- ^ FlushableHashAggregateExecTransformer (109)
+                                          +- ^ ProjectExecTransformer (108)
+                                             +- ^ ShuffledHashJoinExecTransformer Inner (107)
+                                                :- ^ InputIteratorTransformer (98)
+                                                :  +- ^ InputAdapter (97)
+                                                :     +- ^ ShuffleQueryStage (96), Statistics(X)
+                                                :        +- ColumnarExchange (95)
+                                                :           +- ^ ProjectExecTransformer (93)
+                                                :              +- ^ ShuffledHashJoinExecTransformer Inner (92)
+                                                :                 :- ^ InputIteratorTransformer (83)
+                                                :                 :  +- ^ InputAdapter (82)
+                                                :                 :     +- ^ ShuffleQueryStage (81), Statistics(X)
+                                                :                 :        +- ColumnarExchange (80)
+                                                :                 :           +- ^ ProjectExecTransformer (78)
+                                                :                 :              +- ^ ShuffledHashJoinExecTransformer Inner (77)
+                                                :                 :                 :- ^ InputIteratorTransformer (68)
+                                                :                 :                 :  +- ^ InputAdapter (67)
+                                                :                 :                 :     +- ^ ShuffleQueryStage (66), Statistics(X)
+                                                :                 :                 :        +- ColumnarExchange (65)
+                                                :                 :                 :           +- ^ ProjectExecTransformer (63)
+                                                :                 :                 :              +- ^ ShuffledHashJoinExecTransformer Inner (62)
+                                                :                 :                 :                 :- ^ InputIteratorTransformer (53)
+                                                :                 :                 :                 :  +- ^ InputAdapter (52)
+                                                :                 :                 :                 :     +- ^ ShuffleQueryStage (51), Statistics(X)
+                                                :                 :                 :                 :        +- ColumnarExchange (50)
+                                                :                 :                 :                 :           +- ^ ProjectExecTransformer (48)
+                                                :                 :                 :                 :              +- ^ ShuffledHashJoinExecTransformer Inner (47)
+                                                :                 :                 :                 :                 :- ^ InputIteratorTransformer (38)
+                                                :                 :                 :                 :                 :  +- ^ InputAdapter (37)
+                                                :                 :                 :                 :                 :     +- ^ ShuffleQueryStage (36), Statistics(X)
+                                                :                 :                 :                 :                 :        +- ColumnarExchange (35)
+                                                :                 :                 :                 :                 :           +- ^ ProjectExecTransformer (33)
+                                                :                 :                 :                 :                 :              +- ^ ShuffledHashJoinExecTransformer Inner (32)
+                                                :                 :                 :                 :                 :                 :- ^ InputIteratorTransformer (23)
+                                                :                 :                 :                 :                 :                 :  +- ^ InputAdapter (22)
+                                                :                 :                 :                 :                 :                 :     +- ^ ShuffleQueryStage (21), Statistics(X)
+                                                :                 :                 :                 :                 :                 :        +- ColumnarExchange (20)
+                                                :                 :                 :                 :                 :                 :           +- ^ ProjectExecTransformer (18)
+                                                :                 :                 :                 :                 :                 :              +- ^ ShuffledHashJoinExecTransformer Inner (17)
+                                                :                 :                 :                 :                 :                 :                 :- ^ InputIteratorTransformer (8)
+                                                :                 :                 :                 :                 :                 :                 :  +- ^ InputAdapter (7)
+                                                :                 :                 :                 :                 :                 :                 :     +- ^ ShuffleQueryStage (6), Statistics(X)
+                                                :                 :                 :                 :                 :                 :                 :        +- ColumnarExchange (5)
+                                                :                 :                 :                 :                 :                 :                 :           +- ^ ProjectExecTransformer (3)
+                                                :                 :                 :                 :                 :                 :                 :              +- ^ NoopFilter (2)
+                                                :                 :                 :                 :                 :                 :                 :                 +- ^ Scan parquet (1)
+                                                :                 :                 :                 :                 :                 :                 +- ^ InputIteratorTransformer (16)
+                                                :                 :                 :                 :                 :                 :                    +- ^ InputAdapter (15)
+                                                :                 :                 :                 :                 :                 :                       +- ^ ShuffleQueryStage (14), Statistics(X)
+                                                :                 :                 :                 :                 :                 :                          +- ColumnarExchange (13)
+                                                :                 :                 :                 :                 :                 :                             +- ^ ProjectExecTransformer (11)
+                                                :                 :                 :                 :                 :                 :                                +- ^ NoopFilter (10)
+                                                :                 :                 :                 :                 :                 :                                   +- ^ Scan parquet (9)
+                                                :                 :                 :                 :                 :                 +- ^ InputIteratorTransformer (31)
+                                                :                 :                 :                 :                 :                    +- ^ InputAdapter (30)
+                                                :                 :                 :                 :                 :                       +- ^ ShuffleQueryStage (29), Statistics(X)
+                                                :                 :                 :                 :                 :                          +- ColumnarExchange (28)
+                                                :                 :                 :                 :                 :                             +- ^ ProjectExecTransformer (26)
+                                                :                 :                 :                 :                 :                                +- ^ NoopFilter (25)
+                                                :                 :                 :                 :                 :                                   +- ^ Scan parquet (24)
+                                                :                 :                 :                 :                 +- ^ InputIteratorTransformer (46)
+                                                :                 :                 :                 :                    +- ^ InputAdapter (45)
+                                                :                 :                 :                 :                       +- ^ ShuffleQueryStage (44), Statistics(X)
+                                                :                 :                 :                 :                          +- ColumnarExchange (43)
+                                                :                 :                 :                 :                             +- ^ ProjectExecTransformer (41)
+                                                :                 :                 :                 :                                +- ^ NoopFilter (40)
+                                                :                 :                 :                 :                                   +- ^ Scan parquet (39)
+                                                :                 :                 :                 +- ^ InputIteratorTransformer (61)
+                                                :                 :                 :                    +- ^ InputAdapter (60)
+                                                :                 :                 :                       +- ^ ShuffleQueryStage (59), Statistics(X)
+                                                :                 :                 :                          +- ColumnarExchange (58)
+                                                :                 :                 :                             +- ^ ProjectExecTransformer (56)
+                                                :                 :                 :                                +- ^ NoopFilter (55)
+                                                :                 :                 :                                   +- ^ Scan parquet (54)
+                                                :                 :                 +- ^ InputIteratorTransformer (76)
+                                                :                 :                    +- ^ InputAdapter (75)
+                                                :                 :                       +- ^ ShuffleQueryStage (74), Statistics(X)
+                                                :                 :                          +- ColumnarExchange (73)
+                                                :                 :                             +- ^ ProjectExecTransformer (71)
+                                                :                 :                                +- ^ NoopFilter (70)
+                                                :                 :                                   +- ^ Scan parquet (69)
+                                                :                 +- ^ InputIteratorTransformer (91)
+                                                :                    +- ^ InputAdapter (90)
+                                                :                       +- ^ ShuffleQueryStage (89), Statistics(X)
+                                                :                          +- ColumnarExchange (88)
+                                                :                             +- ^ ProjectExecTransformer (86)
+                                                :                                +- ^ NoopFilter (85)
+                                                :                                   +- ^ Scan parquet (84)
+                                                +- ^ InputIteratorTransformer (106)
+                                                   +- ^ InputAdapter (105)
+                                                      +- ^ ShuffleQueryStage (104), Statistics(X)
+                                                         +- ColumnarExchange (103)
+                                                            +- ^ ProjectExecTransformer (101)
+                                                               +- ^ NoopFilter (100)
+                                                                  +- ^ Scan parquet (99)
 +- == Initial Plan ==
-   Sort (168)
-   +- Exchange (167)
-      +- HashAggregate (166)
-         +- Exchange (165)
-            +- HashAggregate (164)
-               +- Project (163)
-                  +- ShuffledHashJoin Inner BuildRight (162)
-                     :- Exchange (157)
-                     :  +- Project (156)
-                     :     +- ShuffledHashJoin Inner BuildRight (155)
-                     :        :- Exchange (151)
-                     :        :  +- Project (150)
-                     :        :     +- ShuffledHashJoin Inner BuildRight (149)
-                     :        :        :- Exchange (145)
-                     :        :        :  +- Project (144)
-                     :        :        :     +- ShuffledHashJoin Inner BuildRight (143)
-                     :        :        :        :- Exchange (139)
-                     :        :        :        :  +- Project (138)
-                     :        :        :        :     +- ShuffledHashJoin Inner BuildRight (137)
-                     :        :        :        :        :- Exchange (133)
-                     :        :        :        :        :  +- Project (132)
-                     :        :        :        :        :     +- ShuffledHashJoin Inner BuildRight (131)
-                     :        :        :        :        :        :- Exchange (127)
-                     :        :        :        :        :        :  +- Project (126)
-                     :        :        :        :        :        :     +- ShuffledHashJoin Inner BuildLeft (125)
-                     :        :        :        :        :        :        :- Exchange (121)
-                     :        :        :        :        :        :        :  +- Project (120)
-                     :        :        :        :        :        :        :     +- Filter (119)
-                     :        :        :        :        :        :        :        +- Scan parquet (118)
-                     :        :        :        :        :        :        +- Exchange (124)
-                     :        :        :        :        :        :           +- Filter (123)
-                     :        :        :        :        :        :              +- Scan parquet (122)
-                     :        :        :        :        :        +- Exchange (130)
-                     :        :        :        :        :           +- Filter (129)
-                     :        :        :        :        :              +- Scan parquet (128)
-                     :        :        :        :        +- Exchange (136)
-                     :        :        :        :           +- Filter (135)
-                     :        :        :        :              +- Scan parquet (134)
-                     :        :        :        +- Exchange (142)
-                     :        :        :           +- Filter (141)
-                     :        :        :              +- Scan parquet (140)
-                     :        :        +- Exchange (148)
-                     :        :           +- Filter (147)
-                     :        :              +- Scan parquet (146)
-                     :        +- Exchange (154)
-                     :           +- Filter (153)
-                     :              +- Scan parquet (152)
-                     +- Exchange (161)
-                        +- Project (160)
-                           +- Filter (159)
-                              +- Scan parquet (158)
+   Sort (176)
+   +- Exchange (175)
+      +- HashAggregate (174)
+         +- Exchange (173)
+            +- HashAggregate (172)
+               +- Project (171)
+                  +- ShuffledHashJoin Inner BuildRight (170)
+                     :- Exchange (165)
+                     :  +- Project (164)
+                     :     +- ShuffledHashJoin Inner BuildRight (163)
+                     :        :- Exchange (159)
+                     :        :  +- Project (158)
+                     :        :     +- ShuffledHashJoin Inner BuildRight (157)
+                     :        :        :- Exchange (153)
+                     :        :        :  +- Project (152)
+                     :        :        :     +- ShuffledHashJoin Inner BuildRight (151)
+                     :        :        :        :- Exchange (147)
+                     :        :        :        :  +- Project (146)
+                     :        :        :        :     +- ShuffledHashJoin Inner BuildRight (145)
+                     :        :        :        :        :- Exchange (141)
+                     :        :        :        :        :  +- Project (140)
+                     :        :        :        :        :     +- ShuffledHashJoin Inner BuildRight (139)
+                     :        :        :        :        :        :- Exchange (135)
+                     :        :        :        :        :        :  +- Project (134)
+                     :        :        :        :        :        :     +- ShuffledHashJoin Inner BuildLeft (133)
+                     :        :        :        :        :        :        :- Exchange (129)
+                     :        :        :        :        :        :        :  +- Project (128)
+                     :        :        :        :        :        :        :     +- Filter (127)
+                     :        :        :        :        :        :        :        +- Scan parquet (126)
+                     :        :        :        :        :        :        +- Exchange (132)
+                     :        :        :        :        :        :           +- Filter (131)
+                     :        :        :        :        :        :              +- Scan parquet (130)
+                     :        :        :        :        :        +- Exchange (138)
+                     :        :        :        :        :           +- Filter (137)
+                     :        :        :        :        :              +- Scan parquet (136)
+                     :        :        :        :        +- Exchange (144)
+                     :        :        :        :           +- Filter (143)
+                     :        :        :        :              +- Scan parquet (142)
+                     :        :        :        +- Exchange (150)
+                     :        :        :           +- Filter (149)
+                     :        :        :              +- Scan parquet (148)
+                     :        :        +- Exchange (156)
+                     :        :           +- Filter (155)
+                     :        :              +- Scan parquet (154)
+                     :        +- Exchange (162)
+                     :           +- Filter (161)
+                     :              +- Scan parquet (160)
+                     +- Exchange (169)
+                        +- Project (168)
+                           +- Filter (167)
+                              +- Scan parquet (166)
 
 
 (1) Scan parquet
@@ -162,712 +170,744 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(p_type), EqualTo(p_type,ECONOMY ANODIZED STEEL), IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_type:string>
 
-(2) ProjectExecTransformer
+(2) NoopFilter
+Input [2]: [p_partkey#X, p_type#X]
+Arguments: [p_partkey#X, p_type#X]
+
+(3) ProjectExecTransformer
 Output [2]: [hash(p_partkey#X, 42) AS hash_partition_key#X, p_partkey#X]
 Input [2]: [p_partkey#X, p_type#X]
 
-(3) WholeStageCodegenTransformer (X)
+(4) WholeStageCodegenTransformer (X)
 Input [2]: [hash_partition_key#X, p_partkey#X]
 Arguments: false
 
-(4) ColumnarExchange
+(5) ColumnarExchange
 Input [2]: [hash_partition_key#X, p_partkey#X]
 Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [p_partkey#X], [plan_id=X], [id=#X]
 
-(5) ShuffleQueryStage
+(6) ShuffleQueryStage
 Output [1]: [p_partkey#X]
 Arguments: X
 
-(6) InputAdapter
+(7) InputAdapter
 Input [1]: [p_partkey#X]
 
-(7) InputIteratorTransformer
+(8) InputIteratorTransformer
 Input [1]: [p_partkey#X]
 
-(8) Scan parquet
+(9) Scan parquet
 Output [5]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_partkey), IsNotNull(l_suppkey), IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_partkey:bigint,l_suppkey:bigint,l_extendedprice:decimal(12,2),l_discount:decimal(12,2)>
 
-(9) ProjectExecTransformer
+(10) NoopFilter
+Input [5]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
+Arguments: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
+
+(11) ProjectExecTransformer
 Output [6]: [hash(l_partkey#X, 42) AS hash_partition_key#X, l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Input [5]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 
-(10) WholeStageCodegenTransformer (X)
+(12) WholeStageCodegenTransformer (X)
 Input [6]: [hash_partition_key#X, l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Arguments: false
 
-(11) ColumnarExchange
+(13) ColumnarExchange
 Input [6]: [hash_partition_key#X, l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X], [plan_id=X], [id=#X]
 
-(12) ShuffleQueryStage
+(14) ShuffleQueryStage
 Output [5]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Arguments: X
 
-(13) InputAdapter
+(15) InputAdapter
 Input [5]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 
-(14) InputIteratorTransformer
+(16) InputIteratorTransformer
 Input [5]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 
-(15) ShuffledHashJoinExecTransformer
+(17) ShuffledHashJoinExecTransformer
 Left keys [1]: [p_partkey#X]
 Right keys [1]: [l_partkey#X]
 Join condition: None
 
-(16) ProjectExecTransformer
+(18) ProjectExecTransformer
 Output [5]: [hash(l_suppkey#X, 42) AS hash_partition_key#X, l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Input [6]: [p_partkey#X, l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 
-(17) WholeStageCodegenTransformer (X)
+(19) WholeStageCodegenTransformer (X)
 Input [5]: [hash_partition_key#X, l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Arguments: false
 
-(18) ColumnarExchange
+(20) ColumnarExchange
 Input [5]: [hash_partition_key#X, l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Arguments: hashpartitioning(l_suppkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X], [plan_id=X], [id=#X]
 
-(19) ShuffleQueryStage
+(21) ShuffleQueryStage
 Output [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Arguments: X
 
-(20) InputAdapter
+(22) InputAdapter
 Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 
-(21) InputIteratorTransformer
+(23) InputIteratorTransformer
 Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 
-(22) Scan parquet
+(24) Scan parquet
 Output [2]: [s_suppkey#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
 ReadSchema: struct<s_suppkey:bigint,s_nationkey:bigint>
 
-(23) ProjectExecTransformer
+(25) NoopFilter
+Input [2]: [s_suppkey#X, s_nationkey#X]
+Arguments: [s_suppkey#X, s_nationkey#X]
+
+(26) ProjectExecTransformer
 Output [3]: [hash(s_suppkey#X, 42) AS hash_partition_key#X, s_suppkey#X, s_nationkey#X]
 Input [2]: [s_suppkey#X, s_nationkey#X]
 
-(24) WholeStageCodegenTransformer (X)
+(27) WholeStageCodegenTransformer (X)
 Input [3]: [hash_partition_key#X, s_suppkey#X, s_nationkey#X]
 Arguments: false
 
-(25) ColumnarExchange
+(28) ColumnarExchange
 Input [3]: [hash_partition_key#X, s_suppkey#X, s_nationkey#X]
 Arguments: hashpartitioning(s_suppkey#X, 1), ENSURE_REQUIREMENTS, [s_suppkey#X, s_nationkey#X], [plan_id=X], [id=#X]
 
-(26) ShuffleQueryStage
+(29) ShuffleQueryStage
 Output [2]: [s_suppkey#X, s_nationkey#X]
 Arguments: X
 
-(27) InputAdapter
+(30) InputAdapter
 Input [2]: [s_suppkey#X, s_nationkey#X]
 
-(28) InputIteratorTransformer
+(31) InputIteratorTransformer
 Input [2]: [s_suppkey#X, s_nationkey#X]
 
-(29) ShuffledHashJoinExecTransformer
+(32) ShuffledHashJoinExecTransformer
 Left keys [1]: [l_suppkey#X]
 Right keys [1]: [s_suppkey#X]
 Join condition: None
 
-(30) ProjectExecTransformer
+(33) ProjectExecTransformer
 Output [5]: [hash(l_orderkey#X, 42) AS hash_partition_key#X, l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
 Input [6]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X, s_suppkey#X, s_nationkey#X]
 
-(31) WholeStageCodegenTransformer (X)
+(34) WholeStageCodegenTransformer (X)
 Input [5]: [hash_partition_key#X, l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
 Arguments: false
 
-(32) ColumnarExchange
+(35) ColumnarExchange
 Input [5]: [hash_partition_key#X, l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
 Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X], [plan_id=X], [id=#X]
 
-(33) ShuffleQueryStage
+(36) ShuffleQueryStage
 Output [4]: [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
 Arguments: X
 
-(34) InputAdapter
+(37) InputAdapter
 Input [4]: [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
 
-(35) InputIteratorTransformer
+(38) InputIteratorTransformer
 Input [4]: [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
 
-(36) Scan parquet
+(39) Scan parquet
 Output [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(o_orderdate), GreaterThanOrEqual(o_orderdate,1995-01-01), LessThanOrEqual(o_orderdate,1996-12-31), IsNotNull(o_orderkey), IsNotNull(o_custkey)]
 ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_orderdate:date>
 
-(37) ProjectExecTransformer
+(40) NoopFilter
+Input [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
+Arguments: [o_orderkey#X, o_custkey#X, o_orderdate#X]
+
+(41) ProjectExecTransformer
 Output [4]: [hash(o_orderkey#X, 42) AS hash_partition_key#X, o_orderkey#X, o_custkey#X, o_orderdate#X]
 Input [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
 
-(38) WholeStageCodegenTransformer (X)
+(42) WholeStageCodegenTransformer (X)
 Input [4]: [hash_partition_key#X, o_orderkey#X, o_custkey#X, o_orderdate#X]
 Arguments: false
 
-(39) ColumnarExchange
+(43) ColumnarExchange
 Input [4]: [hash_partition_key#X, o_orderkey#X, o_custkey#X, o_orderdate#X]
 Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X, o_custkey#X, o_orderdate#X], [plan_id=X], [id=#X]
 
-(40) ShuffleQueryStage
+(44) ShuffleQueryStage
 Output [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
 Arguments: X
 
-(41) InputAdapter
+(45) InputAdapter
 Input [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
 
-(42) InputIteratorTransformer
+(46) InputIteratorTransformer
 Input [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
 
-(43) ShuffledHashJoinExecTransformer
+(47) ShuffledHashJoinExecTransformer
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [o_orderkey#X]
 Join condition: None
 
-(44) ProjectExecTransformer
+(48) ProjectExecTransformer
 Output [6]: [hash(o_custkey#X, 42) AS hash_partition_key#X, l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X]
 Input [7]: [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderkey#X, o_custkey#X, o_orderdate#X]
 
-(45) WholeStageCodegenTransformer (X)
+(49) WholeStageCodegenTransformer (X)
 Input [6]: [hash_partition_key#X, l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X]
 Arguments: false
 
-(46) ColumnarExchange
+(50) ColumnarExchange
 Input [6]: [hash_partition_key#X, l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X]
 Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X], [plan_id=X], [id=#X]
 
-(47) ShuffleQueryStage
+(51) ShuffleQueryStage
 Output [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X]
 Arguments: X
 
-(48) InputAdapter
+(52) InputAdapter
 Input [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X]
 
-(49) InputIteratorTransformer
+(53) InputIteratorTransformer
 Input [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X]
 
-(50) Scan parquet
+(54) Scan parquet
 Output [2]: [c_custkey#X, c_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(c_custkey), IsNotNull(c_nationkey)]
 ReadSchema: struct<c_custkey:bigint,c_nationkey:bigint>
 
-(51) ProjectExecTransformer
+(55) NoopFilter
+Input [2]: [c_custkey#X, c_nationkey#X]
+Arguments: [c_custkey#X, c_nationkey#X]
+
+(56) ProjectExecTransformer
 Output [3]: [hash(c_custkey#X, 42) AS hash_partition_key#X, c_custkey#X, c_nationkey#X]
 Input [2]: [c_custkey#X, c_nationkey#X]
 
-(52) WholeStageCodegenTransformer (X)
+(57) WholeStageCodegenTransformer (X)
 Input [3]: [hash_partition_key#X, c_custkey#X, c_nationkey#X]
 Arguments: false
 
-(53) ColumnarExchange
+(58) ColumnarExchange
 Input [3]: [hash_partition_key#X, c_custkey#X, c_nationkey#X]
 Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X, c_nationkey#X], [plan_id=X], [id=#X]
 
-(54) ShuffleQueryStage
+(59) ShuffleQueryStage
 Output [2]: [c_custkey#X, c_nationkey#X]
 Arguments: X
 
-(55) InputAdapter
+(60) InputAdapter
 Input [2]: [c_custkey#X, c_nationkey#X]
 
-(56) InputIteratorTransformer
+(61) InputIteratorTransformer
 Input [2]: [c_custkey#X, c_nationkey#X]
 
-(57) ShuffledHashJoinExecTransformer
+(62) ShuffledHashJoinExecTransformer
 Left keys [1]: [o_custkey#X]
 Right keys [1]: [c_custkey#X]
 Join condition: None
 
-(58) ProjectExecTransformer
+(63) ProjectExecTransformer
 Output [6]: [hash(c_nationkey#X, 42) AS hash_partition_key#X, l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X]
 Input [7]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X, c_custkey#X, c_nationkey#X]
 
-(59) WholeStageCodegenTransformer (X)
+(64) WholeStageCodegenTransformer (X)
 Input [6]: [hash_partition_key#X, l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X]
 Arguments: false
 
-(60) ColumnarExchange
+(65) ColumnarExchange
 Input [6]: [hash_partition_key#X, l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X]
 Arguments: hashpartitioning(c_nationkey#X, 1), ENSURE_REQUIREMENTS, [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X], [plan_id=X], [id=#X]
 
-(61) ShuffleQueryStage
+(66) ShuffleQueryStage
 Output [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X]
 Arguments: X
 
-(62) InputAdapter
+(67) InputAdapter
 Input [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X]
 
-(63) InputIteratorTransformer
+(68) InputIteratorTransformer
 Input [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X]
 
-(64) Scan parquet
+(69) Scan parquet
 Output [2]: [n_nationkey#X, n_regionkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(n_nationkey), IsNotNull(n_regionkey)]
 ReadSchema: struct<n_nationkey:bigint,n_regionkey:bigint>
 
-(65) ProjectExecTransformer
+(70) NoopFilter
+Input [2]: [n_nationkey#X, n_regionkey#X]
+Arguments: [n_nationkey#X, n_regionkey#X]
+
+(71) ProjectExecTransformer
 Output [3]: [hash(n_nationkey#X, 42) AS hash_partition_key#X, n_nationkey#X, n_regionkey#X]
 Input [2]: [n_nationkey#X, n_regionkey#X]
 
-(66) WholeStageCodegenTransformer (X)
+(72) WholeStageCodegenTransformer (X)
 Input [3]: [hash_partition_key#X, n_nationkey#X, n_regionkey#X]
 Arguments: false
 
-(67) ColumnarExchange
+(73) ColumnarExchange
 Input [3]: [hash_partition_key#X, n_nationkey#X, n_regionkey#X]
 Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [n_nationkey#X, n_regionkey#X], [plan_id=X], [id=#X]
 
-(68) ShuffleQueryStage
+(74) ShuffleQueryStage
 Output [2]: [n_nationkey#X, n_regionkey#X]
 Arguments: X
 
-(69) InputAdapter
+(75) InputAdapter
 Input [2]: [n_nationkey#X, n_regionkey#X]
 
-(70) InputIteratorTransformer
+(76) InputIteratorTransformer
 Input [2]: [n_nationkey#X, n_regionkey#X]
 
-(71) ShuffledHashJoinExecTransformer
+(77) ShuffledHashJoinExecTransformer
 Left keys [1]: [c_nationkey#X]
 Right keys [1]: [n_nationkey#X]
 Join condition: None
 
-(72) ProjectExecTransformer
+(78) ProjectExecTransformer
 Output [6]: [hash(s_nationkey#X, 42) AS hash_partition_key#X, l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X]
 Input [7]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X, n_nationkey#X, n_regionkey#X]
 
-(73) WholeStageCodegenTransformer (X)
+(79) WholeStageCodegenTransformer (X)
 Input [6]: [hash_partition_key#X, l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X]
 Arguments: false
 
-(74) ColumnarExchange
+(80) ColumnarExchange
 Input [6]: [hash_partition_key#X, l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X]
 Arguments: hashpartitioning(s_nationkey#X, 1), ENSURE_REQUIREMENTS, [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X], [plan_id=X], [id=#X]
 
-(75) ShuffleQueryStage
+(81) ShuffleQueryStage
 Output [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X]
 Arguments: X
 
-(76) InputAdapter
+(82) InputAdapter
 Input [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X]
 
-(77) InputIteratorTransformer
+(83) InputIteratorTransformer
 Input [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X]
 
-(78) Scan parquet
+(84) Scan parquet
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(n_nationkey)]
 ReadSchema: struct<n_nationkey:bigint,n_name:string>
 
-(79) ProjectExecTransformer
+(85) NoopFilter
+Input [2]: [n_nationkey#X, n_name#X]
+Arguments: [n_nationkey#X, n_name#X]
+
+(86) ProjectExecTransformer
 Output [3]: [hash(n_nationkey#X, 42) AS hash_partition_key#X, n_nationkey#X, n_name#X]
 Input [2]: [n_nationkey#X, n_name#X]
 
-(80) WholeStageCodegenTransformer (X)
+(87) WholeStageCodegenTransformer (X)
 Input [3]: [hash_partition_key#X, n_nationkey#X, n_name#X]
 Arguments: false
 
-(81) ColumnarExchange
+(88) ColumnarExchange
 Input [3]: [hash_partition_key#X, n_nationkey#X, n_name#X]
 Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [n_nationkey#X, n_name#X], [plan_id=X], [id=#X]
 
-(82) ShuffleQueryStage
+(89) ShuffleQueryStage
 Output [2]: [n_nationkey#X, n_name#X]
 Arguments: X
 
-(83) InputAdapter
+(90) InputAdapter
 Input [2]: [n_nationkey#X, n_name#X]
 
-(84) InputIteratorTransformer
+(91) InputIteratorTransformer
 Input [2]: [n_nationkey#X, n_name#X]
 
-(85) ShuffledHashJoinExecTransformer
+(92) ShuffledHashJoinExecTransformer
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
 Join condition: None
 
-(86) ProjectExecTransformer
+(93) ProjectExecTransformer
 Output [6]: [hash(n_regionkey#X, 42) AS hash_partition_key#X, l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X]
 Input [7]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X, n_nationkey#X, n_name#X]
 
-(87) WholeStageCodegenTransformer (X)
+(94) WholeStageCodegenTransformer (X)
 Input [6]: [hash_partition_key#X, l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X]
 Arguments: false
 
-(88) ColumnarExchange
+(95) ColumnarExchange
 Input [6]: [hash_partition_key#X, l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X]
 Arguments: hashpartitioning(n_regionkey#X, 1), ENSURE_REQUIREMENTS, [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X], [plan_id=X], [id=#X]
 
-(89) ShuffleQueryStage
+(96) ShuffleQueryStage
 Output [5]: [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X]
 Arguments: X
 
-(90) InputAdapter
+(97) InputAdapter
 Input [5]: [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X]
 
-(91) InputIteratorTransformer
+(98) InputIteratorTransformer
 Input [5]: [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X]
 
-(92) Scan parquet
+(99) Scan parquet
 Output [2]: [r_regionkey#X, r_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(r_name), EqualTo(r_name,AMERICA), IsNotNull(r_regionkey)]
 ReadSchema: struct<r_regionkey:bigint,r_name:string>
 
-(93) ProjectExecTransformer
+(100) NoopFilter
+Input [2]: [r_regionkey#X, r_name#X]
+Arguments: [r_regionkey#X, r_name#X]
+
+(101) ProjectExecTransformer
 Output [2]: [hash(r_regionkey#X, 42) AS hash_partition_key#X, r_regionkey#X]
 Input [2]: [r_regionkey#X, r_name#X]
 
-(94) WholeStageCodegenTransformer (X)
+(102) WholeStageCodegenTransformer (X)
 Input [2]: [hash_partition_key#X, r_regionkey#X]
 Arguments: false
 
-(95) ColumnarExchange
+(103) ColumnarExchange
 Input [2]: [hash_partition_key#X, r_regionkey#X]
 Arguments: hashpartitioning(r_regionkey#X, 1), ENSURE_REQUIREMENTS, [r_regionkey#X], [plan_id=X], [id=#X]
 
-(96) ShuffleQueryStage
+(104) ShuffleQueryStage
 Output [1]: [r_regionkey#X]
 Arguments: X
 
-(97) InputAdapter
+(105) InputAdapter
 Input [1]: [r_regionkey#X]
 
-(98) InputIteratorTransformer
+(106) InputIteratorTransformer
 Input [1]: [r_regionkey#X]
 
-(99) ShuffledHashJoinExecTransformer
+(107) ShuffledHashJoinExecTransformer
 Left keys [1]: [n_regionkey#X]
 Right keys [1]: [r_regionkey#X]
 Join condition: None
 
-(100) ProjectExecTransformer
+(108) ProjectExecTransformer
 Output [4]: [year(o_orderdate#X) AS o_year#X, CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) AS volume#X, n_name#X AS nation#X, CASE WHEN (n_name#X = BRAZIL) THEN CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) ELSE 0.0000 END AS _pre_X#X]
 Input [6]: [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X, r_regionkey#X]
 
-(101) FlushableHashAggregateExecTransformer
+(109) FlushableHashAggregateExecTransformer
 Input [4]: [o_year#X, volume#X, nation#X, _pre_X#X]
 Keys [1]: [o_year#X]
 Functions [2]: [partial_sum(_pre_X#X), partial_sum(volume#X)]
 Aggregate Attributes [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]
 Results [5]: [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
 
-(102) ProjectExecTransformer
+(110) ProjectExecTransformer
 Output [6]: [hash(o_year#X, 42) AS hash_partition_key#X, o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
 Input [5]: [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
 
-(103) WholeStageCodegenTransformer (X)
+(111) WholeStageCodegenTransformer (X)
 Input [6]: [hash_partition_key#X, o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
 Arguments: false
 
-(104) ColumnarExchange
+(112) ColumnarExchange
 Input [6]: [hash_partition_key#X, o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
 Arguments: hashpartitioning(o_year#X, 1), ENSURE_REQUIREMENTS, [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X], [plan_id=X], [id=#X]
 
-(105) ShuffleQueryStage
+(113) ShuffleQueryStage
 Output [5]: [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
 Arguments: X
 
-(106) InputAdapter
+(114) InputAdapter
 Input [5]: [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
 
-(107) InputIteratorTransformer
+(115) InputIteratorTransformer
 Input [5]: [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
 
-(108) RegularHashAggregateExecTransformer
+(116) RegularHashAggregateExecTransformer
 Input [5]: [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
 Keys [1]: [o_year#X]
 Functions [2]: [sum(CASE WHEN (nation#X = BRAZIL) THEN volume#X ELSE 0.0000 END), sum(volume#X)]
 Aggregate Attributes [2]: [sum(CASE WHEN (nation#X = BRAZIL) THEN volume#X ELSE 0.0000 END)#X, sum(volume#X)#X]
 Results [3]: [o_year#X, sum(CASE WHEN (nation#X = BRAZIL) THEN volume#X ELSE 0.0000 END)#X, sum(volume#X)#X]
 
-(109) ProjectExecTransformer
+(117) ProjectExecTransformer
 Output [2]: [o_year#X, CheckOverflow((promote_precision(sum(CASE WHEN (nation#X = BRAZIL) THEN volume#X ELSE 0.0000 END)#X) / promote_precision(sum(volume#X)#X)), DecimalType(38,6)) AS mkt_share#X]
 Input [3]: [o_year#X, sum(CASE WHEN (nation#X = BRAZIL) THEN volume#X ELSE 0.0000 END)#X, sum(volume#X)#X]
 
-(110) WholeStageCodegenTransformer (X)
+(118) WholeStageCodegenTransformer (X)
 Input [2]: [o_year#X, mkt_share#X]
 Arguments: false
 
-(111) ColumnarExchange
+(119) ColumnarExchange
 Input [2]: [o_year#X, mkt_share#X]
 Arguments: rangepartitioning(o_year#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
-(112) ShuffleQueryStage
+(120) ShuffleQueryStage
 Output [2]: [o_year#X, mkt_share#X]
 Arguments: X
 
-(113) InputAdapter
+(121) InputAdapter
 Input [2]: [o_year#X, mkt_share#X]
 
-(114) InputIteratorTransformer
+(122) InputIteratorTransformer
 Input [2]: [o_year#X, mkt_share#X]
 
-(115) SortExecTransformer
+(123) SortExecTransformer
 Input [2]: [o_year#X, mkt_share#X]
 Arguments: [o_year#X ASC NULLS FIRST], true, 0
 
-(116) WholeStageCodegenTransformer (X)
+(124) WholeStageCodegenTransformer (X)
 Input [2]: [o_year#X, mkt_share#X]
 Arguments: false
 
-(117) VeloxColumnarToRowExec
+(125) VeloxColumnarToRowExec
 Input [2]: [o_year#X, mkt_share#X]
 
-(118) Scan parquet
+(126) Scan parquet
 Output [2]: [p_partkey#X, p_type#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(p_type), EqualTo(p_type,ECONOMY ANODIZED STEEL), IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_type:string>
 
-(119) Filter
+(127) Filter
 Input [2]: [p_partkey#X, p_type#X]
 Condition : ((isnotnull(p_type#X) AND (p_type#X = ECONOMY ANODIZED STEEL)) AND isnotnull(p_partkey#X))
 
-(120) Project
+(128) Project
 Output [1]: [p_partkey#X]
 Input [2]: [p_partkey#X, p_type#X]
 
-(121) Exchange
+(129) Exchange
 Input [1]: [p_partkey#X]
 Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(122) Scan parquet
+(130) Scan parquet
 Output [5]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_partkey), IsNotNull(l_suppkey), IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_partkey:bigint,l_suppkey:bigint,l_extendedprice:decimal(12,2),l_discount:decimal(12,2)>
 
-(123) Filter
+(131) Filter
 Input [5]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Condition : ((isnotnull(l_partkey#X) AND isnotnull(l_suppkey#X)) AND isnotnull(l_orderkey#X))
 
-(124) Exchange
+(132) Exchange
 Input [5]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(125) ShuffledHashJoin
+(133) ShuffledHashJoin
 Left keys [1]: [p_partkey#X]
 Right keys [1]: [l_partkey#X]
 Join condition: None
 
-(126) Project
+(134) Project
 Output [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Input [6]: [p_partkey#X, l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 
-(127) Exchange
+(135) Exchange
 Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Arguments: hashpartitioning(l_suppkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(128) Scan parquet
+(136) Scan parquet
 Output [2]: [s_suppkey#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
 ReadSchema: struct<s_suppkey:bigint,s_nationkey:bigint>
 
-(129) Filter
+(137) Filter
 Input [2]: [s_suppkey#X, s_nationkey#X]
 Condition : (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
 
-(130) Exchange
+(138) Exchange
 Input [2]: [s_suppkey#X, s_nationkey#X]
 Arguments: hashpartitioning(s_suppkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(131) ShuffledHashJoin
+(139) ShuffledHashJoin
 Left keys [1]: [l_suppkey#X]
 Right keys [1]: [s_suppkey#X]
 Join condition: None
 
-(132) Project
+(140) Project
 Output [4]: [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
 Input [6]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X, s_suppkey#X, s_nationkey#X]
 
-(133) Exchange
+(141) Exchange
 Input [4]: [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
 Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(134) Scan parquet
+(142) Scan parquet
 Output [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(o_orderdate), GreaterThanOrEqual(o_orderdate,1995-01-01), LessThanOrEqual(o_orderdate,1996-12-31), IsNotNull(o_orderkey), IsNotNull(o_custkey)]
 ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_orderdate:date>
 
-(135) Filter
+(143) Filter
 Input [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
 Condition : ((((isnotnull(o_orderdate#X) AND (o_orderdate#X >= 1995-01-01)) AND (o_orderdate#X <= 1996-12-31)) AND isnotnull(o_orderkey#X)) AND isnotnull(o_custkey#X))
 
-(136) Exchange
+(144) Exchange
 Input [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
 Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(137) ShuffledHashJoin
+(145) ShuffledHashJoin
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [o_orderkey#X]
 Join condition: None
 
-(138) Project
+(146) Project
 Output [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X]
 Input [7]: [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderkey#X, o_custkey#X, o_orderdate#X]
 
-(139) Exchange
+(147) Exchange
 Input [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X]
 Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(140) Scan parquet
+(148) Scan parquet
 Output [2]: [c_custkey#X, c_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(c_custkey), IsNotNull(c_nationkey)]
 ReadSchema: struct<c_custkey:bigint,c_nationkey:bigint>
 
-(141) Filter
+(149) Filter
 Input [2]: [c_custkey#X, c_nationkey#X]
 Condition : (isnotnull(c_custkey#X) AND isnotnull(c_nationkey#X))
 
-(142) Exchange
+(150) Exchange
 Input [2]: [c_custkey#X, c_nationkey#X]
 Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(143) ShuffledHashJoin
+(151) ShuffledHashJoin
 Left keys [1]: [o_custkey#X]
 Right keys [1]: [c_custkey#X]
 Join condition: None
 
-(144) Project
+(152) Project
 Output [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X]
 Input [7]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X, c_custkey#X, c_nationkey#X]
 
-(145) Exchange
+(153) Exchange
 Input [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X]
 Arguments: hashpartitioning(c_nationkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(146) Scan parquet
+(154) Scan parquet
 Output [2]: [n_nationkey#X, n_regionkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(n_nationkey), IsNotNull(n_regionkey)]
 ReadSchema: struct<n_nationkey:bigint,n_regionkey:bigint>
 
-(147) Filter
+(155) Filter
 Input [2]: [n_nationkey#X, n_regionkey#X]
 Condition : (isnotnull(n_nationkey#X) AND isnotnull(n_regionkey#X))
 
-(148) Exchange
+(156) Exchange
 Input [2]: [n_nationkey#X, n_regionkey#X]
 Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(149) ShuffledHashJoin
+(157) ShuffledHashJoin
 Left keys [1]: [c_nationkey#X]
 Right keys [1]: [n_nationkey#X]
 Join condition: None
 
-(150) Project
+(158) Project
 Output [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X]
 Input [7]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X, n_nationkey#X, n_regionkey#X]
 
-(151) Exchange
+(159) Exchange
 Input [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X]
 Arguments: hashpartitioning(s_nationkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(152) Scan parquet
+(160) Scan parquet
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(n_nationkey)]
 ReadSchema: struct<n_nationkey:bigint,n_name:string>
 
-(153) Filter
+(161) Filter
 Input [2]: [n_nationkey#X, n_name#X]
 Condition : isnotnull(n_nationkey#X)
 
-(154) Exchange
+(162) Exchange
 Input [2]: [n_nationkey#X, n_name#X]
 Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(155) ShuffledHashJoin
+(163) ShuffledHashJoin
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
 Join condition: None
 
-(156) Project
+(164) Project
 Output [5]: [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X]
 Input [7]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X, n_nationkey#X, n_name#X]
 
-(157) Exchange
+(165) Exchange
 Input [5]: [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X]
 Arguments: hashpartitioning(n_regionkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(158) Scan parquet
+(166) Scan parquet
 Output [2]: [r_regionkey#X, r_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(r_name), EqualTo(r_name,AMERICA), IsNotNull(r_regionkey)]
 ReadSchema: struct<r_regionkey:bigint,r_name:string>
 
-(159) Filter
+(167) Filter
 Input [2]: [r_regionkey#X, r_name#X]
 Condition : ((isnotnull(r_name#X) AND (r_name#X = AMERICA)) AND isnotnull(r_regionkey#X))
 
-(160) Project
+(168) Project
 Output [1]: [r_regionkey#X]
 Input [2]: [r_regionkey#X, r_name#X]
 
-(161) Exchange
+(169) Exchange
 Input [1]: [r_regionkey#X]
 Arguments: hashpartitioning(r_regionkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(162) ShuffledHashJoin
+(170) ShuffledHashJoin
 Left keys [1]: [n_regionkey#X]
 Right keys [1]: [r_regionkey#X]
 Join condition: None
 
-(163) Project
+(171) Project
 Output [3]: [year(o_orderdate#X) AS o_year#X, CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) AS volume#X, n_name#X AS nation#X]
 Input [6]: [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X, r_regionkey#X]
 
-(164) HashAggregate
+(172) HashAggregate
 Input [3]: [o_year#X, volume#X, nation#X]
 Keys [1]: [o_year#X]
 Functions [2]: [partial_sum(CASE WHEN (nation#X = BRAZIL) THEN volume#X ELSE 0.0000 END), partial_sum(volume#X)]
 Aggregate Attributes [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]
 Results [5]: [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
 
-(165) Exchange
+(173) Exchange
 Input [5]: [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
 Arguments: hashpartitioning(o_year#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(166) HashAggregate
+(174) HashAggregate
 Input [5]: [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
 Keys [1]: [o_year#X]
 Functions [2]: [sum(CASE WHEN (nation#X = BRAZIL) THEN volume#X ELSE 0.0000 END), sum(volume#X)]
 Aggregate Attributes [2]: [sum(CASE WHEN (nation#X = BRAZIL) THEN volume#X ELSE 0.0000 END)#X, sum(volume#X)#X]
 Results [2]: [o_year#X, CheckOverflow((promote_precision(sum(CASE WHEN (nation#X = BRAZIL) THEN volume#X ELSE 0.0000 END)#X) / promote_precision(sum(volume#X)#X)), DecimalType(38,6)) AS mkt_share#X]
 
-(167) Exchange
+(175) Exchange
 Input [2]: [o_year#X, mkt_share#X]
 Arguments: rangepartitioning(o_year#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(168) Sort
+(176) Sort
 Input [2]: [o_year#X, mkt_share#X]
 Arguments: [o_year#X ASC NULLS FIRST], true, 0
 
-(169) AdaptiveSparkPlan
+(177) AdaptiveSparkPlan
 Output [2]: [o_year#X, mkt_share#X]
 Arguments: isFinalPlan=true
