@@ -75,7 +75,7 @@ jobs:
       - name: 'Upload Artifact Arrow jar'
         uses: actions/upload-artifact@v2
         with:
-          path: ~/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
+          path: /root/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
           name: velox-arrow-jar-centos-7-${{github.sha}}
 
   run-tpc-test-ubuntu:
@@ -109,7 +109,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: velox-arrow-jar-centos-7-${{github.sha}}
-          path: ~/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
+          path: /root//.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
       - name: Setup java and maven
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
