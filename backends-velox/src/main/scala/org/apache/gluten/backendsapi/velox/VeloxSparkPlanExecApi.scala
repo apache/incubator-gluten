@@ -315,6 +315,16 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   override def genColumnarShuffleExchange(
       shuffle: ShuffleExchangeExec,
       newChild: SparkPlan): SparkPlan = {
+    def allowHashOnMap[T](f: => T): T = {
+      val originalAllowHash = SQLConf.get.getConf(SQLConf.LEGACY_ALLOW_HASH_ON_MAPTYPE)
+      try {
+        SQLConf.get.setConf(SQLConf.LEGACY_ALLOW_HASH_ON_MAPTYPE, true)
+        f
+      } finally {
+        SQLConf.get.setConf(SQLConf.LEGACY_ALLOW_HASH_ON_MAPTYPE, originalAllowHash)
+      }
+    }
+
     shuffle.outputPartitioning match {
       case HashPartitioning(exprs, _) =>
         val hashExpr = new Murmur3Hash(exprs)
@@ -331,21 +341,30 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
           shuffle.withNewChildren(newChild :: Nil)
         }
       case RoundRobinPartitioning(num) if SQLConf.get.sortBeforeRepartition && num > 1 =>
-        val hashExpr = new Murmur3Hash(newChild.output)
-        val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ newChild.output
-        val projectTransformer = ProjectExecTransformer(projectList, newChild)
-        val sortOrder = SortOrder(projectTransformer.output.head, Ascending)
-        val sortByHashCode = SortExecTransformer(Seq(sortOrder), global = false, projectTransformer)
-        val dropSortColumnTransformer = ProjectExecTransformer(projectList.drop(1), sortByHashCode)
-        val validationResult = dropSortColumnTransformer.doValidate()
-        if (validationResult.isValid) {
-          ColumnarShuffleExchangeExec(
-            shuffle,
-            dropSortColumnTransformer,
-            dropSortColumnTransformer.output)
-        } else {
-          TransformHints.tagNotTransformable(shuffle, validationResult)
-          shuffle.withNewChildren(newChild :: Nil)
+        // scalastyle:off line.size.limit
+        // Temporarily allow hash on map if it's disabled, otherwise HashExpression will fail to get
+        // resolved if its child contains map type.
+        // See https://github.com/apache/spark/blob/609bd4839e5d504917de74ed1cb9c23645fba51f/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/expressions/hash.scala#L279-L283
+        // scalastyle:on line.size.limit
+        allowHashOnMap {
+          val hashExpr = new Murmur3Hash(newChild.output)
+          val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ newChild.output
+          val projectTransformer = ProjectExecTransformer(projectList, newChild)
+          val sortOrder = SortOrder(projectTransformer.output.head, Ascending)
+          val sortByHashCode =
+            SortExecTransformer(Seq(sortOrder), global = false, projectTransformer)
+          val dropSortColumnTransformer =
+            ProjectExecTransformer(projectList.drop(1), sortByHashCode)
+          val validationResult = dropSortColumnTransformer.doValidate()
+          if (validationResult.isValid) {
+            ColumnarShuffleExchangeExec(
+              shuffle,
+              dropSortColumnTransformer,
+              dropSortColumnTransformer.output)
+          } else {
+            TransformHints.tagNotTransformable(shuffle, validationResult)
+            shuffle.withNewChildren(newChild :: Nil)
+          }
         }
       case _ =>
         ColumnarShuffleExchangeExec(shuffle, newChild, null)

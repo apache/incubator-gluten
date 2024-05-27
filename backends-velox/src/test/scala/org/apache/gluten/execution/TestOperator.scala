@@ -22,7 +22,7 @@ import org.apache.gluten.execution.datasource.v2.ArrowBatchScanExec
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{AnalysisException, Row}
+import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.functions._
@@ -1354,7 +1354,12 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  test("test roundrobine with sort") {
+  test("test RoundRobin repartition with sort") {
+    def checkRoundRobinOperators(df: DataFrame): Unit = {
+      checkGlutenOperatorMatch[SortExecTransformer](df)
+      checkGlutenOperatorMatch[ColumnarShuffleExchangeExec](df)
+    }
+
     // scalastyle:off
     runQueryAndCompare("SELECT /*+ REPARTITION(3) */ l_orderkey, l_partkey FROM lineitem") {
       /*
@@ -1364,7 +1369,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
             +- ^(2) ProjectExecTransformer [hash(l_orderkey#16L, l_partkey#17L) AS hash_partition_key#302, l_orderkey#16L, l_partkey#17L]
                 +- ^(2) BatchScanExecTransformer[l_orderkey#16L, l_partkey#17L] ParquetScan DataFilters: [], Format: parquet, Location: InMemoryFileIndex(1 paths)[..., PartitionFilters: [], PushedFilters: [], ReadSchema: struct<l_orderkey:bigint,l_partkey:bigint>, PushedFilters: [] RuntimeFilters: []
        */
-      checkGlutenOperatorMatch[SortExecTransformer]
+      checkRoundRobinOperators
     }
     // scalastyle:on
 
@@ -1377,6 +1382,11 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           }
       }
     }
+
+    // Gluten-5206: test repartition on map type
+    runQueryAndCompare(
+      "SELECT /*+ REPARTITION(3) */ l_orderkey, map(l_orderkey, l_partkey) FROM lineitem")(
+      checkRoundRobinOperators)
   }
 
   test("Support Map type signature") {
