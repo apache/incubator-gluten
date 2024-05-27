@@ -68,12 +68,12 @@ jobs:
         run: |
           source dev/ci-velox-buildstatic.sh
       - name: 'Upload Artifact Native'
-      - uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v2
         with:
           path: ./cpp/build/releases/
           name: velox-native-lib-centos-7-${{github.sha}}
       - name: 'Upload Artifact Arrow jar'
-      - uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v2
         with:
           path: ~/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
           name: velox-arrow-jar-centos-7-${{github.sha}}
