@@ -33,6 +33,10 @@
 static jint jniVersion = JNI_VERSION_1_8;
 static map<int, string> type2sig = buildTypeMapping();
 
+static type_info intType = typeid(int);
+static type_info 
+
+
 static inline std::string jStringToCString(JNIEnv* env, jstring string) {
   int32_t jlen, clen;
   clen = env->GetStringUTFLength(string);
@@ -117,25 +121,24 @@ static inline map<int, string>& buildTypeMapping(){
   return type2sig;
 }
 
+static inline string& getSig(const std::type_info& t){
+  return type2sig[t.hash_code()];
+}
+
 template<typename T>
 static inline string& getSig(T t){
-  return type2sig[typeid(t).hash_code()];
+  return getSig(typeid(t));
+}
+
+template <typename T, typename... Args>
+static string& getSig(T t, Args... args){
+  return getSig(t) + getSig(args);
 }
 
 template <typename T, typename... Args>
 static string& getSignature(T returnValue, Args... args){
   string returnSign = getSig(returnValue);
   return "("+ getParameterSignature(args) +")" + returnSign;
-}
-
-template <typename T, typename... Args>
-static string& getParameterSignature(T t, Args... args){
-  return getSig(t) + getParameterSignature(args);
-}
-
-template <typename T>
-static string& getParameterSignature(T t){
-  return getSig(t);
 }
 
 static inline void attachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) {

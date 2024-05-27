@@ -130,7 +130,8 @@ class JavaInputStreamAdaptor final : public arrow::io::InputStream {
     attachCurrentThreadAsDaemonOrThrow(vm_, &env);
     jlong read;
     signature = getParameterSignature(read, reinterpret_cast<jlong>(out), nbytes);
-    jniByteInputStreamRead = getMethodIdOrError(env, jniByteInputStreamClass, "read", "(JJ)J");
+    string readSig = getSig(type(long), type(long), type(long))
+    jniByteInputStreamRead = getMethodIdOrError(env, jniByteInputStreamClass, "read", readSig.c_str());
     jlong read = env->CallLongMethod(jniIn_, jniByteInputStreamRead, reinterpret_cast<jlong>(out), nbytes);
     checkException(env);
     return read;
@@ -266,6 +267,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
   nativeColumnarToRowInfoClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/NativeColumnarToRowInfo;");
+  string nativeColumnarToRowInfoClassInitSig = getSig(typeid(void), typeid(int[]), typeid(int[]), typeid(long));
   nativeColumnarToRowInfoConstructor = getMethodIdOrError(env, nativeColumnarToRowInfoClass, "<init>", "([I[IJ)V");
 
   javaReservationListenerClass = createGlobalClassReference(
@@ -273,13 +275,17 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       "Lorg/apache/gluten/memory/nmm/"
       "ReservationListener;");
 
-  reserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "reserve", "(J)J");
-  unreserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "unreserve", "(J)J");
+  string reserveSig = getSig(typeid(long), typeid(long));
+  reserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "reserve", reserveSig);
+  string unreserveSig = getSig(typeid(long), typeid(long));
+  unreserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "unreserve", unreserveSig);
 
   shuffleReaderMetricsClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ShuffleReaderMetrics;");
+  string funcSig = getSig(typeid(void), typeid(long));
   shuffleReaderMetricsSetDecompressTime =
-      getMethodIdOrError(env, shuffleReaderMetricsClass, "setDecompressTime", "(J)V");
+      getMethodIdOrError(env, shuffleReaderMetricsClass, "setDecompressTime", funcSig.c_str());
+  funcSig = get
   shuffleReaderMetricsSetIpcTime = getMethodIdOrError(env, shuffleReaderMetricsClass, "setIpcTime", "(J)V");
   shuffleReaderMetricsSetDeserializeTime =
       getMethodIdOrError(env, shuffleReaderMetricsClass, "setDeserializeTime", "(J)V");

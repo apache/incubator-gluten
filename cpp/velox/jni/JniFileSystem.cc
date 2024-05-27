@@ -87,6 +87,7 @@ class JniReadFile : public facebook::velox::ReadFile {
   std::string_view pread(uint64_t offset, uint64_t length, void* buf) const override {
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
+    call
     env->CallVoidMethod(
         obj_, jniReadFilePread, static_cast<jlong>(offset), static_cast<jlong>(length), reinterpret_cast<jlong>(buf));
     checkException(env);
