@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "udf/Udf.h"
 #include "udf/Udaf.h"
+#include "udf/Udf.h"
 
 namespace gluten {
 
