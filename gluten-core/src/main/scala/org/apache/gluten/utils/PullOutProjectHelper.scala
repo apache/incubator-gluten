@@ -82,6 +82,7 @@ trait PullOutProjectHelper {
       case alias: Alias =>
         alias.child match {
           case _: Literal =>
+            // return the literals that have been added to the literalMap
             literalMap.put(alias.child.canonicalized, alias).nonEmpty
           case _ => false
         }
