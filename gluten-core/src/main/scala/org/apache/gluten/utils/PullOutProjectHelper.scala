@@ -78,7 +78,7 @@ trait PullOutProjectHelper {
 
   protected def getMissingLiterals(exprs: Seq[NamedExpression]): Seq[NamedExpression] = {
     val literalMap = new mutable.HashMap[Expression, NamedExpression]()
-    exprs.filter({
+    exprs.filter{
       case alias: Alias =>
         alias.child match {
           case _: Literal =>
@@ -86,7 +86,7 @@ trait PullOutProjectHelper {
           case _ => false
         }
       case _ => false
-    })
+    }
   }
 
   /**
