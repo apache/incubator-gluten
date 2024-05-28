@@ -121,12 +121,17 @@ static inline map<int, string>& buildTypeMapping(){
   type2sig[typeid(jintArray).hash_code()] = "[I";
   type2sig[typeid(jbyteArray).hash_code()] = "[B";
   type2sig[typeid(jlongArray).hash_code()] = "[J";
+  type2sig[typeid(void).hash_code()] = "V";
 
   return type2sig;
 }
 
 static inline string& getSig(const std::type_info& t){
   return type2sig[t.hash_code()];
+}
+
+static inline string& getSig(){
+  return "";
 }
 
 template<typename T>
@@ -142,7 +147,7 @@ static string& getSig(T t, Args... args){
 template <typename T, typename... Args>
 static string& getSignature(T returnValue, Args... args){
   string returnSign = getSig(returnValue);
-  return "("+ getParameterSignature(args) +")" + returnSign;
+  return "("+ getSig(args) +")" + returnSign;
 }
 
 static inline void attachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) {
