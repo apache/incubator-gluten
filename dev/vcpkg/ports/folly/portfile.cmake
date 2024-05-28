@@ -12,7 +12,6 @@ vcpkg_from_github(
     SHA512 6f4fa9b30ff0aba4c1c89619ada2cafd8943ba9a06b6ac4086fba212f26f0df606c8735485110eec6977900d45fc33ddcfdb8095dc6728b8c12b5cac65672e12
     HEAD_REF main
     PATCHES
-        disable-non-underscore-posix-names.patch
         boost-1.70.patch
         fix-windows-minmax.patch
         fix-deps.patch
