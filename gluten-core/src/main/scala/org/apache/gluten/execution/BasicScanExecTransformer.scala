@@ -80,7 +80,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     val numOutputVectors = longMetric("outputVectors")
     val scanTime = longMetric("scanTime")
     val substraitContext = new SubstraitContext
-    val transformContext = doTransform(substraitContext)
+    val transformContext = transform(substraitContext)
     val outNames =
       filteRedundantField(outputAttributes()).map(ConverterUtils.genColumnNameWithExprId).asJava
     val planNode =
@@ -117,7 +117,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }
 
     val substraitContext = new SubstraitContext
-    val relNode = doTransform(substraitContext).root
+    val relNode = transform(substraitContext).root
 
     doNativeValidation(substraitContext, relNode)
   }
@@ -133,7 +133,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
     val output = filteRedundantField(outputAttributes())
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)

@@ -227,12 +227,12 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
     doNativeValidation(substraitContext, relNode)
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val streamedPlanContext = streamedPlan.asInstanceOf[TransformSupport].doTransform(context)
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
+    val streamedPlanContext = streamedPlan.asInstanceOf[TransformSupport].transform(context)
     val (inputStreamedRelNode, inputStreamedOutput) =
       (streamedPlanContext.root, streamedPlanContext.outputAttributes)
 
-    val buildPlanContext = buildPlan.asInstanceOf[TransformSupport].doTransform(context)
+    val buildPlanContext = buildPlan.asInstanceOf[TransformSupport].transform(context)
     val (inputBuildRelNode, inputBuildOutput) =
       (buildPlanContext.root, buildPlanContext.outputAttributes)
 

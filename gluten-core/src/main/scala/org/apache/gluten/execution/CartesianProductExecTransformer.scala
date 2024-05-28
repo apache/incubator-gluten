@@ -77,12 +77,12 @@ case class CartesianProductExecTransformer(
     BackendsApiManager.getMetricsApiInstance.genNestedLoopJoinTransformerMetricsUpdater(metrics)
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val leftPlanContext = left.asInstanceOf[TransformSupport].doTransform(context)
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
+    val leftPlanContext = left.asInstanceOf[TransformSupport].transform(context)
     val (inputLeftRelNode, inputLeftOutput) =
       (leftPlanContext.root, leftPlanContext.outputAttributes)
 
-    val rightPlanContext = right.asInstanceOf[TransformSupport].doTransform(context)
+    val rightPlanContext = right.asInstanceOf[TransformSupport].transform(context)
     val (inputRightRelNode, inputRightOutput) =
       (rightPlanContext.root, rightPlanContext.outputAttributes)
 

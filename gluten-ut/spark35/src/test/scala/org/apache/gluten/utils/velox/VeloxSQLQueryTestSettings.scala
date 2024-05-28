@@ -134,6 +134,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "subquery/negative-cases/invalid-correlation.sql",
     "subquery/negative-cases/subq-input-typecheck.sql",
     "subquery/scalar-subquery/scalar-subquery-predicate.sql",
+    "subquery/scalar-subquery/scalar-subquery-select.sql",
     "subquery/subquery-in-from.sql",
     "postgreSQL/aggregates_part1.sql",
     "postgreSQL/aggregates_part2.sql",
@@ -241,9 +242,6 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "group-by.sql",
     "udf/udf-group-by.sql",
     // Overwrite some results of regr_intercept, regr_r2, corr.
-    "linear-regression.sql",
-    // Exception string doesn't match for
-    // SELECT (SELECT a FROM (SELECT 1 AS a UNION ALL SELECT 2 AS a) t) AS b
-    "subquery/scalar-subquery/scalar-subquery-select.sql"
+    "linear-regression.sql"
   )
 }

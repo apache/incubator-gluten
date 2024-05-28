@@ -75,8 +75,8 @@ object RemoveFilter extends RasRule[SparkPlan] {
     override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan = copy(newChild)
     override def outputPartitioning: Partitioning = child.outputPartitioning
     override def outputOrdering: Seq[SortOrder] = child.outputOrdering
-    override def doTransform(context: SubstraitContext): TransformContext =
-      child.asInstanceOf[TransformSupport].doTransform(context)
+    override protected def doTransform(context: SubstraitContext): TransformContext =
+      child.asInstanceOf[TransformSupport].transform(context)
     override protected def doExecuteColumnar(): RDD[ColumnarBatch] = child.executeColumnar()
   }
 }
