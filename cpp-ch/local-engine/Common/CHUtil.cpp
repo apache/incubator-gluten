@@ -657,6 +657,11 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
             settings.set(k, toField(k, value));
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
         }
+        else if (key == SPARK_SESSION_TIME_ZONE)
+        {
+            settings.set("session_timezone", value);
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", "session_timezone", value);
+        }
     }
 
     /// Finally apply some fixed kvs to settings.

@@ -719,6 +719,12 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       "select unix_timestamp(concat(cast(l_shipdate as String), ' 00:00:00')) " +
         "from lineitem order by l_shipdate limit 10;")(
       checkGlutenOperatorMatch[ProjectExecTransformer])
+    withSQLConf(SQLConf.SESSION_LOCAL_TIMEZONE.key -> "UTC") {
+      runQueryAndCompare(
+        "select to_unix_timestamp(concat(cast(l_shipdate as String), ' 00:00:00')) " +
+          "from lineitem order by l_shipdate limit 10")(
+        checkGlutenOperatorMatch[ProjectExecTransformer])
+    }
   }
 
   test("test literals") {

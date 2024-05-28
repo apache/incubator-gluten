@@ -635,6 +635,10 @@ object GlutenConfig {
       .filter(entry => entry._1.startsWith(backendPrefix) && !SQLConf.isStaticConfigKey(entry._1))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
+    conf
+      .filter(_._1.startsWith(SQLConf.SESSION_LOCAL_TIMEZONE.key))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
     // Pass the latest tokens to native
     nativeConfMap.put(
       GLUTEN_UGI_TOKENS,
