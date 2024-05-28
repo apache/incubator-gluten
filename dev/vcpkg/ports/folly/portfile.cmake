@@ -60,8 +60,12 @@ vcpkg_cmake_configure(
         # https://github.com/facebook/folly/issues/1623
         -DFOLLY_NO_EXCEPTION_TRACER=ON
         -DMSVC_USE_STATIC_RUNTIME=${MSVC_USE_STATIC_RUNTIME}
-        -DCMAKE_DISABLE_FIND_PACKAGE_LibDwarf=ON
+        -DCMAKE_DISABLE_FIND_PACKAGE_LibDwarf=OFF
         -DCMAKE_DISABLE_FIND_PACKAGE_Libiberty=ON
+        -DCMAKE_DISABLE_FIND_PACKAGE_LibAIO=ON
+        -DLIBAIO_FOUND=OFF
+        # Required by Velox.
+        -DFOLLY_HAVE_INT128_T=ON
         -DCMAKE_INSTALL_DIR=share/folly
         ${FEATURE_OPTIONS}
     MAYBE_UNUSED_VARIABLES
