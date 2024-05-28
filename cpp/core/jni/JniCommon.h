@@ -92,6 +92,17 @@ static inline jmethodID getMethodIdOrError(JNIEnv* env, jclass thisClass, const 
   return ret;
 }
 
+template <typename T, typename... Args>
+static inline jmethodID getMethodIdOrError(JNIEnv* env, jclass thisClass, const char* name, const T return_type, Args... args) {
+  string sig = getSig(return_type, args);
+  jmethodID ret = getMethodId(env, thisClass, name, sig.c_str());
+  if (ret == nullptr) {
+    std::string errorMessage = "Unable to find method " + std::string(name) + " within signature" + std::string(sig);
+    throw gluten::GlutenException(errorMessage);
+  }
+  return ret;
+}
+
 static inline jmethodID getStaticMethodId(JNIEnv* env, jclass thisClass, const char* name, const char* sig) {
   jmethodID ret = env->GetStaticMethodID(thisClass, name, sig);
   return ret;

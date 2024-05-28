@@ -130,8 +130,10 @@ class JavaInputStreamAdaptor final : public arrow::io::InputStream {
     attachCurrentThreadAsDaemonOrThrow(vm_, &env);
     jlong read;
     signature = getParameterSignature(read, reinterpret_cast<jlong>(out), nbytes);
-    string readSig = getSig(type(long), type(long), type(long))
-    jniByteInputStreamRead = getMethodIdOrError(env, jniByteInputStreamClass, "read", readSig.c_str());
+
+    jlong destAddress;
+    jlong maxSize;
+    jniByteInputStreamRead = getMethodIdOrError(env, jniByteInputStreamClass, "read", typeid(jlong), destAddress, maxSize);
     jlong read = env->CallLongMethod(jniIn_, jniByteInputStreamRead, reinterpret_cast<jlong>(out), nbytes);
     checkException(env);
     return read;
@@ -242,20 +244,26 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   byteArrayClass = createGlobalClassReferenceOrError(env, funcSig.c_str());
 
   jniByteInputStreamClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/JniByteInputStream;");
-  funcSig = getSig(typeid(jlong));
-  jniByteInputStreamTell = getMethodIdOrError(env, jniByteInputStreamClass, "tell", funcSig.c_str());
-  funcSig = getSig(typeid(void));
-  jniByteInputStreamClose = getMethodIdOrError(env, jniByteInputStreamClass, "close", funcSig.c_str());
+  jniByteInputStreamTell = getMethodIdOrError(env, jniByteInputStreamClass, "tell", typeid(jlong));
+  jniByteInputStreamClose = getMethodIdOrError(env, jniByteInputStreamClass, "close", typeid(void));
 
   splitResultClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/GlutenSplitResult;");
-  funcSig = getSig(typeid(void), typeid(jlong), typeid(jlong), typeid(jlong), typeid(jlong), typeid(jlong), typeid(jlong), typeid(jlong), typeid(jlongArray), typeid(jlongArray));
-  splitResultConstructor = getMethodIdOrError(env, splitResultClass, "<init>", funcSig.c_str());
+  jlong totalComputePidTime;
+  jlong totalWriteTime;
+  jlong totalEvictTime;
+  jlong totalCompressTime;
+  jlong totalBytesWritten;
+  jlong totalBytesEvicted;
+  jlongArray partitionLengths;
+  jlongArray rawPartitionLengths;
+  splitResultConstructor = getMethodIdOrError(env, splitResultClass, "<init>", typeid(void), totalComputePidTime, totalWriteTime, totalEvictTime, totalCompressTime, totalBytesWritten, totalBytesEvicted, partitionLengths, rawPartitionLengths);
 
   columnarBatchSerializeResultClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ColumnarBatchSerializeResult;");
-  funcSig = getSig(typeid(void), typeid(jlong), typeid(jbyteArray))
+  jlong numRows;
+  jbyteArray serialized;
   columnarBatchSerializeResultConstructor =
-      getMethodIdOrError(env, columnarBatchSerializeResultClass, "<init>", funcSig.c_str());
+      getMethodIdOrError(env, columnarBatchSerializeResultClass, "<init>", typeid(void), numRows, serialized);
 
   metricsBuilderClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/metrics/Metrics;");
 
