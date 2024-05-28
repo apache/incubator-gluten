@@ -112,8 +112,8 @@ case class SampleExecTransformer(
     doNativeValidation(substraitContext, relNode)
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
+    val childCtx = child.asInstanceOf[TransformSupport].transform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
     val currRel =
       getRelNode(context, condition, child.output, operatorId, childCtx.root, validation = false)
