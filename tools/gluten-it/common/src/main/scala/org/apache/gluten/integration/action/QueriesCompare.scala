@@ -113,7 +113,7 @@ object QueriesCompare {
   object TestResultLine {
     implicit object Parser extends TableFormatter.RowParser[TestResultLine] {
       override def parse(line: TestResultLine): Seq[Any] = {
-        val timeVariation =
+        val speedUp =
           if (line.expectedExecutionTimeMillis.nonEmpty && line.actualExecutionTimeMillis.nonEmpty) {
             Some(
               ((line.expectedExecutionTimeMillis.get - line.actualExecutionTimeMillis.get).toDouble
@@ -122,13 +122,15 @@ object QueriesCompare {
         Seq(
           line.queryId,
           line.testPassed,
-          line.expectedRowCount.getOrElse("N/A"),
-          line.actualRowCount.getOrElse("N/A"),
-          line.expectedPlanningTimeMillis.getOrElse("N/A"),
-          line.actualPlanningTimeMillis.getOrElse("N/A"),
-          line.expectedExecutionTimeMillis.getOrElse("N/A"),
-          line.actualExecutionTimeMillis.getOrElse("N/A"),
-          timeVariation.map("%15.2f%%".format(_)).getOrElse("N/A"))
+          "%s -> %s"
+            .format(line.expectedRowCount.getOrElse("N/A"), line.actualRowCount.getOrElse("N/A")),
+          "%s -> %s".format(
+            line.expectedPlanningTimeMillis.getOrElse("N/A"),
+            line.actualPlanningTimeMillis.getOrElse("N/A")),
+          "%s -> %s".format(
+            line.expectedExecutionTimeMillis.getOrElse("N/A"),
+            line.actualExecutionTimeMillis.getOrElse("N/A")),
+          speedUp.map("%+.2f%%".format(_)).getOrElse("N/A"))
       }
     }
   }
@@ -136,14 +138,11 @@ object QueriesCompare {
   private def printResults(results: List[TestResultLine]): Unit = {
     val formatter = TableFormatter.create[TestResultLine](
       "Query ID",
-      "Was Passed",
-      "Expected Row Count",
-      "Actual Row Count",
-      "Baseline Planning Time (Millis)",
-      "Planning Time (Millis)",
-      "Baseline Query Time (Millis)",
-      "Query Time (Millis)",
-      "Query Time Variation")
+      "Passed",
+      "Row Count (Vanilla -> Gluten)",
+      "Planning Time / ms (Vanilla -> Gluten)",
+      "Query Time / ms (Vanilla -> Gluten)",
+      "Speedup")
 
     results.foreach { line =>
       formatter.appendRow(line)
