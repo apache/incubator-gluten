@@ -56,6 +56,9 @@ vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}"
     OPTIONS
+        # Exclude exception tracer, which is necessary to statically link libstdc++.
+        # https://github.com/facebook/folly/issues/1623
+        -DFOLLY_NO_EXCEPTION_TRACER=ON
         -DMSVC_USE_STATIC_RUNTIME=${MSVC_USE_STATIC_RUNTIME}
         -DCMAKE_DISABLE_FIND_PACKAGE_LibDwarf=ON
         -DCMAKE_DISABLE_FIND_PACKAGE_Libiberty=ON
