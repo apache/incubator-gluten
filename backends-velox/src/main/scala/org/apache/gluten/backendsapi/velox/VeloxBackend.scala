@@ -376,8 +376,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
       } else {
         t match {
           // OPPRO-266: For Velox backend, build right and left are both supported for
-          // LeftOuter and LeftSemi.
-          case LeftOuter | LeftSemi => true
+          // LeftOuter.
+          case LeftOuter => true
           case _ => false
         }
       }
