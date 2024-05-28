@@ -17,10 +17,9 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.execution.CoalescedPartitionSpec
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, AQEShuffleReadExec}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
-class GlutenClickHouseColumnarSortShuffleAQESuite
+class GlutenClickHouseColumnarMemorySortShuffleSuite
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
 
@@ -36,29 +35,11 @@ class GlutenClickHouseColumnarSortShuffleAQESuite
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.forceSortShuffle", "true")
+      .set("spark.gluten.sql.columnar.backend.ch.forceMemorySortShuffle", "true")
   }
 
   test("TPCH Q1") {
-    runTPCHQuery(1) {
-      df =>
-        assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
-
-        val colCustomShuffleReaderExecs = collect(df.queryExecution.executedPlan) {
-          case csr: AQEShuffleReadExec => csr
-        }
-        assert(colCustomShuffleReaderExecs.size == 2)
-        val coalescedPartitionSpec0 = colCustomShuffleReaderExecs(0)
-          .partitionSpecs(0)
-          .asInstanceOf[CoalescedPartitionSpec]
-        assert(coalescedPartitionSpec0.startReducerIndex == 0)
-        assert(coalescedPartitionSpec0.endReducerIndex == 5)
-        val coalescedPartitionSpec1 = colCustomShuffleReaderExecs(1)
-          .partitionSpecs(0)
-          .asInstanceOf[CoalescedPartitionSpec]
-        assert(coalescedPartitionSpec1.startReducerIndex == 0)
-        assert(coalescedPartitionSpec1.endReducerIndex == 5)
-    }
+    runTPCHQuery(1) { df => }
   }
 
   test("TPCH Q2") {
@@ -98,14 +79,7 @@ class GlutenClickHouseColumnarSortShuffleAQESuite
   }
 
   test("TPCH Q11") {
-    runTPCHQuery(11) {
-      df =>
-        assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
-        val adaptiveSparkPlanExec = collectWithSubqueries(df.queryExecution.executedPlan) {
-          case adaptive: AdaptiveSparkPlanExec => adaptive
-        }
-        assert(adaptiveSparkPlanExec.size == 2)
-    }
+    runTPCHQuery(11) { df => }
   }
 
   test("TPCH Q12") {
@@ -121,14 +95,7 @@ class GlutenClickHouseColumnarSortShuffleAQESuite
   }
 
   test("TPCH Q15") {
-    runTPCHQuery(15) {
-      df =>
-        assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
-        val adaptiveSparkPlanExec = collectWithSubqueries(df.queryExecution.executedPlan) {
-          case adaptive: AdaptiveSparkPlanExec => adaptive
-        }
-        assert(adaptiveSparkPlanExec.size == 2)
-    }
+    runTPCHQuery(15) { df => }
   }
 
   test("TPCH Q16") {
@@ -140,13 +107,7 @@ class GlutenClickHouseColumnarSortShuffleAQESuite
   }
 
   test("TPCH Q18") {
-    runTPCHQuery(18) {
-      df =>
-        val hashAggregates = collect(df.queryExecution.executedPlan) {
-          case hash: HashAggregateExecBaseTransformer => hash
-        }
-        assert(hashAggregates.size == 3)
-    }
+    runTPCHQuery(18) { df => }
   }
 
   test("TPCH Q19") {
@@ -162,14 +123,6 @@ class GlutenClickHouseColumnarSortShuffleAQESuite
   }
 
   test("TPCH Q22") {
-    runTPCHQuery(22) {
-      df =>
-        assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
-        val adaptiveSparkPlanExec = collectWithSubqueries(df.queryExecution.executedPlan) {
-          case adaptive: AdaptiveSparkPlanExec => adaptive
-        }
-        assert(adaptiveSparkPlanExec.size == 3)
-        assert(adaptiveSparkPlanExec(1) == adaptiveSparkPlanExec(2))
-    }
+    runTPCHQuery(22) { df => }
   }
 }

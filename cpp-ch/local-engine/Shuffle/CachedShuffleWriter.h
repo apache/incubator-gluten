@@ -37,6 +37,7 @@ public:
     friend class CelebornPartitionWriter;
     friend class SortBasedPartitionWriter;
     friend class MemorySortLocalPartitionWriter;
+    friend class MemorySortCelebornPartitionWriter;
     friend class ExternalSortLocalPartitionWriter;
     friend class ExternalSortCelebornPartitionWriter;
     friend class Spillable;

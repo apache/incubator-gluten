@@ -192,6 +192,24 @@ protected:
     void unsafeStop() override;
 };
 
+class MemorySortCelebornPartitionWriter : public SortBasedPartitionWriter
+{
+public:
+    explicit MemorySortCelebornPartitionWriter(CachedShuffleWriter* shuffle_writer_, std::unique_ptr<CelebornClient> celeborn_client_)
+        : SortBasedPartitionWriter(shuffle_writer_), celeborn_client(std::move(celeborn_client_))
+    {
+    }
+
+    ~MemorySortCelebornPartitionWriter() override = default;
+
+protected:
+    size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer) override;
+    void unsafeStop() override;
+
+private:
+    std::unique_ptr<CelebornClient> celeborn_client;
+};
+
 class SortedPartitionDataMerger;
 
 class ExternalSortLocalPartitionWriter : public SortBasedPartitionWriter

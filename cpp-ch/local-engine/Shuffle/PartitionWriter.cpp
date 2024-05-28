@@ -479,6 +479,106 @@ void MemorySortLocalPartitionWriter::unsafeStop()
     shuffle_writer->split_result.partition_lengths = offsets;
 }
 
+size_t MemorySortCelebornPartitionWriter::unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer)
+{
+    size_t res = 0;
+    size_t spilled_bytes = 0;
+    auto spill_to_celeborn = [this, for_memory_spill, flush_block_buffer, &res, &spilled_bytes]()
+    {
+        Stopwatch serialization_time_watch;
+
+        /// Skip empty buffer
+        if (accumulated_blocks.empty())
+            return;
+
+        WriteBufferFromOwnString output;
+        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
+        CompressedWriteBuffer compressed_output(output, codec, shuffle_writer->options.io_buffer_size);
+        NativeWriter writer(compressed_output, shuffle_writer->output_header);
+
+        MergeSorter sorter(sort_header, std::move(accumulated_blocks), sort_description, adaptiveBlockSize(), 0);
+        size_t cur_partition_id = 0;
+        auto push_to_celeborn = [&]()
+        {
+            compressed_output.sync();
+            auto& data = output.str();
+            if (!data.empty())
+            {
+                Stopwatch push_time_watch;
+                celeborn_client->pushPartitionData(cur_partition_id, data.data(), data.size());
+                shuffle_writer->split_result.total_io_time += push_time_watch.elapsedNanoseconds();
+                shuffle_writer->split_result.partition_lengths[cur_partition_id] += data.size();
+            }
+            output.restart();
+        };
+
+        while (auto data = sorter.read())
+        {
+            Block serialized_block = sort_header.cloneWithColumns(data.detachColumns());
+            const auto partitions = serialized_block.getByName(PARTITION_COLUMN_NAME).column;
+            serialized_block.erase(PARTITION_COLUMN_NAME);
+            size_t row_offset = 0;
+            while (row_offset < serialized_block.rows())
+            {
+                auto last_idx = searchLastPartitionIdIndex(partitions, row_offset, cur_partition_id);
+                if (last_idx < 0)
+                {
+                    push_to_celeborn();
+                    cur_partition_id++;
+                    continue;
+                }
+
+                if (row_offset == 0 && last_idx == serialized_block.rows() - 1)
+                {
+                    auto count = writer.write(serialized_block);
+                    shuffle_writer->split_result.raw_partition_lengths[cur_partition_id] += count;
+                    break;
+                }
+                auto cut_block = serialized_block.cloneWithCutColumns(row_offset, last_idx - row_offset + 1);
+                auto count = writer.write(cut_block);
+                shuffle_writer->split_result.raw_partition_lengths[cur_partition_id] += count;
+                row_offset = last_idx + 1;
+                if (last_idx != serialized_block.rows() - 1)
+                {
+                    push_to_celeborn();
+                    cur_partition_id++;
+                }
+            }
+        }
+        push_to_celeborn();
+        spilled_bytes = current_accumulated_bytes;
+        res = current_accumulated_bytes;
+        current_accumulated_bytes = 0;
+        current_accumulated_rows = 0;
+
+        shuffle_writer->split_result.total_compress_time += compressed_output.getCompressTime();
+        shuffle_writer->split_result.total_io_time += compressed_output.getWriteTime();
+
+        shuffle_writer->split_result.total_serialize_time += serialization_time_watch.elapsedNanoseconds();
+    };
+
+    Stopwatch spill_time_watch;
+    if (for_memory_spill && options->throw_if_memory_exceed)
+    {
+        // escape memory track from current thread status; add untracked memory limit for create thread object, avoid trigger memory spill again
+        IgnoreMemoryTracker ignore(settings.spill_memory_overhead);
+        spill_to_celeborn();
+    }
+    else
+    {
+        spill_to_celeborn();
+    }
+
+    shuffle_writer->split_result.total_spill_time += spill_time_watch.elapsedNanoseconds();
+    shuffle_writer->split_result.total_bytes_spilled += spilled_bytes;
+    return res;
+}
+
+void MemorySortCelebornPartitionWriter::unsafeStop()
+{
+    unsafeEvictPartitions(false, false);
+}
+
 size_t ExternalSortLocalPartitionWriter::unsafeEvictPartitions(bool, bool)
 {
     // escape memory track
@@ -685,8 +785,7 @@ size_t CelebornPartitionWriter::unsafeEvictSinglePartition(bool for_memory_spill
     {
         // escape memory track from current thread status; add untracked memory limit for create thread object, avoid trigger memory spill again
         IgnoreMemoryTracker ignore(settings.spill_memory_overhead);
-        ThreadFromGlobalPool thread(spill_to_celeborn);
-        thread.join();
+        spill_to_celeborn();
     }
     else
     {

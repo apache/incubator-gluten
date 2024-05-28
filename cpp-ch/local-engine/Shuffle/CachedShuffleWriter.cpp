@@ -75,7 +75,7 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitO
         jmethodID celeborn_push_partition_data_method =
             GetMethodID(env, celeborn_partition_pusher_class, "pushPartitionData", "(I[BI)I");
         CLEAN_JNIENV
-        auto celeborn_client = std::make_unique<CelebornClient>(rss_pusher, celeborn_push_partition_data_method);
+        celeborn_client = std::make_unique<CelebornClient>(rss_pusher, celeborn_push_partition_data_method);
     }
 
 
@@ -141,8 +141,10 @@ void CachedShuffleWriter::lazyInitPartitionWriter(Block & input_sample)
     sort_shuffle = use_memory_sort_shuffle || use_external_sort_shuffle;
     if (celeborn_client)
     {
-        if (sort_shuffle)
+        if (use_external_sort_shuffle)
             partition_writer = std::make_unique<ExternalSortCelebornPartitionWriter>(this, std::move(celeborn_client));
+        else if (use_memory_sort_shuffle)
+            partition_writer = std::make_unique<MemorySortCelebornPartitionWriter>(this, std::move(celeborn_client));
         else
             partition_writer = std::make_unique<CelebornPartitionWriter>(this, std::move(celeborn_client));
     }
