@@ -130,7 +130,7 @@ object QueriesCompare {
           "%s -> %s".format(
             line.expectedExecutionTimeMillis.getOrElse("N/A"),
             line.actualExecutionTimeMillis.getOrElse("N/A")),
-          speedUp.map("%+.2f%%".format(_)).getOrElse("N/A"))
+          speedUp.map("%.2f%%".format(_)).getOrElse("N/A"))
       }
     }
   }
