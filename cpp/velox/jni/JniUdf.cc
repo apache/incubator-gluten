@@ -41,8 +41,10 @@ void gluten::initVeloxJniUDF(JNIEnv* env) {
   udfResolverClass = createGlobalClassReferenceOrError(env, kUdfResolverClassPath.c_str());
 
   // methods
-  registerUDFMethod = getMethodIdOrError(env, udfResolverClass, "registerUDF", "(Ljava/lang/String;[B[BZ)V");
-  registerUDAFMethod = getMethodIdOrError(env, udfResolverClass, "registerUDAF", "(Ljava/lang/String;[B[B[BZ)V");
+  string funcSig = getSig(typeid(void), typeid(jstring), typeid(jbyteArray), typeid(jbyteArray), typeid(jboolean));
+  registerUDFMethod = getMethodIdOrError(env, udfResolverClass, "registerUDF", funcSig.c_str());
+  funcSig = getSig(typeid(void), typeid(jstring), typeid(jbyteArray), typeid(jbyteArray), typeid(jbyteArray), typeid(jboolean));
+  registerUDAFMethod = getMethodIdOrError(env, udfResolverClass, "registerUDAF", funcSig.c_str());
 }
 
 void gluten::finalizeVeloxJniUDF(JNIEnv* env) {

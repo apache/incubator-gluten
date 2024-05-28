@@ -118,6 +118,10 @@ static inline map<int, string>& buildTypeMapping(){
   type2sig[typeid(double).hash_code()] = "D";
   type2sig[typeid(jstring).hash_code()] = "Ljava/lang/String;";
   type2sig[typeid(jthrowable).hash_code()] = "Ljava/lang/Throwable;";
+  type2sig[typeid(jintArray).hash_code()] = "[I";
+  type2sig[typeid(jbyteArray).hash_code()] = "[B";
+  type2sig[typeid(jlongArray).hash_code()] = "[J";
+
   return type2sig;
 }
 

@@ -238,61 +238,77 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   gluten::getJniCommonState()->ensureInitialized(env);
   gluten::getJniErrorState()->ensureInitialized(env);
 
-  byteArrayClass = createGlobalClassReferenceOrError(env, "[B");
+  string funcSig = getSig(typeid(jbyteArray));
+  byteArrayClass = createGlobalClassReferenceOrError(env, funcSig.c_str());
 
   jniByteInputStreamClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/JniByteInputStream;");
-  jniByteInputStreamTell = getMethodIdOrError(env, jniByteInputStreamClass, "tell", "()J");
-  jniByteInputStreamClose = getMethodIdOrError(env, jniByteInputStreamClass, "close", "()V");
+  funcSig = getSig(typeid(jlong));
+  jniByteInputStreamTell = getMethodIdOrError(env, jniByteInputStreamClass, "tell", funcSig.c_str());
+  funcSig = getSig(typeid(void));
+  jniByteInputStreamClose = getMethodIdOrError(env, jniByteInputStreamClass, "close", funcSig.c_str());
 
   splitResultClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/GlutenSplitResult;");
-  splitResultConstructor = getMethodIdOrError(env, splitResultClass, "<init>", "(JJJJJJJ[J[J)V");
+  funcSig = getSig(typeid(void), typeid(jlong), typeid(jlong), typeid(jlong), typeid(jlong), typeid(jlong), typeid(jlong), typeid(jlong), typeid(jlongArray), typeid(jlongArray));
+  splitResultConstructor = getMethodIdOrError(env, splitResultClass, "<init>", funcSig.c_str());
 
   columnarBatchSerializeResultClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ColumnarBatchSerializeResult;");
+  funcSig = getSig(typeid(void), typeid(jlong), typeid(jbyteArray))
   columnarBatchSerializeResultConstructor =
-      getMethodIdOrError(env, columnarBatchSerializeResultClass, "<init>", "(J[B)V");
+      getMethodIdOrError(env, columnarBatchSerializeResultClass, "<init>", funcSig.c_str());
 
   metricsBuilderClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/metrics/Metrics;");
 
+  string funcSig = getSig(typeid(void), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray),
+                          typeid(jlongArray), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray),
+                          typeid(jlongArray), typeid(jlong), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray),
+                          typeid(jlongArray), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray),
+                          typeid(jlongArray), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray),
+                          typeid(jlongArray), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray),
+                          typeid(jlongArray), typeid(jlongArray));
   metricsBuilderConstructor = getMethodIdOrError(
-      env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
+      env, metricsBuilderClass, "<init>", funcSig.c_str());
 
   serializedColumnarBatchIteratorClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ColumnarBatchInIterator;");
 
+  string funcSig = getSig(typeid(jboolean));
   serializedColumnarBatchIteratorHasNext =
-      getMethodIdOrError(env, serializedColumnarBatchIteratorClass, "hasNext", "()Z");
+      getMethodIdOrError(env, serializedColumnarBatchIteratorClass, "hasNext", funcSig.c_str());
 
-  serializedColumnarBatchIteratorNext = getMethodIdOrError(env, serializedColumnarBatchIteratorClass, "next", "()J");
+  funcSig = getSig(typeid(jlong));
+  serializedColumnarBatchIteratorNext = getMethodIdOrError(env, serializedColumnarBatchIteratorClass, "next", funcSig.c_str());
 
   nativeColumnarToRowInfoClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/NativeColumnarToRowInfo;");
-  string nativeColumnarToRowInfoClassInitSig = getSig(typeid(void), typeid(int[]), typeid(int[]), typeid(long));
-  nativeColumnarToRowInfoConstructor = getMethodIdOrError(env, nativeColumnarToRowInfoClass, "<init>", "([I[IJ)V");
+  funcSig = getSig(typeid(void), typeid(jintArray), typeid(jintArray), typeid(jlong));
+  nativeColumnarToRowInfoConstructor = getMethodIdOrError(env, nativeColumnarToRowInfoClass, "<init>", funcSig.c_str());
 
   javaReservationListenerClass = createGlobalClassReference(
       env,
       "Lorg/apache/gluten/memory/nmm/"
       "ReservationListener;");
 
-  string reserveSig = getSig(typeid(long), typeid(long));
-  reserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "reserve", reserveSig);
-  string unreserveSig = getSig(typeid(long), typeid(long));
-  unreserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "unreserve", unreserveSig);
+  funcSig = getSig(typeid(jlong), typeid(jlong));
+  reserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "reserve", funcSig.c_str());
+  funcSig = getSig(typeid(jlong), typeid(jlong));
+  unreserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "unreserve", funcSig.c_str());
 
   shuffleReaderMetricsClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ShuffleReaderMetrics;");
-  string funcSig = getSig(typeid(void), typeid(long));
+  funcSig = getSig(typeid(void), typeid(jlong));
   shuffleReaderMetricsSetDecompressTime =
       getMethodIdOrError(env, shuffleReaderMetricsClass, "setDecompressTime", funcSig.c_str());
-  funcSig = get
-  shuffleReaderMetricsSetIpcTime = getMethodIdOrError(env, shuffleReaderMetricsClass, "setIpcTime", "(J)V");
+  funcSig = getSig(typeid(void), typeid(jlong));
+  shuffleReaderMetricsSetIpcTime = getMethodIdOrError(env, shuffleReaderMetricsClass, "setIpcTime", funcSig.c_str());
+  funcSig = getSig(typeid(void), typeid(jlong));
   shuffleReaderMetricsSetDeserializeTime =
-      getMethodIdOrError(env, shuffleReaderMetricsClass, "setDeserializeTime", "(J)V");
+      getMethodIdOrError(env, shuffleReaderMetricsClass, "setDeserializeTime", funcSig.c_str());
 
   block_stripes_class =
       createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
-  block_stripes_constructor = env->GetMethodID(block_stripes_class, "<init>", "(J[J[II[B)V");
+  funcSig = getSig(typeid(void), typeid(jlong), typeid(jlongArray), typeid(jintArray), typeid(jint), typeid(jbyteArray));
+  block_stripes_constructor = env->GetMethodID(block_stripes_class, "<init>", funcSig.c_str());
 
   return jniVersion;
 }

@@ -415,27 +415,44 @@ void gluten::initVeloxJniFileSystem(JNIEnv* env) {
       jniFileSystemClass,
       "openFileForWrite",
       "(Ljava/lang/String;)Lorg/apache/gluten/fs/JniFilesystem$WriteFile;");
-  jniFileSystemRemove = getMethodIdOrError(env, jniFileSystemClass, "remove", "(Ljava/lang/String;)V");
+  string funcSig = getSig(typeid(void), typeid(jstring));
+  jniFileSystemRemove = getMethodIdOrError(env, jniFileSystemClass, "remove", funcSig.c_str());
+  funcSig = getSig(typeid(void), typeid(jstring), typeid(jstring), typeid(jboolean));
   jniFileSystemRename =
-      getMethodIdOrError(env, jniFileSystemClass, "rename", "(Ljava/lang/String;Ljava/lang/String;Z)V");
+      getMethodIdOrError(env, jniFileSystemClass, "rename", funcSig.c_str());
+  funcSig = getSig(typeid(void), typeid(jstring));
   jniFileSystemExists = getMethodIdOrError(env, jniFileSystemClass, "exists", "(Ljava/lang/String;)Z");
+  //We don't have the jstringArray, so we pass the exact description for it
+  string funcSig = getSig(typeid(jstring[]), typeid(jstring));
   jniFileSystemList = getMethodIdOrError(env, jniFileSystemClass, "list", "(Ljava/lang/String;)[Ljava/lang/String;");
-  jniFileSystemMkdir = getMethodIdOrError(env, jniFileSystemClass, "mkdir", "(Ljava/lang/String;)V");
-  jniFileSystemRmdir = getMethodIdOrError(env, jniFileSystemClass, "rmdir", "(Ljava/lang/String;)V");
+  funcSig = getSig(typeid(void), typeid(jstring));
+  jniFileSystemMkdir = getMethodIdOrError(env, jniFileSystemClass, "mkdir", funcSig.c_str());
+  funcSig = getSig(typeid(void), typeid(jstring));
+  jniFileSystemRmdir = getMethodIdOrError(env, jniFileSystemClass, "rmdir", funcSig.c_str());
 
   // methods in JniFilesystem$ReadFile
-  jniReadFilePread = getMethodIdOrError(env, jniReadFileClass, "pread", "(JJJ)V");
-  jniReadFileShouldCoalesce = getMethodIdOrError(env, jniReadFileClass, "shouldCoalesce", "()Z");
-  jniReadFileSize = getMethodIdOrError(env, jniReadFileClass, "size", "()J");
-  jniReadFileMemoryUsage = getMethodIdOrError(env, jniReadFileClass, "memoryUsage", "()J");
-  jniReadFileGetNaturalReadSize = getMethodIdOrError(env, jniReadFileClass, "getNaturalReadSize", "()J");
-  jniReadFileClose = getMethodIdOrError(env, jniReadFileClass, "close", "()V");
+  funcSig = getSig(typeid(void), typeid(jlong), typeid(jlong), typeid(jlong));
+  jniReadFilePread = getMethodIdOrError(env, jniReadFileClass, "pread", funcSig.c_str());
+  funcSig = getSig(typeid(jboolean));
+  jniReadFileShouldCoalesce = getMethodIdOrError(env, jniReadFileClass, "shouldCoalesce", funcSig.c_str());
+  funcSig = getSig(typeid(jlong));
+  jniReadFileSize = getMethodIdOrError(env, jniReadFileClass, "size", funcSig.c_str());
+  funcSig = getSig(typeid(jlong));
+  jniReadFileMemoryUsage = getMethodIdOrError(env, jniReadFileClass, "memoryUsage", funcSig.c_str());
+  funcSig = getSig(typeid(jlong));
+  jniReadFileGetNaturalReadSize = getMethodIdOrError(env, jniReadFileClass, "getNaturalReadSize", funcSig.c_str());
+  funcSig = getSig(typeid(void));
+  jniReadFileClose = getMethodIdOrError(env, jniReadFileClass, "close", funcSig.c_str());
 
   // methods in JniFilesystem$WriteFile
-  jniWriteFileAppend = getMethodIdOrError(env, jniWriteFileClass, "append", "(JJ)V");
-  jniWriteFileFlush = getMethodIdOrError(env, jniWriteFileClass, "flush", "()V");
-  jniWriteFileClose = getMethodIdOrError(env, jniWriteFileClass, "close", "()V");
-  jniWriteFileSize = getMethodIdOrError(env, jniWriteFileClass, "size", "()J");
+  funcSig = getSig(typeid(void), typeid(jlong), typeid(jlong));
+  jniWriteFileAppend = getMethodIdOrError(env, jniWriteFileClass, "append", funcSig.c_str());
+  funcSig = getSig(typeid(void));
+  jniWriteFileFlush = getMethodIdOrError(env, jniWriteFileClass, "flush", funcSig.c_str());
+  funcSig = getSig(typeid(void));
+  jniWriteFileClose = getMethodIdOrError(env, jniWriteFileClass, "close", funcSig.c_str());
+  funcSig = getSig(typeid(jlong));
+  jniWriteFileSize = getMethodIdOrError(env, jniWriteFileClass, "size", funcSig.c_str());
 }
 
 void gluten::finalizeVeloxJniFileSystem(JNIEnv* env) {
