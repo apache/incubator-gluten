@@ -74,8 +74,7 @@ public class CHShuffleSplitterJniWrapper {
       boolean throwIfMemoryExceed,
       boolean flushBlockBufferBeforeEvict,
       boolean forceExternalSort,
-      boolean forceMemorySort
-      ) {
+      boolean forceMemorySort) {
     return nativeMakeForRSS(
         part.getShortName(),
         part.getNumPartitions(),

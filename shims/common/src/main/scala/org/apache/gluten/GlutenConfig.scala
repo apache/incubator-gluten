@@ -299,10 +299,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def chColumnarShuffleSpillThreshold: Long = {
     val threshold = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
-    if (threshold == 0)
+    if (threshold == 0) {
       (conf.getConf(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES) * 0.9).toLong
-    else
+    } else {
       threshold
+    }
   }
 
   def chColumnarThrowIfMemoryExceed: Boolean = conf.getConf(COLUMNAR_CH_THROW_IF_MEMORY_EXCEED)
