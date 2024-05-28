@@ -309,8 +309,13 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
     // Add a check to find error easily.
     if (storage_join)
     {
-        std::string msg = "For broadcast join, we must not change the columns name in the right table.";
-        assertBlocksHaveEqualStructure(right_header_before_convert_step, right->getCurrentDataStream().header, msg);
+        if(!blocksHaveEqualStructure(right_header_before_convert_step, right->getCurrentDataStream().header))
+        {
+            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "For broadcast join, we must not change the columns name in the right table.\nleft header:{},\nright header: {} -> {}",
+                left->getCurrentDataStream().header.dumpNames(),
+                right_header_before_convert_step.dumpNames(),
+                right->getCurrentDataStream().header.dumpNames());
+        }
     }
 
     Names after_join_names;

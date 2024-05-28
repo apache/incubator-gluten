@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include "StorageJoinFromReadBuffer.h"
+#include <algorithm>
 
 #include <DataTypes/DataTypeNullable.h>
 #include <Interpreters/Context.h>
@@ -44,16 +45,16 @@ extern const int DEADLOCK_AVOIDED;
 
 using namespace DB;
 
-static size_t unique_storage_join_id = 0;
+constexpr auto RIHGT_COLUMN_PREFIX = "broadcast_right_";
 
-DB::Block rightSampleBlock(const std::string & id, bool use_nulls, const StorageInMemoryMetadata & storage_metadata_, JoinKind kind)
+DB::Block rightSampleBlock(bool use_nulls, const StorageInMemoryMetadata & storage_metadata_, JoinKind kind)
 {
     DB::ColumnsWithTypeAndName new_cols;
     DB::Block block = storage_metadata_.getSampleBlock();
     for (const auto & col : block)
     {
         // Add a prefix to avoid column name conflicts with left table.
-        new_cols.emplace_back(col.column, col.type, "broadcast_join_right_" + id + "." + col.name);
+        new_cols.emplace_back(col.column, col.type, RIHGT_COLUMN_PREFIX + col.name);
         if (use_nulls && isLeftOrFull(kind))
         {
             auto & new_col = new_cols.back();
@@ -72,11 +73,12 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
     const Names & key_names_,
     bool use_nulls_,
     DB::JoinKind kind,
+    DB::JoinStrictness strictness,
     const ColumnsDescription & columns,
     const ConstraintsDescription & constraints,
     const String & comment,
     const bool overwrite_)
-    : key_names(key_names_), use_nulls(use_nulls_), row_count(row_count_), overwrite(overwrite_)
+    : key_names({}), use_nulls(use_nulls_), row_count(row_count_), overwrite(overwrite_)
 {
     storage_metadata.setColumns(columns);
     storage_metadata.setConstraints(constraints);
@@ -85,18 +87,11 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
     for (const auto & key : key_names_)
         if (!storage_metadata.getColumns().hasPhysical(key))
             throw Exception(ErrorCodes::NO_SUCH_COLUMN_IN_TABLE, "Key column ({}) does not exist in table declaration.", key);
-    right_sample_block = rightSampleBlock(std::to_string(unique_storage_join_id++), use_nulls, storage_metadata, kind);
-    readAllBlocksFromInput(in);
-}
-
-void StorageJoinFromReadBuffer::readAllBlocksFromInput(DB::ReadBuffer & in)
-{
-    local_engine::NativeReader block_stream(in);
-    ProfileInfo info;
-    while (Block block = block_stream.read())
-    {
-        input_blocks.push_back(block);
-    }
+    for (const auto & name : key_names_)
+        key_names.push_back(RIHGT_COLUMN_PREFIX + name);
+    auto table_join = std::make_shared<DB::TableJoin>(SizeLimits(), true, kind, strictness, key_names);
+    right_sample_block = rightSampleBlock(use_nulls, storage_metadata, table_join->kind());
+    buildJoin(in, right_sample_block, table_join);
 }
 
 /// The column names may be different in two blocks.
@@ -121,21 +116,12 @@ static DB::ColumnWithTypeAndName convertColumnAsNecessary(const DB::ColumnWithTy
             sample_column.dumpStructure());
 }
 
-void StorageJoinFromReadBuffer::buildJoin(const Block header, std::shared_ptr<DB::TableJoin> analyzed_join)
+void StorageJoinFromReadBuffer::buildJoin(DB::ReadBuffer & in, const Block header, std::shared_ptr<DB::TableJoin> analyzed_join)
 {
-    {
-        std::shared_lock lock(join_mutex);
-        if (join)
-            return;
-    }
-    std::unique_lock lock(join_mutex);
-    if (join)
-        return;
+    local_engine::NativeReader block_stream(in);
+    ProfileInfo info;
     join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count);
-    if (input_blocks.empty())
-        return;
-
-    for (const auto & block : input_blocks)
+    while (Block block = block_stream.read())
     {
         DB::ColumnsWithTypeAndName columns;
         for (size_t i = 0; i < block.columns(); ++i)
@@ -144,9 +130,9 @@ void StorageJoinFromReadBuffer::buildJoin(const Block header, std::shared_ptr<DB
             columns.emplace_back(convertColumnAsNecessary(column, header.getByPosition(i)));
         }
         DB::Block final_block(columns);
+        info.update(final_block);
         join->addBlockToJoin(final_block, true);
     }
-    input_blocks.clear();
 }
 
 /// The column names of 'rgiht_header' could be different from the ones in `input_blocks`, and we must
@@ -163,7 +149,6 @@ DB::JoinPtr StorageJoinFromReadBuffer::getJoinLocked(std::shared_ptr<DB::TableJo
             "Table {} needs the same join_use_nulls setting as present in LEFT or FULL JOIN",
             storage_metadata.comment);
 
-    buildJoin(right_sample_block, analyzed_join);
     HashJoinPtr join_clone = std::make_shared<HashJoin>(analyzed_join, right_sample_block);
     /// reuseJoinedData will set the flag `HashJoin::from_storage_join` which is required by `FilledStep`
     join_clone->reuseJoinedData(static_cast<const HashJoin &>(*join));

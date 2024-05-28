@@ -104,6 +104,7 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
         key_names,
         true,
         kind,
+        strictness,
         columns_description,
         ConstraintsDescription(),
         key,
