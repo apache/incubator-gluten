@@ -549,7 +549,6 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIterat
     throw gluten::GlutenException(errorMessage);
   }
   return it->spillFixedSize(size);
-
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
