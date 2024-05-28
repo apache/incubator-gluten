@@ -379,6 +379,14 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     throw new GlutenNotSupportException(
       "BroadcastNestedLoopJoinExecTransformer is not supported in ch backend.")
 
+  override def genSampleExecTransformer(
+      lowerBound: Double,
+      upperBound: Double,
+      withReplacement: Boolean,
+      seed: Long,
+      child: SparkPlan): SampleExecTransformer =
+    throw new GlutenNotSupportException("SampleExecTransformer is not supported in ch backend.")
+
   /** Generate an expression transformer to transform GetMapValue to Substrait. */
   def genGetMapValueTransformer(
       substraitExprName: String,

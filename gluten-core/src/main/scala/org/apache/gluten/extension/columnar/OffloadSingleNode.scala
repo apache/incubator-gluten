@@ -432,6 +432,15 @@ object OffloadOthers {
               child,
               plan.evalType)
           }
+        case plan: SampleExec =>
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          val child = plan.child
+          BackendsApiManager.getSparkPlanExecApiInstance.genSampleExecTransformer(
+            plan.lowerBound,
+            plan.upperBound,
+            plan.withReplacement,
+            plan.seed,
+            child)
         case p if !p.isInstanceOf[GlutenPlan] =>
           logDebug(s"Transformation for ${p.getClass} is currently not supported.")
           val children = plan.children

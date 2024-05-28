@@ -499,6 +499,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportBroadcastNestedLoopJoinExec(): Boolean = true
 
+  override def supportSampleExec(): Boolean = true
+
   override def supportColumnarArrowUdf(): Boolean = true
 
   override def generateHdfsConfForLibhdfs(): Boolean = true

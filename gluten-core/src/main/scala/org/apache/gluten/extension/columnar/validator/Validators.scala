@@ -192,6 +192,9 @@ object Validators {
       case p
           if HiveTableScanExecTransformer.isHiveTableScan(p) && !conf.enableColumnarHiveTableScan =>
         fail(p)
+      case p: SampleExec
+          if !(conf.enableColumnarSample && BackendsApiManager.getSettings.supportSampleExec()) =>
+        fail(p)
       case _ => pass()
     }
   }
