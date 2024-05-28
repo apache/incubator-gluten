@@ -243,7 +243,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: velox-arrow-jar-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
+          path: /home/runner/.m2/repository/org/apache/arrow/
       - name: Setup java and maven
         run: |
           sudo apt-get update
@@ -345,7 +345,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: velox-arrow-jar-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
+          path: /home/runner/.m2/repository/org/apache/arrow/
       - name: Setup java and maven
         run: |
           sudo apt-get update
