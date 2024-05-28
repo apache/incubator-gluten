@@ -1,5 +1,5 @@
 diff --git a/folly/portability/PThread.cpp b/folly/portability/PThread.cpp
-index 2126ec0..ef82ade 100644
+index 777ac21ef..a4fc13a09 100644
 --- a/folly/portability/PThread.cpp
 +++ b/folly/portability/PThread.cpp
 @@ -20,6 +20,8 @@
@@ -11,7 +11,7 @@ index 2126ec0..ef82ade 100644
  
  #include <errno.h>
  
-@@ -691,7 +693,7 @@ int pthread_setspecific(pthread_key_t key, const void* value) {
+@@ -682,7 +684,7 @@ int pthread_setspecific(pthread_key_t key, const void* value) {
          boost::detail::thread::cleanup_caller_t(),
          boost::detail::thread::cleanup_func_t(),
  #else
