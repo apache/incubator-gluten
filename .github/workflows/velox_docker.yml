@@ -495,7 +495,7 @@ jobs:
     container: ubuntu:22.04
     steps:
       - uses: actions/checkout@v2
-     - name: Download All Native Artifacts
+      - name: Download All Native Artifacts
         uses: actions/download-artifact@v2
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
@@ -571,7 +571,10 @@ jobs:
         with:
           name: velox-native-lib-centos-8-${{github.sha}}
           path: ./cpp/build/releases/
-      /root/.m2/repository/org/apache/arrow/
+      - uses: actions/upload-artifact@v2
+        with:
+          name: udf-example-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/velox/udf/examples/
       - uses: actions/upload-artifact@v2
         with:
           name: arrow-jars-centos-8-${{github.sha}}
