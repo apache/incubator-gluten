@@ -26,7 +26,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.{ColumnarToRowTransition, _}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, BroadcastQueryStageExec, QueryStageExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.command.ExecutedCommandExec
@@ -88,7 +88,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
           // which is a kind of `ColumnarToRowExec`.
           transitionCost = transitionCost + 1
           countFallbackInternal(u.child)
-        // We ignore vanilla Spark's ColumnarToRow, used for its vectorized reader.
+        // Ignore vanilla Spark's ColumnarToRow, used for its vectorized reader.
         case ColumnarToRowLike(p: GlutenPlan) =>
           logDebug(s"Find a columnar to row for gluten plan:\n$p")
           transitionCost = transitionCost + 1
@@ -100,19 +100,14 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
               case _: BatchScanExec =>
               case _: FileSourceScanExec =>
               case p if HiveTableScanExecTransformer.isHiveTableScan(p) =>
+              // Vanilla columnar-based scan.
+              case _: ColumnarToRowTransition =>
               case _ => transitionCost = transitionCost + 1
             }
           } else {
             transitionCost = transitionCost + 1
           }
           countFallbackInternal(child)
-        case leafPlan: LeafExecNode
-            if !PlanUtil.isGlutenColumnarOp(leafPlan) && leafPlan.supportsColumnar =>
-          // Vanilla vectorized reader, which requires a RowToColumnar following
-          // Scan -> ColumnarToRow.
-          if (!ignoreScanFallbackCost) {
-            transitionCost = transitionCost + 1
-          }
         case p => p.children.foreach(countFallbackInternal)
       }
     }
