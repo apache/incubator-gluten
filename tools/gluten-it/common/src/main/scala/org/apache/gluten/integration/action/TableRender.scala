@@ -117,7 +117,7 @@ object TableRender {
           field match {
             case branch @ Field.Branch(name, children) =>
               val childLowerBound =
-                Math.ceil((lowerBound max name.length).toDouble / children.size.toDouble).toInt
+                Math.ceil((lowerBound max name.length + 2).toDouble / children.size.toDouble).toInt
               children.foreach(child => updateWidth(child, childLowerBound))
               val childrenWidth =
                 children.map(child => widthMap(System.identityHashCode(child))).sum
