@@ -18,6 +18,7 @@ package org.apache.gluten.integration.action
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.gluten.integration.action.Actions.QuerySelector
+import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender.RowAppender
 import org.apache.gluten.integration.stat.RamStat
 import org.apache.gluten.integration.{QueryRunner, Suite}
 
@@ -108,20 +109,20 @@ object Queries {
       errorMessage: Option[String])
 
   object TestResultLine {
-    implicit object Parser extends TableFormatter.RowParser[TestResultLine] {
-      override def parse(line: TestResultLine): Seq[Any] = {
-        Seq(
-          line.queryId,
-          line.testPassed,
-          line.rowCount.getOrElse("N/A"),
-          line.planningTimeMillis.getOrElse("N/A"),
-          line.executionTimeMillis.getOrElse("N/A"))
+    implicit object Parser extends TableRender.RowParser[TestResultLine] {
+      override def parse(rowAppender: RowAppender, line: TestResultLine): Unit = {
+        val inc = rowAppender.incremental()
+        inc.next().write(line.queryId)
+        inc.next().write(line.testPassed)
+        inc.next().write(line.rowCount.getOrElse("N/A"))
+        inc.next().write(line.planningTimeMillis.getOrElse("N/A"))
+        inc.next().write(line.executionTimeMillis.getOrElse("N/A"))
       }
     }
   }
 
   private def printResults(results: List[TestResultLine]): Unit = {
-    val formatter = TableFormatter.create[TestResultLine](
+    val render = TableRender.plain[TestResultLine](
       "Query ID",
       "Was Passed",
       "Row Count",
@@ -129,10 +130,10 @@ object Queries {
       "Query Time (Millis)")
 
     results.foreach { line =>
-      formatter.appendRow(line)
+      render.appendRow(line)
     }
 
-    formatter.print(System.out)
+    render.print(System.out)
   }
 
   private def aggregate(succeed: List[TestResultLine], name: String): List[TestResultLine] = {
