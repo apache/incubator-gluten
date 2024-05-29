@@ -217,7 +217,7 @@ class GlutenClickhouseCountDistinctSuite extends GlutenClickHouseWholeStageTrans
   test("GLUTEN-5852: Fix mismatch result columns size exception related to 5618") {
     val sql =
       "select distinct * from (select 2 as r3, count(distinct a, b, c), 2 as r1, 2 as r2  from " +
-      " values (0, null, 1), (1, 1, 1), (2, 2, 1), (1, 2, 1) ,(2, 2, 2) as data(a,b,c) group by c)"
+        "values (0, null, 1), (1, 1, 1), (2, 2, 1), (1, 2, 1) ,(2, 2, 2) as data(a,b,c) group by c)"
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 }
