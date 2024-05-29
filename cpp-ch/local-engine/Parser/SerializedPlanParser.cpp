@@ -1888,8 +1888,8 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
         case substrait::Expression::RexTypeCase::kLiteral: {
             DataTypePtr type;
             Field field;
-            std::tie(std::ignore, field) = SerializedPlanParser::parseLiteral(rel.literal());
-            return std::make_shared<ASTLiteral>(field);
+            std::tie(type, field) = SerializedPlanParser::parseLiteral(rel.literal());
+            return std::make_shared<ASTLiteral>(field, type);
         }
         case substrait::Expression::RexTypeCase::kSelection: {
             if (!rel.selection().has_direct_reference() || !rel.selection().direct_reference().has_struct_field())
