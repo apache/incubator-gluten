@@ -16,8 +16,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_05_27
+VELOX_REPO=https://github.com/facebookincubator/velox.git
+VELOX_BRANCH=main
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
@@ -319,14 +319,14 @@ function setup_macos {
   fi
 }
 
-if [ $OS == 'Linux' ]; then
-  setup_linux
-elif [ $OS == 'Darwin' ]; then
-  setup_macos
-else
-  echo "Unsupport kernel: $OS"
-  exit 1
-fi
+# if [ $OS == 'Linux' ]; then
+#   setup_linux
+# elif [ $OS == 'Darwin' ]; then
+#   setup_macos
+# else
+#   echo "Unsupport kernel: $OS"
+#   exit 1
+# fi
 
 apply_compilation_fixes $CURRENT_DIR $VELOX_SOURCE_DIR
 
