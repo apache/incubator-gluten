@@ -17,6 +17,7 @@
 
 package org.apache.gluten.integration.action
 
+import org.apache.commons.lang3.StringUtils
 import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender.RowAppender
 
 import java.io.{OutputStream, PrintStream}
@@ -40,26 +41,41 @@ object TableRender {
 
   trait Field {
     def name: String
+    def leafs: Seq[Field.Leaf]
   }
 
   object Field {
-    case class Branch(override val name: String, fields: Seq[Field]) extends Field
-    case class Leaf(override val name: String) extends Field
+    case class Branch(override val name: String, children: Seq[Field]) extends Field {
+      override val leafs: Seq[Leaf] = {
+        children.map(leafsOf).reduce(_ ++ _)
+      }
+
+      private def leafsOf(field: Field): Seq[Field.Leaf] = {
+        field match {
+          case l @ Field.Leaf(_) => List(l)
+          case b @ Field.Branch(_, children) =>
+            children.map(child => leafsOf(child)).reduce(_ ++ _)
+        }
+      }
+    }
+    case class Leaf(override val name: String) extends Field {
+      override val leafs: Seq[Leaf] = List(this)
+    }
   }
 
   private case class Schema(fields: Seq[Field]) {
     val leafs: Seq[Field.Leaf] = {
-      fields.map(leafsOf).reduce(_ ++ _)
+      fields.map(_.leafs).reduce(_ ++ _)
     }
 
-    def numLeafs(): Int = {
-      leafs.size
+    val maxNestingLevel: Int = {
+      fields.map(maxNestingLevelOf).max
     }
 
-    private def leafsOf(field: Field): Seq[Field.Leaf] = {
+    private def maxNestingLevelOf(field: Field): Int = {
       field match {
-        case l: Field.Leaf => List(l)
-        case Field.Branch(_, fields) => fields.map(leafsOf).reduce(_ ++ _)
+        case _: Field.Leaf => 1
+        case Field.Branch(_, children) => children.map(maxNestingLevelOf).max + 1
       }
     }
   }
@@ -80,21 +96,89 @@ object TableRender {
         printer.flush()
         return
       }
-      val widths = (0 until schema.numLeafs())
+
+      // The map is incrementally updated while walking the schema tree from top down.
+      val widthMap: mutable.Map[Int, Int] = mutable.Map()
+
+      val dataWidths = schema.leafs.indices
         .map { i =>
-          data.map(_(i).length).max max schema.leafs(i).name.length
+          data.map(_(i).length).max
         }
-        .map(_ + 1)
-      val pBuilder = StringBuilder.newBuilder
-      pBuilder ++= "|"
-      widths.foreach { w =>
-        pBuilder ++= s"%${w}s|"
+        .map(_ + 2)
+
+      schema.leafs.zipWithIndex.foreach {
+        case (leaf, i) =>
+          val dataWidth = dataWidths(i)
+          widthMap += (System.identityHashCode(leaf) -> (dataWidth max (leaf.name.length + 2)))
       }
-      val pattern = pBuilder.toString()
-      printer.println(String.format(pattern, schema.leafs.map(_.name): _*))
-      data.foreach { r =>
-        printer.println(String.format(pattern, r: _*))
+
+      schema.fields.foreach { root =>
+        def updateWidth(field: Field, lowerBound: Int): Unit = {
+          field match {
+            case branch @ Field.Branch(name, children) =>
+              val childLowerBound =
+                Math.ceil((lowerBound max name.length).toDouble / children.size.toDouble).toInt
+              children.foreach(child => updateWidth(child, childLowerBound))
+              val childrenWidth =
+                children.map(child => widthMap(System.identityHashCode(child))).sum
+              val width = childLowerBound * children.size max childrenWidth + children.size - 1
+              val hash = System.identityHashCode(branch)
+              widthMap += hash -> width
+            case leaf @ Field.Leaf(name) =>
+              val hash = System.identityHashCode(leaf)
+              val newWidth = widthMap(hash) max lowerBound
+              widthMap.put(hash, newWidth)
+            case _ => new IllegalStateException()
+          }
+        }
+
+        updateWidth(root, 0)
       }
+
+      trait SchemaCell
+      case class Given(field: Field) extends SchemaCell
+      case class PlaceHolder(leaf: Field.Leaf) extends SchemaCell
+
+      (0 until schema.maxNestingLevel).foldRight[Seq[SchemaCell]](schema.fields.map(Given)) {
+        case (_, cells) =>
+          val schemaLine = cells
+            .map {
+              case Given(field) =>
+                (field.name, widthMap(System.identityHashCode(field)))
+              case PlaceHolder(leaf) =>
+                ("", widthMap(System.identityHashCode(leaf)))
+            }
+            .map {
+              case (name, width) =>
+                StringUtils.center(name, width)
+            }
+            .mkString("|", "|", "|")
+          printer.println(schemaLine)
+          cells.flatMap { f =>
+            f match {
+              case Given(Field.Branch(name, children)) => children.map(Given)
+              case Given(l @ Field.Leaf(name)) => List(PlaceHolder(l))
+              case p: PlaceHolder => List(p)
+              case _ => throw new IllegalStateException()
+            }
+          }
+      }
+
+      data.foreach { row =>
+        val dataLine = row
+          .zip(schema.leafs)
+          .map {
+            case (value, leaf) =>
+              (value, widthMap(System.identityHashCode(leaf)))
+          }
+          .map {
+            case (value, width) =>
+              StringUtils.leftPad(value, width)
+          }
+          .mkString("|", "|", "|")
+        printer.println(dataLine)
+      }
+
       printer.flush()
     }
   }
@@ -131,7 +215,7 @@ object TableRender {
             schema: Schema,
             mutableRows: mutable.ListBuffer[Array[String]])
             extends RowAppender {
-          private val mutableRow = Array.tabulate(schema.numLeafs()) { _ =>
+          private val mutableRow = Array.tabulate(schema.leafs.size) { _ =>
             "UNFILLED"
           }
           mutableRows += mutableRow
@@ -154,7 +238,7 @@ object TableRender {
             new Incremental {
               private var offset = 0
               override def next(): FieldAppender = {
-                val out = field(offset)
+                val out = new FieldAppenderImpl(schema.leafs(offset), mutableRow, offset)
                 offset += 1
                 out
               }
@@ -190,9 +274,9 @@ object TableRender {
           extends FieldAppender {
         override def child(name: String): FieldAppender = {
           field match {
-            case Field.Branch(_, fields) =>
-              assert(fields.count(_.name == name) == 1)
-              val child = fields.zipWithIndex.find(_._1.name == name).getOrElse {
+            case Field.Branch(_, children) =>
+              assert(children.count(_.name == name) == 1)
+              val child = children.zipWithIndex.find(_._1.name == name).getOrElse {
                 throw new IllegalArgumentException(s"Field $name not found in $field")
               }
               val childField = child._1
