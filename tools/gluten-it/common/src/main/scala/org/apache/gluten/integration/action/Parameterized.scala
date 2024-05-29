@@ -18,13 +18,14 @@ package org.apache.gluten.integration.action
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.gluten.integration.action.Actions.QuerySelector
+import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender.RowAppender
 import org.apache.gluten.integration.stat.RamStat
 import org.apache.gluten.integration.{QueryRunner, Suite, TableCreator}
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
 import org.apache.spark.sql.SparkSessionSwitcher
 
 import scala.collection.mutable
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.mutable.ListBuffer
 
 class Parameterized(
     scale: Double,
@@ -198,24 +199,25 @@ case class TestResultLine(
 
 object TestResultLine {
   class Parser(dimNames: Seq[String], metricNames: Seq[String])
-      extends TableFormatter.RowParser[TestResultLine] {
-    override def parse(line: TestResultLine): Seq[Any] = {
-      val values = ArrayBuffer[Any](line.queryId, line.succeed)
+      extends TableRender.RowParser[TestResultLine] {
+    override def parse(rowAppender: RowAppender, line: TestResultLine): Unit = {
+      val inc = rowAppender.incremental()
+      inc.next().write(line.queryId)
+      inc.next().write(line.succeed)
       dimNames.foreach { dimName =>
         val coordinate = line.coordinate.coordinate
         if (!coordinate.contains(dimName)) {
           throw new IllegalStateException("Dimension name not found" + dimName)
         }
-        values.append(coordinate(dimName))
+        inc.next().write(coordinate(dimName))
       }
       metricNames.foreach { metricName =>
         val metrics = line.metrics
-        values.append(metrics.getOrElse(metricName, "N/A"))
+        inc.next().write(metrics.getOrElse(metricName, "N/A"))
       }
-      values.append(line.rowCount.getOrElse("N/A"))
-      values.append(line.planningTimeMillis.getOrElse("N/A"))
-      values.append(line.executionTimeMillis.getOrElse("N/A"))
-      values
+      inc.next().write(line.rowCount.getOrElse("N/A"))
+      inc.next().write(line.planningTimeMillis.getOrElse("N/A"))
+      inc.next().write(line.executionTimeMillis.getOrElse("N/A"))
     }
   }
 }
@@ -231,14 +233,14 @@ case class TestResultLines(
     fields.append("Row Count")
     fields.append("Planning Time (Millis)")
     fields.append("Query Time (Millis)")
-    val formatter = TableFormatter.create[TestResultLine](fields: _*)(
+    val render = TableRender.plain[TestResultLine](fields: _*)(
       new TestResultLine.Parser(dimNames, metricNames))
 
     lines.foreach { line =>
-      formatter.appendRow(line)
+      render.appendRow(line)
     }
 
-    formatter.print(System.out)
+    render.print(System.out)
   }
 }
 

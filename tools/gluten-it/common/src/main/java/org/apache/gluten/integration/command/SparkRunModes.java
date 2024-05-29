@@ -140,6 +140,9 @@ public final class SparkRunModes {
       Optional<String> extraClassPath = Arrays.stream(classPathValues).filter(classPath -> {
         File file = new File(classPath);
         return file.exists() && file.isFile() && extraJarSet.contains(file.getName());
+      }).map(classPath -> {
+        File file = new File(classPath);
+        return file.getAbsolutePath();
       }).reduce((s1, s2) -> s1 + File.pathSeparator + s2);
 
       final Map<String, String> extras = new HashMap<>();

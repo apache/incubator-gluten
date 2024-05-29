@@ -18,6 +18,7 @@ package org.apache.gluten.integration.action
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.gluten.integration.action.Actions.QuerySelector
+import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender.RowAppender
 import org.apache.gluten.integration.stat.RamStat
 import org.apache.gluten.integration.{QueryRunner, Suite, TableCreator}
 import org.apache.spark.sql.{SparkSessionSwitcher, TestUtils}
@@ -111,45 +112,44 @@ object QueriesCompare {
       errorMessage: Option[String])
 
   object TestResultLine {
-    implicit object Parser extends TableFormatter.RowParser[TestResultLine] {
-      override def parse(line: TestResultLine): Seq[Any] = {
-        val timeVariation =
+    implicit object Parser extends TableRender.RowParser[TestResultLine] {
+      override def parse(rowAppender: RowAppender, line: TestResultLine): Unit = {
+        val inc = rowAppender.incremental()
+        val speedUp =
           if (line.expectedExecutionTimeMillis.nonEmpty && line.actualExecutionTimeMillis.nonEmpty) {
             Some(
               ((line.expectedExecutionTimeMillis.get - line.actualExecutionTimeMillis.get).toDouble
                 / line.actualExecutionTimeMillis.get.toDouble) * 100)
           } else None
-        Seq(
-          line.queryId,
-          line.testPassed,
-          line.expectedRowCount.getOrElse("N/A"),
-          line.actualRowCount.getOrElse("N/A"),
-          line.expectedPlanningTimeMillis.getOrElse("N/A"),
-          line.actualPlanningTimeMillis.getOrElse("N/A"),
-          line.expectedExecutionTimeMillis.getOrElse("N/A"),
-          line.actualExecutionTimeMillis.getOrElse("N/A"),
-          timeVariation.map("%15.2f%%".format(_)).getOrElse("N/A"))
+        inc.next().write(line.queryId)
+        inc.next().write(line.testPassed)
+        inc.next().write(line.expectedRowCount.getOrElse("N/A"))
+        inc.next().write(line.actualRowCount.getOrElse("N/A"))
+        inc.next().write(line.expectedPlanningTimeMillis.getOrElse("N/A"))
+        inc.next().write(line.actualPlanningTimeMillis.getOrElse("N/A"))
+        inc.next().write(line.expectedExecutionTimeMillis.getOrElse("N/A"))
+        inc.next().write(line.actualExecutionTimeMillis.getOrElse("N/A"))
+        inc.next().write(speedUp.map("%.2f%%".format(_)).getOrElse("N/A"))
       }
     }
   }
 
   private def printResults(results: List[TestResultLine]): Unit = {
-    val formatter = TableFormatter.create[TestResultLine](
-      "Query ID",
-      "Was Passed",
-      "Expected Row Count",
-      "Actual Row Count",
-      "Baseline Planning Time (Millis)",
-      "Planning Time (Millis)",
-      "Baseline Query Time (Millis)",
-      "Query Time (Millis)",
-      "Query Time Variation")
+    import org.apache.gluten.integration.action.TableRender.Field._
+
+    val render = TableRender.create[TestResultLine](
+      Leaf("Query ID"),
+      Leaf("Passed"),
+      Branch("Row Count", List(Leaf("Vanilla"), Leaf("Gluten"))),
+      Branch("Planning Time (Millis)", List(Leaf("Vanilla"), Leaf("Gluten"))),
+      Branch("Query Time (Millis)", List(Leaf("Vanilla"), Leaf("Gluten"))),
+      Leaf("Speedup"))
 
     results.foreach { line =>
-      formatter.appendRow(line)
+      render.appendRow(line)
     }
 
-    formatter.print(System.out)
+    render.print(System.out)
   }
 
   private def aggregate(succeed: List[TestResultLine], name: String): List[TestResultLine] = {
