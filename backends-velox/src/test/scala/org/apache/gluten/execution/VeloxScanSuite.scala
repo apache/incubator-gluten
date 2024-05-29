@@ -16,9 +16,12 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.benchmarks.RandomParquetDataGenerator
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.GreaterThan
 import org.apache.spark.sql.execution.ScalarSubquery
+import org.apache.spark.sql.types._
 
 class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -71,6 +74,36 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
               }
           }
           assert(exist)
+      }
+    }
+  }
+
+  test("unsupported data type scan filter pushdown") {
+    withTempView("t") {
+      withTempDir {
+        dir =>
+          val path = dir.getAbsolutePath
+          val schema = StructType(
+            Array(
+              StructField("short_decimal_field", DecimalType(5, 2), true),
+              StructField("long_decimal_field", DecimalType(32, 8), true),
+              StructField("binary_field", BinaryType, true),
+              StructField("timestamp_field", TimestampType, true)
+            ))
+          RandomParquetDataGenerator(0).generateRandomData(spark, schema, 10, Some(path))
+          spark.catalog.createTable("t", path, "parquet")
+          runQueryAndCompare(
+            """select * from t where long_decimal_field = 3.14)""".stripMargin
+          )(checkGlutenOperatorMatch[FileSourceScanExecTransformer])
+          runQueryAndCompare(
+            """select * from t where short_decimal_field = 3.14""".stripMargin
+          )(checkGlutenOperatorMatch[FileSourceScanExecTransformer])
+          runQueryAndCompare(
+            """select * from t where binary_field = '3.14'""".stripMargin
+          )(checkGlutenOperatorMatch[FileSourceScanExecTransformer])
+          runQueryAndCompare(
+            """select * from t where timestamp_field = current_timestamp()""".stripMargin
+          )(checkGlutenOperatorMatch[FileSourceScanExecTransformer])
       }
     }
   }
