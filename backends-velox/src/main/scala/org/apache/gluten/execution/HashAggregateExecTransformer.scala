@@ -20,7 +20,6 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
-import org.apache.gluten.expression.aggregate.HLLAdapter
 import org.apache.gluten.substrait.`type`.{TypeBuilder, TypeNode}
 import org.apache.gluten.substrait.{AggregationParams, SubstraitContext}
 import org.apache.gluten.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode, ScalarFunctionNode}
@@ -72,20 +71,6 @@ abstract class HashAggregateExecTransformer(
     val operatorId = context.nextOperatorId(this.nodeName)
     val relNode = getAggRel(context, operatorId, aggParams, childCtx.root)
     TransformContext(childCtx.outputAttributes, output, relNode)
-  }
-
-  override protected def checkAggFuncModeSupport(
-      aggFunc: AggregateFunction,
-      mode: AggregateMode): Boolean = {
-    aggFunc match {
-      case _: HLLAdapter =>
-        mode match {
-          case Partial | Final => true
-          case _ => false
-        }
-      case _ =>
-        super.checkAggFuncModeSupport(aggFunc, mode)
-    }
   }
 
   // Return whether the outputs partial aggregation should be combined for Velox computing.
@@ -241,21 +226,21 @@ abstract class HashAggregateExecTransformer(
     }
 
     aggregateFunction match {
-      case hllAdapter: HLLAdapter =>
+      case _ if aggregateFunction.aggBufferAttributes.size > 1 =>
+        generateMergeCompanionNode()
+      case _ =>
         aggregateMode match {
-          case Partial =>
-            // For Partial mode output type is binary.
+          case Partial | PartialMerge =>
             val partialNode = ExpressionBuilder.makeAggregateFunction(
               VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
               childrenNodeList,
               modeKeyWord,
               ConverterUtils.getTypeNode(
-                hllAdapter.inputAggBufferAttributes.head.dataType,
-                hllAdapter.inputAggBufferAttributes.head.nullable)
+                aggregateFunction.inputAggBufferAttributes.head.dataType,
+                aggregateFunction.inputAggBufferAttributes.head.nullable)
             )
             aggregateNodeList.add(partialNode)
           case Final =>
-            // For Final mode output type is long.
             val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
               VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
               childrenNodeList,
@@ -266,16 +251,6 @@ abstract class HashAggregateExecTransformer(
           case other =>
             throw new GlutenNotSupportException(s"$other is not supported.")
         }
-      case _ if aggregateFunction.aggBufferAttributes.size > 1 =>
-        generateMergeCompanionNode()
-      case _ =>
-        val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-          VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
-          childrenNodeList,
-          modeKeyWord,
-          ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
-        )
-        aggregateNodeList.add(aggFunctionNode)
     }
   }
 
