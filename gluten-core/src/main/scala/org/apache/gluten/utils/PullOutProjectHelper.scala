@@ -17,7 +17,7 @@
 package org.apache.gluten.utils
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.exception.GlutenException
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
@@ -193,7 +193,7 @@ trait PullOutProjectHelper {
       case swf: SpecifiedWindowFrame if needPreComputeRangeFrame(swf) =>
         // This is guaranteed by Spark, but we still check it here
         if (orderSpecs.size != 1) {
-          throw new GlutenNotSupportException(
+          throw new GlutenException(
             s"A range window frame with value boundaries expects one and only one " +
               s"order by expression: ${orderSpecs.mkString(",")}")
         }

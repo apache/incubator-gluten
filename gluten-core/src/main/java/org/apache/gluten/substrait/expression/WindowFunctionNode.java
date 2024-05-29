@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.substrait.expression;
 
+import org.apache.gluten.exception.GlutenException;
 import org.apache.gluten.expression.ExpressionConverter;
 import org.apache.gluten.substrait.type.TypeNode;
 
@@ -92,6 +93,11 @@ public class WindowFunctionNode implements Serializable {
         break;
       default:
         if (boundType instanceof PreComputeRangeFrameBound) {
+          // Used only when backend is velox and frame type is RANGE.
+          if (frameType != "RANGE") {
+            throw new GlutenException(
+                "Only Range frame supports PreComputeRangeFrameBound, but got " + frameType);
+          }
           ExpressionNode refNode =
               ExpressionConverter.replaceWithExpressionTransformer(
                       ((PreComputeRangeFrameBound) boundType).child().toAttribute(),
@@ -99,24 +105,22 @@ public class WindowFunctionNode implements Serializable {
                           .asScala()
                           .toSeq())
                   .doTransform(new HashMap<String, Long>());
-          try {
-            Long offset = Long.valueOf(boundType.eval(null).toString());
-            if (offset < 0) {
-              Expression.WindowFunction.Bound.Preceding.Builder refPrecedingBuilder =
-                  Expression.WindowFunction.Bound.Preceding.newBuilder();
-              refPrecedingBuilder.setRef(refNode.toProtobuf());
-              builder.setPreceding(refPrecedingBuilder.build());
-            } else {
-              Expression.WindowFunction.Bound.Following.Builder refFollowingBuilder =
-                  Expression.WindowFunction.Bound.Following.newBuilder();
-              refFollowingBuilder.setRef(refNode.toProtobuf());
-              builder.setFollowing(refFollowingBuilder.build());
-            }
-          } catch (NumberFormatException e) {
-            throw new UnsupportedOperationException(
-                "Unsupported Window Function Frame Type:" + boundType);
+          Long offset = Long.valueOf(boundType.eval(null).toString());
+          if (offset < 0) {
+            Expression.WindowFunction.Bound.Preceding.Builder refPrecedingBuilder =
+                Expression.WindowFunction.Bound.Preceding.newBuilder();
+            refPrecedingBuilder.setRef(refNode.toProtobuf());
+            builder.setPreceding(refPrecedingBuilder.build());
+          } else {
+            Expression.WindowFunction.Bound.Following.Builder refFollowingBuilder =
+                Expression.WindowFunction.Bound.Following.newBuilder();
+            refFollowingBuilder.setRef(refNode.toProtobuf());
+            builder.setFollowing(refFollowingBuilder.build());
           }
         } else if (boundType.foldable()) {
+          // Used when
+          // 1. Velox backend and frame type is ROW
+          // 2. Clickhouse backend
           try {
             Long offset = Long.valueOf(boundType.eval(null).toString());
             if (offset < 0) {
