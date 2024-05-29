@@ -844,12 +844,12 @@ const core::WindowNode::Frame SubstraitToVeloxPlanConverter::createWindowFrame(
       [&](bool hasOffset, int64_t offset, const ::substrait::Expression& columnRef) -> core::TypedExprPtr {
     if (hasOffset) {
       VELOX_CHECK(
-          frame.type != ::substrait::WindowType::RANGE,
+          frame.type != core::WindowNode::WindowType::kRange,
           "for RANGE frame offset, we should pre-calculate the range frame boundary and pass the column reference, but got a constant offset.")
       return std::make_shared<core::ConstantTypedExpr>(BIGINT(), variant(offset));
     } else {
       VELOX_CHECK(
-          frame.type != ::substrait::WindowType::ROWS, "for ROW frame offset, we should pass a constant offset.")
+          frame.type != core::WindowNode::WindowType::kRows, "for ROW frame offset, we should pass a constant offset.")
       return exprConverter_->toVeloxExpr(columnRef, inputType);
     }
   };

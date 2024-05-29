@@ -17,7 +17,7 @@
 package org.apache.gluten.utils
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.exception.GlutenException
+import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
