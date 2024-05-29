@@ -724,10 +724,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
            |  from regexp_extract_bracket
           """.stripMargin
 
-      runQueryAndCompare(
-        sql_str) {
-        _ =>
-      }
+      runQueryAndCompare(sql_str) { _ => }
     }
   }
 
