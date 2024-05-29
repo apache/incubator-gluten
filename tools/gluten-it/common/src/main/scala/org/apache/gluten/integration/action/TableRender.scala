@@ -116,12 +116,14 @@ object TableRender {
         def updateWidth(field: Field, lowerBound: Int): Unit = {
           field match {
             case branch @ Field.Branch(name, children) =>
-              val childLowerBound =
-                Math.ceil((lowerBound max name.length + 2).toDouble / children.size.toDouble).toInt
-              children.foreach(child => updateWidth(child, childLowerBound))
+              val leafLowerBound =
+                Math
+                  .ceil((lowerBound max name.length + 2).toDouble / branch.leafs.size.toDouble)
+                  .toInt
+              children.foreach(child => updateWidth(child, leafLowerBound * child.leafs.size))
               val childrenWidth =
                 children.map(child => widthMap(System.identityHashCode(child))).sum
-              val width = childLowerBound * children.size max childrenWidth + children.size - 1
+              val width = childrenWidth + children.size - 1
               val hash = System.identityHashCode(branch)
               widthMap += hash -> width
             case leaf @ Field.Leaf(name) =>
