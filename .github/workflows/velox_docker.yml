@@ -64,7 +64,6 @@ jobs:
             ~/.m2/repository/org/apache/arrow/
           key: cache-velox-build-${{ hashFiles('./cache-key') }}
       - name: Build Gluten Velox third party
-        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
           source dev/ci-velox-buildstatic.sh
       - name: Upload Artifact Native
