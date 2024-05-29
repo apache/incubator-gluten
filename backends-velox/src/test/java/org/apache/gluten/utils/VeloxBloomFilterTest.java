@@ -35,7 +35,7 @@ public class VeloxBloomFilterTest {
   @BeforeClass
   public static void setup() {
     final ListenerApi api = new VeloxListenerApi();
-    api.onDriverStart(new SparkConf());
+    api.onDriverStart(null, new SparkConf());
   }
 
   @Test
