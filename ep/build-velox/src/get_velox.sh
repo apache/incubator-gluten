@@ -319,14 +319,14 @@ function setup_macos {
   fi
 }
 
-if [ $OS == 'Linux' ]; then
-  setup_linux
-elif [ $OS == 'Darwin' ]; then
-  setup_macos
-else
-  echo "Unsupport kernel: $OS"
-  exit 1
-fi
+# if [ $OS == 'Linux' ]; then
+#   setup_linux
+# elif [ $OS == 'Darwin' ]; then
+#   setup_macos
+# else
+#   echo "Unsupport kernel: $OS"
+#   exit 1
+# fi
 
 apply_compilation_fixes $CURRENT_DIR $VELOX_SOURCE_DIR
 
