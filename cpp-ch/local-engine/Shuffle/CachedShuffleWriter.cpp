@@ -163,7 +163,8 @@ void CachedShuffleWriter::lazyInitPartitionWriter(Block & input_sample)
 
 SplitResult CachedShuffleWriter::stop()
 {
-    partition_writer->stop();
+    if (partition_writer)
+        partition_writer->stop();
     LOG_INFO(logger, "CachedShuffleWriter stop, split result: {}", split_result.toString());
     return split_result;
 }
