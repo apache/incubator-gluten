@@ -80,7 +80,11 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator implements Runt
   }
 
   public long spill(long size) {
-    return nativeSpill(iterHandle, size);
+    if (!closed.get()) {
+      return nativeSpill(iterHandle, size);
+    } else {
+      return 0L;
+    }
   }
 
   @Override
