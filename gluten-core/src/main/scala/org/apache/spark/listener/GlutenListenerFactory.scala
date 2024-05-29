@@ -20,7 +20,6 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.softaffinity.scheduler.SoftAffinityListener
 
 import org.apache.spark.SparkContext
-import org.apache.spark.rpc.GlutenDriverEndpoint
 
 object GlutenListenerFactory {
   def addToSparkListenerBus(sc: SparkContext): Unit = {
