@@ -67,12 +67,12 @@ jobs:
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
           source dev/ci-velox-buildstatic.sh
-      - name: 'Upload Artifact Native'
+      - name: Upload Artifact Native
         uses: actions/upload-artifact@v2
         with:
           path: ./cpp/build/releases/
           name: velox-native-lib-centos-7-${{github.sha}}
-      - name: 'Upload Artifact Arrow Jar'
+      - name: Upload Artifact Arrow Jar
         uses: actions/upload-artifact@v2
         with:
           path: /root/.m2/repository/org/apache/arrow/
