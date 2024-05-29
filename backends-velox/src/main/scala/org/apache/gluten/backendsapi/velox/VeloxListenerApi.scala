@@ -25,7 +25,7 @@ import org.apache.gluten.init.NativeBackendInitializer
 import org.apache.gluten.utils._
 import org.apache.gluten.vectorized.{JniLibLoader, JniWorkspace}
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.execution.datasources.velox.{VeloxOrcWriterInjects, VeloxParquetWriterInjects, VeloxRowSplitter}
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.{GlutenConfigUtil, StaticSQLConf}
@@ -38,7 +38,7 @@ import scala.sys.process._
 class VeloxListenerApi extends ListenerApi {
   private val ARROW_VERSION = "1500"
 
-  override def onDriverStart(conf: SparkConf): Unit = {
+  override def onDriverStart(sc: SparkContext, conf: SparkConf): Unit = {
     // sql table cache serializer
     if (conf.getBoolean(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, defaultValue = false)) {
       conf.set(
@@ -51,7 +51,7 @@ class VeloxListenerApi extends ListenerApi {
 
   override def onDriverShutdown(): Unit = shutdown()
 
-  override def onExecutorStart(conf: SparkConf): Unit = {
+  override def onExecutorStart(executorID: String, conf: SparkConf): Unit = {
     UDFResolver.resolveUdfConf(conf, isDriver = false)
     initialize(conf)
   }

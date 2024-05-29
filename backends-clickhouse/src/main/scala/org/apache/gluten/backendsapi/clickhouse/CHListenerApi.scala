@@ -23,11 +23,13 @@ import org.apache.gluten.execution.datasource.{GlutenOrcWriterInjects, GlutenPar
 import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, JniLibLoader}
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.internal.Logging
+import org.apache.spark.listener.CHGlutenSQLAppStatusListener
 import org.apache.spark.network.util.JavaUtils
+import org.apache.spark.rpc.{GlutenDriverEndpoint, GlutenExecutorEndpoint}
 import org.apache.spark.sql.execution.datasources.v1._
-import org.apache.spark.util.SparkDirectoryUtil
+import org.apache.spark.util.{GlutenShutdownManager, SparkDirectoryUtil}
 
 import org.apache.commons.lang3.StringUtils
 
@@ -35,11 +37,19 @@ import java.util.TimeZone
 
 class CHListenerApi extends ListenerApi with Logging {
 
-  override def onDriverStart(conf: SparkConf): Unit = initialize(conf, isDriver = true)
+  override def onDriverStart(sc: SparkContext, conf: SparkConf): Unit = {
+    GlutenDriverEndpoint.glutenDriverEndpointRef = (new GlutenDriverEndpoint).self
+    GlutenShutdownManager.addHook(() => GlutenDriverEndpoint.invalidateAllResourceRelation())
+    CHGlutenSQLAppStatusListener.registerListener(sc)
+    initialize(conf, isDriver = true)
+  }
 
   override def onDriverShutdown(): Unit = shutdown()
 
-  override def onExecutorStart(conf: SparkConf): Unit = initialize(conf, isDriver = false)
+  override def onExecutorStart(executorID: String, conf: SparkConf): Unit = {
+    GlutenExecutorEndpoint.executorEndpoint = new GlutenExecutorEndpoint(executorID, conf)
+    initialize(conf, isDriver = false)
+  }
 
   override def onExecutorShutdown(): Unit = shutdown()
 

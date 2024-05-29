@@ -16,14 +16,15 @@
  */
 package org.apache.spark.listener
 
+import org.apache.spark.SparkContext
 import org.apache.spark.internal.Logging
+import org.apache.spark.rpc.{GlutenDriverEndpoint, RpcEndpointRef}
 import org.apache.spark.rpc.GlutenRpcMessages._
-import org.apache.spark.rpc.RpcEndpointRef
 import org.apache.spark.scheduler._
 import org.apache.spark.sql.execution.ui._
 
 /** Gluten SQL listener. Used for monitor sql on whole life cycle.Create and release resource. */
-class GlutenSQLAppStatusListener(val driverEndpointRef: RpcEndpointRef)
+class CHGlutenSQLAppStatusListener(val driverEndpointRef: RpcEndpointRef)
   extends SparkListener
   with Logging {
 
@@ -66,5 +67,11 @@ class GlutenSQLAppStatusListener(val driverEndpointRef: RpcEndpointRef)
     val executionId = event.executionId.toString
     driverEndpointRef.send(GlutenOnExecutionEnd(executionId))
     logTrace(s"Execution $executionId end.")
+  }
+}
+object CHGlutenSQLAppStatusListener {
+  def registerListener(sc: SparkContext): Unit = {
+    sc.listenerBus.addToStatusQueue(
+      new CHGlutenSQLAppStatusListener(GlutenDriverEndpoint.glutenDriverEndpointRef))
   }
 }
