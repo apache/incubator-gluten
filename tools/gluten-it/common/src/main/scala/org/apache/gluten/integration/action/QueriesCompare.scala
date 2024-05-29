@@ -135,16 +135,15 @@ object QueriesCompare {
   }
 
   private def printResults(results: List[TestResultLine]): Unit = {
-    val render = TableRender.plain[TestResultLine](
-      "Query ID",
-      "Was Passed",
-      "Vanilla Row Count",
-      "Gluten Row Count",
-      "Vanilla Planning Time (Millis)",
-      "Gluten Planning Time (Millis)",
-      "Vanilla Query Time (Millis)",
-      "Gluten Query Time (Millis)",
-      "Speedup")
+    import org.apache.gluten.integration.action.TableRender.Field._
+
+    val render = TableRender.create[TestResultLine](
+      Leaf("Query ID"),
+      Leaf("Passed"),
+      Branch("Row Count", List(Leaf("Vanilla"), Leaf("Gluten"))),
+      Branch("Planning Time (Millis)", List(Leaf("Vanilla"), Leaf("Gluten"))),
+      Branch("Query Time (Millis)", List(Leaf("Vanilla"), Leaf("Gluten"))),
+      Leaf("Speedup"))
 
     results.foreach { line =>
       render.appendRow(line)

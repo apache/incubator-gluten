@@ -164,6 +164,17 @@ object TableRender {
           }
       }
 
+      val separationLine = schema.leafs
+        .map { leaf =>
+          widthMap(System.identityHashCode(leaf))
+        }
+        .map { width =>
+          new String(Array.tabulate(width)(_ => '-'))
+        }
+        .mkString("|", "|", "|")
+
+      printer.println(separationLine)
+
       data.foreach { row =>
         val dataLine = row
           .zip(schema.leafs)
