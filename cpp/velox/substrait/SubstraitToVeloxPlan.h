@@ -473,6 +473,13 @@ class SubstraitToVeloxPlanConverter {
   /// 'or' expression are effective on the same column.
   static bool childrenFunctionsOnSameField(const ::substrait::Expression_ScalarFunction& function);
 
+  /// Check whether the data type is supported to pushdown.
+  static bool isPushdownSupported(TypePtr inputType);
+  /// Check whether the scalar function contains data type that doesn't to pushdown.
+  static bool canPushdownScalarFunction(
+      const ::substrait::Expression_ScalarFunction& scalarFunction,
+      const std::vector<TypePtr>& veloxTypeList);
+
   /// Extract the scalar function, and set the filter info for different types
   /// of columns. If reverse is true, the opposite filter info will be set.
   void setFilterInfo(

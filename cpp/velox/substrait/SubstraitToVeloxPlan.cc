@@ -1686,6 +1686,48 @@ bool SubstraitToVeloxPlanConverter::canPushdownOr(
   return true;
 }
 
+bool SubstraitToVeloxPlanConverter::isPushdownSupported(TypePtr inputType) {
+  // keep the same with mapToFilters
+  if (inputType->isDate()) {
+    return true;
+  }
+  switch (inputType->kind()) {
+    case TypeKind::TINYINT:
+    case TypeKind::SMALLINT:
+    case TypeKind::INTEGER:
+    case TypeKind::BIGINT:
+    case TypeKind::REAL:
+    case TypeKind::DOUBLE:
+    case TypeKind::BOOLEAN:
+    case TypeKind::VARCHAR:
+    case TypeKind::ARRAY:
+    case TypeKind::MAP:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool SubstraitToVeloxPlanConverter::canPushdownScalarFunction(
+  const ::substrait::Expression_ScalarFunction& function,
+  const std::vector<TypePtr>& veloxTypeList) {
+  for (const auto& arg : function.arguments()) {
+    if (arg.value().has_scalar_function()) {
+      const auto& scalarFunction = arg.value().scalar_function();
+      if (!canPushdownScalarFunction(scalarFunction, veloxTypeList)) {
+        return false;
+      }
+    } else if (arg.value().has_selection()) {
+      auto value = arg.value();
+      uint32_t fieldIndex = SubstraitParser::parseReferenceSegment(value.selection().direct_reference());
+      if (!veloxTypeList.empty() && !isPushdownSupported(veloxTypeList.at(fieldIndex))) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 void SubstraitToVeloxPlanConverter::separateFilters(
     std::vector<RangeRecorder>& rangeRecorders,
     const std::vector<::substrait::Expression_ScalarFunction>& scalarFunctions,
@@ -1712,17 +1754,10 @@ void SubstraitToVeloxPlanConverter::separateFilters(
   for (const auto& scalarFunction : scalarFunctions) {
     auto filterNameSpec = SubstraitParser::findFunctionSpec(functionMap_, scalarFunction.function_reference());
     auto filterName = SubstraitParser::getNameBeforeDelimiter(filterNameSpec);
-    // Add all decimal filters to remaining functions because their pushdown are not supported.
-    if (format == dwio::common::FileFormat::ORC && scalarFunction.arguments().size() > 0) {
-      auto value = scalarFunction.arguments().at(0).value();
-      if (value.has_selection()) {
-        uint32_t fieldIndex;
-        bool parsed = SubstraitParser::parseReferenceSegment(value.selection().direct_reference(), fieldIndex);
-        if (!parsed || (!veloxTypeList.empty() && veloxTypeList.at(fieldIndex)->isDecimal())) {
-          remainingFunctions.emplace_back(scalarFunction);
-          continue;
-        }
-      }
+    // Add filters to remaining functions if datatype is not supported.
+    if (!canPushdownScalarFunction(scalarFunction, veloxTypeList)) {
+      remainingFunctions.emplace_back(scalarFunction);
+      continue;
     }
 
     // Check whether NOT and OR functions can be pushed down.
