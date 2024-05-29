@@ -63,8 +63,7 @@ trait PullOutProjectHelper {
       case alias: Alias =>
         alias.child match {
           case _: Literal =>
-            projectExprsMap.getOrElseUpdate(alias.child.canonicalized, alias)
-            alias.toAttribute
+            projectExprsMap.getOrElseUpdate(alias, alias).toAttribute
           case _ =>
             projectExprsMap.getOrElseUpdate(alias.child.canonicalized, alias).toAttribute
         }
@@ -75,20 +74,6 @@ trait PullOutProjectHelper {
           .getOrElseUpdate(other.canonicalized, Alias(other, generatePreAliasName)())
           .toAttribute
     }
-
-  protected def getMissingLiterals(exprs: Seq[NamedExpression]): Seq[NamedExpression] = {
-    val literalMap = new mutable.HashMap[Expression, NamedExpression]()
-    exprs.filter {
-      case alias: Alias =>
-        alias.child match {
-          case _: Literal =>
-            // return the literals that have been added to the literalMap
-            literalMap.put(alias.child.canonicalized, alias).nonEmpty
-          case _ => false
-        }
-      case _ => false
-    }
-  }
 
   /**
    * Append the pulled-out NamedExpressions after the child output and eliminate the duplicated

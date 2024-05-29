@@ -158,11 +158,9 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       val newAgg = copyBaseAggregateExec(agg)(
         newGroupingExpressions = newGroupingExpressions,
         newAggregateExpressions = newAggregateExpressions)
-      // ISSUE-5852: literals with same names are lost in expressionMap, need addback to Project
-      val missingLiterals = getMissingLiterals(agg.groupingExpressions)
-      val expressions = expressionMap.values.toSeq ++ missingLiterals
-      val preProject =
-        ProjectExec(eliminateProjectList(agg.child.outputSet, expressions), agg.child)
+      val preProject = ProjectExec(
+        eliminateProjectList(agg.child.outputSet, expressionMap.values.toSeq),
+        agg.child)
       newAgg.withNewChildren(Seq(preProject))
 
     case window: WindowExec if needsPreProject(window) =>
