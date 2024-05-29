@@ -559,6 +559,11 @@ jobs:
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
+      - name: Download UDF Example Lib
+        uses: actions/download-artifact@v2
+        with:
+          name: udf-example-lib-centos-7-${{github.sha}}
+          path: ./cpp/build/velox/udf/examples/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v2
         with:
