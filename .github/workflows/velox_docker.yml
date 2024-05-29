@@ -501,51 +501,6 @@ jobs:
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-celeborn --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=8 --iterations=1
 
-  build-native-lib-centos-8:
-    runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:centos8
-    steps:
-      - uses: actions/checkout@v2
-      - name: Generate cache key
-        run: |
-          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './github/workflows/*') }} > cache-key
-      - name: Cache
-        id: cache
-        uses: actions/cache/restore@v3
-        with:
-          path: ./cpp/build/releases/
-          key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
-      - name: Setup build dependency
-        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
-        run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          # Required by building arrow java.
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz && mv apache-maven-3.8.8 /usr/lib/maven
-          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
-      - name: Build Gluten Velox third party
-        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
-        run: |
-          cd ep/build-velox/src
-          ./get_velox.sh
-          source /opt/rh/gcc-toolset-9/enable
-          ./build_arrow_deps_centos8.sh
-          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
-          cd $GITHUB_WORKSPACE/cpp
-          ./compile.sh --build_velox_backend=ON --build_protobuf=ON --build_tests=ON --build_examples=ON --build_benchmarks=ON
-      - uses: actions/upload-artifact@v2
-        with:
-          name: velox-native-lib-centos-8-${{github.sha}}
-          path: ./cpp/build/releases/
-      - uses: actions/upload-artifact@v2
-        with:
-          name: udf-example-lib-centos-8-${{github.sha}}
-          path: ./cpp/build/velox/udf/examples/
-      - uses: actions/upload-artifact@v2
-        with:
-          name: arrow-jars-centos-8-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
-
   run-spark-test-spark32:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
@@ -626,7 +581,7 @@ jobs:
       #     ./generic_benchmark --run-example --with-shuffle --threads 1 --iterations 1
 
   run-spark-test-spark32-slow:
-    needs: build-native-lib-centos-8
+    needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
     container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
@@ -636,12 +591,12 @@ jobs:
       - name: Download All Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-native-lib-centos-8-${{github.sha}}
+          name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
       - name: Download Arrow Jars
         uses: actions/download-artifact@v2
         with:
-          name: arrow-jars-centos-8-${{github.sha}}
+          name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Setup build dependency
         run: |
@@ -672,7 +627,7 @@ jobs:
           mvn -ntp clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Pceleborn -Piceberg -Pdelta -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark32/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
 
   run-spark-test-spark33:
-    needs: build-native-lib-centos-8
+    needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
     container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
@@ -682,17 +637,17 @@ jobs:
       - name: Download All Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-native-lib-centos-8-${{github.sha}}
+          name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
       - name: Download UDF Example Lib
         uses: actions/download-artifact@v2
         with:
-          name: udf-example-lib-centos-8-${{github.sha}}
+          name: udf-example-lib-centos-7-${{github.sha}}
           path: ./cpp/build/velox/udf/examples/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v2
         with:
-          name: arrow-jars-centos-8-${{github.sha}}
+          name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Setup build dependency
         run: |
@@ -743,7 +698,7 @@ jobs:
 
 
   run-spark-test-spark33-slow:
-    needs: build-native-lib-centos-8
+    needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
     container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
@@ -753,12 +708,12 @@ jobs:
       - name: Download All Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-native-lib-centos-8-${{github.sha}}
+          name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
       - name: Download Arrow Jars
         uses: actions/download-artifact@v2
         with:
-          name: arrow-jars-centos-8-${{github.sha}}
+          name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Setup build dependency
         run: |
@@ -789,7 +744,7 @@ jobs:
           mvn -ntp clean install -Pspark-3.3 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark33/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
 
   run-spark-test-spark34:
-    needs: build-native-lib-centos-8
+    needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
     container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
@@ -799,17 +754,17 @@ jobs:
       - name: Download All Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-native-lib-centos-8-${{github.sha}}
+          name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
       - name: Download UDF Example Lib
         uses: actions/download-artifact@v2
         with:
-          name: udf-example-lib-centos-8-${{github.sha}}
+          name: udf-example-lib-centos-7-${{github.sha}}
           path: ./cpp/build/velox/udf/examples/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v2
         with:
-          name: arrow-jars-centos-8-${{github.sha}}
+          name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Setup build dependency
         run: |
@@ -860,7 +815,7 @@ jobs:
 
 
   run-spark-test-spark34-slow:
-    needs: build-native-lib-centos-8
+    needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
     container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
@@ -870,12 +825,12 @@ jobs:
       - name: Download All Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-native-lib-centos-8-${{github.sha}}
+          name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
       - name: Download Arrow Jars
         uses: actions/download-artifact@v2
         with:
-          name: arrow-jars-centos-8-${{github.sha}}
+          name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Setup build dependency
         run: |
@@ -906,7 +861,7 @@ jobs:
           mvn -ntp clean install -Pspark-3.4 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark34/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
 
   run-spark-test-spark35:
-    needs: build-native-lib-centos-8
+    needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
     container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
@@ -916,17 +871,17 @@ jobs:
       - name: Download All Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-native-lib-centos-8-${{github.sha}}
+          name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
       - name: Download UDF Example Lib
         uses: actions/download-artifact@v2
         with:
-          name: udf-example-lib-centos-8-${{github.sha}}
+          name: udf-example-lib-centos-7-${{github.sha}}
           path: ./cpp/build/velox/udf/examples/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v2
         with:
-          name: arrow-jars-centos-8-${{github.sha}}
+          name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Setup build dependency
         run: |
@@ -976,7 +931,7 @@ jobs:
           path: /tmp/tpch-approved-plan/**
 
   run-spark-test-spark35-slow:
-    needs: build-native-lib-centos-8
+    needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
     container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
@@ -986,12 +941,12 @@ jobs:
       - name: Download All Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-native-lib-centos-8-${{github.sha}}
+          name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
       - name: Download Arrow Jars
         uses: actions/download-artifact@v2
         with:
-          name: arrow-jars-centos-8-${{github.sha}}
+          name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Setup build dependency
         run: |
