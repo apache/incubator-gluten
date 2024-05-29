@@ -62,7 +62,6 @@ jobs:
           path: ./cpp/build/releases/
           key: cache-velox-build-${{ hashFiles('./cache-key') }}
       - name: Build Gluten Velox third party
-        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
           source dev/ci-velox-buildstatic.sh
       - uses: actions/upload-artifact@v2
