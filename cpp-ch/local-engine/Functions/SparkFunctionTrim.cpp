@@ -120,6 +120,7 @@ namespace
                 auto res_col = ColumnString::create();
                 res_col->reserve(input_rows_count);
                 executeVector(src_str_col->getChars(), src_str_col->getOffsets(), res_col->getChars(), res_col->getOffsets(), trim_str);
+                return std::move(res_col);
             }
             else if (const auto * trim_str_col = checkAndGetColumn<ColumnString>(arguments[1].column.get()))
             {
