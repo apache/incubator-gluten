@@ -82,10 +82,28 @@ object TableRenderTest {
     Console.out.println()
   }
 
+  def case4(): Unit = {
+    val render: TableRender[Seq[String]] = TableRender.create(
+      Branch(
+        "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBC",
+        List(Branch("AB", List(Leaf("A"), Leaf("B"))), Leaf("C"))),
+      Branch("DE", List(Leaf("D"), Leaf("E"))))(new RowParser[Seq[String]] {
+      override def parse(rowFactory: FieldAppender.RowAppender, row: Seq[String]): Unit = {
+        val inc = rowFactory.incremental()
+        row.foreach(ceil => inc.next().write(ceil))
+      }
+    })
+
+    render.appendRow(List("aaaa", "b", "cccccc", "d", "eeeee"))
+    render.print(Console.out)
+    Console.out.println()
+  }
+
   def main(args: Array[String]): Unit = {
     case0()
     case1()
     case2()
     case3()
+    case4()
   }
 }
