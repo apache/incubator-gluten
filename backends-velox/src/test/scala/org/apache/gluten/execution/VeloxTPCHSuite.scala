@@ -272,7 +272,7 @@ class VeloxTPCHMiscSuite extends VeloxTPCHTableSupport {
         |""".stripMargin
     )
     val topN = df.queryExecution.executedPlan.collect { case sortExec: TopNTransformer => sortExec }
-    assert(topN.size == 1)
+    assert(topN.size == 2)
     val result = df.collect()
     df.explain(true)
     val expectedResult = Seq(Row(0), Row(1), Row(2), Row(3), Row(4))
