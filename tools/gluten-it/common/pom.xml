@@ -57,6 +57,17 @@
       <scope>provided</scope>
       <type>test-jar</type>
     </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-sql_${scala.binary.version}</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-sql_${scala.binary.version}</artifactId>
+      <scope>provided</scope>
+      <type>test-jar</type>
+    </dependency>
 
     <dependency>
       <groupId>io.trino.tpcds</groupId>
