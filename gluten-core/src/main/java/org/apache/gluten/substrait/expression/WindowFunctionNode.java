@@ -121,26 +121,21 @@ public class WindowFunctionNode implements Serializable {
           // Used when
           // 1. Velox backend and frame type is ROW
           // 2. Clickhouse backend
-          try {
-            Long offset = Long.valueOf(boundType.eval(null).toString());
-            if (offset < 0) {
-              Expression.WindowFunction.Bound.Preceding.Builder offsetPrecedingBuilder =
-                  Expression.WindowFunction.Bound.Preceding.newBuilder();
-              offsetPrecedingBuilder.setOffset(0 - offset);
-              builder.setPreceding(offsetPrecedingBuilder.build());
-            } else {
-              Expression.WindowFunction.Bound.Following.Builder offsetFollowingBuilder =
-                  Expression.WindowFunction.Bound.Following.newBuilder();
-              offsetFollowingBuilder.setOffset(offset);
-              builder.setFollowing(offsetFollowingBuilder.build());
-            }
-          } catch (NumberFormatException e) {
-            throw new UnsupportedOperationException(
-                "Unsupported Window Function Frame Type:" + boundType);
+          Long offset = Long.valueOf(boundType.eval(null).toString());
+          if (offset < 0) {
+            Expression.WindowFunction.Bound.Preceding.Builder offsetPrecedingBuilder =
+                Expression.WindowFunction.Bound.Preceding.newBuilder();
+            offsetPrecedingBuilder.setOffset(0 - offset);
+            builder.setPreceding(offsetPrecedingBuilder.build());
+          } else {
+            Expression.WindowFunction.Bound.Following.Builder offsetFollowingBuilder =
+                Expression.WindowFunction.Bound.Following.newBuilder();
+            offsetFollowingBuilder.setOffset(offset);
+            builder.setFollowing(offsetFollowingBuilder.build());
           }
         } else {
           throw new UnsupportedOperationException(
-              "Unsupported Window Function Frame Type:" + boundType);
+              "Unsupported Window Function Frame Bound Type: " + boundType);
         }
     }
     return builder;
