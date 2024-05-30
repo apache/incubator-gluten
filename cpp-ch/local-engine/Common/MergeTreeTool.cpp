@@ -16,14 +16,14 @@
  */
 #include "MergeTreeTool.h"
 
+#include <google/protobuf/util/json_util.h>
+#include <rapidjson/document.h>
+
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
 #include <IO/WriteBufferFromString.h>
 #include <IO/WriteHelpers.h>
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
-#include <google/protobuf/util/json_util.h>
-#include <rapidjson/rapidjson.h>
-#include <rapidjson/document.h>
 #include <Poco/StringTokenizer.h>
 
 using namespace DB;

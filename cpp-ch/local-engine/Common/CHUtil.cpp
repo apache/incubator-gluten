@@ -552,7 +552,11 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::map<std::s
         if (key.starts_with(CH_RUNTIME_CONFIG_PREFIX) && key != CH_RUNTIME_CONFIG_FILE)
         {
             // Apply spark.gluten.sql.columnar.backend.ch.runtime_config.* to config
-            config->setString(key.substr(CH_RUNTIME_CONFIG_PREFIX.size()), value);
+            const auto name = key.substr(CH_RUNTIME_CONFIG_PREFIX.size());
+            if ((name == "storage_configuration.disks.s3.metadata_path" || name == "path") && !value.ends_with("/"))
+                config->setString(name, value + "/");
+            else
+                config->setString(name, value);
         }
     }
 
@@ -722,6 +726,11 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         global_context->setTemporaryStoragePath(config->getString("tmp_path", getDefaultPath()), 0);
         global_context->setPath(config->getString("path", "/"));
 
+        String uncompressed_cache_policy = config->getString("uncompressed_cache_policy", DEFAULT_UNCOMPRESSED_CACHE_POLICY);
+        size_t uncompressed_cache_size = config->getUInt64("uncompressed_cache_size", DEFAULT_UNCOMPRESSED_CACHE_MAX_SIZE);
+        double uncompressed_cache_size_ratio = config->getDouble("uncompressed_cache_size_ratio", DEFAULT_UNCOMPRESSED_CACHE_SIZE_RATIO);
+        global_context->setUncompressedCache(uncompressed_cache_policy, uncompressed_cache_size, uncompressed_cache_size_ratio);
+
         String mark_cache_policy = config->getString("mark_cache_policy", DEFAULT_MARK_CACHE_POLICY);
         size_t mark_cache_size = config->getUInt64("mark_cache_size", DEFAULT_MARK_CACHE_MAX_SIZE);
         double mark_cache_size_ratio = config->getDouble("mark_cache_size_ratio", DEFAULT_MARK_CACHE_SIZE_RATIO);
@@ -730,10 +739,21 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
 
         global_context->setMarkCache(mark_cache_policy, mark_cache_size, mark_cache_size_ratio);
 
+        String index_uncompressed_cache_policy = config->getString("index_uncompressed_cache_policy", DEFAULT_INDEX_UNCOMPRESSED_CACHE_POLICY);
+        size_t index_uncompressed_cache_size = config->getUInt64("index_uncompressed_cache_size", DEFAULT_INDEX_UNCOMPRESSED_CACHE_MAX_SIZE);
+        double index_uncompressed_cache_size_ratio = config->getDouble("index_uncompressed_cache_size_ratio", DEFAULT_INDEX_UNCOMPRESSED_CACHE_SIZE_RATIO);
+        global_context->setIndexUncompressedCache(index_uncompressed_cache_policy, index_uncompressed_cache_size, index_uncompressed_cache_size_ratio);
+        
         String index_mark_cache_policy = config->getString("index_mark_cache_policy", DEFAULT_INDEX_MARK_CACHE_POLICY);
         size_t index_mark_cache_size = config->getUInt64("index_mark_cache_size", DEFAULT_INDEX_MARK_CACHE_MAX_SIZE);
         double index_mark_cache_size_ratio = config->getDouble("index_mark_cache_size_ratio", DEFAULT_INDEX_MARK_CACHE_SIZE_RATIO);
         global_context->setIndexMarkCache(index_mark_cache_policy, index_mark_cache_size, index_mark_cache_size_ratio);
+
+        size_t mmap_cache_size = config->getUInt64("mmap_cache_size", DEFAULT_MMAP_CACHE_MAX_SIZE);
+        global_context->setMMappedFileCache(mmap_cache_size);
+
+        /// Initialize a dummy query cache.
+        global_context->setQueryCache(0, 0, 0, 0);
     }
 }
 
@@ -861,6 +881,12 @@ void BackendInitializerUtil::init(std::string * plan)
                 active_parts_loading_threads,
                 0, // We don't need any threads one all the parts will be loaded
                 active_parts_loading_threads);
+
+            const size_t cleanup_threads = config->getUInt("max_parts_cleaning_thread_pool_size", 128);
+            getPartsCleaningThreadPool().initialize(
+                cleanup_threads,
+                0, // We don't need any threads one all the parts will be deleted
+                cleanup_threads);
         });
 }
 

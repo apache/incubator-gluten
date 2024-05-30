@@ -1059,11 +1059,10 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     substrait::ReadRel::ExtensionTable extension_table =
         local_engine::SerializedPlanParser::parseExtensionTable(split_info_str);
 
-    auto storage = local_engine::MergeTreeRelParser::parseStorage(
-        extension_table, local_engine::SerializedPlanParser::global_context);
+    auto merge_tree_table = local_engine::MergeTreeRelParser::parseMergeTreeTable(extension_table);
     auto uuid = uuid_str + "_" + task_id;
     auto * writer = new local_engine::SparkMergeTreeWriter(
-        storage, storage->getInMemoryMetadataPtr(), query_context, uuid, partition_dir, bucket_dir);
+        merge_tree_table, query_context, uuid, partition_dir, bucket_dir);
 
     env->ReleaseByteArrayElements(plan_, plan_buf_addr, JNI_ABORT);
     env->ReleaseByteArrayElements(split_info_, split_info_addr, JNI_ABORT);
@@ -1196,28 +1195,27 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
 
     substrait::ReadRel::ExtensionTable extension_table =
         local_engine::SerializedPlanParser::parseExtensionTable(split_info_str);
-
-    UUID uuid = UUIDHelpers::generateV4(); // each task using its own CustomStorageMergeTree, don't reuse
-    auto storage = local_engine::MergeTreeRelParser::parseStorage(
-        extension_table, local_engine::SerializedPlanParser::global_context, uuid);
-
     google::protobuf::StringValue table;
     table.ParseFromString(extension_table.detail().value());
     auto merge_tree_table = local_engine::parseMergeTreeTableString(table.value());
-    DB::StorageID table_id(merge_tree_table.database, merge_tree_table.table, uuid);
-    local_engine::TempStorageFreer freer {table_id}; // to release temp CustomStorageMergeTree with RAII
-    auto storage_factory = local_engine::StorageMergeTreeFactory::instance();
-    std::vector<DB::DataPartPtr> selected_parts = storage_factory.getDataParts(table_id, merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
+
+    // each task using its own CustomStorageMergeTree, don't reuse
+    auto temp_storage
+        = local_engine::MergeTreeRelParser::copyToVirtualStorage(merge_tree_table, local_engine::SerializedPlanParser::global_context);
+
+    local_engine::TempStorageFreer freer{temp_storage->getStorageID()}; // to release temp CustomStorageMergeTree with RAII
+    std::vector<DB::DataPartPtr> selected_parts
+        = local_engine::StorageMergeTreeFactory::instance().getDataPartsByNames(temp_storage->getStorageID(), "", merge_tree_table.getPartNames());
 
     std::unordered_map<String, String> partition_values;
     std::vector<MergeTreeDataPartPtr> loaded =
-        local_engine::mergeParts(selected_parts, partition_values, uuid_str, storage, partition_dir, bucket_dir);
+        local_engine::mergeParts(selected_parts, partition_values, uuid_str, temp_storage, partition_dir, bucket_dir);
 
     std::vector<local_engine::PartInfo> res;
     for (auto & partPtr : loaded)
     {
         saveFileStatus(
-            *storage,
+            *temp_storage,
             local_engine::SerializedPlanParser::global_context,
             partPtr->name,
             const_cast<IDataPartStorage &>(partPtr->getDataPartStorage()));

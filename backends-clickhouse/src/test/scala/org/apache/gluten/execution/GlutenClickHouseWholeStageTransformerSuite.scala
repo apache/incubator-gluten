@@ -55,6 +55,8 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
   val S3_ACCESS_KEY = "BypTYzcXOlfr03FFIvt4"
   val S3_SECRET_KEY = "K9MDaGItPSaphorZM8t4hXf30gHF9dBWi6L2dK5E"
 
+  val CH_DEFAULT_STORAGE_DIR = "/data"
+
   def AlmostEqualsIsRel(expected: Double, actual: Double, EPSILON: Double = DBL_EPSILON): Unit = {
     val diff = Math.abs(expected - actual)
     val epsilon = EPSILON * Math.max(Math.abs(expected), Math.abs(actual))
@@ -162,7 +164,7 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
 
   override def beforeAll(): Unit = {
     // is not exist may cause some ut error
-    assert(new File("/data").exists())
+    assert(new File(CH_DEFAULT_STORAGE_DIR).exists())
 
     // prepare working paths
     val basePathDir = new File(basePath)
