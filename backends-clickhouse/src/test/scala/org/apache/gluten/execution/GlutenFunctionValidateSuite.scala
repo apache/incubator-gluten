@@ -708,4 +708,24 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
   }
 
+  test("GLUTEN-5897: fix regexp_extract with bracket") {
+    withTable("regexp_extract_bracket") {
+      sql("create table regexp_extract_bracket(a String) using parquet")
+      sql(
+        """
+          |insert into regexp_extract_bracket values ('123.123abc-abc'),('123-LOW'),('123]abc-abc')
+          |""".stripMargin)
+
+      val sql_str =
+        s"""select
+           |    regexp_extract(a, '([0-9][[\\.][0-9]]*)', 1)
+           |  , regexp_extract(a, '([0-9][[\\.][0-9]]*)', 1)
+           |  , regexp_extract(a, '([0-9][[]]]*)', 1)
+           |  from regexp_extract_bracket
+          """.stripMargin
+
+      runQueryAndCompare(sql_str) { _ => }
+    }
+  }
+
 }
