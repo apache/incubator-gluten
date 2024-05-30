@@ -23,9 +23,9 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression, SortOrder}
-import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
+import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, Partitioning, SinglePartition}
 import org.apache.spark.sql.catalyst.util.truncatedString
-import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, ColumnarShuffleExchangeExec, SparkPlan, TakeOrderedAndProjectExec, UnaryExecNode}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -195,7 +195,7 @@ object TakeOrderedAndProjectExecTransformer {
     val child = from.child
     val orderingSatisfies = SortOrder.orderingSatisfies(child.outputOrdering, from.sortOrder)
 
-    val shuffleNeeded = child.outputPartitioning.numPartitions == 1
+    val shuffleNeeded = !child.outputPartitioning.satisfies(AllTuples)
 
     if (!shuffleNeeded) {
       // Child has only a single partition. Thus we don't have to
