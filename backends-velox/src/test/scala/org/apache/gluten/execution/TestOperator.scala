@@ -1536,4 +1536,27 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       checkGlutenOperatorMatch[GenerateExecTransformer]
     }
   }
+
+  test("Fix shuffle with round robin partitioning fail") {
+    def checkNullTypeRepartition(df: => DataFrame, numProject: Int): Unit = {
+      var expected: Array[Row] = null
+      withSQLConf("spark.sql.execution.sortBeforeRepartition" -> "false") {
+        expected = df.collect()
+      }
+      val actual = df
+      checkAnswer(actual, expected)
+      assert(
+        collect(actual.queryExecution.executedPlan) { case p: ProjectExec => p }.size == numProject
+      )
+    }
+
+    checkNullTypeRepartition(
+      spark.table("lineitem").selectExpr("l_orderkey", "null as x").repartition(),
+      0
+    )
+    checkNullTypeRepartition(
+      spark.table("lineitem").selectExpr("null as x", "null as y").repartition(),
+      1
+    )
+  }
 }

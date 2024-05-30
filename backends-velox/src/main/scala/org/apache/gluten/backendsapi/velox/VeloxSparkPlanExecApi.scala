@@ -347,23 +347,39 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         // See https://github.com/apache/spark/blob/609bd4839e5d504917de74ed1cb9c23645fba51f/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/expressions/hash.scala#L279-L283
         // scalastyle:on line.size.limit
         allowHashOnMap {
-          val hashExpr = new Murmur3Hash(newChild.output)
-          val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ newChild.output
-          val projectTransformer = ProjectExecTransformer(projectList, newChild)
-          val sortOrder = SortOrder(projectTransformer.output.head, Ascending)
-          val sortByHashCode =
-            SortExecTransformer(Seq(sortOrder), global = false, projectTransformer)
-          val dropSortColumnTransformer =
-            ProjectExecTransformer(projectList.drop(1), sortByHashCode)
-          val validationResult = dropSortColumnTransformer.doValidate()
-          if (validationResult.isValid) {
-            ColumnarShuffleExchangeExec(
-              shuffle,
-              dropSortColumnTransformer,
-              dropSortColumnTransformer.output)
+          // Velox hash expression does not support null type and we also do not need to sort
+          // null type since the value always be null.
+          val columnsForHash = newChild.output.filterNot(_.dataType == NullType)
+          if (columnsForHash.isEmpty) {
+            ColumnarShuffleExchangeExec(shuffle, newChild, newChild.output)
           } else {
-            TransformHints.tagNotTransformable(shuffle, validationResult)
-            shuffle.withNewChildren(newChild :: Nil)
+            val hashExpr = new Murmur3Hash(columnsForHash)
+            val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ newChild.output
+            val projectTransformer = ProjectExecTransformer(projectList, newChild)
+            val projectBeforeSortValidationResult = projectTransformer.doValidate()
+            // Make sure we support offload hash expression
+            val projectBeforeSort = if (projectBeforeSortValidationResult.isValid) {
+              projectTransformer
+            } else {
+              val project = ProjectExec(projectList, newChild)
+              TransformHints.tagNotTransformable(project, projectBeforeSortValidationResult)
+              project
+            }
+            val sortOrder = SortOrder(projectBeforeSort.output.head, Ascending)
+            val sortByHashCode =
+              SortExecTransformer(Seq(sortOrder), global = false, projectBeforeSort)
+            val dropSortColumnTransformer =
+              ProjectExecTransformer(projectList.drop(1), sortByHashCode)
+            val validationResult = dropSortColumnTransformer.doValidate()
+            if (validationResult.isValid) {
+              ColumnarShuffleExchangeExec(
+                shuffle,
+                dropSortColumnTransformer,
+                dropSortColumnTransformer.output)
+            } else {
+              TransformHints.tagNotTransformable(shuffle, validationResult)
+              shuffle.withNewChildren(newChild :: Nil)
+            }
           }
         }
       case _ =>
