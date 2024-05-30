@@ -71,5 +71,5 @@ trait TransformerApi {
 
   def packPBMessage(message: Message): Any
 
-  def invalidateSQLExecutionResource(executionId: String) = {}
+  def invalidateSQLExecutionResource(executionId: String): Unit = {}
 }
