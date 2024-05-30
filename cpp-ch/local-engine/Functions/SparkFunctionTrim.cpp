@@ -77,8 +77,6 @@ namespace
 
         bool isSuitableForShortCircuitArgumentsExecution(const DataTypesWithConstInfo & /*arguments*/) const override { return true; }
 
-        ColumnNumbers getArgumentsThatAreAlwaysConstant() const override { return {1}; }
-
         DataTypePtr getReturnTypeImpl(const DataTypes & arguments) const override
         {
             if (arguments.size() != 2)
@@ -112,19 +110,33 @@ namespace
             if (!src_str_col)
                 throw Exception(ErrorCodes::ILLEGAL_COLUMN, "First argument of function {} must be String", getName());
 
-            const ColumnConst * trim_str_col = checkAndGetColumnConst<ColumnString>(arguments[1].column.get());
-            if (!trim_str_col)
-                throw Exception(ErrorCodes::ILLEGAL_COLUMN, "Second argument of function {} must be Const String", getName());
 
-            String trim_str = trim_str_col->getValue<String>();
-            if (trim_str.empty())
-                return src_str_col->cloneResized(input_rows_count);
+            if (const auto * trim_const_str_col = checkAndGetColumnConst<ColumnString>(arguments[1].column.get()))
+            {
+                String trim_str = trim_const_str_col->getValue<String>();
+                if (trim_str.empty())
+                    return src_str_col->cloneResized(input_rows_count);
 
-            auto res_col = ColumnString::create();
-            res_col->reserve(input_rows_count);
+                auto res_col = ColumnString::create();
+                res_col->reserve(input_rows_count);
+                executeVector(src_str_col->getChars(), src_str_col->getOffsets(), res_col->getChars(), res_col->getOffsets(), trim_str);
+            }
+            else if (const auto * trim_str_col = checkAndGetColumn<ColumnString>(arguments[1].column.get()))
+            {
+                auto res_col = ColumnString::create();
+                res_col->reserve(input_rows_count);
 
-            executeVector(src_str_col->getChars(), src_str_col->getOffsets(), res_col->getChars(), res_col->getOffsets(), trim_str);
-            return std::move(res_col);
+                executeVector(
+                    src_str_col->getChars(),
+                    src_str_col->getOffsets(),
+                    res_col->getChars(),
+                    res_col->getOffsets(),
+                    trim_str_col->getChars(),
+                    trim_str_col->getOffsets());
+                return std::move(res_col);
+            }
+
+            throw Exception(ErrorCodes::ILLEGAL_COLUMN, "Second argument of function {} must be String or Const String", getName());
         }
 
     private:
@@ -156,6 +168,43 @@ namespace
 
                 res_offsets[i] = res_offset;
                 prev_offset = offsets[i];
+            }
+        }
+
+        void executeVector(
+            const ColumnString::Chars & data,
+            const ColumnString::Offsets & offsets,
+            ColumnString::Chars & res_data,
+            ColumnString::Offsets & res_offsets,
+            const ColumnString::Chars & trim_data,
+            const ColumnString::Offsets & trim_offsets) const
+        {
+            res_data.reserve_exact(data.size());
+
+            size_t rows = offsets.size();
+            res_offsets.resize_exact(rows);
+
+            size_t prev_offset = 0;
+            size_t prev_trim_str_offset = 0;
+            size_t res_offset = 0;
+
+            const UInt8 * start;
+            size_t length;
+
+            for (size_t i = 0; i < rows; ++i)
+            {
+                std::unordered_set<char> trim_set(
+                    &trim_data[prev_trim_str_offset], &trim_data[prev_trim_str_offset] + trim_offsets[i] - prev_trim_str_offset - 1);
+
+                trim(reinterpret_cast<const UInt8 *>(&data[prev_offset]), offsets[i] - prev_offset - 1, start, length, trim_set);
+                res_data.resize_exact(res_data.size() + length + 1);
+                memcpySmallAllowReadWriteOverflow15(&res_data[res_offset], start, length);
+                res_offset += length + 1;
+                res_data[res_offset - 1] = '\0';
+
+                res_offsets[i] = res_offset;
+                prev_offset = offsets[i];
+                prev_trim_str_offset = trim_offsets[i];
             }
         }
 

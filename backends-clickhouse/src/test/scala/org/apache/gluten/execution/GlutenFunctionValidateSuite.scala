@@ -708,6 +708,24 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
   }
 
+  test("GLUTEN-5821: trim_character support value from column.") {
+    withTable("trim") {
+      sql("create table trim(a String, b String) using parquet")
+      sql(
+        """
+          |insert into trim values ('aba', 'a'),('bba', 'b'),('abcdef', 'abcd')
+          |""".stripMargin)
+
+      val sql_str =
+        s"""select
+           |    trim(both b from a)
+           |  from trim
+          """.stripMargin
+
+      runQueryAndCompare(sql_str) { _ => }
+    }
+  }
+
   test("GLUTEN-5897: fix regexp_extract with bracket") {
     withTable("regexp_extract_bracket") {
       sql("create table regexp_extract_bracket(a String) using parquet")
@@ -727,5 +745,4 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       runQueryAndCompare(sql_str) { _ => }
     }
   }
-
 }
