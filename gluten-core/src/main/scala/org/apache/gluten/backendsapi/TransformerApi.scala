@@ -71,5 +71,6 @@ trait TransformerApi {
 
   def packPBMessage(message: Message): Any
 
+  /** This method is only used for CH backend tests */
   def invalidateSQLExecutionResource(executionId: String): Unit = {}
 }

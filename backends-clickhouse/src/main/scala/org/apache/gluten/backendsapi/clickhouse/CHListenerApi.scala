@@ -24,6 +24,7 @@ import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, JniLibLoader}
 
 import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.listener.CHGlutenSQLAppStatusListener
 import org.apache.spark.network.util.JavaUtils
@@ -37,17 +38,17 @@ import java.util.TimeZone
 
 class CHListenerApi extends ListenerApi with Logging {
 
-  override def onDriverStart(sc: SparkContext, conf: SparkConf): Unit = {
+  override def onDriverStart(sc: SparkContext, pc: PluginContext): Unit = {
     GlutenDriverEndpoint.glutenDriverEndpointRef = (new GlutenDriverEndpoint).self
     CHGlutenSQLAppStatusListener.registerListener(sc)
-    initialize(conf, isDriver = true)
+    initialize(pc.conf, isDriver = true)
   }
 
   override def onDriverShutdown(): Unit = shutdown()
 
-  override def onExecutorStart(executorID: String, conf: SparkConf): Unit = {
-    GlutenExecutorEndpoint.executorEndpoint = new GlutenExecutorEndpoint(executorID, conf)
-    initialize(conf, isDriver = false)
+  override def onExecutorStart(pc: PluginContext): Unit = {
+    GlutenExecutorEndpoint.executorEndpoint = new GlutenExecutorEndpoint(pc.executorID, pc.conf)
+    initialize(pc.conf, isDriver = false)
   }
 
   override def onExecutorShutdown(): Unit = shutdown()

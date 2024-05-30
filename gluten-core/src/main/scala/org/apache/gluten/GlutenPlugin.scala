@@ -72,7 +72,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     }
     // Initialize Backends API
     BackendsApiManager.initialize()
-    BackendsApiManager.getListenerApiInstance.onDriverStart(sc, conf)
+    BackendsApiManager.getListenerApiInstance.onDriverStart(sc, pluginContext)
     GlutenListenerFactory.addToSparkListenerBus(sc)
     ExpressionMappings.expressionExtensionTransformer =
       ExpressionUtil.extendedExpressionTransformer(

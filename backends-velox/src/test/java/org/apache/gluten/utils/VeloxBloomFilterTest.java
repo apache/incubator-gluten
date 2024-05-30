@@ -19,7 +19,10 @@ package org.apache.gluten.utils;
 import org.apache.gluten.backendsapi.ListenerApi;
 import org.apache.gluten.backendsapi.velox.VeloxListenerApi;
 
+import com.codahale.metrics.MetricRegistry;
 import org.apache.spark.SparkConf;
+import org.apache.spark.api.plugin.PluginContext;
+import org.apache.spark.resource.ResourceInformation;
 import org.apache.spark.util.TaskResources$;
 import org.apache.spark.util.sketch.BloomFilter;
 import org.apache.spark.util.sketch.IncompatibleMergeException;
@@ -28,14 +31,52 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.function.ThrowingRunnable;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Collections;
+import java.util.Map;
 
 public class VeloxBloomFilterTest {
 
   @BeforeClass
   public static void setup() {
     final ListenerApi api = new VeloxListenerApi();
-    api.onDriverStart(null, new SparkConf());
+    PluginContext pluginContext =
+        new PluginContext() {
+          @Override
+          public MetricRegistry metricRegistry() {
+            return null;
+          }
+
+          @Override
+          public SparkConf conf() {
+            return new SparkConf();
+          }
+
+          @Override
+          public String executorID() {
+            return "";
+          }
+
+          @Override
+          public String hostname() {
+            return "";
+          }
+
+          @Override
+          public Map<String, ResourceInformation> resources() {
+            return Collections.emptyMap();
+          }
+
+          @Override
+          public void send(Object message) throws IOException {}
+
+          @Override
+          public Object ask(Object message) throws Exception {
+            return null;
+          }
+        };
+    api.onDriverStart(null, pluginContext);
   }
 
   @Test
