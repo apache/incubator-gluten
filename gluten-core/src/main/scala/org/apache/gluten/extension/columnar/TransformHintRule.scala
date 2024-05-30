@@ -520,15 +520,8 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             transformer.doValidate().tagOnFallback(plan)
           }
         case plan: TakeOrderedAndProjectExec =>
-          val (limit, offset) =
-            SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(plan)
-          val transformer = TakeOrderedAndProjectExecTransformer(
-            limit,
-            plan.sortOrder,
-            plan.projectList,
-            plan.child,
-            offset)
-          transformer.doValidate().tagOnFallback(plan)
+          val v = TakeOrderedAndProjectExecTransformer.validate(plan)
+          v.tagOnFallback(plan)
         case plan: SampleExec =>
           val transformer = BackendsApiManager.getSparkPlanExecApiInstance.genSampleExecTransformer(
             plan.lowerBound,

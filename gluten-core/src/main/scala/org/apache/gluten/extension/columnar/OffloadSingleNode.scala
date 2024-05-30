@@ -330,14 +330,7 @@ object OffloadOthers {
           SortExecTransformer(plan.sortOrder, plan.global, child, plan.testSpillFrequency)
         case plan: TakeOrderedAndProjectExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          val child = plan.child
-          val (limit, offset) = SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(plan)
-          TakeOrderedAndProjectExecTransformer(
-            limit,
-            plan.sortOrder,
-            plan.projectList,
-            child,
-            offset)
+          TakeOrderedAndProjectExecTransformer.offload(plan)
         case plan: WindowExec =>
           WindowExecTransformer(
             plan.windowExpression,

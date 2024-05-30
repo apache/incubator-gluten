@@ -18,13 +18,14 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
+import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
 import org.apache.spark.sql.catalyst.util.truncatedString
-import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, ColumnarShuffleExchangeExec, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, ColumnarShuffleExchangeExec, SparkPlan, TakeOrderedAndProjectExec, UnaryExecNode}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -33,6 +34,9 @@ import java.util.concurrent.atomic.AtomicInteger
 // FIXME: The operator is simply a wrapper for sort + limit + project (+ exchange if needed).
 //  It's better to remove this wrapper then return the piped sub-operators to query planner
 //  directly. Otherwise optimizer may not get enough information to optimize.
+//
+// Deprecated: Use TakeOrderedAndProjectExecTransformer#offload instead.
+@deprecated
 case class TakeOrderedAndProjectExecTransformer(
     limit: Long,
     sortOrder: Seq[SortOrder],
@@ -168,5 +172,100 @@ case class TakeOrderedAndProjectExecTransformer(
 
       finalPlan.executeColumnar()
     }
+  }
+}
+
+/**
+ * Utility methods for offloading [[TakeOrderedAndProjectExec]].
+ *
+ * Since:
+ *   - https://github.com/apache/incubator-gluten/pull/630
+ *   - https://github.com/apache/incubator-gluten/pull/2153
+ *   - https://github.com/apache/incubator-gluten/pull/4607
+ */
+object TakeOrderedAndProjectExecTransformer {
+  private def collapse(plan: ProjectExecTransformer): SparkPlan = {
+    val collapsed =
+      BackendsApiManager.getSparkPlanExecApiInstance.maybeCollapseTakeOrderedAndProject(plan)
+    collapsed
+  }
+
+  def offload(from: TakeOrderedAndProjectExec): SparkPlan = {
+    val (limit, offset) = SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(from)
+    val child = from.child
+    val orderingSatisfies = SortOrder.orderingSatisfies(child.outputOrdering, from.sortOrder)
+
+    val shuffleNeeded = child.outputPartitioning.numPartitions == 1
+
+    if (!shuffleNeeded) {
+      // Child has only a single partition. Thus we don't have to
+      // build plan with local + global pattern.
+      if (orderingSatisfies) {
+        val globalLimit = LimitTransformer(child, offset, limit)
+        val project = ProjectExecTransformer(from.projectList, globalLimit)
+        return collapse(project)
+      }
+      // Sort needed.
+      val globalSort = SortExecTransformer(from.sortOrder, true, child)
+      val globalLimit = LimitTransformer(globalSort, offset, limit)
+      val project = ProjectExecTransformer(from.projectList, globalLimit)
+      return collapse(project)
+    }
+
+    // Local top N + global top N.
+    val localPlan = if (orderingSatisfies) {
+      // We don't need local sort.
+      // And do not set offset on local limit.
+      val localLimit = LimitTransformer(child, 0, limit)
+      localLimit
+    } else {
+      // Local sort needed.
+      val localSort = SortExecTransformer(from.sortOrder, false, child)
+      // And do not set offset on local limit.
+      val localLimit = LimitTransformer(localSort, 0, limit)
+      localLimit
+    }
+
+    // Exchange data from local to global.
+    val exchange = ColumnarShuffleExchangeExec(
+      ShuffleExchangeExec(SinglePartition, localPlan),
+      localPlan,
+      localPlan.output)
+
+    // Global sort + limit.
+    val globalSort = SortExecTransformer(from.sortOrder, false, exchange)
+    val globalLimit = LimitTransformer(globalSort, offset, limit)
+    val project = ProjectExecTransformer(from.projectList, globalLimit)
+
+    collapse(project)
+  }
+
+  def validate(from: TakeOrderedAndProjectExec): ValidationResult = {
+    val (limit, offset) = SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(from)
+    val child = from.child
+    val orderingSatisfies = SortOrder.orderingSatisfies(child.outputOrdering, from.sortOrder)
+
+    val sorted = if (orderingSatisfies) {
+      child
+    } else {
+      // Sort needed.
+      val sort = SortExecTransformer(from.sortOrder, false, child)
+      val sortValidation = sort.doValidate()
+      if (!sortValidation.isValid) {
+        return sortValidation
+      }
+      sort
+    }
+
+    val limitPlan = LimitTransformer(sorted, offset, limit)
+    val limitValidation = limitPlan.doValidate()
+
+    if (!limitValidation.isValid) {
+      return limitValidation
+    }
+
+    val project = ProjectExecTransformer(from.projectList, limitPlan)
+    val projectValidation = project.doValidate()
+    projectValidation
   }
 }
