@@ -711,10 +711,9 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
   test("GLUTEN-5821: trim_character support value from column.") {
     withTable("trim") {
       sql("create table trim(a String, b String) using parquet")
-      sql(
-        """
-          |insert into trim values ('aba', 'a'),('bba', 'b'),('abcdef', 'abcd')
-          |""".stripMargin)
+      sql("""
+            |insert into trim values ('aba', 'a'),('bba', 'b'),('abcdef', 'abcd')
+            |""".stripMargin)
 
       val sql_str =
         s"""select
