@@ -32,6 +32,7 @@ import org.apache.spark.sql.execution.exchange.{Exchange, ReusedExchangeExec}
 
 import java.util
 import java.util.Collections.newSetFromMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, BitSet}
@@ -103,6 +104,7 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
             addFallbackNodeWithReason(i, "Columnar table cache is disabled", fallbackNodeToReason)
           }
         case _: AQEShuffleReadExec => // Ignore
+        case p: SparkPlan if exclusions.exists(_.shouldHide(p)) =>
         case p: SparkPlan =>
           handleVanillaSparkPlan(p, fallbackNodeToReason)
           p.innerChildren.foreach(collect)
@@ -111,6 +113,22 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
     }
     collect(plan)
     (numGlutenNodes, fallbackNodeToReason.toMap)
+  }
+
+  private val exclusions: mutable.ListBuffer[HideFallbackReason] = mutable.ListBuffer()
+
+  trait HideFallbackReason {
+    private val registered: AtomicBoolean = new AtomicBoolean(false)
+
+    final def ensureRegistered(): Unit = {
+      if (!registered.compareAndSet(false, true)) {
+        return
+      }
+      exclusions.synchronized {
+        exclusions += this
+      }
+    }
+    def shouldHide(plan: SparkPlan): Boolean
   }
 
   /**

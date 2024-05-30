@@ -272,10 +272,12 @@ case class VeloxColumnarWriteFilesExec private (
   extends BinaryExecNode
   with GlutenPlan
   with VeloxColumnarWriteFilesExec.ExecuteWriteCompatible {
+  import VeloxColumnarWriteFilesExec._
 
   val child: SparkPlan = left
 
-  // Make sure we hide the noop leaf from SQL UI.
+  // Make sure we hide the noop leaf from fallback report / SQL UI.
+  HideNoopLeafFromFallBackReport.ensureRegistered()
   HideNoopLeafFromVeloxColumnarWriteFiles.ensureRegistered()
 
   override lazy val references: AttributeSet = AttributeSet.empty
@@ -327,6 +329,7 @@ case class VeloxColumnarWriteFilesExec private (
       new VeloxColumnarWriteFilesRDD(rdd, writeFilesSpec, jobTrackerID)
     }
   }
+
   override protected def withNewChildrenInternal(
       newLeft: SparkPlan,
       newRight: SparkPlan): SparkPlan =
@@ -334,7 +337,6 @@ case class VeloxColumnarWriteFilesExec private (
 }
 
 object VeloxColumnarWriteFilesExec {
-
   def apply(
       child: SparkPlan,
       fileFormat: FileFormat,
@@ -378,10 +380,24 @@ object VeloxColumnarWriteFilesExec {
 
   sealed trait ExecuteWriteCompatible {
     // To be compatible with Spark (version < 3.4)
-    protected def doExecuteWrite(writeFilesSpec: WriteFilesSpec): RDD[WriterCommitMessage] = {
-      throw new GlutenException(
-        s"Internal Error ${this.getClass} has write support" +
-          s" mismatch:\n${this}")
+    protected def doExecuteWrite(writeFilesSpec: WriteFilesSpec): RDD[WriterCommitMessage]
+  }
+
+  // Hide the noop leaf from fall back reporting.
+  private object HideNoopLeafFromFallBackReport extends GlutenExplainUtils.HideFallbackReason {
+    override def shouldHide(plan: SparkPlan): Boolean = {
+      hasOnlyOneNoopLeaf(plan)
+    }
+
+    // True if the plan tree has and only has one single NoopLeaf as its leaf.
+    private def hasOnlyOneNoopLeaf(plan: SparkPlan): Boolean = {
+      if (plan.children.size > 1) {
+        return false
+      }
+      if (plan.children.size == 1) {
+        return hasOnlyOneNoopLeaf(plan.children.head)
+      }
+      plan.isInstanceOf[NoopLeaf]
     }
   }
 
