@@ -330,7 +330,7 @@ object UDFResolver extends Logging {
       case None =>
         Seq.empty
       case Some(_) =>
-        new UdfJniWrapper().getFunctionSignatures()
+        UdfJniWrapper.getFunctionSignatures()
 
         UDFNames.map {
           name =>
