@@ -271,10 +271,8 @@ class VeloxTPCHMiscSuite extends VeloxTPCHTableSupport {
         |select n_nationkey from nation order by n_nationkey limit 5
         |""".stripMargin
     )
-    val numTopNs = df.queryExecution.executedPlan.collect {
-      case sortExec: TopNTransformer => sortExec
-    }
-    assert(numTopNs.size == 1)
+    val topN = df.queryExecution.executedPlan.collect { case sortExec: TopNTransformer => sortExec }
+    assert(topN.size == 1)
     val result = df.collect()
     df.explain(true)
     val expectedResult = Seq(Row(0), Row(1), Row(2), Row(3), Row(4))
