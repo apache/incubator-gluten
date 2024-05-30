@@ -75,7 +75,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           path: /root/.m2/repository/org/apache/arrow/
-          name: velox-arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jar-centos-7-${{github.sha}}
       - name: Upload UDF example
         uses: actions/upload-artifact@v2
         with:
@@ -112,7 +112,7 @@ jobs:
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Setup java and maven
         run: |
@@ -166,7 +166,7 @@ jobs:
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Update mirror list
         if: matrix.os == 'centos:8'
@@ -246,7 +246,7 @@ jobs:
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jar-centos-7-${{github.sha}}
           path: /home/runner/.m2/repository/org/apache/arrow/
       - name: Setup java and maven
         run: |
@@ -348,7 +348,7 @@ jobs:
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jar-centos-7-${{github.sha}}
           path: /home/runner/.m2/repository/org/apache/arrow/
       - name: Setup java and maven
         run: |
@@ -441,7 +441,7 @@ jobs:
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Update mirror list
         run: |
@@ -507,7 +507,7 @@ jobs:
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Setup java and maven
         run: |
