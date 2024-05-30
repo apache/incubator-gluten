@@ -91,12 +91,6 @@ class CHTransformerApi extends TransformerApi with Logging {
       val offHeapSize =
         nativeConfMap.getOrDefault("spark.gluten.memory.offHeap.size.in.bytes", "0").toLong
       if (offHeapSize > 0) {
-        // Only set default max_bytes_before_external_sort for CH when it is not set explicitly.
-        val sortSpillKey = settingPrefix + "max_bytes_before_external_sort";
-        if (!nativeConfMap.containsKey(sortSpillKey)) {
-          val sortSpillValue = offHeapSize * 0.5
-          nativeConfMap.put(sortSpillKey, sortSpillValue.toLong.toString)
-        }
 
         // Only set default max_bytes_before_external_group_by for CH when it is not set explicitly.
         val groupBySpillKey = settingPrefix + "max_bytes_before_external_group_by";

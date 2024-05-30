@@ -21,7 +21,7 @@ import org.apache.spark.sql.execution.CoalescedPartitionSpec
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, AQEShuffleReadExec}
 import org.apache.spark.sql.internal.SQLConf
 
-class GlutenClickHouseRSSColumnarSortShuffleAQESuite
+class GlutenClickHouseRSSColumnarExternalSortShuffleSuite
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
 
@@ -45,7 +45,7 @@ class GlutenClickHouseRSSColumnarSortShuffleAQESuite
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.shuffle.service.enabled", "false")
       .set("spark.celeborn.client.spark.shuffle.writer", "hash")
-      .set("spark.gluten.sql.columnar.backend.ch.forceSortShuffle", "true")
+      .set("spark.gluten.sql.columnar.backend.ch.forceExternalSortShuffle", "true")
   }
 
   test("TPCH Q1") {

@@ -297,7 +297,14 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def chColumnarShufflePreferSpill: Boolean = conf.getConf(COLUMNAR_CH_SHUFFLE_PREFER_SPILL_ENABLED)
 
-  def chColumnarShuffleSpillThreshold: Long = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
+  def chColumnarShuffleSpillThreshold: Long = {
+    val threshold = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
+    if (threshold == 0) {
+      (conf.getConf(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES) * 0.9).toLong
+    } else {
+      threshold
+    }
+  }
 
   def chColumnarThrowIfMemoryExceed: Boolean = conf.getConf(COLUMNAR_CH_THROW_IF_MEMORY_EXCEED)
 
@@ -309,7 +316,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def chColumnarSpillFirstlyBeforeStop: Boolean =
     conf.getConf(COLUMNAR_CH_SPILL_FIRSTLY_BEFORE_STOP)
 
-  def chColumnarForceSortShuffle: Boolean = conf.getConf(COLUMNAR_CH_FORCE_SORT_SHUFFLE)
+  def chColumnarForceExternalSortShuffle: Boolean =
+    conf.getConf(COLUMNAR_CH_FORCE_EXTERNAL_SORT_SHUFFLE)
+
+  def chColumnarForceMemorySortShuffle: Boolean =
+    conf.getConf(COLUMNAR_CH_FORCE_MEMORY_SORT_SHUFFLE)
 
   def cartesianProductTransformerEnabled: Boolean =
     conf.getConf(CARTESIAN_PRODUCT_TRANSFORMER_ENABLED)
@@ -1416,7 +1427,7 @@ object GlutenConfig {
       .internal()
       .doc("The maximum size of sort shuffle buffer in CH backend.")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("1GB")
+      .createWithDefaultString("0")
 
   val COLUMNAR_CH_SPILL_FIRSTLY_BEFORE_STOP =
     buildConf("spark.gluten.sql.columnar.backend.ch.spillFirstlyBeforeStop")
@@ -1425,11 +1436,17 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val COLUMNAR_CH_FORCE_SORT_SHUFFLE =
-    buildConf("spark.gluten.sql.columnar.backend.ch.forceSortShuffle")
+  val COLUMNAR_CH_FORCE_EXTERNAL_SORT_SHUFFLE =
+    buildConf("spark.gluten.sql.columnar.backend.ch.forceExternalSortShuffle")
       .internal()
-      .doc("Whether to force to use sort shuffle in CH backend. " +
-        "Sort shuffle will enable When partition num greater than 300.")
+      .doc("Whether to force to use external sort shuffle in CH backend. ")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_CH_FORCE_MEMORY_SORT_SHUFFLE =
+    buildConf("spark.gluten.sql.columnar.backend.ch.forceMemorySortShuffle")
+      .internal()
+      .doc("Whether to force to use memory sort shuffle in CH backend. ")
       .booleanConf
       .createWithDefault(false)
 
