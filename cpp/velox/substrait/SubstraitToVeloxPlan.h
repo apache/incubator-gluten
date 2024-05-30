@@ -364,9 +364,11 @@ class SubstraitToVeloxPlanConverter {
       }
     }
 
-    // Set a value for the not(equal) condition.
-    void setNotValue(const std::optional<variant>& notValue) {
-      notValue_ = notValue;
+    // Set a list of values to be used in the push down of 'not in' expression.
+    void setNotValue(const std::vector<variant>& notValue) {
+      for (const auto& value : notValue) {
+        notValues_.emplace_back(value);
+      }
       if (!initialized_) {
         initialized_ = true;
       }
@@ -386,8 +388,8 @@ class SubstraitToVeloxPlanConverter {
     // If true, right bound will be exclusive.
     std::vector<bool> upperExclusives_;
 
-    // A value should not be equal to.
-    std::optional<variant> notValue_ = std::nullopt;
+    // The list of values should not be equal to.
+    std::vector<variant> notValues_;
 
     // The lower bounds in 'or' relation.
     std::vector<std::optional<variant>> lowerBounds_;
@@ -461,7 +463,8 @@ class SubstraitToVeloxPlanConverter {
   /// Extract SingularOrList and set it to the filter info map.
   void setFilterInfo(
       const ::substrait::Expression_SingularOrList& singularOrList,
-      std::vector<FilterInfo>& columnToFilterInfo);
+      std::vector<FilterInfo>& columnToFilterInfo,
+      bool reverse = false);
 
   /// Extract SingularOrList and returns the field index.
   static uint32_t getColumnIndexFromSingularOrList(const ::substrait::Expression_SingularOrList&);
@@ -474,18 +477,14 @@ class SubstraitToVeloxPlanConverter {
       FilterInfo& columnToFilterInfo,
       bool reverse);
 
-  /// Create a multirange to specify the filter 'x != notValue' with:
-  /// x > notValue or x < notValue.
-  template <TypeKind KIND, typename FilterType>
-  void createNotEqualFilter(variant notVariant, bool nullAllowed, std::vector<std::unique_ptr<FilterType>>& colFilters);
-
-  /// Create a values range to handle in filter.
-  /// variants: the list of values extracted from the in expression.
+  /// Create a values range to handle (not) in filter.
+  /// variants: the list of values extracted from the (not) in expression.
   /// inputName: the column input name.
   template <TypeKind KIND>
   void setInFilter(
       const std::vector<variant>& variants,
       bool nullAllowed,
+      bool negated,
       const std::string& inputName,
       connector::hive::SubfieldFilters& filters);
 

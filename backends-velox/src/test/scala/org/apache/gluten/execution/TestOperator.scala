@@ -156,6 +156,64 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     checkLengthAndPlan(df, 60141)
   }
 
+  test("not in") {
+    // integral type
+    val df = runQueryAndCompare(
+      "select l_orderkey from lineitem " +
+        "where l_partkey not in (1552, 674, 1062)") {
+      checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+    }
+    checkLengthAndPlan(df, 60053)
+
+    val df2 = runQueryAndCompare(
+      "select l_orderkey from lineitem " +
+        "where l_partkey not in (1552, 674) and l_partkey not in (1062)") {
+      checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+    }
+    checkLengthAndPlan(df2, 60053)
+
+    val df3 = runQueryAndCompare(
+      "select l_orderkey from lineitem " +
+        "where l_partkey not in (1552, 674) and l_partkey != 1062") {
+      checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+    }
+    checkLengthAndPlan(df3, 60053)
+
+    // string type
+    val df4 =
+      runQueryAndCompare("select o_orderstatus from orders where o_orderstatus not in ('O', 'F')") {
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+      }
+    checkLengthAndPlan(df4, 363)
+
+    // bool type
+    withTable("t") {
+      sql("create table t (id int, b boolean) using parquet")
+      sql("insert into t values (1, true), (2, false), (3, null)")
+      runQueryAndCompare("select * from t where b not in (true)") {
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+      }
+
+      runQueryAndCompare("select * from t where b not in (true, false)") {
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+      }
+    }
+
+    // mix not-in with range
+    runQueryAndCompare(
+      "select l_orderkey from lineitem " +
+        "where l_partkey not in (1552, 674) and l_partkey >= 1552") {
+      checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+    }
+
+    // mix not-in with in
+    runQueryAndCompare(
+      "select l_orderkey from lineitem " +
+        "where l_partkey not in (1552, 674) and l_partkey in (1552)") {
+      checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+    }
+  }
+
   test("coalesce") {
     var df = runQueryAndCompare(
       "select l_orderkey, coalesce(l_comment, 'default_val') " +
