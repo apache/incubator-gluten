@@ -70,4 +70,6 @@ trait TransformerApi {
   def getNativePlanString(substraitPlan: Array[Byte], details: Boolean): String
 
   def packPBMessage(message: Message): Any
+
+  def invalidateSQLExecutionResource(executionId: String) = {}
 }

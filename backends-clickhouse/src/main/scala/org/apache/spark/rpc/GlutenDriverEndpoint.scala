@@ -125,10 +125,6 @@ object GlutenDriverEndpoint extends Logging with RemovalListener[String, util.Se
     executionResourceRelation.invalidate(executionId)
   }
 
-  def invalidateAllResourceRelation(): Unit = {
-    executionResourceRelation.invalidateAll()
-  }
-
   override def onRemoval(key: String, value: util.Set[String], cause: RemovalCause): Unit = {
     executorDataMap.forEach(
       (_, executor) => executor.executorEndpointRef.send(GlutenCleanExecutionResource(key, value)))

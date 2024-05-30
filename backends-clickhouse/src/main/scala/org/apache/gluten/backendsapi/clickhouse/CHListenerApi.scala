@@ -29,7 +29,7 @@ import org.apache.spark.listener.CHGlutenSQLAppStatusListener
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.rpc.{GlutenDriverEndpoint, GlutenExecutorEndpoint}
 import org.apache.spark.sql.execution.datasources.v1._
-import org.apache.spark.util.{GlutenShutdownManager, SparkDirectoryUtil}
+import org.apache.spark.util.SparkDirectoryUtil
 
 import org.apache.commons.lang3.StringUtils
 
@@ -39,7 +39,6 @@ class CHListenerApi extends ListenerApi with Logging {
 
   override def onDriverStart(sc: SparkContext, conf: SparkConf): Unit = {
     GlutenDriverEndpoint.glutenDriverEndpointRef = (new GlutenDriverEndpoint).self
-    GlutenShutdownManager.addHook(() => GlutenDriverEndpoint.invalidateAllResourceRelation())
     CHGlutenSQLAppStatusListener.registerListener(sc)
     initialize(conf, isDriver = true)
   }

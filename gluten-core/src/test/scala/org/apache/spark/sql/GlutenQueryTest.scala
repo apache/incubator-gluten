@@ -20,6 +20,7 @@ package org.apache.spark.sql
  * Why we need a GlutenQueryTest when we already have QueryTest?
  *   1. We need to modify the way org.apache.spark.sql.CHQueryTest#compare compares double
  */
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SPARK_VERSION_SHORT
@@ -338,6 +339,7 @@ object GlutenQueryTest extends Assertions {
       SQLExecution.withExecutionId(df.sparkSession, executionId) {
         df.rdd.count() // Also attempt to deserialize as an RDD [SPARK-15791]
       }
+      BackendsApiManager.getTransformerApiInstance.invalidateSQLExecutionResource(executionId)
     }
 
     val sparkAnswer =
