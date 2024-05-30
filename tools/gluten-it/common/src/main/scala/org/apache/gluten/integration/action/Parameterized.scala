@@ -227,7 +227,7 @@ case class TestResultLines(
     metricNames: Seq[String],
     lines: Iterable[TestResultLine]) {
   def print(): Unit = {
-    val fields = ListBuffer[String]("Query ID", "Succeed")
+    val fields = ListBuffer[String]("Query ID", "Succeeded")
     dimNames.foreach(dimName => fields.append(dimName))
     metricNames.foreach(metricName => fields.append(metricName))
     fields.append("Row Count")
