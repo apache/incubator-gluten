@@ -90,6 +90,7 @@ private:
         ReadBufferFromString buf(str);
         std::stack<String> strs;
         strs.emplace("");
+        bool nead_right_bracket = false;
 
         while (!buf.eof())
         {
@@ -112,27 +113,33 @@ private:
                     {
                         // "abc[abc]abc"
                         strs.top().append("[").append(back).append("]");
+                        nead_right_bracket = false;
                     }
                     else
                     {
+                        // "abc[a[abc]c]abc"
                         strs.top().append(back);
+                        nead_right_bracket = true;
                     }
                 }
             }
             else
             {
-                // "abc[abc\[]abc"
-                if (*buf.position() == '\\' && (*(buf.position() + 1) == '[' || *(buf.position() + 1) == ']'))
-                    ++buf.position();
-
                 strs.top() += *buf.position();
             }
 
             ++buf.position();
         }
 
-        if (strs.size() != 1)
+        if (nead_right_bracket && strs.size() != 1)
             throw_message();
+
+        while (strs.size() != 1)
+        {
+            String back = strs.top();
+            strs.pop();
+            strs.top().append("[").append(back);
+        }
 
         return strs.top();
     }
