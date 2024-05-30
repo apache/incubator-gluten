@@ -264,7 +264,7 @@ private[gluten] class GlutenExecutorPlugin extends ExecutorPlugin {
     // Initialize Backends API
     // TODO categorize the APIs by driver's or executor's
     BackendsApiManager.initialize()
-    BackendsApiManager.getListenerApiInstance.onExecutorStart(ctx.executorID(), conf)
+    BackendsApiManager.getListenerApiInstance.onExecutorStart(ctx)
   }
 
   /** Clean up and terminate this plugin. For example: close the native engine. */
