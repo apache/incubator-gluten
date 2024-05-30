@@ -1,87 +1,91 @@
 == Physical Plan ==
-AdaptiveSparkPlan (87)
+AdaptiveSparkPlan (92)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (54)
-   +- ^ ProjectExecTransformer (52)
-      +- ^ TopNTransformer (51)
-         +- ^ RegularHashAggregateExecTransformer (50)
-            +- ^ InputIteratorTransformer (49)
-               +- ^ InputAdapter (48)
-                  +- ^ ShuffleQueryStage (47), Statistics(X)
-                     +- ColumnarExchange (46)
-                        +- ^ ProjectExecTransformer (44)
-                           +- ^ FlushableHashAggregateExecTransformer (43)
-                              +- ^ ProjectExecTransformer (42)
-                                 +- ^ BroadcastHashJoinExecTransformer Inner (41)
-                                    :- ^ ProjectExecTransformer (28)
-                                    :  +- ^ BroadcastHashJoinExecTransformer Inner (27)
-                                    :     :- ^ InputIteratorTransformer (7)
-                                    :     :  +- ^ InputAdapter (6)
-                                    :     :     +- ^ BroadcastQueryStage (5), Statistics(X)
-                                    :     :        +- ColumnarBroadcastExchange (4)
-                                    :     :           +- ^ NoopFilter (2)
-                                    :     :              +- ^ Scan parquet (1)
-                                    :     +- ^ BroadcastHashJoinExecTransformer LeftSemi (26)
-                                    :        :- ^ NoopFilter (9)
-                                    :        :  +- ^ Scan parquet (8)
-                                    :        +- ^ InputIteratorTransformer (25)
-                                    :           +- ^ InputAdapter (24)
-                                    :              +- ^ BroadcastQueryStage (23), Statistics(X)
-                                    :                 +- ColumnarBroadcastExchange (22)
-                                    :                    +- ^ ProjectExecTransformer (20)
-                                    :                       +- ^ FilterExecTransformer (19)
-                                    :                          +- ^ RegularHashAggregateExecTransformer (18)
-                                    :                             +- ^ InputIteratorTransformer (17)
-                                    :                                +- ^ InputAdapter (16)
-                                    :                                   +- ^ ShuffleQueryStage (15), Statistics(X)
-                                    :                                      +- ColumnarExchange (14)
-                                    :                                         +- ^ ProjectExecTransformer (12)
-                                    :                                            +- ^ FlushableHashAggregateExecTransformer (11)
-                                    :                                               +- ^ Scan parquet (10)
-                                    +- ^ InputIteratorTransformer (40)
-                                       +- ^ InputAdapter (39)
-                                          +- ^ BroadcastQueryStage (38), Statistics(X)
-                                             +- ColumnarBroadcastExchange (37)
-                                                +- ^ BroadcastHashJoinExecTransformer LeftSemi (35)
-                                                   :- ^ NoopFilter (30)
-                                                   :  +- ^ Scan parquet (29)
-                                                   +- ^ InputIteratorTransformer (34)
-                                                      +- ^ InputAdapter (33)
-                                                         +- ^ BroadcastQueryStage (32), Statistics(X)
-                                                            +- ReusedExchange (31)
+   VeloxColumnarToRowExec (59)
+   +- ^ ProjectExecTransformer (57)
+      +- ^ TopNTransformer (56)
+         +- ^ InputIteratorTransformer (55)
+            +- ^ InputAdapter (54)
+               +- ^ ColumnarExchange (53)
+                  +- ^ TopNTransformer (51)
+                     +- ^ RegularHashAggregateExecTransformer (50)
+                        +- ^ InputIteratorTransformer (49)
+                           +- ^ InputAdapter (48)
+                              +- ^ ShuffleQueryStage (47), Statistics(X)
+                                 +- ColumnarExchange (46)
+                                    +- ^ ProjectExecTransformer (44)
+                                       +- ^ FlushableHashAggregateExecTransformer (43)
+                                          +- ^ ProjectExecTransformer (42)
+                                             +- ^ BroadcastHashJoinExecTransformer Inner (41)
+                                                :- ^ ProjectExecTransformer (28)
+                                                :  +- ^ BroadcastHashJoinExecTransformer Inner (27)
+                                                :     :- ^ InputIteratorTransformer (7)
+                                                :     :  +- ^ InputAdapter (6)
+                                                :     :     +- ^ BroadcastQueryStage (5), Statistics(X)
+                                                :     :        +- ColumnarBroadcastExchange (4)
+                                                :     :           +- ^ NoopFilter (2)
+                                                :     :              +- ^ Scan parquet (1)
+                                                :     +- ^ BroadcastHashJoinExecTransformer LeftSemi (26)
+                                                :        :- ^ NoopFilter (9)
+                                                :        :  +- ^ Scan parquet (8)
+                                                :        +- ^ InputIteratorTransformer (25)
+                                                :           +- ^ InputAdapter (24)
+                                                :              +- ^ BroadcastQueryStage (23), Statistics(X)
+                                                :                 +- ColumnarBroadcastExchange (22)
+                                                :                    +- ^ ProjectExecTransformer (20)
+                                                :                       +- ^ FilterExecTransformer (19)
+                                                :                          +- ^ RegularHashAggregateExecTransformer (18)
+                                                :                             +- ^ InputIteratorTransformer (17)
+                                                :                                +- ^ InputAdapter (16)
+                                                :                                   +- ^ ShuffleQueryStage (15), Statistics(X)
+                                                :                                      +- ColumnarExchange (14)
+                                                :                                         +- ^ ProjectExecTransformer (12)
+                                                :                                            +- ^ FlushableHashAggregateExecTransformer (11)
+                                                :                                               +- ^ Scan parquet (10)
+                                                +- ^ InputIteratorTransformer (40)
+                                                   +- ^ InputAdapter (39)
+                                                      +- ^ BroadcastQueryStage (38), Statistics(X)
+                                                         +- ColumnarBroadcastExchange (37)
+                                                            +- ^ BroadcastHashJoinExecTransformer LeftSemi (35)
+                                                               :- ^ NoopFilter (30)
+                                                               :  +- ^ Scan parquet (29)
+                                                               +- ^ InputIteratorTransformer (34)
+                                                                  +- ^ InputAdapter (33)
+                                                                     +- ^ BroadcastQueryStage (32), Statistics(X)
+                                                                        +- ReusedExchange (31)
 +- == Initial Plan ==
-   TakeOrderedAndProject (86)
-   +- HashAggregate (85)
-      +- Exchange (84)
-         +- HashAggregate (83)
-            +- Project (82)
-               +- BroadcastHashJoin Inner BuildRight (81)
-                  :- Project (69)
-                  :  +- BroadcastHashJoin Inner BuildLeft (68)
-                  :     :- BroadcastExchange (57)
-                  :     :  +- Filter (56)
-                  :     :     +- Scan parquet (55)
-                  :     +- BroadcastHashJoin LeftSemi BuildRight (67)
-                  :        :- Filter (59)
-                  :        :  +- Scan parquet (58)
-                  :        +- BroadcastExchange (66)
-                  :           +- Project (65)
-                  :              +- Filter (64)
-                  :                 +- HashAggregate (63)
-                  :                    +- Exchange (62)
-                  :                       +- HashAggregate (61)
-                  :                          +- Scan parquet (60)
-                  +- BroadcastExchange (80)
-                     +- BroadcastHashJoin LeftSemi BuildRight (79)
-                        :- Filter (71)
-                        :  +- Scan parquet (70)
-                        +- BroadcastExchange (78)
-                           +- Project (77)
-                              +- Filter (76)
-                                 +- HashAggregate (75)
-                                    +- Exchange (74)
-                                       +- HashAggregate (73)
-                                          +- Scan parquet (72)
+   TakeOrderedAndProject (91)
+   +- HashAggregate (90)
+      +- Exchange (89)
+         +- HashAggregate (88)
+            +- Project (87)
+               +- BroadcastHashJoin Inner BuildRight (86)
+                  :- Project (74)
+                  :  +- BroadcastHashJoin Inner BuildLeft (73)
+                  :     :- BroadcastExchange (62)
+                  :     :  +- Filter (61)
+                  :     :     +- Scan parquet (60)
+                  :     +- BroadcastHashJoin LeftSemi BuildRight (72)
+                  :        :- Filter (64)
+                  :        :  +- Scan parquet (63)
+                  :        +- BroadcastExchange (71)
+                  :           +- Project (70)
+                  :              +- Filter (69)
+                  :                 +- HashAggregate (68)
+                  :                    +- Exchange (67)
+                  :                       +- HashAggregate (66)
+                  :                          +- Scan parquet (65)
+                  +- BroadcastExchange (85)
+                     +- BroadcastHashJoin LeftSemi BuildRight (84)
+                        :- Filter (76)
+                        :  +- Scan parquet (75)
+                        +- BroadcastExchange (83)
+                           +- Project (82)
+                              +- Filter (81)
+                                 +- HashAggregate (80)
+                                    +- Exchange (79)
+                                       +- HashAggregate (78)
+                                          +- Scan parquet (77)
 
 
 (1) Scan parquet
@@ -306,184 +310,202 @@ Results [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X
 Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
 Arguments: X, [o_totalprice#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], false
 
-(52) ProjectExecTransformer
-Output [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
-Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
-
-(53) WholeStageCodegenTransformer (X)
+(52) WholeStageCodegenTransformer (X)
 Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
 Arguments: false
 
-(54) VeloxColumnarToRowExec
+(53) ColumnarExchange
+Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X], [plan_id=X], [id=#X]
+
+(54) InputAdapter
 Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
 
-(55) Scan parquet
+(55) InputIteratorTransformer
+Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
+
+(56) TopNTransformer
+Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
+Arguments: X, [o_totalprice#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], true
+
+(57) ProjectExecTransformer
+Output [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
+Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
+
+(58) WholeStageCodegenTransformer (X)
+Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
+Arguments: false
+
+(59) VeloxColumnarToRowExec
+Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
+
+(60) Scan parquet
 Output [2]: [c_custkey#X, c_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(c_custkey)]
 ReadSchema: struct<c_custkey:bigint,c_name:string>
 
-(56) Filter
+(61) Filter
 Input [2]: [c_custkey#X, c_name#X]
 Condition : isnotnull(c_custkey#X)
 
-(57) BroadcastExchange
+(62) BroadcastExchange
 Input [2]: [c_custkey#X, c_name#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
 
-(58) Scan parquet
+(63) Scan parquet
 Output [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(o_custkey), IsNotNull(o_orderkey)]
 ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_totalprice:decimal(12,2),o_orderdate:date>
 
-(59) Filter
+(64) Filter
 Input [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
 Condition : (isnotnull(o_custkey#X) AND isnotnull(o_orderkey#X))
 
-(60) Scan parquet
+(65) Scan parquet
 Output [2]: [l_orderkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 ReadSchema: struct<l_orderkey:bigint,l_quantity:decimal(12,2)>
 
-(61) HashAggregate
+(66) HashAggregate
 Input [2]: [l_orderkey#X, l_quantity#X]
 Keys [1]: [l_orderkey#X]
 Functions [1]: [partial_sum(l_quantity#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [3]: [l_orderkey#X, sum#X, isEmpty#X]
 
-(62) Exchange
+(67) Exchange
 Input [3]: [l_orderkey#X, sum#X, isEmpty#X]
 Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(63) HashAggregate
+(68) HashAggregate
 Input [3]: [l_orderkey#X, sum#X, isEmpty#X]
 Keys [1]: [l_orderkey#X]
 Functions [1]: [sum(l_quantity#X)]
 Aggregate Attributes [1]: [sum(l_quantity#X)#X]
 Results [2]: [l_orderkey#X, sum(l_quantity#X)#X AS sum(l_quantity#X)#X]
 
-(64) Filter
+(69) Filter
 Input [2]: [l_orderkey#X, sum(l_quantity#X)#X]
 Condition : (isnotnull(sum(l_quantity#X)#X) AND (sum(l_quantity#X)#X > 300.00))
 
-(65) Project
+(70) Project
 Output [1]: [l_orderkey#X]
 Input [2]: [l_orderkey#X, sum(l_quantity#X)#X]
 
-(66) BroadcastExchange
+(71) BroadcastExchange
 Input [1]: [l_orderkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(67) BroadcastHashJoin
+(72) BroadcastHashJoin
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
 Join type: LeftSemi
 Join condition: None
 
-(68) BroadcastHashJoin
+(73) BroadcastHashJoin
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
 Join type: Inner
 Join condition: None
 
-(69) Project
+(74) Project
 Output [5]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X]
 Input [6]: [c_custkey#X, c_name#X, o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
 
-(70) Scan parquet
+(75) Scan parquet
 Output [2]: [l_orderkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_quantity:decimal(12,2)>
 
-(71) Filter
+(76) Filter
 Input [2]: [l_orderkey#X, l_quantity#X]
 Condition : isnotnull(l_orderkey#X)
 
-(72) Scan parquet
+(77) Scan parquet
 Output [2]: [l_orderkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 ReadSchema: struct<l_orderkey:bigint,l_quantity:decimal(12,2)>
 
-(73) HashAggregate
+(78) HashAggregate
 Input [2]: [l_orderkey#X, l_quantity#X]
 Keys [1]: [l_orderkey#X]
 Functions [1]: [partial_sum(l_quantity#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [3]: [l_orderkey#X, sum#X, isEmpty#X]
 
-(74) Exchange
+(79) Exchange
 Input [3]: [l_orderkey#X, sum#X, isEmpty#X]
 Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(75) HashAggregate
+(80) HashAggregate
 Input [3]: [l_orderkey#X, sum#X, isEmpty#X]
 Keys [1]: [l_orderkey#X]
 Functions [1]: [sum(l_quantity#X)]
 Aggregate Attributes [1]: [sum(l_quantity#X)#X]
 Results [2]: [l_orderkey#X, sum(l_quantity#X)#X AS sum(l_quantity#X)#X]
 
-(76) Filter
+(81) Filter
 Input [2]: [l_orderkey#X, sum(l_quantity#X)#X]
 Condition : (isnotnull(sum(l_quantity#X)#X) AND (sum(l_quantity#X)#X > 300.00))
 
-(77) Project
+(82) Project
 Output [1]: [l_orderkey#X]
 Input [2]: [l_orderkey#X, sum(l_quantity#X)#X]
 
-(78) BroadcastExchange
+(83) BroadcastExchange
 Input [1]: [l_orderkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(79) BroadcastHashJoin
+(84) BroadcastHashJoin
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [l_orderkey#X]
 Join type: LeftSemi
 Join condition: None
 
-(80) BroadcastExchange
+(85) BroadcastExchange
 Input [2]: [l_orderkey#X, l_quantity#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
 
-(81) BroadcastHashJoin
+(86) BroadcastHashJoin
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
 Join type: Inner
 Join condition: None
 
-(82) Project
+(87) Project
 Output [6]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X, l_quantity#X]
 Input [7]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X, l_orderkey#X, l_quantity#X]
 
-(83) HashAggregate
+(88) HashAggregate
 Input [6]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X, l_quantity#X]
 Keys [5]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X]
 Functions [1]: [partial_sum(l_quantity#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [7]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum#X, isEmpty#X]
 
-(84) Exchange
+(89) Exchange
 Input [7]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum#X, isEmpty#X]
 Arguments: hashpartitioning(c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(85) HashAggregate
+(90) HashAggregate
 Input [7]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum#X, isEmpty#X]
 Keys [5]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X]
 Functions [1]: [sum(l_quantity#X)]
 Aggregate Attributes [1]: [sum(l_quantity#X)#X]
 Results [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity#X)#X AS sum(l_quantity)#X]
 
-(86) TakeOrderedAndProject
+(91) TakeOrderedAndProject
 Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
 Arguments: X, [o_totalprice#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
 
-(87) AdaptiveSparkPlan
+(92) AdaptiveSparkPlan
 Output [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
 Arguments: isFinalPlan=true
