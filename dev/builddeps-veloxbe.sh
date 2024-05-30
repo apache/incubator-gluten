@@ -24,7 +24,6 @@ ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 ENABLE_ABFS=OFF
 ENABLE_EP_CACHE=OFF
-ARROW_ENABLE_CUSTOM_CODEC=OFF
 ENABLE_VCPKG=OFF
 RUN_SETUP_SCRIPT=ON
 VELOX_REPO=""
@@ -72,12 +71,10 @@ do
         ;;
         --enable_qat=*)
         ENABLE_QAT=("${arg#*=}")
-        ARROW_ENABLE_CUSTOM_CODEC=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_iaa=*)
         ENABLE_IAA=("${arg#*=}")
-        ARROW_ENABLE_CUSTOM_CODEC=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_hbm=*)
@@ -189,6 +186,12 @@ fi
 
 concat_velox_param
 
+function build_arrow {
+  echo "Start to build Arrow"
+  cd $GLUTEN_DIR/dev
+  ./build_arrow.sh $BUILD_TYPE
+}
+
 function build_velox {
   echo "Start to build Velox"
   cd $GLUTEN_DIR/ep/build-velox/src
@@ -213,6 +216,7 @@ function build_gluten_cpp {
 }
 
 function build_velox_backend {
+  build_arrow
   build_velox
   build_gluten_cpp
 }
