@@ -19,6 +19,7 @@ package org.apache.gluten.expression
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
 import org.apache.gluten.expression.ExpressionConverter.replaceWithExpressionTransformer
+import org.apache.gluten.substrait.`type`.StructNode
 import org.apache.gluten.substrait.expression._
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -63,6 +64,10 @@ case class VeloxGetStructFieldTransformer(
       case node: SelectionNode =>
         // Append the nested index to selection node.
         node.addNestedChildIdx(JInteger.valueOf(original.ordinal))
+      case node: NullLiteralNode =>
+        val nodeType =
+          node.getTypeNode.asInstanceOf[StructNode].getFieldTypes.get(original.ordinal)
+        ExpressionBuilder.makeNullLiteral(nodeType)
       case other =>
         throw new GlutenNotSupportException(s"$other is not supported.")
     }
