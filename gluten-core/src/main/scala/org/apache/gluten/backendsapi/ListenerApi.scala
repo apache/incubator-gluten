@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.backendsapi
 
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.SparkContext
 import org.apache.spark.api.plugin.PluginContext
 
 trait ListenerApi {
