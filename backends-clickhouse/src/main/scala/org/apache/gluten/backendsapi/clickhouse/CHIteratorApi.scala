@@ -20,17 +20,16 @@ import org.apache.gluten.{GlutenConfig, GlutenNumaBindingInfo}
 import org.apache.gluten.backendsapi.IteratorApi
 import org.apache.gluten.execution._
 import org.apache.gluten.expression.ConverterUtils
-import org.apache.gluten.metrics.{GlutenTimeMetric, IMetrics, NativeMetrics}
+import org.apache.gluten.metrics.{IMetrics, NativeMetrics}
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.substrait.rel._
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.utils.LogLevelUtil
 import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator, GeneralOutIterator}
 
-import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
+import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
 import org.apache.spark.affinity.CHAffinity
 import org.apache.spark.internal.Logging
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -314,44 +313,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
 
     context.addTaskCompletionListener[Unit](_ => close())
     new CloseableCHColumnBatchIterator(resIter, Some(pipelineTime))
-  }
-
-  /** Generate Native FileScanRDD, currently only for ClickHouse Backend. */
-  override def genNativeFileScanRDD(
-      sparkContext: SparkContext,
-      wsCtx: WholeStageTransformContext,
-      splitInfos: Seq[SplitInfo],
-      scan: BasicScanExecTransformer,
-      numOutputRows: SQLMetric,
-      numOutputBatches: SQLMetric,
-      scanTime: SQLMetric): RDD[ColumnarBatch] = {
-    val substraitPlanPartition = GlutenTimeMetric.withMillisTime {
-      val planByteArray = wsCtx.root.toProtobuf.toByteArray
-      splitInfos.zipWithIndex.map {
-        case (splitInfo, index) =>
-          val splitInfoByteArray = splitInfo match {
-            case filesNode: LocalFilesNode =>
-              setFileSchemaForLocalFiles(filesNode, scan)
-              filesNode.setFileReadProperties(mapAsJavaMap(scan.getProperties))
-              filesNode.toProtobuf.toByteArray
-            case extensionTableNode: ExtensionTableNode =>
-              extensionTableNode.toProtobuf.toByteArray
-          }
-
-          GlutenPartition(
-            index,
-            planByteArray,
-            Array(splitInfoByteArray),
-            locations = splitInfo.preferredLocations().asScala.toArray)
-      }
-    }(t => logInfo(s"Generating the Substrait plan took: $t ms."))
-
-    new NativeFileScanColumnarRDD(
-      sparkContext,
-      substraitPlanPartition,
-      numOutputRows,
-      numOutputBatches,
-      scanTime)
   }
 }
 
