@@ -25,7 +25,6 @@
 #include "shuffle/Payload.h"
 #include "shuffle/Spill.h"
 #include "shuffle/Utils.h"
-#include "utils/Timer.h"
 
 namespace gluten {
 
