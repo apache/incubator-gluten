@@ -35,7 +35,9 @@
 #include "utils/VeloxArrowUtils.h"
 
 #ifdef ENABLE_HDFS
+
 #include "operators/writer/VeloxParquetDatasourceHDFS.h"
+
 #endif
 
 #ifdef ENABLE_S3
@@ -189,17 +191,15 @@ std::shared_ptr<ShuffleWriter> VeloxRuntime::createShuffleWriter(
   auto ctxPool = getLeafVeloxPool(memoryManager);
   auto arrowPool = memoryManager->getArrowMemoryPool();
   std::shared_ptr<ShuffleWriter> shuffleWriter;
-  if (options.shuffleWriterType == kHashShuffle) {
-    GLUTEN_ASSIGN_OR_THROW(
-        shuffleWriter,
-        VeloxHashBasedShuffleWriter::create(
-            numPartitions, std::move(partitionWriter), std::move(options), ctxPool, arrowPool));
-  } else if (options.shuffleWriterType == kSortShuffle) {
-    GLUTEN_ASSIGN_OR_THROW(
-        shuffleWriter,
-        VeloxSortBasedShuffleWriter::create(
-            numPartitions, std::move(partitionWriter), std::move(options), ctxPool, arrowPool));
-  }
+  GLUTEN_ASSIGN_OR_THROW(
+      shuffleWriter,
+      VeloxShuffleWriter::create(
+          options.shuffleWriterType,
+          numPartitions,
+          std::move(partitionWriter),
+          std::move(options),
+          ctxPool,
+          arrowPool));
   return shuffleWriter;
 }
 

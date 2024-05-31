@@ -48,6 +48,7 @@ DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_string(save_output, "", "Path to parquet file for saving the task output iterator");
 DEFINE_bool(with_shuffle, false, "Add shuffle split at end.");
 DEFINE_string(partitioning, "rr", "Short partitioning name. Valid options are rr, hash, range, single");
+DEFINE_string(shuffle_writer, "hash", "Shuffle writer type. Can be hash or sort");
 DEFINE_bool(rss, false, "Mocking rss.");
 DEFINE_bool(zstd, false, "Use ZSTD as shuffle compression codec");
 DEFINE_bool(qat_gzip, false, "Use QAT GZIP as shuffle compression codec");
@@ -74,6 +75,7 @@ struct WriterMetrics {
 };
 
 std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
+    Runtime* runtime,
     VeloxMemoryManager* memoryManager,
     const std::string& dataFile,
     const std::vector<std::string>& localDirs) {
@@ -111,16 +113,13 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
 
   auto options = ShuffleWriterOptions{};
   options.partitioning = gluten::toPartitioning(FLAGS_partitioning);
-  GLUTEN_ASSIGN_OR_THROW(
-      auto shuffleWriter,
-      VeloxHashBasedShuffleWriter::create(
-          FLAGS_shuffle_partitions,
-          std::move(partitionWriter),
-          std::move(options),
-          memoryManager->getLeafMemoryPool(),
-          memoryManager->getArrowMemoryPool()));
+  if (FLAGS_shuffle_writer == "sort") {
+    options.shuffleWriterType = gluten::kSortShuffle;
+  }
+  auto shuffleWriter = runtime->createShuffleWriter(
+      FLAGS_shuffle_partitions, std::move(partitionWriter), std::move(options), memoryManager);
 
-  return shuffleWriter;
+  return std::reinterpret_pointer_cast<VeloxShuffleWriter>(shuffleWriter);
 }
 
 void populateWriterMetrics(
@@ -198,7 +197,7 @@ auto BM_Generic = [](::benchmark::State& state,
       std::vector<std::string> localDirs;
       bool isFromEnv;
       GLUTEN_THROW_NOT_OK(setLocalDirsAndDataFileFromEnv(dataFile, localDirs, isFromEnv));
-      const auto& shuffleWriter = createShuffleWriter(memoryManager.get(), dataFile, localDirs);
+      const auto& shuffleWriter = createShuffleWriter(runtime, memoryManager.get(), dataFile, localDirs);
       while (resultIter->hasNext()) {
         GLUTEN_THROW_NOT_OK(shuffleWriter->write(resultIter->next(), ShuffleWriter::kMinMemLimit));
       }

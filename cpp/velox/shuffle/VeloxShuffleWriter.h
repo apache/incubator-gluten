@@ -37,6 +37,7 @@
 #include <arrow/type.h>
 
 #include "memory/VeloxMemoryManager.h"
+#include "shuffle/Options.h"
 #include "shuffle/PartitionWriter.h"
 #include "shuffle/Partitioner.h"
 #include "shuffle/ShuffleWriter.h"
@@ -48,6 +49,14 @@ namespace gluten {
 
 class VeloxShuffleWriter : public ShuffleWriter {
  public:
+  static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> create(
+      ShuffleWriterType type,
+      uint32_t numPartitions,
+      std::unique_ptr<PartitionWriter> partitionWriter,
+      ShuffleWriterOptions options,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
+      arrow::MemoryPool* arrowPool);
+
   facebook::velox::RowVectorPtr getStrippedRowVector(const facebook::velox::RowVector& rv) {
     // get new row type
     auto& rowType = rv.type()->asRow();
