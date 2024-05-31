@@ -16,12 +16,14 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import io.substrait.proto.JoinRel
 
@@ -196,8 +198,11 @@ case class BroadcastHashJoinExecTransformer(
       newRight: SparkPlan): BroadcastHashJoinExecTransformer =
     copy(left = newLeft, right = newRight)
 
-  override protected def createBroadcastBuildSideRDD(): BroadcastBuildSideRDD = {
+  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
+    val streamedRDD = getColumnarInputRDDs(streamedPlan)
     val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
-    VeloxBroadcastBuildSideRDD(sparkContext, broadcast)
+    val broadcastRDD = VeloxBroadcastBuildSideRDD(sparkContext, broadcast)
+    // FIXME: Do we have to make build side a RDD?
+    streamedRDD :+ broadcastRDD
   }
 }

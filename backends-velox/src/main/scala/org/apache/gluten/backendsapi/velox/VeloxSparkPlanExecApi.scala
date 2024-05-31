@@ -473,7 +473,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       buildSide: BuildSide,
       joinType: JoinType,
       condition: Option[Expression]): BroadcastNestedLoopJoinExecTransformer =
-    GlutenBroadcastNestedLoopJoinExecTransformer(
+    VeloxBroadcastNestedLoopJoinExecTransformer(
       left,
       right,
       buildSide,

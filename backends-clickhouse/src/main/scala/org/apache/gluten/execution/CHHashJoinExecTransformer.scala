@@ -21,10 +21,12 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.utils.CHJoinValidateUtil
 
 import org.apache.spark.{broadcast, SparkContext}
+import org.apache.spark.rdd.RDD
+import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -116,10 +118,22 @@ case class CHBroadcastHashJoinExecTransformer(
     super.doValidateInternal()
   }
 
-  override protected def createBroadcastBuildSideRDD(): BroadcastBuildSideRDD = {
+  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
+    val streamedRDD = getColumnarInputRDDs(streamedPlan)
+    val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
+    if (executionId != null) {
+      GlutenDriverEndpoint.collectResources(executionId, buildHashTableId)
+    } else {
+      logWarning(
+        s"Can't not trace broadcast hash table data $buildHashTableId" +
+          s" because execution id is null." +
+          s" Will clean up until expire time.")
+    }
     val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
     val context =
       BroadCastHashJoinContext(buildKeyExprs, joinType, buildPlan.output, buildHashTableId)
-    CHBroadcastBuildSideRDD(sparkContext, broadcast, context)
+    val broadcastRDD = CHBroadcastBuildSideRDD(sparkContext, broadcast, context)
+    // FIXME: Do we have to make build side a RDD?
+    streamedRDD :+ broadcastRDD
   }
 }

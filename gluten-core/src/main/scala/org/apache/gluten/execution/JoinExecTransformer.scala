@@ -31,7 +31,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
-import org.apache.spark.sql.execution.{ExpandOutputPartitioningShim, SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.{ExpandOutputPartitioningShim, SparkPlan}
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashedRelationBroadcastMode, HashJoin}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
@@ -414,18 +414,4 @@ abstract class BroadcastHashJoinExecTransformerBase(
   override def genJoinParametersInternal(): (Int, Int, String) = {
     (1, if (isNullAwareAntiJoin) 1 else 0, buildHashTableId)
   }
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    val streamedRDD = getColumnarInputRDDs(streamedPlan)
-    val broadcastRDD = {
-      val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
-      BackendsApiManager.getBroadcastApiInstance
-        .collectExecutionBroadcastTableId(executionId, buildHashTableId)
-      createBroadcastBuildSideRDD()
-    }
-    // FIXME: Do we have to make build side a RDD?
-    streamedRDD :+ broadcastRDD
-  }
-
-  protected def createBroadcastBuildSideRDD(): BroadcastBuildSideRDD
 }

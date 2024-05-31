@@ -23,6 +23,7 @@ import org.apache.gluten.substrait.expression.{BooleanLiteralNode, ExpressionBui
 import org.apache.gluten.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
@@ -227,4 +228,8 @@ class CHTransformerApi extends TransformerApi with Logging {
   }
 
   override def packPBMessage(message: Message): Any = Any.pack(message)
+
+  override def invalidateSQLExecutionResource(executionId: String): Unit = {
+    GlutenDriverEndpoint.invalidateResourceRelation(executionId)
+  }
 }

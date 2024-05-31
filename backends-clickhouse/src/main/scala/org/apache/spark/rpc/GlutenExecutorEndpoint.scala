@@ -16,7 +16,7 @@
  */
 package org.apache.spark.rpc
 
-import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.execution.CHBroadcastBuildSideCache
 
 import org.apache.spark.{SparkConf, SparkEnv}
 import org.apache.spark.internal.{config, Logging}
@@ -60,10 +60,15 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
 
   override def receive: PartialFunction[Any, Unit] = {
     case GlutenCleanExecutionResource(executionId, hashIds) =>
-      BackendsApiManager.getBroadcastApiInstance
-        .cleanExecutionBroadcastTable(executionId, hashIds)
+      if (executionId != null) {
+        hashIds.forEach(
+          resource_id => CHBroadcastBuildSideCache.invalidateBroadcastHashtable(resource_id))
+      }
 
     case e =>
       logError(s"Received unexpected message. $e")
   }
+}
+object GlutenExecutorEndpoint {
+  var executorEndpoint: GlutenExecutorEndpoint = _
 }

@@ -16,13 +16,15 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.BuildSideRelation
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class GlutenBroadcastNestedLoopJoinExecTransformer(
+case class VeloxBroadcastNestedLoopJoinExecTransformer(
     left: SparkPlan,
     right: SparkPlan,
     buildSide: BuildSide,
@@ -36,14 +38,17 @@ case class GlutenBroadcastNestedLoopJoinExecTransformer(
     condition
   ) {
 
-  override protected def createBroadcastBuildSideRDD(): BroadcastBuildSideRDD = {
+  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
+    val streamedRDD = getColumnarInputRDDs(streamedPlan)
     val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
-    VeloxBroadcastBuildSideRDD(sparkContext, broadcast)
+    val broadcastRDD = VeloxBroadcastBuildSideRDD(sparkContext, broadcast)
+    // FIXME: Do we have to make build side a RDD?
+    streamedRDD :+ broadcastRDD
   }
 
   override protected def withNewChildrenInternal(
       newLeft: SparkPlan,
-      newRight: SparkPlan): GlutenBroadcastNestedLoopJoinExecTransformer =
+      newRight: SparkPlan): VeloxBroadcastNestedLoopJoinExecTransformer =
     copy(left = newLeft, right = newRight)
 
 }

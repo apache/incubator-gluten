@@ -51,7 +51,6 @@ class VeloxBackend extends Backend {
   override def validatorApi(): ValidatorApi = new VeloxValidatorApi
   override def metricsApi(): MetricsApi = new VeloxMetricsApi
   override def listenerApi(): ListenerApi = new VeloxListenerApi
-  override def broadcastApi(): BroadcastApi = new VeloxBroadcastApi
   override def settings(): BackendSettingsApi = VeloxBackendSettings
 }
 
