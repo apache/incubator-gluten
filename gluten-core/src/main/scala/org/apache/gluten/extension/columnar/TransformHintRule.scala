@@ -29,6 +29,8 @@ import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
+import org.apache.spark.sql.catalyst.plans.logical.Join
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution._
@@ -156,6 +158,33 @@ object TransformHints {
       }
       val newTag = TRANSFORM_UNSUPPORTED(validationResult.reason)
       tag(plan, newTag)
+    }
+  }
+
+  def getShuffleHashJoinBuildSide(shj: ShuffledHashJoinExec): BuildSide = {
+    if (BackendsApiManager.getSettings.utilizeShuffledHashJoinHint()) {
+      shj.buildSide
+    } else {
+      val leftBuildable = BackendsApiManager.getSettings
+        .supportHashBuildJoinTypeOnLeft(shj.joinType)
+      val rightBuildable = BackendsApiManager.getSettings
+        .supportHashBuildJoinTypeOnRight(shj.joinType)
+
+      if (!leftBuildable) {
+        BuildRight
+      } else if (!rightBuildable) {
+        BuildLeft
+      } else {
+        shj.logicalLink match {
+          case Some(join: Join) =>
+            val leftSize = join.left.stats.sizeInBytes
+            val rightSize = join.right.stats.sizeInBytes
+            if (rightSize <= leftSize) BuildRight else BuildLeft
+          // Only the ShuffledHashJoinExec generated directly in some spark tests is not link
+          // logical plan, such as OuterJoinSuite.
+          case _ => shj.buildSide
+        }
+      }
     }
   }
 }
@@ -392,7 +421,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.leftKeys,
               plan.rightKeys,
               plan.joinType,
-              plan.buildSide,
+              TransformHints.getShuffleHashJoinBuildSide(plan),
               plan.condition,
               plan.left,
               plan.right,
