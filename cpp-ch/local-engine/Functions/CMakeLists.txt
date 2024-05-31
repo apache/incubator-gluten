@@ -16,49 +16,50 @@
 add_headers_and_sources(gluten_spark_functions .)
 
 add_library(gluten_spark_functions_obj OBJECT ${gluten_spark_functions_sources})
-list (APPEND PRIVATE_LIBS
-        boost::headers_only
-        pcg_random
-        Poco::Foundation
-        Poco::Util
-        Poco::Net
-        Poco::JSON
-        ch_contrib::cctz
-        ch_contrib::fmt
-        ch_contrib::pdqsort
-        ch_contrib::miniselect
-        ch_contrib::magic_enum
-        ch_contrib::double_conversion
-        ch_contrib::dragonbox_to_chars
-        ch_contrib::re2
-        ch_contrib::abseil_swiss_tables
-        ch_contrib::sparsehash
-        ch_contrib::metrohash
-        ch_contrib::murmurhash
-        ch_contrib::wyhash
-        ch_contrib::cityhash
-        ch_contrib::farmhash
-        ch_contrib::xxHash
-        OpenSSL::SSL
-)
+list(
+  APPEND
+  PRIVATE_LIBS
+  boost::headers_only
+  pcg_random
+  Poco::Foundation
+  Poco::Util
+  Poco::Net
+  Poco::JSON
+  ch_contrib::cctz
+  ch_contrib::fmt
+  ch_contrib::pdqsort
+  ch_contrib::miniselect
+  ch_contrib::magic_enum
+  ch_contrib::double_conversion
+  ch_contrib::dragonbox_to_chars
+  ch_contrib::re2
+  ch_contrib::abseil_swiss_tables
+  ch_contrib::sparsehash
+  ch_contrib::metrohash
+  ch_contrib::murmurhash
+  ch_contrib::wyhash
+  ch_contrib::cityhash
+  ch_contrib::farmhash
+  ch_contrib::xxHash
+  OpenSSL::SSL)
 
-if (TARGET ch_contrib::vectorscan)
-    list (APPEND PRIVATE_LIBS ch_contrib::vectorscan)
+if(TARGET ch_contrib::vectorscan)
+  list(APPEND PRIVATE_LIBS ch_contrib::vectorscan)
 endif()
 
-if (TARGET ch_contrib::rapidjson)
-    list (APPEND PRIVATE_LIBS ch_contrib::rapidjson)
+if(TARGET ch_contrib::rapidjson)
+  list(APPEND PRIVATE_LIBS ch_contrib::rapidjson)
 endif()
 
-if (TARGET ch_contrib::simdjson)
-    list (APPEND PRIVATE_LIBS ch_contrib::simdjson)
+if(TARGET ch_contrib::simdjson)
+  list(APPEND PRIVATE_LIBS ch_contrib::simdjson)
 endif()
 
-if (TARGET ch_rust::blake3)
-    list (APPEND PRIVATE_LIBS ch_rust::blake3)
+if(TARGET ch_rust::blake3)
+  list(APPEND PRIVATE_LIBS ch_rust::blake3)
 endif()
 
-list (APPEND OBJECT_LIBS $<TARGET_OBJECTS:gluten_spark_functions_obj>)
+list(APPEND OBJECT_LIBS $<TARGET_OBJECTS:gluten_spark_functions_obj>)
 
 target_link_libraries(gluten_spark_functions_obj PRIVATE ${PRIVATE_LIBS})
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -14,14 +13,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-export BASE_COMMIT=$1
-dev/check.py header branch
-if [ $? -ne 0 ]; then
-  dev/check.py header branch --fix
-  echo -e "\n==== Apply using:"
-  echo "patch -p1 \<<EOF"
-  git --no-pager diff
-  echo "EOF"
-  false
-fi
+name: license header check
+on:
+  pull_request
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: true
 
+jobs:
+  license-check:
+    name: License Header Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check License Header
+        run: |
+          git fetch --recurse-submodules=no origin main ${{github.event.pull_request.base.sha}}
+          pip install regex
+          cd $GITHUB_WORKSPACE/
+          ./.github/workflows/util/check.sh ${{github.event.pull_request.base.sha}}

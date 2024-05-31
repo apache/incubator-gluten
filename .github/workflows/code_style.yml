@@ -14,43 +14,58 @@
 # limitations under the License.
 
 name: Code style checks
-
 on:
-  pull_request
-
+  pull_request:
+    paths:
+      - '.github/workflows/code_style.yml'
+      - 'cpp/**'
+      - 'cpp-ch/**'
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
-  formatting-check:
-    name: Formatting Check
+  CPP-format-check:
+    name: CPP Format Check
     runs-on: ubuntu-latest
     strategy:
       matrix:
         path:
-          - check: 'cpp/core'
+          - check: 'cpp'
             exclude: ''
-          - check: 'cpp/velox'
+          - check: 'cpp-ch'
             exclude: ''
     steps:
       - uses: actions/checkout@v4
-      - name: Run clang-format style check for C/C++ programs.
+      - name: Run clang-format style check for C/C++
         uses: jidicula/clang-format-action@v4.11.0
         with:
           clang-format-version: '15'
           check-path: ${{ matrix.path['check'] }}
           fallback-style: 'Google' # optional
 
-  license-check:
-    name: License Header Check
+  CMake-format-check:
+    name: CMake Format Check
     runs-on: ubuntu-latest
-
+    container: ubuntu:22.04
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Check License Header
+      - name: Install tools
         run: |
-          git fetch --recurse-submodules=no origin main ${{github.event.pull_request.base.sha}}
-          pip install regex
-          dev/check.sh ${{github.event.pull_request.base.sha}}
+          apt update -y
+          apt install git python3-pip -y
+          pip3 install --user cmake-format
+      - uses: actions/checkout@v4
+      - name: Check CMake format
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+          cd $GITHUB_WORKSPACE/
+          fileList=$(find ./cpp ./cpp-ch -name CMakeLists.txt -o -name *.cmake)
+          for file in $fileList; do
+              /github/home/.local/bin/cmake-format --first-comment-is-literal True --in-place $file
+          done
+          if [ -n "$(git status --porcelain)" ]; then
+             echo "Please use cmake-format to format cmake files or apply the below patch."
+             git diff -- '*CMakeLists.txt' '*.cmake'
+             exit 1
+          fi
+          echo "No CMake format issue."
