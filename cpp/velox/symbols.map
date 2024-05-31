@@ -6,7 +6,7 @@
     };
 
     Java_org_apache_gluten_*;
-    JNI_Onload;
+    JNI_OnLoad;
     JNI_OnUnload;
   local:
     # Hide symbols of static dependencies
