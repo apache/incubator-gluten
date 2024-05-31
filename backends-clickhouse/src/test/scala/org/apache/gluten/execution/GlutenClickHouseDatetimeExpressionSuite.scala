@@ -41,6 +41,7 @@ class GlutenClickHouseDatetimeExpressionSuite
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
+      .set("spark.sql.session.timeZone", "GMT+8")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -143,7 +144,7 @@ class GlutenClickHouseDatetimeExpressionSuite
            |       date_trunc('month', t) c
            |from date_trunc_tmp1
            |""".stripMargin
-      compareResultsAgainstVanillaSpark(sql2, true, { _ => }, false)
+      compareResultsAgainstVanillaSpark(sql2, true, { _ => })
     }
   }
 
