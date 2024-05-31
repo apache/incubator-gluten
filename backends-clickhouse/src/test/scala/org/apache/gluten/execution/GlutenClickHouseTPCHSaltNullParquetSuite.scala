@@ -2563,5 +2563,18 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
     spark.sql("drop table test_tbl_5896")
   }
+
+  test("test left with len -1") {
+    val tbl_create_sql =
+      "create table test_left(col string) using parquet"
+    val tbl_insert_sql =
+      "insert into test_left values('test1'), ('test2')"
+    spark.sql(tbl_create_sql)
+    spark.sql(tbl_insert_sql)
+    compareResultsAgainstVanillaSpark("select left(col, -1) from test_left", true, { _ => })
+    compareResultsAgainstVanillaSpark("select left(col, -2) from test_left", true, { _ => })
+    compareResultsAgainstVanillaSpark("select substring(col, 0, -1) from test_left", true, { _ => })
+    spark.sql("drop table test_left")
+  }
 }
 // scalastyle:on line.size.limit
