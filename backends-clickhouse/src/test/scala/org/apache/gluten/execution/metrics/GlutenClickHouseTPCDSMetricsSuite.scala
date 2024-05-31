@@ -80,7 +80,7 @@ class GlutenClickHouseTPCDSMetricsSuite extends GlutenClickHouseTPCDSAbstractSui
     val allWholeStageTransformers = df.queryExecution.executedPlan.collect {
       case wholeStage: WholeStageTransformer => wholeStage
     }
-    assert(allWholeStageTransformers.size == 10)
+    assert(allWholeStageTransformers.size == 9)
 
     val wholeStageTransformer = allWholeStageTransformers(1)
 

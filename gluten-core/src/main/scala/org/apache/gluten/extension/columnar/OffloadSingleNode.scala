@@ -330,7 +330,9 @@ object OffloadOthers {
           SortExecTransformer(plan.sortOrder, plan.global, child, plan.testSpillFrequency)
         case plan: TakeOrderedAndProjectExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          TakeOrderedAndProjectExecTransformer.offload(plan)
+          BackendsApiManager.getSparkPlanExecApiInstance
+            .genTakeOrderedAndProjectTransformer()
+            .offload(plan)
         case plan: WindowExec =>
           WindowExecTransformer(
             plan.windowExpression,

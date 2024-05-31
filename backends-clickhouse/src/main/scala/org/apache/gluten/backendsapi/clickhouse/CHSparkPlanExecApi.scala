@@ -853,6 +853,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHGenerateExecTransformer(generator, requiredChildOutput, outer, generatorOutput, child)
   }
 
+  override def genTakeOrderedAndProjectTransformer(): TakeOrderedAndProjectExecTransformer =
+    CHTakeOrderedAndProjectExecTransformer.transformer()
+
   override def genPreProjectForGenerate(generate: GenerateExec): SparkPlan = generate
 
   override def genPostProjectForGenerate(generate: GenerateExec): SparkPlan = generate

@@ -855,6 +855,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     GenerateExecTransformer(generator, requiredChildOutput, outer, generatorOutput, child)
   }
 
+  override def genTakeOrderedAndProjectTransformer(): TakeOrderedAndProjectExecTransformer =
+    VeloxTakeOrderedAndProjectExecTransformer
+
   override def genPreProjectForGenerate(generate: GenerateExec): SparkPlan = {
     PullOutGenerateProjectHelper.pullOutPreProject(generate)
   }
@@ -866,21 +869,5 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   override def genPreProjectForArrowEvalPythonExec(
       arrowEvalPythonExec: ArrowEvalPythonExec): SparkPlan = {
     PullOutArrowEvalPythonPreProjectHelper.pullOutPreProject(arrowEvalPythonExec)
-  }
-
-  override def maybeCollapseTakeOrderedAndProject(plan: SparkPlan): SparkPlan = {
-    // This to-top-n optimization assumes exchange operators were already placed in input plan.
-    val out = plan.transformUp {
-      case p @ LimitTransformer(SortExecTransformer(sortOrder, _, child, _), 0, count) =>
-        val global = child.outputPartitioning.satisfies(AllTuples)
-        val topN = TopNTransformer(count, sortOrder, global, child)
-        if (topN.doValidate().isValid) {
-          topN
-        } else {
-          p
-        }
-      case other => other
-    }
-    out
   }
 }

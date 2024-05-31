@@ -520,7 +520,9 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             transformer.doValidate().tagOnFallback(plan)
           }
         case plan: TakeOrderedAndProjectExec =>
-          val v = TakeOrderedAndProjectExecTransformer.validate(plan)
+          val v = BackendsApiManager.getSparkPlanExecApiInstance
+            .genTakeOrderedAndProjectTransformer()
+            .validate(plan)
           v.tagOnFallback(plan)
         case plan: SampleExec =>
           val transformer = BackendsApiManager.getSparkPlanExecApiInstance.genSampleExecTransformer(
