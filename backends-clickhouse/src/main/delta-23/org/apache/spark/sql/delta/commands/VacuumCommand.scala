@@ -33,6 +33,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
+import org.apache.gluten.utils.QueryPlanSelector
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.{Column, DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
@@ -157,6 +158,14 @@ object VacuumCommand extends VacuumCommandImpl with Serializable {
       val relativizeIgnoreError =
         spark.sessionState.conf.getConf(DeltaSQLConf.DELTA_VACUUM_RELATIVIZE_IGNORE_ERROR)
       val startTimeToIdentifyEligibleFiles = System.currentTimeMillis()
+
+      // --- modified start
+      val originalEnabledGluten =
+        spark.sparkContext.getLocalProperty(QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY)
+      // gluten can not support vacuum command
+      spark.sparkContext.setLocalProperty(QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY, "false")
+      // --- modified end
+
       val validFiles = snapshot.stateDS
         .mapPartitions { actions =>
           val reservoirBase = new Path(basePath)
@@ -349,6 +358,16 @@ object VacuumCommand extends VacuumCommandImpl with Serializable {
         spark.createDataset(Seq(basePath)).toDF("path")
       } finally {
         allFilesAndDirs.unpersist()
+
+        // --- modified start
+        if (originalEnabledGluten != null) {
+          spark.sparkContext.setLocalProperty(
+            QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY, originalEnabledGluten)
+        } else {
+          spark.sparkContext.setLocalProperty(
+            QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY, "true")
+        }
+        // --- modified end
       }
     }
   }

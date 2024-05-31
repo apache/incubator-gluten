@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.delta.actions.AddFile
@@ -1311,7 +1309,6 @@ class GlutenClickHouseDeltaParquetWriteSuite
     val ret = spark.sql("select count(*) from lineitem_delta_parquet_optimize_p2").collect()
     assert(ret.apply(0).get(0) == 600572)
 
-    spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
     assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p2")) == 23)
     spark.sql("VACUUM lineitem_delta_parquet_optimize_p2 RETAIN 0 HOURS")
     if (sparkVersion.equals("3.2")) {
@@ -1319,7 +1316,6 @@ class GlutenClickHouseDeltaParquetWriteSuite
     } else {
       assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p2")) == 7)
     }
-    spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
     val ret2 = spark.sql("select count(*) from lineitem_delta_parquet_optimize_p2").collect()
     assert(ret2.apply(0).get(0) == 600572)
@@ -1343,7 +1339,6 @@ class GlutenClickHouseDeltaParquetWriteSuite
       val ret = spark.sql("select count(*) from lineitem_delta_parquet_optimize_p4").collect()
       assert(ret.apply(0).get(0) == 600572)
 
-      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
       assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p4")) == 149)
       spark.sql("VACUUM lineitem_delta_parquet_optimize_p4 RETAIN 0 HOURS")
       if (sparkVersion.equals("3.2")) {
@@ -1351,7 +1346,6 @@ class GlutenClickHouseDeltaParquetWriteSuite
       } else {
         assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p4")) == 25)
       }
-      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
       val ret2 = spark.sql("select count(*) from lineitem_delta_parquet_optimize_p4").collect()
       assert(ret2.apply(0).get(0) == 600572)
@@ -1377,9 +1371,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       val clickhouseTable = DeltaTable.forPath(spark, dataPath)
       clickhouseTable.optimize().executeCompaction()
 
-      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
       clickhouseTable.vacuum(0.0)
-      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
       if (sparkVersion.equals("3.2")) {
         assert(countFiles(new File(dataPath)) == 27)
       } else {
@@ -1397,9 +1389,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       val clickhouseTable = DeltaTable.forPath(spark, dataPath)
       clickhouseTable.optimize().executeCompaction()
 
-      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
       clickhouseTable.vacuum(0.0)
-      spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
       if (sparkVersion.equals("3.2")) {
         assert(countFiles(new File(dataPath)) == 6)
       } else {
@@ -1414,9 +1404,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
     val clickhouseTable = DeltaTable.forPath(spark, dataPath)
     clickhouseTable.optimize().executeCompaction()
 
-    spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
     clickhouseTable.vacuum(0.0)
-    spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
     if (sparkVersion.equals("3.2")) {
       assert(countFiles(new File(dataPath)) == 5)
     } else {
