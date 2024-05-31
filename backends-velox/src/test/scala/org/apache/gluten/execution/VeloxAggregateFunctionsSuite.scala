@@ -22,7 +22,9 @@ import org.apache.gluten.extension.columnar.validator.FallbackInjects
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Final, Partial}
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types._
 
 abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSuite {
 
@@ -1111,6 +1113,27 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
               }) == 4)
         }
     }
+  }
+
+  test("complex type with null") {
+    val jsonStr = """{"txn":{"appId":"txnId","version":0,"lastUpdated":null}}"""
+    val jsonSchema = StructType(
+      Seq(
+        StructField(
+          "txn",
+          StructType(
+            Seq(
+              StructField("appId", StringType, true),
+              StructField("lastUpdated", LongType, true),
+              StructField("version", LongType, true))),
+          true)))
+    val df = spark.read.schema(jsonSchema).json(Seq(jsonStr).toDS)
+    df.select(collect_set(col("txn"))).collect
+
+    df.select(min(col("txn"))).collect
+
+    df.select(max(col("txn"))).collect
+
   }
 }
 
