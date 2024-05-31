@@ -14,33 +14,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.spark.sql.delta
 
-import org.apache.spark.sql._
-import org.apache.spark.sql.catalyst.expressions.Expression
+// scalastyle:off import.ordering.noEmptyLine
+import scala.collection.mutable
+
 import org.apache.spark.sql.delta.actions._
 import org.apache.spark.sql.delta.actions.Action.logSchema
 import org.apache.spark.sql.delta.metering.DeltaLogging
 import org.apache.spark.sql.delta.schema.SchemaUtils
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
-import org.apache.spark.sql.delta.stats.{DataSkippingReader, DeltaScan, FileSizeHistogram, StatisticsCollection}
+import org.apache.spark.sql.delta.stats.DataSkippingReader
+import org.apache.spark.sql.delta.stats.DeltaScan
+import org.apache.spark.sql.delta.stats.FileSizeHistogram
+import org.apache.spark.sql.delta.stats.StatisticsCollection
 import org.apache.spark.sql.delta.util.StateCache
+import org.apache.hadoop.fs.{FileStatus, Path}
+
+import org.apache.spark.sql._
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.Utils
 
-import org.apache.hadoop.fs.{FileStatus, Path}
-
-// scalastyle:off import.ordering.noEmptyLine
-import scala.collection.mutable
-
 /**
  * Gluten overwrite Delta:
  *
- * This file is copied from Delta 2.2.0. It is modified to overcome the following issues:
- *   1. filesForScan() should return DeltaScan of AddMergeTreeParts instead of AddFile
+ * This file is copied from Delta 2.3.0. It is modified to overcome the following issues:
+ *   1. filesForScan() will cache the DeltaScan by the FilterExprsAsKey
+ *   2. filesForScan() should return DeltaScan of AddMergeTreeParts instead of AddFile
  */
-
 /**
  * A description of a Delta [[Snapshot]], including basic information such its [[DeltaLog]]
  * metadata, protocol, and version.
@@ -55,28 +60,27 @@ trait SnapshotDescriptor {
 }
 
 /**
- * An immutable snapshot of the state of the log at some delta version. Internally this class
- * manages the replay of actions stored in checkpoint or delta files.
+ * An immutable snapshot of the state of the log at some delta version. Internally
+ * this class manages the replay of actions stored in checkpoint or delta files.
  *
- * After resolving any new actions, it caches the result and collects the following basic
- * information to the driver:
- *   - Protocol Version
- *   - Metadata
- *   - Transaction state
+ * After resolving any new actions, it caches the result and collects the
+ * following basic information to the driver:
+ *  - Protocol Version
+ *  - Metadata
+ *  - Transaction state
  *
- * @param timestamp
- *   The timestamp of the latest commit in milliseconds. Can also be set to -1 if the timestamp of
- *   the commit is unknown or the table has not been initialized, i.e. `version = -1`.
+ * @param timestamp The timestamp of the latest commit in milliseconds. Can also be set to -1 if the
+ *                  timestamp of the commit is unknown or the table has not been initialized, i.e.
+ *                  `version = -1`.
+ *
  */
 class Snapshot(
     val path: Path,
     override val version: Long,
     val logSegment: LogSegment,
-    val minFileRetentionTimestamp: Long,
     override val deltaLog: DeltaLog,
     val timestamp: Long,
     val checksumOpt: Option[VersionChecksum],
-    val minSetTransactionRetentionTimestamp: Option[Long] = None,
     checkpointMetadataOpt: Option[CheckpointMetaData] = None)
   extends SnapshotDescriptor
   with StateCache
@@ -84,25 +88,25 @@ class Snapshot(
   with DataSkippingReader
   with DeltaLogging {
 
+  import Snapshot._
+  // For implicits which re-use Encoder:
   import org.apache.spark.sql.delta.implicits._
 
-  // For implicits which re-use Encoder:
-  import Snapshot._
-
   protected def spark = SparkSession.active
+
 
   /** Snapshot to scan by the DeltaScanGenerator for metadata query optimizations */
   override val snapshotToScan: Snapshot = this
 
   protected def getNumPartitions: Int = {
-    spark.sessionState.conf
-      .getConf(DeltaSQLConf.DELTA_SNAPSHOT_PARTITIONS)
+    spark.sessionState.conf.getConf(DeltaSQLConf.DELTA_SNAPSHOT_PARTITIONS)
       .getOrElse(Snapshot.defaultNumSnapshotPartitions)
   }
 
   /** Performs validations during initialization */
   protected def init(): Unit = {
     deltaLog.protocolRead(protocol)
+    deltaLog.assertTableFeaturesMatchMetadata(protocol, metadata)
     SchemaUtils.recordUndefinedTypes(deltaLog, metadata.schema)
   }
 
@@ -127,47 +131,59 @@ class Snapshot(
       val ADD_PATH_CANONICAL_COL_NAME = "add_path_canonical"
       val REMOVE_PATH_CANONICAL_COL_NAME = "remove_path_canonical"
       loadActions
-        .withColumn(
-          ADD_PATH_CANONICAL_COL_NAME,
-          when(col("add.path").isNotNull, canonicalPath(col("add.path"))))
-        .withColumn(
-          REMOVE_PATH_CANONICAL_COL_NAME,
-          when(col("remove.path").isNotNull, canonicalPath(col("remove.path"))))
+        .withColumn(ADD_PATH_CANONICAL_COL_NAME, when(
+          col("add.path").isNotNull, canonicalPath(col("add.path"))))
+        .withColumn(REMOVE_PATH_CANONICAL_COL_NAME, when(
+          col("remove.path").isNotNull, canonicalPath(col("remove.path"))))
         .repartition(
           getNumPartitions,
           coalesce(col(ADD_PATH_CANONICAL_COL_NAME), col(REMOVE_PATH_CANONICAL_COL_NAME)))
         .sortWithinPartitions(ACTION_SORT_COL_NAME)
-        .withColumn(
-          "add",
-          when(
-            col("add.path").isNotNull,
-            struct(
-              col(ADD_PATH_CANONICAL_COL_NAME).as("path"),
-              col("add.partitionValues"),
-              col("add.size"),
-              col("add.modificationTime"),
-              col("add.dataChange"),
-              col(ADD_STATS_TO_USE_COL_NAME).as("stats"),
-              col("add.tags")
-            )
-          )
-        )
-        .withColumn(
-          "remove",
-          when(
-            col("remove.path").isNotNull,
-            col("remove").withField("path", col(REMOVE_PATH_CANONICAL_COL_NAME))))
+        .withColumn("add", when(
+          col("add.path").isNotNull,
+          struct(
+            col(ADD_PATH_CANONICAL_COL_NAME).as("path"),
+            col("add.partitionValues"),
+            col("add.size"),
+            col("add.modificationTime"),
+            col("add.dataChange"),
+            col(ADD_STATS_TO_USE_COL_NAME).as("stats"),
+            col("add.tags"),
+            col("add.deletionVector")
+          )))
+        .withColumn("remove", when(
+          col("remove.path").isNotNull,
+          col("remove").withField("path", col(REMOVE_PATH_CANONICAL_COL_NAME))))
         .as[SingleAction]
-        .mapPartitions {
-          iter =>
-            val state: LogReplay =
-              new InMemoryLogReplay(
-                localMinFileRetentionTimestamp,
-                localMinSetTransactionRetentionTimestamp)
-            state.append(0, iter.map(_.unwrap))
-            state.checkpoint.map(_.wrap)
+        .mapPartitions { iter =>
+          val state: LogReplay =
+            new InMemoryLogReplay(
+              localMinFileRetentionTimestamp,
+              localMinSetTransactionRetentionTimestamp)
+          state.append(0, iter.map(_.unwrap))
+          state.checkpoint.map(_.wrap)
         }
     }
+  }
+
+  /**
+   * Pulls the protocol and metadata of the table from the files that are used to compute the
+   * Snapshot directly--without triggering a full state reconstruction. This is important, because
+   * state reconstruction depends on protocol and metadata for correctness.
+   */
+  protected def protocolAndMetadataReconstruction(): Array[(Protocol, Metadata)] = {
+    import implicits._
+
+    val schemaToUse = Action.logSchema(Set("protocol", "metaData"))
+    fileIndices.map(deltaLog.loadIndex(_, schemaToUse))
+      .reduceOption(_.union(_)).getOrElse(emptyDF)
+      .withColumn(ACTION_SORT_COL_NAME, input_file_name())
+      .select("protocol", "metaData", ACTION_SORT_COL_NAME)
+      .where("protocol.minReaderVersion is not null or metaData.id is not null")
+      .as[(Protocol, Metadata, String)]
+      .collect()
+      .sortBy(_._3)
+      .map { case (p, m, _) => p -> m }
   }
 
   def redactedPath: String =
@@ -189,7 +205,9 @@ class Snapshot(
     cachedState.getDF
   }
 
-  /** A Map of alias to aggregations which needs to be done to calculate the `computedState` */
+  /**
+   * A Map of alias to aggregations which needs to be done to calculate the `computedState`
+   */
   protected def aggregationsToComputeState: Map[String, Column] = {
     Map(
       // sum may return null for empty data set.
@@ -223,22 +241,73 @@ class Snapshot(
           recordDeltaEvent(
             deltaLog,
             opType = "delta.assertions.missingAction",
-            data =
-              Map("version" -> version.toString, "action" -> "Protocol", "source" -> "Snapshot"))
+            data = Map(
+              "version" -> version.toString, "action" -> "Protocol", "source" -> "Snapshot"))
+          throw DeltaErrors.actionNotFoundException("protocol", version)
+        } else if (_computedState.protocol != protocol) {
+          recordDeltaEvent(
+            deltaLog,
+            opType = "delta.assertions.mismatchedAction",
+            data = Map(
+              "version" -> version.toString, "action" -> "Protocol", "source" -> "Snapshot",
+              "computedState.protocol" -> _computedState.protocol,
+              "extracted.protocol" -> protocol))
           throw DeltaErrors.actionNotFoundException("protocol", version)
         }
+
         if (_computedState.metadata == null) {
           recordDeltaEvent(
             deltaLog,
             opType = "delta.assertions.missingAction",
-            data =
-              Map("version" -> version.toString, "action" -> "Metadata", "source" -> "Metadata"))
+            data = Map(
+              "version" -> version.toString, "action" -> "Metadata", "source" -> "Metadata"))
           throw DeltaErrors.actionNotFoundException("metadata", version)
-        } else {
-          _computedState
+        } else if (_computedState.metadata != metadata) {
+          recordDeltaEvent(
+            deltaLog,
+            opType = "delta.assertions.mismatchedAction",
+            data = Map(
+              "version" -> version.toString, "action" -> "Metadata", "source" -> "Snapshot",
+              "computedState.metadata" -> _computedState.metadata,
+              "extracted.metadata" -> metadata))
+          throw DeltaErrors.actionNotFoundException("metadata", version)
         }
+
+        _computedState
       }
     }
+  }
+
+  // Used by [[protocol]] and [[metadata]] below
+  private lazy val (_protocol, _metadata): (Protocol, Metadata) = {
+    // Should be small. At most 'checkpointInterval' rows, unless new commits are coming
+    // in before a checkpoint can be written
+    var protocol: Protocol = null
+    var metadata: Metadata = null
+    protocolAndMetadataReconstruction().foreach {
+      case (p: Protocol, _) => protocol = p
+      case (_, m: Metadata) => metadata = m
+    }
+
+    if (protocol == null) {
+      recordDeltaEvent(
+        deltaLog,
+        opType = "delta.assertions.missingAction",
+        data = Map(
+          "version" -> version.toString, "action" -> "Protocol", "source" -> "Snapshot"))
+      throw DeltaErrors.actionNotFoundException("protocol", version)
+    }
+
+    if (metadata == null) {
+      recordDeltaEvent(
+        deltaLog,
+        opType = "delta.assertions.missingAction",
+        data = Map(
+          "version" -> version.toString, "action" -> "Metadata", "source" -> "Snapshot"))
+      throw DeltaErrors.actionNotFoundException("metadata", version)
+    }
+
+    protocol -> metadata
   }
 
   def sizeInBytes: Long = computedState.sizeInBytes
@@ -248,18 +317,34 @@ class Snapshot(
   def numOfMetadata: Long = computedState.numOfMetadata
   def numOfProtocol: Long = computedState.numOfProtocol
   def setTransactions: Seq[SetTransaction] = computedState.setTransactions
-  override def metadata: Metadata = computedState.metadata
-  override def protocol: Protocol = computedState.protocol
+  override def metadata: Metadata = _metadata
+  override def protocol: Protocol = _protocol
   def fileSizeHistogram: Option[FileSizeHistogram] = computedState.fileSizeHistogram
-  private[delta] def sizeInBytesOpt: Option[Long] = Some(sizeInBytes)
-  private[delta] def setTransactionsOpt: Option[Seq[SetTransaction]] = Some(setTransactions)
-  private[delta] def numOfFilesOpt: Option[Long] = Some(numOfFiles)
+  private[delta] def sizeInBytesIfKnown: Option[Long] = Some(sizeInBytes)
+  private[delta] def setTransactionsIfKnown: Option[Seq[SetTransaction]] = Some(setTransactions)
+  private[delta] def numOfFilesIfKnown: Option[Long] = Some(numOfFiles)
 
   /**
-   * Computes all the information that is needed by the checksum for the current snapshot. May kick
-   * off state reconstruction if needed by any of the underlying fields. Note that it's safe to set
-   * txnId to none, since the snapshot doesn't always have a txn attached. E.g. if a snapshot is
-   * created by reading a checkpoint, then no txnId is present.
+   * Tombstones before the [[minFileRetentionTimestamp]] timestamp will be dropped from the
+   * checkpoint.
+   */
+  private[delta] def minFileRetentionTimestamp: Long = {
+    deltaLog.clock.getTimeMillis() - DeltaLog.tombstoneRetentionMillis(metadata)
+  }
+
+  /**
+   * [[SetTransaction]]s before [[minSetTransactionRetentionTimestamp]] will be considered expired
+   * and dropped from the snapshot.
+   */
+  private[delta] def minSetTransactionRetentionTimestamp: Option[Long] = {
+    DeltaLog.minSetTransactionRetentionInterval(metadata).map(deltaLog.clock.getTimeMillis() - _)
+  }
+
+  /**
+   * Computes all the information that is needed by the checksum for the current snapshot.
+   * May kick off state reconstruction if needed by any of the underlying fields.
+   * Note that it's safe to set txnId to none, since the snapshot doesn't always have a txn
+   * attached. E.g. if a snapshot is created by reading a checkpoint, then no txnId is present.
    */
   def computeChecksum: VersionChecksum = VersionChecksum(
     txnId = None,
@@ -271,8 +356,7 @@ class Snapshot(
     metadata = metadata,
     protocol = protocol,
     histogramOpt = fileSizeHistogram,
-    allFiles = checksumOpt.flatMap(_.allFiles)
-  )
+    allFiles = checksumOpt.flatMap(_.allFiles))
 
   /** A map to look up transaction version by appId. */
   lazy val transactions: Map[String, Long] = setTransactions.map(t => t.appId -> t.version).toMap
@@ -300,17 +384,23 @@ class Snapshot(
   lazy val numIndexedCols: Int = DeltaConfigs.DATA_SKIPPING_NUM_INDEXED_COLS.fromMetaData(metadata)
 
   /** Return the set of properties of the table. */
-  def getProperties: mutable.HashMap[String, String] = {
-    val base = new mutable.HashMap[String, String]()
-    metadata.configuration.foreach {
-      case (k, v) =>
-        if (k != "path") {
-          base.put(k, v)
-        }
+  def getProperties: mutable.Map[String, String] = {
+    val base = new mutable.LinkedHashMap[String, String]()
+    metadata.configuration.foreach { case (k, v) =>
+      if (k != "path") {
+        base.put(k, v)
+      }
     }
     base.put(Protocol.MIN_READER_VERSION_PROP, protocol.minReaderVersion.toString)
     base.put(Protocol.MIN_WRITER_VERSION_PROP, protocol.minWriterVersion.toString)
-    base
+    if (protocol.supportsReaderFeatures || protocol.supportsWriterFeatures) {
+      val features = protocol.readerAndWriterFeatureNames.map(name =>
+        s"${TableFeatureProtocolUtils.FEATURE_PROP_PREFIX}$name" ->
+          TableFeatureProtocolUtils.FEATURE_PROP_SUPPORTED)
+      base ++ features.toSeq.sorted
+    } else {
+      base
+    }
   }
 
   // Given the list of files from `LogSegment`, create respective file indices to help create
@@ -345,16 +435,15 @@ class Snapshot(
    * config settings for delta.checkpoint.writeStatsAsJson and delta.checkpoint.writeStatsAsStruct).
    */
   protected def loadActions: DataFrame = {
-    val dfs = fileIndices.map(index => Dataset.ofRows(spark, deltaLog.indexToRelation(index)))
-    dfs
-      .reduceOption(_.union(_))
-      .getOrElse(emptyDF)
+    fileIndices.map(deltaLog.loadIndex(_))
+      .reduceOption(_.union(_)).getOrElse(emptyDF)
       .withColumn(ACTION_SORT_COL_NAME, input_file_name())
       .withColumn(ADD_STATS_TO_USE_COL_NAME, col("add.stats"))
   }
 
   protected def emptyDF: DataFrame =
     spark.createDataFrame(spark.sparkContext.emptyRDD[Row], logSchema)
+
 
   override def logInfo(msg: => String): Unit = {
     super.logInfo(s"[tableId=${deltaLog.tableId}] " + msg)
@@ -380,21 +469,22 @@ class Snapshot(
     s"${getClass.getSimpleName}(path=$path, version=$version, metadata=$metadata, " +
       s"logSegment=$logSegment, checksumOpt=$checksumOpt)"
 
-  override def filesForScan(filters: Seq[Expression], keepNumRecords: Boolean): DeltaScan = {
-    val deltaScan = ClickhouseSnapshot.deltaScanCache.get(
-      FilterExprsAsKey(path, ClickhouseSnapshot.genSnapshotId(this), filters, None),
-      () => {
-        super.filesForScan(filters, keepNumRecords)
-      })
-
-    replaceWithAddMergeTreeParts(deltaScan)
-  }
-
+  // --- modified start
   override def filesForScan(limit: Long): DeltaScan = {
     val deltaScan = ClickhouseSnapshot.deltaScanCache.get(
       FilterExprsAsKey(path, ClickhouseSnapshot.genSnapshotId(this), Seq.empty, Some(limit)),
       () => {
         super.filesForScan(limit)
+      })
+
+    replaceWithAddMergeTreeParts(deltaScan)
+  }
+
+  override def filesForScan(filters: Seq[Expression], keepNumRecords: Boolean): DeltaScan = {
+    val deltaScan = ClickhouseSnapshot.deltaScanCache.get(
+      FilterExprsAsKey(path, ClickhouseSnapshot.genSnapshotId(this), filters, None),
+      () => {
+        super.filesForScan(filters, keepNumRecords)
       })
 
     replaceWithAddMergeTreeParts(deltaScan)
@@ -411,30 +501,35 @@ class Snapshot(
   }
 
   private def replaceWithAddMergeTreeParts(deltaScan: DeltaScan) = {
-    DeltaScan.apply(
-      deltaScan.version,
-      deltaScan.files
-        .map(
-          addFile => {
-            val addFileAsKey = AddFileAsKey(addFile)
+    if (ClickHouseConfig.isMergeTreeFormatEngine(metadata.configuration)) {
+      DeltaScan.apply(
+        deltaScan.version,
+        deltaScan.files
+          .map(
+            addFile => {
+              val addFileAsKey = AddFileAsKey(addFile)
 
-            val ret = ClickhouseSnapshot.addFileToAddMTPCache.get(addFileAsKey)
-            // this is for later use
-            ClickhouseSnapshot.pathToAddMTPCache.put(ret.fullPartPath(), ret)
-            ret
-          }),
-      deltaScan.total,
-      deltaScan.partition,
-      deltaScan.scanned
-    )(
-      deltaScan.scannedSnapshot,
-      deltaScan.partitionFilters,
-      deltaScan.dataFilters,
-      deltaScan.unusedFilters,
-      deltaScan.scanDurationMs,
-      deltaScan.dataSkippingType
-    )
+              val ret = ClickhouseSnapshot.addFileToAddMTPCache.get(addFileAsKey)
+              // this is for later use
+              ClickhouseSnapshot.pathToAddMTPCache.put(ret.fullPartPath(), ret)
+              ret
+            }),
+        deltaScan.total,
+        deltaScan.partition,
+        deltaScan.scanned
+      )(
+        deltaScan.scannedSnapshot,
+        deltaScan.partitionFilters,
+        deltaScan.dataFilters,
+        deltaScan.unusedFilters,
+        deltaScan.scanDurationMs,
+        deltaScan.dataSkippingType
+      )
+    } else {
+      deltaScan
+    }
   }
+  // --- modified end
 
   logInfo(s"Created snapshot $this")
   init()
@@ -450,64 +545,51 @@ object Snapshot extends DeltaLogging {
 
   /** Verifies that a set of delta or checkpoint files to be read actually belongs to this table. */
   private def assertLogFilesBelongToTable(logBasePath: Path, files: Seq[FileStatus]): Unit = {
-    files.map(_.getPath).foreach {
-      filePath =>
-        if (new Path(filePath.toUri).getParent != new Path(logBasePath.toUri)) {
-          // scalastyle:off throwerror
-          throw new AssertionError(
-            s"File ($filePath) doesn't belong in the " +
-              s"transaction log at $logBasePath. Please contact Databricks Support.")
-          // scalastyle:on throwerror
-        }
+    files.map(_.getPath).foreach { filePath =>
+      if (new Path(filePath.toUri).getParent != new Path(logBasePath.toUri)) {
+        // scalastyle:off throwerror
+        throw new AssertionError(s"File ($filePath) doesn't belong in the " +
+          s"transaction log at $logBasePath. Please contact Databricks Support.")
+        // scalastyle:on throwerror
+      }
     }
   }
 
   /**
    * Metrics and metadata computed around the Delta table.
-   * @param sizeInBytes
-   *   The total size of the table (of active files, not including tombstones).
-   * @param numOfSetTransactions
-   *   Number of streams writing to this table.
-   * @param numOfFiles
-   *   The number of files in this table.
-   * @param numOfRemoves
-   *   The number of tombstones in the state.
-   * @param numOfMetadata
-   *   The number of metadata actions in the state. Should be 1.
-   * @param numOfProtocol
-   *   The number of protocol actions in the state. Should be 1.
-   * @param setTransactions
-   *   The streaming queries writing to this table.
-   * @param metadata
-   *   The metadata of the table.
-   * @param protocol
-   *   The protocol version of the Delta table.
-   * @param fileSizeHistogram
-   *   A Histogram class tracking the file counts and total bytes in different size ranges.
+   * @param sizeInBytes The total size of the table (of active files, not including tombstones).
+   * @param numOfSetTransactions Number of streams writing to this table.
+   * @param numOfFiles The number of files in this table.
+   * @param numOfRemoves The number of tombstones in the state.
+   * @param numOfMetadata The number of metadata actions in the state. Should be 1.
+   * @param numOfProtocol The number of protocol actions in the state. Should be 1.
+   * @param setTransactions The streaming queries writing to this table.
+   * @param metadata The metadata of the table.
+   * @param protocol The protocol version of the Delta table.
+   * @param fileSizeHistogram A Histogram class tracking the file counts and total bytes
+   *                          in different size ranges.
    */
   case class State(
-      sizeInBytes: Long,
-      numOfSetTransactions: Long,
-      numOfFiles: Long,
-      numOfRemoves: Long,
-      numOfMetadata: Long,
-      numOfProtocol: Long,
-      setTransactions: Seq[SetTransaction],
-      metadata: Metadata,
-      protocol: Protocol,
-      fileSizeHistogram: Option[FileSizeHistogram] = None)
+    sizeInBytes: Long,
+    numOfSetTransactions: Long,
+    numOfFiles: Long,
+    numOfRemoves: Long,
+    numOfMetadata: Long,
+    numOfProtocol: Long,
+    setTransactions: Seq[SetTransaction],
+    metadata: Metadata,
+    protocol: Protocol,
+    fileSizeHistogram: Option[FileSizeHistogram] = None
+  )
 }
 
 /**
  * An initial snapshot with only metadata specified. Useful for creating a DataFrame from an
  * existing parquet table during its conversion to delta.
  *
- * @param logPath
- *   the path to transaction log
- * @param deltaLog
- *   the delta log object
- * @param metadata
- *   the metadata of the table
+ * @param logPath the path to transaction log
+ * @param deltaLog the delta log object
+ * @param metadata the metadata of the table
  */
 class InitialSnapshot(
     val logPath: Path,
@@ -517,27 +599,30 @@ class InitialSnapshot(
     path = logPath,
     version = -1,
     logSegment = LogSegment.empty(logPath),
-    minFileRetentionTimestamp = -1,
     deltaLog = deltaLog,
     timestamp = -1,
-    checksumOpt = None,
-    minSetTransactionRetentionTimestamp = None
+    checksumOpt = None
   ) {
 
   def this(logPath: Path, deltaLog: DeltaLog) = this(
     logPath,
     deltaLog,
     Metadata(
-      configuration =
-        DeltaConfigs.mergeGlobalConfigs(SparkSession.active.sessionState.conf, Map.empty),
-      createdTime = Some(System.currentTimeMillis()))
-  )
+      configuration = DeltaConfigs.mergeGlobalConfigs(
+        sqlConfs = SparkSession.active.sessionState.conf,
+        tableConf = Map.empty,
+        ignoreProtocolConfsOpt = Some(
+          DeltaConfigs.ignoreProtocolDefaultsIsSet(
+            sqlConfs = SparkSession.active.sessionState.conf,
+            tableConf = deltaLog.allOptions))),
+      createdTime = Some(System.currentTimeMillis())))
 
   override def stateDS: Dataset[SingleAction] = emptyDF.as[SingleAction]
   override def stateDF: DataFrame = emptyDF
   override protected lazy val computedState: Snapshot.State = initialState
+  override def protocol: Protocol = computedState.protocol
   private def initialState: Snapshot.State = {
-    val protocol = Protocol.forNewTable(spark, metadata)
+    val protocol = Protocol.forNewTable(spark, Some(metadata))
     Snapshot.State(
       sizeInBytes = 0L,
       numOfSetTransactions = 0L,
@@ -550,5 +635,4 @@ class InitialSnapshot(
       protocol = protocol
     )
   }
-
 }

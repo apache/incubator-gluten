@@ -69,8 +69,6 @@ class CHTransformerApi extends TransformerApi with Logging {
             disableBucketedScan,
             filterExprs
           )
-      case _: TahoeFileIndex =>
-        throw new UnsupportedOperationException("Does not support delta-parquet")
       case _ =>
         // Generate FilePartition for Parquet
         CHInputPartitionsUtil(

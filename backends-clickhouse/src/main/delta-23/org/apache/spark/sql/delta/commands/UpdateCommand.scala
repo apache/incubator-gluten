@@ -14,32 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.spark.sql.delta.commands
 
+// scalastyle:off import.ordering.noEmptyLine
+import org.apache.spark.sql.delta.{DeltaConfigs, DeltaLog, DeltaOperations, DeltaTableUtils, DeltaUDF, OptimisticTransaction}
+import org.apache.spark.sql.delta.actions.{AddCDCFile, AddFile, FileAction}
+import org.apache.spark.sql.delta.commands.cdc.CDCReader.{CDC_TYPE_COLUMN_NAME, CDC_TYPE_NOT_CDC, CDC_TYPE_UPDATE_POSTIMAGE, CDC_TYPE_UPDATE_PREIMAGE}
+import org.apache.spark.sql.delta.files.{TahoeBatchFileIndex, TahoeFileIndex}
+import org.apache.hadoop.fs.Path
+
 import org.apache.spark.SparkContext
-import org.apache.spark.sql._
+import org.apache.spark.sql.{Column, DataFrame, Dataset, Row, SparkSession}
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, Expression, If, Literal}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.delta._
-import org.apache.spark.sql.delta.actions.{AddCDCFile, AddFile, FileAction}
-import org.apache.spark.sql.delta.commands.cdc.CDCReader.{CDC_TYPE_COLUMN_NAME, CDC_TYPE_NOT_CDC, CDC_TYPE_UPDATE_POSTIMAGE, CDC_TYPE_UPDATE_PREIMAGE}
-import org.apache.spark.sql.delta.files.{TahoeBatchFileIndex, TahoeFileIndex}
-import org.apache.spark.sql.execution.SQLExecution
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.metric.SQLMetrics.{createMetric, createTimingMetric}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.LongType
 
-// scalastyle:off import.ordering.noEmptyLine
-import org.apache.hadoop.fs.Path
-
 /**
  * Gluten overwrite Delta:
  *
- * This file is copied from Delta 2.2.0. It is modified to overcome the following issues:
+ * This file is copied from Delta 2.3.0. It is modified to overcome the following issues:
  *   1. In Clickhouse backend, we can't implement input_file_name() correctly, we can only implement
  *      it so that it return a a list of filenames (concated by ',').
  */
@@ -47,18 +47,18 @@ import org.apache.hadoop.fs.Path
 /**
  * Performs an Update using `updateExpression` on the rows that match `condition`
  *
- * Algorithm: 1) Identify the affected files, i.e., the files that may have the rows to be updated.
- * 2) Scan affected files, apply the updates, and generate a new DF with updated rows. 3) Use the
- * Delta protocol to atomically write the new DF as new files and remove the affected files that are
- * identified in step 1.
+ * Algorithm:
+ *   1) Identify the affected files, i.e., the files that may have the rows to be updated.
+ *   2) Scan affected files, apply the updates, and generate a new DF with updated rows.
+ *   3) Use the Delta protocol to atomically write the new DF as new files and remove
+ *      the affected files that are identified in step 1.
  */
 case class UpdateCommand(
     tahoeFileIndex: TahoeFileIndex,
     target: LogicalPlan,
     updateExpressions: Seq[Expression],
     condition: Option[Expression])
-  extends LeafRunnableCommand
-  with DeltaCommand {
+  extends LeafRunnableCommand with DeltaCommand {
 
   override val output: Seq[Attribute] = {
     Seq(AttributeReference("num_affected_rows", LongType)())
@@ -70,7 +70,9 @@ case class UpdateCommand(
 
   override lazy val metrics = Map[String, SQLMetric](
     "numAddedFiles" -> createMetric(sc, "number of files added."),
+    "numAddedBytes" -> createMetric(sc, "number of bytes added"),
     "numRemovedFiles" -> createMetric(sc, "number of files removed."),
+    "numRemovedBytes" -> createMetric(sc, "number of bytes removed"),
     "numUpdatedRows" -> createMetric(sc, "number of rows updated."),
     "numCopiedRows" -> createMetric(sc, "number of rows copied."),
     "executionTimeMs" ->
@@ -87,8 +89,14 @@ case class UpdateCommand(
   final override def run(sparkSession: SparkSession): Seq[Row] = {
     recordDeltaOperation(tahoeFileIndex.deltaLog, "delta.dml.update") {
       val deltaLog = tahoeFileIndex.deltaLog
-      deltaLog.assertRemovable()
-      deltaLog.withNewTransaction(txn => performUpdate(sparkSession, deltaLog, txn))
+      deltaLog.withNewTransaction { txn =>
+        DeltaLog.assertRemovable(txn.snapshot)
+        if (hasBeenExecuted(txn, sparkSession)) {
+          sendDriverMetrics(sparkSession, metrics)
+          return Seq.empty
+        }
+        performUpdate(sparkSession, deltaLog, txn)
+      }
       // Re-cache all cached plans(including this relation itself, if it's cached) that refer to
       // this data source relation.
       sparkSession.sharedState.cacheManager.recacheByPlan(sparkSession, target)
@@ -97,13 +105,13 @@ case class UpdateCommand(
   }
 
   private def performUpdate(
-      sparkSession: SparkSession,
-      deltaLog: DeltaLog,
-      txn: OptimisticTransaction): Unit = {
+      sparkSession: SparkSession, deltaLog: DeltaLog, txn: OptimisticTransaction): Unit = {
     import org.apache.spark.sql.delta.implicits._
 
     var numTouchedFiles: Long = 0
     var numRewrittenFiles: Long = 0
+    var numAddedBytes: Long = 0
+    var numRemovedBytes: Long = 0
     var numAddedChangeFiles: Long = 0
     var changeFileBytes: Long = 0
     var scanTimeMs: Long = 0
@@ -115,9 +123,7 @@ case class UpdateCommand(
     val updateCondition = condition.getOrElse(Literal.TrueLiteral)
     val (metadataPredicates, dataPredicates) =
       DeltaTableUtils.splitMetadataAndDataPredicates(
-        updateCondition,
-        txn.metadata.partitionColumns,
-        sparkSession)
+        updateCondition, txn.metadata.partitionColumns, sparkSession)
     val candidateFiles = txn.filterFiles(metadataPredicates ++ dataPredicates)
     val nameToAddFile = generateCandidateFileMap(deltaLog.dataPath, candidateFiles)
 
@@ -134,34 +140,27 @@ case class UpdateCommand(
     } else {
       // Case 3: Find all the affected files using the user-specified condition
       val fileIndex = new TahoeBatchFileIndex(
-        sparkSession,
-        "update",
-        candidateFiles,
-        deltaLog,
-        tahoeFileIndex.path,
-        txn.snapshot)
+        sparkSession, "update", candidateFiles, deltaLog, tahoeFileIndex.path, txn.snapshot)
       // Keep everything from the resolved target except a new TahoeFileIndex
       // that only involves the affected files instead of all files.
       val newTarget = DeltaTableUtils.replaceFileIndex(target, fileIndex)
       val data = Dataset.ofRows(sparkSession, newTarget)
       val updatedRowCount = metrics("numUpdatedRows")
-      val updatedRowUdf = DeltaUDF
-        .boolean {
-          () =>
-            updatedRowCount += 1
-            true
-        }
-        .asNondeterministic()
+      val updatedRowUdf = DeltaUDF.boolean { () =>
+        updatedRowCount += 1
+        true
+      }.asNondeterministic()
       val pathsToRewrite =
         withStatusCode("DELTA", UpdateCommand.FINDING_TOUCHED_FILES_MSG) {
-          data
-            .filter(new Column(updateCondition))
+          // --- modified start
+          data.filter(new Column(updateCondition))
             .select(input_file_name().as("input_files"))
             .filter(updatedRowUdf())
             .select(explode(split(col("input_files"), ",")))
             .distinct()
             .as[String]
             .collect()
+          // --- modified end
         }
 
       scanTimeMs = (System.nanoTime() - startTime) / 1000 / 1000
@@ -177,13 +176,8 @@ case class UpdateCommand(
     } else {
       // Generate the new files containing the updated values
       withStatusCode("DELTA", UpdateCommand.rewritingFilesMsg(filesToRewrite.size)) {
-        rewriteFiles(
-          sparkSession,
-          txn,
-          tahoeFileIndex.path,
-          filesToRewrite.map(_.path),
-          nameToAddFile,
-          updateCondition)
+        rewriteFiles(sparkSession, txn, tahoeFileIndex.path,
+          filesToRewrite.map(_.path), nameToAddFile, updateCondition)
       }
     }
 
@@ -191,6 +185,7 @@ case class UpdateCommand(
 
     val (changeActions, addActions) = newActions.partition(_.isInstanceOf[AddCDCFile])
     numRewrittenFiles = addActions.size
+    numAddedBytes = addActions.map(_.getFileSize).sum
     numAddedChangeFiles = changeActions.size
     changeFileBytes = changeActions.collect { case f: AddCDCFile => f.size }.sum
 
@@ -202,47 +197,42 @@ case class UpdateCommand(
       // files containing the updated values
       val operationTimestamp = System.currentTimeMillis()
       val deleteActions = filesToRewrite.map(_.removeWithTimestamp(operationTimestamp))
-
+      numRemovedBytes = filesToRewrite.map(_.getFileSize).sum
       deleteActions ++ newActions
     }
 
-    if (totalActions.nonEmpty) {
-      metrics("numAddedFiles").set(numRewrittenFiles)
-      metrics("numAddedChangeFiles").set(numAddedChangeFiles)
-      metrics("changeFileBytes").set(changeFileBytes)
-      metrics("numRemovedFiles").set(numTouchedFiles)
-      metrics("executionTimeMs").set((System.nanoTime() - startTime) / 1000 / 1000)
-      metrics("scanTimeMs").set(scanTimeMs)
-      metrics("rewriteTimeMs").set(rewriteTimeMs)
-      // In the case where the numUpdatedRows is not captured, we can siphon out the metrics from
-      // the BasicWriteStatsTracker. This is for case 2 where the update condition contains only
-      // metadata predicates and so the entire partition is re-written.
-      val outputRows = txn.getMetric("numOutputRows").map(_.value).getOrElse(-1L)
-      if (
-        metrics("numUpdatedRows").value == 0 && outputRows != 0 &&
-        metrics("numCopiedRows").value == 0
-      ) {
-        // We know that numTouchedRows = numCopiedRows + numUpdatedRows.
-        // Since an entire partition was re-written, no rows were copied.
-        // So numTouchedRows == numUpdateRows
-        metrics("numUpdatedRows").set(metrics("numTouchedRows").value)
-      } else {
-        // This is for case 3 where the update condition contains both metadata and data predicates
-        // so relevant files will have some rows updated and some rows copied. We don't need to
-        // consider case 1 here, where no files match the update condition, as we know that
-        // `totalActions` is empty.
-        metrics("numCopiedRows").set(
-          metrics("numTouchedRows").value - metrics("numUpdatedRows").value)
-      }
-      txn.registerSQLMetrics(sparkSession, metrics)
-      txn.commit(totalActions, DeltaOperations.Update(condition.map(_.toString)))
-      // This is needed to make the SQL metrics visible in the Spark UI
-      val executionId = sparkSession.sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
-      SQLMetrics.postDriverMetricUpdates(
-        sparkSession.sparkContext,
-        executionId,
-        metrics.values.toSeq)
+    metrics("numAddedFiles").set(numRewrittenFiles)
+    metrics("numAddedBytes").set(numAddedBytes)
+    metrics("numAddedChangeFiles").set(numAddedChangeFiles)
+    metrics("changeFileBytes").set(changeFileBytes)
+    metrics("numRemovedFiles").set(numTouchedFiles)
+    metrics("numRemovedBytes").set(numRemovedBytes)
+    metrics("executionTimeMs").set((System.nanoTime() - startTime) / 1000 / 1000)
+    metrics("scanTimeMs").set(scanTimeMs)
+    metrics("rewriteTimeMs").set(rewriteTimeMs)
+    // In the case where the numUpdatedRows is not captured, we can siphon out the metrics from
+    // the BasicWriteStatsTracker. This is for case 2 where the update condition contains only
+    // metadata predicates and so the entire partition is re-written.
+    val outputRows = txn.getMetric("numOutputRows").map(_.value).getOrElse(-1L)
+    if (metrics("numUpdatedRows").value == 0 && outputRows != 0 &&
+      metrics("numCopiedRows").value == 0) {
+      // We know that numTouchedRows = numCopiedRows + numUpdatedRows.
+      // Since an entire partition was re-written, no rows were copied.
+      // So numTouchedRows == numUpdateRows
+      metrics("numUpdatedRows").set(metrics("numTouchedRows").value)
+    } else {
+      // This is for case 3 where the update condition contains both metadata and data predicates
+      // so relevant files will have some rows updated and some rows copied. We don't need to
+      // consider case 1 here, where no files match the update condition, as we know that
+      // `totalActions` is empty.
+      metrics("numCopiedRows").set(
+        metrics("numTouchedRows").value - metrics("numUpdatedRows").value)
     }
+    txn.registerSQLMetrics(sparkSession, metrics)
+
+    val finalActions = createSetTransaction(sparkSession, deltaLog).toSeq ++ totalActions
+    txn.commitIfNeeded(finalActions, DeltaOperations.Update(condition.map(_.toString)))
+    sendDriverMetrics(sparkSession, metrics)
 
     recordDeltaEvent(
       deltaLog,
@@ -255,19 +245,17 @@ case class UpdateCommand(
         numAddedChangeFiles,
         changeFileBytes,
         scanTimeMs,
-        rewriteTimeMs
-      )
+        rewriteTimeMs)
     )
   }
 
   /**
    * Scan all the affected files and write out the updated files.
    *
-   * When CDF is enabled, includes the generation of CDC preimage and postimage columns for changed
-   * rows.
+   * When CDF is enabled, includes the generation of CDC preimage and postimage columns for
+   * changed rows.
    *
-   * @return
-   *   the list of [[AddFile]]s and [[AddCDCFile]]s that have been written.
+   * @return the list of [[AddFile]]s and [[AddCDCFile]]s that have been written.
    */
   private def rewriteFiles(
       spark: SparkSession,
@@ -277,21 +265,18 @@ case class UpdateCommand(
       nameToAddFileMap: Map[String, AddFile],
       condition: Expression): Seq[FileAction] = {
     // Containing the map from the relative file path to AddFile
-    val baseRelation =
-      buildBaseRelation(spark, txn, "update", rootPath, inputLeafFiles, nameToAddFileMap)
+    val baseRelation = buildBaseRelation(
+      spark, txn, "update", rootPath, inputLeafFiles, nameToAddFileMap)
     val newTarget = DeltaTableUtils.replaceFileIndex(target, baseRelation.location)
     val targetDf = Dataset.ofRows(spark, newTarget)
 
     // Number of total rows that we have seen, i.e. are either copying or updating (sum of both).
     // This will be used later, along with numUpdatedRows, to determine numCopiedRows.
     val numTouchedRows = metrics("numTouchedRows")
-    val numTouchedRowsUdf = DeltaUDF
-      .boolean {
-        () =>
-          numTouchedRows += 1
-          true
-      }
-      .asNondeterministic()
+    val numTouchedRowsUdf = DeltaUDF.boolean { () =>
+      numTouchedRows += 1
+      true
+    }.asNondeterministic()
 
     val updatedDataFrame = UpdateCommand.withUpdatedColumns(
       target,
@@ -300,8 +285,7 @@ case class UpdateCommand(
       targetDf
         .filter(numTouchedRowsUdf())
         .withColumn(UpdateCommand.CONDITION_COLUMN_NAME, new Column(condition)),
-      UpdateCommand.shouldOutputCdc(txn)
-    )
+      UpdateCommand.shouldOutputCdc(txn))
 
     txn.writeFiles(updatedDataFrame)
   }
@@ -324,25 +308,20 @@ object UpdateCommand {
   }
 
   /**
-   * Build the new columns. If the condition matches, generate the new value using the corresponding
-   * UPDATE EXPRESSION; otherwise, keep the original column value.
+   * Build the new columns. If the condition matches, generate the new value using
+   * the corresponding UPDATE EXPRESSION; otherwise, keep the original column value.
    *
    * When CDC is enabled, includes the generation of CDC pre-image and post-image columns for
    * changed rows.
    *
-   * @param target
-   *   target we are updating into
-   * @param updateExpressions
-   *   the update transformation to perform on the input DataFrame
-   * @param dfWithEvaluatedCondition
-   *   source DataFrame on which we will apply the update expressions with an additional column
-   *   CONDITION_COLUMN_NAME which is the true/false value of if the update condition is satisfied
-   * @param condition
-   *   update condition
-   * @param shouldOutputCdc
-   *   if we should output CDC data during this UPDATE operation.
-   * @return
-   *   the updated DataFrame, with extra CDC columns if CDC is enabled
+   * @param target target we are updating into
+   * @param updateExpressions the update transformation to perform on the input DataFrame
+   * @param dfWithEvaluatedCondition source DataFrame on which we will apply the update expressions
+   *                                 with an additional column CONDITION_COLUMN_NAME which is the
+   *                                 true/false value of if the update condition is satisfied
+   * @param condition update condition
+   * @param shouldOutputCdc if we should output CDC data during this UPDATE operation.
+   * @return the updated DataFrame, with extra CDC columns if CDC is enabled
    */
   def withUpdatedColumns(
       target: LogicalPlan,
@@ -377,24 +356,22 @@ object UpdateCommand {
         If(
           UnresolvedAttribute(CONDITION_COLUMN_NAME),
           packedUpdates, // if it should be updated, then use `packagedUpdates`
-          array(struct(noopRewriteCols: _*)).expr
-        ) // else, this is a noop rewrite
+          array(struct(noopRewriteCols: _*)).expr) // else, this is a noop rewrite
       }
 
       // Explode the packed array, and project back out the final data columns.
       val finalColNames = target.output.map(_.name) :+ CDC_TYPE_COLUMN_NAME
       dfWithEvaluatedCondition
         .select(explode(new Column(packedData)).as("packedData"))
-        .select(finalColNames.map(n => col(s"packedData.`$n`").as(s"$n")): _*)
+        .select(finalColNames.map { n => col(s"packedData.`$n`").as(s"$n") }: _*)
     } else {
-      val finalCols = updateExpressions.zip(target.output).map {
-        case (update, original) =>
-          val updated = if (condition == Literal.TrueLiteral) {
-            update
-          } else {
-            If(UnresolvedAttribute(CONDITION_COLUMN_NAME), update, original)
-          }
-          new Column(Alias(updated, original.name)())
+      val finalCols = updateExpressions.zip(target.output).map { case (update, original) =>
+        val updated = if (condition == Literal.TrueLiteral) {
+          update
+        } else {
+          If(UnresolvedAttribute(CONDITION_COLUMN_NAME), update, original)
+        }
+        new Column(Alias(updated, original.name)())
       }
 
       dfWithEvaluatedCondition.select(finalCols: _*)
@@ -407,25 +384,16 @@ object UpdateCommand {
 /**
  * Used to report details about update.
  *
- * @param condition:
- *   what was the update condition
- * @param numFilesTotal:
- *   how big is the table
- * @param numTouchedFiles:
- *   how many files did we touch
- * @param numRewrittenFiles:
- *   how many files had to be rewritten
- * @param numAddedChangeFiles:
- *   how many change files were generated
- * @param changeFileBytes:
- *   total size of change files generated
- * @param scanTimeMs:
- *   how long did finding take
- * @param rewriteTimeMs:
- *   how long did rewriting take
+ * @param condition: what was the update condition
+ * @param numFilesTotal: how big is the table
+ * @param numTouchedFiles: how many files did we touch
+ * @param numRewrittenFiles: how many files had to be rewritten
+ * @param numAddedChangeFiles: how many change files were generated
+ * @param changeFileBytes: total size of change files generated
+ * @param scanTimeMs: how long did finding take
+ * @param rewriteTimeMs: how long did rewriting take
  *
- * @note
- *   All the time units are milliseconds.
+ * @note All the time units are milliseconds.
  */
 case class UpdateMetric(
     condition: String,

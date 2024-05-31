@@ -21,6 +21,7 @@ import org.apache.spark.sql.delta._
 import org.apache.spark.sql.delta.actions.{FileAction, RemoveFile}
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.delta.util.DeltaFileOperations
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.functions.{col, expr, when}
 import org.apache.spark.util.{Clock, SerializableConfiguration, SystemClock}
 
@@ -41,7 +42,9 @@ import java.util.concurrent.TimeUnit
  */
 object VacuumCommand extends VacuumCommandImpl with Serializable {
 
-  case class FileNameAndSize(path: String, length: Long, isDir: Boolean)
+  // --- modified start
+  case class FileNameAndSize(path: String, length: Long, isDir: Boolean = false)
+  // --- modified end
 
   /**
    * Additional check on retention duration to prevent people from shooting themselves in the foot.
@@ -111,6 +114,11 @@ object VacuumCommand extends VacuumCommandImpl with Serializable {
         snapshot.version >= 0,
         "No state defined for this table. Is this really " +
           "a Delta table? Refusing to garbage collect.")
+
+      // --- modified start
+      val isMergeTreeFormat = ClickHouseConfig
+        .isMergeTreeFormatEngine(deltaLog.snapshot.metadata.configuration)
+      // --- modified end
 
       val retentionMillis = retentionHours.map(h => TimeUnit.HOURS.toMillis(math.round(h)))
       checkRetentionPeriodSafety(spark, retentionMillis, deltaLog.tombstoneRetentionMillis)
@@ -209,60 +217,92 @@ object VacuumCommand extends VacuumCommandImpl with Serializable {
         //   5. We subtract all the valid files and tombstones in our state
         //   6. We filter all paths with a count of 1, which will correspond to files not in the
         //      state, and empty directories. We can safely delete all of these
-        val diff_temp = allFilesAndDirs
-          .where('modificationTime < deleteBeforeTimestamp || 'isDir)
-          .mapPartitions {
-            fileStatusIterator =>
-              val reservoirBase = new Path(basePath)
-              val fs = reservoirBase.getFileSystem(hadoopConf.value.value)
-              fileStatusIterator.flatMap {
-                fileStatus =>
-                  if (fileStatus.isDir) {
-                    implicit val fileNameAndSizeEncoder =
-                      org.apache.spark.sql.Encoders.product[FileNameAndSize]
-                    Iterator.single(
-                      FileNameAndSize(
-                        relativize(fileStatus.getPath, fs, reservoirBase, isDir = true),
-                        0,
-                        true)
-                    )
-                  } else {
-                    val dirs = getAllSubdirs(basePath, fileStatus.path, fs)
-                    val dirsWithSlash = dirs.map {
-                      p =>
+        // --- modified start
+        val diff = if (isMergeTreeFormat) {
+          val diff_temp = allFilesAndDirs
+            .where('modificationTime < deleteBeforeTimestamp || 'isDir)
+            .mapPartitions {
+              fileStatusIterator =>
+                val reservoirBase = new Path(basePath)
+                val fs = reservoirBase.getFileSystem(hadoopConf.value.value)
+                fileStatusIterator.flatMap {
+                  fileStatus =>
+                    if (fileStatus.isDir) {
+                      implicit val fileNameAndSizeEncoder =
+                        org.apache.spark.sql.Encoders.product[FileNameAndSize]
+                      Iterator.single(
                         FileNameAndSize(
-                          relativize(new Path(p), fs, reservoirBase, isDir = true),
+                          relativize(fileStatus.getPath, fs, reservoirBase, isDir = true),
                           0,
                           true)
+                      )
+                    } else {
+                      val dirs = getAllSubdirs(basePath, fileStatus.path, fs)
+                      val dirsWithSlash = dirs.map {
+                        p =>
+                          FileNameAndSize(
+                            relativize(new Path(p), fs, reservoirBase, isDir = true),
+                            0,
+                            true)
+                      }
+                      dirsWithSlash ++ Iterator(
+                        FileNameAndSize(
+                          relativize(new Path(fileStatus.path), fs, reservoirBase, isDir = false),
+                          0,
+                          false))
                     }
-                    dirsWithSlash ++ Iterator(
-                      FileNameAndSize(
-                        relativize(new Path(fileStatus.path), fs, reservoirBase, isDir = false),
-                        0,
-                        false))
-                  }
-              }
-          }
-//          .groupBy(col("path"))
-          .withColumn(
-            "dir",
-            when(col("isDir"), col("path"))
-              .otherwise(expr("substring_index(path, '/',size(split(path, '/')) -1)")))
-          .groupBy(col("path"), col("dir"))
-          .count()
+                }
+            }
+            .withColumn(
+              "dir",
+              when(col("isDir"), col("path"))
+                .otherwise(expr("substring_index(path, '/',size(split(path, '/')) -1)")))
+            .groupBy(col("path"), col("dir"))
+            .count()
 
-        val diff = diff_temp
-          .join(validFiles, diff_temp("dir") === validFiles("path"), "leftanti")
-          .where('count === 1)
-          .select('path)
-          .as[String]
-          .map {
-            relativePath =>
-              assert(
-                !stringToPath(relativePath).isAbsolute,
+          diff_temp
+            .join(validFiles, diff_temp("dir") === validFiles("path"), "leftanti")
+            .where('count === 1)
+            .select('path)
+            .as[String]
+            .map {
+              relativePath =>
+                assert(
+                  !stringToPath(relativePath).isAbsolute,
+                  "Shouldn't have any absolute paths for deletion here.")
+                pathToString(DeltaFileOperations.absolutePath(basePath, relativePath))
+            }
+        } else {
+          allFilesAndDirs
+            .where('modificationTime < deleteBeforeTimestamp || 'isDir)
+            .mapPartitions { fileStatusIterator =>
+              val reservoirBase = new Path(basePath)
+              val fs = reservoirBase.getFileSystem(hadoopConf.value.value)
+              fileStatusIterator.flatMap { fileStatus =>
+                if (fileStatus.isDir) {
+                  Iterator.single(relativize(fileStatus.getPath, fs, reservoirBase, isDir = true))
+                } else {
+                  val dirs = getAllSubdirs(basePath, fileStatus.path, fs)
+                  val dirsWithSlash = dirs.map { p =>
+                    relativize(new Path(p), fs, reservoirBase, isDir = true)
+                  }
+                  dirsWithSlash ++ Iterator(
+                    relativize(new Path(fileStatus.path), fs, reservoirBase, isDir = false))
+                }
+              }
+            }.groupBy($"value" as 'path)
+            .count()
+            .join(validFiles, Seq("path"), "leftanti")
+            .where('count === 1)
+            .select('path)
+            .as[String]
+            .map { relativePath =>
+              assert(!stringToPath(relativePath).isAbsolute,
                 "Shouldn't have any absolute paths for deletion here.")
               pathToString(DeltaFileOperations.absolutePath(basePath, relativePath))
-          }
+            }
+        }
+        // --- modified end
 
         if (dryRun) {
           val numFiles = diff.count()

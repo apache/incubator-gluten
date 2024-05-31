@@ -127,7 +127,13 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
     assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p")) == 22728)
     spark.sql("VACUUM lineitem_mergetree_optimize_p RETAIN 0 HOURS")
-    assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p")) == 22728)
+    if (sparkVersion.equals("3.2")) {
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p")) == 22728)
+    } else {
+      // For Spark 3.3 + Delta 2.3, vacuum command will create two commit files in deltalog dir.
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p")) == 22730)
+    }
+
     spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
     val ret2 = spark.sql("select count(*) from lineitem_mergetree_optimize_p").collect()
@@ -150,7 +156,12 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     spark.sparkContext.setJobGroup("test2", "test2")
     spark.sql("optimize lineitem_mergetree_optimize_p2")
     val job_ids = spark.sparkContext.statusTracker.getJobIdsForGroup("test2")
-    assert(job_ids.size == 7) // WILL trigger actual merge job
+    if (sparkVersion.equals("3.2")) {
+      assert(job_ids.size == 7) // WILL trigger actual merge job
+    } else {
+      assert(job_ids.size == 8) // WILL trigger actual merge job
+    }
+
     spark.sparkContext.clearJobGroup()
 
     val ret = spark.sql("select count(*) from lineitem_mergetree_optimize_p2").collect()
@@ -159,10 +170,18 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
     assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 372)
     spark.sql("VACUUM lineitem_mergetree_optimize_p2 RETAIN 0 HOURS")
-    assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 239)
+    if (sparkVersion.equals("3.2")) {
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 239)
+    } else {
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 241)
+    }
     spark.sql("VACUUM lineitem_mergetree_optimize_p2 RETAIN 0 HOURS")
     // the second VACUUM will remove some empty folders
-    assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 220)
+    if (sparkVersion.equals("3.2")) {
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 220)
+    } else {
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")) == 226)
+    }
     spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
     val ret2 = spark.sql("select count(*) from lineitem_mergetree_optimize_p2").collect()
@@ -190,9 +209,17 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 516)
       spark.sql("VACUUM lineitem_mergetree_optimize_p3 RETAIN 0 HOURS")
-      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 306)
+      if (sparkVersion.equals("3.2")) {
+        assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 306)
+      } else {
+        assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 308)
+      }
       spark.sql("VACUUM lineitem_mergetree_optimize_p3 RETAIN 0 HOURS")
-      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 276)
+      if (sparkVersion.equals("3.2")) {
+        assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 276)
+      } else {
+        assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")) == 282)
+      }
       spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
       val ret2 = spark.sql("select count(*) from lineitem_mergetree_optimize_p3").collect()
@@ -221,9 +248,17 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
       assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 516)
       spark.sql("VACUUM lineitem_mergetree_optimize_p4 RETAIN 0 HOURS")
-      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 306)
+      if (sparkVersion.equals("3.2")) {
+        assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 306)
+      } else {
+        assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 308)
+      }
       spark.sql("VACUUM lineitem_mergetree_optimize_p4 RETAIN 0 HOURS")
-      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 276)
+      if (sparkVersion.equals("3.2")) {
+        assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 276)
+      } else {
+        assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")) == 282)
+      }
       spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
       val ret2 = spark.sql("select count(*) from lineitem_mergetree_optimize_p4").collect()
@@ -251,7 +286,13 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
       spark.sql("VACUUM lineitem_mergetree_optimize_p5 RETAIN 0 HOURS")
       spark.sql("VACUUM lineitem_mergetree_optimize_p5 RETAIN 0 HOURS")
-      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p5")) == 99)
+      if (sparkVersion.equals("3.2")) {
+        assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p5")) == 99)
+      } else {
+        // For Spark 3.3 + Delta 2.3, vacuum command will create two commit files in deltalog dir.
+        // this case will create a checkpoint
+        assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p5")) == 105)
+      }
       spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
       val ret = spark.sql("select count(*) from lineitem_mergetree_optimize_p5").collect()
@@ -271,7 +312,12 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
       spark.sql("VACUUM lineitem_mergetree_optimize_p5 RETAIN 0 HOURS")
       spark.sql("VACUUM lineitem_mergetree_optimize_p5 RETAIN 0 HOURS")
-      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p5")) == 93)
+      if (sparkVersion.equals("3.2")) {
+        assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p5")) == 93)
+      } else {
+        // For Spark 3.3 + Delta 2.3, vacuum command will create two commit files in deltalog dir.
+        assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p5")) == 104)
+      }
       spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
       val ret = spark.sql("select count(*) from lineitem_mergetree_optimize_p5").collect()
@@ -284,7 +330,12 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=false")
     spark.sql("VACUUM lineitem_mergetree_optimize_p5 RETAIN 0 HOURS")
     spark.sql("VACUUM lineitem_mergetree_optimize_p5 RETAIN 0 HOURS")
-    assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p5")) == 77)
+    if (sparkVersion.equals("3.2")) {
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p5")) == 77)
+    } else {
+      // For Spark 3.3 + Delta 2.3, vacuum command will create two commit files in deltalog dir.
+      assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p5")) == 93)
+    }
     spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
     val ret = spark.sql("select count(*) from lineitem_mergetree_optimize_p5").collect()
@@ -318,7 +369,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     spark.sql("VACUUM lineitem_mergetree_optimize_p6 RETAIN 0 HOURS")
     spark.sql("VACUUM lineitem_mergetree_optimize_p6 RETAIN 0 HOURS")
     assert(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p6")) == {
-      if (sparkVersion.equals("3.2")) 315 else 321
+      if (sparkVersion.equals("3.2")) 315 else 327
     })
     spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
 
@@ -393,7 +444,11 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       clickhouseTable.vacuum(0.0)
       clickhouseTable.vacuum(0.0)
       spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
-      assert(countFiles(new File(dataPath)) == 99)
+      if (sparkVersion.equals("3.2")) {
+        assert(countFiles(new File(dataPath)) == 99)
+      } else {
+        assert(countFiles(new File(dataPath)) == 105)
+      }
 
       val ret = spark.sql(s"select count(*) from clickhouse.`$dataPath`").collect()
       assert(ret.apply(0).get(0) == 600572)
@@ -414,7 +469,11 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       clickhouseTable.vacuum(0.0)
       clickhouseTable.vacuum(0.0)
       spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
-      assert(countFiles(new File(dataPath)) == 93)
+      if (sparkVersion.equals("3.2")) {
+        assert(countFiles(new File(dataPath)) == 93)
+      } else {
+        assert(countFiles(new File(dataPath)) == 104)
+      }
 
       val ret = spark.sql(s"select count(*) from clickhouse.`$dataPath`").collect()
       assert(ret.apply(0).get(0) == 600572)
@@ -428,7 +487,11 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     clickhouseTable.vacuum(0.0)
     clickhouseTable.vacuum(0.0)
     spark.sql(s"set ${GlutenConfig.GLUTEN_ENABLED.key}=true")
-    assert(countFiles(new File(dataPath)) == 77)
+    if (sparkVersion.equals("3.2")) {
+      assert(countFiles(new File(dataPath)) == 77)
+    } else {
+      assert(countFiles(new File(dataPath)) == 93)
+    }
 
     val ret = spark.sql(s"select count(*) from clickhouse.`$dataPath`").collect()
     assert(ret.apply(0).get(0) == 600572)

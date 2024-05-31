@@ -14,8 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.spark.sql.delta.files
 
+// scalastyle:off import.ordering.noEmptyLine
+import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.hadoop.mapreduce.{JobContext, TaskAttemptContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
@@ -26,18 +30,28 @@ import org.apache.spark.sql.delta.commands.cdc.CDCReader.{CDC_LOCATION, CDC_PART
 import org.apache.spark.sql.delta.util.{DateFormatter, PartitionUtils, TimestampFormatter, Utils => DeltaUtils}
 import org.apache.spark.sql.types.StringType
 
-// scalastyle:off import.ordering.noEmptyLine
-import org.apache.hadoop.fs.{FileStatus, Path}
-import org.apache.hadoop.mapreduce.{JobContext, TaskAttemptContext}
-
 import java.util.UUID
-
 import scala.collection.mutable.ArrayBuffer
 
-class MergeTreeCommitProtocol(jobId: String, path: String, randomPrefixLength: Option[Int])
-  extends FileCommitProtocol
-  with Serializable
-  with Logging {
+/**
+ * This file is copied from the DelayedCommitProtocol of the Delta 2.3.0
+ * and renamed to MergeTreeCommitProtocol.
+ * It is modified to overcome the following issues:
+ *   1. the function commitTask will return TaskCommitMessage(Nil),
+ *      the FileStatus list will be get from the CH backend.
+ */
+
+/**
+ * Writes out the files to `path` and returns a list of them in `addedStatuses`. Includes
+ * special handling for partitioning on [[CDC_PARTITION_COL]] for
+ * compatibility between enabled and disabled CDC; partitions with a value of false in this
+ * column produce no corresponding partitioning directory.
+ */
+class MergeTreeCommitProtocol(
+      jobId: String,
+      path: String,
+      randomPrefixLength: Option[Int])
+  extends FileCommitProtocol with Serializable with Logging {
   // Track the list of files added by a task, only used on the executors.
   @transient protected var addedFiles: ArrayBuffer[(Map[String, String], String)] = _
 
@@ -58,11 +72,13 @@ class MergeTreeCommitProtocol(jobId: String, path: String, randomPrefixLength: O
 
   // Constants for CDC partition manipulation. Used only in newTaskTempFile(), but we define them
   // here to avoid building a new redundant regex for every file.
-  protected val cdcPartitionFalse = s"$CDC_PARTITION_COL=false"
-  protected val cdcPartitionTrue = s"$CDC_PARTITION_COL=true"
+  protected val cdcPartitionFalse = s"${CDC_PARTITION_COL}=false"
+  protected val cdcPartitionTrue = s"${CDC_PARTITION_COL}=true"
   protected val cdcPartitionTrueRegex = cdcPartitionTrue.r
 
-  override def setupJob(jobContext: JobContext): Unit = {}
+  override def setupJob(jobContext: JobContext): Unit = {
+
+  }
 
   /**
    * Commits a job after the writes succeed. Must be called on the driver. Partitions the written
@@ -70,8 +86,7 @@ class MergeTreeCommitProtocol(jobId: String, path: String, randomPrefixLength: O
    * by [[TransactionalWrite]] (i.e. AddFile's may have additional statistics injected)
    */
   override def commitJob(jobContext: JobContext, taskCommits: Seq[TaskCommitMessage]): Unit = {
-    val (addFiles, changeFiles) = taskCommits
-      .flatMap(_.obj.asInstanceOf[Seq[_]])
+    val (addFiles, changeFiles) = taskCommits.flatMap(_.obj.asInstanceOf[Seq[_]])
       .partition {
         case _: AddFile => true
         case _: AddCDCFile => false
@@ -128,12 +143,14 @@ class MergeTreeCommitProtocol(jobId: String, path: String, randomPrefixLength: O
           timestampFormatter)
         ._1
         .get
-    parsedPartition.columnNames
-      .zip(
-        parsedPartition.literals
-          .map(l => Cast(l, StringType).eval())
-          .map(Option(_).map(_.toString).orNull))
-      .toMap
+    parsedPartition
+        .columnNames
+        .zip(
+          parsedPartition
+            .literals
+            .map(l => Cast(l, StringType).eval())
+            .map(Option(_).map(_.toString).orNull))
+        .toMap
   }
 
   /**
@@ -142,56 +159,46 @@ class MergeTreeCommitProtocol(jobId: String, path: String, randomPrefixLength: O
    *
    * Includes special logic for CDC files and paths. Specifically, if the directory `dir` contains
    * the CDC partition `__is_cdc=true` then
-   *   - the file name begins with `cdc-` instead of `part-`
-   *   - the directory has the `__is_cdc=true` partition removed and is placed in the
-   *     `_changed_data` folder
+   * - the file name begins with `cdc-` instead of `part-`
+   * - the directory has the `__is_cdc=true` partition removed and is placed in the `_changed_data`
+   *   folder
    */
   override def newTaskTempFile(
-      taskContext: TaskAttemptContext,
-      dir: Option[String],
-      ext: String): String = {
+      taskContext: TaskAttemptContext, dir: Option[String], ext: String): String = {
     val partitionValues = dir.map(parsePartitions).getOrElse(Map.empty[String, String])
     val filename = getFileName(taskContext, ext, partitionValues)
-    val relativePath = randomPrefixLength
-      .map {
-        prefixLength =>
-          DeltaUtils.getRandomPrefix(prefixLength) // Generate a random prefix as a first choice
+    val relativePath = randomPrefixLength.map { prefixLength =>
+      DeltaUtils.getRandomPrefix(prefixLength) // Generate a random prefix as a first choice
+    }.orElse {
+      dir // or else write into the partition directory if it is partitioned
+    }.map { subDir =>
+      // Do some surgery on the paths we write out to eliminate the CDC_PARTITION_COL. Non-CDC
+      // data is written to the base location, while CDC data is written to a special folder
+      // _change_data.
+      // The code here gets a bit complicated to accommodate two corner cases: an empty subdir
+      // can't be passed to new Path() at all, and a single-level subdir won't have a trailing
+      // slash.
+      if (subDir == cdcPartitionFalse) {
+        new Path(filename)
+      } else if (subDir.startsWith(cdcPartitionTrue)) {
+        val cleanedSubDir = cdcPartitionTrueRegex.replaceFirstIn(subDir, CDC_LOCATION)
+        new Path(cleanedSubDir, filename)
+      } else if (subDir.startsWith(cdcPartitionFalse)) {
+        // We need to remove the trailing slash in addition to the directory - otherwise
+        // it'll be interpreted as an absolute path and fail.
+        val cleanedSubDir = subDir.stripPrefix(cdcPartitionFalse + "/")
+        new Path(cleanedSubDir, filename)
+      } else {
+        new Path(subDir, filename)
       }
-      .orElse {
-        dir // or else write into the partition directory if it is partitioned
-      }
-      .map {
-        subDir =>
-          // Do some surgery on the paths we write out to eliminate the CDC_PARTITION_COL. Non-CDC
-          // data is written to the base location, while CDC data is written to a special folder
-          // _change_data.
-          // The code here gets a bit complicated to accommodate two corner cases: an empty subdir
-          // can't be passed to new Path() at all, and a single-level subdir won't have a trailing
-          // slash.
-          if (subDir == cdcPartitionFalse) {
-            new Path(filename)
-          } else if (subDir.startsWith(cdcPartitionTrue)) {
-            val cleanedSubDir = cdcPartitionTrueRegex.replaceFirstIn(subDir, CDC_LOCATION)
-            new Path(cleanedSubDir, filename)
-          } else if (subDir.startsWith(cdcPartitionFalse)) {
-            // We need to remove the trailing slash in addition to the directory - otherwise
-            // it'll be interpreted as an absolute path and fail.
-            val cleanedSubDir = subDir.stripPrefix(cdcPartitionFalse + "/")
-            new Path(cleanedSubDir, filename)
-          } else {
-            new Path(subDir, filename)
-          }
-      }
-      .getOrElse(new Path(filename)) // or directly write out to the output path
+    }.getOrElse(new Path(filename)) // or directly write out to the output path
 
     addedFiles.append((partitionValues, relativePath.toUri.toString))
     new Path(path, relativePath).toString
   }
 
   override def newTaskTempFileAbsPath(
-      taskContext: TaskAttemptContext,
-      absoluteDir: String,
-      ext: String): String = {
+      taskContext: TaskAttemptContext, absoluteDir: String, ext: String): String = {
     throw DeltaErrors.unsupportedAbsPathAddFile(s"$this")
   }
 
@@ -213,8 +220,9 @@ class MergeTreeCommitProtocol(jobId: String, path: String, randomPrefixLength: O
   }
 
   override def commitTask(taskContext: TaskAttemptContext): TaskCommitMessage = {
-    if (addedFiles.nonEmpty) {
-      /* val fs = new Path(path, addedFiles.head._2).getFileSystem(taskContext.getConfiguration)
+    // --- modified start
+    /* if (addedFiles.nonEmpty) {
+      val fs = new Path(path, addedFiles.head._2).getFileSystem(taskContext.getConfiguration)
       val statuses: Seq[FileAction] = addedFiles.map { f =>
         val filePath = new Path(path, new Path(new URI(f._2)))
         val stat = fs.getFileStatus(filePath)
@@ -222,15 +230,15 @@ class MergeTreeCommitProtocol(jobId: String, path: String, randomPrefixLength: O
         buildActionFromAddedFile(f, stat, taskContext)
       }.toSeq
 
-      new TaskCommitMessage(statuses) */
-      new TaskCommitMessage(Nil)
+      new TaskCommitMessage(statuses)
     } else {
       new TaskCommitMessage(Nil)
-    }
+    } */
+    // --- modified end
+    new TaskCommitMessage(Nil)
   }
 
   override def abortTask(taskContext: TaskAttemptContext): Unit = {
     // TODO: we can also try delete the addedFiles as a best-effort cleanup.
   }
-
 }

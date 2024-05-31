@@ -177,6 +177,7 @@ abstract class FileSourceScanExecTransformerBase(
     relation.fileFormat.getClass.getSimpleName match {
       case "OrcFileFormat" => ReadFileFormat.OrcReadFormat
       case "ParquetFileFormat" => ReadFileFormat.ParquetReadFormat
+      case "DeltaParquetFileFormat" => ReadFileFormat.ParquetReadFormat
       case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
       case "DeltaMergeTreeFileFormat" => ReadFileFormat.MergeTreeReadFormat
       case "CSVFileFormat" => ReadFileFormat.TextReadFormat
