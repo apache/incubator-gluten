@@ -19,7 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.extension.ValidationResult
-import org.apache.gluten.metrics.{MetricsUpdater, NoopMetricsUpdater}
+import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.`type`.TypeBuilder
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
@@ -114,5 +114,5 @@ case class TopNTransformer(
     }
   }
 
-  override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater // TODO
+  override def metricsUpdater(): MetricsUpdater = MetricsUpdater.Todo // TODO
 }
