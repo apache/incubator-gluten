@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.delta.commands
 
+import org.apache.gluten.utils.QueryPlanSelector
+
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.delta._
 import org.apache.spark.sql.delta.actions.{FileAction, RemoveFile}
@@ -140,6 +142,13 @@ object VacuumCommand extends VacuumCommandImpl with Serializable {
           .getOrElse(spark.sessionState.conf.numShufflePartitions)
       val relativizeIgnoreError =
         spark.sessionState.conf.getConf(DeltaSQLConf.DELTA_VACUUM_RELATIVIZE_IGNORE_ERROR)
+
+      // --- modified start
+      val originalEnabledGluten =
+        spark.sparkContext.getLocalProperty(QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY)
+      // gluten can not support vacuum command
+      spark.sparkContext.setLocalProperty(QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY, "false")
+      // --- modified end
 
       val validFiles = snapshot.stateDS
         .mapPartitions {
@@ -358,6 +367,16 @@ object VacuumCommand extends VacuumCommandImpl with Serializable {
         spark.createDataset(Seq(basePath)).toDF("path")
       } finally {
         allFilesAndDirs.unpersist()
+
+        // --- modified start
+        if (originalEnabledGluten != null) {
+          spark.sparkContext.setLocalProperty(
+            QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY, originalEnabledGluten)
+        } else {
+          spark.sparkContext.setLocalProperty(
+            QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY, "true")
+        }
+        // --- modified end
       }
     }
   }
