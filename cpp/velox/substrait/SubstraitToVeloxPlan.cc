@@ -1709,8 +1709,8 @@ bool SubstraitToVeloxPlanConverter::isPushdownSupported(TypePtr inputType) {
 }
 
 bool SubstraitToVeloxPlanConverter::canPushdownScalarFunction(
-  const ::substrait::Expression_ScalarFunction& function,
-  const std::vector<TypePtr>& veloxTypeList) {
+    const ::substrait::Expression_ScalarFunction& function,
+    const std::vector<TypePtr>& veloxTypeList) {
   for (const auto& arg : function.arguments()) {
     if (arg.value().has_scalar_function()) {
       const auto& scalarFunction = arg.value().scalar_function();
