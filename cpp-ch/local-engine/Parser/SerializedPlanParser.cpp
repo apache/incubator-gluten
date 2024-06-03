@@ -214,7 +214,7 @@ std::shared_ptr<ActionsDAG> SerializedPlanParser::expressionsToActionsDAG(
                 }
             }
         }
-        else if (expr.has_cast() || expr.has_if_then() || expr.has_literal())
+        else if (expr.has_cast() || expr.has_if_then() || expr.has_literal() || expr.has_singular_or_list())
         {
             const auto * node = parseExpression(actions_dag, expr);
             actions_dag->addOrReplaceInOutputs(*node);
