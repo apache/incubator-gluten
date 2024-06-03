@@ -32,6 +32,7 @@
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
 #include "shuffle/Options.h"
+#include "shuffle/ShuffleWriter.h"
 #include "utils/VeloxArrowUtils.h"
 #include "utils/exception.h"
 #include "velox/common/memory/Memory.h"
@@ -41,6 +42,7 @@ DECLARE_int32(cpu);
 DECLARE_int32(threads);
 DECLARE_int32(iterations);
 
+namespace gluten {
 /// Initialize the Velox backend with default value.
 void initVeloxBackend();
 
@@ -111,10 +113,16 @@ class BenchmarkAllocationListener final : public gluten::AllocationListener {
     iterator_ = iterator;
   }
 
+  void setShuffleWriter(gluten::ShuffleWriter* shuffleWriter) {
+    shuffleWriter_ = shuffleWriter;
+  }
+
   void allocationChanged(int64_t diff) override;
 
  private:
   uint64_t usedBytes_{0L};
   uint64_t limit_{0L};
-  gluten::ResultIterator* iterator_;
+  gluten::ResultIterator* iterator_{nullptr};
+  gluten::ShuffleWriter* shuffleWriter_{nullptr};
 };
+} // namespace gluten
