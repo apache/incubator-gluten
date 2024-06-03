@@ -289,7 +289,7 @@ Note that using different number of shuffle partitions here doesn't change the g
 
 Simuating range partitioning is not supported.
 
-3. Run the micro benchmark with dumpped inputs
+3. Run the micro benchmark with dumped inputs
 
 General configurations for shuffle write:
 
@@ -316,7 +316,23 @@ cd /path/to/gluten/cpp/build/velox/benchmarks
 --with-shuffle \
 --shuffle-writer sort \
 --partitioning hash \
---compression zstd
+--threads 1
+```
+
+### Run shuffle write task only
+
+Developers can only run shuffle write task via specifying `--run-shuffle` and `--data` options.
+The parquet format input will be read from arrow-parquet reader and sent to shuffle writer.
+This option is similar to the `--with-shuffle` option, but it doesn't require the plan and split files,
+and doesn't support the `--partitioning` option. The round-robin partitioner is used by default.
+
+```shell
+cd /path/to/gluten/cpp/build/velox/benchmarks
+./generic_benchmark \
+--run-shuffle \
+--data /path/to/input_for_shuffle_write.parquet
+--shuffle-writer sort \
+--threads 1
 ```
 
 ## Simulate write tasks
