@@ -22,7 +22,6 @@ import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, PlanExpression}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
@@ -31,7 +30,6 @@ import org.apache.spark.sql.execution.FileSourceScanExecShim
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.collection.BitSet
 
 case class FileSourceScanExecTransformer(
@@ -157,10 +155,6 @@ abstract class FileSourceScanExecTransformerBase(
     super.doValidateInternal()
   }
 
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    doExecuteColumnarInternal()
-  }
-
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genFileSourceScanTransformerMetricsUpdater(metrics)
 
@@ -193,6 +187,7 @@ abstract class FileSourceScanExecTransformerBase(
     relation.fileFormat.getClass.getSimpleName match {
       case "OrcFileFormat" => ReadFileFormat.OrcReadFormat
       case "ParquetFileFormat" => ReadFileFormat.ParquetReadFormat
+      case "DeltaParquetFileFormat" => ReadFileFormat.ParquetReadFormat
       case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
       case "DeltaMergeTreeFileFormat" => ReadFileFormat.MergeTreeReadFormat
       case "CSVFileFormat" => ReadFileFormat.TextReadFormat

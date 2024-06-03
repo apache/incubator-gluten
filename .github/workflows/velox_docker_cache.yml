@@ -27,7 +27,7 @@ concurrency:
 jobs:
   cache-native-lib:
     runs-on: ubuntu-20.04
-    container: apache/gluten:gluten-vcpkg-builder_2024_05_22 # centos7 with dependencies installed
+    container: apache/gluten:gluten-vcpkg-builder_2024_05_29 # centos7 with dependencies installed
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key
@@ -38,7 +38,9 @@ jobs:
         uses: actions/cache/restore@v3
         with:
           lookup-only: true
-          path: ./cpp/build/releases/
+          path: |
+            ./cpp/build/releases/
+            /root/.m2/repository/org/apache/arrow/
           key: cache-velox-build-${{ hashFiles('./cache-key') }}
       - name: Build Gluten Velox third party
         if: steps.check-cache.outputs.cache-hit != 'true'
@@ -49,7 +51,9 @@ jobs:
         id: cache
         uses: actions/cache/save@v3
         with:
-          path: ./cpp/build/releases/
+          path: |
+            ./cpp/build/releases/
+            /root/.m2/repository/org/apache/arrow/  
           key: cache-velox-build-${{ hashFiles('./cache-key') }}
 
   # ccache-native-lib-ubuntu-velox-ut:

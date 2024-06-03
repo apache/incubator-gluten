@@ -44,7 +44,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   uint64_t growCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
     std::lock_guard<std::recursive_mutex> l(mutex_);
     listener_->allocationChanged(targetBytes);
-    if (!pool->grow(targetBytes, 0)) {
+    if (!growPool(pool, targetBytes, 0)) {
       VELOX_FAIL("Failed to grow root pool's capacity for {}", velox::succinctBytes(targetBytes));
     }
     return targetBytes;
@@ -81,7 +81,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     auto pool = pools.at(0);
     const uint64_t oldCapacity = pool->capacity();
     pool->reclaim(targetBytes, 0, status); // ignore the output
-    pool->shrink(0);
+    shrinkPool(pool.get(), 0);
     const uint64_t newCapacity = pool->capacity();
     uint64_t total = oldCapacity - newCapacity;
     listener_->allocationChanged(-total);
@@ -104,14 +104,14 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     // We should pass bytes as parameter "reservationBytes" when calling ::grow.
     auto freeByes = pool->freeBytes();
     if (freeByes > bytes) {
-      if (pool->grow(0, bytes)) {
+      if (growPool(pool, 0, bytes)) {
         return;
       }
     }
-    auto reclaimedFreeBytes = pool->shrink(0);
+    auto reclaimedFreeBytes = shrinkPool(pool, 0);
     auto neededBytes = velox::bits::roundUp(bytes - reclaimedFreeBytes, memoryPoolTransferCapacity_);
     listener_->allocationChanged(neededBytes);
-    auto ret = pool->grow(reclaimedFreeBytes + neededBytes, bytes);
+    auto ret = growPool(pool, reclaimedFreeBytes + neededBytes, bytes);
     VELOX_CHECK(
         ret,
         "{} failed to grow {} bytes, current state {}",
@@ -121,7 +121,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
   uint64_t shrinkCapacityLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
-    uint64_t freeBytes = pool->shrink(bytes);
+    uint64_t freeBytes = shrinkPool(pool, bytes);
     listener_->allocationChanged(-freeBytes);
     return freeBytes;
   }

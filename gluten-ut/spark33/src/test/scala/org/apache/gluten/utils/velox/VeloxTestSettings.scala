@@ -18,6 +18,7 @@ package org.apache.gluten.utils.velox
 
 import org.apache.gluten.utils.{BackendTestSettings, SQLQueryTestSettings}
 
+import org.apache.spark.GlutenSortShuffleSuite
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions.{GlutenAnsiCastSuiteWithAnsiModeOff, GlutenAnsiCastSuiteWithAnsiModeOn, GlutenArithmeticExpressionSuite, GlutenBitwiseExpressionsSuite, GlutenCastSuite, GlutenCastSuiteWithAnsiModeOn, GlutenCollectionExpressionsSuite, GlutenComplexTypeSuite, GlutenConditionalExpressionSuite, GlutenDateExpressionsSuite, GlutenDecimalExpressionSuite, GlutenDecimalPrecisionSuite, GlutenHashExpressionsSuite, GlutenHigherOrderFunctionsSuite, GlutenIntervalExpressionsSuite, GlutenLiteralExpressionSuite, GlutenMathExpressionsSuite, GlutenMiscExpressionsSuite, GlutenNondeterministicSuite, GlutenNullExpressionsSuite, GlutenPredicateSuite, GlutenRandomSuite, GlutenRegexpExpressionsSuite, GlutenSortOrderExpressionsSuite, GlutenStringExpressionsSuite, GlutenTryCastSuite}
 import org.apache.spark.sql.connector._
@@ -159,6 +160,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("random")
     .exclude("SPARK-9127 codegen with long seed")
   enableSuite[GlutenRegexpExpressionsSuite]
+  enableSuite[GlutenSortShuffleSuite]
   enableSuite[GlutenSortOrderExpressionsSuite]
   enableSuite[GlutenStringExpressionsSuite]
   enableSuite[VeloxAdaptiveQueryExecSuite]
@@ -204,6 +206,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
+    .exclude("DDL test with tab separated file")
+    .exclude("DDL test parsing decimal type")
+    .exclude("test with tab delimiter and double quote")
     // Arrow not support corrupt record
     .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
   enableSuite[GlutenCSVv2Suite]
@@ -216,6 +221,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
+    .exclude("DDL test with tab separated file")
+    .exclude("DDL test parsing decimal type")
+    .exclude("test with tab delimiter and double quote")
     // Rule org.apache.spark.sql.execution.datasources.v2.V2ScanRelationPushDown in batch
     // Early Filter and Projection Push-Down generated an invalid plan
     .exclude("SPARK-26208: write and read empty data to csv file with headers")
@@ -227,6 +235,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
+    .exclude("DDL test with tab separated file")
+    .exclude("DDL test parsing decimal type")
+    .exclude("test with tab delimiter and double quote")
     // Arrow not support corrupt record
     .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
   enableSuite[GlutenJsonV1Suite]

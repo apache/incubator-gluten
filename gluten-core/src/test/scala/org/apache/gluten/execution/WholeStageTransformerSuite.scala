@@ -319,6 +319,26 @@ abstract class WholeStageTransformerSuite
     df
   }
 
+  /**
+   * Some rule on LogicalPlan will not only apply in select query, the total df.load() should in
+   * spark environment with gluten disabled config.
+   *
+   * @param sql
+   * @param f
+   * @return
+   */
+  protected def runAndCompare(sql: String)(f: => Unit): DataFrame = {
+    var expected: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      f
+      expected = spark.sql(sql).collect()
+    }
+    f
+    val df = spark.sql(sql)
+    checkAnswer(df, expected)
+    df
+  }
+
   protected def runQueryAndCompare(
       sqlStr: String,
       compareResult: Boolean = true,

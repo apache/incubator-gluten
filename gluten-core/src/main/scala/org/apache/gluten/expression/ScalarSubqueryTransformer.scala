@@ -18,6 +18,7 @@ package org.apache.gluten.expression
 
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.ScalarSubquery
 
@@ -30,21 +31,11 @@ case class ScalarSubqueryTransformer(substraitExprName: String, query: ScalarSub
     if (TransformerState.underValidationState) {
       return ExpressionBuilder.makeLiteral(null, query.dataType, true)
     }
-    // the first column in first row from `query`.
-    val rows = query.plan.executeCollect()
-    if (rows.length > 1) {
-      throw new IllegalStateException(
-        s"more than one row returned by a subquery used as an expression:\n${query.plan}")
-    }
-    val result: AnyRef = if (rows.length == 1) {
-      assert(
-        rows(0).numFields == 1,
-        s"Expects 1 field, but got ${rows(0).numFields}; something went wrong in analysis")
-      rows(0).get(0, query.dataType)
-    } else {
-      // If there is no rows returned, the result should be null.
-      null
-    }
+    // After https://github.com/apache/incubator-gluten/pull/5862, we do not need to execute
+    // subquery manually so the exception behavior is same with vanilla Spark.
+    // Note that, this code change is just for simplify. The subquery has already been materialized
+    // before doing transform.
+    val result = query.eval(InternalRow.empty)
     ExpressionBuilder.makeLiteral(result, query.dataType, result == null)
   }
 }

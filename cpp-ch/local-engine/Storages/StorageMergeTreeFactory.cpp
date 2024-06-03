@@ -18,71 +18,56 @@
 
 namespace local_engine
 {
+
+String StorageMergeTreeFactory::getTableName(const StorageID & id, const String & snapshot_id)
+{
+    auto table_name = id.database_name + "." + id.table_name;
+    // for optimize table
+    if (!snapshot_id.empty())
+        table_name += "_" + snapshot_id;
+
+    return table_name;
+}
+
+
 StorageMergeTreeFactory & StorageMergeTreeFactory::instance()
 {
     static StorageMergeTreeFactory ret;
     return ret;
 }
 
-void StorageMergeTreeFactory::freeStorage(StorageID id)
+void StorageMergeTreeFactory::freeStorage(const StorageID & id, const String & snapshot_id)
 {
-    if (!id.hasUUID())
-    {
-        return;
-    }
-    auto table_name = id.database_name + "." + id.table_name + "@" + toString(id.uuid);
+    auto table_name = getTableName(id, snapshot_id);
 
     {
         std::lock_guard lock(storage_map_mutex);
         if (storage_map->has(table_name))
-        {
             storage_map->remove(table_name);
-        }
     }
 
     {
         std::lock_guard lock(datapart_mutex);
         if (datapart_map->has(table_name))
-        {
             datapart_map->remove(table_name);
-        }
     }
 }
 
 CustomStorageMergeTreePtr
-StorageMergeTreeFactory::getStorage(StorageID id, const String & snapshot_id, ColumnsDescription columns, std::function<CustomStorageMergeTreePtr()> creator)
+StorageMergeTreeFactory::getStorage(StorageID id, const String & snapshot_id, std::function<CustomStorageMergeTreePtr()> creator)
 {
-    auto table_name = id.database_name + "." + id.table_name;
-    // for optimize table
-    if (id.hasUUID())
-    {
-        table_name += "@" + toString(id.uuid);
-    }
-    else
-    {
-        table_name += "_" + snapshot_id;
-    }
+    auto table_name = getTableName(id, snapshot_id);
     std::lock_guard lock(storage_map_mutex);
     if (!storage_map->has(table_name))
-    {
         storage_map->add(table_name, creator());
-    }
     return *(storage_map->get(table_name));
 }
 
-DataPartsVector StorageMergeTreeFactory::getDataParts(StorageID id, const String & snapshot_id, std::unordered_set<String> part_name)
+DataPartsVector StorageMergeTreeFactory::getDataPartsByNames(const StorageID & id, const String & snapshot_id, std::unordered_set<String> part_name)
 {
     DataPartsVector res;
-    auto table_name = id.database_name + "." + id.table_name;
-    // for optimize table
-    if (id.hasUUID())
-    {
-        table_name += "@" + toString(id.uuid);
-    }
-    else
-    {
-        table_name += "_" + snapshot_id;
-    }
+    auto table_name = getTableName(id, snapshot_id);
+
     std::lock_guard lock(datapart_mutex);
     std::unordered_set<String> missing_names;
     if (!datapart_map->has(table_name)) [[unlikely]]

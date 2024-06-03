@@ -2551,5 +2551,17 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
     spark.sql("drop table test_tbl_5096")
   }
+
+  test("GLUTEN-5896: Bug fix greatest diff") {
+    val tbl_create_sql =
+      "create table test_tbl_5896(id bigint, x1 int, x2 int, x3 int) using parquet"
+    val tbl_insert_sql =
+      "insert into test_tbl_5896 values(1, 12, NULL, 13), (2, NULL, NULL, NULL), (3, 11, NULL, NULL), (4, 10, 9, 8)"
+    val select_sql = "select id, greatest(x1, x2, x3) from test_tbl_5896"
+    spark.sql(tbl_create_sql)
+    spark.sql(tbl_insert_sql)
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    spark.sql("drop table test_tbl_5896")
+  }
 }
 // scalastyle:on line.size.limit

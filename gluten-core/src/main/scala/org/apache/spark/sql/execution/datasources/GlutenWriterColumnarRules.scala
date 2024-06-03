@@ -24,7 +24,7 @@ import org.apache.gluten.extension.columnar.transition.Transitions
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, OrderPreservingUnaryNode}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
@@ -63,6 +63,11 @@ case class FakeRowAdaptor(child: SparkPlan)
 
   override protected def doExecute(): RDD[InternalRow] = {
     doExecuteColumnar().map(cb => new FakeRow(cb))
+  }
+
+  override def outputOrdering: Seq[SortOrder] = child match {
+    case aqe: AdaptiveSparkPlanExec => aqe.executedPlan.outputOrdering
+    case _ => child.outputOrdering
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {

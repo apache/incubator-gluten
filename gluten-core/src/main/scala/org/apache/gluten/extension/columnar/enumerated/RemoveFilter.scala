@@ -54,12 +54,12 @@ object RemoveFilter extends RasRule[SparkPlan] {
         leaf(clazz(classOf[BasicScanExecTransformer]))
       ).build())
 
-  // A noop filter placeholder that indicates that all conditions are pushed into scan.
+  // A noop filter placeholder that indicates that all conditions are pushed down to scan.
   //
   // This operator has zero cost in cost model to avoid planner from choosing the
   // original filter-scan that doesn't have all conditions pushed down to scan.
   //
-  // We cannot simplify remove the filter to let planner choose the scan since by vanilla
+  // We cannot simply remove the filter to let planner choose the pushed scan since by vanilla
   // Spark's definition the filter may have different output nullability than scan. So
   // we have to keep this empty filter to let the optimized tree have the identical output schema
   // with the original tree. If we simply remove the filter, possible UBs might be caused. For
@@ -75,8 +75,8 @@ object RemoveFilter extends RasRule[SparkPlan] {
     override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan = copy(newChild)
     override def outputPartitioning: Partitioning = child.outputPartitioning
     override def outputOrdering: Seq[SortOrder] = child.outputOrdering
-    override def doTransform(context: SubstraitContext): TransformContext =
-      child.asInstanceOf[TransformSupport].doTransform(context)
+    override protected def doTransform(context: SubstraitContext): TransformContext =
+      child.asInstanceOf[TransformSupport].transform(context)
     override protected def doExecuteColumnar(): RDD[ColumnarBatch] = child.executeColumnar()
   }
 }

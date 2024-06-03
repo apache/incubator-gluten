@@ -544,6 +544,10 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIterat
   auto ctx = gluten::getRuntime(env, wrapper);
 
   auto it = ctx->objectStore()->retrieve<ResultIterator>(iterHandle);
+  if (it == nullptr) {
+    std::string errorMessage = "Invalid result iter handle " + std::to_string(iterHandle);
+    throw gluten::GlutenException(errorMessage);
+  }
   return it->spillFixedSize(size);
   JNI_METHOD_END(kInvalidResourceHandle)
 }

@@ -19,6 +19,7 @@ package org.apache.gluten.datasource
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.datasource.v2.ArrowCSVTable
 import org.apache.gluten.sql.shims.SparkShimLoader
+import org.apache.gluten.utils.LogicalPlanSelector
 
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.sql.SparkSession
@@ -39,7 +40,7 @@ import scala.collection.convert.ImplicitConversions.`map AsScala`
 
 @Experimental
 case class ArrowConvertorRule(session: SparkSession) extends Rule[LogicalPlan] {
-  override def apply(plan: LogicalPlan): LogicalPlan = {
+  override def apply(plan: LogicalPlan): LogicalPlan = LogicalPlanSelector.maybe(session, plan) {
     if (!BackendsApiManager.getSettings.enableNativeArrowReadFiles()) {
       return plan
     }
@@ -49,7 +50,11 @@ case class ArrowConvertorRule(session: SparkSession) extends Rule[LogicalPlan] {
             _,
             _,
             _) if validate(session, dataSchema, options) =>
-        l.copy(relation = r.copy(fileFormat = new ArrowCSVFileFormat())(session))
+        val csvOptions = new CSVOptions(
+          options,
+          columnPruning = session.sessionState.conf.csvColumnPruning,
+          session.sessionState.conf.sessionLocalTimeZone)
+        l.copy(relation = r.copy(fileFormat = new ArrowCSVFileFormat(csvOptions))(session))
       case d @ DataSourceV2Relation(
             t @ CSVTable(
               name,
@@ -88,7 +93,8 @@ case class ArrowConvertorRule(session: SparkSession) extends Rule[LogicalPlan] {
   }
 
   private def checkCsvOptions(csvOptions: CSVOptions, timeZone: String): Boolean = {
-    csvOptions.headerFlag && !csvOptions.multiLine && csvOptions.delimiter == "," &&
+    csvOptions.headerFlag && !csvOptions.multiLine &&
+    csvOptions.delimiter.length == 1 &&
     csvOptions.quote == '\"' &&
     csvOptions.escape == '\\' &&
     csvOptions.lineSeparator.isEmpty &&

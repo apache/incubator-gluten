@@ -104,7 +104,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"hypot", "hypot"},
        {"sign", "sign"},
        {"radians", "radians"},
-       {"greatest", "greatest"},
+       {"greatest", "sparkGreatest"},
        {"least", "least"},
        {"shiftleft", "bitShiftLeft"},
        {"shiftright", "bitShiftRight"},

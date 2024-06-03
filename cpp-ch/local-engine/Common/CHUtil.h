@@ -1,4 +1,5 @@
 /*
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -167,6 +168,9 @@ public:
     inline static const std::string SPARK_HADOOP_PREFIX = "spark.hadoop.";
     inline static const std::string S3A_PREFIX = "fs.s3a.";
     inline static const std::string SPARK_DELTA_PREFIX = "spark.databricks.delta.";
+
+    inline static const String GLUTEN_TASK_OFFHEAP = "spark.gluten.memory.task.offHeap.size.in.bytes";
+    inline static const String CH_TASK_MEMORY = "off_heap_per_task";
 
     /// On yarn mode, native writing on hdfs cluster takes yarn container user as the user passed to libhdfs3, which
     /// will cause permission issue because yarn container user is not the owner of the hdfs dir to be written.

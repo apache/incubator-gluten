@@ -126,6 +126,13 @@ trait SparkPlanExecApi {
       right: SparkPlan,
       isNullAwareAntiJoin: Boolean = false): BroadcastHashJoinExecTransformerBase
 
+  def genSampleExecTransformer(
+      lowerBound: Double,
+      upperBound: Double,
+      withReplacement: Boolean,
+      seed: Long,
+      child: SparkPlan): SampleExecTransformer
+
   /** Generate ShuffledHashJoinExecTransformer. */
   def genSortMergeJoinExecTransformer(
       leftKeys: Seq[Expression],

@@ -146,6 +146,8 @@ trait BackendSettingsApi {
 
   def supportBroadcastNestedLoopJoinExec(): Boolean = false
 
+  def supportSampleExec(): Boolean = false
+
   /** Merge two phases hash based aggregate if need */
   def mergeTwoPhasesHashBaseAggregateIfNeed(): Boolean = false
 

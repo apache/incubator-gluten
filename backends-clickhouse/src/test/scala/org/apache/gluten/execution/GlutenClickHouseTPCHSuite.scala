@@ -481,5 +481,20 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
 
     spark.sql(table_drop_sql)
   }
+
+  test("GLUTEN-5904 NaN values from stddev") {
+    val sql1 =
+      """
+        |select a, stddev(b/c) from (select * from values (1,2, 1), (1,3,0) as data(a,b,c))
+        |group by a
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+    val sql2 =
+      """
+        |select a, stddev(b) from (select * from values (1,2, 1) as data(a,b,c)) group by a
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+
+  }
 }
 // scalastyle:off line.size.limit

@@ -68,7 +68,6 @@ static const std::unordered_set<std::string> kBlackList = {
     "repeat",
     "trunc",
     "sequence",
-    "arrays_overlap",
     "approx_percentile",
     "get_array_struct_fields"};
 
@@ -1046,6 +1045,16 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
           LOG_VALIDATION_MSG("Validation failed for function " + funcName + " resolve type in AggregateRel.");
           return false;
         }
+        static const std::unordered_set<std::string> notSupportComplexTypeAggFuncs = {"set_agg", "min", "max"};
+        if (notSupportComplexTypeAggFuncs.find(baseFuncName) != notSupportComplexTypeAggFuncs.end() &&
+            exec::isRawInput(funcStep)) {
+          auto type = binder.tryResolveType(signature->argumentTypes()[0]);
+          if (type->isArray() || type->isMap() || type->isRow()) {
+            LOG_VALIDATION_MSG("Validation failed for function " + baseFuncName + " complex type is not supported.");
+            return false;
+          }
+        }
+
         resolved = true;
         break;
       }

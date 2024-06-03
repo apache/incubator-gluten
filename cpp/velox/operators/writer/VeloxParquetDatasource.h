@@ -89,6 +89,7 @@ class VeloxParquetDatasource : public Datasource {
       : Datasource(filePath, schema), filePath_(filePath), schema_(schema), pool_(std::move(veloxPool)) {}
 
   void init(const std::unordered_map<std::string, std::string>& sparkConfs) override;
+  virtual void initSink(const std::unordered_map<std::string, std::string>& sparkConfs);
   void inspectSchema(struct ArrowSchema* out) override;
   void write(const std::shared_ptr<ColumnarBatch>& cb) override;
   void close() override;

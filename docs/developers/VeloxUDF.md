@@ -137,13 +137,10 @@ You can also specify the local or HDFS URIs to the UDF libraries or archives. Lo
 ## Try the example
 
 We provided Velox UDF examples in file [MyUDF.cc](../../cpp/velox/udf/examples/MyUDF.cc) and UDAF examples in file [MyUDAF.cc](../../cpp/velox/udf/examples/MyUDAF.cc).
-You need to build the gluten cpp project with `--build_example=ON` to get the example libraries.
+You need to build the gluten project with `--build_example=ON` to get the example libraries.
 
 ```shell
-## compile Gluten cpp module
-cd /path/to/gluten/cpp
-## if you use custom velox_home, make sure specified here by --velox_home
-./compile.sh --build_velox_backend=ON --build_examples=ON
+./dev/buildbundle-veloxbe.sh --build_examples=ON
 ```
 
 Then, you can find the example libraries at /path/to/gluten/cpp/build/velox/udf/examples/
