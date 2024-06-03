@@ -297,6 +297,7 @@ General configurations for shuffle write:
 - `--shuffle-writer`: Specify shuffle writer type. Valid options are sort and hash. Default is hash.
 - `--partitioning`: Specify partitioning type. Valid options are rr, hash and single. Defualt is rr.
                     The partitioning type should match the command in step 2.
+- `--shuffle-partitions`: Specify number of shuffle partitions.
 - `--compression`: By default, the compression codec for shuffle outputs is lz4. You can switch to other compression codecs
   or use hardware accelerators Valid options are: lz4, zstd, qat-gzip, qat-zstd and iaa-gzip. The compression levels are fixed (use default compression level 1).
 
