@@ -27,7 +27,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DecimalType, StringType, StructField, StructType}
+import org.apache.spark.sql.types.{DecimalType, IntegerType, StringType, StructField, StructType}
 
 import java.util.concurrent.TimeUnit
 
@@ -483,42 +483,153 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
   }
 
   test("csv scan") {
-    val filePath = rootPath + "/datasource/csv/student.csv"
-    val df = spark.read
-      .format("csv")
-      .option("header", "true")
-      .load(filePath)
-    df.createOrReplaceTempView("student")
-    runQueryAndCompare("select * from student") {
-      df =>
-        val plan = df.queryExecution.executedPlan
-        assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
-        assert(plan.find(_.isInstanceOf[ArrowFileSourceScanExec]).isDefined)
-        val scan = plan.find(_.isInstanceOf[ArrowFileSourceScanExec]).toList.head
-        assert(
-          scan
-            .asInstanceOf[ArrowFileSourceScanExec]
-            .relation
-            .fileFormat
-            .isInstanceOf[ArrowCSVFileFormat])
+    val df = runAndCompare("select * from student") {
+      val filePath = rootPath + "/datasource/csv/student.csv"
+      val df = spark.read
+        .format("csv")
+        .option("header", "true")
+        .load(filePath)
+      df.createOrReplaceTempView("student")
     }
+    val plan = df.queryExecution.executedPlan
+    assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
+    assert(plan.find(_.isInstanceOf[ArrowFileSourceScanExec]).isDefined)
+    val scan = plan.find(_.isInstanceOf[ArrowFileSourceScanExec]).toList.head
+    assert(
+      scan
+        .asInstanceOf[ArrowFileSourceScanExec]
+        .relation
+        .fileFormat
+        .isInstanceOf[ArrowCSVFileFormat])
+  }
+
+  test("csv scan with option string as null") {
+    val df = runAndCompare("select * from student") {
+      val filePath = rootPath + "/datasource/csv/student_option_str.csv"
+      // test strings as null
+      val df = spark.read
+        .format("csv")
+        .option("header", "true")
+        .load(filePath)
+      df.createOrReplaceTempView("student")
+    }
+    val plan = df.queryExecution.executedPlan
+    assert(plan.find(_.isInstanceOf[ColumnarToRowExec]).isDefined)
+    assert(plan.find(_.isInstanceOf[ArrowFileSourceScanExec]).isDefined)
+  }
+
+  test("csv scan with option delimiter") {
+    val df = runAndCompare("select * from student") {
+      val filePath = rootPath + "/datasource/csv/student_option.csv"
+      val df = spark.read
+        .format("csv")
+        .option("header", "true")
+        .option("delimiter", ";")
+        .load(filePath)
+      df.createOrReplaceTempView("student")
+    }
+    val plan = df.queryExecution.executedPlan
+    assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
+    assert(plan.find(_.isInstanceOf[ArrowFileSourceScanExec]).isDefined)
+  }
+
+  test("csv scan with schema") {
+    val df = runAndCompare("select * from student") {
+      val filePath = rootPath + "/datasource/csv/student_option_schema.csv"
+      val schema = new StructType()
+        .add("id", StringType)
+        .add("name", StringType)
+        .add("language", StringType)
+      val df = spark.read
+        .schema(schema)
+        .format("csv")
+        .option("header", "true")
+        .load(filePath)
+      df.createOrReplaceTempView("student")
+    }
+    val plan = df.queryExecution.executedPlan
+    assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
+    val scan = plan.find(_.isInstanceOf[ArrowFileSourceScanExec])
+    assert(scan.isDefined)
+    assert(
+      !scan.get
+        .asInstanceOf[ArrowFileSourceScanExec]
+        .original
+        .relation
+        .fileFormat
+        .asInstanceOf[ArrowCSVFileFormat]
+        .fallback)
+  }
+
+  test("csv scan with missing columns") {
+    val df = runAndCompare("select languagemissing, language, id_new_col from student") {
+      val filePath = rootPath + "/datasource/csv/student_option_schema.csv"
+      val schema = new StructType()
+        .add("id_new_col", IntegerType)
+        .add("name", StringType)
+        .add("language", StringType)
+        .add("languagemissing", StringType)
+      val df = spark.read
+        .schema(schema)
+        .format("csv")
+        .option("header", "true")
+        .load(filePath)
+      df.createOrReplaceTempView("student")
+    }
+    val plan = df.queryExecution.executedPlan
+    assert(plan.find(s => s.isInstanceOf[VeloxColumnarToRowExec]).isDefined)
+    assert(plan.find(_.isInstanceOf[ArrowFileSourceScanExec]).isDefined)
+  }
+
+  test("csv scan with different name") {
+    val df = runAndCompare("select * from student") {
+      val filePath = rootPath + "/datasource/csv/student_option_schema.csv"
+      val schema = new StructType()
+        .add("id_new_col", StringType)
+        .add("name", StringType)
+        .add("language", StringType)
+      val df = spark.read
+        .schema(schema)
+        .format("csv")
+        .option("header", "true")
+        .load(filePath)
+      df.createOrReplaceTempView("student")
+    }
+    val plan = df.queryExecution.executedPlan
+    assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
+    assert(plan.find(_.isInstanceOf[ArrowFileSourceScanExec]).isDefined)
+
+    val df2 = runAndCompare("select * from student_schema") {
+      val filePath = rootPath + "/datasource/csv/student_option_schema.csv"
+      val schema = new StructType()
+        .add("name", StringType)
+        .add("language", StringType)
+      val df = spark.read
+        .schema(schema)
+        .format("csv")
+        .option("header", "true")
+        .load(filePath)
+      df.createOrReplaceTempView("student_schema")
+    }
+    val plan2 = df2.queryExecution.executedPlan
+    assert(plan2.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
+    assert(plan2.find(_.isInstanceOf[ArrowFileSourceScanExec]).isDefined)
   }
 
   test("csv scan with filter") {
-    val filePath = rootPath + "/datasource/csv/student.csv"
-    val df = spark.read
-      .format("csv")
-      .option("header", "true")
-      .load(filePath)
-    df.createOrReplaceTempView("student")
-    runQueryAndCompare("select * from student where Name = 'Peter'") {
-      df =>
-        assert(df.queryExecution.executedPlan.find(s => s.isInstanceOf[ColumnarToRowExec]).isEmpty)
-        assert(
-          df.queryExecution.executedPlan
-            .find(s => s.isInstanceOf[ArrowFileSourceScanExec])
-            .isDefined)
+    val df = runAndCompare("select * from student where Name = 'Peter'") {
+      val filePath = rootPath + "/datasource/csv/student.csv"
+      val df = spark.read
+        .format("csv")
+        .option("header", "true")
+        .load(filePath)
+      df.createOrReplaceTempView("student")
     }
+    assert(df.queryExecution.executedPlan.find(s => s.isInstanceOf[ColumnarToRowExec]).isEmpty)
+    assert(
+      df.queryExecution.executedPlan
+        .find(s => s.isInstanceOf[ArrowFileSourceScanExec])
+        .isDefined)
   }
 
   test("insert into select from csv") {
@@ -540,21 +651,55 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
 
   test("csv scan datasource v2") {
     withSQLConf("spark.sql.sources.useV1SourceList" -> "") {
-      val filePath = rootPath + "/datasource/csv/student.csv"
-      val df = spark.read
-        .format("csv")
-        .option("header", "true")
-        .load(filePath)
-      df.createOrReplaceTempView("student")
-      runQueryAndCompare("select * from student") {
-        checkGlutenOperatorMatch[ArrowBatchScanExec]
+      val df = runAndCompare("select * from student") {
+        val filePath = rootPath + "/datasource/csv/student.csv"
+        val df = spark.read
+          .format("csv")
+          .option("header", "true")
+          .load(filePath)
+        df.createOrReplaceTempView("student")
       }
-      runQueryAndCompare("select * from student where Name = 'Peter'") {
-        df =>
-          val plan = df.queryExecution.executedPlan
-          assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isEmpty)
-          assert(plan.find(s => s.isInstanceOf[ArrowBatchScanExec]).isDefined)
+      val plan = df.queryExecution.executedPlan
+      assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
+      assert(plan.find(s => s.isInstanceOf[ArrowBatchScanExec]).isDefined)
+    }
+  }
+
+  test("csv scan datasource v2 with filter") {
+    withSQLConf("spark.sql.sources.useV1SourceList" -> "") {
+      val df = runAndCompare("select * from student where Name = 'Peter'") {
+        val filePath = rootPath + "/datasource/csv/student.csv"
+        val df = spark.read
+          .format("csv")
+          .option("header", "true")
+          .load(filePath)
+        df.createOrReplaceTempView("student")
       }
+
+      val plan = df.queryExecution.executedPlan
+      assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isEmpty)
+      assert(plan.find(s => s.isInstanceOf[ArrowBatchScanExec]).isDefined)
+    }
+  }
+
+  test("csv scan with schema datasource v2") {
+    withSQLConf("spark.sql.sources.useV1SourceList" -> "") {
+      val df = runAndCompare("select * from student") {
+        val filePath = rootPath + "/datasource/csv/student_option_schema.csv"
+        val schema = new StructType()
+          .add("id", StringType)
+          .add("name", StringType)
+          .add("language", StringType)
+        val df = spark.read
+          .schema(schema)
+          .format("csv")
+          .option("header", "true")
+          .load(filePath)
+        df.createOrReplaceTempView("student")
+      }
+      val plan = df.queryExecution.executedPlan
+      assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
+      assert(plan.find(_.isInstanceOf[ArrowBatchScanExec]).isDefined)
     }
   }
 

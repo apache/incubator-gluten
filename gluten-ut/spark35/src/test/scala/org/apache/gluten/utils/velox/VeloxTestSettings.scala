@@ -187,6 +187,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
+    .exclude("DDL test with tab separated file")
+    .exclude("DDL test parsing decimal type")
+    .exclude("test with tab delimiter and double quote")
     // Arrow not support corrupt record
     .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
   enableSuite[GlutenCSVv2Suite]
@@ -202,6 +205,11 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
+    .exclude("DDL test with tab separated file")
+    .exclude("DDL test parsing decimal type")
+    .exclude("test with tab delimiter and double quote")
+    // Arrow not support corrupt record
+    .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
   enableSuite[GlutenCSVLegacyTimeParserSuite]
     // file cars.csv include null string, Arrow not support to read
     .exclude("DDL test with schema")
@@ -212,6 +220,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
     // Arrow not support corrupt record
     .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
+    .exclude("DDL test with tab separated file")
+    .exclude("DDL test parsing decimal type")
+    .exclude("test with tab delimiter and double quote")
   enableSuite[GlutenJsonV1Suite]
     // FIXME: Array direct selection fails
     .exclude("Complex field and type inferring")

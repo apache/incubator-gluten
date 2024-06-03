@@ -56,6 +56,7 @@
     <celeborn.version>0.3.2-incubating</celeborn.version>
     <uniffle.version>0.8.0</uniffle.version>
     <arrow.version>15.0.0</arrow.version>
+    <arrow-gluten.version>15.0.0-gluten</arrow-gluten.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
     <hadoop.version>2.7.4</hadoop.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
