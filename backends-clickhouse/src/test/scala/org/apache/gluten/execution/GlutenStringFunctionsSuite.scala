@@ -33,7 +33,8 @@ class GlutenStringFunctionsSuite extends GlutenClickHouseWholeStageTransformerSu
     withTable("trim") {
       sql("create table trim(a String, b String) using parquet")
       sql("""
-            |insert into trim values ('aba', 'a'),('bba', 'b'),('abcdef', 'abcd'), (null, '123'),('123', null)
+            |insert into trim values
+            |  ('aba', 'a'),('bba', 'b'),('abcdef', 'abcd'), (null, '123'),('123', null)
             |""".stripMargin)
 
       val sql_str =
@@ -51,7 +52,8 @@ class GlutenStringFunctionsSuite extends GlutenClickHouseWholeStageTransformerSu
       sql("create table regexp_extract_bracket(a String) using parquet")
       sql(
         """
-          |insert into regexp_extract_bracket values ('123.123abc-abc'),('123-LOW'),('123]abc-abc')
+          |insert into regexp_extract_bracket
+          | values ('123.123abc-abc'),('123-LOW'),('123]abc-abc')
           |""".stripMargin)
 
       val sql_str =
