@@ -15,12 +15,14 @@
  * limitations under the License.
  */
 
+#include <charconv>
+
+
 #include "config.h"
 #if USE_PARQUET
 #include <ranges>
 #include <string>
 #include <DataTypes/DataTypeString.h>
-#include <DataTypes/DataTypesNumber.h>
 #include <Interpreters/ActionsVisitor.h>
 #include <Interpreters/ExpressionActions.h>
 #include <Parser/SerializedPlanParser.h>
@@ -59,6 +61,9 @@ class PrimitiveNodeBuilder
     parquet::Repetition::type repetition_ = parquet::Repetition::UNDEFINED;
     parquet::ConvertedType::type converted_type_ = parquet::ConvertedType::NONE;
     parquet::Type::type physical_type_ = parquet::Type::UNDEFINED;
+    int length_ = -1;
+    int precision_ = -1;
+    int scale_ = -1;
 
 public:
     PrimitiveNodeBuilder & as(parquet::ConvertedType::type converted_type)
@@ -67,13 +72,25 @@ public:
         return *this;
     }
 
+    PrimitiveNodeBuilder & with_length(int length)
+    {
+        length_ = length;
+        return *this;
+    }
+    PrimitiveNodeBuilder & asDecimal(int precision, int scale)
+    {
+        converted_type_ = parquet::ConvertedType::DECIMAL;
+        precision_ = precision;
+        scale_ = scale;
+        return *this;
+    }
     parquet::schema::NodePtr named(const std::string & name) const
     {
         assert(!name.empty());
         if (physical_type_ == parquet::Type::UNDEFINED)
             throw Exception(ErrorCodes::LOGICAL_ERROR, "Unsupported physical type");
         return parquet::schema::PrimitiveNode::Make(
-            name, repetition_, physical_type_, converted_type_, /*length=*/-1, /*precision=*/-1, /*scale=*/-1, /*field_id*/ -1);
+            name, repetition_, physical_type_, converted_type_, length_, precision_, scale_, /*field_id*/ -1);
     }
     parquet::ColumnDescriptor descriptor(const std::string & name) const { return {named(name), /*max_definition_level=*/1, 0}; }
     static PrimitiveNodeBuilder optional(parquet::Type::type physical_type)
@@ -483,13 +500,22 @@ using ParquetValue = std::variant<
     parquet::DoubleType::c_type,
     parquet::ByteArrayType::c_type>;
 
-ParquetValue to(const DB::Field & value, const parquet::ColumnDescriptor & desc)
+template <typename PhysicalType>
+void doComapre(
+    const parquet::ColumnDescriptor & descriptor, const DB::Field & value, const std::function<void(const ParquetValue &)> & compare)
+{
+    local_engine::ToParquet<PhysicalType> to_parquet;
+    compare({to_parquet.as(value, descriptor)});
+}
+
+void with_actual(const DB::Field & value, const parquet::ColumnDescriptor & desc, const std::function<void(const ParquetValue &)> & compare)
 {
     using namespace local_engine;
     switch (desc.physical_type())
     {
         case parquet::Type::BOOLEAN:
-            break;
+            doComapre<parquet::BooleanType>(desc, value, compare);
+            return;
         case parquet::Type::INT32: {
             switch (desc.converted_type())
             {
@@ -500,7 +526,8 @@ ParquetValue to(const DB::Field & value, const parquet::ColumnDescriptor & desc)
                 case parquet::ConvertedType::INT_16:
                 case parquet::ConvertedType::INT_32:
                 case parquet::ConvertedType::NONE:
-                    return {parquetCast<parquet::Int32Type>(value)};
+                    doComapre<parquet::Int32Type>(desc, value, compare);
+                    return;
                 default:
                     break;
             }
@@ -512,34 +539,80 @@ ParquetValue to(const DB::Field & value, const parquet::ColumnDescriptor & desc)
                 case parquet::ConvertedType::INT_64:
                 case parquet::ConvertedType::UINT_64:
                 case parquet::ConvertedType::NONE:
-                    return {parquetCast<parquet::Int64Type>(value)};
+                    doComapre<parquet::Int64Type>(desc, value, compare);
+                    return;
                 default:
                     break;
             }
             break;
         case parquet::Type::INT96:
+            // doComapre<parquet::Int96Type>(desc, value, compare);
             break;
         case parquet::Type::FLOAT:
-            return {value.get<Float32>()};
+            doComapre<parquet::FloatType>(desc, value, compare);
+            return;
         case parquet::Type::DOUBLE:
-            return {value.get<Float64>()};
-            break;
+            doComapre<parquet::DoubleType>(desc, value, compare);
+            return;
         case parquet::Type::BYTE_ARRAY:
             switch (desc.converted_type())
             {
                 case parquet::ConvertedType::UTF8:
-                    return parquetCast<parquet::ByteArrayType>(value);
+                    doComapre<parquet::ByteArrayType>(desc, value, compare);
+                    return;
                 default:
                     break;
             }
             break;
         case parquet::Type::FIXED_LEN_BYTE_ARRAY:
+            // doComapre<parquet::FLBAType>(desc, value, compare);
             break;
         case parquet::Type::UNDEFINED:
             break;
     }
-    abort();
+    ASSERT_TRUE(false) << "Unsupported physical type: [" << TypeToString(desc.physical_type()) << "] with logical type: ["
+                       << desc.logical_type()->ToString() << "] with converted type: [" << ConvertedTypeToString(desc.converted_type())
+                       << "]";
 }
+
+// for gtest
+namespace parquet
+{
+void PrintTo(const ByteArray & val, std::ostream * os)
+{
+    *os << '[' << std::hex;
+
+    for (size_t i = 0; i < val.len; ++i)
+    {
+        *os << std::setw(2) << std::setfill('0') << static_cast<int>(val.ptr[i]);
+        if (i != val.len - 1)
+            *os << ", ";
+    }
+    *os << ']';
+}
+}
+TEST(ColumnIndex, DecimalField)
+{
+    // we can't define `operator==` for parquet::FLBAType
+    Field value = DecimalField<Decimal128>(Int128(300000000), 4);
+    local_engine::ToParquet<parquet::FLBAType> to_parquet;
+    const parquet::ColumnDescriptor desc
+        = PNB::optional(parquet::Type::FIXED_LEN_BYTE_ARRAY).asDecimal(38, 4).with_length(13).descriptor("column1");
+    uint8_t expected_a[13]{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x11, 0xE1, 0xA3, 0x0};
+    const parquet::ByteArray expected{13, expected_a};
+    const parquet::ByteArray actual{13, to_parquet.as(value, desc).ptr};
+    ASSERT_EQ(actual, expected);
+
+
+    /// Eexception test
+    Field unsupport = DecimalField<Decimal256>(Int256(300000000), 4);
+    EXPECT_THROW(to_parquet.as(unsupport, desc), DB::Exception);
+
+    const parquet::ColumnDescriptor error
+        = PNB::optional(parquet::Type::FIXED_LEN_BYTE_ARRAY).asDecimal(38, 4).with_length(18).descriptor("column1");
+    EXPECT_THROW(to_parquet.as(value, error), DB::Exception);
+}
+
 
 TEST(ColumnIndex, Field)
 {
@@ -551,7 +624,6 @@ TEST(ColumnIndex, Field)
         parquet::ColumnDescriptor, //desc
         ParquetValue //expected value
         >;
-    using PNB = test_utils::PrimitiveNodeBuilder;
     const std::vector<TESTDATA> datas{
         {"int32_UINT_8",
          static_cast<UInt8>(1),
@@ -579,8 +651,7 @@ TEST(ColumnIndex, Field)
             const auto & value = std::get<1>(data);
             const auto & desc = std::get<2>(data);
             const auto & expected = std::get<3>(data);
-            const auto actual = to(value, desc);
-            ASSERT_EQ(actual, expected) << name;
+            with_actual(value, desc, [&](const ParquetValue & actual) { ASSERT_EQ(actual, expected) << name; });
         });
 
     const std::vector<std::pair<String, Field>> primitive_fields{
@@ -612,7 +683,7 @@ struct ReadStatesParam
     ReadStatesParam() = default;
 
     ReadStatesParam(local_engine::RowRanges ranges, std::shared_ptr<local_engine::ColumnReadState> states)
-        : row_ranges(std::move(ranges)), read_states(std::move(states)){};
+        : row_ranges(std::move(ranges)), read_states(std::move(states)) {};
 
     local_engine::RowRanges row_ranges;
     std::shared_ptr<local_engine::ColumnReadState> read_states;
