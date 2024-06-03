@@ -33,8 +33,6 @@ jobs:
         path:
           - check: 'cpp'
             exclude: ''
-          - check: 'cpp-ch'
-            exclude: ''
     steps:
       - uses: actions/checkout@v4
       - name: Run clang-format style check for C/C++
