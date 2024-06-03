@@ -1451,7 +1451,7 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::createSubfieldFi
       if (expr.has_scalar_function()) {
         // Set its child to filter info with reverse enabled.
         setFilterInfo(expr.scalar_function(), inputTypeList, columnToFilterInfo, true);
-      } else if(expr.has_singular_or_list()) {
+      } else if (expr.has_singular_or_list()) {
         // Since currently only integer and string types in "IN" expression
         // can be pushed down, Options types should be checked
         auto singularOrList = expr.singular_or_list();
@@ -1807,7 +1807,7 @@ void SubstraitToVeloxPlanConverter::setColumnFilterInfo(
     }
   } else if (filterName == sEqual) {
     if (reverse) {
-      std::vector<variant> notValues { literalVariant.value() };
+      std::vector<variant> notValues{literalVariant.value()};
       columnFilterInfo.setNotValue(notValues);
     } else {
       columnFilterInfo.setLower(literalVariant, false);
@@ -2066,12 +2066,11 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
     // Not equal.
     if (filterInfo.notValues_.size() > 0) {
       std::set<bool> notValues;
-      for (auto v: filterInfo.notValues_) {
+      for (auto v : filterInfo.notValues_) {
         notValues.emplace(v.value<bool>());
       }
       if (notValues.size() == 1) {
-        filters[common::Subfield(inputName)] =
-          std::make_unique<common::BoolValue>(!(*notValues.begin()), nullAllowed);
+        filters[common::Subfield(inputName)] = std::make_unique<common::BoolValue>(!(*notValues.begin()), nullAllowed);
       } else {
         // if there are more than one distinct value in NOT IN list, the filter should be AlwaysFalse
         filters[common::Subfield(inputName)] = std::make_unique<common::AlwaysFalse>();
