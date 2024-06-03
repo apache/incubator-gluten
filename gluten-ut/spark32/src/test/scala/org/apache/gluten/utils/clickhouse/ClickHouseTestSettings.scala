@@ -298,6 +298,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-30668: use legacy timestamp parser in to_timestamp")
     .exclude("SPARK-30766: date_trunc of old timestamps to hours and days")
     .exclude("SPARK-30793: truncate timestamps before the epoch to seconds and minutes")
+    .exclude("SPARK-30752: convert time zones on a daylight saving day")
     .excludeGlutenTest("unix_timestamp")
     .excludeGlutenTest("to_unix_timestamp")
     .exclude("to_utc_timestamp with column zone")
