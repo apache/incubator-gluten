@@ -585,12 +585,13 @@ void BackendInitializerUtil::initEnvs(DB::Context::ConfigurationPtr config)
     /// Set environment variable TZ if possible
     if (config->has("timezone"))
     {
-        const String timezone_name = config->getString("timezone");
-        if (0 != setenv("TZ", timezone_name.data(), 1)) /// NOLINT
+        const std::string config_timezone = config->getString("timezone");
+        const String mapped_timezone = DateLUT::mappingForJavaTimezone(config_timezone);
+        if (0 != setenv("TZ", mapped_timezone.data(), 1)) // NOLINT(concurrency-mt-unsafe) // ok if not called concurrently with other setenv/getenv
             throw Poco::Exception("Cannot setenv TZ variable");
 
         tzset();
-        DateLUT::setDefaultTimezone(timezone_name);
+        DateLUT::setDefaultTimezone(mapped_timezone);
     }
 
     /// Set environment variable LIBHDFS3_CONF if possible
