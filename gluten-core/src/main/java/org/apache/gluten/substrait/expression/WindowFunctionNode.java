@@ -94,7 +94,7 @@ public class WindowFunctionNode implements Serializable {
       default:
         if (boundType instanceof PreComputeRangeFrameBound) {
           // Used only when backend is velox and frame type is RANGE.
-          if (frameType != "RANGE") {
+          if (!frameType.equals("RANGE")) {
             throw new GlutenException(
                 "Only Range frame supports PreComputeRangeFrameBound, but got " + frameType);
           }
