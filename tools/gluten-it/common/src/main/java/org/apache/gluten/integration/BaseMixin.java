@@ -72,11 +72,11 @@ public class BaseMixin {
   @CommandLine.Option(names = {"--disable-wscg"}, description = "Disable Spark SQL whole stage code generation", defaultValue = "false")
   private boolean disableWscg;
 
-  @CommandLine.Option(names = {"--shuffle-partitions"}, description = "Generate data with partitions", defaultValue = "100")
+  @CommandLine.Option(names = {"--shuffle-partitions"}, description = "Shuffle partition number", defaultValue = "100")
   private int shufflePartitions;
 
-  @CommandLine.Option(names = {"--min-scan-partitions"}, description = "Use minimum number of partitions to read data", defaultValue = "false")
-  private boolean minimumScanPartitions;
+  @CommandLine.Option(names = {"--scan-partitions"}, description = "Scan partition number. This is an approximate value, so the actual scan partition number might vary around this value", defaultValue = "100")
+  private int scanPartitions;
 
   @CommandLine.Option(names = {"--extra-conf"}, description = "Extra Spark config entries applying to generated Spark session. E.g. --extra-conf=k1=v1 --extra-conf=k2=v2")
   private Map<String, String> extraSparkConf = Collections.emptyMap();
@@ -131,19 +131,19 @@ public class BaseMixin {
         suite = new TpchSuite(runModeEnumeration.getSparkMasterUrl(), actions, testConf,
             baselineConf, extraSparkConfScala, level, errorOnMemLeak, enableUi,
             enableHsUi, hsUiPort, offHeapSize, disableAqe, disableBhj,
-            disableWscg, shufflePartitions, minimumScanPartitions);
+            disableWscg, shufflePartitions, scanPartitions);
         break;
       case "ds":
         suite = new TpcdsSuite(runModeEnumeration.getSparkMasterUrl(), actions, testConf,
             baselineConf, extraSparkConfScala, level, errorOnMemLeak, enableUi,
             enableHsUi, hsUiPort, offHeapSize, disableAqe, disableBhj,
-            disableWscg, shufflePartitions, minimumScanPartitions);
+            disableWscg, shufflePartitions, scanPartitions);
         break;
       case "clickbench":
         suite = new ClickBenchSuite(runModeEnumeration.getSparkMasterUrl(), actions, testConf,
             baselineConf, extraSparkConfScala, level, errorOnMemLeak, enableUi,
             enableHsUi, hsUiPort, offHeapSize, disableAqe, disableBhj,
-            disableWscg, shufflePartitions, minimumScanPartitions);
+            disableWscg, shufflePartitions, scanPartitions);
         break;
       default:
         throw new IllegalArgumentException("TPC benchmark type not found: " + benchmarkType);

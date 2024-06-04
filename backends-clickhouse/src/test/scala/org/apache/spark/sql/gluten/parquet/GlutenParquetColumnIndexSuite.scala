@@ -25,7 +25,12 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.gluten.test.GlutenSQLTestUtils
 import org.apache.spark.sql.internal.SQLConf
 
-case class ParquetData(parquetDir: String, filter: String, scanOutput: Long)
+case class ParquetData(
+    column: String,
+    parquetDir: String,
+    filter: String,
+    scanOutput: Long,
+    title: Option[String] = None)
 
 class GlutenParquetColumnIndexSuite
   extends GlutenClickHouseWholeStageTransformerSuite
@@ -39,20 +44,41 @@ class GlutenParquetColumnIndexSuite
   //  both gluten and vanilla spark dataframe
   private val parquetData = Seq(
     ParquetData(
+      "count(*)",
       "index/tpch/20003",
       "`27` <> '1-URGENT' and `9` >= '1995-01-01' and `9` < '1996-01-01' ",
       140000),
     ParquetData(
+      "count(*)",
       "index/tpch/upper_case",
       "c_comment = '! requests wake. (...)ructions. furiousl'",
-      12853)
+      12853),
+    ParquetData(
+      "*",
+      "index/pageindex/query102",
+      "`198` = 'Crafts' or `198` = 'Computers' or `198`= 'a' or `198`= ''",
+      45),
+    ParquetData(
+      "count(*)",
+      "index/pageindex/query102",
+      "`100001` < 30000  and `100001` > 1000.004",
+      45,
+      Some("push down Decimal filter")),
+    ParquetData(
+      "count(*)",
+      "index/pageindex/query102",
+      "`100001` in (30000, 1000.004, 45000, 2323445, 4235423.6, 4546677.245, 56677.5)",
+      45,
+      Some("push down Decimal filter In")
+    ),
+    ParquetData("count(*)", "index/pageindex/query05", "`142` = true", 9896)
   )
 
   parquetData.foreach {
     data =>
-      test(s"${data.parquetDir}") {
+      test(data.title.getOrElse(data.parquetDir)) {
         val parquetDir = s"$testPath/${data.parquetDir}"
-        val sql1 = s"""|select count(*) from $fileFormat.`$parquetDir`
+        val sql1 = s"""|select ${data.column} from $fileFormat.`$parquetDir`
                        |where ${data.filter}
                        |""".stripMargin
         compareResultsAgainstVanillaSpark(

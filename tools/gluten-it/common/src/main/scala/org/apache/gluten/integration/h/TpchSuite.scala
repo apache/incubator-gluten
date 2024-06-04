@@ -38,7 +38,7 @@ class TpchSuite(
     val disableBhj: Boolean,
     val disableWscg: Boolean,
     val shufflePartitions: Int,
-    val minimumScanPartitions: Boolean)
+    val scanPartitions: Int)
     extends Suite(
       masterUrl,
       actions,
@@ -55,7 +55,7 @@ class TpchSuite(
       disableBhj,
       disableWscg,
       shufflePartitions,
-      minimumScanPartitions) {
+      scanPartitions) {
 
   override protected def historyWritePath(): String = HISTORY_WRITE_PATH
 
