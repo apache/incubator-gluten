@@ -67,7 +67,6 @@ public:
 
     static DecimalType evalModuloDecimalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2)
     {
-
         const Int32 scale = std::max(s1, s2);
         const Int32 precision = std::min(p1 - s1, p2 - s2) + scale;
         return bounded_to_click_house(precision, scale);
