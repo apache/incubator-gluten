@@ -1682,26 +1682,56 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  test("Fix shuffle with round robin partitioning fail") {
-    def checkNullTypeRepartition(df: => DataFrame, numProject: Int): Unit = {
-      var expected: Array[Row] = null
-      withSQLConf("spark.sql.execution.sortBeforeRepartition" -> "false") {
-        expected = df.collect()
-      }
-      val actual = df
-      checkAnswer(actual, expected)
-      assert(
-        collect(actual.queryExecution.executedPlan) { case p: ProjectExec => p }.size == numProject
-      )
-    }
+  test("Fix shuffle with null type failure") {
+    // single and other partitioning
+    Seq("1", "2").foreach {
+      numShufflePartitions =>
+        withSQLConf("spark.sql.shuffle.partitions" -> numShufflePartitions) {
+          def checkNullTypeRepartition(df: => DataFrame, numProject: Int): Unit = {
+            var expected: Array[Row] = null
+            withSQLConf("spark.sql.execution.sortBeforeRepartition" -> "false") {
+              expected = df.collect()
+            }
+            val actual = df
+            checkAnswer(actual, expected)
+            assert(
+              collect(actual.queryExecution.executedPlan) {
+                case p: ProjectExec => p
+              }.size == numProject
+            )
+            assert(
+              collect(actual.queryExecution.executedPlan) {
+                case shuffle: ColumnarShuffleExchangeExec => shuffle
+              }.size == 1
+            )
+          }
 
-    checkNullTypeRepartition(
-      spark.table("lineitem").selectExpr("l_orderkey", "null as x").repartition(),
-      0
-    )
-    checkNullTypeRepartition(
-      spark.table("lineitem").selectExpr("null as x", "null as y").repartition(),
-      1
-    )
+          // hash
+          checkNullTypeRepartition(
+            spark
+              .table("lineitem")
+              .selectExpr("l_orderkey", "null as x")
+              .repartition($"l_orderkey"),
+            0
+          )
+          // range
+          checkNullTypeRepartition(
+            spark
+              .table("lineitem")
+              .selectExpr("l_orderkey", "null as x")
+              .repartitionByRange($"l_orderkey"),
+            0
+          )
+          // round robin
+          checkNullTypeRepartition(
+            spark.table("lineitem").selectExpr("l_orderkey", "null as x").repartition(),
+            0
+          )
+          checkNullTypeRepartition(
+            spark.table("lineitem").selectExpr("null as x", "null as y").repartition(),
+            1
+          )
+        }
+    }
   }
 }
