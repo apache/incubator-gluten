@@ -106,9 +106,11 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
   if (FLAGS_compression == "lz4") {
     partitionWriterOptions.codecBackend = CodecBackend::NONE;
     partitionWriterOptions.compressionType = arrow::Compression::LZ4_FRAME;
+    partitionWriterOptions.compressionTypeStr = "lz4";
   } else if (FLAGS_compression == "zstd") {
     partitionWriterOptions.codecBackend = CodecBackend::NONE;
     partitionWriterOptions.compressionType = arrow::Compression::ZSTD;
+    partitionWriterOptions.compressionTypeStr = "zstd";
   } else if (FLAGS_compression == "qat_gzip") {
     partitionWriterOptions.codecBackend = CodecBackend::QAT;
     partitionWriterOptions.compressionType = arrow::Compression::GZIP;
