@@ -15,33 +15,72 @@
  * limitations under the License.
  */
 #pragma once
+#include <Columns/ColumnDecimal.h>
 #include <Core/Field.h>
+#include <base/Decimal_fwd.h>
+#include <parquet/schema.h>
 #include <parquet/statistics.h>
 #include <parquet/types.h>
 #include <Common/PODArray.h>
 
+namespace DB::ErrorCodes
+{
+extern const int LOGICAL_ERROR;
+}
+
 namespace local_engine
 {
+
 template <typename PhysicalType>
-auto parquetCast(const DB::Field & value) -> typename PhysicalType::c_type
+struct ToParquet
 {
     using T = typename PhysicalType::c_type;
-    if constexpr (std::is_same_v<PhysicalType, parquet::Int32Type>)
-        return static_cast<T>(value.get<Int64>());
-    else if constexpr (std::is_same_v<PhysicalType, parquet::ByteArrayType>)
+    T as(const DB::Field & value, const parquet::ColumnDescriptor &)
+    {
+        if constexpr (std::is_same_v<PhysicalType, parquet::Int32Type>)
+            return static_cast<T>(value.get<Int64>());
+        // parquet::BooleanType, parquet::Int64Type, parquet::FloatType, parquet::DoubleType
+        return value.get<T>(); // FLOAT, DOUBLE, INT64
+    }
+};
+
+template <>
+struct ToParquet<parquet::ByteArrayType>
+{
+    using T = parquet::ByteArray;
+    T as(const DB::Field & value, const parquet::ColumnDescriptor &)
     {
         assert(value.getType() == DB::Field::Types::String);
         const std::string & s = value.get<std::string>();
         const auto * const ptr = reinterpret_cast<const uint8_t *>(s.data());
         return parquet::ByteArray(static_cast<uint32_t>(s.size()), ptr);
     }
-    else if constexpr (std::is_same_v<PhysicalType, parquet::FLBAType>)
+};
+
+template <>
+struct ToParquet<parquet::FLBAType>
+{
+    uint8_t buf[256];
+    using T = parquet::FixedLenByteArray;
+    T as(const DB::Field & value, const parquet::ColumnDescriptor & descriptor)
     {
-        abort();
+        if (value.getType() != DB::Field::Types::Decimal128)
+            throw DB::Exception(
+                DB::ErrorCodes::LOGICAL_ERROR, "Field type '{}' for FIXED_LEN_BYTE_ARRAY is not supported", value.getTypeName());
+        static_assert(sizeof(Int128) <= sizeof(buf));
+        if (descriptor.type_length() > sizeof(Int128))
+            throw DB::Exception(
+                DB::ErrorCodes::LOGICAL_ERROR,
+                "descriptor.type_length() = {} , which is > {}, e.g. sizeof(Int128)",
+                descriptor.type_length(),
+                sizeof(Int128));
+        Int128 val = value.get<DB::DecimalField<DB::Decimal128>>().getValue();
+        std::reverse(reinterpret_cast<char *>(&val), reinterpret_cast<char *>(&val) + sizeof(val));
+        const int offset = sizeof(Int128) - descriptor.type_length();
+        memcpy(buf, reinterpret_cast<char *>(&val) + offset, descriptor.type_length());
+        return parquet::FixedLenByteArray(buf);
     }
-    else
-        return value.get<T>(); // FLOAT, DOUBLE, INT64
-}
+};
 
 // Int32 Int64 Float Double
 template <typename DType, typename Col>
@@ -100,6 +139,42 @@ struct ConverterString
     }
 };
 
+/// Like ConverterNumberAsFixedString, but converts to big-endian. Because that's the byte order
+/// Parquet uses for decimal types and literally nothing else, for some reason.
+template <typename T>
+struct ConverterDecimal
+{
+    const parquet::ColumnDescriptor & descriptor;
+    const DB::ColumnDecimal<T> & column;
+    DB::PODArray<uint8_t> data_buf;
+    DB::PODArray<parquet::FixedLenByteArray> ptr_buf;
+
+    explicit ConverterDecimal(const DB::ColumnPtr & c, const parquet::ColumnDescriptor & desc)
+        : descriptor(desc), column(assert_cast<const DB::ColumnDecimal<T> &>(*c))
+    {
+        if (descriptor.type_length() > sizeof(T))
+            throw DB::Exception(
+                DB::ErrorCodes::LOGICAL_ERROR,
+                "descriptor.type_length() = {} , which is > {}, e.g. sizeof(T)",
+                descriptor.type_length(),
+                sizeof(T));
+    }
+
+    const parquet::FixedLenByteArray * getBatch(size_t offset, size_t count)
+    {
+        data_buf.resize(count * sizeof(T));
+        ptr_buf.resize(count);
+        memcpy(data_buf.data(), reinterpret_cast<const char *>(column.getData().data() + offset), count * sizeof(T));
+        const size_t offset_in_buf = sizeof(Int128) - descriptor.type_length();
+        ;
+        for (size_t i = 0; i < count; ++i)
+        {
+            std::reverse(data_buf.data() + i * sizeof(T), data_buf.data() + (i + 1) * sizeof(T));
+            ptr_buf[i].ptr = data_buf.data() + i * sizeof(T) + offset_in_buf;
+        }
+        return ptr_buf.data();
+    }
+};
 
 class BaseConverter
 {
@@ -115,7 +190,7 @@ protected:
 
 public:
     virtual const T * getBatch(size_t offset, size_t count) = 0;
-    static std::shared_ptr<ParquetConverter<DType>> Make(const DB::ColumnPtr & c);
+    static std::shared_ptr<ParquetConverter<DType>> Make(const DB::ColumnPtr & c, const parquet::ColumnDescriptor & desc);
 };
 
 template <typename DType, typename CONVERT>
@@ -134,7 +209,7 @@ private:
 
 
 template <typename DType>
-std::shared_ptr<ParquetConverter<DType>> ParquetConverter<DType>::Make(const DB::ColumnPtr & c)
+std::shared_ptr<ParquetConverter<DType>> ParquetConverter<DType>::Make(const DB::ColumnPtr & c, const parquet::ColumnDescriptor & desc)
 {
     std::shared_ptr<BaseConverter> result;
 
@@ -199,6 +274,17 @@ std::shared_ptr<ParquetConverter<DType>> ParquetConverter<DType>::Make(const DB:
             {
                 case TypeIndex::String:
                     result = std::make_shared<ParquetConverterImpl<parquet::ByteArrayType, ConverterString>>(ConverterString(c));
+                    break;
+                default:
+                    break;
+            }
+            break;
+        case parquet::Type::FIXED_LEN_BYTE_ARRAY:
+            switch (c->getDataType())
+            {
+                case TypeIndex::Decimal128:
+                    result = std::make_shared<ParquetConverterImpl<parquet::FLBAType, ConverterDecimal<Decimal128>>>(
+                        ConverterDecimal<Decimal128>(c, desc));
                     break;
                 default:
                     break;

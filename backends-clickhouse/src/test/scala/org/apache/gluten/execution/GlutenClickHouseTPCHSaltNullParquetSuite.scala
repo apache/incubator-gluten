@@ -2576,5 +2576,22 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     compareResultsAgainstVanillaSpark("select substring(col, 0, -1) from test_left", true, { _ => })
     spark.sql("drop table test_left")
   }
+  
+  test("Inequal join support") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+      spark.sql("create table ineq_join_t1 (key bigint, value bigint) using parquet");
+      spark.sql("create table ineq_join_t2 (key bigint, value bigint) using parquet");
+      spark.sql("insert into ineq_join_t1 values(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)");
+      spark.sql("insert into ineq_join_t2 values(2, 2), (2, 1), (3, 3), (4, 6), (5, 3)");
+      val sql =
+        """
+          | select t1.key, t1.value, t2.key, t2.value from ineq_join_t1 as t1
+          | left join ineq_join_t2 as t2
+          | on t1.key = t2.key and t1.value > t2.value
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+      spark.sql("drop table ineq_join_t1")
+      spark.sql("drop table ineq_join_t2")
+  }
 }
 // scalastyle:on line.size.limit

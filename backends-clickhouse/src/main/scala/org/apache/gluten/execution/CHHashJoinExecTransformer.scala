@@ -18,7 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.clickhouse.CHIteratorApi
 import org.apache.gluten.extension.ValidationResult
-import org.apache.gluten.utils.CHJoinValidateUtil
+import org.apache.gluten.utils.{BroadcastHashJoinStrategy, CHJoinValidateUtil, ShuffleHashJoinStrategy}
 
 import org.apache.spark.{broadcast, SparkContext}
 import org.apache.spark.rdd.RDD
@@ -55,7 +55,11 @@ case class CHShuffledHashJoinExecTransformer(
 
   override protected def doValidateInternal(): ValidationResult = {
     val shouldFallback =
-      CHJoinValidateUtil.shouldFallback(joinType, left.outputSet, right.outputSet, condition)
+      CHJoinValidateUtil.shouldFallback(
+        ShuffleHashJoinStrategy(joinType),
+        left.outputSet,
+        right.outputSet,
+        condition)
     if (shouldFallback) {
       return ValidationResult.notOk("ch join validate fail")
     }
@@ -107,7 +111,11 @@ case class CHBroadcastHashJoinExecTransformer(
 
   override protected def doValidateInternal(): ValidationResult = {
     val shouldFallback =
-      CHJoinValidateUtil.shouldFallback(joinType, left.outputSet, right.outputSet, condition)
+      CHJoinValidateUtil.shouldFallback(
+        BroadcastHashJoinStrategy(joinType),
+        left.outputSet,
+        right.outputSet,
+        condition)
 
     if (shouldFallback) {
       return ValidationResult.notOk("ch join validate fail")
