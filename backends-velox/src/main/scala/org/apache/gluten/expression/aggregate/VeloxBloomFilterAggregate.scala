@@ -52,10 +52,10 @@ case class VeloxBloomFilterAggregate(
 
   override def prettyName: String = "velox_bloom_filter_agg"
 
-  // Mark as lazy so that `estimatedNumItems` is not evaluated during tree transformation.
-  private lazy val estimatedNumItems: Long =
+  // Mark as lazy so that `numBits` is not evaluated during tree transformation.
+  private lazy val numBits: Long =
     Math.min(
-      estimatedNumItemsExpression.eval().asInstanceOf[Number].longValue,
+      numBitsExpression.eval().asInstanceOf[Number].longValue,
       SQLConf.get
         .getConfString("spark.sql.optimizer.runtime.bloomFilter.maxNumItems", "4000000")
         .toLong
@@ -87,7 +87,7 @@ case class VeloxBloomFilterAggregate(
     if (!TaskResources.inSparkTask()) {
       throw new UnsupportedOperationException("velox_bloom_filter_agg is not evaluable on Driver")
     }
-    VeloxBloomFilter.empty(Math.toIntExact(estimatedNumItems))
+    VeloxBloomFilter.empty(Math.toIntExact(numBits / 8))
   }
 
   override def update(buffer: BloomFilter, input: InternalRow): BloomFilter = {
