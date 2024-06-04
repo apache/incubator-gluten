@@ -682,12 +682,12 @@ trait SparkPlanExecApi {
       child: SparkPlan
   ): GenerateExecTransformerBase
 
+  def genTakeOrderedAndProjectTransformer(): TakeOrderedAndProjectExecTransformer
+
   def genPreProjectForGenerate(generate: GenerateExec): SparkPlan
 
   def genPostProjectForGenerate(generate: GenerateExec): SparkPlan
 
   def genPreProjectForArrowEvalPythonExec(arrowEvalPythonExec: ArrowEvalPythonExec): SparkPlan =
     arrowEvalPythonExec
-
-  def maybeCollapseTakeOrderedAndProject(plan: SparkPlan): SparkPlan = plan
 }

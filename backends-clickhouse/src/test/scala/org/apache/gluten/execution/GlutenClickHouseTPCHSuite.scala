@@ -364,7 +364,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
              |""".stripMargin) {
       df =>
         val sortExec = df.queryExecution.executedPlan.collect {
-          case sortExec: TakeOrderedAndProjectExecTransformer => sortExec
+          case sortExec: CHTakeOrderedAndProjectExecTransformer => sortExec
         }
         assert(sortExec.size == 1)
         val result = df.collect()

@@ -24,7 +24,7 @@ import org.apache.gluten.ras.{Cost, CostModel}
 import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.execution.{ColumnarToRowExec, RowToColumnarExec, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarToRowExec, RowToColumnarExec, SparkPlan, TakeOrderedAndProjectExec}
 import org.apache.spark.sql.utils.ReflectionUtil
 
 object GlutenCostModel extends Logging {
@@ -82,6 +82,9 @@ object GlutenCostModel extends Logging {
         case RowToColumnarLike(child) => 3L
         case p if PlanUtil.isGlutenColumnarOp(p) => 2L
         case p if PlanUtil.isVanillaColumnarOp(p) => 3L
+        case _: TakeOrderedAndProjectExec =>
+          // Make vanilla c2r -> top-n larger than offloaded project -> top-n -> exchange -> top-n
+          6L
         // Other row ops. Usually a vanilla row op.
         case _ => 5L
       }
