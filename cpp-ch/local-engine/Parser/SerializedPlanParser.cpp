@@ -1772,7 +1772,7 @@ QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
     if (logger->debug())
     {
         auto out = PlanUtil::explainPlan(*res);
-        LOG_ERROR(logger, "clickhouse plan:\n{}", out);
+        LOG_DEBUG(logger, "clickhouse plan:\n{}", out);
     }
     return res;
 }
