@@ -659,8 +659,14 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
         }
         else if (key == SPARK_SESSION_TIME_ZONE)
         {
-            settings.set("session_timezone", value);
-            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", "session_timezone", value);
+            std::string time_zone_val = value;
+            if (value.starts_with("GMT+"))
+                time_zone_val = "Etc/GMT-" + value.substr(4);
+            else if (value.starts_with("GMT-"))
+                time_zone_val = "Etc/GMT+" + value.substr(4);
+            
+            settings.set("session_timezone", time_zone_val);
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", "session_timezone", time_zone_val);
         }
     }
 
