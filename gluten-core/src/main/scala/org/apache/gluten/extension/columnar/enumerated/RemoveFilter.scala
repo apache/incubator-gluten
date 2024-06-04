@@ -54,7 +54,7 @@ object RemoveFilter extends RasRule[SparkPlan] {
         leaf(clazz(classOf[BasicScanExecTransformer]))
       ).build())
 
-  // A noop filter placeholder that indicates that all conditions are pushed down to scan.
+  // A noop filter placeholder that indicates that all conditions were pushed down to scan.
   //
   // This operator has zero cost in cost model to avoid planner from choosing the
   // original filter-scan that doesn't have all conditions pushed down to scan.
