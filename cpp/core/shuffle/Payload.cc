@@ -327,6 +327,8 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> BlockPayload::deseria
       case arrow::ListType::type_id: {
         hasComplexDataType = true;
       } break;
+      case arrow::NullType::type_id:
+        break;
       default: {
         buffers.emplace_back();
         ARROW_ASSIGN_OR_RAISE(buffers.back(), readBuffer());
