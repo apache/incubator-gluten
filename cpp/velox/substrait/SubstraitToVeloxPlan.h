@@ -365,7 +365,7 @@ class SubstraitToVeloxPlanConverter {
     }
 
     // Set a list of values to be used in the push down of 'not in' expression.
-    void setNotValue(const std::vector<variant>& notValue) {
+    void setNotValues(const std::vector<variant>& notValue) {
       for (const auto& value : notValue) {
         notValues_.emplace_back(value);
       }

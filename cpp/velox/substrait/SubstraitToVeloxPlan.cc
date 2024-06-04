@@ -1452,8 +1452,6 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::createSubfieldFi
         // Set its child to filter info with reverse enabled.
         setFilterInfo(expr.scalar_function(), inputTypeList, columnToFilterInfo, true);
       } else if (expr.has_singular_or_list()) {
-        // Since currently only integer and string types in "IN" expression
-        // can be pushed down, Options types should be checked
         auto singularOrList = expr.singular_or_list();
         setFilterInfo(singularOrList, columnToFilterInfo, true);
       } else {
@@ -1599,8 +1597,9 @@ bool SubstraitToVeloxPlanConverter::canPushdownNot(
     if (supportedNotFunctions.find(functionName) != supportedNotFunctions.end() && isFieldOrWithLiteral &&
         rangeRecorders.at(fieldIdx).setCertainRangeForFunction(functionName, true /*reverse*/)) {
       return true;
+    } else {
+      return false;
     }
-    return false;
   } else {
     return false;
   }
@@ -1808,7 +1807,7 @@ void SubstraitToVeloxPlanConverter::setColumnFilterInfo(
   } else if (filterName == sEqual) {
     if (reverse) {
       std::vector<variant> notValues{literalVariant.value()};
-      columnFilterInfo.setNotValue(notValues);
+      columnFilterInfo.setNotValues(notValues);
     } else {
       columnFilterInfo.setLower(literalVariant, false);
       columnFilterInfo.setUpper(literalVariant, false);
@@ -2116,16 +2115,17 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
       // Currently, In cannot coexist with other filter conditions
       // due to multirange is in 'OR' relation but 'AND' is needed.
       VELOX_CHECK(rangeSize == 0, "LowerBounds or upperBounds conditons cannot be supported after IN filter.");
-      VELOX_CHECK(filterInfo.notValues_.size() == 0, "Not equal cannot be supported after IN filter.");
+      VELOX_CHECK(filterInfo.notValues_.size() == 0, "Not-equal/Not-in cannot be supported after IN filter.");
       return;
     }
 
     // Handle not in filter.
     if (filterInfo.notValues_.size() > 0) {
       setInFilter<KIND>(filterInfo.notValues_, filterInfo.nullAllowed_, true, inputName, filters);
-      // Currently, Not-equal cannot coexist with other filter conditions
+      // Currently, not-equal/not-in cannot coexist with other filter conditions
       // due to multirange is in 'OR' relation but 'AND' is needed.
-      VELOX_CHECK(rangeSize == 0, "LowerBounds or upperBounds conditons cannot be supported after not-equal filter.");
+      VELOX_CHECK(
+          rangeSize == 0, "LowerBounds or upperBounds conditons cannot be supported after not-equal/not-in filter.");
       return;
     }
 
@@ -2404,7 +2404,7 @@ void SubstraitToVeloxPlanConverter::setFilterInfo(
   if (!reverse) {
     columnToFilterInfo[colIdx].setValues(variants);
   } else {
-    columnToFilterInfo[colIdx].setNotValue(variants);
+    columnToFilterInfo[colIdx].setNotValues(variants);
   }
 }
 
