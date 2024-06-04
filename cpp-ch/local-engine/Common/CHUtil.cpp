@@ -659,13 +659,7 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
         }
         else if (key == SPARK_SESSION_TIME_ZONE)
         {
-            std::string time_zone_val = value;
-            // TimeZone of GMT+/GMT- is not supported in clickhouse backend, but Etc/GMT+ and Etc/GMT- supported
-            if (value.starts_with("GMT+"))
-                time_zone_val = "Etc/GMT-" + value.substr(4);
-            else if (value.starts_with("GMT-"))
-                time_zone_val = "Etc/GMT+" + value.substr(4);
-            
+            String time_zone_val = DateLUT::mappingForJavaTimezone(value);
             settings.set("session_timezone", time_zone_val);
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", "session_timezone", time_zone_val);
         }
