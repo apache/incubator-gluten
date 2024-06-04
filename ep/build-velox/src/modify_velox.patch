@@ -127,17 +127,6 @@ index 10ee508ba..027a58ecc 100644
    setupEnvironment(hadoopHomeDirectory.string());
  }
 
-diff --git a/velox/dwio/common/CMakeLists.txt b/velox/dwio/common/CMakeLists.txt
-index 9b6574d6e..61abddb59 100644
---- a/velox/dwio/common/CMakeLists.txt
-+++ b/velox/dwio/common/CMakeLists.txt
-@@ -77,4 +77,5 @@ target_link_libraries(
-   velox_memory
-   Boost::regex
-   Folly::folly
--  glog::glog)
-+  glog::glog
-+  protobuf::libprotobuf)
 diff --git a/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt b/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
 index 2cabfc29a..54329ce23 100644
 --- a/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
