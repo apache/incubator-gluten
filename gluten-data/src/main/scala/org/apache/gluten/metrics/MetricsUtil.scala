@@ -184,7 +184,7 @@ object MetricsUtil extends Logging {
   }
 
   // FIXME: Metrics updating code is too magical to maintain. Tree-walking algorithm should be made
-  //  more declarative than by counting down some kind of counters that don't have fixed definition.
+  //  more declarative than by counting down these counters that don't have fixed definition.
   /**
    * @return
    *   operator index and metrics index
