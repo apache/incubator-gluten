@@ -216,7 +216,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     // not-in with or relation
     runQueryAndCompare(
       "select l_orderkey from lineitem " +
-        "where l_partkey not in (1552, 674) and l_partkey in (1552)") {
+        "where l_partkey not in (1552, 674) or l_partkey in (1552)") {
       checkGlutenOperatorMatch[FileSourceScanExecTransformer]
     }
   }
