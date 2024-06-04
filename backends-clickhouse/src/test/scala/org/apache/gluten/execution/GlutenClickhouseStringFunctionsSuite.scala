@@ -18,7 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
 
-class GlutenStringFunctionsSuite extends GlutenClickHouseWholeStageTransformerSuite {
+class GlutenClickhouseStringFunctionsSuite extends GlutenClickHouseWholeStageTransformerSuite {
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
@@ -50,11 +50,10 @@ class GlutenStringFunctionsSuite extends GlutenClickHouseWholeStageTransformerSu
   test("GLUTEN-5897: fix regexp_extract with bracket") {
     withTable("regexp_extract_bracket") {
       sql("create table regexp_extract_bracket(a String) using parquet")
-      sql(
-        """
-          |insert into regexp_extract_bracket
-          | values ('123.123abc-abc'),('123-LOW'),('123]abc-abc')
-          |""".stripMargin)
+      sql("""
+            |insert into regexp_extract_bracket
+            | values ('123.123abc-abc'),('123-LOW'),('123]abc-abc')
+            |""".stripMargin)
 
       val sql_str =
         s"""select
