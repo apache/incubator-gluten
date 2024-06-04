@@ -27,7 +27,7 @@ import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverri
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
-import org.apache.gluten.utils.CHJoinValidateUtil
+import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
 import org.apache.gluten.vectorized.CHColumnarBatchSerializer
 
 import org.apache.spark.{ShuffleDependency, SparkException}
@@ -694,15 +694,19 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   }
 
   /**
-   * Define whether the join operator is fallback because of the join operator is not supported by
-   * backend
+   * This is only used to control whether transform smj into shj or not at present. We always prefer
+   * shj.
    */
   override def joinFallback(
-      JoinType: JoinType,
+      joinType: JoinType,
       leftOutputSet: AttributeSet,
       rightOutputSet: AttributeSet,
       condition: Option[Expression]): Boolean = {
-    CHJoinValidateUtil.shouldFallback(JoinType, leftOutputSet, rightOutputSet, condition)
+    CHJoinValidateUtil.shouldFallback(
+      UnknownJoinStrategy(joinType),
+      leftOutputSet,
+      rightOutputSet,
+      condition)
   }
 
   /** Generate window function node */
