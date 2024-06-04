@@ -36,10 +36,10 @@ index d49115f12..1aaa8e532 100644
 +  endif()
  endif()
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 53aaf4391..90aba6916 100644
+index 5c7bf770a..9f897f577 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -243,10 +243,15 @@ if(VELOX_ENABLE_ABFS)
+@@ -234,10 +234,15 @@ if(VELOX_ENABLE_ABFS)
  endif()
 
  if(VELOX_ENABLE_HDFS)
@@ -59,7 +59,7 @@ index 53aaf4391..90aba6916 100644
    add_definitions(-DVELOX_ENABLE_HDFS3)
  endif()
 
-@@ -386,7 +391,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
+@@ -377,7 +382,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
  # for reference. find_package(range-v3)
 
  set_source(gflags)
@@ -68,6 +68,15 @@ index 53aaf4391..90aba6916 100644
  if(NOT TARGET gflags::gflags)
    # This is a bit convoluted, but we want to be able to use gflags::gflags as a
    # target even when velox is built as a subproject which uses
+@@ -441,7 +446,7 @@ if(${VELOX_BUILD_MINIMAL_WITH_DWIO}
+
+   # Locate or build protobuf.
+   set_source(Protobuf)
+-  resolve_dependency(Protobuf 3.21.4 EXACT)
++  resolve_dependency(Protobuf 3.21 EXACT)
+   include_directories(${Protobuf_INCLUDE_DIRS})
+ endif()
+
 diff --git a/third_party/CMakeLists.txt b/third_party/CMakeLists.txt
 index ce4c24dbe..785a2acc6 100644
 --- a/third_party/CMakeLists.txt
