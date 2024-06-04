@@ -292,7 +292,10 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
        */
       val allScanPartitions = basicScanExecTransformers.map(_.getPartitions)
       val allScanSplitInfos =
-        getSplitInfosFromPartitions(basicScanExecTransformers, allScanPartitions, serializableHadoopConf)
+        getSplitInfosFromPartitions(
+          basicScanExecTransformers,
+          allScanPartitions,
+          serializableHadoopConf)
       val inputPartitions =
         BackendsApiManager.getIteratorApiInstance.genPartitions(
           wsCtx,
