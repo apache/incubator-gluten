@@ -843,6 +843,14 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("try_subtract") {
+    runQueryAndCompare(
+      "select try_subtract(2147483647, cast(l_orderkey as int)), " +
+        "try_subtract(-2147483648, cast(l_orderkey as int)) from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("test array forall") {
     withTempPath {
       path =>

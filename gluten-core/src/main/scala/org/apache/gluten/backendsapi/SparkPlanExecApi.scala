@@ -214,6 +214,14 @@ trait SparkPlanExecApi {
     throw new GlutenNotSupportException("try_add is not supported")
   }
 
+  def genTrySubtractTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: TryEval): ExpressionTransformer = {
+    throw new GlutenNotSupportException("try_subtract is not supported")
+  }
+
   def genTryEvalTransformer(
       substraitExprName: String,
       child: ExpressionTransformer,
@@ -226,6 +234,14 @@ trait SparkPlanExecApi {
       left: ExpressionTransformer,
       right: ExpressionTransformer,
       original: Add): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
+  }
+
+  def genSubtractTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Subtract): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
   }
 

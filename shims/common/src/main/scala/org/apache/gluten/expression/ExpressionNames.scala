@@ -84,6 +84,7 @@ object ExpressionNames {
   final val NANVL = "nanvl"
   final val TRY_EVAL = "try"
   final val TRY_ADD = "try_add"
+  final val TRY_SUBTRACT = "try_subtract"
 
   // SparkSQL String functions
   final val ASCII = "ascii"

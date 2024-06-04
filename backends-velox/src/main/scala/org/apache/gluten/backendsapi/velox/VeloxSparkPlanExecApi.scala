@@ -132,13 +132,32 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       throw new GlutenNotSupportException(s"add with ansi mode is not supported")
     }
     original.child.dataType match {
-      case LongType | IntegerType | ShortType | ByteType =>
+      case _: NumericType =>
       case _ => throw new GlutenNotSupportException(s"try_add is not supported")
     }
     // Offload to velox for only IntegralTypes.
     GenericExpressionTransformer(
       substraitExprName,
       Seq(GenericExpressionTransformer(ExpressionNames.TRY_ADD, Seq(left, right), original)),
+      original)
+  }
+
+  override def genTrySubtractTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: TryEval): ExpressionTransformer = {
+    if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original.child)) {
+      throw new GlutenNotSupportException(s"subtract with ansi mode is not supported")
+    }
+    original.child.dataType match {
+      case _: NumericType =>
+      case _ => throw new GlutenNotSupportException(s"try_subtract is not supported")
+    }
+    // Offload to velox for only IntegralTypes.
+    GenericExpressionTransformer(
+      substraitExprName,
+      Seq(GenericExpressionTransformer(ExpressionNames.TRY_SUBTRACT, Seq(left, right), original)),
       original)
   }
 
@@ -149,7 +168,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       original: Add): ExpressionTransformer = {
     if (SparkShimLoader.getSparkShims.withTryEvalMode(original)) {
       original.dataType match {
-        case LongType | IntegerType | ShortType | ByteType =>
+        case _: NumericType =>
         case _ => throw new GlutenNotSupportException(s"try_add is not supported")
       }
       // Offload to velox for only IntegralTypes.
@@ -159,6 +178,28 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         original)
     } else if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original)) {
       throw new GlutenNotSupportException(s"add with ansi mode is not supported")
+    } else {
+      GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
+    }
+  }
+
+  override def genSubtractTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Subtract): ExpressionTransformer = {
+    if (SparkShimLoader.getSparkShims.withTryEvalMode(original)) {
+      original.dataType match {
+        case _: NumericType =>
+        case _ => throw new GlutenNotSupportException(s"try_subtract is not supported")
+      }
+      // Offload to velox for only IntegralTypes.
+      GenericExpressionTransformer(
+        ExpressionMappings.expressionsMap(classOf[TryEval]),
+        Seq(GenericExpressionTransformer(ExpressionNames.TRY_SUBTRACT, Seq(left, right), original)),
+        original)
+    } else if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original)) {
+      throw new GlutenNotSupportException(s"subtract with ansi mode is not supported")
     } else {
       GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
     }

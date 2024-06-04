@@ -436,6 +436,7 @@ class Spark35Shims extends SparkShims {
   override def withTryEvalMode(expr: Expression): Boolean = {
     expr match {
       case a: Add => a.evalMode == EvalMode.TRY
+      case s: Subtract => s.evalMode == EvalMode.TRY
       case _ => false
     }
   }
@@ -443,6 +444,7 @@ class Spark35Shims extends SparkShims {
   override def withAnsiEvalMode(expr: Expression): Boolean = {
     expr match {
       case a: Add => a.evalMode == EvalMode.ANSI
+      case s: Subtract => s.evalMode == EvalMode.ANSI
       case _ => false
     }
   }

@@ -401,6 +401,7 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"date_format", "format_datetime"},
     {"collect_set", "set_agg"},
     {"try_add", "plus"},
+    {"try_subtract", "minus"},
     {"forall", "all_match"},
     {"exists", "any_match"},
     {"negative", "unaryminus"},
