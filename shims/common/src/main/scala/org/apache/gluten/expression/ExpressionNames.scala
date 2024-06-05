@@ -85,6 +85,8 @@ object ExpressionNames {
   final val TRY_EVAL = "try"
   final val TRY_ADD = "try_add"
   final val TRY_SUBTRACT = "try_subtract"
+  final val TRY_DIVIDE = "try_divide"
+  final val TRY_MULTIPLY = "try_multiply"
 
   // SparkSQL String functions
   final val ASCII = "ascii"

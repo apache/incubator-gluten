@@ -145,9 +145,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSortOrderExpressionsSuite]
   enableSuite[GlutenStringExpressionsSuite]
   enableSuite[GlutenTryEvalSuite]
-    .exclude("try_divide")
-    .exclude("try_multiply")
-    .exclude("Throw exceptions from children")
   enableSuite[VeloxAdaptiveQueryExecSuite]
     .includeAllGlutenTests()
     .includeByPrefix(

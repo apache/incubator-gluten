@@ -21,6 +21,7 @@
 #include "operators/functions/RowFunctionWithNull.h"
 #include "velox/expression/SpecialFormRegistry.h"
 #include "velox/expression/VectorFunction.h"
+#include "velox/functions/lib/CheckedArithmetic.h"
 #include "velox/functions/lib/RegistrationHelpers.h"
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
 #include "velox/functions/prestosql/registration/RegistrationFunctions.h"
@@ -67,6 +68,10 @@ void registerFunctionOverwrite() {
       kRowConstructorWithAllNull,
       std::make_unique<RowConstructorWithNullCallToSpecialForm>(kRowConstructorWithAllNull));
   velox::functions::sparksql::registerBitwiseFunctions("spark_");
+  velox::functions::registerBinaryIntegral<velox::functions::CheckedPlusFunction>({"check_plus"});
+  velox::functions::registerBinaryIntegral<velox::functions::CheckedMinusFunction>({"check_minus"});
+  velox::functions::registerBinaryIntegral<velox::functions::CheckedMultiplyFunction>({"check_multiply"});
+  velox::functions::registerBinaryIntegral<velox::functions::CheckedDivideFunction>({"check_divide"});
 }
 } // namespace
 

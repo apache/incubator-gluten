@@ -843,10 +843,26 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
-  test("try_subtract") {
+  testWithSpecifiedSparkVersion("try_subtract", Some("3.3")) {
     runQueryAndCompare(
       "select try_subtract(2147483647, cast(l_orderkey as int)), " +
         "try_subtract(-2147483648, cast(l_orderkey as int)) from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("try_divide") {
+    runQueryAndCompare(
+      "select try_divide(cast(l_orderkey as int), 0) from lineitem",
+      noFallBack = false) {
+      _ => // Spark would always cast inputs to double for this function.
+    }
+  }
+
+  testWithSpecifiedSparkVersion("try_multiply", Some("3.3")) {
+    runQueryAndCompare(
+      "select try_multiply(2147483647, cast(l_orderkey as int)), " +
+        "try_multiply(-2147483648, cast(l_orderkey as int)) from lineitem") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
