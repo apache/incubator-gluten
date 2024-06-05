@@ -68,10 +68,10 @@ void registerFunctionOverwrite() {
       kRowConstructorWithAllNull,
       std::make_unique<RowConstructorWithNullCallToSpecialForm>(kRowConstructorWithAllNull));
   velox::functions::sparksql::registerBitwiseFunctions("spark_");
-  velox::functions::registerBinaryIntegral<velox::functions::CheckedPlusFunction>({"try_add"});
-  velox::functions::registerBinaryIntegral<velox::functions::CheckedMinusFunction>({"try_subtract"});
-  velox::functions::registerBinaryIntegral<velox::functions::CheckedMultiplyFunction>({"try_multiply"});
-  velox::functions::registerBinaryIntegral<velox::functions::CheckedDivideFunction>({"try_divide"});
+  velox::functions::registerBinaryIntegral<velox::functions::CheckedPlusFunction>({"check_add"});
+  velox::functions::registerBinaryIntegral<velox::functions::CheckedMinusFunction>({"check_subtract"});
+  velox::functions::registerBinaryIntegral<velox::functions::CheckedMultiplyFunction>({"check_multiply"});
+  velox::functions::registerBinaryIntegral<velox::functions::CheckedDivideFunction>({"check_divide"});
 }
 } // namespace
 
