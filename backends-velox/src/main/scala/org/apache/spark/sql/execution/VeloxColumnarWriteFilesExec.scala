@@ -34,6 +34,8 @@ import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSet, GenericInternalRow}
 import org.apache.spark.sql.connector.write.WriterCommitMessage
 import org.apache.spark.sql.execution.datasources._
+import org.apache.spark.sql.execution.ui.{SparkPlanGraphEdge, SparkPlanGraphNodeWrapper, SparkPlanGraphWrapper}
+import org.apache.spark.sql.execution.ui.adjustment.PlanGraphAdjustment
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
@@ -270,8 +272,13 @@ case class VeloxColumnarWriteFilesExec private (
   extends BinaryExecNode
   with GlutenPlan
   with VeloxColumnarWriteFilesExec.ExecuteWriteCompatible {
+  import VeloxColumnarWriteFilesExec._
 
   val child: SparkPlan = left
+
+  // Make sure we hide the noop leaf from fallback report / SQL UI.
+  HideNoopLeafFromFallBackReport.ensureRegistered()
+  HideNoopLeafFromVeloxColumnarWriteFiles.ensureRegistered()
 
   override lazy val references: AttributeSet = AttributeSet.empty
 
@@ -322,6 +329,7 @@ case class VeloxColumnarWriteFilesExec private (
       new VeloxColumnarWriteFilesRDD(rdd, writeFilesSpec, jobTrackerID)
     }
   }
+
   override protected def withNewChildrenInternal(
       newLeft: SparkPlan,
       newRight: SparkPlan): SparkPlan =
@@ -329,7 +337,6 @@ case class VeloxColumnarWriteFilesExec private (
 }
 
 object VeloxColumnarWriteFilesExec {
-
   def apply(
       child: SparkPlan,
       fileFormat: FileFormat,
@@ -373,10 +380,66 @@ object VeloxColumnarWriteFilesExec {
 
   sealed trait ExecuteWriteCompatible {
     // To be compatible with Spark (version < 3.4)
-    protected def doExecuteWrite(writeFilesSpec: WriteFilesSpec): RDD[WriterCommitMessage] = {
-      throw new GlutenException(
-        s"Internal Error ${this.getClass} has write support" +
-          s" mismatch:\n${this}")
+    protected def doExecuteWrite(writeFilesSpec: WriteFilesSpec): RDD[WriterCommitMessage]
+  }
+
+  // Hide the noop leaf from fall back reporting.
+  private object HideNoopLeafFromFallBackReport extends GlutenExplainUtils.HideFallbackReason {
+    override def shouldHide(plan: SparkPlan): Boolean = {
+      hasOnlyOneNoopLeaf(plan)
+    }
+
+    // True if the plan tree has and only has one single NoopLeaf as its leaf.
+    private def hasOnlyOneNoopLeaf(plan: SparkPlan): Boolean = {
+      if (plan.children.size > 1) {
+        return false
+      }
+      if (plan.children.size == 1) {
+        return hasOnlyOneNoopLeaf(plan.children.head)
+      }
+      plan.isInstanceOf[NoopLeaf]
+    }
+  }
+
+  // Hide the noop leaf from SQL UI.
+  private object HideNoopLeafFromVeloxColumnarWriteFiles extends PlanGraphAdjustment {
+    override def apply(graph: SparkPlanGraphWrapper): SparkPlanGraphWrapper = {
+      val nodeLeafNodes = graph.nodes
+        .filter(_.node != null)
+        .filter(n => n.node.name == "NoopLeaf")
+      if (nodeLeafNodes.isEmpty) {
+        return graph
+      }
+      val nodesToRemove = mutable.ListBuffer[SparkPlanGraphNodeWrapper]()
+      val edgesToRemove = mutable.ListBuffer[SparkPlanGraphEdge]()
+
+      nodeLeafNodes.foreach {
+        node =>
+          nodesToRemove += node
+          keepFinding()
+          def keepFinding(): Unit = {
+            var tmp = node
+            for (_ <- graph.nodes.indices) {
+              val parent = findParent(graph, tmp)
+              if (parent.isEmpty) {
+                return
+              }
+              if (parent.get._1.node.name == "VeloxColumnarWriteFiles") {
+                edgesToRemove += parent.get._2
+                return
+              }
+              nodesToRemove += parent.get._1
+              edgesToRemove += parent.get._2
+              tmp = parent.get._1
+            }
+          }
+      }
+
+      new SparkPlanGraphWrapper(
+        graph.executionId,
+        (graph.nodes.toSet -- nodesToRemove).toSeq,
+        (graph.edges.toSet -- edgesToRemove).toSeq
+      )
     }
   }
 }
