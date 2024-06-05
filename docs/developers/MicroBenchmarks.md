@@ -324,8 +324,9 @@ cd /path/to/gluten/cpp/build/velox/benchmarks
 
 Developers can only run shuffle write task via specifying `--run-shuffle` and `--data` options.
 The parquet format input will be read from arrow-parquet reader and sent to shuffle writer.
-This option is similar to the `--with-shuffle` option, but it doesn't require the plan and split files,
-and doesn't support the `--partitioning` option. The round-robin partitioner is used by default.
+This option is similar to the `--with-shuffle` option, but it doesn't require the plan and split files.
+The round-robin partitioner is used by default. Besides, random partitioning can be used for testing purpose.
+By specifying option `--partitioning random`, the partitioner will generate a random partition id for each row.
 
 ```shell
 cd /path/to/gluten/cpp/build/velox/benchmarks

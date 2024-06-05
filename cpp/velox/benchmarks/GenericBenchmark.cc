@@ -47,7 +47,10 @@ namespace {
 DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_string(save_output, "", "Path to parquet file for saving the task output iterator");
 DEFINE_bool(with_shuffle, false, "Add shuffle split at end.");
-DEFINE_string(partitioning, "rr", "Short partitioning name. Valid options are rr, hash, range, single");
+DEFINE_string(
+    partitioning,
+    "rr",
+    "Short partitioning name. Valid options are rr, hash, range, single, random (only for test purpose)");
 DEFINE_string(shuffle_writer, "hash", "Shuffle writer type. Can be hash or sort");
 DEFINE_bool(rss, false, "Mocking rss.");
 DEFINE_string(
@@ -140,11 +143,7 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
   }
 
   auto options = ShuffleWriterOptions{};
-  if (FLAGS_run_shuffle) {
-    options.partitioning = Partitioning::kRoundRobin;
-  } else {
-    options.partitioning = gluten::toPartitioning(FLAGS_partitioning);
-  }
+  options.partitioning = gluten::toPartitioning(FLAGS_partitioning);
   if (FLAGS_shuffle_writer == "sort") {
     options.shuffleWriterType = gluten::kSortShuffle;
   }
@@ -439,6 +438,8 @@ int main(int argc, char** argv) {
     std::string errorMsg{};
     if (FLAGS_data.empty()) {
       errorMsg = "Missing '--split' or '--data' option.";
+    } else if (FLAGS_partitioning != "rr" && FLAGS_partitioning != "random") {
+      errorMsg = "--run-shuffle only support round-robin partitioning and random partitioning.";
     }
     if (errorMsg.empty()) {
       try {
