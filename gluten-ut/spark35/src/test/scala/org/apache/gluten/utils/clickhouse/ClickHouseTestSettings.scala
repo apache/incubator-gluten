@@ -147,6 +147,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("dropFields user-facing examples")
     .exclude("should move field up one level of nesting")
     .exclude("SPARK-36778: add ilike API for scala")
+    .exclude("SPARK-34721: add a year-month interval to a date")
+    .exclude("SPARK-34739: add a year-month interval to a timestamp")
   enableSuite[GlutenComplexTypesSuite]
   enableSuite[GlutenConfigBehaviorSuite].exclude(
     "SPARK-22160 spark.sql.execution.rangeExchange.sampleSizePerPartition")
