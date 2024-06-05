@@ -211,8 +211,8 @@ trait SparkPlanExecApi {
       left: ExpressionTransformer,
       right: ExpressionTransformer,
       original: TryEval,
-      tryArithmeticExprName: String): ExpressionTransformer = {
-    throw new GlutenNotSupportException(s"$tryArithmeticExprName is not supported")
+      checkArithmeticExprName: String): ExpressionTransformer = {
+    throw new GlutenNotSupportException(s"$checkArithmeticExprName is not supported")
   }
 
   def genTryEvalTransformer(
@@ -227,7 +227,7 @@ trait SparkPlanExecApi {
       left: ExpressionTransformer,
       right: ExpressionTransformer,
       original: Expression,
-      tryArithmeticExprName: String): ExpressionTransformer = {
+      checkArithmeticExprName: String): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
   }
 
