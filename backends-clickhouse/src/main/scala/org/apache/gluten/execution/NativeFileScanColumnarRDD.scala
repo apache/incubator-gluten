@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.metrics.GlutenTimeMetric
-import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator, GeneralOutIterator}
+import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator}
 
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
@@ -47,10 +47,10 @@ class NativeFileScanColumnarRDD(
       .asInstanceOf[GlutenPartition]
       .splitInfosByteArray
 
-    val resIter: GeneralOutIterator = GlutenTimeMetric.millis(scanTime) {
+    val resIter = GlutenTimeMetric.millis(scanTime) {
       _ =>
         val transKernel = new CHNativeExpressionEvaluator()
-        val inBatchIters = new util.ArrayList[BatchIterator]()
+        val inBatchIters = new util.ArrayList[GeneralInIterator]()
         transKernel.createKernelWithBatchIterator(
           inputPartition.plan,
           splitInfoByteArray,
