@@ -364,6 +364,14 @@ class SubstraitToVeloxPlanConverter {
       }
     }
 
+    // Set a value for the not(equal) condition.
+    void setNotValue(const std::optional<variant>& notValue) {
+      notValue_ = notValue;
+      if (!initialized_) {
+        initialized_ = true;
+      }
+    }
+
     // Set a list of values to be used in the push down of 'not in' expression.
     void setNotValues(const std::vector<variant>& notValues) {
       for (const auto& value : notValues) {
@@ -388,8 +396,8 @@ class SubstraitToVeloxPlanConverter {
     // If true, right bound will be exclusive.
     std::vector<bool> upperExclusives_;
 
-    // The list of values should not be equal to.
-    std::vector<variant> notValues_;
+    // A value should not be equal to.
+    std::optional<variant> notValue_ = std::nullopt;
 
     // The lower bounds in 'or' relation.
     std::vector<std::optional<variant>> lowerBounds_;
@@ -399,6 +407,9 @@ class SubstraitToVeloxPlanConverter {
 
     // The list of values used in 'in' expression.
     std::vector<variant> values_;
+
+    // The list of values should not be equal to.
+    std::vector<variant> notValues_;
   };
 
   /// Returns unique ID to use for plan node. Produces sequential numbers
@@ -461,6 +472,7 @@ class SubstraitToVeloxPlanConverter {
       bool reverse = false);
 
   /// Extract SingularOrList and set it to the filter info map.
+  /// If reverse is true, the opposite filter info will be set.
   void setFilterInfo(
       const ::substrait::Expression_SingularOrList& singularOrList,
       std::vector<FilterInfo>& columnToFilterInfo,
@@ -476,6 +488,11 @@ class SubstraitToVeloxPlanConverter {
       std::optional<variant> literalVariant,
       FilterInfo& columnToFilterInfo,
       bool reverse);
+
+  /// Create a multirange to specify the filter 'x != notValue' with:
+  /// x > notValue or x < notValue.
+  template <TypeKind KIND, typename FilterType>
+  void createNotEqualFilter(variant notVariant, bool nullAllowed, std::vector<std::unique_ptr<FilterType>>& colFilters);
 
   /// Create a values range to handle (not) in filter.
   /// variants: the list of values extracted from the (not) in expression.

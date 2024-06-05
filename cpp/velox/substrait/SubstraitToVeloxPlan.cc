@@ -1582,6 +1582,9 @@ bool SubstraitToVeloxPlanConverter::canPushdownNot(
   const auto& notArg = scalarFunction.arguments()[0];
   if (notArg.value().has_singular_or_list()) {
     auto singularOrList = notArg.value().singular_or_list();
+    if (!canPushdownSingularOrList(singularOrList)) {
+      return false;
+    }
     uint32_t colIdx = getColumnIndexFromSingularOrList(singularOrList);
     return rangeRecorders.at(colIdx).setInRange();
   } else if (notArg.value().has_scalar_function()) {
@@ -1802,8 +1805,7 @@ void SubstraitToVeloxPlanConverter::setColumnFilterInfo(
     }
   } else if (filterName == sEqual) {
     if (reverse) {
-      std::vector<variant> notValues{literalVariant.value()};
-      columnFilterInfo.setNotValues(notValues);
+      columnFilterInfo.setNotValue(literalVariant);
     } else {
       columnFilterInfo.setLower(literalVariant, false);
       columnFilterInfo.setUpper(literalVariant, false);
@@ -1894,6 +1896,59 @@ void SubstraitToVeloxPlanConverter::setFilterInfo(
   }
 
   setColumnFilterInfo(functionName, val, columnToFilterInfo[colIdxVal], reverse);
+}
+
+template <TypeKind KIND, typename FilterType>
+void SubstraitToVeloxPlanConverter::createNotEqualFilter(
+    variant notVariant,
+    bool nullAllowed,
+    std::vector<std::unique_ptr<FilterType>>& colFilters) {
+  using NativeType = typename RangeTraits<KIND>::NativeType;
+  using RangeType = typename RangeTraits<KIND>::RangeType;
+  // Value > lower
+  std::unique_ptr<FilterType> lowerFilter;
+  if constexpr (std::is_same_v<RangeType, common::BigintRange>) {
+    if (notVariant.value<NativeType>() < getMax<NativeType>()) {
+      lowerFilter = std::make_unique<common::BigintRange>(
+          notVariant.value<NativeType>() + 1 /*lower*/, getMax<NativeType>() /*upper*/, nullAllowed);
+    }
+  } else {
+    lowerFilter = std::make_unique<RangeType>(
+        notVariant.value<NativeType>() /*lower*/,
+        false /*lowerUnbounded*/,
+        true /*lowerExclusive*/,
+        getMax<NativeType>() /*upper*/,
+        true /*upperUnbounded*/,
+        false /*upperExclusive*/,
+        nullAllowed);
+  }
+
+  // Value < upper
+  std::unique_ptr<FilterType> upperFilter;
+  if constexpr (std::is_same_v<RangeType, common::BigintRange>) {
+    if (getLowest<NativeType>() < notVariant.value<NativeType>()) {
+      upperFilter = std::make_unique<common::BigintRange>(
+          getLowest<NativeType>() /*lower*/, notVariant.value<NativeType>() - 1 /*upper*/, nullAllowed);
+    }
+  } else {
+    upperFilter = std::make_unique<RangeType>(
+        getLowest<NativeType>() /*lower*/,
+        true /*lowerUnbounded*/,
+        false /*lowerExclusive*/,
+        notVariant.value<NativeType>() /*upper*/,
+        false /*upperUnbounded*/,
+        true /*upperExclusive*/,
+        nullAllowed);
+  }
+
+  // To avoid overlap of BigintMultiRange, keep this appending order to make sure lower bound of one range is less than
+  // the upper bounds of others.
+  if (upperFilter) {
+    colFilters.emplace_back(std::move(upperFilter));
+  }
+  if (lowerFilter) {
+    colFilters.emplace_back(std::move(lowerFilter));
+  }
 }
 
 template <TypeKind KIND>
@@ -2059,7 +2114,10 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
   } else if constexpr (KIND == facebook::velox::TypeKind::BOOLEAN) {
     // Handle bool type filters.
     // Not equal.
-    if (filterInfo.notValues_.size() > 0) {
+    if (filterInfo.notValue_) {
+      filters[common::Subfield(inputName)] =
+          std::make_unique<common::BoolValue>(!filterInfo.notValue_.value().value<bool>(), nullAllowed);
+    } else if (filterInfo.notValues_.size() > 0) {
       std::set<bool> notValues;
       for (auto v : filterInfo.notValues_) {
         notValues.emplace(v.value<bool>());
@@ -2102,6 +2160,7 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
   } else {
     using NativeType = typename RangeTraits<KIND>::NativeType;
     using RangeType = typename RangeTraits<KIND>::RangeType;
+    using MultiRangeType = typename RangeTraits<KIND>::MultiRangeType;
 
     // Handle 'in' filter.
     if (filterInfo.values_.size() > 0) {
@@ -2111,17 +2170,45 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
       // Currently, In cannot coexist with other filter conditions
       // due to multirange is in 'OR' relation but 'AND' is needed.
       VELOX_CHECK(rangeSize == 0, "LowerBounds or upperBounds conditons cannot be supported after IN filter.");
-      VELOX_CHECK(filterInfo.notValues_.size() == 0, "Not-equal/Not-in cannot be supported after IN filter.");
+      VELOX_CHECK(!filterInfo.notValue_.has_value(), "Not equal cannot be supported after IN filter.");
+      VELOX_CHECK(filterInfo.notValues_.size() == 0, "Not in cannot be supported after IN filter.");
       return;
     }
 
     // Handle not in filter.
     if (filterInfo.notValues_.size() > 0) {
       setInFilter<KIND>(filterInfo.notValues_, filterInfo.nullAllowed_, true, inputName, filters);
-      // Currently, not-equal/not-in cannot coexist with other filter conditions
+      // Currently, NOT In cannot coexist with other filter conditions
       // due to multirange is in 'OR' relation but 'AND' is needed.
-      VELOX_CHECK(
-          rangeSize == 0, "LowerBounds or upperBounds conditons cannot be supported after not-equal/not-in filter.");
+      VELOX_CHECK(rangeSize == 0, "LowerBounds or upperBounds conditons cannot be supported after NOT IN filter.");
+      VELOX_CHECK(!filterInfo.notValue_.has_value(), "Not equal cannot be supported after NOT IN filter.");
+      return;
+    }
+
+    // Construct the Filters.
+    std::vector<std::unique_ptr<FilterType>> colFilters;
+
+    // Handle not(equal) filter.
+    if (filterInfo.notValue_) {
+      variant notVariant = filterInfo.notValue_.value();
+      createNotEqualFilter<KIND, FilterType>(notVariant, filterInfo.nullAllowed_, colFilters);
+      // Currently, Not-equal cannot coexist with other filter conditions
+      // due to multirange is in 'OR' relation but 'AND' is needed.
+      VELOX_CHECK(rangeSize == 0, "LowerBounds or upperBounds conditons cannot be supported after not-equal filter.");
+      if constexpr (std::is_same_v<MultiRangeType, common::MultiRange>) {
+        if (colFilters.size() == 1) {
+          filters[common::Subfield(inputName)] = std::move(colFilters.front());
+        } else {
+          filters[common::Subfield(inputName)] =
+              std::make_unique<common::MultiRange>(std::move(colFilters), nullAllowed, true /*nanAllowed*/);
+        }
+      } else {
+        if (colFilters.size() == 1) {
+          filters[common::Subfield(inputName)] = std::move(colFilters.front());
+        } else {
+          filters[common::Subfield(inputName)] = std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
+        }
+      }
       return;
     }
 
@@ -2166,9 +2253,6 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
     [[maybe_unused]] bool upperUnbounded = true;
     bool lowerExclusive = false;
     bool upperExclusive = false;
-
-    // Construct the Filters.
-    std::vector<std::unique_ptr<FilterType>> colFilters;
 
     // Handle other filter ranges.
     for (uint32_t idx = 0; idx < rangeSize; idx++) {
