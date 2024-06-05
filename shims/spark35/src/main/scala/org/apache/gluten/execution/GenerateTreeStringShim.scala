@@ -67,7 +67,7 @@ trait InputAdapterGenerateTreeStringShim extends UnaryExecNode {
 
   override def generateTreeString(
       depth: Int,
-      lastChildren: Seq[Boolean],
+      lastChildren: java.util.ArrayList[Boolean],
       append: String => Unit,
       verbose: Boolean,
       prefix: String = "",
