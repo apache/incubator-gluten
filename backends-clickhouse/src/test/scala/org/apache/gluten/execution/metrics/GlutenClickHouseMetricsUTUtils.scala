@@ -47,7 +47,7 @@ object GlutenClickHouseMetricsUTUtils {
 
     val transKernel = new CHNativeExpressionEvaluator()
     val mockMemoryAllocator = CHNativeMemoryAllocators.contextInstanceForUT()
-    val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
+    val resIter = transKernel.createKernelWithBatchIterator(
       mockMemoryAllocator.getNativeInstanceId,
       substraitPlan.toByteArray,
       new Array[Array[Byte]](0),

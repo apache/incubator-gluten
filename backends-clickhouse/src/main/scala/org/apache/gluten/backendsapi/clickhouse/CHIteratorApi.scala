@@ -206,7 +206,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     val splitInfoByteArray = inputPartition
       .asInstanceOf[GlutenPartition]
       .splitInfosByteArray
-    val resIter: GeneralOutIterator =
+    val resIter =
       transKernel.createKernelWithBatchIterator(
         inputPartition.plan,
         splitInfoByteArray,

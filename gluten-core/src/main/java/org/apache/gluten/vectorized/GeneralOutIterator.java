@@ -28,7 +28,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public abstract class GeneralOutIterator
     implements AutoCloseable, Serializable, Iterator<ColumnarBatch> {
   protected final AtomicBoolean closed = new AtomicBoolean(false);
-  protected final AtomicBoolean cancelled = new AtomicBoolean(false);
 
   public GeneralOutIterator() {}
 
@@ -61,17 +60,9 @@ public abstract class GeneralOutIterator
     }
   }
 
-  public final void cancel() {
-    if (cancelled.compareAndSet(false, true)) {
-      cancelInternal();
-    }
-  }
-
   public abstract String getId();
 
   protected abstract void closeInternal();
-
-  protected void cancelInternal() {}
 
   protected abstract boolean hasNextInternal() throws Exception;
 
