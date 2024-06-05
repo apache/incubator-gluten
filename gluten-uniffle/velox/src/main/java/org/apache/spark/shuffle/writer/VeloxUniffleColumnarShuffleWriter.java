@@ -202,8 +202,8 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
 
     long startTime = System.nanoTime();
     LOG.info("nativeShuffleWriter value {}", nativeShuffleWriter);
-    if (nativeShuffleWriter == -1L) {
-      throw new IllegalStateException("nativeShuffleWriter should not be -1L");
+    if (nativeShuffleWriter != -1L) {
+      throw new IllegalStateException("nativeShuffleWriter should be already marked -1L");
     }
     splitResult = jniWrapper.stop(nativeShuffleWriter);
     columnarDep
@@ -246,9 +246,9 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
   }
 
   private void closeShuffleWriter() {
-    if (nativeShuffleWriter != -1) {
+    if (nativeShuffleWriter != -1L) {
       jniWrapper.close(nativeShuffleWriter);
-      nativeShuffleWriter = -1;
+      nativeShuffleWriter = -1L;
     }
   }
 
