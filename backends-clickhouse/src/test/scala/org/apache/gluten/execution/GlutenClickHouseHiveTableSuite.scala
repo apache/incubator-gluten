@@ -111,6 +111,7 @@ class GlutenClickHouseHiveTableSuite
         getClass.getResource("/").getPath + "tests-working-home/spark-warehouse")
       .set("spark.hive.exec.dynamic.partition.mode", "nonstrict")
       .set("spark.gluten.supported.hive.udfs", "my_add")
+      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format", "true")
       .setMaster("local[*]")
   }
 
