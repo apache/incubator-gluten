@@ -1004,9 +1004,6 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
         }
     }
 
-    if (ch_func_name == "JSON_VALUE")
-        result_node->function->setResolver(function_builder);
-
     if (keep_result)
         actions_dag->addOrReplaceInOutputs(*result_node);
 
