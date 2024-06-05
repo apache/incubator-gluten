@@ -55,11 +55,6 @@ abstract class SortMergeJoinExecTransformerBase(
   val (bufferedKeys, streamedKeys, bufferedPlan, streamedPlan) =
     (rightKeys, leftKeys, right, left)
 
-  override def simpleStringWithNodeId(): String = {
-    val opId = ExplainUtils.getOpId(this)
-    s"$nodeName $joinType ($opId)".trim
-  }
-
   override def verboseStringWithOperatorId(): String = {
     val joinCondStr = if (condition.isDefined) {
       s"${condition.get}"
@@ -255,7 +250,6 @@ case class SortMergeJoinExecTransformer(
     projectList) {
 
   override protected def doValidateInternal(): ValidationResult = {
-    val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     if (substraitJoinType == JoinRel.JoinType.JOIN_TYPE_OUTER) {
       return ValidationResult
