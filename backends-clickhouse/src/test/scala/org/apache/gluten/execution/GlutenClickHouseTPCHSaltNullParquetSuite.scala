@@ -2612,5 +2612,23 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       spark.sql("drop table ineq_join_t2")
     }
   }
+
+  test("GLUTEN-5910: Fix ASTLiteral type is lost in CH") {
+    spark.sql("create table test_tbl_5910_0(c_time bigint, type int) using parquet")
+    spark.sql("create table test_tbl_5910_1(type int) using parquet")
+    spark.sql("insert into test_tbl_5910_0 values(1717209159, 12)")
+    spark.sql("insert into test_tbl_5910_1 values(12)")
+    val select_sql =
+      """
+        | select t1.cday, t2.type from (
+        | select type, to_date(from_unixtime(c_time)) as cday from test_tbl_5910_0 ) t1
+        | left join (
+        | select type, "2024-06-01" from test_tbl_5910_1 ) t2
+        | on t1.cday = t2.cday and t1.type = t2.type
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    spark.sql("drop table test_tbl_5910_0")
+    spark.sql("drop table test_tbl_5910_1")
+  }
 }
 // scalastyle:on line.size.limit
