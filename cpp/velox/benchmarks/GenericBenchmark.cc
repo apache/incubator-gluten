@@ -169,11 +169,12 @@ void populateWriterMetrics(
 
 void setCpu(::benchmark::State& state) {
   // Pin each threads to different CPU# starting from 0 or --cpu.
+  auto cpu = state.thread_index();
   if (FLAGS_cpu != -1) {
-    gluten::setCpu(FLAGS_cpu + state.thread_index());
-  } else {
-    gluten::setCpu(state.thread_index());
+    cpu += FLAGS_cpu;
   }
+  LOG(INFO) << "Setting CPU for thread " << state.thread_index() << " to " << cpu;
+  gluten::setCpu(cpu);
 }
 
 void runShuffle(
@@ -361,8 +362,8 @@ int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
   // Init Velox backend.
-  std::unordered_map<std::string, std::string> backendConf;
-  std::unordered_map<std::string, std::string> sessionConf;
+  auto backendConf = gluten::defaultConf();
+  auto sessionConf = gluten::defaultConf();
   backendConf.insert({gluten::kSparkBatchSize, std::to_string(FLAGS_batch_size)});
   if (!FLAGS_conf.empty()) {
     abortIfFileNotExists(FLAGS_conf);

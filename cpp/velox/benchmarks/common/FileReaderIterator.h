@@ -38,8 +38,6 @@ class FileReaderIterator : public ColumnarBatchIterator {
 
   virtual ~FileReaderIterator() = default;
 
-  virtual void createReader() = 0;
-
   virtual std::shared_ptr<arrow::Schema> getSchema() = 0;
 
   int64_t getCollectBatchTime() const {

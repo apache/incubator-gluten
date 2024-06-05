@@ -27,7 +27,7 @@ class ParquetReaderIterator : public FileReaderIterator {
  public:
   explicit ParquetReaderIterator(const std::string& path) : FileReaderIterator(path) {}
 
-  void createReader() override {
+  void createReader() {
     parquet::ArrowReaderProperties properties = parquet::default_arrow_reader_properties();
     properties.set_batch_size(FLAGS_batch_size);
     GLUTEN_THROW_NOT_OK(parquet::arrow::FileReader::Make(

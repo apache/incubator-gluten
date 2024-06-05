@@ -33,10 +33,15 @@ DEFINE_int32(iterations, 1, "The number of iterations to run this benchmark");
 
 namespace gluten {
 namespace {
+std::unordered_map<std::string, std::string> bmConfMap = defaultConf();
+}
 
-std::unordered_map<std::string, std::string> bmConfMap = {{gluten::kSparkBatchSize, std::to_string(FLAGS_batch_size)}};
-
-} // namespace
+std::unordered_map<std::string, std::string> defaultConf() {
+  return {
+      {gluten::kSparkBatchSize, std::to_string(FLAGS_batch_size)},
+      {gluten::kDebugModeEnabled, "true"},
+  };
+}
 
 void initVeloxBackend(std::unordered_map<std::string, std::string>& conf) {
   gluten::VeloxBackend::create(conf);

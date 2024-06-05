@@ -43,6 +43,9 @@ DECLARE_int32(threads);
 DECLARE_int32(iterations);
 
 namespace gluten {
+
+std::unordered_map<std::string, std::string> defaultConf();
+
 /// Initialize the Velox backend with default value.
 void initVeloxBackend();
 
