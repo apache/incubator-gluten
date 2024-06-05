@@ -1594,15 +1594,11 @@ bool SubstraitToVeloxPlanConverter::canPushdownNot(
     uint32_t fieldIdx;
     bool isFieldOrWithLiteral = fieldOrWithLiteral(notArg.value().scalar_function().arguments(), fieldIdx);
 
-    if (supportedNotFunctions.find(functionName) != supportedNotFunctions.end() && isFieldOrWithLiteral &&
-        rangeRecorders.at(fieldIdx).setCertainRangeForFunction(functionName, true /*reverse*/)) {
-      return true;
-    } else {
-      return false;
-    }
-  } else {
-    return false;
+    return (
+        supportedNotFunctions.find(functionName) != supportedNotFunctions.end() && isFieldOrWithLiteral &&
+        rangeRecorders.at(fieldIdx).setCertainRangeForFunction(functionName, true /*reverse*/));
   }
+  return false;
 }
 
 bool SubstraitToVeloxPlanConverter::canPushdownOr(
