@@ -149,28 +149,6 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     }
   }
 
-  test("Write metrics") {
-    if (SparkShimLoader.getSparkVersion.startsWith("3.4")) {
-      withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
-        runQueryAndCompare(
-          "Insert into table metrics_t1 values(1 , 2)"
-        ) {
-          df =>
-            val plan =
-              df.queryExecution.executedPlan.asInstanceOf[CommandResultExec].commandPhysicalPlan
-            val write = find(plan) {
-              case _: WriteFilesExecTransformer => true
-              case _ => false
-            }
-            assert(write.isDefined)
-            val metrics = write.get.metrics
-            assert(metrics("physicalWrittenBytes").value > 0)
-            assert(metrics("numWrittenFiles").value == 1)
-        }
-      }
-    }
-  }
-
   test("Metrics of window") {
     runQueryAndCompare("SELECT c1, c2, sum(c2) over (partition by c1) as s FROM metrics_t1") {
       df =>
@@ -197,6 +175,28 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
           val metrics = scan.get.metrics
           assert(metrics("rawInputRows").value == 100)
           assert(metrics("outputVectors").value == 1)
+      }
+    }
+  }
+
+  test("Write metrics") {
+    if (SparkShimLoader.getSparkVersion.startsWith("3.4")) {
+      withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+        runQueryAndCompare(
+          "Insert into table metrics_t1 values(1 , 2)"
+        ) {
+          df =>
+            val plan =
+              df.queryExecution.executedPlan.asInstanceOf[CommandResultExec].commandPhysicalPlan
+            val write = find(plan) {
+              case _: WriteFilesExecTransformer => true
+              case _ => false
+            }
+            assert(write.isDefined)
+            val metrics = write.get.metrics
+            assert(metrics("physicalWrittenBytes").value > 0)
+            assert(metrics("numWrittenFiles").value == 1)
+        }
       }
     }
   }
