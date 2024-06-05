@@ -659,7 +659,11 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
         }
         else if (key == SPARK_SESSION_TIME_ZONE)
         {
-            String time_zone_val = DateLUT::mappingForJavaTimezone(value);
+            String time_zone_val = value;
+            /// Convert timezone ID like '+8:00' to GMT+8:00
+            if (value.starts_with("+") || value.starts_with("-"))
+                time_zone_val = "GMT" + value;
+            time_zone_val = DateLUT::mappingForJavaTimezone(time_zone_val);
             settings.set("session_timezone", time_zone_val);
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", "session_timezone", time_zone_val);
         }
