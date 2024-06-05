@@ -128,39 +128,43 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       left: ExpressionTransformer,
       right: ExpressionTransformer,
       original: TryEval,
-      funcName: String): ExpressionTransformer = {
+      tryArithmeticExprName: String): ExpressionTransformer = {
     if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original.child)) {
-      throw new GlutenNotSupportException(s"$funcName with ansi mode is not supported")
+      throw new GlutenNotSupportException(s"$tryArithmeticExprName with ansi mode is not supported")
     }
     original.child.dataType match {
       case LongType | IntegerType | ShortType | ByteType =>
-      case _ => throw new GlutenNotSupportException(s"$funcName is not supported")
+      case _ => throw new GlutenNotSupportException(s"$tryArithmeticExprName is not supported")
     }
     // Offload to velox for only IntegralTypes.
     GenericExpressionTransformer(
       substraitExprName,
-      Seq(GenericExpressionTransformer(funcName, Seq(left, right), original)),
+      Seq(GenericExpressionTransformer(tryArithmeticExprName, Seq(left, right), original)),
       original)
   }
 
+  /**
+   * Map arithmetic expr to different functions: substraitExprName or tryArithmeticExprName based on
+   * EvalMode.
+   */
   override def genArithmeticTransformer(
       substraitExprName: String,
       left: ExpressionTransformer,
       right: ExpressionTransformer,
       original: Expression,
-      funcName: String): ExpressionTransformer = {
+      tryArithmeticExprName: String): ExpressionTransformer = {
     if (SparkShimLoader.getSparkShims.withTryEvalMode(original)) {
       original.dataType match {
         case LongType | IntegerType | ShortType | ByteType =>
-        case _ => throw new GlutenNotSupportException(s"$funcName is not supported")
+        case _ => throw new GlutenNotSupportException(s"$tryArithmeticExprName is not supported")
       }
       // Offload to velox for only IntegralTypes.
       GenericExpressionTransformer(
         ExpressionMappings.expressionsMap(classOf[TryEval]),
-        Seq(GenericExpressionTransformer(funcName, Seq(left, right), original)),
+        Seq(GenericExpressionTransformer(tryArithmeticExprName, Seq(left, right), original)),
         original)
     } else if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original)) {
-      throw new GlutenNotSupportException(s"$funcName with ansi mode is not supported")
+      throw new GlutenNotSupportException(s"$tryArithmeticExprName with ansi mode is not supported")
     } else {
       GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
     }
