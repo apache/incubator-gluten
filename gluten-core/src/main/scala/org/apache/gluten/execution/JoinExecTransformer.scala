@@ -373,9 +373,7 @@ abstract class ShuffledHashJoinExecTransformerBase(
 
 object ShuffledHashJoinExecTransformerBase {
 
-  private def getBuildSide(
-      sj: ShuffledJoin,
-      buildSide: BuildSide = null): BuildSide = {
+  private def getBuildSide(sj: ShuffledJoin, buildSide: BuildSide = null): BuildSide = {
     val leftBuildable =
       BackendsApiManager.getSettings.supportHashBuildJoinTypeOnLeft(sj.joinType)
     val rightBuildable =
