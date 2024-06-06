@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
+import org.apache.gluten.extension.GlutenPlan
 
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
@@ -26,7 +26,7 @@ import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartiti
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
+case class ColumnarCoalesceExec(numPartitions: Int, child: SparkPlan)
   extends UnaryExecNode
   with GlutenPlan {
 
@@ -38,9 +38,6 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
     if (numPartitions == 1) SinglePartition else UnknownPartitioning(numPartitions)
   }
 
-  override protected def doValidateInternal(): ValidationResult =
-    ValidationResult.ok
-
   override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException()
   }
@@ -49,18 +46,18 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
     if (numPartitions == 1 && child.executeColumnar().getNumPartitions < 1) {
       // Make sure we don't output an RDD with 0 partitions, when claiming that we have a
       // `SinglePartition`.
-      new CoalesceExecTransformer.EmptyRDDWithPartitions(sparkContext, numPartitions)
+      new ColumnarCoalesceExec.EmptyRDDWithPartitions(sparkContext, numPartitions)
     } else {
       child.executeColumnar().coalesce(numPartitions, shuffle = false)
     }
   }
 
-  override protected def withNewChildInternal(newChild: SparkPlan): CoalesceExecTransformer =
+  override protected def withNewChildInternal(newChild: SparkPlan): ColumnarCoalesceExec =
     copy(child = newChild)
 
 }
 
-object CoalesceExecTransformer {
+object ColumnarCoalesceExec {
   class EmptyRDDWithPartitions(@transient private val sc: SparkContext, numPartitions: Int)
     extends RDD[ColumnarBatch](sc, Nil) {
 
