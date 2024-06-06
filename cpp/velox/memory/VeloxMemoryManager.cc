@@ -267,10 +267,10 @@ bool VeloxMemoryManager::tryDestructSafe() {
       return false;
     }
   }
-  if (veloxLeafPool_ && veloxLeafPool_->currentBytes() != 0) {
+  if (veloxLeafPool_ && veloxLeafPool_->usedBytes() != 0) {
     return false;
   }
-  if (veloxAggregatePool_ && veloxAggregatePool_->currentBytes() != 0) {
+  if (veloxAggregatePool_ && veloxAggregatePool_->usedBytes() != 0) {
     return false;
   }
   heldVeloxPools_.clear();
