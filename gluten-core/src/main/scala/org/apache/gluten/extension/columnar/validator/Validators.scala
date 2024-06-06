@@ -82,6 +82,11 @@ object Validators {
       this
     }
 
+    def fallbackByTestInjects(): Builder = {
+      buffer += new FallbackByTestInjects()
+      this
+    }
+
     /** Add a custom validator to pipeline. */
     def add(validator: Validator): Builder = {
       buffer += validator
@@ -187,7 +192,19 @@ object Validators {
       case p
           if HiveTableScanExecTransformer.isHiveTableScan(p) && !conf.enableColumnarHiveTableScan =>
         fail(p)
+      case p: SampleExec
+          if !(conf.enableColumnarSample && BackendsApiManager.getSettings.supportSampleExec()) =>
+        fail(p)
       case _ => pass()
+    }
+  }
+
+  private class FallbackByTestInjects() extends Validator {
+    override def validate(plan: SparkPlan): Validator.OutCome = {
+      if (FallbackInjects.shouldFallback(plan)) {
+        return fail(plan)
+      }
+      pass()
     }
   }
 

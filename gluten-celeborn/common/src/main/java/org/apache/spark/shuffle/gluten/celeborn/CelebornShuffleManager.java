@@ -24,7 +24,6 @@ import com.google.common.collect.Iterators;
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.protocol.ShuffleMode;
 import org.apache.spark.*;
 import org.apache.spark.shuffle.*;
 import org.apache.spark.shuffle.celeborn.*;
@@ -259,7 +258,7 @@ public class CelebornShuffleManager implements ShuffleManager {
         }
         @SuppressWarnings("unchecked")
         CelebornShuffleHandle<K, V, V> h = ((CelebornShuffleHandle<K, V, V>) handle);
-        ShuffleClient client =
+        shuffleClient =
             CelebornUtils.getShuffleClient(
                 h.appUniqueId(),
                 h.lifecycleManagerHost(),
@@ -279,7 +278,7 @@ public class CelebornShuffleManager implements ShuffleManager {
                   ShuffleClient.class,
                   CelebornShuffleHandle.class,
                   TaskContext.class,
-                  boolean.class);
+                  Boolean.class);
           shuffleId = (int) celebornShuffleIdMethod.invoke(null, shuffleClient, h, context, true);
 
           Method trackMethod =
@@ -291,14 +290,10 @@ public class CelebornShuffleManager implements ShuffleManager {
           shuffleId = h.dependency().shuffleId();
         }
 
-        if (!ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
-          throw new UnsupportedOperationException(
-              "Unrecognized shuffle write mode!" + celebornConf.shuffleWriterMode());
-        }
         if (h.dependency() instanceof ColumnarShuffleDependency) {
           // columnar-based shuffle
           return writerFactory.createShuffleWriterInstance(
-              shuffleId, h, context, celebornConf, client, metrics);
+              shuffleId, h, context, celebornConf, shuffleClient, metrics);
         } else {
           // row-based shuffle
           return vanillaCelebornShuffleManager().getWriter(handle, mapId, context, metrics);

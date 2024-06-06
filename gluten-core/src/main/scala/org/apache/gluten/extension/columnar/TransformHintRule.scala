@@ -29,6 +29,8 @@ import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
+import org.apache.spark.sql.catalyst.plans.logical.Join
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution._
@@ -156,6 +158,33 @@ object TransformHints {
       }
       val newTag = TRANSFORM_UNSUPPORTED(validationResult.reason)
       tag(plan, newTag)
+    }
+  }
+
+  def getShuffleHashJoinBuildSide(shj: ShuffledHashJoinExec): BuildSide = {
+    if (BackendsApiManager.getSettings.utilizeShuffledHashJoinHint()) {
+      shj.buildSide
+    } else {
+      val leftBuildable = BackendsApiManager.getSettings
+        .supportHashBuildJoinTypeOnLeft(shj.joinType)
+      val rightBuildable = BackendsApiManager.getSettings
+        .supportHashBuildJoinTypeOnRight(shj.joinType)
+
+      if (!leftBuildable) {
+        BuildRight
+      } else if (!rightBuildable) {
+        BuildLeft
+      } else {
+        shj.logicalLink match {
+          case Some(join: Join) =>
+            val leftSize = join.left.stats.sizeInBytes
+            val rightSize = join.right.stats.sizeInBytes
+            if (rightSize <= leftSize) BuildRight else BuildLeft
+          // Only the ShuffledHashJoinExec generated directly in some spark tests is not link
+          // logical plan, such as OuterJoinSuite.
+          case _ => shj.buildSide
+        }
+      }
     }
   }
 }
@@ -304,6 +333,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
     .fallbackComplexExpressions()
     .fallbackByBackendSettings()
     .fallbackByUserOptions()
+    .fallbackByTestInjects()
     .build()
 
   def apply(plan: SparkPlan): SparkPlan = {
@@ -355,40 +385,13 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             .genFilterExecTransformer(plan.condition, plan.child)
           transformer.doValidate().tagOnFallback(plan)
         case plan: HashAggregateExec =>
-          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
-            .genHashAggregateExecTransformer(
-              plan.requiredChildDistributionExpressions,
-              plan.groupingExpressions,
-              plan.aggregateExpressions,
-              plan.aggregateAttributes,
-              plan.initialInputBufferOffset,
-              plan.resultExpressions,
-              plan.child
-            )
+          val transformer = HashAggregateExecBaseTransformer.from(plan)()
           transformer.doValidate().tagOnFallback(plan)
         case plan: SortAggregateExec =>
-          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
-            .genHashAggregateExecTransformer(
-              plan.requiredChildDistributionExpressions,
-              plan.groupingExpressions,
-              plan.aggregateExpressions,
-              plan.aggregateAttributes,
-              plan.initialInputBufferOffset,
-              plan.resultExpressions,
-              plan.child
-            )
+          val transformer = HashAggregateExecBaseTransformer.from(plan)()
           transformer.doValidate().tagOnFallback(plan)
         case plan: ObjectHashAggregateExec =>
-          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
-            .genHashAggregateExecTransformer(
-              plan.requiredChildDistributionExpressions,
-              plan.groupingExpressions,
-              plan.aggregateExpressions,
-              plan.aggregateAttributes,
-              plan.initialInputBufferOffset,
-              plan.resultExpressions,
-              plan.child
-            )
+          val transformer = HashAggregateExecBaseTransformer.from(plan)()
           transformer.doValidate().tagOnFallback(plan)
         case plan: UnionExec =>
           val transformer = ColumnarUnionExec(plan.children)
@@ -418,7 +421,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.leftKeys,
               plan.rightKeys,
               plan.joinType,
-              plan.buildSide,
+              TransformHints.getShuffleHashJoinBuildSide(plan),
               plan.condition,
               plan.left,
               plan.right,
@@ -484,8 +487,9 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           )
           transformer.doValidate().tagOnFallback(plan)
         case plan: CoalesceExec =>
-          val transformer = CoalesceExecTransformer(plan.numPartitions, plan.child)
-          transformer.doValidate().tagOnFallback(plan)
+          ColumnarCoalesceExec(plan.numPartitions, plan.child)
+            .doValidate()
+            .tagOnFallback(plan)
         case plan: GlobalLimitExec =>
           val (limit, offset) =
             SparkShimLoader.getSparkShims.getLimitAndOffsetFromGlobalLimit(plan)
@@ -525,6 +529,15 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             plan.projectList,
             plan.child,
             offset)
+          transformer.doValidate().tagOnFallback(plan)
+        case plan: SampleExec =>
+          val transformer = BackendsApiManager.getSparkPlanExecApiInstance.genSampleExecTransformer(
+            plan.lowerBound,
+            plan.upperBound,
+            plan.withReplacement,
+            plan.seed,
+            plan.child
+          )
           transformer.doValidate().tagOnFallback(plan)
         case _ =>
         // Currently we assume a plan to be transformable by default.

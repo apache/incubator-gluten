@@ -148,7 +148,7 @@ class GraphvizVisualizer[T <: AnyRef](ras: Ras[T], memoState: MemoState[T], best
   }
 
   private def describeGroupVerbose(group: RasGroup[T]): String = {
-    s"[Group ${group.id()}: ${group.propSet().getMap.values.toIndexedSeq}]"
+    s"[Group ${group.id()}: ${group.constraintSet().getMap.values.toIndexedSeq}]"
   }
 
   private def describeNode(

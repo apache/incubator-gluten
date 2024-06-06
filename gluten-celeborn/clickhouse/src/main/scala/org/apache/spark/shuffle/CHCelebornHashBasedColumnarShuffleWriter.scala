@@ -78,7 +78,9 @@ class CHCelebornHashBasedColumnarShuffleWriter[K, V](
         CHBackendSettings.shuffleHashAlgorithm,
         celebornPartitionPusher,
         GlutenConfig.getConf.chColumnarThrowIfMemoryExceed,
-        GlutenConfig.getConf.chColumnarFlushBlockBufferBeforeEvict
+        GlutenConfig.getConf.chColumnarFlushBlockBufferBeforeEvict,
+        GlutenConfig.getConf.chColumnarForceExternalSortShuffle,
+        GlutenConfig.getConf.chColumnarForceMemorySortShuffle
       )
       CHNativeMemoryAllocators.createSpillable(
         "CelebornShuffleWriter",

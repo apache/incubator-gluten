@@ -212,19 +212,9 @@ class MergeTreeCommitProtocol(jobId: String, path: String, randomPrefixLength: O
   }
 
   override def commitTask(taskContext: TaskAttemptContext): TaskCommitMessage = {
-    if (addedFiles.nonEmpty) {
-      /* val fs = new Path(path, addedFiles.head._2).getFileSystem(taskContext.getConfiguration)
-      val statuses: Seq[FileAction] = addedFiles.map { f =>
-        val filePath = new Path(path, new Path(new URI(f._2)))
-        val stat = fs.getFileStatus(filePath)
-
-        buildActionFromAddedFile(f, stat, taskContext)
-      }.toSeq */
-
-      new TaskCommitMessage(Nil)
-    } else {
-      new TaskCommitMessage(Nil)
-    }
+    // will return TaskCommitMessage(Nil) directly,
+    // the FileStatus list will be get from the CH backend.
+    new TaskCommitMessage(Nil)
   }
 
   override def abortTask(taskContext: TaskAttemptContext): Unit = {

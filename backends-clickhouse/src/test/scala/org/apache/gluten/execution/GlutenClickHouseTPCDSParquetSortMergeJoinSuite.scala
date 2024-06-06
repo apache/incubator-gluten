@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.utils.FallbackUtil
+import org.apache.gluten.test.FallbackUtil
 
 import org.apache.spark.SparkConf
 

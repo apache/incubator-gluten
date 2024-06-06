@@ -16,8 +16,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/acvictor/velox.git
-VELOX_BRANCH=acvictor/updateFileHandleGen
+VELOX_REPO=https://github.com/oap-project/velox.git
+VELOX_BRANCH=2024_06_04
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
@@ -199,12 +199,15 @@ function process_setup_centos7 {
 function process_setup_alinux3 {
   process_setup_centos8
   sed -i "s/.*dnf_install epel-release/#&/" scripts/setup-centos8.sh
+  sed -i "s/.*run_and_time install_conda/#&/" scripts/setup-centos8.sh
   sed -i "s/.*dnf config-manager --set-enabled powertools/#&/" scripts/setup-centos8.sh
   sed -i "s/gcc-toolset-9 //" scripts/setup-centos8.sh
   sed -i "s/.*source \/opt\/rh\/gcc-toolset-9\/enable/#&/" scripts/setup-centos8.sh
   sed -i 's|^export CC=/opt/rh/gcc-toolset-9/root/bin/gcc|# &|' scripts/setup-centos8.sh
   sed -i 's|^export CXX=/opt/rh/gcc-toolset-9/root/bin/g++|# &|' scripts/setup-centos8.sh
   sed -i 's/python39 python39-devel python39-pip //g' scripts/setup-centos8.sh
+  sed -i "s/.*pip.* install/#&/" scripts/setup-centos8.sh
+  sed -i 's/ADDITIONAL_FLAGS=""/ADDITIONAL_FLAGS="-Wno-stringop-overflow"/g' scripts/setup-helper-functions.sh
   sed -i "s/\${CMAKE_INSTALL_LIBDIR}/lib64/" third_party/CMakeLists.txt
 }
 
@@ -253,8 +256,10 @@ function apply_compilation_fixes {
   velox_home=$2
   sudo cp ${current_dir}/modify_velox.patch ${velox_home}/
   sudo cp ${current_dir}/modify_arrow.patch ${velox_home}/third_party/
+  sudo cp ${current_dir}/modify_arrow_dataset_scan_option.patch ${velox_home}/third_party/
   git add ${velox_home}/modify_velox.patch # to avoid the file from being deleted by git clean -dffx :/
   git add ${velox_home}/third_party/modify_arrow.patch # to avoid the file from being deleted by git clean -dffx :/
+  git add ${velox_home}/third_party/modify_arrow_dataset_scan_option.patch # to avoid the file from being deleted by git clean -dffx :/
   cd ${velox_home}
   echo "Applying patch to Velox source code..."
   git apply modify_velox.patch

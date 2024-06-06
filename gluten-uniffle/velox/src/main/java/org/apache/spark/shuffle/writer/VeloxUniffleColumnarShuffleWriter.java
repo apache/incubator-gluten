@@ -72,6 +72,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
   private int nativeBufferSize = GlutenConfig.getConf().maxBatchSize();
   private int bufferSize;
   private PartitionPusher partitionPusher;
+  private Boolean isSort;
 
   private final ColumnarShuffleDependency<K, V, V> columnarDep;
   private final SparkConf sparkConf;
@@ -93,7 +94,8 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
       ShuffleWriteClient shuffleWriteClient,
       RssShuffleHandle<K, V, V> rssHandle,
       Function<String, Boolean> taskFailureCallback,
-      TaskContext context) {
+      TaskContext context,
+      Boolean isSort) {
     super(
         appId,
         shuffleId,
@@ -109,6 +111,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
     columnarDep = (ColumnarShuffleDependency<K, V, V>) rssHandle.getDependency();
     this.partitionId = partitionId;
     this.sparkConf = sparkConf;
+    this.isSort = isSort;
     bufferSize =
         (int)
             sparkConf.getSizeAsBytes(
@@ -145,6 +148,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   compressThreshold,
                   GlutenConfig.getConf().columnarShuffleCompressionMode(),
                   bufferSize,
+                  bufferSize,
                   partitionPusher,
                   NativeMemoryManagers.create(
                           "UniffleShuffleWriter",
@@ -180,12 +184,13 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   GlutenShuffleUtils.getStartPartitionId(
                       columnarDep.nativePartitioning(), partitionId),
                   "uniffle",
+                  isSort ? "sort" : "hash",
                   reallocThreshold);
         }
         long startTime = System.nanoTime();
         long bytes =
-            jniWrapper.split(nativeShuffleWriter, cb.numRows(), handle, availableOffHeapPerTask());
-        LOG.debug("jniWrapper.split rows {}, split bytes {}", cb.numRows(), bytes);
+            jniWrapper.write(nativeShuffleWriter, cb.numRows(), handle, availableOffHeapPerTask());
+        LOG.debug("jniWrapper.write rows {}, split bytes {}", cb.numRows(), bytes);
         columnarDep.metrics().get("dataSize").get().add(bytes);
         // this metric replace part of uniffle shuffle write time
         columnarDep.metrics().get("splitTime").get().add(System.nanoTime() - startTime);

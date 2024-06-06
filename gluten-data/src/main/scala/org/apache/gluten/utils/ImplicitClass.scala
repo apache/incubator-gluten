@@ -17,7 +17,7 @@
 package org.apache.gluten.utils
 
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.memory.arrowalloc.ArrowBufferAllocators
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.sql.vectorized.ColumnarBatch

@@ -82,7 +82,21 @@ public class JniLibLoader {
     loaded.forEach(JniLibLoader::unloadFromPath);
   }
 
+  private static String toRealPath(String libPath) {
+    String realPath = libPath;
+    try {
+      while (Files.isSymbolicLink(Paths.get(realPath))) {
+        realPath = Files.readSymbolicLink(Paths.get(realPath)).toString();
+      }
+      LOG.info("Read real path {} for libPath {}", realPath, libPath);
+      return realPath;
+    } catch (Throwable th) {
+      throw new GlutenException("Error to read real path for libPath: " + libPath, th);
+    }
+  }
+
   private static synchronized void loadFromPath0(String libPath, boolean requireUnload) {
+    libPath = toRealPath(libPath);
     if (LOADED_LIBRARY_PATHS.contains(libPath)) {
       LOG.debug("Library in path {} has already been loaded, skipping", libPath);
     } else {
@@ -125,13 +139,10 @@ public class JniLibLoader {
       return;
     }
 
+    LOG.info("Starting unload library path: {} ", libPath);
     REQUIRE_UNLOAD_LIBRARY_PATHS.remove(libPath);
 
     try {
-      while (Files.isSymbolicLink(Paths.get(libPath))) {
-        libPath = Files.readSymbolicLink(Paths.get(libPath)).toString();
-      }
-
       ClassLoader classLoader = JniLibLoader.class.getClassLoader();
       Field field = ClassLoader.class.getDeclaredField("nativeLibraries");
       field.setAccessible(true);
@@ -151,6 +162,7 @@ public class JniLibLoader {
             String libFileName = libFile.getName();
 
             if (verboseFileName.equals(libFileName)) {
+              LOG.info("Finalizing library file: {}", libFileName);
               Method finalize = object.getClass().getDeclaredMethod("finalize");
               finalize.setAccessible(true);
               finalize.invoke(object);

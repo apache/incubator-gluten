@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 package org.apache.spark.sql.execution.datasources.v2.clickhouse
+
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
@@ -26,12 +27,12 @@ import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.catalog.TableCapability.V1_BATCH_WRITE
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, V1Write, WriteBuilder}
-import org.apache.spark.sql.delta.{DeltaErrors, DeltaLog, DeltaOptions}
+import org.apache.spark.sql.delta.{DeltaConfigs, DeltaErrors, DeltaLog, DeltaOptions, DeltaTableUtils}
 import org.apache.spark.sql.delta.DeltaTableIdentifier.gluePermissionError
-import org.apache.spark.sql.delta.catalog.{ClickHouseTableV2, TempClickHouseTableV2}
+import org.apache.spark.sql.delta.catalog.{ClickHouseTableV2, DeltaTableV2, TempClickHouseTableV2}
 import org.apache.spark.sql.delta.commands.{CreateDeltaTableCommand, TableCreationModes, WriteIntoDelta}
 import org.apache.spark.sql.delta.metering.DeltaLogging
-import org.apache.spark.sql.delta.sources.DeltaSQLConf
+import org.apache.spark.sql.delta.sources.{DeltaSourceUtils, DeltaSQLConf}
 import org.apache.spark.sql.execution.datasources.{DataSource, PartitioningUtils}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.CHDataSourceUtils
 import org.apache.spark.sql.sources.InsertableRelation
@@ -52,6 +53,15 @@ class ClickHouseSparkCatalog
 
   val spark = SparkSession.active
 
+  private def createCatalogTable(
+      ident: Identifier,
+      schema: StructType,
+      partitions: Array[Transform],
+      properties: util.Map[String, String]
+  ): Table = {
+    super.createTable(ident, schema, partitions, properties)
+  }
+
   override def createTable(
       ident: Identifier,
       schema: StructType,
@@ -66,8 +76,18 @@ class ClickHouseSparkCatalog
         Map.empty,
         sourceQuery = None,
         TableCreationModes.Create)
+    } else if (DeltaSourceUtils.isDeltaDataSourceName(getProvider(properties))) {
+      createDeltaTable(
+        ident,
+        schema,
+        partitions,
+        properties,
+        Map.empty,
+        sourceQuery = None,
+        TableCreationModes.Create
+      )
     } else {
-      super.createTable(ident, schema, partitions, properties)
+      createCatalogTable(ident, schema, partitions, properties)
     }
   }
 
@@ -120,7 +140,10 @@ class ClickHouseSparkCatalog
       .copy(locationUri = locUriOpt)
     val tableType =
       if (location.isDefined) CatalogTableType.EXTERNAL else CatalogTableType.MANAGED
-    val id = TableIdentifier(ident.name(), ident.namespace().lastOption)
+    val id = {
+      TableIdentifier(ident.name(), ident.namespace().lastOption)
+    }
+    val existingTableOpt = getExistingTableIfExists(id)
     val loc = new Path(locUriOpt.getOrElse(spark.sessionState.catalog.defaultTablePath(id)))
     val commentOpt = Option(allTableProperties.get("comment"))
 
@@ -136,7 +159,7 @@ class ClickHouseSparkCatalog
       comment = commentOpt
     )
 
-    val withDb = verifyTableAndSolidify(tableDesc, None)
+    val withDb = verifyTableAndSolidify(tableDesc, None, true)
 
     val writer = sourceQuery.map {
       df =>
@@ -156,7 +179,7 @@ class ClickHouseSparkCatalog
 
       CreateDeltaTableCommand(
         withDb,
-        getExistingTableIfExists(tableDesc),
+        existingTableOpt,
         operation.mode,
         writer,
         operation = operation,
@@ -166,14 +189,134 @@ class ClickHouseSparkCatalog
     }
 
     logInfo(s"create table ${ident.toString} successfully.")
-    val loadedNewTable = loadTable(ident)
-    loadedNewTable
+    loadTable(ident)
+  }
+
+  /**
+   * Creates a Delta table
+   *
+   * @param ident
+   *   The identifier of the table
+   * @param schema
+   *   The schema of the table
+   * @param partitions
+   *   The partition transforms for the table
+   * @param allTableProperties
+   *   The table properties that configure the behavior of the table or provide information about
+   *   the table
+   * @param writeOptions
+   *   Options specific to the write during table creation or replacement
+   * @param sourceQuery
+   *   A query if this CREATE request came from a CTAS or RTAS
+   * @param operation
+   *   The specific table creation mode, whether this is a Create/Replace/Create or Replace
+   */
+  private def createDeltaTable(
+      ident: Identifier,
+      schema: StructType,
+      partitions: Array[Transform],
+      allTableProperties: util.Map[String, String],
+      writeOptions: Map[String, String],
+      sourceQuery: Option[DataFrame],
+      operation: TableCreationModes.CreationMode
+  ): Table = {
+    // These two keys are tableProperties in data source v2 but not in v1, so we have to filter
+    // them out. Otherwise property consistency checks will fail.
+    val tableProperties = allTableProperties.asScala.filterKeys {
+      case TableCatalog.PROP_LOCATION => false
+      case TableCatalog.PROP_PROVIDER => false
+      case TableCatalog.PROP_COMMENT => false
+      case TableCatalog.PROP_OWNER => false
+      case TableCatalog.PROP_EXTERNAL => false
+      case "path" => false
+      case _ => true
+    }.toMap
+    val (partitionColumns, maybeBucketSpec) =
+      SparkShimLoader.getSparkShims.convertPartitionTransforms(partitions)
+    var newSchema = schema
+    var newPartitionColumns = partitionColumns
+    var newBucketSpec = maybeBucketSpec
+    val conf = spark.sessionState.conf
+
+    val isByPath = isPathIdentifier(ident)
+    if (
+      isByPath && !conf.getConf(DeltaSQLConf.DELTA_LEGACY_ALLOW_AMBIGUOUS_PATHS)
+      && allTableProperties.containsKey("location")
+      // The location property can be qualified and different from the path in the identifier, so
+      // we check `endsWith` here.
+      && Option(allTableProperties.get("location")).exists(!_.endsWith(ident.name()))
+    ) {
+      throw DeltaErrors.ambiguousPathsInCreateTableException(
+        ident.name(),
+        allTableProperties.get("location"))
+    }
+    val location = if (isByPath) {
+      Option(ident.name())
+    } else {
+      Option(allTableProperties.get("location"))
+    }
+    val id = {
+      TableIdentifier(ident.name(), ident.namespace().lastOption)
+    }
+    var locUriOpt = location.map(CatalogUtils.stringToURI)
+    val existingTableOpt = getExistingTableIfExists(id)
+    val loc = locUriOpt
+      .orElse(existingTableOpt.flatMap(_.storage.locationUri))
+      .getOrElse(spark.sessionState.catalog.defaultTablePath(id))
+    val storage = DataSource
+      .buildStorageFormatFromOptions(writeOptions)
+      .copy(locationUri = Option(loc))
+    val tableType =
+      if (location.isDefined) CatalogTableType.EXTERNAL else CatalogTableType.MANAGED
+    val commentOpt = Option(allTableProperties.get("comment"))
+
+    var tableDesc = new CatalogTable(
+      identifier = id,
+      tableType = tableType,
+      storage = storage,
+      schema = newSchema,
+      provider = Some(DeltaSourceUtils.ALT_NAME),
+      partitionColumnNames = newPartitionColumns,
+      bucketSpec = newBucketSpec,
+      properties = tableProperties,
+      comment = commentOpt
+    )
+
+    val withDb = verifyTableAndSolidify(tableDesc, None)
+
+    val writer = sourceQuery.map {
+      df =>
+        WriteIntoDelta(
+          DeltaLog.forTable(spark, new Path(loc)),
+          operation.mode,
+          new DeltaOptions(withDb.storage.properties, spark.sessionState.conf),
+          withDb.partitionColumnNames,
+          withDb.properties ++ commentOpt.map("comment" -> _),
+          df,
+          schemaInCatalog = if (newSchema != schema) Some(newSchema) else None
+        )
+    }
+
+    CreateDeltaTableCommand(
+      withDb,
+      existingTableOpt,
+      operation.mode,
+      writer,
+      operation,
+      tableByPath = isByPath).run(spark)
+
+    loadTable(ident)
   }
 
   /** Performs checks on the parameters provided for table creation for a ClickHouse table. */
   private def verifyTableAndSolidify(
       tableDesc: CatalogTable,
-      query: Option[LogicalPlan]): CatalogTable = {
+      query: Option[LogicalPlan],
+      isMergeTree: Boolean = false): CatalogTable = {
+
+    if (!isMergeTree && tableDesc.bucketSpec.isDefined) {
+      throw DeltaErrors.operationNotSupportedException("Bucketing", tableDesc.identifier)
+    }
 
     val schema = query
       .map {
@@ -189,30 +332,36 @@ class ClickHouseSparkCatalog
       caseSensitive = false
     ) // Delta is case insensitive
 
+    val validatedConfigurations = if (isMergeTree) {
+      tableDesc.properties
+    } else {
+      DeltaConfigs.validateConfigurations(tableDesc.properties)
+    }
+
     val db = tableDesc.identifier.database.getOrElse(catalog.getCurrentDatabase)
     val tableIdentWithDB = tableDesc.identifier.copy(database = Some(db))
     tableDesc.copy(
       identifier = tableIdentWithDB,
       schema = schema,
-      properties = tableDesc.properties)
+      properties = validatedConfigurations)
   }
 
   /** Checks if a table already exists for the provided identifier. */
-  private def getExistingTableIfExists(table: CatalogTable): Option[CatalogTable] = {
+  def getExistingTableIfExists(table: TableIdentifier): Option[CatalogTable] = {
     // If this is a path identifier, we cannot return an existing CatalogTable. The Create command
     // will check the file system itself
     if (isPathIdentifier(table)) return None
-    val tableExists = catalog.tableExists(table.identifier)
+    val tableExists = catalog.tableExists(table)
     if (tableExists) {
-      val oldTable = catalog.getTableMetadata(table.identifier)
+      val oldTable = catalog.getTableMetadata(table)
       if (oldTable.tableType == CatalogTableType.VIEW) {
-        throw new AnalysisException(
-          s"${table.identifier} is a view. You may not write data into a view.")
+        throw new AnalysisException(s"$table is a view. You may not write data into a view.")
       }
-      if (!CHDataSourceUtils.isClickHouseTable(oldTable.provider)) {
-        throw new AnalysisException(
-          s"${table.identifier} is not a ClickHouse table. Please drop " +
-            s"this table first if you would like to recreate it.")
+      if (
+        !DeltaSourceUtils.isDeltaTable(oldTable.provider) &&
+        !CHDataSourceUtils.isClickHouseTable(oldTable.provider)
+      ) {
+        throw DeltaErrors.notADeltaTable(table.table)
       }
       Some(oldTable)
     } else {
@@ -233,6 +382,12 @@ class ClickHouseSparkCatalog
             new Path(v1.catalogTable.location),
             catalogTable = Some(v1.catalogTable),
             tableIdentifier = Some(ident.toString))
+        case v1: V1Table if DeltaTableUtils.isDeltaTable(v1.catalogTable) =>
+          DeltaTableV2(
+            spark,
+            new Path(v1.catalogTable.location),
+            catalogTable = Some(v1.catalogTable),
+            tableIdentifier = Some(ident.toString))
         case o =>
           o
       }
@@ -249,8 +404,12 @@ class ClickHouseSparkCatalog
     }
   }
 
-  private def newDeltaPathTable(ident: Identifier): ClickHouseTableV2 = {
-    new ClickHouseTableV2(spark, new Path(ident.name()))
+  private def newDeltaPathTable(ident: Identifier): DeltaTableV2 = {
+    if (hasClickHouseNamespace(ident)) {
+      new ClickHouseTableV2(spark, new Path(ident.name()))
+    } else {
+      DeltaTableV2(spark, new Path(ident.name()))
+    }
   }
 
   /** support to delete mergetree data from the external table */
@@ -284,11 +443,15 @@ class ClickHouseSparkCatalog
       partitions: Array[Transform],
       properties: util.Map[String, String]): StagedTable =
     recordFrameProfile("DeltaCatalog", "stageReplace") {
-      if (CHDataSourceUtils.isClickHouseDataSourceName(getProvider(properties))) {
+      if (
+        CHDataSourceUtils.isClickHouseDataSourceName(getProvider(properties)) ||
+        DeltaSourceUtils.isDeltaDataSourceName(getProvider(properties))
+      ) {
         new StagedDeltaTableV2(ident, schema, partitions, properties, TableCreationModes.Replace)
       } else {
         super.dropTable(ident)
-        BestEffortStagedTable(ident, super.createTable(ident, schema, partitions, properties), this)
+        val table = createCatalogTable(ident, schema, partitions, properties)
+        BestEffortStagedTable(ident, table, this)
       }
     }
 
@@ -298,7 +461,10 @@ class ClickHouseSparkCatalog
       partitions: Array[Transform],
       properties: util.Map[String, String]): StagedTable =
     recordFrameProfile("DeltaCatalog", "stageCreateOrReplace") {
-      if (CHDataSourceUtils.isClickHouseDataSourceName(getProvider(properties))) {
+      if (
+        CHDataSourceUtils.isClickHouseDataSourceName(getProvider(properties)) ||
+        DeltaSourceUtils.isDeltaDataSourceName(getProvider(properties))
+      ) {
         new StagedDeltaTableV2(
           ident,
           schema,
@@ -311,7 +477,8 @@ class ClickHouseSparkCatalog
           case _: NoSuchDatabaseException => // this is fine
           case _: NoSuchTableException => // this is fine
         }
-        BestEffortStagedTable(ident, super.createTable(ident, schema, partitions, properties), this)
+        val table = createCatalogTable(ident, schema, partitions, properties)
+        BestEffortStagedTable(ident, table, this)
       }
     }
 
@@ -321,13 +488,22 @@ class ClickHouseSparkCatalog
       partitions: Array[Transform],
       properties: util.Map[String, String]): StagedTable =
     recordFrameProfile("DeltaCatalog", "stageCreate") {
-      if (CHDataSourceUtils.isClickHouseDataSourceName(getProvider(properties))) {
+      if (
+        CHDataSourceUtils.isClickHouseDataSourceName(getProvider(properties)) ||
+        DeltaSourceUtils.isDeltaDataSourceName(getProvider(properties))
+      ) {
         new StagedDeltaTableV2(ident, schema, partitions, properties, TableCreationModes.Create)
       } else {
-        BestEffortStagedTable(ident, super.createTable(ident, schema, partitions, properties), this)
+        val table = createCatalogTable(ident, schema, partitions, properties)
+        BestEffortStagedTable(ident, table, this)
       }
     }
 
+  /**
+   * A staged delta table, which creates a HiveMetaStore entry and appends data if this was a
+   * CTAS/RTAS command. We have a ugly way of using this API right now, but it's the best way to
+   * maintain old behavior compatibility between Databricks Runtime and OSS Delta Lake.
+   */
   private class StagedDeltaTableV2(
       ident: Identifier,
       override val schema: StructType,
@@ -374,14 +550,18 @@ class ClickHouseSparkCatalog
               }
           }
         }
-        createClickHouseTable(
-          ident,
-          schema,
-          partitions,
-          props,
-          writeOptions,
-          asSelectQuery,
-          operation)
+        if (CHDataSourceUtils.isClickHouseDataSourceName(getProvider(properties))) {
+          createClickHouseTable(
+            ident,
+            schema,
+            partitions,
+            props,
+            writeOptions,
+            asSelectQuery,
+            operation)
+        } else {
+          createDeltaTable(ident, schema, partitions, props, writeOptions, asSelectQuery, operation)
+        }
       }
 
     override def name(): String = ident.name()
@@ -454,20 +634,29 @@ trait SupportsPathIdentifier extends TableCatalog {
   protected def isPathIdentifier(ident: Identifier): Boolean = {
     // Should be a simple check of a special PathIdentifier class in the future
     try {
-      supportSQLOnFile && hasClickHouseNamespace(ident) && new Path(ident.name()).isAbsolute
+      supportSQLOnFile && (hasClickHouseNamespace(ident) || hasDeltaNamespace(ident)) &&
+      new Path(ident.name()).isAbsolute
     } catch {
       case _: IllegalArgumentException => false
     }
   }
 
+  protected def isPathIdentifier(table: CatalogTable): Boolean = {
+    isPathIdentifier(table.identifier)
+  }
+
+  protected def isPathIdentifier(tableIdentifier: TableIdentifier): Boolean = {
+    isPathIdentifier(Identifier.of(tableIdentifier.database.toArray, tableIdentifier.table))
+  }
+
   private def supportSQLOnFile: Boolean = spark.sessionState.conf.runSQLonFile
 
-  private def hasClickHouseNamespace(ident: Identifier): Boolean = {
+  protected def hasClickHouseNamespace(ident: Identifier): Boolean = {
     ident.namespace().length == 1 &&
     CHDataSourceUtils.isClickHouseDataSourceName(ident.namespace().head)
   }
 
-  protected def isPathIdentifier(table: CatalogTable): Boolean = {
-    isPathIdentifier(Identifier.of(table.identifier.database.toArray, table.identifier.table))
+  protected def hasDeltaNamespace(ident: Identifier): Boolean = {
+    ident.namespace().length == 1 && DeltaSourceUtils.isDeltaDataSourceName(ident.namespace().head)
   }
 }

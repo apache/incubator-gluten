@@ -259,18 +259,15 @@ class VeloxMetricsApi extends MetricsApi with Logging {
     Map("numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
 
   override def genColumnarShuffleExchangeMetrics(
-      sparkContext: SparkContext): Map[String, SQLMetric] =
-    Map(
+      sparkContext: SparkContext,
+      isSort: Boolean): Map[String, SQLMetric] = {
+    val baseMetrics = Map(
       "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
       "numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions"),
       "bytesSpilled" -> SQLMetrics.createSizeMetric(sparkContext, "shuffle bytes spilled"),
       "splitBufferSize" -> SQLMetrics.createSizeMetric(sparkContext, "split buffer size total"),
       "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to split"),
       "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to spill"),
-      "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to compress"),
-      "prepareTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to prepare"),
-      "decompressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime decompress"),
-      "ipcTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime ipc"),
       "deserializeTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime deserialize"),
       "avgReadBatchNumRows" -> SQLMetrics
         .createAverageMetric(sparkContext, "avg read batch num rows"),
@@ -280,6 +277,15 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "inputBatches" -> SQLMetrics
         .createMetric(sparkContext, "number of input batches")
     )
+    if (isSort) {
+      baseMetrics
+    } else {
+      baseMetrics ++ Map(
+        "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to compress"),
+        "decompressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime decompress")
+      )
+    }
+  }
 
   override def genWindowTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
@@ -534,4 +540,20 @@ class VeloxMetricsApi extends MetricsApi with Logging {
 
   override def genNestedLoopJoinTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new NestedLoopJoinMetricsUpdater(metrics)
+
+  override def genSampleTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
+    Map(
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of sample"),
+      "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+      "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
+      "numMemoryAllocations" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of memory allocations")
+    )
+
+  override def genSampleTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
+    new SampleMetricsUpdater(metrics)
 }

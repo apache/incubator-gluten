@@ -8,30 +8,31 @@ parent: Getting-Started
 ### Native build parameters for buildbundle-veloxbe.sh or builddeps-veloxbe.sh
 Please set them via `--`, e.g. `--build_type=Release`.
 
-| Parameters             | Description                                                                | Default |
-|------------------------|----------------------------------------------------------------------------|---------|
-| build_type             | Build type for Velox & gluten cpp, CMAKE_BUILD_TYPE.                       | Release |
-| build_tests            | Build gluten cpp tests.                                                    | OFF     |
-| build_examples         | Build udf example.                                                         | OFF     |
-| build_benchmarks       | Build gluten cpp benchmarks.                                               | OFF     |
-| build_jemalloc         | Build with jemalloc.                                                       | ON      |
-| build_protobuf         | Build protobuf lib.                                                        | ON      |
-| enable_qat             | Enable QAT for shuffle data de/compression.                                | OFF     |
-| enable_iaa             | Enable IAA for shuffle data de/compression.                                | OFF     |
-| enable_hbm             | Enable HBM allocator.                                                      | OFF     |
-| enable_s3              | Build with S3 support.                                                     | OFF     |
-| enable_gcs             | Build with GCs support.                                                    | OFF     |
-| enable_hdfs            | Build with HDFS support.                                                   | OFF     |
-| enable_abfs            | Build with ABFS support.                                                   | OFF     |
-| enable_ep_cache        | Enable caching for external project build (Velox).                         | OFF     |
-| enable_vcpkg           | Enable vcpkg for static build.                                             | OFF     |
-| run_setup_script       | Run setup script to install Velox dependencies.                            | ON      |
-| velox_repo             | Specify your own Velox repo to build.                                      | ""      |
-| velox_branch           | Specify your own Velox branch to build.                                    | ""      |
-| velox_home             | Specify your own Velox source path to build.                               | ""      |
-| build_velox_tests      | Build Velox tests.                                                         | OFF     |
-| build_velox_benchmarks | Build Velox benchmarks (velox_tests and connectors will be disabled if ON) | OFF     |
-| compile_arrow_java     | Compile arrow java for gluten build to use to fix invalid pointer issues.  | OFF     |
+| Parameters             | Description                                                                                        | Default |
+|------------------------|----------------------------------------------------------------------------------------------------|---------|
+| build_type             | Build type for Velox & gluten cpp, CMAKE_BUILD_TYPE.                                               | Release |
+| build_tests            | Build gluten cpp tests.                                                                            | OFF     |
+| build_examples         | Build udf example.                                                                                 | OFF     |
+| build_benchmarks       | Build gluten cpp benchmarks.                                                                       | OFF     |
+| build_jemalloc         | Build with jemalloc.                                                                               | ON      |
+| build_protobuf         | Build protobuf lib.                                                                                | ON      |
+| enable_qat             | Enable QAT for shuffle data de/compression.                                                        | OFF     |
+| enable_iaa             | Enable IAA for shuffle data de/compression.                                                        | OFF     |
+| enable_hbm             | Enable HBM allocator.                                                                              | OFF     |
+| enable_s3              | Build with S3 support.                                                                             | OFF     |
+| enable_gcs             | Build with GCs support.                                                                            | OFF     |
+| enable_hdfs            | Build with HDFS support.                                                                           | OFF     |
+| enable_abfs            | Build with ABFS support.                                                                           | OFF     |
+| enable_ep_cache        | Enable caching for external project build (Velox).                                                 | OFF     |
+| enable_vcpkg           | Enable vcpkg for static build.                                                                     | OFF     |
+| run_setup_script       | Run setup script to install Velox dependencies.                                                    | ON      |
+| velox_repo             | Specify your own Velox repo to build.                                                              | ""      |
+| velox_branch           | Specify your own Velox branch to build.                                                            | ""      |
+| velox_home             | Specify your own Velox source path to build.                                                       | ""      |
+| build_velox_tests      | Build Velox tests.                                                                                 | OFF     |
+| build_velox_benchmarks | Build Velox benchmarks (velox_tests and connectors will be disabled if ON)                         | OFF     |
+| compile_arrow_java     | Compile arrow java for gluten build to use to fix invalid pointer issues.                          | ON      |
+| spark_version          | Build for specified version of Spark(3.2, 3.3, 3.4, 3.5, ALL). `ALL` means build for all versions. | ALL     |
 
 ### Velox build parameters for build_velox.sh
 Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
@@ -49,7 +50,7 @@ Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
 | build_test_utils   | Build Velox with cmake arg -DVELOX_BUILD_TEST_UTILS=ON if ON.           | OFF                                      |
 | build_tests        | Build Velox test.                                                       | OFF                                      |
 | build_benchmarks   | Build Velox benchmarks.                                                 | OFF                                      |
-| compile_arrow_java | Build arrow java for gluten build to use to fix invalid pointer issues. | OFF                                      |
+| compile_arrow_java | Build arrow java for gluten build to use to fix invalid pointer issues. | ON                                      |
 
 ### Maven build parameters
 The below parameters can be set via `-P` for mvn.

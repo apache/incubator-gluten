@@ -172,12 +172,32 @@ abstract class HashAggregateExecBaseTransformer(
       validation: Boolean = false): RelNode
 }
 
-abstract class HashAggregateExecPullOutBaseHelper(
-    groupingExpressions: Seq[NamedExpression],
-    aggregateExpressions: Seq[AggregateExpression],
-    aggregateAttributes: Seq[Attribute]) {
+object HashAggregateExecBaseTransformer {
+
+  private def getInitialInputBufferOffset(agg: BaseAggregateExec): Int = agg match {
+    case a: HashAggregateExec => a.initialInputBufferOffset
+    case a: ObjectHashAggregateExec => a.initialInputBufferOffset
+    case a: SortAggregateExec => a.initialInputBufferOffset
+  }
+
+  def from(agg: BaseAggregateExec)(
+      childConverter: SparkPlan => SparkPlan = p => p): HashAggregateExecBaseTransformer = {
+    BackendsApiManager.getSparkPlanExecApiInstance
+      .genHashAggregateExecTransformer(
+        agg.requiredChildDistributionExpressions,
+        agg.groupingExpressions,
+        agg.aggregateExpressions,
+        agg.aggregateAttributes,
+        getInitialInputBufferOffset(agg),
+        agg.resultExpressions,
+        childConverter(agg.child)
+      )
+  }
+}
+
+trait HashAggregateExecPullOutBaseHelper {
   // The direct outputs of Aggregation.
-  lazy val allAggregateResultAttributes: List[Attribute] =
+  def allAggregateResultAttributes(groupingExpressions: Seq[NamedExpression]): List[Attribute] =
     groupingExpressions.map(ConverterUtils.getAttrFromExpr(_)).toList :::
       getAttrForAggregateExprs
 

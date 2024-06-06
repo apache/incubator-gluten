@@ -42,8 +42,6 @@
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <caffeine.version.java8>2.9.3</caffeine.version.java8>
-    <delta.version>2.0.1</delta.version>
-    <delta.binary.version>20</delta.binary.version>
     <scala.binary.version>2.12</scala.binary.version>
     <scala.version>2.12.15</scala.version>
     <spark.major.version>3</spark.major.version>
@@ -58,6 +56,7 @@
     <celeborn.version>0.3.2-incubating</celeborn.version>
     <uniffle.version>0.8.0</uniffle.version>
     <arrow.version>15.0.0</arrow.version>
+    <arrow-gluten.version>15.0.0-gluten</arrow-gluten.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
     <hadoop.version>2.7.4</hadoop.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -155,8 +154,8 @@
         <!-- keep using iceberg v1.3.1 for parquet compatibilty. -->
         <iceberg.version>1.3.1</iceberg.version>
         <delta.package.name>delta-core</delta.package.name>
-        <delta.version>2.2.0</delta.version>
-        <delta.binary.version>22</delta.binary.version>
+        <delta.version>2.3.0</delta.version>
+        <delta.binary.version>23</delta.binary.version>
       </properties>
     </profile>
     <profile>
@@ -181,8 +180,8 @@
         <spark.version>3.5.1</spark.version>
         <iceberg.version>1.5.0</iceberg.version>
         <delta.package.name>delta-spark</delta.package.name>
-        <delta.version>3.1.0</delta.version>
-        <delta.binary.version>31</delta.binary.version>
+        <delta.version>3.2.0</delta.version>
+        <delta.binary.version>32</delta.binary.version>
         <fasterxml.version>2.15.1</fasterxml.version>
         <hadoop.version>3.3.4</hadoop.version>
       </properties>
@@ -615,13 +614,27 @@
           <artifactId>scala-maven-plugin</artifactId>
           <version>${scala.compiler.version}</version>
           <configuration>
+            <compilerPlugins>
+              <compilerPlugin>
+                <groupId>org.wartremover</groupId>
+                <artifactId>wartremover_${scala.binary.version}</artifactId>
+                <version>3.1.6</version>
+              </compilerPlugin>
+            </compilerPlugins>
+            <dependencies>
+              <dependency>
+                <groupId>io.github.zhztheplayer.scalawarts</groupId>
+                <artifactId>scalawarts</artifactId>
+                <version>0.1.1</version>
+              </dependency>
+            </dependencies>
             <recompileMode>${scala.recompile.mode}</recompileMode>
             <args>
-              <arg>-Wconf:msg=While parsing annotations in:silent</arg>
+              <arg>-Wconf:msg=While parsing annotations in:silent,any:e</arg>
               <arg>-Ywarn-unused:imports</arg>
-              <arg>-Xfatal-warnings</arg>
               <arg>-deprecation</arg>
               <arg>-feature</arg>
+              <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
             </args>
           </configuration>
           <executions>

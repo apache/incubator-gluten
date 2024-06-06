@@ -280,6 +280,10 @@ check [Intel® QuickAssist Technology (QAT) support](../get-started/Velox.md#int
 For IAA support, please
 check [Intel® In-memory Analytics Accelerator (IAA/IAX) support](../get-started/Velox.md#intel-in-memory-analytics-accelerator-iaaiax-support)
 
+## Simulate task spilling
+
+You can simulate task spilling by specify memory hard limit from `--memory_limit`.
+
 ## Simulate Spark with multiple processes and threads
 
 You can use below command to launch several processes and threads to simulate parallel execution on

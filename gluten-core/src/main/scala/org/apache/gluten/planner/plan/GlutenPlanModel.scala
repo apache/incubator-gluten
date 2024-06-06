@@ -16,15 +16,19 @@
  */
 package org.apache.gluten.planner.plan
 
+import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
+import org.apache.gluten.extension.columnar.transition.Convention.{KnownBatchType, KnownRowType}
 import org.apache.gluten.planner.metadata.GlutenMetadata
-import org.apache.gluten.planner.property.{ConventionDef, Conventions}
+import org.apache.gluten.planner.property.{Conv, ConvDef}
 import org.apache.gluten.ras.{Metadata, PlanModel}
 import org.apache.gluten.ras.property.PropertySet
+import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.{LeafExecNode, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarToRowExec, LeafExecNode, SparkPlan}
+import org.apache.spark.util.{SparkTaskUtil, TaskResources}
 
 import java.util.Objects
 
@@ -36,25 +40,61 @@ object GlutenPlanModel {
   case class GroupLeafExec(
       groupId: Int,
       metadata: GlutenMetadata,
-      propertySet: PropertySet[SparkPlan])
-    extends LeafExecNode {
+      constraintSet: PropertySet[SparkPlan])
+    extends LeafExecNode
+    with KnownBatchType
+    with KnownRowType {
+    private val req: Conv.Req = constraintSet.get(ConvDef).asInstanceOf[Conv.Req]
+
     override protected def doExecute(): RDD[InternalRow] = throw new IllegalStateException()
     override def output: Seq[Attribute] = metadata.schema().output
-    override def supportsColumnar: Boolean =
-      propertySet.get(ConventionDef) match {
-        case Conventions.ROW_BASED => false
-        case Conventions.VANILLA_COLUMNAR => true
-        case Conventions.GLUTEN_COLUMNAR => true
-        case Conventions.ANY => true
+
+    override def supportsColumnar(): Boolean = {
+      batchType != Convention.BatchType.None
+    }
+
+    override val batchType: Convention.BatchType = {
+      val out = req.req.requiredBatchType match {
+        case ConventionReq.BatchType.Any => Convention.BatchType.None
+        case ConventionReq.BatchType.Is(b) => b
       }
+      out
+    }
+
+    override val rowType: Convention.RowType = {
+      val out = req.req.requiredRowType match {
+        case ConventionReq.RowType.Any => Convention.RowType.None
+        case ConventionReq.RowType.Is(r) => r
+      }
+      out
+    }
   }
 
   private object PlanModelImpl extends PlanModel[SparkPlan] {
+    private val fakeTc = SparkShimLoader.getSparkShims.createTestTaskContext()
+    private def fakeTc[T](body: => T): T = {
+      assert(!TaskResources.inSparkTask())
+      SparkTaskUtil.setTaskContext(fakeTc)
+      try {
+        body
+      } finally {
+        SparkTaskUtil.unsetTaskContext()
+      }
+    }
+
     override def childrenOf(node: SparkPlan): Seq[SparkPlan] = node.children
 
-    override def withNewChildren(node: SparkPlan, children: Seq[SparkPlan]): SparkPlan = {
-      node.withNewChildren(children)
-    }
+    override def withNewChildren(node: SparkPlan, children: Seq[SparkPlan]): SparkPlan =
+      node match {
+        case c2r: ColumnarToRowExec =>
+          // Workaround: To bypass the assertion in ColumnarToRowExec's code if child is
+          // a group leaf.
+          fakeTc {
+            c2r.withNewChildren(children)
+          }
+        case other =>
+          other.withNewChildren(children)
+      }
 
     override def hashCode(node: SparkPlan): Int = Objects.hashCode(node)
 
@@ -63,8 +103,8 @@ object GlutenPlanModel {
     override def newGroupLeaf(
         groupId: Int,
         metadata: Metadata,
-        propSet: PropertySet[SparkPlan]): SparkPlan =
-      GroupLeafExec(groupId, metadata.asInstanceOf[GlutenMetadata], propSet)
+        constraintSet: PropertySet[SparkPlan]): SparkPlan =
+      GroupLeafExec(groupId, metadata.asInstanceOf[GlutenMetadata], constraintSet)
 
     override def isGroupLeaf(node: SparkPlan): Boolean = node match {
       case _: GroupLeafExec => true

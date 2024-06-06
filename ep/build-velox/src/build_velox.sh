@@ -34,7 +34,7 @@ ENABLE_TESTS=OFF
 # Set to ON for gluten cpp test build.
 BUILD_TEST_UTILS=OFF
 RUN_SETUP_SCRIPT=ON
-COMPILE_ARROW_JAVA=OFF
+COMPILE_ARROW_JAVA=ON
 NUM_THREADS=""
 OTHER_ARGUMENTS=""
 
@@ -151,7 +151,7 @@ function compile {
   fi
   echo "NUM_THREADS_OPTS: $NUM_THREADS_OPTS"
 
-  export simdjson_SOURCE=BUNDLED
+  export simdjson_SOURCE=AUTO
   if [ $ARCH == 'x86_64' ]; then
     make $COMPILE_TYPE $NUM_THREADS_OPTS EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   elif [[ "$ARCH" == 'arm64' || "$ARCH" == 'aarch64' ]]; then
@@ -282,16 +282,25 @@ function compile_arrow_java_module() {
     ARROW_INSTALL_DIR="${ARROW_HOME}/../../install"
 
     pushd $ARROW_HOME/java
-    mvn clean install -pl maven/module-info-compiler-maven-plugin -am \
-          -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip
+    # Because arrow-bom module need the -DprocessAllModules
+    mvn versions:set -DnewVersion=15.0.0-gluten -DprocessAllModules
+   
+    mvn clean install -am \
+          -DskipTests -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip
 
     # Arrow C Data Interface CPP libraries
     mvn generate-resources -P generate-libs-cdata-all-os -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR \
       -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip -N
 
+    # Arrow JNI Date Interface CPP libraries
+    export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
+    mvn generate-resources -Pgenerate-libs-jni-macos-linux -N -Darrow.dataset.jni.dist.dir=$ARROW_INSTALL_DIR \
+      -DARROW_GANDIVA=OFF -DARROW_JAVA_JNI_ENABLE_GANDIVA=OFF -DARROW_ORC=OFF -DARROW_JAVA_JNI_ENABLE_ORC=OFF \
+	    -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip -N
+
     # Arrow Java libraries
-    mvn clean install -P arrow-c-data -pl c -am -DskipTests -Dcheckstyle.skip \
-      -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib \
+    mvn install  -Parrow-jni -P arrow-c-data -pl c,dataset -am \
+      -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Darrow.dataset.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib \
       -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip
     popd
 }

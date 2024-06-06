@@ -33,4 +33,6 @@ public interface MemoryTargetVisitor<T> {
   T visit(LoggingMemoryTarget loggingMemoryTarget);
 
   T visit(NoopMemoryTarget noopMemoryTarget);
+
+  T visit(DynamicOffHeapSizingMemoryTarget dynamicOffHeapSizingMemoryTarget);
 }

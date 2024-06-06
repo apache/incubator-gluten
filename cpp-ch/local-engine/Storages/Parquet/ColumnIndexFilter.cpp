@@ -547,7 +547,8 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::notEq(const DB::Field & value) co
     }
 
     // Merging value filtering with pages containing nulls
-    auto real_value{parquetCast<DType>(value)};
+    ToParquet<DType> to_parquet;
+    auto real_value{to_parquet.as(value, *descr_)};
     TypedComparator<DType> typed_comparator{real_value, *column_index_, *comparator_};
     auto pages = ORDER::notEq(typed_comparator);
     const std::set<size_t> matchingIndexes(pages.begin(), pages.end());
@@ -573,7 +574,8 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::eq(const DB::Field & value) const
             return {PageIndexsBuilder::ALL_PAGES};
         }
     }
-    auto real_value = parquetCast<DType>(value);
+    ToParquet<DType> to_parquet;
+    auto real_value{to_parquet.as(value, *descr_)};
     TypedComparator<DType> typed_comparator{real_value, *column_index_, *comparator_};
     return ORDER::eq(typed_comparator);
 }
@@ -581,7 +583,8 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::eq(const DB::Field & value) const
 template <typename DType, Derived<BoundaryOrder> ORDER>
 PageIndexs TypedColumnIndexImpl<DType, ORDER>::gt(const DB::Field & value) const
 {
-    auto real_value{parquetCast<DType>(value)};
+    ToParquet<DType> to_parquet;
+    auto real_value{to_parquet.as(value, *descr_)};
     TypedComparator<DType> typed_comparator{real_value, *column_index_, *comparator_};
     return ORDER::gt(typed_comparator);
 }
@@ -589,7 +592,8 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::gt(const DB::Field & value) const
 template <typename DType, Derived<BoundaryOrder> ORDER>
 PageIndexs TypedColumnIndexImpl<DType, ORDER>::gtEg(const DB::Field & value) const
 {
-    auto real_value{parquetCast<DType>(value)};
+    ToParquet<DType> to_parquet;
+    auto real_value{to_parquet.as(value, *descr_)};
     TypedComparator<DType> typed_comparator{real_value, *column_index_, *comparator_};
     return ORDER::gtEq(typed_comparator);
 }
@@ -597,7 +601,8 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::gtEg(const DB::Field & value) con
 template <typename DType, Derived<BoundaryOrder> ORDER>
 PageIndexs TypedColumnIndexImpl<DType, ORDER>::lt(const DB::Field & value) const
 {
-    auto real_value{parquetCast<DType>(value)};
+    ToParquet<DType> to_parquet;
+    auto real_value{to_parquet.as(value, *descr_)};
     TypedComparator<DType> typed_comparator{real_value, *column_index_, *comparator_};
     return ORDER::lt(typed_comparator);
 }
@@ -605,7 +610,8 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::lt(const DB::Field & value) const
 template <typename DType, Derived<BoundaryOrder> ORDER>
 PageIndexs TypedColumnIndexImpl<DType, ORDER>::ltEg(const DB::Field & value) const
 {
-    auto real_value{parquetCast<DType>(value)};
+    ToParquet<DType> to_parquet;
+    auto real_value{to_parquet.as(value, *descr_)};
     TypedComparator<DType> typed_comparator{real_value, *column_index_, *comparator_};
     return ORDER::ltEq(typed_comparator);
 }
@@ -615,7 +621,7 @@ PageIndexs TypedColumnIndexImpl<DType, ORDER>::in(const DB::ColumnPtr & column) 
 {
     /// TDDO: handle null
     ///
-    std::shared_ptr<ParquetConverter<DType>> converter = ParquetConverter<DType>::Make(column);
+    std::shared_ptr<ParquetConverter<DType>> converter = ParquetConverter<DType>::Make(column, *descr_);
     const auto * value = converter->getBatch(0, column->size());
     T min, max;
     std::tie(min, max) = comparator_->GetMinMax(value, column->size());
@@ -659,7 +665,8 @@ ColumnIndexPtr internalMakeColumnIndex(
     switch (physical_type)
     {
         case parquet::Type::BOOLEAN:
-            break;
+            return std::make_unique<TypedColumnIndexImpl<parquet::BooleanType, ORDER>>(
+                descr, dynamic_pointer_cast<parquet::BoolColumnIndex>(column_index), offset_index);
         case parquet::Type::INT32:
             return std::make_unique<TypedColumnIndexImpl<parquet::Int32Type, ORDER>>(
                 descr, dynamic_pointer_cast<parquet::Int32ColumnIndex>(column_index), offset_index);
@@ -669,20 +676,21 @@ ColumnIndexPtr internalMakeColumnIndex(
         case parquet::Type::INT96:
             break;
         case parquet::Type::FLOAT:
-            break;
+            return std::make_unique<TypedColumnIndexImpl<parquet::FloatType, ORDER>>(
+                descr, dynamic_pointer_cast<parquet::FloatColumnIndex>(column_index), offset_index);
         case parquet::Type::DOUBLE:
             return std::make_unique<TypedColumnIndexImpl<parquet::DoubleType, ORDER>>(
                 descr, dynamic_pointer_cast<parquet::DoubleColumnIndex>(column_index), offset_index);
-            break;
         case parquet::Type::BYTE_ARRAY:
             return std::make_unique<TypedColumnIndexImpl<parquet::ByteArrayType, ORDER>>(
                 descr, dynamic_pointer_cast<parquet::ByteArrayColumnIndex>(column_index), offset_index);
         case parquet::Type::FIXED_LEN_BYTE_ARRAY:
-            break;
+            return std::make_unique<TypedColumnIndexImpl<parquet::FLBAType, ORDER>>(
+                descr, dynamic_pointer_cast<parquet::FLBAColumnIndex>(column_index), offset_index);
         case parquet::Type::UNDEFINED:
             break;
     }
-    throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unsupported physical type {}", physical_type);
+    throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unsupported physical type {}", TypeToString(physical_type));
 }
 
 ColumnIndexPtr ColumnIndex::create(

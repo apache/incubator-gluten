@@ -144,6 +144,7 @@ case class UpdateCommand(
       }.asNondeterministic()
       val pathsToRewrite =
         withStatusCode("DELTA", UpdateCommand.FINDING_TOUCHED_FILES_MSG) {
+          // --- modified start
           data
             .filter(new Column(updateCondition))
             .filter(updatedRowUdf())
@@ -152,6 +153,7 @@ case class UpdateCommand(
             .distinct()
             .as[String]
             .collect()
+          // --- modified end
         }
 
       scanTimeMs = (System.nanoTime() - startTime) / 1000 / 1000

@@ -83,7 +83,10 @@ object ExpressionNames {
   final val IS_NAN = "isnan"
   final val NANVL = "nanvl"
   final val TRY_EVAL = "try"
-  final val TRY_ADD = "try_add"
+  final val CHECK_ADD = "check_add"
+  final val CHECK_SUBTRACT = "check_subtract"
+  final val CHECK_DIVIDE = "check_divide"
+  final val CHECK_MULTIPLY = "check_multiply"
 
   // SparkSQL String functions
   final val ASCII = "ascii"
@@ -113,6 +116,7 @@ object ExpressionNames {
   final val LEFT = "left"
   final val REPEAT = "repeat"
   final val TRANSLATE = "translate"
+  final val SOUNDEX = "soundex"
   final val SPACE = "space"
   final val EMPTY2NULL = "empty2null"
   final val INITCAP = "initcap"
@@ -175,6 +179,7 @@ object ExpressionNames {
   final val REMAINDER = "modulus"
   final val FACTORIAL = "factorial"
   final val RAND = "rand"
+  final val RINT = "rint"
 
   // PrestoSQL Math functions
   final val ACOS = "acos"
@@ -209,6 +214,7 @@ object ExpressionNames {
   final val MAKE_YM_INTERVAL = "make_ym_interval"
   final val TO_UTC_TIMESTAMP = "to_utc_timestamp"
   final val FROM_UTC_TIMESTAMP = "from_utc_timestamp"
+  final val UNIX_SECONDS = "unix_seconds"
   final val UNIX_MILLIS = "unix_millis"
   final val UNIX_MICROS = "unix_micros"
   final val TIMESTAMP_MILLIS = "timestamp_millis"
@@ -256,6 +262,8 @@ object ExpressionNames {
   final val EXISTS = "exists"
   final val TRANSFORM = "transform"
   final val SHUFFLE = "shuffle"
+  final val ZIP_WITH = "zip_with"
+  final val FLATTEN = "flatten"
 
   // Map functions
   final val CREATE_MAP = "map"
@@ -264,6 +272,7 @@ object ExpressionNames {
   final val MAP_VALUES = "map_values"
   final val MAP_FROM_ARRAYS = "map_from_arrays"
   final val MAP_ENTRIES = "map_entries"
+  final val MAP_ZIP_WITH = "map_zip_with"
   final val STR_TO_MAP = "str_to_map"
 
   // struct functions
@@ -289,6 +298,7 @@ object ExpressionNames {
   final val AGGREGATE = "aggregate"
   final val LAMBDAFUNCTION = "lambdafunction"
   final val EXPLODE = "explode"
+  final val STACK = "stack"
   final val INLINE = "inline"
   final val POSEXPLODE = "posexplode"
   final val CHECK_OVERFLOW = "check_overflow"
@@ -296,6 +306,7 @@ object ExpressionNames {
   final val PROMOTE_PRECISION = "promote_precision"
   final val SPARK_PARTITION_ID = "spark_partition_id"
   final val MONOTONICALLY_INCREASING_ID = "monotonically_increasing_id"
+  final val WIDTH_BUCKET = "width_bucket"
 
   // Directly use child expression transformer
   final val KNOWN_NULLABLE = "known_nullable"
@@ -319,4 +330,5 @@ object ExpressionNames {
 
   // A placeholder for native UDF functions
   final val UDF_PLACEHOLDER = "udf_placeholder"
+  final val UDAF_PLACEHOLDER = "udaf_placeholder"
 }

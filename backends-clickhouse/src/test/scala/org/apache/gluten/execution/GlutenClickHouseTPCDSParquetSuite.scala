@@ -16,13 +16,10 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.utils.FallbackUtil
-
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Not}
+import org.apache.spark.sql.catalyst.expressions.DynamicPruningExpression
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
-import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, SortMergeJoinExec}
 
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
@@ -121,38 +118,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     assert(result(0).getLong(0) == 73049)
   }
 
-  test(
-    "test fallback operations not supported by ch backend " +
-      "in CHHashJoinExecTransformer && CHBroadcastHashJoinExecTransformer") {
-    val testSql =
-      """
-        |SELECT i_brand_id AS brand_id, i_brand AS brand, i_manufact_id, i_manufact,
-        |    sum(ss_ext_sales_price) AS ext_price
-        | FROM date_dim
-        | LEFT JOIN store_sales ON d_date_sk = ss_sold_date_sk
-        | LEFT JOIN item ON ss_item_sk = i_item_sk AND i_manager_id = 7
-        | LEFT JOIN customer ON ss_customer_sk = c_customer_sk
-        | LEFT JOIN customer_address ON c_current_addr_sk = ca_address_sk
-        | LEFT JOIN store ON ss_store_sk = s_store_sk AND substr(ca_zip,1,5) <> substr(s_zip,1,5)
-        | WHERE d_moy = 11
-        |   AND d_year = 1999
-        | GROUP BY i_brand_id, i_brand, i_manufact_id, i_manufact
-        | ORDER BY ext_price DESC, i_brand, i_brand_id, i_manufact_id, i_manufact
-        | LIMIT 100;
-        |""".stripMargin
-
-    val df = spark.sql(testSql)
-    val operateWithCondition = df.queryExecution.executedPlan.collect {
-      case f: BroadcastHashJoinExec if f.condition.get.isInstanceOf[Not] => f
-    }
-    assert(
-      operateWithCondition(0).left
-        .asInstanceOf[InputAdapter]
-        .child
-        .isInstanceOf[CHColumnarToRowExec])
-  }
-
-  test("test fallbackutils") {
+  test("Test join with mixed condition 1") {
     val testSql =
       """
         |SELECT  i_brand_id AS brand_id, i_brand AS brand, i_manufact_id, i_manufact,
@@ -169,36 +135,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         | ORDER BY ext_price DESC, i_brand, i_brand_id, i_manufact_id, i_manufact
         | LIMIT 100;
         |""".stripMargin
-
-    val df = spark.sql(testSql)
-    assert(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
-  }
-
-  test(
-    "Test avoid forceShuffledHashJoin when the join condition" +
-      " does not supported by the backend") {
-    val testSql =
-      """
-        |SELECT  /*+  merge(date_dim)*/ i_brand_id AS brand_id, i_brand AS brand, i_manufact_id, i_manufact,
-        |    sum(ss_ext_sales_price) AS ext_price
-        | FROM date_dim
-        | LEFT JOIN store_sales ON d_date_sk == ss_sold_date_sk AND (d_date_sk = 213232  OR ss_sold_date_sk = 3232)
-        | LEFT JOIN item ON ss_item_sk = i_item_sk AND i_manager_id = 7
-        | LEFT JOIN customer ON ss_customer_sk = c_customer_sk
-        | LEFT JOIN customer_address ON c_current_addr_sk = ca_address_sk
-        | LEFT JOIN store ON ss_store_sk = s_store_sk AND substr(ca_zip,1,5) <> substr(s_zip,1,5)
-        | WHERE d_moy = 11
-        |   AND d_year = 1999
-        | GROUP BY i_brand_id, i_brand, i_manufact_id, i_manufact
-        | ORDER BY ext_price DESC, i_brand, i_brand_id, i_manufact_id, i_manufact
-        | LIMIT 100;
-        |""".stripMargin
-
-    val df = spark.sql(testSql)
-    val sortMergeJoinExec = df.queryExecution.executedPlan.collect {
-      case s: SortMergeJoinExec => s
-    }
-    assert(sortMergeJoinExec.nonEmpty)
+    compareResultsAgainstVanillaSpark(testSql, true, _ => {})
   }
 
   test("Gluten-1235: Fix missing reading from the broadcasted value when executing DPP") {

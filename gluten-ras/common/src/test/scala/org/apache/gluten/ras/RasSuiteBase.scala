@@ -49,7 +49,7 @@ object RasSuiteBase {
     def withNewChildren(children: Seq[TestNode]): TestNode = this
   }
 
-  case class Group(id: Int, meta: Metadata, propSet: PropertySet[TestNode]) extends LeafLike {
+  case class Group(id: Int, meta: Metadata, constraintSet: PropertySet[TestNode]) extends LeafLike {
     override def selfCost(): Long = Long.MaxValue
     override def makeCopy(): LeafLike = copy()
   }
@@ -113,8 +113,8 @@ object RasSuiteBase {
     override def newGroupLeaf(
         groupId: Int,
         meta: Metadata,
-        propSet: PropertySet[TestNode]): TestNode =
-      Group(groupId, meta, propSet)
+        constraintSet: PropertySet[TestNode]): TestNode =
+      Group(groupId, meta, constraintSet)
 
     override def getGroupId(node: TestNode): Int = node match {
       case ngl: Group => ngl.id
@@ -163,7 +163,7 @@ object RasSuiteBase {
 
   implicit class MemoLikeImplicits[T <: AnyRef](val memo: MemoLike[T]) {
     def memorize(ras: Ras[T], node: T): RasGroup[T] = {
-      memo.memorize(node, ras.propSetOf(node))
+      memo.memorize(node, ras.anyPropSet())
     }
   }
 

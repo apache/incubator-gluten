@@ -22,10 +22,6 @@ include(FindPkgConfig)
 include(GNUInstallDirs)
 include(CheckCXXCompilerFlag)
 
-set(CMAKE_CXX_STANDARD 17)
-
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 # Only set arch=native for non-AppleClang compilers.
 if (NOT CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
@@ -34,7 +30,6 @@ endif()
 set(BOOST_MIN_VERSION "1.42.0")
 find_package(Boost REQUIRED)
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
-
 set(source_root_directory ${CMAKE_CURRENT_SOURCE_DIR})
 
 if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
@@ -173,6 +168,9 @@ set_source_files_properties(${GLUTEN_PROTO_OUTPUT_FILES} PROPERTIES GENERATED TR
 get_filename_component(GLUTEN_PROTO_DIR ${GLUTEN_PROTO_SRC_DIR}/ DIRECTORY)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
+
+message("Core module final CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
+
 set(SPARK_COLUMNAR_PLUGIN_SRCS
         ${SUBSTRAIT_PROTO_SRCS}
         ${GLUTEN_PROTO_SRCS}
@@ -193,7 +191,6 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         shuffle/Partitioner.cc
         shuffle/Partitioning.cc
         shuffle/Payload.cc
-        shuffle/rss/RemotePartitionWriter.cc
         shuffle/rss/RssPartitionWriter.cc
         shuffle/RoundRobinPartitioner.cc
         shuffle/ShuffleMemoryPool.cc

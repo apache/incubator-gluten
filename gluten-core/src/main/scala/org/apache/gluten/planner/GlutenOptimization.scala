@@ -16,27 +16,52 @@
  */
 package org.apache.gluten.planner
 
-import org.apache.gluten.planner.cost.GlutenCostModel
 import org.apache.gluten.planner.metadata.GlutenMetadataModel
 import org.apache.gluten.planner.plan.GlutenPlanModel
 import org.apache.gluten.planner.property.GlutenPropertyModel
-import org.apache.gluten.ras.{Optimization, RasExplain}
+import org.apache.gluten.ras.{CostModel, Optimization, RasExplain}
 import org.apache.gluten.ras.rule.RasRule
 
 import org.apache.spark.sql.execution.SparkPlan
 
+import scala.collection.mutable
+
 object GlutenOptimization {
+  def builder(): Builder = new BuilderImpl
+
   private object GlutenExplain extends RasExplain[SparkPlan] {
     override def describeNode(node: SparkPlan): String = node.nodeName
   }
 
-  def apply(rules: Seq[RasRule[SparkPlan]]): Optimization[SparkPlan] = {
-    Optimization[SparkPlan](
-      GlutenPlanModel(),
-      GlutenCostModel(),
-      GlutenMetadataModel(),
-      GlutenPropertyModel(),
-      GlutenExplain,
-      RasRule.Factory.reuse(rules))
+  trait Builder {
+    def addRules(rules: Seq[RasRule[SparkPlan]]): Builder
+    def costModel(costModel: CostModel[SparkPlan]): Builder
+    def create(): Optimization[SparkPlan]
+  }
+
+  private class BuilderImpl extends Builder {
+    private val rules: mutable.ListBuffer[RasRule[SparkPlan]] = mutable.ListBuffer()
+    private var costModel: Option[CostModel[SparkPlan]] = None
+
+    override def addRules(rules: Seq[RasRule[SparkPlan]]): Builder = {
+      this.rules ++= rules
+      this
+    }
+
+    override def costModel(costModel: CostModel[SparkPlan]): Builder = {
+      this.costModel = Some(costModel)
+      this
+    }
+
+    override def create(): Optimization[SparkPlan] = {
+      assert(costModel.isDefined, "Cost model is required to initialize GlutenOptimization")
+      Optimization[SparkPlan](
+        GlutenPlanModel(),
+        costModel.get,
+        GlutenMetadataModel(),
+        GlutenPropertyModel(),
+        GlutenExplain,
+        RasRule.Factory.reuse(rules))
+    }
   }
 }

@@ -85,7 +85,8 @@ TEST(TestJoin, simple)
     QueryPlan right_plan;
     right_plan.addStep(std::make_unique<ReadFromPreparedSource>(Pipe(right_table)));
 
-    auto join = std::make_shared<TableJoin>(global_context->getSettings(), global_context->getGlobalTemporaryVolume());
+    auto join = std::make_shared<TableJoin>(
+        global_context->getSettings(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
     join->setKind(JoinKind::Left);
     join->setStrictness(JoinStrictness::All);
     join->setColumnsFromJoinedTable(right.getNamesAndTypesList());

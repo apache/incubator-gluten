@@ -74,7 +74,9 @@ class VeloxLiteralSuite extends VeloxWholeStageTransformerSuite {
   test("Array Literal") {
     validateOffloadResult("SELECT array()")
     validateOffloadResult("SELECT array(array())")
+    validateOffloadResult("SELECT array(array(), array(1, 2))")
     validateOffloadResult("SELECT array(map())")
+    validateOffloadResult("SELECT array(map(), map('red', 1))")
     validateOffloadResult("SELECT array('Spark', '5')")
     validateOffloadResult("SELECT array(5, 1, -1)")
     validateOffloadResult("SELECT array(5S, 1S, -1S)")

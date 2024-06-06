@@ -46,6 +46,20 @@ abstract class BatchScanExecShim(
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] = Map()
 
+  lazy val metadataColumns: Seq[AttributeReference] = output.collect {
+    case FileSourceMetadataAttribute(attr) => attr
+  }
+
+  def hasUnsupportedColumns: Boolean = {
+    // TODO, fallback if user define same name column due to we can't right now
+    // detect which column is metadata column which is user defined column.
+    val metadataColumnsNames = metadataColumns.map(_.name)
+    output
+      .filterNot(metadataColumns.toSet)
+      .exists(v => metadataColumnsNames.contains(v.name)) ||
+    output.exists(a => a.name == "$path" || a.name == "$bucket")
+  }
+
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException("Need to implement this method")
   }
@@ -122,4 +136,10 @@ abstract class BatchScanExecShim(
       Boolean.box(applyPartialClustering),
       Boolean.box(replicatePartitions))
   }
+}
+
+abstract class ArrowBatchScanExecShim(original: BatchScanExec) extends DataSourceV2ScanExecBase {
+  @transient override lazy val inputPartitions: Seq[InputPartition] = original.inputPartitions
+
+  override def keyGroupedPartitioning: Option[Seq[Expression]] = original.keyGroupedPartitioning
 }

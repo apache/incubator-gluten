@@ -120,7 +120,7 @@ ColumnPtr FunctionArrayDistinctSpark::executeImpl(const ColumnsWithTypeAndName &
     IColumn & res_data = res.getData();
     ColumnArray::Offsets & res_offsets = res.getOffsets();
 
-    const ColumnNullable * nullable_col = checkAndGetColumn<ColumnNullable>(src_data);
+    const ColumnNullable * nullable_col = checkAndGetColumn<ColumnNullable>(&src_data);
 
     const IColumn * inner_col;
 

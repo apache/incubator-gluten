@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.vectorized;
 
-import org.apache.gluten.memory.arrowalloc.ArrowBufferAllocators;
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;

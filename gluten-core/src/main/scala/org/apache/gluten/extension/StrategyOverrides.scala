@@ -58,7 +58,6 @@ case class JoinSelectionOverrides(session: SparkSession)
       hint: JoinHint,
       forceShuffledHashJoin: Boolean): Seq[SparkPlan] = {
     if (isBroadcastStage(left) || isBroadcastStage(right)) {
-      // equal condition
       val buildSide = if (isBroadcastStage(left)) BuildLeft else BuildRight
       Seq(
         BroadcastHashJoinExec(
@@ -70,7 +69,6 @@ case class JoinSelectionOverrides(session: SparkSession)
           planLater(left),
           planLater(right)))
     } else {
-      // non equal condition
       // Generate BHJ here, avoid to do match in `JoinSelection` again.
       val isHintEmpty = hint.leftHint.isEmpty && hint.rightHint.isEmpty
       val buildSide = getBroadcastBuildSide(left, right, joinType, hint, !isHintEmpty, conf)
@@ -113,7 +111,9 @@ case class JoinSelectionOverrides(session: SparkSession)
               // it don't use this side as the build side
               (!leftHintMergeEnabled, !rightHintMergeEnabled)
             } else {
-              (canBuildShuffledHashJoinLeft(joinType), canBuildShuffledHashJoinRight(joinType))
+              (
+                BackendsApiManager.getSettings.supportHashBuildJoinTypeOnLeft(joinType),
+                BackendsApiManager.getSettings.supportHashBuildJoinTypeOnRight(joinType))
             }
           } else {
             (canBuildShuffledHashJoinLeft(joinType), canBuildShuffledHashJoinRight(joinType))
@@ -147,14 +147,6 @@ case class JoinSelectionOverrides(session: SparkSession)
       }
       Nil
     }
-  }
-
-  override def canBuildShuffledHashJoinLeft(joinType: JoinType): Boolean = {
-    BackendsApiManager.getSettings.supportHashBuildJoinTypeOnLeft(joinType)
-  }
-
-  override def canBuildShuffledHashJoinRight(joinType: JoinType): Boolean = {
-    BackendsApiManager.getSettings.supportHashBuildJoinTypeOnRight(joinType)
   }
 
   def existsMultiJoins(plan: LogicalPlan, count: Int = 0): Boolean = {

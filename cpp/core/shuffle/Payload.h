@@ -28,7 +28,7 @@ namespace gluten {
 
 class Payload {
  public:
-  enum Type : uint8_t { kCompressed = 1, kUncompressed = 2, kToBeCompressed = 3 };
+  enum Type : uint8_t { kCompressed = 1, kUncompressed = 2, kToBeCompressed = 3, kRaw = 4 };
 
   Payload(Type type, uint32_t numRows, const std::vector<bool>* isValidityBuffer);
 

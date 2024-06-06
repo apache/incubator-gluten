@@ -633,5 +633,31 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
       .count()
     assert(result == 600572)
   }
+
+  test("test mergetree insert with optimize basic") {
+    val table_name = "lineitem_mergetree_insert_optimize_basic_s3"
+    val dataPath = s"s3a://$BUCKET_NAME/$table_name"
+
+    withSQLConf(
+      ("spark.databricks.delta.optimize.minFileSize" -> "200000000"),
+      ("spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert" -> "true")
+    ) {
+      spark.sql(s"""
+                   |DROP TABLE IF EXISTS $table_name;
+                   |""".stripMargin)
+
+      spark.sql(s"""
+                   |CREATE TABLE IF NOT EXISTS $table_name
+                   |USING clickhouse
+                   |LOCATION '$dataPath'
+                   | as select * from lineitem
+                   |""".stripMargin)
+
+      val ret = spark.sql(s"select count(*) from $table_name").collect()
+      assert(ret.apply(0).get(0) == 600572)
+      assert(
+        !new File(s"$CH_DEFAULT_STORAGE_DIR/lineitem_mergetree_insert_optimize_basic").exists())
+    }
+  }
 }
 // scalastyle:off line.size.limit

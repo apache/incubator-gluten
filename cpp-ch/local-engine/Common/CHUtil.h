@@ -1,4 +1,5 @@
 /*
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -16,19 +17,21 @@
  */
 #pragma once
 #include <filesystem>
-#include <Columns/IColumn.h>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
 #include <Core/NamesAndTypes.h>
-#include <DataTypes/Serializations/ISerialization.h>
 #include <Functions/CastOverloadResolver.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/Context.h>
 #include <Processors/Chunk.h>
-#include <Storages/IStorage.h>
 #include <base/types.h>
 #include <Common/CurrentThread.h>
-#include <Common/logger_useful.h>
+
+namespace DB
+{
+class QueryPipeline;
+class QueryPlan;
+}
 
 namespace local_engine
 {
@@ -96,10 +99,10 @@ private:
     const DB::ColumnWithTypeAndName * findColumn(const DB::Block & block, const std::string & name) const;
 };
 
-class PlanUtil
+namespace PlanUtil
 {
-public:
-    static std::string explainPlan(DB::QueryPlan & plan);
+std::string explainPlan(DB::QueryPlan & plan);
+void checkOuputType(const DB::QueryPlan & plan);
 };
 
 class ActionsDAGUtil
@@ -165,6 +168,10 @@ public:
     inline static const std::string SPARK_HADOOP_PREFIX = "spark.hadoop.";
     inline static const std::string S3A_PREFIX = "fs.s3a.";
     inline static const std::string SPARK_DELTA_PREFIX = "spark.databricks.delta.";
+    inline static const std::string SPARK_SESSION_TIME_ZONE = "spark.sql.session.timeZone";
+
+    inline static const String GLUTEN_TASK_OFFHEAP = "spark.gluten.memory.task.offHeap.size.in.bytes";
+    inline static const String CH_TASK_MEMORY = "off_heap_per_task";
 
     /// On yarn mode, native writing on hdfs cluster takes yarn container user as the user passed to libhdfs3, which
     /// will cause permission issue because yarn container user is not the owner of the hdfs dir to be written.

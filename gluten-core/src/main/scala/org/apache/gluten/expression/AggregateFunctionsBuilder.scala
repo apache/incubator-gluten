@@ -34,15 +34,18 @@ object AggregateFunctionsBuilder {
         ExpressionMappings.expressionExtensionTransformer.extensionExpressionsMapping.contains(
           aggregateFunc.getClass)
       ) {
-        ExpressionMappings.expressionExtensionTransformer.buildCustomAggregateFunction(
-          aggregateFunc)
+        val (substraitAggFuncName, inputTypes) =
+          ExpressionMappings.expressionExtensionTransformer.buildCustomAggregateFunction(
+            aggregateFunc)
+        assert(substraitAggFuncName.isDefined)
+        (substraitAggFuncName.get, inputTypes)
       } else {
         val substraitAggFuncName = getSubstraitFunctionName(aggregateFunc)
 
         // Check whether each backend supports this aggregate function.
         if (
           !BackendsApiManager.getValidatorApiInstance.doExprValidate(
-            substraitAggFuncName.get,
+            substraitAggFuncName,
             aggregateFunc)
         ) {
           throw new GlutenNotSupportException(
@@ -55,30 +58,25 @@ object AggregateFunctionsBuilder {
 
     ExpressionBuilder.newScalarFunction(
       functionMap,
-      ConverterUtils.makeFuncName(substraitAggFuncName.get, inputTypes, FunctionConfig.REQ))
+      ConverterUtils.makeFuncName(substraitAggFuncName, inputTypes, FunctionConfig.REQ))
   }
 
-  def getSubstraitFunctionName(aggregateFunc: AggregateFunction): Option[String] = {
-    val substraitAggFuncName = aggregateFunc match {
-      case first @ First(_, ignoreNull) =>
-        if (ignoreNull) {
-          Some(ExpressionNames.FIRST_IGNORE_NULL)
-        } else {
-          Some(ExpressionNames.FIRST)
-        }
-      case last @ Last(_, ignoreNulls) =>
-        if (ignoreNulls) {
-          Some(ExpressionNames.LAST_IGNORE_NULL)
-        } else {
-          Some(ExpressionNames.LAST)
-        }
+  def getSubstraitFunctionName(aggregateFunc: AggregateFunction): String = {
+    aggregateFunc match {
+      case First(_, ignoreNulls) if ignoreNulls =>
+        ExpressionNames.FIRST_IGNORE_NULL
+      case Last(_, ignoreNulls) if ignoreNulls =>
+        ExpressionNames.LAST_IGNORE_NULL
       case _ =>
-        ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
+        val nameOpt = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
+        if (nameOpt.isEmpty) {
+          throw new UnsupportedOperationException(
+            s"Could not find a valid substrait mapping name for $aggregateFunc.")
+        }
+        nameOpt.get match {
+          case ExpressionNames.UDAF_PLACEHOLDER => aggregateFunc.prettyName
+          case name => name
+        }
     }
-    if (substraitAggFuncName.isEmpty) {
-      throw new UnsupportedOperationException(
-        s"Could not find valid a substrait mapping name for $aggregateFunc.")
-    }
-    substraitAggFuncName
   }
 }

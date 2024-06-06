@@ -18,7 +18,7 @@
 #include "BenchmarkUtils.h"
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxRuntime.h"
-#include "config/GlutenConfig.h"
+#include "config/VeloxConfig.h"
 #include "shuffle/Utils.h"
 #include "utils/StringUtil.h"
 #include "velox/dwio/common/Options.h"
@@ -38,6 +38,7 @@ std::unordered_map<std::string, std::string> bmConfMap = {{gluten::kSparkBatchSi
 } // namespace
 
 void initVeloxBackend(std::unordered_map<std::string, std::string>& conf) {
+  conf[gluten::kGlogSeverityLevel] = "0";
   gluten::VeloxBackend::create(conf);
 }
 
@@ -178,5 +179,20 @@ void cleanupShuffleOutput(const std::string& dataFile, const std::vector<std::st
     if (std::filesystem::is_empty(localDir)) {
       std::filesystem::remove(localDir);
     }
+  }
+}
+
+void BenchmarkAllocationListener::allocationChanged(int64_t diff) {
+  if (usedBytes_ + diff >= limit_) {
+    LOG(INFO) << fmt::format(
+        "reach hard limit {} when need {}, current used {}.",
+        velox::succinctBytes(limit_),
+        velox::succinctBytes(diff),
+        velox::succinctBytes(usedBytes_));
+    auto neededBytes = usedBytes_ + diff - limit_;
+    auto spilledBytes = iterator_->spillFixedSize(neededBytes);
+    LOG(INFO) << fmt::format("spill finish, got {}.", velox::succinctBytes(spilledBytes));
+  } else {
+    usedBytes_ += diff;
   }
 }

@@ -21,7 +21,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.expression._
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.metrics.{GlutenTimeMetric, MetricsUpdater, NoopMetricsUpdater}
+import org.apache.gluten.metrics.{GlutenTimeMetric, MetricsUpdater}
 import org.apache.gluten.substrait.`type`.{TypeBuilder, TypeNode}
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.plan.{PlanBuilder, PlanNode}
@@ -68,7 +68,22 @@ trait TransformSupport extends GlutenPlan {
    */
   def columnarInputRDDs: Seq[RDD[ColumnarBatch]]
 
-  def doTransform(context: SubstraitContext): TransformContext = {
+  final def transform(context: SubstraitContext): TransformContext = {
+    if (isCanonicalizedPlan) {
+      throw new IllegalStateException(
+        "A canonicalized plan is not supposed to be executed transform.")
+    }
+    if (TransformerState.underValidationState) {
+      doTransform(context)
+    } else {
+      // Materialize subquery first before going to do transform.
+      executeQuery {
+        doTransform(context)
+      }
+    }
+  }
+
+  protected def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(
       s"This operator doesn't support doTransform with SubstraitContext.")
   }
@@ -97,7 +112,7 @@ trait UnaryTransformSupport extends TransformSupport with UnaryExecNode {
 
 case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = false)(
     val transformStageId: Int
-) extends GenerateTreeStringShim
+) extends WholeStageTransformerGenerateTreeStringShim
   with UnaryTransformSupport {
   assert(child.isInstanceOf[TransformSupport])
 
@@ -182,7 +197,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     val substraitContext = new SubstraitContext
     val childCtx = child
       .asInstanceOf[TransformSupport]
-      .doTransform(substraitContext)
+      .transform(substraitContext)
     if (childCtx == null) {
       throw new NullPointerException(s"WholeStageTransformer can't do Transform on $child")
     }
@@ -216,8 +231,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   }
 
   def doWholeStageTransform(): WholeStageTransformContext = {
-    // invoke SparkPlan.prepare to do subquery preparation etc.
-    super.prepare()
     val context = generateWholeStageTransformContext()
     if (conf.getConf(GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT)) {
       wholeStageTransformerContext = Some(context)
@@ -257,6 +270,12 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val pipelineTime: SQLMetric = longMetric("pipelineTime")
+    // We should do transform first to make sure all subqueries are materialized
+    val wsCtx = GlutenTimeMetric.withMillisTime {
+      doWholeStageTransform()
+    }(
+      t =>
+        logOnLevel(substraitPlanLogLevel, s"$nodeName generating the substrait plan took: $t ms."))
     val inputRDDs = new ColumnarInputRDDsWrapper(columnarInputRDDs)
     // Check if BatchScan exists.
     val basicScanExecTransformers = findAllScanTransformers()
@@ -271,22 +290,11 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       val allScanPartitions = basicScanExecTransformers.map(_.getPartitions)
       val allScanSplitInfos =
         getSplitInfosFromPartitions(basicScanExecTransformers, allScanPartitions)
-
-      val (wsCtx, inputPartitions) = GlutenTimeMetric.withMillisTime {
-        val wsCtx = doWholeStageTransform()
-        val partitions =
-          BackendsApiManager.getIteratorApiInstance.genPartitions(
-            wsCtx,
-            allScanSplitInfos,
-            basicScanExecTransformers)
-
-        (wsCtx, partitions)
-      }(
-        t =>
-          logOnLevel(
-            substraitPlanLogLevel,
-            s"$nodeName generating the substrait plan took: $t ms."))
-
+      val inputPartitions =
+        BackendsApiManager.getIteratorApiInstance.genPartitions(
+          wsCtx,
+          allScanSplitInfos,
+          basicScanExecTransformers)
       val rdd = new GlutenWholeStageColumnarRDD(
         sparkContext,
         inputPartitions,
@@ -321,22 +329,18 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
        *      GlutenDataFrameAggregateSuite) in these cases, separate RDDs takes care of SCAN as a
        *      result, genFinalStageIterator rather than genFirstStageIterator will be invoked
        */
-      val resCtx = GlutenTimeMetric.withMillisTime(doWholeStageTransform()) {
-        t =>
-          logOnLevel(substraitPlanLogLevel, s"$nodeName generating the substrait plan took: $t ms.")
-      }
       new WholeStageZippedPartitionsRDD(
         sparkContext,
         inputRDDs,
         numaBindingInfo,
         sparkConf,
-        resCtx,
+        wsCtx,
         pipelineTime,
         BackendsApiManager.getMetricsApiInstance.metricsUpdatingFunction(
           child,
-          resCtx.substraitContext.registeredRelMap,
-          resCtx.substraitContext.registeredJoinParams,
-          resCtx.substraitContext.registeredAggregationParams
+          wsCtx.substraitContext.registeredRelMap,
+          wsCtx.substraitContext.registeredJoinParams,
+          wsCtx.substraitContext.registeredAggregationParams
         ),
         materializeInput
       )
@@ -346,7 +350,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   override def metricsUpdater(): MetricsUpdater = {
     child match {
       case transformer: TransformSupport => transformer.metricsUpdater()
-      case _ => NoopMetricsUpdater
+      case _ => MetricsUpdater.None
     }
   }
 
@@ -357,7 +361,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
         case _ => false
       }
       .map(_.asInstanceOf[TransformSupport].metricsUpdater())
-      .getOrElse(NoopMetricsUpdater)
+      .getOrElse(MetricsUpdater.None)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): WholeStageTransformer =

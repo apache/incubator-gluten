@@ -69,7 +69,8 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
       double reallocThreshold,
       long handle,
       long taskAttemptId,
-      int startPartitionId) {
+      int startPartitionId,
+      String shuffleWriterType) {
     return nativeMake(
         part.getShortName(),
         part.getNumPartitions(),
@@ -90,8 +91,10 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
         taskAttemptId,
         startPartitionId,
         0,
+        0,
         null,
-        "local");
+        "local",
+        shuffleWriterType);
   }
 
   /**
@@ -110,12 +113,14 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
       int bufferCompressThreshold,
       String compressionMode,
       int pushBufferMaxSize,
+      long sortBufferMaxSize,
       Object pusher,
       long memoryManagerHandle,
       long handle,
       long taskAttemptId,
       int startPartitionId,
       String partitionWriterType,
+      String shuffleWriterType,
       double reallocThreshold) {
     return nativeMake(
         part.getShortName(),
@@ -137,8 +142,10 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
         taskAttemptId,
         startPartitionId,
         pushBufferMaxSize,
+        sortBufferMaxSize,
         pusher,
-        partitionWriterType);
+        partitionWriterType,
+        shuffleWriterType);
   }
 
   public native long nativeMake(
@@ -161,8 +168,10 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
       long taskAttemptId,
       int startPartitionId,
       int pushBufferMaxSize,
+      long sortBufferMaxSize,
       Object pusher,
-      String partitionWriterType);
+      String partitionWriterType,
+      String shuffleWriterType);
 
   /**
    * Evict partition data.
@@ -187,7 +196,7 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
    *     allocator instead
    * @return batch bytes.
    */
-  public native long split(long shuffleWriterHandle, int numRows, long handler, long memLimit);
+  public native long write(long shuffleWriterHandle, int numRows, long handler, long memLimit);
 
   /**
    * Write the data remained in the buffers hold by native shuffle writer to each partition's

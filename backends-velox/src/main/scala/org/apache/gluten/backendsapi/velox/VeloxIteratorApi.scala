@@ -27,9 +27,8 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.utils._
 import org.apache.gluten.vectorized._
 
-import org.apache.spark.{SparkConf, SparkContext, TaskContext}
+import org.apache.spark.{SparkConf, TaskContext}
 import org.apache.spark.internal.Logging
-import org.apache.spark.rdd.RDD
 import org.apache.spark.softaffinity.SoftAffinity
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
@@ -45,7 +44,6 @@ import java.lang.{Long => JLong}
 import java.nio.charset.StandardCharsets
 import java.time.ZoneOffset
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap}
-import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
 
@@ -174,7 +172,6 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       inputPartition.isInstanceOf[GlutenPartition],
       "Velox backend only accept GlutenPartition.")
 
-    val beforeBuild = System.nanoTime()
     val columnarNativeIterators =
       new JArrayList[GeneralInIterator](inputIterators.map {
         iter => new ColumnarBatchInIterator(iter.asJava)
@@ -190,7 +187,6 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         splitInfoByteArray,
         columnarNativeIterators,
         partitionIndex)
-    pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
 
     Iterators
       .wrap(resIter.asScala)
@@ -248,16 +244,4 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       .create()
   }
   // scalastyle:on argcount
-
-  /** Generate Native FileScanRDD, currently only for ClickHouse Backend. */
-  override def genNativeFileScanRDD(
-      sparkContext: SparkContext,
-      wsCxt: WholeStageTransformContext,
-      splitInfos: Seq[SplitInfo],
-      scan: BasicScanExecTransformer,
-      numOutputRows: SQLMetric,
-      numOutputBatches: SQLMetric,
-      scanTime: SQLMetric): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException("Cannot support to generate Native FileScanRDD.")
-  }
 }

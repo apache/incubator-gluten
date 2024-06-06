@@ -102,3 +102,19 @@ arrow::Status
 setLocalDirsAndDataFileFromEnv(std::string& dataFile, std::vector<std::string>& localDirs, bool& isFromEnv);
 
 void cleanupShuffleOutput(const std::string& dataFile, const std::vector<std::string>& localDirs, bool isFromEnv);
+
+class BenchmarkAllocationListener final : public gluten::AllocationListener {
+ public:
+  BenchmarkAllocationListener(uint64_t limit) : limit_(limit) {}
+
+  void setIterator(gluten::ResultIterator* iterator) {
+    iterator_ = iterator;
+  }
+
+  void allocationChanged(int64_t diff) override;
+
+ private:
+  uint64_t usedBytes_{0L};
+  uint64_t limit_{0L};
+  gluten::ResultIterator* iterator_;
+};

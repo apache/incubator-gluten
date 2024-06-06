@@ -216,6 +216,7 @@ case class DeleteCommand(deltaLog: DeltaLog, target: LogicalPlan, condition: Opt
               if (candidateFiles.isEmpty) {
                 Array.empty[String]
               } else {
+                // --- modified start
                 data
                   .filter(new Column(cond))
                   .select(input_file_name().as("input_files"))
@@ -224,6 +225,7 @@ case class DeleteCommand(deltaLog: DeltaLog, target: LogicalPlan, condition: Opt
                   .distinct()
                   .as[String]
                   .collect()
+                // --- modified end
               }
             }
 

@@ -25,14 +25,13 @@ import org.apache.gluten.init.NativeBackendInitializer
 import org.apache.gluten.utils._
 import org.apache.gluten.vectorized.{JniLibLoader, JniWorkspace}
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.sql.execution.datasources.velox.{VeloxOrcWriterInjects, VeloxParquetWriterInjects, VeloxRowSplitter}
 import org.apache.spark.sql.expression.UDFResolver
-import org.apache.spark.sql.internal.GlutenConfigUtil
-import org.apache.spark.sql.internal.StaticSQLConf
+import org.apache.spark.sql.internal.{GlutenConfigUtil, StaticSQLConf}
 import org.apache.spark.util.SparkDirectoryUtil
 
-import VeloxListenerApi.initializeNative
 import org.apache.commons.lang3.StringUtils
 
 import scala.sys.process._
@@ -40,7 +39,8 @@ import scala.sys.process._
 class VeloxListenerApi extends ListenerApi {
   private val ARROW_VERSION = "1500"
 
-  override def onDriverStart(conf: SparkConf): Unit = {
+  override def onDriverStart(sc: SparkContext, pc: PluginContext): Unit = {
+    val conf = pc.conf()
     // sql table cache serializer
     if (conf.getBoolean(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, defaultValue = false)) {
       conf.set(
@@ -53,9 +53,9 @@ class VeloxListenerApi extends ListenerApi {
 
   override def onDriverShutdown(): Unit = shutdown()
 
-  override def onExecutorStart(conf: SparkConf): Unit = {
-    UDFResolver.resolveUdfConf(conf, isDriver = false)
-    initialize(conf)
+  override def onExecutorStart(pc: PluginContext): Unit = {
+    UDFResolver.resolveUdfConf(pc.conf(), isDriver = false)
+    initialize(pc.conf())
   }
 
   override def onExecutorShutdown(): Unit = shutdown()
@@ -191,7 +191,7 @@ class VeloxListenerApi extends ListenerApi {
     }
 
     val parsed = GlutenConfigUtil.parseConfig(conf.getAll.toMap)
-    initializeNative(parsed)
+    NativeBackendInitializer.initializeBackend(parsed)
 
     // inject backend-specific implementations to override spark classes
     // FIXME: The following set instances twice in local mode?
@@ -205,19 +205,4 @@ class VeloxListenerApi extends ListenerApi {
   }
 }
 
-object VeloxListenerApi {
-  // Spark DriverPlugin/ExecutorPlugin will only invoke ContextInitializer#initialize method once
-  // in its init method.
-  // In cluster mode, ContextInitializer#initialize only will be invoked in different JVM.
-  // In local mode, ContextInitializer#initialize will be invoked twice in same thread,
-  // driver first then executor, initFlag ensure only invoke initializeBackend once,
-  // so there are no race condition here.
-  private var initFlag: Boolean = false
-  def initializeNative(conf: Map[String, String]): Unit = {
-    if (initFlag) {
-      return
-    }
-    NativeBackendInitializer.initializeBackend(conf)
-    initFlag = true
-  }
-}
+object VeloxListenerApi {}

@@ -148,10 +148,11 @@
                 <relocation>
                   <pattern>org.apache.arrow</pattern>
                   <shadedPattern>${gluten.shade.packageName}.org.apache.arrow</shadedPattern>
-                  <!--arrow's C wrapper refers to the original class path, so we should not relocate here-->
+                  <!--arrow's C and dataset wrapper refers to the original class path, so we should not relocate here-->
                   <excludes>
                     <exclude>org.apache.arrow.c.*</exclude>
                     <exclude>org.apache.arrow.c.jni.*</exclude>
+                    <exclude>org.apache.arrow.dataset.**</exclude>
                   </excludes>
                 </relocation>
                 <relocation>
@@ -204,8 +205,10 @@
             <fileset>
               <directory>target</directory>
               <excludes>
-                <exclude>*3.2*</exclude>
-                <exclude>*3.3*</exclude>
+                <exclude>*spark3.2*</exclude>
+                <exclude>*spark3.3*</exclude>
+                <exclude>*spark3.4*</exclude>
+                <exclude>*spark3.5*</exclude>
               </excludes>
               <followSymlinks>false</followSymlinks>
             </fileset>

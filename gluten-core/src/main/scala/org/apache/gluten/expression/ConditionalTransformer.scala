@@ -24,10 +24,13 @@ import java.util.{ArrayList => JArrayList}
 
 /** A version of substring that supports columnar processing for utf8. */
 case class CaseWhenTransformer(
+    substraitExprName: String,
     branches: Seq[(ExpressionTransformer, ExpressionTransformer)],
     elseValue: Option[ExpressionTransformer],
-    original: Expression)
+    original: CaseWhen)
   extends ExpressionTransformer {
+  override def children: Seq[ExpressionTransformer] =
+    branches.flatMap(b => b._1 :: b._2 :: Nil) ++ elseValue
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // generate branches nodes
@@ -48,11 +51,13 @@ case class CaseWhenTransformer(
 }
 
 case class IfTransformer(
+    substraitExprName: String,
     predicate: ExpressionTransformer,
     trueValue: ExpressionTransformer,
     falseValue: ExpressionTransformer,
-    original: Expression)
+    original: If)
   extends ExpressionTransformer {
+  override def children: Seq[ExpressionTransformer] = predicate :: trueValue :: falseValue :: Nil
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val ifNodes = new JArrayList[ExpressionNode]

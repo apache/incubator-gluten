@@ -17,7 +17,6 @@
 #pragma once
 
 #include <Core/Block.h>
-#include <Core/ColumnWithTypeAndName.h>
 #include <Core/SortDescription.h>
 #include <DataTypes/DataTypeFactory.h>
 #include <DataTypes/Serializations/ISerialization.h>
@@ -25,14 +24,10 @@
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/RelMetric.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>
-#include <Processors/Formats/Impl/CHColumnToArrowColumn.h>
 #include <Processors/QueryPlan/ISourceStep.h>
 #include <Processors/QueryPlan/QueryPlan.h>
-#include <QueryPipeline/Pipe.h>
 #include <Storages/CustomStorageMergeTree.h>
-#include <Storages/IStorage.h>
 #include <Storages/SourceFromJavaIter.h>
-#include <arrow/ipc/writer.h>
 #include <base/types.h>
 #include <substrait/plan.pb.h>
 #include <Common/BlockIterator.h>
@@ -109,7 +104,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"hypot", "hypot"},
        {"sign", "sign"},
        {"radians", "radians"},
-       {"greatest", "greatest"},
+       {"greatest", "sparkGreatest"},
        {"least", "least"},
        {"shiftleft", "bitShiftLeft"},
        {"shiftright", "bitShiftRight"},
@@ -301,9 +296,6 @@ public:
 
     static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
 
-    bool convertBinaryArithmeticFunDecimalArgs(
-        ActionsDAGPtr actions_dag, ActionsDAG::NodeRawConstPtrs & args, const substrait::Expression_ScalarFunction & arithmeticFun);
-
     IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
 
     static ContextMutablePtr global_context;
@@ -383,7 +375,6 @@ private:
     void wrapNullable(
         const std::vector<String> & columns, ActionsDAGPtr actions_dag, std::map<std::string, std::string> & nullable_measure_names);
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
-    const ActionsDAG::Node * addColumn(DB::ActionsDAGPtr actions_dag, const DataTypePtr & type, const Field & field);
 
     int name_no = 0;
     std::unordered_map<std::string, std::string> function_mapping;
@@ -395,6 +386,9 @@ private:
     // for parse rel node, collect steps from a rel node
     std::vector<IQueryPlanStep *> temp_step_collection;
     std::vector<RelMetricPtr> metrics;
+
+public:
+    const ActionsDAG::Node * addColumn(DB::ActionsDAGPtr actions_dag, const DataTypePtr & type, const Field & field);
 };
 
 struct SparkBuffer
@@ -408,21 +402,26 @@ class LocalExecutor : public BlockIterator
 public:
     LocalExecutor() = default;
     explicit LocalExecutor(ContextPtr context);
+    ~LocalExecutor();
+
     void execute(QueryPlanPtr query_plan);
     SparkRowInfoPtr next();
     Block * nextColumnar();
     bool hasNext();
-    ~LocalExecutor();
+
+    /// Stop execution, used when task receives shutdown command or executor receives SIGTERM signal
+    void cancel();
 
     Block & getHeader();
-
     RelMetricPtr getMetric() const { return metric; }
     void setMetric(RelMetricPtr metric_) { metric = metric_; }
-
     void setExtraPlanHolder(std::vector<QueryPlanPtr> & extra_plan_holder_) { extra_plan_holder = std::move(extra_plan_holder_); }
-
 private:
     std::unique_ptr<SparkRowInfo> writeBlockToSparkRow(DB::Block & block);
+
+    /// Dump processor runtime information to log
+    std::string dumpPipeline();
+
     QueryPipeline query_pipeline;
     std::unique_ptr<PullingPipelineExecutor> executor;
     Block header;
@@ -433,8 +432,6 @@ private:
     RelMetricPtr metric;
     std::vector<QueryPlanPtr> extra_plan_holder;
 
-    /// Dump processor runtime information to log
-    std::string dumpPipeline();
 };
 
 

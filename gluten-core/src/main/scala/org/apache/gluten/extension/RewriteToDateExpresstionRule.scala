@@ -64,10 +64,25 @@ class RewriteToDateExpresstionRule(session: SparkSession, conf: SQLConf)
   }
 
   private def visitExpression(expression: NamedExpression): NamedExpression = expression match {
-    case Alias(c, _) if c.isInstanceOf[ParseToDate] =>
+    case a @ Alias(c, _) if c.isInstanceOf[ParseToDate] =>
       val newToDate = rewriteParseToDate(c.asInstanceOf[ParseToDate])
       if (!newToDate.fastEquals(c)) {
-        Alias(newToDate, newToDate.toString())()
+        a.copy(newToDate, a.name)(
+          a.exprId,
+          a.qualifier,
+          a.explicitMetadata,
+          a.nonInheritableMetadataKeys)
+      } else {
+        expression
+      }
+    case a @ Alias(c, _) if c.isInstanceOf[ParseToTimestamp] =>
+      val newToTimestamp = rewriteParseToTimestamp(c.asInstanceOf[ParseToTimestamp])
+      if (!newToTimestamp.fastEquals(c)) {
+        a.copy(newToTimestamp, a.name)(
+          a.exprId,
+          a.qualifier,
+          a.explicitMetadata,
+          a.nonInheritableMetadataKeys)
       } else {
         expression
       }
@@ -81,11 +96,32 @@ class RewriteToDateExpresstionRule(session: SparkSession, conf: SQLConf)
       val unixTimestamp = fromUnixTime.left.asInstanceOf[UnixTimestamp]
       val newLeft = unixTimestamp.left
       new ParseToDate(newLeft)
+    case date: Expression
+        if date.dataType.isInstanceOf[DateType] || date.dataType.isInstanceOf[TimestampType] =>
+      // When the data type of the left child in the ParseToDate is the DateType or TimestampType,
+      // it will not deal with the format,
+      // also CH backend can not support the DateType or TimestampType as input data type
+      Cast(date, toDate.dataType, Some(SQLConf.get.sessionLocalTimeZone))
     case _ => toDate
   }
 
+  private def rewriteParseToTimestamp(toTimestamp: ParseToTimestamp): Expression =
+    toTimestamp.left match {
+      case timestamp: Expression
+          if (timestamp.dataType.isInstanceOf[DateType] ||
+            timestamp.dataType.isInstanceOf[TimestampType]) =>
+        // When the data type of the left child in the ParseToDate is the DateType or TimestampType,
+        // it will not deal with the format,
+        // also CH backend can not support the DateType or TimestampType as input data type
+        Cast(timestamp, toTimestamp.dataType, Some(SQLConf.get.sessionLocalTimeZone))
+      case _ => toTimestamp
+    }
+
   private def canRewrite(project: Project): Boolean = {
     project.projectList.exists(
-      expr => expr.isInstanceOf[Alias] && expr.asInstanceOf[Alias].child.isInstanceOf[ParseToDate])
+      expr =>
+        expr.isInstanceOf[Alias] &&
+          (expr.asInstanceOf[Alias].child.isInstanceOf[ParseToDate] ||
+            expr.asInstanceOf[Alias].child.isInstanceOf[ParseToTimestamp]))
   }
 }

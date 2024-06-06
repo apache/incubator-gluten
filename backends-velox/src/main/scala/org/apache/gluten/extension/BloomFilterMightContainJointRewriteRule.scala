@@ -20,13 +20,14 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.expression.VeloxBloomFilterMightContain
 import org.apache.gluten.expression.aggregate.VeloxBloomFilterAggregate
 import org.apache.gluten.sql.shims.SparkShimLoader
+import org.apache.gluten.utils.PhysicalPlanSelector
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
 case class BloomFilterMightContainJointRewriteRule(spark: SparkSession) extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = {
+  override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(spark, plan) {
     if (!(GlutenConfig.getConf.enableNativeBloomFilter)) {
       return plan
     }

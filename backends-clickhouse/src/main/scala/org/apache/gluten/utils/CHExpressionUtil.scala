@@ -178,13 +178,17 @@ object CHExpressionUtil {
     ARRAYS_ZIP -> DefaultValidator(),
     DATE_FROM_UNIX_DATE -> DefaultValidator(),
     UNIX_DATE -> DefaultValidator(),
+    UNIX_SECONDS -> DefaultValidator(),
     MONOTONICALLY_INCREASING_ID -> DefaultValidator(),
     SPARK_PARTITION_ID -> DefaultValidator(),
     URL_DECODE -> DefaultValidator(),
     URL_ENCODE -> DefaultValidator(),
     SKEWNESS -> DefaultValidator(),
+    SOUNDEX -> DefaultValidator(),
     BIT_LENGTH -> DefaultValidator(),
     MAKE_YM_INTERVAL -> DefaultValidator(),
+    MAP_ZIP_WITH -> DefaultValidator(),
+    ZIP_WITH -> DefaultValidator(),
     KURTOSIS -> DefaultValidator(),
     REGR_R2 -> DefaultValidator(),
     REGR_SLOPE -> DefaultValidator(),
@@ -195,6 +199,9 @@ object CHExpressionUtil {
     UNIX_MILLIS -> DefaultValidator(),
     UNIX_MICROS -> DefaultValidator(),
     TIMESTAMP_MILLIS -> DefaultValidator(),
-    TIMESTAMP_MICROS -> DefaultValidator()
+    TIMESTAMP_MICROS -> DefaultValidator(),
+    FLATTEN -> DefaultValidator(),
+    RINT -> DefaultValidator(),
+    STACK -> DefaultValidator()
   )
 }

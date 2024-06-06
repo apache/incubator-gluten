@@ -18,6 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.types._
 
 class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
@@ -72,7 +73,7 @@ class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("collect_list") {
+  test("collect_list / collect_set") {
     withTable("t") {
       val data = Seq(
         Row(0, 1),
@@ -107,6 +108,23 @@ class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
                            |ORDER BY 1, 2;
                            |""".stripMargin) {
         checkGlutenOperatorMatch[WindowExecTransformer]
+      }
+
+      runQueryAndCompare(
+        """
+          |SELECT
+          | c1,
+          | collect_set(c2) OVER (
+          |   PARTITION BY c1
+          | )
+          |FROM
+          | t
+          |ORDER BY 1, 2;
+          |""".stripMargin,
+        noFallBack = false
+      ) {
+        // Velox window doesn't support collect_set
+        checkSparkOperatorMatch[WindowExec]
       }
     }
   }

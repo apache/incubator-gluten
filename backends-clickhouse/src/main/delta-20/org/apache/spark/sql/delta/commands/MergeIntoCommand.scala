@@ -407,7 +407,9 @@ case class MergeIntoCommand(
     val recordTouchedFileName = udf {
       (fileName: String) =>
         {
+          // --- modified start
           fileName.split(",").foreach(name => touchedFilesAccum.add(name))
+          // --- modified end
           1
         }
     }.asNondeterministic()

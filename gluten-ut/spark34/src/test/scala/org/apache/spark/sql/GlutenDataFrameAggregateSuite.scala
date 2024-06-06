@@ -188,21 +188,25 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
   testGluten("use gluten hash agg to replace vanilla spark sort agg") {
 
     withSQLConf(("spark.gluten.sql.columnar.force.hashagg", "false")) {
-      Seq("A", "B", "C", "D").toDF("col1").createOrReplaceTempView("t1")
-      // SortAggregateExec is expected to be used for string type input.
-      val df = spark.sql("select max(col1) from t1")
-      checkAnswer(df, Row("D") :: Nil)
-      assert(find(df.queryExecution.executedPlan)(_.isInstanceOf[SortAggregateExec]).isDefined)
+      withTempView("t1") {
+        Seq("A", "B", "C", "D").toDF("col1").createOrReplaceTempView("t1")
+        // SortAggregateExec is expected to be used for string type input.
+        val df = spark.sql("select max(col1) from t1")
+        checkAnswer(df, Row("D") :: Nil)
+        assert(find(df.queryExecution.executedPlan)(_.isInstanceOf[SortAggregateExec]).isDefined)
+      }
     }
 
     withSQLConf(("spark.gluten.sql.columnar.force.hashagg", "true")) {
-      Seq("A", "B", "C", "D").toDF("col1").createOrReplaceTempView("t1")
-      val df = spark.sql("select max(col1) from t1")
-      checkAnswer(df, Row("D") :: Nil)
-      // Sort agg is expected to be replaced by gluten's hash agg.
-      assert(
-        find(df.queryExecution.executedPlan)(
-          _.isInstanceOf[HashAggregateExecBaseTransformer]).isDefined)
+      withTempView("t1") {
+        Seq("A", "B", "C", "D").toDF("col1").createOrReplaceTempView("t1")
+        val df = spark.sql("select max(col1) from t1")
+        checkAnswer(df, Row("D") :: Nil)
+        // Sort agg is expected to be replaced by gluten's hash agg.
+        assert(
+          find(df.queryExecution.executedPlan)(
+            _.isInstanceOf[HashAggregateExecBaseTransformer]).isDefined)
+      }
     }
   }
 
@@ -278,5 +282,56 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
       rand(Random.nextLong()),
       randn(Random.nextLong())
     ).foreach(assertNoExceptions)
+  }
+
+  Seq(true, false).foreach {
+    value =>
+      testGluten(s"SPARK-31620: agg with subquery (whole-stage-codegen = $value)") {
+        withSQLConf(SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key -> value.toString) {
+          withTempView("t1", "t2") {
+            sql("create temporary view t1 as select * from values (1, 2) as t1(a, b)")
+            sql("create temporary view t2 as select * from values (3, 4) as t2(c, d)")
+
+            // test without grouping keys
+            checkAnswer(
+              sql("select sum(if(c > (select a from t1), d, 0)) as csum from t2"),
+              Row(4) :: Nil)
+
+            // test with grouping keys
+            checkAnswer(
+              sql(
+                "select c, sum(if(c > (select a from t1), d, 0)) as csum from " +
+                  "t2 group by c"),
+              Row(3, 4) :: Nil)
+
+            // test with distinct
+            checkAnswer(
+              sql(
+                "select avg(distinct(d)), sum(distinct(if(c > (select a from t1)," +
+                  " d, 0))) as csum from t2 group by c"),
+              Row(4, 4) :: Nil)
+
+            // test subquery with agg
+            checkAnswer(
+              sql(
+                "select sum(distinct(if(c > (select sum(distinct(a)) from t1)," +
+                  " d, 0))) as csum from t2 group by c"),
+              Row(4) :: Nil)
+
+            // test SortAggregateExec
+            var df = sql("select max(if(c > (select a from t1), 'str1', 'str2')) as csum from t2")
+            assert(
+              find(df.queryExecution.executedPlan)(_.isInstanceOf[SortAggregateExec]).isDefined)
+            checkAnswer(df, Row("str1") :: Nil)
+
+            // test SortAggregateExec (collect_list)
+            df =
+              sql("select collect_list(d), sum(if(c > (select a from t1), d, 0)) as csum from t2")
+            assert(
+              find(df.queryExecution.executedPlan)(_.isInstanceOf[SortAggregateExec]).isDefined)
+            checkAnswer(df, Row(Array(4), 4) :: Nil)
+          }
+        }
+      }
   }
 }

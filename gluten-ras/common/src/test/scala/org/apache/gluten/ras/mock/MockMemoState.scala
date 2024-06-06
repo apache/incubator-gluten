@@ -121,7 +121,7 @@ object MockMemoState {
   class MockMutableGroup[T <: AnyRef] private (
       override val id: Int,
       override val clusterKey: RasClusterKey,
-      override val propSet: PropertySet[T],
+      override val constraintSet: PropertySet[T],
       override val self: T)
     extends RasGroup[T] {
     private val nodes: mutable.ArrayBuffer[CanonicalNode[T]] = mutable.ArrayBuffer()

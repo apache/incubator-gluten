@@ -16,7 +16,7 @@
  */
 package org.apache.spark.memory
 
-import org.apache.gluten.memory.memtarget.{KnownNameAndStats, LoggingMemoryTarget, MemoryTarget, MemoryTargetVisitor, NoopMemoryTarget, OverAcquire, ThrowOnOomMemoryTarget, TreeMemoryTargets}
+import org.apache.gluten.memory.memtarget.{DynamicOffHeapSizingMemoryTarget, KnownNameAndStats, LoggingMemoryTarget, MemoryTarget, MemoryTargetVisitor, NoopMemoryTarget, OverAcquire, ThrowOnOomMemoryTarget, TreeMemoryTargets}
 import org.apache.gluten.memory.memtarget.spark.{RegularMemoryConsumer, TreeMemoryConsumer}
 import org.apache.gluten.proto.MemoryUsageStats
 
@@ -116,6 +116,11 @@ object SparkMemoryUtil {
 
         override def visit(noopMemoryTarget: NoopMemoryTarget): KnownNameAndStats = {
           noopMemoryTarget
+        }
+
+        override def visit(dynamicOffHeapSizingMemoryTarget: DynamicOffHeapSizingMemoryTarget)
+            : KnownNameAndStats = {
+          dynamicOffHeapSizingMemoryTarget.delegated().accept(this)
         }
       })
     }

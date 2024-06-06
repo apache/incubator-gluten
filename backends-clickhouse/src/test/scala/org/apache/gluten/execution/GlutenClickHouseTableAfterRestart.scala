@@ -248,9 +248,7 @@ class GlutenClickHouseTableAfterRestart
 
     restartSpark()
 
-    spark.sql("set spark.gluten.enabled=false")
     spark.sql("vacuum table_restart_vacuum")
-    spark.sql("set spark.gluten.enabled=true")
 
     assert(spark.sql("select count(*) from table_restart_vacuum").collect().apply(0).get(0) == 4)
   }

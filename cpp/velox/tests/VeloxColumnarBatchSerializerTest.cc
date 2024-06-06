@@ -30,13 +30,11 @@ using namespace facebook::velox;
 namespace gluten {
 class VeloxColumnarBatchSerializerTest : public ::testing::Test, public test::VectorTestBase {
  protected:
-  std::shared_ptr<arrow::MemoryPool> arrowPool_ = defaultArrowMemoryPool();
-  std::shared_ptr<memory::MemoryPool> veloxPool_ = defaultLeafVeloxMemoryPool();
-  // velox requires the mem manager to be instanced
- protected:
   static void SetUpTestCase() {
     memory::MemoryManager::testingSetInstance({});
   }
+
+  std::shared_ptr<arrow::MemoryPool> arrowPool_ = defaultArrowMemoryPool();
 };
 
 TEST_F(VeloxColumnarBatchSerializerTest, serialize) {
@@ -54,12 +52,12 @@ TEST_F(VeloxColumnarBatchSerializerTest, serialize) {
   };
   auto vector = makeRowVector(children);
   auto batch = std::make_shared<VeloxColumnarBatch>(vector);
-  auto serializer = std::make_shared<VeloxColumnarBatchSerializer>(arrowPool_.get(), veloxPool_, nullptr);
+  auto serializer = std::make_shared<VeloxColumnarBatchSerializer>(arrowPool_.get(), pool_, nullptr);
   auto buffer = serializer->serializeColumnarBatches({batch});
 
   ArrowSchema cSchema;
   exportToArrow(vector, cSchema, ArrowUtils::getBridgeOptions());
-  auto deserializer = std::make_shared<VeloxColumnarBatchSerializer>(arrowPool_.get(), veloxPool_, &cSchema);
+  auto deserializer = std::make_shared<VeloxColumnarBatchSerializer>(arrowPool_.get(), pool_, &cSchema);
   auto deserialized = deserializer->deserialize(const_cast<uint8_t*>(buffer->data()), buffer->size());
   auto deserializedVector = std::dynamic_pointer_cast<VeloxColumnarBatch>(deserialized)->getRowVector();
   test::assertEqualVectors(vector, deserializedVector);

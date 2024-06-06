@@ -22,7 +22,6 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.QueryPlan
@@ -31,7 +30,6 @@ import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileScan}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /** Columnar Based BatchScanExec. */
 case class BatchScanExecTransformer(
@@ -136,11 +134,12 @@ abstract class BatchScanExecTransformerBase(
     if (pushedAggregate.nonEmpty) {
       return ValidationResult.notOk(s"Unsupported aggregation push down for $scan.")
     }
-    super.doValidateInternal()
-  }
 
-  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    doExecuteColumnarInternal()
+    if (hasUnsupportedColumns) {
+      return ValidationResult.notOk(s"Unsupported columns scan in native.")
+    }
+
+    super.doValidateInternal()
   }
 
   override def metricsUpdater(): MetricsUpdater =

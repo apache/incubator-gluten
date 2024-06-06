@@ -19,7 +19,9 @@ package org.apache.gluten.extension.columnar.heuristic
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.columnar._
-import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, TransformPostOverrides, TransformPreOverrides}
+import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, TransformPreOverrides}
+import org.apache.gluten.extension.columnar.rewrite.RewriteSparkPlanRulesManager
+import org.apache.gluten.extension.columnar.transition.{InsertTransitions, RemoveTransitions}
 import org.apache.gluten.extension.columnar.util.AdaptiveContext
 import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.gluten.utils.{LogLevelUtil, PhysicalPlanSelector}
@@ -38,11 +40,13 @@ class HeuristicApplier(session: SparkSession)
   extends ColumnarRuleApplier
   with Logging
   with LogLevelUtil {
+  // This is an empirical value, may need to be changed for supporting other versions of spark.
+  private val aqeStackTraceIndex = 19
 
   private lazy val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
   private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
-  private val adaptiveContext = AdaptiveContext(session)
+  private val adaptiveContext = AdaptiveContext(session, aqeStackTraceIndex)
 
   override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan =
     withTransformRules(transformRules(outputsColumnar)).apply(plan)
@@ -145,10 +149,7 @@ class HeuristicApplier(session: SparkSession)
    */
   private def postRules(): List[SparkSession => Rule[SparkPlan]] =
     List(
-      (_: SparkSession) => TransformPostOverrides(),
-      (s: SparkSession) => InsertColumnarToColumnarTransitions(s),
-      (s: SparkSession) => RemoveTopmostColumnarToRow(s, adaptiveContext.isAdaptiveContext())
-    ) :::
+      (s: SparkSession) => RemoveTopmostColumnarToRow(s, adaptiveContext.isAdaptiveContext())) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
       List((_: SparkSession) => ColumnarCollapseTransformStages(GlutenConfig.getConf)) :::
       SparkRuleUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPostRules)

@@ -40,7 +40,7 @@ namespace ErrorCodes
 namespace local_engine
 {
 
-template <typename T, typename Name>
+template <typename T, typename Name, T int_max_value, T int_min_value>
 class SparkFunctionCastFloatToInt : public DB::IFunction
 {
 public:
@@ -74,7 +74,7 @@ public:
         DB::ColumnPtr src_col = arguments[0].column;
         size_t size = src_col->size();
 
-        auto res_col = DB::ColumnVector<T>::create(size);
+        auto res_col = DB::ColumnVector<T>::create(size, 0);
         auto null_map_col = DB::ColumnUInt8::create(size, 0);
 
         switch(removeNullable(arguments[0].type)->getTypeId())
@@ -101,15 +101,15 @@ public:
         {
             F element = src_vec->getElement(i);
             if (isNaN(element) || !isFinite(element))
-            {
-                data[i] = 0;
                 null_map_data[i] = 1;
-            }
+            else if (element > int_max_value)
+                data[i] = int_max_value;
+            else if (element < int_min_value)
+                data[i] = int_min_value;
             else
                 data[i] = static_cast<T>(element);
         }
     }
-
 };
 
 }
