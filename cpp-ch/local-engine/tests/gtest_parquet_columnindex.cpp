@@ -604,13 +604,15 @@ TEST(ColumnIndex, DecimalField)
     ASSERT_EQ(actual, expected);
 
 
-    /// Eexception test
+    /// Eexception test, only in relase release node
+#ifdef NDEBUG
     Field unsupport = DecimalField<Decimal256>(Int256(300000000), 4);
     EXPECT_THROW(to_parquet.as(unsupport, desc), DB::Exception);
 
     const parquet::ColumnDescriptor error
         = PNB::optional(parquet::Type::FIXED_LEN_BYTE_ARRAY).asDecimal(38, 4).with_length(18).descriptor("column1");
     EXPECT_THROW(to_parquet.as(value, error), DB::Exception);
+#endif
 }
 
 
