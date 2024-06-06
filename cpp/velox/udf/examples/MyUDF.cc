@@ -20,27 +20,16 @@
 #include <velox/functions/Registerer.h>
 #include <iostream>
 #include "udf/Udf.h"
+#include "udf/examples/UdfCommon.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 
+namespace {
+
 static const char* kInteger = "int";
 static const char* kBigInt = "bigint";
 static const char* kDate = "date";
-
-class UdfRegisterer {
- public:
-  ~UdfRegisterer() = default;
-
-  // Returns the number of UDFs in populateUdfEntries.
-  virtual int getNumUdf() = 0;
-
-  // Populate the udfEntries, starting at the given index.
-  virtual void populateUdfEntries(int& index, gluten::UdfEntry* udfEntries) = 0;
-
-  // Register all function signatures to velox.
-  virtual void registerSignatures() = 0;
-};
 
 namespace myudf {
 
@@ -106,7 +95,7 @@ static std::shared_ptr<facebook::velox::exec::VectorFunction> makePlusConstant(
 // signatures:
 //    bigint -> bigint
 // type: VectorFunction
-class MyUdf1Registerer final : public UdfRegisterer {
+class MyUdf1Registerer final : public gluten::UdfRegisterer {
  public:
   int getNumUdf() override {
     return 1;
@@ -135,7 +124,7 @@ class MyUdf1Registerer final : public UdfRegisterer {
 //    integer -> integer
 //    bigint -> bigint
 // type: StatefulVectorFunction
-class MyUdf2Registerer final : public UdfRegisterer {
+class MyUdf2Registerer final : public gluten::UdfRegisterer {
  public:
   int getNumUdf() override {
     return 2;
@@ -167,7 +156,7 @@ class MyUdf2Registerer final : public UdfRegisterer {
 //    [integer,] ... -> integer
 //    bigint, [bigint,] ... -> bigint
 // type: StatefulVectorFunction with variable arity
-class MyUdf3Registerer final : public UdfRegisterer {
+class MyUdf3Registerer final : public gluten::UdfRegisterer {
  public:
   int getNumUdf() override {
     return 2;
@@ -215,7 +204,7 @@ struct MyDateSimpleFunction {
 // signatures:
 //    date, integer -> bigint
 // type: SimpleFunction
-class MyDateRegisterer final : public UdfRegisterer {
+class MyDateRegisterer final : public gluten::UdfRegisterer {
  public:
   int getNumUdf() override {
     return 1;
@@ -235,8 +224,8 @@ class MyDateRegisterer final : public UdfRegisterer {
 };
 } // namespace mydate
 
-std::vector<std::shared_ptr<UdfRegisterer>>& globalRegisters() {
-  static std::vector<std::shared_ptr<UdfRegisterer>> registerers;
+std::vector<std::shared_ptr<gluten::UdfRegisterer>>& globalRegisters() {
+  static std::vector<std::shared_ptr<gluten::UdfRegisterer>> registerers;
   return registerers;
 }
 
@@ -252,6 +241,7 @@ void setupRegisterers() {
   registerers.push_back(std::make_shared<mydate::MyDateRegisterer>());
   inited = true;
 }
+} // namespace
 
 DEFINE_GET_NUM_UDF {
   setupRegisterers();

@@ -83,10 +83,6 @@ object BackendsApiManager {
     backend.metricsApi()
   }
 
-  def getBroadcastApiInstance: BroadcastApi = {
-    backend.broadcastApi()
-  }
-
   def getSettings: BackendSettingsApi = {
     backend.settings
   }

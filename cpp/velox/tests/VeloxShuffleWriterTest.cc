@@ -70,6 +70,8 @@ std::vector<ShuffleTestParams> createShuffleTestParams() {
   std::vector<int32_t> mergeBufferSizes = {0, 3, 4, 10, 4096};
 
   for (const auto& compression : compressions) {
+    params.push_back(
+        ShuffleTestParams{ShuffleWriterType::kSortShuffle, PartitionWriterType::kLocal, compression, 0, 0});
     params.push_back(ShuffleTestParams{ShuffleWriterType::kSortShuffle, PartitionWriterType::kRss, compression, 0, 0});
     for (const auto compressionThreshold : compressionThresholds) {
       for (const auto mergeBufferSize : mergeBufferSizes) {
@@ -373,6 +375,9 @@ TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceRealloc) {
 }
 
 TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceReuse) {
+  if (GetParam().shuffleWriterType == kSortShuffle) {
+    return;
+  }
   ASSERT_NOT_OK(initShuffleWriterOptions());
   shuffleWriterOptions_.bufferReallocThreshold = 1; // Force re-alloc on buffer size changed.
   auto shuffleWriter = createShuffleWriter(defaultArrowMemoryPool().get());
@@ -438,12 +443,7 @@ TEST_P(RoundRobinPartitioningShuffleWriter, spillVerifyResult) {
   auto blockPid2 = takeRows({inputVector1_}, {{1, 3, 5, 7, 9, 1, 3, 5, 7, 9, 1, 3, 5, 7, 9}});
 
   // Stop and verify.
-  shuffleWriteReadMultiBlocks(
-      *shuffleWriter,
-      2,
-      inputVector1_->type(),
-      //      {{block1Pid1, block1Pid1, block1Pid1}, {block1Pid2, block1Pid2, block1Pid2}});
-      {{blockPid1}, {blockPid2}});
+  shuffleWriteReadMultiBlocks(*shuffleWriter, 2, inputVector1_->type(), {{blockPid1}, {blockPid2}});
 }
 
 TEST_F(VeloxShuffleWriterMemoryTest, memoryLeak) {

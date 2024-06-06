@@ -588,6 +588,17 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
                          | from lineitem limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
+    runQueryAndCompare("""SELECT spark_partition_id()
+                         |from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  testWithSpecifiedSparkVersion("Test width_bucket function", Some("3.4")) {
+    runQueryAndCompare("""SELECT width_bucket(2, 0, 4, 3), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
   }
 
   testWithSpecifiedSparkVersion("Test url_decode function", Some("3.4")) {
@@ -628,6 +639,12 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
 
   test("Test unhex function") {
     runQueryAndCompare("SELECT unhex(hex(l_shipmode)) FROM lineitem limit 1") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("soundex") {
+    runQueryAndCompare("select soundex(c_comment) from customer limit 50") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
@@ -709,6 +726,12 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
 
   test("Test uuid function") {
     runQueryAndCompare("""SELECT uuid() from lineitem limit 100""".stripMargin, false) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("Test rand function") {
+    runQueryAndCompare("""SELECT rand() from lineitem limit 100""".stripMargin, false) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
@@ -816,6 +839,30 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     runQueryAndCompare(
       "select try_add(cast(l_orderkey as int), 1), try_add(cast(l_orderkey as int), 2147483647)" +
         " from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  testWithSpecifiedSparkVersion("try_subtract", Some("3.3")) {
+    runQueryAndCompare(
+      "select try_subtract(2147483647, cast(l_orderkey as int)), " +
+        "try_subtract(-2147483648, cast(l_orderkey as int)) from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("try_divide") {
+    runQueryAndCompare(
+      "select try_divide(cast(l_orderkey as int), 0) from lineitem",
+      noFallBack = false) {
+      _ => // Spark would always cast inputs to double for this function.
+    }
+  }
+
+  testWithSpecifiedSparkVersion("try_multiply", Some("3.3")) {
+    runQueryAndCompare(
+      "select try_multiply(2147483647, cast(l_orderkey as int)), " +
+        "try_multiply(-2147483648, cast(l_orderkey as int)) from lineitem") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
@@ -978,6 +1025,23 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  testWithSpecifiedSparkVersion("get", Some("3.4")) {
+    withTempPath {
+      path =>
+        Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
+          .toDF("value")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare(
+          "select get(value, 0), get(value, 1), get(value, 2), get(value, 3) from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("length") {
     runQueryAndCompare(
       "select length(c_comment), length(cast(c_comment as binary))" +
@@ -993,6 +1057,22 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("double")
         runQueryAndCompare("select rint(d) from double") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("arrays_overlap") {
+    withTempPath {
+      path =>
+        Seq[(Seq[Integer], Seq[Integer])]((Seq(1, 2, 3), Seq(3, 4)), (Seq(5, null), Seq()))
+          .toDF("v1", "v2")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare("select arrays_overlap(v1, v2) from array_tbl;") {
           checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }

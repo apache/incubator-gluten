@@ -193,6 +193,8 @@ trait SparkShims {
 
   def getFileStatus(partition: PartitionDirectory): Seq[FileStatus]
 
+  def isRowIndexMetadataColumn(name: String): Boolean
+
   def splitFiles(
       sparkSession: SparkSession,
       file: FileStatus,

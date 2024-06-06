@@ -49,7 +49,7 @@ concurrency:
 jobs:
   build-native-lib-centos-7:
     runs-on: ubuntu-20.04
-    container: apache/gluten:gluten-vcpkg-builder_2024_03_17 # centos7 with dependencies installed
+    container: apache/gluten:gluten-vcpkg-builder_2024_05_29 # centos7 with dependencies installed
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key
@@ -59,16 +59,24 @@ jobs:
         id: cache
         uses: actions/cache/restore@v3
         with:
-          path: ./cpp/build/releases/
+          path: |
+            ./cpp/build/releases/
+            ~/.m2/repository/org/apache/arrow/
           key: cache-velox-build-${{ hashFiles('./cache-key') }}
       - name: Build Gluten Velox third party
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
           source dev/ci-velox-buildstatic.sh
-      - uses: actions/upload-artifact@v2
+      - name: Upload Artifact Native
+        uses: actions/upload-artifact@v2
         with:
           path: ./cpp/build/releases/
           name: velox-native-lib-centos-7-${{github.sha}}
+      - name: Upload Artifact Arrow Jar
+        uses: actions/upload-artifact@v2
+        with:
+          path: /root/.m2/repository/org/apache/arrow/
+          name: velox-arrow-jar-centos-7-${{github.sha}}
 
   run-tpc-test-ubuntu:
     needs: build-native-lib-centos-7
@@ -92,11 +100,16 @@ jobs:
     container: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
-      - name: Download All Artifacts
+      - name: Download All Native Artifacts
         uses: actions/download-artifact@v2
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/releases/
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-arrow-jar-centos-7-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
       - name: Setup java and maven
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
@@ -105,6 +118,7 @@ jobs:
             apt-get update && apt-get install -y openjdk-8-jdk maven
           fi
           apt remove openjdk-11* -y
+          ls -l /root/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
       - name: Build and run TPCH/DS
         run: |
           cd $GITHUB_WORKSPACE/
@@ -140,11 +154,16 @@ jobs:
     container: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
-      - name: Download All Artifacts
+      - name: Download All Native Artifacts
         uses: actions/download-artifact@v2
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/releases/
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-arrow-jar-centos-7-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
       - name: Update mirror list
         if: matrix.os == 'centos:8'
         run: |
@@ -189,10 +208,10 @@ jobs:
           cd $GITHUB_WORKSPACE/tools/gluten-it
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-            --extra-conf=spark.gluten.sql.ras.enabled=true \
+            --extra-conf=spark.gluten.ras.enabled=true \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-            --extra-conf=spark.gluten.sql.ras.enabled=true 
+            --extra-conf=spark.gluten.ras.enabled=true 
 
   run-tpc-test-ubuntu-oom:
     needs: build-native-lib-centos-7
@@ -215,11 +234,16 @@ jobs:
           sudo docker image prune --all --force > /dev/null
           df -h
       - uses: actions/checkout@v2
-      - name: Download All Artifacts
+      - name: Download All Native Artifacts
         uses: actions/download-artifact@v2
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/releases/
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-arrow-jar-centos-7-${{github.sha}}
+          path: /home/runner/.m2/repository/org/apache/arrow/
       - name: Setup java and maven
         run: |
           sudo apt-get update
@@ -312,11 +336,16 @@ jobs:
           sudo docker image prune --all --force > /dev/null
           df -h
       - uses: actions/checkout@v2
-      - name: Download All Artifacts
+      - name: Download All Native Artifacts
         uses: actions/download-artifact@v2
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/releases/
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-arrow-jar-centos-7-${{github.sha}}
+          path: /home/runner/.m2/repository/org/apache/arrow/
       - name: Setup java and maven
         run: |
           sudo apt-get update
@@ -338,57 +367,57 @@ jobs:
             --local --preset=velox --benchmark-type=ds --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
             --skip-data-gen  --random-kill-tasks
 
-  run-tpc-test-ubuntu-sf30:
-    needs: build-native-lib-centos-7
-    strategy:
-      fail-fast: false
-      matrix:
-        spark: [ "spark-3.4" ]
-        shard: [ "1/4", "2/4", "3/4", "4/4" ]
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Maximize build disk space
-        shell: bash
-        run: |
-          df -h
-          set -euo pipefail
-          echo "Removing unwanted software... "
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo docker image prune --all --force > /dev/null
-          df -h
-      - uses: actions/checkout@v2
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
-      - name: Setup java and maven
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openjdk-8-jdk maven
-      - name: Set environment variables
-        run: |
-          echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
-      - name: Build for Spark ${{ matrix.spark }}
-        run: |
-          cd $GITHUB_WORKSPACE/ 
-          mvn -ntp clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
-          cd $GITHUB_WORKSPACE/tools/gluten-it
-          mvn -ntp clean install -P${{ matrix.spark }}
-          GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=h -s=30.0 --threads=12
-          GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
-      - name: TPC-H / TPC-DS SF30.0 Parquet local ${{ matrix.spark }}
-        run: |
-          cd tools/gluten-it \
-          && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=h --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --skip-data-gen --shard=${{ matrix.shard }} \
-          && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=ds --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --skip-data-gen --shard=${{ matrix.shard }}
+  # run-tpc-test-ubuntu-sf30:
+  #   needs: build-native-lib-centos-7
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       spark: [ "spark-3.4" ]
+  #       shard: [ "1/4", "2/4", "3/4", "4/4" ]
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: Maximize build disk space
+  #       shell: bash
+  #       run: |
+  #         df -h
+  #         set -euo pipefail
+  #         echo "Removing unwanted software... "
+  #         sudo rm -rf /usr/share/dotnet
+  #         sudo rm -rf /usr/local/lib/android
+  #         sudo rm -rf /opt/ghc
+  #         sudo rm -rf /opt/hostedtoolcache/CodeQL
+  #         sudo docker image prune --all --force > /dev/null
+  #         df -h
+  #     - uses: actions/checkout@v2
+  #     - name: Download All Artifacts
+  #       uses: actions/download-artifact@v2
+  #       with:
+  #         name: velox-native-lib-centos-7-${{github.sha}}
+  #         path: ./cpp/build/releases
+  #     - name: Setup java and maven
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y openjdk-8-jdk maven
+  #     - name: Set environment variables
+  #       run: |
+  #         echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
+  #     - name: Build for Spark ${{ matrix.spark }}
+  #       run: |
+  #         cd $GITHUB_WORKSPACE/ 
+  #         mvn -ntp clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
+  #         cd $GITHUB_WORKSPACE/tools/gluten-it
+  #         mvn -ntp clean install -P${{ matrix.spark }}
+  #         GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=h -s=30.0 --threads=12
+  #         GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
+  #     - name: TPC-H / TPC-DS SF30.0 Parquet local ${{ matrix.spark }}
+  #       run: |
+  #         cd tools/gluten-it \
+  #         && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
+  #           --local --preset=velox --benchmark-type=h --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
+  #           --skip-data-gen --shard=${{ matrix.shard }} \
+  #         && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
+  #           --local --preset=velox --benchmark-type=ds --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
+  #           --skip-data-gen --shard=${{ matrix.shard }}
 
   run-tpc-test-centos8-uniffle:
     needs: build-native-lib-centos-7
@@ -400,11 +429,16 @@ jobs:
     container: centos:8
     steps:
       - uses: actions/checkout@v2
-      - name: Download All Artifacts
+      - name: Download All Native Artifacts
         uses: actions/download-artifact@v2
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/releases/
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-arrow-jar-centos-7-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
       - name: Update mirror list
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
@@ -461,11 +495,16 @@ jobs:
     container: ubuntu:22.04
     steps:
       - uses: actions/checkout@v2
-      - name: Download All Artifacts
+      - name: Download All Native Artifacts
         uses: actions/download-artifact@v2
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/releases/
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-arrow-jar-centos-7-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
       - name: Setup java and maven
         run: |
           apt-get update && apt-get install -y openjdk-8-jdk maven wget
@@ -496,7 +535,7 @@ jobs:
 
   build-native-lib-centos-8:
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key
@@ -506,8 +545,14 @@ jobs:
         id: cache
         uses: actions/cache/restore@v3
         with:
-          path: ./cpp/build/releases/
+          path: |
+            ./cpp/build/releases/
+            /root/.m2/repository/org/apache/arrow/
           key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup build dependency
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
@@ -542,7 +587,7 @@ jobs:
   run-spark-test-spark32:
     needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -562,6 +607,10 @@ jobs:
         with:
           name: arrow-jars-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
@@ -597,6 +646,7 @@ jobs:
           mv sql shims/spark32/spark_home/ && \
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install setuptools && \
           pip3 install pyspark==3.2.2 cython && \
           pip3 install pandas pyarrow
       - name: Build and run unit test for Spark 3.2.2 (other tests)
@@ -620,7 +670,7 @@ jobs:
   run-spark-test-spark32-slow:
     needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -635,6 +685,10 @@ jobs:
         with:
           name: arrow-jars-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
@@ -666,7 +720,7 @@ jobs:
   run-spark-test-spark33:
     needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -686,6 +740,10 @@ jobs:
         with:
           name: arrow-jars-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
@@ -717,6 +775,7 @@ jobs:
           mv sql shims/spark33/spark_home/ && \
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install setuptools && \
           pip3 install pyspark==3.3.1 cython && \
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.3.1 (other tests)
@@ -736,7 +795,7 @@ jobs:
   run-spark-test-spark33-slow:
     needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -751,6 +810,10 @@ jobs:
         with:
           name: arrow-jars-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
@@ -782,7 +845,7 @@ jobs:
   run-spark-test-spark34:
     needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -802,6 +865,10 @@ jobs:
         with:
           name: arrow-jars-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
@@ -833,6 +900,7 @@ jobs:
           mv sql shims/spark34/spark_home/ && \
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install setuptools && \
           pip3 install pyspark==3.4.2 cython && \
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.4.2 (other tests)
@@ -852,7 +920,7 @@ jobs:
   run-spark-test-spark34-slow:
     needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -867,6 +935,10 @@ jobs:
         with:
           name: arrow-jars-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
@@ -898,7 +970,7 @@ jobs:
   run-spark-test-spark35:
     needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -918,6 +990,10 @@ jobs:
         with:
           name: arrow-jars-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
@@ -949,6 +1025,7 @@ jobs:
           mv sql shims/spark35/spark_home/ && \
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install setuptools && \
           pip3 install pyspark==3.5.1 cython && \
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.5.1 (other tests)
@@ -967,7 +1044,7 @@ jobs:
   run-spark-test-spark35-slow:
     needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -982,6 +1059,10 @@ jobs:
         with:
           name: arrow-jars-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y

@@ -189,6 +189,8 @@ class Spark32Shims extends SparkShims {
 
   def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] = partition.files
 
+  def isRowIndexMetadataColumn(name: String): Boolean = false
+
   def splitFiles(
       sparkSession: SparkSession,
       file: FileStatus,

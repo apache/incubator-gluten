@@ -45,35 +45,23 @@ class EnumeratedApplier(session: SparkSession)
   extends ColumnarRuleApplier
   with Logging
   with LogLevelUtil {
+  // An empirical value.
+  private val aqeStackTraceIndex = 16
 
   private lazy val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
   private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
-  private val adaptiveContext = AdaptiveContext(session)
+  private val adaptiveContext = AdaptiveContext(session, aqeStackTraceIndex)
 
   override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan =
-    withTransformRules(transformRules(outputsColumnar)).apply(plan)
-
-  // Visible for testing.
-  private def withTransformRules(
-      transformRules: List[SparkSession => Rule[SparkPlan]]): Rule[SparkPlan] =
-    plan =>
-      PhysicalPlanSelector.maybe(session, plan) {
-        val finalPlan = prepareFallback(plan) {
-          p =>
-            val suggestedPlan = transformPlan(transformRules, p, "transform")
-            transformPlan(fallbackPolicies(), suggestedPlan, "fallback") match {
-              case FallbackNode(fallbackPlan) =>
-                // we should use vanilla c2r rather than native c2r,
-                // and there should be no `GlutenPlan` any more,
-                // so skip the `postRules()`.
-                fallbackPlan
-              case plan =>
-                transformPlan(postRules(), plan, "post")
-            }
-        }
-        transformPlan(finalRules(), finalPlan, "final")
+    PhysicalPlanSelector.maybe(session, plan) {
+      val transformed = transformPlan(transformRules(outputsColumnar), plan, "transform")
+      val postPlan = maybeAqe {
+        transformPlan(postRules(), transformed, "post")
       }
+      val finalPlan = transformPlan(finalRules(), postPlan, "final")
+      finalPlan
+    }
 
   private def transformPlan(
       getRules: List[SparkSession => Rule[SparkPlan]],
@@ -95,13 +83,11 @@ class EnumeratedApplier(session: SparkSession)
     overridden
   }(t => logOnLevel(transformPlanLogLevel, s"${step}Transform SparkPlan took: $t ms."))
 
-  private def prepareFallback[T](plan: SparkPlan)(f: SparkPlan => T): T = {
+  private def maybeAqe[T](f: => T): T = {
     adaptiveContext.setAdaptiveContext()
-    adaptiveContext.setOriginalPlan(plan)
     try {
-      f(plan)
+      f
     } finally {
-      adaptiveContext.resetOriginalPlan()
       adaptiveContext.resetAdaptiveContext()
     }
   }
@@ -114,7 +100,6 @@ class EnumeratedApplier(session: SparkSession)
     List(
       (_: SparkSession) => RemoveTransitions,
       (spark: SparkSession) => FallbackOnANSIMode(spark),
-      (spark: SparkSession) => FallbackMultiCodegens(spark),
       (spark: SparkSession) => PlanOneRowRelation(spark),
       (_: SparkSession) => FallbackEmptySchemaRelation()
     ) :::
@@ -134,16 +119,6 @@ class EnumeratedApplier(session: SparkSession)
       SparkRuleUtil
         .extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarTransformRules) :::
       List((_: SparkSession) => InsertTransitions(outputsColumnar))
-  }
-
-  /**
-   * Rules to add wrapper `FallbackNode`s on top of the input plan, as hints to make planner fall
-   * back the whole input plan to the original vanilla Spark plan.
-   */
-  private def fallbackPolicies(): List[SparkSession => Rule[SparkPlan]] = {
-    List(
-      (_: SparkSession) =>
-        ExpandFallbackPolicy(adaptiveContext.isAdaptiveContext(), adaptiveContext.originalPlan()))
   }
 
   /**

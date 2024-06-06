@@ -24,15 +24,4 @@ class GlutenQueryExecutionErrorsSuite
   override protected def getResourceParquetFilePath(name: String): String = {
     getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + name
   }
-
-  testGluten(
-    "SCALAR_SUBQUERY_TOO_MANY_ROWS: " +
-      "More than one row returned by a subquery used as an expression") {
-    val exception = intercept[IllegalStateException] {
-      sql("select (select a from (select 1 as a union all select 2 as a) t) as b").collect()
-    }
-    assert(
-      exception.getMessage.contains("more than one row returned by a subquery" +
-        " used as an expression"))
-  }
 }

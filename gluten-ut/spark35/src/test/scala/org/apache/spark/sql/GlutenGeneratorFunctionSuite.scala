@@ -16,4 +16,13 @@
  */
 package org.apache.spark.sql
 
-class GlutenGeneratorFunctionSuite extends GeneratorFunctionSuite with GlutenSQLTestsTrait {}
+import org.apache.spark.sql.internal.SQLConf
+
+class GlutenGeneratorFunctionSuite extends GeneratorFunctionSuite with GlutenSQLTestsTrait {
+  testGluten("SPARK-45171: Handle evaluated nondeterministic expression") {
+    withSQLConf(SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key -> "false") {
+      val df = sql("select explode(array(rand(0)))")
+      checkAnswer(df, Row(0.5488135024422883))
+    }
+  }
+}

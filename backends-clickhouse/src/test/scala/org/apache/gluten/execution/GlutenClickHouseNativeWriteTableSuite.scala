@@ -173,7 +173,7 @@ class GlutenClickHouseNativeWriteTableSuite
   test("test insert into dir") {
     withSQLConf(
       ("spark.gluten.sql.native.writer.enabled", "true"),
-      ("spark.gluten.enabled", "true")) {
+      (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
 
       val originDF = spark.createDataFrame(genTestData())
       originDF.createOrReplaceTempView("origin_table")
@@ -209,7 +209,7 @@ class GlutenClickHouseNativeWriteTableSuite
     withSQLConf(
       ("spark.gluten.sql.native.writer.enabled", "true"),
       ("spark.sql.orc.compression.codec", "lz4"),
-      ("spark.gluten.enabled", "true")) {
+      (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
 
       val originDF = spark.createDataFrame(genTestData())
       originDF.createOrReplaceTempView("origin_table")
@@ -260,7 +260,7 @@ class GlutenClickHouseNativeWriteTableSuite
   test("test CTAS") {
     withSQLConf(
       ("spark.gluten.sql.native.writer.enabled", "true"),
-      ("spark.gluten.enabled", "true")) {
+      (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
 
       val originDF = spark.createDataFrame(genTestData())
       originDF.createOrReplaceTempView("origin_table")
@@ -311,7 +311,7 @@ class GlutenClickHouseNativeWriteTableSuite
       ("spark.gluten.sql.native.writer.enabled", "true"),
       ("spark.sql.hive.convertMetastoreParquet", "false"),
       ("spark.sql.hive.convertMetastoreOrc", "false"),
-      ("spark.gluten.enabled", "true")
+      (GlutenConfig.GLUTEN_ENABLED.key, "true")
     ) {
 
       val originDF = spark.createDataFrame(genTestData())
@@ -429,7 +429,7 @@ class GlutenClickHouseNativeWriteTableSuite
   test("test 2-col partitioned table") {
     withSQLConf(
       ("spark.gluten.sql.native.writer.enabled", "true"),
-      ("spark.gluten.enabled", "true")) {
+      (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
 
       val fields: ListMap[String, String] = ListMap(
         ("string_field", "string"),
@@ -467,7 +467,7 @@ class GlutenClickHouseNativeWriteTableSuite
       " ignore because takes too long") {
     withSQLConf(
       ("spark.gluten.sql.native.writer.enabled", "true"),
-      ("spark.gluten.enabled", "true")) {
+      (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
 
       val fields: ListMap[String, String] = ListMap(
         ("date_field", "date"),
@@ -508,7 +508,7 @@ class GlutenClickHouseNativeWriteTableSuite
   ignore("test hive parquet/orc table, all columns being partitioned. ") {
     withSQLConf(
       ("spark.gluten.sql.native.writer.enabled", "true"),
-      ("spark.gluten.enabled", "true")) {
+      (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
 
       val fields: ListMap[String, String] = ListMap(
         ("date_field", "date"),
@@ -547,7 +547,7 @@ class GlutenClickHouseNativeWriteTableSuite
   test(("test hive parquet/orc table with aggregated results")) {
     withSQLConf(
       ("spark.gluten.sql.native.writer.enabled", "true"),
-      ("spark.gluten.enabled", "true")) {
+      (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
 
       val fields: ListMap[String, String] = ListMap(
         ("sum(int_field)", "bigint")
@@ -573,7 +573,7 @@ class GlutenClickHouseNativeWriteTableSuite
   test("test 1-col partitioned + 1-col bucketed table") {
     withSQLConf(
       ("spark.gluten.sql.native.writer.enabled", "true"),
-      ("spark.gluten.enabled", "true")) {
+      (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
 
       val fields: ListMap[String, String] = ListMap(
         ("string_field", "string"),
@@ -911,7 +911,7 @@ class GlutenClickHouseNativeWriteTableSuite
   test("GLUTEN-4316: fix crash on dynamic partition inserting") {
     withSQLConf(
       ("spark.gluten.sql.native.writer.enabled", "true"),
-      ("spark.gluten.enabled", "true")) {
+      (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
       formats.foreach(
         format => {
           val tbl = "t_" + format

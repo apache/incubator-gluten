@@ -42,8 +42,12 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
   uint64_t growCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
-    VELOX_CHECK_EQ(targetBytes, 0, "Gluten has set MemoryManagerOptions.memoryPoolInitCapacity to 0")
-    return 0;
+    std::lock_guard<std::recursive_mutex> l(mutex_);
+    listener_->allocationChanged(targetBytes);
+    if (!growPool(pool, targetBytes, 0)) {
+      VELOX_FAIL("Failed to grow root pool's capacity for {}", velox::succinctBytes(targetBytes));
+    }
+    return targetBytes;
   }
 
   uint64_t shrinkCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
@@ -77,7 +81,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     auto pool = pools.at(0);
     const uint64_t oldCapacity = pool->capacity();
     pool->reclaim(targetBytes, 0, status); // ignore the output
-    pool->shrink(0);
+    shrinkPool(pool.get(), 0);
     const uint64_t newCapacity = pool->capacity();
     uint64_t total = oldCapacity - newCapacity;
     listener_->allocationChanged(-total);
@@ -100,14 +104,14 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     // We should pass bytes as parameter "reservationBytes" when calling ::grow.
     auto freeByes = pool->freeBytes();
     if (freeByes > bytes) {
-      if (pool->grow(0, bytes)) {
+      if (growPool(pool, 0, bytes)) {
         return;
       }
     }
-    auto reclaimedFreeBytes = pool->shrink(0);
+    auto reclaimedFreeBytes = shrinkPool(pool, 0);
     auto neededBytes = velox::bits::roundUp(bytes - reclaimedFreeBytes, memoryPoolTransferCapacity_);
     listener_->allocationChanged(neededBytes);
-    auto ret = pool->grow(reclaimedFreeBytes + neededBytes, bytes);
+    auto ret = growPool(pool, reclaimedFreeBytes + neededBytes, bytes);
     VELOX_CHECK(
         ret,
         "{} failed to grow {} bytes, current state {}",
@@ -117,7 +121,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
   uint64_t shrinkCapacityLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
-    uint64_t freeBytes = pool->shrink(bytes);
+    uint64_t freeBytes = shrinkPool(pool, bytes);
     listener_->allocationChanged(-freeBytes);
     return freeBytes;
   }
@@ -160,6 +164,8 @@ VeloxMemoryManager::VeloxMemoryManager(
     : MemoryManager(), name_(name), listener_(std::move(listener)) {
   auto reservationBlockSize = VeloxBackend::get()->getBackendConf()->get<uint64_t>(
       kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
+  auto memInitCapacity =
+      VeloxBackend::get()->getBackendConf()->get<uint64_t>(kVeloxMemInitCapacity, kVeloxMemInitCapacityDefault);
   blockListener_ = std::make_unique<BlockAllocationListener>(listener_.get(), reservationBlockSize);
   listenableAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), blockListener_.get());
   arrowPool_ = std::make_unique<ArrowMemoryPool>(listenableAlloc_.get());
@@ -173,7 +179,7 @@ VeloxMemoryManager::VeloxMemoryManager(
       .coreOnAllocationFailureEnabled = false,
       .allocatorCapacity = velox::memory::kMaxMemory,
       .arbitratorKind = afr.getKind(),
-      .memoryPoolInitCapacity = 0,
+      .memoryPoolInitCapacity = memInitCapacity,
       .memoryPoolTransferCapacity = reservationBlockSize,
       .memoryReclaimWaitMs = 0};
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
@@ -189,7 +195,7 @@ VeloxMemoryManager::VeloxMemoryManager(
 namespace {
 MemoryUsageStats collectVeloxMemoryUsageStats(const velox::memory::MemoryPool* pool) {
   MemoryUsageStats stats;
-  stats.set_current(pool->currentBytes());
+  stats.set_current(pool->usedBytes());
   stats.set_peak(pool->peakBytes());
   // walk down root and all children
   pool->visitChildren([&](velox::memory::MemoryPool* pool) -> bool {
@@ -210,7 +216,7 @@ int64_t shrinkVeloxMemoryPool(velox::memory::MemoryManager* mm, velox::memory::M
   std::string poolName{pool->root()->name() + "/" + pool->name()};
   std::string logPrefix{"Shrink[" + poolName + "]: "};
   VLOG(2) << logPrefix << "Trying to shrink " << size << " bytes of data...";
-  VLOG(2) << logPrefix << "Pool has reserved " << pool->currentBytes() << "/" << pool->root()->reservedBytes() << "/"
+  VLOG(2) << logPrefix << "Pool has reserved " << pool->usedBytes() << "/" << pool->root()->reservedBytes() << "/"
           << pool->root()->capacity() << "/" << pool->root()->maxCapacity() << " bytes.";
   VLOG(2) << logPrefix << "Shrinking...";
   const uint64_t oldCapacity = pool->capacity();
@@ -257,14 +263,14 @@ void VeloxMemoryManager::hold() {
 bool VeloxMemoryManager::tryDestructSafe() {
   // Velox memory pools considered safe to destruct when no alive allocations.
   for (const auto& pool : heldVeloxPools_) {
-    if (pool && pool->currentBytes() != 0) {
+    if (pool && pool->usedBytes() != 0) {
       return false;
     }
   }
-  if (veloxLeafPool_ && veloxLeafPool_->currentBytes() != 0) {
+  if (veloxLeafPool_ && veloxLeafPool_->usedBytes() != 0) {
     return false;
   }
-  if (veloxAggregatePool_ && veloxAggregatePool_->currentBytes() != 0) {
+  if (veloxAggregatePool_ && veloxAggregatePool_->usedBytes() != 0) {
     return false;
   }
   heldVeloxPools_.clear();

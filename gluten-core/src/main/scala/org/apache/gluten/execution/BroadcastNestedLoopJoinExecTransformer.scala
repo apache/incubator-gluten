@@ -22,15 +22,13 @@ import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.utils.SubstraitUtil
 
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.{InnerLike, JoinType, LeftOuter, RightOuter}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.BaseJoinExec
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import io.substrait.proto.CrossRel
 
@@ -65,20 +63,6 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
   } else {
     (right, left)
   }
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    val streamedRDD = getColumnarInputRDDs(streamedPlan)
-    val broadcastRDD = {
-      val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
-      BackendsApiManager.getBroadcastApiInstance
-        .collectExecutionBroadcastTableId(executionId, buildTableId)
-      createBroadcastBuildSideRDD()
-    }
-    // FIXME: Do we have to make build side a RDD?
-    streamedRDD :+ broadcastRDD
-  }
-
-  protected def createBroadcastBuildSideRDD(): BroadcastBuildSideRDD
 
   @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genNestedLoopJoinTransformerMetrics(sparkContext)
@@ -119,12 +103,12 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
       }
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val streamedPlanContext = streamedPlan.asInstanceOf[TransformSupport].doTransform(context)
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
+    val streamedPlanContext = streamedPlan.asInstanceOf[TransformSupport].transform(context)
     val (inputStreamedRelNode, inputStreamedOutput) =
       (streamedPlanContext.root, streamedPlanContext.outputAttributes)
 
-    val buildPlanContext = buildPlan.asInstanceOf[TransformSupport].doTransform(context)
+    val buildPlanContext = buildPlan.asInstanceOf[TransformSupport].transform(context)
     val (inputBuildRelNode, inputBuildOutput) =
       (buildPlanContext.root, buildPlanContext.outputAttributes)
 

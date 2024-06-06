@@ -45,9 +45,9 @@ int main(int argc, char** argv) {
   conf.insert({kDebugModeEnabled, "true"});
   initVeloxBackend(conf);
   std::unordered_map<std::string, std::string> configs{{core::QueryConfig::kSparkPartitionId, "0"}};
-  core::QueryCtx queryCtx(nullptr, core::QueryConfig(configs));
+  auto queryCtx = core::QueryCtx::create(nullptr, core::QueryConfig(configs));
   auto pool = defaultLeafVeloxMemoryPool().get();
-  core::ExecCtx execCtx(pool, &queryCtx);
+  core::ExecCtx execCtx(pool, queryCtx.get());
 
   ::substrait::Plan subPlan;
   parseProtobuf(reinterpret_cast<uint8_t*>(plan.data()), plan.size(), &subPlan);

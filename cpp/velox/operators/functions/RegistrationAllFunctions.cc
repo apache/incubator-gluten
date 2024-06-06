@@ -21,12 +21,14 @@
 #include "operators/functions/RowFunctionWithNull.h"
 #include "velox/expression/SpecialFormRegistry.h"
 #include "velox/expression/VectorFunction.h"
+#include "velox/functions/lib/CheckedArithmetic.h"
 #include "velox/functions/lib/RegistrationHelpers.h"
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
 #include "velox/functions/prestosql/registration/RegistrationFunctions.h"
 #include "velox/functions/prestosql/window/WindowFunctionsRegistration.h"
 #include "velox/functions/sparksql/Bitwise.h"
 #include "velox/functions/sparksql/Hash.h"
+#include "velox/functions/sparksql/Rand.h"
 #include "velox/functions/sparksql/Register.h"
 #include "velox/functions/sparksql/aggregates/Register.h"
 #include "velox/functions/sparksql/window/WindowFunctionsRegistration.h"
@@ -43,6 +45,9 @@ void registerFunctionOverwrite() {
   velox::registerFunction<RoundFunction, int64_t, int64_t, int32_t>({"round"});
   velox::registerFunction<RoundFunction, double, double, int32_t>({"round"});
   velox::registerFunction<RoundFunction, float, float, int32_t>({"round"});
+  // TODO: the below rand function registry can be removed after presto function registry is removed.
+  velox::registerFunction<velox::functions::sparksql::RandFunction, double, velox::Constant<int32_t>>({"spark_rand"});
+  velox::registerFunction<velox::functions::sparksql::RandFunction, double, velox::Constant<int64_t>>({"spark_rand"});
 
   auto kRowConstructorWithNull = RowConstructorWithNullCallToSpecialForm::kRowConstructorWithNull;
   velox::exec::registerVectorFunction(
@@ -63,6 +68,10 @@ void registerFunctionOverwrite() {
       kRowConstructorWithAllNull,
       std::make_unique<RowConstructorWithNullCallToSpecialForm>(kRowConstructorWithAllNull));
   velox::functions::sparksql::registerBitwiseFunctions("spark_");
+  velox::functions::registerBinaryIntegral<velox::functions::CheckedPlusFunction>({"check_add"});
+  velox::functions::registerBinaryIntegral<velox::functions::CheckedMinusFunction>({"check_subtract"});
+  velox::functions::registerBinaryIntegral<velox::functions::CheckedMultiplyFunction>({"check_multiply"});
+  velox::functions::registerBinaryIntegral<velox::functions::CheckedDivideFunction>({"check_divide"});
 }
 } // namespace
 

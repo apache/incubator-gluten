@@ -83,7 +83,10 @@ object ExpressionNames {
   final val IS_NAN = "isnan"
   final val NANVL = "nanvl"
   final val TRY_EVAL = "try"
-  final val TRY_ADD = "try_add"
+  final val CHECK_ADD = "check_add"
+  final val CHECK_SUBTRACT = "check_subtract"
+  final val CHECK_DIVIDE = "check_divide"
+  final val CHECK_MULTIPLY = "check_multiply"
 
   // SparkSQL String functions
   final val ASCII = "ascii"
@@ -113,6 +116,7 @@ object ExpressionNames {
   final val LEFT = "left"
   final val REPEAT = "repeat"
   final val TRANSLATE = "translate"
+  final val SOUNDEX = "soundex"
   final val SPACE = "space"
   final val EMPTY2NULL = "empty2null"
   final val INITCAP = "initcap"
@@ -294,6 +298,7 @@ object ExpressionNames {
   final val AGGREGATE = "aggregate"
   final val LAMBDAFUNCTION = "lambdafunction"
   final val EXPLODE = "explode"
+  final val STACK = "stack"
   final val INLINE = "inline"
   final val POSEXPLODE = "posexplode"
   final val CHECK_OVERFLOW = "check_overflow"
@@ -301,6 +306,7 @@ object ExpressionNames {
   final val PROMOTE_PRECISION = "promote_precision"
   final val SPARK_PARTITION_ID = "spark_partition_id"
   final val MONOTONICALLY_INCREASING_ID = "monotonically_increasing_id"
+  final val WIDTH_BUCKET = "width_bucket"
 
   // Directly use child expression transformer
   final val KNOWN_NULLABLE = "known_nullable"

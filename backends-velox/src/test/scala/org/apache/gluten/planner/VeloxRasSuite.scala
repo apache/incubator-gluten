@@ -16,9 +16,12 @@
  */
 package org.apache.gluten.planner
 
-import org.apache.gluten.planner.property.Conventions
+import org.apache.gluten.GlutenConfig
+import org.apache.gluten.extension.columnar.transition.ConventionReq
+import org.apache.gluten.planner.cost.GlutenCostModel
+import org.apache.gluten.planner.property.Conv
+import org.apache.gluten.ras.{Cost, CostModel, Ras}
 import org.apache.gluten.ras.Best.BestNotFoundException
-import org.apache.gluten.ras.Ras
 import org.apache.gluten.ras.RasSuiteBase._
 import org.apache.gluten.ras.path.RasPath
 import org.apache.gluten.ras.property.PropertySet
@@ -44,7 +47,7 @@ class VeloxRasSuite extends SharedSparkSession {
   test("C2R, R2C - explicitly requires any properties") {
     val in = RowUnary(RowLeaf(TRIVIAL_SCHEMA))
     val planner =
-      newRas().newPlanner(in, PropertySet(List(Conventions.ANY)))
+      newRas().newPlanner(in, PropertySet(List(Conv.any)))
     val out = planner.plan()
     assert(out == RowUnary(RowLeaf(TRIVIAL_SCHEMA)))
   }
@@ -52,7 +55,7 @@ class VeloxRasSuite extends SharedSparkSession {
   test("C2R, R2C - requires columnar output") {
     val in = RowUnary(RowLeaf(TRIVIAL_SCHEMA))
     val planner =
-      newRas().newPlanner(in, PropertySet(List(Conventions.VANILLA_COLUMNAR)))
+      newRas().newPlanner(in, PropertySet(List(Conv.req(ConventionReq.vanillaBatch))))
     val out = planner.plan()
     assert(out == RowToColumnarExec(RowUnary(RowLeaf(TRIVIAL_SCHEMA))))
   }
@@ -63,7 +66,7 @@ class VeloxRasSuite extends SharedSparkSession {
         RowUnary(
           RowUnary(ColumnarUnary(RowUnary(RowUnary(ColumnarUnary(RowLeaf(TRIVIAL_SCHEMA))))))))
     val planner =
-      newRas().newPlanner(in, PropertySet(List(Conventions.ROW_BASED)))
+      newRas().newPlanner(in, PropertySet(List(Conv.req(ConventionReq.row))))
     val out = planner.plan()
     assert(
       out == ColumnarToRowExec(
@@ -91,7 +94,7 @@ class VeloxRasSuite extends SharedSparkSession {
           RowUnary(ColumnarUnary(RowUnary(RowUnary(ColumnarUnary(RowLeaf(TRIVIAL_SCHEMA))))))))
     val planner =
       newRas(List(ConvertRowUnaryToColumnar))
-        .newPlanner(in, PropertySet(List(Conventions.ROW_BASED)))
+        .newPlanner(in, PropertySet(List(Conv.req(ConventionReq.row))))
     val out = planner.plan()
     assert(out == ColumnarToRowExec(ColumnarUnary(ColumnarUnary(ColumnarUnary(ColumnarUnary(
       ColumnarUnary(ColumnarUnary(ColumnarUnary(RowToColumnarExec(RowLeaf(TRIVIAL_SCHEMA)))))))))))
@@ -104,7 +107,7 @@ class VeloxRasSuite extends SharedSparkSession {
     val in = RowUnary(RowLeaf(EMPTY_SCHEMA))
 
     val planner =
-      newRas().newPlanner(in, PropertySet(List(Conventions.ANY)))
+      newRas().newPlanner(in, PropertySet(List(Conv.any)))
     val out = planner.plan()
     assert(out == RowUnary(RowLeaf(EMPTY_SCHEMA)))
 
@@ -112,19 +115,50 @@ class VeloxRasSuite extends SharedSparkSession {
       // Could not optimize to columnar output since R2C transitions for empty schema node
       // is not allowed.
       val planner2 =
-        newRas().newPlanner(in, PropertySet(List(Conventions.VANILLA_COLUMNAR)))
+        newRas().newPlanner(in, PropertySet(List(Conv.req(ConventionReq.vanillaBatch))))
       planner2.plan()
+    }
+  }
+
+  test("User cost model") {
+    withSQLConf(GlutenConfig.RAS_COST_MODEL.key -> classOf[UserCostModel1].getName) {
+      val in = RowUnary(RowLeaf(TRIVIAL_SCHEMA))
+      val planner = newRas(List(RowUnaryToColumnarUnary)).newPlanner(in)
+      val out = planner.plan()
+      assert(out == ColumnarUnary(RowToColumnarExec(RowLeaf(TRIVIAL_SCHEMA))))
+    }
+    withSQLConf(GlutenConfig.RAS_COST_MODEL.key -> classOf[UserCostModel2].getName) {
+      val in = RowUnary(RowLeaf(TRIVIAL_SCHEMA))
+      val planner = newRas(List(RowUnaryToColumnarUnary)).newPlanner(in)
+      val out = planner.plan()
+      assert(out == RowUnary(RowLeaf(TRIVIAL_SCHEMA)))
+    }
+    withSQLConf(GlutenConfig.RAS_COST_MODEL.key -> "user.dummy.CostModel") {
+      val in = RowUnary(RowLeaf(TRIVIAL_SCHEMA))
+      assertThrows[ClassNotFoundException] {
+        newRas().newPlanner(in)
+      }
     }
   }
 }
 
 object VeloxRasSuite {
   def newRas(): Ras[SparkPlan] = {
-    GlutenOptimization(List()).asInstanceOf[Ras[SparkPlan]]
+    GlutenOptimization
+      .builder()
+      .costModel(GlutenCostModel.find())
+      .addRules(List())
+      .create()
+      .asInstanceOf[Ras[SparkPlan]]
   }
 
   def newRas(RasRules: Seq[RasRule[SparkPlan]]): Ras[SparkPlan] = {
-    GlutenOptimization(RasRules).asInstanceOf[Ras[SparkPlan]]
+    GlutenOptimization
+      .builder()
+      .costModel(GlutenCostModel.find())
+      .addRules(RasRules)
+      .create()
+      .asInstanceOf[Ras[SparkPlan]]
   }
 
   val TRIVIAL_SCHEMA: Seq[AttributeReference] = List(AttributeReference("value", StringType)())
@@ -150,5 +184,33 @@ object VeloxRasSuite {
     override def output: Seq[Attribute] = child.output
     override protected def withNewChildInternal(newChild: SparkPlan): ColumnarUnary =
       copy(child = newChild)
+  }
+
+  object RowUnaryToColumnarUnary extends RasRule[SparkPlan] {
+    override def shift(node: SparkPlan): Iterable[SparkPlan] = node match {
+      case RowUnary(child) => List(ColumnarUnary(child))
+      case _ => List.empty
+    }
+    override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)
+  }
+
+  class UserCostModel1 extends CostModel[SparkPlan] {
+    private val base = GlutenCostModel.rough()
+    override def costOf(node: SparkPlan): Cost = node match {
+      case _: RowUnary => base.makeInfCost()
+      case other => base.costOf(other)
+    }
+    override def costComparator(): Ordering[Cost] = base.costComparator()
+    override def makeInfCost(): Cost = base.makeInfCost()
+  }
+
+  class UserCostModel2 extends CostModel[SparkPlan] {
+    private val base = GlutenCostModel.rough()
+    override def costOf(node: SparkPlan): Cost = node match {
+      case _: ColumnarUnary => base.makeInfCost()
+      case other => base.costOf(other)
+    }
+    override def costComparator(): Ordering[Cost] = base.costComparator()
+    override def makeInfCost(): Cost = base.makeInfCost()
   }
 }

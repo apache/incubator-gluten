@@ -31,7 +31,6 @@ import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext,
 import org.apache.spark.internal.Logging
 import org.apache.spark.listener.GlutenListenerFactory
 import org.apache.spark.network.util.JavaUtils
-import org.apache.spark.rpc.{GlutenDriverEndpoint, GlutenExecutorEndpoint}
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.execution.ui.GlutenEventUtils
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
@@ -73,8 +72,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     }
     // Initialize Backends API
     BackendsApiManager.initialize()
-    BackendsApiManager.getListenerApiInstance.onDriverStart(conf)
-    GlutenDriverEndpoint.glutenDriverEndpointRef = (new GlutenDriverEndpoint).self
+    BackendsApiManager.getListenerApiInstance.onDriverStart(sc, pluginContext)
     GlutenListenerFactory.addToSparkListenerBus(sc)
     ExpressionMappings.expressionExtensionTransformer =
       ExpressionUtil.extendedExpressionTransformer(
@@ -257,7 +255,6 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
 }
 
 private[gluten] class GlutenExecutorPlugin extends ExecutorPlugin {
-  private var executorEndpoint: GlutenExecutorEndpoint = _
   private val taskListeners: Seq[TaskListener] = Array(TaskResources)
 
   /** Initialize the executor plugin. */
@@ -267,8 +264,7 @@ private[gluten] class GlutenExecutorPlugin extends ExecutorPlugin {
     // Initialize Backends API
     // TODO categorize the APIs by driver's or executor's
     BackendsApiManager.initialize()
-    BackendsApiManager.getListenerApiInstance.onExecutorStart(conf)
-    executorEndpoint = new GlutenExecutorEndpoint(ctx.executorID(), conf)
+    BackendsApiManager.getListenerApiInstance.onExecutorStart(ctx)
   }
 
   /** Clean up and terminate this plugin. For example: close the native engine. */

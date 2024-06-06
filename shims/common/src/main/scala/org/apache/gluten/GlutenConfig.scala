@@ -42,8 +42,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableGluten: Boolean = conf.getConf(GLUTEN_ENABLED)
 
-  def enableRas: Boolean = conf.getConf(RAS_ENABLED)
-
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   def enableNativeValidation: Boolean = conf.getConf(NATIVE_VALIDATION_ENABLED)
 
@@ -86,6 +84,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableColumnarBroadcastExchange: Boolean = conf.getConf(COLUMNAR_BROADCAST_EXCHANGE_ENABLED)
 
   def enableColumnarBroadcastJoin: Boolean = conf.getConf(COLUMNAR_BROADCAST_JOIN_ENABLED)
+
+  def enableColumnarSample: Boolean = conf.getConf(COLUMNAR_SAMPLE_ENABLED)
 
   def enableColumnarArrowUDF: Boolean = conf.getConf(COLUMNAR_ARROW_UDF_ENABLED)
 
@@ -162,6 +162,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def tmpFile: Option[String] = conf.getConf(COLUMNAR_TEMP_DIR)
 
   @deprecated def broadcastCacheTimeout: Int = conf.getConf(COLUMNAR_BROADCAST_CACHE_TIMEOUT)
+
+  def columnarShuffleSortThreshold: Int = conf.getConf(COLUMNAR_SHUFFLE_SORT_THRESHOLD)
 
   def columnarShuffleReallocThreshold: Double = conf.getConf(COLUMNAR_SHUFFLE_REALLOC_THRESHOLD)
 
@@ -249,6 +251,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def conservativeTaskOffHeapMemorySize: Long =
     conf.getConf(COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES)
 
+  // Options used by RAS.
+  def enableRas: Boolean = conf.getConf(RAS_ENABLED)
+
+  def rasCostModel: String = conf.getConf(RAS_COST_MODEL)
+
   def enableVeloxCache: Boolean = conf.getConf(COLUMNAR_VELOX_CACHE_ENABLED)
 
   def veloxMemCacheSize: Long = conf.getConf(COLUMNAR_VELOX_MEM_CACHE_SIZE)
@@ -290,7 +297,14 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def chColumnarShufflePreferSpill: Boolean = conf.getConf(COLUMNAR_CH_SHUFFLE_PREFER_SPILL_ENABLED)
 
-  def chColumnarShuffleSpillThreshold: Long = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
+  def chColumnarShuffleSpillThreshold: Long = {
+    val threshold = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
+    if (threshold == 0) {
+      (conf.getConf(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES) * 0.9).toLong
+    } else {
+      threshold
+    }
+  }
 
   def chColumnarThrowIfMemoryExceed: Boolean = conf.getConf(COLUMNAR_CH_THROW_IF_MEMORY_EXCEED)
 
@@ -302,7 +316,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def chColumnarSpillFirstlyBeforeStop: Boolean =
     conf.getConf(COLUMNAR_CH_SPILL_FIRSTLY_BEFORE_STOP)
 
-  def chColumnarForceSortShuffle: Boolean = conf.getConf(COLUMNAR_CH_FORCE_SORT_SHUFFLE)
+  def chColumnarForceExternalSortShuffle: Boolean =
+    conf.getConf(COLUMNAR_CH_FORCE_EXTERNAL_SORT_SHUFFLE)
+
+  def chColumnarForceMemorySortShuffle: Boolean =
+    conf.getConf(COLUMNAR_CH_FORCE_MEMORY_SORT_SHUFFLE)
 
   def cartesianProductTransformerEnabled: Boolean =
     conf.getConf(CARTESIAN_PRODUCT_TRANSFORMER_ENABLED)
@@ -691,6 +709,10 @@ object GlutenConfig {
       .filter(_._1.startsWith(SPARK_ABFS_ACCOUNT_KEY))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
+    conf
+      .filter(_._1.startsWith(SQLConf.SESSION_LOCAL_TIMEZONE.key))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
     // return
     nativeConfMap
   }
@@ -702,15 +724,6 @@ object GlutenConfig {
         " Recommend to enable/disable Gluten through the setting for spark.plugins.")
       .booleanConf
       .createWithDefault(GLUTEN_ENABLE_BY_DEFAULT)
-
-  val RAS_ENABLED =
-    buildConf("spark.gluten.sql.ras.enabled")
-      .doc(
-        "Experimental: Enables RAS (relational algebra selector) during physical " +
-          "planning to generate more efficient query plan. Note, this feature is still in " +
-          "development and may not bring performance profits.")
-      .booleanConf
-      .createWithDefault(false)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   val NATIVE_VALIDATION_ENABLED =
@@ -902,6 +915,14 @@ object GlutenConfig {
       .doc("Enable or disable columnar shuffle.")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_SHUFFLE_SORT_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.shuffle.sort.threshold")
+      .internal()
+      .doc("The threshold to determine whether to use sort-based columnar shuffle. Sort-based " +
+        "shuffle will be used if the number of partitions is greater than this threshold.")
+      .intConf
+      .createWithDefault(100000)
 
   val COLUMNAR_PREFER_ENABLED =
     buildConf("spark.gluten.sql.columnar.preferColumnar")
@@ -1192,7 +1213,25 @@ object GlutenConfig {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8MB")
 
-  // velox caching options
+  // Options used by RAS.
+  val RAS_ENABLED =
+    buildConf("spark.gluten.ras.enabled")
+      .doc(
+        "Experimental: Enables RAS (relational algebra selector) during physical " +
+          "planning to generate more efficient query plan. Note, this feature is still in " +
+          "development and may not bring performance profits.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val RAS_COST_MODEL =
+    buildConf("spark.gluten.ras.costModel")
+      .doc(
+        "Experimental: The class name of user-defined cost model that will be used by RAS. " +
+          "If not specified, a rough built-in cost model will be used.")
+      .stringConf
+      .createWithDefaultString("rough")
+
+  // velox caching options.
   val COLUMNAR_VELOX_CACHE_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.cacheEnabled")
       .internal()
@@ -1206,6 +1245,13 @@ object GlutenConfig {
       .doc("The memory cache size")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1GB")
+
+  val COLUMNAR_VELOX_MEM_INIT_CAPACITY =
+    buildConf("spark.gluten.sql.columnar.backend.velox.memInitCapacity")
+      .internal()
+      .doc("The initial memory capacity to reserve for a newly created Velox query memory pool.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8MB")
 
   val COLUMNAR_VELOX_SSD_CACHE_PATH =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCachePath")
@@ -1385,7 +1431,7 @@ object GlutenConfig {
       .internal()
       .doc("The maximum size of sort shuffle buffer in CH backend.")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("1GB")
+      .createWithDefaultString("0")
 
   val COLUMNAR_CH_SPILL_FIRSTLY_BEFORE_STOP =
     buildConf("spark.gluten.sql.columnar.backend.ch.spillFirstlyBeforeStop")
@@ -1394,11 +1440,17 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val COLUMNAR_CH_FORCE_SORT_SHUFFLE =
-    buildConf("spark.gluten.sql.columnar.backend.ch.forceSortShuffle")
+  val COLUMNAR_CH_FORCE_EXTERNAL_SORT_SHUFFLE =
+    buildConf("spark.gluten.sql.columnar.backend.ch.forceExternalSortShuffle")
       .internal()
-      .doc("Whether to force to use sort shuffle in CH backend. " +
-        "Sort shuffle will enable When partition num greater than 300.")
+      .doc("Whether to force to use external sort shuffle in CH backend. ")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_CH_FORCE_MEMORY_SORT_SHUFFLE =
+    buildConf("spark.gluten.sql.columnar.backend.ch.forceMemorySortShuffle")
+      .internal()
+      .doc("Whether to force to use memory sort shuffle in CH backend. ")
       .booleanConf
       .createWithDefault(false)
 
@@ -1742,6 +1794,13 @@ object GlutenConfig {
       .doc("Config to enable BroadcastNestedLoopJoinExecTransformer.")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_SAMPLE_ENABLED =
+    buildConf("spark.gluten.sql.columnarSampleEnabled")
+      .internal()
+      .doc("Disable or enable columnar sample.")
+      .booleanConf
+      .createWithDefault(false)
 
   val CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT =
     buildConf("spark.gluten.sql.cacheWholeStageTransformerContext")

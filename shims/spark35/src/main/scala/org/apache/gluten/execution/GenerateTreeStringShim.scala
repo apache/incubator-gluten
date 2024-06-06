@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.UnaryExecNode
 
 /**
  * Spark 3.5 has changed the parameter type of the generateTreeString API in TreeNode. In order to
@@ -25,7 +25,7 @@ import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
  * allow different Spark versions to override their own generateTreeString.
  */
 
-trait GenerateTreeStringShim extends UnaryExecNode {
+trait WholeStageTransformerGenerateTreeStringShim extends UnaryExecNode {
 
   def stageId: Int
 
@@ -60,5 +60,30 @@ trait GenerateTreeStringShim extends UnaryExecNode {
       append(substraitPlanJson)
       append("\n")
     }
+  }
+}
+
+trait InputAdapterGenerateTreeStringShim extends UnaryExecNode {
+
+  override def generateTreeString(
+      depth: Int,
+      lastChildren: java.util.ArrayList[Boolean],
+      append: String => Unit,
+      verbose: Boolean,
+      prefix: String = "",
+      addSuffix: Boolean = false,
+      maxFields: Int,
+      printNodeId: Boolean,
+      indent: Int = 0): Unit = {
+    child.generateTreeString(
+      depth,
+      lastChildren,
+      append,
+      verbose,
+      prefix = "",
+      addSuffix = false,
+      maxFields,
+      printNodeId,
+      indent)
   }
 }

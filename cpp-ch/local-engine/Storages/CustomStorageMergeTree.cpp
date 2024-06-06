@@ -150,6 +150,7 @@ std::atomic<int> CustomStorageMergeTree::part_num;
 
 std::vector<MergeTreeDataPartPtr> CustomStorageMergeTree::loadDataPartsWithNames(std::unordered_set<std::string> parts)
 {
+    auto parts_lock = lockParts();
     std::vector<MergeTreeDataPartPtr> data_parts;
     const auto disk = getStoragePolicy()->getDisks().at(0);
     for (const auto& name : parts)

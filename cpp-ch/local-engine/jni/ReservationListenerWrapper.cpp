@@ -58,6 +58,13 @@ void ReservationListenerWrapper::free(int64_t size)
     CLEAN_JNIENV
 }
 
+void ReservationListenerWrapper::tryFree(int64_t size)
+{
+    GET_JNIENV(env)
+    tryCallVoidMethod(env, listener, reservation_listener_unreserve, size);
+    CLEAN_JNIENV
+}
+
 size_t ReservationListenerWrapper::currentMemory()
 {
     GET_JNIENV(env)

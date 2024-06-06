@@ -68,7 +68,6 @@ static const std::unordered_set<std::string> kBlackList = {
     "repeat",
     "trunc",
     "sequence",
-    "arrays_overlap",
     "approx_percentile",
     "get_array_struct_fields"};
 
@@ -193,9 +192,6 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
     return validateExtractExpr(params);
   } else if (name == "map_from_arrays") {
     LOG_VALIDATION_MSG("map_from_arrays is not supported.");
-    return false;
-  } else if (name == "get_array_item") {
-    LOG_VALIDATION_MSG("get_array_item is not supported.");
     return false;
   } else if (name == "concat") {
     for (const auto& type : types) {
@@ -911,9 +907,11 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
     switch (joinRel.type()) {
       case ::substrait::JoinRel_JoinType_JOIN_TYPE_INNER:
       case ::substrait::JoinRel_JoinType_JOIN_TYPE_LEFT:
+      case ::substrait::JoinRel_JoinType_JOIN_TYPE_LEFT_SEMI:
+      case ::substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT_SEMI:
         break;
       default:
-        LOG_VALIDATION_MSG("Sort merge join only support inner and left join.");
+        LOG_VALIDATION_MSG("Sort merge join only support inner, left, left semi and right semi join.");
         return false;
     }
   }
@@ -927,7 +925,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
     case ::substrait::JoinRel_JoinType_JOIN_TYPE_ANTI:
       break;
     default:
-      LOG_VALIDATION_MSG("Sort merge join only support inner and left join.");
+      LOG_VALIDATION_MSG("Join type is not supported: {}" + joinRel.type());
       return false;
   }
 
@@ -1049,6 +1047,16 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
           LOG_VALIDATION_MSG("Validation failed for function " + funcName + " resolve type in AggregateRel.");
           return false;
         }
+        static const std::unordered_set<std::string> notSupportComplexTypeAggFuncs = {"set_agg", "min", "max"};
+        if (notSupportComplexTypeAggFuncs.find(baseFuncName) != notSupportComplexTypeAggFuncs.end() &&
+            exec::isRawInput(funcStep)) {
+          auto type = binder.tryResolveType(signature->argumentTypes()[0]);
+          if (type->isArray() || type->isMap() || type->isRow()) {
+            LOG_VALIDATION_MSG("Validation failed for function " + baseFuncName + " complex type is not supported.");
+            return false;
+          }
+        }
+
         resolved = true;
         break;
       }

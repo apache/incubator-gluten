@@ -166,7 +166,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
     }
 
     if (executedVanilla) {
-      spark.conf.set("spark.gluten.enabled", "false")
+      spark.conf.set(GlutenConfig.GLUTEN_ENABLED.key, "false")
 
       val vanillaParquet = spark.sql(s"""
                                         |select $scanSchema from parquet.`$parquetDir`

@@ -26,6 +26,7 @@
 #include "shuffle/PartitionWriter.h"
 #include "shuffle/VeloxShuffleReader.h"
 #include "utils/Compression.h"
+#include "velox/type/Type.h"
 #include "velox/vector/tests/VectorTestUtils.h"
 
 namespace gluten {
@@ -119,7 +120,7 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
             {"alice0", "bob1", "alice2", "bob3", "Alice4", "Bob5", "AlicE6", "boB7", "ALICE8", "BOB9"}),
         makeNullableFlatVector<facebook::velox::StringView>(
             {"alice", "bob", std::nullopt, std::nullopt, "Alice", "Bob", std::nullopt, "alicE", std::nullopt, "boB"}),
-    };
+        facebook::velox::BaseVector::create(facebook::velox::UNKNOWN(), 10, pool())};
 
     children2_ = {
         makeNullableFlatVector<int8_t>({std::nullopt, std::nullopt}),
@@ -132,7 +133,7 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
             {"bob",
              "alicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealice"}),
         makeNullableFlatVector<facebook::velox::StringView>({std::nullopt, std::nullopt}),
-    };
+        facebook::velox::BaseVector::create(facebook::velox::UNKNOWN(), 2, pool())};
 
     childrenNoNull_ = {
         makeFlatVector<int8_t>({0, 1}),
@@ -264,8 +265,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
           shuffleWriter,
           VeloxHashBasedShuffleWriter::create(
               numPartitions, std::move(partitionWriter), std::move(shuffleWriterOptions), pool_, arrowPool));
-    } else if (
-        GetParam().shuffleWriterType == kSortShuffle && GetParam().partitionWriterType == PartitionWriterType::kRss) {
+    } else if (GetParam().shuffleWriterType == kSortShuffle) {
       GLUTEN_ASSIGN_OR_THROW(
           shuffleWriter,
           VeloxSortBasedShuffleWriter::create(
