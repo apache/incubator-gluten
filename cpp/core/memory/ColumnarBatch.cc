@@ -43,8 +43,8 @@ int64_t ColumnarBatch::getExportNanos() const {
   return exportNanos_;
 }
 
-std::pair<char*, int> ColumnarBatch::getRowBytes(int32_t rowId) const {
-  throw gluten::GlutenException("Not implemented getRowBytes for ColumnarBatch");
+std::vector<char> ColumnarBatch::toUnsafeRow(int32_t rowId) const {
+  throw gluten::GlutenException("Not implemented toUnsafeRow for ColumnarBatch");
 }
 
 std::ostream& operator<<(std::ostream& os, const ColumnarBatch& columnarBatch) {
@@ -86,8 +86,8 @@ std::shared_ptr<ArrowArray> ArrowColumnarBatch::exportArrowArray() {
   return cArray;
 }
 
-std::pair<char*, int> ArrowColumnarBatch::getRowBytes(int32_t rowId) const {
-  throw gluten::GlutenException("Not implemented getRowBytes for ArrowColumnarBatch");
+std::vector<char> ArrowColumnarBatch::toUnsafeRow(int32_t rowId) const {
+  throw gluten::GlutenException("#toUnsafeRow of ArrowColumnarBatch is not implemented");
 }
 
 ArrowCStructColumnarBatch::ArrowCStructColumnarBatch(
@@ -123,8 +123,8 @@ std::shared_ptr<ArrowArray> ArrowCStructColumnarBatch::exportArrowArray() {
   return cArray_;
 }
 
-std::pair<char*, int> ArrowCStructColumnarBatch::getRowBytes(int32_t rowId) const {
-  throw gluten::GlutenException("Not implemented getRowBytes for ArrowCStructColumnarBatch");
+std::vector<char> ArrowCStructColumnarBatch::toUnsafeRow(int32_t rowId) const {
+  throw gluten::GlutenException("#toUnsafeRow of ArrowCStructColumnarBatch is not implemented");
 }
 
 std::shared_ptr<ColumnarBatch> CompositeColumnarBatch::create(std::vector<std::shared_ptr<ColumnarBatch>> batches) {
@@ -171,8 +171,8 @@ const std::vector<std::shared_ptr<ColumnarBatch>>& CompositeColumnarBatch::getBa
   return batches_;
 }
 
-std::pair<char*, int> CompositeColumnarBatch::getRowBytes(int32_t rowId) const {
-  throw gluten::GlutenException("Not implemented getRowBytes for CompositeColumnarBatch");
+std::vector<char> CompositeColumnarBatch::toUnsafeRow(int32_t rowId) const {
+  throw gluten::GlutenException("#toUnsafeRow of CompositeColumnarBatch is not implemented");
 }
 
 CompositeColumnarBatch::CompositeColumnarBatch(
