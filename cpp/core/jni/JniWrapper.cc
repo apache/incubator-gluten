@@ -58,13 +58,8 @@ static jmethodID splitResultConstructor;
 static jclass columnarBatchSerializeResultClass;
 static jmethodID columnarBatchSerializeResultConstructor;
 
-static jclass serializedColumnarBatchIteratorClass;
 static jclass metricsBuilderClass;
 static jmethodID metricsBuilderConstructor;
-
-static jmethodID serializedColumnarBatchIteratorHasNext;
-static jmethodID serializedColumnarBatchIteratorNext;
-
 static jclass nativeColumnarToRowInfoClass;
 static jmethodID nativeColumnarToRowInfoConstructor;
 
@@ -147,80 +142,6 @@ class JavaInputStreamAdaptor final : public arrow::io::InputStream {
   bool closed_ = false;
 };
 
-class JniColumnarBatchIterator : public ColumnarBatchIterator {
- public:
-  explicit JniColumnarBatchIterator(
-      JNIEnv* env,
-      jobject jColumnarBatchItr,
-      Runtime* runtime,
-      std::shared_ptr<ArrowWriter> writer)
-      : runtime_(runtime), writer_(writer) {
-    // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
-    if (env->GetJavaVM(&vm_) != JNI_OK) {
-      std::string errorMessage = "Unable to get JavaVM instance";
-      throw gluten::GlutenException(errorMessage);
-    }
-    jColumnarBatchItr_ = env->NewGlobalRef(jColumnarBatchItr);
-  }
-
-  // singleton
-  JniColumnarBatchIterator(const JniColumnarBatchIterator&) = delete;
-  JniColumnarBatchIterator(JniColumnarBatchIterator&&) = delete;
-  JniColumnarBatchIterator& operator=(const JniColumnarBatchIterator&) = delete;
-  JniColumnarBatchIterator& operator=(JniColumnarBatchIterator&&) = delete;
-
-  virtual ~JniColumnarBatchIterator() {
-    JNIEnv* env;
-    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
-    env->DeleteGlobalRef(jColumnarBatchItr_);
-    vm_->DetachCurrentThread();
-  }
-
-  std::shared_ptr<ColumnarBatch> next() override {
-    JNIEnv* env;
-    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
-    if (!env->CallBooleanMethod(jColumnarBatchItr_, serializedColumnarBatchIteratorHasNext)) {
-      checkException(env);
-      return nullptr; // stream ended
-    }
-
-    checkException(env);
-    jlong handle = env->CallLongMethod(jColumnarBatchItr_, serializedColumnarBatchIteratorNext);
-    checkException(env);
-    auto batch = runtime_->objectStore()->retrieve<ColumnarBatch>(handle);
-    if (writer_ != nullptr) {
-      // save snapshot of the batch to file
-      std::shared_ptr<ArrowSchema> schema = batch->exportArrowSchema();
-      std::shared_ptr<ArrowArray> array = batch->exportArrowArray();
-      auto rb = gluten::arrowGetOrThrow(arrow::ImportRecordBatch(array.get(), schema.get()));
-      GLUTEN_THROW_NOT_OK(writer_->initWriter(*(rb->schema().get())));
-      GLUTEN_THROW_NOT_OK(writer_->writeInBatches(rb));
-    }
-    return batch;
-  }
-
- private:
-  JavaVM* vm_;
-  jobject jColumnarBatchItr_;
-  Runtime* runtime_;
-  std::shared_ptr<ArrowWriter> writer_;
-};
-
-std::unique_ptr<JniColumnarBatchIterator> makeJniColumnarBatchIterator(
-    JNIEnv* env,
-    jobject jColumnarBatchItr,
-    Runtime* runtime,
-    std::shared_ptr<ArrowWriter> writer) {
-  return std::make_unique<JniColumnarBatchIterator>(env, jColumnarBatchItr, runtime, writer);
-}
-
-template <typename T>
-T* jniCastOrThrow(ResourceHandle handle) {
-  auto instance = reinterpret_cast<T*>(handle);
-  GLUTEN_CHECK(instance != nullptr, "FATAL: resource instance should not be null.");
-  return instance;
-}
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -252,14 +173,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
   metricsBuilderConstructor = getMethodIdOrError(
       env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
-
-  serializedColumnarBatchIteratorClass =
-      createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ColumnarBatchInIterator;");
-
-  serializedColumnarBatchIteratorHasNext =
-      getMethodIdOrError(env, serializedColumnarBatchIteratorClass, "hasNext", "()Z");
-
-  serializedColumnarBatchIteratorNext = getMethodIdOrError(env, serializedColumnarBatchIteratorClass, "next", "()J");
 
   nativeColumnarToRowInfoClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/NativeColumnarToRowInfo;");
@@ -293,7 +206,6 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(jniByteInputStreamClass);
   env->DeleteGlobalRef(splitResultClass);
   env->DeleteGlobalRef(columnarBatchSerializeResultClass);
-  env->DeleteGlobalRef(serializedColumnarBatchIteratorClass);
   env->DeleteGlobalRef(nativeColumnarToRowInfoClass);
   env->DeleteGlobalRef(byteArrayClass);
   env->DeleteGlobalRef(shuffleReaderMetricsClass);

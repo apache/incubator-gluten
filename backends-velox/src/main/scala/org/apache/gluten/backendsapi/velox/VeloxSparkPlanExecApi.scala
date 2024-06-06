@@ -320,9 +320,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       aggregateAttributes: Seq[Attribute]): HashAggregateExecPullOutBaseHelper =
     HashAggregateExecPullOutHelper(aggregateExpressions, aggregateAttributes)
 
-  override def genColumnarShuffleExchange(
-      shuffle: ShuffleExchangeExec,
-      newChild: SparkPlan): SparkPlan = {
+  override def genColumnarShuffleExchange(shuffle: ShuffleExchangeExec): SparkPlan = {
     def allowHashOnMap[T](f: => T): T = {
       val originalAllowHash = SQLConf.get.getConf(SQLConf.LEGACY_ALLOW_HASH_ON_MAPTYPE)
       try {
@@ -333,11 +331,17 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       }
     }
 
+    val child = if (GlutenConfig.getConf.veloxCoalesceBatchesBeforeShuffle) {
+      VeloxAppendBatchesExec(shuffle.child, GlutenConfig.getConf.veloxMinBatchSizeForShuffle)
+    } else {
+      shuffle.child
+    }
+
     shuffle.outputPartitioning match {
       case HashPartitioning(exprs, _) =>
         val hashExpr = new Murmur3Hash(exprs)
-        val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ newChild.output
-        val projectTransformer = ProjectExecTransformer(projectList, newChild)
+        val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ child.output
+        val projectTransformer = ProjectExecTransformer(projectList, child)
         val validationResult = projectTransformer.doValidate()
         if (validationResult.isValid) {
           ColumnarShuffleExchangeExec(
@@ -346,7 +350,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
             projectTransformer.output.drop(1))
         } else {
           TransformHints.tagNotTransformable(shuffle, validationResult)
-          shuffle.withNewChildren(newChild :: Nil)
+          shuffle.withNewChildren(child :: Nil)
         }
       case RoundRobinPartitioning(num) if SQLConf.get.sortBeforeRepartition && num > 1 =>
         // scalastyle:off line.size.limit
@@ -357,19 +361,19 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         allowHashOnMap {
           // Velox hash expression does not support null type and we also do not need to sort
           // null type since the value always be null.
-          val columnsForHash = newChild.output.filterNot(_.dataType == NullType)
+          val columnsForHash = child.output.filterNot(_.dataType == NullType)
           if (columnsForHash.isEmpty) {
-            ColumnarShuffleExchangeExec(shuffle, newChild, newChild.output)
+            ColumnarShuffleExchangeExec(shuffle, child, child.output)
           } else {
             val hashExpr = new Murmur3Hash(columnsForHash)
-            val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ newChild.output
-            val projectTransformer = ProjectExecTransformer(projectList, newChild)
+            val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ child.output
+            val projectTransformer = ProjectExecTransformer(projectList, child)
             val projectBeforeSortValidationResult = projectTransformer.doValidate()
             // Make sure we support offload hash expression
             val projectBeforeSort = if (projectBeforeSortValidationResult.isValid) {
               projectTransformer
             } else {
-              val project = ProjectExec(projectList, newChild)
+              val project = ProjectExec(projectList, child)
               TransformHints.tagNotTransformable(project, projectBeforeSortValidationResult)
               project
             }
@@ -386,12 +390,12 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
                 dropSortColumnTransformer.output)
             } else {
               TransformHints.tagNotTransformable(shuffle, validationResult)
-              shuffle.withNewChildren(newChild :: Nil)
+              shuffle.withNewChildren(child :: Nil)
             }
           }
         }
       case _ =>
-        ColumnarShuffleExchangeExec(shuffle, newChild, null)
+        ColumnarShuffleExchangeExec(shuffle, child, null)
     }
   }
 

@@ -101,7 +101,7 @@ trait SparkPlanExecApi {
       aggregateExpressions: Seq[AggregateExpression],
       aggregateAttributes: Seq[Attribute]): HashAggregateExecPullOutBaseHelper
 
-  def genColumnarShuffleExchange(shuffle: ShuffleExchangeExec, newChild: SparkPlan): SparkPlan
+  def genColumnarShuffleExchange(shuffle: ShuffleExchangeExec): SparkPlan
 
   /** Generate ShuffledHashJoinExecTransformer. */
   def genShuffledHashJoinExecTransformer(
