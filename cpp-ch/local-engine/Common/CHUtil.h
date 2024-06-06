@@ -168,6 +168,7 @@ public:
     inline static const std::string SPARK_HADOOP_PREFIX = "spark.hadoop.";
     inline static const std::string S3A_PREFIX = "fs.s3a.";
     inline static const std::string SPARK_DELTA_PREFIX = "spark.databricks.delta.";
+    inline static const std::string SPARK_SESSION_TIME_ZONE = "spark.sql.session.timeZone";
 
     inline static const String GLUTEN_TASK_OFFHEAP = "spark.gluten.memory.task.offHeap.size.in.bytes";
     inline static const String CH_TASK_MEMORY = "off_heap_per_task";

@@ -31,7 +31,7 @@ DB::QueryPlanPtr FilterRelParser::parse(DB::QueryPlanPtr query_plan, const subst
     substrait::Rel final_rel = rel;
     rewriter.rewrite(final_rel);
 
-    const auto & filter_rel = rel.filter();
+    const auto & filter_rel = final_rel.filter();
     std::string filter_name;
 
     auto input_header = query_plan->getCurrentDataStream().header;
@@ -66,7 +66,6 @@ DB::QueryPlanPtr FilterRelParser::parse(DB::QueryPlanPtr query_plan, const subst
     {
         steps.emplace_back(remove_null_step);
     }
-
     return query_plan;
 }
 

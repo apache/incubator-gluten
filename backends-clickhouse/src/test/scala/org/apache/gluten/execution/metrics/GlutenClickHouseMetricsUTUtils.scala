@@ -20,7 +20,7 @@ import org.apache.gluten.execution.WholeStageTransformer
 import org.apache.gluten.memory.alloc.CHNativeMemoryAllocators
 import org.apache.gluten.metrics.{MetricsUtil, NativeMetrics}
 import org.apache.gluten.utils.SubstraitPlanPrinterUtil
-import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, GeneralInIterator, GeneralOutIterator}
+import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, GeneralInIterator}
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -47,7 +47,7 @@ object GlutenClickHouseMetricsUTUtils {
 
     val transKernel = new CHNativeExpressionEvaluator()
     val mockMemoryAllocator = CHNativeMemoryAllocators.contextInstanceForUT()
-    val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
+    val resIter = transKernel.createKernelWithBatchIterator(
       mockMemoryAllocator.getNativeInstanceId,
       substraitPlan.toByteArray,
       new Array[Array[Byte]](0),

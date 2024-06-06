@@ -67,11 +67,12 @@ StreamingAggregatingTransform::Status StreamingAggregatingTransform::prepare()
 {
     auto & output = outputs.front();
     auto & input = inputs.front();
-    if (output.isFinished())
+    if (output.isFinished() || isCancelled())
     {
         input.close();
         return Status::Finished;
     }
+
     if (has_output)
     {
         if (output.canPush())
@@ -140,10 +141,10 @@ bool StreamingAggregatingTransform::needEvict()
 
     auto max_mem_used = static_cast<size_t>(context->getSettingsRef().max_memory_usage * max_allowed_memory_usage_ratio);
     auto current_result_rows = data_variants->size();
-    /// avoid evict empty or too small aggregated results. 
+    /// avoid evict empty or too small aggregated results.
     if (current_result_rows < aggregated_keys_before_evict)
         return false;
-    
+
     /// If the grouping keys is high cardinality, we should evict data variants early, and avoid to use a big
     /// hash table.
     if (static_cast<double>(total_output_rows)/total_input_rows > high_cardinality_threshold)
