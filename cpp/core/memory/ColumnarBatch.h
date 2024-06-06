@@ -49,7 +49,7 @@ class ColumnarBatch {
 
   virtual int64_t getExportNanos() const;
 
-  // Serialize to byte array that can be deserialized into Spark-compatible unsafe row.
+  // Serializes one single row to byte array that can be deserialized into Spark-compatible unsafe row.
   virtual std::vector<char> toUnsafeRow(int32_t rowId) const;
 
   friend std::ostream& operator<<(std::ostream& os, const ColumnarBatch& columnarBatch);
