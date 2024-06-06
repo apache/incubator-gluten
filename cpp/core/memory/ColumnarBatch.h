@@ -49,7 +49,8 @@ class ColumnarBatch {
 
   virtual int64_t getExportNanos() const;
 
-  virtual std::pair<char*, int> getRowBytes(int32_t rowId) const;
+  // Serializes one single row to byte array that can be accessed as Spark-compatible unsafe row.
+  virtual std::vector<char> toUnsafeRow(int32_t rowId) const;
 
   friend std::ostream& operator<<(std::ostream& os, const ColumnarBatch& columnarBatch);
 
@@ -75,7 +76,7 @@ class ArrowColumnarBatch final : public ColumnarBatch {
 
   std::shared_ptr<ArrowArray> exportArrowArray() override;
 
-  std::pair<char*, int> getRowBytes(int32_t rowId) const override;
+  std::vector<char> toUnsafeRow(int32_t rowId) const override;
 
  private:
   std::shared_ptr<arrow::RecordBatch> batch_;
@@ -95,7 +96,7 @@ class ArrowCStructColumnarBatch final : public ColumnarBatch {
 
   std::shared_ptr<ArrowArray> exportArrowArray() override;
 
-  std::pair<char*, int> getRowBytes(int32_t rowId) const override;
+  std::vector<char> toUnsafeRow(int32_t rowId) const override;
 
  private:
   std::shared_ptr<ArrowSchema> cSchema_ = std::make_shared<ArrowSchema>();
@@ -120,7 +121,7 @@ class CompositeColumnarBatch final : public ColumnarBatch {
 
   const std::vector<std::shared_ptr<ColumnarBatch>>& getBatches() const;
 
-  std::pair<char*, int> getRowBytes(int32_t rowId) const override;
+  std::vector<char> toUnsafeRow(int32_t rowId) const override;
 
  private:
   explicit CompositeColumnarBatch(

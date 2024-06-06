@@ -281,7 +281,7 @@ object OffloadOthers {
           applyScanTransformer(plan)
         case plan: CoalesceExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          CoalesceExecTransformer(plan.numPartitions, plan.child)
+          ColumnarCoalesceExec(plan.numPartitions, plan.child)
         case plan: ProjectExec =>
           val columnarChild = plan.child
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")

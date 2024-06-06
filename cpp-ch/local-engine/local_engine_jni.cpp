@@ -1172,7 +1172,15 @@ JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
 }
 
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeBuild(
-    JNIEnv * env, jclass, jstring key, jbyteArray in, jlong row_count_, jstring join_key_, jint join_type_, jbyteArray named_struct)
+    JNIEnv * env,
+    jclass,
+    jstring key,
+    jbyteArray in,
+    jlong row_count_,
+    jstring join_key_,
+    jint join_type_,
+    jboolean has_mixed_join_condition,
+    jbyteArray named_struct)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     const auto hash_table_id = jstring2string(env, key);
@@ -1186,8 +1194,8 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeBuild
     local_engine::ReadBufferFromByteArray read_buffer_from_java_array(in, length);
     DB::CompressedReadBuffer input(read_buffer_from_java_array);
     local_engine::configureCompressedReadBuffer(input);
-    const auto * obj
-        = make_wrapper(local_engine::BroadCastJoinBuilder::buildJoin(hash_table_id, input, row_count_, join_key, join_type, struct_string));
+    const auto * obj = make_wrapper(local_engine::BroadCastJoinBuilder::buildJoin(
+        hash_table_id, input, row_count_, join_key, join_type, has_mixed_join_condition, struct_string));
     env->ReleaseByteArrayElements(named_struct, struct_address, JNI_ABORT);
     return obj->instance();
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)

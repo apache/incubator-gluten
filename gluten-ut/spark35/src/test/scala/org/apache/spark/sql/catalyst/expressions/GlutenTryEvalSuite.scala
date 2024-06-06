@@ -14,35 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
-#include <memory>
-#include <jni.h>
-#include <substrait/algebra.pb.h>
+package org.apache.spark.sql.catalyst.expressions
 
-namespace DB
-{
-class ReadBuffer;
-}
+import org.apache.spark.sql.GlutenTestsTrait
 
-namespace local_engine
-{
-class StorageJoinFromReadBuffer;
-namespace BroadCastJoinBuilder
-{
-
-std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
-    const std::string & key,
-    DB::ReadBuffer & input,
-    jlong row_count,
-    const std::string & join_keys,
-    substrait::JoinRel_JoinType join_type,
-    bool has_mixed_join_condition,
-    const std::string & named_struct);
-void cleanBuildHashTable(const std::string & hash_table_id, jlong instance);
-std::shared_ptr<StorageJoinFromReadBuffer> getJoin(const std::string & hash_table_id);
-
-
-void init(JNIEnv *);
-void destroy(JNIEnv *);
-}
-}
+class GlutenTryEvalSuite extends TryEvalSuite with GlutenTestsTrait {}
