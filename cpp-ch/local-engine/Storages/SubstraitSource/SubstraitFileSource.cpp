@@ -104,6 +104,9 @@ DB::Chunk SubstraitFileSource::generate()
 
 bool SubstraitFileSource::tryPrepareReader()
 {
+    if (isCancelled())
+        return false;
+
     if (file_reader)
         return true;
 
@@ -138,6 +141,13 @@ bool SubstraitFileSource::tryPrepareReader()
 
     file_reader->applyKeyCondition(key_condition, column_index_filter);
     return true;
+}
+
+
+void SubstraitFileSource::onCancel()
+{
+    if (file_reader)
+        file_reader->cancel();
 }
 
 DB::ColumnPtr FileReaderWrapper::createConstColumn(DB::DataTypePtr data_type, const DB::Field & field, size_t rows)
@@ -280,9 +290,13 @@ ConstColumnsFileReader::ConstColumnsFileReader(FormatFilePtr file_, DB::ContextP
     remained_rows = *rows;
 }
 
+
 bool ConstColumnsFileReader::pull(DB::Chunk & chunk)
 {
-    if (!remained_rows) [[unlikely]]
+    if (isCancelled())
+        return false;
+
+    if (!remained_rows)
         return false;
 
     size_t to_read_rows = 0;
@@ -296,6 +310,7 @@ bool ConstColumnsFileReader::pull(DB::Chunk & chunk)
         to_read_rows = block_size;
         remained_rows -= block_size;
     }
+
     DB::Columns res_columns;
     if (const size_t col_num = header.columns())
     {
@@ -307,8 +322,9 @@ bool ConstColumnsFileReader::pull(DB::Chunk & chunk)
             auto type = col_with_name_and_type.type;
             const auto & name = col_with_name_and_type.name;
             auto it = partition_values.find(name);
-            if (it == partition_values.end()) [[unlikely]]
+            if (it == partition_values.end())
                 throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unknow partition column : {}", name);
+
             res_columns.emplace_back(createColumn(it->second, type, to_read_rows));
         }
     }
@@ -331,6 +347,9 @@ NormalFileReader::NormalFileReader(
 
 bool NormalFileReader::pull(DB::Chunk & chunk)
 {
+    if (isCancelled())
+        return false;
+
     DB::Chunk raw_chunk = input_format->input->generate();
     const size_t rows = raw_chunk.getNumRows();
     if (!rows)

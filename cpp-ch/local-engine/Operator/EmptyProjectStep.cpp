@@ -39,7 +39,7 @@ public:
     {
         auto & output = outputs.front();
         auto & input = inputs.front();
-        if (output.isFinished())
+        if (output.isFinished() || isCancelled())
         {
             input.close();
             return Status::Finished;

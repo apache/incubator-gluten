@@ -2043,6 +2043,7 @@ LocalExecutor::~LocalExecutor()
 {
     if (context->getConfigRef().getBool("dump_pipeline", false))
         LOG_INFO(&Poco::Logger::get("LocalExecutor"), "Dump pipeline:\n{}", dumpPipeline());
+
     if (spark_buffer)
     {
         ch_column_to_spark_row->freeMem(spark_buffer->address, spark_buffer->size);
@@ -2164,6 +2165,12 @@ Block * LocalExecutor::nextColumnar()
     }
     consume();
     return columnar_batch;
+}
+
+void LocalExecutor::cancel()
+{
+    if (executor)
+        executor->cancel();
 }
 
 Block & LocalExecutor::getHeader()

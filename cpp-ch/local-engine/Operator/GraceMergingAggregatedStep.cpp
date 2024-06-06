@@ -146,7 +146,7 @@ GraceMergingAggregatedTransform::Status GraceMergingAggregatedTransform::prepare
 {
     auto & output = outputs.front();
     auto & input = inputs.front();
-    if (output.isFinished())
+    if (output.isFinished() || isCancelled())
     {
         input.close();
         return Status::Finished;
@@ -224,7 +224,7 @@ void GraceMergingAggregatedTransform::work()
                 block_converter = prepareBucketOutputBlocks(current_bucket_index);
                 if (block_converter)
                     break;
-                current_bucket_index++;  
+                current_bucket_index++;
             }
         }
         if (!block_converter)
@@ -455,7 +455,7 @@ std::unique_ptr<AggregateDataBlockConverter> GraceMergingAggregatedTransform::pr
             block = {};
         }
     }
-    
+
     if (buffer_file_stream.original_file_stream)
     {
         buffer_file_stream.original_file_stream->finishWriting();
