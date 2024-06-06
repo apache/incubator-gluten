@@ -563,18 +563,68 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           arrayTransform
         )
       case tryEval @ TryEval(a: Add) =>
-        BackendsApiManager.getSparkPlanExecApiInstance.genTryAddTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
           substraitExprName,
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
-          tryEval
+          tryEval,
+          ExpressionNames.CHECK_ADD
+        )
+      case tryEval @ TryEval(a: Subtract) =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
+          tryEval,
+          ExpressionNames.CHECK_SUBTRACT
+        )
+      case tryEval @ TryEval(a: Divide) =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
+          tryEval,
+          ExpressionNames.CHECK_DIVIDE
+        )
+      case tryEval @ TryEval(a: Multiply) =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
+          tryEval,
+          ExpressionNames.CHECK_MULTIPLY
         )
       case a: Add =>
-        BackendsApiManager.getSparkPlanExecApiInstance.genAddTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
           substraitExprName,
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
-          a
+          a,
+          ExpressionNames.CHECK_ADD
+        )
+      case a: Subtract =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
+          a,
+          ExpressionNames.CHECK_SUBTRACT
+        )
+      case a: Multiply =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
+          a,
+          ExpressionNames.CHECK_MULTIPLY
+        )
+      case a: Divide =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
+          a,
+          ExpressionNames.CHECK_DIVIDE
         )
       case tryEval: TryEval =>
         // This is a placeholder to handle try_eval(other expressions).
