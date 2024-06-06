@@ -74,6 +74,7 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
     bool use_nulls_,
     DB::JoinKind kind,
     DB::JoinStrictness strictness,
+    bool has_mixed_join_condition,
     const ColumnsDescription & columns,
     const ConstraintsDescription & constraints,
     const String & comment,
@@ -91,7 +92,11 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
         key_names.push_back(RIHGT_COLUMN_PREFIX + name);
     auto table_join = std::make_shared<DB::TableJoin>(SizeLimits(), true, kind, strictness, key_names);
     right_sample_block = rightSampleBlock(use_nulls, storage_metadata, table_join->kind());
-    buildJoin(in, right_sample_block, table_join);
+    /// If there is mixed join conditions, need to build the hash join lazily, which rely on the real table join.
+    if (!has_mixed_join_condition)
+        buildJoin(in, right_sample_block, table_join);
+    else
+        collectAllInputs(in, right_sample_block);
 }
 
 /// The column names may be different in two blocks.
@@ -135,6 +140,51 @@ void StorageJoinFromReadBuffer::buildJoin(DB::ReadBuffer & in, const Block heade
     }
 }
 
+void StorageJoinFromReadBuffer::collectAllInputs(DB::ReadBuffer & in, const DB::Block header)
+{
+    local_engine::NativeReader block_stream(in);
+    ProfileInfo info;
+    while (Block block = block_stream.read())
+    {
+        DB::ColumnsWithTypeAndName columns;
+        for (size_t i = 0; i < block.columns(); ++i)
+        {
+            const auto & column = block.getByPosition(i);
+            columns.emplace_back(convertColumnAsNecessary(column, header.getByPosition(i)));
+        }
+        DB::Block final_block(columns);
+        info.update(final_block);
+        input_blocks.emplace_back(std::move(final_block));
+    }
+}
+
+void StorageJoinFromReadBuffer::buildJoinLazily(DB::Block header, std::shared_ptr<DB::TableJoin> analyzed_join)
+{
+    {
+        std::shared_lock lock(join_mutex);
+        if (join)
+            return;
+    }
+    std::unique_lock lock(join_mutex);
+    if (join)
+        return;
+    join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count);
+    while(!input_blocks.empty())
+    {
+        auto & block = *input_blocks.begin();
+        DB::ColumnsWithTypeAndName columns;
+        for (size_t i = 0; i < block.columns(); ++i)
+        {
+            const auto & column = block.getByPosition(i);
+            columns.emplace_back(convertColumnAsNecessary(column, header.getByPosition(i)));
+        }
+        DB::Block final_block(columns);
+        join->addBlockToJoin(final_block, true);
+        input_blocks.pop_front();
+    }
+}
+
+
 /// The column names of 'rgiht_header' could be different from the ones in `input_blocks`, and we must
 /// use 'right_header' to build the HashJoin. Otherwise, it will cause exceptions with name mismatches.
 ///
@@ -148,7 +198,7 @@ DB::JoinPtr StorageJoinFromReadBuffer::getJoinLocked(std::shared_ptr<DB::TableJo
             ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN,
             "Table {} needs the same join_use_nulls setting as present in LEFT or FULL JOIN",
             storage_metadata.comment);
-
+    buildJoinLazily(getRightSampleBlock(), analyzed_join);
     HashJoinPtr join_clone = std::make_shared<HashJoin>(analyzed_join, right_sample_block);
     /// reuseJoinedData will set the flag `HashJoin::from_storage_join` which is required by `FilledStep`
     join_clone->reuseJoinedData(static_cast<const HashJoin &>(*join));

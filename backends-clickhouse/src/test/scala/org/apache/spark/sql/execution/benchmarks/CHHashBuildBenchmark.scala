@@ -104,7 +104,7 @@ object CHHashBuildBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark w
     (
       countsAndBytes.flatMap(_._2),
       countsAndBytes.map(_._1).sum,
-      BroadCastHashJoinContext(Seq(child.output.head), Inner, child.output, "")
+      BroadCastHashJoinContext(Seq(child.output.head), Inner, false, child.output, "")
     )
   }
 }

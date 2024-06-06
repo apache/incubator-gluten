@@ -82,6 +82,7 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     jlong row_count,
     const std::string & join_keys,
     substrait::JoinRel_JoinType join_type,
+    bool has_mixed_join_condition,
     const std::string & named_struct)
 {
     auto join_key_list = Poco::StringTokenizer(join_keys, ",");
@@ -105,6 +106,7 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
         true,
         kind,
         strictness,
+        has_mixed_join_condition,
         columns_description,
         ConstraintsDescription(),
         key,
