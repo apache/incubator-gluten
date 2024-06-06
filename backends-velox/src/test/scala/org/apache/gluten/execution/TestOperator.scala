@@ -1246,6 +1246,16 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
         }
       }
 
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+        runQueryAndCompare(
+          """
+            |select * from t1 left semi join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[SortMergeJoinExecTransformer]
+        }
+      }
+
       runQueryAndCompare(
         """
           |select * from t1 cross join t2;
