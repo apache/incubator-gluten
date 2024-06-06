@@ -72,8 +72,8 @@ static jclass shuffleReaderMetricsClass;
 static jmethodID shuffleReaderMetricsSetDecompressTime;
 static jmethodID shuffleReaderMetricsSetDeserializeTime;
 
-static jclass block_stripes_class;
-static jmethodID block_stripes_constructor;
+static jclass blockStripesClass;
+static jmethodID blockStripesConstructor;
 
 class JavaInputStreamAdaptor final : public arrow::io::InputStream {
  public:
@@ -280,9 +280,9 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   shuffleReaderMetricsSetDeserializeTime =
       getMethodIdOrError(env, shuffleReaderMetricsClass, "setDeserializeTime", "(J)V");
 
-  block_stripes_class =
+  blockStripesClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
-  block_stripes_constructor = env->GetMethodID(block_stripes_class, "<init>", "(J[J[II[B)V");
+  blockStripesConstructor = env->GetMethodID(blockStripesClass, "<init>", "(J[J[II[B)V");
 
   return jniVersion;
 }
@@ -297,7 +297,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(nativeColumnarToRowInfoClass);
   env->DeleteGlobalRef(byteArrayClass);
   env->DeleteGlobalRef(shuffleReaderMetricsClass);
-  env->DeleteGlobalRef(block_stripes_class);
+  env->DeleteGlobalRef(blockStripesClass);
 
   gluten::getJniErrorState()->close();
   gluten::getJniCommonState()->close();
@@ -1224,14 +1224,13 @@ Java_org_apache_gluten_datasource_DatasourceJniWrapper_splitBlockByPartitionAndB
   }
 
   MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
-  auto result = batch->getRowBytes(0);
-  auto rowBytes = result.first;
+  auto result = batch->toUnsafeRow(0);
+  auto rowBytes = result.data();
   auto newBatchHandle = ctx->objectStore()->save(ctx->select(memoryManager, batch, partitionColIndiceVec));
 
-  auto bytesSize = result.second;
+  auto bytesSize = result.size();
   jbyteArray bytesArray = env->NewByteArray(bytesSize);
   env->SetByteArrayRegion(bytesArray, 0, bytesSize, reinterpret_cast<jbyte*>(rowBytes));
-  delete[] rowBytes;
 
   jlongArray batchArray = env->NewLongArray(1);
   long* cBatchArray = new long[1];
@@ -1239,15 +1238,9 @@ Java_org_apache_gluten_datasource_DatasourceJniWrapper_splitBlockByPartitionAndB
   env->SetLongArrayRegion(batchArray, 0, 1, cBatchArray);
   delete[] cBatchArray;
 
-  jobject block_stripes = env->NewObject(
-      block_stripes_class,
-      block_stripes_constructor,
-      batchHandle,
-      batchArray,
-      nullptr,
-      batch->numColumns(),
-      bytesArray);
-  return block_stripes;
+  jobject blockStripes = env->NewObject(
+      blockStripesClass, blockStripesConstructor, batchHandle, batchArray, nullptr, batch->numColumns(), bytesArray);
+  return blockStripes;
   JNI_METHOD_END(nullptr)
 }
 

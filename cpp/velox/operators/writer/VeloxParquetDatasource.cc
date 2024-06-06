@@ -120,7 +120,7 @@ void VeloxParquetDatasource::inspectSchema(struct ArrowSchema* out) {
   std::shared_ptr<velox::ReadFile> readFile{fs->openFileForRead(filePath_)};
 
   std::unique_ptr<velox::dwio::common::Reader> reader =
-      velox::dwio::common::getReaderFactory(readerOptions.getFileFormat())
+      velox::dwio::common::getReaderFactory(readerOptions.fileFormat())
           ->createReader(
               std::make_unique<velox::dwio::common::BufferedInput>(
                   std::make_shared<velox::dwio::common::ReadFileInputStream>(readFile), *pool_.get()),
