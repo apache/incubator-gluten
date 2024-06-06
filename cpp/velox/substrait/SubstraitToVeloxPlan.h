@@ -49,11 +49,11 @@ struct SplitInfo {
   /// The lengths to be scanned.
   std::vector<u_int64_t> lengths;
 
-	/// The file sizes and modification times of the files to be scanned.
-	std::vector<facebook::velox::connector::hive::FileProperties> properties;
-
   /// The file format of the files to be scanned.
   dwio::common::FileFormat format;
+
+  /// The file sizes and modification times of the files to be scanned.
+  std::vector<std::optional<facebook::velox::FileProperties>> properties;
 
   /// Make SplitInfo polymorphic
   virtual ~SplitInfo() = default;
