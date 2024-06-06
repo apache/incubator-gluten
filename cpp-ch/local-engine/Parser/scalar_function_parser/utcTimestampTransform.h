@@ -41,6 +41,7 @@ public:
 
     const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const override
     {
+        /// Convert timezone value to clickhouse backend supported, i.e. GMT+8 -> Etc/GMT-8, +08:00 -> Etc/GMT-8
         if (substrait_func.arguments_size() != 2)
             throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s must have 2 arguments", getName());
         
@@ -50,11 +51,11 @@ public:
         
         const String & arg1_literal = arg1.literal().string();
         String time_zone_val = DateTimeUtil::convertTimeZone(arg1_literal);
-        std::cout << "time_zone1:" << arg1_literal << " time_zone2:" << time_zone_val << std::endl;
         auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
         auto nullable_string_type = DB::makeNullable(std::make_shared<DB::DataTypeString>());
         const auto * time_zone_node = addColumnToActionsDAG(actions_dag, nullable_string_type, time_zone_val);
-        return toFunctionNode(actions_dag, getCHFunctionName(substrait_func), {parsed_args[0], time_zone_node});
+        const auto * result_node = toFunctionNode(actions_dag, getCHFunctionName(substrait_func), {parsed_args[0], time_zone_node});
+        return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
     }
 };
 }
