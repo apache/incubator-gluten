@@ -159,7 +159,13 @@ public class LocalFilesNode implements SplitInfo {
       }
       fileBuilder.setLength(lengths.get(i));
       fileBuilder.setStart(starts.get(i));
-      fileBuilder.setFileProperties(fileSizes.get(i), modificationTimes.get(i));
+
+      ReadRel.LocalFiles.FileOrFiles.fileProperties.Builder filePropsBuilder =
+          ReadRel.LocalFiles.FileOrFiles.fileProperties.newBuilder();
+      filePropsBuilder.setFileSize(fileSizes.get(i));
+      filePropsBuilder.setModificationTime(modificationTimes.get(i));
+      fileBuilder.setFileProperties(filePropsBuilder.build());
+
       if (!metadataColumns.isEmpty()) {
         Map<String, String> metadataColumn = metadataColumns.get(i);
         if (!metadataColumn.isEmpty()) {
