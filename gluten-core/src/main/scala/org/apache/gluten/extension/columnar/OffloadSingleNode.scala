@@ -28,8 +28,6 @@ import org.apache.gluten.utils.{LogLevelUtil, PlanUtil}
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.plans.logical.Join
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
@@ -124,79 +122,6 @@ case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
   }
 }
 
-object OffloadJoin {
-
-  private def getShuffleHashJoinBuildSide(
-      sj: ShuffledJoin,
-      buildSide: BuildSide = null): BuildSide = {
-    val leftBuildable =
-      BackendsApiManager.getSettings.supportHashBuildJoinTypeOnLeft(sj.joinType)
-    val rightBuildable =
-      BackendsApiManager.getSettings.supportHashBuildJoinTypeOnRight(sj.joinType)
-    if (!leftBuildable) {
-      BuildRight
-    } else if (!rightBuildable) {
-      BuildLeft
-    } else {
-      sj.logicalLink match {
-        case Some(join: Join) =>
-          val leftSize = join.left.stats.sizeInBytes
-          val rightSize = join.right.stats.sizeInBytes
-          if (rightSize <= leftSize) BuildRight else BuildLeft
-        // Only the ShuffledHashJoinExec generated directly in some spark tests is not link
-        // logical plan, such as OuterJoinSuite.
-        case _ => buildSide
-      }
-    }
-  }
-
-  private def dropGlobalSort(plan: SparkPlan): SparkPlan = plan match {
-    case sort: SortExecTransformer if !sort.global =>
-      sort.child
-    case sort: SortExec if !sort.global =>
-      sort.child
-    case _ => plan
-  }
-
-  def transformShuffledHashJoinExec(shj: ShuffledHashJoinExec): TransformSupport = {
-    BackendsApiManager.getSparkPlanExecApiInstance
-      .genShuffledHashJoinExecTransformer(
-        shj.leftKeys,
-        shj.rightKeys,
-        shj.joinType,
-        getShuffleHashJoinBuildSide(shj, shj.buildSide),
-        shj.condition,
-        shj.left,
-        shj.right,
-        shj.isSkewJoin)
-  }
-
-  def transformSortMergeJoinExec(smj: SortMergeJoinExec): TransformSupport = {
-    if (!GlutenConfig.getConf.forceShuffledHashJoin) {
-      BackendsApiManager.getSparkPlanExecApiInstance
-        .genSortMergeJoinExecTransformer(
-          smj.leftKeys,
-          smj.rightKeys,
-          smj.joinType,
-          smj.condition,
-          smj.left,
-          smj.right,
-          smj.isSkewJoin)
-    } else {
-      BackendsApiManager.getSparkPlanExecApiInstance
-        .genShuffledHashJoinExecTransformer(
-          smj.leftKeys,
-          smj.rightKeys,
-          smj.joinType,
-          getShuffleHashJoinBuildSide(smj),
-          smj.condition,
-          dropGlobalSort(smj.left),
-          dropGlobalSort(smj.right),
-          smj.isSkewJoin
-        )
-    }
-  }
-}
 // Join transformation.
 case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
 
@@ -208,7 +133,7 @@ case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
     plan match {
       case plan: ShuffledHashJoinExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        OffloadJoin.transformShuffledHashJoinExec(plan)
+        ShuffledHashJoinExecTransformerBase.from(plan)
       case plan: SortMergeJoinExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         OffloadJoin.transformSortMergeJoinExec(plan)
@@ -243,7 +168,24 @@ case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
       case other => other
     }
   }
+}
 
+object OffloadJoin {
+  def transformSortMergeJoinExec(smj: SortMergeJoinExec): TransformSupport = {
+    if (!GlutenConfig.getConf.forceShuffledHashJoin) {
+      BackendsApiManager.getSparkPlanExecApiInstance
+        .genSortMergeJoinExecTransformer(
+          smj.leftKeys,
+          smj.rightKeys,
+          smj.joinType,
+          smj.condition,
+          smj.left,
+          smj.right,
+          smj.isSkewJoin)
+    } else {
+      ShuffledHashJoinExecTransformerBase.from(smj)
+    }
+  }
 }
 
 // Filter transformation.

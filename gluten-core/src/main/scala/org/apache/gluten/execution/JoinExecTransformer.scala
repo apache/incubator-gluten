@@ -30,9 +30,10 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
+import org.apache.spark.sql.catalyst.plans.logical.Join
 import org.apache.spark.sql.catalyst.plans.physical._
-import org.apache.spark.sql.execution.{ExpandOutputPartitioningShim, ExplainUtils, SparkPlan}
-import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashedRelationBroadcastMode, HashJoin}
+import org.apache.spark.sql.execution.{ExpandOutputPartitioningShim, ExplainUtils, SortExec, SparkPlan}
+import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashedRelationBroadcastMode, HashJoin, ShuffledHashJoinExec, ShuffledJoin, SortMergeJoinExec}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -367,6 +368,68 @@ abstract class ShuffledHashJoinExecTransformerBase(
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     getColumnarInputRDDs(streamedPlan) ++ getColumnarInputRDDs(buildPlan)
+  }
+}
+
+object ShuffledHashJoinExecTransformerBase {
+
+  private def getBuildSide(
+      sj: ShuffledJoin,
+      buildSide: BuildSide = null): BuildSide = {
+    val leftBuildable =
+      BackendsApiManager.getSettings.supportHashBuildJoinTypeOnLeft(sj.joinType)
+    val rightBuildable =
+      BackendsApiManager.getSettings.supportHashBuildJoinTypeOnRight(sj.joinType)
+    if (!leftBuildable) {
+      BuildRight
+    } else if (!rightBuildable) {
+      BuildLeft
+    } else {
+      sj.logicalLink match {
+        case Some(join: Join) =>
+          val leftSize = join.left.stats.sizeInBytes
+          val rightSize = join.right.stats.sizeInBytes
+          if (rightSize <= leftSize) BuildRight else BuildLeft
+        // Only the ShuffledHashJoinExec generated directly in some spark tests is not link
+        // logical plan, such as OuterJoinSuite.
+        case _ => buildSide
+      }
+    }
+  }
+
+  private def dropGlobalSort(plan: SparkPlan): SparkPlan = plan match {
+    case sort: SortExecTransformer if !sort.global =>
+      sort.child
+    case sort: SortExec if !sort.global =>
+      sort.child
+    case _ => plan
+  }
+
+  def from(shj: ShuffledHashJoinExec): ShuffledHashJoinExecTransformerBase = {
+    BackendsApiManager.getSparkPlanExecApiInstance
+      .genShuffledHashJoinExecTransformer(
+        shj.leftKeys,
+        shj.rightKeys,
+        shj.joinType,
+        getBuildSide(shj, shj.buildSide),
+        shj.condition,
+        shj.left,
+        shj.right,
+        shj.isSkewJoin)
+  }
+
+  def from(smj: SortMergeJoinExec): ShuffledHashJoinExecTransformerBase = {
+    BackendsApiManager.getSparkPlanExecApiInstance
+      .genShuffledHashJoinExecTransformer(
+        smj.leftKeys,
+        smj.rightKeys,
+        smj.joinType,
+        getBuildSide(smj),
+        smj.condition,
+        dropGlobalSort(smj.left),
+        dropGlobalSort(smj.right),
+        smj.isSkewJoin
+      )
   }
 }
 

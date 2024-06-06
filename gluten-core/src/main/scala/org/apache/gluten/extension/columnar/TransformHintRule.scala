@@ -387,7 +387,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           val transformer = ColumnarShuffleExchangeExec(plan, plan.child, plan.child.output)
           transformer.doValidate().tagOnFallback(plan)
         case plan: ShuffledHashJoinExec =>
-          val transformer = OffloadJoin.transformShuffledHashJoinExec(plan)
+          val transformer = ShuffledHashJoinExecTransformerBase.from(plan)
           transformer.doValidate().tagOnFallback(plan)
         case plan: BroadcastExchangeExec =>
           val transformer = ColumnarBroadcastExchangeExec(plan.mode, plan.child)
