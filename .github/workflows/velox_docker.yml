@@ -584,7 +584,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: benchmark-centos-8-${{github.sha}}
-          path: ./cpp/build/velox/benchmark/
+          path: ./cpp/build/velox/benchmarks/
       - uses: actions/upload-artifact@v2
         with:
           name: arrow-jars-centos-8-${{github.sha}}
@@ -612,7 +612,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: benchmark-centos-8-${{github.sha}}
-          path: ./cpp/build/velox/benchmark/
+          path: ./cpp/build/velox/benchmarks/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v2
         with:
