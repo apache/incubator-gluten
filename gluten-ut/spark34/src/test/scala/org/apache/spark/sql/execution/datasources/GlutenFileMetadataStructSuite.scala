@@ -45,10 +45,7 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
   private val METADATA_FILE_PATH = "_metadata.file_path"
   private val METADATA_FILE_NAME = "_metadata.file_name"
   private val METADATA_FILE_SIZE = "_metadata.file_size"
-  private val METADATA_FILE_BLOCK_START = "_metadata.file_block_start"
-  private val METADATA_FILE_BLOCK_LENGTH = "_metadata.file_block_length"
   private val METADATA_FILE_MODIFICATION_TIME = "_metadata.file_modification_time"
-  private val METADATA_ROW_INDEX = "_metadata.row_index"
   private val FILE_FORMAT = "fileFormat"
 
   private def getMetadataForFile(f: File): Map[String, Any] = {
