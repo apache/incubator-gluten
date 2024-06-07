@@ -81,7 +81,8 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
     splitInfo->paths.emplace_back(file.uri_file());
     splitInfo->starts.emplace_back(file.start());
     splitInfo->lengths.emplace_back(file.length());
-    splitInfo->properties.emplace_back(file.properties().filesize(), file.properties().modificationtime());
+    facebook::velox::FileProperties fileProps(file.properties().filesize(), file.properties().modificationtime());
+    splitInfo->properties.emplace_back(fileProps);
     switch (file.file_format_case()) {
       case SubstraitFileFormatCase::kOrc:
         splitInfo->format = dwio::common::FileFormat::ORC;
