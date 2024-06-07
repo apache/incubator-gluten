@@ -93,12 +93,13 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
                          |  myavg(1),
                          |  myavg(1L),
                          |  myavg(cast(1.0 as float)),
-                         |  myavg(cast(1.0 as double))
+                         |  myavg(cast(1.0 as double)),
+                         |  mycount_if(true)
                          |""".stripMargin)
     df.collect()
     assert(
       df.collect()
-        .sameElements(Array(Row(1.0, 1.0, 1.0, 1.0))))
+        .sameElements(Array(Row(1.0, 1.0, 1.0, 1.0, 1L))))
   }
 }
 

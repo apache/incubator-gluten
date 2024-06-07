@@ -156,8 +156,8 @@ void VeloxBackend::initCache() {
     cacheFilePrefix_ = getCacheFilePrefix();
     std::string ssdCachePath = ssdCachePathPrefix + "/" + cacheFilePrefix_;
     ssdCacheExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ssdCacheIOThreads);
-    auto ssd =
-        std::make_unique<velox::cache::SsdCache>(ssdCachePath, ssdCacheSize, ssdCacheShards, ssdCacheExecutor_.get());
+    const cache::SsdCache::Config config(ssdCachePath, ssdCacheSize, ssdCacheShards, ssdCacheExecutor_.get());
+    auto ssd = std::make_unique<velox::cache::SsdCache>(config);
 
     std::error_code ec;
     const std::filesystem::space_info si = std::filesystem::space(ssdCachePathPrefix, ec);

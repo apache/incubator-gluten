@@ -81,7 +81,7 @@ PartitionInfo RoundRobinSelectorBuilder::build(DB::Block & block)
         pid = pid_selection;
         pid_selection = (pid_selection + 1) % parts_num;
     }
-    return PartitionInfo::fromSelector(std::move(result), parts_num, use_external_sort_shuffle);
+    return PartitionInfo::fromSelector(std::move(result), parts_num, use_sort_shuffle);
 }
 
 HashSelectorBuilder::HashSelectorBuilder(
@@ -156,7 +156,7 @@ PartitionInfo HashSelectorBuilder::build(DB::Block & block)
             }
         }
     }
-    return PartitionInfo::fromSelector(std::move(partition_ids), parts_num, use_external_sort_shuffle);
+    return PartitionInfo::fromSelector(std::move(partition_ids), parts_num, use_sort_shuffle);
 }
 
 
@@ -177,7 +177,7 @@ PartitionInfo RangeSelectorBuilder::build(DB::Block & block)
 {
     DB::IColumn::Selector result;
     computePartitionIdByBinarySearch(block, result);
-    return PartitionInfo::fromSelector(std::move(result), partition_num, use_external_sort_shuffle);
+    return PartitionInfo::fromSelector(std::move(result), partition_num, use_sort_shuffle);
 }
 
 void RangeSelectorBuilder::initSortInformation(Poco::JSON::Array::Ptr orderings)

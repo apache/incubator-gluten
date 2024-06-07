@@ -123,42 +123,50 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       original)
   }
 
-  override def genTryAddTransformer(
+  override def genTryArithmeticTransformer(
       substraitExprName: String,
       left: ExpressionTransformer,
       right: ExpressionTransformer,
-      original: TryEval): ExpressionTransformer = {
+      original: TryEval,
+      checkArithmeticExprName: String): ExpressionTransformer = {
     if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original.child)) {
-      throw new GlutenNotSupportException(s"add with ansi mode is not supported")
+      throw new GlutenNotSupportException(
+        s"${original.child.prettyName} with ansi mode is not supported")
     }
     original.child.dataType match {
       case LongType | IntegerType | ShortType | ByteType =>
-      case _ => throw new GlutenNotSupportException(s"try_add is not supported")
+      case _ => throw new GlutenNotSupportException(s"$substraitExprName is not supported")
     }
     // Offload to velox for only IntegralTypes.
     GenericExpressionTransformer(
       substraitExprName,
-      Seq(GenericExpressionTransformer(ExpressionNames.TRY_ADD, Seq(left, right), original)),
+      Seq(GenericExpressionTransformer(checkArithmeticExprName, Seq(left, right), original)),
       original)
   }
 
-  override def genAddTransformer(
+  /**
+   * Map arithmetic expr to different functions: substraitExprName or try(checkArithmeticExprName)
+   * based on EvalMode.
+   */
+  override def genArithmeticTransformer(
       substraitExprName: String,
       left: ExpressionTransformer,
       right: ExpressionTransformer,
-      original: Add): ExpressionTransformer = {
+      original: Expression,
+      checkArithmeticExprName: String): ExpressionTransformer = {
     if (SparkShimLoader.getSparkShims.withTryEvalMode(original)) {
       original.dataType match {
         case LongType | IntegerType | ShortType | ByteType =>
-        case _ => throw new GlutenNotSupportException(s"try_add is not supported")
+        case _ =>
+          throw new GlutenNotSupportException(s"$substraitExprName with try mode is not supported")
       }
       // Offload to velox for only IntegralTypes.
       GenericExpressionTransformer(
         ExpressionMappings.expressionsMap(classOf[TryEval]),
-        Seq(GenericExpressionTransformer(ExpressionNames.TRY_ADD, Seq(left, right), original)),
+        Seq(GenericExpressionTransformer(checkArithmeticExprName, Seq(left, right), original)),
         original)
     } else if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original)) {
-      throw new GlutenNotSupportException(s"add with ansi mode is not supported")
+      throw new GlutenNotSupportException(s"$substraitExprName with ansi mode is not supported")
     } else {
       GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
     }
@@ -315,6 +323,16 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   override def genColumnarShuffleExchange(
       shuffle: ShuffleExchangeExec,
       newChild: SparkPlan): SparkPlan = {
+    def allowHashOnMap[T](f: => T): T = {
+      val originalAllowHash = SQLConf.get.getConf(SQLConf.LEGACY_ALLOW_HASH_ON_MAPTYPE)
+      try {
+        SQLConf.get.setConf(SQLConf.LEGACY_ALLOW_HASH_ON_MAPTYPE, true)
+        f
+      } finally {
+        SQLConf.get.setConf(SQLConf.LEGACY_ALLOW_HASH_ON_MAPTYPE, originalAllowHash)
+      }
+    }
+
     shuffle.outputPartitioning match {
       case HashPartitioning(exprs, _) =>
         val hashExpr = new Murmur3Hash(exprs)
@@ -331,21 +349,46 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
           shuffle.withNewChildren(newChild :: Nil)
         }
       case RoundRobinPartitioning(num) if SQLConf.get.sortBeforeRepartition && num > 1 =>
-        val hashExpr = new Murmur3Hash(newChild.output)
-        val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ newChild.output
-        val projectTransformer = ProjectExecTransformer(projectList, newChild)
-        val sortOrder = SortOrder(projectTransformer.output.head, Ascending)
-        val sortByHashCode = SortExecTransformer(Seq(sortOrder), global = false, projectTransformer)
-        val dropSortColumnTransformer = ProjectExecTransformer(projectList.drop(1), sortByHashCode)
-        val validationResult = dropSortColumnTransformer.doValidate()
-        if (validationResult.isValid) {
-          ColumnarShuffleExchangeExec(
-            shuffle,
-            dropSortColumnTransformer,
-            dropSortColumnTransformer.output)
-        } else {
-          TransformHints.tagNotTransformable(shuffle, validationResult)
-          shuffle.withNewChildren(newChild :: Nil)
+        // scalastyle:off line.size.limit
+        // Temporarily allow hash on map if it's disabled, otherwise HashExpression will fail to get
+        // resolved if its child contains map type.
+        // See https://github.com/apache/spark/blob/609bd4839e5d504917de74ed1cb9c23645fba51f/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/expressions/hash.scala#L279-L283
+        // scalastyle:on line.size.limit
+        allowHashOnMap {
+          // Velox hash expression does not support null type and we also do not need to sort
+          // null type since the value always be null.
+          val columnsForHash = newChild.output.filterNot(_.dataType == NullType)
+          if (columnsForHash.isEmpty) {
+            ColumnarShuffleExchangeExec(shuffle, newChild, newChild.output)
+          } else {
+            val hashExpr = new Murmur3Hash(columnsForHash)
+            val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ newChild.output
+            val projectTransformer = ProjectExecTransformer(projectList, newChild)
+            val projectBeforeSortValidationResult = projectTransformer.doValidate()
+            // Make sure we support offload hash expression
+            val projectBeforeSort = if (projectBeforeSortValidationResult.isValid) {
+              projectTransformer
+            } else {
+              val project = ProjectExec(projectList, newChild)
+              TransformHints.tagNotTransformable(project, projectBeforeSortValidationResult)
+              project
+            }
+            val sortOrder = SortOrder(projectBeforeSort.output.head, Ascending)
+            val sortByHashCode =
+              SortExecTransformer(Seq(sortOrder), global = false, projectBeforeSort)
+            val dropSortColumnTransformer =
+              ProjectExecTransformer(projectList.drop(1), sortByHashCode)
+            val validationResult = dropSortColumnTransformer.doValidate()
+            if (validationResult.isValid) {
+              ColumnarShuffleExchangeExec(
+                shuffle,
+                dropSortColumnTransformer,
+                dropSortColumnTransformer.output)
+            } else {
+              TransformHints.tagNotTransformable(shuffle, validationResult)
+              shuffle.withNewChildren(newChild :: Nil)
+            }
+          }
         }
       case _ =>
         ColumnarShuffleExchangeExec(shuffle, newChild, null)
@@ -392,6 +435,15 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       right,
       isNullAwareAntiJoin)
 
+  override def genSampleExecTransformer(
+      lowerBound: Double,
+      upperBound: Double,
+      withReplacement: Boolean,
+      seed: Long,
+      child: SparkPlan): SampleExecTransformer = {
+    SampleExecTransformer(lowerBound, upperBound, withReplacement, seed, child)
+  }
+
   override def genSortMergeJoinExecTransformer(
       leftKeys: Seq[Expression],
       rightKeys: Seq[Expression],
@@ -429,7 +481,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       buildSide: BuildSide,
       joinType: JoinType,
       condition: Option[Expression]): BroadcastNestedLoopJoinExecTransformer =
-    GlutenBroadcastNestedLoopJoinExecTransformer(
+    VeloxBroadcastNestedLoopJoinExecTransformer(
       left,
       right,
       buildSide,

@@ -22,6 +22,8 @@
 
 namespace local_engine
 {
+
+int64_t searchLastPartitionIdIndex(DB::ColumnPtr column, size_t start, size_t partition_id);
 class SortedPartitionDataMerger;
 using SortedPartitionDataMergerPtr = std::unique_ptr<SortedPartitionDataMerger>;
 class SortedPartitionDataMerger

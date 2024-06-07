@@ -563,18 +563,68 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           arrayTransform
         )
       case tryEval @ TryEval(a: Add) =>
-        BackendsApiManager.getSparkPlanExecApiInstance.genTryAddTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
           substraitExprName,
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
-          tryEval
+          tryEval,
+          ExpressionNames.CHECK_ADD
+        )
+      case tryEval @ TryEval(a: Subtract) =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
+          tryEval,
+          ExpressionNames.CHECK_SUBTRACT
+        )
+      case tryEval @ TryEval(a: Divide) =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
+          tryEval,
+          ExpressionNames.CHECK_DIVIDE
+        )
+      case tryEval @ TryEval(a: Multiply) =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
+          tryEval,
+          ExpressionNames.CHECK_MULTIPLY
         )
       case a: Add =>
-        BackendsApiManager.getSparkPlanExecApiInstance.genAddTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
           substraitExprName,
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
-          a
+          a,
+          ExpressionNames.CHECK_ADD
+        )
+      case a: Subtract =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
+          a,
+          ExpressionNames.CHECK_SUBTRACT
+        )
+      case a: Multiply =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
+          a,
+          ExpressionNames.CHECK_MULTIPLY
+        )
+      case a: Divide =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
+          a,
+          ExpressionNames.CHECK_DIVIDE
         )
       case tryEval: TryEval =>
         // This is a placeholder to handle try_eval(other expressions).
@@ -654,7 +704,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       // or ColumnarBroadcastExchange was disabled.
       partitionFilters
     } else {
-      val newPartitionFilters = partitionFilters.map {
+      partitionFilters.map {
         case dynamicPruning: DynamicPruningExpression =>
           dynamicPruning.transform {
             // Lookup inside subqueries for duplicate exchanges.
@@ -723,25 +773,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           }
         case e: Expression => e
       }
-      updateSubqueryResult(newPartitionFilters)
-      newPartitionFilters
-    }
-  }
-
-  private def updateSubqueryResult(partitionFilters: Seq[Expression]): Unit = {
-    // When it includes some DynamicPruningExpression,
-    // it needs to execute InSubqueryExec first,
-    // because doTransform path can't execute 'doExecuteColumnar' which will
-    // execute prepare subquery first.
-    partitionFilters.foreach {
-      case DynamicPruningExpression(inSubquery: InSubqueryExec) =>
-        if (inSubquery.values().isEmpty) inSubquery.updateResult()
-      case e: Expression =>
-        e.foreach {
-          case s: ScalarSubquery => s.updateResult()
-          case _ =>
-        }
-      case _ =>
     }
   }
 }

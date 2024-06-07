@@ -16,11 +16,13 @@
  */
 package org.apache.gluten.datasource.v2
 
+import org.apache.gluten.datasource.ArrowCSVOptionConverter
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.memory.arrow.pool.ArrowNativeMemoryPool
 import org.apache.gluten.utils.ArrowUtil
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.csv.CSVOptions
 import org.apache.spark.sql.connector.read.ScanBuilder
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
 import org.apache.spark.sql.execution.datasources.FileFormat
@@ -30,6 +32,8 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.util.TaskResources
 
 import org.apache.hadoop.fs.FileStatus
+
+import scala.collection.JavaConverters.mapAsScalaMapConverter
 
 case class ArrowCSVTable(
     name: String,
@@ -48,9 +52,17 @@ case class ArrowCSVTable(
     } else {
       (ArrowBufferAllocators.contextInstance(), ArrowNativeMemoryPool.arrowPool("inferSchema"))
     }
+    val parsedOptions: CSVOptions = new CSVOptions(
+      options.asScala.toMap,
+      columnPruning = sparkSession.sessionState.conf.csvColumnPruning,
+      sparkSession.sessionState.conf.sessionLocalTimeZone,
+      sparkSession.sessionState.conf.columnNameOfCorruptRecord
+    )
+    val arrowConfig = ArrowCSVOptionConverter.convert(parsedOptions)
     ArrowUtil.readSchema(
       files.head,
       org.apache.arrow.dataset.file.FileFormat.CSV,
+      arrowConfig,
       allocator,
       pool
     )

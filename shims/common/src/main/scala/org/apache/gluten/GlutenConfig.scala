@@ -85,6 +85,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarBroadcastJoin: Boolean = conf.getConf(COLUMNAR_BROADCAST_JOIN_ENABLED)
 
+  def enableColumnarSample: Boolean = conf.getConf(COLUMNAR_SAMPLE_ENABLED)
+
   def enableColumnarArrowUDF: Boolean = conf.getConf(COLUMNAR_ARROW_UDF_ENABLED)
 
   def enableColumnarCoalesce: Boolean = conf.getConf(COLUMNAR_COALESCE_ENABLED)
@@ -295,7 +297,14 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def chColumnarShufflePreferSpill: Boolean = conf.getConf(COLUMNAR_CH_SHUFFLE_PREFER_SPILL_ENABLED)
 
-  def chColumnarShuffleSpillThreshold: Long = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
+  def chColumnarShuffleSpillThreshold: Long = {
+    val threshold = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
+    if (threshold == 0) {
+      (conf.getConf(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES) * 0.9).toLong
+    } else {
+      threshold
+    }
+  }
 
   def chColumnarThrowIfMemoryExceed: Boolean = conf.getConf(COLUMNAR_CH_THROW_IF_MEMORY_EXCEED)
 
@@ -307,7 +316,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def chColumnarSpillFirstlyBeforeStop: Boolean =
     conf.getConf(COLUMNAR_CH_SPILL_FIRSTLY_BEFORE_STOP)
 
-  def chColumnarForceSortShuffle: Boolean = conf.getConf(COLUMNAR_CH_FORCE_SORT_SHUFFLE)
+  def chColumnarForceExternalSortShuffle: Boolean =
+    conf.getConf(COLUMNAR_CH_FORCE_EXTERNAL_SORT_SHUFFLE)
+
+  def chColumnarForceMemorySortShuffle: Boolean =
+    conf.getConf(COLUMNAR_CH_FORCE_MEMORY_SORT_SHUFFLE)
 
   def cartesianProductTransformerEnabled: Boolean =
     conf.getConf(CARTESIAN_PRODUCT_TRANSFORMER_ENABLED)
@@ -694,6 +707,10 @@ object GlutenConfig {
 
     conf
       .filter(_._1.startsWith(SPARK_ABFS_ACCOUNT_KEY))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    conf
+      .filter(_._1.startsWith(SQLConf.SESSION_LOCAL_TIMEZONE.key))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // return
@@ -1209,7 +1226,7 @@ object GlutenConfig {
   val RAS_COST_MODEL =
     buildConf("spark.gluten.ras.costModel")
       .doc(
-        "Experimental: The classpath of user-defined cost model that will be used by RAS. " +
+        "Experimental: The class name of user-defined cost model that will be used by RAS. " +
           "If not specified, a rough built-in cost model will be used.")
       .stringConf
       .createWithDefaultString("rough")
@@ -1414,7 +1431,7 @@ object GlutenConfig {
       .internal()
       .doc("The maximum size of sort shuffle buffer in CH backend.")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("1GB")
+      .createWithDefaultString("0")
 
   val COLUMNAR_CH_SPILL_FIRSTLY_BEFORE_STOP =
     buildConf("spark.gluten.sql.columnar.backend.ch.spillFirstlyBeforeStop")
@@ -1423,11 +1440,17 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val COLUMNAR_CH_FORCE_SORT_SHUFFLE =
-    buildConf("spark.gluten.sql.columnar.backend.ch.forceSortShuffle")
+  val COLUMNAR_CH_FORCE_EXTERNAL_SORT_SHUFFLE =
+    buildConf("spark.gluten.sql.columnar.backend.ch.forceExternalSortShuffle")
       .internal()
-      .doc("Whether to force to use sort shuffle in CH backend. " +
-        "Sort shuffle will enable When partition num greater than 300.")
+      .doc("Whether to force to use external sort shuffle in CH backend. ")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_CH_FORCE_MEMORY_SORT_SHUFFLE =
+    buildConf("spark.gluten.sql.columnar.backend.ch.forceMemorySortShuffle")
+      .internal()
+      .doc("Whether to force to use memory sort shuffle in CH backend. ")
       .booleanConf
       .createWithDefault(false)
 
@@ -1771,6 +1794,13 @@ object GlutenConfig {
       .doc("Config to enable BroadcastNestedLoopJoinExecTransformer.")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_SAMPLE_ENABLED =
+    buildConf("spark.gluten.sql.columnarSampleEnabled")
+      .internal()
+      .doc("Disable or enable columnar sample.")
+      .booleanConf
+      .createWithDefault(false)
 
   val CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT =
     buildConf("spark.gluten.sql.cacheWholeStageTransformerContext")

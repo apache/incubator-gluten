@@ -61,7 +61,12 @@ trait PullOutProjectHelper {
       replaceBoundReference: Boolean = false): Expression =
     expr match {
       case alias: Alias =>
-        projectExprsMap.getOrElseUpdate(alias.child.canonicalized, alias).toAttribute
+        alias.child match {
+          case _: Literal =>
+            projectExprsMap.getOrElseUpdate(alias, alias).toAttribute
+          case _ =>
+            projectExprsMap.getOrElseUpdate(alias.child.canonicalized, alias).toAttribute
+        }
       case attr: Attribute => attr
       case e: BoundReference if !replaceBoundReference => e
       case other =>

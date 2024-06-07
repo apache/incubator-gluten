@@ -31,7 +31,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
-import org.apache.spark.sql.execution.{ExpandOutputPartitioningShim, SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.{ExpandOutputPartitioningShim, ExplainUtils, SparkPlan}
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashedRelationBroadcastMode, HashJoin}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
@@ -99,6 +99,11 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
 
   def joinBuildSide: BuildSide
   def hashJoinType: JoinType
+
+  override def simpleStringWithNodeId(): String = {
+    val opId = ExplainUtils.getOpId(this)
+    s"$nodeName $joinType $joinBuildSide ($opId)".trim
+  }
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] =
@@ -227,12 +232,12 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
     doNativeValidation(substraitContext, relNode)
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val streamedPlanContext = streamedPlan.asInstanceOf[TransformSupport].doTransform(context)
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
+    val streamedPlanContext = streamedPlan.asInstanceOf[TransformSupport].transform(context)
     val (inputStreamedRelNode, inputStreamedOutput) =
       (streamedPlanContext.root, streamedPlanContext.outputAttributes)
 
-    val buildPlanContext = buildPlan.asInstanceOf[TransformSupport].doTransform(context)
+    val buildPlanContext = buildPlan.asInstanceOf[TransformSupport].transform(context)
     val (inputBuildRelNode, inputBuildOutput) =
       (buildPlanContext.root, buildPlanContext.outputAttributes)
 
@@ -414,18 +419,4 @@ abstract class BroadcastHashJoinExecTransformerBase(
   override def genJoinParametersInternal(): (Int, Int, String) = {
     (1, if (isNullAwareAntiJoin) 1 else 0, buildHashTableId)
   }
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    val streamedRDD = getColumnarInputRDDs(streamedPlan)
-    val broadcastRDD = {
-      val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
-      BackendsApiManager.getBroadcastApiInstance
-        .collectExecutionBroadcastTableId(executionId, buildHashTableId)
-      createBroadcastBuildSideRDD()
-    }
-    // FIXME: Do we have to make build side a RDD?
-    streamedRDD :+ broadcastRDD
-  }
-
-  protected def createBroadcastBuildSideRDD(): BroadcastBuildSideRDD
 }

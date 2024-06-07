@@ -61,7 +61,8 @@ class CHColumnarShuffleWriter[K, V](
     GlutenConfig.getConf.chColumnarFlushBlockBufferBeforeEvict
   private val maxSortBufferSize = GlutenConfig.getConf.chColumnarMaxSortBufferSize
   private val spillFirstlyBeforeStop = GlutenConfig.getConf.chColumnarSpillFirstlyBeforeStop
-  private val forceSortShuffle = GlutenConfig.getConf.chColumnarForceSortShuffle
+  private val forceExternalSortShuffle = GlutenConfig.getConf.chColumnarForceExternalSortShuffle
+  private val forceMemorySortShuffle = GlutenConfig.getConf.chColumnarForceMemorySortShuffle
   private val spillThreshold = GlutenConfig.getConf.chColumnarShuffleSpillThreshold
   private val jniWrapper = new CHShuffleSplitterJniWrapper
   // Are we in the process of stopping? Because map tasks can call stop() with success = true
@@ -115,7 +116,8 @@ class CHColumnarShuffleWriter[K, V](
         flushBlockBufferBeforeEvict,
         maxSortBufferSize,
         spillFirstlyBeforeStop,
-        forceSortShuffle
+        forceExternalSortShuffle,
+        forceMemorySortShuffle
       )
       CHNativeMemoryAllocators.createSpillable(
         "ShuffleWriter",
@@ -127,9 +129,9 @@ class CHColumnarShuffleWriter[K, V](
                   "is created. This behavior should be optimized by moving memory " +
                   "allocations from make() to split()")
             }
-            logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
+            logError(s"Gluten shuffle writer: Trying to spill $size bytes of data")
             val spilled = splitterJniWrapper.evict(nativeSplitter);
-            logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
+            logError(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
             spilled
           }
 

@@ -55,16 +55,16 @@ TEST_F(BufferOutputStreamTest, outputStream) {
     reference->write(data.data(), data.size());
   }
   auto str = referenceSStream.str();
-  auto numBytes = veloxPool_->currentBytes();
+  auto numBytes = veloxPool_->usedBytes();
   EXPECT_LT(0, numBytes);
   {
     auto buffer = out->getBuffer();
-    EXPECT_EQ(numBytes, veloxPool_->currentBytes());
+    EXPECT_EQ(numBytes, veloxPool_->usedBytes());
     EXPECT_EQ(str, std::string(buffer->as<char>(), buffer->size()));
   }
 
   out.reset();
   // We expect dropping the stream frees the backing memory.
-  EXPECT_EQ(0, veloxPool_->currentBytes());
+  EXPECT_EQ(0, veloxPool_->usedBytes());
 }
 } // namespace gluten

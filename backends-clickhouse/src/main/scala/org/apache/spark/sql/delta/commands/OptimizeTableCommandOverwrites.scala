@@ -25,6 +25,7 @@ import org.apache.spark.internal.io.SparkHadoopWriterUtils
 import org.apache.spark.shuffle.FetchFailedException
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
+import org.apache.spark.sql.catalyst.catalog.CatalogTableType
 import org.apache.spark.sql.delta._
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
@@ -243,21 +244,6 @@ object OptimizeTableCommandOverwrites extends Logging {
 
   }
 
-  private def isDeltaTable(spark: SparkSession, tableName: TableIdentifier): Boolean = {
-    val catalog = spark.sessionState.catalog
-    val tableIsNotTemporaryTable = !catalog.isTempView(tableName)
-    val tableExists = {
-      (tableName.database.isEmpty || catalog.databaseExists(tableName.database.get)) &&
-      catalog.tableExists(tableName)
-    }
-    tableIsNotTemporaryTable && tableExists && catalog
-      .getTableMetadata(tableName)
-      .provider
-      .get
-      .toLowerCase()
-      .equals("clickhouse")
-  }
-
   def getDeltaLogClickhouse(
       spark: SparkSession,
       path: Option[String],
@@ -276,7 +262,17 @@ object OptimizeTableCommandOverwrites extends Logging {
         } else if (CHDataSourceUtils.isClickHouseTable(spark, tableIdentifier.get)) {
           new Path(metadata.location)
         } else {
-          throw DeltaErrors.notADeltaTableException(operationName)
+          DeltaTableIdentifier(spark, tableIdentifier.get) match {
+            case Some(id) if id.path.nonEmpty =>
+              new Path(id.path.get)
+            case Some(id) if id.table.nonEmpty =>
+              new Path(metadata.location)
+            case _ =>
+              if (metadata.tableType == CatalogTableType.VIEW) {
+                throw DeltaErrors.viewNotSupported(operationName)
+              }
+              throw DeltaErrors.notADeltaTableException(operationName)
+          }
         }
       } else {
         throw DeltaErrors.missingTableIdentifierException(operationName)

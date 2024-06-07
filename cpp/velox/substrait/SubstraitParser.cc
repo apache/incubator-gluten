@@ -400,7 +400,6 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"modulus", "remainder"},
     {"date_format", "format_datetime"},
     {"collect_set", "set_agg"},
-    {"try_add", "plus"},
     {"forall", "all_match"},
     {"exists", "any_match"},
     {"negative", "unaryminus"},

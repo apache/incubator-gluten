@@ -37,7 +37,8 @@ public class CHShuffleSplitterJniWrapper {
       boolean flushBlockBufferBeforeEvict,
       long maxSortBufferSize,
       boolean spillFirstlyBeforeStop,
-      boolean forceSort) {
+      boolean forceExternalSort,
+      boolean forceMemorySort) {
     return nativeMake(
         part.getShortName(),
         part.getNumPartitions(),
@@ -57,7 +58,8 @@ public class CHShuffleSplitterJniWrapper {
         flushBlockBufferBeforeEvict,
         maxSortBufferSize,
         spillFirstlyBeforeStop,
-        forceSort);
+        forceExternalSort,
+        forceMemorySort);
   }
 
   public long makeForRSS(
@@ -70,7 +72,9 @@ public class CHShuffleSplitterJniWrapper {
       String hashAlgorithm,
       Object pusher,
       boolean throwIfMemoryExceed,
-      boolean flushBlockBufferBeforeEvict) {
+      boolean flushBlockBufferBeforeEvict,
+      boolean forceExternalSort,
+      boolean forceMemorySort) {
     return nativeMakeForRSS(
         part.getShortName(),
         part.getNumPartitions(),
@@ -84,7 +88,9 @@ public class CHShuffleSplitterJniWrapper {
         hashAlgorithm,
         pusher,
         throwIfMemoryExceed,
-        flushBlockBufferBeforeEvict);
+        flushBlockBufferBeforeEvict,
+        forceExternalSort,
+        forceMemorySort);
   }
 
   public native long nativeMake(
@@ -106,7 +112,8 @@ public class CHShuffleSplitterJniWrapper {
       boolean flushBlockBufferBeforeEvict,
       long maxSortBufferSize,
       boolean spillFirstlyBeforeStop,
-      boolean forceSort);
+      boolean forceSort,
+      boolean forceMemorySort);
 
   public native long nativeMakeForRSS(
       String shortName,
@@ -121,7 +128,9 @@ public class CHShuffleSplitterJniWrapper {
       String hashAlgorithm,
       Object pusher,
       boolean throwIfMemoryExceed,
-      boolean flushBlockBufferBeforeEvict);
+      boolean flushBlockBufferBeforeEvict,
+      boolean forceSort,
+      boolean forceMemorySort);
 
   public native void split(long splitterId, long block);
 

@@ -30,7 +30,7 @@ sbin/gluten-it.sh
 
 ```
 Usage: gluten-it [-hV] [COMMAND]
-Gluten integration test using TPC benchmark's data and queries.
+Gluten integration test using various of benchmark's data and queries.
   -h, --help      Show this help message and exit.
   -V, --version   Print version information and exit.
 Commands:

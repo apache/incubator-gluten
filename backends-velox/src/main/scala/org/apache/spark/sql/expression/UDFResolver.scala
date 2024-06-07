@@ -175,12 +175,16 @@ object UDFResolver extends Logging {
       intermediateTypes: ExpressionType,
       variableArity: Boolean): Unit = {
     assert(argTypes.dataType.isInstanceOf[StructType])
-    assert(intermediateTypes.dataType.isInstanceOf[StructType])
 
-    val aggBufferAttributes =
-      intermediateTypes.dataType.asInstanceOf[StructType].fields.zipWithIndex.map {
-        case (f, index) =>
-          AttributeReference(s"inter_$index", f.dataType, f.nullable)()
+    val aggBufferAttributes: Seq[AttributeReference] =
+      intermediateTypes.dataType match {
+        case StructType(fields) =>
+          fields.zipWithIndex.map {
+            case (f, index) =>
+              AttributeReference(s"agg_inter_$index", f.dataType, f.nullable)()
+          }
+        case t =>
+          Seq(AttributeReference(s"agg_inter", t)())
       }
 
     val v =

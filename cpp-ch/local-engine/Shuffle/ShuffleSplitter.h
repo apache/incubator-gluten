@@ -53,7 +53,8 @@ struct SplitOptions
     size_t max_sort_buffer_size = 1_GiB;
     // Whether to spill firstly before stop external sort shuffle.
     bool spill_firstly_before_stop = true;
-    bool force_sort = true;
+    bool force_external_sort = false;
+    bool force_mermory_sort = false;
 };
 
 class ColumnsBuffer
