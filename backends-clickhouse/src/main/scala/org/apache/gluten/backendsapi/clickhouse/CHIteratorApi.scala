@@ -131,6 +131,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           paths,
           starts,
           lengths,
+          new JArrayList<Long>(),
+          new JArrayList<Long>(),
           partitionColumns,
           new JArrayList[JMap[String, String]](),
           fileFormat,
