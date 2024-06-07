@@ -214,11 +214,15 @@ public:
 class IgnoreMemoryTracker
 {
 public:
-    explicit IgnoreMemoryTracker(size_t limit_) : limit(limit_) { DB::CurrentThread::get().untracked_memory_limit += limit; }
-    ~IgnoreMemoryTracker() { DB::CurrentThread::get().untracked_memory_limit -= limit; }
+    explicit IgnoreMemoryTracker(size_t limit_)
+    {
+        orgianl_untracked_memory_limit = DB::CurrentThread::get().untracked_memory_limit;
+        DB::CurrentThread::get().untracked_memory_limit += limit_;
+    }
+    ~IgnoreMemoryTracker() { DB::CurrentThread::get().untracked_memory_limit = orgianl_untracked_memory_limit; }
 
 private:
-    size_t limit;
+    size_t orgianl_untracked_memory_limit;
 };
 
 class DateTimeUtil
