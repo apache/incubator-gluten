@@ -711,6 +711,21 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       val q = "select sqrt(id),sqrt(id)='NaN' from tb_scrt"
       runQueryAndCompare(q)(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
+  }
 
+  test("equalTo rewrite to isNaN") {
+    withTable("tb_scrt") {
+      sql("create table tb_scrt(id int) using parquet")
+      sql("""
+            |insert into tb_scrt values (-2147483648),(-2147483648)
+            |""".stripMargin)
+      val q = "select sqrt(id),sqrt(id)='NaN' from tb_scrt"
+      runQueryAndCompare(q)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("Fix issue(6016) allow overflow when converting decimal to integer") {
+    val sql = "select int(cast(id * 10000000000 as decimal(29, 2))) from range(10)"
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 }
