@@ -117,7 +117,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         val partitionColumns = new JArrayList[JMap[String, String]]
         f.files.foreach {
           file =>
-            paths.add(new URI(file.filePath).toASCIIString)
+            paths.add(new URI(file.filePath.toString()).toASCIIString)
             starts.add(JLong.valueOf(file.start))
             lengths.add(JLong.valueOf(file.length))
             // TODO: Support custom partition location

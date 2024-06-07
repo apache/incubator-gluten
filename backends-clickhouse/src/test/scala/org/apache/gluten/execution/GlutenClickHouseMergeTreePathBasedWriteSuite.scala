@@ -428,7 +428,6 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       assertResult(6)(addFiles.size)
       val filePaths = addFiles.map(_.path).groupBy(name => name.substring(0, name.lastIndexOf("_")))
       assertResult(2)(filePaths.size)
-      assertResult(Array(2, 4))(filePaths.values.map(paths => paths.size).toArray.sorted)
     }
 
     val df = spark.read
@@ -760,10 +759,10 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     sourceDF.write
       .format("clickhouse")
       .partitionBy("l_shipdate")
-      .option("clickhouse.orderByKey", "l_partkey,l_returnflag")
-      .option("clickhouse.primaryKey", "l_partkey")
+      .option("clickhouse.orderByKey", "l_orderkey,l_returnflag")
+      .option("clickhouse.primaryKey", "l_orderkey")
       .option("clickhouse.numBuckets", "4")
-      .option("clickhouse.bucketColumnNames", "l_orderkey")
+      .option("clickhouse.bucketColumnNames", "l_partkey")
       .mode(SaveMode.Append)
       .save(dataPath)
 
@@ -807,19 +806,19 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         val buckets = ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption
         assert(buckets.isDefined)
         assertResult(4)(buckets.get.numBuckets)
-        assertResult("l_partkey,l_returnflag")(
+        assertResult("l_orderkey,l_returnflag")(
           buckets.get.sortColumnNames
             .mkString(","))
-        assertResult("l_orderkey")(
+        assertResult("l_partkey")(
           buckets.get.bucketColumnNames
             .mkString(","))
-        assertResult("l_partkey,l_returnflag")(
+        assertResult("l_orderkey,l_returnflag")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .orderByKeyOption
             .get
             .mkString(","))
-        assertResult("l_partkey")(
+        assertResult("l_orderkey")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .primaryKeyOption

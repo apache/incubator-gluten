@@ -434,9 +434,6 @@ class GlutenClickHouseMergeTreeWriteSuite
     val df1 = spark.sql(s"""
                            | delete from lineitem_mergetree_delete where l_orderkey = 12647
                            |""".stripMargin)
-//    assert(
-//      df1.collect().apply(0).get(0) == 1
-//    )
 
     {
       val df = spark.sql(s"""
@@ -868,8 +865,8 @@ class GlutenClickHouseMergeTreeWriteSuite
          |)
          |USING clickhouse
          |PARTITIONED BY (l_shipdate)
-         |CLUSTERED BY (l_orderkey)
-         |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_partkey, l_returnflag)"} INTO 4 BUCKETS
+         |CLUSTERED BY (l_partkey)
+         |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_orderkey, l_returnflag)"} INTO 4 BUCKETS
          |LOCATION '$basePath/lineitem_mergetree_bucket'
          |""".stripMargin)
 
@@ -919,7 +916,7 @@ class GlutenClickHouseMergeTreeWriteSuite
         if (sparkVersion.equals("3.2")) {
           assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKeyOption.isEmpty)
         } else {
-          assertResult("l_partkey,l_returnflag")(
+          assertResult("l_orderkey,l_returnflag")(
             ClickHouseTableV2
               .getTable(fileIndex.deltaLog)
               .orderByKeyOption

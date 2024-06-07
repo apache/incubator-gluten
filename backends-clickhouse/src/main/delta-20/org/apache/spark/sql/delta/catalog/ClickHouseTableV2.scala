@@ -17,11 +17,11 @@
 package org.apache.spark.sql.delta.catalog
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable}
+import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
-import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaErrors, DeltaLog, DeltaTimeTravelSpec}
+import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaErrors, DeltaLog, DeltaTimeTravelSpec, Snapshot}
 import org.apache.spark.sql.delta.actions.Metadata
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2.deltaLog2Table
 import org.apache.spark.sql.delta.sources.DeltaDataSource
@@ -54,8 +54,8 @@ class ClickHouseTableV2(
     tableIdentifier,
     timeTravelOpt,
     options,
-    cdcOptions) {
-  protected def getMetadata: Metadata = if (snapshot == null) Metadata() else snapshot.metadata
+    cdcOptions)
+  with ClickHouseTableV2Base {
 
   lazy val (rootPath, partitionFilters, timeTravelByPath) = {
     if (catalogTable.isDefined) {
@@ -93,126 +93,6 @@ class ClickHouseTableV2(
     new WriteIntoDeltaBuilder(deltaLog, info.options)
   }
 
-  lazy val dataBaseName = catalogTable
-    .map(_.identifier.database.getOrElse("default"))
-    .getOrElse("clickhouse")
-
-  lazy val tableName = catalogTable
-    .map(_.identifier.table)
-    .getOrElse(path.toUri.getPath)
-
-  lazy val bucketOption: Option[BucketSpec] = {
-    val tableProperties = properties()
-    if (tableProperties.containsKey("numBuckets")) {
-      val numBuckets = tableProperties.get("numBuckets").trim.toInt
-      val bucketColumnNames: Seq[String] =
-        tableProperties.get("bucketColumnNames").split(",").map(_.trim).toSeq
-      val sortColumnNames: Seq[String] = if (tableProperties.containsKey("orderByKey")) {
-        tableProperties.get("orderByKey").split(",").map(_.trim).toSeq
-      } else Seq.empty[String]
-      Some(BucketSpec(numBuckets, bucketColumnNames, sortColumnNames))
-    } else {
-      None
-    }
-  }
-
-  lazy val lowCardKeyOption: Option[Seq[String]] = {
-    getCommaSeparatedColumns("lowCardKey")
-  }
-
-  lazy val minmaxIndexKeyOption: Option[Seq[String]] = {
-    getCommaSeparatedColumns("minmaxIndexKey")
-  }
-
-  lazy val bfIndexKeyOption: Option[Seq[String]] = {
-    getCommaSeparatedColumns("bloomfilterIndexKey")
-  }
-
-  lazy val setIndexKeyOption: Option[Seq[String]] = {
-    getCommaSeparatedColumns("setIndexKey")
-  }
-
-  private def getCommaSeparatedColumns(keyName: String) = {
-    val tableProperties = properties()
-    if (tableProperties.containsKey(keyName)) {
-      if (tableProperties.get(keyName).nonEmpty) {
-        val keys = tableProperties.get(keyName).split(",").map(_.trim).toSeq
-        keys.foreach(
-          s => {
-            if (s.contains(".")) {
-              throw new IllegalStateException(
-                s"$keyName $s can not contain '.' (not support nested column yet)")
-            }
-          })
-        Some(keys.map(s => s.toLowerCase()))
-      } else {
-        None
-      }
-    } else {
-      None
-    }
-  }
-
-  lazy val orderByKeyOption: Option[Seq[String]] = {
-    if (bucketOption.isDefined && bucketOption.get.sortColumnNames.nonEmpty) {
-      val orderByKes = bucketOption.get.sortColumnNames
-      val invalidKeys = orderByKes.intersect(partitionColumns)
-      if (invalidKeys.nonEmpty) {
-        throw new IllegalStateException(
-          s"partition cols $invalidKeys can not be in the order by keys.")
-      }
-      Some(orderByKes)
-    } else {
-      val tableProperties = properties()
-      if (tableProperties.containsKey("orderByKey")) {
-        if (tableProperties.get("orderByKey").nonEmpty) {
-          val orderByKes = tableProperties.get("orderByKey").split(",").map(_.trim).toSeq
-          val invalidKeys = orderByKes.intersect(partitionColumns)
-          if (invalidKeys.nonEmpty) {
-            throw new IllegalStateException(
-              s"partition cols $invalidKeys can not be in the order by keys.")
-          }
-          Some(orderByKes)
-        } else {
-          None
-        }
-      } else {
-        None
-      }
-    }
-  }
-
-  lazy val primaryKeyOption: Option[Seq[String]] = {
-    if (orderByKeyOption.isDefined) {
-      val tableProperties = properties()
-      if (tableProperties.containsKey("primaryKey")) {
-        if (tableProperties.get("primaryKey").nonEmpty) {
-          val primaryKeys = tableProperties.get("primaryKey").split(",").map(_.trim).toSeq
-          if (!orderByKeyOption.get.mkString(",").startsWith(primaryKeys.mkString(","))) {
-            throw new IllegalStateException(
-              s"Primary key $primaryKeys must be a prefix of the sorting key")
-          }
-          Some(primaryKeys)
-        } else {
-          None
-        }
-      } else {
-        None
-      }
-    } else {
-      None
-    }
-  }
-
-  lazy val partitionColumns = snapshot.metadata.partitionColumns
-
-  lazy val clickhouseTableConfigs: Map[String, String] = {
-    val tableProperties = properties()
-    val configs = scala.collection.mutable.Map[String, String]()
-    configs += ("storage_policy" -> tableProperties.getOrDefault("storage_policy", "default"))
-    configs.toMap
-  }
-
   def getFileFormat(meta: Metadata): DeltaMergeTreeFileFormat = {
     new DeltaMergeTreeFileFormat(
       meta,
@@ -230,41 +110,19 @@ class ClickHouseTableV2(
     )
   }
 
+  override def deltaProperties(): ju.Map[String, String] = properties()
+
+  override def deltaCatalog(): Option[CatalogTable] = catalogTable
+
+  override def deltaPath(): Path = path
+
+  override def deltaSnapshot(): Snapshot = snapshot
+
   def cacheThis(): Unit = {
     deltaLog2Table.put(deltaLog, this)
   }
 
   cacheThis()
-
-  def primaryKey(): String = primaryKeyOption match {
-    case Some(keys) => keys.mkString(",")
-    case None => ""
-  }
-
-  def orderByKey(): String = orderByKeyOption match {
-    case Some(keys) => keys.mkString(",")
-    case None => "tuple()"
-  }
-
-  def lowCardKey(): String = lowCardKeyOption match {
-    case Some(keys) => keys.mkString(",")
-    case None => ""
-  }
-
-  def minmaxIndexKey(): String = minmaxIndexKeyOption match {
-    case Some(keys) => keys.mkString(",")
-    case None => ""
-  }
-
-  def bfIndexKey(): String = bfIndexKeyOption match {
-    case Some(keys) => keys.mkString(",")
-    case None => ""
-  }
-
-  def setIndexKey(): String = setIndexKeyOption match {
-    case Some(keys) => keys.mkString(",")
-    case None => ""
-  }
 }
 
 @SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))

@@ -16,42 +16,24 @@
  */
 package org.apache.spark.sql.execution.utils
 
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.catalyst.util.RebaseDateTime.RebaseSpec
-import org.apache.spark.sql.execution.datasources.DataSourceStrategy
-import org.apache.spark.sql.execution.datasources.parquet.{ParquetFilters, SparkToParquetSchemaConverter}
-import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.internal.SQLConf.LegacyBehaviorPolicy
-import org.apache.spark.sql.sources
-import org.apache.spark.sql.types.StructType
+import org.apache.gluten.sql.shims.SparkShimLoader
 
-import org.apache.parquet.schema.MessageType
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.execution.datasources.DataSourceStrategy
+import org.apache.spark.sql.execution.datasources.parquet.SparkToParquetSchemaConverter
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.sources
 
 object PushDownUtil {
-  private def createParquetFilters(
-      conf: SQLConf,
-      schema: MessageType,
-      caseSensitive: Option[Boolean] = None,
-      datetimeRebaseSpec: RebaseSpec = RebaseSpec(LegacyBehaviorPolicy.CORRECTED)
-  ): ParquetFilters =
-    new ParquetFilters(
-      schema,
-      conf.parquetFilterPushDownDate,
-      conf.parquetFilterPushDownTimestamp,
-      conf.parquetFilterPushDownDecimal,
-      conf.parquetFilterPushDownStringStartWith,
-      conf.parquetFilterPushDownInFilterThreshold,
-      caseSensitive.getOrElse(conf.caseSensitiveAnalysis),
-      datetimeRebaseSpec
-    )
 
   def removeNotSupportPushDownFilters(
       conf: SQLConf,
       output: Seq[Attribute],
       dataFilters: Seq[Expression]
   ): Seq[Expression] = {
-    val schema = new SparkToParquetSchemaConverter(conf).convert(StructType.fromAttributes(output))
-    val parquetFilters = createParquetFilters(conf, schema)
+    val schema = new SparkToParquetSchemaConverter(conf).convert(
+      SparkShimLoader.getSparkShims.structFromAttributes(output))
+    val parquetFilters = SparkShimLoader.getSparkShims.createParquetFilters(conf, schema)
 
     dataFilters
       .flatMap {
