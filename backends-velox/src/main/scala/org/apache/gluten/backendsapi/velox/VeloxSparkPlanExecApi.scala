@@ -728,7 +728,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] = List(
     BloomFilterMightContainJointRewriteRule.apply,
-    ArrowScanReplaceRule.apply
+    ArrowScanReplaceRule.apply,
+    InputFileNameReplaceRule.apply
   )
 
   /**

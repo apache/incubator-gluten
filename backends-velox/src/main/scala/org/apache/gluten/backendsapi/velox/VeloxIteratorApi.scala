@@ -19,6 +19,7 @@ package org.apache.gluten.backendsapi.velox
 import org.apache.gluten.GlutenNumaBindingInfo
 import org.apache.gluten.backendsapi.IteratorApi
 import org.apache.gluten.execution._
+import org.apache.gluten.extension.InputFileNameReplaceRule
 import org.apache.gluten.metrics.IMetrics
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.plan.PlanNode
@@ -102,7 +103,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
     val starts = new JArrayList[JLong]
     val lengths = new JArrayList[JLong]()
     val partitionColumns = new JArrayList[JMap[String, String]]
-    var metadataColumns = new JArrayList[JMap[String, String]]
+    val metadataColumns = new JArrayList[JMap[String, String]]
     files.foreach {
       file =>
         // The "file.filePath" in PartitionedFile is not the original encoded path, so the decoded
@@ -112,8 +113,9 @@ class VeloxIteratorApi extends IteratorApi with Logging {
             .decode(file.filePath.toString, StandardCharsets.UTF_8.name()))
         starts.add(JLong.valueOf(file.start))
         lengths.add(JLong.valueOf(file.length))
-        val metadataColumn =
+        var metadataColumn =
           SparkShimLoader.getSparkShims.generateMetadataColumns(file, metadataColumnNames)
+        metadataColumn.put(InputFileNameReplaceRule.replacedInputFileName, file.filePath.toString())
         metadataColumns.add(metadataColumn)
         val partitionColumn = new JHashMap[String, String]()
         for (i <- 0 until file.partitionValues.numFields) {
