@@ -55,10 +55,10 @@ class ColumnarShuffleManager(conf: SparkConf) extends ShuffleManager with Loggin
 
   /** Get a writer for a given partition. Called on executors by map tasks. */
   override def getWriter[K, V](
-                                handle: ShuffleHandle,
-                                mapId: Long,
-                                context: TaskContext,
-                                metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
+      handle: ShuffleHandle,
+      mapId: Long,
+      context: TaskContext,
+      metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
     val mapTaskIds =
       taskIdMapsForShuffle.computeIfAbsent(handle.shuffleId, _ => new OpenHashSet[Long](16))
     mapTaskIds.synchronized {
