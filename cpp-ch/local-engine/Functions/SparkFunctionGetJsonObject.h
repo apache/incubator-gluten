@@ -113,6 +113,8 @@ public:
         JSONStringSerializer serializer(*col_str);
         if (elements.size() == 1) [[likely]]
         {
+            if (elements[0].isNull())
+                return false;
             nullable_col_str.getNullMapData().push_back(0);
             if (elements[0].isString())
             {
