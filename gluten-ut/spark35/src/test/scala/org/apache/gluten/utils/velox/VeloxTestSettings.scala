@@ -771,10 +771,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileFormatWriterSuite]
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenFileMetadataStructSuite]
-    .exclude("metadata struct (parquet): select only metadata")
-    .exclude("SPARK-41896: Filter on constant and generated metadata attributes at the same time")
-    .exclude("SPARK-43450: Filter on full _metadata column struct")
-    .exclude("SPARK-43450: Filter on aliased _metadata.row_index")
   enableSuite[GlutenParquetV1AggregatePushDownSuite]
   enableSuite[GlutenParquetV2AggregatePushDownSuite]
   enableSuite[GlutenOrcV1AggregatePushDownSuite]
