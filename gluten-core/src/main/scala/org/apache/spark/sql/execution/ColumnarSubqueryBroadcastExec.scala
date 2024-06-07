@@ -24,8 +24,6 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.QueryPlan
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
-import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelation, HashJoin, LongHashedRelation}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.util.ThreadUtils
@@ -75,35 +73,25 @@ case class ColumnarSubqueryBroadcastExec(
       SQLExecution.withExecutionId(session, executionId) {
         val rows = GlutenTimeMetric.millis(longMetric("collectTime")) {
           _ =>
-            val exchangeChild = child match {
-              case exec: ReusedExchangeExec =>
-                exec.child
-              case _ =>
-                child
-            }
-            if (
-              exchangeChild.isInstanceOf[ColumnarBroadcastExchangeExec] ||
-              exchangeChild.isInstanceOf[AdaptiveSparkPlanExec]
-            ) {
-              // transform broadcasted columnar value to Array[InternalRow] by key
-              exchangeChild
-                .executeBroadcast[BuildSideRelation]
-                .value
-                .transform(buildKeys(index))
-                .distinct
-            } else {
-              val broadcastRelation = exchangeChild.executeBroadcast[HashedRelation]().value
-              val (iter, expr) = if (broadcastRelation.isInstanceOf[LongHashedRelation]) {
-                (broadcastRelation.keys(), HashJoin.extractKeyExprAt(buildKeys, index))
-              } else {
-                (
-                  broadcastRelation.keys(),
-                  BoundReference(index, buildKeys(index).dataType, buildKeys(index).nullable))
-              }
+            val relation = child.executeBroadcast[Any]().value
+            relation match {
+              case b: BuildSideRelation =>
+                b.transform(buildKeys(index)).distinct
+              case h: HashedRelation =>
+                val (iter, expr) = if (h.isInstanceOf[LongHashedRelation]) {
+                  (h.keys(), HashJoin.extractKeyExprAt(buildKeys, index))
+                } else {
+                  (
+                    h.keys(),
+                    BoundReference(index, buildKeys(index).dataType, buildKeys(index).nullable))
+                }
 
-              val proj = UnsafeProjection.create(expr)
-              val keyIter = iter.map(proj).map(_.copy())
-              keyIter.toArray[InternalRow].distinct
+                val proj = UnsafeProjection.create(expr)
+                val keyIter = iter.map(proj).map(_.copy())
+                keyIter.toArray[InternalRow].distinct
+              case other =>
+                throw new UnsupportedOperationException(
+                  s"Unrecognizable broadcast relation: $other")
             }
         }
         val dataSize = rows.map(_.asInstanceOf[UnsafeRow].getSizeInBytes).sum

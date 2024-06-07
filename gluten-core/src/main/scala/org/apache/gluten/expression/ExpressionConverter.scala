@@ -700,20 +700,11 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       val newChild = from.child match {
         case exchange: BroadcastExchangeExec =>
           toColumnarBroadcastExchange(exchange)
-        case aqe: AdaptiveSparkPlanExec if !aqe.supportsColumnar =>
-          // ColumnarSubqueryBroadcastExec strictly requires for
-          // child with columnar output. AQE with supportsColumnar=false
-          // may produce row plan that will fail the subsequent processing.
-          // Thus we replace it with supportsColumnar=true to make sure
-          // columnar output is emitted from AQE.
-          val newAqe = AdaptiveSparkPlanExec(
-            aqe.inputPlan,
-            aqe.context,
-            aqe.preprocessingRules,
-            aqe.isSubquery,
-            supportsColumnar = true)
-          newAqe.copyTagsFrom(aqe)
-          newAqe
+        case aqe: AdaptiveSparkPlanExec =>
+          // Keeps the child if its is AQE even if its supportsColumnar == false.
+          // ColumnarSubqueryBroadcastExec is compatible with both row-based
+          // and columnar inputs.
+          aqe
         case other => other
       }
       val out = ColumnarSubqueryBroadcastExec(from.name, from.index, from.buildKeys, newChild)
