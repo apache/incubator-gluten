@@ -76,6 +76,7 @@ case class ColumnarSubqueryBroadcastExec(
             val relation = child.executeBroadcast[Any]().value
             relation match {
               case b: BuildSideRelation =>
+                // Transform columnar broadcast value to Array[InternalRow] by key.
                 b.transform(buildKeys(index)).distinct
               case h: HashedRelation =>
                 val (iter, expr) = if (h.isInstanceOf[LongHashedRelation]) {
@@ -85,7 +86,6 @@ case class ColumnarSubqueryBroadcastExec(
                     h.keys(),
                     BoundReference(index, buildKeys(index).dataType, buildKeys(index).nullable))
                 }
-
                 val proj = UnsafeProjection.create(expr)
                 val keyIter = iter.map(proj).map(_.copy())
                 keyIter.toArray[InternalRow].distinct
