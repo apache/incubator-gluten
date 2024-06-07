@@ -690,11 +690,34 @@ object ExpressionConverter extends SQLConfHelper with Logging {
    *   Transformed partition filter
    */
   def transformDynamicPruningExpr(partitionFilters: Seq[Expression]): Seq[Expression] = {
-
-    def convertBroadcastExchangeToColumnar(
+    def toColumnarBroadcastExchange(
         exchange: BroadcastExchangeExec): ColumnarBroadcastExchangeExec = {
       val newChild = Transitions.toBackendBatchPlan(exchange.child)
       ColumnarBroadcastExchangeExec(exchange.mode, newChild)
+    }
+
+    def toColumnarSubqueryBroadcast(from: SubqueryBroadcastExec): ColumnarSubqueryBroadcastExec = {
+      val newChild = from.child match {
+        case exchange: BroadcastExchangeExec =>
+          toColumnarBroadcastExchange(exchange)
+        case aqe: AdaptiveSparkPlanExec if !aqe.supportsColumnar =>
+          // ColumnarSubqueryBroadcastExec strictly requires for
+          // child with columnar output. AQE with supportsColumnar=false
+          // may produce row plan that will fail the subsequent processing.
+          // Thus we replace it with supportsColumnar=true to make sure
+          // columnar output is emitted from AQE.
+          val newAqe = AdaptiveSparkPlanExec(
+            aqe.inputPlan,
+            aqe.context,
+            aqe.preprocessingRules,
+            aqe.isSubquery,
+            supportsColumnar = true)
+          newAqe.copyTagsFrom(aqe)
+          newAqe
+        case other => other
+      }
+      val out = ColumnarSubqueryBroadcastExec(from.name, from.index, from.buildKeys, newChild)
+      out
     }
 
     if (
@@ -708,21 +731,10 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         case dynamicPruning: DynamicPruningExpression =>
           dynamicPruning.transform {
             // Lookup inside subqueries for duplicate exchanges.
-            case in: InSubqueryExec =>
-              in.plan match {
+            case inSubquery: InSubqueryExec =>
+              inSubquery.plan match {
                 case s: SubqueryBroadcastExec =>
-                  val newIn = s
-                    .transform {
-                      case exchange: BroadcastExchangeExec =>
-                        convertBroadcastExchangeToColumnar(exchange)
-                    }
-                    .asInstanceOf[SubqueryBroadcastExec]
-                  val transformSubqueryBroadcast = ColumnarSubqueryBroadcastExec(
-                    newIn.name,
-                    newIn.index,
-                    newIn.buildKeys,
-                    newIn.child)
-
+                  val columnarSubqueryBroadcast = toColumnarSubqueryBroadcast(s)
                   // When AQE is on, spark will apply ReuseAdaptiveSubquery rule first,
                   // it will reuse vanilla SubqueryBroadcastExec,
                   // and then use gluten ColumnarOverrides rule to transform Subquery,
@@ -734,41 +746,37 @@ object ExpressionConverter extends SQLConfHelper with Logging {
                   // On the other hand, it needs to use
                   // the AdaptiveSparkPlanExec.AdaptiveExecutionContext to hold the reused map
                   // for each query.
-                  newIn.child match {
+                  columnarSubqueryBroadcast.child match {
                     case a: AdaptiveSparkPlanExec if SQLConf.get.subqueryReuseEnabled =>
                       // When AQE is on and reuseSubquery is on.
                       a.context.subqueryCache
-                        .update(newIn.canonicalized, transformSubqueryBroadcast)
+                        .update(columnarSubqueryBroadcast.canonicalized, columnarSubqueryBroadcast)
                     case _ =>
                   }
-                  in.copy(plan = transformSubqueryBroadcast.asInstanceOf[BaseSubqueryExec])
-                case r: ReusedSubqueryExec if r.child.isInstanceOf[SubqueryBroadcastExec] =>
-                  val newIn = r.child
-                    .transform {
-                      case exchange: BroadcastExchangeExec =>
-                        convertBroadcastExchangeToColumnar(exchange)
-                    }
-                    .asInstanceOf[SubqueryBroadcastExec]
-                  newIn.child match {
+                  inSubquery.copy(plan = columnarSubqueryBroadcast.asInstanceOf[BaseSubqueryExec])
+                case ReusedSubqueryExec(s: SubqueryBroadcastExec) =>
+                  val columnarSubqueryBroadcast = toColumnarSubqueryBroadcast(s)
+                  columnarSubqueryBroadcast.child match {
                     case a: AdaptiveSparkPlanExec =>
                       // Only when AQE is on, it needs to replace SubqueryBroadcastExec
                       // with reused ColumnarSubqueryBroadcastExec
-                      val cachedSubquery = a.context.subqueryCache.get(newIn.canonicalized)
+                      val cachedSubquery =
+                        a.context.subqueryCache.get(columnarSubqueryBroadcast.canonicalized)
                       if (cachedSubquery.isDefined) {
-                        in.copy(plan = ReusedSubqueryExec(cachedSubquery.get))
+                        inSubquery.copy(plan = ReusedSubqueryExec(cachedSubquery.get))
                       } else {
                         val errMsg = "Can not get the reused ColumnarSubqueryBroadcastExec" +
-                          "by the ${newIn.canonicalized}"
+                          s"by the ${columnarSubqueryBroadcast.canonicalized}"
                         logWarning(errMsg)
                         throw new UnsupportedOperationException(errMsg)
                       }
                     case _ =>
                       val errMsg = "Can not get the reused ColumnarSubqueryBroadcastExec" +
-                        "by the ${newIn.canonicalized}"
+                        s"by the ${columnarSubqueryBroadcast.canonicalized}"
                       logWarning(errMsg)
                       throw new UnsupportedOperationException(errMsg)
                   }
-                case _ => in
+                case _ => inSubquery
               }
           }
         case e: Expression => e
