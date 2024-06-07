@@ -137,7 +137,8 @@ WholeStageResultIterator::WholeStageResultIterator(
             customSplitInfo,
             nullptr,
             deleteFiles,
-            0 std::unordered_map<std::string, std::string>(),
+            0,
+            std::unordered_map<std::string, std::string>(),
             properties[idx]);
       } else {
         split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
