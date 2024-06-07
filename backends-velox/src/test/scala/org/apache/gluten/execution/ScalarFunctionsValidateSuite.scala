@@ -101,6 +101,12 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("null input for array_size") {
+    val df = runQueryAndCompare("SELECT array_size(null)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("chr function") {
     val df = runQueryAndCompare(
       "SELECT chr(l_orderkey + 64) " +

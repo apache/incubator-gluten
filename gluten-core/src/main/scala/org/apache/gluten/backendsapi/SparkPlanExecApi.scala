@@ -47,7 +47,8 @@ import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
-import org.apache.spark.sql.types.{LongType, NullType, StructType}
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.{BooleanType, LongType, NullType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.lang.{Long => JLong}
@@ -462,13 +463,6 @@ trait SparkPlanExecApi {
       substraitExprName,
       Seq(srcExpr, matchingExpr, replaceExpr),
       original)
-  }
-
-  def genSizeExpressionTransformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Size): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(child), original)
   }
 
   def genLikeTransformer(
