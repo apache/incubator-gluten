@@ -281,6 +281,12 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     }
   }
 
+  test("Test get_json_object 11") {
+    runQueryAndCompare(
+      "SELECT string_field1 from json_test where" +
+        " get_json_object(string_field1, '$.a') is not null") { _ => }
+  }
+
   test("Test covar_samp") {
     runQueryAndCompare("SELECT covar_samp(double_field1, int_field1) from json_test") { _ => }
   }
@@ -706,42 +712,5 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       runQueryAndCompare(q)(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
 
-  }
-
-  test("GLUTEN-5821: trim_character support value from column.") {
-    withTable("trim") {
-      sql("create table trim(a String, b String) using parquet")
-      sql("""
-            |insert into trim values ('aba', 'a'),('bba', 'b'),('abcdef', 'abcd')
-            |""".stripMargin)
-
-      val sql_str =
-        s"""select
-           |    trim(both b from a)
-           |  from trim
-          """.stripMargin
-
-      runQueryAndCompare(sql_str) { _ => }
-    }
-  }
-
-  test("GLUTEN-5897: fix regexp_extract with bracket") {
-    withTable("regexp_extract_bracket") {
-      sql("create table regexp_extract_bracket(a String) using parquet")
-      sql(
-        """
-          |insert into regexp_extract_bracket values ('123.123abc-abc'),('123-LOW'),('123]abc-abc')
-          |""".stripMargin)
-
-      val sql_str =
-        s"""select
-           |    regexp_extract(a, '([0-9][[\\.][0-9]]*)', 1)
-           |  , regexp_extract(a, '([0-9][[\\.][0-9]]*)', 1)
-           |  , regexp_extract(a, '([0-9][[]]]*)', 1)
-           |  from regexp_extract_bracket
-          """.stripMargin
-
-      runQueryAndCompare(sql_str) { _ => }
-    }
   }
 }

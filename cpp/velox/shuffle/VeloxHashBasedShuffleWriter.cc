@@ -130,6 +130,14 @@ arrow::Status collectFlatVectorBufferStringView(
 }
 
 template <>
+arrow::Status collectFlatVectorBuffer<facebook::velox::TypeKind::UNKNOWN>(
+    facebook::velox::BaseVector* vector,
+    std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
+    arrow::MemoryPool* pool) {
+  return arrow::Status::OK();
+}
+
+template <>
 arrow::Status collectFlatVectorBuffer<facebook::velox::TypeKind::VARCHAR>(
     facebook::velox::BaseVector* vector,
     std::vector<std::shared_ptr<arrow::Buffer>>& buffers,

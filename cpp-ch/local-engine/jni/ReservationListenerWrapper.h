@@ -35,6 +35,8 @@ public:
     void reserve(int64_t size);
     void reserveOrThrow(int64_t size);
     void free(int64_t size);
+    /// Make sure destructors in CH Backend do not throw exceptions
+    void tryFree(int64_t size);
     size_t currentMemory();
 
 

@@ -22,7 +22,7 @@
 #include <numeric>
 #include <utility>
 
-#include <DataTypes/DataTypesNumber.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <Formats/FormatFactory.h>
 #include <Formats/FormatSettings.h>
 #include <IO/SeekableReadBuffer.h>
@@ -46,12 +46,13 @@ extern const int UNKNOWN_TYPE;
 
 namespace local_engine
 {
+
 ParquetFormatFile::ParquetFormatFile(
     const DB::ContextPtr & context_,
     const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_,
     const ReadBufferBuilderPtr & read_buffer_builder_,
     bool use_local_format_)
-    : FormatFile(context_, file_info_, read_buffer_builder_), use_local_format(use_local_format_)
+    : FormatFile(context_, file_info_, read_buffer_builder_), use_pageindex_reader(use_local_format_)
 {
 }
 
@@ -85,7 +86,7 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
     std::ranges::set_difference(total_row_group_indices, required_row_group_indices, std::back_inserter(skip_row_group_indices));
 
     format_settings.parquet.skip_row_groups = std::unordered_set<int>(skip_row_group_indices.begin(), skip_row_group_indices.end());
-    if (use_local_format)
+    if (use_pageindex_reader && pageindex_reader_support(header))
         res->input = std::make_shared<VectorizedParquetBlockInputFormat>(*(res->read_buffer), header, format_settings);
     else
         res->input = std::make_shared<DB::ParquetBlockInputFormat>(*(res->read_buffer), header, format_settings, 1, 8192);
@@ -111,6 +112,19 @@ std::optional<size_t> ParquetFormatFile::getTotalRows()
         total_rows = rows;
         return total_rows;
     }
+}
+bool ParquetFormatFile::pageindex_reader_support(const DB::Block & header)
+{
+    const auto result = std::ranges::find_if(
+        header,
+        [](DB::ColumnWithTypeAndName const & col)
+        {
+            const DB::DataTypePtr type_not_nullable = DB::removeNullable(col.type);
+            const DB::WhichDataType which(type_not_nullable);
+            return DB::isArray(which) || DB::isMap(which) || DB::isTuple(which);
+        });
+
+    return result == header.end();
 }
 
 std::vector<RowGroupInformation> ParquetFormatFile::collectRequiredRowGroups(int & total_row_groups) const

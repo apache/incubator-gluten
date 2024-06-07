@@ -195,7 +195,7 @@ VeloxMemoryManager::VeloxMemoryManager(
 namespace {
 MemoryUsageStats collectVeloxMemoryUsageStats(const velox::memory::MemoryPool* pool) {
   MemoryUsageStats stats;
-  stats.set_current(pool->currentBytes());
+  stats.set_current(pool->usedBytes());
   stats.set_peak(pool->peakBytes());
   // walk down root and all children
   pool->visitChildren([&](velox::memory::MemoryPool* pool) -> bool {
@@ -216,7 +216,7 @@ int64_t shrinkVeloxMemoryPool(velox::memory::MemoryManager* mm, velox::memory::M
   std::string poolName{pool->root()->name() + "/" + pool->name()};
   std::string logPrefix{"Shrink[" + poolName + "]: "};
   VLOG(2) << logPrefix << "Trying to shrink " << size << " bytes of data...";
-  VLOG(2) << logPrefix << "Pool has reserved " << pool->currentBytes() << "/" << pool->root()->reservedBytes() << "/"
+  VLOG(2) << logPrefix << "Pool has reserved " << pool->usedBytes() << "/" << pool->root()->reservedBytes() << "/"
           << pool->root()->capacity() << "/" << pool->root()->maxCapacity() << " bytes.";
   VLOG(2) << logPrefix << "Shrinking...";
   const uint64_t oldCapacity = pool->capacity();
@@ -263,14 +263,14 @@ void VeloxMemoryManager::hold() {
 bool VeloxMemoryManager::tryDestructSafe() {
   // Velox memory pools considered safe to destruct when no alive allocations.
   for (const auto& pool : heldVeloxPools_) {
-    if (pool && pool->currentBytes() != 0) {
+    if (pool && pool->usedBytes() != 0) {
       return false;
     }
   }
-  if (veloxLeafPool_ && veloxLeafPool_->currentBytes() != 0) {
+  if (veloxLeafPool_ && veloxLeafPool_->usedBytes() != 0) {
     return false;
   }
-  if (veloxAggregatePool_ && veloxAggregatePool_->currentBytes() != 0) {
+  if (veloxAggregatePool_ && veloxAggregatePool_->usedBytes() != 0) {
     return false;
   }
   heldVeloxPools_.clear();

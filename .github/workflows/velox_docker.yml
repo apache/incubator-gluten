@@ -549,6 +549,10 @@ jobs:
             ./cpp/build/releases/
             /root/.m2/repository/org/apache/arrow/
           key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup build dependency
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
@@ -603,6 +607,10 @@ jobs:
         with:
           name: arrow-jars-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
@@ -677,6 +685,10 @@ jobs:
         with:
           name: arrow-jars-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
@@ -728,6 +740,10 @@ jobs:
         with:
           name: arrow-jars-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
@@ -794,6 +810,10 @@ jobs:
         with:
           name: arrow-jars-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
@@ -845,6 +865,10 @@ jobs:
         with:
           name: arrow-jars-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
@@ -911,6 +935,10 @@ jobs:
         with:
           name: arrow-jars-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
@@ -962,6 +990,10 @@ jobs:
         with:
           name: arrow-jars-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
@@ -1027,6 +1059,10 @@ jobs:
         with:
           name: arrow-jars-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y

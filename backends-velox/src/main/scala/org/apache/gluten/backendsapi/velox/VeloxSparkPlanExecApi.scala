@@ -123,42 +123,50 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       original)
   }
 
-  override def genTryAddTransformer(
+  override def genTryArithmeticTransformer(
       substraitExprName: String,
       left: ExpressionTransformer,
       right: ExpressionTransformer,
-      original: TryEval): ExpressionTransformer = {
+      original: TryEval,
+      checkArithmeticExprName: String): ExpressionTransformer = {
     if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original.child)) {
-      throw new GlutenNotSupportException(s"add with ansi mode is not supported")
+      throw new GlutenNotSupportException(
+        s"${original.child.prettyName} with ansi mode is not supported")
     }
     original.child.dataType match {
       case LongType | IntegerType | ShortType | ByteType =>
-      case _ => throw new GlutenNotSupportException(s"try_add is not supported")
+      case _ => throw new GlutenNotSupportException(s"$substraitExprName is not supported")
     }
     // Offload to velox for only IntegralTypes.
     GenericExpressionTransformer(
       substraitExprName,
-      Seq(GenericExpressionTransformer(ExpressionNames.TRY_ADD, Seq(left, right), original)),
+      Seq(GenericExpressionTransformer(checkArithmeticExprName, Seq(left, right), original)),
       original)
   }
 
-  override def genAddTransformer(
+  /**
+   * Map arithmetic expr to different functions: substraitExprName or try(checkArithmeticExprName)
+   * based on EvalMode.
+   */
+  override def genArithmeticTransformer(
       substraitExprName: String,
       left: ExpressionTransformer,
       right: ExpressionTransformer,
-      original: Add): ExpressionTransformer = {
+      original: Expression,
+      checkArithmeticExprName: String): ExpressionTransformer = {
     if (SparkShimLoader.getSparkShims.withTryEvalMode(original)) {
       original.dataType match {
         case LongType | IntegerType | ShortType | ByteType =>
-        case _ => throw new GlutenNotSupportException(s"try_add is not supported")
+        case _ =>
+          throw new GlutenNotSupportException(s"$substraitExprName with try mode is not supported")
       }
       // Offload to velox for only IntegralTypes.
       GenericExpressionTransformer(
         ExpressionMappings.expressionsMap(classOf[TryEval]),
-        Seq(GenericExpressionTransformer(ExpressionNames.TRY_ADD, Seq(left, right), original)),
+        Seq(GenericExpressionTransformer(checkArithmeticExprName, Seq(left, right), original)),
         original)
     } else if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original)) {
-      throw new GlutenNotSupportException(s"add with ansi mode is not supported")
+      throw new GlutenNotSupportException(s"$substraitExprName with ansi mode is not supported")
     } else {
       GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
     }
