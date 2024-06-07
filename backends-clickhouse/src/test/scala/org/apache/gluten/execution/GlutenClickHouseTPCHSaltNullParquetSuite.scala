@@ -2623,7 +2623,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         | select t1.cday, t2.type from (
         | select type, to_date(from_unixtime(c_time)) as cday from test_tbl_5910_0 ) t1
         | left join (
-        | select type, "2024-06-01" from test_tbl_5910_1 ) t2
+        | select type, "2024-06-01" as cday from test_tbl_5910_1 ) t2
         | on t1.cday = t2.cday and t1.type = t2.type
         |""".stripMargin
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
