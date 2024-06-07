@@ -17,7 +17,7 @@
 package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.execution._
-import org.apache.gluten.metrics.{MetricsUpdater, NoopMetricsUpdater}
+import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.ras.path.Pattern._
 import org.apache.gluten.ras.path.Pattern.Matchers._
 import org.apache.gluten.ras.rule.{RasRule, Shape}
@@ -54,7 +54,7 @@ object RemoveFilter extends RasRule[SparkPlan] {
         leaf(clazz(classOf[BasicScanExecTransformer]))
       ).build())
 
-  // A noop filter placeholder that indicates that all conditions are pushed down to scan.
+  // A noop filter placeholder that indicates that all conditions were pushed down to scan.
   //
   // This operator has zero cost in cost model to avoid planner from choosing the
   // original filter-scan that doesn't have all conditions pushed down to scan.
@@ -71,7 +71,7 @@ object RemoveFilter extends RasRule[SparkPlan] {
   // spark.sql.adaptive.logLevel=ERROR.
   case class NoopFilter(override val child: SparkPlan, override val output: Seq[Attribute])
     extends UnaryTransformSupport {
-    override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater
+    override def metricsUpdater(): MetricsUpdater = MetricsUpdater.None
     override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan = copy(newChild)
     override def outputPartitioning: Partitioning = child.outputPartitioning
     override def outputOrdering: Seq[SortOrder] = child.outputOrdering

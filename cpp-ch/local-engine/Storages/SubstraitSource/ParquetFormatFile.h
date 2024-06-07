@@ -55,8 +55,10 @@ public:
 
     String getFileFormat() const override { return "Parquet"; }
 
+    static bool pageindex_reader_support(const DB::Block & header);
+
 private:
-    bool use_local_format;
+    bool use_pageindex_reader;
     std::mutex mutex;
     std::optional<size_t> total_rows;
 

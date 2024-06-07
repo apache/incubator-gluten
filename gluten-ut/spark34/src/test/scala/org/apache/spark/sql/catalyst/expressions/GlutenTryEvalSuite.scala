@@ -14,34 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
+package org.apache.spark.sql.catalyst.expressions
 
-#include <Shuffle/ShuffleSplitter.h>
+import org.apache.spark.sql.GlutenTestsTrait
 
-namespace DB
-{
-class Block;
-}
-
-namespace local_engine
-{
-
-class BlockCoalesceOperator
-{
-public:
-    explicit BlockCoalesceOperator(size_t buf_size_) : buf_size(buf_size_) { }
-    ~BlockCoalesceOperator();
-
-    void mergeBlock(DB::Block & block);
-    bool isFull();
-    DB::Block * releaseBlock();
-
-private:
-    void clearCache();
-
-    size_t buf_size;
-    ColumnsBuffer block_buffer;
-    DB::Block * cached_block = nullptr;
-
-};
-}
+class GlutenTryEvalSuite extends TryEvalSuite with GlutenTestsTrait {}

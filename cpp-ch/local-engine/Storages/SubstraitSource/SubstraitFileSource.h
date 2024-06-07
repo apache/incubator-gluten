@@ -34,6 +34,15 @@ public:
     virtual ~FileReaderWrapper() = default;
     virtual bool pull(DB::Chunk & chunk) = 0;
 
+    void cancel()
+    {
+        bool already_cancelled = is_cancelled.exchange(true, std::memory_order_acq_rel);
+        if (!already_cancelled)
+            onCancel();
+    }
+
+    bool isCancelled() const { return is_cancelled.load(std::memory_order_acquire); }
+
     /// Apply key condition to the reader, if use_local_format is true, column_index_filter will be used
     /// otherwise it will be ignored
     virtual void applyKeyCondition(
@@ -42,7 +51,11 @@ public:
     }
 
 protected:
+    virtual void onCancel() {};
+
     FormatFilePtr file;
+    std::atomic<bool> is_cancelled{false};
+
 
     static DB::ColumnPtr createConstColumn(DB::DataTypePtr type, const DB::Field & field, size_t rows);
     static DB::ColumnPtr createColumn(const String & value, DB::DataTypePtr type, size_t rows);
@@ -68,10 +81,14 @@ public:
     }
 
 private:
+    void onCancel() override
+    {
+        input_format->input->cancel();
+    }
+
     DB::ContextPtr context;
     DB::Block to_read_header;
     DB::Block output_header;
-
     FormatFile::InputFormatPtr input_format;
 };
 
@@ -89,6 +106,7 @@ public:
     ConstColumnsFileReader(
         FormatFilePtr file_, DB::ContextPtr context_, const DB::Block & header_, size_t block_size_ = DB::DEFAULT_BLOCK_SIZE);
     ~ConstColumnsFileReader() override = default;
+
     bool pull(DB::Chunk & chunk) override;
 
 private:
@@ -112,6 +130,9 @@ protected:
     DB::Chunk generate() override;
 
 private:
+    bool tryPrepareReader();
+    void onCancel() override;
+
     DB::ContextPtr context;
     DB::Block output_header; /// Sample header may contains partitions keys
     DB::Block to_read_header; // Sample header not include partition keys
@@ -120,9 +141,6 @@ private:
     UInt32 current_file_index = 0;
     std::unique_ptr<FileReaderWrapper> file_reader;
     ReadBufferBuilderPtr read_buffer_builder;
-
     ColumnIndexFilterPtr column_index_filter;
-
-    bool tryPrepareReader();
 };
 }

@@ -46,8 +46,7 @@ class GlutenFunctionSuite
           |  , left(`101`, 0)
           |  , left(`101`, -1)  -- error
           | from parquet.`$testPath/left`
-          |""".stripMargin,
-      ignore = true
+          |""".stripMargin
     ),
     TestCase(
       "trim",
@@ -56,8 +55,7 @@ class GlutenFunctionSuite
           |  , trim(LEADING `100` from `99`) -- error
           |  , trim(TRAILING `100` from `99`)  -- error
           | from parquet.`$testPath/left`
-          |""".stripMargin,
-      ignore = true
+          |""".stripMargin
     ),
     TestCase(
       "date_format 1",
@@ -72,8 +70,7 @@ class GlutenFunctionSuite
           |  , date_format(`0`, 'm')
           |  , date_format(`0`, 's')
           | from parquet.`$testPath/date_format/date`
-          |""".stripMargin,
-      ignore = true
+          |""".stripMargin
     ),
     TestCase(
       "date_format 2",
@@ -88,8 +85,7 @@ class GlutenFunctionSuite
           |  , date_format(`4`, 'm')
           |  , date_format(`4`, 's')
           | from parquet.`$testPath/date_format/timestamp`
-          |""".stripMargin,
-      ignore = true
+          |""".stripMargin
     )
   )
 

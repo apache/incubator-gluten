@@ -235,7 +235,18 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
     }
   }
 
-  private def fallbackToRowBasedPlan(outputsColumnar: Boolean): SparkPlan = {
+  private def fallbackToRowBasedPlan(glutenPlan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
+    // Propagate fallback reason to vanilla SparkPlan
+    glutenPlan.foreach {
+      case _: GlutenPlan =>
+      case p: SparkPlan if TransformHints.isNotTransformable(p) && p.logicalLink.isDefined =>
+        originalPlan
+          .find(_.logicalLink.exists(_.fastEquals(p.logicalLink.get)))
+          .filterNot(TransformHints.isNotTransformable)
+          .foreach(origin => TransformHints.tag(origin, TransformHints.getHint(p)))
+      case _ =>
+    }
+
     val planWithTransitions = Transitions.insertTransitions(originalPlan, outputsColumnar)
     planWithTransitions
   }
@@ -259,7 +270,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
       //  Scan Parquet
       //       |
       //  ColumnarToRow
-      val vanillaSparkPlan = fallbackToRowBasedPlan(outputsColumnar)
+      val vanillaSparkPlan = fallbackToRowBasedPlan(plan, outputsColumnar)
       val vanillaSparkTransitionCost = countTransitionCostForVanillaSparkPlan(vanillaSparkPlan)
       if (
         GlutenConfig.getConf.fallbackPreferColumnar &&

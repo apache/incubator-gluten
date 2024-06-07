@@ -487,8 +487,9 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           )
           transformer.doValidate().tagOnFallback(plan)
         case plan: CoalesceExec =>
-          val transformer = CoalesceExecTransformer(plan.numPartitions, plan.child)
-          transformer.doValidate().tagOnFallback(plan)
+          ColumnarCoalesceExec(plan.numPartitions, plan.child)
+            .doValidate()
+            .tagOnFallback(plan)
         case plan: GlobalLimitExec =>
           val (limit, offset) =
             SparkShimLoader.getSparkShims.getLimitAndOffsetFromGlobalLimit(plan)

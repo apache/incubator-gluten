@@ -82,6 +82,7 @@ case class CHBroadcastBuildSideRDD(
 case class BroadCastHashJoinContext(
     buildSideJoinKeys: Seq[Expression],
     joinType: JoinType,
+    hasMixedFiltCondition: Boolean,
     buildSideStructure: Seq[Attribute],
     buildHashTableId: String)
 
@@ -139,9 +140,26 @@ case class CHBroadcastHashJoinExecTransformer(
     }
     val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
     val context =
-      BroadCastHashJoinContext(buildKeyExprs, joinType, buildPlan.output, buildHashTableId)
+      BroadCastHashJoinContext(
+        buildKeyExprs,
+        joinType,
+        isMixedCondition(condition),
+        buildPlan.output,
+        buildHashTableId)
     val broadcastRDD = CHBroadcastBuildSideRDD(sparkContext, broadcast, context)
     // FIXME: Do we have to make build side a RDD?
     streamedRDD :+ broadcastRDD
+  }
+
+  def isMixedCondition(cond: Option[Expression]): Boolean = {
+    val res = if (cond.isDefined) {
+      val leftOutputSet = left.outputSet
+      val rightOutputSet = right.outputSet
+      val allReferences = cond.get.references
+      !(allReferences.subsetOf(leftOutputSet) || allReferences.subsetOf(rightOutputSet))
+    } else {
+      false
+    }
+    res
   }
 }

@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #pragma once
+#include <shared_mutex>
 #include <Interpreters/JoinUtils.h>
 #include <Storages/StorageInMemoryMetadata.h>
 
@@ -40,6 +41,7 @@ public:
         bool use_nulls_,
         DB::JoinKind kind,
         DB::JoinStrictness strictness,
+        bool has_mixed_join_condition,
         const DB::ColumnsDescription & columns_,
         const DB::ConstraintsDescription & constraints_,
         const String & comment,
@@ -58,9 +60,13 @@ private:
     size_t row_count;
     bool overwrite;
     DB::Block right_sample_block;
+    std::shared_mutex join_mutex;
+    std::list<DB::Block> input_blocks;
     std::shared_ptr<DB::HashJoin> join = nullptr;
 
     void readAllBlocksFromInput(DB::ReadBuffer & in);
     void buildJoin(DB::ReadBuffer & in, const DB::Block header, std::shared_ptr<DB::TableJoin> analyzed_join);
+    void collectAllInputs(DB::ReadBuffer & in, const DB::Block header);
+    void buildJoinLazily(DB::Block header, std::shared_ptr<DB::TableJoin> analyzed_join);
 };
 }

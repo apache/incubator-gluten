@@ -103,16 +103,18 @@ abstract class Suite(
     sessionSwitcher.defaultConf().setWarningOnOverriding("spark.sql.codegen.wholeStage", "false")
   }
 
-  // Scan partition number.
-  sessionSwitcher
-    .defaultConf()
-    .setWarningOnOverriding("spark.sql.files.maxPartitionBytes", s"${ByteUnit.PiB.toBytes(1L)}")
-  sessionSwitcher
-    .defaultConf()
-    .setWarningOnOverriding("spark.sql.files.openCostInBytes", "0")
-  sessionSwitcher
-    .defaultConf()
-    .setWarningOnOverriding("spark.sql.files.minPartitionNum", s"${(scanPartitions - 1) max 1}")
+  if (scanPartitions != -1) {
+    // Scan partition number.
+    sessionSwitcher
+      .defaultConf()
+      .setWarningOnOverriding("spark.sql.files.maxPartitionBytes", s"${ByteUnit.PiB.toBytes(1L)}")
+    sessionSwitcher
+      .defaultConf()
+      .setWarningOnOverriding("spark.sql.files.openCostInBytes", "0")
+    sessionSwitcher
+      .defaultConf()
+      .setWarningOnOverriding("spark.sql.files.minPartitionNum", s"${(scanPartitions - 1) max 1}")
+  }
 
   extraSparkConf.toStream.foreach { kv =>
     sessionSwitcher.defaultConf().setWarningOnOverriding(kv._1, kv._2)
