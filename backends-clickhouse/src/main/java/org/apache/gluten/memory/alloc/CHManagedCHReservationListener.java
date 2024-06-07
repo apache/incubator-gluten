@@ -54,7 +54,10 @@ public class CHManagedCHReservationListener implements CHReservationListener {
         return;
       }
       if (size < 0) {
-        LOG.error(String.format("Negative size (%d) is passed to CHManagedCHReservationListener. It is a bug", size));
+        LOG.error(
+            String.format(
+                "Negative size (%d) is passed to CHManagedCHReservationListener. It is a bug",
+                size));
         return;
       }
       if (LOG.isDebugEnabled()) {
@@ -85,7 +88,10 @@ public class CHManagedCHReservationListener implements CHReservationListener {
         return 0L;
       }
       if (size < 0) {
-        LOG.error(String.format("Negative size (%d) is passed to CHManagedCHReservationListener. It is a bug", size));
+        LOG.error(
+            String.format(
+                "Negative size (%d) is passed to CHManagedCHReservationListener. It is a bug",
+                size));
         return 0L;
       }
       if (LOG.isDebugEnabled()) {
