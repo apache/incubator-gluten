@@ -28,7 +28,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 import java.util.Iterator;
 
 public final class VeloxBatchAppender {
-  public static ColumnarBatchOutIterator create(int minOutputBatchSize, Iterator<ColumnarBatch> in) {
+  public static ColumnarBatchOutIterator create(
+      int minOutputBatchSize, Iterator<ColumnarBatch> in) {
     final Runtime runtime = Runtimes.contextInstance();
     final NativeMemoryManager nmm = NativeMemoryManagers.contextInstance("VeloxBatchAppender");
     long outHandle =

@@ -20,6 +20,7 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.datasource.ArrowCSVFileFormat
 import org.apache.gluten.execution.datasource.v2.ArrowBatchScanExec
 import org.apache.gluten.sql.shims.SparkShimLoader
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
 import org.apache.spark.sql.execution._
@@ -30,6 +31,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DecimalType, IntegerType, StringType, StructField, StructType}
 
 import java.util.concurrent.TimeUnit
+
 import scala.collection.JavaConverters
 
 class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
@@ -707,14 +709,13 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     withSQLConf(
       "spark.gluten.sql.columnar.backend.velox.coalesceBatchesBeforeShuffle" -> "true",
       "spark.gluten.sql.columnar.maxBatchSize" -> "2",
-      "spark.gluten.sql.columnar.backend.velox.minBatchSizeForShuffle" -> s"$minBatchSize") {
+      "spark.gluten.sql.columnar.backend.velox.minBatchSizeForShuffle" -> s"$minBatchSize"
+    ) {
       val df = runQueryAndCompare(
         "select l_orderkey, sum(l_partkey) as sum from lineitem " +
           "where l_orderkey < 100 group by l_orderkey") { _ => }
       checkLengthAndPlan(df, 27)
-      val ops = collect(df.queryExecution.executedPlan) {
-          case p: VeloxAppendBatchesExec => p
-        }
+      val ops = collect(df.queryExecution.executedPlan) { case p: VeloxAppendBatchesExec => p }
       assert(ops.size == 1)
       val op = ops.head
       assert(op.minOutputBatchSize == minBatchSize)
