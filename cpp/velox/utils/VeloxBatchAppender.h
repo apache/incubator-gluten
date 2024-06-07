@@ -34,7 +34,6 @@ class VeloxBatchAppender : public ColumnarBatchIterator {
   int64_t spillFixedSize(int64_t size) override;
 
  private:
-
   facebook::velox::memory::MemoryPool* pool_;
   const int32_t minOutputBatchSize_;
   std::unique_ptr<ColumnarBatchIterator> in_;
