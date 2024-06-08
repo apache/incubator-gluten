@@ -285,7 +285,7 @@ function compile_arrow_java_module() {
     # Because arrow-bom module need the -DprocessAllModules
     mvn versions:set -DnewVersion=15.0.0-gluten -DprocessAllModules
    
-    mvn clean install -pl maven/module-info-compiler-maven-plugin -am \
+    mvn clean install -pl bom,maven/module-info-compiler-maven-plugin -am \
       -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip
 
     # Arrow C Data Interface CPP libraries
