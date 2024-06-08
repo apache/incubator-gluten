@@ -213,6 +213,8 @@ public:
     ~SparkFunctionFloor() override = default;
     String getName() const override { return name; }
 
+    ColumnNumbers getArgumentsThatAreAlwaysConstant() const override { return {1}; }
+
     DB::DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName & arguments) const override
     {
         auto result_type = DB::FunctionFloor::getReturnTypeImpl(arguments);
