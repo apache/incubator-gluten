@@ -207,6 +207,11 @@ trait SparkShims {
 
   def attributesFromStruct(structType: StructType): Seq[Attribute]
 
+  // Spark 3.3 and later only have file size and modification time in PartitionedFile
+  def getFileSizeAndModificationTime(file: PartitionedFile): (Option[Long], Option[Long]) = {
+    (Some(file.fileSize), Some(file.modificationTime))
+  }
+
   def generateMetadataColumns(
       file: PartitionedFile,
       metadataColumnNames: Seq[String] = Seq.empty): JMap[String, String]

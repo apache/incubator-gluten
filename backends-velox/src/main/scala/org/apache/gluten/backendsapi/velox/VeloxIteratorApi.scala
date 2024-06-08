@@ -122,8 +122,13 @@ class VeloxIteratorApi extends IteratorApi with Logging {
             .decode(file.filePath.toString, StandardCharsets.UTF_8.name()))
         starts.add(JLong.valueOf(file.start))
         lengths.add(JLong.valueOf(file.length))
-        fileSizes.add(JLong.valueOf(file.fileSize))
-        modificationTimes.add(JLong.valueOf(file.modificationTime))
+        val (fileSize, modificationTime) = SparkShimLoader.getSparkShims.getFileSizeAndModificationTime(file)
+        (fileSize, modificationTime) match {
+          case (Some(size), Some(time)) =>
+            fileSizes.add(JLong.valueOf(size))
+            modificationTimes.add(JLong.valueOf(time))
+          case _ => // Do nothing
+        }
         val metadataColumn =
           SparkShimLoader.getSparkShims.generateMetadataColumns(file, metadataColumnNames)
         metadataColumns.add(metadataColumn)
