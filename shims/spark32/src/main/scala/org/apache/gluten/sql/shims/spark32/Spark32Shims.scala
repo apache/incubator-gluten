@@ -217,14 +217,6 @@ class Spark32Shims extends SparkShims {
     }
   }
 
-  def getFileSize(file: PartitionedFile): Option[Long] = Option.empty
-
-  def getModificationTime(file: PartitionedFile): Option[Long] = Option.empty
-
-  override def getFileSizeAndModificationTime(file: PartitionedFile): (Option[Long], Option[Long]) = {
-    (None, None)
-  }
-
   override def generateMetadataColumns(
       file: PartitionedFile,
       metadataColumnNames: Seq[String]): JMap[String, String] =
