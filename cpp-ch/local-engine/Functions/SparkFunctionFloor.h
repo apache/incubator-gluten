@@ -14,13 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Functions/FunctionsRound.h>
-#include <Functions/FunctionFactory.h>
+#pragma once
+
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnVector.h>
-#include <DataTypes/IDataType.h>
 #include <DataTypes/DataTypesNumber.h>
-#include <bit>
+#include <DataTypes/IDataType.h>
+#include <Functions/FunctionFactory.h>
+#include <Functions/FunctionsRound.h>
 
 using namespace DB;
 
@@ -130,20 +131,29 @@ struct SparkFloatFloorImpl
 {
 private:
     static_assert(!is_decimal<T>);
-    using Op = FloatRoundingComputation<T, RoundingMode::Floor, scale_mode>;
-    using Data = std::array<T, Op::data_count>;
+    template <
+        Vectorize vectorize =
+#ifdef __SSE4_1__
+            Vectorize::Yes
+#else
+            Vectorize::No
+#endif
+        >
+    using Op = FloatRoundingComputation<T, RoundingMode::Floor, scale_mode, vectorize>;
+    using Data = std::array<T, Op<>::data_count>;
+
 public:
     static void apply(const PaddedPODArray<T> & in, size_t scale, PaddedPODArray<T> & out, PaddedPODArray<UInt8> & null_map)
     {
-        auto mm_scale = Op::prepare(scale);
+        auto mm_scale = Op<>::prepare(scale);
         const size_t data_count = std::tuple_size<Data>();
-        const T* end_in = in.data() + in.size();
-        const T* limit = in.data() + in.size() / data_count * data_count;
-        const T* __restrict p_in = in.data();
-        T* __restrict p_out = out.data();
+        const T * end_in = in.data() + in.size();
+        const T * limit = in.data() + in.size() / data_count * data_count;
+        const T * __restrict p_in = in.data();
+        T * __restrict p_out = out.data();
         while (p_in < limit)
         {
-            Op::compute(p_in, mm_scale, p_out);
+            Op<>::compute(p_in, mm_scale, p_out);
             p_in += data_count;
             p_out += data_count;
         }
@@ -154,7 +164,7 @@ public:
             Data tmp_dst;
             size_t tail_size_bytes = (end_in - p_in) * sizeof(*p_in);
             memcpy(&tmp_src, p_in, tail_size_bytes);
-            Op::compute(reinterpret_cast<T *>(&tmp_src), mm_scale, reinterpret_cast<T *>(&tmp_dst));
+            Op<>::compute(reinterpret_cast<T *>(&tmp_src), mm_scale, reinterpret_cast<T *>(&tmp_dst));
             memcpy(p_out, &tmp_dst, tail_size_bytes);
         }
 
@@ -171,11 +181,31 @@ public:
                 checkAndSetNullable(out[i], null_map[i]);
         }
     }
-
 };
 
 class SparkFunctionFloor : public DB::FunctionFloor
 {
+    static Scale getScaleArg(const ColumnsWithTypeAndName & arguments)
+    {
+        if (arguments.size() == 2)
+        {
+            const IColumn & scale_column = *arguments[1].column;
+            if (!isColumnConst(scale_column))
+                throw Exception(ErrorCodes::ILLEGAL_COLUMN, "Scale argument for rounding functions must be constant");
+
+            Field scale_field = assert_cast<const ColumnConst &>(scale_column).getField();
+            if (scale_field.getType() != Field::Types::UInt64 && scale_field.getType() != Field::Types::Int64)
+                throw Exception(ErrorCodes::ILLEGAL_COLUMN, "Scale argument for rounding functions must have integer type");
+
+            Int64 scale64 = scale_field.get<Int64>();
+            if (scale64 > std::numeric_limits<Scale>::max() || scale64 < std::numeric_limits<Scale>::min())
+                throw Exception(ErrorCodes::ARGUMENT_OUT_OF_BOUND, "Scale argument for rounding function is too large");
+
+            return scale64;
+        }
+        return 0;
+    }
+
 public:
     static constexpr auto name = "sparkFloor";
     static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionFloor>(); }
@@ -183,17 +213,18 @@ public:
     ~SparkFunctionFloor() override = default;
     String getName() const override { return name; }
 
-    DB::DataTypePtr getReturnTypeImpl(const DB::DataTypes & arguments) const override
+    DB::DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName & arguments) const override
     {
         auto result_type = DB::FunctionFloor::getReturnTypeImpl(arguments);
         return makeNullable(result_type);
     }
 
-    DB::ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr & result_type, size_t input_rows) const override
+    DB::ColumnPtr
+    executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr & result_type, size_t input_rows) const override
     {
         const ColumnWithTypeAndName & first_arg = arguments[0];
         Scale scale_arg = getScaleArg(arguments);
-        switch(first_arg.type->getTypeId())
+        switch (first_arg.type->getTypeId())
         {
             case TypeIndex::Float32:
                 return executeInternal<Float32>(first_arg.column, scale_arg);
@@ -206,7 +237,7 @@ public:
         }
     }
 
-    template<typename T>
+    template <typename T>
     static ColumnPtr executeInternal(const ColumnPtr & col_arg, const Scale & scale_arg)
     {
         const auto * col = checkAndGetColumn<ColumnVector<T>>(col_arg.get());

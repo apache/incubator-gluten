@@ -18,6 +18,11 @@
 
 #include <Functions/FunctionsRound.h>
 
+namespace DB::ErrorCodes
+{
+extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
+}
+
 namespace local_engine
 {
 using namespace DB;
@@ -35,10 +40,11 @@ public:
 
     static VectorType load(const ScalarType * in) { return _mm_loadu_ps(in); }
     static VectorType load1(const ScalarType in) { return _mm_load1_ps(&in); }
-    static void store(ScalarType * out, VectorType val) { _mm_storeu_ps(out, val);}
+    static void store(ScalarType * out, VectorType val) { _mm_storeu_ps(out, val); }
     static VectorType multiply(VectorType val, VectorType scale) { return _mm_mul_ps(val, scale); }
     static VectorType divide(VectorType val, VectorType scale) { return _mm_div_ps(val, scale); }
-    template <RoundingMode mode> static VectorType apply(VectorType val)
+    template <RoundingMode mode>
+    static VectorType apply(VectorType val)
     {
         ScalarType tempFloatsIn[data_count];
         ScalarType tempFloatsOut[data_count];
@@ -49,10 +55,7 @@ public:
         return load(tempFloatsOut);
     }
 
-    static VectorType prepare(size_t scale)
-    {
-        return load1(scale);
-    }
+    static VectorType prepare(size_t scale) { return load1(scale); }
 };
 
 template <>
@@ -65,10 +68,11 @@ public:
 
     static VectorType load(const ScalarType * in) { return _mm_loadu_pd(in); }
     static VectorType load1(const ScalarType in) { return _mm_load1_pd(&in); }
-    static void store(ScalarType * out, VectorType val) { _mm_storeu_pd(out, val);}
+    static void store(ScalarType * out, VectorType val) { _mm_storeu_pd(out, val); }
     static VectorType multiply(VectorType val, VectorType scale) { return _mm_mul_pd(val, scale); }
     static VectorType divide(VectorType val, VectorType scale) { return _mm_div_pd(val, scale); }
-    template <RoundingMode mode> static VectorType apply(VectorType val)
+    template <RoundingMode mode>
+    static VectorType apply(VectorType val)
     {
         ScalarType tempFloatsIn[data_count];
         ScalarType tempFloatsOut[data_count];
@@ -79,10 +83,7 @@ public:
         return load(tempFloatsOut);
     }
 
-    static VectorType prepare(size_t scale)
-    {
-        return load1(scale);
-    }
+    static VectorType prepare(size_t scale) { return load1(scale); }
 };
 
 
@@ -135,11 +136,11 @@ public:
 
         const size_t data_count = std::tuple_size<Data>();
 
-        const T* end_in = in.data() + in.size();
-        const T* limit = in.data() + in.size() / data_count * data_count;
+        const T * end_in = in.data() + in.size();
+        const T * limit = in.data() + in.size() / data_count * data_count;
 
-        const T* __restrict p_in = in.data();
-        T* __restrict p_out = out.data();
+        const T * __restrict p_in = in.data();
+        T * __restrict p_out = out.data();
 
         while (p_in < limit)
         {
@@ -169,9 +170,10 @@ template <typename T, RoundingMode rounding_mode, TieBreakingMode tie_breaking_m
 struct DispatcherRoundingHalfUp
 {
     template <ScaleMode scale_mode>
-    using FunctionRoundingImpl = std::conditional_t<std::is_floating_point_v<T>,
-                                                    FloatRoundingHalfUpImpl<T, rounding_mode, scale_mode>,
-                                                    IntegerRoundingImpl<T, rounding_mode, scale_mode, tie_breaking_mode>>;
+    using FunctionRoundingImpl = std::conditional_t<
+        std::is_floating_point_v<T>,
+        FloatRoundingHalfUpImpl<T, rounding_mode, scale_mode>,
+        IntegerRoundingImpl<T, rounding_mode, scale_mode, tie_breaking_mode>>;
 
     static ColumnPtr apply(const IColumn * col_general, Scale scale_arg)
     {
@@ -233,10 +235,7 @@ public:
     static constexpr auto name = "roundHalfUp";
     static FunctionPtr create(ContextPtr) { return std::make_shared<FunctionRoundingHalfUp>(); }
 
-    String getName() const override
-    {
-        return name;
-    }
+    String getName() const override { return name; }
 
     bool isVariadic() const override { return true; }
     size_t getNumberOfArguments() const override { return 0; }
@@ -246,14 +245,16 @@ public:
     DataTypePtr getReturnTypeImpl(const DataTypes & arguments) const override
     {
         if ((arguments.empty()) || (arguments.size() > 2))
-            throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH,
-                            "Number of arguments for function {} doesn't match: passed {}, should be 1 or 2.",
-                            getName(), arguments.size());
+            throw Exception(
+                ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH,
+                "Number of arguments for function {} doesn't match: passed {}, should be 1 or 2.",
+                getName(),
+                arguments.size());
 
         for (const auto & type : arguments)
             if (!isNumber(type))
-                throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Illegal type {} of argument of function {}",
-                                arguments[0]->getName(), getName());
+                throw Exception(
+                    ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Illegal type {} of argument of function {}", arguments[0]->getName(), getName());
 
         return arguments[0];
     }
@@ -267,13 +268,11 @@ public:
                 throw Exception(ErrorCodes::ILLEGAL_COLUMN, "Scale argument for rounding functions must be constant");
 
             Field scale_field = assert_cast<const ColumnConst &>(scale_column).getField();
-            if (scale_field.getType() != Field::Types::UInt64
-                && scale_field.getType() != Field::Types::Int64)
+            if (scale_field.getType() != Field::Types::UInt64 && scale_field.getType() != Field::Types::Int64)
                 throw Exception(ErrorCodes::ILLEGAL_COLUMN, "Scale argument for rounding functions must have integer type");
 
             Int64 scale64 = scale_field.get<Int64>();
-            if (scale64 > std::numeric_limits<Scale>::max()
-                || scale64 < std::numeric_limits<Scale>::min())
+            if (scale64 > std::numeric_limits<Scale>::max() || scale64 < std::numeric_limits<Scale>::min())
                 throw Exception(ErrorCodes::ARGUMENT_OUT_OF_BOUND, "Scale argument for rounding function is too large");
 
             return scale64;
@@ -305,26 +304,24 @@ public:
         };
 
         if (!callOnIndexAndDataType<void>(column.type->getTypeId(), call))
-        {
             throw Exception(ErrorCodes::ILLEGAL_COLUMN, "Illegal column {} of argument of function {}", column.name, getName());
-        }
 
         return res;
     }
 
-    bool hasInformationAboutMonotonicity() const override
-    {
-        return true;
-    }
+    bool hasInformationAboutMonotonicity() const override { return true; }
 
     Monotonicity getMonotonicityForRange(const IDataType &, const Field &, const Field &) const override
     {
-        return { .is_monotonic = true, .is_always_monotonic = true };
+        return {.is_monotonic = true, .is_always_monotonic = true};
     }
 };
 
 
-struct NameRoundHalfUp { static constexpr auto name = "roundHalfUp"; };
+struct NameRoundHalfUp
+{
+    static constexpr auto name = "roundHalfUp";
+};
 
 using FunctionRoundHalfUp = FunctionRoundingHalfUp<NameRoundHalfUp, RoundingMode::Round, TieBreakingMode::Auto>;
 
