@@ -160,7 +160,7 @@ public class LocalFilesNode implements SplitInfo {
       fileBuilder.setLength(lengths.get(i));
       fileBuilder.setStart(starts.get(i));
 
-      if(!fileSizes.isEmpty()
+      if (!fileSizes.isEmpty()
           && !modificationTimes.isEmpty()
           && fileSizes.size() == modificationTimes.size()
           && fileSizes.size() == paths.size()) {
