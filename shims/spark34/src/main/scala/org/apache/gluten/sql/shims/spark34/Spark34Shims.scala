@@ -208,7 +208,8 @@ class Spark34Shims extends SparkShims {
     case other => other
   }
 
-  override def getFileSizeAndModificationTime(file: PartitionedFile): (Option[Long], Option[Long]) = {
+  override def getFileSizeAndModificationTime(
+      file: PartitionedFile): (Option[Long], Option[Long]) = {
     (Some(file.fileSize), Some(file.modificationTime))
   }
 
