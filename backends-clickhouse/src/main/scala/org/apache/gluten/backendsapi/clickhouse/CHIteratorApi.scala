@@ -131,10 +131,13 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           paths,
           starts,
           lengths,
+          new JArrayList[JLong](),
+          new JArrayList[JLong](),
           partitionColumns,
           new JArrayList[JMap[String, String]](),
           fileFormat,
-          preferredLocations.toList.asJava)
+          preferredLocations.toList.asJava
+        )
       case _ =>
         throw new UnsupportedOperationException(s"Unsupported input partition: $partition.")
     }

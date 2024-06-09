@@ -121,8 +121,6 @@ message ReadRel {
       // The index of the partition this item belongs to
       uint64 partition_index = 6;
 
-      
-
       // The start position in byte to read from this item
       uint64 start = 7;
 
@@ -198,6 +196,12 @@ message ReadRel {
         string value = 2;
       }
       repeated metadataColumn metadata_columns = 19;
+
+      message fileProperties {
+        int64 fileSize = 1;
+        int64 modificationTime = 2;
+      }
+      fileProperties properties = 20;
     }
   }
 }

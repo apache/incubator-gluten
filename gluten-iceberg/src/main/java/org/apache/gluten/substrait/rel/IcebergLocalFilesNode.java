@@ -42,6 +42,8 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
         paths,
         starts,
         lengths,
+        new ArrayList<>(),
+        new ArrayList<>(),
         partitionColumns,
         new ArrayList<>(),
         fileFormat,
