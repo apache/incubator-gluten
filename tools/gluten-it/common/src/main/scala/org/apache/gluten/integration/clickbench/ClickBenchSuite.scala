@@ -43,7 +43,7 @@ class ClickBenchSuite(
     val disableBhj: Boolean,
     val disableWscg: Boolean,
     val shufflePartitions: Int,
-    val minimumScanPartitions: Boolean)
+    val scanPartitions: Int)
     extends Suite(
       masterUrl,
       actions,
@@ -60,7 +60,7 @@ class ClickBenchSuite(
       disableBhj,
       disableWscg,
       shufflePartitions,
-      minimumScanPartitions) {
+      scanPartitions) {
   import ClickBenchSuite._
 
   override protected def historyWritePath(): String = HISTORY_WRITE_PATH

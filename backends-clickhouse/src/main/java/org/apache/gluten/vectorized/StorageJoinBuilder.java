@@ -44,6 +44,7 @@ public class StorageJoinBuilder {
       long rowCount,
       String joinKeys,
       int joinType,
+      boolean hasMixedFiltCondition,
       byte[] namedStruct);
 
   private StorageJoinBuilder() {}
@@ -79,6 +80,7 @@ public class StorageJoinBuilder {
         rowCount,
         joinKey,
         SubstraitUtil.toSubstrait(broadCastContext.joinType()).ordinal(),
+        broadCastContext.hasMixedFiltCondition(),
         toNameStruct(output).toByteArray());
   }
 

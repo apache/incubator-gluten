@@ -19,6 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.sql.shims.SparkShimLoader
 
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.CommandResultExec
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.internal.SQLConf
@@ -50,6 +51,11 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     spark.sql("drop table metrics_t2")
 
     super.afterAll()
+  }
+
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
   }
 
   test("test sort merge join metrics") {
@@ -140,6 +146,36 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         assert(metrics("numOutputRows").value == 300)
         assert(metrics("numOutputVectors").value > 0)
         assert(metrics("numOutputBytes").value > 0)
+    }
+  }
+
+  test("Metrics of window") {
+    runQueryAndCompare("SELECT c1, c2, sum(c2) over (partition by c1) as s FROM metrics_t1") {
+      df =>
+        val window = find(df.queryExecution.executedPlan) {
+          case _: WindowExecTransformer => true
+          case _ => false
+        }
+        assert(window.isDefined)
+        val metrics = window.get.metrics
+        assert(metrics("numOutputRows").value == 100)
+        assert(metrics("outputVectors").value == 2)
+    }
+  }
+
+  test("Metrics of noop filter's children") {
+    withSQLConf("spark.gluten.ras.enabled" -> "true") {
+      runQueryAndCompare("SELECT c1, c2 FROM metrics_t1 where c1 < 50") {
+        df =>
+          val scan = find(df.queryExecution.executedPlan) {
+            case _: FileSourceScanExecTransformer => true
+            case _ => false
+          }
+          assert(scan.isDefined)
+          val metrics = scan.get.metrics
+          assert(metrics("rawInputRows").value == 100)
+          assert(metrics("outputVectors").value == 1)
+      }
     }
   }
 

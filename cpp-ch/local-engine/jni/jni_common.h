@@ -28,6 +28,7 @@ namespace DB
 namespace ErrorCodes
 {
     extern const int LOGICAL_ERROR;
+    extern const int UNKNOWN_TYPE;
 }
 }
 
@@ -61,6 +62,24 @@ jbyteArray stringTojbyteArray(JNIEnv * env, const std::string & str);
         env->ReleaseStringUTFChars(jmsg, nmsg); \
         throw DB::Exception::createRuntime(DB::ErrorCodes::LOGICAL_ERROR, msg); \
     }
+
+#define TRY_LOCAL_ENGINE_JNI_JMETHOD_START
+#define TRY_LOCAL_ENGINE_JNI_JMETHOD_END(env) \
+    if ((env)->ExceptionCheck()) \
+    { \
+        LOG_ERROR(&Poco::Logger::get("local_engine"), "Enter java exception handle."); \
+        auto excp = (env)->ExceptionOccurred(); \
+        (env)->ExceptionDescribe(); \
+        (env)->ExceptionClear(); \
+        jclass cls = (env)->GetObjectClass(excp); \
+        jmethodID mid = env->GetMethodID(cls, "toString", "()Ljava/lang/String;"); \
+        jstring jmsg = static_cast<jstring>((env)->CallObjectMethod(excp, mid)); \
+        const char * nmsg = (env)->GetStringUTFChars(jmsg, NULL); \
+        std::string msg = std::string(nmsg); \
+        env->ReleaseStringUTFChars(jmsg, nmsg); \
+        LOG_WARNING(&Poco::Logger::get("local_engine"), "Ignore java exception: {}", msg); \
+    }
+
 
 template <typename... Args>
 jobject safeCallObjectMethod(JNIEnv * env, jobject obj, jmethodID method_id, Args... args)
@@ -104,6 +123,14 @@ void safeCallVoidMethod(JNIEnv * env, jobject obj, jmethodID method_id, Args... 
     LOCAL_ENGINE_JNI_JMETHOD_START
     env->CallVoidMethod(obj, method_id, args...);
     LOCAL_ENGINE_JNI_JMETHOD_END(env)
+}
+
+template <typename... Args>
+void tryCallVoidMethod(JNIEnv * env, jobject obj, jmethodID method_id, Args... args)
+{
+    TRY_LOCAL_ENGINE_JNI_JMETHOD_START
+    env->CallVoidMethod(obj, method_id, args...);
+    TRY_LOCAL_ENGINE_JNI_JMETHOD_END(env)
 }
 
 template <typename... Args>

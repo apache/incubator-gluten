@@ -43,7 +43,7 @@ abstract class Suite(
     private val disableBhj: Boolean,
     private val disableWscg: Boolean,
     private val shufflePartitions: Int,
-    private val minimumScanPartitions: Boolean) {
+    private val scanPartitions: Int) {
 
   resetLogLevel()
 
@@ -103,14 +103,17 @@ abstract class Suite(
     sessionSwitcher.defaultConf().setWarningOnOverriding("spark.sql.codegen.wholeStage", "false")
   }
 
-  if (minimumScanPartitions) {
+  if (scanPartitions != -1) {
+    // Scan partition number.
     sessionSwitcher
       .defaultConf()
       .setWarningOnOverriding("spark.sql.files.maxPartitionBytes", s"${ByteUnit.PiB.toBytes(1L)}")
     sessionSwitcher
       .defaultConf()
-      .setWarningOnOverriding("spark.sql.files.openCostInBytes", s"${ByteUnit.PiB.toBytes(1L)}")
-    sessionSwitcher.defaultConf().setWarningOnOverriding("spark.default.parallelism", "1")
+      .setWarningOnOverriding("spark.sql.files.openCostInBytes", "0")
+    sessionSwitcher
+      .defaultConf()
+      .setWarningOnOverriding("spark.sql.files.minPartitionNum", s"${(scanPartitions - 1) max 1}")
   }
 
   extraSparkConf.toStream.foreach { kv =>

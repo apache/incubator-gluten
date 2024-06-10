@@ -585,12 +585,13 @@ void BackendInitializerUtil::initEnvs(DB::Context::ConfigurationPtr config)
     /// Set environment variable TZ if possible
     if (config->has("timezone"))
     {
-        const String timezone_name = config->getString("timezone");
-        if (0 != setenv("TZ", timezone_name.data(), 1)) /// NOLINT
+        const std::string config_timezone = config->getString("timezone");
+        const String mapped_timezone = DateLUT::mappingForJavaTimezone(config_timezone);
+        if (0 != setenv("TZ", mapped_timezone.data(), 1)) // NOLINT(concurrency-mt-unsafe) // ok if not called concurrently with other setenv/getenv
             throw Poco::Exception("Cannot setenv TZ variable");
 
         tzset();
-        DateLUT::setDefaultTimezone(timezone_name);
+        DateLUT::setDefaultTimezone(mapped_timezone);
     }
 
     /// Set environment variable LIBHDFS3_CONF if possible
@@ -655,6 +656,16 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
             auto k = key.substr(SPARK_DELTA_PREFIX.size());
             settings.set(k, toField(k, value));
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
+        }
+        else if (key == SPARK_SESSION_TIME_ZONE)
+        {
+            String time_zone_val = value;
+            /// Convert timezone ID like '+8:00' to GMT+8:00
+            if (value.starts_with("+") || value.starts_with("-"))
+                time_zone_val = "GMT" + value;
+            time_zone_val = DateLUT::mappingForJavaTimezone(time_zone_val);
+            settings.set("session_timezone", time_zone_val);
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", "session_timezone", time_zone_val);
         }
     }
 

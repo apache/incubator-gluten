@@ -709,6 +709,10 @@ object GlutenConfig {
       .filter(_._1.startsWith(SPARK_ABFS_ACCOUNT_KEY))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
+    conf
+      .filter(_._1.startsWith(SQLConf.SESSION_LOCAL_TIMEZONE.key))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
     // return
     nativeConfMap
   }

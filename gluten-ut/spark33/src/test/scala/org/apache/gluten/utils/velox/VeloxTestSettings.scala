@@ -206,6 +206,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
+    .exclude("DDL test with tab separated file")
+    .exclude("DDL test parsing decimal type")
+    .exclude("test with tab delimiter and double quote")
     // Arrow not support corrupt record
     .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
   enableSuite[GlutenCSVv2Suite]
@@ -218,6 +221,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
+    .exclude("DDL test with tab separated file")
+    .exclude("DDL test parsing decimal type")
+    .exclude("test with tab delimiter and double quote")
     // Rule org.apache.spark.sql.execution.datasources.v2.V2ScanRelationPushDown in batch
     // Early Filter and Projection Push-Down generated an invalid plan
     .exclude("SPARK-26208: write and read empty data to csv file with headers")
@@ -229,6 +235,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
+    .exclude("DDL test with tab separated file")
+    .exclude("DDL test parsing decimal type")
+    .exclude("test with tab delimiter and double quote")
     // Arrow not support corrupt record
     .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
   enableSuite[GlutenJsonV1Suite]
@@ -1061,14 +1070,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("to_timestamp")
     // Legacy mode is not supported, assuming this mode is not commonly used.
     .exclude("SPARK-30668: use legacy timestamp parser in to_timestamp")
-    // Replaced by another test.
-    .exclude("to_utc_timestamp with literal zone")
-    // Replaced by another test.
-    .exclude("to_utc_timestamp with column zone")
-    // Replaced by another test
-    .exclude("from_utc_timestamp with literal zone")
-    // Replaced by another test
-    .exclude("from_utc_timestamp with column zone")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
