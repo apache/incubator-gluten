@@ -24,6 +24,7 @@ import org.apache.gluten.extension.columnar.transition.{InsertTransitions, Remov
 import org.apache.gluten.extension.columnar.util.AdaptiveContext
 import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.gluten.utils.{LogLevelUtil, PhysicalPlanSelector}
+
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -101,7 +102,7 @@ class EnumeratedApplier(session: SparkSession)
       (spark: SparkSession) => FallbackOnANSIMode(spark),
       (spark: SparkSession) => PlanOneRowRelation(spark),
       (_: SparkSession) => FallbackEmptySchemaRelation(),
-      (_: SparkSession) => RewriteSubqueryBroadcast(),
+      (_: SparkSession) => RewriteSubqueryBroadcast()
     ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarValidationRules() :::
       List((spark: SparkSession) => MergeTwoPhasesHashBaseAggregate(spark)) :::

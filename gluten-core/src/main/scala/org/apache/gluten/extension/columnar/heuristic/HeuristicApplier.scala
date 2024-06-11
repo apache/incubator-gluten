@@ -25,6 +25,7 @@ import org.apache.gluten.extension.columnar.transition.{InsertTransitions, Remov
 import org.apache.gluten.extension.columnar.util.AdaptiveContext
 import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.gluten.utils.{LogLevelUtil, PhysicalPlanSelector}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
@@ -112,7 +113,7 @@ class HeuristicApplier(session: SparkSession)
       (spark: SparkSession) => FallbackMultiCodegens(spark),
       (spark: SparkSession) => PlanOneRowRelation(spark),
       (_: SparkSession) => FallbackEmptySchemaRelation(),
-      (_: SparkSession) => RewriteSubqueryBroadcast(),
+      (_: SparkSession) => RewriteSubqueryBroadcast()
     ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarValidationRules() :::
       List(
