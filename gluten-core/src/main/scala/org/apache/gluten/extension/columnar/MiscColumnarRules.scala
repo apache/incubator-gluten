@@ -112,7 +112,7 @@ object MiscColumnarRules {
                   val cached = a.context.subqueryCache.get(columnarSubqueryBroadcast.canonicalized)
                   if (cached.nonEmpty) {
                     // Reuse the one in cache.
-                    ReusedSubqueryExec(columnarSubqueryBroadcast)
+                    ReusedSubqueryExec(cached.get)
                   } else {
                     // Place columnar sub-query broadcast into cache, then return it.
                     a.context.subqueryCache
