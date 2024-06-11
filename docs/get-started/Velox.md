@@ -293,7 +293,7 @@ About column mapping, see more [here](https://docs.delta.io/latest/delta-column-
 
 ## Iceberg Support
 
-Gluten with velox backend supports [Iceberg](https://iceberg.apache.org/) table. Currently, only reading COW (Copy-On-Write) tables is supported.
+Gluten with velox backend supports [Iceberg](https://iceberg.apache.org/) table. Currently, both reading COW (Copy-On-Write) and MOR (Merge-On-Read) tables are supported.
 
 ### How to use
 
@@ -304,8 +304,6 @@ mvn clean package -Pbackends-velox -Pspark-3.3 -Piceberg -DskipTests
 ```
 
 Once built successfully, iceberg features will be included in gluten-velox-bundle-X jar. Then you can query iceberg table by gluten/velox without scan's fallback.
-
-After the two steps, you can query iceberg table by gluten/velox without scan's fallback.
 
 ## Hudi Support
 
@@ -319,10 +317,7 @@ First of all, compile gluten-hudi module by a `hudi` profile, as follows:
 mvn clean package -Pbackends-velox -Pspark-3.3 -Phudi -DskipTests
 ```
 
-Then, put the additional `gluten-hudi-XX-SNAPSHOT.jar` to the class path (usually it's `$SPARK_HOME/jars`).
-The gluten-hudi jar is in `gluten-hudi/target` directory.
-
-After the two steps, you can query Hudi table by gluten/velox without scan's fallback.
+Once built successfully, hudi features will be included in gluten-velox-bundle-X jar. Then you can query hudi **COW** table by gluten/velox without scan's fallback.
 
 # Coverage
 

@@ -21,7 +21,7 @@ import org.apache.spark.sql.execution.FileSourceScanExec
 
 class HudiScanTransformerProvider extends DataSourceScanTransformerRegister {
 
-  override val scanClassName: String = "org.apache.hudi.HoodieFileIndex"
+  override val scanClassName: String = "HoodieParquetFileFormat"
 
   override def createDataSourceTransformer(
       batchScan: FileSourceScanExec,
