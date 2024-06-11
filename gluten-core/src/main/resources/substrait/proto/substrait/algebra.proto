@@ -198,6 +198,13 @@ message ReadRel {
         string value = 2;
       }
       repeated metadataColumn metadata_columns = 19;
+
+      // File properties contained in split
+      message fileProperties {
+        int64 fileSize = 1;
+        int64 modificationTime = 2;
+      }
+      fileProperties properties = 20;
     }
   }
 }
