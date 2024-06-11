@@ -324,9 +324,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-30793: truncate timestamps before the epoch to seconds and minutes")
     .excludeGlutenTest("unix_timestamp")
     .excludeGlutenTest("to_unix_timestamp")
-    .exclude("to_utc_timestamp with literal zone")
     .exclude("to_utc_timestamp with column zone")
-    .exclude("from_utc_timestamp with literal zone")
     .exclude("from_utc_timestamp with column zone")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].excludeGlutenTest(

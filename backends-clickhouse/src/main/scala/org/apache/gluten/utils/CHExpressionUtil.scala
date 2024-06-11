@@ -44,6 +44,15 @@ case class SequenceValidator() extends FunctionValidator {
   }
 }
 
+case class UtcTimestampValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = expr match {
+    // CH backend doest not support non-const timezone parameter
+    case t: ToUTCTimestamp => t.children(1).isInstanceOf[Literal]
+    case f: FromUTCTimestamp => f.children(1).isInstanceOf[Literal]
+    case _ => false
+  }
+}
+
 case class UnixTimeStampValidator() extends FunctionValidator {
   final val DATE_TYPE = "date"
 
@@ -194,8 +203,8 @@ object CHExpressionUtil {
     REGR_SLOPE -> DefaultValidator(),
     REGR_INTERCEPT -> DefaultValidator(),
     REGR_SXY -> DefaultValidator(),
-    TO_UTC_TIMESTAMP -> DefaultValidator(),
-    FROM_UTC_TIMESTAMP -> DefaultValidator(),
+    TO_UTC_TIMESTAMP -> UtcTimestampValidator(),
+    FROM_UTC_TIMESTAMP -> UtcTimestampValidator(),
     UNIX_MILLIS -> DefaultValidator(),
     UNIX_MICROS -> DefaultValidator(),
     TIMESTAMP_MILLIS -> DefaultValidator(),
