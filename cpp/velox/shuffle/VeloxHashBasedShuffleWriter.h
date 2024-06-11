@@ -303,15 +303,6 @@ class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
 
   arrow::Status partitioningAndDoSplit(facebook::velox::RowVectorPtr rv, int64_t memLimit);
 
-  void initAccumulateDataset(facebook::velox::RowVectorPtr& rv) {
-    if (accumulateDataset_) {
-      return;
-    }
-    std::vector<facebook::velox::VectorPtr> children(rv->children().size(), nullptr);
-    accumulateDataset_ =
-        std::make_shared<facebook::velox::RowVector>(veloxPool_.get(), rv->type(), nullptr, 0, std::move(children));
-  }
-
   BinaryArrayResizeState binaryArrayResizeState_{};
 
   bool hasComplexType_ = false;
