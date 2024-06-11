@@ -109,6 +109,7 @@ WholeStageResultIterator::WholeStageResultIterator(
     const auto& paths = scanInfo->paths;
     const auto& starts = scanInfo->starts;
     const auto& lengths = scanInfo->lengths;
+    const auto& properties = scanInfo->properties;
     const auto& format = scanInfo->format;
     const auto& partitionColumns = scanInfo->partitionColumns;
     const auto& metadataColumns = scanInfo->metadataColumns;
@@ -135,7 +136,9 @@ WholeStageResultIterator::WholeStageResultIterator(
             std::nullopt,
             customSplitInfo,
             nullptr,
-            deleteFiles);
+            deleteFiles,
+            std::unordered_map<std::string, std::string>(),
+            properties[idx]);
       } else {
         split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
             kHiveConnectorId,
@@ -149,7 +152,8 @@ WholeStageResultIterator::WholeStageResultIterator(
             nullptr,
             std::unordered_map<std::string, std::string>(),
             0,
-            metadataColumn);
+            metadataColumn,
+            properties[idx]);
       }
       connectorSplits.emplace_back(split);
     }
