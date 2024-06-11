@@ -303,7 +303,17 @@ arrow::Status VeloxHashBasedShuffleWriter::write(std::shared_ptr<ColumnarBatch> 
         numRows -= length;
       } while (numRows);
     } else {
-      RETURN_NOT_OK(partitioningAndDoSplit(std::move(rv), memLimit));
+      if (accumulateRows_ + rv->size() < 8192) {
+        accumulateRows_ += rv->size();
+        initAccumulateDataset(rv);
+        accumulateDataset_->append(rv.get());
+      } else {
+        initAccumulateDataset(rv);
+        accumulateDataset_->append(rv.get());
+        RETURN_NOT_OK(partitioningAndDoSplit(std::move(accumulateDataset_), memLimit));
+        accumulateDataset_ = nullptr;
+        accumulateRows_ = 0;
+      }
     }
   }
   return arrow::Status::OK();
@@ -329,6 +339,10 @@ arrow::Status VeloxHashBasedShuffleWriter::partitioningAndDoSplit(facebook::velo
 }
 
 arrow::Status VeloxHashBasedShuffleWriter::stop() {
+  if (accumulateDataset_ != nullptr) {
+    RETURN_NOT_OK(partitioningAndDoSplit(std::move(accumulateDataset_), kMinMemLimit));
+    accumulateRows_ = 0;
+  }
   if (options_.partitioning != Partitioning::kSingle) {
     for (auto pid = 0; pid < numPartitions_; ++pid) {
       RETURN_NOT_OK(evictPartitionBuffers(pid, false));
