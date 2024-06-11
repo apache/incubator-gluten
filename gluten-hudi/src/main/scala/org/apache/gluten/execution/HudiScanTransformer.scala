@@ -52,10 +52,9 @@ case class HudiScanTransformer(
   override lazy val fileFormat: ReadFileFormat = ReadFileFormat.ParquetReadFormat
 
   override protected def doValidateInternal(): ValidationResult = {
-    if (!requiredSchema.fields.exists(_.name == "_hoodie_record_key")) {
-      return ValidationResult.notOk(s"Hudi meta field not present.")
+    if (requiredSchema.fields.exists(_.name.startsWith("_hoodie"))) {
+      return ValidationResult.failed(s"Hudi meta field not supported.")
     }
-
     super.doValidateInternal()
   }
 
@@ -78,14 +77,12 @@ case class HudiScanTransformer(
 
 object HudiScanTransformer {
 
-  def apply(
-      scanExec: FileSourceScanExec,
-      newPartitionFilters: Seq[Expression]): HudiScanTransformer = {
+  def apply(scanExec: FileSourceScanExec): HudiScanTransformer = {
     new HudiScanTransformer(
       scanExec.relation,
       scanExec.output,
       scanExec.requiredSchema,
-      newPartitionFilters,
+      scanExec.partitionFilters,
       scanExec.optionalBucketSet,
       scanExec.optionalNumCoalescedBuckets,
       scanExec.dataFilters,
@@ -93,5 +90,4 @@ object HudiScanTransformer {
       scanExec.disableBucketedScan
     )
   }
-
 }
