@@ -271,13 +271,10 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     }
   }
 
-  override def genColumnarShuffleExchange(
-      shuffle: ShuffleExchangeExec,
-      child: SparkPlan): SparkPlan = {
+  override def genColumnarShuffleExchange(shuffle: ShuffleExchangeExec): SparkPlan = {
+    val child = shuffle.child
     if (
-      BackendsApiManager.getSettings.supportShuffleWithProject(
-        shuffle.outputPartitioning,
-        shuffle.child)
+      BackendsApiManager.getSettings.supportShuffleWithProject(shuffle.outputPartitioning, child)
     ) {
       val (projectColumnNumber, newPartitioning, newChild) =
         addProjectionForShuffleExchange(shuffle)

@@ -24,6 +24,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
@@ -33,7 +34,7 @@ import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters
 
-class TestOperator extends VeloxWholeStageTransformerSuite {
+class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
@@ -700,6 +701,29 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       val plan = df.queryExecution.executedPlan
       assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
       assert(plan.find(_.isInstanceOf[ArrowBatchScanExec]).isDefined)
+    }
+  }
+
+  test("combine small batches before shuffle") {
+    val minBatchSize = 15
+    withSQLConf(
+      "spark.gluten.sql.columnar.backend.velox.coalesceBatchesBeforeShuffle" -> "true",
+      "spark.gluten.sql.columnar.maxBatchSize" -> "2",
+      "spark.gluten.sql.columnar.backend.velox.minBatchSizeForShuffle" -> s"$minBatchSize"
+    ) {
+      val df = runQueryAndCompare(
+        "select l_orderkey, sum(l_partkey) as sum from lineitem " +
+          "where l_orderkey < 100 group by l_orderkey") { _ => }
+      checkLengthAndPlan(df, 27)
+      val ops = collect(df.queryExecution.executedPlan) { case p: VeloxAppendBatchesExec => p }
+      assert(ops.size == 1)
+      val op = ops.head
+      assert(op.minOutputBatchSize == minBatchSize)
+      val metrics = op.metrics
+      assert(metrics("numInputRows").value == 27)
+      assert(metrics("numInputBatches").value == 14)
+      assert(metrics("numOutputRows").value == 27)
+      assert(metrics("numOutputBatches").value == 2)
     }
   }
 
