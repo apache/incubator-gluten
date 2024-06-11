@@ -29,13 +29,13 @@ trait DataSourceScanTransformerRegister {
   /**
    * The class name that used to identify what kind of datasource this is。
    *
-   * For DataSource V1, it should be the child class name of
-   * [[org.apache.spark.sql.execution.datasources.FileIndex]].
+   * For DataSource V1, it should be relation.fileFormat like
+   * {{{
+   *   override val scanClassName: String = "org.apache.spark.sql.delta.DeltaParquetFileFormat"
+   * }}}
    *
    * For DataSource V2, it should be the child class name of
-   * [[org.apache.spark.sql.connector.read.Scan]].
-   *
-   * For example:
+   * [[org.apache.spark.sql.connector.read.Scan]]. For example:
    * {{{
    *   override val scanClassName: String = "org.apache.iceberg.spark.source.SparkBatchQueryScan"
    * }}}

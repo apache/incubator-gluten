@@ -18,9 +18,6 @@ package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.{ArrayType, IntegerType, MapType, StringType, StructType}
-
-import scala.collection.JavaConverters._
 
 class VeloxHudiSuite extends WholeStageTransformerSuite {
 
@@ -31,8 +28,6 @@ class VeloxHudiSuite extends WholeStageTransformerSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-      .set("spark.sql.files.maxPartitionBytes", "1g")
-      .set("spark.sql.shuffle.partitions", "1")
       .set("spark.memory.offHeap.size", "2g")
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
@@ -43,7 +38,7 @@ class VeloxHudiSuite extends WholeStageTransformerSuite {
       .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
   }
 
-  testWithSpecifiedSparkVersion("hudi: time travel", Some("3.3")) {
+  testWithSpecifiedSparkVersion("hudi: time travel", Some("3.2")) {
     withTable("hudi_tm") {
       spark.sql(s"""
                    |create table hudi_tm (id int, name string) using hudi
@@ -54,17 +49,65 @@ class VeloxHudiSuite extends WholeStageTransformerSuite {
       spark.sql(s"""
                    |insert into hudi_tm values (3, "v3"), (4, "v4")
                    |""".stripMargin)
-      val df1 = runQueryAndCompare("select * from hudi_tm VERSION AS OF 1") { _ => }
+      val df = spark.sql(" select _hoodie_commit_time from hudi_tm;")
+      val value = df.collectAsList().get(0).getAs[String](0)
+      val df1 = runQueryAndCompare("select id, name from hudi_tm timestamp AS OF " + value) {
+        checkGlutenOperatorMatch[HudiScanTransformer]
+      }
       checkLengthAndPlan(df1, 2)
       checkAnswer(df1, Row(1, "v1") :: Row(2, "v2") :: Nil)
-      val df2 = runQueryAndCompare("select * from hudi_tm VERSION AS OF 2") { _ => }
-      checkLengthAndPlan(df2, 4)
-      checkAnswer(df2, Row(1, "v1") :: Row(2, "v2") :: Row(3, "v3") :: Row(4, "v4") :: Nil)
-      val df3 = runQueryAndCompare("select name from hudi_tm VERSION AS OF 2 where id = 2") {
-        _ =>
+      val df2 =
+        runQueryAndCompare("select name from hudi_tm timestamp AS OF " + value + " where id = 2") {
+          checkGlutenOperatorMatch[HudiScanTransformer]
+        }
+      checkLengthAndPlan(df2, 1)
+      checkAnswer(df2, Row("v2") :: Nil)
+    }
+  }
+
+  testWithSpecifiedSparkVersion("hudi: soft delete", Some("3.2")) {
+    withTable("hudi_pf") {
+      spark.sql(s"""
+                   |create table hudi_pf (id int, name string) using hudi
+                   |""".stripMargin)
+      spark.sql(s"""
+                   |insert into hudi_pf values (1, "v1"), (2, "v2"), (3, "v1"), (4, "v2")
+                   |""".stripMargin)
+      spark.sql(s"""
+                   |delete from hudi_pf where name = "v2"
+                   |""".stripMargin)
+      val df1 = runQueryAndCompare("select id, name from hudi_pf") {
+        checkGlutenOperatorMatch[HudiScanTransformer]
       }
-      checkLengthAndPlan(df3, 1)
-      checkAnswer(df3, Row("v2") :: Nil)
+      checkLengthAndPlan(df1, 2)
+      checkAnswer(df1, Row(1, "v1") :: Row(3, "v1") :: Nil)
+    }
+  }
+
+  // FIXME: flaky leaked file systems issue
+  ignore("hudi: mor", Some("3.2")) {
+    withTable("hudi_mor") {
+      spark.sql(s"""
+                   |create table hudi_mor (id int, name string, ts bigint)
+                   |using hudi
+                   |tblproperties (
+                   |  type = 'mor',
+                   |  primaryKey = 'id',
+                   |  preCombineField = 'ts'
+                   |)
+                   |""".stripMargin)
+      spark.sql(s"""
+                   |insert into hudi_mor values (1, "v1", 1000), (2, "v2", 2000),
+                   | (3, "v1", 3000), (4, "v2", 4000)
+                   |""".stripMargin)
+      spark.sql(s"""
+                   |delete from hudi_mor where id = 1
+                   |""".stripMargin)
+      val df1 =
+        runQueryAndCompare("select id, name from hudi_mor where name = 'v1'", true, false, false) {
+          _ =>
+        }
+      checkAnswer(df1, Row(3, "v1") :: Nil)
     }
   }
 
@@ -76,7 +119,7 @@ class VeloxHudiSuite extends WholeStageTransformerSuite {
       spark.sql(s"""
                    |insert into hudi_pf values (1, "v1"), (2, "v2"), (3, "v1"), (4, "v2")
                    |""".stripMargin)
-      val df1 = runQueryAndCompare("select * from hudi_pf where name = 'v1'") { _ => }
+      val df1 = runQueryAndCompare("select id, name from hudi_pf where name = 'v1'") { _ => }
       val hudiScanTransformer = df1.queryExecution.executedPlan.collect {
         case f: HudiScanTransformer => f
       }.head
@@ -86,5 +129,4 @@ class VeloxHudiSuite extends WholeStageTransformerSuite {
       checkAnswer(df1, Row(1, "v1") :: Row(3, "v1") :: Nil)
     }
   }
-
 }
