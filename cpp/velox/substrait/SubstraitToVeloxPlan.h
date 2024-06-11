@@ -19,6 +19,7 @@
 
 #include "SubstraitToVeloxExpr.h"
 #include "TypeUtils.h"
+#include "velox/connectors/hive/FileProperties.h"
 #include "velox/connectors/hive/TableHandle.h"
 #include "velox/core/PlanNode.h"
 #include "velox/dwio/common/Options.h"
@@ -50,6 +51,9 @@ struct SplitInfo {
 
   /// The file format of the files to be scanned.
   dwio::common::FileFormat format;
+
+  /// The file sizes and modification times of the files to be scanned.
+  std::vector<std::optional<facebook::velox::FileProperties>> properties;
 
   /// Make SplitInfo polymorphic
   virtual ~SplitInfo() = default;
@@ -111,6 +115,7 @@ class SubstraitToVeloxPlanConverter {
   /// Index: the index of the partition this item belongs to.
   /// Starts: the start positions in byte to read from the items.
   /// Lengths: the lengths in byte to read from the items.
+  /// FileProperties: the file sizes and modification times of the files to be scanned.
   core::PlanNodePtr toVeloxPlan(const ::substrait::ReadRel& sRead);
 
   core::PlanNodePtr constructValueStreamNode(const ::substrait::ReadRel& sRead, int32_t streamIdx);

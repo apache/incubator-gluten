@@ -124,6 +124,10 @@ class VeloxShuffleWriter : public ShuffleWriter {
 
   int32_t maxBatchSize_{0};
 
+  uint32_t accumulateRows_{0};
+
+  facebook::velox::RowVectorPtr accumulateDataset_;
+
   enum EvictState { kEvictable, kUnevictable };
 
   // stat
