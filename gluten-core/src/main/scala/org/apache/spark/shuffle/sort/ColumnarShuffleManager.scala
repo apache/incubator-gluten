@@ -31,7 +31,7 @@ class ColumnarShuffleManager(conf: SparkConf) extends ShuffleManager with Loggin
 
   import ColumnarShuffleManager._
 
-  private[this] val sortShuffleManager: SortShuffleManager = new SortShuffleManager(conf)
+  private[this] lazy val sortShuffleManager: SortShuffleManager = new SortShuffleManager(conf)
 
   override val shuffleBlockResolver = new IndexShuffleBlockResolver(conf)
 
@@ -120,12 +120,18 @@ class ColumnarShuffleManager(conf: SparkConf) extends ShuffleManager with Loggin
 
   /** Remove a shuffle's metadata from the ShuffleManager. */
   override def unregisterShuffle(shuffleId: Int): Boolean = {
-    sortShuffleManager.unregisterShuffle(shuffleId)
+    Option(taskIdMapsForShuffle.remove(shuffleId)).foreach {
+      mapTaskIds =>
+        mapTaskIds.iterator.foreach {
+          mapId => shuffleBlockResolver.removeDataByMap(shuffleId, mapId)
+        }
+    }
+    true
   }
 
   /** Shut down this ShuffleManager. */
   override def stop(): Unit = {
-    sortShuffleManager.stop()
+    shuffleBlockResolver.stop()
   }
 }
 
