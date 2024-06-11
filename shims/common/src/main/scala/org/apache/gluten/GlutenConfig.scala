@@ -38,8 +38,6 @@ case class GlutenNumaBindingInfo(
 class GlutenConfig(conf: SQLConf) extends Logging {
   import GlutenConfig._
 
-  def enableNativeRowIndexColumn: Boolean = conf.getConf(NATIVE_ROWINDEX_COLUMN_ENABLED)
-
   def enableAnsiMode: Boolean = conf.ansiEnabled
 
   def enableGluten: Boolean = conf.getConf(GLUTEN_ENABLED)
@@ -726,14 +724,6 @@ object GlutenConfig {
         " Recommend to enable/disable Gluten through the setting for spark.plugins.")
       .booleanConf
       .createWithDefault(GLUTEN_ENABLE_BY_DEFAULT)
-
-  val NATIVE_ROWINDEX_COLUMN_ENABLED =
-    buildConf("spark.gluten.sql.enable.native.rowindex.column")
-      .internal()
-      .doc("This config apply for velox backend to specify whether to enable native scan of " +
-        "row index metadata column ")
-      .booleanConf
-      .createWithDefault(true)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   val NATIVE_VALIDATION_ENABLED =

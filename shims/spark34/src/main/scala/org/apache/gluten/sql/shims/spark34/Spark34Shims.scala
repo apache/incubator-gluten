@@ -331,6 +331,8 @@ class Spark34Shims extends SparkShims {
       relation: HadoopFsRelation,
       filePath: Path,
       sparkSchema: StructType): Boolean = {
+    // SPARK-39634: Allow file splitting in combination with row index generation once
+    // the fix for PARQUET-2161 is available.
     relation.fileFormat
       .isSplitable(relation.sparkSession, relation.options, filePath) &&
     !(RowIndexUtil.findRowIndexColumnIndexInSchema(sparkSchema) >= 0)

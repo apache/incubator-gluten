@@ -657,23 +657,20 @@ trait SparkPlanExecApi {
   def postProcessPushDownFilter(
       extraFilters: Seq[Expression],
       sparkExecNode: LeafExecNode): Seq[Expression] = {
+    def getPushedFilter(dataFilters: Seq[Expression]): Seq[Expression] = {
+      val pushedFilters =
+        dataFilters ++ FilterHandler.getRemainingFilters(dataFilters, extraFilters)
+      pushedFilters.filterNot(_.references.exists {
+        attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
+      })
+    }
     sparkExecNode match {
       case fileSourceScan: FileSourceScanExec =>
-        val dataFilters = fileSourceScan.dataFilters
-        val pushedFilters =
-          dataFilters ++ FilterHandler.getRemainingFilters(dataFilters, extraFilters)
-        pushedFilters.filterNot(_.references.exists {
-          attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
-        })
+        getPushedFilter(fileSourceScan.dataFilters)
       case batchScan: BatchScanExec =>
         batchScan.scan match {
           case fileScan: FileScan =>
-            val dataFilters = fileScan.dataFilters
-            val pushedFilters =
-              dataFilters ++ FilterHandler.getRemainingFilters(dataFilters, extraFilters)
-            pushedFilters.filterNot(_.references.exists {
-              attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
-            })
+            getPushedFilter(fileScan.dataFilters)
           case _ =>
             // TODO: For data lake format use pushedFilters in SupportsPushDownFilters
             extraFilters
