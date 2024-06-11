@@ -39,32 +39,48 @@ case class InputFileNameReplaceRule(spark: SparkSession) extends Rule[SparkPlan]
   override def apply(plan: SparkPlan): SparkPlan = {
     val inputFileNameCol = AttributeReference(replacedInputFileName, StringType, true)()
 
+    def hasInputFileName(expr: Expression): Boolean = {
+      expr match {
+        case e if isInputFileName(e) => true
+        case other => other.children.exists(hasInputFileName)
+      }
+    }
+
     def replaceInputFileName(expr: Expression): Expression = {
       expr match {
         case e if isInputFileName(e) => inputFileNameCol
+
         case other =>
           other.withNewChildren(other.children.map(child => replaceInputFileName(child)))
       }
     }
 
-    def applyInputFileNameCol(plan: SparkPlan): SparkPlan = {
+    def applyInputFileNameColToScan(plan: SparkPlan): SparkPlan = {
       plan match {
-        case _ @ProjectExec(projectList, child) =>
-          val newProjectList = projectList.map {
-            expr => replaceInputFileName(expr).asInstanceOf[NamedExpression]
-          }
-          val newChild = applyInputFileNameCol(child)
-          ProjectExec(newProjectList, newChild)
         case f: FileSourceScanExec
             if !f.output.exists(attr => attr.exprId == inputFileNameCol.exprId) =>
           f.copy(output = f.output :+ inputFileNameCol.toAttribute)
         case b: BatchScanExec if !b.output.exists(attr => attr.exprId == inputFileNameCol.exprId) =>
           b.copy(output = b.output :+ inputFileNameCol)
         case other =>
-          val newChildren = other.children.map(applyInputFileNameCol)
+          val newChildren = other.children.map(applyInputFileNameColToScan)
           other.withNewChildren(newChildren)
       }
     }
-    applyInputFileNameCol(plan)
+
+    def replaceInputFileNameInProject(plan: SparkPlan): SparkPlan = {
+      plan match {
+        case _ @ProjectExec(projectList, child) if projectList.exists(hasInputFileName) =>
+          val newProjectList = projectList.map {
+            expr => replaceInputFileName(expr).asInstanceOf[NamedExpression]
+          }
+          val newChild = replaceInputFileNameInProject(applyInputFileNameColToScan(child))
+          ProjectExec(newProjectList, newChild)
+        case other =>
+          val newChildren = other.children.map(replaceInputFileNameInProject)
+          other.withNewChildren(newChildren)
+      }
+    }
+    replaceInputFileNameInProject(plan)
   }
 }
