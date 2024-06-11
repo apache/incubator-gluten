@@ -604,7 +604,7 @@ TEST(ColumnIndex, DecimalField)
     ASSERT_EQ(actual, expected);
 
 
-    /// Eexception test, only in relase release node
+    /// Exception test, only in release node
 #ifdef NDEBUG
     Field unsupport = DecimalField<Decimal256>(Int256(300000000), 4);
     EXPECT_THROW(to_parquet.as(unsupport, desc), DB::Exception);
