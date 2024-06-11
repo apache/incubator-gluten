@@ -303,8 +303,7 @@ First of all, compile gluten-iceberg module by a `iceberg` profile, as follows:
 mvn clean package -Pbackends-velox -Pspark-3.3 -Piceberg -DskipTests
 ```
 
-Then, put the additional `gluten-iceberg-XX-SNAPSHOT.jar` to the class path (usually it's `$SPARK_HOME/jars`).
-The gluten-iceberg jar is in `gluten-iceberg/target` directory.
+Once built successfully, iceberg features will be included in gluten-velox-bundle-X jar. Then you can query iceberg table by gluten/velox without scan's fallback.
 
 After the two steps, you can query iceberg table by gluten/velox without scan's fallback.
 
