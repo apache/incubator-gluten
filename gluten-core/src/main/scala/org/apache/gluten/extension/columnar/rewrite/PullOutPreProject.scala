@@ -79,7 +79,10 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
         window.windowExpression.exists(_.find {
           case we: WindowExpression =>
             we.windowSpec.frameSpecification match {
-              case swf: SpecifiedWindowFrame if needPreComputeRangeFrame(swf) => true
+              case swf: SpecifiedWindowFrame
+                  if needPreComputeRangeFrame(swf) && supportPreComputeRangeFrame(
+                    we.windowSpec.orderSpec) =>
+                true
               case _ => false
             }
           case _ => false

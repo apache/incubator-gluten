@@ -22,6 +22,7 @@ import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
 import org.apache.spark.sql.execution.aggregate._
+import org.apache.spark.sql.types.{ByteType, DateType, IntegerType, LongType, ShortType}
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -172,6 +173,16 @@ trait PullOutProjectHelper {
     BackendsApiManager.getSettings.needPreComputeRangeFrameBoundary &&
     swf.frameType == RangeFrame &&
     (needPreComputeRangeFrameBoundary(swf.lower) || needPreComputeRangeFrameBoundary(swf.upper))
+  }
+
+  protected def supportPreComputeRangeFrame(sortOrders: Seq[SortOrder]): Boolean = {
+    sortOrders.forall {
+      _.dataType match {
+        case ByteType | ShortType | IntegerType | LongType | DateType => true
+        // Only integral type & date type are supported for sort key with Range Frame
+        case _ => false
+      }
+    }
   }
 
   protected def rewriteWindowExpression(
