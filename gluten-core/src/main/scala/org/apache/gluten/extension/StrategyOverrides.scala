@@ -18,19 +18,18 @@ package org.apache.gluten.extension
 
 import org.apache.gluten.{GlutenConfig, GlutenSparkExtensionsInjector}
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.execution.ShuffledHashJoinExecTemp
 import org.apache.gluten.extension.columnar.TRANSFORM_UNSUPPORTED
 import org.apache.gluten.extension.columnar.TransformHints.TAG
 import org.apache.gluten.utils.LogicalPlanSelector
 
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions, Strategy}
 import org.apache.spark.sql.catalyst.SQLConfHelper
-import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, JoinSelectionHelper}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.apache.spark.sql.execution.{joins, JoinSelectionShim, SparkPlan}
-import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, LogicalQueryStage}
-import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
+import org.apache.spark.sql.execution.{JoinSelectionShim, SparkPlan}
+import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec, ShuffledJoin, SortMergeJoinExec}
 
 object StrategyOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
@@ -38,116 +37,12 @@ object StrategyOverrides extends GlutenSparkExtensionsInjector {
   }
 }
 
+// Use the smaller table to build hashmap in shuffled hash join. BuildSide needs to be generated
+// in PlannerStrategy, otherwise larger table may be used.
 case class JoinSelectionOverrides(session: SparkSession)
   extends Strategy
   with JoinSelectionHelper
   with SQLConfHelper {
-
-  private def isBroadcastStage(plan: LogicalPlan): Boolean = plan match {
-    case LogicalQueryStage(_, _: BroadcastQueryStageExec) => true
-    case _ => false
-  }
-
-  def extractEqualJoinKeyCondition(
-      joinType: JoinType,
-      leftKeys: Seq[Expression],
-      rightKeys: Seq[Expression],
-      condition: Option[Expression],
-      left: LogicalPlan,
-      right: LogicalPlan,
-      hint: JoinHint,
-      forceShuffledHashJoin: Boolean): Seq[SparkPlan] = {
-    if (isBroadcastStage(left) || isBroadcastStage(right)) {
-      val buildSide = if (isBroadcastStage(left)) BuildLeft else BuildRight
-      Seq(
-        BroadcastHashJoinExec(
-          leftKeys,
-          rightKeys,
-          joinType,
-          buildSide,
-          condition,
-          planLater(left),
-          planLater(right)))
-    } else {
-      // Generate BHJ here, avoid to do match in `JoinSelection` again.
-      val isHintEmpty = hint.leftHint.isEmpty && hint.rightHint.isEmpty
-      val buildSide = getBroadcastBuildSide(left, right, joinType, hint, !isHintEmpty, conf)
-      if (buildSide.isDefined) {
-        return Seq(
-          joins.BroadcastHashJoinExec(
-            leftKeys,
-            rightKeys,
-            joinType,
-            buildSide.get,
-            condition,
-            planLater(left),
-            planLater(right)))
-      }
-
-      if (
-        forceShuffledHashJoin &&
-        !BackendsApiManager.getSparkPlanExecApiInstance.joinFallback(
-          joinType,
-          left.outputSet,
-          right.outputSet,
-          condition) &&
-        !left.getTagValue(TAG).isDefined &&
-        !right.getTagValue(TAG).isDefined
-      ) {
-        // Force use of ShuffledHashJoin in preference to SortMergeJoin. With no respect to
-        // conf setting "spark.sql.join.preferSortMergeJoin".
-        val (leftBuildable, rightBuildable) =
-          if (BackendsApiManager.getSettings.utilizeShuffledHashJoinHint()) {
-            // Currently, ClickHouse backend can not support AQE, so it needs to use join hint
-            // to decide the build side, after supporting AQE, will remove this.
-            val leftHintEnabled = hintToShuffleHashJoinLeft(hint)
-            val rightHintEnabled = hintToShuffleHashJoinRight(hint)
-            val leftHintMergeEnabled = hint.leftHint.exists(_.strategy.contains(SHUFFLE_MERGE))
-            val rightHintMergeEnabled = hint.rightHint.exists(_.strategy.contains(SHUFFLE_MERGE))
-            if (leftHintEnabled || rightHintEnabled) {
-              (leftHintEnabled, rightHintEnabled)
-            } else if (leftHintMergeEnabled || rightHintMergeEnabled) {
-              // hack: when set SHUFFLE_MERGE hint, it means that
-              // it don't use this side as the build side
-              (!leftHintMergeEnabled, !rightHintMergeEnabled)
-            } else {
-              (
-                BackendsApiManager.getSettings.supportHashBuildJoinTypeOnLeft(joinType),
-                BackendsApiManager.getSettings.supportHashBuildJoinTypeOnRight(joinType))
-            }
-          } else {
-            (canBuildShuffledHashJoinLeft(joinType), canBuildShuffledHashJoinRight(joinType))
-          }
-
-        if (!leftBuildable && !rightBuildable) {
-          return Nil
-        }
-        val buildSide = if (!leftBuildable) {
-          BuildRight
-        } else if (!rightBuildable) {
-          BuildLeft
-        } else {
-          getSmallerSide(left, right)
-        }
-
-        return Option(buildSide)
-          .map {
-            buildSide =>
-              Seq(
-                joins.ShuffledHashJoinExec(
-                  leftKeys,
-                  rightKeys,
-                  joinType,
-                  buildSide,
-                  condition,
-                  planLater(left),
-                  planLater(right)))
-          }
-          .getOrElse(Nil)
-      }
-      Nil
-    }
-  }
 
   def existsMultiJoins(plan: LogicalPlan, count: Int = 0): Boolean = {
     plan match {
@@ -157,11 +52,16 @@ case class JoinSelectionOverrides(session: SparkSession)
       case plan: Project =>
         if ((count + 1) >= GlutenConfig.getConf.logicalJoinOptimizationThrottle) return true
         plan.children.exists(existsMultiJoins(_, count + 1))
-      case other => false
+      case _ => false
     }
   }
 
   def tagNotTransformable(plan: LogicalPlan, reason: String): LogicalPlan = {
+    plan.setTagValue(TAG, TRANSFORM_UNSUPPORTED(Some(reason)))
+    plan
+  }
+
+  def tagNotTransformable(plan: ShuffledJoin, reason: String): ShuffledJoin = {
     plan.setTagValue(TAG, TRANSFORM_UNSUPPORTED(Some(reason)))
     plan
   }
@@ -179,6 +79,26 @@ case class JoinSelectionOverrides(session: SparkSession)
     }.size > 0
   }
 
+  def genShuffledHashJoinExecTemp(
+      joinType: JoinType,
+      left: LogicalPlan,
+      right: LogicalPlan,
+      join: ShuffledJoin): ShuffledHashJoinExecTemp = {
+    val leftBuildable = BackendsApiManager.getSettings
+      .supportHashBuildJoinTypeOnLeft(joinType)
+    val rightBuildable = BackendsApiManager.getSettings
+      .supportHashBuildJoinTypeOnRight(joinType)
+    val buildSide = if (!leftBuildable) {
+      BuildRight
+    } else if (!rightBuildable) {
+      BuildLeft
+    } else {
+      getSmallerSide(left, right)
+    }
+    val child = tagNotTransformable(join, "child of ShuffledHashJoinExecTemp")
+    ShuffledHashJoinExecTemp(child, buildSide)
+  }
+
   override def apply(plan: LogicalPlan): Seq[SparkPlan] =
     LogicalPlanSelector.maybeNil(session, plan) {
       // Ignore forceShuffledHashJoin if exist multi continuous joins
@@ -189,24 +109,64 @@ case class JoinSelectionOverrides(session: SparkSession)
         tagNotTransformableRecursive(plan, "exist multi continuous joins")
       }
       plan match {
-        // If the build side of BHJ is already decided by AQE, we need to keep the build side.
-        case JoinSelectionShim.ExtractEquiJoinKeysShim(
+        case j @ JoinSelectionShim.ExtractEquiJoinKeysShim(
               joinType,
               leftKeys,
               rightKeys,
               condition,
               left,
               right,
-              hint) =>
-          extractEqualJoinKeyCondition(
-            joinType,
-            leftKeys,
-            rightKeys,
-            condition,
-            left,
-            right,
-            hint,
-            GlutenConfig.getConf.forceShuffledHashJoin)
+              _)
+            if !BackendsApiManager.getSparkPlanExecApiInstance.joinFallback(
+              joinType,
+              left.outputSet,
+              right.outputSet,
+              condition) =>
+          val originalJoinExec = session.sessionState.planner.JoinSelection.apply(j)
+          // TODO: ShuffledHashJoinExecTemp adapts to RAS
+          if (
+            GlutenConfig.getConf.enableRas && GlutenConfig.getConf.forceShuffledHashJoin &&
+            !left.getTagValue(TAG).isDefined && !right.getTagValue(TAG).isDefined
+          ) {
+            originalJoinExec(0) match {
+              case _: BroadcastHashJoinExec => originalJoinExec
+              case _: ShuffledHashJoinExec => originalJoinExec
+              case _ =>
+                val leftBuildable = canBuildShuffledHashJoinLeft(joinType)
+                val rightBuildable = canBuildShuffledHashJoinRight(joinType)
+                val buildSide = if (!leftBuildable) {
+                  BuildRight
+                } else if (!rightBuildable) {
+                  BuildLeft
+                } else {
+                  getSmallerSide(left, right)
+                }
+                Option(buildSide)
+                  .map {
+                    buildSide =>
+                      Seq(
+                        ShuffledHashJoinExec(
+                          leftKeys,
+                          rightKeys,
+                          joinType,
+                          buildSide,
+                          condition,
+                          planLater(left),
+                          planLater(right)))
+                  }
+                  .getOrElse(Nil)
+            }
+          } else {
+            originalJoinExec(0) match {
+              case shj: ShuffledHashJoinExec =>
+                Seq(genShuffledHashJoinExecTemp(joinType, left, right, shj))
+              case smj: SortMergeJoinExec
+                  if GlutenConfig.getConf.forceShuffledHashJoin &&
+                    !left.getTagValue(TAG).isDefined && !right.getTagValue(TAG).isDefined =>
+                Seq(genShuffledHashJoinExecTemp(joinType, left, right, smj))
+              case _ => originalJoinExec
+            }
+          }
         case _ => Nil
       }
     }

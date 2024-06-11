@@ -27,12 +27,13 @@ import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode
 import org.apache.gluten.utils.SubstraitUtil
 
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
-import org.apache.spark.sql.execution.{ExpandOutputPartitioningShim, ExplainUtils, SparkPlan}
-import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashedRelationBroadcastMode, HashJoin}
+import org.apache.spark.sql.execution.{ExpandOutputPartitioningShim, ExplainUtils, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashedRelationBroadcastMode, HashJoin, ShuffledJoin}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -419,4 +420,13 @@ abstract class BroadcastHashJoinExecTransformerBase(
   override def genJoinParametersInternal(): (Int, Int, String) = {
     (1, if (isNullAwareAntiJoin) 1 else 0, buildHashTableId)
   }
+}
+
+case class ShuffledHashJoinExecTemp(child: ShuffledJoin, buildSide: BuildSide)
+  extends UnaryExecNode {
+  override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
+  override def output: Seq[Attribute] = child.output
+  override protected def withNewChildInternal(newChild: SparkPlan): ShuffledHashJoinExecTemp =
+    copy(child = newChild.asInstanceOf[ShuffledJoin])
+  override def outputPartitioning: Partitioning = child.outputPartitioning
 }

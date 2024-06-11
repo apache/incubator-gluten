@@ -161,29 +161,25 @@ object TransformHints {
     }
   }
 
+  // TODO: Remove after ShuffledHashJoinExecTemp adapts to RAS
   def getShuffleHashJoinBuildSide(shj: ShuffledHashJoinExec): BuildSide = {
-    if (BackendsApiManager.getSettings.utilizeShuffledHashJoinHint()) {
-      shj.buildSide
+    val leftBuildable = BackendsApiManager.getSettings
+      .supportHashBuildJoinTypeOnLeft(shj.joinType)
+    val rightBuildable = BackendsApiManager.getSettings
+      .supportHashBuildJoinTypeOnRight(shj.joinType)
+    if (!leftBuildable) {
+      BuildRight
+    } else if (!rightBuildable) {
+      BuildLeft
     } else {
-      val leftBuildable = BackendsApiManager.getSettings
-        .supportHashBuildJoinTypeOnLeft(shj.joinType)
-      val rightBuildable = BackendsApiManager.getSettings
-        .supportHashBuildJoinTypeOnRight(shj.joinType)
-
-      if (!leftBuildable) {
-        BuildRight
-      } else if (!rightBuildable) {
-        BuildLeft
-      } else {
-        shj.logicalLink match {
-          case Some(join: Join) =>
-            val leftSize = join.left.stats.sizeInBytes
-            val rightSize = join.right.stats.sizeInBytes
-            if (rightSize <= leftSize) BuildRight else BuildLeft
-          // Only the ShuffledHashJoinExec generated directly in some spark tests is not link
-          // logical plan, such as OuterJoinSuite.
-          case _ => shj.buildSide
-        }
+      shj.logicalLink match {
+        case Some(join: Join) =>
+          val leftSize = join.left.stats.sizeInBytes
+          val rightSize = join.right.stats.sizeInBytes
+          if (rightSize <= leftSize) BuildRight else BuildLeft
+        // Only the ShuffledHashJoinExec generated directly in some spark tests is not link
+        // logical plan, such as OuterJoinSuite.
+        case _ => shj.buildSide
       }
     }
   }
@@ -415,6 +411,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
         case plan: ShuffleExchangeExec =>
           val transformer = ColumnarShuffleExchangeExec(plan, plan.child, plan.child.output)
           transformer.doValidate().tagOnFallback(plan)
+        // TODO: Remove after ShuffledHashJoinExecTemp adapts to RAS
         case plan: ShuffledHashJoinExec =>
           val transformer = BackendsApiManager.getSparkPlanExecApiInstance
             .genShuffledHashJoinExecTransformer(
@@ -426,6 +423,18 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.left,
               plan.right,
               plan.isSkewJoin)
+          transformer.doValidate().tagOnFallback(plan)
+        case plan @ ShuffledHashJoinExecTemp(join, buildSide) =>
+          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+            .genShuffledHashJoinExecTransformer(
+              join.leftKeys,
+              join.rightKeys,
+              join.joinType,
+              buildSide,
+              join.condition,
+              join.left,
+              join.right,
+              join.isSkewJoin)
           transformer.doValidate().tagOnFallback(plan)
         case plan: BroadcastExchangeExec =>
           val transformer = ColumnarBroadcastExchangeExec(plan.mode, plan.child)

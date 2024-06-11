@@ -119,69 +119,90 @@ case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
 // Join transformation.
 case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
 
-  override def offload(plan: SparkPlan): SparkPlan = {
-    if (TransformHints.isNotTransformable(plan)) {
+  private def dropPartialSort(plan: SparkPlan): SparkPlan = plan match {
+    case sort: SortExecTransformer if !sort.global =>
+      sort.child
+    case sort: SortExec if !sort.global =>
+      sort.child
+    case _ => plan
+  }
+
+  override def offload(plan: SparkPlan): SparkPlan = plan match {
+    case ShuffledHashJoinExecTemp(join, _) if TransformHints.isNotTransformable(plan) =>
+      logDebug(s"Columnar Processing for ${join.getClass} is under row guard.")
+      join
+    case p if TransformHints.isNotTransformable(p) =>
       logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
-      return plan
-    }
-    plan match {
-      case plan: ShuffledHashJoinExec =>
-        val left = plan.left
-        val right = plan.right
-        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        BackendsApiManager.getSparkPlanExecApiInstance
-          .genShuffledHashJoinExecTransformer(
-            plan.leftKeys,
-            plan.rightKeys,
-            plan.joinType,
-            TransformHints.getShuffleHashJoinBuildSide(plan),
-            plan.condition,
-            left,
-            right,
-            plan.isSkewJoin)
-      case plan: SortMergeJoinExec =>
-        val left = plan.left
-        val right = plan.right
-        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        BackendsApiManager.getSparkPlanExecApiInstance
-          .genSortMergeJoinExecTransformer(
-            plan.leftKeys,
-            plan.rightKeys,
-            plan.joinType,
-            plan.condition,
-            left,
-            right,
-            plan.isSkewJoin)
-      case plan: BroadcastHashJoinExec =>
-        val left = plan.left
-        val right = plan.right
-        BackendsApiManager.getSparkPlanExecApiInstance
-          .genBroadcastHashJoinExecTransformer(
-            plan.leftKeys,
-            plan.rightKeys,
-            plan.joinType,
-            plan.buildSide,
-            plan.condition,
-            left,
-            right,
-            isNullAwareAntiJoin = plan.isNullAwareAntiJoin)
-      case plan: CartesianProductExec =>
-        val left = plan.left
-        val right = plan.right
-        BackendsApiManager.getSparkPlanExecApiInstance
-          .genCartesianProductExecTransformer(left, right, plan.condition)
-      case plan: BroadcastNestedLoopJoinExec =>
-        val left = plan.left
-        val right = plan.right
-        BackendsApiManager.getSparkPlanExecApiInstance
-          .genBroadcastNestedLoopJoinExecTransformer(
-            left,
-            right,
-            plan.buildSide,
-            plan.joinType,
-            plan.condition)
-      case other => other
-    }
+      p
+    case ShuffledHashJoinExecTemp(join, buildSide) =>
+      logDebug(s"Columnar Processing for ${join.getClass} is currently supported.")
+      BackendsApiManager.getSparkPlanExecApiInstance
+        .genShuffledHashJoinExecTransformer(
+          join.leftKeys,
+          join.rightKeys,
+          join.joinType,
+          buildSide,
+          join.condition,
+          dropPartialSort(join.left),
+          dropPartialSort(join.right),
+          join.isSkewJoin)
+    // TODO: Remove after ShuffledHashJoinExecTemp adapts to RAS
+    case plan: ShuffledHashJoinExec =>
+      val left = plan.left
+      val right = plan.right
+      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+      BackendsApiManager.getSparkPlanExecApiInstance
+        .genShuffledHashJoinExecTransformer(
+          plan.leftKeys,
+          plan.rightKeys,
+          plan.joinType,
+          TransformHints.getShuffleHashJoinBuildSide(plan),
+          plan.condition,
+          left,
+          right,
+          plan.isSkewJoin)
+    case plan: SortMergeJoinExec =>
+      val left = plan.left
+      val right = plan.right
+      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+      BackendsApiManager.getSparkPlanExecApiInstance
+        .genSortMergeJoinExecTransformer(
+          plan.leftKeys,
+          plan.rightKeys,
+          plan.joinType,
+          plan.condition,
+          left,
+          right,
+          plan.isSkewJoin)
+    case plan: BroadcastHashJoinExec =>
+      val left = plan.left
+      val right = plan.right
+      BackendsApiManager.getSparkPlanExecApiInstance
+        .genBroadcastHashJoinExecTransformer(
+          plan.leftKeys,
+          plan.rightKeys,
+          plan.joinType,
+          plan.buildSide,
+          plan.condition,
+          left,
+          right,
+          isNullAwareAntiJoin = plan.isNullAwareAntiJoin)
+    case plan: CartesianProductExec =>
+      val left = plan.left
+      val right = plan.right
+      BackendsApiManager.getSparkPlanExecApiInstance
+        .genCartesianProductExecTransformer(left, right, plan.condition)
+    case plan: BroadcastNestedLoopJoinExec =>
+      val left = plan.left
+      val right = plan.right
+      BackendsApiManager.getSparkPlanExecApiInstance
+        .genBroadcastNestedLoopJoinExecTransformer(
+          left,
+          right,
+          plan.buildSide,
+          plan.joinType,
+          plan.condition)
+    case other => other
   }
 
 }
