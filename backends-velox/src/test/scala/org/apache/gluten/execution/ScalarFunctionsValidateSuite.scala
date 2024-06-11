@@ -1077,4 +1077,25 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         }
     }
   }
+
+  test("PreciseTimestampConversion") {
+    withTempPath {
+      path =>
+        val df = spark
+          .sql(
+            "select * from VALUES ('A1', TIMESTAMP'2021-01-01 00:00:00'), " +
+              "('A1', TIMESTAMP'2021-01-01 00:04:30'), ('A1', TIMESTAMP'2021-01-01 00:06:00'), " +
+              "('A2', TIMESTAMP'2021-01-01 00:01:00') AS tab(a, b)")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("string_timestamp")
+
+        runQueryAndCompare(
+          "SELECT a, window.start, window.end, count(*) as cnt FROM" +
+            " string_timestamp GROUP by a, window(b, '5 minutes') ORDER BY a, start;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
 }
