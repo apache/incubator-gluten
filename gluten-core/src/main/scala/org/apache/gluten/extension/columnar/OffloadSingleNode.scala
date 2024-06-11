@@ -101,23 +101,17 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
 // Exchange transformation.
 case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
-    case plan if TransformHints.isNotTransformable(plan) =>
-      plan
-    case plan: ShuffleExchangeExec =>
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      val child = plan.child
-      if (
-        (child.supportsColumnar || GlutenConfig.getConf.enablePreferColumnar) &&
-        BackendsApiManager.getSettings.supportColumnarShuffleExec()
-      ) {
-        BackendsApiManager.getSparkPlanExecApiInstance.genColumnarShuffleExchange(plan, child)
-      } else {
-        plan.withNewChildren(Seq(child))
-      }
-    case plan: BroadcastExchangeExec =>
-      val child = plan.child
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      ColumnarBroadcastExchangeExec(plan.mode, child)
+    case p if TransformHints.isNotTransformable(p) =>
+      p
+    case s: ShuffleExchangeExec
+        if (s.child.supportsColumnar || GlutenConfig.getConf.enablePreferColumnar) &&
+          BackendsApiManager.getSettings.supportColumnarShuffleExec() =>
+      logDebug(s"Columnar Processing for ${s.getClass} is currently supported.")
+      BackendsApiManager.getSparkPlanExecApiInstance.genColumnarShuffleExchange(s)
+    case b: BroadcastExchangeExec =>
+      val child = b.child
+      logDebug(s"Columnar Processing for ${b.getClass} is currently supported.")
+      ColumnarBroadcastExchangeExec(b.mode, child)
     case other => other
   }
 }

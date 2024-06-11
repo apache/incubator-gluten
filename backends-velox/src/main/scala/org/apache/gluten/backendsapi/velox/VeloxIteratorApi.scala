@@ -203,7 +203,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         resIter.close()
       }
       .recyclePayload(batch => batch.close())
-      .addToPipelineTime(pipelineTime)
+      .collectLifeMillis(millis => pipelineTime += millis)
       .asInterruptible(context)
       .create()
   }
@@ -246,7 +246,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         nativeResultIterator.close()
       }
       .recyclePayload(batch => batch.close())
-      .addToPipelineTime(pipelineTime)
+      .collectLifeMillis(millis => pipelineTime += millis)
       .create()
   }
   // scalastyle:on argcount

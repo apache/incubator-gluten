@@ -17,7 +17,6 @@
 package org.apache.gluten.utils
 
 import org.apache.spark.{InterruptibleIterator, TaskContext}
-import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.util.TaskResources
 
 import java.util.concurrent.TimeUnit
@@ -85,12 +84,12 @@ private class IteratorCompleter[A](in: Iterator[A])(completionCallback: => Unit)
   }
 }
 
-private class PipelineTimeAccumulator[A](in: Iterator[A], pipelineTime: SQLMetric)
+private class LifeTimeAccumulator[A](in: Iterator[A], onCollected: Long => Unit)
   extends Iterator[A] {
   private val closed = new AtomicBoolean(false)
   private val startTime = System.nanoTime()
 
-  TaskResources.addRecycler("Iterators#PipelineTimeAccumulator", 100) {
+  TaskResources.addRecycler("Iterators#LifeTimeAccumulator", 100) {
     tryFinish()
   }
 
@@ -111,9 +110,31 @@ private class PipelineTimeAccumulator[A](in: Iterator[A], pipelineTime: SQLMetri
     if (!closed.compareAndSet(false, true)) {
       return
     }
-    pipelineTime += TimeUnit.NANOSECONDS.toMillis(
+    val lifeTime = TimeUnit.NANOSECONDS.toMillis(
       System.nanoTime() - startTime
     )
+    onCollected(lifeTime)
+  }
+}
+
+private class ReadTimeAccumulator[A](in: Iterator[A], onAdded: Long => Unit) extends Iterator[A] {
+
+  override def hasNext: Boolean = {
+    val prev = System.nanoTime()
+    val out = in.hasNext
+    val after = System.nanoTime()
+    val duration = TimeUnit.NANOSECONDS.toMillis(after - prev)
+    onAdded(duration)
+    out
+  }
+
+  override def next(): A = {
+    val prev = System.nanoTime()
+    val out = in.next()
+    val after = System.nanoTime()
+    val duration = TimeUnit.NANOSECONDS.toMillis(after - prev)
+    onAdded(duration)
+    out
   }
 }
 
@@ -171,8 +192,13 @@ class WrapperBuilder[A](in: Iterator[A]) { // FIXME how to make the ctor compani
     this
   }
 
-  def addToPipelineTime(pipelineTime: SQLMetric): WrapperBuilder[A] = {
-    wrapped = new PipelineTimeAccumulator[A](wrapped, pipelineTime)
+  def collectLifeMillis(onCollected: Long => Unit): WrapperBuilder[A] = {
+    wrapped = new LifeTimeAccumulator[A](wrapped, onCollected)
+    this
+  }
+
+  def collectReadMillis(onAdded: Long => Unit): WrapperBuilder[A] = {
+    wrapped = new ReadTimeAccumulator[A](wrapped, onAdded)
     this
   }
 
