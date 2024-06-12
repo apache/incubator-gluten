@@ -133,7 +133,13 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         }
         val metadataColumn =
           SparkShimLoader.getSparkShims.generateMetadataColumns(file, metadataColumnNames)
-        metadataColumn.put(InputFileNameReplaceRule.replacedInputFileName, file.filePath.toString())
+        metadataColumn.put(InputFileNameReplaceRule.replacedInputFileName, file.filePath.toString)
+        metadataColumn.put(
+          InputFileNameReplaceRule.replacedInputFileBlockStart,
+          file.start.toString)
+        metadataColumn.put(
+          InputFileNameReplaceRule.replacedInputFileBlockLength,
+          file.length.toString)
         metadataColumns.add(metadataColumn)
         val partitionColumn = new JHashMap[String, String]()
         for (i <- 0 until file.partitionValues.numFields) {

@@ -17,64 +17,121 @@
 package org.apache.gluten.extension
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, InputFileName, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, NamedExpression}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{FileSourceScanExec, ProjectExec, SparkPlan}
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
-import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
+import org.apache.spark.sql.types.{LongType, StringType}
 
 object InputFileNameReplaceRule {
-  val replacedInputFileName = "$_input_file_name_$"
+  val replacedInputFileName = "$input_file_name$"
+  val replacedInputFileBlockStart = "$input_file_block_start$"
+  val replacedInputFileBlockLength = "$input_file_block_length$"
 }
 
 case class InputFileNameReplaceRule(spark: SparkSession) extends Rule[SparkPlan] {
   import InputFileNameReplaceRule._
 
-  def isInputFileName(expr: Expression): Boolean = {
+  private def isInputFileName(expr: Expression): Boolean = {
     expr match {
       case _: InputFileName => true
       case _ => false
     }
   }
-  override def apply(plan: SparkPlan): SparkPlan = {
-    val inputFileNameCol = AttributeReference(replacedInputFileName, StringType, true)()
 
-    def hasInputFileName(expr: Expression): Boolean = {
+  private def isInputFileBlockStart(expr: Expression): Boolean = {
+    expr match {
+      case _: InputFileBlockStart => true
+      case _ => false
+    }
+  }
+
+  private def isInputFileBlockLength(expr: Expression): Boolean = {
+    expr match {
+      case _: InputFileBlockLength => true
+      case _ => false
+    }
+  }
+
+  override def apply(plan: SparkPlan): SparkPlan = {
+    val replacedExprs = scala.collection.mutable.Map[String, AttributeReference]()
+
+    def hasParquetScan(plan: SparkPlan): Boolean = {
+      plan match {
+        case fileScan: FileSourceScanExec
+            if fileScan.relation.fileFormat.isInstanceOf[ParquetFileFormat] =>
+          true
+        case batchScan: BatchScanExec =>
+          batchScan.scan match {
+            case _: ParquetScan => true
+            case _ => false
+          }
+        case _ => plan.children.exists(hasParquetScan)
+      }
+    }
+
+    def mayNeedConvert(expr: Expression): Boolean = {
       expr match {
         case e if isInputFileName(e) => true
-        case other => other.children.exists(hasInputFileName)
+        case s if isInputFileBlockStart(s) => true
+        case l if isInputFileBlockLength(l) => true
+        case other => other.children.exists(mayNeedConvert)
       }
     }
 
-    def replaceInputFileName(expr: Expression): Expression = {
+    def doConvert(expr: Expression): Expression = {
       expr match {
-        case e if isInputFileName(e) => inputFileNameCol
-
+        case e if isInputFileName(e) =>
+          replacedExprs.getOrElseUpdate(
+            replacedInputFileName,
+            AttributeReference(replacedInputFileName, StringType, true)())
+        case s if isInputFileBlockStart(s) =>
+          replacedExprs.getOrElseUpdate(
+            replacedInputFileBlockStart,
+            AttributeReference(replacedInputFileBlockStart, LongType, true)()
+          )
+        case l if isInputFileBlockLength(l) =>
+          replacedExprs.getOrElseUpdate(
+            replacedInputFileBlockLength,
+            AttributeReference(replacedInputFileBlockLength, LongType, true)()
+          )
         case other =>
-          other.withNewChildren(other.children.map(child => replaceInputFileName(child)))
+          other.withNewChildren(other.children.map(child => doConvert(child)))
       }
     }
 
-    def applyInputFileNameColToScan(plan: SparkPlan): SparkPlan = {
-      plan match {
-        case f: FileSourceScanExec
-            if !f.output.exists(attr => attr.exprId == inputFileNameCol.exprId) =>
-          f.copy(output = f.output :+ inputFileNameCol.toAttribute)
-        case b: BatchScanExec if !b.output.exists(attr => attr.exprId == inputFileNameCol.exprId) =>
-          b.copy(output = b.output :+ inputFileNameCol)
-        case other =>
-          val newChildren = other.children.map(applyInputFileNameColToScan)
-          other.withNewChildren(newChildren)
+    def applyNewAttrToScanOutput(plan: SparkPlan): SparkPlan = {
+      plan.transformUp {
+        case f: FileSourceScanExec =>
+          var newOutput = f.output
+          for ((_, newAttr) <- replacedExprs) {
+            if (!newOutput.exists(attr => attr.exprId == newAttr.exprId)) {
+              newOutput = newOutput :+ newAttr.toAttribute
+            }
+          }
+          f.copy(output = newOutput)
+
+        case b: BatchScanExec =>
+          var newOutput = b.output
+          for ((_, newAttr) <- replacedExprs) {
+            if (!newOutput.exists(attr => attr.exprId == newAttr.exprId)) {
+              newOutput = newOutput :+ newAttr
+            }
+          }
+          b.copy(output = newOutput)
       }
     }
 
     def replaceInputFileNameInProject(plan: SparkPlan): SparkPlan = {
       plan match {
-        case _ @ProjectExec(projectList, child) if projectList.exists(hasInputFileName) =>
+        case _ @ProjectExec(projectList, child)
+            if projectList.exists(mayNeedConvert) && hasParquetScan(plan) =>
           val newProjectList = projectList.map {
-            expr => replaceInputFileName(expr).asInstanceOf[NamedExpression]
+            expr => doConvert(expr).asInstanceOf[NamedExpression]
           }
-          val newChild = replaceInputFileNameInProject(applyInputFileNameColToScan(child))
+          val newChild = replaceInputFileNameInProject(applyNewAttrToScanOutput(child))
           ProjectExec(newProjectList, newChild)
         case other =>
           val newChildren = other.children.map(replaceInputFileNameInProject)
