@@ -19,6 +19,7 @@
 
 #include <config.h>
 
+#include <Common/Throttler.h>
 #include <Disks/ObjectStorages/DiskObjectStorage.h>
 #if USE_HDFS
 #include <Disks/ObjectStorages/GlutenHDFSObjectStorage.h>
@@ -43,6 +44,8 @@ public:
         object_key_prefix = object_key_prefix_;
         hdfs_object_storage = dynamic_cast<local_engine::GlutenHDFSObjectStorage *>(object_storage_.get());
         hdfsSetWorkingDirectory(hdfs_object_storage->getHDFSFS(), "/");
+        auto max_speed = config.getUInt(config_prefix + ".write_speed", 450);
+        throttler = std::make_shared<DB::Throttler>(max_speed);
     }
 
     void createDirectory(const String & path) override;
@@ -52,11 +55,16 @@ public:
     void removeDirectory(const String & path) override;
 
     DB::DiskObjectStoragePtr createDiskObjectStorage() override;
+
+    std::unique_ptr<DB::WriteBufferFromFileBase> writeFile(const String& path, size_t buf_size, DB::WriteMode mode,
+        const DB::WriteSettings& settings) override;
+
 private:
     String path2AbsPath(const String & path);
 
     GlutenHDFSObjectStorage * hdfs_object_storage;
     String object_key_prefix;
+    DB::ThrottlerPtr throttler;
 };
 #endif
 }
