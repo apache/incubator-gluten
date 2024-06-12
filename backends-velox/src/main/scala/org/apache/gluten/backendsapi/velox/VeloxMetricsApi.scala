@@ -261,7 +261,7 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
       "numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions"),
       "bytesSpilled" -> SQLMetrics.createSizeMetric(sparkContext, "shuffle bytes spilled"),
-      "splitBufferSize" -> SQLMetrics.createSizeMetric(sparkContext, "split buffer size total"),
+      "splitBufferSize" -> SQLMetrics.createSizeMetric(sparkContext, "split buffer size"),
       "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to split"),
       "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to spill"),
       "deserializeTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to deserialize"),
