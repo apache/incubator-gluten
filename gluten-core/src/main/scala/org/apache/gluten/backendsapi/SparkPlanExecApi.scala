@@ -20,6 +20,7 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 
 import org.apache.spark.ShuffleDependency
@@ -661,17 +662,20 @@ trait SparkPlanExecApi {
   def postProcessPushDownFilter(
       extraFilters: Seq[Expression],
       sparkExecNode: LeafExecNode): Seq[Expression] = {
+    def getPushedFilter(dataFilters: Seq[Expression]): Seq[Expression] = {
+      val pushedFilters =
+        dataFilters ++ FilterHandler.getRemainingFilters(dataFilters, extraFilters)
+      pushedFilters.filterNot(_.references.exists {
+        attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
+      })
+    }
     sparkExecNode match {
       case fileSourceScan: FileSourceScanExec =>
-        fileSourceScan.dataFilters ++ FilterHandler.getRemainingFilters(
-          fileSourceScan.dataFilters,
-          extraFilters)
+        getPushedFilter(fileSourceScan.dataFilters)
       case batchScan: BatchScanExec =>
         batchScan.scan match {
           case fileScan: FileScan =>
-            fileScan.dataFilters ++ FilterHandler.getRemainingFilters(
-              fileScan.dataFilters,
-              extraFilters)
+            getPushedFilter(fileScan.dataFilters)
           case _ =>
             // TODO: For data lake format use pushedFilters in SupportsPushDownFilters
             extraFilters

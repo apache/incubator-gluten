@@ -39,6 +39,7 @@ class VeloxTransformerApi extends TransformerApi with Logging {
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(
       relation: HadoopFsRelation,
+      requiredSchema: StructType,
       selectedPartitions: Array[PartitionDirectory],
       output: Seq[Attribute],
       bucketedScan: Boolean,
@@ -48,6 +49,7 @@ class VeloxTransformerApi extends TransformerApi with Logging {
       filterExprs: Seq[Expression] = Seq.empty): Seq[InputPartition] = {
     InputPartitionsUtil(
       relation,
+      requiredSchema,
       selectedPartitions,
       output,
       bucketedScan,
