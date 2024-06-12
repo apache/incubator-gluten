@@ -248,6 +248,10 @@ object TestResultLine {
       return Nil
     }
 
+    if (lines.size == 1) {
+      return Nil
+    }
+
     List(lines.reduce { (left, right) =>
       TestResultLine(name, left.coordinates.zip(right.coordinates).map {
         case (leftCoord, rightCoord) =>
