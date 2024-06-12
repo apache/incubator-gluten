@@ -1,5 +1,5 @@
 == Physical Plan ==
-AdaptiveSparkPlan (97)
+AdaptiveSparkPlan (109)
 +- == Final Plan ==
    VeloxColumnarToRowExec (64)
    +- TakeOrderedAndProjectExecTransformer (63)
@@ -52,38 +52,50 @@ AdaptiveSparkPlan (97)
                                  +- ShuffleQueryStage (51), Statistics(X)
                                     +- ReusedExchange (50)
 +- == Initial Plan ==
-   TakeOrderedAndProject (96)
-   +- HashAggregate (95)
-      +- HashAggregate (94)
-         +- Project (93)
-            +- ShuffledHashJoin Inner BuildRight (92)
-               :- Exchange (81)
-               :  +- Project (80)
-               :     +- ShuffledHashJoin Inner BuildLeft (79)
-               :        :- Exchange (67)
-               :        :  +- Filter (66)
-               :        :     +- Scan parquet (65)
-               :        +- Exchange (78)
-               :           +- ShuffledHashJoin LeftSemi BuildRight (77)
-               :              :- Exchange (70)
-               :              :  +- Filter (69)
-               :              :     +- Scan parquet (68)
-               :              +- Project (76)
-               :                 +- Filter (75)
-               :                    +- HashAggregate (74)
-               :                       +- Exchange (73)
-               :                          +- HashAggregate (72)
-               :                             +- Scan parquet (71)
-               +- ShuffledHashJoin LeftSemi BuildRight (91)
-                  :- Exchange (84)
-                  :  +- Filter (83)
-                  :     +- Scan parquet (82)
-                  +- Project (90)
-                     +- Filter (89)
-                        +- HashAggregate (88)
-                           +- Exchange (87)
-                              +- HashAggregate (86)
-                                 +- Scan parquet (85)
+   TakeOrderedAndProject (108)
+   +- HashAggregate (107)
+      +- HashAggregate (106)
+         +- Project (105)
+            +- ShuffledHashJoinExecTemp (104)
+               +- SortMergeJoin Inner (103)
+                  :- Sort (88)
+                  :  +- Exchange (87)
+                  :     +- Project (86)
+                  :        +- ShuffledHashJoinExecTemp (85)
+                  :           +- SortMergeJoin Inner (84)
+                  :              :- Sort (68)
+                  :              :  +- Exchange (67)
+                  :              :     +- Filter (66)
+                  :              :        +- Scan parquet (65)
+                  :              +- Sort (83)
+                  :                 +- Exchange (82)
+                  :                    +- ShuffledHashJoinExecTemp (81)
+                  :                       +- SortMergeJoin LeftSemi (80)
+                  :                          :- Sort (72)
+                  :                          :  +- Exchange (71)
+                  :                          :     +- Filter (70)
+                  :                          :        +- Scan parquet (69)
+                  :                          +- Sort (79)
+                  :                             +- Project (78)
+                  :                                +- Filter (77)
+                  :                                   +- HashAggregate (76)
+                  :                                      +- Exchange (75)
+                  :                                         +- HashAggregate (74)
+                  :                                            +- Scan parquet (73)
+                  +- Sort (102)
+                     +- ShuffledHashJoinExecTemp (101)
+                        +- SortMergeJoin LeftSemi (100)
+                           :- Sort (92)
+                           :  +- Exchange (91)
+                           :     +- Filter (90)
+                           :        +- Scan parquet (89)
+                           +- Sort (99)
+                              +- Project (98)
+                                 +- Filter (97)
+                                    +- HashAggregate (96)
+                                       +- Exchange (95)
+                                          +- HashAggregate (94)
+                                             +- Scan parquet (93)
 
 
 (1) Scan parquet
@@ -371,154 +383,202 @@ Condition : isnotnull(c_custkey#X)
 Input [2]: [c_custkey#X, c_name#X]
 Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(68) Scan parquet
+(68) Sort
+Input [2]: [c_custkey#X, c_name#X]
+Arguments: [c_custkey#X ASC NULLS FIRST], false, 0
+
+(69) Scan parquet
 Output [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(o_custkey), IsNotNull(o_orderkey)]
 ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_totalprice:decimal(12,2),o_orderdate:date>
 
-(69) Filter
+(70) Filter
 Input [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
 Condition : (isnotnull(o_custkey#X) AND isnotnull(o_orderkey#X))
 
-(70) Exchange
+(71) Exchange
 Input [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
 Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(71) Scan parquet
+(72) Sort
+Input [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
+Arguments: [o_orderkey#X ASC NULLS FIRST], false, 0
+
+(73) Scan parquet
 Output [2]: [l_orderkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 ReadSchema: struct<l_orderkey:bigint,l_quantity:decimal(12,2)>
 
-(72) HashAggregate
+(74) HashAggregate
 Input [2]: [l_orderkey#X, l_quantity#X]
 Keys [1]: [l_orderkey#X]
 Functions [1]: [partial_sum(l_quantity#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [3]: [l_orderkey#X, sum#X, isEmpty#X]
 
-(73) Exchange
+(75) Exchange
 Input [3]: [l_orderkey#X, sum#X, isEmpty#X]
 Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(74) HashAggregate
+(76) HashAggregate
 Input [3]: [l_orderkey#X, sum#X, isEmpty#X]
 Keys [1]: [l_orderkey#X]
 Functions [1]: [sum(l_quantity#X)]
 Aggregate Attributes [1]: [sum(l_quantity#X)#X]
 Results [2]: [l_orderkey#X, sum(l_quantity#X)#X AS sum(l_quantity#X)#X]
 
-(75) Filter
+(77) Filter
 Input [2]: [l_orderkey#X, sum(l_quantity#X)#X]
 Condition : (isnotnull(sum(l_quantity#X)#X) AND (sum(l_quantity#X)#X > 300.00))
 
-(76) Project
+(78) Project
 Output [1]: [l_orderkey#X]
 Input [2]: [l_orderkey#X, sum(l_quantity#X)#X]
 
-(77) ShuffledHashJoin
+(79) Sort
+Input [1]: [l_orderkey#X]
+Arguments: [l_orderkey#X ASC NULLS FIRST], false, 0
+
+(80) SortMergeJoin
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
 Join condition: None
 
-(78) Exchange
+(81) ShuffledHashJoinExecTemp
+Input [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
+Arguments: BuildRight
+
+(82) Exchange
 Input [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
 Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(79) ShuffledHashJoin
+(83) Sort
+Input [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
+Arguments: [o_custkey#X ASC NULLS FIRST], false, 0
+
+(84) SortMergeJoin
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
 Join condition: None
 
-(80) Project
+(85) ShuffledHashJoinExecTemp
+Input [6]: [c_custkey#X, c_name#X, o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
+Arguments: BuildLeft
+
+(86) Project
 Output [5]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X]
 Input [6]: [c_custkey#X, c_name#X, o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
 
-(81) Exchange
+(87) Exchange
 Input [5]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X]
 Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(82) Scan parquet
+(88) Sort
+Input [5]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X]
+Arguments: [o_orderkey#X ASC NULLS FIRST], false, 0
+
+(89) Scan parquet
 Output [2]: [l_orderkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_quantity:decimal(12,2)>
 
-(83) Filter
+(90) Filter
 Input [2]: [l_orderkey#X, l_quantity#X]
 Condition : isnotnull(l_orderkey#X)
 
-(84) Exchange
+(91) Exchange
 Input [2]: [l_orderkey#X, l_quantity#X]
 Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(85) Scan parquet
+(92) Sort
+Input [2]: [l_orderkey#X, l_quantity#X]
+Arguments: [l_orderkey#X ASC NULLS FIRST], false, 0
+
+(93) Scan parquet
 Output [2]: [l_orderkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 ReadSchema: struct<l_orderkey:bigint,l_quantity:decimal(12,2)>
 
-(86) HashAggregate
+(94) HashAggregate
 Input [2]: [l_orderkey#X, l_quantity#X]
 Keys [1]: [l_orderkey#X]
 Functions [1]: [partial_sum(l_quantity#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [3]: [l_orderkey#X, sum#X, isEmpty#X]
 
-(87) Exchange
+(95) Exchange
 Input [3]: [l_orderkey#X, sum#X, isEmpty#X]
 Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(88) HashAggregate
+(96) HashAggregate
 Input [3]: [l_orderkey#X, sum#X, isEmpty#X]
 Keys [1]: [l_orderkey#X]
 Functions [1]: [sum(l_quantity#X)]
 Aggregate Attributes [1]: [sum(l_quantity#X)#X]
 Results [2]: [l_orderkey#X, sum(l_quantity#X)#X AS sum(l_quantity#X)#X]
 
-(89) Filter
+(97) Filter
 Input [2]: [l_orderkey#X, sum(l_quantity#X)#X]
 Condition : (isnotnull(sum(l_quantity#X)#X) AND (sum(l_quantity#X)#X > 300.00))
 
-(90) Project
+(98) Project
 Output [1]: [l_orderkey#X]
 Input [2]: [l_orderkey#X, sum(l_quantity#X)#X]
 
-(91) ShuffledHashJoin
+(99) Sort
+Input [1]: [l_orderkey#X]
+Arguments: [l_orderkey#X ASC NULLS FIRST], false, 0
+
+(100) SortMergeJoin
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [l_orderkey#X]
 Join condition: None
 
-(92) ShuffledHashJoin
+(101) ShuffledHashJoinExecTemp
+Input [2]: [l_orderkey#X, l_quantity#X]
+Arguments: BuildRight
+
+(102) Sort
+Input [2]: [l_orderkey#X, l_quantity#X]
+Arguments: [l_orderkey#X ASC NULLS FIRST], false, 0
+
+(103) SortMergeJoin
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
 Join condition: None
 
-(93) Project
+(104) ShuffledHashJoinExecTemp
+Input [7]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X, l_orderkey#X, l_quantity#X]
+Arguments: BuildRight
+
+(105) Project
 Output [6]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X, l_quantity#X]
 Input [7]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X, l_orderkey#X, l_quantity#X]
 
-(94) HashAggregate
+(106) HashAggregate
 Input [6]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X, l_quantity#X]
 Keys [5]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X]
 Functions [1]: [partial_sum(l_quantity#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [7]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum#X, isEmpty#X]
 
-(95) HashAggregate
+(107) HashAggregate
 Input [7]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum#X, isEmpty#X]
 Keys [5]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X]
 Functions [1]: [sum(l_quantity#X)]
 Aggregate Attributes [1]: [sum(l_quantity#X)#X]
 Results [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity#X)#X AS sum(l_quantity)#X]
 
-(96) TakeOrderedAndProject
+(108) TakeOrderedAndProject
 Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
 Arguments: X, [o_totalprice#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
 
-(97) AdaptiveSparkPlan
+(109) AdaptiveSparkPlan
 Output [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
 Arguments: isFinalPlan=true

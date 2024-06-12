@@ -29,6 +29,7 @@ import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, JoinSelec
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.{JoinSelectionShim, SparkPlan}
+import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, LogicalQueryStage}
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec, ShuffledJoin, SortMergeJoinExec}
 
 object StrategyOverrides extends GlutenSparkExtensionsInjector {
@@ -43,6 +44,11 @@ case class JoinSelectionOverrides(session: SparkSession)
   extends Strategy
   with JoinSelectionHelper
   with SQLConfHelper {
+
+  private def isBroadcastStage(plan: LogicalPlan): Boolean = plan match {
+    case LogicalQueryStage(_, _: BroadcastQueryStageExec) => true
+    case _ => false
+  }
 
   def existsMultiJoins(plan: LogicalPlan, count: Int = 0): Boolean = {
     plan match {
@@ -117,11 +123,12 @@ case class JoinSelectionOverrides(session: SparkSession)
               left,
               right,
               _)
-            if !BackendsApiManager.getSparkPlanExecApiInstance.joinFallback(
-              joinType,
-              left.outputSet,
-              right.outputSet,
-              condition) =>
+            if !isBroadcastStage(left) && !isBroadcastStage(right) &&
+              !BackendsApiManager.getSparkPlanExecApiInstance.joinFallback(
+                joinType,
+                left.outputSet,
+                right.outputSet,
+                condition) =>
           val originalJoinExec = session.sessionState.planner.JoinSelection.apply(j)
           // TODO: ShuffledHashJoinExecTemp adapts to RAS
           if (

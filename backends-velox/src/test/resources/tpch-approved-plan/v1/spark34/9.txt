@@ -1,5 +1,5 @@
 == Physical Plan ==
-AdaptiveSparkPlan (133)
+AdaptiveSparkPlan (148)
 +- == Final Plan ==
    VeloxColumnarToRowExec (94)
    +- ^ SortExecTransformer (92)
@@ -71,44 +71,59 @@ AdaptiveSparkPlan (133)
                                                    +- ^ FilterExecTransformer (70)
                                                       +- ^ Scan parquet (69)
 +- == Initial Plan ==
-   Sort (132)
-   +- Exchange (131)
-      +- HashAggregate (130)
-         +- Exchange (129)
-            +- HashAggregate (128)
-               +- Project (127)
-                  +- ShuffledHashJoin Inner BuildRight (126)
-                     :- Exchange (122)
-                     :  +- Project (121)
-                     :     +- ShuffledHashJoin Inner BuildRight (120)
-                     :        :- Exchange (116)
-                     :        :  +- Project (115)
-                     :        :     +- ShuffledHashJoin Inner BuildRight (114)
-                     :        :        :- Exchange (110)
-                     :        :        :  +- Project (109)
-                     :        :        :     +- ShuffledHashJoin Inner BuildRight (108)
-                     :        :        :        :- Exchange (104)
-                     :        :        :        :  +- Project (103)
-                     :        :        :        :     +- ShuffledHashJoin Inner BuildLeft (102)
-                     :        :        :        :        :- Exchange (98)
-                     :        :        :        :        :  +- Project (97)
-                     :        :        :        :        :     +- Filter (96)
-                     :        :        :        :        :        +- Scan parquet (95)
-                     :        :        :        :        +- Exchange (101)
-                     :        :        :        :           +- Filter (100)
-                     :        :        :        :              +- Scan parquet (99)
-                     :        :        :        +- Exchange (107)
-                     :        :        :           +- Filter (106)
-                     :        :        :              +- Scan parquet (105)
-                     :        :        +- Exchange (113)
-                     :        :           +- Filter (112)
-                     :        :              +- Scan parquet (111)
-                     :        +- Exchange (119)
-                     :           +- Filter (118)
-                     :              +- Scan parquet (117)
-                     +- Exchange (125)
-                        +- Filter (124)
-                           +- Scan parquet (123)
+   Sort (147)
+   +- Exchange (146)
+      +- HashAggregate (145)
+         +- Exchange (144)
+            +- HashAggregate (143)
+               +- Project (142)
+                  +- ShuffledHashJoinExecTemp (141)
+                     +- SortMergeJoin Inner (140)
+                        :- Sort (135)
+                        :  +- Exchange (134)
+                        :     +- Project (133)
+                        :        +- ShuffledHashJoinExecTemp (132)
+                        :           +- SortMergeJoin Inner (131)
+                        :              :- Sort (126)
+                        :              :  +- Exchange (125)
+                        :              :     +- Project (124)
+                        :              :        +- ShuffledHashJoinExecTemp (123)
+                        :              :           +- SortMergeJoin Inner (122)
+                        :              :              :- Sort (117)
+                        :              :              :  +- Exchange (116)
+                        :              :              :     +- Project (115)
+                        :              :              :        +- ShuffledHashJoinExecTemp (114)
+                        :              :              :           +- SortMergeJoin Inner (113)
+                        :              :              :              :- Sort (108)
+                        :              :              :              :  +- Exchange (107)
+                        :              :              :              :     +- Project (106)
+                        :              :              :              :        +- ShuffledHashJoinExecTemp (105)
+                        :              :              :              :           +- SortMergeJoin Inner (104)
+                        :              :              :              :              :- Sort (99)
+                        :              :              :              :              :  +- Exchange (98)
+                        :              :              :              :              :     +- Project (97)
+                        :              :              :              :              :        +- Filter (96)
+                        :              :              :              :              :           +- Scan parquet (95)
+                        :              :              :              :              +- Sort (103)
+                        :              :              :              :                 +- Exchange (102)
+                        :              :              :              :                    +- Filter (101)
+                        :              :              :              :                       +- Scan parquet (100)
+                        :              :              :              +- Sort (112)
+                        :              :              :                 +- Exchange (111)
+                        :              :              :                    +- Filter (110)
+                        :              :              :                       +- Scan parquet (109)
+                        :              :              +- Sort (121)
+                        :              :                 +- Exchange (120)
+                        :              :                    +- Filter (119)
+                        :              :                       +- Scan parquet (118)
+                        :              +- Sort (130)
+                        :                 +- Exchange (129)
+                        :                    +- Filter (128)
+                        :                       +- Scan parquet (127)
+                        +- Sort (139)
+                           +- Exchange (138)
+                              +- Filter (137)
+                                 +- Scan parquet (136)
 
 
 (1) Scan parquet
@@ -515,173 +530,233 @@ Input [2]: [p_partkey#X, p_name#X]
 Input [1]: [p_partkey#X]
 Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(99) Scan parquet
+(99) Sort
+Input [1]: [p_partkey#X]
+Arguments: [p_partkey#X ASC NULLS FIRST], false, 0
+
+(100) Scan parquet
 Output [6]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_partkey), IsNotNull(l_suppkey), IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_partkey:bigint,l_suppkey:bigint,l_quantity:decimal(12,2),l_extendedprice:decimal(12,2),l_discount:decimal(12,2)>
 
-(100) Filter
+(101) Filter
 Input [6]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
 Condition : ((isnotnull(l_partkey#X) AND isnotnull(l_suppkey#X)) AND isnotnull(l_orderkey#X))
 
-(101) Exchange
+(102) Exchange
 Input [6]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
 Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(102) ShuffledHashJoin
+(103) Sort
+Input [6]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
+Arguments: [l_partkey#X ASC NULLS FIRST], false, 0
+
+(104) SortMergeJoin
 Left keys [1]: [p_partkey#X]
 Right keys [1]: [l_partkey#X]
 Join type: Inner
 Join condition: None
 
-(103) Project
+(105) ShuffledHashJoinExecTemp
+Input [7]: [p_partkey#X, l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
+Arguments: BuildLeft
+
+(106) Project
 Output [6]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
 Input [7]: [p_partkey#X, l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
 
-(104) Exchange
+(107) Exchange
 Input [6]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
 Arguments: hashpartitioning(l_suppkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(105) Scan parquet
+(108) Sort
+Input [6]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
+Arguments: [l_suppkey#X ASC NULLS FIRST], false, 0
+
+(109) Scan parquet
 Output [2]: [s_suppkey#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
 ReadSchema: struct<s_suppkey:bigint,s_nationkey:bigint>
 
-(106) Filter
+(110) Filter
 Input [2]: [s_suppkey#X, s_nationkey#X]
 Condition : (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
 
-(107) Exchange
+(111) Exchange
 Input [2]: [s_suppkey#X, s_nationkey#X]
 Arguments: hashpartitioning(s_suppkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(108) ShuffledHashJoin
+(112) Sort
+Input [2]: [s_suppkey#X, s_nationkey#X]
+Arguments: [s_suppkey#X ASC NULLS FIRST], false, 0
+
+(113) SortMergeJoin
 Left keys [1]: [l_suppkey#X]
 Right keys [1]: [s_suppkey#X]
 Join type: Inner
 Join condition: None
 
-(109) Project
+(114) ShuffledHashJoinExecTemp
+Input [8]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, s_suppkey#X, s_nationkey#X]
+Arguments: BuildRight
+
+(115) Project
 Output [7]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
 Input [8]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, s_suppkey#X, s_nationkey#X]
 
-(110) Exchange
+(116) Exchange
 Input [7]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
 Arguments: hashpartitioning(l_suppkey#X, l_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(111) Scan parquet
+(117) Sort
+Input [7]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
+Arguments: [l_suppkey#X ASC NULLS FIRST, l_partkey#X ASC NULLS FIRST], false, 0
+
+(118) Scan parquet
 Output [3]: [ps_partkey#X, ps_suppkey#X, ps_supplycost#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(ps_suppkey), IsNotNull(ps_partkey)]
 ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint,ps_supplycost:decimal(12,2)>
 
-(112) Filter
+(119) Filter
 Input [3]: [ps_partkey#X, ps_suppkey#X, ps_supplycost#X]
 Condition : (isnotnull(ps_suppkey#X) AND isnotnull(ps_partkey#X))
 
-(113) Exchange
+(120) Exchange
 Input [3]: [ps_partkey#X, ps_suppkey#X, ps_supplycost#X]
 Arguments: hashpartitioning(ps_suppkey#X, ps_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(114) ShuffledHashJoin
+(121) Sort
+Input [3]: [ps_partkey#X, ps_suppkey#X, ps_supplycost#X]
+Arguments: [ps_suppkey#X ASC NULLS FIRST, ps_partkey#X ASC NULLS FIRST], false, 0
+
+(122) SortMergeJoin
 Left keys [2]: [l_suppkey#X, l_partkey#X]
 Right keys [2]: [ps_suppkey#X, ps_partkey#X]
 Join type: Inner
 Join condition: None
 
-(115) Project
+(123) ShuffledHashJoinExecTemp
+Input [10]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X, ps_partkey#X, ps_suppkey#X, ps_supplycost#X]
+Arguments: BuildRight
+
+(124) Project
 Output [6]: [l_orderkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X, ps_supplycost#X]
 Input [10]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X, ps_partkey#X, ps_suppkey#X, ps_supplycost#X]
 
-(116) Exchange
+(125) Exchange
 Input [6]: [l_orderkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X, ps_supplycost#X]
 Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(117) Scan parquet
+(126) Sort
+Input [6]: [l_orderkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X, ps_supplycost#X]
+Arguments: [l_orderkey#X ASC NULLS FIRST], false, 0
+
+(127) Scan parquet
 Output [2]: [o_orderkey#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(o_orderkey)]
 ReadSchema: struct<o_orderkey:bigint,o_orderdate:date>
 
-(118) Filter
+(128) Filter
 Input [2]: [o_orderkey#X, o_orderdate#X]
 Condition : isnotnull(o_orderkey#X)
 
-(119) Exchange
+(129) Exchange
 Input [2]: [o_orderkey#X, o_orderdate#X]
 Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(120) ShuffledHashJoin
+(130) Sort
+Input [2]: [o_orderkey#X, o_orderdate#X]
+Arguments: [o_orderkey#X ASC NULLS FIRST], false, 0
+
+(131) SortMergeJoin
 Left keys [1]: [l_orderkey#X]
 Right keys [1]: [o_orderkey#X]
 Join type: Inner
 Join condition: None
 
-(121) Project
+(132) ShuffledHashJoinExecTemp
+Input [8]: [l_orderkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X, ps_supplycost#X, o_orderkey#X, o_orderdate#X]
+Arguments: BuildRight
+
+(133) Project
 Output [6]: [l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X, ps_supplycost#X, o_orderdate#X]
 Input [8]: [l_orderkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X, ps_supplycost#X, o_orderkey#X, o_orderdate#X]
 
-(122) Exchange
+(134) Exchange
 Input [6]: [l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X, ps_supplycost#X, o_orderdate#X]
 Arguments: hashpartitioning(s_nationkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(123) Scan parquet
+(135) Sort
+Input [6]: [l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X, ps_supplycost#X, o_orderdate#X]
+Arguments: [s_nationkey#X ASC NULLS FIRST], false, 0
+
+(136) Scan parquet
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(n_nationkey)]
 ReadSchema: struct<n_nationkey:bigint,n_name:string>
 
-(124) Filter
+(137) Filter
 Input [2]: [n_nationkey#X, n_name#X]
 Condition : isnotnull(n_nationkey#X)
 
-(125) Exchange
+(138) Exchange
 Input [2]: [n_nationkey#X, n_name#X]
 Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(126) ShuffledHashJoin
+(139) Sort
+Input [2]: [n_nationkey#X, n_name#X]
+Arguments: [n_nationkey#X ASC NULLS FIRST], false, 0
+
+(140) SortMergeJoin
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
 Join type: Inner
 Join condition: None
 
-(127) Project
+(141) ShuffledHashJoinExecTemp
+Input [8]: [l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X, ps_supplycost#X, o_orderdate#X, n_nationkey#X, n_name#X]
+Arguments: BuildRight
+
+(142) Project
 Output [3]: [n_name#X AS nation#X, year(o_orderdate#X) AS o_year#X, ((l_extendedprice#X * (1 - l_discount#X)) - (ps_supplycost#X * l_quantity#X)) AS amount#X]
 Input [8]: [l_quantity#X, l_extendedprice#X, l_discount#X, s_nationkey#X, ps_supplycost#X, o_orderdate#X, n_nationkey#X, n_name#X]
 
-(128) HashAggregate
+(143) HashAggregate
 Input [3]: [nation#X, o_year#X, amount#X]
 Keys [2]: [nation#X, o_year#X]
 Functions [1]: [partial_sum(amount#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [4]: [nation#X, o_year#X, sum#X, isEmpty#X]
 
-(129) Exchange
+(144) Exchange
 Input [4]: [nation#X, o_year#X, sum#X, isEmpty#X]
 Arguments: hashpartitioning(nation#X, o_year#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(130) HashAggregate
+(145) HashAggregate
 Input [4]: [nation#X, o_year#X, sum#X, isEmpty#X]
 Keys [2]: [nation#X, o_year#X]
 Functions [1]: [sum(amount#X)]
 Aggregate Attributes [1]: [sum(amount#X)#X]
 Results [3]: [nation#X, o_year#X, sum(amount#X)#X AS sum_profit#X]
 
-(131) Exchange
+(146) Exchange
 Input [3]: [nation#X, o_year#X, sum_profit#X]
 Arguments: rangepartitioning(nation#X ASC NULLS FIRST, o_year#X DESC NULLS LAST, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(132) Sort
+(147) Sort
 Input [3]: [nation#X, o_year#X, sum_profit#X]
 Arguments: [nation#X ASC NULLS FIRST, o_year#X DESC NULLS LAST], true, 0
 
-(133) AdaptiveSparkPlan
+(148) AdaptiveSparkPlan
 Output [3]: [nation#X, o_year#X, sum_profit#X]
 Arguments: isFinalPlan=true

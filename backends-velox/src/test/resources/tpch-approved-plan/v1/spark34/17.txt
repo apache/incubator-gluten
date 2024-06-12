@@ -1,5 +1,5 @@
 == Physical Plan ==
-AdaptiveSparkPlan (57)
+AdaptiveSparkPlan (63)
 +- == Final Plan ==
    VeloxColumnarToRowExec (37)
    +- ^ ProjectExecTransformer (35)
@@ -32,25 +32,31 @@ AdaptiveSparkPlan (57)
                                           +- ^ FilterExecTransformer (20)
                                              +- ^ Scan parquet (19)
 +- == Initial Plan ==
-   HashAggregate (56)
-   +- HashAggregate (55)
-      +- Project (54)
-         +- ShuffledHashJoin Inner BuildRight (53)
-            :- Project (46)
-            :  +- ShuffledHashJoin Inner BuildRight (45)
-            :     :- Exchange (40)
-            :     :  +- Filter (39)
-            :     :     +- Scan parquet (38)
-            :     +- Exchange (44)
-            :        +- Project (43)
-            :           +- Filter (42)
-            :              +- Scan parquet (41)
-            +- Filter (52)
-               +- HashAggregate (51)
-                  +- Exchange (50)
-                     +- HashAggregate (49)
-                        +- Filter (48)
-                           +- Scan parquet (47)
+   HashAggregate (62)
+   +- HashAggregate (61)
+      +- Project (60)
+         +- ShuffledHashJoinExecTemp (59)
+            +- SortMergeJoin Inner (58)
+               :- Sort (50)
+               :  +- Project (49)
+               :     +- ShuffledHashJoinExecTemp (48)
+               :        +- SortMergeJoin Inner (47)
+               :           :- Sort (41)
+               :           :  +- Exchange (40)
+               :           :     +- Filter (39)
+               :           :        +- Scan parquet (38)
+               :           +- Sort (46)
+               :              +- Exchange (45)
+               :                 +- Project (44)
+               :                    +- Filter (43)
+               :                       +- Scan parquet (42)
+               +- Sort (57)
+                  +- Filter (56)
+                     +- HashAggregate (55)
+                        +- Exchange (54)
+                           +- HashAggregate (53)
+                              +- Filter (52)
+                                 +- Scan parquet (51)
 
 
 (1) Scan parquet
@@ -234,92 +240,116 @@ Condition : (isnotnull(l_partkey#X) AND isnotnull(l_quantity#X))
 Input [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
 Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(41) Scan parquet
+(41) Sort
+Input [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
+Arguments: [l_partkey#X ASC NULLS FIRST], false, 0
+
+(42) Scan parquet
 Output [3]: [p_partkey#X, p_brand#X, p_container#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(p_brand), IsNotNull(p_container), EqualTo(p_brand,Brand#X), EqualTo(p_container,MED BOX), IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_brand:string,p_container:string>
 
-(42) Filter
+(43) Filter
 Input [3]: [p_partkey#X, p_brand#X, p_container#X]
 Condition : ((((isnotnull(p_brand#X) AND isnotnull(p_container#X)) AND (p_brand#X = Brand#X)) AND (p_container#X = MED BOX)) AND isnotnull(p_partkey#X))
 
-(43) Project
+(44) Project
 Output [1]: [p_partkey#X]
 Input [3]: [p_partkey#X, p_brand#X, p_container#X]
 
-(44) Exchange
+(45) Exchange
 Input [1]: [p_partkey#X]
 Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(45) ShuffledHashJoin
+(46) Sort
+Input [1]: [p_partkey#X]
+Arguments: [p_partkey#X ASC NULLS FIRST], false, 0
+
+(47) SortMergeJoin
 Left keys [1]: [l_partkey#X]
 Right keys [1]: [p_partkey#X]
 Join type: Inner
 Join condition: None
 
-(46) Project
+(48) ShuffledHashJoinExecTemp
+Input [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, p_partkey#X]
+Arguments: BuildRight
+
+(49) Project
 Output [3]: [l_quantity#X, l_extendedprice#X, p_partkey#X]
 Input [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, p_partkey#X]
 
-(47) Scan parquet
+(50) Sort
+Input [3]: [l_quantity#X, l_extendedprice#X, p_partkey#X]
+Arguments: [p_partkey#X ASC NULLS FIRST], false, 0
+
+(51) Scan parquet
 Output [2]: [l_partkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_partkey)]
 ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2)>
 
-(48) Filter
+(52) Filter
 Input [2]: [l_partkey#X, l_quantity#X]
 Condition : isnotnull(l_partkey#X)
 
-(49) HashAggregate
+(53) HashAggregate
 Input [2]: [l_partkey#X, l_quantity#X]
 Keys [1]: [l_partkey#X]
 Functions [1]: [partial_avg(l_quantity#X)]
 Aggregate Attributes [2]: [sum#X, count#X]
 Results [3]: [l_partkey#X, sum#X, count#X]
 
-(50) Exchange
+(54) Exchange
 Input [3]: [l_partkey#X, sum#X, count#X]
 Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(51) HashAggregate
+(55) HashAggregate
 Input [3]: [l_partkey#X, sum#X, count#X]
 Keys [1]: [l_partkey#X]
 Functions [1]: [avg(l_quantity#X)]
 Aggregate Attributes [1]: [avg(l_quantity#X)#X]
 Results [2]: [(0.2 * avg(l_quantity#X)#X) AS (0.2 * avg(l_quantity))#X, l_partkey#X]
 
-(52) Filter
+(56) Filter
 Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
 Condition : isnotnull((0.2 * avg(l_quantity))#X)
 
-(53) ShuffledHashJoin
+(57) Sort
+Input [2]: [(0.2 * avg(l_quantity))#X, l_partkey#X]
+Arguments: [l_partkey#X ASC NULLS FIRST], false, 0
+
+(58) SortMergeJoin
 Left keys [1]: [p_partkey#X]
 Right keys [1]: [l_partkey#X]
 Join type: Inner
 Join condition: (cast(l_quantity#X as decimal(18,7)) < (0.2 * avg(l_quantity))#X)
 
-(54) Project
+(59) ShuffledHashJoinExecTemp
+Input [5]: [l_quantity#X, l_extendedprice#X, p_partkey#X, (0.2 * avg(l_quantity))#X, l_partkey#X]
+Arguments: BuildRight
+
+(60) Project
 Output [1]: [l_extendedprice#X]
 Input [5]: [l_quantity#X, l_extendedprice#X, p_partkey#X, (0.2 * avg(l_quantity))#X, l_partkey#X]
 
-(55) HashAggregate
+(61) HashAggregate
 Input [1]: [l_extendedprice#X]
 Keys: []
 Functions [1]: [partial_sum(l_extendedprice#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [2]: [sum#X, isEmpty#X]
 
-(56) HashAggregate
+(62) HashAggregate
 Input [2]: [sum#X, isEmpty#X]
 Keys: []
 Functions [1]: [sum(l_extendedprice#X)]
 Aggregate Attributes [1]: [sum(l_extendedprice#X)#X]
 Results [1]: [(sum(l_extendedprice#X)#X / 7.0) AS avg_yearly#X]
 
-(57) AdaptiveSparkPlan
+(63) AdaptiveSparkPlan
 Output [1]: [avg_yearly#X]
 Arguments: isFinalPlan=true

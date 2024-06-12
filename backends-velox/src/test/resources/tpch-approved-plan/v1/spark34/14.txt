@@ -1,5 +1,5 @@
 == Physical Plan ==
-AdaptiveSparkPlan (35)
+AdaptiveSparkPlan (38)
 +- == Final Plan ==
    VeloxColumnarToRowExec (23)
    +- ^ ProjectExecTransformer (21)
@@ -20,17 +20,20 @@ AdaptiveSparkPlan (35)
                               +- ^ FilterExecTransformer (10)
                                  +- ^ Scan parquet (9)
 +- == Initial Plan ==
-   HashAggregate (34)
-   +- HashAggregate (33)
-      +- Project (32)
-         +- ShuffledHashJoin Inner BuildRight (31)
-            :- Exchange (27)
-            :  +- Project (26)
-            :     +- Filter (25)
-            :        +- Scan parquet (24)
-            +- Exchange (30)
-               +- Filter (29)
-                  +- Scan parquet (28)
+   HashAggregate (37)
+   +- HashAggregate (36)
+      +- Project (35)
+         +- ShuffledHashJoinExecTemp (34)
+            +- SortMergeJoin Inner (33)
+               :- Sort (28)
+               :  +- Exchange (27)
+               :     +- Project (26)
+               :        +- Filter (25)
+               :           +- Scan parquet (24)
+               +- Sort (32)
+                  +- Exchange (31)
+                     +- Filter (30)
+                        +- Scan parquet (29)
 
 
 (1) Scan parquet
@@ -153,45 +156,57 @@ Input [4]: [l_partkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Input [3]: [l_partkey#X, l_extendedprice#X, l_discount#X]
 Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(28) Scan parquet
+(28) Sort
+Input [3]: [l_partkey#X, l_extendedprice#X, l_discount#X]
+Arguments: [l_partkey#X ASC NULLS FIRST], false, 0
+
+(29) Scan parquet
 Output [2]: [p_partkey#X, p_type#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_type:string>
 
-(29) Filter
+(30) Filter
 Input [2]: [p_partkey#X, p_type#X]
 Condition : isnotnull(p_partkey#X)
 
-(30) Exchange
+(31) Exchange
 Input [2]: [p_partkey#X, p_type#X]
 Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(31) ShuffledHashJoin
+(32) Sort
+Input [2]: [p_partkey#X, p_type#X]
+Arguments: [p_partkey#X ASC NULLS FIRST], false, 0
+
+(33) SortMergeJoin
 Left keys [1]: [l_partkey#X]
 Right keys [1]: [p_partkey#X]
 Join type: Inner
 Join condition: None
 
-(32) Project
+(34) ShuffledHashJoinExecTemp
+Input [5]: [l_partkey#X, l_extendedprice#X, l_discount#X, p_partkey#X, p_type#X]
+Arguments: BuildRight
+
+(35) Project
 Output [3]: [l_extendedprice#X, l_discount#X, p_type#X]
 Input [5]: [l_partkey#X, l_extendedprice#X, l_discount#X, p_partkey#X, p_type#X]
 
-(33) HashAggregate
+(36) HashAggregate
 Input [3]: [l_extendedprice#X, l_discount#X, p_type#X]
 Keys: []
 Functions [2]: [partial_sum(CASE WHEN StartsWith(p_type#X, PROMO) THEN (l_extendedprice#X * (1 - l_discount#X)) ELSE 0.0000 END), partial_sum((l_extendedprice#X * (1 - l_discount#X)))]
 Aggregate Attributes [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]
 Results [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]
 
-(34) HashAggregate
+(37) HashAggregate
 Input [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]
 Keys: []
 Functions [2]: [sum(CASE WHEN StartsWith(p_type#X, PROMO) THEN (l_extendedprice#X * (1 - l_discount#X)) ELSE 0.0000 END), sum((l_extendedprice#X * (1 - l_discount#X)))]
 Aggregate Attributes [2]: [sum(CASE WHEN StartsWith(p_type#X, PROMO) THEN (l_extendedprice#X * (1 - l_discount#X)) ELSE 0.0000 END)#X, sum((l_extendedprice#X * (1 - l_discount#X)))#X]
 Results [1]: [((100.00 * sum(CASE WHEN StartsWith(p_type#X, PROMO) THEN (l_extendedprice#X * (1 - l_discount#X)) ELSE 0.0000 END)#X) / sum((l_extendedprice#X * (1 - l_discount#X)))#X) AS promo_revenue#X]
 
-(35) AdaptiveSparkPlan
+(38) AdaptiveSparkPlan
 Output [1]: [promo_revenue#X]
 Arguments: isFinalPlan=true

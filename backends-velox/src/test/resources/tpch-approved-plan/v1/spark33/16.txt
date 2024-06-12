@@ -1,5 +1,5 @@
 == Physical Plan ==
-AdaptiveSparkPlan (64)
+AdaptiveSparkPlan (67)
 +- == Final Plan ==
    VeloxColumnarToRowExec (42)
    +- ^ SortExecTransformer (40)
@@ -33,27 +33,30 @@ AdaptiveSparkPlan (64)
                                                                      +- ^ FilterExecTransformer (10)
                                                                         +- ^ Scan parquet (9)
 +- == Initial Plan ==
-   Sort (63)
-   +- Exchange (62)
-      +- HashAggregate (61)
-         +- Exchange (60)
-            +- HashAggregate (59)
-               +- HashAggregate (58)
-                  +- Exchange (57)
-                     +- HashAggregate (56)
-                        +- Project (55)
-                           +- ShuffledHashJoin Inner BuildRight (54)
-                              :- Exchange (50)
-                              :  +- BroadcastHashJoin LeftAnti BuildRight (49)
-                              :     :- Filter (44)
-                              :     :  +- Scan parquet (43)
-                              :     +- BroadcastExchange (48)
-                              :        +- Project (47)
-                              :           +- Filter (46)
-                              :              +- Scan parquet (45)
-                              +- Exchange (53)
-                                 +- Filter (52)
-                                    +- Scan parquet (51)
+   Sort (66)
+   +- Exchange (65)
+      +- HashAggregate (64)
+         +- Exchange (63)
+            +- HashAggregate (62)
+               +- HashAggregate (61)
+                  +- Exchange (60)
+                     +- HashAggregate (59)
+                        +- Project (58)
+                           +- ShuffledHashJoinExecTemp (57)
+                              +- SortMergeJoin Inner (56)
+                                 :- Sort (51)
+                                 :  +- Exchange (50)
+                                 :     +- BroadcastHashJoin LeftAnti BuildRight (49)
+                                 :        :- Filter (44)
+                                 :        :  +- Scan parquet (43)
+                                 :        +- BroadcastExchange (48)
+                                 :           +- Project (47)
+                                 :              +- Filter (46)
+                                 :                 +- Scan parquet (45)
+                                 +- Sort (55)
+                                    +- Exchange (54)
+                                       +- Filter (53)
+                                          +- Scan parquet (52)
 
 
 (1) Scan parquet
@@ -271,74 +274,86 @@ Join condition: None
 Input [2]: [ps_partkey#X, ps_suppkey#X]
 Arguments: hashpartitioning(ps_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(51) Scan parquet
+(51) Sort
+Input [2]: [ps_partkey#X, ps_suppkey#X]
+Arguments: [ps_partkey#X ASC NULLS FIRST], false, 0
+
+(52) Scan parquet
 Output [4]: [p_partkey#X, p_brand#X, p_type#X, p_size#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(p_brand), IsNotNull(p_type), Not(EqualTo(p_brand,Brand#X)), Not(StringStartsWith(p_type,MEDIUM POLISHED)), In(p_size, [14,19,23,3,36,45,49,9]), IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_brand:string,p_type:string,p_size:int>
 
-(52) Filter
+(53) Filter
 Input [4]: [p_partkey#X, p_brand#X, p_type#X, p_size#X]
 Condition : (((((isnotnull(p_brand#X) AND isnotnull(p_type#X)) AND NOT (p_brand#X = Brand#X)) AND NOT StartsWith(p_type#X, MEDIUM POLISHED)) AND p_size#X IN (49,14,23,45,19,3,36,9)) AND isnotnull(p_partkey#X))
 
-(53) Exchange
+(54) Exchange
 Input [4]: [p_partkey#X, p_brand#X, p_type#X, p_size#X]
 Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(54) ShuffledHashJoin
+(55) Sort
+Input [4]: [p_partkey#X, p_brand#X, p_type#X, p_size#X]
+Arguments: [p_partkey#X ASC NULLS FIRST], false, 0
+
+(56) SortMergeJoin
 Left keys [1]: [ps_partkey#X]
 Right keys [1]: [p_partkey#X]
 Join condition: None
 
-(55) Project
+(57) ShuffledHashJoinExecTemp
+Input [6]: [ps_partkey#X, ps_suppkey#X, p_partkey#X, p_brand#X, p_type#X, p_size#X]
+Arguments: BuildRight
+
+(58) Project
 Output [4]: [ps_suppkey#X, p_brand#X, p_type#X, p_size#X]
 Input [6]: [ps_partkey#X, ps_suppkey#X, p_partkey#X, p_brand#X, p_type#X, p_size#X]
 
-(56) HashAggregate
+(59) HashAggregate
 Input [4]: [ps_suppkey#X, p_brand#X, p_type#X, p_size#X]
 Keys [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 Functions: []
 Aggregate Attributes: []
 Results [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 
-(57) Exchange
+(60) Exchange
 Input [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 Arguments: hashpartitioning(p_brand#X, p_type#X, p_size#X, ps_suppkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(58) HashAggregate
+(61) HashAggregate
 Input [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 Keys [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 Functions: []
 Aggregate Attributes: []
 Results [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 
-(59) HashAggregate
+(62) HashAggregate
 Input [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 Keys [3]: [p_brand#X, p_type#X, p_size#X]
 Functions [1]: [partial_count(distinct ps_suppkey#X)]
 Aggregate Attributes [1]: [count(ps_suppkey#X)#X]
 Results [4]: [p_brand#X, p_type#X, p_size#X, count#X]
 
-(60) Exchange
+(63) Exchange
 Input [4]: [p_brand#X, p_type#X, p_size#X, count#X]
 Arguments: hashpartitioning(p_brand#X, p_type#X, p_size#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(61) HashAggregate
+(64) HashAggregate
 Input [4]: [p_brand#X, p_type#X, p_size#X, count#X]
 Keys [3]: [p_brand#X, p_type#X, p_size#X]
 Functions [1]: [count(distinct ps_suppkey#X)]
 Aggregate Attributes [1]: [count(ps_suppkey#X)#X]
 Results [4]: [p_brand#X, p_type#X, p_size#X, count(ps_suppkey#X)#X AS supplier_cnt#X]
 
-(62) Exchange
+(65) Exchange
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 Arguments: rangepartitioning(supplier_cnt#X DESC NULLS LAST, p_brand#X ASC NULLS FIRST, p_type#X ASC NULLS FIRST, p_size#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(63) Sort
+(66) Sort
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 Arguments: [supplier_cnt#X DESC NULLS LAST, p_brand#X ASC NULLS FIRST, p_type#X ASC NULLS FIRST, p_size#X ASC NULLS FIRST], true, 0
 
-(64) AdaptiveSparkPlan
+(67) AdaptiveSparkPlan
 Output [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
 Arguments: isFinalPlan=true

@@ -1,5 +1,5 @@
 == Physical Plan ==
-AdaptiveSparkPlan (46)
+AdaptiveSparkPlan (49)
 +- == Final Plan ==
    VeloxColumnarToRowExec (33)
    +- ^ SortExecTransformer (31)
@@ -26,18 +26,21 @@ AdaptiveSparkPlan (46)
                                                 +- ^ ProjectExecTransformer (10)
                                                    +- ^ Scan parquet (9)
 +- == Initial Plan ==
-   Sort (45)
-   +- Exchange (44)
-      +- HashAggregate (43)
-         +- Exchange (42)
-            +- HashAggregate (41)
-               +- Project (40)
-                  +- ShuffledHashJoin LeftAnti BuildRight (39)
-                     :- Exchange (36)
-                     :  +- Filter (35)
-                     :     +- Scan parquet (34)
-                     +- Exchange (38)
-                        +- Scan parquet (37)
+   Sort (48)
+   +- Exchange (47)
+      +- HashAggregate (46)
+         +- Exchange (45)
+            +- HashAggregate (44)
+               +- Project (43)
+                  +- ShuffledHashJoinExecTemp (42)
+                     +- SortMergeJoin LeftAnti (41)
+                        :- Sort (37)
+                        :  +- Exchange (36)
+                        :     +- Filter (35)
+                        :        +- Scan parquet (34)
+                        +- Sort (40)
+                           +- Exchange (39)
+                              +- Scan parquet (38)
 
 
 (1) Scan parquet
@@ -190,51 +193,63 @@ Condition : ((isnotnull(c_acctbal#X) AND substring(c_phone#X, 1, 2) IN (13,31,23
 Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(37) Scan parquet
+(37) Sort
+Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
+Arguments: [c_custkey#X ASC NULLS FIRST], false, 0
+
+(38) Scan parquet
 Output [1]: [o_custkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 ReadSchema: struct<o_custkey:bigint>
 
-(38) Exchange
+(39) Exchange
 Input [1]: [o_custkey#X]
 Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(39) ShuffledHashJoin
+(40) Sort
+Input [1]: [o_custkey#X]
+Arguments: [o_custkey#X ASC NULLS FIRST], false, 0
+
+(41) SortMergeJoin
 Left keys [1]: [c_custkey#X]
 Right keys [1]: [o_custkey#X]
 Join condition: None
 
-(40) Project
+(42) ShuffledHashJoinExecTemp
+Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
+Arguments: BuildRight
+
+(43) Project
 Output [2]: [substring(c_phone#X, 1, 2) AS cntrycode#X, c_acctbal#X]
 Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 
-(41) HashAggregate
+(44) HashAggregate
 Input [2]: [cntrycode#X, c_acctbal#X]
 Keys [1]: [cntrycode#X]
 Functions [2]: [partial_count(1), partial_sum(c_acctbal#X)]
 Aggregate Attributes [3]: [count#X, sum#X, isEmpty#X]
 Results [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 
-(42) Exchange
+(45) Exchange
 Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 Arguments: hashpartitioning(cntrycode#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(43) HashAggregate
+(46) HashAggregate
 Input [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
 Keys [1]: [cntrycode#X]
 Functions [2]: [count(1), sum(c_acctbal#X)]
 Aggregate Attributes [2]: [count(1)#X, sum(c_acctbal#X)#X]
 Results [3]: [cntrycode#X, count(1)#X AS numcust#X, sum(c_acctbal#X)#X AS totacctbal#X]
 
-(44) Exchange
+(47) Exchange
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: rangepartitioning(cntrycode#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(45) Sort
+(48) Sort
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: [cntrycode#X ASC NULLS FIRST], true, 0
 
-(46) AdaptiveSparkPlan
+(49) AdaptiveSparkPlan
 Output [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: isFinalPlan=true

@@ -17,7 +17,7 @@
 package org.apache.spark.sql
 
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.joins.ShuffledHashJoinExec
+import org.apache.spark.sql.execution.joins.SortMergeJoinExec
 
 class GlutenJoinSuite extends JoinSuite with GlutenSQLTestsTrait {
 
@@ -58,9 +58,9 @@ class GlutenJoinSuite extends JoinSuite with GlutenSQLTestsTrait {
 
   testGluten(
     "SPARK-43113: Full outer join with duplicate stream-side" +
-      " references in condition (SHJ)") {
+      " references in condition (SMJ)") {
     def check(plan: SparkPlan): Unit = {
-      assert(collect(plan) { case _: ShuffledHashJoinExec => true }.size === 1)
+      assert(collect(plan) { case _: SortMergeJoinExec => true }.size === 1)
     }
 
     dupStreamSideColTest("MERGE", check)
