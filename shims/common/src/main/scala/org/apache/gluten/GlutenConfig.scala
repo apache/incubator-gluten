@@ -187,6 +187,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def columnarShuffleCompressionThreshold: Int =
     conf.getConf(COLUMNAR_SHUFFLE_COMPRESSION_THRESHOLD)
 
+  // FIXME: Not clear: MIN or MAX ?
   def maxBatchSize: Int = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
 
   def shuffleWriterBufferSize: Int = conf
@@ -294,6 +295,14 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxBloomFilterNumBits: Long = conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS)
 
   def veloxBloomFilterMaxNumBits: Long = conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS)
+
+  def veloxCoalesceBatchesBeforeShuffle: Boolean =
+    conf.getConf(COLUMNAR_VELOX_COALESCE_BATCHES_BEFORE_SHUFFLE)
+
+  def veloxMinBatchSizeForShuffle: Int =
+    conf
+      .getConf(COLUMNAR_VELOX_MIN_BATCH_SIZE_FOR_SHUFFLE)
+      .getOrElse(conf.getConf(COLUMNAR_MAX_BATCH_SIZE))
 
   def chColumnarShufflePreferSpill: Boolean = conf.getConf(COLUMNAR_CH_SHUFFLE_PREFER_SPILL_ENABLED)
 
@@ -707,6 +716,10 @@ object GlutenConfig {
 
     conf
       .filter(_._1.startsWith(SPARK_ABFS_ACCOUNT_KEY))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    conf
+      .filter(_._1.startsWith(SQLConf.SESSION_LOCAL_TIMEZONE.key))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // return
@@ -1390,6 +1403,23 @@ object GlutenConfig {
       .intConf
       .checkValue(_ > 0, "must be a positive number")
       .createWithDefault(10000)
+
+  val COLUMNAR_VELOX_COALESCE_BATCHES_BEFORE_SHUFFLE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.coalesceBatchesBeforeShuffle")
+      .internal()
+      .doc(s"If true, combine small columnar batches together before sending to shuffle. " +
+        s"The default minimum output batch size is equal to $GLUTEN_MAX_BATCH_SIZE_KEY")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_VELOX_MIN_BATCH_SIZE_FOR_SHUFFLE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.minBatchSizeForShuffle")
+      .internal()
+      .doc(s"The minimum batch size for shuffle. If the batch size is smaller than this value, " +
+        s"it will be combined with other batches before sending to shuffle. Only functions when " +
+        s"${COLUMNAR_VELOX_COALESCE_BATCHES_BEFORE_SHUFFLE.key} is set to true.")
+      .intConf
+      .createOptional
 
   val COLUMNAR_CH_SHUFFLE_PREFER_SPILL_ENABLED =
     buildConf("spark.gluten.sql.columnar.backend.ch.shuffle.preferSpill")

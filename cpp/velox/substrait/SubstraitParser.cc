@@ -131,6 +131,9 @@ void SubstraitParser::parseColumnTypes(
       case ::substrait::NamedStruct::METADATA_COL:
         columnTypes.push_back(ColumnType::kSynthesized);
         break;
+      case ::substrait::NamedStruct::ROWINDEX_COL:
+        columnTypes.push_back(ColumnType::kRowIndex);
+        break;
       default:
         VELOX_FAIL("Unspecified column type.");
     }
@@ -400,7 +403,6 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"modulus", "remainder"},
     {"date_format", "format_datetime"},
     {"collect_set", "set_agg"},
-    {"try_add", "plus"},
     {"forall", "all_match"},
     {"exists", "any_match"},
     {"negative", "unaryminus"},

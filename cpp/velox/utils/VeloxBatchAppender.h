@@ -14,34 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
 
-#include <Shuffle/ShuffleSplitter.h>
+#include "memory/ColumnarBatchIterator.h"
+#include "memory/VeloxColumnarBatch.h"
+#include "utils/exception.h"
+#include "velox/common/memory/MemoryPool.h"
+#include "velox/vector/ComplexVector.h"
 
-namespace DB
-{
-class Block;
-}
+namespace gluten {
+class VeloxBatchAppender : public ColumnarBatchIterator {
+ public:
+  VeloxBatchAppender(
+      facebook::velox::memory::MemoryPool* pool,
+      int32_t minOutputBatchSize,
+      std::unique_ptr<ColumnarBatchIterator> in);
 
-namespace local_engine
-{
+  std::shared_ptr<ColumnarBatch> next() override;
 
-class BlockCoalesceOperator
-{
-public:
-    explicit BlockCoalesceOperator(size_t buf_size_) : buf_size(buf_size_) { }
-    ~BlockCoalesceOperator();
+  int64_t spillFixedSize(int64_t size) override;
 
-    void mergeBlock(DB::Block & block);
-    bool isFull();
-    DB::Block * releaseBlock();
-
-private:
-    void clearCache();
-
-    size_t buf_size;
-    ColumnsBuffer block_buffer;
-    DB::Block * cached_block = nullptr;
-
+ private:
+  facebook::velox::memory::MemoryPool* pool_;
+  const int32_t minOutputBatchSize_;
+  std::unique_ptr<ColumnarBatchIterator> in_;
 };
-}
+} // namespace gluten

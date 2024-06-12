@@ -202,6 +202,11 @@ class Spark33Shims extends SparkShims {
     case other => other
   }
 
+  override def getFileSizeAndModificationTime(
+      file: PartitionedFile): (Option[Long], Option[Long]) = {
+    (Some(file.fileSize), Some(file.modificationTime))
+  }
+
   override def generateMetadataColumns(
       file: PartitionedFile,
       metadataColumnNames: Seq[String]): JMap[String, String] = {
@@ -273,7 +278,14 @@ class Spark33Shims extends SparkShims {
 
   def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] = partition.files
 
+  def isFileSplittable(
+      relation: HadoopFsRelation,
+      filePath: Path,
+      sparkSchema: StructType): Boolean = true
+
   def isRowIndexMetadataColumn(name: String): Boolean = false
+
+  def findRowIndexColumnIndexInSchema(sparkSchema: StructType): Int = -1
 
   def splitFiles(
       sparkSession: SparkSession,

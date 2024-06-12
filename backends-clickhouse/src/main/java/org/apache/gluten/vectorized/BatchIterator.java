@@ -23,9 +23,11 @@ import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BatchIterator extends GeneralOutIterator {
   private final long handle;
+  private final AtomicBoolean cancelled = new AtomicBoolean(false);
 
   public BatchIterator(long handle) {
     super();
@@ -45,6 +47,8 @@ public class BatchIterator extends GeneralOutIterator {
   private native long nativeCHNext(long nativeHandle);
 
   private native void nativeClose(long nativeHandle);
+
+  private native void nativeCancel(long nativeHandle);
 
   private native IMetrics nativeFetchMetrics(long nativeHandle);
 
@@ -75,5 +79,12 @@ public class BatchIterator extends GeneralOutIterator {
   @Override
   public void closeInternal() {
     nativeClose(handle);
+  }
+
+  // Used to cancel native pipeline execution when spark task is killed
+  public final void cancel() {
+    if (cancelled.compareAndSet(false, true)) {
+      nativeCancel(handle);
+    }
   }
 }

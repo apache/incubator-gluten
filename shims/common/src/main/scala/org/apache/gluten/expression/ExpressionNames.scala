@@ -83,7 +83,10 @@ object ExpressionNames {
   final val IS_NAN = "isnan"
   final val NANVL = "nanvl"
   final val TRY_EVAL = "try"
-  final val TRY_ADD = "try_add"
+  final val CHECK_ADD = "check_add"
+  final val CHECK_SUBTRACT = "check_subtract"
+  final val CHECK_DIVIDE = "check_divide"
+  final val CHECK_MULTIPLY = "check_multiply"
 
   // SparkSQL String functions
   final val ASCII = "ascii"
@@ -216,6 +219,7 @@ object ExpressionNames {
   final val UNIX_MICROS = "unix_micros"
   final val TIMESTAMP_MILLIS = "timestamp_millis"
   final val TIMESTAMP_MICROS = "timestamp_micros"
+  final val PRECYSE_TIMESTAMP_CONVERSION = "precise_timestamp_conversion"
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"

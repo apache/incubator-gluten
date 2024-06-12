@@ -57,7 +57,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"get_timestamp", "parseDateTimeInJodaSyntaxOrNull"}, // for spark function: to_date/to_timestamp
        {"quarter", "toQuarter"},
        {"to_unix_timestamp", "parseDateTimeInJodaSyntaxOrNull"},
-       //    {"unix_timestamp", "toUnixTimestamp"},
+       //{"unix_timestamp", "toUnixTimestamp"},
        {"date_format", "formatDateTimeInJodaSyntax"},
        {"timestamp_add", "timestamp_add"},
 
@@ -402,21 +402,26 @@ class LocalExecutor : public BlockIterator
 public:
     LocalExecutor() = default;
     explicit LocalExecutor(ContextPtr context);
+    ~LocalExecutor();
+
     void execute(QueryPlanPtr query_plan);
     SparkRowInfoPtr next();
     Block * nextColumnar();
     bool hasNext();
-    ~LocalExecutor();
+
+    /// Stop execution, used when task receives shutdown command or executor receives SIGTERM signal
+    void cancel();
 
     Block & getHeader();
-
     RelMetricPtr getMetric() const { return metric; }
     void setMetric(RelMetricPtr metric_) { metric = metric_; }
-
     void setExtraPlanHolder(std::vector<QueryPlanPtr> & extra_plan_holder_) { extra_plan_holder = std::move(extra_plan_holder_); }
-
 private:
     std::unique_ptr<SparkRowInfo> writeBlockToSparkRow(DB::Block & block);
+
+    /// Dump processor runtime information to log
+    std::string dumpPipeline();
+
     QueryPipeline query_pipeline;
     std::unique_ptr<PullingPipelineExecutor> executor;
     Block header;
@@ -427,8 +432,6 @@ private:
     RelMetricPtr metric;
     std::vector<QueryPlanPtr> extra_plan_holder;
 
-    /// Dump processor runtime information to log
-    std::string dumpPipeline();
 };
 
 

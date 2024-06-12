@@ -42,14 +42,14 @@ import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Sca
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources._
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, ParquetRowIndexUtil}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
 import org.apache.spark.sql.execution.window.{WindowGroupLimitExec, WindowGroupLimitExecShim}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{IntegerType, LongType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
@@ -206,6 +206,11 @@ class Spark35Shims extends SparkShims {
     case other => other
   }
 
+  override def getFileSizeAndModificationTime(
+      file: PartitionedFile): (Option[Long], Option[Long]) = {
+    (Some(file.fileSize), Some(file.modificationTime))
+  }
+
   override def generateMetadataColumns(
       file: PartitionedFile,
       metadataColumnNames: Seq[String]): JMap[String, String] = {
@@ -356,8 +361,31 @@ class Spark35Shims extends SparkShims {
   def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] =
     partition.files.map(_.fileStatus)
 
-  def isRowIndexMetadataColumn(name: String): Boolean = {
+  def isFileSplittable(
+      relation: HadoopFsRelation,
+      filePath: Path,
+      sparkSchema: StructType): Boolean = {
+    relation.fileFormat
+      .isSplitable(relation.sparkSession, relation.options, filePath)
+  }
+
+  def isRowIndexMetadataColumn(name: String): Boolean =
     name == ParquetFileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME
+
+  def findRowIndexColumnIndexInSchema(sparkSchema: StructType): Int = {
+    sparkSchema.fields.zipWithIndex.find {
+      case (field: StructField, _: Int) =>
+        field.name == ParquetFileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME
+    } match {
+      case Some((field: StructField, idx: Int)) =>
+        if (field.dataType != LongType && field.dataType != IntegerType) {
+          throw new RuntimeException(
+            s"${ParquetFileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME} " +
+              "must be of LongType or IntegerType")
+        }
+        idx
+      case _ => -1
+    }
   }
 
   def splitFiles(
@@ -436,6 +464,9 @@ class Spark35Shims extends SparkShims {
   override def withTryEvalMode(expr: Expression): Boolean = {
     expr match {
       case a: Add => a.evalMode == EvalMode.TRY
+      case s: Subtract => s.evalMode == EvalMode.TRY
+      case d: Divide => d.evalMode == EvalMode.TRY
+      case m: Multiply => m.evalMode == EvalMode.TRY
       case _ => false
     }
   }
@@ -443,6 +474,9 @@ class Spark35Shims extends SparkShims {
   override def withAnsiEvalMode(expr: Expression): Boolean = {
     expr match {
       case a: Add => a.evalMode == EvalMode.ANSI
+      case s: Subtract => s.evalMode == EvalMode.ANSI
+      case d: Divide => d.evalMode == EvalMode.ANSI
+      case m: Multiply => m.evalMode == EvalMode.ANSI
       case _ => false
     }
   }

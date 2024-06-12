@@ -128,6 +128,7 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(functions::json "${VELOX_COMPONENTS_PATH}/functions/prestosql/json/libvelox_functions_json.a")
   add_velox_dependency(functions::hyperloglog "${VELOX_COMPONENTS_PATH}/common/hyperloglog/libvelox_common_hyperloglog.a")
   add_velox_dependency(functions::lib "${VELOX_COMPONENTS_PATH}/functions/lib/libvelox_functions_lib.a")
+  add_velox_dependency(functions::lib::date_time_formatter "${VELOX_COMPONENTS_PATH}/functions/lib/libvelox_functions_lib_date_time_formatter.a")
   if(BUILD_TESTS)
     add_velox_dependency(exec::test "${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_exec_test_lib.a")
     add_velox_dependency(temp::path "${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_temp_path.a")
@@ -230,7 +231,6 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(common::compression "${VELOX_COMPONENTS_PATH}/common/compression/libvelox_common_compression.a")
   add_velox_dependency(common::io "${VELOX_COMPONENTS_PATH}/common/io/libvelox_common_io.a")
   add_velox_dependency(velox::status "${VELOX_COMPONENTS_PATH}/common/base/libvelox_status.a")
-  add_velox_dependency(external::simdjson "${VELOX_BUILD_PATH}/_deps/simdjson-build/libsimdjson.a")
 endmacro()
 
 macro(find_libhdfs3)
@@ -327,6 +327,7 @@ set(VELOX_SRCS
     utils/VeloxArrowUtils.cc
     utils/ConfigExtractor.cc
     utils/Common.cc
+    utils/VeloxBatchAppender.cc
     )
 
 if (ENABLE_HDFS)
@@ -388,6 +389,16 @@ if(Stemmer_FOUND)
 else()
   add_velox_dependency(velox "${VELOX_BUILD_PATH}/_deps/libstemmer/src/libstemmer/libstemmer.a")
 endif()
+
+set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+find_package(simdjson CONFIG)
+if(simdjson_FOUND AND TARGET simdjson::simdjson)
+  target_link_libraries(velox PUBLIC simdjson::simdjson)
+else()
+  add_velox_dependency(external::simdjson "${VELOX_BUILD_PATH}/_deps/simdjson-build/libsimdjson.a")
+endif()
+set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 
 if(ENABLE_GLUTEN_VCPKG)
   find_package(Thrift CONFIG)

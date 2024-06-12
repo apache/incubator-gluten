@@ -23,7 +23,7 @@ struct UdafEntry {
   const char* name;
   const char* dataType;
 
-  size_t numArgs;
+  int numArgs;
   const char** argTypes;
 
   const char* intermediateType{nullptr};

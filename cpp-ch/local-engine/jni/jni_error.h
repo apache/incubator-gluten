@@ -37,6 +37,8 @@ public:
     ~JniErrorsGlobalState() = default;
 
     static JniErrorsGlobalState & instance();
+    static void throwException(JNIEnv * env, jclass exception_class, const std::string & message, const std::string & stack_trace = "");
+
     void initialize(JNIEnv * env_);
     void destroy(JNIEnv * env);
 
@@ -48,7 +50,6 @@ public:
 
     void throwException(JNIEnv * env, const DB::Exception & e);
     void throwException(JNIEnv * env, const std::exception & e);
-    static void throwException(JNIEnv * env, jclass exception_class, const std::string & message, const std::string & stack_trace = "");
     void throwRuntimeException(JNIEnv * env, const std::string & message, const std::string & stack_trace = "");
 
 

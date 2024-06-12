@@ -21,7 +21,6 @@ import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.sql.{Column, DataFrame, Row}
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructField, StructType}
 
@@ -60,7 +59,7 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
       f: (DataFrame, Map[String, Any], Map[String, Any]) => Unit): Unit = {
     Seq("parquet").foreach {
       testFileFormat =>
-        test(s"$GLUTEN_TEST metadata struct ($testFileFormat): " + testName) {
+        testGluten(s"metadata struct ($testFileFormat): " + testName) {
           withTempDir {
             dir =>
               import scala.collection.JavaConverters._

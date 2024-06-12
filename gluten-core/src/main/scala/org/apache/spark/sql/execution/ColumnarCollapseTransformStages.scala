@@ -160,7 +160,7 @@ case class ColumnarCollapseTransformStages(
 }
 
 case class ColumnarInputAdapter(child: SparkPlan)
-  extends UnaryExecNode
+  extends InputAdapterGenerateTreeStringShim
   with Convention.KnownBatchType {
   override def output: Seq[Attribute] = child.output
   override def supportsColumnar: Boolean = true

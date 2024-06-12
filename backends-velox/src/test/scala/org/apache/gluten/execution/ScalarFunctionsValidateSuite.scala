@@ -843,6 +843,30 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  testWithSpecifiedSparkVersion("try_subtract", Some("3.3")) {
+    runQueryAndCompare(
+      "select try_subtract(2147483647, cast(l_orderkey as int)), " +
+        "try_subtract(-2147483648, cast(l_orderkey as int)) from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("try_divide") {
+    runQueryAndCompare(
+      "select try_divide(cast(l_orderkey as int), 0) from lineitem",
+      noFallBack = false) {
+      _ => // Spark would always cast inputs to double for this function.
+    }
+  }
+
+  testWithSpecifiedSparkVersion("try_multiply", Some("3.3")) {
+    runQueryAndCompare(
+      "select try_multiply(2147483647, cast(l_orderkey as int)), " +
+        "try_multiply(-2147483648, cast(l_orderkey as int)) from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("test array forall") {
     withTempPath {
       path =>
@@ -1049,6 +1073,27 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
 
         runQueryAndCompare("select arrays_overlap(v1, v2) from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("PreciseTimestampConversion") {
+    withTempPath {
+      path =>
+        val df = spark
+          .sql(
+            "select * from VALUES ('A1', TIMESTAMP'2021-01-01 00:00:00'), " +
+              "('A1', TIMESTAMP'2021-01-01 00:04:30'), ('A1', TIMESTAMP'2021-01-01 00:06:00'), " +
+              "('A2', TIMESTAMP'2021-01-01 00:01:00') AS tab(a, b)")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("string_timestamp")
+
+        runQueryAndCompare(
+          "SELECT a, window.start, window.end, count(*) as cnt FROM" +
+            " string_timestamp GROUP by a, window(b, '5 minutes') ORDER BY a, start;") {
           checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }

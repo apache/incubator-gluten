@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 
 class IcebergTransformerProvider extends DataSourceScanTransformerRegister {
@@ -24,8 +23,7 @@ class IcebergTransformerProvider extends DataSourceScanTransformerRegister {
   override val scanClassName: String = "org.apache.iceberg.spark.source.SparkBatchQueryScan"
 
   override def createDataSourceV2Transformer(
-      batchScan: BatchScanExec,
-      newPartitionFilters: Seq[Expression]): BatchScanExecTransformerBase = {
-    IcebergScanTransformer(batchScan, newPartitionFilters)
+      batchScan: BatchScanExec): BatchScanExecTransformerBase = {
+    IcebergScanTransformer(batchScan)
   }
 }

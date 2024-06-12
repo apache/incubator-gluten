@@ -1004,9 +1004,6 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
         }
     }
 
-    if (ch_func_name == "JSON_VALUE")
-        result_node->function->setResolver(function_builder);
-
     if (keep_result)
         actions_dag->addOrReplaceInOutputs(*result_node);
 
@@ -1891,8 +1888,8 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
         case substrait::Expression::RexTypeCase::kLiteral: {
             DataTypePtr type;
             Field field;
-            std::tie(std::ignore, field) = SerializedPlanParser::parseLiteral(rel.literal());
-            return std::make_shared<ASTLiteral>(field);
+            std::tie(type, field) = SerializedPlanParser::parseLiteral(rel.literal());
+            return std::make_shared<ASTLiteral>(field, type);
         }
         case substrait::Expression::RexTypeCase::kSelection: {
             if (!rel.selection().has_direct_reference() || !rel.selection().direct_reference().has_struct_field())
@@ -2046,6 +2043,7 @@ LocalExecutor::~LocalExecutor()
 {
     if (context->getConfigRef().getBool("dump_pipeline", false))
         LOG_INFO(&Poco::Logger::get("LocalExecutor"), "Dump pipeline:\n{}", dumpPipeline());
+
     if (spark_buffer)
     {
         ch_column_to_spark_row->freeMem(spark_buffer->address, spark_buffer->size);
@@ -2167,6 +2165,12 @@ Block * LocalExecutor::nextColumnar()
     }
     consume();
     return columnar_batch;
+}
+
+void LocalExecutor::cancel()
+{
+    if (executor)
+        executor->cancel();
 }
 
 Block & LocalExecutor::getHeader()

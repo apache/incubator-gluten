@@ -823,10 +823,11 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       nextPlanNodeId(), replicated, unnest, std::move(unnestNames), ordinalityName, childNode);
 }
 
-const core::WindowNode::Frame createWindowFrame(
+const core::WindowNode::Frame SubstraitToVeloxPlanConverter::createWindowFrame(
     const ::substrait::Expression_WindowFunction_Bound& lower_bound,
     const ::substrait::Expression_WindowFunction_Bound& upper_bound,
-    const ::substrait::WindowType& type) {
+    const ::substrait::WindowType& type,
+    const RowTypePtr& inputType) {
   core::WindowNode::Frame frame;
   switch (type) {
     case ::substrait::WindowType::ROWS:
@@ -839,9 +840,22 @@ const core::WindowNode::Frame createWindowFrame(
       VELOX_FAIL("the window type only support ROWS and RANGE, and the input type is ", std::to_string(type));
   }
 
-  auto boundTypeConversion = [](::substrait::Expression_WindowFunction_Bound boundType)
+  auto specifiedBound =
+      [&](bool hasOffset, int64_t offset, const ::substrait::Expression& columnRef) -> core::TypedExprPtr {
+    if (hasOffset) {
+      VELOX_CHECK(
+          frame.type != core::WindowNode::WindowType::kRange,
+          "for RANGE frame offset, we should pre-calculate the range frame boundary and pass the column reference, but got a constant offset.")
+      return std::make_shared<core::ConstantTypedExpr>(BIGINT(), variant(offset));
+    } else {
+      VELOX_CHECK(
+          frame.type != core::WindowNode::WindowType::kRows, "for ROW frame offset, we should pass a constant offset.")
+      return exprConverter_->toVeloxExpr(columnRef, inputType);
+    }
+  };
+
+  auto boundTypeConversion = [&](::substrait::Expression_WindowFunction_Bound boundType)
       -> std::tuple<core::WindowNode::BoundType, core::TypedExprPtr> {
-    // TODO: support non-literal expression.
     if (boundType.has_current_row()) {
       return std::make_tuple(core::WindowNode::BoundType::kCurrentRow, nullptr);
     } else if (boundType.has_unbounded_following()) {
@@ -849,13 +863,15 @@ const core::WindowNode::Frame createWindowFrame(
     } else if (boundType.has_unbounded_preceding()) {
       return std::make_tuple(core::WindowNode::BoundType::kUnboundedPreceding, nullptr);
     } else if (boundType.has_following()) {
+      auto following = boundType.following();
       return std::make_tuple(
           core::WindowNode::BoundType::kFollowing,
-          std::make_shared<core::ConstantTypedExpr>(BIGINT(), variant(boundType.following().offset())));
+          specifiedBound(following.has_offset(), following.offset(), following.ref()));
     } else if (boundType.has_preceding()) {
+      auto preceding = boundType.preceding();
       return std::make_tuple(
           core::WindowNode::BoundType::kPreceding,
-          std::make_shared<core::ConstantTypedExpr>(BIGINT(), variant(boundType.preceding().offset())));
+          specifiedBound(preceding.has_offset(), preceding.offset(), preceding.ref()));
     } else {
       VELOX_FAIL("The BoundType is not supported.");
     }
@@ -906,7 +922,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     windowColumnNames.push_back(windowFunction.column_name());
 
     windowNodeFunctions.push_back(
-        {std::move(windowCall), std::move(createWindowFrame(lowerBound, upperBound, type)), ignoreNulls});
+        {std::move(windowCall), std::move(createWindowFrame(lowerBound, upperBound, type, inputType)), ignoreNulls});
   }
 
   // Construct partitionKeys

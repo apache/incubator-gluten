@@ -25,7 +25,7 @@ import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.substrait.rel._
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.utils.LogLevelUtil
-import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator, GeneralOutIterator}
+import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator}
 
 import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
 import org.apache.spark.affinity.CHAffinity
@@ -131,10 +131,13 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           paths,
           starts,
           lengths,
+          new JArrayList[JLong](),
+          new JArrayList[JLong](),
           partitionColumns,
           new JArrayList[JMap[String, String]](),
           fileFormat,
-          preferredLocations.toList.asJava)
+          preferredLocations.toList.asJava
+        )
       case _ =>
         throw new UnsupportedOperationException(s"Unsupported input partition: $partition.")
     }
@@ -206,13 +209,19 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     val splitInfoByteArray = inputPartition
       .asInstanceOf[GlutenPartition]
       .splitInfosByteArray
-    val resIter: GeneralOutIterator =
+    val resIter =
       transKernel.createKernelWithBatchIterator(
         inputPartition.plan,
         splitInfoByteArray,
         inBatchIters,
         false)
 
+    context.addTaskFailureListener(
+      (ctx, _) => {
+        if (ctx.isInterrupted()) {
+          resIter.cancel()
+        }
+      })
     context.addTaskCompletionListener[Unit](_ => resIter.close())
     val iter = new Iterator[Any] {
       private val inputMetrics = context.taskMetrics().inputMetrics
@@ -304,6 +313,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       }
     }
     var closed = false
+    val cancelled = false
 
     def close(): Unit = {
       closed = true
@@ -311,6 +321,16 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       // relationHolder.clear()
     }
 
+    def cancel(): Unit = {
+      nativeIterator.cancel()
+    }
+
+    context.addTaskFailureListener(
+      (ctx, _) => {
+        if (ctx.isInterrupted()) {
+          cancel()
+        }
+      })
     context.addTaskCompletionListener[Unit](_ => close())
     new CloseableCHColumnBatchIterator(resIter, Some(pipelineTime))
   }

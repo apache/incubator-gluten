@@ -179,4 +179,15 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
         |""".stripMargin
     )(df => checkFallbackOperators(df, 0))
   }
+
+  test("GLUTEN-5981 null value from get_json_object") {
+    spark.sql("create table json_t1 (a string) using parquet")
+    spark.sql("insert into json_t1 values ('{\"a\":null}')")
+    runQueryAndCompare(
+      """
+        |SELECT get_json_object(a, '$.a') is null from json_t1
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+    spark.sql("drop table json_t1")
+  }
 }

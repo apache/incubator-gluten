@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.metrics
 
-import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 
 /**
@@ -26,16 +25,34 @@ import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
  * TODO: place it to some other where since it's used not only by whole stage facilities
  */
 trait MetricsUpdater extends Serializable {
-
-  def metrics: Map[String, SQLMetric]
-
   def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {}
-
   def updateNativeMetrics(operatorMetrics: IOperatorMetrics): Unit = {}
+}
+
+object MetricsUpdater {
+  // An empty metrics updater. Used when the operator generates native metrics but
+  // it's yet unwanted to update the metrics in JVM side.
+  object Todo extends MetricsUpdater {}
+
+  // Used when the operator doesn't generate native metrics. It could be because
+  // the operator doesn't generate any native query plan.
+  object None extends MetricsUpdater {
+    override def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit =
+      throw new UnsupportedOperationException()
+    override def updateNativeMetrics(operatorMetrics: IOperatorMetrics): Unit =
+      throw new UnsupportedOperationException()
+  }
+
+  // Indicates a branch of a MetricsUpdaterTree is terminated. It's not bound to
+  // any operators.
+  object Terminate extends MetricsUpdater {
+    override def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit =
+      throw new UnsupportedOperationException()
+    override def updateNativeMetrics(operatorMetrics: IOperatorMetrics): Unit =
+      throw new UnsupportedOperationException()
+  }
 }
 
 final case class MetricsUpdaterTree(updater: MetricsUpdater, children: Seq[MetricsUpdaterTree])
 
-object NoopMetricsUpdater extends MetricsUpdater {
-  override def metrics: Map[String, SQLMetric] = Map.empty
-}
+object MetricsUpdaterTree {}

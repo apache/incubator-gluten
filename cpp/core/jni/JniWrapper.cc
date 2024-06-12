@@ -58,13 +58,8 @@ static jmethodID splitResultConstructor;
 static jclass columnarBatchSerializeResultClass;
 static jmethodID columnarBatchSerializeResultConstructor;
 
-static jclass serializedColumnarBatchIteratorClass;
 static jclass metricsBuilderClass;
 static jmethodID metricsBuilderConstructor;
-
-static jmethodID serializedColumnarBatchIteratorHasNext;
-static jmethodID serializedColumnarBatchIteratorNext;
-
 static jclass nativeColumnarToRowInfoClass;
 static jmethodID nativeColumnarToRowInfoConstructor;
 
@@ -72,8 +67,8 @@ static jclass shuffleReaderMetricsClass;
 static jmethodID shuffleReaderMetricsSetDecompressTime;
 static jmethodID shuffleReaderMetricsSetDeserializeTime;
 
-static jclass block_stripes_class;
-static jmethodID block_stripes_constructor;
+static jclass blockStripesClass;
+static jmethodID blockStripesConstructor;
 
 class JavaInputStreamAdaptor final : public arrow::io::InputStream {
  public:
@@ -147,80 +142,6 @@ class JavaInputStreamAdaptor final : public arrow::io::InputStream {
   bool closed_ = false;
 };
 
-class JniColumnarBatchIterator : public ColumnarBatchIterator {
- public:
-  explicit JniColumnarBatchIterator(
-      JNIEnv* env,
-      jobject jColumnarBatchItr,
-      Runtime* runtime,
-      std::shared_ptr<ArrowWriter> writer)
-      : runtime_(runtime), writer_(writer) {
-    // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
-    if (env->GetJavaVM(&vm_) != JNI_OK) {
-      std::string errorMessage = "Unable to get JavaVM instance";
-      throw gluten::GlutenException(errorMessage);
-    }
-    jColumnarBatchItr_ = env->NewGlobalRef(jColumnarBatchItr);
-  }
-
-  // singleton
-  JniColumnarBatchIterator(const JniColumnarBatchIterator&) = delete;
-  JniColumnarBatchIterator(JniColumnarBatchIterator&&) = delete;
-  JniColumnarBatchIterator& operator=(const JniColumnarBatchIterator&) = delete;
-  JniColumnarBatchIterator& operator=(JniColumnarBatchIterator&&) = delete;
-
-  virtual ~JniColumnarBatchIterator() {
-    JNIEnv* env;
-    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
-    env->DeleteGlobalRef(jColumnarBatchItr_);
-    vm_->DetachCurrentThread();
-  }
-
-  std::shared_ptr<ColumnarBatch> next() override {
-    JNIEnv* env;
-    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
-    if (!env->CallBooleanMethod(jColumnarBatchItr_, serializedColumnarBatchIteratorHasNext)) {
-      checkException(env);
-      return nullptr; // stream ended
-    }
-
-    checkException(env);
-    jlong handle = env->CallLongMethod(jColumnarBatchItr_, serializedColumnarBatchIteratorNext);
-    checkException(env);
-    auto batch = runtime_->objectStore()->retrieve<ColumnarBatch>(handle);
-    if (writer_ != nullptr) {
-      // save snapshot of the batch to file
-      std::shared_ptr<ArrowSchema> schema = batch->exportArrowSchema();
-      std::shared_ptr<ArrowArray> array = batch->exportArrowArray();
-      auto rb = gluten::arrowGetOrThrow(arrow::ImportRecordBatch(array.get(), schema.get()));
-      GLUTEN_THROW_NOT_OK(writer_->initWriter(*(rb->schema().get())));
-      GLUTEN_THROW_NOT_OK(writer_->writeInBatches(rb));
-    }
-    return batch;
-  }
-
- private:
-  JavaVM* vm_;
-  jobject jColumnarBatchItr_;
-  Runtime* runtime_;
-  std::shared_ptr<ArrowWriter> writer_;
-};
-
-std::unique_ptr<JniColumnarBatchIterator> makeJniColumnarBatchIterator(
-    JNIEnv* env,
-    jobject jColumnarBatchItr,
-    Runtime* runtime,
-    std::shared_ptr<ArrowWriter> writer) {
-  return std::make_unique<JniColumnarBatchIterator>(env, jColumnarBatchItr, runtime, writer);
-}
-
-template <typename T>
-T* jniCastOrThrow(ResourceHandle handle) {
-  auto instance = reinterpret_cast<T*>(handle);
-  GLUTEN_CHECK(instance != nullptr, "FATAL: resource instance should not be null.");
-  return instance;
-}
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -253,14 +174,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   metricsBuilderConstructor = getMethodIdOrError(
       env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
 
-  serializedColumnarBatchIteratorClass =
-      createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ColumnarBatchInIterator;");
-
-  serializedColumnarBatchIteratorHasNext =
-      getMethodIdOrError(env, serializedColumnarBatchIteratorClass, "hasNext", "()Z");
-
-  serializedColumnarBatchIteratorNext = getMethodIdOrError(env, serializedColumnarBatchIteratorClass, "next", "()J");
-
   nativeColumnarToRowInfoClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/NativeColumnarToRowInfo;");
   nativeColumnarToRowInfoConstructor = getMethodIdOrError(env, nativeColumnarToRowInfoClass, "<init>", "([I[IJ)V");
@@ -280,9 +193,9 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   shuffleReaderMetricsSetDeserializeTime =
       getMethodIdOrError(env, shuffleReaderMetricsClass, "setDeserializeTime", "(J)V");
 
-  block_stripes_class =
+  blockStripesClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
-  block_stripes_constructor = env->GetMethodID(block_stripes_class, "<init>", "(J[J[II[B)V");
+  blockStripesConstructor = env->GetMethodID(blockStripesClass, "<init>", "(J[J[II[B)V");
 
   return jniVersion;
 }
@@ -293,11 +206,10 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(jniByteInputStreamClass);
   env->DeleteGlobalRef(splitResultClass);
   env->DeleteGlobalRef(columnarBatchSerializeResultClass);
-  env->DeleteGlobalRef(serializedColumnarBatchIteratorClass);
   env->DeleteGlobalRef(nativeColumnarToRowInfoClass);
   env->DeleteGlobalRef(byteArrayClass);
   env->DeleteGlobalRef(shuffleReaderMetricsClass);
-  env->DeleteGlobalRef(block_stripes_class);
+  env->DeleteGlobalRef(blockStripesClass);
 
   gluten::getJniErrorState()->close();
   gluten::getJniCommonState()->close();
@@ -1224,14 +1136,13 @@ Java_org_apache_gluten_datasource_DatasourceJniWrapper_splitBlockByPartitionAndB
   }
 
   MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
-  auto result = batch->getRowBytes(0);
-  auto rowBytes = result.first;
+  auto result = batch->toUnsafeRow(0);
+  auto rowBytes = result.data();
   auto newBatchHandle = ctx->objectStore()->save(ctx->select(memoryManager, batch, partitionColIndiceVec));
 
-  auto bytesSize = result.second;
+  auto bytesSize = result.size();
   jbyteArray bytesArray = env->NewByteArray(bytesSize);
   env->SetByteArrayRegion(bytesArray, 0, bytesSize, reinterpret_cast<jbyte*>(rowBytes));
-  delete[] rowBytes;
 
   jlongArray batchArray = env->NewLongArray(1);
   long* cBatchArray = new long[1];
@@ -1239,15 +1150,9 @@ Java_org_apache_gluten_datasource_DatasourceJniWrapper_splitBlockByPartitionAndB
   env->SetLongArrayRegion(batchArray, 0, 1, cBatchArray);
   delete[] cBatchArray;
 
-  jobject block_stripes = env->NewObject(
-      block_stripes_class,
-      block_stripes_constructor,
-      batchHandle,
-      batchArray,
-      nullptr,
-      batch->numColumns(),
-      bytesArray);
-  return block_stripes;
+  jobject blockStripes = env->NewObject(
+      blockStripesClass, blockStripesConstructor, batchHandle, batchArray, nullptr, batch->numColumns(), bytesArray);
+  return blockStripes;
   JNI_METHOD_END(nullptr)
 }
 

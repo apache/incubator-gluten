@@ -47,15 +47,13 @@ class VeloxListenerApi extends ListenerApi {
         StaticSQLConf.SPARK_CACHE_SERIALIZER.key,
         "org.apache.spark.sql.execution.ColumnarCachedBatchSerializer")
     }
-    UDFResolver.resolveUdfConf(conf, isDriver = true)
-    initialize(conf)
+    initialize(conf, isDriver = true)
   }
 
   override def onDriverShutdown(): Unit = shutdown()
 
   override def onExecutorStart(pc: PluginContext): Unit = {
-    UDFResolver.resolveUdfConf(pc.conf(), isDriver = false)
-    initialize(pc.conf())
+    initialize(pc.conf(), isDriver = false)
   }
 
   override def onExecutorShutdown(): Unit = shutdown()
@@ -160,8 +158,9 @@ class VeloxListenerApi extends ListenerApi {
       .commit()
   }
 
-  private def initialize(conf: SparkConf): Unit = {
+  private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
     SparkDirectoryUtil.init(conf)
+    UDFResolver.resolveUdfConf(conf, isDriver = isDriver)
     val debugJni = conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_MODE, defaultValue = false) &&
       conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_KEEP_JNI_WORKSPACE, defaultValue = false)
     if (debugJni) {

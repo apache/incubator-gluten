@@ -19,6 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
@@ -115,6 +116,8 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       attr =>
         if (getPartitionSchema.exists(_.name.equals(attr.name))) {
           new ColumnTypeNode(1)
+        } else if (SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)) {
+          new ColumnTypeNode(3)
         } else if (attr.isMetadataCol) {
           new ColumnTypeNode(2)
         } else {
