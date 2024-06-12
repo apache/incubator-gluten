@@ -140,7 +140,7 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
       spark.sql("CREATE TABLE t (c int) STORED AS PARQUET")
       withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "false") {
         if (isSparkVersionGE("3.4")) {
-          checkNativeWrite("INSERT OVERWRITE TABLE t SELECT 1 as c", checkNative = false)
+          checkNativeWrite("INSERT OVERWRITE TABLE t SELECT 1 as c", checkNative = true)
         } else {
           checkNativeWrite("INSERT OVERWRITE TABLE t SELECT 1 as c", checkNative = true)
         }

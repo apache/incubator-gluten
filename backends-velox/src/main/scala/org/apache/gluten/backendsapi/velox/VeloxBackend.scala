@@ -36,6 +36,7 @@ import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
 import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.hive.execution.HiveFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
@@ -194,7 +195,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
     }
 
     // Validate if all types are supported.
-    def validateDateTypes(): Option[String] = {
+    def validateDataTypes(): Option[String] = {
       val unsupportedTypes = fields.flatMap {
         field =>
           field.dataType match {
@@ -222,8 +223,10 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
     def validateFileFormat(): Option[String] = {
       format match {
-        case _: ParquetFileFormat => None
-        case _: FileFormat => Some("Only parquet fileformat is supported in Velox backend.")
+        case _: ParquetFileFormat => None // Parquet is directly supported
+        case h: HiveFileFormat if h.toString.contains("parquet") => None // Parquet via Hive SerDe
+        case _ =>
+          Some("Only parquet fileformat is supported in Velox backend.") // Unsupported format
       }
     }
 
@@ -250,7 +253,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
     validateCompressionCodec()
       .orElse(validateFileFormat())
       .orElse(validateFieldMetadata())
-      .orElse(validateDateTypes())
+      .orElse(validateDataTypes())
       .orElse(validateWriteFilesOptions())
       .orElse(validateBucketSpec()) match {
       case Some(reason) => ValidationResult.notOk(reason)
