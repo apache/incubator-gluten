@@ -108,7 +108,21 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   }
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
-    val output = filteRedundantField(outputAttributes())
+    var output_attrs = Seq.empty[Attribute]
+    outputAttributes().foreach(
+      x => {
+        x.dataType match {
+          case StringType =>
+            val raw_type = CharVarcharUtils.getRawType(x.metadata).orNull
+            if (raw_type != null) {
+              output_attrs +:= x.withDataType(raw_type)
+            } else {
+              output_attrs +:= x
+            }
+          case _ => output_attrs +:= x
+        }
+      })
+    val output = filteRedundantField(output_attrs)
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
     val columnTypeNodes = output.map {

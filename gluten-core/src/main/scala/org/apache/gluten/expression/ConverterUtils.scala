@@ -232,6 +232,10 @@ object ConverterUtils extends Logging {
         TypeBuilder.makeI16(nullable)
       case ByteType =>
         TypeBuilder.makeI8(nullable)
+      case CharType(n) =>
+        TypeBuilder.makeFixedChar(nullable, n);
+      case VarcharType(_) =>
+        TypeBuilder.makeString(nullable);
       case StringType =>
         TypeBuilder.makeString(nullable)
       case BinaryType =>
