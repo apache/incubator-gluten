@@ -247,7 +247,7 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
       val plan = EnsureRequirements.apply(df5.queryExecution.sparkPlan)
 
       assert(plan.collect { case p: BroadcastHashJoinExec => p }.size === 1)
-      assert(plan.collect { case p: ShuffledHashJoinExec => p }.size === 1)
+      assert(plan.collect { case p: SortMergeJoinExec => p }.size === 1)
     }
   }
 
