@@ -213,17 +213,15 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
     Map(
       "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
       "bytesSpilled" -> SQLMetrics.createSizeMetric(sparkContext, "shuffle bytes spilled"),
-      "computePidTime" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "totaltime to compute pid"),
-      "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to split"),
-      "IOTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to disk io"),
+      "computePidTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to compute pid"),
+      "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to split"),
+      "IOTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to disk io"),
       "serializeTime" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
-        "totaltime to block serialization"),
-      "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to spill"),
-      "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to compress"),
-      "prepareTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to prepare"),
+        "time to block serialization"),
+      "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to spill"),
+      "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to compress"),
+      "prepareTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to prepare"),
       "avgReadBatchNumRows" -> SQLMetrics
         .createAverageMetric(sparkContext, "avg read batch num rows"),
       "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
