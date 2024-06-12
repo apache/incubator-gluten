@@ -555,6 +555,12 @@ class SubstraitToVeloxPlanConverter {
     return toVeloxPlan(rel.input());
   }
 
+  const core::WindowNode::Frame createWindowFrame(
+      const ::substrait::Expression_WindowFunction_Bound& lower_bound,
+      const ::substrait::Expression_WindowFunction_Bound& upper_bound,
+      const ::substrait::WindowType& type,
+      const RowTypePtr& inputType);
+
   /// The unique identification for each PlanNode.
   int planNodeId_ = 0;
 

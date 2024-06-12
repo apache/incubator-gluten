@@ -197,16 +197,3 @@ case class WindowExecTransformer(
   override protected def withNewChildInternal(newChild: SparkPlan): WindowExecTransformer =
     copy(child = newChild)
 }
-
-object WindowExecTransformer {
-
-  /** Gets lower/upper bound represented in string. */
-  def getFrameBound(bound: Expression): String = {
-    // The lower/upper can be either a foldable Expression or a SpecialFrameBoundary.
-    if (bound.foldable) {
-      bound.eval().toString
-    } else {
-      bound.sql
-    }
-  }
-}

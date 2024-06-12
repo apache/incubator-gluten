@@ -152,4 +152,6 @@ trait BackendSettingsApi {
   def supportColumnarArrowUdf(): Boolean = false
 
   def generateHdfsConfForLibhdfs(): Boolean = false
+
+  def needPreComputeRangeFrameBoundary(): Boolean = false
 }

@@ -296,15 +296,9 @@ object VeloxBackendSettings extends BackendSettingsApi {
             case _ => throw new GlutenNotSupportException(s"$func is not supported.")
           }
 
-          // Block the offloading by checking Velox's current limitations
-          // when literal bound type is used for RangeFrame.
           def checkLimitations(swf: SpecifiedWindowFrame, orderSpec: Seq[SortOrder]): Unit = {
-            def doCheck(bound: Expression, isUpperBound: Boolean): Unit = {
+            def doCheck(bound: Expression): Unit = {
               bound match {
-                case e if e.foldable =>
-                  throw new GlutenNotSupportException(
-                    "Window frame of type RANGE does" +
-                      " not support constant arguments in velox backend")
                 case _: SpecialFrameBoundary =>
                 case e if e.foldable =>
                   orderSpec.foreach(
@@ -325,17 +319,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
                             "Only integral type & date type are" +
                               " supported for sort key when literal bound type is used!")
                       })
-                  val rawValue = e.eval().toString.toLong
-                  if (isUpperBound && rawValue < 0) {
-                    throw new GlutenNotSupportException("Negative upper bound is not supported!")
-                  } else if (!isUpperBound && rawValue > 0) {
-                    throw new GlutenNotSupportException("Positive lower bound is not supported!")
-                  }
                 case _ =>
               }
             }
-            doCheck(swf.upper, true)
-            doCheck(swf.lower, false)
+            doCheck(swf.upper)
+            doCheck(swf.lower)
           }
 
           windowExpression.windowSpec.frameSpecification match {
@@ -495,4 +483,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def supportColumnarArrowUdf(): Boolean = true
 
   override def generateHdfsConfForLibhdfs(): Boolean = true
+
+  override def needPreComputeRangeFrameBoundary(): Boolean = true
 }
