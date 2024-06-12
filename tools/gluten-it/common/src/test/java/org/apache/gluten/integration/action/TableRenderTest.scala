@@ -99,11 +99,32 @@ object TableRenderTest {
     Console.out.println()
   }
 
+  def case5(): Unit = {
+    val leafs = List(Leaf("1"), Leaf("2"), Leaf("3"), Leaf("4"))
+    val render: TableRender[Seq[String]] = TableRender.create(
+      Leaf("Query ID"),
+      Branch("Succeeded", leafs),
+      Branch("Row Count", leafs))(new RowParser[Seq[String]] {
+      override def parse(rowFactory: FieldAppender.RowAppender, row: Seq[String]): Unit = {
+        val inc = rowFactory.incremental()
+        row.foreach(ceil => inc.next().write(ceil))
+      }
+    })
+
+    render.appendRow(
+      List("q1", "true", "true", "true && true && true && true", "true", "1", "1", "1", "1"))
+    render.appendRow(
+      List("q2", "true", "true", "true", "true", "100000", "100000", "100000", "100000"))
+    render.print(Console.out)
+    Console.out.println()
+  }
+
   def main(args: Array[String]): Unit = {
     case0()
     case1()
     case2()
     case3()
     case4()
+    case5()
   }
 }

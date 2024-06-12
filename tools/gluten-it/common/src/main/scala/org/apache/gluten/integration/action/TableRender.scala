@@ -20,7 +20,7 @@ package org.apache.gluten.integration.action
 import org.apache.commons.lang3.StringUtils
 import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender.RowAppender
 
-import java.io.{OutputStream, PrintStream}
+import java.io.{ByteArrayOutputStream, OutputStream, PrintStream}
 import scala.collection.mutable
 
 trait TableRender[ROW <: Any] {
@@ -31,7 +31,8 @@ trait TableRender[ROW <: Any] {
 object TableRender {
   def create[ROW <: Any](fields: Field*)(implicit parser: RowParser[ROW]): TableRender[ROW] = {
     assert(fields.nonEmpty)
-    new Impl[ROW](Schema(fields), parser)
+    // Deep copy to avoid duplications (In case caller reuses a sub-tree).
+    new Impl[ROW](Schema(fields.map(_.makeCopy())), parser)
   }
 
   def plain[ROW <: Any](fields: String*)(implicit parser: RowParser[ROW]): TableRender[ROW] = {
@@ -42,6 +43,7 @@ object TableRender {
   trait Field {
     def name: String
     def leafs: Seq[Field.Leaf]
+    def makeCopy(): Field
   }
 
   object Field {
@@ -57,9 +59,12 @@ object TableRender {
             children.map(child => leafsOf(child)).reduce(_ ++ _)
         }
       }
+
+      override def makeCopy(): Field = copy(name, children.map(_.makeCopy()))
     }
     case class Leaf(override val name: String) extends Field {
       override val leafs: Seq[Leaf] = List(this)
+      override def makeCopy(): Field = copy()
     }
   }
 
@@ -194,6 +199,12 @@ object TableRender {
 
       printer.flush()
     }
+
+    override def toString: String = {
+      val out = new ByteArrayOutputStream()
+      print(out)
+      out.toString
+    }
   }
 
   trait RowParser[ROW <: Any] {
@@ -302,7 +313,13 @@ object TableRender {
 
         override def write(value: Any): Unit = {
           assert(field.isInstanceOf[Field.Leaf])
-          mutableRow(column) = value.toString
+          mutableRow(column) = toString(value)
+        }
+
+        private def toString(value: Any): String = value match {
+          case Some(v) => toString(v)
+          case None => "N/A"
+          case other => other.toString
         }
       }
     }
