@@ -520,9 +520,7 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
       "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-      "wallNanos" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "total time of NestedLoopJoin"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of NestedLoopJoin"),
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
       "numMemoryAllocations" -> SQLMetrics.createMetric(
