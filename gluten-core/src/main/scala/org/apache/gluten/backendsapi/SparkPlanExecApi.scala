@@ -306,6 +306,13 @@ trait SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, children, expr)
   }
 
+  def genPreciseTimestampConversionTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: PreciseTimestampConversion): ExpressionTransformer = {
+    throw new GlutenNotSupportException("PreciseTimestampConversion is not supported")
+  }
+
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
    *

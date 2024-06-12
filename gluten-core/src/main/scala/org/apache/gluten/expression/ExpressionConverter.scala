@@ -650,6 +650,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             replaceWithExpressionTransformerInternal(s.child, attributeSeq, expressionsMap),
             LiteralTransformer(Literal(s.randomSeed.get))),
           s)
+      case c: PreciseTimestampConversion =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genPreciseTimestampConversionTransformer(
+          substraitExprName,
+          Seq(replaceWithExpressionTransformerInternal(c.child, attributeSeq, expressionsMap)),
+          c
+        )
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,
