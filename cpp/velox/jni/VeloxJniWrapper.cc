@@ -30,6 +30,7 @@
 #include "jni/JniFileSystem.h"
 #include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlanValidator.h"
+#include "utils/VeloxBatchAppender.h"
 #include "velox/common/base/BloomFilter.h"
 
 #include <iostream>
@@ -244,6 +245,23 @@ JNIEXPORT jbyteArray JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWra
   env->SetByteArrayRegion(out, 0, size, reinterpret_cast<jbyte*>(buffer.data()));
   return out;
   JNI_METHOD_END(nullptr)
+}
+
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBatchAppenderJniWrapper_create( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong memoryManagerHandle,
+    jint minOutputBatchSize,
+    jobject jIter) {
+  JNI_METHOD_START
+  auto ctx = gluten::getRuntime(env, wrapper);
+  auto memoryManager = jniCastOrThrow<gluten::MemoryManager>(memoryManagerHandle);
+  auto pool = gluten::VeloxRuntime::getLeafVeloxPool(memoryManager);
+  auto iter = gluten::makeJniColumnarBatchIterator(env, jIter, ctx, nullptr);
+  auto appender = std::make_shared<gluten::ResultIterator>(
+      std::make_unique<gluten::VeloxBatchAppender>(pool.get(), minOutputBatchSize, std::move(iter)));
+  return ctx->objectStore()->save(appender);
+  JNI_METHOD_END(gluten::kInvalidResourceHandle)
 }
 
 #ifdef __cplusplus

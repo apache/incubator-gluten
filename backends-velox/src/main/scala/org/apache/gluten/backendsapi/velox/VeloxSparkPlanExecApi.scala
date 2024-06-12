@@ -280,6 +280,26 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(endDate, startDate), original)
   }
 
+  override def genPreciseTimestampConversionTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: PreciseTimestampConversion): ExpressionTransformer = {
+    // Expression used internally to convert the TimestampType to Long and back without losing
+    // precision, i.e. in microseconds.
+    val (newSubstraitName, newExpr) = expr match {
+      case _ @PreciseTimestampConversion(_, TimestampType, LongType) =>
+        (ExpressionMappings.expressionsMap(classOf[UnixMicros]), UnixMicros(expr.child))
+      case _ @PreciseTimestampConversion(_, LongType, TimestampType) =>
+        (
+          ExpressionMappings.expressionsMap(classOf[MicrosToTimestamp]),
+          MicrosToTimestamp(expr.child))
+      case _ =>
+        // TimestampNTZType is not supported here.
+        throw new GlutenNotSupportException("PreciseTimestampConversion is not supported")
+    }
+    GenericExpressionTransformer(newSubstraitName, children, newExpr)
+  }
+
   /**
    * Generate FilterExecTransformer.
    *
@@ -320,9 +340,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       aggregateAttributes: Seq[Attribute]): HashAggregateExecPullOutBaseHelper =
     HashAggregateExecPullOutHelper(aggregateExpressions, aggregateAttributes)
 
-  override def genColumnarShuffleExchange(
-      shuffle: ShuffleExchangeExec,
-      newChild: SparkPlan): SparkPlan = {
+  override def genColumnarShuffleExchange(shuffle: ShuffleExchangeExec): SparkPlan = {
     def allowHashOnMap[T](f: => T): T = {
       val originalAllowHash = SQLConf.get.getConf(SQLConf.LEGACY_ALLOW_HASH_ON_MAPTYPE)
       try {
@@ -333,20 +351,28 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       }
     }
 
+    def maybeAddAppendBatchesExec(plan: SparkPlan): SparkPlan = {
+      if (GlutenConfig.getConf.veloxCoalesceBatchesBeforeShuffle) {
+        VeloxAppendBatchesExec(plan, GlutenConfig.getConf.veloxMinBatchSizeForShuffle)
+      } else {
+        plan
+      }
+    }
+
+    val child = shuffle.child
+
     shuffle.outputPartitioning match {
       case HashPartitioning(exprs, _) =>
         val hashExpr = new Murmur3Hash(exprs)
-        val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ newChild.output
-        val projectTransformer = ProjectExecTransformer(projectList, newChild)
+        val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ child.output
+        val projectTransformer = ProjectExecTransformer(projectList, child)
         val validationResult = projectTransformer.doValidate()
         if (validationResult.isValid) {
-          ColumnarShuffleExchangeExec(
-            shuffle,
-            projectTransformer,
-            projectTransformer.output.drop(1))
+          val newChild = maybeAddAppendBatchesExec(projectTransformer)
+          ColumnarShuffleExchangeExec(shuffle, newChild, newChild.output.drop(1))
         } else {
           TransformHints.tagNotTransformable(shuffle, validationResult)
-          shuffle.withNewChildren(newChild :: Nil)
+          shuffle.withNewChildren(child :: Nil)
         }
       case RoundRobinPartitioning(num) if SQLConf.get.sortBeforeRepartition && num > 1 =>
         // scalastyle:off line.size.limit
@@ -357,19 +383,20 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         allowHashOnMap {
           // Velox hash expression does not support null type and we also do not need to sort
           // null type since the value always be null.
-          val columnsForHash = newChild.output.filterNot(_.dataType == NullType)
+          val columnsForHash = child.output.filterNot(_.dataType == NullType)
           if (columnsForHash.isEmpty) {
+            val newChild = maybeAddAppendBatchesExec(child)
             ColumnarShuffleExchangeExec(shuffle, newChild, newChild.output)
           } else {
             val hashExpr = new Murmur3Hash(columnsForHash)
-            val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ newChild.output
-            val projectTransformer = ProjectExecTransformer(projectList, newChild)
+            val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ child.output
+            val projectTransformer = ProjectExecTransformer(projectList, child)
             val projectBeforeSortValidationResult = projectTransformer.doValidate()
             // Make sure we support offload hash expression
             val projectBeforeSort = if (projectBeforeSortValidationResult.isValid) {
               projectTransformer
             } else {
-              val project = ProjectExec(projectList, newChild)
+              val project = ProjectExec(projectList, child)
               TransformHints.tagNotTransformable(project, projectBeforeSortValidationResult)
               project
             }
@@ -380,17 +407,16 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
               ProjectExecTransformer(projectList.drop(1), sortByHashCode)
             val validationResult = dropSortColumnTransformer.doValidate()
             if (validationResult.isValid) {
-              ColumnarShuffleExchangeExec(
-                shuffle,
-                dropSortColumnTransformer,
-                dropSortColumnTransformer.output)
+              val newChild = maybeAddAppendBatchesExec(dropSortColumnTransformer)
+              ColumnarShuffleExchangeExec(shuffle, newChild, newChild.output)
             } else {
               TransformHints.tagNotTransformable(shuffle, validationResult)
-              shuffle.withNewChildren(newChild :: Nil)
+              shuffle.withNewChildren(child :: Nil)
             }
           }
         }
       case _ =>
+        val newChild = maybeAddAppendBatchesExec(child)
         ColumnarShuffleExchangeExec(shuffle, newChild, null)
     }
   }

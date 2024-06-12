@@ -398,7 +398,7 @@ String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_
     google::protobuf::StringValue table;
     table.ParseFromString(read_rel.advanced_extension().enhancement().value());
     auto merge_tree_table = parseMergeTreeTableString(table.value());
-    auto custom_storage_mergetree = parseStorage(merge_tree_table, global_context);
+    auto custom_storage_mergetree = parseStorage(merge_tree_table, global_context, true);
 
     auto input = TypeParser::buildBlockFromNamedStruct(read_rel.base_schema());
     auto names_and_types_list = input.getNamesAndTypesList();

@@ -114,9 +114,9 @@ object Queries {
         val inc = rowAppender.incremental()
         inc.next().write(line.queryId)
         inc.next().write(line.testPassed)
-        inc.next().write(line.rowCount.getOrElse("N/A"))
-        inc.next().write(line.planningTimeMillis.getOrElse("N/A"))
-        inc.next().write(line.executionTimeMillis.getOrElse("N/A"))
+        inc.next().write(line.rowCount)
+        inc.next().write(line.planningTimeMillis)
+        inc.next().write(line.executionTimeMillis)
       }
     }
   }

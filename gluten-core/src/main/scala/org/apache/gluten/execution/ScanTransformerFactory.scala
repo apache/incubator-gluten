@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.extension.columnar.TransformHints
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -37,14 +36,7 @@ object ScanTransformerFactory {
 
   def createFileSourceScanTransformer(
       scanExec: FileSourceScanExec,
-      allPushDownFilters: Option[Seq[Expression]] = None,
-      validation: Boolean = false): FileSourceScanExecTransformerBase = {
-    // transform BroadcastExchangeExec to ColumnarBroadcastExchangeExec in partitionFilters
-    val newPartitionFilters = if (validation) {
-      scanExec.partitionFilters
-    } else {
-      ExpressionConverter.transformDynamicPruningExpr(scanExec.partitionFilters)
-    }
+      allPushDownFilters: Option[Seq[Expression]] = None): FileSourceScanExecTransformerBase = {
     val fileFormat = scanExec.relation.fileFormat
     lookupDataSourceScanTransformer(fileFormat.getClass.getName) match {
       case Some(clz) =>
@@ -52,13 +44,13 @@ object ScanTransformerFactory {
           .getDeclaredConstructor()
           .newInstance()
           .asInstanceOf[DataSourceScanTransformerRegister]
-          .createDataSourceTransformer(scanExec, newPartitionFilters)
+          .createDataSourceTransformer(scanExec)
       case _ =>
-        new FileSourceScanExecTransformer(
+        FileSourceScanExecTransformer(
           scanExec.relation,
           scanExec.output,
           scanExec.requiredSchema,
-          newPartitionFilters,
+          scanExec.partitionFilters,
           scanExec.optionalBucketSet,
           scanExec.optionalNumCoalescedBuckets,
           allPushDownFilters.getOrElse(scanExec.dataFilters),
@@ -69,8 +61,7 @@ object ScanTransformerFactory {
   }
 
   private def lookupBatchScanTransformer(
-      batchScanExec: BatchScanExec,
-      newPartitionFilters: Seq[Expression]): BatchScanExecTransformerBase = {
+      batchScanExec: BatchScanExec): BatchScanExecTransformerBase = {
     val scan = batchScanExec.scan
     lookupDataSourceScanTransformer(scan.getClass.getName) match {
       case Some(clz) =>
@@ -78,14 +69,14 @@ object ScanTransformerFactory {
           .getDeclaredConstructor()
           .newInstance()
           .asInstanceOf[DataSourceScanTransformerRegister]
-          .createDataSourceV2Transformer(batchScanExec, newPartitionFilters)
+          .createDataSourceV2Transformer(batchScanExec)
       case _ =>
         scan match {
           case _: FileScan =>
-            new BatchScanExecTransformer(
+            BatchScanExecTransformer(
               batchScanExec.output,
               batchScanExec.scan,
-              newPartitionFilters,
+              batchScanExec.runtimeFilters,
               table = SparkShimLoader.getSparkShims.getBatchScanExecTable(batchScanExec)
             )
           case _ =>
@@ -99,14 +90,7 @@ object ScanTransformerFactory {
       allPushDownFilters: Option[Seq[Expression]] = None,
       validation: Boolean = false): SparkPlan = {
     if (supportedBatchScan(batchScan.scan)) {
-      val newPartitionFilters = if (validation) {
-        // No transformation is needed for DynamicPruningExpressions
-        // during the validation process.
-        batchScan.runtimeFilters
-      } else {
-        ExpressionConverter.transformDynamicPruningExpr(batchScan.runtimeFilters)
-      }
-      val transformer = lookupBatchScanTransformer(batchScan, newPartitionFilters)
+      val transformer = lookupBatchScanTransformer(batchScan)
       if (!validation && allPushDownFilters.isDefined) {
         transformer.setPushDownFilters(allPushDownFilters.get)
         // Validate again if allPushDownFilters is defined.
@@ -125,12 +109,8 @@ object ScanTransformerFactory {
       if (validation) {
         throw new GlutenNotSupportException(s"Unsupported scan ${batchScan.scan}")
       }
-      // If filter expressions aren't empty, we need to transform the inner operators,
-      // and fallback the BatchScanExec itself.
-      val newSource = batchScan.copy(runtimeFilters = ExpressionConverter
-        .transformDynamicPruningExpr(batchScan.runtimeFilters))
-      TransformHints.tagNotTransformable(newSource, "The scan in BatchScanExec is not supported.")
-      newSource
+      TransformHints.tagNotTransformable(batchScan, "The scan in BatchScanExec is not supported.")
+      batchScan
     }
   }
 

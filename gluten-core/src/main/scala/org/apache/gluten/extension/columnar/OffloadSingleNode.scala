@@ -20,18 +20,16 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
-import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.{LogLevelUtil, PlanUtil}
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
-import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BatchEvalPythonExec}
@@ -101,23 +99,17 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
 // Exchange transformation.
 case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
-    case plan if TransformHints.isNotTransformable(plan) =>
-      plan
-    case plan: ShuffleExchangeExec =>
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      val child = plan.child
-      if (
-        (child.supportsColumnar || GlutenConfig.getConf.enablePreferColumnar) &&
-        BackendsApiManager.getSettings.supportColumnarShuffleExec()
-      ) {
-        BackendsApiManager.getSparkPlanExecApiInstance.genColumnarShuffleExchange(plan, child)
-      } else {
-        plan.withNewChildren(Seq(child))
-      }
-    case plan: BroadcastExchangeExec =>
-      val child = plan.child
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      ColumnarBroadcastExchangeExec(plan.mode, child)
+    case p if TransformHints.isNotTransformable(p) =>
+      p
+    case s: ShuffleExchangeExec
+        if (s.child.supportsColumnar || GlutenConfig.getConf.enablePreferColumnar) &&
+          BackendsApiManager.getSettings.supportColumnarShuffleExec() =>
+      logDebug(s"Columnar Processing for ${s.getClass} is currently supported.")
+      BackendsApiManager.getSparkPlanExecApiInstance.genColumnarShuffleExchange(s)
+    case b: BroadcastExchangeExec =>
+      val child = b.child
+      logDebug(s"Columnar Processing for ${b.getClass} is currently supported.")
+      ColumnarBroadcastExchangeExec(b.mode, child)
     case other => other
   }
 }
@@ -260,17 +252,7 @@ object OffloadOthers {
     def doReplace(p: SparkPlan): SparkPlan = {
       val plan = p
       if (TransformHints.isNotTransformable(plan)) {
-        logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
-        plan match {
-          case plan: BatchScanExec =>
-            return applyScanNotTransformable(plan)
-          case plan: FileSourceScanExec =>
-            return applyScanNotTransformable(plan)
-          case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
-            return applyScanNotTransformable(plan)
-          case p =>
-            return p
-        }
+        return plan
       }
       plan match {
         case plan: BatchScanExec =>
@@ -410,44 +392,6 @@ object OffloadOthers {
       }
     }
 
-    // Since https://github.com/apache/incubator-gluten/pull/2701
-    private def applyScanNotTransformable(plan: SparkPlan): SparkPlan = plan match {
-      case plan: FileSourceScanExec =>
-        val newPartitionFilters =
-          ExpressionConverter.transformDynamicPruningExpr(plan.partitionFilters)
-        val newSource = plan.copy(partitionFilters = newPartitionFilters)
-        if (plan.logicalLink.nonEmpty) {
-          newSource.setLogicalLink(plan.logicalLink.get)
-        }
-        TransformHints.tag(newSource, TransformHints.getHint(plan))
-        newSource
-      case plan: BatchScanExec =>
-        val newPartitionFilters: Seq[Expression] = plan.scan match {
-          case scan: FileScan =>
-            ExpressionConverter.transformDynamicPruningExpr(scan.partitionFilters)
-          case _ =>
-            ExpressionConverter.transformDynamicPruningExpr(plan.runtimeFilters)
-        }
-        val newSource = plan.copy(runtimeFilters = newPartitionFilters)
-        if (plan.logicalLink.nonEmpty) {
-          newSource.setLogicalLink(plan.logicalLink.get)
-        }
-        TransformHints.tag(newSource, TransformHints.getHint(plan))
-        newSource
-      case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
-        val newPartitionFilters: Seq[Expression] =
-          ExpressionConverter.transformDynamicPruningExpr(
-            HiveTableScanExecTransformer.getPartitionFilters(plan))
-        val newSource = HiveTableScanExecTransformer.copyWith(plan, newPartitionFilters)
-        if (plan.logicalLink.nonEmpty) {
-          newSource.setLogicalLink(plan.logicalLink.get)
-        }
-        TransformHints.tag(newSource, TransformHints.getHint(plan))
-        newSource
-      case other =>
-        throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
-    }
-
     /**
      * Apply scan transformer for file source and batch source,
      *   1. create new filter and scan transformer, 2. validate, tag new scan as unsupported if
@@ -462,18 +406,13 @@ object OffloadOthers {
           transformer
         } else {
           logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-          val newSource = plan.copy(partitionFilters = transformer.getPartitionFilters())
-          TransformHints.tagNotTransformable(newSource, validationResult.reason.get)
-          newSource
+          TransformHints.tagNotTransformable(plan, validationResult.reason.get)
+          plan
         }
       case plan: BatchScanExec =>
         ScanTransformerFactory.createBatchScanTransformer(plan)
-
       case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
         // TODO: Add DynamicPartitionPruningHiveScanSuite.scala
-        val newPartitionFilters: Seq[Expression] =
-          ExpressionConverter.transformDynamicPruningExpr(
-            HiveTableScanExecTransformer.getPartitionFilters(plan))
         val hiveTableScanExecTransformer =
           BackendsApiManager.getSparkPlanExecApiInstance.genHiveTableScanExecTransformer(plan)
         val validateResult = hiveTableScanExecTransformer.doValidate()
@@ -482,9 +421,8 @@ object OffloadOthers {
           return hiveTableScanExecTransformer
         }
         logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-        val newSource = HiveTableScanExecTransformer.copyWith(plan, newPartitionFilters)
-        TransformHints.tagNotTransformable(newSource, validateResult.reason.get)
-        newSource
+        TransformHints.tagNotTransformable(plan, validateResult.reason.get)
+        plan
       case other =>
         throw new GlutenNotSupportException(s"${other.getClass.toString} is not supported.")
     }

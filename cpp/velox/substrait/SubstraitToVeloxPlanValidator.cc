@@ -925,7 +925,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
     case ::substrait::JoinRel_JoinType_JOIN_TYPE_ANTI:
       break;
     default:
-      LOG_VALIDATION_MSG("Join type is not supported: {}" + joinRel.type());
+      LOG_VALIDATION_MSG("Join type is not supported: " + std::to_string(joinRel.type()));
       return false;
   }
 

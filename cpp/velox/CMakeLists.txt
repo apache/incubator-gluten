@@ -327,6 +327,7 @@ set(VELOX_SRCS
     utils/VeloxArrowUtils.cc
     utils/ConfigExtractor.cc
     utils/Common.cc
+    utils/VeloxBatchAppender.cc
     )
 
 if (ENABLE_HDFS)

@@ -28,6 +28,7 @@
 #include "memory/AllocationListener.h"
 #include "shuffle/rss/RssClient.h"
 #include "utils/Compression.h"
+#include "utils/ResourceMap.h"
 #include "utils/exception.h"
 
 static jint jniVersion = JNI_VERSION_1_8;
@@ -119,6 +120,12 @@ static inline void attachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) 
   }
 }
 
+template <typename T>
+static T* jniCastOrThrow(gluten::ResourceHandle handle) {
+  auto instance = reinterpret_cast<T*>(handle);
+  GLUTEN_CHECK(instance != nullptr, "FATAL: resource instance should not be null.");
+  return instance;
+}
 namespace gluten {
 
 class JniCommonState {
@@ -251,6 +258,40 @@ DEFINE_SAFE_GET_PRIMITIVE_ARRAY_FUNCTIONS(kLong, jlongArray, Long)
 DEFINE_SAFE_GET_PRIMITIVE_ARRAY_FUNCTIONS(kFloat, jfloatArray, Float)
 DEFINE_SAFE_GET_PRIMITIVE_ARRAY_FUNCTIONS(kDouble, jdoubleArray, Double)
 
+class JniColumnarBatchIterator : public ColumnarBatchIterator {
+ public:
+  explicit JniColumnarBatchIterator(
+      JNIEnv* env,
+      jobject jColumnarBatchItr,
+      Runtime* runtime,
+      std::shared_ptr<ArrowWriter> writer);
+
+  // singleton
+  JniColumnarBatchIterator(const JniColumnarBatchIterator&) = delete;
+  JniColumnarBatchIterator(JniColumnarBatchIterator&&) = delete;
+  JniColumnarBatchIterator& operator=(const JniColumnarBatchIterator&) = delete;
+  JniColumnarBatchIterator& operator=(JniColumnarBatchIterator&&) = delete;
+
+  virtual ~JniColumnarBatchIterator();
+
+  std::shared_ptr<ColumnarBatch> next() override;
+
+ private:
+  JavaVM* vm_;
+  jobject jColumnarBatchItr_;
+  Runtime* runtime_;
+  std::shared_ptr<ArrowWriter> writer_;
+
+  jclass serializedColumnarBatchIteratorClass_;
+  jmethodID serializedColumnarBatchIteratorHasNext_;
+  jmethodID serializedColumnarBatchIteratorNext_;
+};
+
+std::unique_ptr<JniColumnarBatchIterator> makeJniColumnarBatchIterator(
+    JNIEnv* env,
+    jobject jColumnarBatchItr,
+    Runtime* runtime,
+    std::shared_ptr<ArrowWriter> writer);
 } // namespace gluten
 
 // TODO: Move the static functions to namespace gluten

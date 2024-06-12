@@ -31,8 +31,7 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator implements Runt
   private final long iterHandle;
   private final NativeMemoryManager nmm;
 
-  public ColumnarBatchOutIterator(Runtime runtime, long iterHandle, NativeMemoryManager nmm)
-      throws IOException {
+  public ColumnarBatchOutIterator(Runtime runtime, long iterHandle, NativeMemoryManager nmm) {
     super();
     this.runtime = runtime;
     this.iterHandle = iterHandle;

@@ -39,10 +39,6 @@ import scala.collection.JavaConverters._
 
 class GlutenParquetRowIndexSuite extends ParquetRowIndexSuite with GlutenSQLTestsBaseTrait {
   import testImplicits._
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    sparkContext.setLogLevel("info")
-  }
 
   private def readRowGroupRowCounts(path: String): Seq[Long] = {
     ParquetFooterReader

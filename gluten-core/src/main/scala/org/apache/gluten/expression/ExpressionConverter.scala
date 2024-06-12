@@ -16,10 +16,8 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.extension.columnar.transition.Transitions
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.test.TestStats
 import org.apache.gluten.utils.DecimalArithmeticUtil
@@ -29,9 +27,7 @@ import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
-import org.apache.spark.sql.execution.{ScalarSubquery, _}
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
-import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
+import org.apache.spark.sql.execution.ScalarSubquery
 import org.apache.spark.sql.hive.HiveUDFTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
@@ -654,6 +650,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             replaceWithExpressionTransformerInternal(s.child, attributeSeq, expressionsMap),
             LiteralTransformer(Literal(s.randomSeed.get))),
           s)
+      case c: PreciseTimestampConversion =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genPreciseTimestampConversionTransformer(
+          substraitExprName,
+          Seq(replaceWithExpressionTransformerInternal(c.child, attributeSeq, expressionsMap)),
+          c
+        )
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,
@@ -679,100 +681,5 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       throw new GlutenNotSupportException(s"Not supported: $expr.")
     }
     substraitExprName
-  }
-
-  /**
-   * Transform BroadcastExchangeExec to ColumnarBroadcastExchangeExec in DynamicPruningExpression.
-   *
-   * @param partitionFilters
-   *   The partition filter of Scan
-   * @return
-   *   Transformed partition filter
-   */
-  def transformDynamicPruningExpr(partitionFilters: Seq[Expression]): Seq[Expression] = {
-
-    def convertBroadcastExchangeToColumnar(
-        exchange: BroadcastExchangeExec): ColumnarBroadcastExchangeExec = {
-      val newChild = Transitions.toBackendBatchPlan(exchange.child)
-      ColumnarBroadcastExchangeExec(exchange.mode, newChild)
-    }
-
-    if (
-      GlutenConfig.getConf.enableScanOnly || !GlutenConfig.getConf.enableColumnarBroadcastExchange
-    ) {
-      // Disable ColumnarSubqueryBroadcast for scan-only execution
-      // or ColumnarBroadcastExchange was disabled.
-      partitionFilters
-    } else {
-      partitionFilters.map {
-        case dynamicPruning: DynamicPruningExpression =>
-          dynamicPruning.transform {
-            // Lookup inside subqueries for duplicate exchanges.
-            case in: InSubqueryExec =>
-              in.plan match {
-                case s: SubqueryBroadcastExec =>
-                  val newIn = s
-                    .transform {
-                      case exchange: BroadcastExchangeExec =>
-                        convertBroadcastExchangeToColumnar(exchange)
-                    }
-                    .asInstanceOf[SubqueryBroadcastExec]
-                  val transformSubqueryBroadcast = ColumnarSubqueryBroadcastExec(
-                    newIn.name,
-                    newIn.index,
-                    newIn.buildKeys,
-                    newIn.child)
-
-                  // When AQE is on, spark will apply ReuseAdaptiveSubquery rule first,
-                  // it will reuse vanilla SubqueryBroadcastExec,
-                  // and then use gluten ColumnarOverrides rule to transform Subquery,
-                  // so all the SubqueryBroadcastExec in the ReusedSubqueryExec will be transformed
-                  // to a new ColumnarSubqueryBroadcastExec for each SubqueryBroadcastExec,
-                  // which will lead to execute ColumnarSubqueryBroadcastExec.relationFuture
-                  // repeatedly even in the ReusedSubqueryExec.
-                  //
-                  // On the other hand, it needs to use
-                  // the AdaptiveSparkPlanExec.AdaptiveExecutionContext to hold the reused map
-                  // for each query.
-                  newIn.child match {
-                    case a: AdaptiveSparkPlanExec if SQLConf.get.subqueryReuseEnabled =>
-                      // When AQE is on and reuseSubquery is on.
-                      a.context.subqueryCache
-                        .update(newIn.canonicalized, transformSubqueryBroadcast)
-                    case _ =>
-                  }
-                  in.copy(plan = transformSubqueryBroadcast.asInstanceOf[BaseSubqueryExec])
-                case r: ReusedSubqueryExec if r.child.isInstanceOf[SubqueryBroadcastExec] =>
-                  val newIn = r.child
-                    .transform {
-                      case exchange: BroadcastExchangeExec =>
-                        convertBroadcastExchangeToColumnar(exchange)
-                    }
-                    .asInstanceOf[SubqueryBroadcastExec]
-                  newIn.child match {
-                    case a: AdaptiveSparkPlanExec =>
-                      // Only when AQE is on, it needs to replace SubqueryBroadcastExec
-                      // with reused ColumnarSubqueryBroadcastExec
-                      val cachedSubquery = a.context.subqueryCache.get(newIn.canonicalized)
-                      if (cachedSubquery.isDefined) {
-                        in.copy(plan = ReusedSubqueryExec(cachedSubquery.get))
-                      } else {
-                        val errMsg = "Can not get the reused ColumnarSubqueryBroadcastExec" +
-                          "by the ${newIn.canonicalized}"
-                        logWarning(errMsg)
-                        throw new UnsupportedOperationException(errMsg)
-                      }
-                    case _ =>
-                      val errMsg = "Can not get the reused ColumnarSubqueryBroadcastExec" +
-                        "by the ${newIn.canonicalized}"
-                      logWarning(errMsg)
-                      throw new UnsupportedOperationException(errMsg)
-                  }
-                case _ => in
-              }
-          }
-        case e: Expression => e
-      }
-    }
   }
 }

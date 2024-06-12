@@ -764,6 +764,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileFormatWriterSuite]
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenFileMetadataStructSuite]
+  enableSuite[GlutenFileMetadataStructRowIndexSuite]
   enableSuite[GlutenParquetV1AggregatePushDownSuite]
   enableSuite[GlutenParquetV2AggregatePushDownSuite]
   enableSuite[GlutenOrcV1AggregatePushDownSuite]
@@ -1191,10 +1192,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenResolveDefaultColumnsSuite]
   enableSuite[GlutenSubqueryHintPropagationSuite]
   enableSuite[GlutenUrlFunctionsSuite]
-  enableSuite[GlutenFileMetadataStructRowIndexSuite]
-    // Row index metadata column support in Velox isn't ready yet, refer velox-9147
-    .exclude("reading _tmp_metadata_row_index - not present in a table")
-    .exclude("reading _tmp_metadata_row_index - present in a table")
   enableSuite[GlutenParquetRowIndexSuite]
     .excludeByPrefix("row index generation")
     .excludeByPrefix("invalid row index column type")

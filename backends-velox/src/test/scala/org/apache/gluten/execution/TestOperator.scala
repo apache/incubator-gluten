@@ -24,6 +24,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
@@ -33,7 +34,7 @@ import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters
 
-class TestOperator extends VeloxWholeStageTransformerSuite {
+class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
@@ -214,14 +215,53 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey" +
+              " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW), " +
+              "min(l_comment) over" +
+              " (partition by l_suppkey order by l_linenumber" +
+              " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) from lineitem ") {
+            checkSparkOperatorMatch[WindowExecTransformer]
+          }
+
+          runQueryAndCompare(
+            "select max(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey" +
               " RANGE BETWEEN CURRENT ROW AND 2 FOLLOWING) from lineitem ") {
-            checkSparkOperatorMatch[WindowExec]
+            checkSparkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey" +
               " RANGE BETWEEN 6 PRECEDING AND CURRENT ROW) from lineitem ") {
+            checkSparkOperatorMatch[WindowExecTransformer]
+          }
+
+          runQueryAndCompare(
+            "select max(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey" +
+              " RANGE BETWEEN 6 PRECEDING AND 2 FOLLOWING) from lineitem ") {
+            checkSparkOperatorMatch[WindowExecTransformer]
+          }
+
+          runQueryAndCompare(
+            "select max(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey" +
+              " RANGE BETWEEN 6 PRECEDING AND 3 PRECEDING) from lineitem ") {
+            checkSparkOperatorMatch[WindowExecTransformer]
+          }
+
+          runQueryAndCompare(
+            "select max(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey" +
+              " RANGE BETWEEN 3 FOLLOWING AND 6 FOLLOWING) from lineitem ") {
+            checkSparkOperatorMatch[WindowExecTransformer]
+          }
+
+          // DecimalType as order by column is not supported
+          runQueryAndCompare(
+            "select min(l_comment) over" +
+              " (partition by l_suppkey order by l_discount" +
+              " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) from lineitem ") {
             checkSparkOperatorMatch[WindowExec]
           }
 
@@ -700,6 +740,29 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       val plan = df.queryExecution.executedPlan
       assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
       assert(plan.find(_.isInstanceOf[ArrowBatchScanExec]).isDefined)
+    }
+  }
+
+  test("combine small batches before shuffle") {
+    val minBatchSize = 15
+    withSQLConf(
+      "spark.gluten.sql.columnar.backend.velox.coalesceBatchesBeforeShuffle" -> "true",
+      "spark.gluten.sql.columnar.maxBatchSize" -> "2",
+      "spark.gluten.sql.columnar.backend.velox.minBatchSizeForShuffle" -> s"$minBatchSize"
+    ) {
+      val df = runQueryAndCompare(
+        "select l_orderkey, sum(l_partkey) as sum from lineitem " +
+          "where l_orderkey < 100 group by l_orderkey") { _ => }
+      checkLengthAndPlan(df, 27)
+      val ops = collect(df.queryExecution.executedPlan) { case p: VeloxAppendBatchesExec => p }
+      assert(ops.size == 1)
+      val op = ops.head
+      assert(op.minOutputBatchSize == minBatchSize)
+      val metrics = op.metrics
+      assert(metrics("numInputRows").value == 27)
+      assert(metrics("numInputBatches").value == 14)
+      assert(metrics("numOutputRows").value == 27)
+      assert(metrics("numOutputBatches").value == 2)
     }
   }
 

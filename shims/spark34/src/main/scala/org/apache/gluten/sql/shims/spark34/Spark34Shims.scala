@@ -47,7 +47,7 @@ import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.types.{IntegerType, LongType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
@@ -208,6 +208,11 @@ class Spark34Shims extends SparkShims {
     case other => other
   }
 
+  override def getFileSizeAndModificationTime(
+      file: PartitionedFile): (Option[Long], Option[Long]) = {
+    (Some(file.fileSize), Some(file.modificationTime))
+  }
+
   override def generateMetadataColumns(
       file: PartitionedFile,
       metadataColumnNames: Seq[String]): JMap[String, String] = {
@@ -327,8 +332,35 @@ class Spark34Shims extends SparkShims {
 
   def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] = partition.files
 
+  def isFileSplittable(
+      relation: HadoopFsRelation,
+      filePath: Path,
+      sparkSchema: StructType): Boolean = {
+    // SPARK-39634: Allow file splitting in combination with row index generation once
+    // the fix for PARQUET-2161 is available.
+    relation.fileFormat
+      .isSplitable(relation.sparkSession, relation.options, filePath) &&
+    !(RowIndexUtil.findRowIndexColumnIndexInSchema(sparkSchema) >= 0)
+  }
+
   def isRowIndexMetadataColumn(name: String): Boolean = {
     name == FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME
+  }
+
+  def findRowIndexColumnIndexInSchema(sparkSchema: StructType): Int = {
+    sparkSchema.fields.zipWithIndex.find {
+      case (field: StructField, _: Int) =>
+        field.name == FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME
+    } match {
+      case Some((field: StructField, idx: Int)) =>
+        if (field.dataType != LongType && field.dataType != IntegerType) {
+          throw new RuntimeException(
+            s"${FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME} " +
+              s"must be of LongType or IntegerType")
+        }
+        idx
+      case _ => -1
+    }
   }
 
   def splitFiles(

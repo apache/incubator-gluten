@@ -219,6 +219,7 @@ object ExpressionNames {
   final val UNIX_MICROS = "unix_micros"
   final val TIMESTAMP_MILLIS = "timestamp_millis"
   final val TIMESTAMP_MICROS = "timestamp_micros"
+  final val PRECYSE_TIMESTAMP_CONVERSION = "precise_timestamp_conversion"
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
