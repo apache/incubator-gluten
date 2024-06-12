@@ -71,6 +71,23 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
     collect(plan) { case v: VeloxColumnarToRowExec => v }.size
   }
 
+  test("fallback with shuffle manager") {
+    withSQLConf(GlutenConfig.COLUMNAR_SHUFFLE_ENABLED.key -> "false") {
+      runQueryAndCompare("select c1, count(*) from tmp1 group by c1") {
+        df =>
+          val plan = df.queryExecution.executedPlan
+          val columnarShuffle = find(plan) {
+            case _: ColumnarShuffledJoin => true
+            case _ => false
+          }
+          assert(columnarShuffle.isEmpty)
+
+          val wholeQueryColumnarToRow = collectColumnarToRow(plan)
+          assert(wholeQueryColumnarToRow == 2)
+      }
+    }
+  }
+
   test("fallback with collect") {
     withSQLConf(GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1") {
       runQueryAndCompare("SELECT count(*) FROM tmp1") {
