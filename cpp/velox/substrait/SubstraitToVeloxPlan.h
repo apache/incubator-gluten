@@ -496,6 +496,7 @@ class SubstraitToVeloxPlanConverter {
 
   /// Create a values range to handle (not) in filter.
   /// variants: the list of values extracted from the (not) in expression.
+  //  negated: false for IN filter, true for NOT IN filter.
   /// inputName: the column input name.
   template <TypeKind KIND>
   void setInFilter(
