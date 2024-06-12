@@ -102,8 +102,17 @@ case class InputFileNameReplaceRule(spark: SparkSession) extends Rule[SparkPlan]
       }
     }
 
-    def applyNewAttrToScanOutput(plan: SparkPlan): SparkPlan = {
-      plan.transformUp {
+    def ensureChildOutputHasNewAttrs(plan: SparkPlan): SparkPlan = {
+      plan match {
+        case _ @ProjectExec(projectList, child) =>
+          var newProjectList = projectList
+          for ((_, newAttr) <- replacedExprs) {
+            if (!newProjectList.exists(attr => attr.exprId == newAttr.exprId)) {
+              newProjectList = newProjectList :+ newAttr.toAttribute
+            }
+          }
+          val newChild = ensureChildOutputHasNewAttrs(child)
+          ProjectExec(newProjectList, newChild)
         case f: FileSourceScanExec =>
           var newOutput = f.output
           for ((_, newAttr) <- replacedExprs) {
@@ -121,6 +130,9 @@ case class InputFileNameReplaceRule(spark: SparkSession) extends Rule[SparkPlan]
             }
           }
           b.copy(output = newOutput)
+        case other =>
+          val newChildren = other.children.map(ensureChildOutputHasNewAttrs)
+          other.withNewChildren(newChildren)
       }
     }
 
@@ -131,7 +143,7 @@ case class InputFileNameReplaceRule(spark: SparkSession) extends Rule[SparkPlan]
           val newProjectList = projectList.map {
             expr => doConvert(expr).asInstanceOf[NamedExpression]
           }
-          val newChild = replaceInputFileNameInProject(applyNewAttrToScanOutput(child))
+          val newChild = replaceInputFileNameInProject(ensureChildOutputHasNewAttrs(child))
           ProjectExec(newProjectList, newChild)
         case other =>
           val newChildren = other.children.map(replaceInputFileNameInProject)
