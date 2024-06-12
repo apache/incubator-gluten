@@ -20,6 +20,7 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 
 import org.apache.spark.ShuffleDependency
@@ -305,6 +306,13 @@ trait SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, children, expr)
   }
 
+  def genPreciseTimestampConversionTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: PreciseTimestampConversion): ExpressionTransformer = {
+    throw new GlutenNotSupportException("PreciseTimestampConversion is not supported")
+  }
+
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
    *
@@ -529,9 +537,10 @@ trait SparkPlanExecApi {
               new JArrayList[ExpressionNode](),
               columnName,
               ConverterUtils.getTypeNode(aggWindowFunc.dataType, aggWindowFunc.nullable),
-              WindowExecTransformer.getFrameBound(frame.upper),
-              WindowExecTransformer.getFrameBound(frame.lower),
-              frame.frameType.sql
+              frame.upper,
+              frame.lower,
+              frame.frameType.sql,
+              originalInputAttributes.asJava
             )
             windowExpressionNodes.add(windowFunctionNode)
           case aggExpression: AggregateExpression =>
@@ -554,9 +563,10 @@ trait SparkPlanExecApi {
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(aggExpression.dataType, aggExpression.nullable),
-              WindowExecTransformer.getFrameBound(frame.upper),
-              WindowExecTransformer.getFrameBound(frame.lower),
-              frame.frameType.sql
+              frame.upper,
+              frame.lower,
+              frame.frameType.sql,
+              originalInputAttributes.asJava
             )
             windowExpressionNodes.add(windowFunctionNode)
           case wf @ (_: Lead | _: Lag) =>
@@ -590,10 +600,11 @@ trait SparkPlanExecApi {
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(offsetWf.dataType, offsetWf.nullable),
-              WindowExecTransformer.getFrameBound(frame.upper),
-              WindowExecTransformer.getFrameBound(frame.lower),
+              frame.upper,
+              frame.lower,
               frame.frameType.sql,
-              offsetWf.ignoreNulls
+              offsetWf.ignoreNulls,
+              originalInputAttributes.asJava
             )
             windowExpressionNodes.add(windowFunctionNode)
           case wf @ NthValue(input, offset: Literal, ignoreNulls: Boolean) =>
@@ -609,10 +620,11 @@ trait SparkPlanExecApi {
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(wf.dataType, wf.nullable),
-              frame.upper.sql,
-              frame.lower.sql,
+              frame.upper,
+              frame.lower,
               frame.frameType.sql,
-              ignoreNulls
+              ignoreNulls,
+              originalInputAttributes.asJava
             )
             windowExpressionNodes.add(windowFunctionNode)
           case wf @ NTile(buckets: Expression) =>
@@ -625,9 +637,10 @@ trait SparkPlanExecApi {
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(wf.dataType, wf.nullable),
-              frame.upper.sql,
-              frame.lower.sql,
-              frame.frameType.sql
+              frame.upper,
+              frame.lower,
+              frame.frameType.sql,
+              originalInputAttributes.asJava
             )
             windowExpressionNodes.add(windowFunctionNode)
           case _ =>
@@ -656,17 +669,20 @@ trait SparkPlanExecApi {
   def postProcessPushDownFilter(
       extraFilters: Seq[Expression],
       sparkExecNode: LeafExecNode): Seq[Expression] = {
+    def getPushedFilter(dataFilters: Seq[Expression]): Seq[Expression] = {
+      val pushedFilters =
+        dataFilters ++ FilterHandler.getRemainingFilters(dataFilters, extraFilters)
+      pushedFilters.filterNot(_.references.exists {
+        attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
+      })
+    }
     sparkExecNode match {
       case fileSourceScan: FileSourceScanExec =>
-        fileSourceScan.dataFilters ++ FilterHandler.getRemainingFilters(
-          fileSourceScan.dataFilters,
-          extraFilters)
+        getPushedFilter(fileSourceScan.dataFilters)
       case batchScan: BatchScanExec =>
         batchScan.scan match {
           case fileScan: FileScan =>
-            fileScan.dataFilters ++ FilterHandler.getRemainingFilters(
-              fileScan.dataFilters,
-              extraFilters)
+            getPushedFilter(fileScan.dataFilters)
           case _ =>
             // TODO: For data lake format use pushedFilters in SupportsPushDownFilters
             extraFilters

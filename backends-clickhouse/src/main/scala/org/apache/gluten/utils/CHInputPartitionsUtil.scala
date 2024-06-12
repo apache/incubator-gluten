@@ -24,6 +24,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.PartitionedFileUtil
 import org.apache.spark.sql.execution.datasources._
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SparkResourceUtil
 import org.apache.spark.util.collection.BitSet
 
@@ -33,6 +34,7 @@ import scala.collection.mutable.ArrayBuffer
 
 case class CHInputPartitionsUtil(
     relation: HadoopFsRelation,
+    requiredSchema: StructType,
     selectedPartitions: Array[PartitionDirectory],
     output: Seq[Attribute],
     bucketedScan: Boolean,

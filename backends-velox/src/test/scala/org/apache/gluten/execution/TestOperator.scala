@@ -215,14 +215,53 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey" +
+              " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW), " +
+              "min(l_comment) over" +
+              " (partition by l_suppkey order by l_linenumber" +
+              " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) from lineitem ") {
+            checkSparkOperatorMatch[WindowExecTransformer]
+          }
+
+          runQueryAndCompare(
+            "select max(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey" +
               " RANGE BETWEEN CURRENT ROW AND 2 FOLLOWING) from lineitem ") {
-            checkSparkOperatorMatch[WindowExec]
+            checkSparkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey" +
               " RANGE BETWEEN 6 PRECEDING AND CURRENT ROW) from lineitem ") {
+            checkSparkOperatorMatch[WindowExecTransformer]
+          }
+
+          runQueryAndCompare(
+            "select max(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey" +
+              " RANGE BETWEEN 6 PRECEDING AND 2 FOLLOWING) from lineitem ") {
+            checkSparkOperatorMatch[WindowExecTransformer]
+          }
+
+          runQueryAndCompare(
+            "select max(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey" +
+              " RANGE BETWEEN 6 PRECEDING AND 3 PRECEDING) from lineitem ") {
+            checkSparkOperatorMatch[WindowExecTransformer]
+          }
+
+          runQueryAndCompare(
+            "select max(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey" +
+              " RANGE BETWEEN 3 FOLLOWING AND 6 FOLLOWING) from lineitem ") {
+            checkSparkOperatorMatch[WindowExecTransformer]
+          }
+
+          // DecimalType as order by column is not supported
+          runQueryAndCompare(
+            "select min(l_comment) over" +
+              " (partition by l_suppkey order by l_discount" +
+              " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) from lineitem ") {
             checkSparkOperatorMatch[WindowExec]
           }
 

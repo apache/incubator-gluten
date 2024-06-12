@@ -372,7 +372,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           // If filter expressions aren't empty, we need to transform the inner operators.
           if (plan.partitionFilters.isEmpty) {
             val transformer =
-              ScanTransformerFactory.createFileSourceScanTransformer(plan, validation = true)
+              ScanTransformerFactory.createFileSourceScanTransformer(plan)
             transformer.doValidate().tagOnFallback(plan)
           }
         case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>

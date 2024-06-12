@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.FileSourceScanExec
 
 class DeltaScanTransformerProvider extends DataSourceScanTransformerRegister {
@@ -24,8 +23,7 @@ class DeltaScanTransformerProvider extends DataSourceScanTransformerRegister {
   override val scanClassName: String = "org.apache.spark.sql.delta.DeltaParquetFileFormat"
 
   override def createDataSourceTransformer(
-      batchScan: FileSourceScanExec,
-      newPartitionFilters: Seq[Expression]): FileSourceScanExecTransformerBase = {
-    DeltaScanTransformer(batchScan, newPartitionFilters)
+      batchScan: FileSourceScanExec): FileSourceScanExecTransformerBase = {
+    DeltaScanTransformer(batchScan)
   }
 }

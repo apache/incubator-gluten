@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 
@@ -44,15 +43,12 @@ trait DataSourceScanTransformerRegister {
   val scanClassName: String
 
   def createDataSourceTransformer(
-      batchScan: FileSourceScanExec,
-      newPartitionFilters: Seq[Expression]): FileSourceScanExecTransformerBase = {
+      batchScan: FileSourceScanExec): FileSourceScanExecTransformerBase = {
     throw new UnsupportedOperationException(
       "This should not be called, please implement this method in child class.");
   }
 
-  def createDataSourceV2Transformer(
-      batchScan: BatchScanExec,
-      newPartitionFilters: Seq[Expression]): BatchScanExecTransformerBase = {
+  def createDataSourceV2Transformer(batchScan: BatchScanExec): BatchScanExecTransformerBase = {
     throw new UnsupportedOperationException(
       "This should not be called, please implement this method in child class.");
   }

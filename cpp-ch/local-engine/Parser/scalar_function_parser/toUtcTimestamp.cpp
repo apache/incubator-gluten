@@ -14,16 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
 
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+#include <Parser/scalar_function_parser/utcTimestampTransform.h>
 
-class IcebergTransformerProvider extends DataSourceScanTransformerRegister {
+namespace local_engine
+{
 
-  override val scanClassName: String = "org.apache.iceberg.spark.source.SparkBatchQueryScan"
+class FunctionParserToUtcTimestamp : public FunctionParserUtcTimestampTransform
+{
+public:
+    explicit FunctionParserToUtcTimestamp(SerializedPlanParser * plan_parser_) : FunctionParserUtcTimestampTransform(plan_parser_) { }
+    ~FunctionParserToUtcTimestamp() = default;
 
-  override def createDataSourceV2Transformer(
-      batchScan: BatchScanExec): BatchScanExecTransformerBase = {
-    IcebergScanTransformer(batchScan)
-  }
+    static constexpr auto name = "to_utc_timestamp";
+    String getCHFunctionName(const substrait::Expression_ScalarFunction &) const override { return "to_utc_timestamp"; }
+    String getName() const override { return "to_utc_timestamp"; }
+};
+
+static FunctionParserRegister<FunctionParserToUtcTimestamp> toUtcTimestamp;
 }
