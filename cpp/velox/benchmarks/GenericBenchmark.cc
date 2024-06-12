@@ -204,7 +204,7 @@ void runShuffle(
   cleanupShuffleOutput(dataFile, localDirs, isFromEnv);
 }
 
-void finshBenchmarkMetrics(
+void updateBenchmarkMetrics(
     ::benchmark::State& state,
     const int64_t& elapsedTime,
     const int64_t& readInputTime,
@@ -327,7 +327,7 @@ auto BM_Generic = [](::benchmark::State& state,
     }
   }
 
-  finshBenchmarkMetrics(state, elapsedTime, readInputTime, writerMetrics);
+  updateBenchmarkMetrics(state, elapsedTime, readInputTime, writerMetrics);
 };
 
 auto BM_ShuffleWrite =
@@ -353,7 +353,7 @@ auto BM_ShuffleWrite =
         }
       }
 
-      finshBenchmarkMetrics(state, elapsedTime, readInputTime, writerMetrics);
+      updateBenchmarkMetrics(state, elapsedTime, readInputTime, writerMetrics);
     };
 
 int main(int argc, char** argv) {
