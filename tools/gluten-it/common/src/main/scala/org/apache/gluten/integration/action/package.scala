@@ -15,27 +15,22 @@
  * limitations under the License.
  */
 
-#pragma once
+package org.apache.gluten.integration
 
-namespace gluten {
+package object action {
+  implicit class DualOptionsOps[T](value: (Option[T], Option[T])) {
+    def onBothProvided[R](func: (T, T) => R): Option[R] = {
+      if (value._1.isEmpty || value._2.isEmpty) {
+        return None
+      }
+      Some(func(value._1.get, value._2.get))
+    }
+  }
 
-struct UdafEntry {
-  const char* name;
-  const char* dataType;
-
-  int numArgs;
-  const char** argTypes;
-
-  const char* intermediateType{nullptr};
-  bool variableArity{false};
-};
-
-#define GLUTEN_GET_NUM_UDAF getNumUdaf
-#define DEFINE_GET_NUM_UDAF extern "C" int GLUTEN_GET_NUM_UDAF()
-
-#define GLUTEN_GET_UDAF_ENTRIES getUdfEntries
-#define DEFINE_GET_UDAF_ENTRIES extern "C" void GLUTEN_GET_UDAF_ENTRIES(gluten::UdafEntry* udafEntries)
-
-#define GLUTEN_REGISTER_UDAF registerUdf
-#define DEFINE_REGISTER_UDAF extern "C" void GLUTEN_REGISTER_UDAF()
-} // namespace gluten
+  implicit class DualMetricsOps(value: (Map[String, Long], Map[String, Long])) {
+    def sumUp: Map[String, Long] = {
+      assert(value._1.keySet == value._2.keySet)
+      value._1.map { case (k, v) => k -> (v + value._2(k)) }
+    }
+  }
+}
