@@ -39,7 +39,6 @@ std::unordered_map<std::string, std::string> bmConfMap = defaultConf();
 std::unordered_map<std::string, std::string> defaultConf() {
   return {
       {gluten::kSparkBatchSize, std::to_string(FLAGS_batch_size)},
-      {gluten::kDebugModeEnabled, "true"},
   };
 }
 
