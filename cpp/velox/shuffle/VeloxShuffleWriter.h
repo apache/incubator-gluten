@@ -50,7 +50,7 @@ class VeloxShuffleWriter : public ShuffleWriter {
  public:
   facebook::velox::RowVectorPtr getStrippedRowVector(const facebook::velox::RowVector& rv) {
     // get new row type
-    auto rowType = rv.type()->asRow();
+    auto& rowType = rv.type()->asRow();
     auto typeChildren = rowType.children();
     typeChildren.erase(typeChildren.begin());
     auto newRowType = facebook::velox::ROW(std::move(typeChildren));
