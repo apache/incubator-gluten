@@ -65,7 +65,7 @@ public class Parameterized implements Callable<Integer> {
 
   @Override
   public Integer call() throws Exception {
-    final Map<String, Map<String, List<Map.Entry<String, String>>>> parsed = new HashMap<>();
+    final Map<String, Map<String, List<Map.Entry<String, String>>>> parsed = new LinkedHashMap<>();
 
     final Seq<scala.collection.immutable.Set<DimKv>> excludedCombinations = JavaConverters.asScalaBufferConverter(Arrays.stream(excludedDims).map(d -> {
       final Matcher m = excludedDimsPattern.matcher(d);

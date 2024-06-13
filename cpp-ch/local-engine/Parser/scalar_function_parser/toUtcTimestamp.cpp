@@ -15,27 +15,21 @@
  * limitations under the License.
  */
 
-#pragma once
+#include <Parser/scalar_function_parser/utcTimestampTransform.h>
 
-namespace gluten {
+namespace local_engine
+{
 
-struct UdafEntry {
-  const char* name;
-  const char* dataType;
+class FunctionParserToUtcTimestamp : public FunctionParserUtcTimestampTransform
+{
+public:
+    explicit FunctionParserToUtcTimestamp(SerializedPlanParser * plan_parser_) : FunctionParserUtcTimestampTransform(plan_parser_) { }
+    ~FunctionParserToUtcTimestamp() = default;
 
-  int numArgs;
-  const char** argTypes;
-
-  const char* intermediateType{nullptr};
-  bool variableArity{false};
+    static constexpr auto name = "to_utc_timestamp";
+    String getCHFunctionName(const substrait::Expression_ScalarFunction &) const override { return "to_utc_timestamp"; }
+    String getName() const override { return "to_utc_timestamp"; }
 };
 
-#define GLUTEN_GET_NUM_UDAF getNumUdaf
-#define DEFINE_GET_NUM_UDAF extern "C" int GLUTEN_GET_NUM_UDAF()
-
-#define GLUTEN_GET_UDAF_ENTRIES getUdfEntries
-#define DEFINE_GET_UDAF_ENTRIES extern "C" void GLUTEN_GET_UDAF_ENTRIES(gluten::UdafEntry* udafEntries)
-
-#define GLUTEN_REGISTER_UDAF registerUdf
-#define DEFINE_REGISTER_UDAF extern "C" void GLUTEN_REGISTER_UDAF()
-} // namespace gluten
+static FunctionParserRegister<FunctionParserToUtcTimestamp> toUtcTimestamp;
+}

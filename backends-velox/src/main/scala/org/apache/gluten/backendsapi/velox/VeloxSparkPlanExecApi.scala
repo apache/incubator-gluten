@@ -280,6 +280,26 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(endDate, startDate), original)
   }
 
+  override def genPreciseTimestampConversionTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: PreciseTimestampConversion): ExpressionTransformer = {
+    // Expression used internally to convert the TimestampType to Long and back without losing
+    // precision, i.e. in microseconds.
+    val (newSubstraitName, newExpr) = expr match {
+      case _ @PreciseTimestampConversion(_, TimestampType, LongType) =>
+        (ExpressionMappings.expressionsMap(classOf[UnixMicros]), UnixMicros(expr.child))
+      case _ @PreciseTimestampConversion(_, LongType, TimestampType) =>
+        (
+          ExpressionMappings.expressionsMap(classOf[MicrosToTimestamp]),
+          MicrosToTimestamp(expr.child))
+      case _ =>
+        // TimestampNTZType is not supported here.
+        throw new GlutenNotSupportException("PreciseTimestampConversion is not supported")
+    }
+    GenericExpressionTransformer(newSubstraitName, children, newExpr)
+  }
+
   /**
    * Generate FilterExecTransformer.
    *

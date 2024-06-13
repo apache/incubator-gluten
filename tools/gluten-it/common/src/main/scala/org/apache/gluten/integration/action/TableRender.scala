@@ -20,7 +20,7 @@ package org.apache.gluten.integration.action
 import org.apache.commons.lang3.StringUtils
 import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender.RowAppender
 
-import java.io.{OutputStream, PrintStream}
+import java.io.{ByteArrayOutputStream, OutputStream, PrintStream}
 import scala.collection.mutable
 
 trait TableRender[ROW <: Any] {
@@ -31,7 +31,8 @@ trait TableRender[ROW <: Any] {
 object TableRender {
   def create[ROW <: Any](fields: Field*)(implicit parser: RowParser[ROW]): TableRender[ROW] = {
     assert(fields.nonEmpty)
-    new Impl[ROW](Schema(fields), parser)
+    // Deep copy to avoid duplications (In case caller reuses a sub-tree).
+    new Impl[ROW](Schema(fields.map(_.makeCopy())), parser)
   }
 
   def plain[ROW <: Any](fields: String*)(implicit parser: RowParser[ROW]): TableRender[ROW] = {
@@ -40,8 +41,10 @@ object TableRender {
   }
 
   trait Field {
+    def id(): Int = System.identityHashCode(this)
     def name: String
     def leafs: Seq[Field.Leaf]
+    def makeCopy(): Field
   }
 
   object Field {
@@ -57,9 +60,12 @@ object TableRender {
             children.map(child => leafsOf(child)).reduce(_ ++ _)
         }
       }
+
+      override def makeCopy(): Field = copy(name, children.map(_.makeCopy()))
     }
     case class Leaf(override val name: String) extends Field {
       override val leafs: Seq[Leaf] = List(this)
+      override def makeCopy(): Field = copy()
     }
   }
 
@@ -109,7 +115,7 @@ object TableRender {
       schema.leafs.zipWithIndex.foreach {
         case (leaf, i) =>
           val dataWidth = dataWidths(i)
-          widthMap += (System.identityHashCode(leaf) -> (dataWidth max (leaf.name.length + 2)))
+          widthMap += (leaf.id() -> (dataWidth max (leaf.name.length + 2)))
       }
 
       schema.fields.foreach { root =>
@@ -122,12 +128,12 @@ object TableRender {
                   .toInt
               children.foreach(child => updateWidth(child, leafLowerBound * child.leafs.size))
               val childrenWidth =
-                children.map(child => widthMap(System.identityHashCode(child))).sum
+                children.map(child => widthMap(child.id())).sum
               val width = childrenWidth + children.size - 1
-              val hash = System.identityHashCode(branch)
+              val hash = branch.id()
               widthMap += hash -> width
             case leaf @ Field.Leaf(name) =>
-              val hash = System.identityHashCode(leaf)
+              val hash = leaf.id()
               val newWidth = widthMap(hash) max lowerBound
               widthMap.put(hash, newWidth)
             case _ => new IllegalStateException()
@@ -146,9 +152,9 @@ object TableRender {
           val schemaLine = cells
             .map {
               case Given(field) =>
-                (field.name, widthMap(System.identityHashCode(field)))
+                (field.name, widthMap(field.id()))
               case PlaceHolder(leaf) =>
-                ("", widthMap(System.identityHashCode(leaf)))
+                ("", widthMap(leaf.id()))
             }
             .map {
               case (name, width) =>
@@ -168,7 +174,7 @@ object TableRender {
 
       val separationLine = schema.leafs
         .map { leaf =>
-          widthMap(System.identityHashCode(leaf))
+          widthMap(leaf.id())
         }
         .map { width =>
           new String(Array.tabulate(width)(_ => '-'))
@@ -182,7 +188,7 @@ object TableRender {
           .zip(schema.leafs)
           .map {
             case (value, leaf) =>
-              (value, widthMap(System.identityHashCode(leaf)))
+              (value, widthMap(leaf.id()))
           }
           .map {
             case (value, width) =>
@@ -193,6 +199,12 @@ object TableRender {
       }
 
       printer.flush()
+    }
+
+    override def toString: String = {
+      val out = new ByteArrayOutputStream()
+      print(out)
+      out.toString
     }
   }
 
@@ -302,7 +314,13 @@ object TableRender {
 
         override def write(value: Any): Unit = {
           assert(field.isInstanceOf[Field.Leaf])
-          mutableRow(column) = value.toString
+          mutableRow(column) = toString(value)
+        }
+
+        private def toString(value: Any): String = value match {
+          case Some(v) => toString(v)
+          case None => "N/A"
+          case other => other.toString
         }
       }
     }

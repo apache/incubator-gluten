@@ -43,6 +43,8 @@ trait BackendSettingsApi {
       options: Map[String, String]): ValidationResult = ValidationResult.ok
   def supportNativeWrite(fields: Array[StructField]): Boolean = true
   def supportNativeMetadataColumns(): Boolean = false
+  def supportNativeRowIndexColumn(): Boolean = false
+
   def supportExpandExec(): Boolean = false
   def supportSortExec(): Boolean = false
   def supportSortMergeJoinExec(): Boolean = true
@@ -152,4 +154,6 @@ trait BackendSettingsApi {
   def supportColumnarArrowUdf(): Boolean = false
 
   def generateHdfsConfForLibhdfs(): Boolean = false
+
+  def needPreComputeRangeFrameBoundary(): Boolean = false
 }

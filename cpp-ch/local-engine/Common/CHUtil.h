@@ -225,6 +225,7 @@ class DateTimeUtil
 {
 public:
     static Int64 currentTimeMillis();
+    static String convertTimeZone(const String & time_zone);
 };
 
 class MemoryUtil

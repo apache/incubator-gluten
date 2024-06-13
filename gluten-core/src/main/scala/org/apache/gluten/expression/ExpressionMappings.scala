@@ -196,6 +196,7 @@ object ExpressionMappings {
     Sig[UnixMicros](UNIX_MICROS),
     Sig[MillisToTimestamp](TIMESTAMP_MILLIS),
     Sig[MicrosToTimestamp](TIMESTAMP_MICROS),
+    Sig[PreciseTimestampConversion](PRECYSE_TIMESTAMP_CONVERSION),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),

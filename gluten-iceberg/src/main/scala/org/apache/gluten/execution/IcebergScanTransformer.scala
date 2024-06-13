@@ -80,13 +80,11 @@ case class IcebergScanTransformer(
 }
 
 object IcebergScanTransformer {
-  def apply(
-      batchScan: BatchScanExec,
-      newPartitionFilters: Seq[Expression]): IcebergScanTransformer = {
+  def apply(batchScan: BatchScanExec): IcebergScanTransformer = {
     new IcebergScanTransformer(
       batchScan.output,
       batchScan.scan,
-      newPartitionFilters,
+      batchScan.runtimeFilters,
       table = SparkShimLoader.getSparkShims.getBatchScanExecTable(batchScan),
       keyGroupedPartitioning = SparkShimLoader.getSparkShims.getKeyGroupedPartitioning(batchScan),
       commonPartitionValues = SparkShimLoader.getSparkShims.getCommonPartitionValues(batchScan)

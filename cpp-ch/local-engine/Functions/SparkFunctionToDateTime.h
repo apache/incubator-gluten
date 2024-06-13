@@ -145,9 +145,6 @@ public:
          if (arguments.size() != 1 && arguments.size() != 2)
             throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s arguments number must be 1 or 2.", name);
         
-        if (!result_type->isNullable())
-            throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s return type must be nullable", name);
-        
         if (!isDateTime64(removeNullable(result_type)))
             throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s return type must be datetime.", name);
         

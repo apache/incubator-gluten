@@ -221,8 +221,6 @@ class GlutenParquetRowIndexSuite extends ParquetRowIndexSuite with GlutenSQLTest
               df.schema.add(rowIndexColName, LongType, nullable = true)
             }
 
-            logInfo(s"gyytest schemaWithRowIndex $schemaWithRowIdx")
-
             df.write
               .format(conf.writeFormat)
               .option(ParquetOutputFormat.BLOCK_SIZE, conf.rowGroupSize)

@@ -81,10 +81,10 @@ case class QueriesCompare(
       println("")
     }
 
-    var all = QueriesCompare.aggregate(results, "all")
+    var all = QueriesCompare.aggregate("all", results)
 
     if (passedCount != count) {
-      all = QueriesCompare.aggregate(succeed, "succeeded") ::: all
+      all = QueriesCompare.aggregate("succeeded", succeed) ::: all
     }
 
     println("Overall: ")
@@ -123,13 +123,13 @@ object QueriesCompare {
           } else None
         inc.next().write(line.queryId)
         inc.next().write(line.testPassed)
-        inc.next().write(line.expectedRowCount.getOrElse("N/A"))
-        inc.next().write(line.actualRowCount.getOrElse("N/A"))
-        inc.next().write(line.expectedPlanningTimeMillis.getOrElse("N/A"))
-        inc.next().write(line.actualPlanningTimeMillis.getOrElse("N/A"))
-        inc.next().write(line.expectedExecutionTimeMillis.getOrElse("N/A"))
-        inc.next().write(line.actualExecutionTimeMillis.getOrElse("N/A"))
-        inc.next().write(speedUp.map("%.2f%%".format(_)).getOrElse("N/A"))
+        inc.next().write(line.expectedRowCount)
+        inc.next().write(line.actualRowCount)
+        inc.next().write(line.expectedPlanningTimeMillis)
+        inc.next().write(line.actualPlanningTimeMillis)
+        inc.next().write(line.expectedExecutionTimeMillis)
+        inc.next().write(line.actualExecutionTimeMillis)
+        inc.next().write(speedUp.map("%.2f%%".format(_)))
       }
     }
   }
@@ -152,7 +152,7 @@ object QueriesCompare {
     render.print(System.out)
   }
 
-  private def aggregate(succeed: List[TestResultLine], name: String): List[TestResultLine] = {
+  private def aggregate(name: String, succeed: List[TestResultLine]): List[TestResultLine] = {
     if (succeed.isEmpty) {
       return Nil
     }
@@ -160,25 +160,13 @@ object QueriesCompare {
       succeed.reduce((r1, r2) =>
         TestResultLine(
           name,
-          testPassed = true,
-          if (r1.expectedRowCount.nonEmpty && r2.expectedRowCount.nonEmpty)
-            Some(r1.expectedRowCount.get + r2.expectedRowCount.get)
-          else None,
-          if (r1.actualRowCount.nonEmpty && r2.actualRowCount.nonEmpty)
-            Some(r1.actualRowCount.get + r2.actualRowCount.get)
-          else None,
-          if (r1.expectedPlanningTimeMillis.nonEmpty && r2.expectedPlanningTimeMillis.nonEmpty)
-            Some(r1.expectedPlanningTimeMillis.get + r2.expectedPlanningTimeMillis.get)
-          else None,
-          if (r1.actualPlanningTimeMillis.nonEmpty && r2.actualPlanningTimeMillis.nonEmpty)
-            Some(r1.actualPlanningTimeMillis.get + r2.actualPlanningTimeMillis.get)
-          else None,
-          if (r1.expectedExecutionTimeMillis.nonEmpty && r2.expectedExecutionTimeMillis.nonEmpty)
-            Some(r1.expectedExecutionTimeMillis.get + r2.expectedExecutionTimeMillis.get)
-          else None,
-          if (r1.actualExecutionTimeMillis.nonEmpty && r2.actualExecutionTimeMillis.nonEmpty)
-            Some(r1.actualExecutionTimeMillis.get + r2.actualExecutionTimeMillis.get)
-          else None,
+          r1.testPassed && r2.testPassed,
+          (r1.expectedRowCount, r2.expectedRowCount).onBothProvided(_ + _),
+          (r1.actualRowCount, r2.actualRowCount).onBothProvided(_ + _),
+          (r1.expectedPlanningTimeMillis, r2.expectedPlanningTimeMillis).onBothProvided(_ + _),
+          (r1.actualPlanningTimeMillis, r2.actualPlanningTimeMillis).onBothProvided(_ + _),
+          (r1.expectedExecutionTimeMillis, r2.expectedExecutionTimeMillis).onBothProvided(_ + _),
+          (r1.actualExecutionTimeMillis, r2.actualExecutionTimeMillis).onBothProvided(_ + _),
           None)))
   }
 

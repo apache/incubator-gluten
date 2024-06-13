@@ -17,6 +17,8 @@
 
 #include "GlutenDiskHDFS.h"
 #include <ranges>
+
+#include <Common/Throttler.h>
 #include <Parser/SerializedPlanParser.h>
 #if USE_HDFS
 
@@ -70,6 +72,15 @@ DiskObjectStoragePtr GlutenDiskHDFS::createDiskObjectStorage()
         config_prefix);
 }
 
-
+std::unique_ptr<DB::WriteBufferFromFileBase> GlutenDiskHDFS::writeFile(
+    const String & path,
+    size_t buf_size,
+    DB::WriteMode mode,
+    const DB::WriteSettings & settings)
+{
+    if (throttler)
+        throttler->add(1);
+    return DiskObjectStorage::writeFile(path, buf_size, mode, settings);
+}
 }
 #endif

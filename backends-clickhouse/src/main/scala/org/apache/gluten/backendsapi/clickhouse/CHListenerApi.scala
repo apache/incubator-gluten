@@ -48,7 +48,11 @@ class CHListenerApi extends ListenerApi with Logging {
 
   override def onExecutorStart(pc: PluginContext): Unit = {
     GlutenExecutorEndpoint.executorEndpoint = new GlutenExecutorEndpoint(pc.executorID, pc.conf)
-    initialize(pc.conf, isDriver = false)
+    if (pc.conf().get("spark.master").startsWith("local")) {
+      logDebug("Skipping duplicate initializing clickhouse backend on spark local mode")
+    } else {
+      initialize(pc.conf, isDriver = false)
+    }
   }
 
   override def onExecutorShutdown(): Unit = shutdown()
