@@ -40,6 +40,8 @@ import org.apache.spark.sql.hive.execution.HiveFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
+import org.apache.hadoop.hive.ql.plan.FileSinkDesc
+
 import scala.util.control.Breaks.breakable
 
 class VeloxBackend extends Backend {
@@ -183,6 +185,23 @@ object VeloxBackendSettings extends BackendSettingsApi {
       bucketSpec: Option[BucketSpec],
       options: Map[String, String]): ValidationResult = {
 
+    // Validate if HiveFileFormat write is supported based on output file type
+    def validateHiveFileFormat(hiveFileFormat: HiveFileFormat): Option[String] = {
+      val fileSinkConfField = format.getClass.getDeclaredField("fileSinkConf")
+      fileSinkConfField.setAccessible(true)
+      val fileSinkConf = fileSinkConfField
+        .get(hiveFileFormat)
+        .asInstanceOf[FileSinkDesc]
+      fileSinkConf.getTableInfo.getOutputFileFormatClassName match {
+        case "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat" =>
+          None
+        case _ =>
+          Some(
+            "HiveFileFormat is supported only with Parquet as the output file type"
+          ) // Unsupported format
+      }
+    }
+
     def validateCompressionCodec(): Option[String] = {
       // Velox doesn't support brotli and lzo.
       val unSupportedCompressions = Set("brotli", "lzo", "lz4raw", "lz4_raw")
@@ -224,20 +243,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
     def validateFileFormat(): Option[String] = {
       format match {
         case _: ParquetFileFormat => None // Parquet is directly supported
-        case h: HiveFileFormat
-            if h.toString.contains("parquet")
-              && GlutenConfig.getConf.enableHiveFileFormatWriter =>
-          None // Parquet via Hive SerDe
-        case h: HiveFileFormat =>
-          // scalastyle:off println
-          println("DBG: Test for Hive File Type")
-          println(h.toString)
-          // scalastyle:on println
-          Some("Only parquet fileformat is supported")
+        case h: HiveFileFormat if GlutenConfig.getConf.enableHiveFileFormatWriter =>
+          validateHiveFileFormat(h) // Parquet via Hive SerDe
         case _ =>
           Some(
-            s"${format.toString} is not supported." +
-              s"Only parquet fileformat is supported in Velox backend."
+            "Only ParquetFileFormat and HiveFileFormat are supported."
           ) // Unsupported format
       }
     }
