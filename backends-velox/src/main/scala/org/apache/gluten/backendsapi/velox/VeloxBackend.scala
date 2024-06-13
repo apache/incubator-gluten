@@ -228,8 +228,10 @@ object VeloxBackendSettings extends BackendSettingsApi {
             if h.toString.contains("parquet") && GlutenConfig.getConf.enableHiveFileFormatWriter =>
           None // Parquet via Hive SerDe
         case h: HiveFileFormat => {
+          // scalastyle:off println
           println("DBG: Test for Hive File Type")
           println(h.toString)
+          // scalastyle:on println
           Some("Only parquet fileformat is supported")
         }
         case _ =>
