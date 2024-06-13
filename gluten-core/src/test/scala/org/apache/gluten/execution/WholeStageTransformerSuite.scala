@@ -100,6 +100,7 @@ abstract class WholeStageTransformerSuite
       .set("spark.memory.offHeap.size", "1024MB")
       .set("spark.ui.enabled", "false")
       .set("spark.gluten.ui.enabled", "false")
+      .set("spark.gluten.sql.complexType.scan.fallback.enabled", "false")
   }
 
   protected def checkFallbackOperators(df: DataFrame, num: Int): Unit = {
@@ -297,9 +298,6 @@ abstract class WholeStageTransformerSuite
       val df = spark.sql(sqlStr)
       expected = df.collect()
     }
-    // By default we will fallabck complex type scan but here we should allow
-    // to test support of complex type
-    spark.conf.set("spark.gluten.sql.complexType.scan.fallback.enabled", "false");
     val df = spark.sql(sqlStr)
     if (cache) {
       df.cache()
