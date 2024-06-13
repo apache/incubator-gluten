@@ -342,7 +342,7 @@ object Parameterized {
       desc: String): Unit = {
     println(s"Warming up: Running query: $id...")
     try {
-      val testDesc = "Gluten Spark %s %s warm up".format(desc, id)
+      val testDesc = "Gluten Spark %s [%s] Warm Up".format(desc, id)
       sessionSwitcher.useSession("test", testDesc)
       runner.createTables(creator, sessionSwitcher.spark())
       val result = runner.runQuery(sessionSwitcher.spark(), testDesc, id, explain = false)
