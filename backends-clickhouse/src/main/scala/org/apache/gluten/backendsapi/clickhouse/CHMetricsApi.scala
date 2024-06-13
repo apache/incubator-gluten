@@ -144,7 +144,7 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
       "inputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for data"),
       "outputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for output"),
-      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time")
+      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "time")
     )
 
   override def genFilterTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -160,7 +160,7 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
       "inputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for data"),
       "outputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for output"),
-      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time")
+      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "time")
     )
 
   override def genProjectTransformerMetricsUpdater(
@@ -181,7 +181,7 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "resizeOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of resize output rows"),
       "aggregatingTime" ->
         SQLMetrics.createTimingMetric(sparkContext, "time of aggregating"),
-      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time")
+      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "time")
     )
 
   override def genHashAggregateTransformerMetricsUpdater(
@@ -198,7 +198,7 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
       "inputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for data"),
       "outputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for output"),
-      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time")
+      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "time")
     )
 
   override def genExpandTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -213,17 +213,15 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
     Map(
       "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
       "bytesSpilled" -> SQLMetrics.createSizeMetric(sparkContext, "shuffle bytes spilled"),
-      "computePidTime" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "totaltime to compute pid"),
-      "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to split"),
-      "IOTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to disk io"),
+      "computePidTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to compute pid"),
+      "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to split"),
+      "IOTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to disk io"),
       "serializeTime" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
-        "totaltime to block serialization"),
-      "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to spill"),
-      "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to compress"),
-      "prepareTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to prepare"),
+        "time to block serialization"),
+      "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to spill"),
+      "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to compress"),
+      "prepareTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to prepare"),
       "avgReadBatchNumRows" -> SQLMetrics
         .createAverageMetric(sparkContext, "avg read batch num rows"),
       "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
@@ -245,7 +243,7 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
       "inputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for data"),
       "outputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for output"),
-      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time")
+      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "time")
     )
 
   override def genWindowTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -262,7 +260,7 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
     Map(
       "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
       "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
-      "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time to convert")
+      "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to convert")
     )
 
   override def genLimitTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
@@ -275,7 +273,7 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
       "inputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for data"),
       "outputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for output"),
-      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time")
+      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "time")
     )
 
   override def genLimitTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -291,7 +289,7 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
       "inputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for data"),
       "outputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for output"),
-      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time")
+      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "time")
     )
 
   override def genSortTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -339,7 +337,7 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
         SQLMetrics.createTimingMetric(sparkContext, "time of postProjection"),
       "probeTime" ->
         SQLMetrics.createTimingMetric(sparkContext, "time of probe"),
-      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time"),
+      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "time"),
       "fillingRightJoinSideTime" -> SQLMetrics.createTimingMetric(
         sparkContext,
         "filling right join side time"),
