@@ -40,8 +40,8 @@ String GlutenDiskHDFS::path2AbsPath(const String & path)
 void GlutenDiskHDFS::createDirectories(const String & path)
 {
     DiskObjectStorage::createDirectories(path);
-    auto* hdfs = hdfs_object_storage->getHDFSFS();
-    fs::path p = path;
+    auto * hdfs = hdfs_object_storage->getHDFSFS();
+    fs::path p = "/" + path;
     std::vector<std::string> paths_created;
     while (hdfsExists(hdfs, p.c_str()) < 0)
     {
