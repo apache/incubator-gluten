@@ -151,7 +151,8 @@ class HeuristicApplier(session: SparkSession)
       (s: SparkSession) => RemoveGlutenTableCacheColumnarToRow(s),
       (s: SparkSession) => GlutenFallbackReporter(GlutenConfig.getConf, s),
       (_: SparkSession) => RemoveTransformHintRule()
-    )
+    ) :::
+      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarFinalRules()
   }
 
   // Just for test use.

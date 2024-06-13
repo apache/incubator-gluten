@@ -432,6 +432,8 @@ trait SparkPlanExecApi {
    */
   def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]]
 
+  def genExtendedColumnarFinalRules(): List[SparkSession => Rule[SparkPlan]]
+
   def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]]
 
   def genGetStructFieldTransformer(

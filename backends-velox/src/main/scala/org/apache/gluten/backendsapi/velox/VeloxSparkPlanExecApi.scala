@@ -833,6 +833,10 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     SparkShimLoader.getSparkShims.getExtendedColumnarPostRules() ::: List()
   }
 
+  override def genExtendedColumnarFinalRules(): List[SparkSession => Rule[SparkPlan]] = {
+    List((s: SparkSession) => InputFileNameReplaceFallbackRule(s))
+  }
+
   override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = {
     List(ArrowConvertorRule)
   }
