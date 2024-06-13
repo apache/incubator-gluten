@@ -60,7 +60,7 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
       f: (DataFrame, Map[String, Any], Map[String, Any]) => Unit): Unit = {
     Seq("parquet").foreach {
       testFileFormat =>
-        test(s"$GLUTEN_TEST metadata struct ($testFileFormat): " + testName) {
+        testGluten(s"metadata struct ($testFileFormat): " + testName) {
           withTempDir {
             dir =>
               import scala.collection.JavaConverters._
