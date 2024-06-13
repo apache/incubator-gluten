@@ -59,6 +59,9 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       .set(
         "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
         "false")
+      .set(
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_parquet_max_block_size",
+        "8192")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
