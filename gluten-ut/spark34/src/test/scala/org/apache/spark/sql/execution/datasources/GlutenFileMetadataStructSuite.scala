@@ -21,7 +21,6 @@ import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.sql.{Column, DataFrame, Row}
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructField, StructType}
 
