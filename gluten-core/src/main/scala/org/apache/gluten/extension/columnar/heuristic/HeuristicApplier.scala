@@ -23,12 +23,11 @@ import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTable
 import org.apache.gluten.extension.columnar.rewrite.RewriteSparkPlanRulesManager
 import org.apache.gluten.extension.columnar.transition.{InsertTransitions, RemoveTransitions}
 import org.apache.gluten.extension.columnar.util.AdaptiveContext
-import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.gluten.utils.{LogLevelUtil, PhysicalPlanSelector}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
+import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, GlutenFallbackReporter, SparkPlan}
 import org.apache.spark.util.SparkRuleUtil
 
@@ -42,14 +41,11 @@ class HeuristicApplier(session: SparkSession)
   with LogLevelUtil {
   // This is an empirical value, may need to be changed for supporting other versions of spark.
   private val aqeStackTraceIndex = 19
-
-  private lazy val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
-  private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
-
   private val adaptiveContext = AdaptiveContext(session, aqeStackTraceIndex)
 
-  override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan =
+  override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
     withTransformRules(transformRules(outputsColumnar)).apply(plan)
+  }
 
   // Visible for testing.
   def withTransformRules(transformRules: List[SparkSession => Rule[SparkPlan]]): Rule[SparkPlan] =
@@ -57,39 +53,27 @@ class HeuristicApplier(session: SparkSession)
       PhysicalPlanSelector.maybe(session, plan) {
         val finalPlan = prepareFallback(plan) {
           p =>
-            val suggestedPlan = transformPlan(transformRules, p, "transform")
-            transformPlan(fallbackPolicies(), suggestedPlan, "fallback") match {
+            val suggestedPlan = transformPlan("transform", transformRules.map(_(session)), p)
+            transformPlan("fallback", fallbackPolicies().map(_(session)), suggestedPlan) match {
               case FallbackNode(fallbackPlan) =>
                 // we should use vanilla c2r rather than native c2r,
                 // and there should be no `GlutenPlan` any more,
                 // so skip the `postRules()`.
                 fallbackPlan
               case plan =>
-                transformPlan(postRules(), plan, "post")
+                transformPlan("post", postRules().map(_(session)), plan)
             }
         }
-        transformPlan(finalRules(), finalPlan, "final")
+        transformPlan("final", finalRules().map(_(session)), finalPlan)
       }
 
   private def transformPlan(
-      getRules: List[SparkSession => Rule[SparkPlan]],
-      plan: SparkPlan,
-      step: String) = GlutenTimeMetric.withMillisTime {
-    logOnLevel(
-      transformPlanLogLevel,
-      s"${step}ColumnarTransitions preOverridden plan:\n${plan.toString}")
-    val overridden = getRules.foldLeft(plan) {
-      (p, getRule) =>
-        val rule = getRule(session)
-        val newPlan = rule(p)
-        planChangeLogger.logRule(rule.ruleName, p, newPlan)
-        newPlan
-    }
-    logOnLevel(
-      transformPlanLogLevel,
-      s"${step}ColumnarTransitions afterOverridden plan:\n${overridden.toString}")
-    overridden
-  }(t => logOnLevel(transformPlanLogLevel, s"${step}Transform SparkPlan took: $t ms."))
+      phase: String,
+      rules: Seq[Rule[SparkPlan]],
+      plan: SparkPlan): SparkPlan = {
+    val executor = new ColumnarRuleApplier.Executor(phase, rules)
+    executor.execute(plan)
+  }
 
   private def prepareFallback[T](plan: SparkPlan)(f: SparkPlan => T): T = {
     adaptiveContext.setAdaptiveContext()
