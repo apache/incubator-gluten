@@ -858,8 +858,8 @@ uint32_t VeloxHashBasedShuffleWriter::calculatePartitionBufferSize(
       memLimit > 0 && bytesPerRow > 0 ? memLimit / bytesPerRow / numPartitions_ >> 2 : options_.bufferSize;
   preAllocRowCnt = std::min(preAllocRowCnt, (uint64_t)options_.bufferSize);
 
-  VLOG(9) << "Calculated partition buffer size -  memLimit: " << memLimit << ", bytesPerRow: " << bytesPerRow
-          << ", preAllocRowCnt: " << preAllocRowCnt << std::endl;
+  DLOG(INFO) << "Calculated partition buffer size -  memLimit: " << memLimit << ", bytesPerRow: " << bytesPerRow
+             << ", preAllocRowCnt: " << preAllocRowCnt << std::endl;
 
   VS_PRINTLF(preAllocRowCnt);
 
@@ -1400,7 +1400,7 @@ arrow::Result<uint32_t> VeloxHashBasedShuffleWriter::partitionBufferSizeAfterShr
 arrow::Status VeloxHashBasedShuffleWriter::preAllocPartitionBuffers(uint32_t preAllocBufferSize) {
   for (auto& pid : partitionUsed_) {
     auto newSize = std::max(preAllocBufferSize, partition2RowCount_[pid]);
-    VLOG_IF(9, partitionBufferSize_[pid] != newSize)
+    DLOG_IF(INFO, partitionBufferSize_[pid] != newSize)
         << "Actual partition buffer size - current: " << partitionBufferSize_[pid] << ", newSize: " << newSize
         << std::endl;
     // Make sure the size to be allocated is larger than the size to be filled.
