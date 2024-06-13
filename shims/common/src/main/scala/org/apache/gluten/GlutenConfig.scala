@@ -685,7 +685,9 @@ object GlutenConfig {
       (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"),
       (SPARK_S3_IAM, ""),
       (SPARK_S3_IAM_SESSION_NAME, ""),
-      (COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key, conf(GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY)),
+      (
+        COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
+        conf.getOrElse(GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY, "-1")),
       (COLUMNAR_SHUFFLE_CODEC.key, ""),
       (COLUMNAR_SHUFFLE_CODEC_BACKEND.key, ""),
       ("spark.hadoop.input.connect.timeout", "180000"),
