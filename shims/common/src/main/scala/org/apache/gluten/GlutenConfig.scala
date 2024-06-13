@@ -241,6 +241,12 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def memoryIsolation: Boolean = conf.getConf(COLUMNAR_MEMORY_ISOLATION)
 
+  def numTaskSlotsPerExecutor: Int = {
+    val numSlots = conf.getConf(NUM_TASK_SLOTS_PER_EXECUTOR)
+    assert(numSlots > 0, s"Number of task slot not found. This should not happen.")
+    numSlots
+  }
+
   def offHeapMemorySize: Long = conf.getConf(COLUMNAR_OFFHEAP_SIZE_IN_BYTES)
 
   def taskOffHeapMemorySize: Long = conf.getConf(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES)
@@ -271,7 +277,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxSsdODirectEnabled: Boolean = conf.getConf(COLUMNAR_VELOX_SSD_ODIRECT_ENABLED)
 
-  def veloxConnectorIOThreads: Integer = conf.getConf(COLUMNAR_VELOX_CONNECTOR_IO_THREADS)
+  def veloxConnectorIOThreads: Int = {
+    conf.getConf(COLUMNAR_VELOX_CONNECTOR_IO_THREADS).getOrElse(numTaskSlotsPerExecutor)
+  }
 
   def veloxSplitPreloadPerDriver: Integer = conf.getConf(COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER)
 
@@ -533,6 +541,7 @@ object GlutenConfig {
   val GLUTEN_DEBUG_KEEP_JNI_WORKSPACE = "spark.gluten.sql.debug.keepJniWorkspace"
 
   // Added back to Spark Conf during executor initialization
+  val GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY = "spark.gluten.numTaskSlotsPerExecutor"
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
   val GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.task.offHeap.size.in.bytes"
   val GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY =
@@ -676,9 +685,7 @@ object GlutenConfig {
       (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"),
       (SPARK_S3_IAM, ""),
       (SPARK_S3_IAM_SESSION_NAME, ""),
-      (
-        COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
-        COLUMNAR_VELOX_CONNECTOR_IO_THREADS.defaultValueString),
+      (COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key, conf(GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY)),
       (COLUMNAR_SHUFFLE_CODEC.key, ""),
       (COLUMNAR_SHUFFLE_CODEC_BACKEND.key, ""),
       ("spark.hadoop.input.connect.timeout", "180000"),
@@ -1165,6 +1172,16 @@ object GlutenConfig {
       .stringConf
       .createOptional
 
+  val NUM_TASK_SLOTS_PER_EXECUTOR =
+    buildConf(GlutenConfig.GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY)
+      .internal()
+      .doc(
+        "Must provide default value since non-execution operations " +
+          "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
+          "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
+      .intConf
+      .createWithDefaultString("0")
+
   val COLUMNAR_OFFHEAP_SIZE_IN_BYTES =
     buildConf(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY)
       .internal()
@@ -1303,11 +1320,7 @@ object GlutenConfig {
       .doc("The Size of the IO thread pool in the Connector. This thread pool is used for split" +
         " preloading and DirectBufferedInput.")
       .intConf
-      .createWithDefaultFunction(
-        () =>
-          SQLConf.get.getConfString("spark.executor.cores", "1").toInt / SQLConf.get
-            .getConfString("spark.task.cpus", "1")
-            .toInt)
+      .createOptional
 
   val COLUMNAR_VELOX_ASYNC_TIMEOUT =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.asyncTimeoutOnTaskStopping")

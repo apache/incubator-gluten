@@ -162,8 +162,9 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
 
     // task slots
     val taskSlots = SparkResourceUtil.getTaskSlots(conf)
+    conf.set(GlutenConfig.GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY, taskSlots.toString)
 
-    var onHeapSize: Long =
+    val onHeapSize: Long =
       if (conf.contains(GlutenConfig.GLUTEN_ONHEAP_SIZE_KEY)) {
         conf.getSizeAsBytes(GlutenConfig.GLUTEN_ONHEAP_SIZE_KEY)
       } else {
@@ -175,7 +176,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     // size. Otherwise, the off-heap size is set to the value specified by the user (if any).
     // Note that this means that we will IGNORE the off-heap size specified by the user if the
     // dynamic off-heap feature is enabled.
-    var offHeapSize: Long =
+    val offHeapSize: Long =
       if (conf.getBoolean(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED, false)) {
         // Since when dynamic off-heap sizing is enabled, we commingle on-heap
         // and off-heap memory, we set the off-heap size to the usable on-heap size. We will
