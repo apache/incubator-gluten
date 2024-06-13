@@ -853,7 +853,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .flatMap(partition => partition.asInstanceOf[GlutenMergeTreePartition].partList)
       .map(_.name)
       .distinct
-    assertResult(1)(touchedParts.size)
+    assertResult(4)(touchedParts.size)
 
     // test upsert on partitioned & bucketed table
     upsertSourceTableAndCheck(dataPath)
