@@ -196,7 +196,7 @@ class GlutenClickHouseTableAfterRestart
     val stats1 = ClickhouseSnapshot.deltaScanCache.stats()
     assert(stats1.missCount() - oldMissingCount1 == 1)
     val stats2 = ClickhouseSnapshot.addFileToAddMTPCache.stats()
-    assert(stats2.missCount() - oldMissingCount2 == 5)
+    assert(stats2.missCount() - oldMissingCount2 == 6)
 
   }
 
