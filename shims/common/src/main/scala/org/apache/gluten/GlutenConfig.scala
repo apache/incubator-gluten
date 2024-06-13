@@ -430,6 +430,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def dynamicOffHeapSizingEnabled: Boolean =
     conf.getConf(DYNAMIC_OFFHEAP_SIZING_ENABLED)
+
+  def enableHiveFileFormatWriter: Boolean = conf.getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
 }
 
 object GlutenConfig {
@@ -1562,6 +1564,16 @@ object GlutenConfig {
       .doc("This is config to specify whether to enable the native columnar parquet/orc writer")
       .booleanConf
       .createOptional
+
+  val NATIVE_HIVEFILEFORMAT_WRITER_ENABLED =
+    buildConf("spark.gluten.sql.native.hive.writer.enabled")
+      .internal()
+      .doc(
+        "This is config to specify whether to enable the native columnar writer for " +
+          "HiveFileFormat. Currently only supports HiveFileFormat with Parquet as the output " +
+          "file type.")
+      .booleanConf
+      .createWithDefault(true)
 
   val NATIVE_ARROW_READER_ENABLED =
     buildConf("spark.gluten.sql.native.arrow.reader.enabled")

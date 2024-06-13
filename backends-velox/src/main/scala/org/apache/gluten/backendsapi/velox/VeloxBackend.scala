@@ -224,7 +224,9 @@ object VeloxBackendSettings extends BackendSettingsApi {
     def validateFileFormat(): Option[String] = {
       format match {
         case _: ParquetFileFormat => None // Parquet is directly supported
-        case h: HiveFileFormat if h.toString.contains("parquet") => None // Parquet via Hive SerDe
+        case h: HiveFileFormat
+            if h.toString.contains("parquet") && GlutenConfig.getConf.enableHiveFileFormatWriter =>
+          None // Parquet via Hive SerDe
         case _ =>
           Some("Only parquet fileformat is supported in Velox backend.") // Unsupported format
       }
