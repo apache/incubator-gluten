@@ -189,10 +189,13 @@ object VeloxBackendSettings extends BackendSettingsApi {
     def validateHiveFileFormat(hiveFileFormat: HiveFileFormat): Option[String] = {
       val fileSinkConfField = format.getClass.getDeclaredField("fileSinkConf")
       fileSinkConfField.setAccessible(true)
-      val fileSinkConf = fileSinkConfField
-        .get(hiveFileFormat)
-        .asInstanceOf[FileSinkDesc]
-      fileSinkConf.getTableInfo.getOutputFileFormatClassName match {
+      val fileSinkConf = fileSinkConfField.get(hiveFileFormat)
+      val getTableInfoMethod = fileSinkConf.getClass.getDeclaredMethod("getTableInfo")
+      val tableInfo = getTableInfoMethod.invoke(fileSinkConf)
+      val getOutputFileFormatClassNameMethod = tableInfo.getClass
+        .getDeclaredMethod("getOutputFileFormatClassName")
+      val outputFileFormatClassName = getOutputFileFormatClassNameMethod.invoke(tableInfo)
+      outputFileFormatClassName match {
         case "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat" =>
           None
         case _ =>
