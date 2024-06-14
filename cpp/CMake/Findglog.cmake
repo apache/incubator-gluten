@@ -22,23 +22,17 @@ if(NOT BUILD_GLOG)
   include(FindPackageHandleStandardArgs)
   include(SelectLibraryConfigurations)
 
-  find_library(GLOG_LIBRARY_RELEASE glog
-    PATHS ${GLOG_LIBRARYDIR})
-  find_library(GLOG_LIBRARY_DEBUG glogd
-    PATHS ${GLOG_LIBRARYDIR})
+  find_library(GLOG_LIBRARY_RELEASE glog PATHS ${GLOG_LIBRARYDIR})
+  find_library(GLOG_LIBRARY_DEBUG glogd PATHS ${GLOG_LIBRARYDIR})
 
-  find_path(GLOG_INCLUDE_DIR glog/logging.h
-    PATHS ${GLOG_INCLUDEDIR})
+  find_path(GLOG_INCLUDE_DIR glog/logging.h PATHS ${GLOG_INCLUDEDIR})
 
   select_library_configurations(GLOG)
 
-  find_package_handle_standard_args(glog DEFAULT_MSG
-    GLOG_LIBRARY
-    GLOG_INCLUDE_DIR)
+  find_package_handle_standard_args(glog DEFAULT_MSG GLOG_LIBRARY
+                                    GLOG_INCLUDE_DIR)
 
-  mark_as_advanced(
-    GLOG_LIBRARY
-    GLOG_INCLUDE_DIR)
+  mark_as_advanced(GLOG_LIBRARY GLOG_INCLUDE_DIR)
 endif()
 
 if(NOT glog_FOUND)
@@ -56,26 +50,40 @@ endif()
 
 # glog::glog may already exist. Use google::glog to avoid conflicts.
 add_library(google::glog ${libglog_type} IMPORTED)
-set_target_properties(google::glog PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${GLOG_INCLUDE_DIR}")
-set_target_properties(google::glog PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "C" IMPORTED_LOCATION "${GLOG_LIBRARY}")
+set_target_properties(google::glog PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+                                              "${GLOG_INCLUDE_DIR}")
+set_target_properties(
+  google::glog PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+                          IMPORTED_LOCATION "${GLOG_LIBRARY}")
 
 set(GLUTEN_GFLAGS_VERSION 2.2.2)
-find_package(gflags ${GLUTEN_GFLAGS_VERSION} CONFIG COMPONENTS ${libgflags_component})
+find_package(gflags ${GLUTEN_GFLAGS_VERSION} CONFIG
+             COMPONENTS ${libgflags_component})
 
 if(NOT gflags_FOUND AND glog_FOUND)
-  message(FATAL_ERROR "Glog found but Gflags not found. Set BUILD_GLOG=ON and reload cmake.")
+  message(
+    FATAL_ERROR
+      "Glog found but Gflags not found. Set BUILD_GLOG=ON and reload cmake.")
 endif()
 
 if(gflags_FOUND)
-  if(NOT TARGET gflags::gflags_${libgflags_component} AND NOT TARGET gflags_${libgflags_component})
-    message(FATAL_ERROR "Found Gflags but missing component gflags_${libgflags_component}")
+  if(NOT TARGET gflags::gflags_${libgflags_component}
+     AND NOT TARGET gflags_${libgflags_component})
+    message(
+      FATAL_ERROR
+        "Found Gflags but missing component gflags_${libgflags_component}")
   endif()
   if(TARGET gflags::gflags_${libgflags_component})
-    set_target_properties(google::glog PROPERTIES IMPORTED_LINK_INTERFACE_LIBRARIES gflags::gflags_${libgflags_component})
+    set_target_properties(
+      google::glog PROPERTIES IMPORTED_LINK_INTERFACE_LIBRARIES
+                              gflags::gflags_${libgflags_component})
   else()
-    set_target_properties(google::glog PROPERTIES IMPORTED_LINK_INTERFACE_LIBRARIES gflags_${libgflags_component})
+    set_target_properties(
+      google::glog PROPERTIES IMPORTED_LINK_INTERFACE_LIBRARIES
+                              gflags_${libgflags_component})
   endif()
 else()
   include(BuildGflags)
-  set_target_properties(google::glog PROPERTIES IMPORTED_LINK_INTERFACE_LIBRARIES gflags_static)
+  set_target_properties(
+    google::glog PROPERTIES IMPORTED_LINK_INTERFACE_LIBRARIES gflags_static)
 endif()
