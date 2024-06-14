@@ -1,43 +1,44 @@
 == Physical Plan ==
-AdaptiveSparkPlan (44)
+AdaptiveSparkPlan (45)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (29)
-   +- ^ SortExecTransformer (27)
-      +- ^ InputIteratorTransformer (26)
-         +- ShuffleQueryStage (24), Statistics(X)
-            +- ColumnarExchange (23)
-               +- ^ RegularHashAggregateExecTransformer (21)
-                  +- ^ InputIteratorTransformer (20)
-                     +- ShuffleQueryStage (18), Statistics(X)
-                        +- ColumnarExchange (17)
-                           +- ^ ProjectExecTransformer (15)
-                              +- ^ FlushableHashAggregateExecTransformer (14)
-                                 +- ^ ProjectExecTransformer (13)
-                                    +- ^ BroadcastHashJoinExecTransformer LeftSemi BuildRight (12)
-                                       :- ^ ProjectExecTransformer (3)
-                                       :  +- ^ NoopFilter (2)
-                                       :     +- ^ Scan parquet (1)
-                                       +- ^ InputIteratorTransformer (11)
-                                          +- BroadcastQueryStage (9), Statistics(X)
-                                             +- ColumnarBroadcastExchange (8)
-                                                +- ^ ProjectExecTransformer (6)
-                                                   +- ^ NoopFilter (5)
-                                                      +- ^ Scan parquet (4)
+   VeloxColumnarToRowExec (30)
+   +- ^ SortExecTransformer (28)
+      +- ^ InputIteratorTransformer (27)
+         +- ShuffleQueryStage (25), Statistics(X)
+            +- ColumnarExchange (24)
+               +- VeloxAppendBatches (23)
+                  +- ^ RegularHashAggregateExecTransformer (21)
+                     +- ^ InputIteratorTransformer (20)
+                        +- ShuffleQueryStage (18), Statistics(X)
+                           +- ColumnarExchange (17)
+                              +- ^ ProjectExecTransformer (15)
+                                 +- ^ FlushableHashAggregateExecTransformer (14)
+                                    +- ^ ProjectExecTransformer (13)
+                                       +- ^ BroadcastHashJoinExecTransformer LeftSemi BuildRight (12)
+                                          :- ^ ProjectExecTransformer (3)
+                                          :  +- ^ NoopFilter (2)
+                                          :     +- ^ Scan parquet (1)
+                                          +- ^ InputIteratorTransformer (11)
+                                             +- BroadcastQueryStage (9), Statistics(X)
+                                                +- ColumnarBroadcastExchange (8)
+                                                   +- ^ ProjectExecTransformer (6)
+                                                      +- ^ NoopFilter (5)
+                                                         +- ^ Scan parquet (4)
 +- == Initial Plan ==
-   Sort (43)
-   +- Exchange (42)
-      +- HashAggregate (41)
-         +- Exchange (40)
-            +- HashAggregate (39)
-               +- Project (38)
-                  +- BroadcastHashJoin LeftSemi BuildRight (37)
-                     :- Project (32)
-                     :  +- Filter (31)
-                     :     +- Scan parquet (30)
-                     +- BroadcastExchange (36)
-                        +- Project (35)
-                           +- Filter (34)
-                              +- Scan parquet (33)
+   Sort (44)
+   +- Exchange (43)
+      +- HashAggregate (42)
+         +- Exchange (41)
+            +- HashAggregate (40)
+               +- Project (39)
+                  +- BroadcastHashJoin LeftSemi BuildRight (38)
+                     :- Project (33)
+                     :  +- Filter (32)
+                     :     +- Scan parquet (31)
+                     +- BroadcastExchange (37)
+                        +- Project (36)
+                           +- Filter (35)
+                              +- Scan parquet (34)
 
 
 (1) Scan parquet
@@ -138,101 +139,105 @@ Results [2]: [o_orderpriority#X, count(1)#X AS order_count#X]
 Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: false
 
-(23) ColumnarExchange
+(23) VeloxAppendBatches
+Input [2]: [o_orderpriority#X, order_count#X]
+Arguments: X
+
+(24) ColumnarExchange
 Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: rangepartitioning(o_orderpriority#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
-(24) ShuffleQueryStage
+(25) ShuffleQueryStage
 Output [2]: [o_orderpriority#X, order_count#X]
 Arguments: X
 
-(25) InputAdapter
+(26) InputAdapter
 Input [2]: [o_orderpriority#X, order_count#X]
 
-(26) InputIteratorTransformer
+(27) InputIteratorTransformer
 Input [2]: [o_orderpriority#X, order_count#X]
 
-(27) SortExecTransformer
+(28) SortExecTransformer
 Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: [o_orderpriority#X ASC NULLS FIRST], true, 0
 
-(28) WholeStageCodegenTransformer (X)
+(29) WholeStageCodegenTransformer (X)
 Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: false
 
-(29) VeloxColumnarToRowExec
+(30) VeloxColumnarToRowExec
 Input [2]: [o_orderpriority#X, order_count#X]
 
-(30) Scan parquet
+(31) Scan parquet
 Output [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(o_orderdate), GreaterThanOrEqual(o_orderdate,1993-07-01), LessThan(o_orderdate,1993-10-01)]
 ReadSchema: struct<o_orderkey:bigint,o_orderdate:date,o_orderpriority:string>
 
-(31) Filter
+(32) Filter
 Input [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
 Condition : ((isnotnull(o_orderdate#X) AND (o_orderdate#X >= 1993-07-01)) AND (o_orderdate#X < 1993-10-01))
 
-(32) Project
+(33) Project
 Output [2]: [o_orderkey#X, o_orderpriority#X]
 Input [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
 
-(33) Scan parquet
+(34) Scan parquet
 Output [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_commitdate), IsNotNull(l_receiptdate)]
 ReadSchema: struct<l_orderkey:bigint,l_commitdate:date,l_receiptdate:date>
 
-(34) Filter
+(35) Filter
 Input [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
 Condition : ((isnotnull(l_commitdate#X) AND isnotnull(l_receiptdate#X)) AND (l_commitdate#X < l_receiptdate#X))
 
-(35) Project
+(36) Project
 Output [1]: [l_orderkey#X]
 Input [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
 
-(36) BroadcastExchange
+(37) BroadcastExchange
 Input [1]: [l_orderkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(37) BroadcastHashJoin
+(38) BroadcastHashJoin
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
 Join type: LeftSemi
 Join condition: None
 
-(38) Project
+(39) Project
 Output [1]: [o_orderpriority#X]
 Input [2]: [o_orderkey#X, o_orderpriority#X]
 
-(39) HashAggregate
+(40) HashAggregate
 Input [1]: [o_orderpriority#X]
 Keys [1]: [o_orderpriority#X]
 Functions [1]: [partial_count(1)]
 Aggregate Attributes [1]: [count#X]
 Results [2]: [o_orderpriority#X, count#X]
 
-(40) Exchange
+(41) Exchange
 Input [2]: [o_orderpriority#X, count#X]
 Arguments: hashpartitioning(o_orderpriority#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(41) HashAggregate
+(42) HashAggregate
 Input [2]: [o_orderpriority#X, count#X]
 Keys [1]: [o_orderpriority#X]
 Functions [1]: [count(1)]
 Aggregate Attributes [1]: [count(1)#X]
 Results [2]: [o_orderpriority#X, count(1)#X AS order_count#X]
 
-(42) Exchange
+(43) Exchange
 Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: rangepartitioning(o_orderpriority#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(43) Sort
+(44) Sort
 Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: [o_orderpriority#X ASC NULLS FIRST], true, 0
 
-(44) AdaptiveSparkPlan
+(45) AdaptiveSparkPlan
 Output [2]: [o_orderpriority#X, order_count#X]
 Arguments: isFinalPlan=true
