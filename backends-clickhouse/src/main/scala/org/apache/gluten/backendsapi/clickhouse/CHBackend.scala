@@ -228,7 +228,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
 
           def checkLagOrLead(third: Expression): Unit = {
             third match {
-              case literal: Literal if literal.value == null =>
+              case _: Literal =>
                 allSupported = allSupported
               case _ =>
                 logInfo("Not support lag/lead function with default value not literal null")
