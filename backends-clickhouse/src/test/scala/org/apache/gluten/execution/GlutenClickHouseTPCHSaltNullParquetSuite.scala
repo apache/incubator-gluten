@@ -944,7 +944,15 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |from nation
         |order by n_regionkey, n_nationkey, n_lag
         |""".stripMargin
+    val sql1 =
+      """
+        | select n_regionkey, n_nationkey,
+        | lag(n_nationkey, 1, n_nationkey) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_lag
+        |from nation
+        |order by n_regionkey, n_nationkey, n_lag
+        |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
   }
 
   test("window lag with null value") {
