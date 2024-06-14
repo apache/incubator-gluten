@@ -76,12 +76,16 @@ macro(build_qatzip)
       "${OSAL_LIBRARY}"
       Threads::Threads)
 
+  # Fix libudev.so not get linked.
+  set(QATZIP_LINK_OPTIONS "-Wl,--no-as-needed")
+
   add_library(qatzip::qatzip STATIC IMPORTED)
   set_target_properties(
     qatzip::qatzip
     PROPERTIES IMPORTED_LOCATION "${QATZIP_STATIC_LIB_TARGETS}"
                INTERFACE_INCLUDE_DIRECTORIES "${QATZIP_INCLUDE_DIR}"
-               INTERFACE_LINK_LIBRARIES "${QATZIP_LINK_LIBRARIES}")
+               INTERFACE_LINK_LIBRARIES "${QATZIP_LINK_LIBRARIES}"
+               INTERFACE_LINK_OPTIONS "${QATZIP_LINK_OPTIONS}")
 
   add_dependencies(qatzip::qatzip qatzip_ep)
 endmacro()
