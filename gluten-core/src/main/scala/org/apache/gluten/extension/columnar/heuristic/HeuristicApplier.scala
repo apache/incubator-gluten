@@ -48,7 +48,7 @@ class HeuristicApplier(session: SparkSession)
   }
 
   // Visible for testing.
-  def withTransformRules(transformRules: List[SparkSession => Rule[SparkPlan]]): Rule[SparkPlan] =
+  def withTransformRules(transformRules: Seq[SparkSession => Rule[SparkPlan]]): Rule[SparkPlan] =
     plan =>
       PhysicalPlanSelector.maybe(session, plan) {
         val finalPlan = prepareFallback(plan) {
