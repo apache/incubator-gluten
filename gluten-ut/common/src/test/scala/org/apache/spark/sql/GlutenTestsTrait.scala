@@ -103,6 +103,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
         .config("spark.memory.offHeap.size", "1024MB")
         .config("spark.plugins", "org.apache.gluten.GlutenPlugin")
         .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+        .config("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "debug")
         .config("spark.sql.warehouse.dir", warehouse)
         // Avoid the code size overflow error in Spark code generation.
         .config("spark.sql.codegen.wholeStage", "false")
@@ -243,7 +244,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
 
   def glutenCheckExpression(expression: Expression, expected: Any, inputRow: InternalRow): Unit = {
     val df = if (inputRow != EmptyRow && inputRow != InternalRow.empty) {
-      convertInternalRowToDataFrame(inputRow)
+      convertInternalRowToDataFrame(inputRow, expression.children.map(_.dataType))
     } else {
       val schema = StructType(StructField("a", IntegerType, nullable = true) :: Nil)
       val empData = Seq(Row(1))
@@ -325,38 +326,41 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
     true
   }
 
-  def convertInternalRowToDataFrame(inputRow: InternalRow): DataFrame = {
+  def convertInternalRowToDataFrame(inputRow: InternalRow, types: Seq[DataType]): DataFrame = {
     val structFileSeq = new ArrayBuffer[StructField]()
     val values = inputRow match {
       case genericInternalRow: GenericInternalRow =>
         genericInternalRow.values
       case _ => throw new UnsupportedOperationException("Unsupported InternalRow.")
     }
-    val inputValues = values.map {
-      case boolean: java.lang.Boolean =>
+    val inputValues = values.zip(types).map {
+      case (boolean: java.lang.Boolean, _) =>
         structFileSeq.append(StructField("bool", BooleanType, boolean == null))
-      case short: java.lang.Short =>
+      case (short: java.lang.Short, _) =>
         structFileSeq.append(StructField("i16", ShortType, short == null))
-      case byte: java.lang.Byte =>
+      case (byte: java.lang.Byte, _) =>
         structFileSeq.append(StructField("i8", ByteType, byte == null))
-      case integer: java.lang.Integer =>
+      case (integer: java.lang.Integer, _) =>
         structFileSeq.append(StructField("i32", IntegerType, integer == null))
-      case long: java.lang.Long =>
+      case (long: java.lang.Long, _) =>
         structFileSeq.append(StructField("i64", LongType, long == null))
-      case float: java.lang.Float =>
+      case (float: java.lang.Float, _) =>
         structFileSeq.append(StructField("fp32", FloatType, float == null))
-      case double: java.lang.Double =>
+      case (double: java.lang.Double, _) =>
         structFileSeq.append(StructField("fp64", DoubleType, double == null))
-      case utf8String: UTF8String =>
+      case (utf8String: UTF8String, _) =>
         structFileSeq.append(StructField("str", StringType, utf8String == null))
-      case byteArr: Array[Byte] =>
+      case (byteArr: Array[Byte], _) =>
         structFileSeq.append(StructField("vbin", BinaryType, byteArr == null))
-      case decimal: Decimal =>
+      case (decimal: Decimal, _) =>
         structFileSeq.append(
           StructField("dec", DecimalType(decimal.precision, decimal.scale), decimal == null))
-      case _ =>
+      case (_, _: NullType) =>
         // for null
         structFileSeq.append(StructField("n", IntegerType, nullable = true))
+      case (_, datatype) =>
+        // for null
+        structFileSeq.append(StructField("n", datatype, nullable = true))
     }
     _spark.internalCreateDataFrame(
       _spark.sparkContext.parallelize(Seq(inputRow)),
