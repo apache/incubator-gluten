@@ -865,7 +865,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Shouldn't change broadcast join buildSide if user clearly specified")
     .exclude("Shouldn't bias towards build right if user didn't specify")
     .exclude("SPARK-23192: broadcast hint should be retained after using the cached data")
-    .exclude("broadcast hint isn't propagated after a join")
     .exclude("broadcast join where streamed side's output partitioning is HashPartitioning")
 
   enableSuite[GlutenExistenceJoinSuite]
