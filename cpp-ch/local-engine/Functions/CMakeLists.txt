@@ -59,6 +59,10 @@ if(TARGET ch_rust::blake3)
   list(APPEND PRIVATE_LIBS ch_rust::blake3)
 endif()
 
+if (TARGET ch_contrib::gwp_asan)
+    list(APPEND PRIVATE_LIBS ch_contrib::gwp_asan)
+endif()
+
 list(APPEND OBJECT_LIBS $<TARGET_OBJECTS:gluten_spark_functions_obj>)
 
 target_link_libraries(gluten_spark_functions_obj PRIVATE ${PRIVATE_LIBS})
