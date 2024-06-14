@@ -40,8 +40,6 @@ import org.apache.spark.sql.hive.execution.HiveFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
-import org.apache.hadoop.hive.ql.plan.FileSinkDesc
-
 import scala.util.control.Breaks.breakable
 
 class VeloxBackend extends Backend {
@@ -187,6 +185,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
     // Validate if HiveFileFormat write is supported based on output file type
     def validateHiveFileFormat(hiveFileFormat: HiveFileFormat): Option[String] = {
+      // Reflect to get access to fileSinkConf which contains the output file format
       val fileSinkConfField = format.getClass.getDeclaredField("fileSinkConf")
       fileSinkConfField.setAccessible(true)
       val fileSinkConf = fileSinkConfField.get(hiveFileFormat)
@@ -195,6 +194,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
       val getOutputFileFormatClassNameMethod = tableInfo.getClass
         .getDeclaredMethod("getOutputFileFormatClassName")
       val outputFileFormatClassName = getOutputFileFormatClassNameMethod.invoke(tableInfo)
+
+      // Match based on the output file format class name
       outputFileFormatClassName match {
         case "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat" =>
           None
