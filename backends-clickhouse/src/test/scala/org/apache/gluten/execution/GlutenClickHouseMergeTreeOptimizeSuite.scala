@@ -92,7 +92,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
   }
 
   def countFiles(directory: File): Int = {
-    if (directory.exists && directory.isDirectory) {
+    if (directory.exists && directory.isDirectory && !directory.getName.equals("_commits")) {
       val files = directory.listFiles
       val count = files
         .filter(!_.getName.endsWith(".crc"))
@@ -119,7 +119,11 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     spark.sparkContext.setJobGroup("test", "test")
     spark.sql("optimize lineitem_mergetree_optimize_p")
     val job_ids = spark.sparkContext.statusTracker.getJobIdsForGroup("test")
-    assertResult(1)(job_ids.length) // will not trigger actual merge job
+    if (sparkVersion.equals("3.5")) {
+      assertResult(4)(job_ids.length)
+    } else {
+      assertResult(1)(job_ids.length) // will not trigger actual merge job
+    }
     spark.sparkContext.clearJobGroup()
 
     val ret = spark.sql("select count(*) from lineitem_mergetree_optimize_p").collect()
