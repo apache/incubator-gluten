@@ -96,7 +96,8 @@ object FlushableHashAggregateRule {
    * only on a single partition among the whole cluster. Spark's planner may use this information to
    * perform optimizations like doing "partial_count(a, b, c)" directly on the output data.
    */
-  private def isAggInputAlreadyDistributedWithAggKeys(agg: HashAggregateExecTransformer): Boolean = {
+  private def isAggInputAlreadyDistributedWithAggKeys(
+      agg: HashAggregateExecTransformer): Boolean = {
     if (agg.groupingExpressions.isEmpty) {
       // Empty grouping set () should not be satisfied by any partitioning patterns.
       //   E.g.,
