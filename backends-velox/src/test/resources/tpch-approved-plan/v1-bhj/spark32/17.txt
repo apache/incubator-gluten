@@ -8,7 +8,7 @@ AdaptiveSparkPlan (36)
             +- ShuffleQueryStage (9)
                +- ColumnarExchange (8)
                   +- VeloxAppendBatches (7)
-                     +- ^ RegularHashAggregateExecTransformer (5)
+                     +- ^ FlushableHashAggregateExecTransformer (5)
                         +- ^ InputIteratorTransformer (4)
                            +- RowToVeloxColumnar (2)
                               +- LocalTableScan (1)
@@ -48,7 +48,7 @@ Input [1]: [l_extendedprice#X]
 (4) InputIteratorTransformer
 Input [1]: [l_extendedprice#X]
 
-(5) RegularHashAggregateExecTransformer
+(5) FlushableHashAggregateExecTransformer
 Input [1]: [l_extendedprice#X]
 Keys: []
 Functions [1]: [partial_sum(l_extendedprice#X)]

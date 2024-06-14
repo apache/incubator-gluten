@@ -8,7 +8,7 @@ AdaptiveSparkPlan (35)
             +- ShuffleQueryStage (17), Statistics(X)
                +- ColumnarExchange (16)
                   +- VeloxAppendBatches (15)
-                     +- ^ RegularHashAggregateExecTransformer (13)
+                     +- ^ FlushableHashAggregateExecTransformer (13)
                         +- ^ ProjectExecTransformer (12)
                            +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (11)
                               :- ^ ProjectExecTransformer (3)
@@ -87,7 +87,7 @@ Join condition: None
 Output [5]: [l_extendedprice#X, l_discount#X, p_type#X, CASE WHEN StartsWith(p_type#X, PROMO) THEN (l_extendedprice#X * (1 - l_discount#X)) ELSE 0.0000 END AS _pre_X#X, (l_extendedprice#X * (1 - l_discount#X)) AS _pre_X#X]
 Input [5]: [l_partkey#X, l_extendedprice#X, l_discount#X, p_partkey#X, p_type#X]
 
-(13) RegularHashAggregateExecTransformer
+(13) FlushableHashAggregateExecTransformer
 Input [5]: [l_extendedprice#X, l_discount#X, p_type#X, _pre_X#X, _pre_X#X]
 Keys: []
 Functions [2]: [partial_sum(_pre_X#X), partial_sum(_pre_X#X)]

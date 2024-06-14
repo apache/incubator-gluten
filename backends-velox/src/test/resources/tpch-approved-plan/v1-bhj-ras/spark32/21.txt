@@ -9,7 +9,7 @@ AdaptiveSparkPlan (93)
                +- ColumnarExchange (53)
                   +- VeloxAppendBatches (52)
                      +- ^ ProjectExecTransformer (50)
-                        +- ^ RegularHashAggregateExecTransformer (49)
+                        +- ^ FlushableHashAggregateExecTransformer (49)
                            +- ^ ProjectExecTransformer (48)
                               +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (47)
                                  :- ^ ProjectExecTransformer (38)
@@ -287,7 +287,7 @@ Join condition: None
 Output [1]: [s_name#X]
 Input [3]: [s_name#X, s_nationkey#X, n_nationkey#X]
 
-(49) RegularHashAggregateExecTransformer
+(49) FlushableHashAggregateExecTransformer
 Input [1]: [s_name#X]
 Keys [1]: [s_name#X]
 Functions [1]: [partial_count(1)]

@@ -7,7 +7,7 @@ AdaptiveSparkPlan (34)
          +- ShuffleQueryStage (17)
             +- ColumnarExchange (16)
                +- VeloxAppendBatches (15)
-                  +- ^ RegularHashAggregateExecTransformer (13)
+                  +- ^ FlushableHashAggregateExecTransformer (13)
                      +- ^ ProjectExecTransformer (12)
                         +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (11)
                            :- ^ ProjectExecTransformer (3)
@@ -85,7 +85,7 @@ Join condition: (((((((p_brand#X = Brand#X) AND p_container#X IN (SM CASE,SM BOX
 Output [3]: [l_extendedprice#X, l_discount#X, CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true) AS _pre_X#X]
 Input [8]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, p_partkey#X, p_brand#X, p_size#X, p_container#X]
 
-(13) RegularHashAggregateExecTransformer
+(13) FlushableHashAggregateExecTransformer
 Input [3]: [l_extendedprice#X, l_discount#X, _pre_X#X]
 Keys: []
 Functions [1]: [partial_sum(_pre_X#X)]

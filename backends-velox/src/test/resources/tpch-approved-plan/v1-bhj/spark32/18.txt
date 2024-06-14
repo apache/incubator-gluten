@@ -9,7 +9,7 @@ AdaptiveSparkPlan (88)
                +- ColumnarExchange (48)
                   +- VeloxAppendBatches (47)
                      +- ^ ProjectExecTransformer (45)
-                        +- ^ RegularHashAggregateExecTransformer (44)
+                        +- ^ FlushableHashAggregateExecTransformer (44)
                            +- ^ ProjectExecTransformer (43)
                               +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (42)
                                  :- ^ ProjectExecTransformer (29)
@@ -33,7 +33,7 @@ AdaptiveSparkPlan (88)
                                  :                                +- ColumnarExchange (15)
                                  :                                   +- VeloxAppendBatches (14)
                                  :                                      +- ^ ProjectExecTransformer (12)
-                                 :                                         +- ^ RegularHashAggregateExecTransformer (11)
+                                 :                                         +- ^ FlushableHashAggregateExecTransformer (11)
                                  :                                            +- ^ Scan parquet (10)
                                  +- ^ InputIteratorTransformer (41)
                                     +- BroadcastQueryStage (39)
@@ -125,7 +125,7 @@ Batched: true
 Location: InMemoryFileIndex [*]
 ReadSchema: struct<l_orderkey:bigint,l_quantity:decimal(12,2)>
 
-(11) RegularHashAggregateExecTransformer
+(11) FlushableHashAggregateExecTransformer
 Input [2]: [l_orderkey#X, l_quantity#X]
 Keys [1]: [l_orderkey#X]
 Functions [1]: [partial_sum(l_quantity#X)]
@@ -261,7 +261,7 @@ Join condition: None
 Output [6]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X, l_quantity#X]
 Input [7]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X, l_orderkey#X, l_quantity#X]
 
-(44) RegularHashAggregateExecTransformer
+(44) FlushableHashAggregateExecTransformer
 Input [6]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X, l_quantity#X]
 Keys [5]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X]
 Functions [1]: [partial_sum(l_quantity#X)]

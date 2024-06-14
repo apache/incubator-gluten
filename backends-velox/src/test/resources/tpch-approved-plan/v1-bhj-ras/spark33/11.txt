@@ -1,56 +1,57 @@
 == Physical Plan ==
-AdaptiveSparkPlan (59)
+AdaptiveSparkPlan (60)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (39)
-   +- ^ SortExecTransformer (37)
-      +- ^ InputIteratorTransformer (36)
-         +- ShuffleQueryStage (34), Statistics(X)
-            +- ColumnarExchange (33)
-               +- VeloxAppendBatches (32)
-                  +- ^ FilterExecTransformer (30)
-                     +- ^ RegularHashAggregateExecTransformer (29)
-                        +- ^ InputIteratorTransformer (28)
-                           +- ShuffleQueryStage (26), Statistics(X)
-                              +- ColumnarExchange (25)
-                                 +- ^ ProjectExecTransformer (23)
-                                    +- ^ FlushableHashAggregateExecTransformer (22)
-                                       +- ^ ProjectExecTransformer (21)
-                                          +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (20)
-                                             :- ^ ProjectExecTransformer (11)
-                                             :  +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (10)
-                                             :     :- ^ NoopFilter (2)
-                                             :     :  +- ^ Scan parquet (1)
-                                             :     +- ^ InputIteratorTransformer (9)
-                                             :        +- BroadcastQueryStage (7), Statistics(X)
-                                             :           +- ColumnarBroadcastExchange (6)
-                                             :              +- ^ NoopFilter (4)
-                                             :                 +- ^ Scan parquet (3)
-                                             +- ^ InputIteratorTransformer (19)
-                                                +- BroadcastQueryStage (17), Statistics(X)
-                                                   +- ColumnarBroadcastExchange (16)
-                                                      +- ^ ProjectExecTransformer (14)
-                                                         +- ^ NoopFilter (13)
-                                                            +- ^ Scan parquet (12)
+   VeloxColumnarToRowExec (40)
+   +- ^ SortExecTransformer (38)
+      +- ^ InputIteratorTransformer (37)
+         +- ShuffleQueryStage (35), Statistics(X)
+            +- ColumnarExchange (34)
+               +- VeloxAppendBatches (33)
+                  +- ^ FilterExecTransformer (31)
+                     +- ^ RegularHashAggregateExecTransformer (30)
+                        +- ^ InputIteratorTransformer (29)
+                           +- ShuffleQueryStage (27), Statistics(X)
+                              +- ColumnarExchange (26)
+                                 +- VeloxAppendBatches (25)
+                                    +- ^ ProjectExecTransformer (23)
+                                       +- ^ FlushableHashAggregateExecTransformer (22)
+                                          +- ^ ProjectExecTransformer (21)
+                                             +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (20)
+                                                :- ^ ProjectExecTransformer (11)
+                                                :  +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (10)
+                                                :     :- ^ NoopFilter (2)
+                                                :     :  +- ^ Scan parquet (1)
+                                                :     +- ^ InputIteratorTransformer (9)
+                                                :        +- BroadcastQueryStage (7), Statistics(X)
+                                                :           +- ColumnarBroadcastExchange (6)
+                                                :              +- ^ NoopFilter (4)
+                                                :                 +- ^ Scan parquet (3)
+                                                +- ^ InputIteratorTransformer (19)
+                                                   +- BroadcastQueryStage (17), Statistics(X)
+                                                      +- ColumnarBroadcastExchange (16)
+                                                         +- ^ ProjectExecTransformer (14)
+                                                            +- ^ NoopFilter (13)
+                                                               +- ^ Scan parquet (12)
 +- == Initial Plan ==
-   Sort (58)
-   +- Exchange (57)
-      +- Filter (56)
-         +- HashAggregate (55)
-            +- Exchange (54)
-               +- HashAggregate (53)
-                  +- Project (52)
-                     +- BroadcastHashJoin Inner BuildRight (51)
-                        :- Project (46)
-                        :  +- BroadcastHashJoin Inner BuildRight (45)
-                        :     :- Filter (41)
-                        :     :  +- Scan parquet (40)
-                        :     +- BroadcastExchange (44)
-                        :        +- Filter (43)
-                        :           +- Scan parquet (42)
-                        +- BroadcastExchange (50)
-                           +- Project (49)
-                              +- Filter (48)
-                                 +- Scan parquet (47)
+   Sort (59)
+   +- Exchange (58)
+      +- Filter (57)
+         +- HashAggregate (56)
+            +- Exchange (55)
+               +- HashAggregate (54)
+                  +- Project (53)
+                     +- BroadcastHashJoin Inner BuildRight (52)
+                        :- Project (47)
+                        :  +- BroadcastHashJoin Inner BuildRight (46)
+                        :     :- Filter (42)
+                        :     :  +- Scan parquet (41)
+                        :     +- BroadcastExchange (45)
+                        :        +- Filter (44)
+                        :           +- Scan parquet (43)
+                        +- BroadcastExchange (51)
+                           +- Project (50)
+                              +- Filter (49)
+                                 +- Scan parquet (48)
 
 
 (1) Scan parquet
@@ -159,383 +160,392 @@ Input [3]: [ps_partkey#X, sum#X, isEmpty#X]
 Input [4]: [hash_partition_key#X, ps_partkey#X, sum#X, isEmpty#X]
 Arguments: false
 
-(25) ColumnarExchange
+(25) VeloxAppendBatches
+Input [4]: [hash_partition_key#X, ps_partkey#X, sum#X, isEmpty#X]
+Arguments: X
+
+(26) ColumnarExchange
 Input [4]: [hash_partition_key#X, ps_partkey#X, sum#X, isEmpty#X]
 Arguments: hashpartitioning(ps_partkey#X, 1), ENSURE_REQUIREMENTS, [ps_partkey#X, sum#X, isEmpty#X], [plan_id=X], [id=#X]
 
-(26) ShuffleQueryStage
+(27) ShuffleQueryStage
 Output [3]: [ps_partkey#X, sum#X, isEmpty#X]
 Arguments: X
 
-(27) InputAdapter
+(28) InputAdapter
 Input [3]: [ps_partkey#X, sum#X, isEmpty#X]
 
-(28) InputIteratorTransformer
+(29) InputIteratorTransformer
 Input [3]: [ps_partkey#X, sum#X, isEmpty#X]
 
-(29) RegularHashAggregateExecTransformer
+(30) RegularHashAggregateExecTransformer
 Input [3]: [ps_partkey#X, sum#X, isEmpty#X]
 Keys [1]: [ps_partkey#X]
 Functions [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))]
 Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X]
 Results [2]: [ps_partkey#X, sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X AS value#X]
 
-(30) FilterExecTransformer
+(31) FilterExecTransformer
 Input [2]: [ps_partkey#X, value#X]
 Arguments: (isnotnull(value#X) AND (cast(value#X as decimal(38,6)) > Subquery subquery#X, [id=#X]))
 
-(31) WholeStageCodegenTransformer (X)
+(32) WholeStageCodegenTransformer (X)
 Input [2]: [ps_partkey#X, value#X]
 Arguments: false
 
-(32) VeloxAppendBatches
+(33) VeloxAppendBatches
 Input [2]: [ps_partkey#X, value#X]
 Arguments: X
 
-(33) ColumnarExchange
+(34) ColumnarExchange
 Input [2]: [ps_partkey#X, value#X]
 Arguments: rangepartitioning(value#X DESC NULLS LAST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
-(34) ShuffleQueryStage
+(35) ShuffleQueryStage
 Output [2]: [ps_partkey#X, value#X]
 Arguments: X
 
-(35) InputAdapter
+(36) InputAdapter
 Input [2]: [ps_partkey#X, value#X]
 
-(36) InputIteratorTransformer
+(37) InputIteratorTransformer
 Input [2]: [ps_partkey#X, value#X]
 
-(37) SortExecTransformer
+(38) SortExecTransformer
 Input [2]: [ps_partkey#X, value#X]
 Arguments: [value#X DESC NULLS LAST], true, 0
 
-(38) WholeStageCodegenTransformer (X)
+(39) WholeStageCodegenTransformer (X)
 Input [2]: [ps_partkey#X, value#X]
 Arguments: false
 
-(39) VeloxColumnarToRowExec
+(40) VeloxColumnarToRowExec
 Input [2]: [ps_partkey#X, value#X]
 
-(40) Scan parquet
+(41) Scan parquet
 Output [4]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(ps_suppkey)]
 ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint,ps_availqty:int,ps_supplycost:decimal(12,2)>
 
-(41) Filter
+(42) Filter
 Input [4]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Condition : isnotnull(ps_suppkey#X)
 
-(42) Scan parquet
+(43) Scan parquet
 Output [2]: [s_suppkey#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
 ReadSchema: struct<s_suppkey:bigint,s_nationkey:bigint>
 
-(43) Filter
+(44) Filter
 Input [2]: [s_suppkey#X, s_nationkey#X]
 Condition : (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
 
-(44) BroadcastExchange
+(45) BroadcastExchange
 Input [2]: [s_suppkey#X, s_nationkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
 
-(45) BroadcastHashJoin
+(46) BroadcastHashJoin
 Left keys [1]: [ps_suppkey#X]
 Right keys [1]: [s_suppkey#X]
 Join condition: None
 
-(46) Project
+(47) Project
 Output [4]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X]
 Input [6]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X, s_suppkey#X, s_nationkey#X]
 
-(47) Scan parquet
+(48) Scan parquet
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(n_name), EqualTo(n_name,GERMANY), IsNotNull(n_nationkey)]
 ReadSchema: struct<n_nationkey:bigint,n_name:string>
 
-(48) Filter
+(49) Filter
 Input [2]: [n_nationkey#X, n_name#X]
 Condition : ((isnotnull(n_name#X) AND (n_name#X = GERMANY)) AND isnotnull(n_nationkey#X))
 
-(49) Project
+(50) Project
 Output [1]: [n_nationkey#X]
 Input [2]: [n_nationkey#X, n_name#X]
 
-(50) BroadcastExchange
+(51) BroadcastExchange
 Input [1]: [n_nationkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(51) BroadcastHashJoin
+(52) BroadcastHashJoin
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
 Join condition: None
 
-(52) Project
+(53) Project
 Output [3]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X]
 Input [5]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X, n_nationkey#X]
 
-(53) HashAggregate
+(54) HashAggregate
 Input [3]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X]
 Keys [1]: [ps_partkey#X]
 Functions [1]: [partial_sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [3]: [ps_partkey#X, sum#X, isEmpty#X]
 
-(54) Exchange
+(55) Exchange
 Input [3]: [ps_partkey#X, sum#X, isEmpty#X]
 Arguments: hashpartitioning(ps_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(55) HashAggregate
+(56) HashAggregate
 Input [3]: [ps_partkey#X, sum#X, isEmpty#X]
 Keys [1]: [ps_partkey#X]
 Functions [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))]
 Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X]
 Results [2]: [ps_partkey#X, sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X AS value#X]
 
-(56) Filter
+(57) Filter
 Input [2]: [ps_partkey#X, value#X]
 Condition : (isnotnull(value#X) AND (cast(value#X as decimal(38,6)) > Subquery subquery#X, [id=#X]))
 
-(57) Exchange
+(58) Exchange
 Input [2]: [ps_partkey#X, value#X]
 Arguments: rangepartitioning(value#X DESC NULLS LAST, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(58) Sort
+(59) Sort
 Input [2]: [ps_partkey#X, value#X]
 Arguments: [value#X DESC NULLS LAST], true, 0
 
-(59) AdaptiveSparkPlan
+(60) AdaptiveSparkPlan
 Output [2]: [ps_partkey#X, value#X]
 Arguments: isFinalPlan=true
 
 ===== Subqueries =====
 
-Subquery:1 Hosting operator id = 30 Hosting Expression = Subquery subquery#X, [id=#X]
-AdaptiveSparkPlan (100)
+Subquery:1 Hosting operator id = 31 Hosting Expression = Subquery subquery#X, [id=#X]
+AdaptiveSparkPlan (102)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (83)
-   +- ^ ProjectExecTransformer (81)
-      +- ^ RegularHashAggregateExecTransformer (80)
-         +- ^ InputIteratorTransformer (79)
-            +- ShuffleQueryStage (77), Statistics(X)
-               +- ColumnarExchange (76)
-                  +- ^ FlushableHashAggregateExecTransformer (74)
-                     +- ^ ProjectExecTransformer (73)
-                        +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (72)
-                           :- ^ ProjectExecTransformer (67)
-                           :  +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (66)
-                           :     :- ^ NoopFilter (61)
-                           :     :  +- ^ Scan parquet (60)
-                           :     +- ^ InputIteratorTransformer (65)
-                           :        +- BroadcastQueryStage (63), Statistics(X)
-                           :           +- ReusedExchange (62)
-                           +- ^ InputIteratorTransformer (71)
-                              +- BroadcastQueryStage (69), Statistics(X)
-                                 +- ReusedExchange (68)
+   VeloxColumnarToRowExec (85)
+   +- ^ ProjectExecTransformer (83)
+      +- ^ RegularHashAggregateExecTransformer (82)
+         +- ^ InputIteratorTransformer (81)
+            +- ShuffleQueryStage (79), Statistics(X)
+               +- ColumnarExchange (78)
+                  +- VeloxAppendBatches (77)
+                     +- ^ FlushableHashAggregateExecTransformer (75)
+                        +- ^ ProjectExecTransformer (74)
+                           +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (73)
+                              :- ^ ProjectExecTransformer (68)
+                              :  +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (67)
+                              :     :- ^ NoopFilter (62)
+                              :     :  +- ^ Scan parquet (61)
+                              :     +- ^ InputIteratorTransformer (66)
+                              :        +- BroadcastQueryStage (64), Statistics(X)
+                              :           +- ReusedExchange (63)
+                              +- ^ InputIteratorTransformer (72)
+                                 +- BroadcastQueryStage (70), Statistics(X)
+                                    +- ReusedExchange (69)
 +- == Initial Plan ==
-   HashAggregate (99)
-   +- Exchange (98)
-      +- HashAggregate (97)
-         +- Project (96)
-            +- BroadcastHashJoin Inner BuildRight (95)
-               :- Project (90)
-               :  +- BroadcastHashJoin Inner BuildRight (89)
-               :     :- Filter (85)
-               :     :  +- Scan parquet (84)
-               :     +- BroadcastExchange (88)
-               :        +- Filter (87)
-               :           +- Scan parquet (86)
-               +- BroadcastExchange (94)
-                  +- Project (93)
-                     +- Filter (92)
-                        +- Scan parquet (91)
+   HashAggregate (101)
+   +- Exchange (100)
+      +- HashAggregate (99)
+         +- Project (98)
+            +- BroadcastHashJoin Inner BuildRight (97)
+               :- Project (92)
+               :  +- BroadcastHashJoin Inner BuildRight (91)
+               :     :- Filter (87)
+               :     :  +- Scan parquet (86)
+               :     +- BroadcastExchange (90)
+               :        +- Filter (89)
+               :           +- Scan parquet (88)
+               +- BroadcastExchange (96)
+                  +- Project (95)
+                     +- Filter (94)
+                        +- Scan parquet (93)
 
 
-(60) Scan parquet
+(61) Scan parquet
 Output [3]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(ps_suppkey)]
 ReadSchema: struct<ps_suppkey:bigint,ps_availqty:int,ps_supplycost:decimal(12,2)>
 
-(61) NoopFilter
+(62) NoopFilter
 Input [3]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Arguments: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 
-(62) ReusedExchange [Reuses operator id: 6]
+(63) ReusedExchange [Reuses operator id: 6]
 Output [2]: [s_suppkey#X, s_nationkey#X]
 
-(63) BroadcastQueryStage
+(64) BroadcastQueryStage
 Output [2]: [s_suppkey#X, s_nationkey#X]
 Arguments: X
 
-(64) InputAdapter
+(65) InputAdapter
 Input [2]: [s_suppkey#X, s_nationkey#X]
 
-(65) InputIteratorTransformer
+(66) InputIteratorTransformer
 Input [2]: [s_suppkey#X, s_nationkey#X]
 
-(66) BroadcastHashJoinExecTransformer
+(67) BroadcastHashJoinExecTransformer
 Left keys [1]: [ps_suppkey#X]
 Right keys [1]: [s_suppkey#X]
 Join condition: None
 
-(67) ProjectExecTransformer
+(68) ProjectExecTransformer
 Output [3]: [ps_availqty#X, ps_supplycost#X, s_nationkey#X]
 Input [5]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X, s_suppkey#X, s_nationkey#X]
 
-(68) ReusedExchange [Reuses operator id: 16]
+(69) ReusedExchange [Reuses operator id: 16]
 Output [1]: [n_nationkey#X]
 
-(69) BroadcastQueryStage
+(70) BroadcastQueryStage
 Output [1]: [n_nationkey#X]
 Arguments: X
 
-(70) InputAdapter
+(71) InputAdapter
 Input [1]: [n_nationkey#X]
 
-(71) InputIteratorTransformer
+(72) InputIteratorTransformer
 Input [1]: [n_nationkey#X]
 
-(72) BroadcastHashJoinExecTransformer
+(73) BroadcastHashJoinExecTransformer
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
 Join condition: None
 
-(73) ProjectExecTransformer
+(74) ProjectExecTransformer
 Output [3]: [ps_availqty#X, ps_supplycost#X, CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)) AS _pre_X#X]
 Input [4]: [ps_availqty#X, ps_supplycost#X, s_nationkey#X, n_nationkey#X]
 
-(74) FlushableHashAggregateExecTransformer
+(75) FlushableHashAggregateExecTransformer
 Input [3]: [ps_availqty#X, ps_supplycost#X, _pre_X#X]
 Keys: []
 Functions [1]: [partial_sum(_pre_X#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [2]: [sum#X, isEmpty#X]
 
-(75) WholeStageCodegenTransformer (X)
+(76) WholeStageCodegenTransformer (X)
 Input [2]: [sum#X, isEmpty#X]
 Arguments: false
 
-(76) ColumnarExchange
+(77) VeloxAppendBatches
+Input [2]: [sum#X, isEmpty#X]
+Arguments: X
+
+(78) ColumnarExchange
 Input [2]: [sum#X, isEmpty#X]
 Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
-(77) ShuffleQueryStage
+(79) ShuffleQueryStage
 Output [2]: [sum#X, isEmpty#X]
 Arguments: X
 
-(78) InputAdapter
+(80) InputAdapter
 Input [2]: [sum#X, isEmpty#X]
 
-(79) InputIteratorTransformer
+(81) InputIteratorTransformer
 Input [2]: [sum#X, isEmpty#X]
 
-(80) RegularHashAggregateExecTransformer
+(82) RegularHashAggregateExecTransformer
 Input [2]: [sum#X, isEmpty#X]
 Keys: []
 Functions [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))]
 Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X]
 Results [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X]
 
-(81) ProjectExecTransformer
+(83) ProjectExecTransformer
 Output [1]: [CheckOverflow((promote_precision(cast(sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X as decimal(38,10))) * 0.0001000000), DecimalType(38,6)) AS (sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]
 Input [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X]
 
-(82) WholeStageCodegenTransformer (X)
+(84) WholeStageCodegenTransformer (X)
 Input [1]: [(sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]
 Arguments: false
 
-(83) VeloxColumnarToRowExec
+(85) VeloxColumnarToRowExec
 Input [1]: [(sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]
 
-(84) Scan parquet
+(86) Scan parquet
 Output [3]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(ps_suppkey)]
 ReadSchema: struct<ps_suppkey:bigint,ps_availqty:int,ps_supplycost:decimal(12,2)>
 
-(85) Filter
+(87) Filter
 Input [3]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Condition : isnotnull(ps_suppkey#X)
 
-(86) Scan parquet
+(88) Scan parquet
 Output [2]: [s_suppkey#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
 ReadSchema: struct<s_suppkey:bigint,s_nationkey:bigint>
 
-(87) Filter
+(89) Filter
 Input [2]: [s_suppkey#X, s_nationkey#X]
 Condition : (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
 
-(88) BroadcastExchange
+(90) BroadcastExchange
 Input [2]: [s_suppkey#X, s_nationkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=X]
 
-(89) BroadcastHashJoin
+(91) BroadcastHashJoin
 Left keys [1]: [ps_suppkey#X]
 Right keys [1]: [s_suppkey#X]
 Join condition: None
 
-(90) Project
+(92) Project
 Output [3]: [ps_availqty#X, ps_supplycost#X, s_nationkey#X]
 Input [5]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X, s_suppkey#X, s_nationkey#X]
 
-(91) Scan parquet
+(93) Scan parquet
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(n_name), EqualTo(n_name,GERMANY), IsNotNull(n_nationkey)]
 ReadSchema: struct<n_nationkey:bigint,n_name:string>
 
-(92) Filter
+(94) Filter
 Input [2]: [n_nationkey#X, n_name#X]
 Condition : ((isnotnull(n_name#X) AND (n_name#X = GERMANY)) AND isnotnull(n_nationkey#X))
 
-(93) Project
+(95) Project
 Output [1]: [n_nationkey#X]
 Input [2]: [n_nationkey#X, n_name#X]
 
-(94) BroadcastExchange
+(96) BroadcastExchange
 Input [1]: [n_nationkey#X]
 Arguments: HashedRelationBroadcastMode(List(input[0, bigint, true]),false), [plan_id=X]
 
-(95) BroadcastHashJoin
+(97) BroadcastHashJoin
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
 Join condition: None
 
-(96) Project
+(98) Project
 Output [2]: [ps_availqty#X, ps_supplycost#X]
 Input [4]: [ps_availqty#X, ps_supplycost#X, s_nationkey#X, n_nationkey#X]
 
-(97) HashAggregate
+(99) HashAggregate
 Input [2]: [ps_availqty#X, ps_supplycost#X]
 Keys: []
 Functions [1]: [partial_sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [2]: [sum#X, isEmpty#X]
 
-(98) Exchange
+(100) Exchange
 Input [2]: [sum#X, isEmpty#X]
 Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X]
 
-(99) HashAggregate
+(101) HashAggregate
 Input [2]: [sum#X, isEmpty#X]
 Keys: []
 Functions [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))]
 Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X]
 Results [1]: [CheckOverflow((promote_precision(cast(sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X as decimal(38,10))) * 0.0001000000), DecimalType(38,6)) AS (sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]
 
-(100) AdaptiveSparkPlan
+(102) AdaptiveSparkPlan
 Output [1]: [(sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]
 Arguments: isFinalPlan=true

@@ -32,73 +32,56 @@ import org.apache.spark.sql.execution.exchange.ShuffleExchangeLike
 case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkPlan] {
   import FlushableHashAggregateRule._
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
-    case ShuffleAndChild(shuffle, child) =>
+    case s: ShuffleExchangeLike =>
       // If an exchange follows a hash aggregate in which all functions are in partial mode,
       // then it's safe to convert the hash aggregate to flushable hash aggregate.
-      child match {
-        case HashAggPropagatedToShuffle(proj, agg) =>
-          shuffle.withNewChildren(
-            Seq(proj.withNewChildren(Seq(FlushableHashAggregateExecTransformer(
-              agg.requiredChildDistributionExpressions,
-              agg.groupingExpressions,
-              agg.aggregateExpressions,
-              agg.aggregateAttributes,
-              agg.initialInputBufferOffset,
-              agg.resultExpressions,
-              agg.child
-            )))))
-        case HashAggWithShuffle(agg) =>
-          shuffle.withNewChildren(
-            Seq(FlushableHashAggregateExecTransformer(
-              agg.requiredChildDistributionExpressions,
-              agg.groupingExpressions,
-              agg.aggregateExpressions,
-              agg.aggregateAttributes,
-              agg.initialInputBufferOffset,
-              agg.resultExpressions,
-              agg.child
-            )))
-        case _ =>
-          shuffle
-      }
+      val out = s.withNewChildren(
+        List(
+          replaceEligibleAggregates(s.child) {
+            agg =>
+              FlushableHashAggregateExecTransformer(
+                agg.requiredChildDistributionExpressions,
+                agg.groupingExpressions,
+                agg.aggregateExpressions,
+                agg.aggregateAttributes,
+                agg.initialInputBufferOffset,
+                agg.resultExpressions,
+                agg.child
+              )
+          }
+        )
+      )
+      out
   }
-}
 
-object HashAggPropagatedToShuffle {
-  def unapply(
-      plan: SparkPlan): Option[(ProjectExecTransformer, RegularHashAggregateExecTransformer)] = {
-    if (!plan.isInstanceOf[ProjectExecTransformer]) {
-      return None
+  private def replaceEligibleAggregates(plan: SparkPlan)(
+      func: RegularHashAggregateExecTransformer => SparkPlan): SparkPlan = {
+    def transformDown: SparkPlan => SparkPlan = {
+      case agg: RegularHashAggregateExecTransformer
+          if !agg.aggregateExpressions.forall(p => p.mode == Partial || p.mode == PartialMerge) =>
+        // Not a intermediate agg. Skip.
+        agg
+      case agg: RegularHashAggregateExecTransformer
+          if isAggInputAlreadyDistributedWithAggKeys(agg) =>
+        // Data already grouped by aggregate keys, Skip.
+        agg
+      case agg: RegularHashAggregateExecTransformer =>
+        func(agg)
+      case p if !canPropagate(p) => p
+      case other => other.withNewChildren(other.children.map(transformDown))
     }
-    val proj = plan.asInstanceOf[ProjectExecTransformer]
-    val child = proj.child
-    if (!child.isInstanceOf[RegularHashAggregateExecTransformer]) {
-      return None
+
+    val out = transformDown(plan)
+    if (out.fastEquals(plan)) {
+      return plan
     }
-    val agg = child.asInstanceOf[RegularHashAggregateExecTransformer]
-    if (!agg.aggregateExpressions.forall(p => p.mode == Partial || p.mode == PartialMerge)) {
-      return None
-    }
-    if (FlushableHashAggregateRule.isAggInputAlreadyDistributedWithAggKeys(agg)) {
-      return None
-    }
-    Some((proj, agg))
+    out
   }
-}
 
-object HashAggWithShuffle {
-  def unapply(plan: SparkPlan): Option[RegularHashAggregateExecTransformer] = {
-    if (!plan.isInstanceOf[RegularHashAggregateExecTransformer]) {
-      return None
-    }
-    val agg = plan.asInstanceOf[RegularHashAggregateExecTransformer]
-    if (!agg.aggregateExpressions.forall(p => p.mode == Partial || p.mode == PartialMerge)) {
-      return None
-    }
-    if (FlushableHashAggregateRule.isAggInputAlreadyDistributedWithAggKeys(agg)) {
-      return None
-    }
-    Some(agg)
+  private def canPropagate(plan: SparkPlan): Boolean = plan match {
+    case _: ProjectExecTransformer => true
+    case _: VeloxAppendBatchesExec => true
+    case _ => false
   }
 }
 
@@ -113,7 +96,7 @@ object FlushableHashAggregateRule {
    * only on a single partition among the whole cluster. Spark's planner may use this information to
    * perform optimizations like doing "partial_count(a, b, c)" directly on the output data.
    */
-  def isAggInputAlreadyDistributedWithAggKeys(agg: HashAggregateExecTransformer): Boolean = {
+  private def isAggInputAlreadyDistributedWithAggKeys(agg: HashAggregateExecTransformer): Boolean = {
     if (agg.groupingExpressions.isEmpty) {
       // Empty grouping set () should not be satisfied by any partitioning patterns.
       //   E.g.,
@@ -125,17 +108,5 @@ object FlushableHashAggregateRule {
     }
     val distribution = ClusteredDistribution(agg.groupingExpressions)
     agg.child.outputPartitioning.satisfies(distribution)
-  }
-
-  private object ShuffleAndChild {
-    def unapply(plan: SparkPlan): Option[(SparkPlan, SparkPlan)] = plan match {
-      case s: ShuffleExchangeLike =>
-        val child = s.child match {
-          case VeloxAppendBatchesExec(child, _) => child
-          case other => other
-        }
-        Some(s, child)
-      case other => None
-    }
   }
 }

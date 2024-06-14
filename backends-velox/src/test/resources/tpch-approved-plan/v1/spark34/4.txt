@@ -1,50 +1,51 @@
 == Physical Plan ==
-AdaptiveSparkPlan (53)
+AdaptiveSparkPlan (54)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (37)
-   +- ^ SortExecTransformer (35)
-      +- ^ InputIteratorTransformer (34)
-         +- ShuffleQueryStage (32), Statistics(X)
-            +- ColumnarExchange (31)
-               +- VeloxAppendBatches (30)
-                  +- ^ RegularHashAggregateExecTransformer (28)
-                     +- ^ InputIteratorTransformer (27)
-                        +- ShuffleQueryStage (25), Statistics(X)
-                           +- ColumnarExchange (24)
-                              +- ^ ProjectExecTransformer (22)
-                                 +- ^ FlushableHashAggregateExecTransformer (21)
-                                    +- ^ ProjectExecTransformer (20)
-                                       +- ^ ShuffledHashJoinExecTransformer LeftSemi BuildRight (19)
-                                          :- ^ InputIteratorTransformer (9)
-                                          :  +- ShuffleQueryStage (7), Statistics(X)
-                                          :     +- ColumnarExchange (6)
-                                          :        +- VeloxAppendBatches (5)
-                                          :           +- ^ ProjectExecTransformer (3)
-                                          :              +- ^ FilterExecTransformer (2)
-                                          :                 +- ^ Scan parquet (1)
-                                          +- ^ InputIteratorTransformer (18)
-                                             +- ShuffleQueryStage (16), Statistics(X)
-                                                +- ColumnarExchange (15)
-                                                   +- VeloxAppendBatches (14)
-                                                      +- ^ ProjectExecTransformer (12)
-                                                         +- ^ FilterExecTransformer (11)
-                                                            +- ^ Scan parquet (10)
+   VeloxColumnarToRowExec (38)
+   +- ^ SortExecTransformer (36)
+      +- ^ InputIteratorTransformer (35)
+         +- ShuffleQueryStage (33), Statistics(X)
+            +- ColumnarExchange (32)
+               +- VeloxAppendBatches (31)
+                  +- ^ RegularHashAggregateExecTransformer (29)
+                     +- ^ InputIteratorTransformer (28)
+                        +- ShuffleQueryStage (26), Statistics(X)
+                           +- ColumnarExchange (25)
+                              +- VeloxAppendBatches (24)
+                                 +- ^ ProjectExecTransformer (22)
+                                    +- ^ FlushableHashAggregateExecTransformer (21)
+                                       +- ^ ProjectExecTransformer (20)
+                                          +- ^ ShuffledHashJoinExecTransformer LeftSemi BuildRight (19)
+                                             :- ^ InputIteratorTransformer (9)
+                                             :  +- ShuffleQueryStage (7), Statistics(X)
+                                             :     +- ColumnarExchange (6)
+                                             :        +- VeloxAppendBatches (5)
+                                             :           +- ^ ProjectExecTransformer (3)
+                                             :              +- ^ FilterExecTransformer (2)
+                                             :                 +- ^ Scan parquet (1)
+                                             +- ^ InputIteratorTransformer (18)
+                                                +- ShuffleQueryStage (16), Statistics(X)
+                                                   +- ColumnarExchange (15)
+                                                      +- VeloxAppendBatches (14)
+                                                         +- ^ ProjectExecTransformer (12)
+                                                            +- ^ FilterExecTransformer (11)
+                                                               +- ^ Scan parquet (10)
 +- == Initial Plan ==
-   Sort (52)
-   +- Exchange (51)
-      +- HashAggregate (50)
-         +- Exchange (49)
-            +- HashAggregate (48)
-               +- Project (47)
-                  +- ShuffledHashJoin LeftSemi BuildRight (46)
-                     :- Exchange (41)
-                     :  +- Project (40)
-                     :     +- Filter (39)
-                     :        +- Scan parquet (38)
-                     +- Exchange (45)
-                        +- Project (44)
-                           +- Filter (43)
-                              +- Scan parquet (42)
+   Sort (53)
+   +- Exchange (52)
+      +- HashAggregate (51)
+         +- Exchange (50)
+            +- HashAggregate (49)
+               +- Project (48)
+                  +- ShuffledHashJoin LeftSemi BuildRight (47)
+                     :- Exchange (42)
+                     :  +- Project (41)
+                     :     +- Filter (40)
+                     :        +- Scan parquet (39)
+                     +- Exchange (46)
+                        +- Project (45)
+                           +- Filter (44)
+                              +- Scan parquet (43)
 
 
 (1) Scan parquet
@@ -146,134 +147,138 @@ Input [2]: [o_orderpriority#X, count#X]
 Input [3]: [hash_partition_key#X, o_orderpriority#X, count#X]
 Arguments: false
 
-(24) ColumnarExchange
+(24) VeloxAppendBatches
+Input [3]: [hash_partition_key#X, o_orderpriority#X, count#X]
+Arguments: X
+
+(25) ColumnarExchange
 Input [3]: [hash_partition_key#X, o_orderpriority#X, count#X]
 Arguments: hashpartitioning(o_orderpriority#X, 1), ENSURE_REQUIREMENTS, [o_orderpriority#X, count#X], [plan_id=X], [id=#X]
 
-(25) ShuffleQueryStage
+(26) ShuffleQueryStage
 Output [2]: [o_orderpriority#X, count#X]
 Arguments: X
 
-(26) InputAdapter
+(27) InputAdapter
 Input [2]: [o_orderpriority#X, count#X]
 
-(27) InputIteratorTransformer
+(28) InputIteratorTransformer
 Input [2]: [o_orderpriority#X, count#X]
 
-(28) RegularHashAggregateExecTransformer
+(29) RegularHashAggregateExecTransformer
 Input [2]: [o_orderpriority#X, count#X]
 Keys [1]: [o_orderpriority#X]
 Functions [1]: [count(1)]
 Aggregate Attributes [1]: [count(1)#X]
 Results [2]: [o_orderpriority#X, count(1)#X AS order_count#X]
 
-(29) WholeStageCodegenTransformer (X)
+(30) WholeStageCodegenTransformer (X)
 Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: false
 
-(30) VeloxAppendBatches
+(31) VeloxAppendBatches
 Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: X
 
-(31) ColumnarExchange
+(32) ColumnarExchange
 Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: rangepartitioning(o_orderpriority#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
 
-(32) ShuffleQueryStage
+(33) ShuffleQueryStage
 Output [2]: [o_orderpriority#X, order_count#X]
 Arguments: X
 
-(33) InputAdapter
+(34) InputAdapter
 Input [2]: [o_orderpriority#X, order_count#X]
 
-(34) InputIteratorTransformer
+(35) InputIteratorTransformer
 Input [2]: [o_orderpriority#X, order_count#X]
 
-(35) SortExecTransformer
+(36) SortExecTransformer
 Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: [o_orderpriority#X ASC NULLS FIRST], true, 0
 
-(36) WholeStageCodegenTransformer (X)
+(37) WholeStageCodegenTransformer (X)
 Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: false
 
-(37) VeloxColumnarToRowExec
+(38) VeloxColumnarToRowExec
 Input [2]: [o_orderpriority#X, order_count#X]
 
-(38) Scan parquet
+(39) Scan parquet
 Output [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(o_orderdate), GreaterThanOrEqual(o_orderdate,1993-07-01), LessThan(o_orderdate,1993-10-01)]
 ReadSchema: struct<o_orderkey:bigint,o_orderdate:date,o_orderpriority:string>
 
-(39) Filter
+(40) Filter
 Input [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
 Condition : ((isnotnull(o_orderdate#X) AND (o_orderdate#X >= 1993-07-01)) AND (o_orderdate#X < 1993-10-01))
 
-(40) Project
+(41) Project
 Output [2]: [o_orderkey#X, o_orderpriority#X]
 Input [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
 
-(41) Exchange
+(42) Exchange
 Input [2]: [o_orderkey#X, o_orderpriority#X]
 Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(42) Scan parquet
+(43) Scan parquet
 Output [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_commitdate), IsNotNull(l_receiptdate)]
 ReadSchema: struct<l_orderkey:bigint,l_commitdate:date,l_receiptdate:date>
 
-(43) Filter
+(44) Filter
 Input [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
 Condition : ((isnotnull(l_commitdate#X) AND isnotnull(l_receiptdate#X)) AND (l_commitdate#X < l_receiptdate#X))
 
-(44) Project
+(45) Project
 Output [1]: [l_orderkey#X]
 Input [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
 
-(45) Exchange
+(46) Exchange
 Input [1]: [l_orderkey#X]
 Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(46) ShuffledHashJoin
+(47) ShuffledHashJoin
 Left keys [1]: [o_orderkey#X]
 Right keys [1]: [l_orderkey#X]
 Join type: LeftSemi
 Join condition: None
 
-(47) Project
+(48) Project
 Output [1]: [o_orderpriority#X]
 Input [2]: [o_orderkey#X, o_orderpriority#X]
 
-(48) HashAggregate
+(49) HashAggregate
 Input [1]: [o_orderpriority#X]
 Keys [1]: [o_orderpriority#X]
 Functions [1]: [partial_count(1)]
 Aggregate Attributes [1]: [count#X]
 Results [2]: [o_orderpriority#X, count#X]
 
-(49) Exchange
+(50) Exchange
 Input [2]: [o_orderpriority#X, count#X]
 Arguments: hashpartitioning(o_orderpriority#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(50) HashAggregate
+(51) HashAggregate
 Input [2]: [o_orderpriority#X, count#X]
 Keys [1]: [o_orderpriority#X]
 Functions [1]: [count(1)]
 Aggregate Attributes [1]: [count(1)#X]
 Results [2]: [o_orderpriority#X, count(1)#X AS order_count#X]
 
-(51) Exchange
+(52) Exchange
 Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: rangepartitioning(o_orderpriority#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(52) Sort
+(53) Sort
 Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: [o_orderpriority#X ASC NULLS FIRST], true, 0
 
-(53) AdaptiveSparkPlan
+(54) AdaptiveSparkPlan
 Output [2]: [o_orderpriority#X, order_count#X]
 Arguments: isFinalPlan=true

@@ -7,7 +7,7 @@ AdaptiveSparkPlan (20)
          +- ShuffleQueryStage (8), Statistics(X)
             +- ColumnarExchange (7)
                +- VeloxAppendBatches (6)
-                  +- ^ RegularHashAggregateExecTransformer (4)
+                  +- ^ FlushableHashAggregateExecTransformer (4)
                      +- ^ ProjectExecTransformer (3)
                         +- ^ NoopFilter (2)
                            +- ^ Scan parquet (1)
@@ -35,7 +35,7 @@ Arguments: [l_quantity#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Output [3]: [l_extendedprice#X, l_discount#X, (l_extendedprice#X * l_discount#X) AS _pre_X#X]
 Input [4]: [l_quantity#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 
-(4) RegularHashAggregateExecTransformer
+(4) FlushableHashAggregateExecTransformer
 Input [3]: [l_extendedprice#X, l_discount#X, _pre_X#X]
 Keys: []
 Functions [1]: [partial_sum(_pre_X#X)]
