@@ -1182,7 +1182,7 @@ object GlutenConfig {
           "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
           "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
       .intConf
-      .createWithDefaultString("0")
+      .createWithDefaultString("-1")
 
   val COLUMNAR_OFFHEAP_SIZE_IN_BYTES =
     buildConf(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY)
