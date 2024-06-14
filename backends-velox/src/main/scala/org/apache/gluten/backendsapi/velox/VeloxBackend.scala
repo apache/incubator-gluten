@@ -189,8 +189,9 @@ object VeloxBackendSettings extends BackendSettingsApi {
       val fileSinkConfField = format.getClass.getDeclaredField("fileSinkConf")
       fileSinkConfField.setAccessible(true)
       val fileSinkConf = fileSinkConfField.get(hiveFileFormat)
-      val getTableInfoMethod = fileSinkConf.getClass.getDeclaredMethod("getTableInfo")
-      val tableInfo = getTableInfoMethod.invoke(fileSinkConf)
+      val tableInfoField = fileSinkConf.getClass.getDeclaredField("tableInfo")
+      tableInfoField.setAccessible(true)
+      val tableInfo = tableInfoField.get(fileSinkConf)
       val getOutputFileFormatClassNameMethod = tableInfo.getClass
         .getDeclaredMethod("getOutputFileFormatClassName")
       val outputFileFormatClassName = getOutputFileFormatClassNameMethod.invoke(tableInfo)
