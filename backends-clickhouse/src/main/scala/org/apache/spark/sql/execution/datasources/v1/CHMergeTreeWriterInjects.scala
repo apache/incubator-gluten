@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution.datasources.v1
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.memory.alloc.CHNativeMemoryAllocators
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, StringMapNode}
@@ -93,7 +94,8 @@ class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
       Seq(),
       ConverterUtils.convertNamedStructJson(tableSchema),
       clickhouseTableConfigs,
-      tableSchema.toAttributes // use table schema instead of data schema
+      // use table schema instead of data schema
+      SparkShimLoader.getSparkShims.attributesFromStruct(tableSchema)
     )
     val allocId = CHNativeMemoryAllocators.contextInstance.getNativeInstanceId
     val datasourceJniWrapper = new CHDatasourceJniWrapper()

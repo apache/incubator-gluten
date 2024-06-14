@@ -17,10 +17,10 @@
 include_guard(GLOBAL)
 
 set(GLUTEN_GFLAGS_BUILD_SHA256_CHECKSUM
-  34af2f15cf7367513b352bdcd2493ab14ce43692d2dcd9dfc499492966c64dcf)
+    34af2f15cf7367513b352bdcd2493ab14ce43692d2dcd9dfc499492966c64dcf)
 string(CONCAT GLUTEN_GFLAGS_SOURCE_URL
-  "https://github.com/gflags/gflags/archive/refs/tags/"
-  "v${GLUTEN_GFLAGS_VERSION}.tar.gz")
+              "https://github.com/gflags/gflags/archive/refs/tags/"
+              "v${GLUTEN_GFLAGS_VERSION}.tar.gz")
 
 resolve_dependency_url(GFLAGS)
 

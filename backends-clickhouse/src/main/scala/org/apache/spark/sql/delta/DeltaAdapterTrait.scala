@@ -14,10 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.v2.clickhouse
+package org.apache.spark.sql.delta
 
-import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
+trait DeltaAdapterTrait {
 
-object DeltaLogAdapter {
-  def snapshot(deltaLog: DeltaLog): Snapshot = deltaLog.snapshot
+  def snapshot(deltaLog: DeltaLog): Snapshot
 }

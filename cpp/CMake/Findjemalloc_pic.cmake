@@ -20,7 +20,7 @@ macro(find_jemalloc)
   # Find the existing Protobuf
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(jemalloc_pic)
-  if ("${Jemalloc_LIBRARY}" STREQUAL "Jemalloc_LIBRARY-NOTFOUND")
+  if("${Jemalloc_LIBRARY}" STREQUAL "Jemalloc_LIBRARY-NOTFOUND")
     message(FATAL_ERROR "Jemalloc Library Not Found")
   endif()
   set(PROTOC_BIN ${Jemalloc_PROTOC_EXECUTABLE})
@@ -35,22 +35,18 @@ macro(build_jemalloc)
   else()
     set(JEMALLOC_BUILD_VERSION "5.2.1")
     set(JEMALLOC_SOURCE_URL
-            "https://github.com/jemalloc/jemalloc/releases/download/${JEMALLOC_BUILD_VERSION}/jemalloc-${JEMALLOC_BUILD_VERSION}.tar.bz2"
-            "https://github.com/ursa-labs/thirdparty/releases/download/latest/jemalloc-${JEMALLOC_BUILD_VERSION}.tar.bz2"
-            )
+        "https://github.com/jemalloc/jemalloc/releases/download/${JEMALLOC_BUILD_VERSION}/jemalloc-${JEMALLOC_BUILD_VERSION}.tar.bz2"
+        "https://github.com/ursa-labs/thirdparty/releases/download/latest/jemalloc-${JEMALLOC_BUILD_VERSION}.tar.bz2"
+    )
   endif()
 
   set(JEMALLOC_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/jemalloc_ep-install")
   set(JEMALLOC_LIB_DIR "${JEMALLOC_PREFIX}/lib")
   set(JEMALLOC_INCLUDE_DIR "${JEMALLOC_PREFIX}/include")
-  set(
-    JEMALLOC_STATIC_LIB
-    "${JEMALLOC_LIB_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}jemalloc_pic${CMAKE_STATIC_LIBRARY_SUFFIX}"
-    )
-  set(
-    JEMALLOC_INCLUDE
-    "${JEMALLOC_PREFIX}/include"
-    )
+  set(JEMALLOC_STATIC_LIB
+      "${JEMALLOC_LIB_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}jemalloc_pic${CMAKE_STATIC_LIBRARY_SUFFIX}"
+  )
+  set(JEMALLOC_INCLUDE "${JEMALLOC_PREFIX}/include")
   set(JEMALLOC_CONFIGURE_ARGS
       "AR=${CMAKE_AR}"
       "CC=${CMAKE_C_COMPILER}"
@@ -66,14 +62,15 @@ macro(build_jemalloc)
       "CFLAGS=-fPIC"
       "CXXFLAGS=-fPIC")
   set(JEMALLOC_BUILD_COMMAND ${MAKE} ${MAKE_BUILD_ARGS})
-  ExternalProject_Add(jemalloc_ep
-                      URL ${JEMALLOC_SOURCE_URL}
-                      PATCH_COMMAND touch doc/jemalloc.3 doc/jemalloc.html
-                      CONFIGURE_COMMAND "./configure" ${JEMALLOC_CONFIGURE_ARGS}
-                      BUILD_COMMAND ${JEMALLOC_BUILD_COMMAND}
-                      BUILD_IN_SOURCE 1
-                      BUILD_BYPRODUCTS "${JEMALLOC_STATIC_LIB}"
-                      INSTALL_COMMAND make install)
+  ExternalProject_Add(
+    jemalloc_ep
+    URL ${JEMALLOC_SOURCE_URL}
+    PATCH_COMMAND touch doc/jemalloc.3 doc/jemalloc.html
+    CONFIGURE_COMMAND "./configure" ${JEMALLOC_CONFIGURE_ARGS}
+    BUILD_COMMAND ${JEMALLOC_BUILD_COMMAND}
+    BUILD_IN_SOURCE 1
+    BUILD_BYPRODUCTS "${JEMALLOC_STATIC_LIB}"
+    INSTALL_COMMAND make install)
 
   file(MAKE_DIRECTORY "${JEMALLOC_INCLUDE_DIR}")
   add_library(jemalloc::libjemalloc STATIC IMPORTED)
@@ -81,7 +78,6 @@ macro(build_jemalloc)
     jemalloc::libjemalloc
     PROPERTIES INTERFACE_LINK_LIBRARIES Threads::Threads
                IMPORTED_LOCATION "${JEMALLOC_STATIC_LIB}"
-               INTERFACE_INCLUDE_DIRECTORIES
-               "${JEMALLOC_INCLUDE_DIR}")
+               INTERFACE_INCLUDE_DIRECTORIES "${JEMALLOC_INCLUDE_DIR}")
   add_dependencies(jemalloc::libjemalloc protobuf_ep)
 endmacro()

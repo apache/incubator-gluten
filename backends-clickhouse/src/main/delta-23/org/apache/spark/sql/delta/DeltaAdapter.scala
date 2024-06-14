@@ -14,10 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.v2.clickhouse
+package org.apache.spark.sql.delta
 
-import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
-
-object DeltaLogAdapter {
-  def snapshot(deltaLog: DeltaLog): Snapshot = deltaLog.unsafeVolatileSnapshot
+object DeltaAdapter extends DeltaAdapterTrait {
+  override def snapshot(deltaLog: DeltaLog): Snapshot = deltaLog.unsafeVolatileSnapshot
 }

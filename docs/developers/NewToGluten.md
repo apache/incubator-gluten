@@ -289,6 +289,26 @@ Search `default formatter` in `Settings`, select Clang-Format.
 
 If your formatOnSave still make no effect, you can use shortcut `SHIFT+ALT+F` to format one file manually.
 
+### Cmake format
+
+To format cmake files, like CMakeLists.txt & *.cmake, please install `cmake-format`.
+```
+pip3 install --user cmake-format
+```
+Here is an example to format a file in command line.
+```
+cmake-format --first-comment-is-literal True --in-place cpp/velox/CMakeLists.txt
+```
+
+After the above installation, you can optionally do some configuration in Visual Studio Code to easily format cmake files.
+1. Install `cmake-format` extension in Visual Studio Code.
+2. Configure the extension. To do this, open the settings (File -> Preferences -> Settings), search for `cmake-format`,
+   and do the below settings:
+   * Set Args: `--first-comment-is-literal=True`.
+   * Set Exe Path to the path of the `cmake-format` command. If you installed `cmake-format` in a standard
+      location, you might not need to change this setting.
+3. Now, you can format your CMake files by right-clicking in a file and selecting `Format Document`.
+
 # Debug cpp code with coredump
 
 ```bash

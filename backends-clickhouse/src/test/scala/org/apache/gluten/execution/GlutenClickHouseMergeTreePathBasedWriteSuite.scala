@@ -60,6 +60,9 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .set(
         "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
         "false")
+      .set(
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_parquet_max_block_size",
+        "8192")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -143,7 +146,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
           case f: FileSourceScanExecTransformer => f
           case w: WholeStageTransformer => w
         }
-        assert(plans.size == 4)
+        assertResult(4)(plans.size)
 
         val mergetreeScan = plans(3).asInstanceOf[FileSourceScanExecTransformer]
         assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
@@ -154,10 +157,8 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.nonEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
-        assert(addFiles.size == 5)
-        assert(
-          addFiles.map(_.rows).sum
-            == 600572)
+        assertResult(6)(addFiles.size)
+        assertResult(600572)(addFiles.map(_.rows).sum)
 
         // GLUTEN-5060: check the unnecessary FilterExec
         val wholeStageTransformer = plans(2).asInstanceOf[WholeStageTransformer]
@@ -174,7 +175,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .load(dataPath)
       .where("l_shipdate = date'1998-09-02'")
       .count()
-    assert(result == 183)
+    assertResult(183)(result)
   }
 
   test("test mergetree path based write with dataframe api") {
@@ -236,40 +237,35 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
           case f: FileSourceScanExecTransformer => f
           case w: WholeStageTransformer => w
         }
-        assert(plans.size == 4)
+        assertResult(4)(plans.size)
 
         val mergetreeScan = plans(3).asInstanceOf[FileSourceScanExecTransformer]
         assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
-        assert(
+        assertResult("l_shipdate,l_orderkey")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .orderByKeyOption
             .get
-            .mkString(",")
-            .equals("l_shipdate,l_orderkey"))
-        assert(
+            .mkString(","))
+        assertResult("l_shipdate")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .primaryKeyOption
             .get
-            .mkString(",")
-            .equals("l_shipdate"))
-        assert(
+            .mkString(","))
+        assertResult("l_returnflag,l_linestatus")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .lowCardKeyOption
             .get
-            .mkString(",")
-            .equals("l_returnflag,l_linestatus"))
+            .mkString(","))
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
-        assert(addFiles.size == 5)
-        assert(
-          addFiles.map(_.rows).sum
-            == 600572)
+        assertResult(6)(addFiles.size)
+        assertResult(600572)(addFiles.map(_.rows).sum)
 
         // GLUTEN-5060: check the unnecessary FilterExec
         val wholeStageTransformer = plans(2).asInstanceOf[WholeStageTransformer]
@@ -286,7 +282,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .load(dataPath)
       .where("l_shipdate = date'1998-09-02'")
       .collect()
-    assert(result.length == 183)
+    assertResult(110501)(result.apply(0).get(0))
   }
 
   test("test mergetree path based insert overwrite partitioned table with small table, static") {
@@ -320,7 +316,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .format("clickhouse")
       .load(dataPath)
       .count()
-    assert(result == 2418)
+    assertResult(2418)(result)
   }
 
   test("test mergetree path based insert overwrite partitioned table with small table, dynamic") {
@@ -355,7 +351,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         .format("clickhouse")
         .load(dataPath)
         .count()
-      assert(result == 600572)
+      assertResult(600572)(result)
     }
   }
 
@@ -381,11 +377,11 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         .format("clickhouse")
         .load(dataPath)
         .where("l_returnflag = 'Z'")
-      assert(df.count() == 1)
+      assertResult(1)(df.count())
       val scanExec = collect(df.queryExecution.executedPlan) {
         case f: FileSourceScanExecTransformer => f
       }
-      assert(scanExec.size == 1)
+      assertResult(1)(scanExec.size)
 
       val mergetreeScan = scanExec.head
       assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
@@ -397,16 +393,13 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.isEmpty)
       assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
       val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
-      assert(
-        addFiles.map(_.rows).sum
-          == 600572)
-
+      assertResult(600572)(addFiles.map(_.rows).sum)
       // 4 parts belong to the first batch
       // 2 parts belong to the second batch (1 actual updated part, 1 passively updated).
-      assert(addFiles.size == 6)
+      assertResult(6)(addFiles.size)
       val filePaths = addFiles.map(_.path).groupBy(name => name.substring(0, name.lastIndexOf("_")))
-      assert(filePaths.size == 2)
-      assert(Array(3, 3).sameElements(filePaths.values.map(paths => paths.size).toArray.sorted))
+      assertResult(2)(filePaths.size)
+      assertResult(Array(2, 4))(filePaths.values.map(paths => paths.size).toArray.sorted)
     }
 
     val clickhouseTable = ClickhouseTable.forPath(spark, dataPath)
@@ -417,33 +410,30 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         .format("clickhouse")
         .load(dataPath)
         .where("l_returnflag = 'X'")
-      assert(df.count() == 1)
+      assertResult(1)(df.count())
       val scanExec = collect(df.queryExecution.executedPlan) {
         case f: FileSourceScanExecTransformer => f
       }
-      assert(scanExec.size == 1)
+      assertResult(1)(scanExec.size)
 
       val mergetreeScan = scanExec.head
       assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
 
       val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
       val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
-      assert(
-        addFiles.map(_.rows).sum
-          == 600572)
+      assertResult(600572)(addFiles.map(_.rows).sum)
 
       // 4 parts belong to the first batch
       // 2 parts belong to the second batch (1 actual updated part, 1 passively updated).
-      assert(addFiles.size == 6)
+      assertResult(6)(addFiles.size)
       val filePaths = addFiles.map(_.path).groupBy(name => name.substring(0, name.lastIndexOf("_")))
-      assert(filePaths.size == 3)
-      assert(Array(1, 2, 3).sameElements(filePaths.values.map(paths => paths.size).toArray.sorted))
+      assertResult(2)(filePaths.size)
     }
 
     val df = spark.read
       .format("clickhouse")
       .load(dataPath)
-    assert(df.count() == 600572)
+    assertResult(600572)(df.count())
   }
 
   test("test mergetree path based table delete") {
@@ -465,7 +455,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     val df = spark.read
       .format("clickhouse")
       .load(dataPath)
-    assert(df.count() == 600571)
+    assertResult(600571)(df.count())
     val scanExec = collect(df.queryExecution.executedPlan) {
       case f: FileSourceScanExecTransformer => f
     }
@@ -474,17 +464,17 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
     // 4 parts belong to the first batch
     // 2 parts belong to the second batch (1 actual updated part, 1 passively updated).
-    assert(addFiles.size == 6)
+    assertResult(6)(addFiles.size)
     val filePaths = addFiles.map(_.path).groupBy(name => name.substring(0, name.lastIndexOf("_")))
-    assert(filePaths.size == 2)
-    assert(Array(3, 3).sameElements(filePaths.values.map(paths => paths.size).toArray.sorted))
+    assertResult(2)(filePaths.size)
+    assertResult(Array(2, 4))(filePaths.values.map(paths => paths.size).toArray.sorted)
 
     val clickhouseTable = ClickhouseTable.forPath(spark, dataPath)
     clickhouseTable.delete("mod(l_orderkey, 3) = 2")
     val df1 = spark.read
       .format("clickhouse")
       .load(dataPath)
-    assert(df1.count() == 400089)
+    assertResult(400089)(df1.count())
   }
 
   test("test mergetree path based table upsert") {
@@ -503,8 +493,8 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     val df0 = spark.sql(s"""
                            | select count(*) from clickhouse.`$dataPath`
                            |""".stripMargin)
-    assert(
-      df0.collect().apply(0).get(0) == 600572
+    assertResult(600572)(
+      df0.collect().apply(0).get(0)
     )
     upsertSourceTableAndCheck(dataPath)
   }
@@ -540,8 +530,8 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       val df1 = spark.sql(s"""
                              | select count(*) from clickhouse.`$dataPath`
                              |""".stripMargin)
-      assert(
-        df1.collect().apply(0).get(0) == 600572 + 3506
+      assertResult(600572 + 3506)(
+        df1.collect().apply(0).get(0)
       )
     }
     {
@@ -549,8 +539,8 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         spark.sql(s"""
                      | select count(*) from clickhouse.`$dataPath` where l_returnflag = 'Z'
                      |""".stripMargin)
-      assert(
-        df2.collect().apply(0).get(0) == 3506
+      assertResult(3506)(
+        df2.collect().apply(0).get(0)
       )
     }
 
@@ -559,8 +549,8 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         spark.sql(s"""
                      | select count(*) from clickhouse.`$dataPath` where l_orderkey > 10000000
                      |""".stripMargin)
-      assert(
-        df3.collect().apply(0).get(0) == 3506
+      assertResult(3506)(
+        df3.collect().apply(0).get(0)
       )
     }
   }
@@ -610,33 +600,31 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
         }
-        assert(scanExec.size == 1)
+        assertResult(1)(scanExec.size)
 
-        val mergetreeScan = scanExec(0)
+        val mergetreeScan = scanExec.head
         assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
-        assert(
+        assertResult("l_shipdate,l_orderkey")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .orderByKeyOption
             .get
-            .mkString(",")
-            .equals("l_shipdate,l_orderkey"))
-        assert(
+            .mkString(","))
+        assertResult("l_shipdate")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .primaryKeyOption
             .get
-            .mkString(",")
-            .equals("l_shipdate"))
+            .mkString(","))
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
 
-        assert(addFiles.size == 5)
-        assert(addFiles.map(_.rows).sum == 600572)
+        assertResult(6)(addFiles.size)
+        assertResult(600572)(addFiles.map(_.rows).sum)
     }
 
     val df = spark.read
@@ -650,7 +638,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
                |""".stripMargin)
       .agg(sum("l_linenumber").alias("res"))
     val result = df.collect()
-    assert(result(0).getLong(0) == 34842)
+    assertResult(34842)(result(0).getLong(0))
   }
 
   test("test mergetree path based write with partition") {
@@ -707,62 +695,56 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     runTPCHQueryBySQL(1, sqlStr, compareResult = false) {
       df =>
         val result = df.collect()
-        assert(result.size == 4)
-        assert(result(0).getString(0).equals("A"))
-        assert(result(0).getString(1).equals("F"))
-        assert(result(0).getDouble(2) == 3803858.0)
+        assertResult(4)(result.length)
+        assertResult("A")(result(0).getString(0))
+        assertResult("F")(result(0).getString(1))
+        assertResult(3803858.0)(result(0).getDouble(2))
 
-        assert(result(2).getString(0).equals("N"))
-        assert(result(2).getString(1).equals("O"))
-        assert(result(2).getDouble(2) == 7454519.0)
+        assertResult("N")(result(2).getString(0))
+        assertResult("O")(result(2).getString(1))
+        assertResult(7454519.0)(result(2).getDouble(2))
 
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
         }
-        assert(scanExec.size == 1)
+        assertResult(1)(scanExec.size)
 
-        val mergetreeScan = scanExec(0)
+        val mergetreeScan = scanExec.head
         assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
-        assert(mergetreeScan.metrics("numFiles").value == 3744)
+        assertResult(3744)(mergetreeScan.metrics("numFiles").value)
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
-        assert(
+        assertResult("l_orderkey")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .orderByKeyOption
             .get
-            .mkString(",")
-            .equals("l_orderkey"))
-        assert(
+            .mkString(","))
+        assertResult("l_orderkey")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .primaryKeyOption
             .get
-            .mkString(",")
-            .equals("l_orderkey"))
-        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size == 2)
-        assert(
+            .mkString(","))
+        assertResult(2)(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size)
+        assertResult("l_shipdate")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
-            .partitionColumns(0)
-            .equals("l_shipdate"))
-        assert(
+            .partitionColumns
+            .head)
+        assertResult("l_returnflag")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
-            .partitionColumns(1)
-            .equals("l_returnflag"))
+            .partitionColumns(1))
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
 
-        assert(addFiles.size == 3835)
-        assert(addFiles.map(_.rows).sum == 602945)
-        assert(
-          addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1992-06-01")).size == 2)
-        assert(
-          addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1993-01-01")).size == 4)
-        assert(
-          addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1995-01-21")).size == 2)
+        assertResult(3835)(addFiles.size)
+        assertResult(602945)(addFiles.map(_.rows).sum)
+        assertResult(2)(addFiles.count(_.partitionValues("l_shipdate").equals("1992-06-01")))
+        assertResult(4)(addFiles.count(_.partitionValues("l_shipdate").equals("1993-01-01")))
+        assertResult(2)(addFiles.count(_.partitionValues("l_shipdate").equals("1995-01-21")))
     }
   }
 
@@ -777,10 +759,10 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     sourceDF.write
       .format("clickhouse")
       .partitionBy("l_shipdate")
-      .option("clickhouse.orderByKey", "l_partkey,l_returnflag")
-      .option("clickhouse.primaryKey", "l_partkey")
+      .option("clickhouse.orderByKey", "l_orderkey,l_returnflag")
+      .option("clickhouse.primaryKey", "l_orderkey")
       .option("clickhouse.numBuckets", "4")
-      .option("clickhouse.bucketColumnNames", "l_orderkey")
+      .option("clickhouse.bucketColumnNames", "l_partkey")
       .mode(SaveMode.Append)
       .save(dataPath)
 
@@ -814,61 +796,49 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
         }
-        assert(scanExec.size == 1)
+        assertResult(1)(scanExec.size)
 
-        val mergetreeScan = scanExec(0)
+        val mergetreeScan = scanExec.head
         assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
         val buckets = ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption
-        assert(!buckets.isEmpty)
-        assert(buckets.get.numBuckets == 4)
-        assert(
+        assert(buckets.isDefined)
+        assertResult(4)(buckets.get.numBuckets)
+        assertResult("l_orderkey,l_returnflag")(
           buckets.get.sortColumnNames
-            .mkString(",")
-            .equals("l_partkey,l_returnflag"))
-        assert(
+            .mkString(","))
+        assertResult("l_partkey")(
           buckets.get.bucketColumnNames
-            .mkString(",")
-            .equals("l_orderkey"))
-        assert(
+            .mkString(","))
+        assertResult("l_orderkey,l_returnflag")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .orderByKeyOption
             .get
-            .mkString(",")
-            .equals("l_partkey,l_returnflag"))
-        assert(
+            .mkString(","))
+        assertResult("l_orderkey")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .primaryKeyOption
             .get
-            .mkString(",")
-            .equals("l_partkey"))
-        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size == 1)
-        assert(
+            .mkString(","))
+        assertResult(1)(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size)
+        assertResult("l_shipdate")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
-            .partitionColumns(0)
-            .equals("l_shipdate"))
+            .partitionColumns
+            .head)
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
 
-        assert(addFiles.size == 10089)
-        assert(addFiles.map(_.rows).sum == 600572)
-        assert(
-          addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1992-06-01")).size == 4)
-        assert(
-          addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1993-01-01")).size == 4)
-        assert(
-          addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1995-01-21")).size == 4)
-        assert(
-          addFiles
-            .filter(
-              f =>
-                f.partitionValues.get("l_shipdate").get.equals("1995-01-21") && f.bucketNum.equals(
-                  "00000"))
-            .size == 1)
+        assertResult(10089)(addFiles.size)
+        assertResult(600572)(addFiles.map(_.rows).sum)
+        assertResult(4)(addFiles.count(_.partitionValues("l_shipdate").equals("1992-06-01")))
+        assertResult(4)(addFiles.count(_.partitionValues("l_shipdate").equals("1993-01-01")))
+        assertResult(4)(addFiles.count(_.partitionValues("l_shipdate").equals("1995-01-21")))
+        assertResult(1)(addFiles.count(
+          f => f.partitionValues("l_shipdate").equals("1995-01-21") && f.bucketNum.equals("00000")))
     }
     // check part pruning effect of filter on bucket column
     val df = spark.sql(s"""
@@ -883,7 +853,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .flatMap(partition => partition.asInstanceOf[GlutenMergeTreePartition].partList)
       .map(_.name)
       .distinct
-    assert(touchedParts.size == 1)
+    assertResult(4)(touchedParts.size)
 
     // test upsert on partitioned & bucketed table
     upsertSourceTableAndCheck(dataPath)
@@ -929,9 +899,9 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
         }
-        assert(scanExec.size == 1)
+        assertResult(1)(scanExec.size)
 
-        val mergetreeScan = scanExec(0)
+        val mergetreeScan = scanExec.head
         assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
@@ -941,10 +911,8 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.isEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
-        assert(addFiles.size == 5)
-        assert(
-          addFiles.map(_.rows).sum
-            == 600572)
+        assertResult(6)(addFiles.size)
+        assertResult(600572)(addFiles.map(_.rows).sum)
     }
   }
 
@@ -1052,9 +1020,9 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
          |
          |""".stripMargin
 
-    assert(
+    assertResult("R")(
       // total rows should remain unchanged
-      spark.sql(sqlStr2).collect().apply(0).get(0) == "R"
+      spark.sql(sqlStr2).collect().apply(0).get(0)
     )
 
     // test select *
@@ -1101,40 +1069,38 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
         }
-        assert(scanExec.size == 1)
+        assertResult(1)(scanExec.size)
 
-        val mergetreeScan = scanExec(0)
+        val mergetreeScan = scanExec.head
         assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
-        assert(
+        assertResult("l_shipdate,l_orderkey")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .orderByKeyOption
             .get
-            .mkString(",")
-            .equals("l_shipdate,l_orderkey"))
-        assert(
+            .mkString(","))
+        assertResult("l_shipdate")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .primaryKeyOption
             .get
-            .mkString(",")
-            .equals("l_shipdate"))
+            .mkString(","))
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
 
-        assert(addFiles.size == 5)
-        assert(addFiles.map(_.rows).sum == 600572)
+        assertResult(6)(addFiles.size)
+        assertResult(600572)(addFiles.map(_.rows).sum)
 
         val plans = collect(df.queryExecution.executedPlan) {
           case scanExec: BasicScanExecTransformer => scanExec
         }
-        assert(plans.size == 1)
-        assert(plans(0).metrics("selectedMarksPk").value === 15)
-        assert(plans(0).metrics("totalMarksPk").value === 74)
+        assertResult(1)(plans.size)
+        assertResult(17)(plans.head.metrics("selectedMarksPk").value)
+        assertResult(74)(plans.head.metrics("totalMarksPk").value)
     }
   }
 
@@ -1161,12 +1127,12 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     val scanExec = collect(df.queryExecution.executedPlan) {
       case f: FileSourceScanExecTransformer => f
     }
-    assert(scanExec.size == 1)
-    val mergetreeScan = scanExec(0)
+    assertResult(1)(scanExec.size)
+    val mergetreeScan = scanExec.head
 
-    assert(ret.apply(0).get(0) == 1)
+    assertResult(1)(ret.apply(0).get(0))
     val marks = mergetreeScan.metrics("selectedMarks").value
-    assert(marks == 1)
+    assertResult(1)(marks)
 
     val directory = new File(dataPath)
     // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
@@ -1197,11 +1163,11 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     val scanExec = collect(df.queryExecution.executedPlan) {
       case f: FileSourceScanExecTransformer => f
     }
-    assert(scanExec.size == 1)
-    val mergetreeScan = scanExec(0)
-    assert(ret.apply(0).get(0) == 2)
+    assertResult(1)(scanExec.size)
+    val mergetreeScan = scanExec.head
+    assertResult(2)(ret.apply(0).get(0))
     val marks = mergetreeScan.metrics("selectedMarks").value
-    assert(marks == 2)
+    assertResult(1)(marks)
 
     val directory = new File(dataPath)
     // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
@@ -1233,11 +1199,11 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     val scanExec = collect(df.queryExecution.executedPlan) {
       case f: FileSourceScanExecTransformer => f
     }
-    assert(scanExec.size == 1)
-    val mergetreeScan = scanExec(0)
-    assert(ret.apply(0).get(0) == 2)
+    assertResult(1)(scanExec.size)
+    val mergetreeScan = scanExec.head
+    assertResult(2)(ret.apply(0).get(0))
     val marks = mergetreeScan.metrics("selectedMarks").value
-    assert(marks == 1)
+    assertResult(1)(marks)
 
     val directory = new File(dataPath)
     // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
@@ -1277,18 +1243,16 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
           val scanExec = collect(df.queryExecution.executedPlan) {
             case f: FileSourceScanExecTransformer => f
           }
-          assert(scanExec.size == 1)
+          assertResult(1)(scanExec.size)
 
-          val mergetreeScan = scanExec(0)
+          val mergetreeScan = scanExec.head
           assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
 
           val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
           val addFiles =
             fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
-          assert(addFiles.size == 5)
-          assert(
-            addFiles.map(_.rows).sum
-              == 600572)
+          assertResult(6)(addFiles.size)
+          assertResult(600572)(addFiles.map(_.rows).sum)
       }
     }
 
@@ -1320,7 +1284,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
 
     val fileFilter = new WildcardFileFilter("*_0_*")
     var dataFileList = dataPathFile.list(fileFilter)
-    assert(dataFileList.size == 5)
+    assertResult(6)(dataFileList.length)
 
     // re-create the same table
     val dataPath2 = s"$basePath/lineitem_mergetree_5219_s"
@@ -1339,7 +1303,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     assert(dataPathFile.isDirectory && dataPathFile.isDirectory)
 
     dataFileList = dataPathFile.list(fileFilter)
-    assert(dataFileList.size == 5)
+    assertResult(6)(dataFileList.length)
   }
 }
 // scalastyle:off line.size.limit

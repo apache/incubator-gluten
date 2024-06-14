@@ -32,7 +32,6 @@ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FakeRowAdaptor, FileFormatWriter, WriteJobStatsTracker}
 import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeFileFormatWriter
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.util.{Clock, SerializableConfiguration}
 
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -139,20 +138,7 @@ class ClickhouseOptimisticTransaction(
           MergeTreeFileFormatWriter.write(
             sparkSession = spark,
             plan = newQueryPlan,
-            fileFormat = new DeltaMergeTreeFileFormat(
-              metadata,
-              tableV2.dataBaseName,
-              tableV2.tableName,
-              ClickhouseSnapshot.genSnapshotId(tableV2.snapshot),
-              tableV2.orderByKeyOption,
-              tableV2.lowCardKeyOption,
-              tableV2.minmaxIndexKeyOption,
-              tableV2.bfIndexKeyOption,
-              tableV2.setIndexKeyOption,
-              tableV2.primaryKeyOption,
-              tableV2.clickhouseTableConfigs,
-              tableV2.partitionColumns
-            ),
+            fileFormat = tableV2.getFileFormat(metadata),
             // formats.
             committer = committer,
             outputSpec = outputSpec,
