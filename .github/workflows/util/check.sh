@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -13,6 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-clickhouse_add_executable(signal_demo signal_demo.cpp)
-target_link_libraries(signal_demo PRIVATE gluten_clickhouse_backend_libs
-                                          loggers)
+export BASE_COMMIT=$1
+./.github/workflows/util/check.py header branch
+if [ $? -ne 0 ]; then
+  ./.github/workflows/util/check.py header branch --fix
+  echo -e "\n==== Apply using:"
+  echo "patch -p1 \<<EOF"
+  git --no-pager diff
+  echo "EOF"
+  false
+fi
+
