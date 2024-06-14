@@ -36,6 +36,7 @@ import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
 import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.hive.execution.HiveFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
@@ -182,6 +183,30 @@ object VeloxBackendSettings extends BackendSettingsApi {
       bucketSpec: Option[BucketSpec],
       options: Map[String, String]): ValidationResult = {
 
+    // Validate if HiveFileFormat write is supported based on output file type
+    def validateHiveFileFormat(hiveFileFormat: HiveFileFormat): Option[String] = {
+      // Reflect to get access to fileSinkConf which contains the output file format
+      val fileSinkConfField = format.getClass.getDeclaredField("fileSinkConf")
+      fileSinkConfField.setAccessible(true)
+      val fileSinkConf = fileSinkConfField.get(hiveFileFormat)
+      val tableInfoField = fileSinkConf.getClass.getDeclaredField("tableInfo")
+      tableInfoField.setAccessible(true)
+      val tableInfo = tableInfoField.get(fileSinkConf)
+      val getOutputFileFormatClassNameMethod = tableInfo.getClass
+        .getDeclaredMethod("getOutputFileFormatClassName")
+      val outputFileFormatClassName = getOutputFileFormatClassNameMethod.invoke(tableInfo)
+
+      // Match based on the output file format class name
+      outputFileFormatClassName match {
+        case "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat" =>
+          None
+        case _ =>
+          Some(
+            "HiveFileFormat is supported only with Parquet as the output file type"
+          ) // Unsupported format
+      }
+    }
+
     def validateCompressionCodec(): Option[String] = {
       // Velox doesn't support brotli and lzo.
       val unSupportedCompressions = Set("brotli", "lzo", "lz4raw", "lz4_raw")
@@ -194,7 +219,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
     }
 
     // Validate if all types are supported.
-    def validateDateTypes(): Option[String] = {
+    def validateDataTypes(): Option[String] = {
       val unsupportedTypes = fields.flatMap {
         field =>
           field.dataType match {
@@ -222,8 +247,13 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
     def validateFileFormat(): Option[String] = {
       format match {
-        case _: ParquetFileFormat => None
-        case _: FileFormat => Some("Only parquet fileformat is supported in Velox backend.")
+        case _: ParquetFileFormat => None // Parquet is directly supported
+        case h: HiveFileFormat if GlutenConfig.getConf.enableHiveFileFormatWriter =>
+          validateHiveFileFormat(h) // Parquet via Hive SerDe
+        case _ =>
+          Some(
+            "Only ParquetFileFormat and HiveFileFormat are supported."
+          ) // Unsupported format
       }
     }
 
@@ -250,7 +280,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
     validateCompressionCodec()
       .orElse(validateFileFormat())
       .orElse(validateFieldMetadata())
-      .orElse(validateDateTypes())
+      .orElse(validateDataTypes())
       .orElse(validateWriteFilesOptions())
       .orElse(validateBucketSpec()) match {
       case Some(reason) => ValidationResult.notOk(reason)
